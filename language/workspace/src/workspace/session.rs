@@ -78,7 +78,7 @@ impl Workspace {
         Ok(best_root)
     }
 
-    /// Resolve the session that should own one file edit.
+    /// Resolve the session that should own one edit.
     pub(crate) fn edit_session(&self, path: &Path) -> Result<Arc<Session>, Error> {
         // prefer configured root ownership for local edits
         if let Some(root) = self.owned_root(path) {

@@ -1,5 +1,5 @@
 use crate::tests::harness::TestWorkspace;
-use crate::{Error, FileChange};
+use crate::{Edit, Error};
 
 /// Emit an explicit removed update when a tracked file is deleted.
 #[test]
@@ -16,7 +16,7 @@ fn test_apply_file_emits_removed_update() {
 
     let removed = test
         .workspace
-        .apply_file(&path, FileChange::Removed)
+        .apply_file(Edit::Remove { path: path.clone() })
         .expect("expected removed file update");
 
     assert!(
@@ -74,11 +74,11 @@ fn test_open_file_tracks_client_state() {
     let _ = test
         .workspace
         .open_file(
-            &path,
             uri.clone(),
             1,
-            FileChange::Text {
-                content: source.to_string(),
+            Edit::SetText {
+                path: path.clone(),
+                text: source.to_string(),
             },
         )
         .expect("expected open file");
@@ -92,11 +92,11 @@ fn test_open_file_tracks_client_state() {
     let changed = test
         .workspace
         .change_file(
-            &path,
             uri.clone(),
             2,
-            FileChange::Text {
-                content: changed.to_string(),
+            Edit::SetText {
+                path: path.clone(),
+                text: changed.to_string(),
             },
         )
         .expect("expected changed file");
@@ -131,11 +131,11 @@ fn test_change_file_rejects_stale_version() {
     let _ = test
         .workspace
         .open_file(
-            &path,
             uri.clone(),
             2,
-            FileChange::Text {
-                content: source.to_string(),
+            Edit::SetText {
+                path: path.clone(),
+                text: source.to_string(),
             },
         )
         .expect("expected open file");
@@ -143,11 +143,11 @@ fn test_change_file_rejects_stale_version() {
     let error = test
         .workspace
         .change_file(
-            &path,
             uri,
             2,
-            FileChange::Text {
-                content: source.to_string(),
+            Edit::SetText {
+                path,
+                text: source.to_string(),
             },
         )
         .expect_err("expected stale file version");

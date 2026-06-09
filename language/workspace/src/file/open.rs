@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
 use destack_repository::{Repository, Revision};
+use destack_session as session;
 use destack_source::{FileContentId, FileId, Uri};
 
-use crate::FileChange;
 use crate::diagnostic::Error;
 use crate::workspace::Workspace;
 
@@ -17,7 +17,7 @@ pub(crate) struct OpenFile {
     /// Repository content id corresponding to the open content.
     pub content_id: FileContentId,
     /// Current open content.
-    pub content: FileChange,
+    pub content: session::Edit,
 }
 
 impl Workspace {
@@ -43,7 +43,7 @@ impl Workspace {
         uri: Uri,
         version: i32,
         content_id: FileContentId,
-        content: FileChange,
+        content: session::Edit,
     ) {
         // mirror open text into the shared filesystem overlay
         let path = Self::normalized_path(path);
@@ -56,13 +56,10 @@ impl Workspace {
 
         // update the text overlay only for text content
         if let Some(overlay_file_system) = self.overlay_file_system.as_ref() {
-            match content {
-                FileChange::Text { content } => {
-                    overlay_file_system.set_overlay(path.as_path(), content);
-                }
-                FileChange::Bytes { .. } | FileChange::Removed => {
-                    overlay_file_system.remove_overlay(path.as_path());
-                }
+            if let Some(text) = content.text() {
+                overlay_file_system.set_overlay(path.as_path(), text.to_string());
+            } else {
+                overlay_file_system.remove_overlay(path.as_path());
             }
         }
 
@@ -87,11 +84,8 @@ impl Workspace {
     /// Return the current text for one open file.
     pub(crate) fn open_file_text(&self, path: &Path) -> Option<String> {
         let file = self.open_state(path)?;
-        let FileChange::Text { content } = file.content else {
-            return None;
-        };
 
-        Some(content)
+        file.content.text().map(str::to_string)
     }
 
     /// Return true when a path is open.

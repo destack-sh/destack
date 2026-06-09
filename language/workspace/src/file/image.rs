@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use destack_session::{FileUpdate as SessionFileUpdate, FileUpdateKind};
+use destack_session as session;
 use destack_source::{Diagnostic, File, FileContent, FileId, FileType, ModuleId, Uri};
 
 /// In-memory image for one updated file.
@@ -39,6 +39,33 @@ impl From<&File> for FileImage {
     }
 }
 
+/// One coarse kind for a workspace file update.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum UpdateKind {
+    /// One ordinary source change.
+    Source,
+    /// One `destack.json` change.
+    Config,
+}
+
+impl UpdateKind {
+    /// Return the coarse update kind for one path.
+    pub(crate) fn for_path(path: &std::path::Path) -> Self {
+        let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
+            return Self::Source;
+        };
+
+        // destack manifest
+        if file_name == "destack.json" {
+            Self::Config
+        }
+        // ordinary source
+        else {
+            Self::Source
+        }
+    }
+}
+
 /// File update emitted by the workspace.
 #[derive(Debug, Clone)]
 pub struct FileUpdate {
@@ -55,46 +82,60 @@ pub struct FileUpdate {
     /// Whether this update removed the file.
     pub is_removed: bool,
     /// The coarse change kind for this file.
-    pub kind: FileUpdateKind,
+    pub kind: UpdateKind,
     /// Diagnostics for this file.
     pub diagnostics: Vec<Diagnostic>,
 }
 
-impl From<SessionFileUpdate> for FileUpdate {
-    /// Project one session file update into a workspace payload.
-    fn from(update: SessionFileUpdate) -> Self {
+impl From<session::Change> for FileUpdate {
+    /// Project one session change into a workspace payload.
+    fn from(update: session::Change) -> Self {
         match update {
-            SessionFileUpdate::Updated {
+            session::Change::Updated {
                 module_id,
                 file_id,
                 uri,
                 file,
-                kind,
-            } => Self {
-                module_id,
-                file_id,
-                diagnostic_uri: uri,
-                diagnostic_version: None,
-                file: Some(FileImage::from(file.as_ref())),
-                is_removed: false,
-                kind,
-                diagnostics: Vec::new(),
-            },
-            SessionFileUpdate::Removed {
+            } => {
+                let kind = file
+                    .path
+                    .as_deref()
+                    .map(UpdateKind::for_path)
+                    .unwrap_or(UpdateKind::Source);
+
+                Self {
+                    module_id,
+                    file_id,
+                    diagnostic_uri: uri,
+                    diagnostic_version: None,
+                    file: Some(FileImage::from(file.as_ref())),
+                    is_removed: false,
+                    kind,
+                    diagnostics: Vec::new(),
+                }
+            }
+            session::Change::Removed {
                 module_id,
                 file_id,
                 uri,
-                kind,
-            } => Self {
-                module_id,
-                file_id,
-                diagnostic_uri: uri,
-                diagnostic_version: None,
-                file: None,
-                is_removed: true,
-                kind,
-                diagnostics: Vec::new(),
-            },
+            } => {
+                let kind = uri
+                    .to_path_buf()
+                    .as_deref()
+                    .map(UpdateKind::for_path)
+                    .unwrap_or(UpdateKind::Source);
+
+                Self {
+                    module_id,
+                    file_id,
+                    diagnostic_uri: uri,
+                    diagnostic_version: None,
+                    file: None,
+                    is_removed: true,
+                    kind,
+                    diagnostics: Vec::new(),
+                }
+            }
         }
     }
 }
