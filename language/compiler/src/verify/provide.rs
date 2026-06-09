@@ -22,9 +22,9 @@ impl Compiler {
             .map_err(CompilerError::from)?;
         let mut tree = lowered.tree.clone();
 
-        OwnershipCheck.run(&mut tree, &mut state);
+        OwnershipCheck::new(&mut tree, &mut state).run();
         if !state.has_errors() {
-            DropInsert.run(&mut tree, &mut state);
+            DropInsert::new(&mut tree).run();
         }
 
         for diagnostic in state.take_diagnostics() {

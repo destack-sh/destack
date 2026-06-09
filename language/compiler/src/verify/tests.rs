@@ -13,7 +13,7 @@ impl TestProgram {
             self.target_id(),
             &self.provider,
         );
-        OwnershipCheck.run(&mut self.tree, &mut state);
+        OwnershipCheck::new(&mut self.tree, &mut state).run();
 
         collect_errors(&state)
     }
@@ -28,20 +28,14 @@ impl TestProgram {
             self.target_id(),
             &self.provider,
         );
-        OwnershipCheck.run(&mut self.tree, &mut state);
+        OwnershipCheck::new(&mut self.tree, &mut state).run();
 
         (collect_errors(&state), state.borrow_obligations().to_vec())
     }
 
     /// Run drop insertion.
     pub(super) fn run_drop(&mut self) -> String {
-        let mut state = VerifyState::new(
-            self.module_id(),
-            self.profile_id(),
-            self.target_id(),
-            &self.provider,
-        );
-        DropInsert.run(&mut self.tree, &mut state);
+        DropInsert::new(&mut self.tree).run();
 
         mir::format_mir(&self.tree, &self.strings, mir::MirFormatOptions::default())
             .expect("format MIR")

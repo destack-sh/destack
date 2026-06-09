@@ -5,21 +5,21 @@ use destack_mir as mir;
 
 use super::function::{FunctionBorrowContract, FunctionVerifyState};
 
-/// Ownership contract solver for one MIR tree.
-pub(super) struct OwnershipSolver<'a, 'b> {
+/// Ownership check for one MIR tree.
+pub(crate) struct OwnershipCheck<'a, 'b> {
     /// The MIR tree being verified.
     tree: &'a mut mir::Tree,
-    /// Verification context.
-    context: &'a mut VerifyState<'b>,
-    /// Functions participating in ownership solving.
+    /// Verification state.
+    state: &'a mut VerifyState<'b>,
+    /// Functions participating in ownership checking.
     functions: Vec<mir::LocalNodeId<mir::Function>>,
     /// Solved return lifetimes for functions.
     function_lifetimes: HashMap<mir::LocalNodeId<mir::Function>, mir::Lifetime>,
 }
 
-impl<'a, 'b> OwnershipSolver<'a, 'b> {
-    /// Create an ownership solver.
-    pub(super) fn new(tree: &'a mut mir::Tree, context: &'a mut VerifyState<'b>) -> Self {
+impl<'a, 'b> OwnershipCheck<'a, 'b> {
+    /// Create an ownership check.
+    pub(crate) fn new(tree: &'a mut mir::Tree, state: &'a mut VerifyState<'b>) -> Self {
         let functions = tree
             .iter_nodes::<mir::Function>()
             .map(|(id, _)| id)
@@ -27,14 +27,14 @@ impl<'a, 'b> OwnershipSolver<'a, 'b> {
 
         Self {
             tree,
-            context,
+            state,
             functions,
             function_lifetimes: HashMap::new(),
         }
     }
 
     /// Verify ownership and write solved contracts.
-    pub(super) fn run(mut self) {
+    pub(crate) fn run(mut self) {
         self.rebuild_function_metadata();
         self.solve_contracts();
         self.replay_functions();
@@ -52,6 +52,7 @@ impl<'a, 'b> OwnershipSolver<'a, 'b> {
         loop {
             let mut is_changed = false;
 
+            // infer contracts against the previous iteration
             for index in 0..self.functions.len() {
                 let function_id = self.functions[index];
                 let Some(contract) = self.infer_contract(function_id) else {
@@ -94,7 +95,7 @@ impl<'a, 'b> OwnershipSolver<'a, 'b> {
             FunctionVerifyState::for_contract(
                 function,
                 self.tree,
-                self.context,
+                self.state,
                 &self.function_lifetimes,
             )
             .check(),
@@ -111,7 +112,7 @@ impl<'a, 'b> OwnershipSolver<'a, 'b> {
         let function = self.tree.get(function_id);
 
         Some(
-            FunctionVerifyState::new(function, self.tree, self.context, &self.function_lifetimes)
+            FunctionVerifyState::new(function, self.tree, self.state, &self.function_lifetimes)
                 .check(),
         )
     }

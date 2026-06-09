@@ -1,9 +1,9 @@
+mod insert;
 mod owned;
-mod pass;
 mod plan;
 mod state;
 
-pub(crate) use pass::*;
+pub(crate) use insert::*;
 
 #[cfg(test)]
 mod tests;

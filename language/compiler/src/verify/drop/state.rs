@@ -86,7 +86,7 @@ impl DropState {
         }
 
         // move the whole value
-        if place.projections.is_empty() {
+        if place.path.is_root() {
             self.move_value(value);
             return;
         }

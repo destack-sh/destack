@@ -345,10 +345,12 @@ impl<'a> DropPlan<'a> {
         } = instruction
             && self.is_owned_reference(*destination)
         {
-            return vec![self.place_moved_by_projection(
-                *aggregate,
-                mir::PlaceProjection::Field { index: *index },
-            )];
+            return vec![
+                self.place_moved_by_projection(
+                    *aggregate,
+                    mir::Projection::Field { index: *index },
+                ),
+            ];
         }
 
         // move known elements when extracting move-only values
@@ -360,10 +362,9 @@ impl<'a> DropPlan<'a> {
         } = instruction
             && self.is_owned_reference(*destination)
         {
-            return vec![self.place_moved_by_projection(
-                *array,
-                mir::PlaceProjection::Element { index: *index },
-            )];
+            return vec![
+                self.place_moved_by_projection(*array, mir::Projection::fixed_element(*index)),
+            ];
         }
 
         Vec::new()
@@ -476,7 +477,7 @@ impl<'a> DropPlan<'a> {
     fn place_moved_by_projection(
         &self,
         value: mir::ValueReference,
-        projection: mir::PlaceProjection,
+        projection: mir::Projection,
     ) -> mir::Place {
         let place = self.place_for_value(value);
         if self.is_union_value(value) {
@@ -500,7 +501,7 @@ impl<'a> DropPlan<'a> {
         let mir::PlaceOrigin::Value(value) = place.origin else {
             return DropRelease::None;
         };
-        if !place.projections.is_empty() {
+        if !place.path.is_root() {
             return DropRelease::None;
         }
 
@@ -562,7 +563,7 @@ impl<'a> DropPlan<'a> {
                     let field = self.tree.get(*field);
                     self.drop_child_place(
                         &place,
-                        mir::PlaceProjection::Field {
+                        mir::Projection::Field {
                             index: index as u32,
                         },
                         field.ty.clone(),
@@ -576,7 +577,7 @@ impl<'a> DropPlan<'a> {
                 .flat_map(|(index, element)| {
                     self.drop_child_place(
                         &place,
-                        mir::PlaceProjection::Field {
+                        mir::Projection::Field {
                             index: index as u32,
                         },
                         element.clone(),
@@ -590,9 +591,7 @@ impl<'a> DropPlan<'a> {
                 .flat_map(|index| {
                     self.drop_child_place(
                         &place,
-                        mir::PlaceProjection::Element {
-                            index: index as u32,
-                        },
+                        mir::Projection::fixed_element(index as u32),
                         element.clone(),
                         moved,
                     )
@@ -600,7 +599,7 @@ impl<'a> DropPlan<'a> {
                 .collect(),
             mir::Type::Newtype { inner, .. } => self.drop_child_place(
                 &place,
-                mir::PlaceProjection::Field { index: 0 },
+                mir::Projection::Field { index: 0 },
                 inner.clone(),
                 moved,
             ),
@@ -617,7 +616,7 @@ impl<'a> DropPlan<'a> {
     fn drop_child_place(
         &self,
         parent: &mir::Place,
-        projection: mir::PlaceProjection,
+        projection: mir::Projection,
         ty: mir::TypeReference,
         moved: &[mir::Place],
     ) -> Vec<mir::Place> {

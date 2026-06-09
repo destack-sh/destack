@@ -37,7 +37,7 @@ impl PlaceAlias {
     /// Return whether two places with the same origin may alias.
     fn same_origin_may_alias(&self, left: &mir::Place, right: &mir::Place) -> bool {
         // stop once any shared projection proves disjointness
-        for (left, right) in left.projections.iter().zip(&right.projections) {
+        for (left, right) in left.path.projections.iter().zip(&right.path.projections) {
             if self.projections_are_disjoint(left, right) {
                 return false;
             }
@@ -52,11 +52,7 @@ impl PlaceAlias {
     }
 
     /// Return whether two projections are proven disjoint.
-    fn projections_are_disjoint(
-        &self,
-        left: &mir::PlaceProjection,
-        right: &mir::PlaceProjection,
-    ) -> bool {
+    fn projections_are_disjoint(&self, left: &mir::Projection, right: &mir::Projection) -> bool {
         let Some(left) = self.projection_interval(left) else {
             return false;
         };
@@ -68,27 +64,28 @@ impl PlaceAlias {
     }
 
     /// Return the covered half-open index interval for one projection.
-    fn projection_interval(&self, projection: &mir::PlaceProjection) -> Option<(u128, u128)> {
+    fn projection_interval(&self, projection: &mir::Projection) -> Option<(u128, u128)> {
         match projection {
-            mir::PlaceProjection::Field { index } => {
+            mir::Projection::Field { index } => {
                 let start = u128::from(*index);
                 let end = start.checked_add(1)?;
 
                 Some((start, end))
             }
-            mir::PlaceProjection::Element { index } => {
+            mir::Projection::Element { index } => {
                 let start = u128::from(*index);
                 let end = start.checked_add(1)?;
 
                 Some((start, end))
             }
-            mir::PlaceProjection::Index { index } => {
+            mir::Projection::Index { index } => {
                 let start = self.constant_index(*index)?;
                 let end = start.checked_add(1)?;
 
                 Some((start, end))
             }
-            mir::PlaceProjection::Slice { start, length } => {
+            mir::Projection::AnyElement | mir::Projection::Variant { .. } => None,
+            mir::Projection::Slice { start, length } => {
                 let start = self.constant_index(*start)?;
                 let length = self.constant_index(*length)?;
                 let end = start.checked_add(length)?;
