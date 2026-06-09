@@ -32,6 +32,11 @@ pub enum Error {
         /// The validation failure detail.
         detail: String,
     },
+    /// The requested edit is not valid for this workspace operation.
+    InvalidEdit {
+        /// The validation failure detail.
+        detail: String,
+    },
     /// The query expected revision does not match the current revision.
     StaleRevision {
         /// The caller expected revision.
@@ -83,6 +88,9 @@ impl std::fmt::Display for Error {
                     "invalid text change for {}: {detail}",
                     path.display()
                 )
+            }
+            Error::InvalidEdit { detail } => {
+                write!(formatter, "invalid edit: {detail}")
             }
             Error::StaleRevision { expected, current } => {
                 write!(

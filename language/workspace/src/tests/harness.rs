@@ -7,7 +7,7 @@ use destack_source::{
     FileSystem, OverlayFileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem, Uri,
 };
 
-use crate::{FileChange, UpdateBatch, Workspace};
+use crate::{Edit, UpdateBatch, Workspace};
 
 /// Test harness for workspace integration tests.
 #[derive(Debug)]
@@ -88,12 +88,10 @@ impl TestWorkspace {
     /// Apply a text source update for a path.
     pub(super) fn apply_text(&self, path: &Path, source: &str) -> UpdateBatch {
         self.workspace
-            .apply_file(
-                path,
-                FileChange::Text {
-                    content: source.to_string(),
-                },
-            )
+            .apply_file(Edit::SetText {
+                path: path.to_path_buf(),
+                text: source.to_string(),
+            })
             .unwrap_or_else(|error| panic!("failed file update for {}: {error}", path.display()))
     }
 }
