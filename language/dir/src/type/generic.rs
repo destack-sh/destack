@@ -312,14 +312,14 @@ impl GenericParameterBinding {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GenericInstance {
     /// The generic template being applied.
-    pub template: LocalGenericTemplateId,
+    pub template: GlobalGenericTemplateId,
     /// The static arguments in declaration order.
     pub arguments: Vec<StaticArgument>,
 }
 
 impl GenericInstance {
     /// Create a generic instance.
-    pub fn new(template: LocalGenericTemplateId, arguments: Vec<StaticArgument>) -> Self {
+    pub fn new(template: GlobalGenericTemplateId, arguments: Vec<StaticArgument>) -> Self {
         Self {
             template,
             arguments,

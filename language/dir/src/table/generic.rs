@@ -86,11 +86,36 @@ impl<'a> GenericTable<'a> {
             .flat_map(|segment| segment.iter_instances())
     }
 
-    /// Return the generic instance attached to a source node.
-    pub fn node_instance_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalGenericInstanceId> {
+    /// Return the generic instance attached to a source node for one template.
+    pub fn node_instance_id_for_template(
+        &self,
+        node_id: GlobalNodeIdAny,
+        template_id: LocalGenericTemplateId,
+    ) -> Option<LocalGenericInstanceId> {
         for segment in self.segments.iter().rev() {
-            if let Some(instance_id) = segment.node_instance_id(node_id) {
+            if let Some(instance_id) = segment.node_instance_id_for_template(node_id, template_id) {
                 return Some(instance_id);
+            }
+        }
+
+        None
+    }
+
+    /// Iterate generic instances attached to a source node.
+    pub fn node_instance_ids(
+        &self,
+        node_id: GlobalNodeIdAny,
+    ) -> impl Iterator<Item = LocalGenericInstanceId> + '_ {
+        self.segments
+            .iter()
+            .flat_map(move |segment| segment.node_instance_ids(node_id))
+    }
+
+    /// Return the generic template declared by one source node.
+    pub fn template_by_source(&self, source: GlobalNodeIdAny) -> Option<LocalGenericTemplateId> {
+        for (template_id, template) in self.iter_templates() {
+            if template.source == source {
+                return Some(template_id);
             }
         }
 
@@ -154,13 +179,22 @@ impl<'a> GenericTable<'a> {
 
     /// Get a generic instance by id.
     pub fn get_instance(&self, instance_id: LocalGenericInstanceId) -> &GenericInstance {
+        self.get_instance_maybe(instance_id)
+            .unwrap_or_else(|| panic!("DIR generic instance {instance_id:?} is not visible"))
+    }
+
+    /// Get a generic instance by id when it is visible.
+    pub fn get_instance_maybe(
+        &self,
+        instance_id: LocalGenericInstanceId,
+    ) -> Option<&GenericInstance> {
         for segment in self.segments.iter() {
             if let Some(instance) = segment.get_local_instance(instance_id) {
-                return instance;
+                return Some(instance);
             }
         }
 
-        panic!("DIR generic instance {instance_id:?} is not visible")
+        None
     }
 
     /// Get the number of templates in the table.
@@ -210,8 +244,9 @@ pub struct GenericSegment {
     pub(crate) parameters: Arena<GenericParameterBinding>,
     /// Interned generic instances.
     pub(crate) instances: Arena<GenericInstance>,
-    /// Generic instances keyed by DIR node.
-    pub(crate) nodes: IndexMap<GlobalNodeIdAny, LocalGenericInstanceId>,
+    /// Generic instances keyed by source node and template.
+    pub(crate) nodes:
+        IndexMap<GlobalNodeIdAny, IndexMap<LocalGenericTemplateId, LocalGenericInstanceId>>,
 }
 
 impl GenericSegment {
@@ -270,37 +305,78 @@ impl GenericSegment {
         instance_id
     }
 
+    /// Intern one generic instance into this segment.
+    pub fn intern_instance(&mut self, instance: GenericInstance) -> LocalGenericInstanceId {
+        if let Some(instance_id) = self.find_instance(&instance) {
+            return instance_id;
+        }
+
+        self.push_instance(instance)
+    }
+
     /// Attach a generic instance to a source node.
-    pub fn set_node_instance(
+    pub fn bind_node_instance(
         &mut self,
         node_id: GlobalNodeIdAny,
         instance_id: LocalGenericInstanceId,
-    ) {
-        let previous = self.nodes.insert(node_id, instance_id);
-
+    ) -> bool {
         assert!(
-            previous.is_none(),
-            "DIR generic instance already exists for node {node_id:?}"
+            self.contains_instance_id(instance_id),
+            "DIR generic instance {instance_id:?} is not allocated in this segment"
         );
+
+        let template_id = self.get_instance(instance_id).template.local_id;
+        let instances = self.nodes.entry(node_id).or_default();
+        if let Some(previous) = instances.get(&template_id).copied() {
+            assert_eq!(
+                previous, instance_id,
+                "DIR generic source {node_id:?} already has a different instance for template {template_id:?}"
+            );
+
+            return false;
+        }
+
+        instances.insert(template_id, instance_id);
+
+        true
     }
 
-    /// Return the generic instance attached to a source node.
-    pub fn node_instance_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalGenericInstanceId> {
-        self.nodes.get(&node_id).copied()
+    /// Return the generic instance attached to a source node for one template.
+    pub fn node_instance_id_for_template(
+        &self,
+        node_id: GlobalNodeIdAny,
+        template_id: LocalGenericTemplateId,
+    ) -> Option<LocalGenericInstanceId> {
+        self.nodes
+            .get(&node_id)
+            .and_then(|instances| instances.get(&template_id).copied())
+    }
+
+    /// Iterate generic instances attached to a source node.
+    pub fn node_instance_ids(
+        &self,
+        node_id: GlobalNodeIdAny,
+    ) -> impl Iterator<Item = LocalGenericInstanceId> + '_ {
+        self.nodes
+            .get(&node_id)
+            .into_iter()
+            .flat_map(|instances| instances.values().copied())
     }
 
     /// Iterate source nodes with their generic instances.
     pub fn node_instances(
         &self,
     ) -> impl Iterator<Item = (GlobalNodeIdAny, LocalGenericInstanceId)> + '_ {
-        self.nodes
-            .iter()
-            .map(|(node_id, instance_id)| (*node_id, *instance_id))
+        self.nodes.iter().flat_map(|(node_id, instances)| {
+            instances
+                .values()
+                .map(|instance_id| (*node_id, *instance_id))
+        })
     }
 
     /// Return the number of source nodes with generic instances.
     pub fn node_instance_count(&self) -> usize {
-        self.nodes.len()
+        self.nodes.values().map(IndexMap::len).sum()
     }
 
     /// Find one exact generic instance by shape.
@@ -330,9 +406,17 @@ impl GenericSegment {
 
     /// Get a generic instance by id.
     pub fn get_instance(&self, instance_id: LocalGenericInstanceId) -> &GenericInstance {
-        self.get_local_instance(instance_id).unwrap_or_else(|| {
+        self.get_instance_maybe(instance_id).unwrap_or_else(|| {
             panic!("DIR generic instance {instance_id:?} is not allocated in this segment")
         })
+    }
+
+    /// Get a generic instance by id when it is allocated in this segment.
+    pub fn get_instance_maybe(
+        &self,
+        instance_id: LocalGenericInstanceId,
+    ) -> Option<&GenericInstance> {
+        self.get_local_instance(instance_id)
     }
 
     /// Iterate committed generic templates with their local ids.
