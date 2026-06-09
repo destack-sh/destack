@@ -6,18 +6,18 @@ use destack_source::{
     Diagnostic, FileContent, FileId, FileWatchEvent, FileWatchEventKind, FileWatchRescanReason,
     FileWatchStatus,
 };
-use destack_workspace::{FileImage, FileUpdate, FileUpdateKind, Message, MessageKind};
+use destack_workspace::{FileImage, FileUpdate, Message, MessageKind, UpdateKind};
 
 use super::{
     DaemonMessageRecord, DaemonUpdateRecord, DiagnosticBatch, FileUpdateImage, ReloadReason,
     UpdateChange, UpdateChangeKind, WatchEvent, WatchEventKind, WatchStartOptions, WatchStatus,
 };
 
-impl From<FileUpdateKind> for UpdateChangeKind {
-    fn from(kind: FileUpdateKind) -> Self {
+impl From<UpdateKind> for UpdateChangeKind {
+    fn from(kind: UpdateKind) -> Self {
         match kind {
-            FileUpdateKind::Config => Self::Destack,
-            FileUpdateKind::Source => Self::Unknown,
+            UpdateKind::Config => Self::Destack,
+            UpdateKind::Source => Self::Unknown,
         }
     }
 }

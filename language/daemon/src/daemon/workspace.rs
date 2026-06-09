@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use destack_query as query;
 use destack_repository::{DestackLayoutOverride, Environment, Repository, Revision, Settings};
+use destack_session as session;
 use destack_session::{SessionEventHandler, open_repository_from_fs};
 use destack_source::{FileSystem, Uri};
 use destack_workspace::workspace::FileView;
@@ -77,23 +78,21 @@ impl Workspace {
     /// Open one editor file.
     pub fn open_file(
         &self,
-        path: &Path,
         uri: Uri,
         version: i32,
-        change: workspace::FileChange,
+        edit: session::Edit,
     ) -> Result<workspace::UpdateBatch, workspace::Error> {
-        self.workspace.open_file(path, uri, version, change)
+        self.workspace.open_file(uri, version, edit)
     }
 
     /// Change one editor file.
     pub fn change_file(
         &self,
-        path: &Path,
         uri: Uri,
         version: i32,
-        change: workspace::FileChange,
+        edit: session::Edit,
     ) -> Result<workspace::UpdateBatch, workspace::Error> {
-        self.workspace.change_file(path, uri, version, change)
+        self.workspace.change_file(uri, version, edit)
     }
 
     /// Close one editor file.

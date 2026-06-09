@@ -10,7 +10,8 @@ use destack_repository::{
     DestackFile, Edit, ManifestOverride, OptimizeLevel, Ref, Repository, Revision, Target,
     TargetRoot, apply_manifest_overrides_to_json, parse_jsonc_text,
 };
-use destack_session::{FileChange, Session};
+use destack_session as session;
+use destack_session::Session;
 use destack_source::{FileType, ModuleId, ProfileId, TargetId, glob};
 use serde_json::{Map, Value};
 
@@ -306,12 +307,12 @@ impl<'a> CommandContext<'a> {
 
         // publish the new command scoped file text
         self.session
-            .apply_file(
+            .edit(
                 self.session.head(),
-                &path,
-                FileChange::Text {
-                    content: content.to_string(),
-                },
+                vec![session::Edit::SetText {
+                    path: path.clone(),
+                    text: content.to_string(),
+                }],
             )
             .map_err(|error| format!("failed to materialize command input {name}: {error}"))?;
 

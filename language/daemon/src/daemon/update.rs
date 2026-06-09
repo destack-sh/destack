@@ -2,16 +2,20 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use destack_session::SourceUpdate;
+use destack_repository::Revision;
+use destack_session as session;
 use destack_source::{FileWatchEvent, FileWatchEventKind, FileWatchRescanReason, FileWatchStatus};
-use destack_workspace::{Error, FileChange, Message, MessageKind, SourceUpdateResult, UpdateBatch};
+use destack_workspace::{Commit, Error, Message, MessageKind, UpdateBatch};
 
 use crate::{DaemonError, WatchBatch, Workspace};
 
 impl Workspace {
     /// Apply a text update and write it to disk.
     pub fn update_file(&self, path: &Path, content: String) -> Result<UpdateBatch, DaemonError> {
-        self.write_file(path, FileChange::Text { content })
+        self.write_file(session::Edit::SetText {
+            path: path.to_path_buf(),
+            text: content,
+        })
     }
 
     /// Apply a text update without writing to disk.
@@ -21,14 +25,19 @@ impl Workspace {
         content: String,
     ) -> Result<UpdateBatch, DaemonError> {
         self.workspace
-            .apply_file(path, FileChange::Text { content })
+            .apply_file(session::Edit::SetText {
+                path: path.to_path_buf(),
+                text: content,
+            })
             .map_err(DaemonError::from)
     }
 
     /// Mark a file as removed without touching the filesystem.
     pub fn remove_virtual_file(&self, path: &Path) -> Result<UpdateBatch, DaemonError> {
         self.workspace
-            .apply_file(path, FileChange::Removed)
+            .apply_file(session::Edit::Remove {
+                path: path.to_path_buf(),
+            })
             .map_err(DaemonError::from)
     }
 
@@ -51,7 +60,10 @@ impl Workspace {
         };
 
         self.workspace
-            .save_file(path, FileChange::Text { content })
+            .save_file(session::Edit::SetText {
+                path: path.to_path_buf(),
+                text: content,
+            })
             .map_err(DaemonError::from)
     }
 
@@ -72,29 +84,34 @@ impl Workspace {
         };
 
         self.workspace
-            .save_file(path, FileChange::Bytes { content })
+            .save_file(session::Edit::SetBytes {
+                path: path.to_path_buf(),
+                bytes: content,
+            })
             .map_err(DaemonError::from)
     }
 
-    /// Write a file update to disk and workspace state.
-    pub fn write_file(&self, path: &Path, update: FileChange) -> Result<UpdateBatch, DaemonError> {
+    /// Write an edit to disk and workspace state.
+    pub fn write_file(&self, edit: session::Edit) -> Result<UpdateBatch, DaemonError> {
         // write the update to disk first
-        self.write_update_to_disk(path, &update)?;
+        self.write_update_to_disk(&edit)?;
 
-        self.workspace
-            .apply_file(path, update)
-            .map_err(DaemonError::from)
+        self.workspace.apply_file(edit).map_err(DaemonError::from)
     }
 
-    /// Apply an atomic source update through the daemon.
-    pub fn apply_source_update(
+    /// Apply atomic source edits through the daemon.
+    pub fn apply_source_edits(
         &self,
         root: &Path,
-        update: SourceUpdate,
-    ) -> Result<SourceUpdateResult, DaemonError> {
-        self.workspace
-            .apply_source_update(root, update)
-            .map_err(DaemonError::from)
+        base: Option<Revision>,
+        edits: Vec<session::Edit>,
+    ) -> Result<Commit, DaemonError> {
+        let result = match base {
+            Some(base) => self.workspace.apply_source_edits_at(root, base, edits),
+            None => self.workspace.apply_source_edits(root, edits),
+        };
+
+        result.map_err(DaemonError::from)
     }
 
     /// Apply a watch event through the daemon.
@@ -181,39 +198,30 @@ impl Workspace {
         }
     }
 
-    /// Write a file update to disk before applying it.
-    fn write_update_to_disk(&self, path: &Path, update: &FileChange) -> Result<(), DaemonError> {
-        let parent = path.parent();
-        if let Some(parent) = parent {
-            self.repository
-                .file_system()
-                .create_dir_all(parent)
-                .map_err(|error| DaemonError::FileWrite {
-                    path: parent.to_path_buf(),
-                    error,
-                })?;
-        }
-
-        match update {
-            FileChange::Text { content } => {
+    /// Write an edit to disk before applying it.
+    fn write_update_to_disk(&self, edit: &session::Edit) -> Result<(), DaemonError> {
+        match edit {
+            session::Edit::SetText { path, text } => {
+                self.create_parent_directory(path)?;
                 self.repository
                     .file_system()
-                    .write_string(path, content)
+                    .write_string(path, text)
                     .map_err(|error| DaemonError::FileWrite {
                         path: path.to_path_buf(),
                         error,
                     })?;
             }
-            FileChange::Bytes { content } => {
+            session::Edit::SetBytes { path, bytes } => {
+                self.create_parent_directory(path)?;
                 self.repository
                     .file_system()
-                    .write(path, content)
+                    .write(path, bytes)
                     .map_err(|error| DaemonError::FileWrite {
                         path: path.to_path_buf(),
                         error,
                     })?;
             }
-            FileChange::Removed => {
+            session::Edit::Remove { path } => {
                 if let Err(error) = self.repository.file_system().remove_file(path) {
                     if error.kind() != io::ErrorKind::NotFound {
                         return Err(DaemonError::FileWrite {
@@ -223,9 +231,35 @@ impl Workspace {
                     }
                 }
             }
+            session::Edit::EditText { .. } => {
+                return Err(DaemonError::from(Error::InvalidEdit {
+                    detail: "text patch edits cannot be written directly to disk".to_string(),
+                }));
+            }
+            session::Edit::Move { .. } => {
+                return Err(DaemonError::from(Error::InvalidEdit {
+                    detail: "move edits cannot be written directly to disk".to_string(),
+                }));
+            }
         }
 
         Ok(())
+    }
+
+    /// Create the parent directory for one file path.
+    fn create_parent_directory(&self, path: &Path) -> Result<(), DaemonError> {
+        // skip paths without a parent directory
+        let Some(parent) = path.parent() else {
+            return Ok(());
+        };
+
+        self.repository
+            .file_system()
+            .create_dir_all(parent)
+            .map_err(|error| DaemonError::FileWrite {
+                path: parent.to_path_buf(),
+                error,
+            })
     }
 
     /// Handle watch status events.

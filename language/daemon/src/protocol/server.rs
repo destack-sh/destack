@@ -276,7 +276,9 @@ impl Server {
         let code = match error {
             Error::FileMissing { .. } | Error::PathNotInRoot { .. } => ProtocolErrorCode::NotFound,
             Error::StaleOpenFile { .. } => ProtocolErrorCode::Conflict,
-            Error::InvalidTextChange { .. } => ProtocolErrorCode::InvalidRequest,
+            Error::InvalidEdit { .. } | Error::InvalidTextChange { .. } => {
+                ProtocolErrorCode::InvalidRequest
+            }
             Error::StaleRevision { .. } => ProtocolErrorCode::Conflict,
             Error::Repository(_)
             | Error::Session(_)
