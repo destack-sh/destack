@@ -103,7 +103,7 @@ impl ResolveState<'_> {
         let Some(target) = edge.target else {
             return Ok(());
         };
-        self.imports.push_dependency(target);
+        self.imports.push_module(target);
 
         if let Some(items) = items {
             self.resolve_import_items(target, edge.specifier, items)?;
@@ -147,7 +147,7 @@ impl ResolveState<'_> {
     ) -> CompilerResult<()> {
         let Some(local_symbol) = self
             .bindings
-            .symbol_for_declaration(item_id.into_global_any(self.module))
+            .declaration_symbol(item_id.into_global_any(self.module))
         else {
             return Ok(());
         };
@@ -212,7 +212,7 @@ impl ResolveState<'_> {
             return Ok(());
         };
         let specifier = edge.specifier;
-        self.imports.push_dependency(target);
+        self.imports.push_module(target);
 
         for item_id in items {
             self.stats.reexport_items += 1;
