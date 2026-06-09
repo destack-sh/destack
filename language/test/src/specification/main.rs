@@ -12,7 +12,6 @@ use destack_test::specification::{
     SpecificationFormatSuite, SpecificationSuite, format_specification_fixtures,
 };
 
-const SPEC_STACK_BYTES: &str = "268435456";
 const SPEC_CHILD_ENV: &str = "DESTACK_SPEC_CHILD";
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -44,12 +43,6 @@ struct SpecificationOptions {
 
 fn main() -> ExitCode {
     init_tracing();
-
-    // increase worker stack size to reduce aborts from deep type recursion
-    unsafe {
-        // safe: set once before worker threads spawn
-        std::env::set_var("RUST_MIN_STACK", SPEC_STACK_BYTES);
-    }
 
     let options = SpecificationOptions::parse();
 

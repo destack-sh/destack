@@ -145,7 +145,7 @@ const clear = () => {
 };
 
 while (true) {
-    if (state.kind === "ready") {
+    if (state.kind == "ready") {
         clear();
         state.payload;
     }
