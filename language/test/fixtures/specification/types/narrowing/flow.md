@@ -31,7 +31,7 @@ type Idle = { kind: "idle" };
 
 let box: { state: Ready | Idle } = { state: { kind: "ready", payload: "ok" } };
 
-if (box.state.kind === "ready") {
+if (box.state.kind == "ready") {
     const mutate = (target: { state: Ready | Idle }) => {
         target.state = { kind: "idle" };
     };
@@ -53,7 +53,7 @@ type Idle = { kind: "idle" };
 
 let box: { state: Ready | Idle } = { state: { kind: "ready", payload: "ok" } };
 
-if (box.state.kind === "ready") {
+if (box.state.kind == "ready") {
     const writer = (target: { state: Ready | Idle }) => () => {
         target.state = { kind: "idle" };
     };
@@ -117,7 +117,7 @@ A loop iteration that writes a captured local invalidates narrows established ea
 let value: "a" | "b" = "a";
 
 while (true) {
-    if (value === "a") {
+    if (value == "a") {
         value satisfies "a";
         value = "b";
     }

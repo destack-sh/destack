@@ -33,15 +33,26 @@ value satisfies boolean;
 
 ## strict equality
 
-### strict equality accepts primitives
+### strict equality rejects primitives
 
-`===` and `!==` are accepted on primitive identity-compatible values.
+Primitive values do not have runtime identity.
 
 ```ds
 const same = 1 === 1;
+const different = 1 !== 2;
+```
+
+- contains: strict equality
+
+### strict equality accepts sentinels
+
+`===` and `!==` can compare identity sentinels.
+
+```ds
+const same = undefined === undefined;
 same satisfies boolean;
 
-const different = 1 !== 2;
+const different = null !== undefined;
 different satisfies boolean;
 ```
 
