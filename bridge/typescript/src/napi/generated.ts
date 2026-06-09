@@ -28,7 +28,7 @@ import type {
     Diagnostic,
 } from "../diagnostic/diagnostic.generated.js";
 import type {
-    Edit,
+    Replacement,
     FilePatch,
     BatchEdit,
 } from "../diagnostic/edit.generated.js";
@@ -38,17 +38,13 @@ import type { DirResolved } from "../dir/resolved.generated.js";
 import type { Revision } from "../repository/revision.generated.js";
 import type { SessionFile } from "../session/file.generated.js";
 import type { Module } from "../session/module.generated.js";
-import type {
-    FileChange,
-    FileChangeKind,
-} from "../session/source/file.generated.js";
+import type { Change } from "../session/source/file.generated.js";
 import type { Source } from "../session/source/source.generated.js";
 import type {
     TextRange,
     TextEdit,
-    FileEdit,
-    FileUpdate,
-    FileUpdateResult,
+    Edit,
+    Commit,
 } from "../session/source/update.generated.js";
 import type { ComponentId } from "../source/component.generated.js";
 import type {
@@ -878,8 +874,8 @@ export function fromNapiDiagnostic(value: Napi.Diagnostic): Diagnostic {
     };
 }
 
-/** Convert one NAPI Edit into the public bridge shape. */
-export function fromNapiEdit(value: Napi.Edit): Edit {
+/** Convert one NAPI Replacement into the public bridge shape. */
+export function fromNapiReplacement(value: Napi.Replacement): Replacement {
     return {
         span: fromNapiSpan(value.span),
         newText: value.newText,
@@ -890,7 +886,7 @@ export function fromNapiEdit(value: Napi.Edit): Edit {
 export function fromNapiFilePatch(value: Napi.FilePatch): FilePatch {
     return {
         file: fromNapiFileId(value.file),
-        edits: value.edits.map((item) => fromNapiEdit(item)),
+        replacements: value.replacements.map((item) => fromNapiReplacement(item)),
     };
 }
 
@@ -964,24 +960,14 @@ export function fromNapiModule(value: Napi.Module): Module {
     };
 }
 
-/** Convert one NAPI FileChange into the public bridge shape. */
-export function fromNapiFileChange(value: Napi.FileChange): FileChange {
+/** Convert one NAPI Change into the public bridge shape. */
+export function fromNapiChange(value: Napi.Change): Change {
     return {
         path: value.path,
         uri: value.uri,
-        kind: fromNapiFileChangeKind(value.kind),
         isRemoved: value.isRemoved,
         moduleId: value.moduleId == null ? undefined : fromNapiModuleId(value.moduleId),
     };
-}
-
-/** Convert one FileChangeKind from the NAPI transport shape. */
-export function fromNapiFileChangeKind(value: string): FileChangeKind {
-    if (value === "source" || value === "config") {
-        return value;
-    }
-
-    throw new Error(`unknown FileChangeKind: ${value}`);
 }
 
 /** Convert one Source into the NAPI transport shape. */
@@ -997,7 +983,7 @@ export function toNapiSource(value: Source): Napi.Source {
         return {
             kind: "memory",
             root: value.root,
-            edits: value.edits.map((item) => toNapiFileEdit(item)),
+            edits: value.edits.map((item) => toNapiEdit(item)),
         };
     }
 
@@ -1020,8 +1006,8 @@ export function toNapiTextEdit(value: TextEdit): Napi.TextEdit {
     };
 }
 
-/** Convert one FileEdit into the NAPI transport shape. */
-export function toNapiFileEdit(value: FileEdit): Napi.FileEdit {
+/** Convert one Edit into the NAPI transport shape. */
+export function toNapiEdit(value: Edit): Napi.Edit {
     if (value.kind === "setText") {
         return {
             kind: "setText",
@@ -1061,23 +1047,15 @@ export function toNapiFileEdit(value: FileEdit): Napi.FileEdit {
         };
     }
 
-    throw new Error("unknown FileEdit");
+    throw new Error("unknown Edit");
 }
 
-/** Convert one FileUpdate into the NAPI transport shape. */
-export function toNapiFileUpdate(value: FileUpdate): Napi.FileUpdate {
-    return {
-        base: value.base == null ? undefined : toNapiRevision(value.base),
-        edits: value.edits.map((item) => toNapiFileEdit(item)),
-    };
-}
-
-/** Convert one NAPI FileUpdateResult into the public bridge shape. */
-export function fromNapiFileUpdateResult(value: Napi.FileUpdateResult): FileUpdateResult {
+/** Convert one NAPI Commit into the public bridge shape. */
+export function fromNapiCommit(value: Napi.Commit): Commit {
     return {
         before: fromNapiRevision(value.before),
         after: fromNapiRevision(value.after),
-        files: value.files.map((item) => fromNapiFileChange(item)),
+        changes: value.changes.map((item) => fromNapiChange(item)),
     };
 }
 

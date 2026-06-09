@@ -5,7 +5,7 @@ use destack_session as session;
 
 use crate::{Revision, RevisionParseError, bridge};
 
-use super::FileChange;
+use super::Change;
 
 /// One text range in byte offsets.
 #[bridge]
@@ -27,10 +27,10 @@ pub struct TextEdit {
     pub text: String,
 }
 
-/// One file edit accepted by a session update.
+/// One edit accepted by a session.
 #[bridge]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FileEdit {
+pub enum Edit {
     /// Replace or create one text file.
     SetText {
         /// Repository logical path.
@@ -66,26 +66,16 @@ pub enum FileEdit {
     },
 }
 
-/// One file update applied through one session ref.
+/// One committed edit batch.
 #[bridge]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FileUpdate {
-    /// Expected base revision.
-    pub base: Option<Revision>,
-    /// File edits in this atomic update.
-    pub edits: Vec<FileEdit>,
-}
-
-/// File update result.
-#[bridge]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FileUpdateResult {
+pub struct Commit {
     /// Previous revision.
     pub before: Revision,
     /// Updated revision.
     pub after: Revision,
     /// Changed files.
-    pub files: Vec<FileChange>,
+    pub changes: Vec<Change>,
 }
 
 /// Error returned when a source bridge value cannot become a session value.
@@ -95,72 +85,49 @@ pub enum SourceBridgeError {
     Revision(crate::RevisionParseError),
 }
 
-impl FileUpdateResult {
-    /// Convert one session file update result through one live session.
-    pub fn from_session_update(
-        session: &session::Session,
-        result: session::FileUpdateResult,
-    ) -> Self {
-        let session::FileUpdateResult {
+impl Commit {
+    /// Convert one session commit through one live session.
+    pub fn from_session_commit(session: &session::Session, result: session::Commit) -> Self {
+        let session::Commit {
             before,
             after,
-            files,
+            changes,
         } = result;
-        let files = files
+        let changes = changes
             .into_iter()
-            .map(|update| FileChange::from_session_update(session, update))
+            .map(|change| Change::from_session_change(session, change))
             .collect();
 
         Self {
             before: Revision::from_repository(before),
             after: Revision::from_repository(after),
-            files,
+            changes,
         }
     }
 }
 
-impl TryFrom<FileUpdate> for session::FileUpdate {
+impl TryFrom<Edit> for session::Edit {
     type Error = SourceBridgeError;
 
-    /// Convert one bridge file update into one session file update.
-    fn try_from(update: FileUpdate) -> Result<Self, Self::Error> {
-        let base = update
-            .base
-            .map(Revision::into_repository)
-            .transpose()
-            .map_err(SourceBridgeError::from)?;
-        let edits = update
-            .edits
-            .into_iter()
-            .map(session::FileEdit::try_from)
-            .collect::<Result<Vec<_>, _>>()?;
-
-        Ok(session::FileUpdate { base, edits })
-    }
-}
-
-impl TryFrom<FileEdit> for session::FileEdit {
-    type Error = SourceBridgeError;
-
-    /// Convert one bridge file edit into one session file edit.
-    fn try_from(edit: FileEdit) -> Result<Self, Self::Error> {
+    /// Convert one bridge edit into one session edit.
+    fn try_from(edit: Edit) -> Result<Self, Self::Error> {
         match edit {
-            FileEdit::SetText { path, text } => Ok(Self::SetText {
+            Edit::SetText { path, text } => Ok(Self::SetText {
                 path: PathBuf::from(path),
                 text,
             }),
-            FileEdit::EditText { path, edits } => Ok(Self::EditText {
+            Edit::EditText { path, edits } => Ok(Self::EditText {
                 path: PathBuf::from(path),
                 edits: edits.into_iter().map(session::TextEdit::from).collect(),
             }),
-            FileEdit::SetBytes { path, bytes } => Ok(Self::SetBytes {
+            Edit::SetBytes { path, bytes } => Ok(Self::SetBytes {
                 path: PathBuf::from(path),
                 bytes,
             }),
-            FileEdit::Remove { path } => Ok(Self::Remove {
+            Edit::Remove { path } => Ok(Self::Remove {
                 path: PathBuf::from(path),
             }),
-            FileEdit::Move { from, to } => Ok(Self::Move {
+            Edit::Move { from, to } => Ok(Self::Move {
                 from: PathBuf::from(from),
                 to: PathBuf::from(to),
             }),

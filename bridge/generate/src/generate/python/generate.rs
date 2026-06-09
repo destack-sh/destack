@@ -527,8 +527,11 @@ fn session_stub_methods() -> Vec<StubMethod> {
             .with_argument("source: Source"),
         StubMethod::new("revision", "Revision"),
         StubMethod::new("files", "list[SessionFile]"),
-        StubMethod::new("update", "FileUpdateResult").with_argument("update: FileUpdate"),
-        StubMethod::new("reload", "list[FileChange]"),
+        StubMethod::new("edit", "Commit").with_argument("edits: Sequence[Edit]"),
+        StubMethod::new("edit_at", "Commit")
+            .with_argument("revision: Revision")
+            .with_argument("edits: Sequence[Edit]"),
+        StubMethod::new("reload", "list[Change]"),
         StubMethod::new("load_module", "Module").with_argument("path: str"),
         StubMethod::new("provide", "None")
             .with_argument("revision: Revision")

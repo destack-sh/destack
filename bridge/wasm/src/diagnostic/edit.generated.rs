@@ -6,16 +6,16 @@ use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::{FileId, Span};
 
-/// One source edit crossing bridge boundaries.
+/// One source replacement crossing bridge boundaries.
 #[derive(Debug, Clone)]
 #[wasm_bindgen]
-pub struct Edit {
+pub struct Replacement {
     span: Span,
     new_text: String,
 }
 
 #[wasm_bindgen]
-impl Edit {
+impl Replacement {
     /// Create one value.
     #[wasm_bindgen(constructor)]
     pub fn new(span: Span, new_text: String) -> Self {
@@ -35,9 +35,9 @@ impl Edit {
     }
 }
 
-impl Edit {
+impl Replacement {
     /// Convert one bridge value into one WASM value.
-    pub(crate) fn from_bridge(value: bridge::Edit) -> Self {
+    pub(crate) fn from_bridge(value: bridge::Replacement) -> Self {
         Self {
             span: Span::from_bridge(value.span),
             new_text: value.new_text,
@@ -50,15 +50,15 @@ impl Edit {
 #[wasm_bindgen]
 pub struct FilePatch {
     file: FileId,
-    edits: Vec<Edit>,
+    replacements: Vec<Replacement>,
 }
 
 #[wasm_bindgen]
 impl FilePatch {
     /// Create one value.
     #[wasm_bindgen(constructor)]
-    pub fn new(file: FileId, edits: Vec<Edit>) -> Self {
-        Self { file, edits }
+    pub fn new(file: FileId, replacements: Vec<Replacement>) -> Self {
+        Self { file, replacements }
     }
 
     /// Edited file.
@@ -67,10 +67,10 @@ impl FilePatch {
         self.file.clone()
     }
 
-    /// Source edits.
-    #[wasm_bindgen(getter, js_name = "edits")]
-    pub fn edits(&self) -> Vec<Edit> {
-        self.edits.clone()
+    /// Source replacements.
+    #[wasm_bindgen(getter, js_name = "replacements")]
+    pub fn replacements(&self) -> Vec<Replacement> {
+        self.replacements.clone()
     }
 }
 
@@ -79,10 +79,10 @@ impl FilePatch {
     pub(crate) fn from_bridge(value: bridge::FilePatch) -> Self {
         Self {
             file: FileId::from_bridge(value.file),
-            edits: value
-                .edits
+            replacements: value
+                .replacements
                 .into_iter()
-                .map(|item| Edit::from_bridge(item))
+                .map(|item| Replacement::from_bridge(item))
                 .collect(),
         }
     }

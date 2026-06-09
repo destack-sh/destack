@@ -3,9 +3,9 @@ use js_sys::Array;
 use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 
 use crate::{
-    ArtifactKey, ArtifactRecord, ArtifactSidecar, ArtifactVersion, Diagnostic, DirChecked,
-    DirParsed, DirResolved, FileChange, FileUpdate, FileUpdateResult, Module, ProfileId, Revision,
-    SessionFile, Source, js_error,
+    ArtifactKey, ArtifactRecord, ArtifactSidecar, ArtifactVersion, Change, Commit, Diagnostic,
+    DirChecked, DirParsed, DirResolved, Edit, Module, ProfileId, Revision, SessionFile, Source,
+    js_error,
 };
 
 /// Live language session exposed to WebAssembly bindings.
@@ -51,33 +51,43 @@ impl Session {
         Ok(files)
     }
 
-    /// Apply one file update through the default session ref.
+    /// Edit files through the default session ref.
     #[wasm_bindgen]
-    pub fn update(&self, update: FileUpdate) -> Result<FileUpdateResult, JsValue> {
+    pub fn edit(&self, edits: Vec<Edit>) -> Result<Commit, JsValue> {
+        let edits = edits.into_iter().map(Edit::into_bridge).collect();
+        let result = self.session.edit(edits).map_err(js_error)?;
+
+        Ok(Commit::from_bridge(result))
+    }
+
+    /// Edit files when the current revision still matches.
+    #[wasm_bindgen(js_name = editAt)]
+    pub fn edit_at(&self, revision: Revision, edits: Vec<Edit>) -> Result<Commit, JsValue> {
+        let edits = edits.into_iter().map(Edit::into_bridge).collect();
         let result = self
             .session
-            .update(update.into_bridge())
+            .edit_at(revision.into_bridge(), edits)
             .map_err(js_error)?;
 
-        Ok(FileUpdateResult::from_bridge(result))
+        Ok(Commit::from_bridge(result))
     }
 
     /// Reload tracked files from this session backing source.
     #[wasm_bindgen]
     pub fn reload(&self) -> Result<Array, JsValue> {
-        let updates = self
+        let changes = self
             .session
             .reload()
             .map_err(js_error)?
             .into_iter()
-            .map(|update| {
-                let update = FileChange::from_bridge(update);
+            .map(|change| {
+                let change = Change::from_bridge(change);
 
-                JsValue::from(update)
+                JsValue::from(change)
             })
             .collect();
 
-        Ok(updates)
+        Ok(changes)
     }
 
     /// Load one module path into the default session ref.

@@ -32,7 +32,7 @@ from .diagnostic.diagnostic import (
     Diagnostic,
 )
 from .diagnostic.edit import (
-    Edit,
+    Replacement,
     FilePatch,
     BatchEdit,
 )
@@ -55,8 +55,7 @@ from .session.module import (
     Module,
 )
 from .session.source.file import (
-    FileChange,
-    FileChangeKind,
+    Change,
 )
 from .session.source.source import (
     Source,
@@ -64,9 +63,8 @@ from .session.source.source import (
 from .session.source.update import (
     TextRange,
     TextEdit,
-    FileEdit,
-    FileUpdate,
-    FileUpdateResult,
+    Edit,
+    Commit,
 )
 from .source.component import (
     ComponentId,
@@ -113,7 +111,7 @@ __all__ = [
     "DiagnosticHelp",
     "DiagnosticSuggestion",
     "Diagnostic",
-    "Edit",
+    "Replacement",
     "FilePatch",
     "BatchEdit",
     "DirChecked",
@@ -122,14 +120,12 @@ __all__ = [
     "Revision",
     "SessionFile",
     "Module",
-    "FileChange",
-    "FileChangeKind",
+    "Change",
     "Source",
     "TextRange",
     "TextEdit",
-    "FileEdit",
-    "FileUpdate",
-    "FileUpdateResult",
+    "Edit",
+    "Commit",
     "ComponentId",
     "FileId",
     "FileContentId",

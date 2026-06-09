@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 from .file import (
-    FileChange,
-    FileChangeKind,
+    Change,
 )
 from .source import (
     Source,
@@ -12,7 +11,6 @@ from .source import (
 from .update import (
     TextRange,
     TextEdit,
-    FileEdit,
-    FileUpdate,
-    FileUpdateResult,
+    Edit,
+    Commit,
 )

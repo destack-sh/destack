@@ -1,13 +1,9 @@
 import type { SessionFile } from "./file.generated.js";
 import type { Module } from "./module.generated.js";
-import type { FileChange } from "./source/file.generated.js";
+import type { Change } from "./source/file.generated.js";
 import type { Source as SourceInput } from "./source/source.generated.js";
-import type {
-    FileEdit as FileEditInput,
-    FileUpdate,
-    FileUpdateResult,
-    TextEdit,
-} from "./source/update.generated.js";
+import type { Commit, TextEdit } from "./source/update.generated.js";
+import type * as update from "./source/update.generated.js";
 import type { ArtifactKey } from "../artifact/key.generated.js";
 import type { ArtifactRecord } from "../artifact/record.generated.js";
 import type { ArtifactSidecar } from "../artifact/sidecar.generated.js";
@@ -24,33 +20,32 @@ import { openWasmSession } from "../wasm/session.js";
 /** A session source input. */
 export type Source = SourceInput;
 
-/** A file edit accepted by a session update. */
-export type FileEdit = FileEditInput;
+export type Edit = update.Edit;
 
-/** Constructors for file edits. */
-export const FileEdit = {
+/** Constructors for edits. */
+export const Edit = {
     /** Replace or create one text file. */
-    setText(path: string, text: string): FileEdit {
+    setText(path: string, text: string): Edit {
         return { kind: "setText", path, text };
     },
 
     /** Apply text replacements to one tracked text file. */
-    editText(path: string, edits: readonly TextEdit[]): FileEdit {
+    editText(path: string, edits: readonly TextEdit[]): Edit {
         return { kind: "editText", path, edits };
     },
 
     /** Replace or create one binary file. */
-    setBytes(path: string, bytes: Uint8Array | readonly number[]): FileEdit {
+    setBytes(path: string, bytes: Uint8Array | readonly number[]): Edit {
         return { kind: "setBytes", path, bytes };
     },
 
     /** Remove one file. */
-    remove(path: string): FileEdit {
+    remove(path: string): Edit {
         return { kind: "remove", path };
     },
 
     /** Move one file. */
-    move(from: string, to: string): FileEdit {
+    move(from: string, to: string): Edit {
         return { kind: "move", from, to };
     },
 };
@@ -63,7 +58,7 @@ export const Source = {
     },
 
     /** Create one in-memory source. */
-    memory(root: string, edits: readonly FileEdit[]): Source {
+    memory(root: string, edits: readonly Edit[]): Source {
         return { kind: "memory", root, edits };
     },
 };
@@ -74,10 +69,12 @@ export interface Session {
     revision(): Revision;
     /** Return editable repository file paths. */
     files(): readonly SessionFile[];
-    /** Apply one file update. */
-    update(update: FileUpdate): FileUpdateResult;
+    /** Edit files through the current session revision. */
+    edit(edits: readonly Edit[]): Commit;
+    /** Edit files when the current revision still matches. */
+    editAt(revision: Revision, edits: readonly Edit[]): Commit;
     /** Reload tracked files from this session backing source. */
-    reload(): readonly FileChange[];
+    reload(): readonly Change[];
     /** Load one module path into the current session. */
     loadModule(path: string): Module;
     /** Provide root artifacts for one immutable revision. */

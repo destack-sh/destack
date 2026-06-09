@@ -10,13 +10,13 @@ import type { Diagnostic } from "../diagnostic/diagnostic.generated.js";
 import type { SessionFile } from "../session/file.generated.js";
 import type { Module } from "../session/module.generated.js";
 import type { ProfileId } from "../source/profile.generated.js";
-import type { FileChange } from "../session/source/file.generated.js";
+import type { Change } from "../session/source/file.generated.js";
 import type { Source } from "../session/source/source.generated.js";
-import type { FileUpdate, FileUpdateResult } from "../session/source/update.generated.js";
+import type { Commit, Edit } from "../session/source/update.generated.js";
 import type { Revision } from "../repository/revision.generated.js";
 import type { Session } from "../session/session.js";
 import {
-    fromWasmFileChange,
+    fromWasmChange,
     fromWasmArtifactRecord,
     fromWasmArtifactSidecar,
     fromWasmDiagnostic,
@@ -25,13 +25,13 @@ import {
     fromWasmDirResolved,
     fromWasmModule,
     fromWasmSessionFile,
-    fromWasmFileUpdateResult,
+    fromWasmCommit,
     toWasmArtifactKey,
     toWasmModule,
     toWasmProfileId,
     toWasmRevision,
     toWasmSource,
-    toWasmFileUpdate,
+    toWasmEdit,
 } from "./generated.js";
 
 type WasmModule = typeof import("@destack/language-wasm");
@@ -59,14 +59,23 @@ class WasmSession implements Session {
         return this.session.files().map(fromWasmSessionFile);
     }
 
-    public update(update: FileUpdate): FileUpdateResult {
-        const result = this.session.update(toWasmFileUpdate(this.wasm, update));
+    public edit(edits: readonly Edit[]): Commit {
+        const result = this.session.edit(edits.map((edit) => toWasmEdit(this.wasm, edit)));
 
-        return fromWasmFileUpdateResult(result);
+        return fromWasmCommit(result);
     }
 
-    public reload(): readonly FileChange[] {
-        return this.session.reload().map(fromWasmFileChange);
+    public editAt(revision: Revision, edits: readonly Edit[]): Commit {
+        const result = this.session.editAt(
+            toWasmRevision(this.wasm, revision),
+            edits.map((edit) => toWasmEdit(this.wasm, edit)),
+        );
+
+        return fromWasmCommit(result);
+    }
+
+    public reload(): readonly Change[] {
+        return this.session.reload().map(fromWasmChange);
     }
 
     public loadModule(path: string): Module {

@@ -3,15 +3,13 @@
 from ..._native import (
     TextRange,
     TextEdit,
-    FileEdit,
-    FileUpdate,
-    FileUpdateResult,
+    Edit,
+    Commit,
 )
 
 __all__ = [
     "TextRange",
     "TextEdit",
-    "FileEdit",
-    "FileUpdate",
-    "FileUpdateResult",
+    "Edit",
+    "Commit",
 ]

@@ -6,11 +6,10 @@ use destack as rust;
 use crate::core::{DestackError, DestackStatus, read_string, return_status, write_out};
 use crate::generated::{
     DestackArtifactKey, DestackArtifactRecord, DestackArtifactSidecarArray, DestackArtifactVersion,
-    DestackDiagnosticArray, DestackDirChecked, DestackDirParsed, DestackDirResolved,
-    DestackFileChangeArray, DestackFileUpdateResult, DestackModule, DestackProfileId,
-    DestackRevision, DestackSessionFileArray,
+    DestackChangeArray, DestackCommit, DestackDiagnosticArray, DestackDirChecked, DestackDirParsed,
+    DestackDirResolved, DestackModule, DestackProfileId, DestackRevision, DestackSessionFileArray,
 };
-use crate::source::{DestackFileUpdate, DestackSource};
+use crate::source::{DestackEdits, DestackSource};
 
 /// C ABI session handle.
 #[repr(C)]
@@ -81,21 +80,42 @@ pub unsafe extern "C" fn destack_session_files(
     })
 }
 
-/// Apply one file update.
+/// Edit files through the current session revision.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_session_update(
+pub unsafe extern "C" fn destack_session_edit(
     session: *mut DestackSession,
-    update: *const DestackFileUpdate,
-    out: *mut DestackFileUpdateResult,
+    edits: *const DestackEdits,
+    out: *mut DestackCommit,
     error: *mut *mut DestackError,
 ) -> DestackStatus {
     return_status(error, || {
         let session = unsafe { session.as_mut() }.ok_or("session is null")?;
-        let update = unsafe { update.as_ref() }.ok_or("file update is null")?;
-        let result = bridge(session.session.update(update.value.clone()))?;
-        let result = DestackFileUpdateResult::from_bridge(result)?;
+        let edits = unsafe { edits.as_ref() }.ok_or("edit list is null")?;
+        let result = bridge(session.session.edit(edits.value.clone()))?;
+        let result = DestackCommit::from_bridge(result)?;
 
-        write_out(out, result, "file update result output is null")
+        write_out(out, result, "commit output is null")
+    })
+}
+
+/// Edit files when the current revision still matches.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_session_edit_at(
+    session: *mut DestackSession,
+    revision: *const DestackRevision,
+    edits: *const DestackEdits,
+    out: *mut DestackCommit,
+    error: *mut *mut DestackError,
+) -> DestackStatus {
+    return_status(error, || {
+        let session = unsafe { session.as_mut() }.ok_or("session is null")?;
+        let revision = unsafe { revision.as_ref() }.ok_or("revision is null")?;
+        let edits = unsafe { edits.as_ref() }.ok_or("edit list is null")?;
+        let revision = revision.to_bridge()?;
+        let result = bridge(session.session.edit_at(revision, edits.value.clone()))?;
+        let result = DestackCommit::from_bridge(result)?;
+
+        write_out(out, result, "commit output is null")
     })
 }
 
@@ -103,15 +123,15 @@ pub unsafe extern "C" fn destack_session_update(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_session_reload(
     session: *mut DestackSession,
-    out: *mut DestackFileChangeArray,
+    out: *mut DestackChangeArray,
     error: *mut *mut DestackError,
 ) -> DestackStatus {
     return_status(error, || {
         let session = unsafe { session.as_mut() }.ok_or("session is null")?;
-        let updates = bridge(session.session.reload())?;
-        let updates = DestackFileChangeArray::from_bridge(updates)?;
+        let changes = bridge(session.session.reload())?;
+        let changes = DestackChangeArray::from_bridge(changes)?;
 
-        write_out(out, updates, "file change array output is null")
+        write_out(out, changes, "change array output is null")
     })
 }
 

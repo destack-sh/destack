@@ -3,9 +3,8 @@ use napi::Result;
 use napi_derive::napi;
 
 use crate::{
-    ArtifactKey, ArtifactRecord, ArtifactSidecar, ArtifactVersion, Diagnostic, DirChecked,
-    DirParsed, DirResolved, FileChange, FileUpdate, FileUpdateResult, Module, ProfileId, Revision,
-    SessionFile, Source,
+    ArtifactKey, ArtifactRecord, ArtifactSidecar, ArtifactVersion, Change, Commit, Diagnostic,
+    DirChecked, DirParsed, DirResolved, Edit, Module, ProfileId, Revision, SessionFile, Source,
 };
 
 /// Live language session exposed to Node API bindings.
@@ -44,24 +43,38 @@ impl Session {
         Ok(files)
     }
 
-    /// Apply one file update through the default session ref.
+    /// Edit files through the default session ref.
     #[napi]
-    pub fn update(&self, update: FileUpdate) -> Result<FileUpdateResult> {
-        let result = self
-            .session
-            .update(update.into_bridge()?)
-            .map_err(to_error)?;
+    pub fn edit(&self, edits: Vec<Edit>) -> Result<Commit> {
+        let edits = edits
+            .into_iter()
+            .map(Edit::into_bridge)
+            .collect::<Result<Vec<_>>>()?;
+        let result = self.session.edit(edits).map_err(to_error)?;
 
-        Ok(FileUpdateResult::from_bridge(result))
+        Ok(Commit::from_bridge(result))
+    }
+
+    /// Edit files when the current revision still matches.
+    #[napi(js_name = "editAt")]
+    pub fn edit_at(&self, revision: Revision, edits: Vec<Edit>) -> Result<Commit> {
+        let revision = revision.into_bridge()?;
+        let edits = edits
+            .into_iter()
+            .map(Edit::into_bridge)
+            .collect::<Result<Vec<_>>>()?;
+        let result = self.session.edit_at(revision, edits).map_err(to_error)?;
+
+        Ok(Commit::from_bridge(result))
     }
 
     /// Reload tracked files from this session backing source.
     #[napi]
-    pub fn reload(&self) -> Result<Vec<FileChange>> {
-        let updates = self.session.reload().map_err(to_error)?;
-        let updates = updates.into_iter().map(FileChange::from_bridge).collect();
+    pub fn reload(&self) -> Result<Vec<Change>> {
+        let changes = self.session.reload().map_err(to_error)?;
+        let changes = changes.into_iter().map(Change::from_bridge).collect();
 
-        Ok(updates)
+        Ok(changes)
     }
 
     /// Load one module path into the default session ref.

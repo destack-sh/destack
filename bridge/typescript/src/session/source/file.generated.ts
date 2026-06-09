@@ -2,20 +2,15 @@
 
 import type { ModuleId } from "../../source/module.generated.js";
 
-/** Observed file change projected from a file update. */
-export type FileChange = {
+/** One file change observed by a session. */
+export type Change = {
     /** Repository logical path. */
     readonly path: string;
     /** External file URI. */
     readonly uri: string;
-    /** Coarse file change kind. */
-    readonly kind: FileChangeKind;
     /** Whether the file was removed. */
     readonly isRemoved: boolean;
     /** Updated module id when known. */
     readonly moduleId?: ModuleId;
 };
-
-/** One coarse kind for a file change. */
-export type FileChangeKind = "source" | "config";
 

@@ -12,12 +12,12 @@ npm install @destack/language
 ## API
 
 ```ts
-import { FileEdit, Source, openSession } from "@destack/language";
+import { Edit, Source, openSession } from "@destack/language";
 
 const session = await openSession(
     Source.memory("/workspace", [
-        FileEdit.setText("destack.json", "{\"name\":\"@test/app\"}"),
-        FileEdit.setText("src/index.ds", "export const value = 1;"),
+        Edit.setText("destack.json", "{\"name\":\"@test/app\"}"),
+        Edit.setText("src/index.ds", "export const value = 1;"),
     ]),
 );
 

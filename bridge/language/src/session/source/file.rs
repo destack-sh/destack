@@ -2,77 +2,45 @@ use destack_session as session;
 
 use crate::{ModuleId, bridge};
 
-/// Observed file change projected from a file update.
+/// One file change observed by a session.
 #[bridge]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FileChange {
+pub struct Change {
     /// Repository logical path.
     pub path: String,
     /// External file URI.
     pub uri: String,
-    /// Coarse file change kind.
-    pub kind: FileChangeKind,
     /// Whether the file was removed.
     pub is_removed: bool,
     /// Updated module id when known.
     pub module_id: Option<ModuleId>,
 }
 
-/// One coarse kind for a file change.
-#[bridge]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum FileChangeKind {
-    /// One ordinary source change.
-    Source,
-    /// One `destack.json` change.
-    Config,
-}
+impl Change {
+    /// Convert one session change through one live session.
+    pub fn from_session_change(session: &session::Session, change: session::Change) -> Self {
+        let path = session_change_path(session, &change);
 
-impl FileChange {
-    /// Convert one session file change through one live session.
-    pub fn from_session_update(session: &session::Session, update: session::FileChange) -> Self {
-        let path = session_file_change_path(session, &update);
-
-        Self::from_session(path, update)
+        Self::from_session(path, change)
     }
 
-    /// Convert one session file change into one bridge file change.
-    pub fn from_session(path: String, update: session::FileChange) -> Self {
-        let uri = update.uri().to_string();
-        let kind = FileChangeKind::from_session(update.kind());
-        let is_removed = update.is_removed();
-        let module_id = update.module_id().map(ModuleId::from_source);
+    /// Convert one session change into one bridge change.
+    pub fn from_session(path: String, change: session::Change) -> Self {
+        let uri = change.uri().to_string();
+        let is_removed = change.is_removed();
+        let module_id = change.module_id().map(ModuleId::from_source);
 
         Self {
             path,
             uri,
-            kind,
             is_removed,
             module_id,
         }
     }
 }
 
-impl FileChangeKind {
-    /// Convert one session file change kind into one bridge kind.
-    pub fn from_session(kind: session::FileChangeKind) -> Self {
-        match kind {
-            session::FileChangeKind::Source => Self::Source,
-            session::FileChangeKind::Config => Self::Config,
-        }
-    }
-
-    /// Return the external file change kind label.
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Source => "source",
-            Self::Config => "config",
-        }
-    }
-}
-
-/// Return the repository logical path for one file change.
-fn session_file_change_path(session: &session::Session, update: &session::FileChange) -> String {
+/// Return the repository logical path for one session change.
+fn session_change_path(session: &session::Session, update: &session::Change) -> String {
     if let Some(file) = update.file()
         && let Some(path) = file.path.as_deref()
     {

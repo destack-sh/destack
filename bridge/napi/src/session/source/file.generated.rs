@@ -6,40 +6,28 @@ use napi_derive::napi;
 
 use crate::ModuleId;
 
-/// Observed file change projected from a file update.
+/// One file change observed by a session.
 #[derive(Debug)]
 #[napi(object)]
-pub struct FileChange {
+pub struct Change {
     /// Repository logical path.
     pub path: String,
     /// External file URI.
     pub uri: String,
-    /// Coarse file change kind.
-    pub kind: String,
     /// Whether the file was removed.
     pub is_removed: bool,
     /// Updated module id when known.
     pub module_id: Option<ModuleId>,
 }
 
-impl FileChange {
+impl Change {
     /// Convert one bridge value into one NAPI value.
-    pub(crate) fn from_bridge(value: bridge::FileChange) -> Self {
+    pub(crate) fn from_bridge(value: bridge::Change) -> Self {
         Self {
             path: value.path,
             uri: value.uri,
-            kind: file_change_kind_label(value.kind),
             is_removed: value.is_removed,
             module_id: value.module_id.map(|item| ModuleId::from_bridge(item)),
         }
     }
-}
-
-/// Return one target enum label.
-fn file_change_kind_label(value: bridge::FileChangeKind) -> String {
-    let label = match value {
-        bridge::FileChangeKind::Source => "source",
-        bridge::FileChangeKind::Config => "config",
-    };
-    label.to_string()
 }

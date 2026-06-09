@@ -13,7 +13,7 @@ from .diagnostic import (
     Diagnostic,
 )
 from .edit import (
-    Edit,
+    Replacement,
     FilePatch,
     BatchEdit,
 )

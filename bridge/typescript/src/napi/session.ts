@@ -10,13 +10,13 @@ import type { Diagnostic } from "../diagnostic/diagnostic.generated.js";
 import type { SessionFile } from "../session/file.generated.js";
 import type { Module } from "../session/module.generated.js";
 import type { ProfileId } from "../source/profile.generated.js";
-import type { FileChange } from "../session/source/file.generated.js";
+import type { Change } from "../session/source/file.generated.js";
 import type { Source } from "../session/source/source.generated.js";
-import type { FileUpdate, FileUpdateResult } from "../session/source/update.generated.js";
+import type { Commit, Edit } from "../session/source/update.generated.js";
 import type { Revision } from "../repository/revision.generated.js";
 import type { Session } from "../session/session.js";
 import {
-    fromNapiFileChange,
+    fromNapiChange,
     fromNapiArtifactRecord,
     fromNapiArtifactSidecar,
     fromNapiArtifactVersion,
@@ -26,12 +26,12 @@ import {
     fromNapiDirResolved,
     fromNapiModule,
     fromNapiSessionFile,
-    fromNapiFileUpdateResult,
+    fromNapiCommit,
     toNapiArtifactKey,
     toNapiModule,
     toNapiProfileId,
     toNapiSource,
-    toNapiFileUpdate,
+    toNapiEdit,
 } from "./generated.js";
 
 type NapiModule = typeof import("@destack/language-napi");
@@ -55,14 +55,20 @@ class NativeSession implements Session {
         return this.session.files().map(fromNapiSessionFile);
     }
 
-    public update(update: FileUpdate): FileUpdateResult {
-        const result = this.session.update(toNapiFileUpdate(update));
+    public edit(edits: readonly Edit[]): Commit {
+        const result = this.session.edit(edits.map(toNapiEdit));
 
-        return fromNapiFileUpdateResult(result);
+        return fromNapiCommit(result);
     }
 
-    public reload(): readonly FileChange[] {
-        return this.session.reload().map(fromNapiFileChange);
+    public editAt(revision: Revision, edits: readonly Edit[]): Commit {
+        const result = this.session.editAt(revision, edits.map(toNapiEdit));
+
+        return fromNapiCommit(result);
+    }
+
+    public reload(): readonly Change[] {
+        return this.session.reload().map(fromNapiChange);
     }
 
     public loadModule(path: string): Module {

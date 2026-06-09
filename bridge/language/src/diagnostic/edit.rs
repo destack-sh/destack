@@ -2,10 +2,10 @@ use destack_source as source;
 
 use crate::{FileId, SourceIdParseError, Span, bridge};
 
-/// One source edit crossing bridge boundaries.
+/// One source replacement crossing bridge boundaries.
 #[bridge]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Edit {
+pub struct Replacement {
     /// Source span to replace.
     pub span: Span,
     /// Replacement text.
@@ -18,8 +18,8 @@ pub struct Edit {
 pub struct FilePatch {
     /// Edited file.
     pub file: FileId,
-    /// Source edits.
-    pub edits: Vec<Edit>,
+    /// Source replacements.
+    pub replacements: Vec<Replacement>,
 }
 
 /// Edits across multiple files.
@@ -30,8 +30,8 @@ pub struct BatchEdit {
     pub files: Vec<FilePatch>,
 }
 
-impl Edit {
-    /// Convert one source edit into one bridge edit.
+impl Replacement {
+    /// Convert one source edit into one bridge replacement.
     pub fn from_source(edit: source::Edit) -> Self {
         Self {
             span: edit.span.into(),
@@ -39,7 +39,7 @@ impl Edit {
         }
     }
 
-    /// Convert this bridge edit into one source edit.
+    /// Convert this bridge replacement into one source edit.
     pub fn into_source(self) -> Result<source::Edit, SourceIdParseError> {
         Ok(source::Edit::replace(
             self.span.into_source()?,
@@ -49,21 +49,25 @@ impl Edit {
 }
 
 impl FilePatch {
-    /// Convert one source file edit into one bridge file edit.
+    /// Convert one source file edit into one bridge file patch.
     pub fn from_source(edit: source::FileEdit) -> Self {
         Self {
             file: edit.file.into(),
-            edits: edit.edits.into_iter().map(Edit::from_source).collect(),
+            replacements: edit
+                .edits
+                .into_iter()
+                .map(Replacement::from_source)
+                .collect(),
         }
     }
 
-    /// Convert this bridge file edit into one source file edit.
+    /// Convert this bridge file patch into one source file edit.
     pub fn into_source(self) -> Result<source::FileEdit, SourceIdParseError> {
         let file = self.file.into_source()?;
         let edits = self
-            .edits
+            .replacements
             .into_iter()
-            .map(Edit::into_source)
+            .map(Replacement::into_source)
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(source::FileEdit::with_edits(file, edits))
@@ -90,24 +94,24 @@ impl BatchEdit {
     }
 }
 
-impl From<source::Edit> for Edit {
-    /// Convert one source edit into one bridge edit.
+impl From<source::Edit> for Replacement {
+    /// Convert one source edit into one bridge replacement.
     fn from(edit: source::Edit) -> Self {
         Self::from_source(edit)
     }
 }
 
-impl TryFrom<Edit> for source::Edit {
+impl TryFrom<Replacement> for source::Edit {
     type Error = SourceIdParseError;
 
-    /// Convert one bridge edit into one source edit.
-    fn try_from(edit: Edit) -> Result<Self, Self::Error> {
-        edit.into_source()
+    /// Convert one bridge replacement into one source edit.
+    fn try_from(replacement: Replacement) -> Result<Self, Self::Error> {
+        replacement.into_source()
     }
 }
 
 impl From<source::FileEdit> for FilePatch {
-    /// Convert one source file edit into one bridge file edit.
+    /// Convert one source file edit into one bridge file patch.
     fn from(edit: source::FileEdit) -> Self {
         Self::from_source(edit)
     }
@@ -116,9 +120,9 @@ impl From<source::FileEdit> for FilePatch {
 impl TryFrom<FilePatch> for source::FileEdit {
     type Error = SourceIdParseError;
 
-    /// Convert one bridge file edit into one source file edit.
-    fn try_from(edit: FilePatch) -> Result<Self, Self::Error> {
-        edit.into_source()
+    /// Convert one bridge file patch into one source file edit.
+    fn try_from(patch: FilePatch) -> Result<Self, Self::Error> {
+        patch.into_source()
     }
 }
 

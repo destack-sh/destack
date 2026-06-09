@@ -1,6 +1,6 @@
 use crate::bridge;
 
-use super::FileEdit;
+use super::Edit;
 
 /// Source input used to open a live session.
 #[bridge]
@@ -11,12 +11,12 @@ pub enum Source {
         /// Source root or child path.
         path: String,
     },
-    /// In-memory filesystem source seeded by file edits.
+    /// In-memory filesystem source seeded by edits.
     Memory {
         /// Source root path used for repository identity.
         root: String,
-        /// File edits used to seed the memory filesystem.
-        edits: Vec<FileEdit>,
+        /// Edits used to seed the memory filesystem.
+        edits: Vec<Edit>,
     },
 }
 
@@ -27,7 +27,7 @@ impl Source {
     }
 
     /// Create one memory source input.
-    pub fn memory(root: impl Into<String>, edits: Vec<FileEdit>) -> Self {
+    pub fn memory(root: impl Into<String>, edits: Vec<Edit>) -> Self {
         Self::Memory {
             root: root.into(),
             edits,

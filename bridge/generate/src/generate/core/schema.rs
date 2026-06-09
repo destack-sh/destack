@@ -481,8 +481,7 @@ impl Item {
                 | "Source"
                 | "TextRange"
                 | "TextEdit"
-                | "FileEdit"
-                | "FileUpdate"
+                | "Edit"
                 | "Module"
         )
     }
@@ -501,7 +500,7 @@ impl Item {
                 | "FileContentId"
                 | "FileContent"
                 | "Span"
-                | "Edit"
+                | "Replacement"
                 | "FilePatch"
                 | "BatchEdit"
                 | "DiagnosticSeverity"
@@ -528,8 +527,8 @@ impl Item {
                 | "DirChecked"
                 | "SessionFile"
                 | "Module"
-                | "FileChange"
-                | "FileUpdateResult"
+                | "Change"
+                | "Commit"
         )
     }
 

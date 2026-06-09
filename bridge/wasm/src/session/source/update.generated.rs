@@ -4,7 +4,7 @@ use destack_bridge_language as bridge;
 
 use wasm_bindgen::prelude::wasm_bindgen;
 
-use crate::{FileChange, Revision};
+use crate::{Change, Revision};
 
 /// One text range in byte offsets.
 #[derive(Debug, Clone)]
@@ -84,16 +84,16 @@ impl TextEdit {
     }
 }
 
-/// One file edit accepted by a session update.
+/// One edit accepted by a session.
 #[derive(Debug, Clone)]
 #[wasm_bindgen]
-pub struct FileEdit {
-    content: FileEditContent,
+pub struct Edit {
+    content: EditContent,
 }
 
 /// Concrete payload enum content.
 #[derive(Debug, Clone)]
-enum FileEditContent {
+enum EditContent {
     /// Replace or create one text file.
     SetText {
         /// Repository logical path.
@@ -130,12 +130,12 @@ enum FileEditContent {
 }
 
 #[wasm_bindgen]
-impl FileEdit {
+impl Edit {
     /// Create one payload variant.
     #[wasm_bindgen(js_name = "setText")]
     pub fn set_text(path: String, text: String) -> Self {
         Self {
-            content: FileEditContent::SetText { path, text },
+            content: EditContent::SetText { path, text },
         }
     }
 
@@ -143,7 +143,7 @@ impl FileEdit {
     #[wasm_bindgen(js_name = "editText")]
     pub fn edit_text(path: String, edits: Vec<TextEdit>) -> Self {
         Self {
-            content: FileEditContent::EditText { path, edits },
+            content: EditContent::EditText { path, edits },
         }
     }
 
@@ -151,7 +151,7 @@ impl FileEdit {
     #[wasm_bindgen(js_name = "setBytes")]
     pub fn set_bytes(path: String, bytes: Vec<u8>) -> Self {
         Self {
-            content: FileEditContent::SetBytes { path, bytes },
+            content: EditContent::SetBytes { path, bytes },
         }
     }
 
@@ -159,7 +159,7 @@ impl FileEdit {
     #[wasm_bindgen(js_name = "remove")]
     pub fn remove(path: String) -> Self {
         Self {
-            content: FileEditContent::Remove { path },
+            content: EditContent::Remove { path },
         }
     }
 
@@ -167,88 +167,45 @@ impl FileEdit {
     #[wasm_bindgen(js_name = "move")]
     pub fn move_file(from: String, to: String) -> Self {
         Self {
-            content: FileEditContent::Move { from, to },
+            content: EditContent::Move { from, to },
         }
     }
 }
 
-impl FileEdit {
+impl Edit {
     /// Convert this WASM payload enum into one bridge enum.
-    pub(crate) fn into_bridge(self) -> bridge::FileEdit {
+    pub(crate) fn into_bridge(self) -> bridge::Edit {
         match self.content {
-            FileEditContent::SetText { path, text } => bridge::FileEdit::SetText { path, text },
-            FileEditContent::EditText { path, edits } => bridge::FileEdit::EditText {
+            EditContent::SetText { path, text } => bridge::Edit::SetText { path, text },
+            EditContent::EditText { path, edits } => bridge::Edit::EditText {
                 path,
                 edits: edits.into_iter().map(|item| item.into_bridge()).collect(),
             },
-            FileEditContent::SetBytes { path, bytes } => bridge::FileEdit::SetBytes { path, bytes },
-            FileEditContent::Remove { path } => bridge::FileEdit::Remove { path },
-            FileEditContent::Move { from, to } => bridge::FileEdit::Move { from, to },
+            EditContent::SetBytes { path, bytes } => bridge::Edit::SetBytes { path, bytes },
+            EditContent::Remove { path } => bridge::Edit::Remove { path },
+            EditContent::Move { from, to } => bridge::Edit::Move { from, to },
         }
     }
 }
 
-/// One file update applied through one session ref.
+/// One committed edit batch.
 #[derive(Debug, Clone)]
 #[wasm_bindgen]
-pub struct FileUpdate {
-    base: Option<Revision>,
-    edits: Vec<FileEdit>,
-}
-
-#[wasm_bindgen]
-impl FileUpdate {
-    /// Create one value.
-    #[wasm_bindgen(constructor)]
-    pub fn new(base: Option<Revision>, edits: Vec<FileEdit>) -> Self {
-        Self { base, edits }
-    }
-
-    /// Expected base revision.
-    #[wasm_bindgen(getter, js_name = "base")]
-    pub fn base(&self) -> Option<Revision> {
-        self.base.clone()
-    }
-
-    /// File edits in this atomic update.
-    #[wasm_bindgen(getter, js_name = "edits")]
-    pub fn edits(&self) -> Vec<FileEdit> {
-        self.edits.clone()
-    }
-}
-
-impl FileUpdate {
-    /// Convert this WASM value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::FileUpdate {
-        bridge::FileUpdate {
-            base: self.base.map(|item| item.into_bridge()),
-            edits: self
-                .edits
-                .into_iter()
-                .map(|item| item.into_bridge())
-                .collect(),
-        }
-    }
-}
-
-/// File update result.
-#[derive(Debug, Clone)]
-#[wasm_bindgen]
-pub struct FileUpdateResult {
+pub struct Commit {
     before: Revision,
     after: Revision,
-    files: Vec<FileChange>,
+    changes: Vec<Change>,
 }
 
 #[wasm_bindgen]
-impl FileUpdateResult {
+impl Commit {
     /// Create one value.
     #[wasm_bindgen(constructor)]
-    pub fn new(before: Revision, after: Revision, files: Vec<FileChange>) -> Self {
+    pub fn new(before: Revision, after: Revision, changes: Vec<Change>) -> Self {
         Self {
             before,
             after,
-            files,
+            changes,
         }
     }
 
@@ -265,22 +222,22 @@ impl FileUpdateResult {
     }
 
     /// Changed files.
-    #[wasm_bindgen(getter, js_name = "files")]
-    pub fn files(&self) -> Vec<FileChange> {
-        self.files.clone()
+    #[wasm_bindgen(getter, js_name = "changes")]
+    pub fn changes(&self) -> Vec<Change> {
+        self.changes.clone()
     }
 }
 
-impl FileUpdateResult {
+impl Commit {
     /// Convert one bridge value into one WASM value.
-    pub(crate) fn from_bridge(value: bridge::FileUpdateResult) -> Self {
+    pub(crate) fn from_bridge(value: bridge::Commit) -> Self {
         Self {
             before: Revision::from_bridge(value.before),
             after: Revision::from_bridge(value.after),
-            files: value
-                .files
+            changes: value
+                .changes
                 .into_iter()
-                .map(|item| FileChange::from_bridge(item))
+                .map(|item| Change::from_bridge(item))
                 .collect(),
         }
     }

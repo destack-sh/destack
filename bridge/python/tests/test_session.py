@@ -1,7 +1,7 @@
 import re
 import unittest
 
-from destack import VERSION, ArtifactKey, FileEdit, Session, Source, version
+from destack import VERSION, ArtifactKey, Edit, Session, Source, version
 
 
 class DestackSessionTest(unittest.TestCase):
@@ -13,8 +13,8 @@ class DestackSessionTest(unittest.TestCase):
         source = Source.memory(
             "/virtual",
             [
-                FileEdit.set_text("destack.json", '{"name":"@test/app"}'),
-                FileEdit.set_text("src/index.ds", "export const value = 1;"),
+                Edit.set_text("destack.json", '{"name":"@test/app"}'),
+                Edit.set_text("src/index.ds", "export const value = 1;"),
             ],
         )
 
@@ -27,8 +27,8 @@ class DestackSessionTest(unittest.TestCase):
         source = Source.memory(
             "/virtual",
             [
-                FileEdit.set_text("destack.json", '{"name":"@test/app"}'),
-                FileEdit.set_text("src/index.ds", "export const value = 1;"),
+                Edit.set_text("destack.json", '{"name":"@test/app"}'),
+                Edit.set_text("src/index.ds", "export const value = 1;"),
             ],
         )
 

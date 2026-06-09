@@ -1,8 +1,7 @@
 # generated bridge target, do not edit
 
 from .file import (
-    FileChange,
-    FileChangeKind,
+    Change,
 )
 from .source import (
     Source,
@@ -10,18 +9,15 @@ from .source import (
 from .update import (
     TextRange,
     TextEdit,
-    FileEdit,
-    FileUpdate,
-    FileUpdateResult,
+    Edit,
+    Commit,
 )
 
 __all__ = [
-    "FileChange",
-    "FileChangeKind",
+    "Change",
     "Source",
     "TextRange",
     "TextEdit",
-    "FileEdit",
-    "FileUpdate",
-    "FileUpdateResult",
+    "Edit",
+    "Commit",
 ]

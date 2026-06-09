@@ -35,7 +35,7 @@ from .diagnostic.diagnostic import (
     Diagnostic,
 )
 from .diagnostic.edit import (
-    Edit,
+    Replacement,
     FilePatch,
     BatchEdit,
 )
@@ -58,8 +58,7 @@ from .session.module import (
     Module,
 )
 from .session.source.file import (
-    FileChange,
-    FileChangeKind,
+    Change,
 )
 from .session.source.source import (
     Source,
@@ -67,9 +66,8 @@ from .session.source.source import (
 from .session.source.update import (
     TextRange,
     TextEdit,
-    FileEdit,
-    FileUpdate,
-    FileUpdateResult,
+    Edit,
+    Commit,
 )
 from .source.component import (
     ComponentId,
@@ -109,9 +107,11 @@ class Session:
 
     def files(self) -> list[SessionFile]: ...
 
-    def update(self, update: FileUpdate) -> FileUpdateResult: ...
+    def edit(self, edits: Sequence[Edit]) -> Commit: ...
 
-    def reload(self) -> list[FileChange]: ...
+    def edit_at(self, revision: Revision, edits: Sequence[Edit]) -> Commit: ...
+
+    def reload(self) -> list[Change]: ...
 
     def load_module(self, path: str) -> Module: ...
 

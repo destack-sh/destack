@@ -57,7 +57,7 @@ impl Session {
             bridge::Source::Memory { root, edits } => {
                 let edits = edits
                     .into_iter()
-                    .map(session::FileEdit::try_from)
+                    .map(session::Edit::try_from)
                     .collect::<std::result::Result<Vec<_>, _>>()
                     .map_err(Error::new)?;
 
@@ -106,32 +106,53 @@ impl Session {
         Ok(files)
     }
 
-    /// Apply one file update through the default session ref.
-    pub fn update(&self, update: bridge::FileUpdate) -> Result<bridge::FileUpdateResult> {
-        let update = session::FileUpdate::try_from(update).map_err(Error::new)?;
+    /// Edit files through the default session ref.
+    pub fn edit(&self, edits: Vec<bridge::Edit>) -> Result<bridge::Commit> {
+        let edits = edits
+            .into_iter()
+            .map(session::Edit::try_from)
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(Error::new)?;
         let result = self
             .session
-            .update(self.session.head(), update)
+            .edit(self.session.head(), edits)
             .map_err(Error::new)?;
 
-        Ok(bridge::FileUpdateResult::from_session_update(
-            &self.session,
-            result,
-        ))
+        Ok(bridge::Commit::from_session_commit(&self.session, result))
+    }
+
+    /// Edit files when the default session ref still points at one revision.
+    pub fn edit_at(
+        &self,
+        revision: bridge::Revision,
+        edits: Vec<bridge::Edit>,
+    ) -> Result<bridge::Commit> {
+        let revision = revision.into_repository().map_err(Error::new)?;
+        let edits = edits
+            .into_iter()
+            .map(session::Edit::try_from)
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(Error::new)?;
+        let result = self
+            .session
+            .edit_at(self.session.head(), revision, edits)
+            .map_err(Error::new)?;
+
+        Ok(bridge::Commit::from_session_commit(&self.session, result))
     }
 
     /// Reload tracked files from this session backing source.
-    pub fn reload(&self) -> Result<Vec<bridge::FileChange>> {
-        let updates = self
+    pub fn reload(&self) -> Result<Vec<bridge::Change>> {
+        let changes = self
             .session
             .reload_from_fs(self.session.head())
             .map_err(Error::new)?;
-        let updates = updates
+        let changes = changes
             .into_iter()
-            .map(|update| bridge::FileChange::from_session_update(&self.session, update))
+            .map(|change| bridge::Change::from_session_change(&self.session, change))
             .collect();
 
-        Ok(updates)
+        Ok(changes)
     }
 
     /// Load one module path into the default session ref.

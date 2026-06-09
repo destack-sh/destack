@@ -9,7 +9,7 @@ from destack.repository.revision import (
 )
 
 from destack.session.source.file import (
-    FileChange,
+    Change,
 )
 
 class TextRange:
@@ -38,28 +38,28 @@ class TextEdit:
     @property
     def text(self) -> str: ...
 
-class FileEdit:
-    """One file edit accepted by a session update."""
+class Edit:
+    """One edit accepted by a session."""
 
     """Replace or create one text file."""
     @staticmethod
-    def set_text(path: str, text: str) -> FileEdit: ...
+    def set_text(path: str, text: str) -> Edit: ...
 
     """Apply text replacements to one tracked text file."""
     @staticmethod
-    def edit_text(path: str, edits: Sequence[TextEdit]) -> FileEdit: ...
+    def edit_text(path: str, edits: Sequence[TextEdit]) -> Edit: ...
 
     """Replace or create one binary file."""
     @staticmethod
-    def set_bytes(path: str, bytes: bytes | bytearray | Sequence[int]) -> FileEdit: ...
+    def set_bytes(path: str, bytes: bytes | bytearray | Sequence[int]) -> Edit: ...
 
     """Remove one file."""
     @staticmethod
-    def remove(path: str) -> FileEdit: ...
+    def remove(path: str) -> Edit: ...
 
     """Move one file."""
     @staticmethod
-    def move_file(from_: str, to: str) -> FileEdit: ...
+    def move_file(from_: str, to: str) -> Edit: ...
 
     @property
     def kind(self) -> str: ...
@@ -82,23 +82,10 @@ class FileEdit:
     @property
     def to(self) -> str | None: ...
 
-class FileUpdate:
-    """One file update applied through one session ref."""
+class Commit:
+    """One committed edit batch."""
 
-    def __init__(self, base: Revision | None, edits: Sequence[FileEdit]) -> None: ...
-
-    """Expected base revision."""
-    @property
-    def base(self) -> Revision | None: ...
-
-    """File edits in this atomic update."""
-    @property
-    def edits(self) -> list[FileEdit]: ...
-
-class FileUpdateResult:
-    """File update result."""
-
-    def __init__(self, before: Revision, after: Revision, files: Sequence[FileChange]) -> None: ...
+    def __init__(self, before: Revision, after: Revision, changes: Sequence[Change]) -> None: ...
 
     """Previous revision."""
     @property
@@ -110,5 +97,5 @@ class FileUpdateResult:
 
     """Changed files."""
     @property
-    def files(self) -> list[FileChange]: ...
+    def changes(self) -> list[Change]: ...
 

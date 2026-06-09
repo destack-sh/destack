@@ -12,8 +12,8 @@ from destack.source.span import (
     Span,
 )
 
-class Edit:
-    """One source edit crossing bridge boundaries."""
+class Replacement:
+    """One source replacement crossing bridge boundaries."""
 
     def __init__(self, span: Span, new_text: str) -> None: ...
 
@@ -28,15 +28,15 @@ class Edit:
 class FilePatch:
     """Edits for a single file."""
 
-    def __init__(self, file: FileId, edits: Sequence[Edit]) -> None: ...
+    def __init__(self, file: FileId, replacements: Sequence[Replacement]) -> None: ...
 
     """Edited file."""
     @property
     def file(self) -> FileId: ...
 
-    """Source edits."""
+    """Source replacements."""
     @property
-    def edits(self) -> list[Edit]: ...
+    def replacements(self) -> list[Replacement]: ...
 
 class BatchEdit:
     """Edits across multiple files."""

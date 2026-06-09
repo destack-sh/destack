@@ -4,7 +4,7 @@ use destack_bridge_language as bridge;
 
 use pyo3::prelude::*;
 
-use crate::FileEdit;
+use crate::Edit;
 
 /// Source input used to open a live session.
 #[pyclass(name = "Source", module = "destack._native", from_py_object)]
@@ -23,9 +23,9 @@ impl Source {
         }
     }
 
-    /// In-memory filesystem source seeded by file edits.
+    /// In-memory filesystem source seeded by edits.
     #[staticmethod]
-    pub fn memory(root: String, edits: Vec<FileEdit>) -> Self {
+    pub fn memory(root: String, edits: Vec<Edit>) -> Self {
         Self {
             value: bridge::Source::Memory {
                 root,
@@ -45,13 +45,13 @@ impl Source {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn edits(&self) -> Option<Vec<FileEdit>> {
+    pub fn edits(&self) -> Option<Vec<Edit>> {
         match &self.value {
             bridge::Source::Memory { edits, .. } => Some(
                 edits
                     .clone()
                     .into_iter()
-                    .map(|item| FileEdit::from_bridge(item))
+                    .map(|item| Edit::from_bridge(item))
                     .collect(),
             ),
             _ => None,

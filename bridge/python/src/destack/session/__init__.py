@@ -7,8 +7,7 @@ from .module import (
     Module,
 )
 from .source.file import (
-    FileChange,
-    FileChangeKind,
+    Change,
 )
 from .source.source import (
     Source,
@@ -16,20 +15,17 @@ from .source.source import (
 from .source.update import (
     TextRange,
     TextEdit,
-    FileEdit,
-    FileUpdate,
-    FileUpdateResult,
+    Edit,
+    Commit,
 )
 
 __all__ = [
     "SessionFile",
     "Module",
-    "FileChange",
-    "FileChangeKind",
+    "Change",
     "Source",
     "TextRange",
     "TextEdit",
-    "FileEdit",
-    "FileUpdate",
-    "FileUpdateResult",
+    "Edit",
+    "Commit",
 ]
