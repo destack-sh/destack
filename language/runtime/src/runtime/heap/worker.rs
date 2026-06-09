@@ -103,7 +103,7 @@ impl Runtime {
         let progress = self
             .heap
             .shared
-            .collect_step(
+            .step_collection(
                 roots.as_ref(),
                 roots_complete,
                 budget_bytes,

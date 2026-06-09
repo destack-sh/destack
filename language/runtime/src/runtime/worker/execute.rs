@@ -214,9 +214,9 @@ impl Worker {
         // cooperative GC work
         loop {
             let pass_progressed = if prioritize_shared {
-                self.collect_shared_priority_step(shared)?
+                self.step_gc_with_shared_priority(shared)?
             } else {
-                self.collect_local_priority_step(shared)?
+                self.step_gc_with_local_priority(shared)?
             };
 
             if !pass_progressed {
@@ -233,7 +233,7 @@ impl Worker {
     }
 
     /// Run one GC safepoint step with shared heap work first.
-    fn collect_shared_priority_step(&mut self, shared: &RuntimeHeap) -> RuntimeResult<bool> {
+    fn step_gc_with_shared_priority(&mut self, shared: &RuntimeHeap) -> RuntimeResult<bool> {
         // direct shared roots
         if self.assist_shared_root_scan(shared)? {
             return Ok(true);
@@ -250,7 +250,7 @@ impl Worker {
         }
 
         // local heap work
-        if self.collect_local_step()?.made_progress() {
+        if self.step_local_collection()?.made_progress() {
             return Ok(true);
         }
 
@@ -258,9 +258,9 @@ impl Worker {
     }
 
     /// Run one GC safepoint step with local heap work first.
-    fn collect_local_priority_step(&mut self, shared: &RuntimeHeap) -> RuntimeResult<bool> {
+    fn step_gc_with_local_priority(&mut self, shared: &RuntimeHeap) -> RuntimeResult<bool> {
         // local heap work
-        if self.collect_local_step()?.made_progress() {
+        if self.step_local_collection()?.made_progress() {
             return Ok(true);
         }
 
@@ -308,7 +308,7 @@ impl Worker {
         }
 
         let mut roots = Vec::new();
-        let work_done = self.scan_shared_references(&mut roots, work_bytes)?;
+        let work_done = self.trace_shared_roots(&mut roots, work_bytes)?;
         shared.push_edge_roots(self.id, &roots);
 
         let is_idle = self.shared_edge_scan_idle();
@@ -331,7 +331,7 @@ impl Worker {
         let roots = shared_roots.roots_snapshot();
         let roots_complete = shared_roots.roots_complete();
         let progress = shared
-            .collect_step_for_worker(
+            .step_collection_for_worker(
                 Some(&self.shared_gc_worker),
                 roots.as_ref(),
                 roots_complete,

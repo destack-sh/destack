@@ -457,7 +457,7 @@ impl Worker {
     }
 
     /// Run one budgeted local collection step using the current root set.
-    pub fn collect_local_step(&mut self) -> RuntimeResult<heap::GcProgress> {
+    pub fn step_local_collection(&mut self) -> RuntimeResult<heap::GcProgress> {
         let budget_bytes = self.heap.take_collection_budget_bytes();
         let trace_table = self.engine.trace_table()?;
         let engine = &mut self.engine;
@@ -471,7 +471,7 @@ impl Worker {
         };
 
         self.heap
-            .collect_step(&mut roots, budget_bytes, trace_table.as_ref())
+            .step_collection(&mut roots, budget_bytes, trace_table.as_ref())
     }
 
     /// Collect shared heap roots from engine, scheduler, and registered providers.
@@ -503,8 +503,8 @@ impl Worker {
         shared.flush_allocation_cache(&mut self.shared_cache);
     }
 
-    /// Scan bounded local-to-shared reference work into the provided root buffer.
-    pub(crate) fn scan_shared_references(
+    /// Trace bounded local-to-shared edges into the provided root buffer.
+    pub(crate) fn trace_shared_roots(
         &mut self,
         roots: &mut Vec<heap::SharedHeapReference>,
         budget_bytes: usize,
@@ -512,7 +512,7 @@ impl Worker {
         let trace_table = self.engine.trace_table()?;
 
         self.heap
-            .scan_shared_references(roots, budget_bytes, trace_table.as_ref())
+            .trace_shared_roots(roots, budget_bytes, trace_table.as_ref())
             .map_err(Box::<RuntimeError>::from)
     }
 

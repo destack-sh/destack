@@ -1,4 +1,4 @@
-use destack_heap::{AllocationClass, HeapOptions, SharedHeapOptions};
+use destack_heap::{AllocationClass, AllocationShape, HeapOptions, SharedHeapOptions};
 use destack_mir as mir;
 
 use crate::program::{
@@ -457,35 +457,24 @@ fn allocation_site(
 ) -> Result<(AllocationSite, AllocationClass)> {
     // resolve the allocation class from the destination space
     let is_noscan = !layout.trace_map.has_reference();
-    let has_shared_reference = layout.trace_map.has_shared_reference();
     let trace_map = pool.trace_map(&layout.trace_map)?;
     let trace_id = if is_noscan { None } else { Some(trace_map) };
-    let class = match address_space {
-        AddressSpace::Local => {
-            heap_options.allocation_class(layout.byte_len, layout.alignment(), trace_id, is_noscan)
-        }
-        AddressSpace::Shared => shared_heap_options.allocation_class(
-            layout.byte_len,
-            layout.alignment(),
-            trace_id,
-            is_noscan,
-        ),
+    let shape = AllocationShape::new(
+        layout.byte_len,
+        layout.alignment(),
+        trace_id,
+        &layout.trace_map,
+    );
+    let heap = match address_space {
+        AddressSpace::Local => heap_options.allocation_site_for_shape(shape),
+        AddressSpace::Shared => shared_heap_options.allocation_site_for_shape(shape),
         _ => {
             return Err(Error::invalid_pointer_type(format!("{address_space:?}")));
         }
     };
+    let class = heap.class;
 
-    let allocation = AllocationSite {
-        heap: destack_heap::AllocationSite {
-            byte_len: layout.byte_len,
-            alignment: layout.alignment(),
-            trace_id,
-            is_noscan,
-            has_shared_reference,
-            class,
-        },
-        trace_map,
-    };
+    let allocation = AllocationSite { heap, trace_map };
 
     Ok((allocation, class))
 }

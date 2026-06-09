@@ -1,8 +1,8 @@
 use crate::Cell;
 use crate::diagnostic::Error;
 use crate::tests::{
-    assert_runtime_error_matches, run_mir, run_mir_expect, run_mir_ok, run_mir_with_frame,
-    run_mir_with_frame_ok,
+    allocate_local_zeroed, assert_runtime_error_matches, run_mir, run_mir_expect, run_mir_ok,
+    run_mir_with_frame, run_mir_with_frame_ok, shared_allocation_site,
 };
 use destack_engine::{UnsignedInt, Value};
 use destack_mir as mir;
@@ -619,9 +619,7 @@ b0(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
             .machine
             .allocation_shape(layout_id)
             .expect("managed pointee layout should resolve");
-        let handle = machine
-            .heap
-            .allocate_dynamic_zeroed(shape)
+        let handle = allocate_local_zeroed(&mut machine.heap, shape)
             .expect("heap allocation should succeed");
 
         vec![
@@ -659,12 +657,14 @@ b0(v0: ref<int32, managed, readonly, space(shared)>, v1: uint64, v2: uint64):
             .allocation_shape(layout_id)
             .expect("managed pointee layout should resolve");
         let mut allocator = machine.shared_heap.allocation_cache();
+        let site = shared_allocation_site(&machine.shared_heap, shape);
         let handle = machine
             .shared_heap
-            .allocate_dynamic_zeroed(
+            .allocate_zeroed(
                 &machine.shared_gc,
                 &mut allocator,
-                shape,
+                site,
+                shape.trace_map,
                 machine.machine.trace_table().as_ref(),
             )
             .expect("shared heap allocation should succeed");
@@ -703,9 +703,7 @@ b0(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
             .machine
             .allocation_shape(layout_id)
             .expect("managed pointee layout should resolve");
-        let handle = machine
-            .heap
-            .allocate_dynamic_zeroed(shape)
+        let handle = allocate_local_zeroed(&mut machine.heap, shape)
             .expect("heap allocation should succeed");
 
         vec![

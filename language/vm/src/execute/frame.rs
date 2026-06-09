@@ -1,7 +1,7 @@
 use std::ptr;
 
 use destack_engine as engine;
-use destack_heap::SharedHeap;
+use destack_heap::{AllocationCache, GcWorker, Heap, SharedHeap};
 use destack_mir as mir;
 use smallvec::SmallVec;
 
@@ -13,7 +13,6 @@ use crate::program::{
     repr_type, value_shape_from_type,
 };
 use crate::{Cell, FramePointer};
-use destack_heap::{AllocationCache, GcWorker, Heap};
 
 use super::access;
 
@@ -458,22 +457,21 @@ pub(crate) fn materialize_value(
 
             match boundary_address_space(program, value.ty) {
                 AddressSpace::Local => {
-                    let reference = heap
-                        .allocate_dynamic_bytes(shape, &bytes)
-                        .map_err(Error::from)?;
+                    let site = heap.options().allocation_site_for_shape(shape);
+                    let reference = heap.allocate_bytes(site, shape.trace_map, &bytes)?;
 
                     Ok(engine::Value::HeapReference(reference))
                 }
                 AddressSpace::Shared => {
-                    let reference = shared
-                        .allocate_dynamic_bytes(
-                            shared_gc,
-                            shared_cache,
-                            shape,
-                            &bytes,
-                            program.trace_table(),
-                        )
-                        .map_err(Error::from)?;
+                    let site = shared.options().allocation_site_for_shape(shape);
+                    let reference = shared.allocate_bytes(
+                        shared_gc,
+                        shared_cache,
+                        site,
+                        shape.trace_map,
+                        &bytes,
+                        program.trace_table(),
+                    )?;
 
                     Ok(engine::Value::SharedHeapReference(reference))
                 }

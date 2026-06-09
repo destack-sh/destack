@@ -2,8 +2,8 @@ use std::sync::{Arc, OnceLock};
 
 use destack_engine::{EngineId, StaticSpace, Value};
 use destack_heap::{
-    AllocationCache, Allocator, GcStats, GcWorker, Heap, HeapLimits, HeapOptions, HeapReference,
-    SharedHeap, SharedHeapLimits, SharedHeapOptions,
+    AllocationCache, AllocationShape, AllocationSite, Allocator, GcStats, GcWorker, Heap,
+    HeapLimits, HeapOptions, HeapReference, SharedHeap, SharedHeapLimits, SharedHeapOptions,
 };
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_mir::{DataLayout, TraceTable};
@@ -60,6 +60,40 @@ pub(crate) fn create_test_shared_heap() -> SharedHeap {
 
     SharedHeap::with_allocator_limits_and_options(allocator, SharedHeapLimits::default(), options)
         .expect("test shared heap should build")
+}
+
+/// Build one explicit local heap allocation site for VM tests.
+pub(crate) fn local_allocation_site(heap: &Heap, shape: AllocationShape<'_>) -> AllocationSite {
+    heap.options().allocation_site_for_shape(shape)
+}
+
+/// Build one explicit shared heap allocation site for VM tests.
+pub(crate) fn shared_allocation_site(
+    heap: &SharedHeap,
+    shape: AllocationShape<'_>,
+) -> AllocationSite {
+    heap.options().allocation_site_for_shape(shape)
+}
+
+/// Allocate one zeroed local heap payload for VM tests.
+pub(crate) fn allocate_local_zeroed(
+    heap: &mut Heap,
+    shape: AllocationShape<'_>,
+) -> destack_heap::HeapResult<HeapReference> {
+    let site = local_allocation_site(heap, shape);
+
+    heap.allocate_zeroed(site, shape.trace_map)
+}
+
+/// Allocate one byte-initialized local heap payload for VM tests.
+pub(crate) fn allocate_local_bytes(
+    heap: &mut Heap,
+    shape: AllocationShape<'_>,
+    bytes: &[u8],
+) -> destack_heap::HeapResult<HeapReference> {
+    let site = local_allocation_site(heap, shape);
+
+    heap.allocate_bytes(site, shape.trace_map, bytes)
 }
 
 /// Create heap options for ordinary local VM tests.
@@ -170,9 +204,7 @@ impl TestMachine {
             .machine
             .allocation_shape(layout_id)
             .unwrap_or_else(|error| panic!("failed to resolve allocation shape: {error}"));
-        let reference = self
-            .heap
-            .allocate_dynamic_bytes(shape, &bytes)
+        let reference = allocate_local_bytes(&mut self.heap, shape, &bytes)
             .unwrap_or_else(|error| panic!("failed to allocate materialized value: {error}"));
 
         Cell::heap_reference(reference)
