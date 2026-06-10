@@ -65,8 +65,8 @@ type State = Pending | Fulfilled;
 /// @resolution.name source=Fulfilled target=Fulfilled
 
 function read(state: State): int32 {
-/// @type.symbol symbol=read type=(Pending | Fulfilled) => int32
-/// @type.symbol symbol=state source="state: State" type=Pending | Fulfilled
+/// @type.symbol symbol=read type=(State) => int32
+/// @type.symbol symbol=state source="state: State" type=State
 /// @resolution.name source=State target=State
 
     if (state.kind == "pending") {
