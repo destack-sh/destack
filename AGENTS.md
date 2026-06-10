@@ -28,7 +28,7 @@
 - Usually you want the comment before the if clause / loop / whatever, not inside.
 - Every logic block should have a comment (returns may omit the comment), and every logic block (except the first) should have a blank line before it. See commenting for how to comment properly.
 - The return value implicit or explicit should also have a blank line before it, even if it's uncommented (which is, again, fine).
-- Use temporary variables for non-trivial operations (yes, it's deliberately verbose):
+- Use temporary variables for non-trivial operations (yes, it's deliberately verbose, but really only for non-trivial operations, unary operators like reference/dereference, plus/minus, .. don't need temporaries):
 
 ```rust
 let first_digit = (dt_bytes[0] - b'0') as i64;
