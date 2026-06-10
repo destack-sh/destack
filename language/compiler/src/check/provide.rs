@@ -3,11 +3,11 @@ use std::iter;
 use destack_artifact::{
     ArtifactKey, ArtifactPayload, ArtifactSidecar, DirChecked, DirCheckedComponent,
 };
-use destack_repository::{ProfileId, ProviderContext};
+use destack_repository::{ArtifactReader, ProfileId, ProviderContext};
 use destack_source::{ComponentId, FileContent, ModuleId};
-use smallvec::SmallVec;
+use indexmap::{IndexMap, IndexSet};
 
-use crate::check::CheckState;
+use crate::check::{CheckComponentGraph, CheckState};
 use crate::{Compiler, CompilerError, CompilerResult};
 
 impl Compiler {
@@ -19,8 +19,11 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
+        // create provider reader before graph discovery
+        let artifacts = self.artifact_reader(context);
+
         // discover checked component
-        let graph = self.collect_check_component_graph(entry, profile, context)?;
+        let graph = self.collect_check_component_graph(entry, profile, &artifacts)?;
         let component_modules = graph.component(entry);
         let discovered_entry =
             component_modules
@@ -50,15 +53,30 @@ impl Compiler {
             });
         }
 
-        // require pre-checked artifacts for component dependencies
-        let artifacts = self.artifact_reader(context);
-        let dependencies = graph.dependencies(component_modules.as_slice());
-        let dependencies = dependencies
-            .iter()
-            .map(|dependency| ArtifactKey::dir_checked(*dependency, profile))
-            .collect::<SmallVec<[_; 8]>>();
+        // require artifacts needed before component check work
+        let external_components =
+            graph.external_components(profile, component_modules.as_slice())?;
+        let mut requirements = Vec::new();
+        for module in external_components.keys() {
+            requirements.push(ArtifactKey::dir_expanded(*module, profile));
+        }
+        requirements.extend(
+            external_components
+                .values()
+                .copied()
+                .collect::<IndexSet<_>>()
+                .into_iter()
+                .map(|dependency| {
+                    ArtifactKey::dir_checked_component(
+                        dependency.entry,
+                        dependency.component,
+                        profile,
+                    )
+                }),
+        );
+        requirements.push(ArtifactKey::global_environment(profile));
         artifacts
-            .require_all(dependencies.as_slice())
+            .require_all(requirements.as_slice())
             .map_err(CompilerError::from)?;
         let environment = artifacts
             .global_environment(profile)
@@ -68,7 +86,15 @@ impl Compiler {
 
         // check component
         let emit_events = options.emit_events || context.emit_events();
-        let mut check = CheckState::new(self, context, profile, environment, emit_events);
+        let mut check = CheckState::new(
+            self,
+            context,
+            &artifacts,
+            profile,
+            environment,
+            external_components,
+            emit_events,
+        );
         check.load(component_modules.as_slice())?;
         check.walk()?;
         check.build()?;
@@ -116,8 +142,11 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
+        // create provider reader before graph discovery
+        let artifacts = self.artifact_reader(context);
+
         // discover checked component
-        let graph = self.collect_check_component_graph(module, profile, context)?;
+        let graph = self.collect_check_component_graph(module, profile, &artifacts)?;
         let component_modules = graph.component(module);
         let component_id = ComponentId::from_modules(profile, component_modules.iter().copied());
         let entry = component_modules
@@ -128,7 +157,6 @@ impl Compiler {
             })?;
 
         // require checked component
-        let artifacts = self.artifact_reader(context);
         let component_key = ArtifactKey::dir_checked_component(entry, component_id, profile);
         artifacts
             .require(component_key)
@@ -138,5 +166,60 @@ impl Compiler {
             component: component_id,
             entry,
         }))
+    }
+
+    /// Load the resolved dependency graph reachable from one module.
+    fn collect_check_component_graph(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+        artifacts: &ArtifactReader<'_>,
+    ) -> CompilerResult<CheckComponentGraph> {
+        let mut graph = IndexMap::new();
+        let mut pending = IndexSet::new();
+        pending.insert(module);
+
+        // discover resolved imports one dependency frontier at a time
+        while !pending.is_empty() {
+            let frontier = pending.iter().copied().collect::<Vec<_>>();
+            pending.clear();
+            let frontier = frontier
+                .into_iter()
+                .filter(|module| !graph.contains_key(module))
+                .collect::<Vec<_>>();
+            if frontier.is_empty() {
+                continue;
+            }
+
+            // require the whole unresolved frontier before reading it
+            let requirements = frontier
+                .iter()
+                .map(|module| ArtifactKey::dir_resolved(*module, profile))
+                .collect::<Vec<_>>();
+            artifacts
+                .require_all(requirements.as_slice())
+                .map_err(CompilerError::from)?;
+
+            // read resolved modules and collect the next frontier
+            for module in frontier {
+                let resolved = artifacts
+                    .dir_resolved(module, profile)
+                    .map_err(CompilerError::from)?;
+                let mut dependencies = resolved.imports.modules().collect::<IndexSet<_>>();
+                dependencies.shift_remove(&module);
+                let dependencies = dependencies.into_iter().collect::<Vec<_>>();
+
+                // enqueue only unresolved dependency modules
+                for dependency in &dependencies {
+                    if !graph.contains_key(dependency) {
+                        pending.insert(*dependency);
+                    }
+                }
+
+                graph.insert(module, dependencies);
+            }
+        }
+
+        Ok(CheckComponentGraph::new(graph))
     }
 }
