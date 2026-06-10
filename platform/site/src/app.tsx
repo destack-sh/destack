@@ -11,7 +11,7 @@ export default function App() {
             root={(props) => (
                 <MetaProvider>
                     <Suspense>
-                        <div class="min-h-screen bg-destack-page text-neutral-950 selection:bg-destack-accent selection:text-neutral-950">
+                        <div class="min-h-screen bg-destack-page text-destack-text selection:bg-destack-accent selection:text-neutral-950">
                             {props.children}
                         </div>
                     </Suspense>
