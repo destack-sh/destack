@@ -49,4 +49,15 @@ impl ExportTable {
     pub fn star_exports(&self) -> impl Iterator<Item = &StarExportEntry> {
         self.star_exports.iter()
     }
+
+    /// Return modules targeted by re-export edges.
+    pub fn reexport_modules(&self) -> impl Iterator<Item = ModuleId> + '_ {
+        self.export_by_key
+            .values()
+            .filter_map(|export| match export {
+                ExportEntry::Local(_) => None,
+                ExportEntry::Indirect(export) => export.target,
+            })
+            .chain(self.star_exports.iter().filter_map(|export| export.target))
+    }
 }

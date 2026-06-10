@@ -54,4 +54,14 @@ impl GlobalTable {
             .iter()
             .map(|(key, entries)| (key, entries.as_slice()))
     }
+
+    /// Return modules targeted by global re-export edges.
+    pub fn reexport_modules(&self) -> impl Iterator<Item = ModuleId> + '_ {
+        self.entries_by_key.values().flat_map(|entries| {
+            entries.iter().filter_map(|entry| match entry {
+                GlobalEntry::Local(_) => None,
+                GlobalEntry::Indirect(entry) => entry.target,
+            })
+        })
+    }
 }
