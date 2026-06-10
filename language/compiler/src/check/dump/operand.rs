@@ -1,4 +1,4 @@
-use crate::check::{Dump, DumpContext, StaticOperand, TypeOperand};
+use crate::check::{Dump, DumpContext, OmittedGenericDefault, StaticOperand, TypeOperand};
 
 use super::format::dump_record;
 
@@ -33,6 +33,28 @@ impl Dump for StaticOperand {
             Self::Static(value) => dump_record(
                 "StaticOperand.Static",
                 [("value", context.static_label(*value))],
+            ),
+        }
+    }
+}
+
+impl Dump for OmittedGenericDefault {
+    /// Render one omitted generic argument default.
+    fn dump(&self, context: &DumpContext<'_, '_>) -> String {
+        match self {
+            Self::Type { parameter, value } => dump_record(
+                "OmittedGenericDefault.Type",
+                [
+                    ("parameter", parameter.dump(context)),
+                    ("value", value.dump(context)),
+                ],
+            ),
+            Self::Static { parameter, value } => dump_record(
+                "OmittedGenericDefault.Static",
+                [
+                    ("parameter", parameter.dump(context)),
+                    ("value", value.dump(context)),
+                ],
             ),
         }
     }

@@ -118,6 +118,27 @@ impl<'a, 'b> DumpContext<'a, 'b> {
         format!("{module}:static#{index}")
     }
 
+    /// Return a compact generic template label.
+    pub(in crate::check) fn generic_template_label(
+        &self,
+        template: dir::GlobalGenericTemplateId,
+    ) -> String {
+        if let Some(template) = self
+            .check
+            .inference
+            .generic_template(template)
+            .map(|template| template.source)
+            .or_else(|| self.dependency_generic_template_source(template))
+        {
+            return self.node_label(template);
+        }
+
+        let module = self.module_label(template.module_id);
+        let index = template.local_id.0;
+
+        format!("{module}:template#{index}")
+    }
+
     /// Return a compact static key label.
     pub(in crate::check) fn static_key_label(&self, key: &dir::StaticKey) -> String {
         match key {
@@ -134,21 +155,21 @@ impl<'a, 'b> DumpContext<'a, 'b> {
         &self,
         parameter: dir::GlobalGenericParameterId,
     ) -> String {
-        if let Some(generic) = self.check.inference.generic_parameter_by_id(parameter) {
-            let identity = generic.identity();
-            let owner = self.symbol_label(identity.owner);
-            let key = self.generic_parameter_key(identity.key);
+        if let Some(generic) = self.check.inference.generic_parameter(parameter) {
+            let parameter = generic.parameter();
+            let template = self.generic_template_label(parameter.template);
+            let key = self.generic_parameter_key(parameter.key);
 
-            return format!("{owner}:{key}");
+            return format!("{template}:{key}");
         }
 
         if let Some(dependency) = self.check.dependencies.get(&parameter.module_id) {
             let generic = dependency.generics.get_parameter(parameter.local_id);
-            let template = dependency.generics.get_template(generic.template());
-            let owner = self.symbol_label(template.owner);
+            let template = generic.template().into_global(parameter.module_id);
+            let template = self.generic_template_label(template);
             let key = self.generic_parameter_key(generic.key());
 
-            return format!("{owner}:{key}");
+            return format!("{template}:{key}");
         }
 
         let module = self.module_label(parameter.module_id);
@@ -183,7 +204,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
         }
     }
 
-    /// Return a compact generic slot key label.
+    /// Return a compact generic parameter key label.
     pub(super) fn generic_parameter_key(&self, key: dir::GenericParameterKey) -> String {
         match key {
             dir::GenericParameterKey::Symbol(symbol) => self.symbol_key(symbol),
@@ -193,20 +214,9 @@ impl<'a, 'b> DumpContext<'a, 'b> {
 
     /// Return a compact symbol key.
     fn symbol_key(&self, symbol: dir::GlobalSymbolId) -> String {
-        if let Some(module) = self.check.modules.get(&symbol.module_id) {
-            let binding_table = module.binding_table();
-            let symbol = binding_table.get_symbol(symbol.local_id);
-
-            return symbol
-                .key
-                .map(|key| self.static_key_label(&key))
-                .unwrap_or_else(|| symbol_kind_label(symbol.kind).to_string());
-        }
-
-        let Some(dependency) = self.check.dependencies.get(&symbol.module_id) else {
+        let Some(symbol) = self.binding_symbol(symbol) else {
             return format!("symbol#{}", symbol.local_id.id);
         };
-        let symbol = dependency.bindings.get_symbol(symbol.local_id);
 
         symbol
             .key
@@ -216,20 +226,9 @@ impl<'a, 'b> DumpContext<'a, 'b> {
 
     /// Return whether one symbol is a generic parameter.
     fn symbol_is_generic_parameter(&self, symbol: dir::GlobalSymbolId) -> bool {
-        if let Some(module) = self.check.modules.get(&symbol.module_id) {
-            let binding_table = module.binding_table();
-            let symbol = binding_table.get_symbol(symbol.local_id);
-
-            return matches!(
-                symbol.kind,
-                dir::SymbolKind::GenericTypeParameter | dir::SymbolKind::GenericValueParameter
-            );
-        }
-
-        let Some(dependency) = self.check.dependencies.get(&symbol.module_id) else {
+        let Some(symbol) = self.binding_symbol(symbol) else {
             return false;
         };
-        let symbol = dependency.bindings.get_symbol(symbol.local_id);
 
         matches!(
             symbol.kind,
@@ -239,34 +238,59 @@ impl<'a, 'b> DumpContext<'a, 'b> {
 
     /// Return the symbol that owns the declaring scope.
     fn symbol_scope_owner(&self, symbol: dir::GlobalSymbolId) -> Option<dir::LocalSymbolId> {
+        self.binding_symbol(symbol)
+            .and_then(|binding| self.binding_scope_owner(symbol.module_id, binding))
+    }
+
+    /// Return the declaration node for one symbol.
+    fn symbol_declaration(&self, symbol: dir::GlobalSymbolId) -> Option<dir::GlobalNodeIdAny> {
+        self.binding_symbol(symbol)
+            .and_then(|symbol| symbol.declaration)
+    }
+
+    /// Return one generic template source from a dependency.
+    fn dependency_generic_template_source(
+        &self,
+        template: dir::GlobalGenericTemplateId,
+    ) -> Option<dir::GlobalNodeIdAny> {
+        let dependency = self.check.dependencies.get(&template.module_id)?;
+        let template = dependency.generics.get_template(template.local_id);
+
+        Some(template.source)
+    }
+
+    /// Return one visible binding symbol.
+    fn binding_symbol(&self, symbol: dir::GlobalSymbolId) -> Option<DumpSymbol> {
         if let Some(module) = self.check.modules.get(&symbol.module_id) {
             let binding_table = module.binding_table();
             let symbol = binding_table.get_symbol(symbol.local_id);
+
+            return Some(DumpSymbol::from(symbol));
+        }
+
+        let dependency = self.check.dependencies.get(&symbol.module_id)?;
+        let symbol = dependency.bindings.get_symbol(symbol.local_id);
+
+        Some(DumpSymbol::from(symbol))
+    }
+
+    /// Return the owner symbol for one visible binding scope.
+    fn binding_scope_owner(
+        &self,
+        module: ModuleId,
+        symbol: DumpSymbol,
+    ) -> Option<dir::LocalSymbolId> {
+        if let Some(module) = self.check.modules.get(&module) {
+            let binding_table = module.binding_table();
             let scope = binding_table.get_scope(symbol.scope);
 
             return scope.owner;
         }
 
-        let dependency = self.check.dependencies.get(&symbol.module_id)?;
-        let symbol = dependency.bindings.get_symbol(symbol.local_id);
+        let dependency = self.check.dependencies.get(&module)?;
         let scope = dependency.bindings.get_scope(symbol.scope);
 
         scope.owner
-    }
-
-    /// Return the declaration node for one symbol.
-    fn symbol_declaration(&self, symbol: dir::GlobalSymbolId) -> Option<dir::GlobalNodeIdAny> {
-        if let Some(module) = self.check.modules.get(&symbol.module_id) {
-            let binding_table = module.binding_table();
-            let symbol = binding_table.get_symbol(symbol.local_id);
-
-            return symbol.declaration;
-        }
-
-        let dependency = self.check.dependencies.get(&symbol.module_id)?;
-        let symbol = dependency.bindings.get_symbol(symbol.local_id);
-
-        symbol.declaration
     }
 
     /// Return the source span for one global node.
@@ -299,6 +323,30 @@ impl<'a, 'b> DumpContext<'a, 'b> {
             "{}:{line}:{column}",
             trim_builtin_uri(file.uri.as_ref())
         ))
+    }
+}
+
+/// Copied binding fields needed by dump labels.
+struct DumpSymbol {
+    /// The declaration kind of the symbol.
+    kind: dir::SymbolKind,
+    /// The key of the symbol.
+    key: Option<dir::StaticKey>,
+    /// The scope that introduces the symbol.
+    scope: dir::LocalScope,
+    /// The declaration node that introduced this symbol.
+    declaration: Option<dir::GlobalNodeIdAny>,
+}
+
+impl From<&dir::Symbol> for DumpSymbol {
+    /// Copy the binding fields used by dump labels.
+    fn from(symbol: &dir::Symbol) -> Self {
+        Self {
+            kind: symbol.kind,
+            key: symbol.key,
+            scope: symbol.scope,
+            declaration: symbol.declaration,
+        }
     }
 }
 

@@ -22,9 +22,10 @@ impl Dump for TypeTerm {
                 dump_record("TypeTerm.Literal", [("value", literal.dump(context))])
             }
             Self::Intrinsic => dump_record("TypeTerm.Intrinsic", []),
-            Self::Parameter(parameter) => {
-                dump_record("TypeTerm.Parameter", [("slot", parameter.dump(context))])
-            }
+            Self::Parameter(parameter) => dump_record(
+                "TypeTerm.Parameter",
+                [("parameter", parameter.dump(context))],
+            ),
             Self::This => dump_record("TypeTerm.This", []),
             Self::Reference {
                 origin,
@@ -312,6 +313,7 @@ impl Dump for ReceiverTerm {
             [
                 ("source", context.node_label(self.source)),
                 ("kind", self.kind.dump(context)),
+                ("owner", self.owner.dump(context)),
                 ("type", self.ty.dump(context)),
             ],
         )

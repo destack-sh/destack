@@ -42,6 +42,7 @@ impl Dump for FunctionParameter {
             [
                 ("type", self.ty.dump(context)),
                 ("static_parameter", self.static_parameter.dump(context)),
+                ("inferred", self.is_inferred.to_string()),
                 ("optional", self.is_optional.to_string()),
                 ("rest", self.is_rest.to_string()),
             ],

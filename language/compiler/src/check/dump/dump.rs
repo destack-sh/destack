@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 
 use crate::check::{Dump, DumpContext, GenericParameterId, Origin, VariableId, VariableKind};
 
@@ -59,21 +60,29 @@ impl Dump for Origin {
                     ("at", context.symbol_source_label(*symbol)),
                 ],
             ),
+            Self::Type(ty) => dump_record("Origin.Type", [("value", context.type_label(*ty))]),
         }
     }
 }
 
 impl Dump for GenericParameterId {
-    /// Render one generic slot id.
+    /// Render one generic parameter id.
     fn dump(&self, context: &DumpContext<'_, '_>) -> String {
         dump_record(
-            "GenericParameterBinding",
+            "GenericParameter",
             [
                 ("id", context.generic_parameter_label(*self)),
                 ("module", context.module_label(self.module_id)),
                 ("local", self.local_id.0.to_string()),
             ],
         )
+    }
+}
+
+impl Dump for ModuleId {
+    /// Render one module id.
+    fn dump(&self, context: &DumpContext<'_, '_>) -> String {
+        dump_record("Module", [("value", context.module_label(*self))])
     }
 }
 

@@ -1,3 +1,5 @@
+use destack_dir as dir;
+
 use crate::check::{Dump, DumpContext, GenericArgument, GenericInstance};
 
 use super::format::{dump_list, dump_record};
@@ -28,11 +30,21 @@ impl Dump for GenericArgument {
                     [("name", name), ("value", value.dump(context))],
                 )
             }
-            Self::TypeOrStatic { value } => dump_record(
+            Self::TypeOrStatic { source } => dump_record(
                 "GenericArgument.TypeOrStatic",
                 [
-                    ("type", value.ty.dump(context)),
-                    ("static", value.value.dump(context)),
+                    (
+                        "source",
+                        context.node_label(source.source.clone().into_any()),
+                    ),
+                    ("ty", source.ty.dump(context)),
+                    (
+                        "static",
+                        source
+                            .r#static
+                            .map(|operand| operand.dump(context))
+                            .unwrap_or_else(|| "none".to_string()),
+                    ),
                 ],
             ),
             Self::SpreadType(operand) => dump_record(
@@ -43,11 +55,21 @@ impl Dump for GenericArgument {
                 "GenericArgument.SpreadStatic",
                 [("value", operand.dump(context))],
             ),
-            Self::SpreadTypeOrStatic { value } => dump_record(
+            Self::SpreadTypeOrStatic { source } => dump_record(
                 "GenericArgument.SpreadTypeOrStatic",
                 [
-                    ("type", value.ty.dump(context)),
-                    ("static", value.value.dump(context)),
+                    (
+                        "source",
+                        context.node_label(source.source.clone().into_any()),
+                    ),
+                    ("ty", source.ty.dump(context)),
+                    (
+                        "static",
+                        source
+                            .r#static
+                            .map(|operand| operand.dump(context))
+                            .unwrap_or_else(|| "none".to_string()),
+                    ),
                 ],
             ),
         }
@@ -60,8 +82,28 @@ impl Dump for GenericInstance {
         dump_record(
             "GenericInstance",
             [
-                ("owner", context.symbol_label(self.owner)),
+                ("template", context.generic_template_label(self.template)),
                 ("arguments", dump_arguments(&self.arguments, context)),
+            ],
+        )
+    }
+}
+
+impl Dump for dir::GenericInstance {
+    /// Render one committed generic instance.
+    fn dump(&self, context: &DumpContext<'_, '_>) -> String {
+        let arguments = self
+            .arguments
+            .iter()
+            .map(|argument| argument.dump(context))
+            .collect::<Vec<_>>()
+            .join(",");
+
+        dump_record(
+            "GenericInstance",
+            [
+                ("template", context.generic_template_label(self.template)),
+                ("arguments", dump_list(arguments)),
             ],
         )
     }
