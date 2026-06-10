@@ -84,25 +84,25 @@ extension<T: Hash> of ConcurrentSet<T> implements Extend<T> {
     }
 
     /// Return whether `value` is present.
-    has<Q: Hash>(&this, value: &readonly Q): boolean where (T: Borrow<Q>, Q: Equal<Q>) {
+    has<Q: Hash>(&this, value: &readonly Q): boolean where T: Borrow<Q>, Q: Equal<Q> {
         todo("ConcurrentSet.has")
     }
 
     /// Clone and return the stored value equal to `value`.
     get<Q: Hash>(&this, value: &readonly Q): T | undefined
-    where (T: Borrow<Q>, Q: Equal<Q>, T: Clone) {
+    where T: Borrow<Q>, Q: Equal<Q>, T: Clone {
         todo("ConcurrentSet.get")
     }
 
     /// Return a read guard for one stored value.
     read<Q: Hash>(&this, value: &readonly Q): ConcurrentSetRead<T> | undefined
-    where (T: Borrow<Q>, Q: Equal<Q>) {
+    where T: Borrow<Q>, Q: Equal<Q> {
         todo("ConcurrentSet.read")
     }
 
     /// Call `body` with readonly access to one stored value.
     with<Q: Hash, R>(&this, value: &readonly Q, body: (value: &readonly T) => R): R | undefined
-    where (T: Borrow<Q>, Q: Equal<Q>) {
+    where T: Borrow<Q>, Q: Equal<Q> {
         todo("ConcurrentSet.with")
     }
 
@@ -132,7 +132,7 @@ extension<T: Hash> of ConcurrentSet<T> implements Extend<T> {
     }
 
     /// Remove `value`.
-    remove<Q: Hash>(&this, value: &readonly Q): T | undefined where (T: Borrow<Q>, Q: Equal<Q>) {
+    remove<Q: Hash>(&this, value: &readonly Q): T | undefined where T: Borrow<Q>, Q: Equal<Q> {
         todo("ConcurrentSet.remove")
     }
 

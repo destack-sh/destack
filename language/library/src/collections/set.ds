@@ -60,13 +60,13 @@ where T: Equal<T> {
     }
 
     /// Return whether `value` is present.
-    has<Q: Hash>(value: &readonly Q): boolean where (T: Borrow<Q>, Q: Equal<Q>) {
+    has<Q: Hash>(value: &readonly Q): boolean where T: Borrow<Q>, Q: Equal<Q> {
         todo("Set.has")
     }
 
     /// Borrow the stored value equal to `value` with readonly access.
     get<Q: Hash>(&readonly this, value: &readonly Q): &readonly T | undefined
-    where (T: Borrow<Q>, Q: Equal<Q>) {
+    where T: Borrow<Q>, Q: Equal<Q> {
         todo("Set.get")
     }
 
@@ -82,7 +82,7 @@ where T: Equal<T> {
 
     /// Remove `value`.
     remove<Q: Hash>(&exclusive this, value: &readonly Q): T | undefined
-    where (T: Borrow<Q>, Q: Equal<Q>) {
+    where T: Borrow<Q>, Q: Equal<Q> {
         todo("Set.remove")
     }
 
