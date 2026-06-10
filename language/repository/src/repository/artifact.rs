@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use std::hash::Hash;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use dashmap::DashMap;
 use destack_artifact::{
@@ -22,6 +22,8 @@ pub struct ArtifactReader<'a> {
     context: &'a dyn ProviderContext,
     /// The artifact store that owns typed payloads.
     store: Arc<ArtifactStore>,
+    /// Exact versions already required by this reader.
+    versions: Mutex<BTreeMap<ArtifactKey, ArtifactVersion>>,
 }
 
 impl std::fmt::Debug for ArtifactReader<'_> {
@@ -35,12 +37,21 @@ impl std::fmt::Debug for ArtifactReader<'_> {
 impl<'a> ArtifactReader<'a> {
     /// Create a provider-scoped reader.
     pub fn new(context: &'a dyn ProviderContext, store: Arc<ArtifactStore>) -> Self {
-        Self { context, store }
+        Self {
+            context,
+            store,
+            versions: Mutex::new(BTreeMap::new()),
+        }
     }
 
     /// Require one artifact without reading its payload.
     pub fn require(&self, artifact_key: ArtifactKey) -> Result<ArtifactVersion, ProviderError> {
-        self.context.require(artifact_key)
+        let version = self.context.require(artifact_key)?;
+
+        // retain exact artifact closure for later typed reads
+        self.retain_version(version)?;
+
+        Ok(version)
     }
 
     /// Require several artifacts without reading their payloads.
@@ -48,123 +59,174 @@ impl<'a> ArtifactReader<'a> {
         &self,
         artifact_keys: &[ArtifactKey],
     ) -> Result<Vec<ArtifactVersion>, ProviderError> {
-        self.context.require_all(artifact_keys)
+        let versions = self.context.require_all(artifact_keys)?;
+
+        // retain exact artifact closures for later typed reads
+        for version in versions.iter().copied() {
+            self.retain_version(version)?;
+        }
+
+        Ok(versions)
     }
 
-    /// Require and read one typed artifact payload.
-    fn read_required<T>(
+    /// Retain one exact artifact version and its exact artifact dependencies.
+    fn retain_version(&self, version: ArtifactVersion) -> Result<(), ProviderError> {
+        let mut pending = vec![version];
+        let mut versions = self
+            .versions
+            .lock()
+            .map_err(|_| ProviderError::internal("artifact reader version cache was poisoned"))?;
+
+        // walk exact artifact dependencies
+        while let Some(version) = pending.pop() {
+            if versions.contains_key(&version.key) {
+                continue;
+            }
+            versions.insert(version.key, version);
+
+            let dependencies = self
+                .store
+                .dependencies(&version)
+                .ok_or(ProviderError::Corrupt { version })?;
+
+            for dependency in dependencies.iter() {
+                if let ArtifactDependency::Artifact(version) = dependency {
+                    pending.push(*version);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Return one previously required artifact version.
+    fn version(&self, artifact_key: ArtifactKey) -> Result<ArtifactVersion, ProviderError> {
+        let version = self
+            .versions
+            .lock()
+            .map_err(|_| ProviderError::internal("artifact reader version cache was poisoned"))?
+            .get(&artifact_key)
+            .copied()
+            .ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "artifact {artifact_key:?} was read before it was required"
+                ))
+            })?;
+
+        Ok(version)
+    }
+
+    /// Read one previously required typed artifact payload.
+    fn read<T>(
         &self,
         artifact_key: ArtifactKey,
         get: impl FnOnce(&ArtifactStore, &ArtifactVersion) -> Option<Arc<T>>,
     ) -> Result<Arc<T>, ProviderError> {
-        // require exact artifact version
-        let version = self.context.require(artifact_key)?;
+        let version = self.version(artifact_key)?;
         let payload = get(&self.store, &version).ok_or(ProviderError::Corrupt { version })?;
 
         Ok(payload)
     }
 
-    /// Require and read one parsed DIR artifact.
+    /// Read one parsed DIR artifact.
     pub fn dir_parsed(&self, module: ModuleId) -> Result<Arc<DirParsed>, ProviderError> {
-        self.read_required(ArtifactKey::dir_parsed(module), ArtifactStore::dir_parsed)
+        self.read(ArtifactKey::dir_parsed(module), ArtifactStore::dir_parsed)
     }
 
-    /// Require and read one data artifact.
+    /// Read one data artifact.
     pub fn data(&self, module: ModuleId) -> Result<Arc<Data>, ProviderError> {
-        self.read_required(ArtifactKey::data(module), ArtifactStore::data)
+        self.read(ArtifactKey::data(module), ArtifactStore::data)
     }
 
-    /// Require and read one global environment artifact.
+    /// Read one global environment artifact.
     pub fn global_environment(
         &self,
         profile: ProfileId,
     ) -> Result<Arc<GlobalEnvironment>, ProviderError> {
-        self.read_required(
+        self.read(
             ArtifactKey::global_environment(profile),
             ArtifactStore::global_environment,
         )
     }
 
-    /// Require and read one dependency index artifact.
+    /// Read one dependency index artifact.
     pub fn dependency_index(
         &self,
         profile: ProfileId,
     ) -> Result<Arc<DependencyIndex>, ProviderError> {
-        self.read_required(
+        self.read(
             ArtifactKey::dependency_index(profile),
             ArtifactStore::dependency_index,
         )
     }
 
-    /// Require and read one bound DIR artifact.
+    /// Read one bound DIR artifact.
     pub fn dir_bound(
         &self,
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<Arc<DirBound>, ProviderError> {
-        self.read_required(
+        self.read(
             ArtifactKey::dir_bound(module, profile),
             ArtifactStore::dir_bound,
         )
     }
 
-    /// Require and read one imported DIR artifact.
+    /// Read one imported DIR artifact.
     pub fn dir_imported(
         &self,
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<Arc<DirImported>, ProviderError> {
-        self.read_required(
+        self.read(
             ArtifactKey::dir_imported(module, profile),
             ArtifactStore::dir_imported,
         )
     }
 
-    /// Require and read one expanded DIR artifact.
+    /// Read one expanded DIR artifact.
     pub fn dir_expanded(
         &self,
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<Arc<DirExpanded>, ProviderError> {
-        self.read_required(
+        self.read(
             ArtifactKey::dir_expanded(module, profile),
             ArtifactStore::dir_expanded,
         )
     }
 
-    /// Require and read one exported DIR artifact.
+    /// Read one exported DIR artifact.
     pub fn dir_exported(
         &self,
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<Arc<DirExported>, ProviderError> {
-        self.read_required(
+        self.read(
             ArtifactKey::dir_exported(module, profile),
             ArtifactStore::dir_exported,
         )
     }
 
-    /// Require and read one resolved DIR artifact.
+    /// Read one resolved DIR artifact.
     pub fn dir_resolved(
         &self,
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<Arc<DirResolved>, ProviderError> {
-        self.read_required(
+        self.read(
             ArtifactKey::dir_resolved(module, profile),
             ArtifactStore::dir_resolved,
         )
     }
 
-    /// Require and read one checked DIR module output.
+    /// Read one checked DIR module output.
     pub fn dir_checked(
         &self,
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<Arc<DirCheckedModule>, ProviderError> {
-        let version = self
-            .context
-            .require(ArtifactKey::dir_checked(module, profile))?;
+        let version = self.version(ArtifactKey::dir_checked(module, profile))?;
         let checked = self
             .store
             .dir_checked(&version)
@@ -180,152 +242,152 @@ impl<'a> ArtifactReader<'a> {
         Ok(Arc::new(entry.checked.clone()))
     }
 
-    /// Require and read one checked DIR component artifact.
+    /// Read one checked DIR component artifact.
     pub fn dir_checked_component(
         &self,
         entry: ModuleId,
         component: ComponentId,
         profile: ProfileId,
     ) -> Result<Arc<DirCheckedComponent>, ProviderError> {
-        self.read_required(
+        self.read(
             ArtifactKey::dir_checked_component(entry, component, profile),
             ArtifactStore::dir_checked_component,
         )
     }
 
-    /// Require and read one materialized DIR artifact.
+    /// Read one materialized DIR artifact.
     pub fn dir_materialized(
         &self,
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<Arc<DirMaterialized>, ProviderError> {
-        self.read_required(
+        self.read(
             ArtifactKey::dir_materialized(module, profile),
             ArtifactStore::dir_materialized,
         )
     }
 
-    /// Require and read one elaborated DIR artifact.
+    /// Read one elaborated DIR artifact.
     pub fn dir_elaborated(
         &self,
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<Arc<DirElaborated>, ProviderError> {
-        self.read_required(
+        self.read(
             ArtifactKey::dir_elaborated(module, profile),
             ArtifactStore::dir_elaborated,
         )
     }
 
-    /// Require and read one lowered MIR artifact.
+    /// Read one lowered MIR artifact.
     pub fn mir_lowered(
         &self,
         module: ModuleId,
         profile: ProfileId,
         target: TargetId,
     ) -> Result<Arc<MirLowered>, ProviderError> {
-        self.read_required(
+        self.read(
             ArtifactKey::mir_lowered(module, profile, target),
             ArtifactStore::mir_lowered,
         )
     }
 
-    /// Require and read one verified MIR artifact.
+    /// Read one verified MIR artifact.
     pub fn mir_verified(
         &self,
         module: ModuleId,
         profile: ProfileId,
         target: TargetId,
     ) -> Result<Arc<MirVerified>, ProviderError> {
-        self.read_required(
+        self.read(
             ArtifactKey::mir_verified(module, profile, target),
             ArtifactStore::mir_verified,
         )
     }
 
-    /// Require and read one optimized MIR artifact.
+    /// Read one optimized MIR artifact.
     pub fn mir_optimized(
         &self,
         module: ModuleId,
         profile: ProfileId,
         target: TargetId,
     ) -> Result<Arc<MirOptimized>, ProviderError> {
-        self.read_required(
+        self.read(
             ArtifactKey::mir_optimized(module, profile, target),
             ArtifactStore::mir_optimized,
         )
     }
 
-    /// Require and read one module query index artifact.
+    /// Read one module query index artifact.
     pub fn module_query_index(
         &self,
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<Arc<ModuleQueryIndex>, ProviderError> {
-        self.read_required(
+        self.read(
             ArtifactKey::module_query_index(module, profile),
             ArtifactStore::module_query_index,
         )
     }
 
-    /// Require and read one workspace query index artifact.
+    /// Read one workspace query index artifact.
     pub fn workspace_query_index(
         &self,
         profile: ProfileId,
     ) -> Result<Arc<WorkspaceQueryIndex>, ProviderError> {
-        self.read_required(
+        self.read(
             ArtifactKey::workspace_query_index(profile),
             ArtifactStore::workspace_query_index,
         )
     }
 
-    /// Require and read one module output artifact.
+    /// Read one module output artifact.
     pub fn module_output(
         &self,
         module: ModuleId,
         target: TargetId,
     ) -> Result<Arc<ModuleOutput>, ProviderError> {
-        self.read_required(
+        self.read(
             ArtifactKey::module_output(module, target),
             ArtifactStore::module_output,
         )
     }
 
-    /// Require and read one package output artifact.
+    /// Read one package output artifact.
     pub fn package_output(
         &self,
         package: PackageId,
         target: TargetId,
     ) -> Result<Arc<PackageOutput>, ProviderError> {
-        self.read_required(
+        self.read(
             ArtifactKey::package_output(package, target),
             ArtifactStore::package_output,
         )
     }
 
-    /// Require and read one module lint marker artifact.
+    /// Read one module lint marker artifact.
     pub fn module_linted(
         &self,
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<Arc<ModuleLinted>, ProviderError> {
-        self.read_required(
+        self.read(
             ArtifactKey::module_linted(module, profile),
             ArtifactStore::module_linted,
         )
     }
 
-    /// Require and read one package lint marker artifact.
+    /// Read one package lint marker artifact.
     pub fn package_linted(&self, package: PackageId) -> Result<Arc<PackageLinted>, ProviderError> {
-        self.read_required(
+        self.read(
             ArtifactKey::package_linted(package),
             ArtifactStore::package_linted,
         )
     }
 
-    /// Require and read the workspace lint marker artifact.
+    /// Read the workspace lint marker artifact.
     pub fn workspace_linted(&self) -> Result<Arc<WorkspaceLinted>, ProviderError> {
-        self.read_required(
+        self.read(
             ArtifactKey::workspace_linted(),
             ArtifactStore::workspace_linted,
         )
