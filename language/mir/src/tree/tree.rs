@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 
-use destack_core::Arena;
+use destack_core::{Arena, StringId};
 use destack_source::{FileId, NodeSpanType, SourceIndex, Span};
 use serde::{Deserialize, Serialize};
 
@@ -9,9 +9,9 @@ use crate::source::{Token, TokenType};
 use crate::{
     Access, ArgumentSlice, Attribute, Block, CommentSpan, DynamicShape, DynamicTable, Field,
     FieldSpan, FloatType, Function, FunctionHeaderSpans, Global, Instruction, Layout, LayoutId,
-    Lifetime, LifetimeParameter, Local, LocalNodeId, Metadata, Node, NodeType, Nullability,
-    ReferenceKind, Space, Terminator, Type, TypeAlias, TypeDeclarationSpans, TypeLineage,
-    TypeMetadata, TypeReference, TypedValueSpan, ValueReference, Vtable,
+    Lifetime, LifetimeParameter, Local, LocalNodeId, Metadata, Node, NodeType, Nullability, Origin,
+    OriginTable, ReferenceKind, Space, Terminator, Type, TypeAlias, TypeDeclarationSpans,
+    TypeLineage, TypeMetadata, TypeReference, TypedValueSpan, ValueReference, Vtable,
 };
 
 #[inline]
@@ -100,6 +100,8 @@ pub struct Tree {
     pub(crate) attributes_by_node_id: HashMap<u32, Vec<Attribute>>,
     /// DIR source id keyed by MIR node id.
     pub(crate) source_id_by_node_id: Vec<Option<u32>>,
+    /// How each pass-created node came to be.
+    pub(crate) origin_by_node_id: OriginTable,
 
     /// Source ranges and anchors for parsed MIR node ownership.
     pub source_index: SourceIndex,
@@ -185,6 +187,7 @@ impl Tree {
             node_index_by_node_id: Vec::with_capacity(capacity),
             attributes_by_node_id: HashMap::with_capacity(capacity),
             source_id_by_node_id: Vec::with_capacity(capacity),
+            origin_by_node_id: OriginTable::default(),
             source_index: SourceIndex::with_capacity(capacity),
             source_text: None,
             tokens: Vec::new(),
@@ -519,6 +522,7 @@ impl Tree {
         self.node_index_by_node_id
             .push(NodeIndexEntry::new(local_id, T::TYPE));
         self.source_id_by_node_id.push(None);
+        self.origin_by_node_id.append();
         self.source_index.append(empty_source_span());
 
         LocalNodeId::new(global_id)
@@ -537,9 +541,68 @@ impl Tree {
         self.node_index_by_node_id
             .push(NodeIndexEntry::new(local_id, T::TYPE));
         self.source_id_by_node_id.push(Some(source_dir_id));
+        self.origin_by_node_id.append();
         self.source_index.append(empty_source_span());
 
         LocalNodeId::new(global_id)
+    }
+
+    /// Insert a node derived from an existing MIR node.
+    pub fn insert_derived<T>(&mut self, node: T, from: u32, derivation: StringId) -> LocalNodeId<T>
+    where
+        T: Node,
+        Self: TreeImpl<T>,
+    {
+        let id = self.insert(node);
+        let index = self.node_index(id.id);
+        self.origin_by_node_id
+            .set(index, Origin::one(derivation, from));
+
+        id
+    }
+
+    /// Insert a synthesized node with no single origin.
+    pub fn insert_synthetic<T>(&mut self, node: T, derivation: StringId) -> LocalNodeId<T>
+    where
+        T: Node,
+        Self: TreeImpl<T>,
+    {
+        let id = self.insert(node);
+        let index = self.node_index(id.id);
+        self.origin_by_node_id
+            .set(index, Origin::synthetic(derivation));
+
+        id
+    }
+
+    /// Set the origin for one node.
+    #[inline]
+    pub fn set_origin(&mut self, id: u32, origin: Origin) {
+        let index = self.node_index(id);
+        self.origin_by_node_id.set(index, origin);
+    }
+
+    /// Return the origin for one node.
+    #[inline]
+    pub fn origin(&self, id: u32) -> Option<&Origin> {
+        self.origin_by_node_id.get(self.node_index(id))
+    }
+
+    /// Get the DIR source for a node, walking MIR derivation parents.
+    pub fn dir_source(&self, id: u32) -> Option<u32> {
+        // follow primary parents until a lowered node carries the DIR edge,
+        // stopping at segment-foreign ids this tree cannot resolve
+        let mut current = id;
+        while self.has_node_id(current) {
+            if let Some(source) = self.source_id_by_node_id[self.node_index(current)] {
+                return Some(source);
+            }
+
+            let origin = self.origin_by_node_id.get(self.node_index(current))?;
+            current = origin.parent()?;
+        }
+
+        None
     }
 
     /// Insert a type node into the tree and update the primitive type cache.
@@ -1355,32 +1418,37 @@ impl Tree {
         &self.instruction_arguments[start..end]
     }
 
-    /// Replace a node in-place, preserving the original at a new ID.
-    ///
-    /// - The original node is preserved at a new ID (for diagnostics/mapping)
-    /// - The node at `id` is replaced with `replacement`
-    /// - The origin record is preserved on both the original location and the preserved copy
+    /// Replace a node in-place, preserving the original payload and provenance at a new id.
     ///
     /// Returns the ID of the preserved original node.
-    pub fn replace<T>(&mut self, id: LocalNodeId<T>, replacement: T) -> LocalNodeId<T>
+    pub fn replace<T>(
+        &mut self,
+        id: LocalNodeId<T>,
+        replacement: T,
+        derivation: StringId,
+    ) -> LocalNodeId<T>
     where
         T: Node + Clone,
         Self: TreeImpl<T>,
     {
-        // get original node and source
+        // preserve the original payload, DIR source, and origin at a new id
         let original = self.get(id).clone();
         let source_id = self.get_source(id.id);
-
-        // preserve original at new ID
         let preserved_id = self.insert(original);
-
-        // preserve source on the preserved copy
         if let Some(source_id) = source_id {
             self.set_source(preserved_id.id, source_id);
         }
+        let index = self.node_index(id.id);
+        if let Some(origin) = self.origin_by_node_id.take(index) {
+            let preserved_index = self.node_index(preserved_id.id);
+            self.origin_by_node_id.set(preserved_index, origin);
+        }
 
-        // replace in-place
+        // replace in place and derive the slot from the tombstone
         *self.get_mut(id) = replacement;
+        let index = self.node_index(id.id);
+        self.origin_by_node_id
+            .set(index, Origin::one(derivation, preserved_id.id));
 
         preserved_id
     }
@@ -1426,3 +1494,33 @@ impl_tree!(Type, types);
 impl_tree!(TypeAlias, type_aliases);
 impl_tree!(Field, fields);
 impl_tree!(Global, globals);
+
+#[cfg(test)]
+mod tests {
+    use destack_core::StringId;
+
+    use crate::{Terminator, Tree};
+
+    #[test]
+    fn test_dir_source_resolves_through_derived_nodes() {
+        let mut tree = Tree::new();
+        let derivation = StringId(1);
+
+        // one lowered node with a DIR source, one pass-derived, one synthetic
+        let lowered = tree.insert_from(Terminator::Unreachable, 7);
+        let derived = tree.insert_derived(Terminator::Unreachable, lowered.id, derivation);
+        let synthetic = tree.insert_synthetic(Terminator::Unreachable, derivation);
+
+        // derivation walks reach the DIR edge, synthetics resolve to none
+        assert_eq!(tree.dir_source(derived.id), Some(7));
+        assert_eq!(tree.dir_source(synthetic.id), None);
+
+        // replacing keeps the chain alive through the tombstone
+        let preserved = tree.replace(lowered, Terminator::Unreachable, derivation);
+        assert_eq!(
+            tree.origin(lowered.id).unwrap().parent(),
+            Some(preserved.id)
+        );
+        assert_eq!(tree.dir_source(lowered.id), Some(7));
+    }
+}
