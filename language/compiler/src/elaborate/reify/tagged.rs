@@ -119,23 +119,26 @@ impl Compiler {
         }
 
         // load the remote module data for imported symbols
-        let artifacts = self.artifact_reader(state.provider);
-        let parsed = artifacts
+        let parsed = state
+            .artifacts
             .dir_parsed(symbol.module_id)
             .map_err(|_| ElaborateError::UnsupportedConstruct {
                 anchor: symbol.module_id.into(),
             })?;
-        let bound = artifacts
+        let bound = state
+            .artifacts
             .dir_bound(symbol.module_id, state.profile)
             .map_err(|_| ElaborateError::UnsupportedConstruct {
                 anchor: symbol.module_id.into(),
             })?;
-        let expanded = artifacts
+        let expanded = state
+            .artifacts
             .dir_expanded(symbol.module_id, state.profile)
             .map_err(|_| ElaborateError::UnsupportedConstruct {
                 anchor: symbol.module_id.into(),
             })?;
-        let checked = artifacts
+        let checked = state
+            .artifacts
             .dir_checked(symbol.module_id, state.profile)
             .map_err(|_| ElaborateError::UnsupportedConstruct {
                 anchor: symbol.module_id.into(),

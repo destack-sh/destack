@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use destack_artifact::{Data, ModuleOutput};
-use destack_repository::{Module, ProviderContext, Revision, Target};
+use destack_repository::{ArtifactReader, Module, ProviderContext, Revision, Target};
 use destack_source::{File, FileId, ModuleId, PackageId, ProfileId, Span, TargetId};
 
 use crate::{Compiler, CompilerError, LinkError, LinkResult};
@@ -13,6 +13,8 @@ pub(crate) struct ScriptLinker<'a> {
     pub(super) compiler: &'a Compiler,
     /// The pinned revision used by this link.
     pub(super) context: &'a dyn ProviderContext,
+    /// The provider-scoped artifact reader.
+    pub(super) artifacts: &'a ArtifactReader<'a>,
     /// The package directory that anchors output resolution.
     pub(super) package_dir: &'a Path,
     /// The configured root directory when one exists.
@@ -32,6 +34,7 @@ impl<'a> ScriptLinker<'a> {
     pub(crate) fn new(
         compiler: &'a Compiler,
         context: &'a dyn ProviderContext,
+        artifacts: &'a ArtifactReader<'a>,
         package_dir: &'a Path,
         root_dir: Option<&'a Path>,
         target: &'a Target,
@@ -45,6 +48,7 @@ impl<'a> ScriptLinker<'a> {
         Ok(Self {
             compiler,
             context,
+            artifacts,
             package_dir,
             root_dir,
             target,
@@ -87,8 +91,7 @@ impl<'a> ScriptLinker<'a> {
 
     /// Return one generated module output for this target.
     pub(crate) fn module_output(&self, module_id: ModuleId) -> LinkResult<Arc<ModuleOutput>> {
-        self.compiler
-            .artifact_reader(self.context)
+        self.artifacts
             .module_output(module_id, *self.target_id)
             .map_err(|error| LinkError::Internal {
                 anchor: (self.package_id).into(),
@@ -117,8 +120,7 @@ impl<'a> ScriptLinker<'a> {
 
     /// Return the parsed data payload for one linked module.
     pub(crate) fn data(&self, module_id: ModuleId) -> LinkResult<Arc<Data>> {
-        self.compiler
-            .artifact_reader(self.context)
+        self.artifacts
             .data(module_id)
             .map_err(|error| LinkError::Internal {
                 anchor: (self.package_id).into(),

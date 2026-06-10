@@ -1,7 +1,7 @@
 use destack_dir::{
     BindingTable, GuardTable, ResolutionSegment, ResolutionTable, Tree, TypeSegment, TypeTable,
 };
-use destack_repository::{Module, ProfileId, ProviderContext};
+use destack_repository::{ArtifactReader, Module, ProfileId, ProviderContext};
 
 use crate::elaborate::ElaborateState;
 use crate::{Compiler, ElaborateResult};
@@ -21,6 +21,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         context: &dyn ProviderContext,
+        artifacts: &ArtifactReader<'_>,
         tree: &mut Tree,
         symbols: &mut BindingTable<'_>,
         types: &TypeTable<'_>,
@@ -37,6 +38,7 @@ impl Compiler {
         let options = self.elaborate_options(context, module);
         let mut state = ElaborateState::new(
             context,
+            artifacts,
             module.id,
             module,
             profile,

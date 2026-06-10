@@ -6,10 +6,10 @@ use destack_dir as dir;
 use destack_repository::{ProviderContext, Target};
 use destack_source::{ModuleId, PackageId, TargetId};
 
-use crate::{Compiler, LinkError, LinkResult};
+use crate::{LinkError, LinkResult, ScriptLinker};
 
 #[allow(clippy::too_many_arguments)]
-impl Compiler {
+impl ScriptLinker<'_> {
     /// Rewrite one same-output resource import into local bindings.
     pub(crate) fn resource_import_replacement(
         &self,
@@ -161,7 +161,6 @@ impl Compiler {
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-        context: &dyn ProviderContext,
     ) -> LinkResult<Vec<js::LocalNodeId<js::Statement>>> {
         let mut declarators = Vec::new();
 
@@ -210,7 +209,6 @@ impl Compiler {
                     target,
                     target_id,
                     package_id,
-                    context,
                 )?;
                 let pattern = module.tree.insert_from(
                     js::Pattern::Binding {
@@ -238,7 +236,7 @@ impl Compiler {
             }
 
             let (target_symbol, target_binding_name) = self.same_output_import_target_binding(
-                module, item_id, module_id, profile_id, package_id, context,
+                module, item_id, module_id, profile_id, package_id,
             )?;
             let local_binding_content = module.strings.get(local_binding_name).to_string();
 
@@ -310,10 +308,9 @@ impl Compiler {
         module_id: ModuleId,
         profile_id: destack_source::ProfileId,
         package_id: PackageId,
-        context: &dyn ProviderContext,
     ) -> LinkResult<(dir::GlobalSymbolId, String)> {
-        let artifacts = self.artifact_reader(context);
-        let source_bound = artifacts
+        let source_bound = self
+            .artifacts
             .dir_bound(module_id, profile_id)
             .map_err(|error| LinkError::Internal {
                 anchor: (package_id).into(),
@@ -323,16 +320,16 @@ impl Compiler {
                     module_id,
                 ),
             })?;
-        let source_expanded = artifacts
-            .dir_expanded(module_id, profile_id)
-            .map_err(|error| LinkError::Internal {
+        let source_expanded = self.artifacts.dir_expanded(module_id, profile_id).map_err(
+            |error| LinkError::Internal {
                 anchor: (package_id).into(),
                 package: package_id,
                 message: format!(
                     "missing expanded DIR for same-output import rewrite module {:?}: {error:?}",
                     module_id,
                 ),
-            })?;
+            },
+        )?;
         let origin = module
             .tree
             .get_origin(item_id.id)
@@ -346,7 +343,7 @@ impl Compiler {
         let source_symbols = source_expanded.binding_table(&source_bound);
         let target_symbol = {
             if let Some(symbol) =
-                source_symbols.symbol_for_declaration(source_item_id.into_global_any(module_id))
+                source_symbols.declaration_symbol(source_item_id.into_global_any(module_id))
             {
                 symbol.into_global(module_id)
             } else {
@@ -361,7 +358,7 @@ impl Compiler {
             }
         };
 
-        self.resolve_same_output_printable_symbol(target_symbol, profile_id, package_id, context)
+        self.resolve_same_output_printable_symbol(target_symbol, profile_id, package_id)
     }
 
     /// Resolve one same-output symbol to a printable binding symbol and name.
@@ -370,11 +367,10 @@ impl Compiler {
         symbol_id: dir::GlobalSymbolId,
         profile_id: destack_source::ProfileId,
         package_id: PackageId,
-        context: &dyn ProviderContext,
     ) -> LinkResult<(dir::GlobalSymbolId, String)> {
         // load the source module for the exported symbol
-        let artifacts = self.artifact_reader(context);
-        let source_bound = artifacts
+        let source_bound = self
+            .artifacts
             .dir_bound(symbol_id.module_id, profile_id)
             .map_err(|error| LinkError::Internal {
                 anchor: (package_id).into(),
@@ -384,7 +380,8 @@ impl Compiler {
                     symbol_id
                 ),
             })?;
-        let source_expanded = artifacts
+        let source_expanded = self
+            .artifacts
             .dir_expanded(symbol_id.module_id, profile_id)
             .map_err(|error| LinkError::Internal {
                 anchor: (package_id).into(),
@@ -401,7 +398,7 @@ impl Compiler {
         if let Some(name) = symbol.name() {
             return Ok((
                 symbol_id,
-                self.repository.string_pool().get(name).to_string(),
+                self.compiler.repository.string_pool().get(name).to_string(),
             ));
         }
 
@@ -563,10 +560,9 @@ impl Compiler {
         _target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-        context: &dyn ProviderContext,
     ) -> LinkResult<js::LocalNodeId<js::Expression>> {
         let target_directory = self
-            .artifact_reader(context)
+            .artifacts
             .dir_exported(target_module, profile_id)
             .map_err(|error| LinkError::Internal {
                 anchor: (package_id).into(),
@@ -592,16 +588,12 @@ impl Compiler {
             }
 
             let target_symbol = export.source.into_global(target_module);
-            let (target_symbol, target_name) = self.resolve_same_output_printable_symbol(
-                target_symbol,
-                profile_id,
-                package_id,
-                context,
-            )?;
+            let (target_symbol, target_name) =
+                self.resolve_same_output_printable_symbol(target_symbol, profile_id, package_id)?;
             let key = self.same_output_namespace_key(
                 module_id,
                 module,
-                self.repository.string_pool().as_ref(),
+                self.compiler.repository.string_pool().as_ref(),
                 static_key,
                 target_id,
                 package_id,

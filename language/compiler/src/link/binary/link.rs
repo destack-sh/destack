@@ -55,13 +55,10 @@ impl<'a> BinaryLinker<'a> {
 
         // require one generated output per discovered module
         for module_id in discovered_modules.iter().copied() {
-            let profile_id = self
-                .compiler
-                .profile_id_for_target(self.context.revision(), module_id, self.target_id)
-                .map_err(|error| Compiler::link_error(self.package_id, error))?;
-            let _ = profile_id;
-            let artifacts = self.compiler.artifact_reader(self.context);
-            match artifacts.require(ArtifactKey::module_output(module_id, *self.target_id)) {
+            match self
+                .artifacts
+                .require(ArtifactKey::module_output(module_id, *self.target_id))
+            {
                 Ok(_) => {}
                 Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
                 Err(error) => return Err(CompilerError::from(error)),
@@ -87,8 +84,7 @@ impl<'a> BinaryLinker<'a> {
         // render each generated binary output into final target files
         for module_id in module_ids {
             let artifact = self
-                .compiler
-                .artifact_reader(self.context)
+                .artifacts
                 .module_output(*module_id, *self.target_id)
                 .map_err(|error| LinkError::Internal {
                     anchor: (self.package_id).into(),

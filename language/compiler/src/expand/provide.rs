@@ -15,9 +15,8 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
+        // require provider inputs
         let artifacts = self.artifact_reader(context);
-
-        // require prior phase completion
         artifacts
             .require(ArtifactKey::dir_imported(module, profile))
             .map_err(CompilerError::from)?;

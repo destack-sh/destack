@@ -36,6 +36,8 @@ pub(in crate::resolve) struct ResolveState<'a> {
     pub(in crate::resolve) diagnostics: Vec<ResolveError>,
     /// The work stats accumulated while resolving.
     pub(in crate::resolve) stats: ResolveStats,
+    /// Import and re-export clauses collected from active roots.
+    pub(in crate::resolve) module_clauses: Vec<ModuleClause>,
     /// Namespace path references collected from active roots.
     pub(in crate::resolve) path_references: Vec<PathReference>,
     /// Member path collection depth during the resolve walk.
@@ -133,6 +135,7 @@ impl<'a> ResolveState<'a> {
             paths: dir::PathTable::new(module),
             diagnostics: Vec::new(),
             stats: ResolveStats::default(),
+            module_clauses: Vec::new(),
             path_references: Vec::new(),
             member_path_collection_depth: 0,
             global_keys: IndexSet::new(),

@@ -105,7 +105,7 @@ impl<'a> ModuleLowerer<'a> {
     {
         let node_id = node_id.into_global_any(self.module.id);
 
-        self.symbols.symbol_for_declaration(node_id)
+        self.symbols.declaration_symbol(node_id)
     }
 
     /// Store one lowered script symbol id on one JS AST node.

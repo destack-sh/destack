@@ -1,7 +1,7 @@
 use std::path::{Component, Path, PathBuf};
 
 use crate::link::{OutputLayout, SourceMapBuilder, SourceMapMarker};
-use crate::{Compiler, CompilerError, CompilerResult};
+use crate::{CompilerError, CompilerResult, ScriptLinker};
 use base64::Engine as _;
 use destack_artifact::{EmitFormat, OutputContent, OutputFile, ScriptOutput, SourceMapArtifact};
 use destack_codegen_js::{
@@ -166,7 +166,7 @@ impl<'a> ScriptTextOutputPolicy<'a> {
     }
 }
 
-impl Compiler {
+impl ScriptLinker<'_> {
     /// Print one script module with one exact source map marker stream.
     pub(crate) fn print_script_module(
         &self,
@@ -177,16 +177,16 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<PrintedScriptModule> {
         // source artifacts
-        let parsed = self
-            .artifact_reader(context)
-            .dir_parsed(module_id)
-            .map_err(|error| CompilerError::Internal {
-                message: format!(
-                    "missing committed parsed DIR artifact for module {module_id:?}: {error:?}"
-                ),
-            })?;
-        let source_module = self.module(context.revision(), module_id)?;
-        let source_file = self.file(context, source_module.file_id)?;
+        let parsed =
+            self.artifacts
+                .dir_parsed(module_id)
+                .map_err(|error| CompilerError::Internal {
+                    message: format!(
+                        "missing committed parsed DIR artifact for module {module_id:?}: {error:?}"
+                    ),
+                })?;
+        let source_module = self.compiler.module(context.revision(), module_id)?;
+        let source_file = self.compiler.file(context, source_module.file_id)?;
         let options = if target.should_minify_bundle_output() {
             JsFormatOptions::minimal()
         } else {
@@ -209,8 +209,10 @@ impl Compiler {
         printed: &PrintedScriptModule,
         context: &dyn ProviderContext,
     ) -> CompilerResult<SourceMapBuilder> {
-        let source_path = self.package_relative_uri_path(package_dir, &module.uri);
-        let source_file = self.file(context, module.file_id)?;
+        let source_path = self
+            .compiler
+            .package_relative_uri_path(package_dir, &module.uri);
+        let source_file = self.compiler.file(context, module.file_id)?;
         let markers = printed
             .markers
             .iter()

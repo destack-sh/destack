@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_dir::GuardTable;
+use destack_repository::{ArtifactReader, Module, ProfileId, ProviderContext};
 use destack_source::ModuleId;
-use destack_repository::{Module, ProfileId, ProviderContext};
 
 use crate::elaborate::ElaborateOptions;
 
@@ -9,6 +9,8 @@ use crate::elaborate::ElaborateOptions;
 pub(crate) struct ElaborateState<'a> {
     /// The provider context for this elaboration.
     pub(crate) provider: &'a dyn ProviderContext,
+    /// The provider-scoped artifact reader.
+    pub(crate) artifacts: &'a ArtifactReader<'a>,
     /// The active module id.
     pub(crate) module_id: ModuleId,
     /// The active module data.
@@ -38,6 +40,7 @@ impl<'a> ElaborateState<'a> {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         provider: &'a dyn ProviderContext,
+        artifacts: &'a ArtifactReader<'a>,
         module_id: ModuleId,
         module: &'a Module,
         profile: ProfileId,
@@ -52,6 +55,7 @@ impl<'a> ElaborateState<'a> {
     ) -> Self {
         Self {
             provider,
+            artifacts,
             module_id,
             module,
             profile,

@@ -118,7 +118,7 @@ impl ScriptLinker<'_> {
             .script_dependency_target(&specifier, Some(target_module));
 
         // only bundled internal imports rewrite to chunk references
-        if !self.compiler.should_bundle_script_dependency(
+        if !self.should_bundle_script_dependency(
             self.module_anchor_span(module_id)?,
             self.package_id,
             self.target_id,

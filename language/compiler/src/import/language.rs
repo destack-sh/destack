@@ -1,6 +1,6 @@
 use destack_artifact::LanguageEnvironment;
 use destack_dir as dir;
-use destack_repository::{ProfileId, ProviderContext};
+use destack_repository::{ArtifactReader, ProfileId};
 use destack_source::ModuleId;
 
 use crate::{Compiler, CompilerError, CompilerResult};
@@ -10,23 +10,27 @@ impl Compiler {
     pub(in crate::import) fn build_language_environment(
         &self,
         profile: ProfileId,
-        context: &dyn ProviderContext,
+        artifacts: &ArtifactReader<'_>,
+        modules: &[ModuleId],
     ) -> CompilerResult<LanguageEnvironment> {
         let mut environment = LanguageEnvironment::default();
-        let artifacts = self.artifact_reader(context);
 
         // scan builtin modules for language item declarations
-        let modules = self.repository.builtin_package().module_ids();
         for module_id in modules {
             let parsed = artifacts
-                .dir_parsed(module_id)
+                .dir_parsed(*module_id)
                 .map_err(CompilerError::from)?;
             let bound = artifacts
-                .dir_bound(module_id, profile)
+                .dir_bound(*module_id, profile)
                 .map_err(CompilerError::from)?;
             let bindings = bound.binding_table();
 
-            self.collect_language_items_into(module_id, &parsed.tree, &bindings, &mut environment)?;
+            self.collect_language_items_into(
+                *module_id,
+                &parsed.tree,
+                &bindings,
+                &mut environment,
+            )?;
         }
 
         Ok(environment)
@@ -41,7 +45,7 @@ impl Compiler {
         environment: &mut LanguageEnvironment,
     ) -> CompilerResult<()> {
         for (target_id, decorators) in tree.get_all_decorators() {
-            // recover decorated target
+            // resolve decorated target
             let node_type = tree.get_node_type(*target_id);
             let target = dir::LocalNodeIdAny::new(*target_id, node_type);
 
@@ -114,7 +118,7 @@ impl Compiler {
         target: dir::LocalNodeIdAny,
     ) -> Option<dir::LocalSymbolId> {
         let global_target = target.into_global(module);
-        if let Some(symbol_id) = bindings.symbol_for_declaration(global_target) {
+        if let Some(symbol_id) = bindings.declaration_symbol(global_target) {
             return Some(symbol_id);
         }
 
@@ -133,7 +137,7 @@ impl Compiler {
             let declarator = tree.get(*declarator_id);
             let pattern = declarator.pattern.into_global_any(module);
 
-            return bindings.symbol_for_declaration(pattern);
+            return bindings.declaration_symbol(pattern);
         }
 
         // route direct declarator decorators through their pattern
@@ -142,7 +146,7 @@ impl Compiler {
             let declarator = tree.get(declarator_id);
             let pattern = declarator.pattern.into_global_any(module);
 
-            return bindings.symbol_for_declaration(pattern);
+            return bindings.declaration_symbol(pattern);
         }
 
         None

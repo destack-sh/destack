@@ -14,31 +14,28 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module_set: &ModuleSet,
     ) -> LinkResult<OutputGraph> {
-        let static_entry_sets = self.compiler.collect_script_static_entry_sets(
+        let static_entry_sets = self.collect_script_static_entry_sets(
             self.target,
             self.target_id,
             self.package_id,
             module_set,
-            self.context,
         )?;
         let static_reachable_modules = static_entry_sets.keys().copied().collect::<IndexSet<_>>();
-        let dynamic_target_modules = self.compiler.collect_script_dynamic_target_modules(
+        let dynamic_target_modules = self.collect_script_dynamic_target_modules(
             self.target,
             self.target_id,
             self.package_id,
             module_set,
-            self.context,
         )?;
-        let dynamic_entry_modules = self.compiler.collect_script_dynamic_entry_modules(
+        let dynamic_entry_modules = self.collect_script_dynamic_entry_modules(
             &dynamic_target_modules,
             &static_reachable_modules,
         );
-        let dynamic_target_sets = self.compiler.collect_script_dynamic_target_sets(
+        let dynamic_target_sets = self.collect_script_dynamic_target_sets(
             self.target,
             self.target_id,
             self.package_id,
             &dynamic_target_modules,
-            self.context,
         )?;
         let output_graph = match self.effective_bundle_mode() {
             BundleMode::SingleFile => self.build_single_file_script_output_graph(module_set),
@@ -365,33 +362,29 @@ impl<'a> ScriptLinker<'a> {
         module_set: &ModuleSet,
         dynamic_entry_modules: &IndexSet<ModuleId>,
     ) -> LinkResult<Output> {
-        let static_dependency_modules = self.compiler.bundled_static_script_modules(
+        let static_dependency_modules = self.bundled_static_script_modules(
             module_id,
             self.target,
             self.target_id,
             self.package_id,
-            self.context,
         )?;
-        let dynamic_dependency_modules = self.compiler.bundled_dynamic_script_modules(
+        let dynamic_dependency_modules = self.bundled_dynamic_script_modules(
             module_id,
             self.target,
             self.target_id,
             self.package_id,
-            self.context,
         )?;
-        let external_imports = self.compiler.retained_static_script_imports(
+        let external_imports = self.retained_static_script_imports(
             module_id,
             self.target,
             self.target_id,
             self.package_id,
-            self.context,
         )?;
-        let external_dynamic_imports = self.compiler.retained_dynamic_script_imports(
+        let external_dynamic_imports = self.retained_dynamic_script_imports(
             module_id,
             self.target,
             self.target_id,
             self.package_id,
-            self.context,
         )?;
         let static_output_dependencies =
             self.map_script_output_dependencies(static_dependency_modules, output_ids_by_module);
@@ -446,33 +439,29 @@ impl<'a> ScriptLinker<'a> {
 
             // aggregate every member module into one output level dependency set
             for module_id in output_graph.outputs[output_index].modules() {
-                let static_dependency_modules = self.compiler.bundled_static_script_modules(
+                let static_dependency_modules = self.bundled_static_script_modules(
                     *module_id,
                     self.target,
                     self.target_id,
                     self.package_id,
-                    self.context,
                 )?;
-                let dynamic_dependency_modules = self.compiler.bundled_dynamic_script_modules(
+                let dynamic_dependency_modules = self.bundled_dynamic_script_modules(
                     *module_id,
                     self.target,
                     self.target_id,
                     self.package_id,
-                    self.context,
                 )?;
-                let static_imports = self.compiler.retained_static_script_imports(
+                let static_imports = self.retained_static_script_imports(
                     *module_id,
                     self.target,
                     self.target_id,
                     self.package_id,
-                    self.context,
                 )?;
-                let dynamic_imports = self.compiler.retained_dynamic_script_imports(
+                let dynamic_imports = self.retained_dynamic_script_imports(
                     *module_id,
                     self.target,
                     self.target_id,
                     self.package_id,
-                    self.context,
                 )?;
 
                 for dependency_module in static_dependency_modules {

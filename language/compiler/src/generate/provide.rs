@@ -1,4 +1,4 @@
-use crate::{Compiler, CompilerResult};
+use crate::{Compiler, CompilerError, CompilerResult, GenerateError};
 use destack_artifact::ArtifactPayload;
 use destack_repository::ProviderContext;
 
@@ -14,7 +14,43 @@ impl Compiler {
         target: TargetId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        let output = self.generate_target_module_output(module, profile, &target, context)?;
+        // resolve target selection
+        let target_config =
+            self.target_or_builtin(context, target)?
+                .ok_or_else(|| GenerateError::Internal {
+                    anchor: module.into(),
+                    module,
+                    message: format!("target '{target}' not found"),
+                })?;
+        let target_name = self.target_name(context.revision(), target)?;
+        let resolved_profile = self.profile_id_for_target(context.revision(), module, &target)?;
+        if resolved_profile != profile {
+            return Err(GenerateError::Internal {
+                anchor: module.into(),
+                module,
+                message: format!(
+                    "target '{}' resolved to profile '{resolved_profile:?}', not '{profile:?}'",
+                    target_name
+                ),
+            }
+            .into());
+        }
+
+        // require selected generation input
+        let artifacts = self.artifact_reader(context);
+        let input = self.module_output_input(module, profile, &target, &target_config)?;
+        artifacts.require(input).map_err(CompilerError::from)?;
+
+        // generate output from the required input
+        let output = self.generate_target_module_output(
+            module,
+            profile,
+            &target,
+            &target_config,
+            &target_name,
+            context,
+            &artifacts,
+        )?;
 
         Ok(ArtifactPayload::ModuleOutput(output))
     }

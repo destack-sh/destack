@@ -2,28 +2,27 @@ use std::collections::VecDeque;
 
 use destack_artifact::{ModuleOutput, ScriptOutput};
 use destack_codegen_js::DependencyForm;
-use destack_repository::{ProviderContext, Target};
+use destack_repository::Target;
 use destack_source::{ModuleId, PackageId, Span, TargetId};
 use indexmap::{IndexMap, IndexSet};
 
-use crate::{Compiler, CompilerError, LinkError, LinkResult};
+use crate::{CompilerError, LinkError, LinkResult};
 
 use super::super::{
-    ScriptDependencyTarget, dynamic_script_dependencies, static_script_dependencies,
+    ScriptDependencyTarget, ScriptLinker, dynamic_script_dependencies, static_script_dependencies,
 };
 use super::ModuleSet;
 
-impl Compiler {
+impl ScriptLinker<'_> {
     /// Return one linked script output when the module participates in runtime linking.
     fn linked_script_output(
         &self,
         module_id: ModuleId,
         target_id: &TargetId,
         package_id: PackageId,
-        context: &dyn ProviderContext,
     ) -> LinkResult<Option<ScriptOutput>> {
         let artifact = self
-            .artifact_reader(context)
+            .artifacts
             .module_output(module_id, *target_id)
             .map_err(CompilerError::from)
             .map_err(|error| LinkError::Internal {
@@ -149,10 +148,8 @@ impl Compiler {
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-        context: &dyn ProviderContext,
     ) -> LinkResult<Vec<ModuleId>> {
-        let Some(script) = self.linked_script_output(module_id, target_id, package_id, context)?
-        else {
+        let Some(script) = self.linked_script_output(module_id, target_id, package_id)? else {
             return Ok(Vec::new());
         };
         let mut dependency_modules = Vec::new();
@@ -163,9 +160,7 @@ impl Compiler {
                 continue;
             }
 
-            let module = self
-                .module(context.revision(), module_id)
-                .map_err(|error| Compiler::link_error(package_id, error))?;
+            let module = self.module(module_id)?;
 
             if !self.should_bundle_script_dependency(
                 Span::empty(module.file_id),
@@ -194,10 +189,8 @@ impl Compiler {
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-        context: &dyn ProviderContext,
     ) -> LinkResult<Vec<ModuleId>> {
-        let Some(script) = self.linked_script_output(module_id, target_id, package_id, context)?
-        else {
+        let Some(script) = self.linked_script_output(module_id, target_id, package_id)? else {
             return Ok(Vec::new());
         };
         let mut dependency_modules = Vec::new();
@@ -208,9 +201,7 @@ impl Compiler {
                 continue;
             };
 
-            let module = self
-                .module(context.revision(), module_id)
-                .map_err(|error| Compiler::link_error(package_id, error))?;
+            let module = self.module(module_id)?;
 
             if !self.should_bundle_script_dependency(
                 Span::empty(module.file_id),
@@ -239,10 +230,8 @@ impl Compiler {
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-        context: &dyn ProviderContext,
     ) -> LinkResult<Vec<String>> {
-        let Some(script) = self.linked_script_output(module_id, target_id, package_id, context)?
-        else {
+        let Some(script) = self.linked_script_output(module_id, target_id, package_id)? else {
             return Ok(Vec::new());
         };
         let mut import_specifiers = Vec::new();
@@ -253,9 +242,7 @@ impl Compiler {
                 continue;
             }
 
-            let module = self
-                .module(context.revision(), module_id)
-                .map_err(|error| Compiler::link_error(package_id, error))?;
+            let module = self.module(module_id)?;
 
             if self.should_bundle_script_dependency(
                 Span::empty(module.file_id),
@@ -280,10 +267,8 @@ impl Compiler {
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-        context: &dyn ProviderContext,
     ) -> LinkResult<Vec<String>> {
-        let Some(script) = self.linked_script_output(module_id, target_id, package_id, context)?
-        else {
+        let Some(script) = self.linked_script_output(module_id, target_id, package_id)? else {
             return Ok(Vec::new());
         };
         let mut import_specifiers = Vec::new();
@@ -294,9 +279,7 @@ impl Compiler {
                 continue;
             };
 
-            let module = self
-                .module(context.revision(), module_id)
-                .map_err(|error| Compiler::link_error(package_id, error))?;
+            let module = self.module(module_id)?;
 
             if self.should_bundle_script_dependency(
                 Span::empty(module.file_id),
@@ -321,7 +304,6 @@ impl Compiler {
         target_id: &TargetId,
         package_id: PackageId,
         module_set: &ModuleSet,
-        context: &dyn ProviderContext,
     ) -> LinkResult<IndexMap<ModuleId, IndexSet<ModuleId>>> {
         let mut entry_sets: IndexMap<ModuleId, IndexSet<ModuleId>> = IndexMap::new();
 
@@ -340,9 +322,8 @@ impl Compiler {
                     .or_default()
                     .insert(*entry_module);
 
-                let dependency_modules = self.bundled_static_script_modules(
-                    module_id, target, target_id, package_id, context,
-                )?;
+                let dependency_modules =
+                    self.bundled_static_script_modules(module_id, target, target_id, package_id)?;
 
                 for dependency_module in dependency_modules {
                     pending_modules.push_back(dependency_module);
@@ -360,15 +341,13 @@ impl Compiler {
         target_id: &TargetId,
         package_id: PackageId,
         module_set: &ModuleSet,
-        context: &dyn ProviderContext,
     ) -> LinkResult<IndexSet<ModuleId>> {
         let mut dynamic_target_modules = IndexSet::new();
 
         // bundled dynamic imports become internal lazy boundaries
         for module_id in module_set.modules() {
-            let dependency_modules = self.bundled_dynamic_script_modules(
-                *module_id, target, target_id, package_id, context,
-            )?;
+            let dependency_modules =
+                self.bundled_dynamic_script_modules(*module_id, target, target_id, package_id)?;
 
             for target_module in dependency_modules {
                 dynamic_target_modules.insert(target_module);
@@ -398,7 +377,6 @@ impl Compiler {
         target_id: &TargetId,
         package_id: PackageId,
         dynamic_target_modules: &IndexSet<ModuleId>,
-        context: &dyn ProviderContext,
     ) -> LinkResult<IndexMap<ModuleId, IndexSet<ModuleId>>> {
         let mut entry_sets: IndexMap<ModuleId, IndexSet<ModuleId>> = IndexMap::new();
 
@@ -417,9 +395,8 @@ impl Compiler {
                     .or_default()
                     .insert(*dynamic_target_module);
 
-                let dependency_modules = self.bundled_static_script_modules(
-                    module_id, target, target_id, package_id, context,
-                )?;
+                let dependency_modules =
+                    self.bundled_static_script_modules(module_id, target, target_id, package_id)?;
 
                 for dependency_module in dependency_modules {
                     pending_modules.push_back(dependency_module);

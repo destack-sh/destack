@@ -4,9 +4,9 @@ use destack_repository::{ProviderContext, Target};
 use destack_source::{ModuleId, PackageId, ProfileId, Span, TargetId};
 
 use super::super::ModuleSet;
-use crate::{Compiler, LinkError, LinkResult};
+use crate::{Compiler, LinkError, LinkResult, ScriptLinker};
 
-impl Compiler {
+impl ScriptLinker<'_> {
     /// Return whether one module is a bundled entry.
     fn is_bundled_entry_module(&self, module_set: &ModuleSet, module_id: ModuleId) -> bool {
         module_set.entry_modules().contains(&module_id)
@@ -21,12 +21,11 @@ impl Compiler {
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-        context: &dyn ProviderContext,
     ) -> LinkResult<bool> {
-        let dependency_target = self.script_dependency_target(specifier, target_module);
-        let module = self
-            .module(context.revision(), module_id)
-            .map_err(|error| Compiler::link_error(package_id, error))?;
+        let dependency_target = self
+            .compiler
+            .script_dependency_target(specifier, target_module);
+        let module = self.module(module_id)?;
 
         self.should_bundle_script_dependency(
             Span::empty(module.file_id),
@@ -61,7 +60,6 @@ impl Compiler {
             target,
             target_id,
             package_id,
-            context,
         )?;
 
         // keep external imports untouched
@@ -76,9 +74,7 @@ impl Compiler {
 
         // bundled resource imports become local value bindings
         if let Some(target_module) = target_module {
-            let target_module_ref = self
-                .module(context.revision(), target_module)
-                .map_err(|error| Compiler::link_error(package_id, error))?;
+            let target_module_ref = self.module(target_module)?;
 
             if !target_module_ref.is_code() {
                 if items.is_empty() {
@@ -99,7 +95,7 @@ impl Compiler {
             }
         }
 
-        // reject unsupported import attributes for now
+        // reject unsupported import attributes
         if has_arguments {
             return Err(LinkError::InvalidTarget {
                 anchor: module_id.into(),
@@ -124,7 +120,6 @@ impl Compiler {
             target,
             target_id,
             package_id,
-            context,
         )?;
 
         Ok(replacement.first().copied().map(js::LocalNodeId::into_any))
@@ -144,7 +139,6 @@ impl Compiler {
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-        context: &dyn ProviderContext,
     ) -> LinkResult<Option<js::LocalNodeIdAny>> {
         let Some(specifier) = specifier else {
             return Ok(if self.is_bundled_entry_module(module_set, module_id) {
@@ -160,7 +154,6 @@ impl Compiler {
             target,
             target_id,
             package_id,
-            context,
         )?;
 
         // keep external re-exports untouched
@@ -179,7 +172,10 @@ impl Compiler {
         }
 
         // reject export forms that need binding rewrites
-        if !self.can_rewrite_internal_script_reexport(script, items) {
+        if !self
+            .compiler
+            .can_rewrite_internal_script_reexport(script, items)
+        {
             return Err(LinkError::InvalidTarget {
                 anchor: module_id.into(),
                 package: package_id,
@@ -260,7 +256,6 @@ impl Compiler {
                 target,
                 target_id,
                 package_id,
-                context,
             ),
 
             // non-entry bundled exports degrade to plain expressions
@@ -326,7 +321,7 @@ impl Compiler {
     }
 }
 
-impl Compiler {
+impl ScriptLinker<'_> {
     /// Trim one printed linked script module for final concatenation.
     pub(crate) fn trim_script_part(&self, text: String) -> String {
         text.trim_end().to_string()
@@ -391,6 +386,7 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> LinkResult<js::Module> {
         let profile_id = self
+            .compiler
             .profile_id_for_target(context.revision(), module_id, target_id)
             .map_err(|error| Compiler::link_error(package_id, error))?;
 

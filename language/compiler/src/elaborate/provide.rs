@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactPayload, DirElaborated};
+use destack_artifact::{ArtifactKey, ArtifactPayload, DirElaborated};
 use destack_dir as dir;
 use destack_repository::{ProfileId, ProviderContext};
 use destack_source::ModuleId;
@@ -15,8 +15,13 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        // load provider inputs
+        // require provider inputs
         let artifacts = self.artifact_reader(context);
+        artifacts
+            .require(ArtifactKey::dir_materialized(module, profile))
+            .map_err(CompilerError::from)?;
+
+        // load provider inputs
         let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
         let materialized = artifacts
             .dir_materialized(module, profile)

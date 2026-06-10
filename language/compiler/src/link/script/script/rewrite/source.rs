@@ -109,8 +109,7 @@ impl ScriptLinker<'_> {
 
         let profile_id = self.profile_id_for_module(module_id)?;
         let dir = self
-            .compiler
-            .artifact_reader(self.context)
+            .artifacts
             .dir_bound(module_id, profile_id)
             .map_err(|error| LinkError::Internal {
                 anchor: (self.package_id).into(),
@@ -186,7 +185,7 @@ impl ScriptLinker<'_> {
         let source_declaration_id = dir::LocalNodeId::<dir::Declaration>::new(origin.node_id);
         let symbol_id = source_context
             .symbols
-            .symbol_for_declaration(source_declaration_id.into_global_any(origin.module_id))
+            .declaration_symbol(source_declaration_id.into_global_any(origin.module_id))
             .ok_or_else(|| LinkError::Internal {
                 anchor: (self.package_id).into(),
                 package: self.package_id,

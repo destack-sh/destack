@@ -370,7 +370,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 self.move_projection_value(
                     *destination,
                     *array,
-                    mir::Projection::fixed_element(*index),
+                    mir::Projection::Element { index: *index },
                     anchor,
                 );
                 self.propagate_sources(*array, *destination);
@@ -556,11 +556,11 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 self.check_projection_use(*aggregate, projection, anchor);
             }
             mir::Instruction::ElementGet { array, index, .. } => {
-                let projection = mir::Projection::fixed_element(*index);
+                let projection = mir::Projection::Element { index: *index };
                 self.check_projection_use(*array, projection, anchor);
             }
             mir::Instruction::ElementAddr { array, index, .. } => {
-                let projection = mir::Projection::dynamic_element(*index);
+                let projection = mir::Projection::Index { index: *index };
                 self.check_projection_use(*array, projection, anchor);
                 self.check_value_use(*index, anchor);
             }

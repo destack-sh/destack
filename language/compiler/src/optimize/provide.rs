@@ -3,7 +3,7 @@ use destack_repository::ProviderContext;
 use std::mem;
 use std::str::FromStr;
 
-use destack_artifact::{ArtifactPayload, EmitFormat, MirOptimized, TargetArch};
+use destack_artifact::{ArtifactKey, ArtifactPayload, EmitFormat, MirOptimized, TargetArch};
 use destack_mir as mir;
 use destack_repository::{Module, OptimizeLevel as WorkspaceOptimizeLevel, ProfileId, Target};
 use destack_source::{ModuleId, TargetId};
@@ -59,9 +59,14 @@ impl Compiler {
         let level = self.optimization_level_for_target_config(&target_config);
         let pipeline = default_pipeline(level, target_config.uses_native_generate_pipeline());
 
-        // read verified MIR artifact truth
-        let verified = self
-            .artifact_reader(context)
+        // require provider inputs
+        let artifacts = self.artifact_reader(context);
+        artifacts
+            .require(ArtifactKey::mir_verified(module, profile, *target))
+            .map_err(CompilerError::from)?;
+
+        // load provider inputs
+        let verified = artifacts
             .mir_verified(module, profile, *target)
             .map_err(CompilerError::from)?;
         let mut tree = verified.patch.tree.clone();
