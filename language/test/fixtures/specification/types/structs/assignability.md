@@ -6,6 +6,8 @@ Structs are nominal value types.
 
 ### structs do not satisfy classes by shape
 
+Structs and classes are different representations.
+
 ```ds
 struct Point {
     x: int32;
@@ -22,6 +24,8 @@ const value: PointClass = point;
 - contains: is not assignable
 
 ### classes do not satisfy structs by shape
+
+The separation cuts both ways.
 
 ```ds
 struct Point {
@@ -42,6 +46,8 @@ const value: Point = point;
 
 ### structs satisfy structural interfaces
 
+Structs match plain interfaces by shape.
+
 ```ds
 interface HasX {
     x: int32;
@@ -58,6 +64,8 @@ value satisfies HasX;
 
 ### structs satisfy optional interface fields
 
+Missing optional members still match.
+
 ```ds
 interface HasName {
     name?: string;
@@ -73,6 +81,8 @@ person satisfies HasName;
 
 ### structs satisfy structural fields
 
+Struct values flow into structural object types.
+
 ```ds
 struct Point {
     x: int32;
@@ -84,6 +94,8 @@ value satisfies { readonly x: int32 };
 ```
 
 ### implements checks interface shape
+
+An `implements` clause is verified, not asserted.
 
 ```ds
 interface Drawable {
@@ -102,6 +114,8 @@ point satisfies Drawable;
 
 ### interfaces require declared members
 
+Missing members fail the clause.
+
 ```ds
 interface Drawable {
     draw(): void;
@@ -117,6 +131,8 @@ const point: Drawable = Point { x: 1 };
 - contains: is not assignable
 
 ### interfaces require matching field types
+
+Field types must line up exactly.
 
 ```ds
 interface HasX {

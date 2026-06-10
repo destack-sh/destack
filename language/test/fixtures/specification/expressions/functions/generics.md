@@ -12,8 +12,8 @@ Explicit type arguments specialize function references.
 function identity<T>(value: T): T {
     return value;
 }
-const as_number = identity<number>;
-as_number satisfies (value: number) => number;
+const asNumber = identity<number>;
+asNumber satisfies (value: number) => number;
 ```
 
 ### inferred type arguments from call

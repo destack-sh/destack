@@ -1,5 +1,7 @@
 # Cow
 
+`Cow` and `MaybeOwned` defer the borrowed-or-owned decision to runtime.
+
 ## construction
 
 ### maybe owned is the common readonly shape

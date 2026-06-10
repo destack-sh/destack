@@ -1,5 +1,7 @@
 # Rest Inference
 
+Rest parameters infer as tuples.
+
 ## partial application
 
 ### partial application preserves tail tuple order

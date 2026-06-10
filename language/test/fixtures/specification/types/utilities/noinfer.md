@@ -6,6 +6,8 @@
 
 ### NoInfer keeps inference from earlier arguments
 
+The wrapped position does not vote on inference.
+
 ```ds
 declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 
@@ -14,6 +16,8 @@ ok satisfies "red" | "blue";
 ```
 
 ### NoInfer rejects unrelated later arguments
+
+The inferred type still checks the wrapped argument.
 
 ```ds
 declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;

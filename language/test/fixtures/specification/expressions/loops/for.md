@@ -1,5 +1,7 @@
 # For Expressions
 
+Classic `for` loops keep their TypeScript form.
+
 ## for
 
 ### for yields void

@@ -6,6 +6,8 @@
 
 ### record builds required properties
 
+Each key becomes a required property.
+
 ```ds
 type Flags = Record<"a" | "b", boolean>;
 
@@ -15,6 +17,8 @@ ok satisfies Flags;
 
 ### record rejects invalid key types
 
+Keys must be key-typed.
+
 ```ds
 type Bad = Record<type { name: string }, boolean>;
 ```
@@ -22,6 +26,8 @@ type Bad = Record<type { name: string }, boolean>;
 - contains: not assignable
 
 ### record requires all keys
+
+Finite records are exhaustive.
 
 ```ds
 type Flags = Record<"a" | "b", boolean>;
@@ -32,6 +38,8 @@ const bad: Flags = { a: true };
 - contains: not assignable
 
 ### record supports numeric keys
+
+Numeric literal keys work.
 
 ```ds
 type NumericFlags = Record<1 | 2, string>;
@@ -55,6 +63,8 @@ const lookup: Lookup = value;
 
 ### record supports symbol keys
 
+Unique symbol keys work.
+
 ```ds
 declare const key: unique symbol;
 
@@ -66,6 +76,8 @@ ok[key] satisfies boolean;
 
 ### record rejects missing numeric keys
 
+Numeric records are exhaustive too.
+
 ```ds
 type NumericFlags = Record<1 | 2, string>;
 
@@ -75,6 +87,8 @@ const bad: NumericFlags = { 1: "one" };
 - contains: not assignable
 
 ### record rejects extra keys
+
+The shape is closed.
 
 ```ds
 type Flags = Record<"a" | "b", boolean>;
@@ -86,6 +100,8 @@ const bad: Flags = { a: true, b: false, c: true };
 
 ### record with never yields empty object
 
+No keys, no properties.
+
 ```ds
 type Empty = Record<never, boolean>;
 
@@ -93,6 +109,8 @@ const ok: Empty = {};
 ```
 
 ### record with never rejects extra fields
+
+Empty stays empty.
 
 ```ds
 type Empty = Record<never, boolean>;

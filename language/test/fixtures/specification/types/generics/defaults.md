@@ -1,5 +1,7 @@
 # Generic Defaults And Partial Inference
 
+Type parameter defaults fill in omitted arguments.
+
 ## default chains
 
 ### trailing defaults use inferred prefixes

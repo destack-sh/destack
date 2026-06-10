@@ -1,5 +1,7 @@
 # Literal Inference
 
+Literal types survive inference where the context keeps them.
+
 ## local literals
 
 ### generic inference preserves const literal precision

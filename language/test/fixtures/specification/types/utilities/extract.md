@@ -6,6 +6,8 @@
 
 ### extract keeps matching members
 
+Only assignable arms remain.
+
 ```ds
 type Letters = "a" | "b" | "c";
 type OnlyAorB = Extract<Letters, "a" | "b">;
@@ -18,6 +20,8 @@ ok2 satisfies OnlyAorB;
 
 ### extract rejects non members
 
+Unmatched arms drop.
+
 ```ds
 type Letters = "a" | "b" | "c";
 type OnlyAorB = Extract<Letters, "a" | "b">;
@@ -28,6 +32,8 @@ const bad: OnlyAorB = "c";
 - contains: not assignable
 
 ### extract with never yields never
+
+Nothing extracts to nothing.
 
 ```ds
 type NeverLetters = Extract<never, "a">;

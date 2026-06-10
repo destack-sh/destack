@@ -6,6 +6,8 @@
 
 ### NonNullable removes nullish
 
+Both nullish arms drop.
+
 ```ds
 type MaybeName = string | null | undefined;
 type Name = NonNullable<MaybeName>;
@@ -15,6 +17,8 @@ ok satisfies Name;
 ```
 
 ### NonNullable rejects nullish values
+
+The nullish arms are gone.
 
 ```ds
 type MaybeName = string | null | undefined;
@@ -26,6 +30,8 @@ const bad: Name = null;
 - contains: not assignable
 
 ### NonNullable with never yields never
+
+Nothing minus anything is nothing.
 
 ```ds
 type NeverValue = NonNullable<never>;

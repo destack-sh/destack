@@ -6,6 +6,8 @@
 
 ### tagged constructors insert discriminants
 
+Constructors fill the discriminant in, so payloads omit it.
+
 ```ds
 @derive(Tagged)
 newtype Shape =
@@ -20,6 +22,8 @@ circle satisfies Shape;
 ```
 
 ### tagged constructors preserve payload types
+
+Payload fields keep their declared types through construction and matching.
 
 ```ds
 @derive(Tagged)
@@ -37,6 +41,8 @@ match (error) {
 
 ### preserve keeps discriminant names
 
+`case: "preserve"` uses the discriminant strings verbatim.
+
 ```ds
 @derive(Tagged({ case: "preserve" }))
 newtype Shape =
@@ -52,6 +58,8 @@ circle satisfies Shape;
 
 ### camelCase converts discriminant names
 
+Discriminant strings convert to the configured case.
+
 ```ds
 @derive(Tagged({ case: "camelCase" }))
 newtype Event = { kind: "parse-error"; line: int32 } | { kind: "file-missing"; path: string };
@@ -64,6 +72,8 @@ missing satisfies Event;
 ```
 
 ### UpperCamelCase is the default
+
+Without configuration, constructors are UpperCamelCase.
 
 ```ds
 @derive(Tagged)
@@ -78,6 +88,8 @@ missing satisfies Event;
 
 ### snake_case converts discriminant names
 
+Conversion works toward any configured case.
+
 ```ds
 @derive(Tagged({ case: "snake_case" }))
 newtype Event = { kind: "parseError"; line: int32 } | { kind: "fileMissing"; path: string };
@@ -90,6 +102,8 @@ missing satisfies Event;
 ```
 
 ### SCREAMING_SNAKE_CASE converts discriminant names
+
+Conversion handles every supported case.
 
 ```ds
 @derive(Tagged({ case: "SCREAMING_SNAKE_CASE" }))
@@ -104,6 +118,8 @@ missing satisfies Event;
 
 ### explicit names cover numeric discriminants
 
+Numeric discriminants get their constructor names from `names`.
+
 ```ds
 @derive(Tagged({ names: { "1": "Ready", "2": "Done" } }))
 newtype State = { kind: 1; path: string } | { kind: 2; code: int32 };
@@ -116,6 +132,8 @@ done satisfies State;
 ```
 
 ### tagged constructors infer the discriminant field
+
+Any shared literal field works as the discriminant, not just `kind`.
 
 ```ds
 @derive(Tagged)
@@ -134,6 +152,8 @@ circle satisfies Shape;
 
 ### tagged unions require object variants
 
+Bare scalars have no field to discriminate on.
+
 ```ds
 @derive(Tagged)
 newtype Value = string | int32;
@@ -142,6 +162,8 @@ newtype Value = string | int32;
 - contains: Tagged
 
 ### numeric discriminants require explicit names
+
+Numbers cannot become identifiers on their own.
 
 ```ds
 @derive(Tagged)
@@ -152,6 +174,8 @@ newtype Event = { kind: 1; path: string } | { kind: 2; code: int32 };
 
 ### explicit names must cover every numeric discriminant
 
+Partial name maps leave variants unconstructable.
+
 ```ds
 @derive(Tagged({ names: { "1": "Ready" } }))
 newtype Event = { kind: 1; path: string } | { kind: 2; code: int32 };
@@ -160,6 +184,8 @@ newtype Event = { kind: 1; path: string } | { kind: 2; code: int32 };
 - contains: discriminant
 
 ### tagged discriminants must be unique
+
+Two variants cannot share a discriminant value.
 
 ```ds
 @derive(Tagged)
@@ -170,6 +196,8 @@ newtype Event = { kind: "message"; text: string } | { kind: "message"; code: int
 
 ### tagged constructor names must be unique
 
+Case conversion must not collide constructor names.
+
 ```ds
 @derive(Tagged({ case: "camelCase" }))
 newtype Event = { kind: "parse-error"; line: int32 } | { kind: "parse_error"; path: string };
@@ -178,6 +206,8 @@ newtype Event = { kind: "parse-error"; line: int32 } | { kind: "parse_error"; pa
 - contains: duplicate
 
 ### tagged unions require one discriminant field
+
+Multiple shared literal fields are ambiguous.
 
 ```ds
 @derive(Tagged)

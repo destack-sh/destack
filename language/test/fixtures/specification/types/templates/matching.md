@@ -1,5 +1,7 @@
 # Template Matching
 
+Template literal types match strings structurally.
+
 ## matching
 
 ### template literal type accepts matching string literal

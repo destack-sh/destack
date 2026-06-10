@@ -1,5 +1,7 @@
 # Loop Expressions
 
+`loop` repeats until `break`, and `break` can carry the value.
+
 ## loop
 
 ### loop yields void

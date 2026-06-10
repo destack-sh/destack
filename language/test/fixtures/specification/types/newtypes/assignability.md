@@ -6,6 +6,8 @@ Newtypes are nominal at assignment boundaries.
 
 ### backing values do not satisfy newtypes
 
+The wrapper is nominal.
+
 ```ds
 newtype UserId = int64;
 
@@ -16,6 +18,8 @@ const id: UserId = 42;
 
 ### newtypes do not satisfy backing types
 
+Unwrapping is explicit too.
+
 ```ds
 newtype UserId = int64;
 
@@ -25,6 +29,8 @@ const raw: int64 = UserId(42);
 - contains: not assignable
 
 ### backing casts are explicit
+
+`as` opens the wrapper deliberately.
 
 ```ds
 newtype UserId = int64;
@@ -38,6 +44,8 @@ raw satisfies int64;
 
 ### same newtype assigns to itself
 
+Identity is by declaration.
+
 ```ds
 newtype UserId = int64;
 
@@ -47,6 +55,8 @@ target satisfies UserId;
 ```
 
 ### distinct newtypes stay distinct
+
+Sharing a backing type relates nothing.
 
 ```ds
 newtype UserId = int64;
@@ -59,6 +69,8 @@ const order: OrderId = user;
 - contains: not assignable
 
 ### imported newtypes stay distinct
+
+Identity follows the declaration, not the name.
 
 ```ds:left.ds
 export newtype UserId = int64;

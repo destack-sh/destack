@@ -1,5 +1,7 @@
 # Numeric Aliases
 
+The numeric aliases name the same types as their spelled-out forms.
+
 ## integer aliases
 
 ### int uses int64

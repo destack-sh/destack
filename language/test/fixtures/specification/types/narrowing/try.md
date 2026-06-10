@@ -1,5 +1,7 @@
 # Try
 
+Narrowing survives `try` control flow conservatively.
+
 ## catch joins
 
 ### catch assignments widen post-try variable types

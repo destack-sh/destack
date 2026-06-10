@@ -1,5 +1,7 @@
 # If Let
 
+`if (let ...)` binds a pattern and branches on whether it matched.
+
 ## branches
 
 ### if (let ...) joins branches

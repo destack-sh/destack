@@ -1,5 +1,7 @@
 # Ownership Patterns
 
+Patterns can state the access or ownership they bind with.
+
 ## borrow bindings
 
 ### borrow field as readonly
@@ -19,6 +21,8 @@ x satisfies &readonly int32;
 ```
 
 ### borrow field access is explicit
+
+Each binding names the access it takes.
 
 ```ds
 struct Cell {
@@ -58,6 +62,8 @@ left satisfies ^string;
 
 ### match through readonly reference
 
+`*` dereferences the scrutinee, then the inner pattern destructures the place.
+
 ```ds
 struct Point {
     x: int32;
@@ -76,6 +82,8 @@ match (point) {
 
 ### dereference before borrow
 
+Dereference and reborrow compose in one pattern.
+
 ```ds
 declare const value: &readonly int32;
 
@@ -87,6 +95,8 @@ match (value) {
 ```
 
 ### borrow reference itself
+
+Without `*`, the pattern borrows the reference value.
 
 ```ds
 declare const value: &readonly int32;

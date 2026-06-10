@@ -7,6 +7,8 @@ The `implements` clause is an explicit checked declaration.
 
 ### implementations assign to interfaces
 
+An implementor flows into the interface type.
+
 ```ds
 interface Printable {
     print(): void;
@@ -23,6 +25,8 @@ const printable: Printable = getDocument();
 
 ### implementations satisfy interfaces
 
+`satisfies` follows the implementation.
+
 ```ds
 interface Printable {
     print(): void;
@@ -38,6 +42,8 @@ getDocument() satisfies Printable;
 ```
 
 ### interfaces do not assign to implementations
+
+The interface is wider than any implementor.
 
 ```ds
 interface Printable {
@@ -59,6 +65,8 @@ const document: Document = getPrintable();
 
 ### implementations pass to interface parameters
 
+Parameter positions accept implementors.
+
 ```ds
 interface Printable {
     print(): void;
@@ -78,6 +86,8 @@ acceptPrintable(getDocument());
 ## multiple interfaces
 
 ### classes implement multiple interfaces
+
+Each clause is checked independently.
 
 ```ds
 interface Printable {
@@ -103,6 +113,8 @@ const saveable: Saveable = getDocument();
 
 ### classes extend and implement together
 
+Extension and implementation compose.
+
 ```ds
 class Base {
     id: number = 0;
@@ -126,6 +138,8 @@ const printable: Printable = getDocument();
 
 ### classes satisfy interfaces structurally
 
+Plain interfaces match by structure, no clause needed.
+
 ```ds
 interface HasId {
     id: number;
@@ -141,6 +155,8 @@ const hasId: HasId = getDocument();
 ```
 
 ### interfaces require class members
+
+Missing members fail the match.
 
 ```ds
 interface HasId {
@@ -160,6 +176,8 @@ const hasId: HasId = getDocument();
 
 ### structs satisfy interfaces structurally
 
+Structs match plain interfaces the same way.
+
 ```ds
 interface HasName {
     name: string;
@@ -176,6 +194,8 @@ const named: HasName = getPerson();
 ```
 
 ### extra class fields are allowed
+
+Structural matching ignores extra members.
 
 ```ds
 interface Named {

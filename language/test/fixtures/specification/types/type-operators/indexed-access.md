@@ -7,6 +7,8 @@ Fixed arrays use `[T; N]`.
 
 ### indexed access reads property types
 
+`T[K]` projects the field type.
+
 ```ds
 type User = { name: string; age: number };
 type Name = User["name"];
@@ -17,6 +19,8 @@ value satisfies string;
 
 ### indexed access rejects missing properties
 
+Keys must exist.
+
 ```ds
 type User = { name: string; age: number };
 type Missing = User["missing"];
@@ -25,6 +29,8 @@ type Missing = User["missing"];
 - contains: does not exist
 
 ### numeric keys on object types stay indexed access
+
+Numeric literal keys project like string keys.
 
 ```ds
 type Pair = { 0: string; 1: int32 };
@@ -35,6 +41,8 @@ value satisfies int32;
 ```
 
 ### missing numeric object keys are rejected
+
+Numeric keys must exist too.
 
 ```ds
 type ObjectLike = { label: string };
@@ -47,6 +55,8 @@ type Missing = ObjectLike[5];
 
 ### indexed access distributes across unions
 
+Projecting a union projects each arm.
+
 ```ds
 type A = { kind: "a"; value: number };
 type B = { kind: "b"; value: string };
@@ -58,6 +68,8 @@ const second: Value = "hi";
 
 ### indexed access with key unions yields unioned values
 
+A key union projects the union of field types.
+
 ```ds
 type User = { name: string; age: number };
 type Value = User["name" | "age"];
@@ -67,6 +79,8 @@ const second: Value = 42;
 ```
 
 ### indexed access rejects values outside selected members
+
+The projected union stays closed.
 
 ```ds
 type User = { name: string; age: number };
@@ -81,6 +95,8 @@ const bad: Value = true;
 
 ### generic indexed access requires a key constraint
 
+`K: keyof T` makes the projection well formed.
+
 ```ds
 type ValueAt<T, K: keyof T> = T[K];
 type User = { name: string; age: int32 };
@@ -90,6 +106,8 @@ value satisfies string;
 ```
 
 ### unconstrained generic indexed access is rejected
+
+An arbitrary `K` may not index `T`.
 
 ```ds
 type ValueAt<T, K> = T[K];
@@ -101,6 +119,8 @@ type ValueAt<T, K> = T[K];
 
 ### tuple indexing keeps indexed access semantics
 
+Tuple positions project by literal index.
+
 ```ds
 type Pair = (string, int32);
 type First = Pair[0];
@@ -111,6 +131,8 @@ first satisfies string;
 
 ### dynamic array indexing yields element types
 
+`T[number]` projects the element type.
+
 ```ds
 type Element<T: string[]> = T[number];
 
@@ -119,6 +141,8 @@ value satisfies string;
 ```
 
 ### fixed array syntax is separate
+
+`[T; N]` is a type form, not an indexed access.
 
 ```ds
 type Lane<comptime N: uint> = [uint8; N];

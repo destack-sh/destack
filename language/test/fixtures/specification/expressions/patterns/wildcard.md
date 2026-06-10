@@ -1,5 +1,7 @@
 # Wildcard Patterns
 
+`_` matches and ignores a value.
+
 ## discard
 
 ### wildcard binding discards a value

@@ -6,6 +6,8 @@ Range expressions keep arithmetic inside their endpoints.
 
 ### negative starts bind as prefix expressions
 
+Prefix minus binds tighter than `..`.
+
 ```ds
 const range = -3..3;
 
@@ -13,6 +15,8 @@ range satisfies Range<int>;
 ```
 
 ### arithmetic binds inside endpoints
+
+Binary arithmetic binds tighter than `..`.
 
 ```ds
 const start = 1;
@@ -23,6 +27,8 @@ range satisfies Range<int>;
 ```
 
 ### newline ends an open-ended range
+
+An open end stops at the line break.
 
 ```ds
 const from = 1..;

@@ -1,5 +1,7 @@
 # Newtype Patterns
 
+Newtype patterns open the wrapper and bind its backing shape.
+
 ## scalar newtypes
 
 ### scalar newtype patterns bind values

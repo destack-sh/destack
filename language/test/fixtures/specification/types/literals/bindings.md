@@ -1,5 +1,7 @@
 # Bindings
 
+Binding mutability decides how literal types widen.
+
 ## const bindings
 
 ### const assertions keep nested literals through satisfies

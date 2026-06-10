@@ -1,5 +1,7 @@
 # Floats
 
+Float widths follow IEEE 754.
+
 ## precision
 
 ### float16 accepts literals

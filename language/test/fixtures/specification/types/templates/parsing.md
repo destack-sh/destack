@@ -1,5 +1,7 @@
 # Template Parsing
 
+Template matching can drive static parsing.
+
 ## inference
 
 ### template literal infers constrained number literal

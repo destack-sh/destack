@@ -1,5 +1,7 @@
 # Template Remapping
 
+Templates rewrite keys in mapped types.
+
 ## keys
 
 ### mapped keys can use templates

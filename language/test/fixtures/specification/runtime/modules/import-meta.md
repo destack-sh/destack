@@ -1,5 +1,7 @@
 # import.meta
 
+`import.meta` exposes static module facts to code.
+
 ## metadata
 
 Profile and module metadata are available via `import.meta`.
@@ -116,6 +118,8 @@ const value: string | undefined = import.meta.env.CUSTOM_KEY;
 ```
 
 ### module declarations extend import.meta
+
+Module metadata becomes visible on `import.meta`.
 
 ```ds
 import { HtmlTree } from "destack:ui/html";

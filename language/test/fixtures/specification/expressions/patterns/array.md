@@ -1,5 +1,7 @@
 # Array Patterns
 
+Array patterns destructure sequences positionally.
+
 ## array patterns
 
 ### array patterns bind elements

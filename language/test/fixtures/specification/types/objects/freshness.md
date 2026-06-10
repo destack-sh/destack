@@ -1,5 +1,7 @@
 # Freshness
 
+Fresh literals are checked exactly; references are not.
+
 ## freshness boundaries
 
 ### direct object literals preserve discriminant freshness for excess checks
@@ -9,9 +11,9 @@ A direct object-literal argument stays fresh so excess property checking still r
 ```ds
 type Ready = { kind: "ready"; payload: string };
 
-declare const use_ready: (value: Ready) => void;
+declare const useReady: (value: Ready) => void;
 
-use_ready({ kind: "ready", payload: "ok", extra: true });
+useReady({ kind: "ready", payload: "ok", extra: true });
 ```
 
 - contains: excess property
@@ -23,10 +25,10 @@ Once the same literal flows through a variable binding, freshness is dropped and
 ```ds
 type Ready = { kind: "ready"; payload: string };
 
-declare const use_ready: (value: Ready) => void;
+declare const useReady: (value: Ready) => void;
 
 const input = { kind: "ready" as const, payload: "ok", extra: true };
-use_ready(input);
+useReady(input);
 ```
 
 ### const assertions preserve nested literal members through wrappers

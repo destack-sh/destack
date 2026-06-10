@@ -1,5 +1,7 @@
 # Template Calls
 
+Template types flow through calls like any literal type.
+
 ## inference
 
 ### template literal infers from call arguments

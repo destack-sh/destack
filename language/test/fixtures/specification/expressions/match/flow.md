@@ -1,5 +1,7 @@
 # Match Flow
 
+`match` is an expression, and its arms join like branches.
+
 ## control flow
 
 ### match does not allow break

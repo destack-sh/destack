@@ -1,5 +1,7 @@
 # Dynamic Arrays
 
+`T[]` is the growable, managed sequence.
+
 ## assignability
 
 ### dynamic arrays accept compatible element types

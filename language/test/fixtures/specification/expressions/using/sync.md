@@ -1,5 +1,7 @@
 # Sync
 
+`using` disposes resources at scope exit.
+
 ## using
 
 ### using binding introduces a resource name

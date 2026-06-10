@@ -1,5 +1,7 @@
 # Type
 
+`Type` reflects values, layouts, and identities.
+
 ## values
 
 ### type expressions coerce to reflected types

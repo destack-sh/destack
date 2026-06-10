@@ -1,6 +1,6 @@
 # Generator Functions
 
-Generator functions use `yield` and respect declared `Generator<TYield, TReturn, TNext>` types.
+Generator functions use `yield` and respect declared `Generator<Y, R, N>` types.
 
 ## yield typing
 
@@ -9,7 +9,7 @@ Generator functions use `yield` and respect declared `Generator<TYield, TReturn,
 Yield expressions must satisfy the declared yield type.
 
 ```ds
-function* gen(): Generator<int32, unknown, unknown> {
+function* gen(): Generator<int32> {
     yield 1;
 }
 ```
@@ -19,7 +19,7 @@ function* gen(): Generator<int32, unknown, unknown> {
 Yield expressions reject values that do not satisfy the yield type.
 
 ```ds
-function* gen(): Generator<int32, unknown, unknown> {
+function* gen(): Generator<int32> {
     yield "no";
 }
 ```
@@ -32,7 +32,7 @@ Yield expressions evaluate to the declared next type.
 
 ```ds
 function* gen(): Generator<int32, string, boolean> {
-    let next_value: boolean = yield 1;
+    let nextValue: boolean = yield 1;
     return "done";
 }
 ```
@@ -43,7 +43,7 @@ Yield expressions must match the declared next type.
 
 ```ds
 function* gen(): Generator<int32, string, boolean> {
-    let next_value: number = yield 1;
+    let nextValue: number = yield 1;
     return "done";
 }
 ```
@@ -57,7 +57,7 @@ function* gen(): Generator<int32, string, boolean> {
 Generator return statements must satisfy the declared return type.
 
 ```ds
-function* gen(): Generator<int32, string, unknown> {
+function* gen(): Generator<int32, string> {
     return "done";
 }
 ```
@@ -67,7 +67,7 @@ function* gen(): Generator<int32, string, unknown> {
 Generator return statements reject values that do not satisfy the return type.
 
 ```ds
-function* gen(): Generator<int32, string, unknown> {
+function* gen(): Generator<int32, string> {
     return 1;
 }
 ```

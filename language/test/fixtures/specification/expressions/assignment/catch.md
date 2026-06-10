@@ -1,5 +1,7 @@
 # Catch Bindings
 
+Catch bindings are ordinary bindings scoped to their handler.
+
 ## reassignment
 
 ### catch bindings are mutable

@@ -1,8 +1,12 @@
 # Option
 
+`Option<T>` is the nominal carrier for `T | null`.
+
 ## construction
 
 ### Option accepts values and null
+
+`Option<T>` is the nominal `T | null`.
 
 ```ds
 const some: Option<int32> = 1;
@@ -14,6 +18,8 @@ none satisfies Option<int32>;
 
 ### Option constructors select arms
 
+`some` and `none` construct the two arms explicitly.
+
 ```ds
 const some = Option.some(1);
 const none = Option<int32>.none();
@@ -24,6 +30,8 @@ none satisfies Option<int32>;
 
 ### Option projects to nullable
 
+An option reads back as its nullable union.
+
 ```ds
 declare const option: Option<string>;
 
@@ -32,6 +40,8 @@ raw satisfies string | null;
 ```
 
 ### fromNullish accepts undefined
+
+`fromNullish` folds `undefined` into `none`.
 
 ```ds
 declare const input: string | null | undefined;
@@ -42,6 +52,8 @@ value satisfies Option<string>;
 
 ### implicit undefined is rejected
 
+Only `null` spells absence in an option.
+
 ```ds
 const value: Option<int32> = undefined;
 ```
@@ -49,6 +61,8 @@ const value: Option<int32> = undefined;
 - contains: not assignable
 
 ### nested Options compose
+
+Each layer keeps its own presence.
 
 ```ds
 const outerNone: Option<Option<int32>> = null;
@@ -64,6 +78,8 @@ innerSome satisfies Option<Option<int32>>;
 
 ### predicates inspect presence
 
+Presence checks read without unwrapping.
+
 ```ds
 declare const value: Option<int32>;
 
@@ -77,6 +93,8 @@ value.isNoneOr((x) => x > 0) satisfies boolean;
 
 ### map methods transform values
 
+Mapping keeps or defaults the carrier.
+
 ```ds
 const value = Option.some(1);
 
@@ -87,6 +105,8 @@ value.mapOrElse(() => 0, (x) => x + 1) satisfies int32;
 
 ### unchecked unwrap is unsafe
 
+Skipping the presence check is an `@unsafe` claim.
+
 ```ds
 @unsafe
 function read(value: Option<int32>): int32 {
@@ -95,6 +115,8 @@ function read(value: Option<int32>): int32 {
 ```
 
 ### combinators preserve absence
+
+Combinators short-circuit on `none`.
 
 ```ds
 function parse(value: string): Option<int32> {
@@ -114,12 +136,16 @@ value.zipWith(Option.some(2), (left, right) => left + right) satisfies Option<in
 
 ### okOr converts to Result
 
+Absence becomes the provided error.
+
 ```ds
 const value = Option.some(1).okOr("missing");
 value satisfies Result<int32, string>;
 ```
 
 ### nested carriers can be reshaped
+
+`flatten`, `transpose`, and `unzip` reshape nested carriers.
 
 ```ds
 const nested = Option.some(Option.some(1));
@@ -132,6 +158,8 @@ pair.unzip() satisfies (Option<int32>, Option<string>);
 ```
 
 ### updates require exclusive access
+
+In-place updates hand back exclusive borrows.
 
 ```ds
 let value = Option.some(1);
@@ -146,6 +174,8 @@ value.replace(5) satisfies Option<int32>;
 ## Try
 
 ### ? opens Option
+
+`?` propagates `none` to the caller.
 
 ```ds
 function read(): Option<int32> {

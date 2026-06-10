@@ -6,6 +6,8 @@ Expansion edits the visible declaration graph before checking.
 
 ### add creates a sibling declaration
 
+`add` inserts a new declaration next to the target.
+
 ```ds
 newtype exposeMetrics = ();
 
@@ -30,6 +32,8 @@ ServerMetrics.requests satisfies uint64;
 ```
 
 ### addChild creates a member
+
+`addChild` inserts a member inside the target.
 
 ```ds
 newtype observable = ();
@@ -62,6 +66,8 @@ store.onChange satisfies (listener: (event: ChangeEvent) => void) => Disposable;
 ```
 
 ### generated decorators expand in the same fixed point
+
+Expansion runs until no macro output introduces new macros.
 
 ```ds
 newtype route = (string,);

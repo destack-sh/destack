@@ -114,9 +114,9 @@ function makeCircle(): Shape {
 makeCircle() satisfies Shape;
 ```
 
-### transparent returns reject multiple representations
+### joined transparent returns reify the declared shape
 
-One monomorphized function cannot return different representations through a transparent annotation.
+When the return paths join different concrete types, the declared transparent shape reifies its concrete layout, just as a stored field would.
 
 ```ds
 struct Circle {
@@ -137,9 +137,37 @@ function makeShape(flag: boolean): Shape {
 
     return Rectangle { width: 1.0, height: 1.0 };
 }
+
+makeShape(true) satisfies Shape;
 ```
 
-- contains: one concrete representation
+### reified returns can be denied
+
+`@deny("reified-return")` keeps hot signatures existential.
+
+```ds
+struct Circle {
+    radius: float64;
+}
+
+struct Rectangle {
+    width: float64;
+    height: float64;
+}
+
+type Shape = Circle | Rectangle;
+
+@deny("reified-return")
+function makeShape(flag: boolean): Shape {
+    if (flag) {
+        return Circle { radius: 1.0 };
+    }
+
+    return Rectangle { width: 1.0, height: 1.0 };
+}
+```
+
+- contains: reified-return
 
 ### newtype returns allow multiple variants
 

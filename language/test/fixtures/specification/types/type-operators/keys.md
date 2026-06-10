@@ -6,6 +6,8 @@
 
 ### keyof builds literal key unions
 
+`keyof` enumerates the declared keys as literals.
+
 ```ds
 interface Person {
     name: string;
@@ -19,6 +21,8 @@ const age: Keys = "age";
 ```
 
 ### keyof rejects unknown keys
+
+The union is closed.
 
 ```ds
 interface Person {
@@ -35,6 +39,8 @@ const bad: Keys = "title";
 
 ### keyof unions keep shared keys
 
+A union only guarantees its common keys.
+
 ```ds
 type Left = { shared: string; left: int32 };
 type Right = { shared: string; right: int32 };
@@ -45,6 +51,8 @@ const ok: Keys = "shared";
 ```
 
 ### keyof unions reject missing keys
+
+Arm-specific keys are not shared.
 
 ```ds
 type Left = { shared: string; left: int32 };
@@ -59,6 +67,8 @@ const bad: Keys = "left";
 
 ### keyof intersections include all keys
 
+An intersection guarantees every key.
+
 ```ds
 type Left = { shared: string; left: int32 };
 type Right = { shared: string; right: int32 };
@@ -72,6 +82,8 @@ const right: Keys = "right";
 
 ### keyof uses instantiated keys
 
+The operator sees the actual instantiation, not the bound.
+
 ```ds
 type Keys<T: { a: number }> = keyof T;
 type Actual = Keys<type { a: number; b: string }>;
@@ -83,6 +95,8 @@ key satisfies "a" | "b";
 ## index signatures
 
 ### string indexes contribute string and number keys
+
+A string index admits every string key.
 
 ```ds
 interface Bag {
@@ -96,6 +110,8 @@ const okNumber: Keys = 1;
 ```
 
 ### string indexes reject boolean keys
+
+Only key types participate.
 
 ```ds
 interface Bag {
@@ -111,6 +127,8 @@ const bad: Keys = true;
 
 ### number indexes contribute number keys
 
+A number index admits number keys.
+
 ```ds
 interface NumberBag {
     [key: number]: string;
@@ -122,6 +140,8 @@ const ok: Keys = 1;
 ```
 
 ### number indexes reject string keys
+
+Number indexes do not admit strings.
 
 ```ds
 interface NumberBag {
@@ -139,6 +159,8 @@ const bad: Keys = "name";
 
 ### in returns true for existing keys
 
+Static `in` answers membership at the type level.
+
 ```ds
 interface Person {
     name: string;
@@ -151,6 +173,8 @@ const ok: HasName = true;
 ```
 
 ### in returns false for missing keys
+
+Missing keys answer `false`.
 
 ```ds
 interface Person {
@@ -165,6 +189,8 @@ const ok: HasTitle = false;
 
 ### in uses shared union keys
 
+Union membership follows the shared keys.
+
 ```ds
 type Left = { shared: string; left: int32 };
 type Right = { shared: string; right: int32 };
@@ -177,6 +203,8 @@ const shared: HasShared = true;
 ```
 
 ### in uses intersection keys
+
+Intersection membership includes every key.
 
 ```ds
 type Left = { shared: string; left: int32 };

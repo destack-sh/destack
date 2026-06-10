@@ -1,5 +1,7 @@
 # Let
 
+`let` destructures every data shape directly in bindings.
+
 ## literals
 
 ### let else matches literal patterns

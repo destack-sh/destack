@@ -1,5 +1,7 @@
 # Global Augmentation
 
+Globals are declared, never created implicitly.
+
 ## real globals
 
 ### configured global roots are visible without imports

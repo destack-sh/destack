@@ -1,5 +1,7 @@
 # Module Declarations
 
+A `module` declaration carries module-wide policy and metadata.
+
 ## rules
 
 ### module decorators tighten memory policy
@@ -63,6 +65,8 @@ struct User {
 ```
 
 ### module metadata is visible through import.meta
+
+Declared metadata reads back at compile time.
 
 ```ds
 module {

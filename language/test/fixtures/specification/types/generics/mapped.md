@@ -1,5 +1,7 @@
 # Mapped Types
 
+Mapped types transform every key of a shape.
+
 ## mapping
 
 ### mapped types build object fields

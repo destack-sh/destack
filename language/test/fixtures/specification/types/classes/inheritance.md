@@ -6,6 +6,8 @@ Classes support single inheritance with `extends`.
 
 ### children assign to parents
 
+Subclass instances are instances of the parent.
+
 ```ds
 class Animal {
     name: string = "";
@@ -22,6 +24,8 @@ const animal: Animal = getDog();
 
 ### final classes construct normally
 
+`final` only forbids extension.
+
 ```ds
 final class Session {
     id: string = "";
@@ -32,6 +36,8 @@ session satisfies Session;
 ```
 
 ### final classes reject inheritance
+
+A `final` class is a leaf.
 
 ```ds
 final class Session {
@@ -44,6 +50,8 @@ class DerivedSession extends Session {}
 - contains: cannot extend final class
 
 ### parents do not assign to children
+
+Upcasting does not reverse.
 
 ```ds
 class Animal {
@@ -63,6 +71,8 @@ const dog: Dog = getAnimal();
 
 ### children satisfy parents
 
+`satisfies` follows the same direction.
+
 ```ds
 class Animal {
     name: string = "";
@@ -78,6 +88,8 @@ getDog() satisfies Animal;
 ```
 
 ### parents do not satisfy children
+
+A parent is not a child.
 
 ```ds
 class Animal {
@@ -99,6 +111,8 @@ getAnimal() satisfies Dog;
 
 ### grandchildren assign to grandparents
 
+Assignability is transitive.
+
 ```ds
 class Animal {
     name: string = "";
@@ -119,6 +133,8 @@ const animal: Animal = getLabrador();
 
 ### grandchildren assign to parents
 
+Each ancestor accepts the descendant.
+
 ```ds
 class Animal {
     name: string = "";
@@ -138,6 +154,8 @@ const dog: Dog = getLabrador();
 ```
 
 ### grandparents do not assign to grandchildren
+
+Transitivity does not reverse.
 
 ```ds
 class Animal {
@@ -163,6 +181,8 @@ const labrador: Labrador = getAnimal();
 
 ### children pass to parent parameters
 
+Parameter positions accept descendants.
+
 ```ds
 class Animal {
     name: string = "";
@@ -180,6 +200,8 @@ acceptAnimal(getDog());
 ```
 
 ### child parameters reject parents
+
+Parameter positions do not accept ancestors.
 
 ```ds
 class Animal {
@@ -202,6 +224,8 @@ acceptDog(getAnimal());
 ## sibling classes
 
 ### siblings do not assign to each other
+
+Sharing a parent relates neither sibling.
 
 ```ds
 class Animal {

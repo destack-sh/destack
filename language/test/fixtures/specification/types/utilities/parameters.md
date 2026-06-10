@@ -6,6 +6,8 @@
 
 ### parameters extracts argument types
 
+The parameter list becomes a tuple.
+
 ```ds
 type Args = Parameters<(name: string, count: number) => boolean>;
 
@@ -14,6 +16,8 @@ ok satisfies (string, number);
 ```
 
 ### parameters rejects wrong argument types
+
+The tuple is exact.
 
 ```ds
 type Args = Parameters<(name: string, count: number) => boolean>;
@@ -25,6 +29,8 @@ const bad: Args = ("Ada", "one");
 
 ### parameters preserves optional parameters
 
+Optional parameters become optional elements.
+
 ```ds
 type Args = Parameters<(name: string, count?: number) => boolean>;
 
@@ -33,6 +39,8 @@ const ok2: Args = ("Ada", 1);
 ```
 
 ### parameters preserves rest parameters
+
+Rest parameters become rest elements.
 
 ```ds
 type Args = Parameters<(name: string, ...flags: boolean[]) => void>;

@@ -6,6 +6,8 @@
 
 ### partial allows missing fields
 
+Every field becomes optional.
+
 ```ds
 interface Person {
     name: string;
@@ -22,6 +24,8 @@ ok2 satisfies OptionalPerson;
 
 ### partial rejects extra fields
 
+Optional does not mean open.
+
 ```ds
 interface Person {
     name: string;
@@ -37,6 +41,8 @@ const bad: OptionalPerson = { name: "Ada", extra: true };
 
 ### partial rejects incompatible field types
 
+Present fields still type check.
+
 ```ds
 interface Person {
     name: string;
@@ -51,6 +57,8 @@ const bad: OptionalPerson = { name: "Ada", age: "no" };
 - contains: not assignable
 
 ### partial preserves readonly fields
+
+Modifiers other than `?` survive.
 
 ```ds
 interface Person {

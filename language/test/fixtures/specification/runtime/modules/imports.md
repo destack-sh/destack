@@ -1,5 +1,7 @@
 # Imports
 
+Imports bind module exports into the local scope.
+
 ## type-only imports
 
 ### type-only imports cannot mix default and named bindings

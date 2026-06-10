@@ -1,5 +1,7 @@
 # Drop
 
+`Drop` runs when an owned value's lifetime ends.
+
 ## explicit
 
 ### drop consumes owned values

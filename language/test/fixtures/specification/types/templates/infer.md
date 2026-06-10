@@ -1,5 +1,7 @@
 # Template Infer
 
+`infer` extracts spans from template matches.
+
 ## inference
 
 ### template literal infer extracts span from string literal

@@ -1,8 +1,12 @@
 # Class Visibility
 
+Member visibility is enforced, not advisory.
+
 ## private fields
 
 ### private fields reject outside access
+
+`private` members are class-internal.
 
 ```ds
 class Counter {
@@ -21,6 +25,8 @@ const out = counter.value;
 
 ### static private fields allow class access
 
+Statics see their own private statics.
+
 ```ds
 class Counter {
     private static value: int32 = 1;
@@ -34,6 +40,8 @@ Counter.get() satisfies int32;
 ```
 
 ### static private fields reject outside access
+
+Private statics stay internal.
 
 ```ds
 class Counter {
@@ -49,6 +57,8 @@ Counter.value;
 
 ### protected fields allow subclass access
 
+`protected` members extend to subclasses.
+
 ```ds
 class Base {
     protected value: int32 = 0;
@@ -62,6 +72,8 @@ class Child extends Base {
 ```
 
 ### protected fields reject outside access
+
+Outside the hierarchy, protected is private.
 
 ```ds
 class Base {

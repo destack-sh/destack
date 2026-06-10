@@ -6,6 +6,8 @@
 
 ### pick preserves optional properties
 
+Optionality survives the pick.
+
 ```ds
 interface Person {
     name: string;
@@ -22,6 +24,8 @@ ok2 satisfies AgeOnly;
 
 ### pick rejects extra fields on optional picks
 
+The picked shape is exact.
+
 ```ds
 interface Person {
     name: string;
@@ -37,6 +41,8 @@ const bad: AgeOnly = { name: "Ada" };
 
 ### pick accepts required fields
 
+Required fields pick as required.
+
 ```ds
 interface Person {
     name: string;
@@ -50,6 +56,8 @@ ok satisfies NameOnly;
 ```
 
 ### pick accepts union keys
+
+A key union picks several fields.
 
 ```ds
 interface Person {
@@ -65,6 +73,8 @@ ok satisfies NameAge;
 
 ### pick merges shared union key types
 
+Picking from a union unions the field types.
+
 ```ds
 type Mixed = { value: string } | { value: int32 };
 type Picked = Pick<Mixed, "value">;
@@ -74,6 +84,8 @@ const ok2: Picked = { value: 42 };
 ```
 
 ### pick rejects non member union values
+
+The merged field union stays closed.
 
 ```ds
 type Mixed = { value: string } | { value: int32 };
@@ -85,6 +97,8 @@ const bad: Picked = { value: true };
 - contains: not assignable
 
 ### pick rejects missing union keys
+
+Every picked field is required.
 
 ```ds
 interface Person {
@@ -101,6 +115,8 @@ const bad: NameAge = { name: "Ada" };
 
 ### pick rejects extra fields
 
+Unpicked fields are gone.
+
 ```ds
 interface Person {
     name: string;
@@ -115,6 +131,8 @@ const bad: NameOnly = { name: "Ada", extra: true };
 - contains: excess property 'extra'
 
 ### pick rejects extra fields with required keys
+
+Exactness holds for required picks too.
 
 ```ds
 interface Person {
@@ -131,6 +149,8 @@ const bad: NameOnly = { name: "Ada", age: 42 };
 
 ### pick rejects missing required fields
 
+Picked required fields stay required.
+
 ```ds
 interface Person {
     name: string;
@@ -146,6 +166,8 @@ const bad: NameOnly = {};
 
 ### pick rejects unknown keys
 
+Keys must come from the source type.
+
 ```ds
 interface Person {
     name: string;
@@ -158,6 +180,8 @@ type NameOnly = Pick<Person, "name" | "missing">;
 - contains: not assignable
 
 ### pick preserves readonly properties
+
+Readonly modifiers survive the pick.
 
 ```ds
 interface Person {

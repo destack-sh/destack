@@ -1,5 +1,7 @@
 # Narrowing Flow
 
+Flow narrowing follows assignments, joins, and captures.
+
 ## alias writes and captures
 
 ### nested function writes invalidate prior local narrows
@@ -96,9 +98,9 @@ type A = { kind: "a"; payload: string };
 type B = { kind: "b" };
 
 let value: A | B = { kind: "a", payload: "ok" };
-let take_first = true;
+let takeFirst = true;
 
-if (take_first) {
+if (takeFirst) {
     value = { kind: "a", payload: "next" };
 } else {
     value = { kind: "b" };
