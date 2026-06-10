@@ -1,0 +1,42 @@
+import { Add, Multiply, Negate, Subtract } from "destack:ops";
+
+import { wrappingAdd, wrappingMultiply, wrappingNegate, wrappingSubtract } from "./arithmetic.ds";
+
+/// Integer wrapper whose operators use modular arithmetic.
+export newtype Wrapping<T: int> = T;
+
+extension<T: int> of Wrapping<T> implements Add<Wrapping<T>> {
+    type Output = Wrapping<T>;
+
+    /// Add with modular arithmetic.
+    add(other: Wrapping<T>): this.Output {
+        Wrapping(wrappingAdd(this as T, other as T))
+    }
+}
+
+extension<T: int> of Wrapping<T> implements Subtract<Wrapping<T>> {
+    type Output = Wrapping<T>;
+
+    /// Subtract with modular arithmetic.
+    subtract(other: Wrapping<T>): this.Output {
+        Wrapping(wrappingSubtract(this as T, other as T))
+    }
+}
+
+extension<T: int> of Wrapping<T> implements Multiply<Wrapping<T>> {
+    type Output = Wrapping<T>;
+
+    /// Multiply with modular arithmetic.
+    multiply(other: Wrapping<T>): this.Output {
+        Wrapping(wrappingMultiply(this as T, other as T))
+    }
+}
+
+extension<T: int> of Wrapping<T> implements Negate {
+    type Output = Wrapping<T>;
+
+    /// Negate with modular arithmetic.
+    negate(): this.Output {
+        Wrapping(wrappingNegate(this as T))
+    }
+}

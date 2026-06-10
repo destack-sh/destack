@@ -1,5 +1,218 @@
 import { todo } from "destack:error";
 
+/// Method surface for integer arithmetic.
+export extension Arithmetic<T: int> of T {
+    /// Return `this + other`, or `undefined` on overflow.
+    checkedAdd(other: T): T | undefined {
+        checkedAdd(this, other)
+    }
+
+    /// Return `this - other`, or `undefined` on overflow.
+    checkedSubtract(other: T): T | undefined {
+        checkedSubtract(this, other)
+    }
+
+    /// Return `this * other`, or `undefined` on overflow.
+    checkedMultiply(other: T): T | undefined {
+        checkedMultiply(this, other)
+    }
+
+    /// Return `this / other`, or `undefined` on division by zero or overflow.
+    checkedDivide(other: T): T | undefined {
+        checkedDivide(this, other)
+    }
+
+    /// Return `this % other`, or `undefined` on division by zero or overflow.
+    checkedRemainder(other: T): T | undefined {
+        checkedRemainder(this, other)
+    }
+
+    /// Return the Euclidean quotient, or `undefined` on division by zero or overflow.
+    checkedDivideEuclidean(other: T): T | undefined {
+        checkedDivideEuclidean(this, other)
+    }
+
+    /// Return the Euclidean remainder, or `undefined` on division by zero or overflow.
+    checkedRemainderEuclidean(other: T): T | undefined {
+        checkedRemainderEuclidean(this, other)
+    }
+
+    /// Return `-this`, or `undefined` on overflow.
+    checkedNegate(): T | undefined {
+        checkedNegate(this)
+    }
+
+    /// Return the absolute value, or `undefined` on overflow.
+    checkedAbs(): T | undefined {
+        checkedAbs(this)
+    }
+
+    /// Return `this ** exponent`, or `undefined` on overflow.
+    checkedPower(exponent: uint32): T | undefined {
+        checkedPower(this, exponent)
+    }
+
+    /// Shift left, or `undefined` when the shift amount is out of range.
+    checkedShiftLeft(amount: uint32): T | undefined {
+        checkedShiftLeft(this, amount)
+    }
+
+    /// Shift right, or `undefined` when the shift amount is out of range.
+    checkedShiftRight(amount: uint32): T | undefined {
+        checkedShiftRight(this, amount)
+    }
+
+    /// Return wrapped `this + other` with an overflow flag.
+    overflowingAdd(other: T): [T, boolean] {
+        overflowingAdd(this, other)
+    }
+
+    /// Return wrapped `this - other` with an overflow flag.
+    overflowingSubtract(other: T): [T, boolean] {
+        overflowingSubtract(this, other)
+    }
+
+    /// Return wrapped `this * other` with an overflow flag.
+    overflowingMultiply(other: T): [T, boolean] {
+        overflowingMultiply(this, other)
+    }
+
+    /// Return wrapped `this / other` with an overflow flag.
+    overflowingDivide(other: T): [T, boolean] {
+        overflowingDivide(this, other)
+    }
+
+    /// Return wrapped `this % other` with an overflow flag.
+    overflowingRemainder(other: T): [T, boolean] {
+        overflowingRemainder(this, other)
+    }
+
+    /// Return the wrapped Euclidean quotient with an overflow flag.
+    overflowingDivideEuclidean(other: T): [T, boolean] {
+        overflowingDivideEuclidean(this, other)
+    }
+
+    /// Return the wrapped Euclidean remainder with an overflow flag.
+    overflowingRemainderEuclidean(other: T): [T, boolean] {
+        overflowingRemainderEuclidean(this, other)
+    }
+
+    /// Return wrapped `-this` with an overflow flag.
+    overflowingNegate(): [T, boolean] {
+        overflowingNegate(this)
+    }
+
+    /// Return the wrapped absolute value with an overflow flag.
+    overflowingAbs(): [T, boolean] {
+        overflowingAbs(this)
+    }
+
+    /// Return wrapped `this ** exponent` with an overflow flag.
+    overflowingPower(exponent: uint32): [T, boolean] {
+        overflowingPower(this, exponent)
+    }
+
+    /// Shift left with an out-of-range flag.
+    overflowingShiftLeft(amount: uint32): [T, boolean] {
+        overflowingShiftLeft(this, amount)
+    }
+
+    /// Shift right with an out-of-range flag.
+    overflowingShiftRight(amount: uint32): [T, boolean] {
+        overflowingShiftRight(this, amount)
+    }
+
+    /// Return `this + other` with modular arithmetic.
+    wrappingAdd(other: T): T {
+        wrappingAdd(this, other)
+    }
+
+    /// Return `this - other` with modular arithmetic.
+    wrappingSubtract(other: T): T {
+        wrappingSubtract(this, other)
+    }
+
+    /// Return `this * other` with modular arithmetic.
+    wrappingMultiply(other: T): T {
+        wrappingMultiply(this, other)
+    }
+
+    /// Return `this / other`, wrapping the one overflowing case.
+    wrappingDivide(other: T): T {
+        wrappingDivide(this, other)
+    }
+
+    /// Return `this % other`, wrapping the one overflowing case.
+    wrappingRemainder(other: T): T {
+        wrappingRemainder(this, other)
+    }
+
+    /// Return the Euclidean quotient, wrapping the one overflowing case.
+    wrappingDivideEuclidean(other: T): T {
+        wrappingDivideEuclidean(this, other)
+    }
+
+    /// Return the Euclidean remainder, wrapping the one overflowing case.
+    wrappingRemainderEuclidean(other: T): T {
+        wrappingRemainderEuclidean(this, other)
+    }
+
+    /// Return `-this` with modular arithmetic.
+    wrappingNegate(): T {
+        wrappingNegate(this)
+    }
+
+    /// Return the absolute value with modular arithmetic.
+    wrappingAbs(): T {
+        wrappingAbs(this)
+    }
+
+    /// Return `this ** exponent` with modular arithmetic.
+    wrappingPower(exponent: uint32): T {
+        wrappingPower(this, exponent)
+    }
+
+    /// Shift left with a masked shift amount.
+    wrappingShiftLeft(amount: uint32): T {
+        wrappingShiftLeft(this, amount)
+    }
+
+    /// Shift right with a masked shift amount.
+    wrappingShiftRight(amount: uint32): T {
+        wrappingShiftRight(this, amount)
+    }
+
+    /// Return `this + other`, clamping at the bounds.
+    saturatingAdd(other: T): T {
+        saturatingAdd(this, other)
+    }
+
+    /// Return `this - other`, clamping at the bounds.
+    saturatingSubtract(other: T): T {
+        saturatingSubtract(this, other)
+    }
+
+    /// Return `this * other`, clamping at the bounds.
+    saturatingMultiply(other: T): T {
+        saturatingMultiply(this, other)
+    }
+
+    /// Return `-this`, clamping at the bounds.
+    saturatingNegate(): T {
+        saturatingNegate(this)
+    }
+
+    /// Return the absolute value, clamping at the bounds.
+    saturatingAbs(): T {
+        saturatingAbs(this)
+    }
+
+    /// Return `this ** exponent`, clamping at the bounds.
+    saturatingPower(exponent: uint32): T {
+        saturatingPower(this, exponent)
+    }
+}
+
 /// Return `a + b`, or `undefined` on overflow.
 export function checkedAdd<T: int>(a: T, b: T): T | undefined {
     let (result, overflow) = overflowingAdd(a, b);
