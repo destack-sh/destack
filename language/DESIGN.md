@@ -1,4 +1,4 @@
-# "Language"
+# Overview
 
 The Destack language (`.ds`) is a superset of "strict modern" TypeScript with support for `.ts` and `.tsx` files, native AOT compilation and a fully integrated toolchain, _and_ it can also compile nicely to standard JS/TS targets.
 We believe that the ideal way to build correct, optimal, integrated software systems is to build a fully integrated stack, and thus by "language" ("TypeScript++") we mean much more than "just" a coding language: a language, a runtime, a toolchain, plugins, and ultimately, a way of programming.
@@ -22,85 +22,92 @@ Embracing TypeScript and "the web ecosystem" lets us build a new toolchain that 
 The intended use case for Destack is making TS-shaped code optimal and correct, which requires cutting all accumulated dynamic magic that might smuggle in ambiguity or unsoundness at runtime.
 Accordingly, Destack excludes legacy syntax and all sorts of dynamic shapes and protocols that are not statically sound, and also removes a few rarely used footguns.
 
+It's important to note that Destack deliberately has **no JavaScript or NPM interoperability**: `.ds` code cannot import or call arbitrary JS, and Destack packages cannot depend on npm packages in any way.
+The main reason for this is that to take full advantage of Destack's features and full integration across the stack, we need to essentially rewrite all libraries anyway.
+Earlier versions did support much more general `.js` / `.ds` interop, but that resulted in a huge mess as it invites back in all the ugly stuff (exceptions, dynamic shapes, unsoundness) that we worked so hard to get rid off, which muddies the entire value prop.
+
 ### Modules
 
 Destack supports only ESM syntax without namespaces, stringy-modules, and also does not distinguish "type" from "value" imports/exports.
 
-| Feature | Example | Compatibility | Reason |
-| --- | --- | --- | --- |
-| **Type-only imports / exports** | `import type { User } from "./user"` | supported as aliases for `import` and `export` | Destack has one static module graph, and the type-less form is preferred |
-| **CommonJS** | `require("x")`, `module.exports`, mutable `exports`, require-cache monkeypatching, `export = value`, `import x = require("x")` | not supported | CommonJS is a legacy mutable runtime module system |
-| **String module declarations** | `declare module "pkg" { ... }` | not supported | source should declare real modules instead |
-| **Namespace declarations** | `namespace Name { ... }` | not supported | use real modules with namespace imports or re-exports |
-| **Dynamic module loading** | `import(expr)` | not source-level module loading | the source graph is statically known, though JS output may still use dynamic imports for chunk loading |
-| **Import defer** | `import defer * as ns from "pkg"`, `import source x from "pkg"` | not supported | not a real ESM imports (also unclear semantics in AOT) |
-| **Import assertions** | `import data from "./data.json" assert { type: "json" }` | not supported | use standardized import attributes with `with { ... }` |
-| **String export names** | `export { value as "name" }` | not supported | export names should be identifiers in source modules |
+| Feature | Example | Ruling |
+| --- | --- | --- |
+| **Type-only imports / exports** | `import type { User } from "./user"` | supported as plain `import` / `export` aliases, there is but one static module graph |
+| **CommonJS** | `require("x")`, `module.exports` | not supported, a legacy mutable runtime module system |
+| **String module declarations** | `declare module "pkg" { ... }` | not supported, declare real modules instead |
+| **Namespace declarations** | `namespace Name { ... }` | not supported, use real modules with namespace imports or re-exports |
+| **Dynamic module loading** | `import(expr)` | not source-level loading, though JS output may still use dynamic imports for chunking |
+| **Import defer** | `import defer * as ns from "pkg"` | not supported, not real ESM imports (and unclear semantics in AOT) |
+| **Import assertions** | `import data from "./data.json" assert { ... }` | not supported, use standardized `with { ... }` attributes |
+| **String export names** | `export { value as "name" }` | not supported, export names should be identifiers |
 
 ### Syntax
 
 Destack does not support JS/TS syntax that conflicts with either Destack-specific features (like `(A, B)` tuples over sequence expressions) or are just plain legacy like `<T>expr` type assertions.
 
-| Feature | Example | Compatibility | Reason |
-| --- | --- | --- | --- |
-| **Var declarations** | `var x` | not supported | legacy `var` scoping is unnecessary with `const` and `let` |
-| **Ambiguous generic arrow** | `<T>() => value` | not supported | ambiguous with TSX tree syntax, use `<T,>() => value` |
-| **Sequence expressions** | `(a, b, c)` | not supported | `.ds` uses parenthesized comma lists for explicit tuples |
-| **Shadowable `undefined`** | `let undefined = value` | not supported | `undefined` is a literal keyword, just like `null` |
-| **Single-quoted literals** | `'A'` | `char` in `.ds`, string in `.ts` / `.tsx` | `.ds` uses double-quoted strings and single-quoted scalar characters |
-| **Type angle assertions** | `<T>value`, `<const>value` | legacy angle-bracket assertions are not supported | use `value as T`, `value satisfies T`, or `value as const` |
-| **Private fields** | `#field` | not supported | `#field` syntax is redundant with real `private` in `.ds` |
-| **Non-null assertions** | `value!` | supported as Try / must unwrapping, not as erased TypeScript non-null assertion | non-null opening is an explicit runtime operation |
-| **Dynamic constructors** | `new (factory())()` | not supported | construct values with type syntax, e.g. `new Widget<T>()` |
-| **XML namespace resolution** | `<svg:path />` | no `xmlns` binding semantics | namespaced tree tags are intrinsic string tag names like `"svg:path"` |
+| Feature | Example | Ruling |
+| --- | --- | --- |
+| **Var declarations** | `var x` | not supported, `var` scoping is unnecessary with `const` and `let` |
+| **Ambiguous generic arrow** | `<T>() => value` | not supported, ambiguous with TSX tree syntax, use `<T,>() => value` |
+| **Sequence expressions** | `(a, b, c)` | not supported, parenthesized comma lists are explicit tuples in `.ds` |
+| **Shadowable `undefined`** | `let undefined = value` | not supported, `undefined` is a literal keyword just like `null` |
+| **Single-quoted literals** | `'A'` | `char` in `.ds`, string in `.ts` / `.tsx` |
+| **Type angle assertions** | `<T>value`, `<const>value` | not supported, use `value as T`, `value satisfies T`, or `value as const` |
+| **Private fields** | `#field` | not supported, redundant with real `private` in `.ds` |
+| **Non-null assertions** | `value!` | supported as `Try` / must unwrapping, an _explicit_ runtime operation rather than an erased assertion |
+| **Dynamic constructors** | `new (factory())()` | not supported, construct values with type syntax like `new Widget<T>()` |
+| **XML namespace resolution** | `<svg:path />` | no `xmlns` binding semantics, namespaced tags are intrinsic string tag names like `"svg:path"` |
 
 ### Types
 
 Destack requires sound and predictable types and understands only TypeScript-shaped type syntax.
 
-| Feature | Example | Compatibility | Reason |
-| --- | --- | --- | --- |
-| **Flow and JSDoc typing** | `/** @type {Foo} */` | ignored or rejected when not valid TS/TS++ | TypeScript type syntax only |
-| **Import type queries** | `import("pkg").User` | not supported | use ordinary static imports instead |
-| **Thenables** | `await customThenable` | not supported | `await` works on the well known `Promise<T>` only |
-| **`any`** | `let x: any` | rejected in `.ds` | use `unknown`, which must be explicitly cast before use |
-| **Definite assignment assertions** | `let x!: T`, `field!: T` | rejected in `.ds` | locals and fields must be initialized before use |
-| **Runtime `typeof` narrowing** | `typeof x === "string"` | not supported | use `instanceof` or `is` instead |
-| **Type predicate and assertion signatures** | `function f(value): value is T`, `function g(value): asserts value is T` | not supported | callable type guards let arbitrary code claim flow refinements that cannot be checked soundly |
-| **Declaration parameter inference** | `function f(x = 1) {}` | not supported | public declaration surfaces need explicit parameter types |
-| **Generic argument ambiguity** | `Foo<{ value: string }>` | object-shaped type arguments need `type` | static value and type arguments share generic forms |
-| **`Record<K, V>`** | `Record<string, User>` | closed utility type | use `Map<K, V>` for dynamic keyed storage |
-| **Circular inference** | mutually inferred module exports | not supported across modules | downstream uses do not refine upstream declarations |
-| **Enum coercion** | `Level.A` as `number` | no implicit coercion | enum fields are nominal constants and need explicit conversion |
+| Feature | Example | Ruling |
+| --- | --- | --- |
+| **Flow and JSDoc typing** | `/** @type {Foo} */` | ignored, or rejected when not valid TS/TS++ |
+| **Import type queries** | `import("pkg").User` | not supported, use ordinary static imports |
+| **Thenables** | `await customThenable` | not supported, `await` works on the well known `Promise<T>` only |
+| **`any`** | `let x: any` | forbidden in all sources, `any` is an unchecked escape hatch in both directions, use `unknown` and narrow explicitly |
+| **Definite assignment assertions** | `let x!: T`, `field!: T` | rejected in `.ds`, locals and fields must be initialized before use |
+| **Runtime `typeof` narrowing** | `typeof x === "string"` | not supported, use `instanceof` or `is` |
+| **Type predicate / assertion signatures** | `value is T`, `asserts value is T` | not supported, callable type guards claim flow refinements that cannot be checked soundly |
+| **Declaration parameter inference** | `function f(x = 1) {}` | not supported, public declaration surfaces need explicit parameter types |
+| **Generic argument ambiguity** | `Foo<{ value: string }>` | object-shaped type arguments need `type`, static value and type arguments share generic forms |
+| **`Record<K, V>`** | `Record<string, User>` | closed utility type, use `Map<K, V>` for dynamic keyed storage |
+| **Circular inference** | mutually inferred module exports | not supported across modules, downstream uses do not refine upstream declarations |
+| **Enum coercion** | `Level.A` as `number` | no implicit coercion, enum fields are nominal constants |
+| **Mutable covariance** | `Circle[]` as `Shape[]` | not supported, mutable generic positions are invariant, use `readonly` views or explicit copies |
+| **Interchangeable `type` / `interface`** | data-shaped `interface Point` in a field | diverges in storage positions, interfaces induce hidden generics when stored, use `type` / `struct` for exact storage or `Dynamic<T>` for erasure |
 
 ### Shapes
 
 Destack requires sound static shapes for all object types and thus does not support prototype chains, dynamic declarations, or runtime mutation.
 
-| Feature | Example | Compatibility | Reason |
-| --- | --- | --- | --- |
-| **Declaration expressions** | `const C = class {}` | not supported | runtime type generation is not statically knowable |
-| **Prototype objects** | `.prototype`, `.__proto__`, `.constructor`, `Object.getPrototypeOf`, `Object.setPrototypeOf`, `Object.create(proto)`, `defineProperty`, ... | not supported | prototypes rely on the dynamic JavaScript object model |
-| **Shape mutation** | `delete obj.x`, `Object.defineProperty`, `Object.defineProperties`, `Reflect.defineProperty`, `Reflect.deleteProperty`, shape-changing `Object.assign` | forbidden | object shapes must stay statically known |
-| **Metaobject dispatch** | `Proxy`, most `Reflect.*` APIs | not supported | dynamic interception and emulation hide object behavior from the static model |
-| **Class index signatures** | `class C { [key: string]: T }` | not supported | classes have fixed declared members, use structural object types or interfaces instead |
-| **Array holes** | `[1,,3]` | not supported | dense sequences make indexing and layout predictable |
+| Feature | Example | Ruling |
+| --- | --- | --- |
+| **Declaration expressions** | `const C = class {}` | not supported, runtime type generation is not statically knowable |
+| **Prototype objects** | `.prototype`, `.__proto__`, `Object.setPrototypeOf` | not supported, prototypes are the dynamic JavaScript object model |
+| **Shape mutation** | `delete obj.x`, `Object.defineProperty` | forbidden, object shapes must stay statically known |
+| **Metaobject dispatch** | `Proxy`, most `Reflect.*` APIs | not supported, dynamic interception hides object behavior from the static model |
+| **Class index signatures** | `class C { [key: string]: T }` | not supported, classes have fixed declared members, use structural object types instead |
+| **Array holes** | `[1,,3]` | not supported, dense sequences keep indexing and layout predictable |
 
 ### Runtime
 
 Destack does not support any unsound, imprecise or dynamic legacy hooks into runtime behavior, and that also means exceptions are officially banned (try-catch-finally works with `Result` types though).
 
-| Feature | Example | Compatibility | Reason |
-| --- | --- | --- | --- |
-| **Sloppy mode** | duplicate function declarations, `arguments` magic, `caller`, `callee`, `yield` identifiers, `with` | not supported | Destack targets modern strict-mode TypeScript |
-| **Ambient call metadata** | `arguments`, `new.target`, dynamic `this` rebinding | not supported as magic bindings | callable context must be explicit |
-| **Loose equality coercion** | `a == b`, `a != b` | object coercion is not allowed | implicit object conversion hides behavior |
-| **Truthiness** | `if (value)` | only for boolean values | control flow must use explicit boolean tests |
-| **Dynamic code generation** | runtime `eval`, `new Function`, dynamic class generation | unsupported, except explicit `comptime eval` | runtime code generation conflicts with AOT compilation |
-| **Exceptions** | executing `throw` | `throw` is not supported in native Destack code; `try`, `catch`, and `finally` work for `Try`/`Result` control flow | Destack uses `Result`-first error handling |
-| **Coercion hooks** | `valueOf`, `toString`, `Symbol.toPrimitive` | not used for implicit coercion | conversion should be explicit and typed |
-| **Symbol magic** | `Symbol.hasInstance`, `Symbol.species`, `Symbol.isConcatSpreadable` | not supported | use typed protocols such as `iterator()` / `asyncIterator()` |
-| **Callable `Symbol`** | `Symbol("name")` | not supported | use `Symbol.create("name")` or `Symbol.for("name")` |
+| Feature | Example | Ruling |
+| --- | --- | --- |
+| **Sloppy mode** | duplicate declarations, `arguments` magic, `with` | not supported, Destack targets modern strict-mode TypeScript |
+| **Ambient call metadata** | `arguments`, `new.target`, dynamic `this` rebinding | not supported as magic bindings, callable context must be explicit |
+| **Loose equality coercion** | `a == b` on objects | no object coercion, implicit conversion hides behavior |
+| **Truthiness** | `if (value)` | boolean values only, control flow must use explicit boolean tests |
+| **Dynamic code generation** | runtime `eval`, `new Function` | not supported except explicit `comptime eval`, runtime code generation conflicts with AOT |
+| **Exceptions** | executing `throw` | not supported in native Destack code, `try` / `catch` / `finally` work for `Try` / `Result` control flow instead |
+| **Coercion hooks** | `valueOf`, `toString`, `Symbol.toPrimitive` | not used for implicit coercion, conversion should be explicit and typed |
+| **Symbol magic** | `Symbol.hasInstance`, `Symbol.species` | not supported, use typed protocols such as `iterator()` / `asyncIterator()` |
+| **Manual iterator protocol** | `iter.next().done` | not supported, iteration is the nominal `Iterator` protocol with `next(): Option<Item>`, while `for-of`, spread, and `yield*` lower unchanged |
+| **Callable `Symbol`** | `Symbol("name")` | not supported, use `Symbol.create("name")` or `Symbol.for("name")` |
 
 # Language
 
@@ -135,7 +142,7 @@ When no specific numeric context fits, the literals widen as usual to plain `num
 ```ds
 const id: uint64 = 12345;
 7 satisfies uint3;
-7 satisfies uint2; // error
+7 satisfies uint2; // ERROR: 7 does not fit uint2
 
 const exact: int = 42;
 exact satisfies int64;
@@ -149,6 +156,59 @@ n satisfies float;
 const initial: char = 'A';
 const input: unknown = readInput();
 ```
+
+### Unknown
+
+TypeScript has two "top" types: `unknown` and `any`, these types can contain all other types.
+Of course, `any` is unsound, because everything can be assigned to and from it without any checks, so Destack only supports `unknown`.
+Because `unknown` is just a transparent constraint, it behaves like an interface with zero members under the regular [representation rules](#representation):
+
+- In constraint positions, `unknown` induces an implicit generic: `function parse(value: unknown)` behaves like `function parse<T>(value: T)` where the body knows nothing about `T` until it narrows.
+- In storage positions, there is nothing to reify, so storing `unknown` induces a generic parameter just like storing an interface does.
+
+```ds
+function parse(value: unknown): string {
+    if (value is string) {
+        return value; // narrowed by the guard
+    }
+    todo("...");
+}
+
+struct Event {
+    payload: unknown; // induces Event<T>, monomorphized per payload type
+}
+
+struct ErasedEvent {
+    payload: Dynamic<unknown>; // one fixed erased representation
+}
+```
+
+For genuinely heterogeneous storage, `Dynamic<unknown>` is the explicit erased universal value: a fat pointer carrying the value and its runtime type witness, introspectable via [reflection](#reflection) and narrowable via `is`.
+
+### String
+
+Destack aims to be "TypeScript++", and thus we inherit JavaScript's string behavior so the same code runs transparently on TS targets and native: `string` length and positional access are _defined_ in terms of UTF-16 code units, and - just like TS's own string iterator - iteration yields Unicode code points (mapping to `char`).
+
+```ds
+const text = "héllo";
+
+text.length satisfies uint; // UTF-16 code units, as in JS
+
+for (const c of text) {
+    c satisfies char; // iteration by code point, as in JS
+}
+```
+
+Destack is stricter than TS for `string` indexing: `text[i]` gives a `char`, and indexing into a lone surrogate [traps](#panics) (a lone surrogate is virtually always a bug, and the views below are the explicit alternatives).
+For the three main ways of looking at a string, the standard library provides explicit projections:
+
+| View | Type | Meaning |
+| --- | --- | --- |
+| `text.units()` | `[uint16]`-shaped view | raw UTF-16 code units (JS's indexing model) |
+| `text.chars()` | iterator of `char` | Unicode scalar values |
+| `text.bytes()` | `[uint8]`-shaped view | UTF-8 bytes |
+
+On native targets, `string` is immutable owned UTF-8 (the library's `String` literally holds `bytes: Unique<[uint8]>`); on JS/TS targets, strings are the host engine's strings.
 
 ### Intervals
 
@@ -185,8 +245,20 @@ struct InlineBuffer<T, comptime N: 0..=4096> {
 }
 ```
 
-Because interval types require are basically just aliases to union types, they are _bounded_ sets, and floating point numbers cannot participate. 
+Because interval types are basically just aliases to union types, they are _bounded_ sets, and floating point numbers cannot participate.
 (It would not make sense to have `0.0..1.0` since that would be inviting a whole new class of refinement types that we wanted to avoid in favor of more explicit and flexible nominality.)
+It follows that runtime values can become an interval type through ordinary _narrowing_ - good old [range patterns](#patterns) and [`is` checks](#guards):
+
+```ds
+newtype Port = 1..=65535;
+
+function parsePort(n: int): Result<Port, ParseError> {
+    match (n) {
+        1..=65535 => Result.ok(Port(n)) // `n` is narrowed into the interval
+        _ => Result.err(ParseError(`port out of range: ${n}`))
+    }
+}
+```
 
 ### Newtypes
 
@@ -206,10 +278,10 @@ type OrderTag = string;
 
 ```ds
 newtype UserId = number;
-const userId: UserId = 0; // error
+const userId: UserId = 0; // ERROR: number is not UserId
 
 newtype OrderTag = string;
-const orderTag: OrderTag = "invalid"; // error
+const orderTag: OrderTag = "invalid"; // ERROR: string is not OrderTag
 ```
 
 To construct a concrete newtype value, use explicit `T(..)` call syntax:
@@ -263,7 +335,7 @@ newtype interface Add<T = this> {
 ```
 
 Nominal interfaces require **explicit `implements`** declarations - structural compatibility alone doesn't satisfy the constraint, unlike for regular `interface`.
-Newtype interfaces are used for explicit behavioral traits like operator interfaces (e.g., `Add`, `Compare`), and for capability traits (e.g., `Send`, `Sync`, `Copy`, and `Clone`).
+Newtype interfaces are used for explicit behavioral traits like [operator interfaces](#operators) (e.g., `Add`, `Compare`), and for [capability traits](#capabilities) (e.g., `Send`, `Sync`, `Copy`, and `Clone`).
 A `newtype interface` is nominal as a constraint, but it is still not a concrete value representation.
 
 ### Extensions
@@ -282,7 +354,7 @@ class Vector2 {
     }
 }
 
-// extension may be in a different file or package alltogether
+// extension may be in a different file or package altogether
 extension of Vector2 {
     static ZERO = new Vector2(0.0, 0.0);
 
@@ -312,6 +384,48 @@ The visibility of extension members follows from their placement:
 - **Anonymous on foreign type**: Only visible in the file where declared (`extension of int32 { ... }`).
 - **Named on foreign type**: Must be explicitly imported to use (`export extension DateUtils of Date { ... }`).
 
+#### Blankets
+
+Extensions may declare their own generic parameters to extend generic types, and a generic extension over a whole family of instantiations is a "blanket" extension (once again, similar to Rust):
+
+```ds
+extension<T> of Box<T> {
+    isEmpty(): boolean {
+        // ...
+    }
+}
+
+// conditional conformance: Box<T> is Show only when T is too
+extension<T> of Box<T> implements Show where T: Show {
+    show(): string {
+        `Box(${this.value.show()})`
+    }
+}
+```
+
+The target of a blanket decides the scope of the claims it may make:
+
+| Blanket | Example | Who may declare it |
+| --- | --- | --- |
+| Members over a bounded parameter | `extension Arithmetic<T: int> of T { ... }` | anyone |
+| `implements` over a nominal application | `extension<T> of Box<T> implements Show` | anyone |
+| `implements` over a bare bounded parameter | `extension<T: Equal> of T implements PartialEqual` | only the package declaring the interface |
+
+Member blankets are lexical like all extension members, so the bound just names the candidate domain and nothing can surprise code that didn't import it.
+(Unbounded targets - including the `T: unknown` spelling of the same thing - are rejected, because methods on _everything_ pollute every candidate set.)
+
+An `implements` blanket makes a global claim, so it needs a clear owner: a nominal target gives the conflict surface one, while an open-domain claim over every type that ever satisfies a bound belongs to the contract's owner.
+That last form is also how interface hierarchies ship their bridges anyway:
+
+```ds
+// in the package declaring PartialEqual
+extension<T: Equal> of T implements PartialEqual {
+    // ...
+}
+```
+
+All `implements` blankets participate in the same general coherence rules: overlapping implementations of the same interface for the same type - including blanket-vs-specific overlap - are a program-wide error (see [Coherence](#coherence)).
+
 ### Enums
 
 Enums are nominal aliases to a set of constants, just like in TypeScript, but in Destack, enums do _not_ implicitly cast to their backing type and explicit conversions are required for the backing value type.
@@ -338,7 +452,7 @@ enum Priority {
 ### Tagged Unions
 
 Discriminated unions are very convenient and fit well into existing TypeScript, but by themselves lack nominal containers (and items) to attach behavior to.
-Using Destack's nominality via `newtype` and the builtin `Tagged` `derive`, TypeScript's well worn discriminated unions become even more ergonomic sum types:
+Using Destack's nominality via `newtype` and the builtin `Tagged` [`derive`](#derive), TypeScript's well known discriminated unions become even more ergonomic sum types:
 
 ```ds
 @derive(Tagged)
@@ -571,8 +685,8 @@ struct User {
 
 declare const user: readonly User;
 
-user.profile.name = "Grace"; // error
-user.tags[0] = "admin";      // error
+user.profile.name = "Grace"; // ERROR: readonly view
+user.tags[0] = "admin";      // ERROR: readonly view
 ```
 
 As in TypeScript, `readonly` is a type-level access promise.
@@ -613,15 +727,14 @@ const values = repeat("x", 3);
 values satisfies [string; 3];
 ```
 
-Like dynamic parameter, Destack's generic parameter also supports `...` for:
+Like dynamic parameters, Destack's generic parameters also support `...` forms:
 
 ```ds
 type Callback<...Parameters, Return> = (...parameters: Parameters) => Return;
 type Buffer<comptime ...Shape: readonly usize[]> = TensorBuffer<...Shape>;
 ```
 
-Generics type inference - like all type inference - is local and flows "outward", that is, we can "import" inference from other modules, but imported inference only works in one direction.
-Each module can infer static types and values from its own declarations and imports, and downstream modules can use what it exports, and downstream uses cannot feed back into upstream inference in any way (unlike in TypeScript, mostly).
+Generic type inference - like all type inference - is local and flows "outward": each module infers from its own declarations and imports, downstream modules can use what it exports, and downstream uses can never feed back into upstream inference (unlike in TypeScript, mostly).
 
 ```ds:a.ds
 declare function length<T, comptime N: uint>(xs: [T; N]): N;
@@ -643,6 +756,47 @@ N satisfies 3;
 M satisfies 6;
 ```
 
+### Variance
+
+Variance describes how typing and subtyping relations work for generic types, including for all the types that managed language users may not even usually think of as generic (like `Array`).
+Mutable covariance - the fact that you can assign `Circle[]` to `Shape[]` and then mutate `Circle[]` _through_ the widened `Shape[]` alias - is one of TypeScript's best known soundness holes and a classic footgun.
+This generalises 
+Because Destack needs to be sound, we only support this sort of widening when it is unambiguously safe:
+
+| Position | Variance | Example |
+| --- | --- | --- |
+| Readonly positions | covariant | `readonly Circle[]` is assignable to `readonly Shape[]` |
+| Mutable storage positions | invariant | `Circle[]` is _not_ assignable to `Shape[]` |
+| Function parameters | contravariant | `(shape: Shape) => void` is assignable to `(circle: Circle) => void` |
+| Function returns | covariant | `() => Circle` is assignable to `() => Shape` |
+
+For generic types, variance is derived per parameter from their members usage (like in TypeScript): a parameter that only comes _out_ (returns, readable fields) is covariant, one that only goes _in_ (parameters, writable fields) is contravariant, and one that does both - a mutable field counts as both at once - is invariant.
+
+```ds
+class Source<T> { take(): T }                      // T only comes out -> covariant
+class Sink<T>   { put(value: T): void }            // T only goes in   -> contravariant
+class Pipe<T>   { take(): T; put(value: T): void } // both             -> invariant
+```
+
+And because `Array<T>` is just a regular (well known) standard library type, and it has both readable and writable positions for its generic parameter, `Array<T>` is invariant in `T`:
+
+```ds
+declare const circles: Circle[];
+
+const shapes: Shape[] = circles;        // ERROR: mutable arrays are invariant
+const view: readonly Shape[] = circles; // OK: readonly views are covariant
+const copies: Shape[] = [...circles];   // OK: explicit copy reifies Shape elements
+```
+
+For the other spellings of "a collection of shapes", the element representation decides everything:
+
+| Element type | `Shape[]` means | Holds |
+| --- | --- | --- |
+| `class Shape` | array of managed references | any subclass, open set |
+| `type` / `newtype` union | array of tagged variant layouts | the listed variants, closed set |
+| `interface Shape` | induced generic, `Array<T: Shape>` | one concrete `T`, homogeneous |
+| `Dynamic<Shape>` | array of erased fat pointers | any implementor, open set |
+
 ### Static
 
 Unlike TypeScript, Destack actually _compiles_, so we need to figure out during "compile time" the final type of each value and fill in values for all the known constants.
@@ -654,7 +808,7 @@ To do this, the "evaluation time" of the program is conceptually split into thre
 | Comptime | ordinary code explicitly evaluated by the compiler | `comptime factorial(10)` |
 | Runtime | ordinary program execution | `readFile(path)`, `worker.postMessage(msg)` |
 
-The statically known language forms known to inference are called **static terms**: static evaluation is done automatic during inference, and it is restricted to a small subset of the language (like TypeScript type operators), and it can _not_ execute `comptime <expr>` expressions.
+The statically known language forms known to inference are called **static terms**: static evaluation happens automatically during inference, it is restricted to a small subset of the language (like TypeScript type operators), and it can _not_ execute `comptime <expr>` expressions.
 That keeps compilation fast and predictable, and thanks to TypeScript's flexible type algebra, static terms are still pretty powerful:
 
 | Input | Example |
@@ -672,7 +826,7 @@ That keeps compilation fast and predictable, and thanks to TypeScript's flexible
 | Type operators | `keyof T`, `T[K]`, `T extends string`, `T implements I` |
 | Layout intrinsics | `sizeOf<T>()`, `alignOf<T>()` |
 
-Static terms are required wherever the language needs an inference-known answer: fixed array lengths, conditional types, associated members, static decorators, layout queries, and placement algebra.
+Static terms are required wherever the language needs an inference-known answer: fixed array lengths, conditional types, associated members, static decorators, [layout queries](#layout), and [placement algebra](#algebra).
 Type inference may flow _out_ of modules, but Destack does not support circular static inference or inference across modules in any way.
 
 ```ds
@@ -691,7 +845,7 @@ struct Buffer<T, comptime Mode: "inline" | "external"> {
 ```
 
 In the `Buffer` example, `Mode` is carried as a generic value until `Buffer<T, "inline">` or `Buffer<T, "external">` is instantiated.
-At that point the `@if` guards become ordinary yes/no decisions and the concrete shape is known.
+At that point the [`@if`](#static-if) guards become ordinary yes/no decisions and the concrete shape is known.
 The same idea applies to guarded statements: while a generic declaration is still open, a guarded statement is checked under its guard, and when the declaration is instantiated the statement is either present or gone.
 
 ```ds
@@ -711,7 +865,7 @@ Both associated types and constants also work in abstract types, and as they are
 All statically known types and constants share the same static evaluation logic, and thus associated types and constants also mix with generic parameters, conditional types, decorators, and so on.
 
 ```ds
-interface Iterator {
+newtype interface Iterator {
     type Item;
 
     next(): Option<this.Item>;
@@ -774,24 +928,33 @@ declare function read<I: Iterator<type Item = uint8>>(iter: I): Option<uint8>;
 declare function readBlock<T: RegisterBlock<comptime Width = 16>>(block: T): [uint8; 16];
 ```
 
+As a nice bit of "sugar", positional arguments can also be used to refine associated members in declaration order - just like all other generic parameters so `Iterator<uint8>` resolves to `Iterator<type Item = uint8>`.
+
 ### Constraints
 
 Sometimes, defining the constraints and relations for type parameters can become unwieldy or outright impossible with only type annotations on each individual term.
-Destack supports explicit (type-space) `where` clauses to define additional cosntraints for complex types and signatures, very much like Rust:
+Destack supports explicit (type-space) `where` clauses to define additional constraints for complex types and signatures, very much like Rust:
 
 ```ds
-function merge<T: int, U>(): T where (
-    U: Comparable<T>
-) {
+function merge<T: int, U>(): T where U: Comparable<T> {
     // ...
 }
 ```
 
+A `where` clause accepts the same constraint forms as inline bounds, plus a few relations that inline bounds cannot otherwise express:
+
+| Form | Example | Meaning |
+| --- | --- | --- |
+| Interface bound | `T: Comparable<U>` | a parameter must satisfy a constraint |
+| Associated member bound | `I.Item: Display` | an associated type must satisfy a constraint |
+| Equality constraint | `T.Output == U` | two static terms must normalize to the same type or value |
+
 ### Shapes
 
-Because Destack inherits TypeScript's type forms of `class`, `type` and `interface`, and then _adds_ `struct` value types and nominality via `newtype`, we now have a spectrum of _six_ different ways of spelling a structure that something looks like a `Point { x : number; y: number }`.
-Bleh.
-This is unfortunate, but we couldn't figure out a good way to compress these shapes without losing either key additions like nominality and value types or compatibility guarantees like `type`, `interface`, and `class`.
+Because Destack inherits TypeScript's type forms of `class`, `type` and `interface`, and then _adds_ `struct` value types and nominality via `newtype`, we now have a spectrum of _six_ different ways of spelling that something looks like a `Point { x: number; y: number }`.
+Bleh. 
+It is what it is.
+A little unfortunate, but we couldn't figure out a good way to compress these shapes without losing either key additions like nominality and value types or compatibility guarantees like `type`, `interface`, and `class`.
 So, here goes:
 
 | Form | Role | Representation |
@@ -812,13 +975,15 @@ Destack's general philosophy is to let users opt _in_ to additional control and 
 That said, the actual memory representation of types does matter, and our unique blend of TypeScript type algebra and actual systems-y AOT compilation means that Destack needs to make representation tradeoffs differently from other languages.
 Specifically, we distinguish three main axes of type behavior that affect representation:
 
- - *nominal* vs *structural*: does the type have a nominal identity that must be constructed or implemented explicitly (e.g., `newtype` / `class` / `struct` / `newtype interface`) or is it just structural
- - *transparent* vs *opaque*: does a name just implicitly expand to a type expression (`type`), or does it name a "real" declaration (`interface` / `struct` / `class` / `newtype`)
- - *concrete* vs *abstract*: does the spelling already have a representation we can store directly (i.e. is it representable), or does it need to be instantiated, reified, or erased somehow
+| Axis | Question | Examples |
+| --- | --- | --- |
+| *nominal* vs *structural* | must the type be constructed or implemented explicitly? | `newtype` / `struct` / `class` / `newtype interface` vs `type` / `{ x: number }` |
+| *transparent* vs *opaque* | does the name just expand to a type expression? | `type` vs `interface` / `struct` / `class` / `newtype` |
+| *concrete* vs *abstract* | is there already a representation we can store directly (the builtin `Concrete` bound)? | primitives / `struct` / `class` vs bare constraints |
 
-Wherever a type can have multiple possible runtime representations, Destack induces an _implicit_ generic parameter and monomorphizes all applications of that parameter, just like with an explicit generic type.
-The main special case are transparent types, which may either induce a generic in constraint positions (like a function parameter) or require a concrete type in storage positions (like a field in an aggregate).
-As an example, a structural `Point` alias expands before the position rules are applied, so it behaves like a constraint at a function boundary, but like exact storage in a field:
+The position decides who commits to a representation: a _constraint_ position leaves the choice to each use site, while a _storage_ position makes the declaration commit.
+All storage positions induce an implicit `Concrete` requirement on the value being stored, and `Concrete` is also available explicitly for the few cases where that's helpful (e.g. `type InlineBytes<T: Concrete> = [uint8; sizeOf<T>()]`).
+Wherever a type can have multiple possible runtime representations, Destack induces an _implicit_ generic parameter and monomorphizes all applications of that parameter, just like with an explicit generic type:
 
 ```ds
 type Point = {
@@ -841,6 +1006,8 @@ const rectangle = Rectangle {
 };
 ```
 
+Transparent types - type aliases - conditionally induce generic only in constraint positions (like a function parameter) but require a concrete type in storage positions (like a field in an aggregate).
+This is primarily such that the common pattern of `class Player { status: "running" | "walking" | "idle" }` (which is really just a type alias) works as expected without any additional confusing generics.
 Unlike transparent type aliases, interfaces always induce a generic in constraint positions (even as both behave like structural types in general):
 
 ```ds
@@ -899,33 +1066,24 @@ Here the annotation checks the object shape, and the object expression supplies 
 const point: { x: int32; y: int32 } = { x: 1, y: 2 };
 ```
 
-Return types in functions _must_ have _one_ specific concrete representation on all joined paths even if the declared return type is structural or more general.
-(This is because otherwise we wouldn't know which function representation to use ahead of time.)
+Return positions are also considered storage positions, and the return representation is solved from the function body: 
+- When all joined return paths produce _one_ concrete type, the return is existential, that is, callers type against the declared transparent type, but the compiled function returns the specific concrete representation at zero cost.
+- When the paths join _different_ concrete types and the declared return is a transparent data shape (like a union alias), the return reifies that shape's concrete layout - for a union alias, the tagged variant layout - just as a stored field would.
 
 ```ds
 type Shape = Rectangle | Circle; // transparent alias
 
 function foo(): Shape {
-    return Rectangle(); // this is fine
+    return Rectangle(); // existential: the compiled return type is Rectangle
 }
 
-function bar(): Shape { // ERROR, this is ambiguous
+function bar(): Shape { // reified: the compiled return type is the Shape variant layout
     if (getRandom() > 4) {
         return Circle();
     } else {
         return Rectangle();
     }
 }
-```
-
-With regards to nominality, `newtype` adds a nominal identity to whatever its backing type denotes.
-So, `newtype Shape = Rectangle | Circle` creates a concrete variant layout for `Shape`, while `newtype NamedWriter = Writer` creates a nominal constraint if `Writer` is an interface.
-By contrast, `type Shape = Rectangle | Circle` remains a transparent alias whose expanded union is interpreted at each use site.
-
-```ds
-type Shape = Rectangle | Circle; // transparent alias
-newtype Shape = Rectangle | Circle; // concrete layout
-newtype NamedWriter = Writer; // nominal constraint
 ```
 
 ### Dynamic
@@ -956,6 +1114,8 @@ Basically, the `T` in `Dynamic<T>` implies `DynamicSafe`, which is very similar 
  - no index signatures
  - no unqualified reference to `this`
 
+Of course, the `Dynamic<T>` value _itself_ is always `Concrete`: erasure is precisely what gives an abstract constraint one fixed sized runtime representation.
+
 ### Layout
 
 Layout is the concrete storage and ABI shape selected for a representable type under the active target, the default representation being `@repr("destack")`.
@@ -984,7 +1144,7 @@ struct WireHeader {
 }
 ```
 
-Destack also supports querying parameters of the effective representation during compilation - available as a static term during inference - for conditional branching and storage:
+Destack also supports querying parameters of the effective representation during compilation - available as a [static term](#static) during inference - for conditional branching and storage:
 
 | Layout Query | Result |
 | --- | --- |
@@ -1005,10 +1165,10 @@ struct User {
     age: uint;
 }
 
-let u: User = User { name: "Alice", age: 30 };
+let user: User = User { name: "Alice", age: 30 };
 
-const UserType: Type<User> = User;
-const UserType = Type.of<User>();
+const UserType: Type<User> = User;     // implicit cast
+const UserType = Type.of<User>();      // explicit, same thing
 ```
 
 This also works for generic APIs that operate on types as static values:
@@ -1139,22 +1299,22 @@ class Client {
 }
 ```
 
-Closures with custom capture behavior must still follow general ownership rules, for example, if one closure moves a binding, later uses or captures of that binding are rejected.
+Of course, closures with custom capture behavior must still follow general ownership rules - for example, if one closure moves a binding, later uses or captures of that binding are rejected.
 
 ### Continuations
 
-Async functions and generators are closures that can pause and be resumed at a later point via stackful `Continuation`s, and the runtime just parks the live frame in a Worker-local "continuation handle".
-`Promise`, `Generator`, and `AsyncGenerator` are "just" standard library types around this simpler `Continuation` primitive:
+Async functions and generators are closures that can pause and be resumed later via stackful `Continuation`s: the runtime parks the live frame and hands back a `ContinuationHandle` - an ordinary owned value whose one-shot `resume(value)` continues the frame and whose `Drop` unwinds it, under the usual ownership rules.
+`Promise`, `Generator`, and `AsyncGenerator` are "just" standard library types that store such handles in ordinary fields:
 
 | Form | Meaning |
 |------|---------|
-| `ContinuationHandle` | Worker-local handle to a parked frame |
+| `ContinuationHandle` | one-shot owned handle to a parked frame, `Drop` unwinds it |
 | `Promise<T>` | Worker-local async result object |
 | `Generator<Y, R, N>` | Worker-local suspended generator |
 | `AsyncGenerator<Y, R, N>` | Worker-local suspended async generator |
 | produced `T` | value eventually produced by async code |
 
-As in TypeScript, `await` and `yield` are the suspension points for the `Promise`s and `Generator` (and `AsyncGenerator`) coroutines where the entire stack up to that point is parked, and some other task is run.
+As in TypeScript, `await` and `yield` are (stackful) suspension points: the entire stack up to that point is parked, and some other task gets to run.
 In pure managed land, suspension works as before, and managed values can be stored in parked frames because it's all - well - managed.
 
 ```ds
@@ -1166,6 +1326,36 @@ async function read(user: User): Promise<string> {
     return name; // valid as before
 }
 ```
+
+### Tasks
+
+Stackful continuations and (relatively) cheap Workers make Destack's concurrency ergonomic and _structured_ by default, while also keeping TypeScript's familiar `Promise` behavior: calling an async function starts it eagerly and returns a worker-local `Promise<T>` that can be stored, combined, and awaited as usual.
+There is no special machinery required for this - pending handles live in ordinary places (like a `Promise`'s reactions, the scheduler's queue, a `Task`), so structure is just storage and cancellation is just `Drop`.
+Nice.
+Work that outlives its frame can be spawned into an explicit `TaskScope`, which cannot exit until its children complete or are cancelled (the structured concurrency model of Trio and Kotlin):
+
+```ds
+async function crawl(seeds: [Url]): Promise<Report> {
+    await using scope = TaskScope.open();
+
+    const pages = seeds.map((seed) => scope.spawn(() => fetch(seed)));
+    const results = await Promise.all(pages);
+
+    return Report.from(results);
+} // the scope cannot exit while children are pending; pending children are cancelled on unwind
+```
+
+Cancelling a task resumes its parked continuation into the unwind path at its suspension point, cleanup (`using` / `finally` / `Drop`) runs deterministically, and the unwind stops at the task boundary - the Worker carries on, and `Cancelled` surfaces only at `join()`.
+By the time a frame exits normally, everything it started must be awaited, returned, or handed to a scope - the `no-floating-promises` rule, `deny` by default in `.ds` (strict TypeScript codebases already lint this, Destack just means it) - and when a frame unwinds instead, its still-pending children are cancelled:
+
+```ds
+async function refresh(cache: Cache): Promise<void> {
+    fetchAndStore(cache); // ERROR: floating promise, await it or hand it to a scope
+}
+```
+
+Because a scope guarantees a join before the parent frame dies, borrows of owned or static data _may also cross into scoped child tasks_ (subject to `Send`) - fork-join parallelism over borrowed data without ceremony (!).
+And because the runtime owns continuation scheduling, our DST mode can intercept every suspension point and replay or explore schedules deterministically.
 
 ### Patterns
 
@@ -1212,7 +1402,7 @@ match (point) {
 }
 ```
 
-Some patterns are irrefutable, which means they always match, and then we do not need any alternative branches, so no need for `_` or destructuring of known shapes.
+Some patterns are irrefutable, meaning they always match, and then no fallback branches are needed at all.
 Refutable patterns require some fallback such that all branches are always covered: a `match` fallback arm, an `else` branch for `if (let ...)`, or an `else` continuation for `let ... else`.
 
 ```ds
@@ -1230,7 +1420,7 @@ let value! = maybe else {
 ```
 
 It should be noted that unlike with construction (`{ ... }` for objects, `T { ... }` for structs, `new T(...)` for classes), the pattern destructuring unifies structs and classes into a single nominal object pattern (`T { ... }`).
-Admittedly, this is a little suboptimal since it's not perfectly symmetrical, but we couldn't think of a more reasonably syntax that's not also more ambiguous or "magic".
+Admittedly, this is a little suboptimal since it's not perfectly symmetrical, but we couldn't think of a more reasonable syntax that's not ambiguous or "magic" in some worse way.
 
 ```ds
 class User {
@@ -1259,7 +1449,7 @@ match (user) {
 ### Guards
 
 Guards are boolean expressions that can refine types, like `"name" in value`, `instanceof`, and `value is T` checks:
- - `"name" in value` for object types, and is quite imprecise.
+ - `"name" in value` for object types, and it is quite imprecise.
  - `instanceof` for classes.
  - `value is T` for primitive, nominal, and class cases.
 
@@ -1303,7 +1493,7 @@ For convenience and clarity, Destack supports `loop` as the explicit infinite lo
 const line = loop {
     const input = readInput();
     if (input == "quit") {
-        break ("done");
+        break "done";
     }
     process(input);
 };
@@ -1316,14 +1506,14 @@ status satisfies "done";
 
 ### Using
 
-Explicit resource management - `using` and `await using` - follows the [TC39 explicit resource management proposal](https://github.com/tc39/proposal-explicit-resource-management) with `using` / `await using` as explicit scoped cleanup, but of course using nominal interfaces instead of magic `Symbol` keys:
+Resource management with `using` and `await using` follows the [TC39 explicit resource management proposal](https://github.com/tc39/proposal-explicit-resource-management), but of course with nominal interfaces instead of magic `Symbol` keys:
 - `using` accepts `Dispose | null | undefined`.
 - `await using` accepts `AsyncDispose | Dispose | null | undefined`, and falls back to synchronous disposal when the resource only implements `Dispose`.
 - `null` and `undefined` are ignored, following the spec.
 
 Resources are cleaned up at lexical scope exit in LIFO order, and `await using` runs async cleanup when required.
 Cleanup - that is, the dispose function - runs when the scope exits for any reason: fallthrough, `return`, `break`, `continue`, or `?`.
-The same using form also works in loop form, where it applies for every iteration, just like in the TC39 proposal.
+The same using form also works in loop form, where it applies for every iteration.
 
 ```ds
 {
@@ -1378,10 +1568,11 @@ Equality `==` / `!=` follows Rust's split between "partial" and "total" equality
 - Equality operators `==` and `!=` dispatch through `PartialEqual<T>.equal`
 - `Equal<T>` is a stronger _marker_ interface based on `PartialEqual<T>`
 
-The distinction between `Equal` and `PartialEqual` is mainly to deal with floating point numbers (since e.g. `NaN` does not equal itself, defintionally).
+The distinction between `Equal` and `PartialEqual` exists mainly to deal with the oddities of floating point numbers (since e.g. `NaN` does not equal itself, definitionally).
 Comparison operators `<` / `>` follow the same pattern and support `PartialCompare<T>` when ordering may be undefined (e.g., floats), and `Compare<T>` when ordering is total (e.g., integers).
+Strict identity `===` still keeps its TypeScript meaning: by value for primitives (including `string` and `char` contents, and `NaN === NaN` is still `false`), and by reference identity for managed objects.
 
-Dereference operators are a little different from the main "value-shaped" operators, because `Dereference<A>` transparently _dereferences_ (projects) access forms.
+Dereference operators are a little different from the main "value-shaped" operators, because `Dereference<A>` transparently _dereferences_ (projects) access forms on use.
 
 ```ds
 struct Box<T> {
@@ -1400,6 +1591,40 @@ extension<T> of Box<T> implements Dereference<"readonly"> {
 For example, `*box` flows through `Dereference<"readonly">`, while assignment through `*box` needs `Dereference<"exclusive">`.
 Importantly, member lookup and method calls may auto-dereference transparently through `Dereference` without any special syntax - this is what enables ergonomic access to smart pointer like wrappers and guards.
 
+### Arithmetic
+
+Destack's sized numeric types are checked for correctness _in all modes_, no ifs or buts, no debug-only checking and no silent release-mode wraparound:
+
+- **Overflow traps.** Arithmetic on sized integer types (`+`, `-`, `*`, `**`, `<<`, negation) traps when the result does not fit the type.
+- **Division traps.** Integer division and remainder by zero trap (`/`, `%`), as does overflowing division (`int32.MIN / -1`).
+- **Floats follow IEEE-754.** Float arithmetic never traps; division by zero, `NaN`, and infinities behave exactly as in TypeScript.
+
+When modular or clamping semantics are desired, we can say so explicitly with the standard library helpers:
+
+```ds
+declare const a: uint8;
+declare const b: uint8;
+
+a.wrappingAdd(b) satisfies uint8;            // modular arithmetic
+a.saturatingAdd(b) satisfies uint8;          // clamps at the bounds
+a.checkedAdd(b) satisfies uint8 | undefined; // detects overflow as a value
+Wrapping(a) + Wrapping(b);                   // wrapping by type
+```
+
+Conversions follow the same explicitness rule as the rest of Destack: `as` between numeric types is allowed only when every value of the source type is representable in the destination (lossless), and lossy conversions must pick their behavior explicitly:
+
+```ds
+declare const wide: int32;
+
+const a: int64 = wide as int64;   // OK: lossless widening
+const b: uint8 = wide as uint8;   // ERROR: lossy conversion
+const c = wide.truncate<uint8>(); // explicit: keep the low bits
+const d = wide.saturate<uint8>(); // explicit: clamp into range
+const e = wide.tryInto<uint8>();  // explicit: uint8 | undefined
+```
+
+Similarly, mixed-type arithmetic (different widths or int/float mixes) requires explicit conversion to a common type first; the only implicit numeric flow is literal typing as described in [Primitives](#primitives).
+
 ### Ranges
 
 Range expressions like `a..b` produce range values for slicing, indexing, iteration, and any APIs that want to think in terms of bounds.
@@ -1414,7 +1639,7 @@ Like Rust and Python, the default range is half-open, and all range forms implem
 | `..=end` | `RangeToInclusive<T>` | No start bound, include `end` |
 | `..` | `RangeFull` | No start or end bound |
 
-Ranges work in patterns and subscripts exactly like one would expect from other languages::
+Ranges work in patterns and subscripts exactly like one would expect from other languages:
 
 ```ds
 let values: Slice<int32> = [1, 2, 3, 4, 5];
@@ -1530,7 +1755,7 @@ However, if `PointLike.x` were mutable, this conversion of `Point` to `PointLike
 #### Index Signatures
 
 Index signatures like `{ [index: string]: string }` (as in `Record<K, V>`) still work like structural constraints for object-shaped values, and can be satisfied with both fixed object shapes and types implementing `Index` for readonly / `IndexSet` for writable shapes.
-It's important to note that while Destack supports structural index signatures, the actual compiled shape must still be known, and so `Record`-like types _by themselves_  are not concrete (they're just constraints).
+While Destack supports structural index signatures, the actual compiled shape must still be known, and so `Record`-like types _by themselves_ are not concrete (they're just constraints).
 
 ```ds
 interface Bag<T> {
@@ -1547,7 +1772,7 @@ function read<T>(bag: Bag<T>, key: string): T | undefined {
 read(counts, "apples") satisfies int32 | undefined;
 
 // mutable indexed container
-const dynamicCounts = Map<string, int32>.new();
+const dynamicCounts = new Map<string, int32>();
 dynamicCounts.set("apples", 3);
 dynamicCounts.has("apples") satisfies boolean;
 dynamicCounts satisfies { [key: string]: int32 };
@@ -1555,29 +1780,49 @@ dynamicCounts satisfies { [key: string]: int32 };
 
 #### Unions
 
-Union receivers - the member being dispatched on - are resolved per variant, and every variant must expose that member.
+Member dispatch on union receivers is resolved per variant, and every variant must expose that member.
 If all variants resolve to the same implementation, the call is static; otherwise the result type is the union of the selected return types and the compiler emits dynamic checks to dispatch on the right member at runtime.
 
 ```ds
 struct TcpStream {
-    write(chunk: [byte]): Result<usize, IOError> {}
+    write(chunk: [uint8]): Result<usize, IOError> {}
 }
 
 struct MemoryBuffer {
-    write(chunk: [byte]): Result<usize, never> {}
+    write(chunk: [uint8]): Result<usize, never> {}
 }
 
-function writeAll(sink: TcpStream | MemoryBuffer, chunk: [byte]) {
+function writeAll(sink: TcpStream | MemoryBuffer, chunk: [uint8]) {
     const written = sink.write(chunk);
     written satisfies Result<usize, IOError> | Result<usize, never>;
 }
 ```
 
+#### Coherence
+
+Unlike Rust, Destack has _no orphan rule_: any module may extend any nominal type and implement any nominal interface for it.
+Because Destack always compiles whole programs from source, coherence can be enforced where it is actually needed instead of at every possible declaration site, which is quite nice:
+
+| Claim | Scope | Conflict |
+| --- | --- | --- |
+| Extension members | lexical: same file, or explicitly imported | ambiguity error at the use site |
+| `implements` declarations | global: unique per (type, interface instantiation) pair | compile error pointing at both declarations |
+| Operator and capability dispatch | global: works wherever the interface is nameable | none possible, implementations are unique |
+
+For extension members, candidates resolve in declaration order within one scope, import order is never considered, and an overload that can never win is flagged as unreachable.
+For `implements`, uniqueness covers blankets too (no specialization, and bare-bounded blankets only from the interface's package, see [Blankets](#blankets)) - and it is what keeps generic instantiation coherent: a `Set<Vector2>` is always built and queried under the same `Hash` implementation, no matter which modules the value flows through.
+
+When two packages do collide, the build fails and the fix is source-level (drop a dependency, or vendor and patch) - whichever side "won" would silently change the other's behavior, so there is deliberately no switch to pick one.
+Libraries should therefore only implement pairs they own one side of (a default-`warn` diagnostic nudges accordingly); foreign-on-foreign implementations belong in applications, where nothing downstream can collide.
+
 ### Errors
 
-Banishing exceptions is Destack's most noticable divergence from TypeScript: Destack uses **Result-first error handling** exclusively, and throwing exceptions is not allowed in any native Destack code.
+The banishing of exceptions is Destack's most immediately noticeable divergence from TypeScript: Destack uses **Result-first error handling** exclusively, and throwing exceptions is not allowed in any native Destack code.
 Recoverable errors use `Result<T, E>`, integrate with `try` / `catch`, and can be propagated with `?`, `??`, and force-unwrapped postfix `!`.
 (JavaScript exceptions remain valid _syntax_ because we need to integrate with JS targets directly, but in regular userland, exceptions are forbidden.)
+
+The same rule also extends to async code: a Destack `Promise<T>` never rejects, because rejection is just an asynchronous exception.
+Async failure travels as `AsyncResult<T, E>`, [panics](#panics) unwind the Worker, and rejection-capable host promises are adopted into `AsyncResult` (or panic) at the host binding boundary.
 
 #### Error
 
@@ -1706,7 +1951,7 @@ const c = loadNested() ?? defaultConfig;
 c satisfies Result<Config, ParseError> | Config;
 ```
 
-Postfix `!` is the "must" forced unwrap form: it opens the same outer nullish and single `Try` layer, but traps instead of propagating or falling back when the value is absent or failed:
+Postfix `!` is the "must" forced unwrap form: it opens the same outer nullish and single `Try` layer, but [traps](#panics) instead of propagating or falling back when the value is absent or failed:
 
 ```ds
 const config = loadConfig()!;
@@ -1777,6 +2022,25 @@ try {
 
 Finally arms run as usual after the `try` / `catch` body, including when `?` leaves the block early.
 
+#### Panics
+
+Unrecoverable failures are hard **panics**: panics occur when a must unwrap (`!`) fails, when an explicit `panic("...")` runs, when a runtime check traps (arithmetic overflow, out-of-bounds indexing, lone-surrogate indexing), or when `unreachable` code is reached.
+There is no userland `catch` for panics, that's what makes them panics: a panic means the program is outside its specified envelope.
+
+Mechanically, a panic unwinds the _current_ `Worker`:
+1. The panic starts unwinding from the trapping point with a message payload.
+2. Cleanup runs on the way out - `using` / `await using` disposal, `finally` arms, and `Drop` glue for owned values - in the usual LIFO order.
+3. The Worker terminates; a parent or supervisor observes the termination and gets the `Panic` struct - message, source location, and stack trace when available - through the regular `Worker` API and decides what to do (restart, propagate, report).
+
+Conveniently, the Worker thus also becomes the fault boundary, mirroring both the web's worker model and (roughly) Erlang-style supervision: a panic never silently corrupts sibling Workers, and the test harness and the simulator can observe panics as ordinary (deterministic) Worker terminations without any language-level catch.
+Nice.
+For cases where we do want to unambiguously kill the whole program, Destack supports a stronger `abort` for genuinely unrecoverable states like detected memory corruption:
+
+| Form | Cleanup | Boundary |
+| --- | --- | --- |
+| `panic` | unwinds with `using` / `finally` / `Drop` cleanup | terminates the Worker |
+| `abort` | none, stops immediately | terminates the whole process |
+
 ### Trees (TSX)
 
 TypeScript XML (`.tsx`) is a great way of writing UI-shaped code and has even seen some successful adoption for other tree-shaped data structures as well.
@@ -1802,12 +2066,12 @@ It's not perfect, but it is very useful in many situations, and Destack (`.ds`) 
 </Level>;
 ```
 
-Unlike in TypeScript, in Destack, types can participate in custom tree tag behavior by implementing the `TreeTag` interface, and custom intrinsic types (lowercase tags like `<div>`) are created via `TreeTagBuilder`.
-Essentially, `TreeTag` generalises `jsxFactory` and `TreeTagBuilder` generalises `jsxFragmentFactory`:
+Unlike in TypeScript, Destack types can participate in custom tree tag behavior by implementing the `TreeTag` interface, and custom intrinsic tags (lowercase tags like `<div>`) are created via `TreeTagBuilder`.
+Essentially, `TreeTag` generalizes `jsxFactory` and `TreeTagBuilder` generalizes `jsxFragmentFactory`:
  - Uppercase or qualified tags resolve as value tags through normal value lookup and the `TreeTag` interface.
  - Lowercase unqualified tags resolve as intrinsic tags through the active `TreeTagBuilder`.
 
-The active `TreeTagBuilder` comes from the compiler / target / profile options by default, but can be locally overridden with module metadata.
+The active `TreeTagBuilder` comes from the compiler / target / profile options by default, but can be locally overridden with [module metadata](#module).
 
 ```ds
 import { HtmlTree } from "destack:ui/html";
@@ -1818,7 +2082,6 @@ module {
 
 import.meta.tree satisfies TreeTagBuilder;
 ```
-
 
 ### Decorators
 
@@ -1876,7 +2139,7 @@ module {}
 
 #### Taint
 
-Destack systematises the idea of "taints", "source", and "unsafe" modifiers on expressions and declarations using its taint system:
+Destack systematizes the idea of "taints", "source", and "unsafe" modifiers on expressions and declarations using its taint system:
  - `@taint("tag")` marks a value as carrying some domain, `@untaint("tag")` unmarks it as no longer carrying that domain.
  - `@source("domain")` marks an operation that produces some domain, `@sink("domain")` marks an operation that receives some domain.
  - `@unsafe` marks an operation that is unsafe to call, `@safe` marks an operation that is safe to call.
@@ -1887,7 +2150,7 @@ declare function read<T>(pointer: *T): ^T;
 
 @safe
 function get<T>(items: Slice<T>, index: usize): T {
-    if index >= items.length {
+    if (index >= items.length) {
         panic("index out of bounds");
     }
 
@@ -1913,7 +2176,6 @@ newtype Shape =
     | { kind: "circle"; radius: int32 };
 ```
 
-
 Destack supports all the common capability-like derives one would expect from a systems-y language, with the notable addition of `Serialize`, `Deserialize`, and `Tagged`:
 
 | Derive | Library identity | Applies to | Explicit failure |
@@ -1932,7 +2194,7 @@ Destack supports all the common capability-like derives one would expect from a 
 | `Tagged` | `destack:decorator.Tagged` | discriminated newtype unions | declaration is not a supported tagged union |
 
 Also unlike Rust, Destack's `derive` supports automatic globally configured (and module/target/..-overridable) derives that are applied by default without explicit `derive` annotation whenever possible.
-This is very convenient since most types do in fact want all the same basic well known `derive`s, but we can trivially disable this globally or override it per-item with an empty `@derive()` or at the module level with `module { derive: [] }`.
+This is very convenient since most types do in fact want all the same basic well known `derive`s, but we can also trivially disable this globally, or override it per-item with an empty `@derive()`, _or_ at the module level with `module { derive: [] }`.
 
 #### Static If
 
@@ -1951,28 +2213,13 @@ interface FileSystem<Mode: "fast" | "slow" = "fast"> {
 }
 ```
 
-Static ifs may annotate any meaningfully _removable_ source contribution - if removing the annotated node would leave the parent with a coherent shape, we can guard it, otherwise the guard is rejected:
+Static ifs may annotate any meaningfully _removable_ source contribution - if removing the annotated node would leave the parent with a coherent shape, we can guard it:
 
-| Node | Example | Context | Allowed | Note |
-|------|---------|---------|---------|------|
-| Import declaration | `@if(...) import { x } from "./m.ds"` | profile, module metadata, literals | Yes | Includes or omits the module edge and its imported bindings. |
-| Re-export declaration | `@if(...) export { x } from "./m.ds"` | profile, module metadata, literals | Yes | Includes or omits the re-export edge and its bindings. |
-| Top-level declaration | `@if(...) function f() {}`, `@if(...) struct S {}` | profile, module metadata, literals | Yes | Includes or omits the module-level contribution before exports and import targets are resolved. |
-| Module declaration entry | `@if(...) const role = "server"` inside `module { ... }` | profile, module metadata, literals | Yes | Includes or omits a single module metadata binding. |
-| Struct field | `@if(Mode == "inline") index: InlineIndex` | containing declaration generics and static members | Yes | Includes or omits the field for a concrete instantiation. |
-| Class member | `@if(...) method() {}` | containing declaration generics and static members | Yes | Includes or omits the member for a concrete instantiation. |
-| Interface member | `@if(import.meta.platform != "windows") chmod(...)` | containing declaration generics and static members | Yes | Includes or omits the member from the interface contract. |
-| Extension member | `@if(...) extra() {}` inside `extension ... { ... }` | containing declaration generics and static members | Yes | Includes or omits the extension contribution. |
-| Enum variant | `@if(...) Variant` | containing enum generics and static members | Yes | Includes or omits the variant for a concrete instantiation. |
-| Statement in block body | `@if(...) doThing();` | enclosing static and generic context | Yes | Includes or omits the statement, including any bindings it introduces. |
-| Match case | `@if(...) Pattern => arm` | enclosing static and generic context | Yes | Includes or omits the case from matching. |
-| Call argument | `f(a, @if(...) b, c)` | enclosing static and generic context | Yes | Included only if the remaining argument list is still valid. |
-| Tree argument | `<Foo a={1} @if(...) b={2} />` | enclosing static and generic context | Yes | Included only if the remaining attribute list is still valid. |
-| Generic argument | `Map<K, @if(...) V>` | enclosing static and generic context | Yes | Included only if the remaining generic argument list is still valid. |
-| Tuple element | `(x, @if(...) y, z)` | enclosing static and generic context | Yes | Included only if the remaining tuple is still valid. |
-| Object field | `{ a: 1, @if(...) b: 2 }` | enclosing static and generic context | Yes | Included only if the remaining object literal is still valid. |
-| Type literal field | `{ a: int32; @if(...) b: int32 }` | enclosing static and generic context | Yes | Included only if the remaining type literal is still valid. |
-
+| Context | Nodes | Static inputs |
+| --- | --- | --- |
+| Module level | imports, re-exports, top-level declarations, `module { ... }` entries | profile, module metadata, literals |
+| Declaration members | struct fields, class / interface / extension members, enum variants | containing declaration generics and static members |
+| Expression positions | statements, match cases, call / tree / generic arguments, tuple elements, object and type literal fields | enclosing static and generic context |
 
 ### Module
 
@@ -2027,9 +2274,7 @@ Indeed, that is the same mechanism the well known Destack prelude uses to inject
 global {
     export { Add, Subtract } from "destack:ops";
 }
-
 ```
-
 
 ### Comptime
 
@@ -2045,7 +2290,7 @@ const LOOKUP_TABLE: uint8[] = comptime {
 };
 ```
 
-It is important to note that functions do not need to declare themselves as either "comptime" or "runtime": the same function can run at compile time when all inputs are static, and at runtime when some input is only known at runtime:
+Functions do not need to declare themselves as either "comptime" or "runtime": the same function can run at compile time when all inputs are static, and at runtime when some input is only known at runtime:
 
 ```ds
 function factorial(n: int): int {
@@ -2090,15 +2335,15 @@ comptime {
 }
 ```
 
-Comptime blocks can also appear as members on object-like types for static checks.
-They run in the static environment of the declaration or instantiation where they appear post-inference, and can access the same static terms as `@if`.
+Comptime blocks can also appear as members on object-like types for static checks, where they run in the static environment of the declaration or instantiation that they appear in post-inference, and they can access the same [static terms](#static) as `@if`.
 
 ```ds
 struct Buffer<comptime size: uint> {
     comptime {
         assert(size > 0 && size <= 65536);
     }
-    data: [uint8; size],
+
+    data: [uint8; size];
 }
 ```
 
@@ -2133,7 +2378,7 @@ function blockCost<comptime Width: uint>(): int32 {
 
 function blockMultiply<comptime Width: uint>(a: int32, b: int32): int32 {
     comptime {
-        assert isPowerOfTwo(Width);
+        assert(isPowerOfTwo(Width));
     }
 }
 ```
@@ -2170,8 +2415,8 @@ function load(id: UserId): Result<User, Error> {
 }
 ```
 
-As explained in the annotations and decorator piece, `memoize` by itself is just an inert annotation and it only receives behavior by implementing `Macro`.
-The `Macro` system is based on three rules:
+As explained in [Decorators](#decorators), `memoize` by itself is just an inert annotation and it only receives behavior by implementing `Macro`.
+The `Macro` system is based on four rules:
  1. Macro expansion is recursive and runs until there is nothing more to expand (or we encounter an error).
  2. Macros run in two phases during compilation: `expand` may contribute new symbols before final inference, while `materialize` fills in implementation details with full type information.
  3. Macros interact with their containing module through phase-specific context methods (`resolve`, `ensureImport`, `add`, `ensureDeclaration`, `addChild`, `replaceTarget`, `renameTarget`, `removeTarget`).
@@ -2253,51 +2498,14 @@ Destack supports explicit, optional type modifiers for controlling memory _place
 - **Ownership** - who "owns" the value: managed (`T`), owned (`^T`), borrowed (`&T`, `&readonly T`, `&exclusive T`), or raw (`*T`).
 
 The two axes of ownership and placement compose and commute freely, e.g. `shared ^T` and `^shared T` both mean an owned handle to a value in shared space, and `shared &T` is a borrow of a shared value.
-Once structural shapes and constraints have been reified, instantiated, or erased, the plain old `T` still behaves as the type's default representation, exactly like we're used to from TypeScript: value types are values, object types are managed references, both can be aliased and mutated freely (locally).
+Once structural shapes and constraints have been [reified, instantiated, or erased](#representation), the plain old `T` still behaves as the type's default representation, exactly like we're used to from TypeScript: value types are values, object types are managed references, both can be aliased and mutated freely (locally).
 
-### Space
+Everything in this chapter follows from four rules:
 
-The space of a value determines where it is actually located in memory, and since Destack follows web and TypeScript conventions, the `Worker`-_local_ heap is the default main memory space.
-Ordinary managed objects, arrays, strings, functions, closures, and module bindings live in local space, and user and library code can almost always just pretend spaces don't even exist.
-
-```ds
-struct Request<T> {
-    header: Header,
-    body: T,
-}
-
-let localRequest: Request<Body>;          // ambient, default -> Request is worker-local heap
-let sharedRequest: shared Request<Body>;  // explicit, shared -> Request is shared heap
-```
-
-Memory placement is contextual: all types are "ambient" by default, i.e., they come with no inherent placement, and types are only placed wherever their parent is placed until someone either specifies placement explicitly (e.g., `local T`, `shared T`) or we reach the top, which - as established - is `local` to the Worker's own local heap by default.
-This "ambient placement" rule is also why we distinguish `Place` from `Space`: `Space` is concrete, while `Place` may also be `"ambient"`.
-
-#### Shared Space
-
-In TypeScript tradition, each "worker" (in the spec also "Agent") has its own isolated local heap that cannot be touched by other works.
-For sharing memory across workers, TypeScript has the `SharedArrayBuffer` concept and plain old message passing with `postMessage`.
-That works, but is architecturally limited and makes it complex to implement more sophisticated parallelism patterns.
-
-Destack supports an explicit, fully featured _shared_ memory space that is visible to all `Worker`s in the same `Runtime` via regular references and objects.
-Basically, `shared T` is the typed, generalized version of the `SharedArrayBuffer` idea with the full type system and object graphs at our disposal with the simple rule that local may point into shared, but shared must not point into local memory.
-
-It's important to note that _by itself_ shared placement, like any space placement, is **not** a synchronization primitive of and does **not** imply atomic access, locking, `Sync`, or anything like it.
-That is by design; it's up to userland libraries to require capabilities like `Send` and `Sync` for APIs that transfer or publish values for correctness, but `shared` itself is really only about placement.
-
-#### Static Space
-
-Because Destack inherits the JS/TS Worker model for isolation, module-scoped constants are owned by each _Worker_ and are not actually process-global as they would be in most other languages.
-For genuinely _shared_ process-global state, the binding _itself_ can be declared as `shared`.
-
-| Form | Binding place | Value place | Meaning |
-|------|--------------|-------------|---------|
-| `const world = new World()` | local | local | one local module binding and one local value |
-| `const world: shared World = new World()` | local | shared | one local binding cell holding one shared handle |
-| `shared const world: World = new World()` | shared | shared | one shared binding cell initialized in shared space |
-| `shared const world: shared World = new World()` | shared | shared | same runtime meaning, explicit on both axes |
-
-Note that making the binding itself as `shared` also types the value as `shared` (as it is illegal to point from shared storage into local storage anyway, this is convenient).
+1. Every value has exactly one owner - for managed values, the owner is the runtime.
+2. A borrow must remain valid: a place cannot move or drop while an overlapping borrow is live, and a borrow cannot outlive the source it came from.
+3. Exclusive borrows are truly exclusive: no overlapping borrow of the same place may be live.
+4. Shared memory must never point into local memory.
 
 ### Ownership
 
@@ -2319,19 +2527,18 @@ Unlike Rust, Destack supports _both_ multiple mutable borrows (`&T`) and exclusi
 
 The owner of a value is responsible for keeping it alive, and also for disposing of the owned value when the parent's own lifetime ends.
 The parent (owner) could be in static storage for global constants, it could be another owned or even managed value, or it could be a call frame in a method (in which case we get a stack allocation).
-The ownership and borrow checking logic follow from the two rules that borrows must always be valid, and that exclusive borrows must indeed be exclusive.
 
 ```ds
-let a: User = new User();
-let b: ^User = new User();
-let c: &User = &a;
-let d: &readonly User = &readonly a; // OK: &User is *not* exclusive
-let e: &exclusive User = &exclusive a; // ERROR: &exclusive User *is* exclusive
-let e: *User = &a;
+let user: User = new User();   // managed: the runtime owns it
+let owned: ^User = new User(); // owned: this binding owns it, dropped after last use
+
+let borrow: &User = &user;                    // mutable borrow of the managed value
+let view: &readonly User = &readonly user;    // OK: readonly may overlap the mutable borrow
+let claim: &exclusive User = &exclusive user; // ERROR: `borrow` and `view` are still live
+let pointer: *User = &user;                   // OK: raw pointers are inert and unchecked
 ```
 
-Each ownership form also has a corresponding normalized representation in our little ["type algebra"](###algebra), which means we get to do regular TypeScript-style type space logic, conditionals and remapping (including for lifetimes!).
-
+Each ownership form also has a corresponding normalized representation in our little ["type algebra"](#algebra), which means we get to do regular TypeScript-style type space logic, conditionals and remapping (including for lifetimes!).
 
 ### Borrowing
 
@@ -2347,11 +2554,7 @@ Importantly, this is still memory safe because all operations that may invalidat
 | `&T` | may overlap, can mutate through the borrow |
 | `&exclusive T` | cannot overlap another borrow of the same place, can mutate through the borrow |
 
-The entirety of borrow checking behavior - ensuring that a borrow to some reference remains valid - follows from two simple rules:
-1. a place cannot move or drop while an overlapping borrow is live;
-2. a borrow cannot outlive the owner or access path it came from.
-
-Ownership is applied individually to each "access path", so disjoint fields can be borrowed independently when the compiler can prove they do not overlap.
+Borrow checking is just rule 2 applied per "access path", so disjoint fields can be borrowed independently when the compiler can prove they do not overlap.
 
 ```ds
 struct Point {
@@ -2392,10 +2595,32 @@ let exclusiveX = &exclusive point.x;
 *exclusiveX = 4;
 ```
 
+#### Stability
+
+Allowing multiple live mutable borrows are memory safe only because every operation that may _invalidate_ another live borrow requires exclusivity.
+Writing through a non-exclusive borrow is therefore allowed only when the place is **overwrite-stable**: the old value needs no destruction (no drop glue), and the new bytes mean what the old bytes meant (one fixed layout, no variant tag) - which scalar and managed-reference fields trivially satisfy.
+Everything else requires `&exclusive`: overwriting a variant reinterprets the payload under a live interior borrow, overwriting an owning value frees memory a borrow may still target, and so on.
+
+```ds
+struct Frame {
+    pixels: ^Buffer; // owned interior storage
+}
+
+let frame: ^Frame = Frame { pixels: Buffer.open() };
+
+let pixels = &frame.pixels; // interior borrow into the owned buffer
+let alias = &frame;         // non-exclusive borrows may overlap
+
+*alias = Frame { pixels: Buffer.open() }; // ERROR: overwrite drops the old buffer under `pixels`
+```
+
+It should be noted that as with the rest of borrowing and ownership, _regular_ managed land needs none of this because managed handles alias freely through the heap.
+Writes through one managed handle can at most result in _stale_ reads through another (a "borrow" into an array taken before it grew still reads the old buffer), which is just ordinary TypeScript aliasing, and not really a memory safety problem in itself.
+
 ### Lifetimes
 
-The relationship between whoever owns the memory (managed or explicitly owned) and those who want to reference (borrow) is specified via Rust-like lifetimes, implemented as `<L: Lifetime>` and `Borrowed<T, L>` generics.
-Destack's lifetimes are conceptually very similar to Rust, but as the spelling implies, `<L: Lifetime>`s are full generics available to regular TypeScript-style type algebra _and inference including flow typing and narrowing_, which means we very rarely need to spell them out.
+Lifetimes tie a borrow to its source, and in Destack they are just generics: `<L: Lifetime>` parameters on `Borrowed<T, L>`, available to all the regular TypeScript-style type algebra and inference (including flow typing and narrowing).
+In practice they are spelled out in exactly one place - `declare` signatures - and inferred everywhere else, including from function bodies.
 
 ```ds
 function read(user: &User): &string {
@@ -2423,7 +2648,7 @@ struct WorldView<L1: Lifetime, L2: Lifetime> {
 }
 ```
 
-Because lifetimes are part of type inference, and type inference also analyses method bodies, lifetime inference also derives from function bodies.
+Because lifetimes are part of type inference, and type inference also analyzes method bodies, lifetime inference also derives from function bodies.
 Each elided borrow in the signature induces its own hidden lifetime parameter first, and the body then solves the return lifetime:
 
 ```ds
@@ -2477,43 +2702,42 @@ declare function choose<L1: Lifetime, L2: Lifetime>(
 ): Borrowed<Node, L1 | L2>;
 ```
 
-Taken together, these mechanisms of elision and inference for lifetimes allow us to implement the vast majority of low level ownership patterns without having to specify lifetimes to the compiler explicitly.
+Taken together, the mechanisms of elision and inference for lifetimes let us implement the vast majority of low level ownership patterns _without_ having to specify lifetimes to the compiler explicitly (yay).
+It should also be noted that one consequence of this body-derived inference is that a body change can change an inferred public signature, but that is just the tradeoff here.
 
 ### Suspension
 
-As discussed in [Continuations](###Continuations), values and objects in "managed land" work exactly like in regular TypeScript and can be referenced and mutated freely wherever.
+As discussed in [Continuations](#continuations), values and objects in "managed land" work exactly like in regular TypeScript and can be referenced and mutated freely wherever.
 When _borrowing_ across suspension points (like `yield` or `await`), the compiler must still guarantee that the core safety rules are upheld.
 And because multiple continuations may be active concurrently (even if not in parallel), borrows that must be owned by the current frame to cross suspension points - in other words, borrows coming from managed values must _not_ cross suspension points.
 
-It follows that frame-owned values _can_ be borrowed across suspension points:
+It follows that the same body is fine or rejected purely based on where the borrowed value lives:
 
 ```ds
-async function read(user: ^User): Promise<string> {
+// owned by the frame: the borrow may cross suspension
+async function readOwned(user: ^User): Promise<string> {
     const name = &readonly user.name;
     await tick();
     return name.clone();
 }
-```
 
-Borrowed access is also valid across suspension points _if_ it originates in an owned or static value:
-
-```ds
-async function read(user: &User): Promise<string> {
+// borrowed parameter: also fine, the caller proves the source is owned or static
+async function readBorrowed(user: &User): Promise<string> {
     const name = &readonly user.name;
     await tick();
     return name.clone();
 }
-```
 
-But borrowed access to managed values can _not_ cross suspension (even non-exclusive):
-
-```ds
-async function read(user: User): Promise<string> {
+// managed: rejected, another continuation could touch `user` while we are parked
+async function readManaged(user: User): Promise<string> {
     const name = &readonly user.name;
-    await tick();
+    await tick(); // ERROR: `name` borrows managed storage across suspension
     return name.clone();
 }
 ```
+
+One load-bearing guarantee underneath all of this: suspension points are always lexically explicit (`await` and `yield`).
+There is no hidden suspension - no implicit awaits, no preemption points, no suspending allocators - so "does this borrow cross suspension" can always be answered by looking at the code (and declaration-only APIs need no extra annotations, since asyncness is visible in signatures and `declare` signatures already spell out lifetimes).
 
 ### Drop
 
@@ -2539,7 +2763,7 @@ let image: Image = new Image();
 // when `image` is collected, the GC runs drop glue for `pixels`
 ```
 
-Unlike Rust and C++ RAII, Destack models `Drop` and `Dispose` / `AsyncDispose` separately: `Drop` follows lifetime, while `using` is lexical.
+Unlike Rust and C++ RAII, Destack models `Drop` and `Dispose` / `AsyncDispose` separately: `Drop` follows lifetime, while [`using`](#using) is lexical.
 Because of this split, `Drop` _can_ run eagerly after last use, which is great for memory pressure, but also means Destack's `Drop` is not the right fit for lexical RAII-style cleanup.
 In general, `Drop` should manage memory and memory-shaped cleanup, while `using` should manage richer resource finalization:
 
@@ -2560,7 +2784,6 @@ await using connection = await pool.connect();
 Low-level code can of course still control finalization explicitly:
 `drop(value)` ends ownership immediately, `forget(value)` intentionally suppresses automatic drop, `ManuallyDrop<T>` stores a value outside automatic drop handling, and `Box<T>.leak()` turns one owned allocation into a static borrow.
 
-
 ### Allocation
 
 The primary way to construct new values is `new`, which initializes a `T` and produces the ownership form required by the _destination_ type - `new` is really just an initializer that calls the type's constructor.
@@ -2571,21 +2794,22 @@ let a: User = new User();   // managed
 let b: ^User = new User();  // owned
 ```
 
-In some situations it is useful to handle allocation errors directly, and for that Destack supports more direct fallible allocation accessors both via higher level `try*` methods in standard libary types (like `Array.tryReserve`) and the low level intrinsics (`MaybeUninit<T>`, `Unique<T>`, etc.) that they are built on.
-Regular managed object allocation (`new T()`) can also be made fallible via the `new?` operator, which behaves similar in spirit to the regular `?` and `await?` operators, propagating an `AllocationError` to the containing context:
+In some situations it is useful to handle allocation errors directly, and for that Destack supports more direct fallible allocation accessors both via higher level `try*` methods in standard library types (like `Array.tryReserve`) and the low level intrinsics (`MaybeUninit<T>`, `Unique<T>`, etc.) that they are built on.
+Regular managed object allocation (`new T()`) can also be made fallible via the `new?` operator, which behaves similar in spirit to the regular [`?`](#maybe-must-and-coalesce) and `await?` operators, propagating an `AllocationError` to the containing context:
 
 ```ds
 try {
-    let buffer: Block[] = Array.tryWithCapacity(count)?;
-    let page = new? Page(buffer);
+    let buffer: Block[] = Array.tryWithCapacity(count)?; // fallible library allocation
+    let page = new? Page(buffer);                        // fallible managed allocation
     page.fill()?;
+
     return page;
 } catch (e: AllocationError) {
     return null;
 }
 ```
 
-Code can also opt out of managed allocation locally:
+Code can also opt out of managed allocation locally via [restrictions](#restrictions):
 
 ```ds
 @noManaged
@@ -2599,38 +2823,96 @@ function interruptHandler(input: &[Sample]): Frame {
 }
 ```
 
+### Space
+
+The space of a value determines where it is actually located in memory, and since Destack follows web and TypeScript conventions, the `Worker`-_local_ heap is the default main memory space.
+Ordinary managed objects, arrays, strings, functions, closures, and module bindings live in local space, and user and library code can almost always just pretend spaces don't even exist.
+
+```ds
+struct Request<T> {
+    header: Header;
+    body: T;
+}
+
+let localRequest: Request<Body>;          // ambient, default -> Request is worker-local heap
+let sharedRequest: shared Request<Body>;  // explicit, shared -> Request is shared heap
+```
+
+Memory placement is contextual: all types are "ambient" by default, i.e., they come with no inherent placement, and types are only placed wherever their parent is placed until someone either specifies placement explicitly (e.g., `local T`, `shared T`) or we reach the top, which - as established - is `local` to the Worker's own local heap by default.
+This "ambient placement" rule is also why we distinguish `Place` from `Space`: `Space` is concrete, while `Place` may also be `"ambient"`.
+
+#### Shared Space
+
+In TypeScript tradition, each "Worker" (in the JS spec generally referred to as "Agent") has its own isolated local heap that cannot be touched by other workers.
+For sharing memory across workers, TypeScript has the `SharedArrayBuffer` concept and plain old message passing with `postMessage`.
+That works, but is architecturally limited and makes it complex to implement more sophisticated parallelism patterns.
+
+Destack supports an explicit, separate, fully featured _shared_ memory space that is visible to all `Worker`s in the same `Runtime` via regular references and objects.
+Basically, `shared T` is the typed, generalized version of the `SharedArrayBuffer` idea with the full type system and object graphs at our disposal with the simple rule that local may point into shared, but shared must not point into local memory.
+
+It's important to note that _by itself_ shared placement, like any space placement, is **not** a synchronization primitive and does **not** imply atomic access, locking, `Sync`, or anything like that.
+That is by design; it's up to userland libraries to require [capabilities](#capabilities) like `Send` and `Sync` for APIs that transfer or publish values for correctness, but `shared` itself is really only about placement.
+
+#### Static Space
+
+Because Destack inherits the JS/TS Worker model for isolation, module-scoped constants are owned by each _Worker_ and are not actually process-global as they would be in most other languages.
+For genuinely _shared_ process-global state, the binding _itself_ can be declared as `shared`.
+
+| Form | Binding place | Value place | Meaning |
+|------|--------------|-------------|---------|
+| `const world = new World()` | local | local | one local module binding and one local value |
+| `const world: shared World = new World()` | local | shared | one local binding cell holding one shared handle |
+| `shared const world: World = new World()` | shared | shared | one shared binding cell initialized in shared space |
+| `shared const world: shared World = new World()` | shared | shared | same runtime meaning, explicit on both axes |
+
+Note that marking the binding itself as `shared` also types the value as `shared` (as it is illegal to point from shared storage into local storage anyway, this is convenient).
+Shared bindings are always `const`, and `const` means exactly what it means in TypeScript: the binding is not reassignable, while the value behind it mutates freely through its own API.
+
+One constraint follows directly from the Worker model: a `shared` binding is reachable from _every_ Worker by construction, so it must meet the same bar as any value crossing Workers - the value type must be `Sync` (see [Capabilities](#capabilities)).
+In particular, a bare owned global like `shared const world: ^World` is rejected: every Worker can reach the binding, so its exclusivity cannot be checked.
+Global mutable state instead puts a lock in the static and lets the guard be the runtime exclusivity oracle:
+
+```ds
+shared const world: Mutex<World> = new Mutex(new World());
+
+const view = world.lock(); // guard dereferences to &exclusive World
+```
+
+Because module code runs on every Worker, shared bindings are initialized exactly once by the runtime, before any other Worker can observe them.
+
 ### Conversions
 
-The rules for converting references follow from the three basic memory rules established above:
-- References must always be valid (the referent must never be deallocated while the reference is live),
-- Exclusive references must be truly exclusive (no possibly overlapping loan is live).
-- Shared memory must not point into local memory (directly or indirectly).
+Reference conversions follow directly from [the four memory rules](#memory), and borrowing from a live place works whenever the requested loan rules hold:
 
-| From | To | Allow | Explanation |
-|------|----|-------|-------------|
-| local managed `T` | `&T` / `&readonly T` | yes | while the source place stays live and the borrow does not cross suspension |
-| local managed `T` | `&exclusive T` | yes | while no overlapping loan is live and the borrow does not cross suspension |
-| shared managed `T` | `&T` / `&readonly T` | yes | shared-safe APIs remain responsible for synchronization and data-race safety |
-| shared managed `T` | `&exclusive T` | no | a shared managed handle cannot prove uniqueness |
-| owned `^T` | `&T` / `&readonly T` / `&exclusive T` | yes | while the owned source stays live and the requested loan rules hold |
-| shared owned `shared ^T` | `shared &T` / `shared &readonly T` / `shared &exclusive T` | yes | owned storage remains unique even when placed in shared space |
-| `&T` | `&readonly T` | yes | readonly reborrow |
-| `&exclusive T` | `&T` / `&readonly T` | yes | temporary reborrow that suspends the exclusive loan |
-| borrowed parameter | borrowed access across suspension | source-checked | the caller must prove the source is owned or static |
-| `T` | `^T` | no | managed ownership does not become unique ownership |
-| `&T` | `T` / `^T` | no | borrowed access does not own the value |
-| `*T` | `&T` / `&readonly T` / `&exclusive T` | yes | explicit unsafe reborrow |
-| `T` / `&T` / `^T` | `*T` | yes | explicit raw pointer conversion |
+| Source | Borrow | Notes |
+| --- | --- | --- |
+| local managed `T` | `&T` / `&readonly T` / `&exclusive T` | exclusive needs no overlapping loan; none may cross [suspension](#suspension) |
+| owned `^T` | `&T` / `&readonly T` / `&exclusive T` | owned sources may also cross suspension |
+| shared owned `shared ^T` | `shared &T` / `shared &readonly T` / `shared &exclusive T` | owned storage stays unique even in shared space, since the handle itself still has one holder |
+| shared managed `T` | `&T` / `&readonly T` | mutation routes through `Sync` APIs and atomic field access (see [Synchronization](#synchronization)) |
+| shared managed `T` | `&exclusive T` | never: a shared managed handle cannot prove uniqueness |
 
-The default type for a borrow is `&T`, and typing it as `*T` produces a raw pointer instead:
+Borrows can weaken freely, but cannot be upgraded (obviously):
+
+| From | To | Notes |
+| --- | --- | --- |
+| `&exclusive T` | `&T` / `&readonly T` | temporary reborrow that suspends the exclusive loan |
+| `&T` | `&readonly T` | readonly reborrow |
+| `T` | `^T` | never: managed ownership does not become unique ownership |
+| `&T` | `T` / `^T` | never: borrowed access does not own the value |
+
+The missing `T → ^T` rung is deliberate: ownership is provenance, not a view, and a traced GC cannot even count references to check uniqueness at runtime.
+The bridges are explicit instead: construct owned from the start (`new` already produces the destination form), take `MaybeOwned<T>` when an API wants ownership but tolerates managed callers (branch once, use or clone), and `.clone()` when what you actually need is a copy.
+
+Raw pointers convert freely in, and only unsafely out:
 
 ```ds
 let user = new User();
-let userBorrow: &User = &user;
-let userPointer: *User = &user;
-```
 
-As in Rust, just converting a borrow `&T` to a raw pointer `*T` by itself is perfectly safe; only dereferencing and manipulating raw pointers becomes `@unsafe`.
+let borrow: &User = &user;   // default: a checked borrow
+let pointer: *User = &user;  // typed as raw: an inert, unchecked pointer value
+let again: &User = pointer;  // ERROR: pointers only reborrow inside @unsafe
+```
 
 ### Unsafe
 
@@ -2643,7 +2925,7 @@ Converting a borrow to a raw pointer is still safe because it does not touch the
 let user = new User();
 
 let borrow: &User = &user;
-let pointer: *User = borrow; // ok: this only creates a raw pointer value
+let pointer: *User = borrow; // OK: this only creates a raw pointer value
 ```
 
 Unsafe begins when code relies on a memory invariant the compiler cannot prove:
@@ -2658,7 +2940,7 @@ Unsafe begins when code relies on a memory invariant the compiler cannot prove:
 | build typed views from raw storage | `Slice.fromRaw(pointer, length)` | no | claims a valid region of `T` |
 | raw bytes and layout tricks | `copyBytes(dst, src, n)`, `readVolatile(pointer)`, `transmute<T, U>(value)` | no | touches or reinterprets unchecked memory |
 
-The compiler rejects unsafe operations, like raw pointer dereferencing, outside explicit `@unsafe` / `@safe` contexts.
+The compiler rejects unsafe operations, like raw pointer dereferencing, outside explicit [`@unsafe` / `@safe`](#taint) contexts.
 
 ### Algebra
 
@@ -2768,7 +3050,7 @@ struct Buffer<T> {
     comptime const IsShared = PlaceOf<this> == "shared";
 
     @if(this.IsShared)
-    lock: SharedLock;
+    lock: Mutex;
 
     value: T;
 }
@@ -2776,7 +3058,7 @@ struct Buffer<T> {
 declare const localBuffer: Buffer<string>;
 declare const sharedBuffer: shared Buffer<string>;
 
-sharedBuffer.lock satisfies SharedLock;
+sharedBuffer.lock satisfies Mutex;
 PlaceOf<typeof localBuffer> satisfies "ambient";
 PlaceOf<typeof sharedBuffer> satisfies "shared";
 ```
@@ -2829,7 +3111,7 @@ for (const point of ^points) {
 
 ### Capabilities
 
-Like other similar languages, Destack encodes synchronisation and memory primitives as (newtype) interfaces like `Copy`, `Clone`, `Send`, and `Sync`
+Like other systems-y languages, Destack encodes synchronization and memory primitives as (newtype) interfaces like `Copy`, `Clone`, `Send`, and `Sync`.
 (As said, these are separate from and orthogonal to ownership and placement.)
 
 | Capability | Meaning |
@@ -2839,13 +3121,30 @@ Like other similar languages, Destack encodes synchronisation and memory primiti
 | `Send` | Value can cross a Worker boundary. |
 | `Sync` | References to shared values can be used concurrently through the type's own API. |
 
-It should be noted again that `shared T` means `T` lives in shared space; it does _not_ make `T` automatically `Sync` by itself.
+Like Rust's auto traits, `Send` and `Sync` are derived structurally by default (a type is `Send` when all of its fields are) and can be opted out of explicitly.
+Implementing `Send` or `Sync` _manually_ - against the structural evidence, as interior-mutability primitives must - is an `@unsafe` claim like any other unchecked memory invariant.
+For borrows and handles, the rules follow per memory form:
+
+| Form | Crosses Workers when |
+| --- | --- |
+| `T` (local managed) | never, local handles stay on their Worker |
+| `shared T` | `T: Sync` for aliased access |
+| `^T` | `T: Send` |
+| `&readonly T` | `T: Sync`, and the source is owned or static |
+| `&exclusive T` | `T: Send`, and the source is owned or static |
+| `&T` | never, aliased mutability is only sound within one Worker |
+| `shared` static binding | requires `T: Sync` outright, the binding reaches every Worker by construction |
+
+The `&T` row is the important one: the aliased-mutable middle of the borrow ladder is only safe because a Worker is a single-threaded execution domain with explicit suspension points, and so it must never cross one.
+
+It should be noted again that `shared T` means `T` lives in [shared space](#shared-space); it does _not_ make `T` automatically `Sync` by itself.
 Userland APIs such as channels, Worker pools, atomics, locks, and actors can require `Send` or `Sync` when they need those stronger guarantees, very similar to Rust or even Swift.
 
-### Synchronisation
+### Synchronization
 
-The standard library provides the usual memory and synchronisation primitives on top of this unified memory system.
+The standard library provides the usual memory and synchronization primitives on top of this unified memory system.
 The full details are documented in the library, but the basics should be familiar to anyone with a systems-level background.
+This is also where the `@unsafe` actually lives: a `Mutex<T>` mutates through a non-exclusive receiver via `UnsafeCell` and atomics, and its guard manufactures the `&exclusive T` that the runtime lock (not the borrow checker) guarantees - userland just composes the safe surface.
 
 | Primitive | Contract |
 |-----------|----------|
@@ -2855,8 +3154,8 @@ The full details are documented in the library, but the basics should be familia
 | `Cell<T>` | local interior mutation by value, for small `Copy`-like state |
 | `RefCell<T>` | local runtime borrow checking for cases static borrowing cannot express cleanly |
 | `Atomic<T>` | lock-free scalar storage with explicit ordering and scope |
-| `AsyncLock<T>` | local mutual exclusion that suspends the current async task, not the Worker |
-| `SharedLock<T>` | shared mutual exclusion backed by atomics and runtime wait/wake support |
+| `AsyncMutex<T>` | local mutual exclusion that suspends the current async task, not the Worker |
+| `Mutex<T>` | shared mutual exclusion backed by atomics and runtime wait/wake support |
 
 Because ownership and placement are part of our type system, and we can query and gate based on contextual type information using regular TypeScript algebra, we have a lot of flexibility and gain some nice ergonomics.
 For example, we can provide ergonomic context-aware aliases that conform to the way they are used:
@@ -2866,27 +3165,26 @@ type Ref<T> =
     PlaceIn<T, "local"> extends "shared" ? Arc<T> : Rc<T>;
 
 type Lock<T> =
-    PlaceIn<T, "local"> extends "shared" ? SharedLock<T> : AsyncLock<T>;
+    PlaceIn<T, "local"> extends "shared" ? Mutex<T> : AsyncMutex<T>;
 ```
 
 # Runtime
 
 The runtime is where code actually _runs_, and it's where pure computation touches the real world via our well defined `host` bindings.
-This is nice because it means we get to capture and analyse all effects through a relatively thin well known boundary, which enables great observability and debugging.
-And because Destack is a fully integrated stack, the runtime has been co-designed as part of the entire language toolchain and the standard library takes advantage of this
+This is nice because it means we get to capture and analyze all effects through a relatively thin well known boundary, which enables great observability and debugging.
+And because Destack is a fully integrated stack, the runtime has been co-designed as part of the entire language toolchain, and the standard library takes advantage of this.
 
 ## Modules
 
-Like many JS/TS-adjacent runtimes, Destack supports importing additional file types beyond code modules.
+Destack's module system goes a little further than plain code imports: sources can be included conditionally, additional file types import as typed modules, and modules carry metadata.
 
 ### Conditions
 
-Conditions generalise the idea behind `module.tests.ds` and `[cfg(attr)]`-style feature gating into a flexible "condition system" for, well, conditionally including sources and parts of sources into some builds (but not others).
+Conditions generalize the idea behind `module.tests.ds` and `[cfg(attr)]`-style feature gating into a flexible "condition system" for, well, conditionally including sources and parts of sources into some builds (but not others).
 We recognize `conditions` of `mode`, `feature`, `role`, `stage`, and a general `tag`, in addition to all the usual target gates (e.g. `host`, `runtime`, `target`, `platform`):
 
 ```json:destack.json
 {
-    "version": "2026.5.27-alpha.1",
     "stage": "alpha",
     "conditions": {
         "modes": {
@@ -2896,7 +3194,6 @@ We recognize `conditions` of `mode`, `feature`, `role`, `stage`, and a general `
             "preview": { "extends": "dev" }
         },
         "features": {
-            "checkout": {},
             "rendererv2": {}
         },
         "roles": {
@@ -2911,28 +3208,12 @@ We recognize `conditions` of `mode`, `feature`, `role`, `stage`, and a general `
     "compiler": {
         "modes": ["preview"],
         "features": ["rendererv2"]
-    },
-    "products": {
-        "cli": {
-            "stage": "stable",
-            "targets": {
-                "main": "native"
-            }
-        }
-    },
-    "targets": {
-        "native": {
-            "stage": "stable",
-            "emit": "native"
-        }
     }
 }
 ```
 
-The active stage is scalar.
-Profiles, products, and targets may override the release stage for the resolved profile.
-
-The active conditions are available within code via `import.meta.<condition>` (like `import.meta.roles`) as usual for in-code dynamic gating:
+One stage is active at a time - and profiles, products, and targets may override it for the resolved profile.
+The active conditions are available within code via [`import.meta.<condition>`](#import-meta) (like `import.meta.roles`) as usual for in-code dynamic gating:
 
 ```ds
 function getRenderer(): Renderer {
@@ -2944,7 +3225,7 @@ function getRenderer(): Renderer {
 }
 ```
 
-On the import side, Destack also generalises `<module>.<alias>.ds` to support conditional inclusion of files (appended to the `module.ds` file itself) based on the active conditions via `aliases`.
+On the import side, Destack also generalizes `<module>.<alias>.ds` to support conditional inclusion of files (appended to the `module.ds` file itself) based on the active conditions via `aliases`.
 Every named condition is automatically available as an `alias`, and additional `aliases` can be declared explicitly in `"conditions"` based on target-shaped gates.
 For example, when importing `./user` with `test` mode active, both `user.ds` and `user.test.ds` are included (as if):
 
@@ -2960,8 +3241,7 @@ test("loadUser", () => {
 });
 ```
 
-Chained like `user.test.browser.ds` behave as "and" gates on all conditions, that is, `user.test.browser.ds` is included only when both `test` mode and the `browser` alias match.
-
+Chained names like `user.test.browser.ds` behave as "and" gates on all conditions, that is, `user.test.browser.ds` is included only when both `test` mode and the `browser` alias match.
 Package dependencies can also be gated by the same condition system.
 Top-level dependencies are always part of the source graph, while `conditionalDependencies` are included when their `when` predicate matches:
 
@@ -3009,12 +3289,7 @@ Top-level dependencies are always part of the source graph, while `conditionalDe
 | `import.meta.roles` | active source graph roles | `readonly Role[]` | `["server"]`, `["client"]` |
 | `import.meta.features` | active source graph features | `readonly Feature[]` | `["checkout"]`, `["renderer"]` |
 | `import.meta.tags` | active source graph tags | `readonly Tag[]` | `["preview"]`, `["internal"]` |
-| `import.meta.debug` | `debug` mode shorthand | `boolean` | `true`, `false` |
-| `import.meta.dev` | `dev` mode shorthand | `boolean` | `true`, `false` |
-| `import.meta.prod` | `prod` mode shorthand | `boolean` | `true`, `false` |
-| `import.meta.test` | `test` mode shorthand | `boolean` | `true`, `false` |
-| `import.meta.bench` | `bench` mode shorthand | `boolean` | `true`, `false` |
-| `import.meta.lint` | `lint` mode shorthand | `boolean` | `true`, `false` |
+| `import.meta.<mode>` | mode shorthands for `debug`, `dev`, `prod`, `test`, `bench`, `lint` | `boolean` | `import.meta.test`, `import.meta.prod` |
 | `import.meta.env` | configured build environment | `{ readonly [key: string]: string | boolean | number }` | `{ NODE_ENV: "production", FEATURE_X: true }` |
 | `import.meta.tree` | current module tree tag builder | `TreeTagBuilder | undefined` | `HtmlTree` |
 | `import.meta.derive` | current module auto derives | `readonly Derive[]` | `["Clone", "Debug"]` |
