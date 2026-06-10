@@ -1,5 +1,7 @@
 # Statics
 
+Module bindings are static storage, owned per Worker unless declared `shared`.
+
 ## shared bindings
 
 ### shared const places the binding cell in shared space

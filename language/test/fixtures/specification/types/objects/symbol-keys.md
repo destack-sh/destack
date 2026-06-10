@@ -1,5 +1,7 @@
 # Symbol Keys
 
+Unique symbols key properties nominally.
+
 ## symbol properties
 
 ### keyof preserves symbol index signatures

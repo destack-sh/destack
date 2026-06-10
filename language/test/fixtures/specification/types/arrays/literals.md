@@ -1,5 +1,7 @@
 # Array Literals
 
+Array literals infer dynamic or fixed types from context.
+
 ## dynamic arrays
 
 ### let array literals infer widened element arrays

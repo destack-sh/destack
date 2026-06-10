@@ -6,6 +6,8 @@ Interval types can be used as newtype backing types.
 
 ### newtypes can use interval backing types
 
+The wrapper carries the interval's invariant.
+
 ```ds
 newtype Port = 1..=65535;
 
@@ -14,6 +16,8 @@ port satisfies Port;
 ```
 
 ### validated newtypes preserve runtime invariants through mutation
+
+A constructor that validates keeps the invariant for every value.
 
 ```ds
 newtype Port = int;

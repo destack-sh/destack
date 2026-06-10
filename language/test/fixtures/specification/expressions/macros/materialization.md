@@ -6,6 +6,8 @@ Expansion fixes the visible declaration graph, and materialization fills checked
 
 ### memoize wraps a function body
 
+A macro can replace the target's body while keeping its signature.
+
 ```ds
 newtype memoize = {
     capacity?: uint;

@@ -1,5 +1,7 @@
 # Lifetimes
 
+Lifetimes tie a borrow to its source, and are inferred from bodies wherever possible.
+
 ## escaping
 
 ### local borrow cannot escape a function

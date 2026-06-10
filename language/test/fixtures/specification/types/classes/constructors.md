@@ -6,6 +6,8 @@ Constructors allocate and initialize managed class instances.
 
 ### required fields need initialization
 
+Fields must be definitely assigned.
+
 ```ds
 class Counter {
     value: number;
@@ -15,6 +17,8 @@ class Counter {
 - contains: property is not definitely assigned
 
 ### constructors initialize required fields
+
+Constructor assignment satisfies the requirement.
 
 ```ds
 class Counter {
@@ -28,6 +32,8 @@ class Counter {
 
 ### optional fields do not need initialization
 
+Optional means possibly absent.
+
 ```ds
 class Counter {
     value?: number;
@@ -35,6 +41,8 @@ class Counter {
 ```
 
 ### all constructor paths must initialize fields
+
+Every path through the constructor must assign.
 
 ```ds
 class Counter {
@@ -53,6 +61,8 @@ class Counter {
 ## overloads
 
 ### constructor overloads share one implementation
+
+Overload signatures sit above one body.
 
 ```ds
 class Box {
@@ -74,6 +84,8 @@ fromNumber.value satisfies string | number;
 
 ### constructor overloads reject multiple implementations
 
+Only one body is allowed.
+
 ```ds
 class Box {
     value: string | number;
@@ -92,6 +104,8 @@ class Box {
 
 ### constructor overloads require a compatible implementation
 
+The body must serve every signature.
+
 ```ds
 class Box {
     value: string | number;
@@ -107,6 +121,8 @@ class Box {
 - contains: overload
 
 ### constructor calls use overload signatures
+
+Calls resolve against the signatures, not the body.
 
 ```ds
 class Box {

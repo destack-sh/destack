@@ -1,5 +1,7 @@
 # Union Dispatch
 
+Union receivers dispatch on the shared surface of their arms.
+
 ## fields
 
 ### member access returns the shared field type

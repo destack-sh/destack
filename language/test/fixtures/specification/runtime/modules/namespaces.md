@@ -1,5 +1,7 @@
 # Namespace Reexports
 
+Namespace re-exports group a module's surface under one name.
+
 ## export star namespaces
 
 ### export star namespace exposes type aliases

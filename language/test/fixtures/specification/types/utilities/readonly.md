@@ -6,6 +6,8 @@
 
 ### readonly keeps field types
 
+Only mutability changes.
+
 ```ds
 interface Person {
     name: string;
@@ -20,6 +22,8 @@ ok satisfies Frozen;
 
 ### readonly preserves optional fields
 
+Optionality survives.
+
 ```ds
 interface Person {
     name?: string;
@@ -32,6 +36,8 @@ ok satisfies Frozen;
 ```
 
 ### readonly rejects property writes
+
+The write surface is gone.
 
 ```ds
 interface Person {
@@ -48,6 +54,8 @@ frozen.name = "Grace";
 - contains: read-only
 
 ### readonly rejects nested property writes
+
+The utility maps one level; nesting freezes through the view.
 
 ```ds
 interface Person {

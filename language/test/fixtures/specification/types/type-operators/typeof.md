@@ -1,8 +1,12 @@
 # Typeof
 
+`typeof` lifts value types into type space.
+
 ## value queries
 
 ### typeof returns value types for locals
+
+`typeof` lifts a binding's type into type space.
 
 ```ds
 const value = 42;
@@ -13,6 +17,8 @@ let ok: ValueType = 42;
 ```
 
 ### typeof rejects incompatible locals
+
+The lifted type is exact.
 
 ```ds
 const value = 42;
@@ -25,6 +31,8 @@ let bad: ValueType = "no";
 - contains: not assignable
 
 ### typeof returns constructor types for classes
+
+A class value's type is its constructor surface.
 
 ```ds
 class Counter {
@@ -47,6 +55,8 @@ let okVersion: CounterCtor["version"] = 1;
 
 ### typeof rejects incompatible static fields
 
+Static fields keep their declared types.
+
 ```ds
 class Counter {
     static version: int32;
@@ -66,6 +76,8 @@ let badVersion: CounterCtor["version"] = "no";
 
 ### typeof includes static methods
 
+Static methods are part of the constructor surface.
+
 ```ds
 class Counter {
     static next(value: int32): int32 {
@@ -83,6 +95,8 @@ let okFn: CounterNext = Counter.next;
 ```
 
 ### typeof rejects static method call assignability
+
+Lifted signatures check like any function type.
 
 ```ds
 class Counter {

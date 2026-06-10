@@ -1,5 +1,7 @@
 # Fixed Arrays
 
+`[T; N]` is an inline sequence with a static length.
+
 ## fixed to dynamic arrays
 
 ### fixed arrays are assignable to dynamic arrays

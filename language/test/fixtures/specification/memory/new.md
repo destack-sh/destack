@@ -1,5 +1,7 @@
 # New
 
+`new` allocates managed values, and the destination form decides where they live.
+
 ## ownership
 
 ### new follows managed destinations

@@ -6,6 +6,8 @@
 
 ### exclude distributes over unions
 
+Matching arms drop.
+
 ```ds
 type Letters = "a" | "b" | "c";
 type Only = Exclude<Letters, "b">;
@@ -15,6 +17,8 @@ ok satisfies Only;
 ```
 
 ### exclude rejects removed members
+
+Excluded arms are gone.
 
 ```ds
 type Letters = "a" | "b" | "c";
@@ -26,6 +30,8 @@ const bad: Only = "b";
 - contains: not assignable
 
 ### exclude with never yields never
+
+Nothing excludes to nothing.
 
 ```ds
 type NeverLetters = Exclude<never, "b">;

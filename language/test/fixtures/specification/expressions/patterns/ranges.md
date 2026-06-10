@@ -6,6 +6,8 @@ Range patterns test integer, `bigint`, and `char` intervals.
 
 ### half-open range pattern
 
+A matched range narrows the value to the interval type.
+
 ```ds
 function label(value: int32): string {
     match (value) {
@@ -23,6 +25,8 @@ function label(value: int32): string {
 
 ### inclusive range pattern
 
+`..=` patterns include the end.
+
 ```ds
 function isByte(value: int32): boolean {
     match (value) {
@@ -36,6 +40,8 @@ function isByte(value: int32): boolean {
 ```
 
 ### one-sided range patterns
+
+Open ends cover everything below or above.
 
 ```ds
 function sign(value: int32): string {
@@ -57,6 +63,8 @@ function sign(value: int32): string {
 
 ### range alternatives
 
+Ranges combine with `|` like any other pattern.
+
 ```ds
 function isEdge(value: int32): boolean {
     match (value) {
@@ -70,6 +78,8 @@ function isEdge(value: int32): boolean {
 ```
 
 ### constant bounds
+
+Bounds can be named constants.
 
 ```ds
 const LOW: int32 = 10;
@@ -87,6 +97,8 @@ function isMiddle(value: int32): boolean {
 ```
 
 ### char range patterns
+
+`char` intervals match scalar values.
 
 ```ds
 function kind(value: char): string {
@@ -108,6 +120,8 @@ function kind(value: char): string {
 
 ### float range patterns are rejected
 
+Floats are not a bounded set, so they do not form intervals.
+
 ```ds
 function classify(value: float64): string {
     match (value) {
@@ -120,6 +134,8 @@ function classify(value: float64): string {
 - contains: range pattern
 
 ### float checks use guards
+
+A guard expresses the same float check explicitly.
 
 ```ds
 function classify(value: float64): string {

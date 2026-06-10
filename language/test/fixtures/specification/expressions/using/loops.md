@@ -6,6 +6,8 @@ Using loop bindings dispose each resource at the end of its iteration.
 
 ### for of accepts using resources
 
+Each element is disposed at the end of its iteration.
+
 ```ds
 class File implements Dispose {
     dispose(): void {}
@@ -20,6 +22,8 @@ for (using file of files) {
 
 ### for of accepts nullish using resources
 
+Nullish elements skip disposal.
+
 ```ds
 class File implements Dispose {
     dispose(): void {}
@@ -33,6 +37,8 @@ for (using file of files) {
 ```
 
 ### for of rejects async-only using resources
+
+A sync loop cannot await disposal.
 
 ```ds
 class Connection implements AsyncDispose {
@@ -52,6 +58,8 @@ for (using connection of connections) {
 
 ### for in rejects using resources
 
+Keys are not resources.
+
 ```ds
 class File implements Dispose {
     dispose(): void {}
@@ -70,19 +78,13 @@ for (using path in files) {
 
 ### for await of accepts await using resources
 
+Async resources dispose asynchronously per iteration.
+
 ```ds
 class Connection implements AsyncDispose {
     asyncDispose(): Promise<void> {
         Promise.resolve()
     }
-}
-
-interface AsyncIterator<T> {
-    next(): Promise<IteratorResult<T>>;
-}
-
-interface AsyncIterable<T> {
-    asyncIterator(): AsyncIterator<T>;
 }
 
 declare function connections(): AsyncIterable<Connection>;
@@ -95,6 +97,8 @@ async function run(): Promise<void> {
 ```
 
 ### for await of accepts sync resources
+
+Sync resources work in async loops.
 
 ```ds
 class File implements Dispose {
@@ -111,6 +115,8 @@ async function run(): Promise<void> {
 ```
 
 ### await using loop bindings require async iteration
+
+`await using` bindings belong in `for await` loops.
 
 ```ds
 class File implements Dispose {

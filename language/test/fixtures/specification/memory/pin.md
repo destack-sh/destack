@@ -1,5 +1,7 @@
 # Pin
 
+`Pin` keeps address-sensitive values from moving.
+
 ## roots
 
 ### boxes can be pinned
@@ -54,10 +56,10 @@ Types that store or expose self-references can explicitly reject `Unpin`.
 
 ```ds
 struct IntrusiveNode implements !Unpin {
-    next: *IntrusiveNode;
+    next: *IntrusiveNode | undefined;
 }
 
-let node = Box.pin(IntrusiveNode { next: null });
+let node = Box.pin(IntrusiveNode { next: undefined });
 
 node satisfies Pin<Box<IntrusiveNode>>;
 ```
@@ -68,10 +70,10 @@ Exclusive access to a pinned non-`Unpin` value preserves the pin.
 
 ```ds
 struct IntrusiveNode implements !Unpin {
-    next: *IntrusiveNode;
+    next: *IntrusiveNode | undefined;
 }
 
-let node = Box.pin(IntrusiveNode { next: null });
+let node = Box.pin(IntrusiveNode { next: undefined });
 let projected = node.asPinnedExclusive();
 
 projected satisfies Pin<&exclusive Box<IntrusiveNode>>;

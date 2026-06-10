@@ -1,5 +1,7 @@
 # Moves
 
+Owned values move, and a moved-from place is gone.
+
 ## move conflicts
 
 ### use after move is rejected

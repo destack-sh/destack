@@ -1,5 +1,7 @@
 # Raw Memory
 
+Raw pointers are inert addresses; only using them is unsafe.
+
 ## pointers
 
 ### raw pointers are non-null

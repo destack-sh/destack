@@ -1,5 +1,7 @@
 # Arena
 
+Arenas tie many allocations to one owner and one lifetime.
+
 ## arena
 
 ### arena allocations share a lifetime

@@ -1,5 +1,7 @@
 # Inference
 
+Calls infer parameter and return types from context.
+
 ## defaults
 
 Parameter and return type inference.

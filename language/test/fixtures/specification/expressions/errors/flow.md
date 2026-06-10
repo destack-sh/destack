@@ -1,5 +1,7 @@
 # Try Control
 
+`try` / `catch` / `finally` drive `Result` control flow, not exceptions.
+
 ## expressions
 
 ### try expressions require catch or finally

@@ -1,10 +1,14 @@
 # Reference Conversion
 
+`As` projects reference views with chosen access.
+
 ## access
 
 Reference conversion uses TS++ access forms.
 
 ### As defaults to readonly access
+
+`As<T>` projects a readonly view by default.
 
 ```ds
 class Buffer {
@@ -24,6 +28,8 @@ read(buffer.as());
 ```
 
 ### As selects access explicitly
+
+The access parameter picks the projected form.
 
 ```ds
 class Buffer {

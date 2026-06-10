@@ -6,12 +6,16 @@
 
 ### null has its own type
 
+`null` is the unit type of `null`.
+
 ```ds
 const value: null = null;
 value satisfies null;
 ```
 
 ### null rejects non-nullish targets
+
+Nothing is nullable implicitly.
 
 ```ds
 const value: string = null;
@@ -23,12 +27,16 @@ const value: string = null;
 
 ### undefined has its own type
 
+`undefined` is its own unit type.
+
 ```ds
 const value: undefined = undefined;
 value satisfies undefined;
 ```
 
 ### undefined rejects non-nullish targets
+
+Nothing is optional implicitly.
 
 ```ds
 const value: string = undefined;
@@ -39,6 +47,8 @@ const value: string = undefined;
 ## void
 
 ### void marks no useful return value
+
+`void` is for returns, not values.
 
 ```ds
 function log(message: string): void {

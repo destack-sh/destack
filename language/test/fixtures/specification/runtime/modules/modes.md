@@ -1,5 +1,7 @@
 # Modes
 
+Source modes decide how `.ds`, `.ts`, and `.tsx` files are checked.
+
 ## source selection
 
 ### active mode files share the base module

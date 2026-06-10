@@ -1,5 +1,7 @@
 # Template Numbers
 
+Numeric spans match number-shaped strings.
+
 ## matching
 
 ### template literal type accepts bigint strings

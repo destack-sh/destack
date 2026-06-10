@@ -1,5 +1,7 @@
 # Interface Members
 
+Interface members declare the required surface.
+
 ## members
 
 ### interface properties declare types

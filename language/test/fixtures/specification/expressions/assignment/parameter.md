@@ -1,5 +1,7 @@
 # Parameter Bindings
 
+Parameters are bindings initialized by the call.
+
 ## reassignment
 
 ### parameter bindings are mutable

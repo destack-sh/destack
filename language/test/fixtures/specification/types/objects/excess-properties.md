@@ -1,5 +1,7 @@
 # Excess Property Checks
 
+Fresh object literals reject properties their target does not declare.
+
 ## unions
 
 ### union rejects extra fields

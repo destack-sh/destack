@@ -1,5 +1,7 @@
 # Variadic
 
+Parameter lists can be generic in length.
+
 ## generic parameter lists
 
 ### variadic type constraints apply to each argument

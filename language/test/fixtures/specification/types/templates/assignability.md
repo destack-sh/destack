@@ -1,5 +1,7 @@
 # Template Assignability
 
+Template literal types admit exactly the strings they describe.
+
 ## assignability
 
 ### template literal type assigns to broader template

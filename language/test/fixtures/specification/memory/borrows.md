@@ -1,5 +1,7 @@
 # Borrows
 
+Borrows take checked access to a live place without moving it.
+
 ## sources
 
 ### managed fields can be borrowed
@@ -387,7 +389,7 @@ class Bucket<T> {
     items: T[] = [];
 }
 
-extension of Bucket<T> {
+extension<T> of Bucket<T> {
     at(this: Bucket<T>, index: uint): T {
         return this.items[index];
     }
@@ -417,7 +419,7 @@ class Cell<T> {
     value: T;
 }
 
-extension of Cell<T> {
+extension<T> of Cell<T> {
     get(this: &readonly Cell<T>): &readonly T {
         return &readonly this.value;
     }
@@ -443,7 +445,7 @@ class Bucket<T> {
     items: T[] = [];
 }
 
-extension of Bucket<T> {
+extension<T> of Bucket<T> {
     at(this: &readonly Bucket<T>, index: uint): &readonly T {
         return &readonly this.items[index];
     }
@@ -531,7 +533,7 @@ class Bucket<T> {
     items: T[] = [];
 }
 
-extension of Bucket<T> {
+extension<T> of Bucket<T> {
     at(this: &readonly Bucket<T>, index: uint): &readonly T {
         return &readonly this.items[index];
     }
@@ -617,7 +619,7 @@ class Bucket<T> {
     items: T[] = [];
 }
 
-extension of Bucket<T> {
+extension<T> of Bucket<T> {
     length(this: &readonly Bucket<T>): uint {
         return this.items.length;
     }

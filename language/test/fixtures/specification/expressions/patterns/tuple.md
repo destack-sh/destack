@@ -1,5 +1,7 @@
 # Tuple Patterns
 
+Tuple patterns destructure fixed positions.
+
 ## tuple patterns
 
 ### tuple patterns destructure values

@@ -1,5 +1,7 @@
 # Async
 
+`await using` disposes resources asynchronously at scope exit.
+
 ## await using
 
 ### await using accepts async resources

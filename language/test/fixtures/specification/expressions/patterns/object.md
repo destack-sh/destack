@@ -1,5 +1,7 @@
 # Object Patterns
 
+Object patterns destructure by key.
+
 ## object patterns
 
 ### object patterns bind fields

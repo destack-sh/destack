@@ -1,5 +1,7 @@
 # Catch
 
+Catch clauses type the error from the tried expression.
+
 ## error typing
 
 ### catch sees result errors

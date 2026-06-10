@@ -7,6 +7,8 @@ Use `unknown`, structural object shapes, interfaces, `Record<K, V>`, or `Dynamic
 
 ### object annotations are rejected
 
+The `object` type has no place in Destack's model.
+
 ```ds
 const x: object = {};
 ```
@@ -14,6 +16,8 @@ const x: object = {};
 - contains: unsupported type: object
 
 ### object parameters are rejected
+
+Use a structural shape or `unknown` instead.
 
 ```ds
 function id(value: object) {

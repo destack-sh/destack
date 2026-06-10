@@ -1,5 +1,7 @@
 # Template Spans
 
+Template spans split and rebuild string types.
+
 ## repeated parts
 
 ### repeated parts must be the same

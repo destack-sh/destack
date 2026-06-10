@@ -36,7 +36,7 @@ interface Mergeable {
     merge(): void;
 }
 
-function merge<T, U>(value: T, other: U): T where (T: Readable, U: Mergeable) {
+function merge<T, U>(value: T, other: U): T where T: Readable, U: Mergeable {
     value;
     other;
     return value;
@@ -86,7 +86,7 @@ interface Mergeable {
     merge(): void;
 }
 
-function merge<T, U>(value: T, other: U): T where (T: Readable, U: Mergeable) {
+function merge<T, U>(value: T, other: U): T where T: Readable, U: Mergeable {
     value;
     other;
     return value;

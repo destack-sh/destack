@@ -1,5 +1,7 @@
 # Character Literals
 
+Single quotes spell `char` literals in `.ds`.
+
 ## character literals
 
 ### character literal yields character type

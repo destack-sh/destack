@@ -1,6 +1,6 @@
 # Array Literals
 
-Array literal type inference and checking.
+Array literals infer element types from their contents and context.
 
 ## arrays
 
@@ -107,6 +107,7 @@ const values: number[] = [...[1, "two"]];
 
 ### Array<T> matches array syntax
 
+`Array<number>` and `number[]` are the same type.
 
 ```ds
 const values: Array<number> = [1, 2, 3];
@@ -115,6 +116,7 @@ values satisfies number[];
 
 ### array syntax matches Array<T>
 
+The equivalence reads in both directions.
 
 ```ds
 const values: number[] = [1, 2, 3];

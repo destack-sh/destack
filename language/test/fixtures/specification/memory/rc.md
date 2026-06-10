@@ -1,5 +1,7 @@
 # Reference Counting
 
+`Rc` and `Arc` add shared ownership on top of owned values.
+
 ## Rc
 
 ### Rc can create weak handles

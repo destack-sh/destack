@@ -1,5 +1,7 @@
 # Switch Flow
 
+`switch` participates in control flow and value joining.
+
 ## breaks
 
 ### switch breaks target the innermost switch

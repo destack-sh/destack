@@ -1,10 +1,14 @@
 # From And Into
 
+`From` declares conversions on the destination type, and `Into` follows for free.
+
 ## infallible
 
 Infallible conversion uses `From`.
 
 ### From converts into the implementing type
+
+`From` declares the conversion on the destination.
 
 ```ds
 newtype UserId = string;
@@ -20,6 +24,8 @@ id satisfies UserId;
 ```
 
 ### Into is provided by From
+
+The blanket bridge supplies `into` automatically.
 
 ```ds
 newtype UserId = string;
@@ -40,6 +46,8 @@ id satisfies UserId;
 Conversions are explicit one-step operations.
 
 ### Into does not chain through intermediate conversions
+
+Each conversion is one declared step.
 
 ```ds error
 newtype UserId = string;

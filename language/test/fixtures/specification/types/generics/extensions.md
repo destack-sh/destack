@@ -1,5 +1,7 @@
 # Extensions
 
+Extensions take their own generic parameters over the target.
+
 ## declarations
 
 ### extension type parameters

@@ -35,6 +35,8 @@ user.debug() satisfies string;
 
 ### module derives run automatically
 
+Auto derives apply to every eligible declaration in the module.
+
 ```ds
 module {
     const derive = ["Clone"];

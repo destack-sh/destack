@@ -1,5 +1,7 @@
 # Template Checks
 
+Template types check their span types.
+
 ## checks
 
 ### nullish checks preserve template literal constraints

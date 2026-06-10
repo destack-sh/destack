@@ -1,5 +1,7 @@
 # Type Parameter Modifiers
 
+Modifiers on type parameters tune inference.
+
 ## const type parameters
 
 ### const modifiers are not allowed on type aliases

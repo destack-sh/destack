@@ -6,6 +6,8 @@
 
 ### required removes optionality
 
+Every field becomes mandatory.
+
 ```ds
 interface Person {
     name?: string;
@@ -19,6 +21,8 @@ ok satisfies FullPerson;
 ```
 
 ### required rejects missing fields
+
+Nothing stays optional.
 
 ```ds
 interface Person {
@@ -35,6 +39,8 @@ const bad: FullPerson = { name: "Ada" };
 
 ### required keeps undefined in property types
 
+Explicit `undefined` in the type is not optionality.
+
 ```ds
 interface Person {
     name?: string | undefined;
@@ -47,6 +53,8 @@ ok satisfies FullPerson;
 ```
 
 ### required preserves readonly fields
+
+Modifiers other than `?` survive.
 
 ```ds
 interface Person {

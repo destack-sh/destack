@@ -1,5 +1,7 @@
 # Bindings
 
+Bindings must be definitely assigned before use.
+
 ## definite assignment
 
 ### reads require prior assignment

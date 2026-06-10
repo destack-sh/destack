@@ -1,5 +1,7 @@
 # Match Newtypes
 
+Match arms open newtypes like any other pattern position.
+
 ## scalar newtype patterns
 
 ### scalar newtype patterns bind values

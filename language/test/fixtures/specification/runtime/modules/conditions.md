@@ -1,5 +1,7 @@
 # Conditions
 
+Conditions select sources per target at compile time.
+
 ## source selection
 
 ### active condition files share the base module

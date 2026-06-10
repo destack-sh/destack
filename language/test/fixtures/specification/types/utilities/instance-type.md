@@ -6,6 +6,8 @@
 
 ### InstanceType extracts class instances
 
+The constructor type yields its instance type.
+
 ```ds
 class User {
     name: string = "";
@@ -18,6 +20,8 @@ ok.name satisfies string;
 ```
 
 ### InstanceType rejects unrelated instances
+
+The extracted type is exact.
 
 ```ds
 class User {

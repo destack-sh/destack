@@ -6,6 +6,8 @@
 
 ### capitalize converts first character
 
+Only the first character changes.
+
 ```ds
 type Value = Capitalize<"hello">;
 
@@ -13,6 +15,8 @@ const ok: Value = "Hello";
 ```
 
 ### capitalize distributes over unions
+
+Each arm converts.
 
 ```ds
 type Value = Capitalize<"yes" | "no">;
@@ -22,6 +26,8 @@ const ok2: Value = "No";
 ```
 
 ### capitalize rejects original casing
+
+The original literal is gone.
 
 ```ds
 type Value = Capitalize<"hello">;

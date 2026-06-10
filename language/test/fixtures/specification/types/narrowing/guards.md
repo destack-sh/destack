@@ -6,6 +6,8 @@ Guard expressions refine values in control flow.
 
 ### instanceof narrows classes
 
+`instanceof` splits class arms from the union.
+
 ```ds
 class User {
     name: string = "";
@@ -21,6 +23,8 @@ if (value instanceof User) {
 
 ### instanceof requires classes
 
+Value types have no prototype to test.
+
 ```ds
 struct Point {
     x: int32;
@@ -34,6 +38,8 @@ const ok = value instanceof Point;
 - contains: instanceof requires a class type
 
 ### in narrows required keys
+
+A required key picks the arms that declare it.
 
 ```ds
 interface WithName {
@@ -56,6 +62,8 @@ function narrow(value: WithName | WithId): void {
 
 ### is narrows primitive unions
 
+`is` tests primitive arms.
+
 ```ds
 const value: string | int32 = 1;
 if (value is string) {
@@ -66,6 +74,8 @@ if (value is string) {
 ```
 
 ### is narrows nominal unions
+
+`is` tests nominal arms.
 
 ```ds
 struct Rectangle {
@@ -89,6 +99,8 @@ if (shape is Rectangle) {
 
 ### is narrows classes
 
+`is` covers classes too.
+
 ```ds
 class Admin {
     name: string = "";
@@ -104,6 +116,8 @@ if (value is Admin) {
 
 ### newtype identity stays visible
 
+The nominal wrapper is testable at runtime.
+
 ```ds
 newtype UserId = string;
 
@@ -117,6 +131,8 @@ if (value is UserId) {
 
 ### is expressions return boolean
 
+Outside a guard position, `is` is just a boolean.
+
 ```ds
 class Admin {
     name: string = "";
@@ -128,6 +144,8 @@ ok satisfies boolean;
 ```
 
 ### is rejects structural types
+
+There is no runtime witness for structure.
 
 ```ds
 const value: unknown = { name: "Ada" };

@@ -1,5 +1,7 @@
 # Template Associated Types
 
+Template types compose with associated members.
+
 ## associated
 
 ### associated aliases can use outer generic arguments

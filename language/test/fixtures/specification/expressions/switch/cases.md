@@ -1,5 +1,7 @@
 # Switch
 
+`switch` keeps its TypeScript shape with strict comparison.
+
 ## cases
 
 ### switch selects a matching case

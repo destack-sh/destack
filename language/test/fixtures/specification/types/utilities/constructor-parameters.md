@@ -6,6 +6,8 @@
 
 ### ConstructorParameters extracts constructor arguments
 
+The constructor's parameter list becomes a tuple.
+
 ```ds
 class User {
     constructor(name: string, age: number) {}
@@ -18,6 +20,8 @@ ok satisfies (string, number);
 ```
 
 ### ConstructorParameters rejects wrong argument types
+
+The tuple is exact.
 
 ```ds
 class User {

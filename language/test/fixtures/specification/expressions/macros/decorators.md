@@ -6,6 +6,8 @@ Decorator values can implement `Macro` to change their target during compilation
 
 ### route decorator adds a route definition
 
+A `Macro` decorator can register sibling declarations next to its target.
+
 ```ds
 newtype route = (string,);
 
@@ -43,6 +45,8 @@ ROUTE_DEFINITION_USERS.handler satisfies () => string;
 ```
 
 ### imported decorators expand through exported symbols
+
+Macros expand the same way regardless of which module declared them.
 
 ```ds:macros.ds
 export newtype route = (string,);

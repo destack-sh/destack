@@ -1,5 +1,7 @@
 # Character
 
+`char` is one Unicode scalar value.
+
 ## values
 
 ### character literals satisfy character

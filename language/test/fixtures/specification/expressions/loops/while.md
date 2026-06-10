@@ -1,5 +1,7 @@
 # While Expressions
 
+`while` repeats while its boolean condition holds.
+
 ## while
 
 ### while yields void

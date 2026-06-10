@@ -1,5 +1,7 @@
 # Object Assignability
 
+Object types assign structurally.
+
 ## structural assignability
 
 ### object literal satisfies interface
@@ -72,6 +74,8 @@ person satisfies Person;
 ```
 
 ### optional fields reject explicit undefined
+
+Optional means absent, not explicitly `undefined`.
 
 ```ds
 interface Target {

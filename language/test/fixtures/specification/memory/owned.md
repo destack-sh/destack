@@ -1,5 +1,7 @@
 # Owned
 
+`^T` is single-owner storage with deterministic cleanup.
+
 ## construction
 
 ### owned expression yields owned value

@@ -1,5 +1,7 @@
 # Cell
 
+Cells move mutation checking from places to values.
+
 ## cell
 
 ### cell supports interior mutation
@@ -10,9 +12,9 @@
 import { Cell } from "destack:memory/cell";
 
 let cell = Cell.new(1);
-let shared = &readonly cell;
+let view = &readonly cell;
 
-shared.set(2);
+view.set(2);
 ```
 
 ### cell get requires copyable values

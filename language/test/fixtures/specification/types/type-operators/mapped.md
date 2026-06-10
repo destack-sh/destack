@@ -6,6 +6,8 @@ Mapped types iterate over static key unions.
 
 ### mapped types use instantiated keys
 
+Mapping sees the actual instantiation, not the bound.
+
 ```ds
 type Flags<T: { a: number }> = { [K in keyof T]: boolean };
 
@@ -16,6 +18,8 @@ ok satisfies Actual;
 ```
 
 ### key remapping supports indexed reads
+
+Remapped keys still project their source field types.
 
 ```ds
 type Prefix<T> = {
@@ -30,6 +34,8 @@ const age: Values = 42;
 ```
 
 ### key remapping rejects missing keys
+
+Only remapped keys exist.
 
 ```ds
 type Prefix<T> = {
@@ -46,6 +52,8 @@ type Missing = Accessors["name"];
 
 ### optional mapped reads include undefined
 
+`?` adds `undefined` to every projection.
+
 ```ds
 type Optional<T> = { [K in keyof T]?: T[K] };
 
@@ -55,6 +63,8 @@ const missing: Values = undefined;
 ```
 
 ### optional mapped reads reject unrelated values
+
+Optionality adds nothing else.
 
 ```ds
 type Optional<T> = { [K in keyof T]?: T[K] };
@@ -69,6 +79,8 @@ const bad: Values = 1;
 ## imports
 
 ### mapped aliases survive imports
+
+Mapped types keep working across modules.
 
 ```ds:library.ds
 export type Optional<T> = { [K in keyof T]?: T[K] };

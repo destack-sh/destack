@@ -1,5 +1,7 @@
 # Shape
 
+`Shape` reflects a type's structure at compile time.
+
 ## types
 
 ### Type.of returns a semantic type

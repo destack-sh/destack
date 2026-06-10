@@ -1,12 +1,12 @@
 # Comptime Blocks
 
-Top-level comptime blocks are static checks.
+Top-level comptime blocks run during compilation.
 
 ## module scope
 
-### module comptime blocks assert static terms
+### module comptime blocks run assertions
 
-Top-level comptime blocks check static terms during compilation.
+Assertions in a top-level comptime block fail the build, not the program.
 
 ```ds
 const size = comptime 4;
@@ -20,7 +20,7 @@ size satisfies 4;
 
 ### module comptime blocks read imported terms
 
-Top-level comptime blocks can use imported static terms.
+Top-level comptime blocks can read imported constants.
 
 ```ds:config.ds
 export const size = comptime 4;

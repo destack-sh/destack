@@ -51,6 +51,8 @@ writer.write([]) satisfies uint;
 
 ### structural matches do not satisfy nominal interfaces
 
+Matching members is not implementing.
+
 ```ds
 newtype interface Add<T> {
     type Output;
@@ -73,6 +75,8 @@ const value: Add<Vec2> = Vec2 { x: 0, y: 0 };
 - contains: not assignable
 
 ### explicit implements satisfies nominal interfaces
+
+The clause is what implements.
 
 ```ds
 newtype interface Add<T> {
@@ -99,6 +103,8 @@ value.add(Vec2 { x: 1, y: 1 }) satisfies Vec2;
 ```
 
 ### aliases preserve nominal interface identity
+
+An alias names the same interface.
 
 ```ds
 newtype interface Add<T> {
@@ -128,6 +134,8 @@ value.add(Vec2 { x: 1, y: 1 }) satisfies Vec2;
 
 ### imported interfaces stay nominal
 
+Nominality crosses modules.
+
 ```ds:contract.ds
 export newtype interface Add<T> {
     type Output;
@@ -154,6 +162,8 @@ const value: Add<Vec2> = Vec2 { x: 0, y: 0 };
 - contains: not assignable
 
 ### imported interfaces accept imported implements
+
+The clause works wherever the interface is nameable.
 
 ```ds:contract.ds
 export newtype interface Add<T> {

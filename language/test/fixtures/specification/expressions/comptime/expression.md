@@ -1,5 +1,7 @@
 # Comptime
 
+`comptime` expressions evaluate during compilation.
+
 ## comptime expressions
 
 ### comptime expressions yield value types

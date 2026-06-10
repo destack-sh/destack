@@ -1,5 +1,7 @@
 # Match Exhaustiveness
 
+`match` must cover every possible value.
+
 ## enums
 
 ### enum matches need full coverage

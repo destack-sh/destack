@@ -6,6 +6,8 @@
 
 ### omit removes selected keys
 
+Omitted keys leave the shape.
+
 ```ds
 interface Person {
     name: string;
@@ -19,6 +21,8 @@ ok satisfies WithoutAge;
 ```
 
 ### omit rejects removed keys
+
+Removed fields are gone for writers too.
 
 ```ds
 interface Person {
@@ -35,6 +39,8 @@ const bad: WithoutAge = { name: "Ada", age: 42 };
 
 ### omit with union keys removes all
 
+A key union omits several fields.
+
 ```ds
 interface Person {
     name: string;
@@ -47,6 +53,8 @@ const ok: WithoutAll = {};
 ```
 
 ### omit with union keys rejects removed fields
+
+Every omitted field is gone.
 
 ```ds
 interface Person {
@@ -63,6 +71,8 @@ const bad: WithoutAll = { name: "Ada" };
 
 ### omit ignores unknown keys
 
+Omitting nothing changes nothing.
+
 ```ds
 interface Person {
     name: string;
@@ -76,6 +86,8 @@ ok satisfies Person;
 ```
 
 ### omit preserves readonly properties
+
+Modifiers survive on the keys that remain.
 
 ```ds
 interface Person {

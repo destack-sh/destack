@@ -1,5 +1,7 @@
 # Data
 
+Data modules import structured data as typed constants.
+
 ## JSON import
 
 ### JSON object imports resolve

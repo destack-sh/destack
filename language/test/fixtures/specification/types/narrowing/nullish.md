@@ -6,6 +6,8 @@ Nullish narrowing via equality guards.
 
 ### not equal null narrows to non nullish
 
+`!= null` excludes both nullish values at once.
+
 ```ds
 const value: string | null | undefined = null;
 if (value != null) {
@@ -16,6 +18,8 @@ if (value != null) {
 ```
 
 ### equal null narrows to nullish
+
+`== null` keeps exactly the nullish values.
 
 ```ds
 const value: string | null | undefined = null;
@@ -28,6 +32,8 @@ if (value == null) {
 
 ### equal undefined narrows to nullish
 
+`== undefined` behaves identically to `== null`.
+
 ```ds
 const value: string | null | undefined = undefined;
 if (value == undefined) {
@@ -38,6 +44,8 @@ if (value == undefined) {
 ```
 
 ### equal null narrows to nullish with symbol on right
+
+Comparison direction does not matter.
 
 ```ds
 const value: string | null | undefined = null;
@@ -50,6 +58,8 @@ if (null == value) {
 
 ### not equal null narrows to non nullish with symbol on right
 
+Comparison direction does not matter.
+
 ```ds
 const value: string | null | undefined = null;
 if (null != value) {
@@ -60,6 +70,8 @@ if (null != value) {
 ```
 
 ### not equal undefined narrows to non nullish
+
+`!= undefined` excludes both nullish values too.
 
 ```ds
 const value: string | null | undefined = undefined;
@@ -72,6 +84,8 @@ if (value != undefined) {
 
 ### not equal undefined narrows to non nullish with symbol on right
 
+Comparison direction does not matter.
+
 ```ds
 const value: string | null | undefined = undefined;
 if (undefined != value) {
@@ -82,6 +96,8 @@ if (undefined != value) {
 ```
 
 ### strict equal null narrows to null
+
+`===` distinguishes the two nullish values.
 
 ```ds
 const value: string | null | undefined = null;
@@ -94,6 +110,8 @@ if (value === null) {
 
 ### strict equal null narrows to null with symbol on right
 
+Comparison direction does not matter.
+
 ```ds
 const value: string | null | undefined = null;
 if (null === value) {
@@ -104,6 +122,8 @@ if (null === value) {
 ```
 
 ### strict equal undefined narrows to undefined
+
+`=== undefined` keeps only `undefined`.
 
 ```ds
 const value: string | null | undefined = undefined;
@@ -116,6 +136,8 @@ if (value === undefined) {
 
 ### strict equal undefined narrows to undefined with symbol on right
 
+Comparison direction does not matter.
+
 ```ds
 const value: string | null | undefined = undefined;
 if (undefined === value) {
@@ -126,6 +148,8 @@ if (undefined === value) {
 ```
 
 ### strict not equal undefined narrows to non undefined
+
+`!== undefined` keeps `null` in the union.
 
 ```ds
 const value: string | null | undefined = undefined;
@@ -138,6 +162,8 @@ if (value !== undefined) {
 
 ### strict not equal undefined narrows to non undefined with symbol on right
 
+Comparison direction does not matter.
+
 ```ds
 const value: string | null | undefined = undefined;
 if (undefined !== value) {
@@ -149,6 +175,8 @@ if (undefined !== value) {
 
 ### strict not equal null narrows to non null
 
+`!== null` keeps `undefined` in the union.
+
 ```ds
 const value: string | null | undefined = null;
 if (value !== null) {
@@ -159,6 +187,8 @@ if (value !== null) {
 ```
 
 ### strict not equal null narrows to non null with symbol on right
+
+Comparison direction does not matter.
 
 ```ds
 const value: string | null | undefined = null;

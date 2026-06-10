@@ -1,143 +1,214 @@
-# Variance Annotations
+# Variance
 
-## type parameters
+Variance decides when `C<A>` is assignable to `C<B>`.
+It is computed per parameter from how the members use it, and `in` / `out` annotations are checked assertions on top.
 
-### declarations accept variance modifiers
+## computed
 
-Variance modifiers are accepted in type parameter lists.
+### output-only parameters are covariant
 
-```ds:main.ds
-interface Sink<in T> {
-    set(value: T): void;
+A parameter that only comes out can widen with its argument.
+
+```ds
+interface Source<T> {
+    take(): T;
 }
 
+declare const strings: Source<string>;
+
+const widened: Source<string | number> = strings;
+widened.take() satisfies string | number;
+```
+
+### covariant parameters reject narrowing
+
+The other direction would let `take` produce a value outside the narrower type.
+
+```ds
+interface Source<T> {
+    take(): T;
+}
+
+declare const union: Source<string | number>;
+
+const narrowed: Source<string> = union;
+```
+
+- contains: not assignable
+
+### input-only parameters are contravariant
+
+A parameter that only goes in can narrow against its argument.
+
+```ds
+interface Sink<T> {
+    put(value: T): void;
+}
+
+declare const union: Sink<string | number>;
+
+const narrowed: Sink<string> = union;
+narrowed.put("ok");
+```
+
+### contravariant parameters reject widening
+
+The other direction would let `put` accept a value the original cannot hold.
+
+```ds
+interface Sink<T> {
+    put(value: T): void;
+}
+
+declare const strings: Sink<string>;
+
+const widened: Sink<string | number> = strings;
+```
+
+- contains: not assignable
+
+### two-way parameters are invariant
+
+A parameter that comes out and goes in must match exactly.
+
+```ds
+interface Pipe<T> {
+    take(): T;
+    put(value: T): void;
+}
+
+declare const strings: Pipe<string>;
+
+const widened: Pipe<string | number> = strings;
+```
+
+- contains: not assignable
+
+### mutable fields are invariant
+
+A mutable field counts as input and output at once.
+
+```ds
+interface Box<T> {
+    value: T;
+}
+
+declare const strings: Box<string>;
+
+const widened: Box<string | number> = strings;
+```
+
+- contains: not assignable
+
+### unused parameters are invariant
+
+Branded types stay distinct per argument.
+
+```ds
+struct User {}
+struct Post {}
+
+newtype Id<T> = uint64;
+
+declare const user: Id<User>;
+
+const post: Id<Post> = user;
+```
+
+- contains: not assignable
+
+## storage
+
+### mutable arrays are invariant
+
+Writing through the widened alias could corrupt the original array.
+
+```ds
+class Shape {}
+class Circle extends Shape {}
+
+declare const circles: Circle[];
+
+const shapes: Shape[] = circles;
+```
+
+- contains: not assignable
+
+### readonly arrays are covariant
+
+A readonly view strips the mutating surface, and class elements share their reference layout.
+
+```ds
+class Shape {}
+class Circle extends Shape {}
+
+declare const circles: Circle[];
+
+const shapes: readonly Shape[] = circles;
+shapes[0] satisfies Shape;
+```
+
+### layout differences stay invariant even readonly
+
+Inline element layouts differ between instantiations, so no free view exists.
+
+```ds
+declare const numbers: int32[];
+
+const view: readonly (int32 | string)[] = numbers;
+```
+
+- contains: not assignable
+
+## annotations
+
+### out is checked against usage
+
+An `out` parameter cannot appear in input positions.
+
+```ds
 interface Source<out T> {
-    get(): T;
+    take(): T;
+    put(value: T): void;
 }
-
-type Adapter<in T, out U> = (value: T) => U;
-
-const source: Source<string> = {
-    get: () => "ok",
-};
-
-source.get() satisfies string;
 ```
 
-### classes and functions accept variance modifiers
+- contains: out
 
-Variance modifiers are accepted on classes and functions.
+### in is checked against usage
 
-```ds:main.ds
-declare class Box<out T> {
-    value: T;
-    constructor(value: T);
-}
+An `in` parameter cannot appear in output positions.
 
-declare function map<in T, out U>(value: T, f: (value: T) => U): U;
-
-type Boxed = Box<string>;
-type Mapper = typeof map;
-```
-
-### variance modifiers work with defaults
-
-Defaults are applied when type arguments are omitted.
-
-```ds:main.ds
-interface Box<out T = string> {
-    value: T;
-}
-
-const boxed: Box = { value: "ok" };
-boxed.value satisfies string;
-```
-
-### variance in method type parameters
-
-Variance modifiers are accepted on method type parameters.
-
-```ds:main.ds
-interface Mapper {
-    map<in T, out U>(value: T, f: (value: T) => U): U;
-}
-
-declare const mapper: Mapper;
-```
-
-### declarations accept variance modifiers in ds sources
-
-Variance modifiers are accepted in `.ds` sources.
-
-```ds:main.ds
+```ds
 interface Sink<in T> {
-    set(value: T): void;
+    put(value: T): void;
+    take(): T;
 }
-
-interface Source<out T> {
-    get(): T;
-}
-
-type Adapter<in T, out U> = (value: T) => U;
-
-const source: Source<string> = {
-    get: () => "ok",
-};
-
-source.get() satisfies string;
 ```
 
-### variance modifiers work with constraints
+- contains: in
 
-Variance modifiers work with `.ds` constraints.
+### annotations may tighten
 
-```ds:main.ds
-interface Sink<in T: string> {
-    set(value: T): void;
+`in out` can pin an output-only parameter to invariant.
+
+```ds
+interface Source<in out T> {
+    take(): T;
 }
 
-interface Source<out T: string> {
-    get(): T;
-}
+declare const strings: Source<string>;
 
-type Adapter<in T: string, out U: int32> = (value: T) => U;
-
-let sink: Sink<string>;
-let source: Source<string>;
-let adapter: Adapter<string, int32>;
+const widened: Source<string | number> = strings;
 ```
 
-### variance modifiers work with ds defaults
+- contains: not assignable
 
-Defaults are applied when type arguments are omitted.
+### out stays an identifier in value positions
 
-```ds:main.ds
-interface Box<out T: string = string> {
-    value: T;
-}
+`out` is only a modifier in type parameter lists.
 
-declare let boxed: Box;
-boxed.value satisfies string;
-```
-
-### variance with defaults on in parameters
-
-Defaults are applied to contravariant parameters.
-
-```ds:main.ds
-interface Sink<in T = string> {
-    set(value: T): void;
-}
-
-declare let sink: Sink;
-sink.set("ok");
-```
-
-### variance keywords in value parameters
-
-`out` remains a normal identifier in value parameter positions.
-
-```ds:main.ds
+```ds
 function echo(out: string): string {
     return out;
 }
@@ -145,117 +216,49 @@ function echo(out: string): string {
 echo("ok") satisfies string;
 ```
 
-### declaration files accept variance modifiers
+## acceptance
 
-Variance modifiers are accepted in declaration files.
+### declarations accept variance modifiers
 
-```ds:main.ds
-export interface Sink<in T> {
+Modifiers parse on interfaces, classes, functions, and aliases.
+
+```ds
+interface Sink<in T> {
     set(value: T): void;
 }
 
-export interface Source<out T> {
-    get(): T;
-}
-
-export declare class Box<out T> {
+declare class Box<out T> {
     value: T;
     constructor(value: T);
 }
 
-export declare function map<in T, out U>(value: T, f: (value: T) => U): U;
+declare function map<in T, out U>(value: T, f: (value: T) => U): U;
 
-export type Adapter<in T, out U> = (value: T) => U;
+type Adapter<in T, out U> = (value: T) => U;
+```
 
-export declare const sink: Sink<string>;
+### modifiers compose with constraints and defaults
+
+Constraints and defaults read as usual next to a modifier.
+
+```ds
+interface Source<out T: string = string> {
+    get(): T;
+}
+
+declare const source: Source;
+
+source.get() satisfies string;
+```
+
+### declaration files accept variance modifiers
+
+Exported declarations carry their modifiers.
+
+```ds
+export interface Source<out T> {
+    get(): T;
+}
+
 export declare const source: Source<string>;
-export declare const box: Box<string>;
-export declare const adapt: Adapter<string, number>;
 ```
-
-### declaration files apply variance defaults
-
-Defaults are applied in declaration files.
-
-```ds:main.ds
-export interface Box<out T = string> {
-    value: T;
-}
-
-export declare const boxed: Box;
-```
-
-### declaration files apply contravariant defaults
-
-Defaults are applied to contravariant parameters in declaration files.
-
-```ds:main.ds
-export interface Sink<in T = string> {
-    set(value: T): void;
-}
-
-export declare const sink: Sink;
-```
-
-## assignability
-
-### covariance allows widening
-
-Covariant parameters allow assignment from narrower to wider types.
-
-```ds
-interface Source<out T> {
-    get(): T;
-}
-
-declare const source_string: Source<string>;
-const widened: Source<string | number> = source_string;
-widened.get() satisfies string | number;
-```
-
-### covariance rejects narrowing
-
-Covariant parameters reject assignment from wider to narrower types.
-
-```ds
-interface Source<out T> {
-    get(): T;
-}
-
-declare const source_union: Source<string | number>;
-const narrowed: Source<string> = source_union;
-```
-
-- contains: not assignable
-
-### contravariance allows narrowing
-
-Contravariant parameters allow assignment from wider to narrower targets.
-
-```ds
-interface Sink<in T> {
-    set(value: T): void;
-}
-
-declare const sink_union: Sink<string | number>;
-const narrowed: Sink<string> = sink_union;
-
-declare const sink_string: Sink<string>;
-narrowed.set("ok");
-sink_string.set("ok");
-```
-
-### contravariance rejects widening
-
-Contravariant parameters reject assignment from narrower to wider targets.
-
-```ds
-interface Sink<in T> {
-    set(value: T): void;
-}
-
-declare const sink_string: Sink<string>;
-const widened: Sink<string | number> = sink_string;
-```
-
-- contains: not assignable

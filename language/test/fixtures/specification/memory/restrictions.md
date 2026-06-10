@@ -1,5 +1,7 @@
 # Restrictions
 
+`@noManaged` and `@noHeap` opt code out of managed allocation.
+
 ## managed
 
 ### noManaged rejects managed allocations

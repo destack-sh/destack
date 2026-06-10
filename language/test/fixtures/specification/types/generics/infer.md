@@ -1,5 +1,7 @@
 # Conditional Infer
 
+`infer` binds components of a matched type inside conditionals.
+
 ## infer
 
 ### infer from type reference patterns

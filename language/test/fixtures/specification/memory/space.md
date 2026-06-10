@@ -1,5 +1,7 @@
 # Space
 
+Placement decides which heap a value lives in: Worker-local by default, `shared` across Workers.
+
 ## borrows
 
 ### shared borrow reads shared storage
@@ -33,9 +35,9 @@ let point: local Point = Point { x: 1, y: 2 };
 point satisfies WithSpace<Point, "local">;
 ```
 
-### Local places values in local space
+### the Local wrapper places values in local space
 
-`Local<T>` also explicitly rebased `T` into local space.
+`Local<T>` is the wrapper spelling of the same rebase.
 
 ```ds
 struct Point {
@@ -69,9 +71,9 @@ Local storage can hold handles to shared values.
 class Registry {}
 
 const registry: shared Registry = new Registry();
-const local = { registry };
+const holder = { registry };
 
-local.registry satisfies shared Registry;
+holder.registry satisfies shared Registry;
 ```
 
 ### ambient fields inherit shared placement

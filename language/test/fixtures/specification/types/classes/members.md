@@ -1,8 +1,12 @@
 # Class Members
 
+Class members type instance and static surfaces separately.
+
 ## instance members
 
 ### instance fields keep declared types
+
+Field reads produce the declared type.
 
 ```ds
 class Counter {
@@ -15,6 +19,8 @@ value satisfies int32;
 ```
 
 ### instance methods keep return types
+
+Method calls produce the declared return type.
 
 ```ds
 class Counter {
@@ -32,6 +38,8 @@ next satisfies int32;
 ```
 
 ### virtual methods type check as instance methods
+
+`virtual` changes dispatch, not typing.
 
 ```ds
 class Counter {
@@ -88,6 +96,8 @@ runner.run() satisfies "method";
 
 ### instance members are unavailable on class values
 
+The class value has no instance surface.
+
 ```ds
 class Counter {
     value: int32 = 0;
@@ -102,16 +112,20 @@ const value = Counter.value;
 
 ### static fields live on class values
 
+Statics are members of the class value.
+
 ```ds
 class Counter {
     static defaultValue: int32 = 0;
 }
 
 const value = Counter.defaultValue;
-value satisfies number;
+value satisfies int32;
 ```
 
 ### static fields infer from initializers
+
+Static initializers infer like ordinary bindings.
 
 ```ds
 class Counter {
@@ -119,10 +133,12 @@ class Counter {
 }
 
 const value = Counter.defaultValue;
-value satisfies int32;
+value satisfies number;
 ```
 
 ### static fields are unavailable on instances
+
+Instances have no static surface.
 
 ```ds
 class Counter {
@@ -136,6 +152,8 @@ const value = counter.defaultValue;
 - contains: does not exist
 
 ### static methods keep return types
+
+Static calls produce the declared return type.
 
 ```ds
 class Counter {
@@ -154,6 +172,8 @@ counter satisfies Counter;
 
 ### static methods are unavailable on instances
 
+Static methods do not dispatch through instances.
+
 ```ds
 class Counter {
     static make(): int32 {
@@ -168,6 +188,8 @@ const value = counter.make();
 - contains: does not exist
 
 ### static blocks can access static members
+
+Static blocks run against the class value.
 
 ```ds
 class Counter {
@@ -184,6 +206,8 @@ Counter.value satisfies int32;
 ## accessors
 
 ### accessors expose property types
+
+Getters and setters read as one property.
 
 ```ds
 class Counter {
@@ -204,6 +228,8 @@ counter.count = 1;
 ```
 
 ### accessors check assignments
+
+Setter parameters type the assignment.
 
 ```ds
 class Counter {
@@ -244,6 +270,8 @@ class Counter {
 
 ### abstract fields cannot have initializers
 
+An abstract member has nothing to initialize.
+
 ```ds
 abstract class Counter {
     abstract value: int32 = 1;
@@ -253,6 +281,8 @@ abstract class Counter {
 - contains: invalid member modifier
 
 ### readonly fields reject assignment
+
+`readonly` fields only assign during construction.
 
 ```ds
 class Counter {
@@ -268,6 +298,8 @@ class Counter {
 
 ### declare fields cannot include initializers
 
+Declared members describe, they do not define.
+
 ```ds
 class Counter {
     declare value: int32 = 1;
@@ -277,6 +309,8 @@ class Counter {
 - contains: invalid member modifier
 
 ### constructors reject override
+
+Constructors are not inherited members.
 
 ```ds
 class Base {}
@@ -290,6 +324,8 @@ class Counter extends Base {
 
 ### static methods cannot be abstract
 
+There is no dispatch to defer for statics.
+
 ```ds
 abstract class Counter {
     static abstract increment(): void;
@@ -299,6 +335,8 @@ abstract class Counter {
 - contains: invalid member modifier
 
 ### constructors cannot have generic parameters
+
+Type parameters belong on the class.
 
 ```ds
 class Counter {
@@ -310,6 +348,8 @@ class Counter {
 
 ### declare cannot apply to accessors
 
+Accessors always need bodies.
+
 ```ds
 class Counter {
     declare get value(): number;
@@ -319,6 +359,8 @@ class Counter {
 - contains: invalid member modifier
 
 ### declare cannot combine with override
+
+A declared member cannot override anything.
 
 ```ds
 class Base {

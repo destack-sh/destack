@@ -6,6 +6,8 @@ Newtypes use call syntax for explicit construction.
 
 ### scalar newtypes use one argument
 
+The constructor takes the backing value.
+
 ```ds
 newtype UserId = int64;
 
@@ -14,6 +16,8 @@ id satisfies UserId;
 ```
 
 ### tuple newtypes use positional arguments
+
+Tuple backings spread into positions.
 
 ```ds
 newtype Point = (float32, float32);
@@ -24,6 +28,8 @@ point satisfies Point;
 
 ### object newtypes use one object argument
 
+Object backings take the object.
+
 ```ds
 newtype Config = { debug: boolean };
 
@@ -32,6 +38,8 @@ config satisfies Config;
 ```
 
 ### object literals do not construct newtypes
+
+The constructor is required; structure is not enough.
 
 ```ds
 newtype Config = { debug: boolean };
