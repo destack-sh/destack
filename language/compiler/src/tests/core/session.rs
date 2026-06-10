@@ -57,13 +57,6 @@ impl TestSessionBuilder {
         self
     }
 
-    /// Enable provider event traces.
-    pub(crate) fn emit_events(mut self) -> Self {
-        self.emit_events = true;
-
-        self
-    }
-
     /// Build the test session.
     pub(crate) fn build(self) -> TestSession {
         let mut files = self.files;

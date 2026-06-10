@@ -2,14 +2,15 @@ use std::cell::RefCell;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactProvider,
-    ArtifactSidecar, ArtifactVersion, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
-    DiagnosticError, DiagnosticLike,
+    ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactPayload,
+    ArtifactProvider, ArtifactSidecar, ArtifactVersion, DiagnosticAnchor, DiagnosticContext,
+    DiagnosticDisplay, DiagnosticError, DiagnosticLike,
 };
 use destack_repository::{ProviderContext, ProviderError, Repository, Revision};
 use destack_source::{
     DiagnosticCollection, DiagnosticLabel, FileContentId, FileId, ModuleId, Span,
 };
+use indexmap::IndexSet;
 
 use super::module::{parse_module, parsed_dependencies};
 use crate::Compiler;
@@ -25,8 +26,6 @@ pub(crate) struct TestProvider {
     compiler: Compiler,
     /// Whether provider attempts should emit event traces.
     emit_events: bool,
-    /// The active requirement stack.
-    active: RefCell<Vec<ArtifactKey>>,
 }
 
 impl TestProvider {
@@ -39,23 +38,53 @@ impl TestProvider {
             revision,
             compiler,
             emit_events,
-            active: RefCell::new(Vec::new()),
         }
     }
 
     /// Require one artifact.
     pub(crate) fn require(&self, key: ArtifactKey) -> Result<ArtifactVersion, ProviderError> {
-        // reuse finished artifacts
-        if let Some(version) = self.ready_artifact(key)? {
-            return Ok(version);
+        let mut pending = IndexSet::new();
+        let mut previous_blocked = None;
+        pending.insert(key);
+
+        // run blocked provider attempts until the requested key is ready
+        loop {
+            let mut blocked = IndexSet::new();
+            let mut progressed = false;
+            let tasks = pending.drain(..).collect::<Vec<_>>();
+
+            // provide every currently unblocked task
+            for task in tasks {
+                if self.ready_artifact(task)?.is_some() {
+                    progressed = true;
+                    continue;
+                }
+
+                match self.provide(task) {
+                    Ok(_) => progressed = true,
+                    Err(ProviderError::Blocked { keys }) => {
+                        blocked.insert(task);
+                        blocked.extend(keys);
+                    }
+                    Err(error) => return Err(error),
+                }
+            }
+
+            // return once the requested key is terminal and ready
+            if let Some(version) = self.ready_artifact(key)? {
+                return Ok(version);
+            }
+
+            // report provider dependency cycles or unsupported missing work
+            if !progressed && previous_blocked.as_ref() == Some(&blocked) {
+                let keys = blocked.into_iter().collect();
+
+                return Err(ProviderError::blocked_many(keys));
+            }
+
+            previous_blocked = Some(blocked.clone());
+            pending = blocked;
         }
-
-        // provide missing artifact synchronously
-        self.push_active(key)?;
-        let result = self.provide(key);
-        self.pop_active(key);
-
-        result
     }
 
     /// Provide one missing artifact.
@@ -202,10 +231,8 @@ impl TestProvider {
 
         // return only completed ready artifacts
         match self.repository.artifact_store().outcome(&version) {
-            Some(destack_artifact::ArtifactOutcome::Ok) => Ok(Some(version)),
-            Some(destack_artifact::ArtifactOutcome::Failed(_)) => {
-                Err(ProviderError::RequirementFailed { key })
-            }
+            Some(ArtifactOutcome::Ok) => Ok(Some(version)),
+            Some(ArtifactOutcome::Failed(_)) => Err(ProviderError::RequirementFailed { key }),
             None => Ok(None),
         }
     }
@@ -215,28 +242,6 @@ impl TestProvider {
         self.repository
             .artifact_version(self.revision, &key)
             .map_err(|error| ProviderError::internal(error.to_string()))
-    }
-
-    /// Mark one artifact as active.
-    fn push_active(&self, key: ArtifactKey) -> Result<(), ProviderError> {
-        // reject dependency cycles
-        let mut active = self.active.borrow_mut();
-        if active.contains(&key) {
-            return Err(ProviderError::RequirementFailed { key });
-        }
-
-        // push active requirement
-        active.push(key);
-
-        Ok(())
-    }
-
-    /// Mark one artifact as inactive.
-    fn pop_active(&self, key: ArtifactKey) {
-        // pop exact requirement
-        let actual = self.active.borrow_mut().pop();
-
-        assert_eq!(actual, Some(key));
     }
 }
 
@@ -248,7 +253,7 @@ struct TestProviderContext<'a> {
     /// The artifact key being built.
     key: ArtifactKey,
     /// The dependencies recorded by this attempt.
-    dependencies: RefCell<Vec<ArtifactDependency>>,
+    dependencies: RefCell<IndexSet<ArtifactDependency>>,
     /// The diagnostics recorded by this attempt.
     diagnostics: RefCell<DiagnosticCollection>,
     /// The sidecars recorded by this attempt.
@@ -261,7 +266,7 @@ impl<'a> TestProviderContext<'a> {
         Self {
             provider,
             key,
-            dependencies: RefCell::new(Vec::new()),
+            dependencies: RefCell::new(IndexSet::new()),
             diagnostics: RefCell::new(DiagnosticCollection::new()),
             sidecars: RefCell::new(Vec::new()),
         }
@@ -269,7 +274,7 @@ impl<'a> TestProviderContext<'a> {
 
     /// Return the exact dependencies read by this attempt.
     fn dependencies(&self) -> Vec<ArtifactDependency> {
-        self.dependencies.borrow().clone()
+        self.dependencies.borrow().iter().cloned().collect()
     }
 
     /// Return diagnostics produced by this attempt.
@@ -284,10 +289,7 @@ impl<'a> TestProviderContext<'a> {
 
     /// Add one exact dependency.
     fn add_dependency(&self, dependency: ArtifactDependency) {
-        let mut dependencies = self.dependencies.borrow_mut();
-        if !dependencies.contains(&dependency) {
-            dependencies.push(dependency);
-        }
+        self.dependencies.borrow_mut().insert(dependency);
     }
 
     /// Return one diagnostic label.
@@ -402,32 +404,34 @@ impl ProviderContext for TestProviderContext<'_> {
             return Err(ProviderError::RequirementFailed { key });
         }
 
-        match self.provider.require(key) {
-            Ok(version) => {
+        let Some(version) = self.provider.artifact_version(key)? else {
+            return Err(ProviderError::blocked(key));
+        };
+
+        match self.provider.repository.artifact_store().outcome(&version) {
+            Some(ArtifactOutcome::Ok) => {
                 self.add_dependency(ArtifactDependency::artifact(version));
 
                 Ok(version)
             }
-            Err(ProviderError::RequirementFailed { key }) => {
-                if let Some(version) = self.provider.artifact_version(key)? {
-                    self.add_dependency(ArtifactDependency::artifact(version));
-                }
+            Some(ArtifactOutcome::Failed(_)) => {
+                self.add_dependency(ArtifactDependency::artifact(version));
 
                 Err(ProviderError::RequirementFailed { key })
             }
-            Err(error) => Err(error),
+            None => Err(ProviderError::blocked(key)),
         }
     }
 
     /// Require many artifacts and return their exact versions when ready.
     fn require_all(&self, keys: &[ArtifactKey]) -> Result<Vec<ArtifactVersion>, ProviderError> {
         let mut versions = Vec::with_capacity(keys.len());
-        let mut blocked = Vec::new();
+        let mut blocked = IndexSet::new();
 
         for key in keys {
             match self.require(*key) {
                 Ok(version) => versions.push(version),
-                Err(ProviderError::Blocked { .. }) => blocked.push(*key),
+                Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
                 Err(error) => return Err(error),
             }
         }
@@ -435,7 +439,7 @@ impl ProviderContext for TestProviderContext<'_> {
         if blocked.is_empty() {
             Ok(versions)
         } else {
-            Err(ProviderError::blocked_many(blocked))
+            Err(ProviderError::blocked_many(blocked.into_iter().collect()))
         }
     }
 
