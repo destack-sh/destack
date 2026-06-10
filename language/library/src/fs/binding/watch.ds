@@ -134,6 +134,15 @@ export interface FsWatch {
         options: FileWatchOptions,
     ): Result<WatchHandle, HostError>;
 
+    /// Stop watching and release the watch handle.
+    @binding("destack.fs.watch.close", {
+        effect: "external",
+        requires: ["host.fs.watch"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    close(watch: WatchHandle): Result<void, HostError>;
+
     /// Read watch events into an output slice.
     @binding("destack.fs.watch.read", {
         effect: "external",

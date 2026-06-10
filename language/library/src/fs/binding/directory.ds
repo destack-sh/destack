@@ -77,6 +77,15 @@ export interface FsDirectory {
     })
     open(entry: &readonly FilesystemEntry): Result<DirectoryHandle, HostError>;
 
+    /// Close one open directory handle.
+    @binding("destack.fs.directory.close", {
+        effect: "external",
+        requires: ["host.fs.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    close(directory: DirectoryHandle): Result<void, HostError>;
+
     /// Read directory entries into an output slice.
     @binding("destack.fs.directory.read", {
         effect: "external",
