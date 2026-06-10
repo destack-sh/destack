@@ -166,20 +166,32 @@ define_language_items! {
     async {
         /// `destack:async/generator`.
         generator {
-            /// Async iterable interface.
-            AsyncIterable => (Interface, "async/generator", "AsyncIterable"),
-
             /// Async generator class.
             AsyncGenerator => (Class, "async/generator", "AsyncGenerator"),
-
-            /// Async iterator interface.
-            AsyncIterator => (Interface, "async/generator", "AsyncIterator"),
 
             /// Generator class.
             Generator => (Class, "async/generator", "Generator"),
 
+            /// Generator result newtype.
+            GeneratorResult => (Newtype, "async/generator", "GeneratorResult"),
+
+            /// Generator return struct.
+            GeneratorReturn => (Struct, "async/generator", "GeneratorReturn"),
+
             /// Generator state type.
             GeneratorState => (Type, "async/generator", "GeneratorState"),
+
+            /// Generator yield struct.
+            GeneratorYield => (Struct, "async/generator", "GeneratorYield"),
+        }
+
+        /// `destack:async/iterator`.
+        iterator {
+            /// Async iterable interface.
+            AsyncIterable => (NewtypeInterface, "async/iterator", "AsyncIterable"),
+
+            /// Async iterator interface.
+            AsyncIterator => (NewtypeInterface, "async/iterator", "AsyncIterator"),
         }
 
         /// `destack:async/continuation`.
@@ -665,19 +677,10 @@ define_language_items! {
             FromIterator => (NewtypeInterface, "iter/iterator", "FromIterator"),
 
             /// Iterable interface.
-            Iterable => (Interface, "iter/iterator", "Iterable"),
+            Iterable => (NewtypeInterface, "iter/iterator", "Iterable"),
 
             /// Iterator interface.
-            Iterator => (Interface, "iter/iterator", "Iterator"),
-
-            /// Iterator result newtype.
-            IteratorResult => (Newtype, "iter/iterator", "IteratorResult"),
-
-            /// Iterator return struct.
-            IteratorReturn => (Struct, "iter/iterator", "IteratorReturn"),
-
-            /// Iterator yield struct.
-            IteratorYield => (Struct, "iter/iterator", "IteratorYield"),
+            Iterator => (NewtypeInterface, "iter/iterator", "Iterator"),
         }
     }
 

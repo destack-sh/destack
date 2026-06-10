@@ -227,9 +227,11 @@ global {
     export {
         AsyncGenerator,
         AsyncIterable,
-        AsyncIterableIterator,
         AsyncIterator,
         Generator,
+        GeneratorResult,
+        GeneratorReturn,
+        GeneratorYield,
         Promise,
     } from "destack:async";
 
@@ -238,11 +240,7 @@ global {
         Extend,
         FromIterator,
         Iterable,
-        IterableIterator,
         Iterator,
-        IteratorResult,
-        IteratorReturn,
-        IteratorYield,
     } from "destack:iter";
 
     // destack:collections

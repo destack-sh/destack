@@ -1,5 +1,6 @@
 export * from "./continuation.ds";
 export * from "./generator.ds";
+export * from "./iterator.ds";
 export * from "./mutex.ds";
 export * from "./notify.ds";
 export * from "./once.ds";
