@@ -44,6 +44,30 @@ where
             .ok()
             .map(|index| self.entries[index].value)
     }
+}
+
+impl<T> SparseNodeMap<T> {
+    /// Return one value reference by node id.
+    #[inline]
+    pub(crate) fn get_ref(&self, node_id: u32) -> Option<&T> {
+        self.entries
+            .binary_search_by_key(&node_id, |entry| entry.node_id)
+            .ok()
+            .map(|index| &self.entries[index].value)
+    }
+
+    /// Take one value out by node id.
+    #[inline]
+    pub(crate) fn take(&mut self, node_id: u32) -> Option<T> {
+        if let Ok(index) = self
+            .entries
+            .binary_search_by_key(&node_id, |entry| entry.node_id)
+        {
+            Some(self.entries.remove(index).value)
+        } else {
+            None
+        }
+    }
 
     /// Insert or update one value.
     #[inline]
@@ -89,8 +113,8 @@ where
     }
 
     /// Retain values that satisfy one predicate.
-    pub(crate) fn retain(&mut self, mut keep: impl FnMut(u32, T) -> bool) {
+    pub(crate) fn retain(&mut self, mut keep: impl FnMut(u32, &T) -> bool) {
         self.entries
-            .retain(|entry| keep(entry.node_id, entry.value));
+            .retain(|entry| keep(entry.node_id, &entry.value));
     }
 }

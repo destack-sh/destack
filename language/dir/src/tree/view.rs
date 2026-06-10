@@ -163,7 +163,7 @@ impl<'a> View<'a> {
     /// Get the visible node id associated with one source node id.
     pub fn get_node_id_by_source_id(&self, source_id: u32) -> Option<LocalNodeIdAny> {
         for patch in self.patches().rev() {
-            let Some(node_id) = patch.tree.get_node_id_by_source_id(source_id) else {
+            let Some(node_id) = patch.tree.get_alias(source_id) else {
                 continue;
             };
             if let Some((_, node_id)) = self.visible_node(node_id) {
@@ -171,7 +171,7 @@ impl<'a> View<'a> {
             }
         }
 
-        let node_id = self.tree.get_node_id_by_source_id(source_id)?;
+        let node_id = self.tree.get_alias(source_id)?;
 
         self.visible_node(node_id).map(|(_, node_id)| node_id)
     }

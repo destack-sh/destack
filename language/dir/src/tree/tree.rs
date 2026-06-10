@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
 
+use destack_core::StringId;
 use destack_source::{ModuleId, NodeSpanRegion, NodeSpanType, SourceIndex, Span};
 use serde::{Deserialize, Serialize};
 
@@ -10,8 +11,8 @@ use super::sparse::SparseNodeMap;
 use crate::{
     Arena, Argument, AssignPattern, AssignPatternField, Block, Catch, Comment, Declaration,
     Declarator, Decorator, DependencyItem, Documentation, EnumField, Expression, GenericArgument,
-    GenericParameter, LocalNodeId, LocalNodeIdAny, MatchCase, Member, Node, NodeType, Parameter,
-    Pattern, PatternField, Property, TreeCapacity, TreeMark, TreeStore, TupleElement,
+    GenericParameter, LocalNodeId, LocalNodeIdAny, MatchCase, Member, Node, NodeType, Origin,
+    Parameter, Pattern, PatternField, Property, TreeCapacity, TreeMark, TreeStore, TupleElement,
     TypeExpression, TypeMappedParameter, TypeMember, WhereClause,
 };
 
@@ -61,11 +62,9 @@ pub struct Tree {
     // node side data
     /// Parent node id overrides by node id.
     parent_id_by_node_id: SparseNodeMap<u32>,
-    /// Source node id overrides by DIR node id.
-    source_id_by_node_id: SparseNodeMap<u32>,
-    /// The alias node id by source node id.
-    alias_node_id_by_source_id: BTreeMap<u32, u32>,
-    /// The alias node id by DIR node id.
+    /// How each derived node came to be.
+    origin_by_node_id: SparseNodeMap<Origin>,
+    /// The alias node id by replaced or derived node id.
     alias_node_id_by_node_id: BTreeMap<u32, u32>,
     /// The decorators attached to nodes.
     decorators_by_node_id: BTreeMap<u32, Vec<LocalNodeId<Decorator>>>,
@@ -147,8 +146,7 @@ impl Tree {
             decorators: Arena::new(),
 
             parent_id_by_node_id: SparseNodeMap::new(),
-            source_id_by_node_id: SparseNodeMap::new(),
-            alias_node_id_by_source_id: BTreeMap::new(),
+            origin_by_node_id: SparseNodeMap::new(),
             alias_node_id_by_node_id: BTreeMap::new(),
             decorators_by_node_id: BTreeMap::new(),
             decorator_attachments: Vec::new(),
@@ -323,14 +321,13 @@ impl Tree {
 
     /// Prune side tables that point at nodes allocated after one mark.
     fn prune_node_side_tables(&mut self, next_global_id: u32) {
-        self.alias_node_id_by_source_id
-            .retain(|_, alias_id| *alias_id < next_global_id);
         self.alias_node_id_by_node_id
             .retain(|node_id, alias_id| *node_id < next_global_id && *alias_id < next_global_id);
         self.parent_id_by_node_id
-            .retain(|node_id, parent_id| node_id < next_global_id && parent_id < next_global_id);
-        self.source_id_by_node_id
-            .retain(|node_id, source_id| node_id < next_global_id && source_id < next_global_id);
+            .retain(|node_id, parent_id| node_id < next_global_id && *parent_id < next_global_id);
+        self.origin_by_node_id.retain(|node_id, origin| {
+            node_id < next_global_id && origin.parents.iter().all(|parent| *parent < next_global_id)
+        });
         self.source_span_by_node_id
             .retain(|node_id, _| node_id < next_global_id);
         self.documentation_by_node_id
@@ -370,11 +367,10 @@ impl Tree {
         self.detached_node_ids.iter().copied()
     }
 
-    /// Reserve a new node slot in the tree for a node lowered from a source node.
-    pub fn reserve_from_source(
+    /// Reserve a new placeholder node slot.
+    fn reserve(
         &mut self,
         node_type: NodeType,
-        source_node_id: u32,
         parent_id: Option<LocalNodeIdAny>,
     ) -> LocalNodeIdAny {
         let global_id = self.next_global_id;
@@ -383,9 +379,6 @@ impl Tree {
         self.node_index_by_node_id
             .push(NodeIndexEntry::placeholder(node_type));
         self.set_parent_id(global_id, parent_id.map(|parent_id| parent_id.id));
-        self.set_source_id(global_id, source_node_id);
-        self.alias_node_id_by_source_id
-            .insert(source_node_id, global_id);
 
         LocalNodeIdAny::new(global_id, node_type)
     }
@@ -394,23 +387,20 @@ impl Tree {
     pub fn reserve_from(
         &mut self,
         node_type: NodeType,
-        dir_node_id: LocalNodeIdAny,
+        from: u32,
         parent_id: Option<LocalNodeIdAny>,
+        derivation: StringId,
     ) -> LocalNodeIdAny {
-        let global_id = self.next_global_id;
-        self.next_global_id = global_id + 1;
-
-        self.node_index_by_node_id
-            .push(NodeIndexEntry::placeholder(node_type));
-        self.set_parent_id(global_id, parent_id.map(|parent_id| parent_id.id));
-        self.set_source_id(global_id, self.get_source(dir_node_id.id));
-        if let Some(span) = self.get_span_by_id(dir_node_id.id) {
-            self.set_source_span(global_id, span);
+        let node_id = self.reserve(node_type, parent_id);
+        self.set_origin(node_id.id, Origin::one(derivation, from));
+        if self.has_node_id(from)
+            && let Some(span) = self.get_span_by_id(from)
+        {
+            self.set_source_span(node_id.id, span);
         }
-        self.alias_node_id_by_node_id
-            .insert(dir_node_id.id, global_id);
+        self.alias_node_id_by_node_id.insert(from, node_id.id);
 
-        LocalNodeIdAny::new(global_id, node_type)
+        node_id
     }
 
     /// Allocate one parsed node with source metadata.
@@ -445,16 +435,6 @@ impl Tree {
         reparent_direct_children(self, LocalNodeIdAny::new(node_id.id, T::TYPE));
 
         node_id
-    }
-
-    /// Add an alias node for a lowered source id.
-    pub fn alias_from_source<T>(&mut self, source_node_id: u32, alias: LocalNodeId<T>)
-    where
-        T: Node,
-        Self: TreeStore<T>,
-    {
-        self.alias_node_id_by_source_id
-            .insert(source_node_id, alias.id);
     }
 
     /// Add an alias node for a derived DIR id.
@@ -523,23 +503,37 @@ impl Tree {
         <Self as TreeStore<T>>::get_mut(self, local_id)
     }
 
-    /// Replace one node in place and preserve its original payload at a detached id.
-    pub fn replace<T>(&mut self, id: LocalNodeId<T>, replacement: T) -> LocalNodeId<T>
+    /// Replace one node in place and preserve its original payload at a detached tombstone.
+    pub fn replace<T>(
+        &mut self,
+        id: LocalNodeId<T>,
+        replacement: T,
+        derivation: StringId,
+    ) -> LocalNodeId<T>
     where
         T: Node + Clone,
         Self: TreeStore<T>,
     {
         let original = self.get(id).clone();
 
-        // preserve original at a detached id
-        let preserved_id = self.reserve_from(T::TYPE, id.into_any(), None);
+        // preserve original at a detached tombstone, carrying its span
+        let preserved_id = self.reserve(T::TYPE, None);
+        if let Some(span) = self.get_span_by_id(id.id) {
+            self.set_source_span(preserved_id.id, span);
+        }
         let preserved_id: LocalNodeId<T> = self.insert_reserved(preserved_id, original);
+
+        // move the old origin onto the tombstone so derivation chains keep resolving
+        if let Some(origin) = self.origin_by_node_id.take(id.id) {
+            self.set_origin(preserved_id.id, origin);
+        }
 
         // hide preserved originals from structural traversal
         self.detach(preserved_id.into_any());
 
-        // replace node payload
+        // replace node payload and derive it from the tombstone
         *self.get_mut(id) = replacement;
+        self.set_origin(id.id, Origin::one(derivation, preserved_id.id));
 
         // keep reused child ids attached to the replacement
         reparent_direct_children(self, id.into_any());
@@ -555,13 +549,14 @@ impl Tree {
         &mut self,
         id: LocalNodeId<T>,
         source_id: LocalNodeId<T>,
+        derivation: StringId,
     ) -> LocalNodeId<T>
     where
         T: Node + Clone,
         Self: TreeStore<T>,
     {
         let replacement = self.get(source_id).clone();
-        let preserved_id = self.replace(id, replacement);
+        let preserved_id = self.replace(id, replacement, derivation);
 
         // detach the moved root
         self.detach(source_id.into_any());
@@ -657,22 +652,37 @@ impl Tree {
         }
     }
 
-    /// Set the source node id override for one node id.
+    /// Set the origin for one derived node.
     #[inline]
-    fn set_source_id(&mut self, node_id: u32, source_id: u32) {
+    pub fn set_origin(&mut self, node_id: u32, origin: Origin) {
         self.node_index(node_id);
-        if source_id == node_id {
-            self.source_id_by_node_id.remove(node_id);
-        } else {
-            self.source_id_by_node_id.insert(node_id, source_id);
-        }
+        self.origin_by_node_id.insert(node_id, origin);
     }
 
-    /// Get the source id of a node by its DIR node id.
+    /// Return the origin for one derived node.
     #[inline]
+    pub fn origin(&self, node_id: u32) -> Option<&Origin> {
+        self.node_index(node_id);
+        self.origin_by_node_id.get_ref(node_id)
+    }
+
+    /// Get the root source id of a node by walking the derivation chain.
     pub fn get_source(&self, node_id: u32) -> u32 {
         self.node_index(node_id);
-        self.source_id_by_node_id.get(node_id).unwrap_or(node_id)
+
+        // walk primary parents to the parsed root, stopping at segment-foreign ids
+        let mut current = node_id;
+        while self.has_node_id(current) {
+            let Some(origin) = self.origin_by_node_id.get_ref(current) else {
+                break;
+            };
+            let Some(parent) = origin.parent() else {
+                break;
+            };
+            current = parent;
+        }
+
+        current
     }
 
     /// Return the enclosing source span for one parsed node.
@@ -865,20 +875,6 @@ impl Tree {
             && ((node_id - self.first_global_id) as usize) < self.node_index_by_node_id.len()
     }
 
-    /// Get the DIR node id by its source id.
-    #[inline]
-    pub fn get_node_id_by_source_id(&self, source_node_id: u32) -> Option<LocalNodeIdAny> {
-        self.alias_node_id_by_source_id
-            .get(&source_node_id)
-            .copied()
-            .map(|node_id| {
-                LocalNodeIdAny::new(
-                    node_id,
-                    self.node_index_by_node_id[self.node_index(node_id)].node_type(),
-                )
-            })
-    }
-
     /// Append a decorator to a node by its global id.
     #[inline]
     pub fn append_decorator(&mut self, target_id: u32, decorator: LocalNodeId<Decorator>) {
@@ -962,6 +958,29 @@ mod tests {
 
     fn test_span(start: u32) -> Span {
         Span::new(FileId(1), start, start + 1)
+    }
+
+    #[test]
+    fn test_derivation_chains_resolve_through_tombstones() {
+        let mut tree = Tree::new(test_module_id());
+        let derivation = destack_core::StringId(1);
+
+        // parsed root, one derived node, then replace the root in place
+        let root = tree.insert(Expression::Stub, test_span(0));
+        let derived = tree.reserve_from(crate::NodeType::Expression, root.id, None, derivation);
+        let derived: crate::LocalNodeId<Expression> =
+            tree.insert_reserved(derived, Expression::Stub);
+        let preserved = tree.replace(root, Expression::Stub, derivation);
+
+        // the tombstone carries the original and is hidden from traversal
+        assert!(tree.is_detached(preserved.id));
+
+        // the replaced slot derives from the tombstone
+        assert_eq!(tree.origin(root.id).unwrap().parent(), Some(preserved.id));
+
+        // chains resolve through the replacement to the tombstone root
+        assert_eq!(tree.get_source(derived.id), preserved.id);
+        assert_eq!(tree.get_source(root.id), preserved.id);
     }
 
     #[test]
