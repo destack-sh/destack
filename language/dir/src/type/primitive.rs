@@ -5,7 +5,7 @@ use destack_core::{FloatFormat, roundtrip_float};
 use crate::StringId;
 
 /// A primitive type.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PrimitiveType {
     /// Boolean type.
     Boolean,
@@ -26,7 +26,7 @@ pub enum PrimitiveType {
 }
 
 /// The backing representation of an enum.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EnumBackingType {
     /// Integer-backed enums.
     Integer(IntegerType),
@@ -35,7 +35,7 @@ pub enum EnumBackingType {
 }
 
 /// A resolved enum field value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EnumFieldValue {
     /// Integer enum value.
     Int(i64),
@@ -44,7 +44,7 @@ pub enum EnumFieldValue {
 }
 
 /// An integer type.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum IntegerType {
     /// The signed or unsigned integer family.
     Integer { is_signed: bool },
@@ -106,7 +106,7 @@ impl IntegerType {
 }
 
 /// A floating-point type.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FloatType {
     /// The floating-point family.
     Float,

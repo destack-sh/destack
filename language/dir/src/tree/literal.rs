@@ -1,3 +1,5 @@
+use std::hash::{Hash, Hasher};
+
 use serde::{Deserialize, Serialize};
 
 use crate::{Argument, FloatType, IntegerType, LocalNodeId, PrimitiveType, StringId};
@@ -19,7 +21,7 @@ use crate::{Argument, FloatType, IntegerType, LocalNodeId, PrimitiveType, String
 /// /abc/
 /// /abc/g
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ScalarLiteral {
     /// Null value.
     Null,
@@ -42,6 +44,85 @@ pub enum ScalarLiteral {
         content: StringId,
         flags: Option<StringId>,
     },
+}
+
+impl PartialEq for ScalarLiteral {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Null, Self::Null) => true,
+            (Self::Undefined, Self::Undefined) => true,
+            (Self::Boolean(left), Self::Boolean(right)) => left == right,
+            (Self::Integer(left), Self::Integer(right)) => left == right,
+            (Self::Bigint(left), Self::Bigint(right)) => left == right,
+            (Self::Float(left), Self::Float(right)) => {
+                float_literal_key(*left) == float_literal_key(*right)
+            }
+            (Self::Character(left), Self::Character(right)) => left == right,
+            (Self::String(left), Self::String(right)) => left == right,
+            (
+                Self::RegexString {
+                    content: left_content,
+                    flags: left_flags,
+                },
+                Self::RegexString {
+                    content: right_content,
+                    flags: right_flags,
+                },
+            ) => left_content == right_content && left_flags == right_flags,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for ScalarLiteral {}
+
+impl Hash for ScalarLiteral {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Self::Null => 0_u8.hash(state),
+            Self::Undefined => 1_u8.hash(state),
+            Self::Boolean(value) => {
+                2_u8.hash(state);
+                value.hash(state);
+            }
+            Self::Integer(value) => {
+                3_u8.hash(state);
+                value.hash(state);
+            }
+            Self::Bigint(value) => {
+                4_u8.hash(state);
+                value.hash(state);
+            }
+            Self::Float(value) => {
+                5_u8.hash(state);
+                float_literal_key(*value).hash(state);
+            }
+            Self::Character(value) => {
+                6_u8.hash(state);
+                value.hash(state);
+            }
+            Self::String(value) => {
+                7_u8.hash(state);
+                value.hash(state);
+            }
+            Self::RegexString { content, flags } => {
+                8_u8.hash(state);
+                content.hash(state);
+                flags.hash(state);
+            }
+        }
+    }
+}
+
+/// Return a stable equality and hash key for one float literal.
+fn float_literal_key(value: f64) -> u64 {
+    if value == 0.0 {
+        0.0_f64.to_bits()
+    } else if value.is_nan() {
+        f64::NAN.to_bits()
+    } else {
+        value.to_bits()
+    }
 }
 
 /// A TemplateLiteral is literal template value.
