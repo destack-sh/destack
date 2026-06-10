@@ -188,6 +188,8 @@ pub enum Terminator {
         value: ValueReference,
         /// The block to resume at when the coroutine is continued.
         resume: BlockTarget,
+        /// The cleanup block when the suspended frame is cancelled or dropped.
+        unwind: Option<BlockTarget>,
     },
 
     /// Direct call with an explicit continuation.
@@ -289,8 +291,9 @@ pub enum Terminator {
         /// Optional panic payload.
         payload: Option<ValueReference>,
     },
-    /// Resume the active language panic after cleanup.
-    ResumePanic,
+    /// Continue the active unwind after a cleanup block.
+    // TODO #Incomplete: a panic during cleanup must abort, nothing enforces that yet
+    ResumeUnwind,
     /// Unrecoverable runtime termination.
     Trap {
         /// The trap kind.
@@ -302,6 +305,8 @@ pub enum Terminator {
     Unreachable,
 
     /// Tail call to a function.
+    // TODO #Incomplete: verify that no cleanup is live at tail calls, the frame the
+    // cleanup lives in is thrown away (applies to all tail call variants)
     TailCall {
         /// The function to tail call.
         function: FunctionReference,
@@ -408,7 +413,13 @@ impl Terminator {
                 successors.extend(cases.iter().map(|case| case.target.block));
                 successors
             }
-            Terminator::Yield { resume, .. } => smallvec![resume.block],
+            Terminator::Yield { resume, unwind, .. } => {
+                let mut successors = smallvec![resume.block];
+                if let Some(unwind) = unwind {
+                    successors.push(unwind.block);
+                }
+                successors
+            }
             Terminator::Call { target, unwind, .. }
             | Terminator::CallIndirect { target, unwind, .. }
             | Terminator::CallVirtual { target, unwind, .. }
@@ -432,7 +443,7 @@ impl Terminator {
                 success, failure, ..
             } => smallvec![success.block, failure.block],
             Terminator::Panic { .. } => smallvec![],
-            Terminator::ResumePanic => smallvec![],
+            Terminator::ResumeUnwind => smallvec![],
             Terminator::Trap { .. } => smallvec![],
             Terminator::Unreachable => smallvec![],
             Terminator::TailCall { .. } => smallvec![],
@@ -485,9 +496,16 @@ impl Terminator {
                 }
                 uses
             }
-            Terminator::Yield { value, resume, .. } => {
+            Terminator::Yield {
+                value,
+                resume,
+                unwind,
+            } => {
                 let mut uses = smallvec![*value];
                 uses.extend(resume.arguments.iter().copied());
+                if let Some(unwind) = unwind {
+                    uses.extend(unwind.arguments.iter().copied());
+                }
                 uses
             }
             Terminator::Call {
@@ -581,7 +599,7 @@ impl Terminator {
                 uses
             }
             Terminator::Panic { payload } => payload.iter().copied().collect(),
-            Terminator::ResumePanic => smallvec![],
+            Terminator::ResumeUnwind => smallvec![],
             Terminator::Trap { payload, .. } => payload.iter().copied().collect(),
             Terminator::Unreachable => smallvec![],
             Terminator::TailCall { call, .. } => call.arguments.iter().copied().collect(),

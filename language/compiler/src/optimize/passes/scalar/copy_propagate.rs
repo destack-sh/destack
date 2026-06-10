@@ -207,7 +207,7 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
             }
             mir::Terminator::Return { .. }
             | mir::Terminator::Panic { .. }
-            | mir::Terminator::ResumePanic
+            | mir::Terminator::ResumeUnwind
             | mir::Terminator::Trap { .. }
             | mir::Terminator::Unreachable
             | mir::Terminator::TailCall { .. }

@@ -3844,7 +3844,7 @@ pub fn terminator_remap(
                 remap_value(payload);
             }
         }
-        mir::Terminator::ResumePanic => {}
+        mir::Terminator::ResumeUnwind => {}
         mir::Terminator::Trap { .. } => {}
         mir::Terminator::Unreachable => {}
         mir::Terminator::TailCall {

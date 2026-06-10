@@ -1050,7 +1050,7 @@ fn update_terminator_arguments(
         mir::Terminator::Panic { payload } => mir::Terminator::Panic {
             payload: payload.map(|value| remap_value_reference(value, substitutions)),
         },
-        mir::Terminator::ResumePanic => mir::Terminator::ResumePanic,
+        mir::Terminator::ResumeUnwind => mir::Terminator::ResumeUnwind,
         mir::Terminator::Unreachable => mir::Terminator::Unreachable,
         mir::Terminator::TailCall { function, call } => mir::Terminator::TailCall {
             function: *function,

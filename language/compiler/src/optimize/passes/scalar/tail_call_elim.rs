@@ -615,7 +615,7 @@ fn remap_terminator_blocks(
         mir::Terminator::Return { .. }
         | mir::Terminator::Trap { .. }
         | mir::Terminator::Panic { .. }
-        | mir::Terminator::ResumePanic
+        | mir::Terminator::ResumeUnwind
         | mir::Terminator::Unreachable
         | mir::Terminator::TailCall { .. }
         | mir::Terminator::TailCallVirtual { .. }

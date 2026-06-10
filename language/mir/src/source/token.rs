@@ -88,6 +88,8 @@ pub enum TokenType {
     Semicolon,
     /// `,`
     Comma,
+    /// `|`
+    Pipe,
     /// `?`
     Question,
     /// `=`
@@ -124,8 +126,8 @@ pub enum TokenType {
     Yield,
     /// `panic`
     Panic,
-    /// `panic.resume`
-    ResumePanic,
+    /// `unwind.resume`
+    ResumeUnwind,
     /// `trap.abort`
     Trap,
     /// `unreachable`
@@ -202,7 +204,7 @@ impl TokenType {
             "switch" => Self::Switch,
             "yield" => Self::Yield,
             "panic" => Self::Panic,
-            "panic.resume" => Self::ResumePanic,
+            "unwind.resume" => Self::ResumeUnwind,
             "trap.abort" => Self::Trap,
             "unreachable" => Self::Unreachable,
             "tailCall" => Self::TailCall,

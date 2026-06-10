@@ -335,7 +335,7 @@ fn compute_function_summary(
                     has_return = true;
                 }
             }
-            mir::Terminator::Panic { .. } | mir::Terminator::ResumePanic => {
+            mir::Terminator::Panic { .. } | mir::Terminator::ResumeUnwind => {
                 behavior_builder.may_panic = true;
             }
             mir::Terminator::Trap { .. } => {}

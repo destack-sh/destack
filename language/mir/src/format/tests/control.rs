@@ -33,10 +33,35 @@ fn test_format_yield() {
 function yieldOnce(value0: int32): int32 {
 entry0(value0: int32):
     value1: int32 = 5int32
-    yield value1, block1(value0)
+    yield value1 -> block1(value0)
 
 block1(value2: int32, value3: int32):
     value4: int32 = int.add value2, value3
+    return value4
+}
+"#,
+    );
+}
+
+/// Formats suspension and call unwind alternatives canonically.
+#[test]
+fn test_format_unwind_continuation() {
+    assert_format(
+        r#"
+external function callee(int32): int32
+
+function suspends(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 5int32
+    yield value1 -> block1(value0) | block2
+
+block1(value2: int32, value3: int32):
+    call callee(value3): (int32) -> int32 -> block3 | block2
+
+block2:
+    unwind.resume
+
+block3(value4: int32):
     return value4
 }
 "#,

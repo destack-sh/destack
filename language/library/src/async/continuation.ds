@@ -37,6 +37,9 @@ export newtype ContinuationResult<TYield, TReturn> =
     | ContinuationReturn<TReturn>;
 
 /// Suspend the current continuation and register its handle.
+///
+/// The frame parks first; `register` then runs on the resuming side with the parked frame's
+/// handle, and the suspension expression evaluates to the value passed to `resume`.
 @languageItem("async.suspendContinuation")
 @intrinsic("async.continuation.suspend")
 export declare function suspendContinuation<T>(register: (handle: ContinuationHandle) => void): T;

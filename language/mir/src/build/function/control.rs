@@ -107,13 +107,13 @@ impl<'a> FunctionBuilder<'a> {
         };
     }
 
-    /// Resume the active panic after cleanup.
-    pub fn resume_panic(&mut self) {
+    /// Continue the active unwind after cleanup.
+    pub fn resume_unwind(&mut self) {
         let block = self.current_block();
         let terminator_id = self.tree.get(block).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
-        *terminator = Terminator::ResumePanic;
+        *terminator = Terminator::ResumeUnwind;
     }
 
     /// Call a function with an explicit continuation.

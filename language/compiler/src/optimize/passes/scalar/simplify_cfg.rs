@@ -4339,7 +4339,7 @@ b0:
                 mir::Terminator::Return { .. }
                 | mir::Terminator::Unreachable
                 | mir::Terminator::Panic { .. }
-                | mir::Terminator::ResumePanic
+                | mir::Terminator::ResumeUnwind
                 | mir::Terminator::Trap { .. }
                 | mir::Terminator::TailCall { .. }
                 | mir::Terminator::TailCallVirtual { .. }
@@ -4548,7 +4548,7 @@ b0:
                     }
                 }
                 mir::Terminator::Unreachable
-                | mir::Terminator::ResumePanic
+                | mir::Terminator::ResumeUnwind
                 | mir::Terminator::TailCall { .. }
                 | mir::Terminator::TailCallVirtual { .. }
                 | mir::Terminator::TailCallDynamic { .. }
