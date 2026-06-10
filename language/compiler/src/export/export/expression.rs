@@ -134,6 +134,18 @@ impl Compiler {
                     }),
                 }?;
 
+                // preserve namespace aliases as module exports
+                if let Some(target) = state.namespace_import_target(source) {
+                    let export = dir::IndirectExportEntry {
+                        key,
+                        item: item_id,
+                        target: Some(target),
+                        imported: dir::ExportSelector::Namespace,
+                    };
+
+                    return Ok(Some(dir::ExportEntry::Indirect(export)));
+                }
+
                 Ok(Some(dir::ExportEntry::Local(dir::LocalExportEntry {
                     key,
                     source,
@@ -169,13 +181,11 @@ impl Compiler {
         items: &[dir::LocalNodeId<dir::DependencyItem>],
     ) -> ExportResult<()> {
         for item_id in items {
-            let Some(dir::ExportEntry::Local(export)) =
-                self.clause_export_entry(state, *item_id)?
-            else {
+            let Some(export) = self.clause_export_entry(state, *item_id)? else {
                 continue;
             };
 
-            let Some(key) = export.key.named_key() else {
+            let Some(key) = export.key().named_key() else {
                 state.report_diagnostic(ExportError::DefaultGlobalExport {
                     anchor: state.anchor_node(item_id.id)?,
                 });
@@ -183,7 +193,22 @@ impl Compiler {
                 continue;
             };
 
-            state.globals.push_local(key, export.source);
+            match export {
+                // publish a local global symbol
+                dir::ExportEntry::Local(export) => {
+                    state.globals.push_local(key, export.source);
+                }
+
+                // publish an indirect global export
+                dir::ExportEntry::Indirect(export) => {
+                    state.globals.push_indirect(dir::IndirectGlobalEntry {
+                        key,
+                        item: export.item,
+                        target: export.target,
+                        imported: export.imported,
+                    });
+                }
+            }
         }
 
         Ok(())
