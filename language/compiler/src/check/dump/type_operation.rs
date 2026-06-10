@@ -1,6 +1,8 @@
 use destack_dir as dir;
 
-use crate::check::{Dump, DumpContext, MappedParameter, TypeOperationTerm};
+use crate::check::{
+    ConditionBranch, Dump, DumpContext, MappedParameter, TypeOperationTerm, TypePredicateTerm,
+};
 
 use super::argument::dump_arguments;
 use super::format::{dump_list, dump_record};
@@ -92,6 +94,13 @@ impl Dump for TypeOperationTerm {
                     ("target", target.dump(context)),
                 ],
             ),
+            Self::Narrow { source, predicate } => dump_record(
+                "TypeOperationTerm.Narrow",
+                [
+                    ("source", source.dump(context)),
+                    ("predicate", predicate.dump(context)),
+                ],
+            ),
             Self::Intrinsic { item, arguments } => dump_record(
                 "TypeOperationTerm.Intrinsic",
                 [
@@ -99,6 +108,36 @@ impl Dump for TypeOperationTerm {
                     ("arguments", dump_arguments(arguments, context)),
                 ],
             ),
+        }
+    }
+}
+
+impl Dump for TypePredicateTerm {
+    /// Render one type predicate term.
+    fn dump(&self, context: &DumpContext<'_, '_>) -> String {
+        match self {
+            Self::MemberEquality {
+                key,
+                target,
+                branch,
+            } => dump_record(
+                "TypePredicateTerm.MemberEquality",
+                [
+                    ("key", key.dump(context)),
+                    ("target", target.dump(context)),
+                    ("branch", branch.dump(context)),
+                ],
+            ),
+        }
+    }
+}
+
+impl Dump for ConditionBranch {
+    /// Render one condition branch.
+    fn dump(&self, _context: &DumpContext<'_, '_>) -> String {
+        match self {
+            Self::True => "true".to_string(),
+            Self::False => "false".to_string(),
         }
     }
 }

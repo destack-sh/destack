@@ -1,5 +1,6 @@
 use crate::check::{
     CallCallee, CallTerm, ConstructTerm, Dump, DumpContext, MemberCallTerm, MemberProjectionOrigin,
+    MemberReceiver,
 };
 
 use super::argument::dump_arguments;
@@ -9,8 +10,8 @@ use super::operand::dump_type_operands;
 impl Dump for CallTerm {
     /// Render one call term.
     fn dump(&self, context: &DumpContext<'_, '_>) -> String {
-        let argument_values = self
-            .argument_values
+        let arguments = self
+            .arguments
             .iter()
             .map(|value| context.node_label(value.clone().into()))
             .collect::<Vec<_>>()
@@ -25,8 +26,11 @@ impl Dump for CallTerm {
                     "generic_arguments",
                     dump_arguments(&self.generic_arguments, context),
                 ),
-                ("arguments", dump_type_operands(&self.arguments, context)),
-                ("argument_values", dump_list(argument_values)),
+                ("arguments", dump_list(arguments)),
+                (
+                    "argument_types",
+                    dump_type_operands(&self.argument_types, context),
+                ),
             ],
         )
     }
@@ -66,6 +70,33 @@ impl Dump for MemberCallTerm {
     }
 }
 
+impl Dump for MemberReceiver {
+    /// Render one member receiver.
+    fn dump(&self, context: &DumpContext<'_, '_>) -> String {
+        match self {
+            Self::Value(value) => {
+                dump_record("MemberReceiver.Value", [("value", value.dump(context))])
+            }
+            Self::GenericParameter(parameter) => dump_record(
+                "MemberReceiver.GenericParameter",
+                [("parameter", context.generic_parameter_label(*parameter))],
+            ),
+            Self::Declaration {
+                origin,
+                symbol,
+                arguments,
+            } => dump_record(
+                "MemberReceiver.Declaration",
+                [
+                    ("origin", origin.dump(context)),
+                    ("symbol", context.symbol_label(*symbol)),
+                    ("arguments", dump_arguments(arguments, context)),
+                ],
+            ),
+        }
+    }
+}
+
 impl Dump for MemberProjectionOrigin {
     /// Render one member projection origin.
     fn dump(&self, context: &DumpContext<'_, '_>) -> String {
@@ -88,6 +119,13 @@ impl Dump for MemberProjectionOrigin {
 impl Dump for ConstructTerm {
     /// Render one construct term.
     fn dump(&self, context: &DumpContext<'_, '_>) -> String {
+        let arguments = self
+            .arguments
+            .iter()
+            .map(|value| context.node_label(value.clone().into()))
+            .collect::<Vec<_>>()
+            .join(",");
+
         dump_record(
             "ConstructTerm",
             [
@@ -97,7 +135,11 @@ impl Dump for ConstructTerm {
                     "generic_arguments",
                     dump_arguments(&self.generic_arguments, context),
                 ),
-                ("arguments", dump_type_operands(&self.arguments, context)),
+                ("arguments", dump_list(arguments)),
+                (
+                    "argument_types",
+                    dump_type_operands(&self.argument_types, context),
+                ),
             ],
         )
     }

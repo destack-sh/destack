@@ -16,9 +16,10 @@ impl Dump for StaticTerm {
             Self::Literal(literal) => {
                 dump_record("StaticTerm.Literal", [("value", literal.dump(context))])
             }
-            Self::Parameter(parameter) => {
-                dump_record("StaticTerm.Parameter", [("slot", parameter.dump(context))])
-            }
+            Self::Parameter(parameter) => dump_record(
+                "StaticTerm.Parameter",
+                [("parameter", parameter.dump(context))],
+            ),
             Self::Expression(expression) => dump_record(
                 "StaticTerm.Expression",
                 [("source", context.node_label(expression.clone().into()))],
