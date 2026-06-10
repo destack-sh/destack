@@ -78,26 +78,25 @@ impl WalkState<'_, '_> {
             // <T>
             dir::GenericArgument::Type { value } => {
                 self.walk_type_expression(*value, self.tree.get(*value))?;
+                let ty = self.node_type_operand(*value)?;
+                let r#static = self.static_argument_value_operand(*value)?;
 
-                GenericArgument::type_or_static(
-                    id.into_global(self.module),
-                    value.into_global(self.module),
-                )
+                GenericArgument::type_or_static(id.into_global(self.module), ty, r#static)
             }
             // <...T>
             dir::GenericArgument::SpreadType { value } => {
                 self.walk_type_expression(*value, self.tree.get(*value))?;
+                let ty = self.node_type_operand(*value)?;
+                let r#static = self.static_argument_value_operand(*value)?;
 
-                GenericArgument::spread_type_or_static(
-                    id.into_global(self.module),
-                    value.into_global(self.module),
-                )
+                GenericArgument::spread_type_or_static(id.into_global(self.module), ty, r#static)
             }
             // <type Item = T>
             dir::GenericArgument::AssociatedType { name, value } => {
+                self.walk_type_expression(*value, self.tree.get(*value))?;
                 GenericArgument::AssociatedType {
                     name: *name,
-                    value: self.type_expression_operand(*value)?.into(),
+                    value: self.node_type_operand(*value)?.into(),
                 }
             }
             // <C>

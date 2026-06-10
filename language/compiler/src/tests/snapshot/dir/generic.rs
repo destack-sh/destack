@@ -171,7 +171,8 @@ fn generic_origin_label(name: String, origin: dir::GenericParameterOrigin) -> St
 /// Return one induced generic reason label.
 fn generic_parameter_induction_label(induction: dir::GenericParameterInduction) -> &'static str {
     match induction {
-        dir::GenericParameterInduction::Constraint => "constraint",
+        dir::GenericParameterInduction::ParameterConstraint => "parameter_constraint",
+        dir::GenericParameterInduction::StorageConstraint => "storage_constraint",
         dir::GenericParameterInduction::Form => "form",
         dir::GenericParameterInduction::Comptime => "comptime",
     }

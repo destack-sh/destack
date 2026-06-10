@@ -13,17 +13,16 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn walk_decorator(
         &mut self,
         id: dir::LocalNodeId<dir::Decorator>,
-        _decorator: &dir::Decorator,
     ) -> CompilerResult<()> {
         let invocation = self.check.decorator_invocation(self.module, id);
 
-        // bind ordinary decorator target names
+        // walk non-if decorator target names
         if self
             .check
             .static_if_decorator_from_invocation(self.module, &invocation)
             .is_none()
         {
-            self.bind_decorator_target_name(invocation.target)?;
+            self.walk_decorator_target_name(invocation.target)?;
         }
 
         // walk annotation arguments as static metadata
@@ -31,21 +30,20 @@ impl WalkState<'_, '_> {
             let Some(value) = self.tree.get(argument).value() else {
                 continue;
             };
-
             self.walk_static_expression(value)?;
         }
 
         Ok(())
     }
 
-    /// Bind one ordinary decorator target name.
+    /// Walk one non-if decorator target name.
     ///
     /// Example:
     /// ```ds
     /// @repr("C")
     /// struct Header {}
     /// ```
-    fn bind_decorator_target_name(
+    fn walk_decorator_target_name(
         &mut self,
         target: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
@@ -53,7 +51,7 @@ impl WalkState<'_, '_> {
         let guard = self.active_static_guard();
 
         match self.tree.get(target) {
-            // bind bare decorator target
+            // select bare decorator target
             dir::Expression::Identifier { name } => {
                 if let Some(symbol) = self.check.symbol_by_name_under(
                     self.module,
@@ -68,7 +66,7 @@ impl WalkState<'_, '_> {
                 }
             }
 
-            // bind qualified decorator target
+            // select qualified decorator target
             dir::Expression::QualifiedReference { path, .. } => {
                 if let Some(symbol) = self.check.symbol_by_path_under(
                     self.module,

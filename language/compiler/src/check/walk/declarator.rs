@@ -55,13 +55,13 @@ impl WalkState<'_, '_> {
         // set binding type from annotation or initializer
         if let Some(ty) = declarator.ty {
             let operand = self.node_type_operand(ty)?;
-            self.bind_symbol_type_operand(symbol, operand, condition)?;
+            self.constrain_symbol_type(symbol, operand, condition)?;
         } else if let Some(value) = declarator.value {
             let operand = self.node_type_operand(value)?;
             if let Some(term) = self.widen_declarator_initializer_type(symbol, value, operand)? {
-                self.bind_symbol_type(symbol, term, condition)?;
+                self.constrain_symbol_type_term(symbol, term, condition)?;
             } else {
-                self.bind_symbol_type_operand(symbol, operand, condition)?;
+                self.constrain_symbol_type(symbol, operand, condition)?;
             }
         }
 
@@ -71,9 +71,8 @@ impl WalkState<'_, '_> {
             let value = self.node_type_operand(value)?;
             let target = self.node_type_operand(ty)?;
             let condition = self.active_static_guard();
-
             self.check
-                .relate_type(origin, TypeRelation::Assignable, value, target, condition);
+                .constrain_type(origin, TypeRelation::Assignable, value, target, condition);
         }
 
         Ok(())
@@ -115,7 +114,7 @@ impl WalkState<'_, '_> {
             let condition = self.active_static_guard();
 
             if self.is_irrefutable_declarator_pattern_required(id) {
-                self.check.push_irrefutable_pattern_obligation(
+                self.check.constrain_irrefutable_pattern(
                     self.module,
                     declarator.pattern.into_any(),
                     pattern,
@@ -124,7 +123,7 @@ impl WalkState<'_, '_> {
                 );
             }
 
-            self.check.relate_pattern(
+            self.check.constrain_pattern(
                 self.module,
                 PatternRelation::Match(pattern),
                 declarator.pattern.into_any(),
@@ -168,12 +167,23 @@ impl WalkState<'_, '_> {
         }
 
         // widen known scalar literals without an operation term
-        if let Some(TypeTerm::Literal(TypeLiteralTerm::Scalar(literal))) =
-            self.check.type_operand_term(source)?
-        {
-            return Ok(Some(TypeTerm::Literal(CheckState::widen_scalar_literal(
-                literal,
-            ))));
+        let literal = match self.check.resolved_type_operand(source) {
+            Some(TypeOperand::Term(term)) => match self.check.inference.term(term) {
+                TypeTerm::Literal(TypeLiteralTerm::Scalar(literal)) => Some(literal.clone()),
+                _ => None,
+            },
+            Some(TypeOperand::Type(ty)) => {
+                match TypeLiteralTerm::from_type(self.check.r#type(ty)) {
+                    Some(TypeLiteralTerm::Scalar(literal)) => Some(literal),
+                    _ => None,
+                }
+            }
+            Some(TypeOperand::Variable(_)) | None => None,
+        };
+        if let Some(literal) = literal {
+            let literal = CheckState::widen_scalar_literal(literal);
+
+            return Ok(Some(TypeTerm::Literal(literal)));
         }
 
         // defer non scalar widening to reduction
@@ -207,7 +217,7 @@ impl WalkState<'_, '_> {
             {
                 false
             }
-            // mutable bindings widen ordinary initializers
+            // mutable bindings widen initializers
             _ if binding.binding_mutability != Some(dir::Mutability::Immutable) => true,
             // immutable aggregate bindings keep mutable contents usable
             dir::Expression::ArrayExpression { .. }
@@ -262,7 +272,6 @@ impl WalkState<'_, '_> {
         let Some(path) = self.flow_path(value) else {
             return Ok(());
         };
-
         self.narrow_pattern_success(path, declarator.pattern)
     }
 
@@ -298,20 +307,17 @@ impl WalkState<'_, '_> {
             // value
             dir::Pattern::Expression { value } => {
                 let ty = self.node_type_operand(*value)?;
-
                 self.narrow_flow_path(path, ty);
             }
             // value is T
             dir::Pattern::TypeExpression { value } => {
                 let ty = self.node_type_operand(*value)?;
-
                 self.narrow_flow_path(path, ty);
             }
             // T(a, b), T { name }
             dir::Pattern::Newtype { ty, fields }
             | dir::Pattern::NominalObject { ty, fields } => {
                 let narrowed = self.node_type_operand(*ty)?;
-
                 self.narrow_flow_path(path.clone(), narrowed);
                 self.narrow_pattern_fields_success(path, fields)?;
             }

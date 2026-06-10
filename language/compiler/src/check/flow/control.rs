@@ -11,13 +11,15 @@ impl WalkState<'_, '_> {
         &mut self,
         label: Option<dir::StringId>,
         allows_continue: bool,
-        result: VariableId,
+        source: dir::LocalNodeId<dir::Expression>,
+        result: TypeOperand,
     ) {
         // capture flow state before the control body
         let checkpoint = self.flow().fork();
         let target = ControlTarget {
             label,
             allows_continue,
+            source: source.into_global_any(self.module),
             result,
             break_values: Vec::new(),
             break_branches: Vec::new(),
@@ -32,7 +34,7 @@ impl WalkState<'_, '_> {
     /// Leave one break or continue target, define its result, and return break branch flow.
     pub(in crate::check) fn leave_control_target(
         &mut self,
-        fallthrough: Option<TypeTerm>,
+        fallthrough: Option<TypeOperand>,
     ) -> Vec<FlowBranch> {
         // remove target before resolving its result
         let target = self.flow_mut().pop_target();
@@ -42,20 +44,35 @@ impl WalkState<'_, '_> {
         match (target.break_values.as_slice(), fallthrough) {
             // fall through without break
             ([], Some(fallthrough)) => {
-                self.check
-                    .equate_type(target.result, fallthrough, condition);
+                let origin = Origin::Node(target.source);
+
+                self.check.constrain_type(
+                    origin,
+                    TypeRelation::Equal,
+                    target.result,
+                    fallthrough,
+                    condition,
+                );
             }
             // loop expression with no exit
             ([], None) => {
+                let origin = Origin::Node(target.source);
                 let term = TypeTerm::Literal(TypeLiteralTerm::Never);
+                let operand = self.check.type_term_operand(term);
 
-                self.check.equate_type(target.result, term, condition);
+                self.check.constrain_type(
+                    origin,
+                    TypeRelation::Equal,
+                    target.result,
+                    operand,
+                    condition,
+                );
             }
             // single break branch
             ([value], None) => {
-                let origin = self.check.variable(target.result).source;
+                let origin = Origin::Node(target.source);
 
-                self.check.relate_type(
+                self.check.constrain_type(
                     origin,
                     TypeRelation::Equal,
                     target.result,
@@ -71,9 +88,7 @@ impl WalkState<'_, '_> {
 
                 // include the fallthrough value as another exit
                 if let Some(fallthrough) = fallthrough {
-                    let term = self.check.inference.push_term(fallthrough);
-
-                    elements.push(term.into());
+                    elements.push(fallthrough);
                 }
 
                 // compute the common result of every exit
@@ -83,8 +98,16 @@ impl WalkState<'_, '_> {
                     .push_term(TypeOperationTerm::BestCommon { elements });
 
                 let term = TypeTerm::Operation(operation);
+                let origin = Origin::Node(target.source);
+                let operand = self.check.type_term_operand(term);
 
-                self.check.equate_type(target.result, term, condition);
+                self.check.constrain_type(
+                    origin,
+                    TypeRelation::Equal,
+                    target.result,
+                    operand,
+                    condition,
+                );
             }
         }
 
@@ -97,7 +120,7 @@ impl WalkState<'_, '_> {
         // create the failure result variable
         let source = source.into_global(self.module);
         let origin = Origin::Node(source);
-        let failure = self.check.create_type_variable(self.module, origin);
+        let failure = self.check.push_type_variable(self.module, origin);
         let target = TryTarget {
             failure,
             failures: Vec::new(),
@@ -127,7 +150,7 @@ impl WalkState<'_, '_> {
             [failure] => {
                 let origin = self.check.variable(target.failure).source;
 
-                self.check.relate_type(
+                self.check.constrain_type(
                     origin,
                     TypeRelation::Equal,
                     target.failure,
@@ -185,7 +208,7 @@ impl WalkState<'_, '_> {
 
         // require the break value to match the target result
         self.check
-            .relate_type(origin, TypeRelation::Assignable, value, result, condition);
+            .constrain_type(origin, TypeRelation::Assignable, value, result, condition);
     }
 
     /// Continue to one control target.

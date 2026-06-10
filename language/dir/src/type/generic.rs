@@ -176,8 +176,10 @@ pub enum GenericParameterOrigin {
 /// Reason one generic parameter was induced.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum GenericParameterInduction {
-    /// A transparent type constraint escaped.
-    Constraint,
+    /// A parameter type induced a hidden constrained type parameter.
+    ParameterConstraint,
+    /// A storage type induced a hidden constrained type parameter.
+    StorageConstraint,
     /// A type form parameter escaped.
     Form,
     /// A comptime runtime parameter was lifted.

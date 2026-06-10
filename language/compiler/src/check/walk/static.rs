@@ -3,7 +3,7 @@ use std::ptr::NonNull;
 use crate::CompilerResult;
 use crate::check::{
     Condition, ConditionPredicate, FlowState, NameLookup, Origin, Receiver, StaticIfCondition,
-    StaticOperand, StaticTerm, VariableId, WalkState,
+    StaticOperand, StaticTerm, WalkState,
 };
 use crate::common::dir::r#static::{StaticContext, StaticFailure};
 use destack_dir as dir;
@@ -48,7 +48,7 @@ impl WalkState<'_, '_> {
         let invocations = self.check.decorator_invocations(self.module, decorated);
         let mut condition = Condition::Always;
 
-        // combine visible static guards in source order
+        // combine static guards in source order
         for invocation in invocations {
             if let Some(decorator) = self
                 .check
@@ -67,14 +67,7 @@ impl WalkState<'_, '_> {
                     return Ok(Condition::Never);
                 }
             } else {
-                let decorator_node = self
-                    .check
-                    .module(self.module)
-                    .view()
-                    .get(invocation.decorator)
-                    .clone();
-
-                self.walk_decorator(invocation.decorator, &decorator_node)?;
+                self.walk_decorator(invocation.decorator)?;
             }
         }
 
@@ -111,11 +104,11 @@ impl WalkState<'_, '_> {
                 .insert(symbol, condition.clone());
         }
 
-        // just bail if statically never
+        // skip unreachable declarations
         if condition.is_never() {
             Ok(None)
         }
-        // actually push and keep going (conditionally)
+        // enter conditional declarations
         else {
             self.flow_mut().push_static_guard(decorated_condition);
 
@@ -164,7 +157,7 @@ impl WalkState<'_, '_> {
             }
             Err(StaticFailure::NotStatic(expression)) => {
                 let condition_guard = self.active_static_guard();
-                let variable = self.static_expression_variable(condition_node, condition_guard)?;
+                let variable = self.static_expression_operand(condition_node, condition_guard)?;
 
                 // walk static guard leaves without runtime condition constraints
                 self.walk_static_expression(expression)?;
@@ -198,7 +191,7 @@ impl WalkState<'_, '_> {
             dir::Expression::This => {
                 let source = expression.into_global_any(self.module);
                 if let Some(term) = self.this_receiver_type_term(source)? {
-                    self.bind_node_type(expression, term)?;
+                    self.constrain_node_type_term(expression, term)?;
                 }
             }
             // this.X
@@ -281,56 +274,60 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<StaticOperand> {
         // walk static leaves without keeping expression flow changes
         let before_expression = self.fork_flow();
-
         self.walk_static_expression(expression)?;
         self.restore_flow(before_expression);
 
         // return the argument local static variable
         let condition = self.active_static_guard();
-        let variable = self.static_expression_variable(expression, condition)?;
+        let variable = self.static_expression_operand(expression, condition)?;
 
         Ok(variable.into())
     }
 
-    /// Create one static variable from a type-space static argument.
+    /// Return one node-backed static operand from a type-space static argument.
     ///
     /// Example:
     /// ```ds
     /// <Size>
     /// ```
-    pub(in crate::check) fn create_static_argument_variable(
+    pub(in crate::check) fn static_argument_operand(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> CompilerResult<VariableId> {
+    ) -> CompilerResult<StaticOperand> {
         let module = self.module;
         let source = id.into_global_any(module);
         let origin = Origin::Node(source);
-        let variable = self.check.create_static_variable(module, origin);
+        if let Some(operand) = self.check.inputs.node_static(source) {
+            return Ok(operand);
+        }
+        let variable = self.check.push_static_variable(module, origin);
 
-        if let Some(operand) = self.direct_static_argument_operand(id)? {
+        if let Some(operand) = self.static_argument_value_operand(id)? {
             let condition = self.active_static_guard();
-
             self.check
                 .equate_static(origin, variable, operand, condition);
         }
+        self.check
+            .inputs
+            .insert_node_static(source, variable.into())?;
 
-        Ok(variable)
+        Ok(variable.into())
     }
 
-    /// Return one directly representable static argument operand.
+    /// Return one static value interpretation of a type-space argument.
     ///
     /// Example:
     /// ```ds
     /// <{ a: 2, b: [1, 2, 3] }>
     /// ```
-    fn direct_static_argument_operand(
+    pub(in crate::check) fn static_argument_value_operand(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<Option<StaticOperand>> {
         let term = match self.tree.get(id) {
             // <(C)>
             dir::TypeExpression::Parenthesized { expression } => {
-                return self.direct_static_argument_operand(*expression);
+                return self.static_argument_value_operand(*expression);
             }
             // <1>
             dir::TypeExpression::ScalarLiteral { value } => {
@@ -346,7 +343,7 @@ impl WalkState<'_, '_> {
             }
             // <{ name: "value" }>
             dir::TypeExpression::Object { members } => {
-                let Some(term) = self.direct_static_object_term(members)? else {
+                let Some(term) = self.static_object_argument_term(members)? else {
                     return Ok(None);
                 };
 
@@ -354,7 +351,7 @@ impl WalkState<'_, '_> {
             }
             // <[1, 2]>
             dir::TypeExpression::Tuple { elements } => {
-                let Some(term) = self.direct_static_tuple_term(elements)? else {
+                let Some(term) = self.static_tuple_argument_term(elements)? else {
                     return Ok(None);
                 };
 
@@ -367,7 +364,7 @@ impl WalkState<'_, '_> {
 
                     // collect union operands
                     for element in elements {
-                        operands.push(self.create_static_argument_variable(*element)?.into());
+                        operands.push(self.static_argument_operand(*element)?);
                     }
 
                     operands
@@ -375,7 +372,7 @@ impl WalkState<'_, '_> {
             },
             // <readonly [1, 2]>
             dir::TypeExpression::ArrayTuple { elements } => {
-                let Some(term) = self.direct_static_tuple_term(elements)? else {
+                let Some(term) = self.static_tuple_argument_term(elements)? else {
                     return Ok(None);
                 };
 
@@ -400,10 +397,10 @@ impl WalkState<'_, '_> {
                     source: id.into_global_any(self.module),
                     owner: self.node_type_operand(*left)?,
                     key: dir::StaticKey::Name(*name),
-                    arguments: arguments.into_vec(),
+                    arguments,
                 }
             }
-            // not directly representable static argument syntax
+            // not static value syntax
             _ => return Ok(None),
         };
 
@@ -426,7 +423,7 @@ impl WalkState<'_, '_> {
             return Ok(None);
         };
 
-        // bind bare static parameter
+        // use bare static parameter
         let term = if generic_arguments.is_empty()
             && let Some(operand) = self.static_parameter_argument_operand(id, *name)?
         {
@@ -475,7 +472,6 @@ impl WalkState<'_, '_> {
                 let path = dir::Path {
                     segments: smallvec::smallvec![name],
                 };
-
                 self.check
                     .report_ambiguous_reference(self.module, id.into_any(), &path);
 
@@ -522,7 +518,6 @@ impl WalkState<'_, '_> {
                 let path = dir::Path {
                     segments: smallvec::smallvec![name],
                 };
-
                 self.check
                     .report_ambiguous_reference(self.module, id.into_any(), &path);
 
@@ -539,19 +534,16 @@ impl WalkState<'_, '_> {
 
         let arguments = self.walk_generic_arguments(generic_arguments)?;
 
-        Ok(Some(StaticTerm::Intrinsic {
-            item,
-            arguments: arguments.into_vec(),
-        }))
+        Ok(Some(StaticTerm::Intrinsic { item, arguments }))
     }
 
-    /// Return one directly representable static object term.
+    /// Return one static object value from type-space object syntax.
     ///
     /// Example:
     /// ```ds
     /// { a: 2, b: [1, 2, 3] }
     /// ```
-    fn direct_static_object_term(
+    fn static_object_argument_term(
         &mut self,
         members: &[dir::LocalNodeId<dir::TypeMember>],
     ) -> CompilerResult<Option<StaticTerm>> {
@@ -570,18 +562,24 @@ impl WalkState<'_, '_> {
                     let Some(key) = key.static_key(&self.tree) else {
                         return Ok(None);
                     };
-                    let Some(operand) = self.direct_static_argument_operand(*value)? else {
+                    let Some(operand) = self.static_argument_value_operand(*value)? else {
                         return Ok(None);
                     };
-                    let Some(StaticTerm::Literal(value)) =
-                        self.check.static_operand_term(operand)?
-                    else {
+                    let Some(operand) = self.check.resolved_static_operand(operand) else {
                         return Ok(None);
+                    };
+                    let value = match operand {
+                        StaticOperand::Term(term) => match self.check.inference.term(term) {
+                            StaticTerm::Literal(value) => value.clone(),
+                            _ => return Ok(None),
+                        },
+                        StaticOperand::Static(value) => self.check.r#static(value).clone(),
+                        StaticOperand::Variable(_) => return Ok(None),
                     };
 
                     properties.push(dir::StaticProperty::Field { key, value });
                 }
-                // not directly representable object member syntax
+                // not static object member syntax
                 _ => return Ok(None),
             }
         }
@@ -591,13 +589,13 @@ impl WalkState<'_, '_> {
         })))
     }
 
-    /// Return one directly representable static tuple term.
+    /// Return one static tuple value from type-space tuple syntax.
     ///
     /// Example:
     /// ```ds
     /// [1, 2, 3]
     /// ```
-    fn direct_static_tuple_term(
+    fn static_tuple_argument_term(
         &mut self,
         elements: &[dir::LocalNodeId<dir::TupleElement>],
     ) -> CompilerResult<Option<StaticTerm>> {
@@ -611,18 +609,24 @@ impl WalkState<'_, '_> {
                     is_optional: false,
                     ..
                 } => {
-                    let Some(operand) = self.direct_static_argument_operand(*value)? else {
+                    let Some(operand) = self.static_argument_value_operand(*value)? else {
                         return Ok(None);
                     };
-                    let Some(StaticTerm::Literal(value)) =
-                        self.check.static_operand_term(operand)?
-                    else {
+                    let Some(operand) = self.check.resolved_static_operand(operand) else {
                         return Ok(None);
+                    };
+                    let value = match operand {
+                        StaticOperand::Term(term) => match self.check.inference.term(term) {
+                            StaticTerm::Literal(value) => value.clone(),
+                            _ => return Ok(None),
+                        },
+                        StaticOperand::Static(value) => self.check.r#static(value).clone(),
+                        StaticOperand::Variable(_) => return Ok(None),
                     };
 
                     values.push(value);
                 }
-                // not directly representable tuple element syntax
+                // not static tuple element syntax
                 _ => return Ok(None),
             }
         }

@@ -3,11 +3,13 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    AssignPatternField, AssignPatternTerm, Origin, PatternBindingResolution,
+    AssignPatternField, AssignPatternTerm, GenericInstance, Origin, PatternBindingResolution,
     PatternBorrowResolution, PatternDecision, PatternDereferenceResolution, PatternField,
-    PatternFieldResolution, PatternFieldTargetResolution, PatternMoveResolution, PatternResolution,
-    PatternShapeResolution, PatternTarget, PatternTargetResolution, PatternTerm,
-    PatternTupleResolution, PatternUnionResolution, TermId, WalkState,
+    PatternFieldResolution, PatternFieldTargetResolution, PatternLiteralResolution,
+    PatternMoveResolution, PatternNewtypeResolution, PatternNominalResolution,
+    PatternRangeResolution, PatternResolution, PatternShapeResolution, PatternTarget,
+    PatternTargetResolution, PatternTerm, PatternTupleResolution, PatternUnionResolution,
+    PatternVariantResolution, TermId, TypeOperand, TypeTerm, WalkState,
 };
 
 impl WalkState<'_, '_> {
@@ -45,7 +47,6 @@ impl WalkState<'_, '_> {
 
                 // check pattern default in selector context
                 let before_value = self.fork_flow();
-
                 self.walk_expression(*value, self.tree.get(*value))?;
                 self.restore_flow(before_value);
             }
@@ -62,7 +63,6 @@ impl WalkState<'_, '_> {
             dir::Pattern::Expression { value } => {
                 // check value pattern in selector context
                 let before_value = self.fork_flow();
-
                 self.walk_expression(*value, self.tree.get(*value))?;
                 self.restore_flow(before_value);
             }
@@ -71,7 +71,6 @@ impl WalkState<'_, '_> {
                 if let Some(start) = start {
                     // check range bound in selector context
                     let before_start = self.fork_flow();
-
                     self.walk_expression(*start, self.tree.get(*start))?;
                     self.restore_flow(before_start);
                 }
@@ -79,7 +78,6 @@ impl WalkState<'_, '_> {
                 if let Some(end) = end {
                     // check range bound in selector context
                     let before_end = self.fork_flow();
-
                     self.walk_expression(*end, self.tree.get(*end))?;
                     self.restore_flow(before_end);
                 }
@@ -89,23 +87,37 @@ impl WalkState<'_, '_> {
                 self.walk_type_expression(*value, self.tree.get(*value))?;
             }
             // [a, b]
-            dir::Pattern::Tuple { fields }
-            // [...items]
-            | dir::Pattern::Sequence { fields }
-            // { name }
-            | dir::Pattern::Object { fields } => {
+            dir::Pattern::Tuple { fields } => {
                 for field in fields {
-                    self.walk_pattern_field(*field, self.tree.get(field.clone()))?;
+                    self.walk_pattern_field(*field, self.tree.get(*field))?;
+                }
+            }
+            // [...items]
+            dir::Pattern::Sequence { fields } => {
+                for field in fields {
+                    self.walk_pattern_field(*field, self.tree.get(*field))?;
+                }
+            }
+            // { name }
+            dir::Pattern::Object { fields } => {
+                for field in fields {
+                    self.walk_pattern_field(*field, self.tree.get(*field))?;
                 }
             }
             // T(a, b)
-            dir::Pattern::Newtype { ty, fields }
-            // T { name }
-            | dir::Pattern::NominalObject { ty, fields } => {
+            dir::Pattern::Newtype { ty, fields } => {
                 self.walk_type_expression(*ty, self.tree.get(*ty))?;
 
                 for field in fields {
-                    self.walk_pattern_field(*field, self.tree.get(field.clone()))?;
+                    self.walk_pattern_field(*field, self.tree.get(*field))?;
+                }
+            }
+            // T { name }
+            dir::Pattern::NominalObject { ty, fields } => {
+                self.walk_type_expression(*ty, self.tree.get(*ty))?;
+
+                for field in fields {
+                    self.walk_pattern_field(*field, self.tree.get(*field))?;
                 }
             }
             // a | b
@@ -150,7 +162,6 @@ impl WalkState<'_, '_> {
             dir::PatternField::Computed { key, pattern } => {
                 // check computed key in selector context
                 let before_key = self.fork_flow();
-
                 self.walk_expression(*key, self.tree.get(*key))?;
                 self.restore_flow(before_key);
 
@@ -197,7 +208,6 @@ impl WalkState<'_, '_> {
 
                 // check destructuring default in conditional assignment context
                 let before_value = self.fork_flow();
-
                 self.walk_expression(*value, self.tree.get(*value))?;
                 self.restore_flow(before_value);
             }
@@ -206,7 +216,7 @@ impl WalkState<'_, '_> {
             // { a, b }
             | dir::AssignPattern::Object { fields } => {
                 for field in fields {
-                    self.walk_assign_pattern_field(*field, self.tree.get(field.clone()))?;
+                    self.walk_assign_pattern_field(*field, self.tree.get(*field))?;
                 }
             }
         };
@@ -423,9 +433,8 @@ impl WalkState<'_, '_> {
             .check
             .inference
             .push_term(PatternTerm::node(source, term));
-        if let Some(target) = self.pattern_resolution(module, id) {
+        if let Some(target) = self.pattern_resolution(module, id)? {
             let selection = PatternResolution { source, target };
-
             self.check
                 .inference
                 .select_pattern(source, PatternDecision::Resolved(selection))?;
@@ -434,7 +443,7 @@ impl WalkState<'_, '_> {
         Ok(Some(term))
     }
 
-    /// Return one semantic pattern selection when syntax determines it.
+    /// Return one pattern selection when the pattern determines it.
     ///
     /// Example:
     /// ```ds
@@ -444,10 +453,10 @@ impl WalkState<'_, '_> {
         &mut self,
         module: ModuleId,
         id: dir::LocalNodeId<dir::Pattern>,
-    ) -> Option<PatternTargetResolution> {
+    ) -> CompilerResult<Option<PatternTargetResolution>> {
         match self.tree.get(id) {
             // _
-            dir::Pattern::Wildcard => Some(PatternTargetResolution::Wildcard),
+            dir::Pattern::Wildcard => Ok(Some(PatternTargetResolution::Wildcard)),
             // name, name: pattern
             dir::Pattern::Binding { pattern, .. } => {
                 let symbol = self
@@ -456,54 +465,168 @@ impl WalkState<'_, '_> {
                     .declaration_symbol(id.into_any());
                 let pattern = pattern.map(|pattern| pattern.into_global_any(module));
 
-                Some(PatternTargetResolution::Binding(PatternBindingResolution {
-                    symbol,
-                    pattern,
-                }))
+                Ok(Some(PatternTargetResolution::Binding(
+                    PatternBindingResolution { symbol, pattern },
+                )))
             }
             // &pattern
             dir::Pattern::BorrowOf { mutability, right } => {
                 let access = mutability.map(dir::Mutability::access);
                 let pattern = right.into_global_any(module);
 
-                Some(PatternTargetResolution::Borrow(PatternBorrowResolution {
-                    access,
-                    pattern,
-                }))
+                Ok(Some(PatternTargetResolution::Borrow(
+                    PatternBorrowResolution { access, pattern },
+                )))
             }
             // ^pattern
             dir::Pattern::MoveOf { mutability, right } => {
                 let access = mutability.map(dir::Mutability::access);
                 let pattern = right.into_global_any(module);
 
-                Some(PatternTargetResolution::Move(PatternMoveResolution {
+                Ok(Some(PatternTargetResolution::Move(PatternMoveResolution {
                     access,
                     pattern,
-                }))
+                })))
             }
             // *pattern
             dir::Pattern::DereferenceOf { right } => {
                 let pattern = right.into_global_any(module);
 
-                Some(PatternTargetResolution::Dereference(
+                Ok(Some(PatternTargetResolution::Dereference(
                     PatternDereferenceResolution { pattern },
-                ))
+                )))
+            }
+            // value
+            dir::Pattern::Expression { value } => {
+                let value = value.into_global_any(module);
+                let Some(value) = self.check.inputs.node_static(value) else {
+                    return Ok(None);
+                };
+
+                Ok(Some(PatternTargetResolution::Literal(
+                    PatternLiteralResolution { value },
+                )))
+            }
+            // static scalar range
+            dir::Pattern::Range {
+                start,
+                end,
+                end_kind,
+            } => {
+                // range domain
+                let Some(domain) = self.pattern_range_domain(*start, *end)? else {
+                    return Ok(None);
+                };
+
+                // start
+                let start = if let Some(start) = start {
+                    let node = start.into_global_any(module);
+                    let Some(operand) = self.check.inputs.node_static(node) else {
+                        return Ok(None);
+                    };
+
+                    Some(operand)
+                } else {
+                    None
+                };
+
+                // end
+                let end = if let Some(end) = end {
+                    let node = end.into_global_any(module);
+                    let Some(operand) = self.check.inputs.node_static(node) else {
+                        return Ok(None);
+                    };
+
+                    Some(operand)
+                } else {
+                    None
+                };
+
+                Ok(Some(PatternTargetResolution::Range(
+                    PatternRangeResolution {
+                        domain,
+                        start,
+                        end,
+                        end_bound: *end_kind,
+                    },
+                )))
             }
             // [a, b]
             dir::Pattern::Tuple { fields } => {
-                let fields = self.indexed_pattern_field_resolutions(module, fields)?;
+                let Some(fields) = self.indexed_pattern_field_resolutions(module, fields) else {
+                    return Ok(None);
+                };
 
-                Some(PatternTargetResolution::Tuple(PatternTupleResolution {
-                    fields,
-                }))
+                Ok(Some(PatternTargetResolution::Tuple(
+                    PatternTupleResolution { fields },
+                )))
+            }
+            // T(a, b)
+            dir::Pattern::Newtype { ty, fields } => {
+                // target
+                let Some((symbol, instance)) = self.pattern_reference_target(*ty)? else {
+                    return Ok(None);
+                };
+
+                // fields
+                let Some(fields) = self.indexed_pattern_field_resolutions(module, fields) else {
+                    return Ok(None);
+                };
+                let value = fields.first().and_then(|field| field.pattern);
+
+                Ok(Some(PatternTargetResolution::Newtype(
+                    PatternNewtypeResolution {
+                        symbol,
+                        instance,
+                        value,
+                    },
+                )))
             }
             // { name }
             dir::Pattern::Object { fields } => {
-                let fields = self.keyed_pattern_field_resolutions(module, fields)?;
+                // fields
+                let Some(fields) = self.keyed_pattern_field_resolutions(module, fields) else {
+                    return Ok(None);
+                };
 
-                Some(PatternTargetResolution::Shape(PatternShapeResolution {
-                    fields,
-                }))
+                Ok(Some(PatternTargetResolution::Shape(
+                    PatternShapeResolution { fields },
+                )))
+            }
+            // T { name }
+            dir::Pattern::NominalObject { ty, fields } => {
+                // target
+                let Some((symbol, instance)) = self.pattern_reference_target(*ty)? else {
+                    return Ok(None);
+                };
+
+                // fields
+                let Some(fields) = self.keyed_pattern_field_resolutions(module, fields) else {
+                    return Ok(None);
+                };
+
+                // enum variant
+                if self.check.symbol_kind(symbol) == dir::SymbolKind::EnumField {
+                    let discriminant = Some(self.check.symbol_static_operand(module, symbol)?);
+
+                    return Ok(Some(PatternTargetResolution::Variant(
+                        PatternVariantResolution {
+                            symbol,
+                            instance,
+                            discriminant,
+                            fields,
+                        },
+                    )));
+                }
+
+                // nominal object
+                Ok(Some(PatternTargetResolution::Nominal(
+                    PatternNominalResolution {
+                        symbol,
+                        instance,
+                        fields,
+                    },
+                )))
             }
             // a | b
             dir::Pattern::Union { patterns } => {
@@ -512,20 +635,87 @@ impl WalkState<'_, '_> {
                     .map(|pattern| pattern.into_global_any(module))
                     .collect();
 
-                Some(PatternTargetResolution::Union(PatternUnionResolution {
-                    alternatives,
-                }))
+                Ok(Some(PatternTargetResolution::Union(
+                    PatternUnionResolution { alternatives },
+                )))
             }
-            // patterns whose meaning depends on solved type or static values
+            // value dependent pattern
             dir::Pattern::Must(_)
             | dir::Pattern::Assign { .. }
-            | dir::Pattern::Expression { .. }
-            | dir::Pattern::Range { .. }
             | dir::Pattern::TypeExpression { .. }
-            | dir::Pattern::Newtype { .. }
-            | dir::Pattern::Sequence { .. }
-            | dir::Pattern::NominalObject { .. } => None,
+            | dir::Pattern::Sequence { .. } => Ok(None),
         }
+    }
+
+    /// Return a range domain from one static range bound.
+    fn pattern_range_domain(
+        &mut self,
+        start: Option<dir::LocalNodeId<dir::Expression>>,
+        end: Option<dir::LocalNodeId<dir::Expression>>,
+    ) -> CompilerResult<Option<TypeOperand>> {
+        // start
+        if let Some(start) = start {
+            return self.node_type_operand(start).map(Some);
+        }
+
+        // end
+        if let Some(end) = end {
+            return self.node_type_operand(end).map(Some);
+        }
+
+        Ok(None)
+    }
+
+    /// Return one direct symbol target from a type pattern.
+    fn pattern_reference_target(
+        &mut self,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+    ) -> CompilerResult<Option<(dir::GlobalSymbolId, Option<GenericInstance>)>> {
+        // type expression
+        let ty = self.node_type_operand(id)?;
+        let Some(ty) = self.check.resolved_type_operand(ty) else {
+            return Ok(None);
+        };
+
+        // reference
+        let (symbol, arguments) = match ty {
+            TypeOperand::Term(term) => {
+                let TypeTerm::Reference {
+                    origin: _,
+                    symbol,
+                    arguments,
+                } = self.check.inference.term(term)
+                else {
+                    return Ok(None);
+                };
+
+                (*symbol, arguments.clone())
+            }
+            TypeOperand::Type(ty) => {
+                let dir::Type::Reference(reference) = self.check.r#type(ty) else {
+                    return Ok(None);
+                };
+                if !reference.arguments.is_empty() {
+                    return Ok(None);
+                }
+
+                (reference.symbol, Default::default())
+            }
+            TypeOperand::Variable(_) => return Ok(None),
+        };
+
+        // nongeneric reference
+        if arguments.is_empty() {
+            return Ok(Some((symbol, None)));
+        }
+
+        // generic reference
+        let Some(template) = self.check.inference.generic_template_by_symbol(symbol) else {
+            return Ok(None);
+        };
+        let instance = GenericInstance::new(template, arguments.into());
+
+        Ok(Some((symbol, Some(instance))))
     }
 
     /// Return positional field selections for one tuple pattern.
@@ -620,6 +810,7 @@ impl WalkState<'_, '_> {
         module: ModuleId,
         id: dir::LocalNodeId<dir::PatternField>,
     ) -> CompilerResult<Option<PatternField>> {
+        let source = id.into_global_any(module);
         let term = match self.tree.get(id) {
             // { name: pattern }
             dir::PatternField::Named { name, pattern, .. } => {
@@ -627,13 +818,22 @@ impl WalkState<'_, '_> {
                     .map(|pattern| self.pattern_term(module, pattern))
                     .transpose()?
                     .flatten();
+                let binding = if pattern.is_none() {
+                    self.check
+                        .module(self.module)
+                        .declaration_symbol(id.into_any())
+                } else {
+                    None
+                };
                 let value = pattern.map(|_| {
                     self.check
-                        .create_type_variable(module, Origin::Node(id.into_global_any(module)))
+                        .push_type_variable(module, Origin::Node(id.into_global_any(module)))
                 });
 
                 PatternField::Named {
+                    source,
                     key: name.static_key(),
+                    binding,
                     value,
                     pattern,
                 }
@@ -645,7 +845,11 @@ impl WalkState<'_, '_> {
                     return Ok(None);
                 };
 
-                PatternField::Computed { key, pattern }
+                PatternField::Computed {
+                    source,
+                    key,
+                    pattern,
+                }
             }
             // [pattern]
             dir::PatternField::Positional { pattern } => {
@@ -653,17 +857,18 @@ impl WalkState<'_, '_> {
                     return Ok(None);
                 };
 
-                PatternField::Positional { pattern }
+                PatternField::Positional { source, pattern }
             }
             // { ...pattern }
             dir::PatternField::Spread { pattern } => PatternField::Spread {
+                source,
                 pattern: pattern
                     .map(|pattern| self.pattern_term(module, pattern))
                     .transpose()?
                     .flatten(),
             },
             // [,]
-            dir::PatternField::Elision => PatternField::Elision,
+            dir::PatternField::Elision => PatternField::Elision { source },
         };
 
         Ok(Some(term))
@@ -743,7 +948,7 @@ impl WalkState<'_, '_> {
                     .flatten();
                 let value = pattern.map(|_| {
                     self.check
-                        .create_type_variable(module, Origin::Node(id.into_global_any(module)))
+                        .push_type_variable(module, Origin::Node(id.into_global_any(module)))
                 });
 
                 AssignPatternField::Named {

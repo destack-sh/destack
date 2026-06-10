@@ -52,15 +52,15 @@ impl WalkState<'_, '_> {
             }
         }
 
-        // set expression block type
-        if block.context == dir::BlockContext::Expression {
-            if let Some(expression) = block.tail_expression {
-                let tail = self.node_type_operand(expression)?;
-                self.bind_node_type_operand(id, tail)?;
-            } else {
-                let term = TypeTerm::Literal(TypeLiteralTerm::Void);
-                self.bind_node_type(id, term)?;
-            }
+        // set block value type
+        if block.context == dir::BlockContext::Expression
+            && let Some(expression) = block.tail_expression
+        {
+            let tail = self.node_type_operand(expression)?;
+            self.constrain_node_type(id, tail)?;
+        } else {
+            let term = TypeTerm::Literal(TypeLiteralTerm::Void);
+            self.constrain_node_type_term(id, term)?;
         }
 
         Ok(())

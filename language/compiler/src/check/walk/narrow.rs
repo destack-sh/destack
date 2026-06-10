@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{ShapeMember, TypeLiteralTerm, TypeOperand, TypeTerm, WalkState};
+use crate::check::{NarrowPredicate, TypeLiteralTerm, TypeOperand, TypeTerm, WalkState};
 
 /// The condition branch being entered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -105,7 +105,6 @@ impl WalkState<'_, '_> {
                 } else {
                     branch
                 };
-
                 self.narrow_by_equality(*left, *right, branch)?;
                 self.narrow_by_equality(*right, *left, branch)?;
             }
@@ -115,7 +114,7 @@ impl WalkState<'_, '_> {
                 operator: dir::BinaryOperator::In,
                 right,
             } => {
-                self.narrow_by_key_membership(*left, *right, branch);
+                self.narrow_by_key_membership(*left, *right, branch)?;
             }
             // value is T
             dir::Expression::Is { value, target_type } => {
@@ -148,15 +147,14 @@ impl WalkState<'_, '_> {
             return Ok(());
         };
         let target = self.node_type_operand(target_type)?;
+        let source = self.node_type_operand(value)?;
 
         match branch {
             ConditionBranch::True => {
-                self.narrow_flow_path(path, target);
+                self.narrow_flow_path_by(path, source, NarrowPredicate::Is(target));
             }
             ConditionBranch::False => {
-                let original = self.node_type_operand(value)?;
-
-                self.narrow_flow_path_excluding(path, original, target);
+                self.narrow_flow_path_by(path, source, NarrowPredicate::IsNot(target));
             }
         }
 
@@ -174,30 +172,20 @@ impl WalkState<'_, '_> {
         key: dir::LocalNodeId<dir::Expression>,
         value: dir::LocalNodeId<dir::Expression>,
         branch: ConditionBranch,
-    ) {
+    ) -> CompilerResult<()> {
         if branch == ConditionBranch::False {
-            return;
+            return Ok(());
         }
         let Some(path) = self.flow_path(value) else {
-            return;
+            return Ok(());
         };
         let Some(key) = self.tree.get(key).static_key() else {
-            return;
+            return Ok(());
         };
-        let ty = self
-            .check
-            .inference
-            .push_term(TypeTerm::Literal(TypeLiteralTerm::Unknown));
-        let member = ShapeMember::Field {
-            key,
-            ty: ty.into(),
-            is_optional: false,
-            is_readonly: false,
-        };
-        let target = self.check.push_shape_type(vec![member].into());
-        let target = self.check.inference.push_term(target);
+        let source = self.expression_type_operand(value)?;
+        self.narrow_flow_path_by(path, source, NarrowPredicate::HasKey(key));
 
-        self.narrow_flow_path(path, target);
+        Ok(())
     }
 
     /// Narrow flow from one `value instanceof Target` expression.
@@ -216,15 +204,14 @@ impl WalkState<'_, '_> {
             return Ok(());
         };
         let target = self.node_type_operand(target)?;
+        let source = self.node_type_operand(value)?;
 
         match branch {
             ConditionBranch::True => {
-                self.narrow_flow_path(path, target);
+                self.narrow_flow_path_by(path, source, NarrowPredicate::Is(target));
             }
             ConditionBranch::False => {
-                let original = self.node_type_operand(value)?;
-
-                self.narrow_flow_path_excluding(path, original, target);
+                self.narrow_flow_path_by(path, source, NarrowPredicate::IsNot(target));
             }
         }
 
@@ -250,18 +237,61 @@ impl WalkState<'_, '_> {
             return Ok(());
         };
 
-        match branch {
-            ConditionBranch::True => {
-                self.narrow_flow_path(path, target);
-            }
-            ConditionBranch::False => {
-                let original = self.node_type_operand(value)?;
-
-                self.narrow_flow_path_excluding(path, original, target);
-            }
-        }
+        let source = self.node_type_operand(value)?;
+        let predicate = match branch {
+            ConditionBranch::True => NarrowPredicate::Is(target),
+            ConditionBranch::False => NarrowPredicate::IsNot(target),
+        };
+        self.narrow_flow_path_by(path, source, predicate);
+        self.narrow_parent_by_member_predicate(value, predicate)?;
 
         Ok(())
+    }
+
+    /// Narrow a base flow path from a member predicate.
+    ///
+    /// Example:
+    /// ```ds
+    /// if (state.kind == "pending") { state.reactions }
+    /// ```
+    fn narrow_parent_by_member_predicate(
+        &mut self,
+        value: dir::LocalNodeId<dir::Expression>,
+        predicate: NarrowPredicate,
+    ) -> CompilerResult<()> {
+        // require an existing member flow path
+        let Some(path) = self.flow_path(value) else {
+            return Ok(());
+        };
+        let Some((base_path, key)) = path.split_last() else {
+            return Ok(());
+        };
+        let Some(base) = self.member_base_expression(value) else {
+            return Ok(());
+        };
+
+        // narrow base with a structural member predicate
+        let source = self.expression_type_operand(base)?;
+        self.narrow_base_flow_path_by_member(base_path, source, key, predicate);
+
+        Ok(())
+    }
+
+    /// Return the base expression for one member path expression.
+    fn member_base_expression(
+        &self,
+        value: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::LocalNodeId<dir::Expression>> {
+        match self.tree.get(value) {
+            // value.member
+            dir::Expression::Member { left, .. }
+            // value.#member
+            | dir::Expression::PrivateMember { left, .. }
+            // value[index]
+            | dir::Expression::Index { left, .. } => Some(*left),
+            // not a member path
+            _ => None,
+        }
     }
 
     /// Return the literal type used by one equality test.
@@ -274,17 +304,27 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<TypeOperand> {
-        let term = match self.tree.get(id) {
+        let literal = match self.tree.get(id) {
             // literal
-            dir::Expression::ScalarLiteral(value) => {
-                TypeTerm::Literal(TypeLiteralTerm::Scalar(value.clone()))
-            }
+            dir::Expression::ScalarLiteral(value) => value,
             // not a literal equality target
             _ => return None,
         };
+        let term = self.equality_literal_target(literal);
 
         let term = self.check.inference.push_term(term);
 
         Some(term.into())
+    }
+
+    /// Return the target type used by one literal equality test.
+    fn equality_literal_target(&mut self, literal: &dir::ScalarLiteral) -> TypeTerm {
+        match literal {
+            // nullish equality uses canonical nullish types
+            dir::ScalarLiteral::Null => TypeTerm::Literal(TypeLiteralTerm::Null),
+            dir::ScalarLiteral::Undefined => TypeTerm::Literal(TypeLiteralTerm::Undefined),
+            // other scalar equality keeps the literal exact
+            literal => TypeTerm::Literal(TypeLiteralTerm::Scalar(literal.clone())),
+        }
     }
 }

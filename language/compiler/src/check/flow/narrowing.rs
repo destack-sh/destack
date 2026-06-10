@@ -1,6 +1,20 @@
 use destack_dir as dir;
 
-use crate::check::{FlowPath, NameLookup, TypeOperand, TypeOperationTerm, TypeTerm, WalkState};
+use crate::check::{
+    CheckEvent, FlowPath, NameLookup, ShapeMember, TypeLiteralTerm, TypeOperand, TypeOperationTerm,
+    TypeTerm, WalkState,
+};
+
+/// Runtime flow predicate used to narrow one stable path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum NarrowPredicate {
+    /// Keep values assignable to the target type.
+    Is(TypeOperand),
+    /// Keep values not assignable to the target type.
+    IsNot(TypeOperand),
+    /// Keep objects with a known member key.
+    HasKey(dir::StaticKey),
+}
 
 impl WalkState<'_, '_> {
     /// Return the stable flow path for one expression.
@@ -51,6 +65,10 @@ impl WalkState<'_, '_> {
                 };
 
                 Some(FlowPath::symbol(symbol))
+            }
+            // this
+            dir::Expression::This if self.flow().current_receiver().is_some() => {
+                Some(FlowPath::receiver(dir::ReceiverKind::This))
             }
             // value.member
             dir::Expression::Member {
@@ -106,28 +124,117 @@ impl WalkState<'_, '_> {
         path: FlowPath,
         ty: impl Into<TypeOperand>,
     ) {
-        self.flow_mut().narrow(path, ty.into());
+        let ty = ty.into();
+
+        self.check.record_event(CheckEvent::FlowNarrow {
+            path: path.clone(),
+            value: ty,
+        });
+        self.flow_mut().narrow(path, ty);
     }
 
-    /// Narrow one flow path by excluding one tested type.
-    pub(in crate::check) fn narrow_flow_path_excluding(
+    /// Narrow one flow path with a runtime predicate.
+    pub(in crate::check) fn narrow_flow_path_by(
         &mut self,
         path: FlowPath,
-        original: impl Into<TypeOperand>,
-        excluded: impl Into<TypeOperand>,
+        source: TypeOperand,
+        predicate: NarrowPredicate,
     ) {
-        // build exclusion operation lazily
-        let operation = self.check.inference.push_term(TypeOperationTerm::Exclude {
-            source: original.into(),
-            target: excluded.into(),
-        });
-        let narrowed = self
-            .check
-            .inference
-            .push_term(TypeTerm::Operation(operation));
+        match predicate {
+            // keep matching values
+            NarrowPredicate::Is(target) => {
+                let operation = self
+                    .check
+                    .inference
+                    .push_term(TypeOperationTerm::Extract { source, target });
+                let narrowed = self
+                    .check
+                    .inference
+                    .push_term(TypeTerm::Operation(operation));
 
-        // store narrowed result on the flow path
-        self.flow_mut().narrow(path, narrowed.into());
+                self.narrow_flow_path(path, narrowed);
+            }
+
+            // keep non-matching values
+            NarrowPredicate::IsNot(target) => {
+                let operation = self
+                    .check
+                    .inference
+                    .push_term(TypeOperationTerm::Exclude { source, target });
+                let narrowed = self
+                    .check
+                    .inference
+                    .push_term(TypeTerm::Operation(operation));
+
+                self.narrow_flow_path(path, narrowed);
+            }
+
+            // keep objects with the requested key
+            NarrowPredicate::HasKey(key) => {
+                let unknown = self
+                    .check
+                    .inference
+                    .push_term(TypeTerm::Literal(TypeLiteralTerm::Unknown))
+                    .into();
+                let target = self.member_shape_type(key, unknown);
+                let predicate = NarrowPredicate::Is(target);
+
+                self.narrow_flow_path_by(path, source, predicate);
+            }
+        }
+    }
+
+    /// Narrow one base flow path from a member predicate.
+    pub(in crate::check) fn narrow_base_flow_path_by_member(
+        &mut self,
+        path: FlowPath,
+        source: TypeOperand,
+        key: dir::StaticKey,
+        predicate: NarrowPredicate,
+    ) {
+        let predicate = match predicate {
+            // keep parent values with a matching member type
+            NarrowPredicate::Is(ty) => {
+                let target = self.member_shape_type(key, ty);
+
+                NarrowPredicate::Is(target)
+            }
+
+            // keep parent values without a matching member type
+            NarrowPredicate::IsNot(ty) => {
+                let target = self.member_shape_type(key, ty);
+
+                NarrowPredicate::IsNot(target)
+            }
+
+            // keep parent values with a member that has the nested key
+            NarrowPredicate::HasKey(member_key) => {
+                let unknown = self
+                    .check
+                    .inference
+                    .push_term(TypeTerm::Literal(TypeLiteralTerm::Unknown))
+                    .into();
+                let member = self.member_shape_type(member_key, unknown);
+                let target = self.member_shape_type(key, member);
+
+                NarrowPredicate::Is(target)
+            }
+        };
+
+        self.narrow_flow_path_by(path, source, predicate);
+    }
+
+    /// Return one structural member shape type.
+    fn member_shape_type(&mut self, key: dir::StaticKey, ty: TypeOperand) -> TypeOperand {
+        let member = ShapeMember::Field {
+            key,
+            ty,
+            is_optional: false,
+            is_readonly: false,
+        };
+        let target = self.check.push_shape_type(vec![member].into());
+
+        self.check.inference.push_term(target).into()
     }
 
     /// Clear flow narrowings invalidated by mutating an expression.
