@@ -216,14 +216,9 @@ extension<T, E> of AsyncResult<T, E> {
         AsyncResult(Promise.resolve(result))
     }
 
-    /// Wrap a promise by mapping rejection into a typed error.
-    static fromPromise(promise: Promise<T>, recover: (error: unknown) => E): AsyncResult<T, E> {
-        AsyncResult(
-            promise.then(
-                (value) => Result.ok(value),
-                (error) => Result.err(recover(error)),
-            ),
-        )
+    /// Lift an infallible promise into an async result.
+    static fromPromise(promise: Promise<T>): AsyncResult<T, E> {
+        AsyncResult(promise.then((value) => Result.ok(value)))
     }
 
     /// Map the success value.

@@ -76,15 +76,14 @@ out satisfies Result<int, string>;
 
 ### AsyncResult wraps Promise Result
 
-`AsyncResult<T, E>` keeps promise rejection outside typed error flow.
+A Destack `Promise<T>` never rejects, so an infallible promise lifts into `AsyncResult` directly.
 
 ```ds
 newtype NetworkError = string;
 
 declare function request(): Promise<string>;
-declare function recover(error: unknown): NetworkError;
 
-const value = AsyncResult.fromPromise(request(), recover);
+const value: AsyncResult<string, NetworkError> = AsyncResult.fromPromise(request());
 
 value satisfies AsyncResult<string, NetworkError>;
 ```
