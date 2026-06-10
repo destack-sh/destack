@@ -208,17 +208,8 @@ define_language_items! {
             /// Promise class.
             Promise => (Class, "async/promise", "Promise"),
 
-            /// Fulfilled promise settled result.
-            PromiseFulfilledResult => (Struct, "async/promise", "PromiseFulfilledResult"),
-
-            /// Rejected promise settled result.
-            PromiseRejectedResult => (Struct, "async/promise", "PromiseRejectedResult"),
-
             /// Promise resolver pair.
             PromiseResolvers => (Struct, "async/promise", "PromiseResolvers"),
-
-            /// Promise settled result newtype.
-            PromiseSettledResult => (Newtype, "async/promise", "PromiseSettledResult"),
         }
     }
 

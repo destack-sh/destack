@@ -3,92 +3,6 @@ import { Iterable } from "destack:iter";
 
 import { queueMicrotask } from "./continuation.ds";
 
-/// Function that resolves a promise.
-export type PromiseResolve<T> = (value: T | Promise<T>) => void;
-
-/// Function that rejects a promise.
-export type PromiseReject = (reason?: unknown) => void;
-
-/// Function that starts a promise.
-export type PromiseExecutor<T> = (resolve: PromiseResolve<T>, reject: PromiseReject) => void;
-
-/// Promise with its resolving functions.
-@languageItem("async.PromiseResolvers")
-export struct PromiseResolvers<T> {
-    /// The created promise.
-    promise: Promise<T>;
-
-    /// Resolve the promise.
-    resolve: PromiseResolve<T>;
-
-    /// Reject the promise.
-    reject: PromiseReject;
-}
-
-/// Pending promise state.
-interface PromisePending<T> {
-    /// The state tag.
-    kind: "pending";
-
-    /// Continuations waiting for settlement.
-    reactions: PromiseReaction<T>[];
-}
-
-/// Fulfilled promise state.
-interface PromiseFulfilled<T> {
-    /// The state tag.
-    kind: "fulfilled";
-
-    /// The fulfilled value.
-    value: T;
-}
-
-/// Rejected promise state.
-interface PromiseRejected {
-    /// The state tag.
-    kind: "rejected";
-
-    /// The rejection reason.
-    reason: unknown;
-}
-
-/// Current promise state.
-type PromiseState<T> = PromisePending<T> | PromiseFulfilled<T> | PromiseRejected;
-
-/// Promise continuation callbacks.
-interface PromiseReaction<T> {
-    /// Fulfillment callback.
-    onFulfilled: (value: T) => void;
-
-    /// Rejection callback.
-    onRejected: (error: unknown) => void;
-}
-
-/// Fulfilled `Promise.allSettled` result.
-@languageItem("async.PromiseFulfilledResult")
-export struct PromiseFulfilledResult<T> {
-    /// The result status.
-    status: "fulfilled" = "fulfilled";
-
-    /// The fulfilled value.
-    value: T;
-}
-
-/// Rejected `Promise.allSettled` result.
-@languageItem("async.PromiseRejectedResult")
-export struct PromiseRejectedResult {
-    /// The result status.
-    status: "rejected" = "rejected";
-
-    /// The rejection reason.
-    reason: unknown;
-}
-
-/// Settled promise result.
-@languageItem("async.PromiseSettledResult")
-@derive(Tagged)
-export newtype PromiseSettledResult<T> = PromiseFulfilledResult<T> | PromiseRejectedResult;
-
 /// Worker-local async result object.
 @languageItem("async.Promise")
 export class Promise<T> {
@@ -102,49 +16,26 @@ export class Promise<T> {
         let resolve: PromiseResolve<T> = (value) => {
             this.resolve(value);
         };
-        let reject: PromiseReject = (reason) => {
-            this.reject(reason);
-        };
 
-        executor(resolve, reject);
+        executor(resolve);
     }
 
     /// Continue when the promise fulfills.
-    then<U, F = never>(
-        onFulfilled: (value: T) => U | Promise<U>,
-        onRejected?: (error: unknown) => F | Promise<F>,
-    ): Promise<U | F> {
-        new Promise<U | F>((resolve, reject) => {
+    then<U>(onFulfilled: (value: T) => U | Promise<U>): Promise<U> {
+        new Promise<U>((resolve) => {
             this.react({
                 onFulfilled: (value) => {
-                    Promise.resolve(onFulfilled(value)).then(resolve, reject);
-                },
-                onRejected: (error) => {
-                    if (onRejected == undefined) {
-                        reject(error);
-                    } else {
-                        Promise.resolve(onRejected(error)).then(resolve, reject);
-                    }
+                    resolve(onFulfilled(value));
                 },
             });
         })
     }
 
-    /// Continue when the promise rejects.
-    catch<U>(onRejected: (error: unknown) => U | Promise<U>): Promise<T | U> {
-        this.then((value) => value, onRejected)
-    }
-
-    /// Continue when the promise settles.
+    /// Continue after the promise fulfills, keeping the value.
     finally(onFinally: () => void | Promise<void>): Promise<T> {
-        this.then(
-            (value) => {
-                Promise.resolve(onFinally()).then(() => value)
-            },
-            (error) => {
-                Promise.resolve(onFinally()).then(() => Promise.reject<T>(error))
-            },
-        )
+        this.then((value) => {
+            Promise.resolve(onFinally()).then(() => value)
+        })
     }
 
     /// Create a fulfilled promise.
@@ -152,17 +43,10 @@ export class Promise<T> {
         if (value instanceof Promise) {
             value as Promise<T>
         } else {
-            new Promise<T>((resolve, _reject) => {
+            new Promise<T>((resolve) => {
                 resolve(value as T);
             })
         }
-    }
-
-    /// Create a rejected promise.
-    static reject<T = never>(reason?: unknown): Promise<T> {
-        new Promise<T>((_resolve, reject) => {
-            reject(reason);
-        })
     }
 
     /// Wait for all promises.
@@ -170,48 +54,30 @@ export class Promise<T> {
         todo("Promise.all")
     }
 
-    /// Wait for the first settled promise.
+    /// Wait for the first fulfilled promise.
     static race<T>(values: Iterable<T | Promise<T>>): Promise<T> {
         todo("Promise.race")
     }
 
-    /// Wait for the first fulfilled promise.
-    static any<T>(values: Iterable<T | Promise<T>>): Promise<T> {
-        todo("Promise.any")
-    }
-
-    /// Wait for all promises and keep fulfillment or rejection.
-    static allSettled<T>(values: Iterable<T | Promise<T>>): Promise<PromiseSettledResult<T>[]> {
-        todo("Promise.allSettled")
-    }
-
-    /// Create a promise with exposed resolving functions.
+    /// Create a promise with an exposed resolving function.
     static withResolvers<T>(): PromiseResolvers<T> {
         let resolve: PromiseResolve<T> | undefined = undefined;
-        let reject: PromiseReject | undefined = undefined;
-        let promise = new Promise<T>((innerResolve, innerReject) => {
+        let promise = new Promise<T>((innerResolve) => {
             resolve = innerResolve;
-            reject = innerReject;
         });
 
         PromiseResolvers {
             promise,
             resolve: resolve!,
-            reject: reject!,
         }
     }
 
     /// Resolve this promise with a value or another promise.
     private resolve(value: T | Promise<T>): void {
         if (value instanceof Promise) {
-            value.then(
-                (value) => {
-                    this.fulfill(value);
-                },
-                (error) => {
-                    this.reject(error);
-                },
-            );
+            value.then((value) => {
+                this.fulfill(value);
+            });
         } else {
             this.fulfill(value);
         }
@@ -226,15 +92,6 @@ export class Promise<T> {
         }
     }
 
-    /// Reject this promise with a final reason.
-    private reject(reason?: unknown): void {
-        if (this.state.kind == "pending") {
-            let reactions = this.state.reactions;
-            this.state = { kind: "rejected", reason };
-            this.queueReactions(reactions);
-        }
-    }
-
     /// Add or schedule one reaction.
     private react(reaction: PromiseReaction<T>): void {
         if (this.state.kind == "pending") {
@@ -244,21 +101,62 @@ export class Promise<T> {
         }
     }
 
-    /// Schedule reactions after settlement.
+    /// Schedule reactions after fulfillment.
     private queueReactions(reactions: PromiseReaction<T>[]): void {
         for (let index: number = 0; index < reactions.length; index += 1) {
             this.queueReaction(reactions[index]);
         }
     }
 
-    /// Schedule one reaction after settlement.
+    /// Schedule one reaction after fulfillment.
     private queueReaction(reaction: PromiseReaction<T>): void {
         queueMicrotask(() => {
             if (this.state.kind == "fulfilled") {
                 reaction.onFulfilled(this.state.value);
-            } else if (this.state.kind == "rejected") {
-                reaction.onRejected(this.state.reason);
             }
         });
     }
+}
+
+/// Promise with its resolving function.
+@languageItem("async.PromiseResolvers")
+export struct PromiseResolvers<T> {
+    /// The created promise.
+    promise: Promise<T>;
+
+    /// Resolve the promise.
+    resolve: PromiseResolve<T>;
+}
+
+/// Function that resolves a promise.
+export type PromiseResolve<T> = (value: T | Promise<T>) => void;
+
+/// Function that starts a promise.
+export type PromiseExecutor<T> = (resolve: PromiseResolve<T>) => void;
+
+/// Current promise state.
+type PromiseState<T> = PromisePending<T> | PromiseFulfilled<T>;
+
+/// Pending promise state.
+interface PromisePending<T> {
+    /// The state tag.
+    kind: "pending";
+
+    /// Continuations waiting for fulfillment.
+    reactions: PromiseReaction<T>[];
+}
+
+/// Fulfilled promise state.
+interface PromiseFulfilled<T> {
+    /// The state tag.
+    kind: "fulfilled";
+
+    /// The fulfilled value.
+    value: T;
+}
+
+/// Promise continuation callback.
+interface PromiseReaction<T> {
+    /// Fulfillment callback.
+    onFulfilled: (value: T) => void;
 }

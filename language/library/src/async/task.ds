@@ -1,45 +1,63 @@
 import { AsyncResult, todo } from "destack:error";
+import { AsyncDispose } from "destack:memory";
 
 import { Promise } from "./promise.ds";
 
-/// Worker-local asynchronous task.
-export class Task<T> {
-    /// The completion promise.
-    completion: Promise<T>;
+/// Structured owner of spawned tasks.
+///
+/// A scope owns every task spawned into it and cannot exit while children are pending:
+/// disposing the scope cancels the remaining children and awaits their cleanup.
+export class TaskScope implements AsyncDispose {
+    /// Open a new task scope.
+    static open(): TaskScope {
+        todo("TaskScope.open")
+    }
 
-    /// Wait for this task to complete.
-    join(): Promise<T> {
+    /// Spawn a task owned by this scope.
+    spawn<T>(body: () => Promise<T>): Task<T> {
+        todo("TaskScope.spawn")
+    }
+
+    /// Adopt an already pending promise into this scope.
+    adopt<T>(promise: Promise<T>): Task<T> {
+        todo("TaskScope.adopt")
+    }
+
+    /// Cancel all pending children.
+    cancel(): void {
+        todo("TaskScope.cancel");
+    }
+
+    /// Wait for all pending children to complete.
+    join(): Promise<void> {
+        todo("TaskScope.join")
+    }
+
+    /// Cancel remaining children and await their cleanup.
+    asyncDispose(): Promise<void> {
+        todo("TaskScope.asyncDispose")
+    }
+}
+
+/// Worker-local task owned by a `TaskScope`.
+export class Task<T> {
+    /// Wait for the task to complete or cancel.
+    join(): AsyncResult<T, Cancelled> {
         todo("Task.join")
     }
 
     /// Request cancellation.
+    ///
+    /// Cancellation resumes the task's parked continuation into the unwind path at its current
+    /// suspension point: `using` / `finally` / `Drop` cleanup runs, the task ends, and `join()`
+    /// observes `Cancelled`.
     cancel(): void {
         todo("Task.cancel");
     }
 }
 
-/// Owned handle to a spawned task.
-export struct JoinHandle<T> {
-    /// The spawned task.
-    task: Task<T>;
-}
-
-extension<T> of JoinHandle<T> {
-    /// Wait for the task result.
-    join(): AsyncResult<T, unknown> {
-        todo("JoinHandle.join")
-    }
-
-    /// Request task cancellation.
-    cancel(): void {
-        todo("JoinHandle.cancel");
-    }
-}
-
-/// Spawn a worker-local asynchronous task.
-export function spawn<T>(body: () => Promise<T>): JoinHandle<T> {
-    todo("async.spawn")
-}
+/// Cancellation marker observed when joining a cancelled task.
+export struct Cancelled {}
 
 /// Yield back to the local scheduler.
 export function yieldNow(): Promise<void> {
