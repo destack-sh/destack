@@ -201,6 +201,15 @@ pub struct DirExported {
     pub globals: dir::GlobalTable,
 }
 
+impl DirExported {
+    /// Return modules targeted by re-export edges.
+    pub fn reexport_modules(&self) -> impl Iterator<Item = ModuleId> + '_ {
+        self.exports
+            .reexport_modules()
+            .chain(self.globals.reexport_modules())
+    }
+}
+
 /// Resolved import targets for one profile-scoped module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirResolved {
