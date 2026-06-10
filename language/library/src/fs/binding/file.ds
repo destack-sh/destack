@@ -211,6 +211,15 @@ export interface FsFile {
     })
     open(entry: &readonly FilesystemEntry, options: FileOpenOptions): Result<FileHandle, HostError>;
 
+    /// Close one open file handle.
+    @binding("destack.fs.file.close", {
+        effect: "external",
+        requires: ["host.fs.open"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    close(file: FileHandle): Result<void, HostError>;
+
     /// Read bytes from an open file into an output buffer.
     @binding("destack.fs.file.read", {
         effect: "external",
