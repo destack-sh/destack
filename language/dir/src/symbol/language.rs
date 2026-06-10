@@ -585,20 +585,8 @@ define_language_items! {
             /// Panic diagnostic function.
             Panic => (Function, "error/panic", "panic"),
 
-            /// Panic hook context.
-            PanicContext => (Struct, "error/panic", "PanicContext"),
-
-            /// Panic payload marker.
-            PanicPayload => (NewtypeInterface, "error/panic", "PanicPayload"),
-
-            /// Panic with an arbitrary value.
-            PanicAny => (Function, "error/panic", "panicAny"),
-
-            /// Opaque panic value.
-            PanicValue => (Newtype, "error/panic", "Panic"),
-
-            /// Shared unwind safety marker.
-            RefUnwindSafe => (NewtypeInterface, "error/panic", "RefUnwindSafe"),
+            /// Reified panic record.
+            PanicValue => (Struct, "error/panic", "Panic"),
 
             /// Install the panic hook.
             SetPanicHook => (Function, "error/panic", "setPanicHook"),
@@ -611,9 +599,6 @@ define_language_items! {
 
             /// Unreachable-code trap function.
             Unreachable => (Function, "error/panic", "unreachable"),
-
-            /// Unwind safety marker.
-            UnwindSafe => (NewtypeInterface, "error/panic", "UnwindSafe"),
         }
 
         /// `destack:error/result`.
@@ -631,14 +616,6 @@ define_language_items! {
             Result => (Newtype, "error/result", "Result"),
         }
 
-        /// `destack:error/unwind`.
-        unwind {
-            /// Catch an unwinding panic.
-            CatchUnwind => (Function, "error/unwind", "catchUnwind"),
-
-            /// Resume an unwinding panic.
-            ResumePanic => (Function, "error/unwind", "resumePanic"),
-        }
     }
 
     /// Filesystem types.
