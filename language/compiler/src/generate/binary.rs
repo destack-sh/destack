@@ -2,7 +2,7 @@ use crate::{Compiler, CompilerError, CompilerResult, GenerateError, GenerateWarn
 use destack_artifact::ModuleOutput;
 use destack_codegen_native::{CodegenCraneliftError, CodegenCraneliftWarning};
 use destack_mir as mir;
-use destack_repository::{ProfileId, ProviderContext, Target};
+use destack_repository::{ArtifactReader, ProfileId, ProviderContext, Target};
 use destack_source::{ModuleId, TargetId};
 
 use super::GenerateState;
@@ -16,12 +16,12 @@ impl Compiler {
         target_id: &TargetId,
         profile: ProfileId,
         context: &dyn ProviderContext,
+        artifacts: &ArtifactReader<'_>,
     ) -> CompilerResult<ModuleOutput> {
         // load the owning module once for backend context
         let module = self.module(context.revision(), module_id)?;
 
         // load the MIR state
-        let artifacts = self.artifact_reader(context);
         let mir_optimized = artifacts
             .mir_optimized(module_id, profile, *target_id)
             .map_err(CompilerError::from)?;

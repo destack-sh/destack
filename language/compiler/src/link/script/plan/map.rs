@@ -2,11 +2,11 @@ use destack_repository::ProviderContext;
 use std::path::{Component, Path, PathBuf};
 
 use crate::link::{SourceMapBuilder, SourceMapMarker};
-use crate::{Compiler, CompilerResult};
+use crate::{CompilerResult, ScriptLinker};
 use destack_codegen_js as js;
 use destack_source::ModuleId;
 
-impl Compiler {
+impl ScriptLinker<'_> {
     /// Build one source map builder for linked script modules.
     pub(crate) fn script_source_map_for_parts(
         &self,
@@ -22,8 +22,8 @@ impl Compiler {
 
         // compose each printed module with one stable source index
         for (part_index, (module_id, printed)) in parts.iter().enumerate() {
-            let module = self.module(context.revision(), *module_id)?;
-            let source_file = self.file(context, module.file_id)?;
+            let module = self.compiler.module(context.revision(), *module_id)?;
+            let source_file = self.compiler.file(context, module.file_id)?;
             let source_path = self.script_source_map_path(
                 package_dir,
                 emitted_source_map_path,
@@ -69,10 +69,12 @@ impl Compiler {
         module_id: ModuleId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<String> {
-        let module = self.module(context.revision(), module_id)?;
+        let module = self.compiler.module(context.revision(), module_id)?;
 
         let Some(source_path) = module.path.as_ref() else {
-            return Ok(self.package_relative_uri_path(package_dir, &module.uri));
+            return Ok(self
+                .compiler
+                .package_relative_uri_path(package_dir, &module.uri));
         };
 
         Ok(

@@ -57,7 +57,6 @@ impl<'a> ScriptLinker<'a> {
         // print each rewritten module after output-level rewrites and minification
         for (module_id, module) in modules {
             let printed = self
-                .compiler
                 .print_script_module(module_id, self.target, file_type, &module, self.context)
                 .map_err(|error| Compiler::link_error(self.package_id, error))?;
 
@@ -96,7 +95,6 @@ impl<'a> ScriptLinker<'a> {
             let module = self.module(*module_id)?;
 
             let files = self
-                .compiler
                 .link_script_output_files(
                     module.as_ref(),
                     &script,
@@ -169,7 +167,7 @@ impl<'a> ScriptLinker<'a> {
                         ),
                     })?;
             let parts = self.render_script_output_parts(output_id, plan, file_type)?;
-            let code = self.compiler.compose_script_text(
+            let code = self.compose_script_text(
                 parts
                     .iter()
                     .map(|(_, printed)| printed.code.clone())
@@ -185,7 +183,6 @@ impl<'a> ScriptLinker<'a> {
                 .map(|location: &OutputLocation| location.path());
             let emitted_source_map_path = source_map_path.unwrap_or_else(|| output_location.path());
             let source_map = self
-                .compiler
                 .script_source_map_for_parts(
                     self.package_dir,
                     emitted_source_map_path,
@@ -195,7 +192,6 @@ impl<'a> ScriptLinker<'a> {
                 )
                 .map_err(|error| Compiler::link_error(self.package_id, error))?;
             let files = self
-                .compiler
                 .link_script_text_files(
                     self.target,
                     file_type,

@@ -1,7 +1,7 @@
 use std::iter;
 use std::path::Path;
 
-use destack_artifact::{ArtifactPayload, ArtifactSidecar, GlobalEnvironment};
+use destack_artifact::{ArtifactKey, ArtifactPayload, ArtifactSidecar, GlobalEnvironment};
 use destack_dir as dir;
 use destack_repository::{ProfileId, ProviderContext};
 use destack_source::{FileContent, ModuleId};
@@ -16,9 +16,26 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        // build independent environment sections
+        // discover environment inputs
         let globals = self.load_global_module_ids(profile, context)?;
-        let language = self.build_language_environment(profile, context)?;
+        let language_modules = self
+            .repository
+            .builtin_package()
+            .module_ids()
+            .collect::<Vec<_>>();
+
+        // require language item declaration artifacts
+        let artifacts = self.artifact_reader(context);
+        let mut requirements = Vec::with_capacity(language_modules.len());
+        for module in &language_modules {
+            requirements.push(ArtifactKey::dir_bound(*module, profile));
+        }
+        artifacts
+            .require_all(requirements.as_slice())
+            .map_err(CompilerError::from)?;
+
+        // build independent environment sections
+        let language = self.build_language_environment(profile, &artifacts, &language_modules)?;
         let environment = GlobalEnvironment { language, globals };
 
         Ok(ArtifactPayload::GlobalEnvironment(environment))
@@ -69,10 +86,19 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        // load provider inputs
+        // require provider inputs
         let profile_id = profile;
         let profile_state = self.profile(context.revision(), profile_id)?;
         let artifacts = self.artifact_reader(context);
+        let requirements = [
+            ArtifactKey::dir_bound(module, profile_id),
+            ArtifactKey::dependency_index(profile_id),
+        ];
+        artifacts
+            .require_all(&requirements)
+            .map_err(CompilerError::from)?;
+
+        // load provider inputs
         let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
         let bound = artifacts
             .dir_bound(module, profile_id)

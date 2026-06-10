@@ -2,7 +2,7 @@ use crate::{Compiler, CompilerError, CompilerResult, GenerateError, GenerateWarn
 use destack_artifact::ModuleOutput;
 use destack_codegen_js::{CodegenJsError, CodegenJsWarning};
 use destack_dir as dir;
-use destack_repository::{ProfileId, ProviderContext, Target};
+use destack_repository::{ArtifactReader, ProfileId, ProviderContext, Target};
 use destack_source::ModuleId;
 
 use super::GenerateState;
@@ -15,9 +15,9 @@ impl Compiler {
         target: &Target,
         profile: ProfileId,
         context: &dyn ProviderContext,
+        artifacts: &ArtifactReader<'_>,
     ) -> CompilerResult<ModuleOutput> {
         // snapshot module for this generate pass
-        let artifacts = self.artifact_reader(context);
         let module = self.module(context.revision(), module_id)?;
         let parsed = artifacts
             .dir_parsed(module_id)

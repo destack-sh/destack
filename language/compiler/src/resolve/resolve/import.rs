@@ -6,22 +6,51 @@ use crate::resolve::resolve::{ExportLookup, ExportTarget};
 use crate::resolve::state::{ModuleClause, ResolveState};
 
 impl ResolveState<'_> {
-    /// Resolve import and re-export clauses from active roots.
+    /// Collect import and re-export clauses from active roots.
     ///
     /// Example:
     /// ```ds
     /// import { value } from "./dep.ds";
     /// export { value } from "./dep.ds";
     /// ```
-    pub(in crate::resolve) fn resolve_module_clauses(
+    pub(in crate::resolve) fn collect_module_clauses(
         &mut self,
         roots: &[dir::LocalNodeId<dir::Expression>],
-    ) -> CompilerResult<()> {
-        let clauses = roots
-            .iter()
-            .filter_map(|root| self.module_clause_for_root(*root))
-            .collect::<Vec<_>>();
+    ) {
+        for root in roots {
+            let Some(clause) = self.module_clause_for_root(*root) else {
+                continue;
+            };
 
+            self.module_clauses.push(clause);
+        }
+    }
+
+    /// Return exported modules required by collected module clauses.
+    pub(in crate::resolve) fn module_clause_targets(&self) -> impl Iterator<Item = ModuleId> + '_ {
+        self.module_clauses.iter().filter_map(|clause| {
+            let source = match clause {
+                ModuleClause::Import { expression_id, .. }
+                | ModuleClause::ReExport { expression_id, .. } => {
+                    expression_id.into_global_any(self.module)
+                }
+            };
+
+            self.modules
+                .edge_for_source(source, clause.relation())
+                .and_then(|edge| edge.target)
+        })
+    }
+
+    /// Resolve collected import and re-export clauses.
+    ///
+    /// Example:
+    /// ```ds
+    /// import { value } from "./dep.ds";
+    /// export { value } from "./dep.ds";
+    /// ```
+    pub(in crate::resolve) fn resolve_module_clauses(&mut self) -> CompilerResult<()> {
+        let clauses = std::mem::take(&mut self.module_clauses);
         for clause in clauses {
             match clause {
                 ModuleClause::Import {
@@ -239,5 +268,15 @@ impl ResolveState<'_> {
         }
 
         Ok(())
+    }
+}
+
+impl ModuleClause {
+    /// Return the module relation represented by this clause.
+    fn relation(&self) -> dir::ModuleRelation {
+        match self {
+            Self::Import { .. } => dir::ModuleRelation::Import,
+            Self::ReExport { .. } => dir::ModuleRelation::ReExport,
+        }
     }
 }

@@ -1,4 +1,4 @@
-use destack_repository::ProviderContext;
+use destack_repository::{ArtifactReader, ProviderContext};
 use std::path::Path;
 
 use crate::{Compiler, LinkResult};
@@ -12,6 +12,8 @@ pub(crate) struct BinaryLinker<'a> {
     pub(super) compiler: &'a Compiler,
     /// The pinned revision used by this link.
     pub(super) context: &'a dyn ProviderContext,
+    /// The provider-scoped artifact reader.
+    pub(super) artifacts: &'a ArtifactReader<'a>,
     /// The package directory that anchors output resolution.
     pub(super) package_dir: &'a Path,
     /// The configured root directory when one exists.
@@ -31,6 +33,7 @@ impl<'a> BinaryLinker<'a> {
     pub(crate) fn new(
         compiler: &'a Compiler,
         context: &'a dyn ProviderContext,
+        artifacts: &'a ArtifactReader<'a>,
         package_dir: &'a Path,
         root_dir: Option<&'a Path>,
         target: &'a Target,
@@ -44,6 +47,7 @@ impl<'a> BinaryLinker<'a> {
         Ok(Self {
             compiler,
             context,
+            artifacts,
             package_dir,
             root_dir,
             target,

@@ -3,7 +3,7 @@ use super::script::ScriptLinker;
 use super::state::LinkState;
 use crate::{Compiler, CompilerError, CompilerResult, LinkError};
 use destack_artifact::{ArtifactPayload, EmitFormat, PackageOutput};
-use destack_repository::{ProviderContext, RepositoryError};
+use destack_repository::{ArtifactReader, ProviderContext, RepositoryError};
 use destack_source::{PackageId, TargetId};
 
 impl Compiler {
@@ -15,17 +15,19 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         let state = LinkState::new(package, target, context);
-        let output = self.link_target(state.package, &state.target, state.context)?;
+        let artifacts = self.artifact_reader(context);
+        let output = self.link_target(state.package, &state.target, state.context, &artifacts)?;
 
         Ok(ArtifactPayload::PackageOutput(output))
     }
 
     /// Link all modules for one target.
-    pub(crate) fn link_target(
-        &self,
+    pub(crate) fn link_target<'a>(
+        &'a self,
         package_id: PackageId,
         target_id: &TargetId,
-        context: &dyn ProviderContext,
+        context: &'a dyn ProviderContext,
+        artifacts: &'a ArtifactReader<'a>,
     ) -> CompilerResult<PackageOutput> {
         // load package and target configuration
         let package = self.package(context.revision(), package_id)?;
@@ -54,6 +56,7 @@ impl Compiler {
             EmitFormat::Js | EmitFormat::Ts => ScriptLinker::new(
                 self,
                 context,
+                artifacts,
                 &package_directory,
                 root_directory.as_deref(),
                 &target,
@@ -64,6 +67,7 @@ impl Compiler {
             EmitFormat::Wasm | EmitFormat::Native => BinaryLinker::new(
                 self,
                 context,
+                artifacts,
                 &package_directory,
                 root_directory.as_deref(),
                 &target,

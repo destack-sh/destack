@@ -284,7 +284,7 @@ impl<'a> ScriptLinker<'a> {
         target: &Target,
     ) -> LinkResult<js::Module> {
         match output_graph.bundle_mode() {
-            BundleMode::SingleFile => self.compiler.rewrite_script_module(
+            BundleMode::SingleFile => self.rewrite_script_module(
                 module_id,
                 script,
                 module_set,

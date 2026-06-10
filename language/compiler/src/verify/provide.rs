@@ -1,4 +1,4 @@
-use destack_artifact::{ArtifactPayload, MirVerified};
+use destack_artifact::{ArtifactKey, ArtifactPayload, MirVerified};
 use destack_repository::{ProfileId, ProviderContext};
 use destack_source::{ModuleId, TargetId};
 
@@ -15,9 +15,19 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         let mut state = VerifyState::new(module, profile, target, context);
+        let artifacts = self.artifact_reader(state.context);
 
-        let lowered = self
-            .artifact_reader(state.context)
+        // require provider inputs
+        artifacts
+            .require(ArtifactKey::mir_lowered(
+                state.module,
+                state.profile,
+                state.target,
+            ))
+            .map_err(CompilerError::from)?;
+
+        // load provider inputs
+        let lowered = artifacts
             .mir_lowered(state.module, state.profile, state.target)
             .map_err(CompilerError::from)?;
         let mut tree = lowered.tree.clone();

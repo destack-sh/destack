@@ -115,7 +115,7 @@ impl ScriptLinker<'_> {
             .script_dependency_target(&specifier, Some(target_module));
 
         // keep external targets untouched
-        if !self.compiler.should_bundle_script_dependency(
+        if !self.should_bundle_script_dependency(
             self.module_anchor_span(module_id)?,
             self.package_id,
             self.target_id,
@@ -197,7 +197,7 @@ impl ScriptLinker<'_> {
                 return Ok(Vec::new());
             }
 
-            let replacement = self.compiler.resource_import_replacement(
+            let replacement = self.resource_import_replacement(
                 module,
                 statement_id,
                 module_id,
@@ -213,7 +213,7 @@ impl ScriptLinker<'_> {
                 .collect());
         }
 
-        // reject unsupported import attributes for now
+        // reject unsupported import attributes
         if has_arguments {
             return Err(self.invalid_output_statement(
                 module_id,
@@ -225,7 +225,7 @@ impl ScriptLinker<'_> {
         }
         let profile_id = self.profile_id_for_module(module_id)?;
 
-        let replacement = self.compiler.same_output_import_replacement(
+        let replacement = self.same_output_import_replacement(
             module,
             statement_id,
             module_id,
@@ -234,7 +234,6 @@ impl ScriptLinker<'_> {
             target,
             self.target_id,
             self.package_id,
-            self.context,
         )?;
 
         Ok(replacement

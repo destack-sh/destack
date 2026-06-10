@@ -301,8 +301,7 @@ impl<'a> ScriptLinker<'a> {
         let source_module = source_module.as_ref();
         let profile_id = self.profile_id_for_module(module_id)?;
         let dir = self
-            .compiler
-            .artifact_reader(self.context)
+            .artifacts
             .dir_bound(module_id, profile_id)
             .map_err(|error| LinkError::Internal {
                 anchor: (self.package_id).into(),

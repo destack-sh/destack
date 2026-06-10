@@ -1,6 +1,6 @@
 use std::iter;
 
-use destack_artifact::{ArtifactPayload, ArtifactSidecar, DirParsed};
+use destack_artifact::{ArtifactKey, ArtifactPayload, ArtifactSidecar, DirParsed};
 use destack_dir as dir;
 use destack_repository::{ConditionSet, Module, ProviderContext};
 use destack_source::{FileContent, ModuleId, ProfileId};
@@ -18,8 +18,13 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        // load provider inputs
+        // require provider inputs
         let artifacts = self.artifact_reader(context);
+        artifacts
+            .require(ArtifactKey::dir_parsed(module))
+            .map_err(CompilerError::from)?;
+
+        // load provider inputs
         let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
         let module = self.module(context.revision(), module)?;
         let profile = self.profile(context.revision(), profile)?;

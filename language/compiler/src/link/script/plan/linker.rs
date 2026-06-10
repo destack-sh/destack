@@ -1,6 +1,7 @@
 use std::collections::{HashSet, VecDeque};
 
 use destack_artifact::{ArtifactKey, ModuleOutput};
+use destack_codegen_js::DependencyForm;
 use destack_repository::ProviderError;
 use destack_source::ModuleId;
 use indexmap::IndexSet;
@@ -50,7 +51,7 @@ fn visit_ordered_module(
         return Ok(());
     }
 
-    // tolerate cycles for now and keep their existing relative order
+    // keep dependency cycles in their discovered relative order
     if !active_modules.insert(module_id) {
         return Ok(());
     }
@@ -120,7 +121,7 @@ impl<'a> ScriptLinker<'a> {
 
             // retained static externals
             for dependency in static_script_dependencies(&script.module) {
-                if !self.compiler.should_bundle_script_dependency(
+                if !self.should_bundle_script_dependency(
                     self.module_anchor_span(*module_id)?,
                     self.package_id,
                     self.target_id,
@@ -140,7 +141,7 @@ impl<'a> ScriptLinker<'a> {
                     continue;
                 };
 
-                let should_bundle = self.compiler.should_bundle_script_dependency(
+                let should_bundle = self.should_bundle_script_dependency(
                     self.module_anchor_span(*module_id)?,
                     self.package_id,
                     self.target_id,
@@ -197,8 +198,10 @@ impl<'a> ScriptLinker<'a> {
 
             // resource modules are linked directly from patched module state
             if !module.is_code() {
-                let artifacts = self.compiler.artifact_reader(self.context);
-                match artifacts.require(ArtifactKey::dir_checked(module_id, profile_id)) {
+                match self
+                    .artifacts
+                    .require(ArtifactKey::dir_checked(module_id, profile_id))
+                {
                     Ok(_) => {}
                     Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
                     Err(error) => return Err(CompilerError::from(error)),
@@ -207,17 +210,25 @@ impl<'a> ScriptLinker<'a> {
                 continue;
             }
 
-            let artifacts = self.compiler.artifact_reader(self.context);
-            match artifacts.require(ArtifactKey::module_output(module_id, *self.target_id)) {
-                Ok(_) => {}
-                Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
+            let is_output_ready = match self
+                .artifacts
+                .require(ArtifactKey::module_output(module_id, *self.target_id))
+            {
+                Ok(_) => true,
+                Err(ProviderError::Blocked { keys }) => {
+                    blocked.extend(keys);
+
+                    false
+                }
                 Err(error) => return Err(CompilerError::from(error)),
-            }
+            };
 
             // linked output rewriting and identifier minification still consult
             // the patched dir for source backed code modules
-            let artifacts = self.compiler.artifact_reader(self.context);
-            match artifacts.require(ArtifactKey::dir_checked(module_id, profile_id)) {
+            match self
+                .artifacts
+                .require(ArtifactKey::dir_checked(module_id, profile_id))
+            {
                 Ok(_) => {}
                 Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
                 Err(error) => return Err(CompilerError::from(error)),
@@ -226,13 +237,17 @@ impl<'a> ScriptLinker<'a> {
             required_modules.push(module_id);
 
             // only traverse bundled dependencies after the generated output exists
-            if self
-                .compiler
-                .artifact_reader(self.context)
-                .require(ArtifactKey::module_output(module_id, *self.target_id))
-                .is_err()
-            {
+            if !is_output_ready {
                 continue;
+            }
+
+            let requirements = self.bundled_static_dependency_exports(module_id)?;
+            if !requirements.is_empty() {
+                match self.artifacts.require_all(&requirements) {
+                    Ok(_) => {}
+                    Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
+                    Err(error) => return Err(CompilerError::from(error)),
+                }
             }
 
             for dependency_id in self
@@ -253,6 +268,52 @@ impl<'a> ScriptLinker<'a> {
         Ok(required_modules)
     }
 
+    /// Return exported DIR keys needed by bundled static dependency rewrites.
+    fn bundled_static_dependency_exports(
+        &self,
+        module_id: ModuleId,
+    ) -> CompilerResult<Vec<ArtifactKey>> {
+        let module = self.module(module_id)?;
+        if !module.is_code() {
+            return Ok(Vec::new());
+        }
+
+        let profile_id = self.profile_id_for_module(module_id)?;
+        let artifact = self.module_output(module_id)?;
+        let ModuleOutput::Script(script) = artifact.as_ref() else {
+            return Ok(Vec::new());
+        };
+        let mut requirements = IndexSet::new();
+
+        // collect bundled static dependency export tables
+        for dependency in static_script_dependencies(&script.module) {
+            if dependency.form == DependencyForm::Type {
+                continue;
+            }
+
+            let should_bundle = self
+                .should_bundle_script_dependency(
+                    self.module_anchor_span(module_id)?,
+                    self.package_id,
+                    self.target_id,
+                    self.target,
+                    &dependency.target,
+                )
+                .map_err(CompilerError::from)?;
+            if !should_bundle {
+                continue;
+            }
+
+            let Some(target_module) = dependency.target.module() else {
+                continue;
+            };
+
+            requirements.insert(ArtifactKey::dir_exported(target_module, profile_id));
+        }
+
+        Ok(requirements.into_iter().collect())
+    }
+
     /// Return the bundled internal script dependencies for one generated module.
     fn bundled_script_dependency_modules(&self, module_id: ModuleId) -> LinkResult<Vec<ModuleId>> {
         let module = self.module(module_id)?;
@@ -261,19 +322,17 @@ impl<'a> ScriptLinker<'a> {
             return Ok(Vec::new());
         }
 
-        let mut dependency_modules = self.compiler.bundled_static_script_modules(
+        let mut dependency_modules = self.bundled_static_script_modules(
             module_id,
             self.target,
             self.target_id,
             self.package_id,
-            self.context,
         )?;
-        let dynamic_dependency_modules = self.compiler.bundled_dynamic_script_modules(
+        let dynamic_dependency_modules = self.bundled_dynamic_script_modules(
             module_id,
             self.target,
             self.target_id,
             self.package_id,
-            self.context,
         )?;
 
         dependency_modules.extend(dynamic_dependency_modules);
