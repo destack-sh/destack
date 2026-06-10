@@ -1,0 +1,37 @@
+/**
+ * Closures work like TypeScript's: they capture the surrounding lexical
+ * environment, and captures preserve variable identity by default - every
+ * closure over a variable observes the same storage.
+ * Arrow types are sugar for `Function<Parameters, Return>`.
+ */
+
+let count = 0;
+
+// both closures capture the same `count` storage
+const next = () => {
+    count += 1;
+    return count;
+};
+const read = () => count;
+
+next satisfies () => number;
+next satisfies Function<(), number>;
+
+next();
+next();
+
+console.log(`count=${read()} after two calls`);
+
+// closures close over parameters too
+function counter(start: int): () => int {
+    let current = start;
+    return () => {
+        current += 1;
+        return current;
+    };
+}
+
+const tick = counter(100);
+tick();
+
+console.log(`tick=${tick()}`);

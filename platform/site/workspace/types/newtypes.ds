@@ -1,0 +1,24 @@
+/**
+ * `newtype` adds nominal identity around a backing representation.
+ * (The TS ecosystem commonly resorts to "branding" hacks for this.)
+ * Construction and projection across the backing boundary are explicit and
+ * zero-cost: the `.js` view shows the wrapper erasing completely.
+ */
+
+newtype UserId = uint64;
+newtype OrderId = uint64;
+
+// construction is explicit at the boundary, and free
+const user = UserId(7);
+const order = OrderId(7);
+
+// the backing value comes back out with `as`, also free
+const raw = user as uint64;
+
+// functions keyed to one id type cannot receive the other by accident
+function greet(id: UserId): string {
+    return `user #${id as uint64}`;
+}
+
+console.log(greet(user));
+console.log(`raw=${raw}, same bytes as order=${order as uint64}`);

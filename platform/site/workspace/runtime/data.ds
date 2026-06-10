@@ -1,0 +1,17 @@
+/**
+ * Data files import as modules: parsed at compile time and typed as exact
+ * readonly literals, so configuration mistakes are type errors, not runtime
+ * surprises.
+ */
+
+import config from "./config.json";
+
+// the imported value is typed as the literal shape of the file
+config.server.port satisfies 8080;
+config.server.host satisfies "127.0.0.1";
+
+// reads are ordinary member access, checked like any other
+const limit = config.limits.connections;
+
+console.log(`server=${config.server.host}:${config.server.port}`);
+console.log(`limit=${limit}`);

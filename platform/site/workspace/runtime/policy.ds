@@ -1,0 +1,27 @@
+/**
+ * Policies declare a module's host capability access: allowed effects are
+ * explicit, everything else fails at the binding boundary.
+ * Dependencies get the capabilities you grant them, nothing more.
+ */
+
+import { Result } from "destack:error";
+import { readFile } from "destack:fs";
+
+@policy({
+    // allowed host effects stay explicit
+    allow: [
+        "fs.read:./public",
+        "net.connect:https://api.destack.sh",
+    ],
+    // denied effects fail at the boundary
+    deny: [
+        "process.spawn",
+    ],
+})
+module {}
+
+// this read is inside the allowed scope
+const page = readFile("./public/index.html");
+page satisfies Result<string, unknown>;
+
+console.log(`read ok=${page.isOk()}`);

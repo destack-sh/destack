@@ -1,0 +1,29 @@
+/**
+ * Enums are nominal aliases to a set of constants, as in TypeScript, except they
+ * do not implicitly cast to their backing type.
+ * Like other nominal types they carry instance and static members, and `match`
+ * over an enum is checked for exhaustiveness.
+ */
+
+enum Priority {
+    Low = 1,
+    Medium = 2,
+    High = 3,
+
+    static Default = Priority.Medium;
+
+    label(): string {
+        match (this) {
+            Low => "low"
+            Medium => "medium"
+            High => "high"
+        }
+    }
+}
+
+// conversions to the backing value are explicit
+const level = Priority.High;
+const backing = level as int;
+
+console.log(`default=${Priority.Default.label()}`);
+console.log(`level=${level.label()} backing=${backing}`);

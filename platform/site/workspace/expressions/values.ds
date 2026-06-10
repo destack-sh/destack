@@ -1,0 +1,33 @@
+/**
+ * Almost all statements are expressions that produce values: the last expression
+ * of a block (no trailing semicolon) becomes the block's value, and functions
+ * return their final expression implicitly.
+ */
+
+// conditionals are values
+const mode: string = if (3 > 2) {
+    "forward"
+} else {
+    "reverse"
+};
+
+// functions return their last expression
+function add(a: int, b: int): int {
+    a + b
+}
+
+// `do { ... }` turns a block into an expression where braces would be ambiguous
+const total = do {
+    const base = add(40, 1);
+    base + 1
+};
+
+// if-let matches a refutable pattern, bindings flow into the positive branch
+const maybe: int | null = 7;
+const value = if (let found! = maybe) {
+    found
+} else {
+    0
+};
+
+console.log(`mode=${mode} total=${total} value=${value}`);

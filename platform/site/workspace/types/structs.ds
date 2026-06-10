@@ -1,0 +1,30 @@
+/**
+ * Structs are nominal value types: data with a fixed shape and layout, without
+ * reference identity, constructors, or inheritance.
+ * They are created with the `T { .. }` constructor form, and spreads update
+ * values while keeping the nominal type.
+ */
+
+struct Point {
+    x: float32;
+    y: float32;
+}
+
+// construction uses the struct form, `_` infers the type from context
+const origin = Point { x: 0.0, y: 0.0 };
+const unit: Point = _ { x: 1.0, y: 1.0 };
+
+// struct spreads update fields and stay nominal
+const moved = Point { ...unit, y: 10.0 };
+moved satisfies Point;
+
+// object spreads read struct fields but produce a structural object
+const labeled = { ...moved, label: "moved" };
+labeled satisfies { x: float32; y: float32; label: string };
+
+// and struct expressions can spread compatible object literals back in
+const base = { x: 2.0, y: 3.0 };
+const fromObject: Point = _ { ...base };
+
+console.log(`moved=(${moved.x}, ${moved.y}) ${labeled.label}`);
+console.log(`fromObject=(${fromObject.x}, ${fromObject.y})`);

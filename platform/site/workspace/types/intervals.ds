@@ -1,0 +1,37 @@
+/**
+ * Ranges in type position are interval types: static subsets of bounded scalars
+ * like `int` and `char`.
+ * The compiler does not prove arithmetic stays inside an interval and inserts no
+ * runtime checks - runtime values enter intervals through ordinary narrowing.
+ */
+
+// an interval type is just a precise subset of its scalar type
+type Digit = 0..=9;
+type LowerAscii = 'a'..='z';
+
+const digit: Digit = 7;
+const letter: LowerAscii = 'm';
+
+digit satisfies int;
+letter satisfies char;
+
+// intervals compose with newtypes
+newtype Port = 1..=65535;
+
+// runtime values narrow into the interval through range patterns
+function parsePort(n: int): Result<Port, string> {
+    match (n) {
+        1..=65535 => Result.ok(Port(n))
+        _ => Result.err(`port out of range: ${n}`)
+    }
+}
+
+function describe(n: int): string {
+    match (parsePort(n)) {
+        Ok { value } => `port ${value as int}`
+        Err { error } => error
+    }
+}
+
+console.log(`8080 -> ${describe(8080)}`);
+console.log(`99999 -> ${describe(99999)}`);
