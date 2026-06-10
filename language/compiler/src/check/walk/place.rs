@@ -2,7 +2,8 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    IndexKind, IndexTerm, MemberTerm, Origin, Place, PlaceTarget, TypeTerm, WalkState,
+    IndexKind, IndexTerm, MemberReceiver, MemberTerm, Origin, Place, PlaceTarget, TypeTerm,
+    WalkState,
 };
 
 impl WalkState<'_, '_> {
@@ -50,7 +51,7 @@ impl WalkState<'_, '_> {
 
         // place
         if let Some(place) = self.place_term(id)? {
-            self.bind_node_type_operand(id, place.ty)?;
+            self.constrain_node_type(id, place.ty)?;
         }
 
         Ok(())
@@ -81,9 +82,8 @@ impl WalkState<'_, '_> {
                 ) else {
                     return Ok(None);
                 };
-
                 self.capture_symbol_reference(symbol);
-                self.bind_value_reference(source, symbol)?;
+                self.select_value_reference(source, symbol)?;
                 let ty = self.symbol_type_operand(symbol)?;
 
                 (ty, PlaceTarget::Binding { symbol })
@@ -100,9 +100,8 @@ impl WalkState<'_, '_> {
                 ) else {
                     return Ok(None);
                 };
-
                 self.capture_symbol_reference(symbol);
-                self.bind_value_reference(source, symbol)?;
+                self.select_value_reference(source, symbol)?;
                 let ty = self.symbol_type_operand(symbol)?;
 
                 (ty, PlaceTarget::Binding { symbol })
@@ -121,7 +120,7 @@ impl WalkState<'_, '_> {
                 let key = dir::StaticKey::Name(*name);
                 let member = self.check.inference.push_term(MemberTerm {
                     origin: Origin::Node(source),
-                    owner,
+                    receiver: MemberReceiver::Value(owner),
                     key,
                     arguments: Vec::new().into(),
                 });

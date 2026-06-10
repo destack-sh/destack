@@ -1,6 +1,7 @@
 use destack_dir as dir;
 use indexmap::IndexSet;
 
+use crate::CompilerResult;
 use crate::check::{
     FunctionFrame, GenericArgument, Origin, ReceiverBinding, TypeLiteralTerm, TypeOperand,
     TypeRelation, TypeTerm, VariableId, WalkState,
@@ -41,15 +42,17 @@ impl WalkState<'_, '_> {
     }
 
     /// Leave the current function body.
-    pub(in crate::check) fn leave_function_frame(&mut self) {
+    pub(in crate::check) fn leave_function_frame(&mut self) -> CompilerResult<()> {
         // collect captures and restore outer flow
         let mut capture = self.flow_mut().pop_function();
 
         // attach capture directive from source metadata
-        capture.directive = self.check.capture_directive_for_symbol(capture.symbol);
+        capture.directive = self.check.capture_directive_for_symbol(capture.symbol)?;
 
         // commit capture result
         self.check.module_mut(self.module).captures.push(capture);
+
+        Ok(())
     }
 
     /// Constrain one explicit or implicit return value to the current function.
@@ -70,7 +73,7 @@ impl WalkState<'_, '_> {
         let origin = Origin::Node(source.into_global(self.module));
         let condition = self.flow().active_static_guard();
 
-        self.check.relate_type(
+        self.check.constrain_type(
             origin,
             TypeRelation::Assignable,
             value,
@@ -116,7 +119,7 @@ impl WalkState<'_, '_> {
             };
             let condition = self.flow().active_static_guard();
 
-            self.check.relate_type(
+            self.check.constrain_type(
                 origin,
                 TypeRelation::Assignable,
                 value,
@@ -133,7 +136,7 @@ impl WalkState<'_, '_> {
                 dir::Asynchrony::Sync => dir::LanguageItem::Iterable,
                 dir::Asynchrony::Async => dir::LanguageItem::AsyncIterable,
             };
-            let symbol = self.check.language_symbol(self.module, item);
+            let symbol = self.check.language_symbol(item);
 
             // apply yield delegate channels
             let yield_target = GenericArgument::Type(yield_target.into());
@@ -149,7 +152,7 @@ impl WalkState<'_, '_> {
 
             // require delegated value to implement the protocol
             self.check
-                .relate_type(origin, TypeRelation::Assignable, value, expected, condition);
+                .constrain_type(origin, TypeRelation::Assignable, value, expected, condition);
         }
         // reject malformed delegation
         else {

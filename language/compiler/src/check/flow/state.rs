@@ -3,7 +3,7 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::check::{
     Capture, Condition, ControlTarget, FlowPath, FunctionFrame, Receiver, ReceiverBinding,
-    TryTarget, TypeOperand, VariableId,
+    TryTarget, TypeOperand,
 };
 
 /// Flow state while walking one module.
@@ -13,8 +13,8 @@ pub(in crate::check) struct FlowState {
     pub(in crate::check::flow) functions: Vec<FunctionFrame>,
     /// Static guards currently guarding walked work.
     pub(in crate::check::flow) guards: Vec<Condition>,
-    /// Contextual receivers currently visible outside function bodies.
-    pub(in crate::check::flow) receivers: Vec<Receiver>,
+    /// Contextual receiver scopes currently visible outside function bodies.
+    pub(in crate::check::flow) receivers: Vec<Option<Receiver>>,
     /// Control targets currently visible to `break` and `continue`.
     pub(in crate::check::flow) targets: Vec<ControlTarget>,
     /// Try targets currently visible to `?`.
@@ -145,6 +145,11 @@ impl FlowState {
 
     /// Enter one contextual receiver.
     pub(in crate::check) fn push_receiver(&mut self, receiver: Receiver) {
+        self.receivers.push(Some(receiver));
+    }
+
+    /// Enter one explicit contextual receiver scope.
+    pub(in crate::check) fn push_receiver_scope(&mut self, receiver: Option<Receiver>) {
         self.receivers.push(receiver);
     }
 
@@ -157,7 +162,7 @@ impl FlowState {
 
     /// Return the current contextual receiver.
     pub(in crate::check) fn current_receiver(&self) -> Option<Receiver> {
-        self.receivers.last().copied()
+        self.receivers.last().copied().flatten()
     }
 
     /// Enter one break or continue target.
@@ -244,7 +249,7 @@ impl FlowState {
     pub(in crate::check) fn control_target_result(
         &self,
         index: usize,
-    ) -> (FlowCheckpoint, VariableId) {
+    ) -> (FlowCheckpoint, TypeOperand) {
         let target = &self.targets[index];
 
         (target.checkpoint, target.result)
@@ -410,7 +415,7 @@ impl FlowState {
         // roll back mutations in reverse order
         while self.mutations.len() > checkpoint.mutation_count {
             let Some(change) = self.mutations.pop() else {
-                unreachable!("flow mutation log changed during restore");
+                break;
             };
 
             // undo the latest mutation

@@ -1,12 +1,14 @@
 use destack_dir as dir;
+use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    FunctionParameter, FunctionTerm, GenericArgument, GenericParameterId, Origin, ReceiverBinding,
-    SubstitutionSet, TermId, TypeOperand, TypeRelation, TypeTerm, WalkState,
+    FunctionParameter, FunctionTerm, GenericArgument, GenericInductionPosition, GenericParameterId,
+    GenericTemplateId, Origin, ReceiverBinding, SubstitutionSet, TermId, TypeOperand, TypeRelation,
+    TypeTerm, WalkState,
 };
 
-impl WalkState<'_, '_> {
+impl<'check, 'state> WalkState<'check, 'state> {
     /// Return one function type term from a function signature.
     ///
     /// Example:
@@ -16,24 +18,11 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn function_signature_term(
         &mut self,
         signature: &dir::FunctionSignature,
+        template: Option<GenericTemplateId>,
         receiver_type: Option<TypeOperand>,
         return_type: Option<TypeOperand>,
     ) -> CompilerResult<TermId<FunctionTerm>> {
-        let mut generic_parameters = Vec::new();
-
-        // collect generic parameters
-        for parameter in &signature.generic_parameters {
-            if let Some(parameter) = self.generic_parameter(*parameter)? {
-                generic_parameters.push(parameter);
-            }
-        }
-
-        // collect comptime parameters
-        for parameter in &signature.parameters {
-            if let Some(parameter) = self.comptime_parameter(*parameter)? {
-                generic_parameters.push(parameter);
-            }
-        }
+        let generic_parameters = self.signature_generic_parameters(template);
 
         let this_parameter = if let Some(parameter) = signature.this_parameter {
             self.parameter_type(parameter)?.or(receiver_type)
@@ -78,23 +67,10 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn function_type_term(
         &mut self,
         declaration: &dir::FunctionTypeExpression,
+        template: Option<GenericTemplateId>,
         return_type: Option<TypeOperand>,
     ) -> CompilerResult<TermId<FunctionTerm>> {
-        let mut generic_parameters = Vec::new();
-
-        // collect generic parameters
-        for parameter in &declaration.generic_parameters {
-            if let Some(parameter) = self.generic_parameter(*parameter)? {
-                generic_parameters.push(parameter);
-            }
-        }
-
-        // collect comptime parameters
-        for parameter in &declaration.parameters {
-            if let Some(parameter) = self.comptime_parameter(*parameter)? {
-                generic_parameters.push(parameter);
-            }
-        }
+        let generic_parameters = self.signature_generic_parameters(template);
 
         let this_parameter = if let Some(parameter) = declaration.this_parameter {
             self.parameter_type(parameter)?
@@ -132,23 +108,10 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn constructor_type_term(
         &mut self,
         declaration: &dir::ConstructorType,
+        template: Option<GenericTemplateId>,
         return_type: Option<TypeOperand>,
     ) -> CompilerResult<TermId<FunctionTerm>> {
-        let mut generic_parameters = Vec::new();
-
-        // collect generic parameters
-        for parameter in &declaration.generic_parameters {
-            if let Some(parameter) = self.generic_parameter(*parameter)? {
-                generic_parameters.push(parameter);
-            }
-        }
-
-        // collect comptime parameters
-        for parameter in &declaration.parameters {
-            if let Some(parameter) = self.comptime_parameter(*parameter)? {
-                generic_parameters.push(parameter);
-            }
-        }
+        let generic_parameters = self.signature_generic_parameters(template);
 
         let mut parameters = Vec::new();
 
@@ -169,6 +132,42 @@ impl WalkState<'_, '_> {
         };
 
         Ok(self.check.inference.push_term(function))
+    }
+
+    /// Return generic parameters captured by one callable signature.
+    fn signature_generic_parameters(
+        &self,
+        template: Option<GenericTemplateId>,
+    ) -> SmallVec<[GenericParameterId; 2]> {
+        let mut parameters = SmallVec::new();
+
+        // collect enclosing templates before nested templates
+        if let Some(template) = template {
+            self.collect_signature_generic_parameters(template, &mut parameters);
+        }
+
+        parameters
+    }
+
+    /// Append captured generic parameters from one template.
+    fn collect_signature_generic_parameters(
+        &self,
+        template: GenericTemplateId,
+        parameters: &mut SmallVec<[GenericParameterId; 2]>,
+    ) {
+        let Some(generic_template) = self.check.inference.generic_template(template) else {
+            return;
+        };
+
+        // collect parent parameters first
+        if let Some(parent) = generic_template.parent {
+            self.collect_signature_generic_parameters(parent, parameters);
+        }
+
+        // collect local parameters in declaration order
+        for parameter in &generic_template.parameters {
+            parameters.push(*parameter);
+        }
     }
 
     /// Walk one function body inside a function flow frame.
@@ -195,10 +194,8 @@ impl WalkState<'_, '_> {
         if signature.asynchrony == dir::Asynchrony::Async && !signature.is_generator {
             let source = body.into_global_any(self.module);
             let origin = Origin::Node(source);
-            let completed = self.check.create_type_variable(self.module, origin);
-            let symbol = self
-                .check
-                .language_symbol(self.module, dir::LanguageItem::Promise);
+            let completed = self.check.push_type_variable(self.module, origin);
+            let symbol = self.check.language_symbol(dir::LanguageItem::Promise);
             let argument = GenericArgument::Type(completed.into());
             let promised = TypeTerm::Reference {
                 origin: Origin::Node(source),
@@ -207,8 +204,7 @@ impl WalkState<'_, '_> {
             };
             let promised = self.check.inference.push_term(promised);
             let condition = self.active_static_guard();
-
-            self.check.relate_type(
+            self.check.constrain_type(
                 origin,
                 TypeRelation::Assignable,
                 promised,
@@ -222,9 +218,9 @@ impl WalkState<'_, '_> {
         if signature.is_generator {
             let source = body.into_global_any(self.module);
             let origin = Origin::Node(source);
-            let yielded = self.check.create_type_variable(self.module, origin);
-            let completed = self.check.create_type_variable(self.module, origin);
-            let resumed = self.check.create_type_variable(self.module, origin);
+            let yielded = self.check.push_type_variable(self.module, origin);
+            let completed = self.check.push_type_variable(self.module, origin);
+            let resumed = self.check.push_type_variable(self.module, origin);
             let item = match signature.asynchrony {
                 // function* f() {}
                 dir::Asynchrony::Sync => dir::LanguageItem::Generator,
@@ -232,7 +228,7 @@ impl WalkState<'_, '_> {
                 dir::Asynchrony::Async => dir::LanguageItem::AsyncGenerator,
             };
 
-            let symbol = self.check.language_symbol(self.module, item);
+            let symbol = self.check.language_symbol(item);
             let yielded_argument = GenericArgument::Type(yielded.into());
             let completed_argument = GenericArgument::Type(completed.into());
             let resumed_argument = GenericArgument::Type(resumed.into());
@@ -243,8 +239,7 @@ impl WalkState<'_, '_> {
             };
             let generated = self.check.inference.push_term(generated);
             let condition = self.active_static_guard();
-
-            self.check.relate_type(
+            self.check.constrain_type(
                 origin,
                 TypeRelation::Assignable,
                 generated,
@@ -275,14 +270,14 @@ impl WalkState<'_, '_> {
             self.mark_bindings_assigned(parameter.into_any());
         }
 
-        // walk body and constrain implicit return
+        // walk body and constrain implicit completion
         self.walk_expression(body, self.tree.get(body))?;
         if !Self::is_constructor_signature(signature) && self.expression_can_complete_normally(body)
         {
             self.constrain_function_completion_return(body)?;
         }
 
-        self.leave_function_frame();
+        self.leave_function_frame()?;
 
         Ok(())
     }
@@ -310,20 +305,6 @@ impl WalkState<'_, '_> {
             return Ok(None);
         };
 
-        // optionality is only encoded on non variadic parameters
-        let is_optional = match parameter {
-            // (name?: T)
-            dir::Parameter::Named { is_optional, .. }
-            // ({ name }?: T)
-            | dir::Parameter::Pattern { is_optional, .. } => *is_optional,
-            // (...name: T)
-            dir::Parameter::VariadicNamed { .. }
-            // (...{ name }: T)
-            | dir::Parameter::VariadicPattern { .. }
-            // ignore damaged syntax
-            | dir::Parameter::Error => false,
-        };
-
         // rest parameters are variadic
         let is_rest = matches!(
             parameter,
@@ -337,53 +318,13 @@ impl WalkState<'_, '_> {
                 let Some(symbol) = self.check.module(self.module).declaration_symbol(source) else {
                     return Ok(None);
                 };
-
-                self.check.inference.symbol_generic_parameter(symbol)
+                self.check.inference.generic_parameter_by_symbol(symbol)
             } else {
                 None
             },
-            is_optional,
+            is_inferred: parameter.declared_type().is_none(),
+            is_optional: parameter.is_optional(),
             is_rest,
-        };
-
-        Ok(Some(parameter))
-    }
-
-    /// Return the parameter bound to one generic parameter.
-    fn generic_parameter(
-        &mut self,
-        id: dir::LocalNodeId<dir::GenericParameter>,
-    ) -> CompilerResult<Option<GenericParameterId>> {
-        let source = id.into_any();
-        let Some(symbol) = self.check.module(self.module).declaration_symbol(source) else {
-            return Ok(None);
-        };
-        let Some(parameter) = self.check.inference.symbol_generic_parameter(symbol) else {
-            return Err(crate::CompilerError::Internal {
-                message: format!("generic parameter {symbol:?} was not bound before use"),
-            });
-        };
-
-        Ok(Some(parameter))
-    }
-
-    /// Return the parameter bound to one comptime runtime parameter.
-    fn comptime_parameter(
-        &mut self,
-        id: dir::LocalNodeId<dir::Parameter>,
-    ) -> CompilerResult<Option<GenericParameterId>> {
-        let parameter = self.tree.get(id);
-        if !parameter.is_comptime() {
-            return Ok(None);
-        }
-        let source = id.into_any();
-        let Some(symbol) = self.check.module(self.module).declaration_symbol(source) else {
-            return Ok(None);
-        };
-        let Some(parameter) = self.check.inference.symbol_generic_parameter(symbol) else {
-            return Err(crate::CompilerError::Internal {
-                message: format!("comptime parameter {symbol:?} was not bound before use"),
-            });
         };
 
         Ok(Some(parameter))
@@ -407,19 +348,26 @@ impl WalkState<'_, '_> {
             parameter => parameter.declared_type(),
         };
         let Some(declared_type) = declared_type else {
-            let node = id.into_global_any(self.module);
-            if let Some(ty) = self.check.inputs.node_type(node) {
-                return Ok(Some(ty));
-            }
-            let variable = self.node_type_variable(id)?;
+            let operand = self.node_type_operand(id)?;
 
-            return Ok(Some(variable.into()));
+            return Ok(Some(operand));
         };
 
+        let parameter = self.tree.get(id);
         let source = id.into_global_any(self.module);
         let operand = self.node_type_operand(declared_type)?;
         let condition = self.active_static_guard();
-        let operand = self.induce_transparent_type_operand(source, operand, condition);
+        let operand = self.induce_constraint_type_operand(
+            source,
+            operand,
+            GenericInductionPosition::Parameter,
+            condition,
+        )?;
+        let operand = if parameter.is_optional() {
+            self.optional_value_type(operand)
+        } else {
+            operand
+        };
 
         Ok(Some(operand))
     }

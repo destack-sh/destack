@@ -9,5 +9,6 @@ mod path;
 mod state;
 
 pub(in crate::check) use frame::*;
+pub(in crate::check) use narrowing::*;
 pub(in crate::check) use path::*;
 pub(in crate::check) use state::*;

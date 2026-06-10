@@ -4,9 +4,10 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    FormTerm, GenericInductionSource, MappedParameter, MemberTerm, Origin, Receiver,
-    ReceiverBinding, ShapeMember, StaticOperand, StaticTerm, TupleElement, TypeLiteralTerm,
-    TypeOperand, TypeOperationTerm, TypeRelation, TypeTerm, WalkState,
+    FormTerm, GenericArgument, GenericInductionDeclaration, MappedParameter, MemberReceiver,
+    MemberTerm, Origin, Receiver, ReceiverBinding, ReceiverTerm, ShapeMember, StaticOperand,
+    StaticTerm, TupleElement, TypeLiteralTerm, TypeOperand, TypeOperationTerm, TypeRelation,
+    TypeTerm, WalkState,
 };
 
 impl WalkState<'_, '_> {
@@ -222,323 +223,6 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
-    /// Return one type expression operand without committing a checked node operand.
-    ///
-    /// Example:
-    /// ```ds
-    /// Box<T>
-    /// ```
-    pub(in crate::check) fn type_expression_operand(
-        &mut self,
-        id: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> CompilerResult<TypeOperand> {
-        // use the contextual receiver type for receiver scoped this
-        if matches!(self.tree.get(id), dir::TypeExpression::This) {
-            if let Some(receiver) = self.flow().current_receiver() {
-                return Ok(receiver.ty);
-            }
-        }
-
-        // return direct terms when possible
-        if let Some(term) = self.type_expression_term(id)? {
-            let term = self.check.inference.push_term(term);
-
-            return Ok(term.into());
-        }
-
-        // fall back to an argument local hole
-        let source = id.into_global_any(self.module);
-        let origin = Origin::Node(source);
-        let variable = self.check.create_type_variable(self.module, origin);
-
-        Ok(variable.into())
-    }
-
-    /// Return one type expression term without committing a checked node operand.
-    ///
-    /// Example:
-    /// ```ds
-    /// readonly Box<T>
-    /// ```
-    fn type_expression_term(
-        &mut self,
-        id: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let term = match self.tree.get(id) {
-            // (T)
-            dir::TypeExpression::Parenthesized { expression } => {
-                let operand = self.type_expression_operand(*expression)?;
-                let Some(term) = self.check.type_operand_term(operand)? else {
-                    return Ok(None);
-                };
-
-                term
-            }
-            // 1
-            dir::TypeExpression::ScalarLiteral { value } => {
-                TypeTerm::Literal(TypeLiteralTerm::Scalar(value.clone()))
-            }
-            // null
-            dir::TypeExpression::Literal { value } => {
-                self.type_literal_term(self.module, id, value)
-            }
-            // this
-            dir::TypeExpression::This => TypeTerm::This,
-            // T[]
-            dir::TypeExpression::Array { element } => TypeTerm::Array {
-                element: self.type_expression_operand(*element)?.into(),
-            },
-            // [T]
-            dir::TypeExpression::Slice { element } => TypeTerm::Slice {
-                element: self.type_expression_operand(*element)?.into(),
-            },
-            // [T; N]
-            dir::TypeExpression::FixedArray { element, length } => TypeTerm::FixedArray {
-                element: self.type_expression_operand(*element)?.into(),
-                length: self.walk_static_expression_operand(*length)?,
-            },
-            // T
-            dir::TypeExpression::Reference {
-                path,
-                generic_arguments,
-            } => {
-                if let Some(term) = self.string_mapping_term(path, generic_arguments)? {
-                    term
-                } else {
-                    let Some(term) = self.bind_reference_type_term(id, path, generic_arguments)?
-                    else {
-                        return Ok(None);
-                    };
-
-                    term
-                }
-            }
-            // T.Item
-            dir::TypeExpression::Member {
-                left,
-                name,
-                generic_arguments,
-            } => {
-                let arguments = self.walk_generic_arguments(generic_arguments)?;
-                let owner = self.type_expression_operand(*left)?;
-                let member = self.check.inference.push_term(MemberTerm {
-                    origin: Origin::Node(id.into_global_any(self.module)),
-                    owner,
-                    key: dir::StaticKey::Name(*name),
-                    arguments,
-                });
-
-                TypeTerm::Member(member)
-            }
-            // readonly T
-            dir::TypeExpression::Readonly { target_type } => {
-                let form = self.check.inference.push_term(FormTerm::Readonly);
-
-                TypeTerm::Form {
-                    form,
-                    payload: self.type_expression_operand(*target_type)?.into(),
-                }
-            }
-            // ^T
-            dir::TypeExpression::OwnedOf { target_type, .. } => {
-                let form = self.check.inference.push_term(FormTerm::Owned);
-
-                TypeTerm::Form {
-                    form,
-                    payload: self.type_expression_operand(*target_type)?.into(),
-                }
-            }
-            // &T
-            dir::TypeExpression::BorrowedOf {
-                mutability,
-                target_type,
-                ..
-            } => {
-                let source = id.into_global_any(self.module);
-                let payload = self.type_expression_operand(*target_type)?.into();
-
-                self.borrowed_form_type(self.module, source, *mutability, payload)
-            }
-            // *T
-            dir::TypeExpression::PointerOf { target_type, .. } => {
-                let form = self.check.inference.push_term(FormTerm::Raw);
-
-                TypeTerm::Form {
-                    form,
-                    payload: self.type_expression_operand(*target_type)?.into(),
-                }
-            }
-            // local T
-            dir::TypeExpression::Local { target_type } => {
-                let place = dir::StaticTerm::Place {
-                    place: dir::Place::Space(dir::Space::Local),
-                };
-                let place = self.check.inference.push_term(StaticTerm::Literal(place));
-                let form = self.check.inference.push_term(FormTerm::Placed {
-                    place: place.into(),
-                });
-
-                TypeTerm::Form {
-                    form,
-                    payload: self.type_expression_operand(*target_type)?.into(),
-                }
-            }
-            // shared T
-            dir::TypeExpression::Shared { target_type } => {
-                let place = dir::StaticTerm::Place {
-                    place: dir::Place::Space(dir::Space::Shared),
-                };
-                let place = self.check.inference.push_term(StaticTerm::Literal(place));
-                let form = self.check.inference.push_term(FormTerm::Placed {
-                    place: place.into(),
-                });
-
-                TypeTerm::Form {
-                    form,
-                    payload: self.type_expression_operand(*target_type)?.into(),
-                }
-            }
-            // T!
-            dir::TypeExpression::Must { target_type } => {
-                let source = self.type_expression_operand(*target_type)?;
-                let null = self
-                    .check
-                    .inference
-                    .push_term(TypeTerm::Literal(TypeLiteralTerm::Null));
-                let without_null = self.check.inference.push_term(TypeOperationTerm::Exclude {
-                    source,
-                    target: null.into(),
-                });
-                let without_null = self
-                    .check
-                    .inference
-                    .push_term(TypeTerm::Operation(without_null));
-                let undefined = self
-                    .check
-                    .inference
-                    .push_term(TypeTerm::Literal(TypeLiteralTerm::Undefined));
-                let without_undefined =
-                    self.check.inference.push_term(TypeOperationTerm::Exclude {
-                        source: without_null.into(),
-                        target: undefined.into(),
-                    });
-
-                TypeTerm::Operation(without_undefined)
-            }
-            // keyof T
-            dir::TypeExpression::KeyOf { target_type } => {
-                let target = self.type_expression_operand(*target_type)?;
-                let operation = self
-                    .check
-                    .inference
-                    .push_term(TypeOperationTerm::KeyOf { target });
-
-                TypeTerm::Operation(operation)
-            }
-            // T | U
-            dir::TypeExpression::Union { elements } => {
-                let mut element_terms = Vec::with_capacity(elements.len());
-
-                // collect union operands
-                for element in elements {
-                    element_terms.push(self.type_expression_operand(*element)?);
-                }
-
-                TypeTerm::Union {
-                    elements: element_terms,
-                }
-            }
-            // T & U
-            dir::TypeExpression::Intersection { elements } => {
-                let mut element_terms = Vec::with_capacity(elements.len());
-
-                // collect intersection operands
-                for element in elements {
-                    element_terms.push(self.type_expression_operand(*element)?);
-                }
-
-                TypeTerm::Intersection {
-                    elements: element_terms,
-                }
-            }
-            // T extends U ? X : Y
-            dir::TypeExpression::Conditional {
-                left,
-                extends_type,
-                then_type,
-                else_type,
-            } => {
-                // collect all conditional operands before interning the operation
-                let left = self.type_expression_operand(*left)?;
-                let right = self.type_expression_operand(*extends_type)?;
-                let then_type = self.type_expression_operand(*then_type)?;
-                let else_type = self.type_expression_operand(*else_type)?;
-                let operation = self
-                    .check
-                    .inference
-                    .push_term(TypeOperationTerm::Conditional {
-                        left,
-                        right,
-                        then_type,
-                        else_type,
-                    });
-
-                TypeTerm::Operation(operation)
-            }
-            // T[K]
-            dir::TypeExpression::Index { left, index } => {
-                // collect both sides before interning the operation
-                let left = self.type_expression_operand(*left)?;
-                let index = self.type_expression_operand(*index)?;
-                let operation = self
-                    .check
-                    .inference
-                    .push_term(TypeOperationTerm::Index { left, index });
-
-                TypeTerm::Operation(operation)
-            }
-            // `get${Name}`
-            dir::TypeExpression::TemplateLiteral { strings, spans } => {
-                let mut span_terms = Vec::with_capacity(spans.len());
-
-                // collect template span operands
-                for span in spans {
-                    span_terms.push(self.type_expression_operand(*span)?);
-                }
-                let operation =
-                    self.check
-                        .inference
-                        .push_term(TypeOperationTerm::TemplateLiteral {
-                            strings: strings.to_vec(),
-                            spans: span_terms,
-                        });
-
-                TypeTerm::Operation(operation)
-            }
-            // infer T extends U
-            dir::TypeExpression::Infer {
-                form: dir::InferForm::Infer,
-                name,
-                constraint,
-                ..
-            } => {
-                let constraint = constraint
-                    .map(|constraint| self.type_expression_operand(constraint))
-                    .transpose()?;
-                let operation = self.check.inference.push_term(TypeOperationTerm::Infer {
-                    name: *name,
-                    constraint,
-                });
-
-                TypeTerm::Operation(operation)
-            }
-            // unsupported type expression
-            _ => return Ok(None),
-        };
-
-        Ok(Some(term))
-    }
-
     /// Walk one parenthesized type expression.
     ///
     /// Example:
@@ -553,7 +237,7 @@ impl WalkState<'_, '_> {
         self.walk_type_expression(expression, self.tree.get(expression))?;
 
         let ty = self.node_type_operand(expression)?;
-        self.bind_node_type_operand(id, ty)?;
+        self.set_node_type(id, ty)?;
 
         Ok(())
     }
@@ -570,8 +254,7 @@ impl WalkState<'_, '_> {
         value: &dir::ScalarLiteral,
     ) -> CompilerResult<()> {
         let term = TypeTerm::Literal(TypeLiteralTerm::Scalar(value.clone()));
-
-        self.bind_node_type(id, term)?;
+        self.set_node_type_term(id, term)?;
 
         Ok(())
     }
@@ -588,8 +271,7 @@ impl WalkState<'_, '_> {
         value: &dir::TypeLiteral,
     ) -> CompilerResult<()> {
         let term = self.type_literal_term(self.module, id, value);
-
-        self.bind_node_type(id, term)?;
+        self.set_node_type_term(id, term)?;
 
         Ok(())
     }
@@ -637,7 +319,7 @@ impl WalkState<'_, '_> {
         self.check
             .report_invalid_intrinsic_type(self.module, id.into_any());
 
-        self.bind_node_type(id, TypeTerm::Literal(TypeLiteralTerm::Error))?;
+        self.set_node_type_term(id, TypeTerm::Literal(TypeLiteralTerm::Error))?;
 
         Ok(())
     }
@@ -655,7 +337,7 @@ impl WalkState<'_, '_> {
         self.check
             .report_invalid_const_type(self.module, id.into_any());
 
-        self.bind_node_type(id, TypeTerm::Literal(TypeLiteralTerm::Error))?;
+        self.set_node_type_term(id, TypeTerm::Literal(TypeLiteralTerm::Error))?;
 
         Ok(())
     }
@@ -670,13 +352,20 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<()> {
-        // bind receiver scoped this to the contextual receiver type
+        // use the receiver visible at the declaration site
         if let Some(receiver) = self.flow().current_receiver() {
-            self.bind_node_type_operand(id, receiver.ty)?;
+            let source = id.into_global_any(self.module);
+            let term = self.check.inference.push_term(ReceiverTerm {
+                source,
+                kind: dir::ReceiverKind::This,
+                owner: receiver.owner,
+                ty: receiver.ty,
+            });
+            self.set_node_type_term(id, TypeTerm::Receiver(term))?;
         }
-        // otherwise leave this as an unresolved receiver term
+        // keep standalone `this` substitutable in reusable signatures
         else {
-            self.bind_node_type(id, TypeTerm::This)?;
+            self.set_node_type_term(id, TypeTerm::This)?;
         }
 
         Ok(())
@@ -699,8 +388,7 @@ impl WalkState<'_, '_> {
         }
 
         let term = self.tuple_type_term(elements, dir::TupleForm::Tuple)?;
-
-        self.bind_node_type(id, term)?;
+        self.set_node_type_term(id, term)?;
 
         Ok(())
     }
@@ -722,8 +410,7 @@ impl WalkState<'_, '_> {
         }
 
         let term = self.tuple_type_term(elements, dir::TupleForm::Array)?;
-
-        self.bind_node_type(id, term)?;
+        self.set_node_type_term(id, term)?;
 
         Ok(())
     }
@@ -741,11 +428,14 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         self.walk_type_expression(element, self.tree.get(element))?;
 
-        let term = TypeTerm::Array {
-            element: self.node_type_operand(element)?.into(),
-        };
-
-        self.bind_node_type(id, term)?;
+        let source = id.into_global_any(self.module);
+        let element = self.node_type_operand(element)?;
+        let term = self.language_type_reference(
+            source,
+            dir::LanguageItem::Array,
+            vec![GenericArgument::Type(element)],
+        );
+        self.set_node_type_term(id, term)?;
 
         Ok(())
     }
@@ -763,11 +453,11 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         self.walk_type_expression(element, self.tree.get(element))?;
 
+        let element = self.node_type_operand(element)?;
         let term = TypeTerm::Slice {
-            element: self.node_type_operand(element)?.into(),
+            element: element.into(),
         };
-
-        self.bind_node_type(id, term)?;
+        self.set_node_type_term(id, term)?;
 
         Ok(())
     }
@@ -786,20 +476,19 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         self.walk_type_expression(element, self.tree.get(element))?;
 
-        // check fixed array length in type context
+        // check fixed array length in static context
         let before_length = self.fork_flow();
-
-        self.walk_expression(length, self.tree.get(length))?;
+        self.walk_static_expression(length)?;
         self.restore_flow(before_length);
 
         let condition = self.active_static_guard();
-        let length_variable = self.static_expression_variable(length, condition)?;
+        let element = self.node_type_operand(element)?;
+        let length_variable = self.static_expression_operand(length, condition)?;
         let term = TypeTerm::FixedArray {
-            element: self.node_type_operand(element)?.into(),
+            element: element.into(),
             length: length_variable.into(),
         };
-
-        self.bind_node_type(id, term)?;
+        self.set_node_type_term(id, term)?;
 
         Ok(())
     }
@@ -817,13 +506,12 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         // walk shape members
         for member in members {
-            self.walk_type_member(*member, self.tree.get(*member))?;
+            self.walk_type_member(*member, self.tree.get(*member), None)?;
         }
 
         let members = self.shape_member_terms(members)?;
         let term = self.check.push_shape_type(members);
-
-        self.bind_node_type(id, term)?;
+        self.set_node_type_term(id, term)?;
 
         Ok(())
     }
@@ -839,15 +527,16 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::TypeExpression>,
         declaration: &dir::FunctionTypeExpression,
     ) -> CompilerResult<()> {
-        self.walk_function_type(id.into_global_any(self.module), declaration)?;
+        let source = id.into_global_any(self.module);
+        self.walk_function_type(source, declaration)?;
 
         let return_type = declaration
             .return_type
             .map(|return_type| self.node_type_operand(return_type))
             .transpose()?;
-        let term = self.function_type_term(declaration, return_type)?;
-
-        self.bind_node_type(id, TypeTerm::Function(term))?;
+        let template = self.check.inference.generic_template_by_source(source);
+        let term = self.function_type_term(declaration, template, return_type)?;
+        self.set_node_type_term(id, TypeTerm::Function(term))?;
 
         Ok(())
     }
@@ -863,15 +552,16 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::TypeExpression>,
         declaration: &dir::ConstructorType,
     ) -> CompilerResult<()> {
-        self.walk_constructor_type(id.into_global_any(self.module), declaration)?;
+        let source = id.into_global_any(self.module);
+        self.walk_constructor_type(source, declaration)?;
 
         let return_type = declaration
             .return_type
             .map(|return_type| self.node_type_operand(return_type))
             .transpose()?;
-        let term = self.constructor_type_term(declaration, return_type)?;
-
-        self.bind_node_type(id, TypeTerm::Function(term))?;
+        let template = self.check.inference.generic_template_by_source(source);
+        let term = self.constructor_type_term(declaration, template, return_type)?;
+        self.set_node_type_term(id, TypeTerm::Function(term))?;
 
         Ok(())
     }
@@ -888,13 +578,8 @@ impl WalkState<'_, '_> {
         path: &dir::Path,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     ) -> CompilerResult<()> {
-        if let Some(term) = self.string_mapping_term(path, generic_arguments)? {
-            self.bind_node_type(id, term)?;
-            return Ok(());
-        }
-
-        if let Some(term) = self.bind_reference_type_term(id, path, generic_arguments)? {
-            self.bind_node_type(id, term)?;
+        if let Some(term) = self.walk_reference_type_term(id, path, generic_arguments)? {
+            self.set_node_type_term(id, term)?;
         }
 
         Ok(())
@@ -915,17 +600,25 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         self.walk_type_expression(left, self.tree.get(left))?;
 
+        // collect member arguments
         let arguments = self.walk_generic_arguments(generic_arguments)?;
-        let owner = self.node_type_operand(left)?;
+        let owner = if matches!(self.tree.get(left), dir::TypeExpression::This)
+            && let Some(receiver) = self.flow().current_receiver()
+        {
+            receiver.ty
+        } else {
+            self.node_type_operand(left)?
+        };
+
+        // constrain delayed member projection
         let member = self.check.inference.push_term(MemberTerm {
             origin: Origin::Node(id.into_global_any(self.module)),
-            owner,
+            receiver: MemberReceiver::Value(owner),
             key: dir::StaticKey::Name(name),
             arguments,
         });
         let term = TypeTerm::Member(member);
-
-        self.bind_node_type(id, term)?;
+        self.set_node_type_term(id, term)?;
 
         Ok(())
     }
@@ -944,7 +637,7 @@ impl WalkState<'_, '_> {
         end_kind: dir::RangeEnd,
     ) -> CompilerResult<()> {
         if let Some(term) = self.range_type_term(start, end, end_kind) {
-            self.bind_node_type(id, term)?;
+            self.set_node_type_term(id, term)?;
         }
 
         // walk range boundaries
@@ -976,8 +669,7 @@ impl WalkState<'_, '_> {
             form,
             payload: self.node_type_operand(target_type)?.into(),
         };
-
-        self.bind_node_type(id, term)?;
+        self.set_node_type_term(id, term)?;
 
         Ok(())
     }
@@ -1000,8 +692,7 @@ impl WalkState<'_, '_> {
             form,
             payload: self.node_type_operand(target_type)?.into(),
         };
-
-        self.bind_node_type(id, term)?;
+        self.set_node_type_term(id, term)?;
 
         Ok(())
     }
@@ -1022,9 +713,8 @@ impl WalkState<'_, '_> {
 
         let source = id.into_global_any(self.module);
         let payload = self.node_type_operand(target_type)?.into();
-        let term = self.borrowed_form_type(self.module, source, mutability, payload);
-
-        self.bind_node_type(id, term)?;
+        let term = self.borrowed_form_type(self.module, source, mutability, payload)?;
+        self.set_node_type_term(id, term)?;
 
         Ok(())
     }
@@ -1041,7 +731,7 @@ impl WalkState<'_, '_> {
         source: dir::GlobalNodeIdAny,
         mutability: Option<dir::Mutability>,
         payload: TypeOperand,
-    ) -> TypeTerm {
+    ) -> CompilerResult<TypeTerm> {
         let origin = Origin::Node(source);
         let access = mutability
             .map(dir::Mutability::access)
@@ -1050,15 +740,16 @@ impl WalkState<'_, '_> {
             .check
             .inference
             .push_term(StaticTerm::Literal(dir::StaticTerm::Access { access }));
-        let lifetime = self.check.create_static_variable(module, origin);
+        let lifetime = self.check.push_static_variable(module, origin);
         self.check
-            .induce_language_static_generic(lifetime, "L", dir::LanguageItem::Lifetime);
+            .induce_language_static_generic(lifetime, "L", dir::LanguageItem::Lifetime)?;
+
         let form = self.check.inference.push_term(FormTerm::Borrowed {
             lifetime: lifetime.into(),
             access: access.into(),
         });
 
-        TypeTerm::Form { form, payload }
+        Ok(TypeTerm::Form { form, payload })
     }
 
     /// Walk one pointer type expression.
@@ -1079,8 +770,7 @@ impl WalkState<'_, '_> {
             form,
             payload: self.node_type_operand(target_type)?.into(),
         };
-
-        self.bind_node_type(id, term)?;
+        self.set_node_type_term(id, term)?;
 
         Ok(())
     }
@@ -1109,8 +799,7 @@ impl WalkState<'_, '_> {
             form,
             payload: self.node_type_operand(target_type)?.into(),
         };
-
-        self.bind_node_type(id, term)?;
+        self.set_node_type_term(id, term)?;
 
         Ok(())
     }
@@ -1139,8 +828,7 @@ impl WalkState<'_, '_> {
             form,
             payload: self.node_type_operand(target_type)?.into(),
         };
-
-        self.bind_node_type(id, term)?;
+        self.set_node_type_term(id, term)?;
 
         Ok(())
     }
@@ -1180,8 +868,7 @@ impl WalkState<'_, '_> {
             target: undefined.into(),
         });
         let term = TypeTerm::Operation(without_undefined);
-
-        self.bind_node_type(id, term)?;
+        self.set_node_type_term(id, term)?;
 
         Ok(())
     }
@@ -1197,8 +884,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::TypeExpression>,
         target_type: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<()> {
-        let target = self.create_static_argument_variable(target_type)?;
-        let left = target.into();
+        let left = self.static_argument_operand(target_type)?;
         let right = self
             .check
             .inference
@@ -1211,8 +897,7 @@ impl WalkState<'_, '_> {
             right,
             is_negated: true,
         };
-
-        self.bind_static_value_type(id, value)?;
+        self.set_static_value_type(id, value)?;
 
         Ok(())
     }
@@ -1236,8 +921,7 @@ impl WalkState<'_, '_> {
             .inference
             .push_term(TypeOperationTerm::KeyOf { target });
         let term = TypeTerm::Operation(operation);
-
-        self.bind_node_type(id, term)?;
+        self.set_node_type_term(id, term)?;
 
         Ok(())
     }
@@ -1255,13 +939,11 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         // check type query operand in type context
         let before_value = self.fork_flow();
-
         self.walk_expression(value, self.tree.get(value))?;
         self.restore_flow(before_value);
 
         let ty = self.node_type_operand(value)?;
-
-        self.bind_node_type_operand(id, ty)?;
+        self.set_node_type(id, ty)?;
 
         Ok(())
     }
@@ -1292,8 +974,7 @@ impl WalkState<'_, '_> {
         let term = TypeTerm::Union {
             elements: element_terms,
         };
-
-        self.bind_node_type(id, term)?;
+        self.set_node_type_term(id, term)?;
 
         Ok(())
     }
@@ -1324,8 +1005,7 @@ impl WalkState<'_, '_> {
         let term = TypeTerm::Intersection {
             elements: element_terms,
         };
-
-        self.bind_node_type(id, term)?;
+        self.set_node_type_term(id, term)?;
 
         Ok(())
     }
@@ -1363,8 +1043,7 @@ impl WalkState<'_, '_> {
                 else_type: else_variable,
             });
         let term = TypeTerm::Operation(operation);
-
-        self.bind_node_type(id, term)?;
+        self.set_node_type_term(id, term)?;
 
         Ok(())
     }
@@ -1424,8 +1103,7 @@ impl WalkState<'_, '_> {
             left: self.node_type_operand(left)?,
             right: self.node_type_operand(right)?,
         };
-
-        self.bind_static_value_type(id, value)?;
+        self.set_static_value_type(id, value)?;
 
         Ok(())
     }
@@ -1451,7 +1129,7 @@ impl WalkState<'_, '_> {
         }
 
         if let Some(term) = self.mapped_type_term(parameter, readonly, optional, value)? {
-            self.bind_node_type(id, term)?;
+            self.set_node_type_term(id, term)?;
         }
 
         Ok(())
@@ -1479,8 +1157,7 @@ impl WalkState<'_, '_> {
             index: index_variable,
         });
         let term = TypeTerm::Operation(operation);
-
-        self.bind_node_type(id, term)?;
+        self.set_node_type_term(id, term)?;
 
         Ok(())
     }
@@ -1517,8 +1194,7 @@ impl WalkState<'_, '_> {
                 spans: span_variables,
             });
         let term = TypeTerm::Operation(operation);
-
-        self.bind_node_type(id, term)?;
+        self.set_node_type_term(id, term)?;
 
         Ok(())
     }
@@ -1538,9 +1214,8 @@ impl WalkState<'_, '_> {
             self.walk_type_expression(constraint, self.tree.get(constraint))?;
         }
         let origin = Origin::Node(id.into_global_any(self.module));
-        let variable = self.check.create_type_variable(self.module, origin);
-
-        self.bind_node_type_operand(id, variable.into())?;
+        let variable = self.check.push_type_variable(self.module, origin);
+        self.set_node_type(id, variable.into())?;
 
         Ok(())
     }
@@ -1569,8 +1244,7 @@ impl WalkState<'_, '_> {
             constraint: constraint_variable,
         });
         let term = TypeTerm::Operation(operation);
-
-        self.bind_node_type(id, term)?;
+        self.set_node_type_term(id, term)?;
 
         Ok(())
     }
@@ -1585,21 +1259,15 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::TypeMember>,
         type_member: &dir::TypeMember,
+        induction_declaration: Option<GenericInductionDeclaration>,
     ) -> CompilerResult<()> {
-        // select receiver scope
-        let receiver_scope = match type_member {
-            // static method
-            dir::TypeMember::Method {
-                is_static: true, ..
-            } => None,
-            // instance member
-            _ => self.flow().current_receiver(),
-        };
+        let receiver_scope = self.flow().current_receiver();
 
         // enter static decorator guard
         let Some(_guard) = self.enter_decorated_static_guard(id.into_any(), receiver_scope)? else {
             return Ok(());
         };
+        let _receiver = self.enter_receiver_scope(receiver_scope);
 
         match type_member {
             // field: T
@@ -1611,31 +1279,32 @@ impl WalkState<'_, '_> {
                         .report_missing_type_annotation(self.module, id.into_any());
                 }
 
+                // check computed type member key in declaration context
+                if let dir::Key::Expression(key) = key {
+                    let before_key = self.fork_flow();
+                    self.walk_expression(*key, self.tree.get(*key))?;
+                    self.restore_flow(before_key);
+                }
+
                 if let Some(declared_type) = declared_type {
                     self.walk_type_expression(*declared_type, self.tree.get(*declared_type))?;
                 }
 
-                if let Some(declared_type) = declared_type {
-                    if key.direct_static_key().is_some() {
-                        if let Some(symbol) = self
-                            .check
-                            .module(self.module)
-                            .declaration_symbol(id.into_any())
-                        {
-                            let declared_type = self.node_type_operand(*declared_type)?;
-                            let condition = self.active_static_guard();
+                // constrain direct field symbol type
+                if let Some(declared_type) = declared_type
+                    && key.direct_static_key().is_some()
+                    && let Some(symbol) = self
+                        .check
+                        .module(self.module)
+                        .declaration_symbol(id.into_any())
+                {
+                    let declared_type = self.node_type_operand(*declared_type)?;
+                    let condition = self.active_static_guard();
 
-                            self.bind_symbol_type_operand(symbol, declared_type, condition)?;
-                        }
+                    if let Some(induction_declaration) = induction_declaration {
+                        self.record_generic_induction_site(induction_declaration, declared_type);
                     }
-                }
-
-                // check computed type member key in declaration context
-                if let dir::Key::Expression(key) = key {
-                    let before_key = self.fork_flow();
-
-                    self.walk_expression(*key, self.tree.get(*key))?;
-                    self.restore_flow(before_key);
+                    self.constrain_symbol_type(symbol, declared_type, condition)?;
                 }
             }
             // method(): T
@@ -1649,7 +1318,6 @@ impl WalkState<'_, '_> {
                 // check computed type member key in declaration context
                 if let dir::Key::Expression(key) = key {
                     let before_key = self.fork_flow();
-
                     self.walk_expression(*key, self.tree.get(*key))?;
                     self.restore_flow(before_key);
                 }
@@ -1659,36 +1327,46 @@ impl WalkState<'_, '_> {
                     .module(self.module)
                     .declaration_symbol(id.into_any());
 
-                let owner = receiver_scope.and_then(|scope| scope.owner);
-                let parent =
-                    owner.and_then(|symbol| self.check.inference.symbol_generic_template(symbol));
+                let receiver_owner = self.flow().current_receiver().and_then(|scope| scope.owner);
+                let parent = self.enclosing_generic_template(receiver_scope, induction_declaration);
                 let source = id.into_global_any(self.module);
-                let template = self.signature_template(source, parent, symbol, signature);
+                let template = self.signature_template(source, parent, symbol, signature)?;
 
                 // walk signature before reading its term inputs
                 self.walk_function_signature(template, signature)?;
                 let implicit_receiver_scope = if *is_static { None } else { receiver_scope };
-                let receiver =
-                    self.bind_type_method_receiver(id, signature, owner, implicit_receiver_scope)?;
+                let receiver = self.type_method_receiver_binding(
+                    id,
+                    signature,
+                    receiver_owner,
+                    implicit_receiver_scope,
+                )?;
                 let result =
                     self.function_result_operand(self.module, id.into_any(), signature, *body)?;
 
-                // bind type member method symbol
+                let receiver_type = receiver.map(|receiver| receiver.receiver.ty);
+                let captured_template = template.or(parent);
+                let term = self.function_signature_term(
+                    signature,
+                    captured_template,
+                    receiver_type,
+                    result,
+                )?;
+                let operand = self
+                    .check
+                    .inference
+                    .push_term(TypeTerm::Function(term))
+                    .into();
+                let induction_declaration =
+                    GenericInductionDeclaration::new(source, parent, symbol);
+
+                // collect generics induced by this method type
+                self.record_generic_induction_site(induction_declaration, operand);
+
+                // constrain direct type member method symbol
                 if let Some(symbol) = symbol {
-                    let receiver_type = receiver.map(|receiver| receiver.receiver.ty);
-                    let term = self.function_signature_term(signature, receiver_type, result)?;
                     let condition = self.active_static_guard();
-
-                    let operand = self
-                        .check
-                        .inference
-                        .push_term(TypeTerm::Function(term))
-                        .into();
-
-                    self.check.inference.add_generic_induction_source(
-                        GenericInductionSource::symbol(source, parent, symbol, operand),
-                    );
-                    self.bind_symbol_type_operand(symbol, operand, condition)?;
+                    self.constrain_symbol_type(symbol, operand, condition)?;
                 }
 
                 // walk method body after its result operand exists
@@ -1701,25 +1379,47 @@ impl WalkState<'_, '_> {
             }
             // (...): T
             dir::TypeMember::CallSignature { signature } => {
-                self.walk_function_type(id.into_global_any(self.module), signature)?;
+                let source = id.into_global_any(self.module);
+                self.walk_function_type(source, signature)?;
 
                 let return_type = signature
                     .return_type
                     .map(|return_type| self.node_type_operand(return_type))
                     .transpose()?;
-                let term = self.function_type_term(signature, return_type)?;
-                self.bind_node_type(id, TypeTerm::Function(term))?;
+                let template = self.check.inference.generic_template_by_source(source);
+                let term = self.function_type_term(signature, template, return_type)?;
+                let operand = self
+                    .check
+                    .inference
+                    .push_term(TypeTerm::Function(term))
+                    .into();
+
+                if let Some(induction_declaration) = induction_declaration {
+                    self.record_generic_induction_site(induction_declaration, operand);
+                }
+                self.set_node_type(id, operand)?;
             }
             // new (...): T
             dir::TypeMember::ConstructSignature { signature } => {
-                self.walk_constructor_type(id.into_global_any(self.module), signature)?;
+                let source = id.into_global_any(self.module);
+                self.walk_constructor_type(source, signature)?;
 
                 let return_type = signature
                     .return_type
                     .map(|return_type| self.node_type_operand(return_type))
                     .transpose()?;
-                let term = self.constructor_type_term(signature, return_type)?;
-                self.bind_node_type(id, TypeTerm::Function(term))?;
+                let template = self.check.inference.generic_template_by_source(source);
+                let term = self.constructor_type_term(signature, template, return_type)?;
+                let operand = self
+                    .check
+                    .inference
+                    .push_term(TypeTerm::Function(term))
+                    .into();
+
+                if let Some(induction_declaration) = induction_declaration {
+                    self.record_generic_induction_site(induction_declaration, operand);
+                }
+                self.set_node_type(id, operand)?;
             }
             // [key: K]: V
             dir::TypeMember::IndexSignature {
@@ -1744,23 +1444,10 @@ impl WalkState<'_, '_> {
                     .declaration_symbol(id.into_any());
 
                 // walk generic parameter declarations
+                let source = id.into_global_any(self.module);
+                let parent = self.enclosing_generic_template(receiver_scope, induction_declaration);
                 if let Some(symbol) = symbol {
-                    let parent = receiver_scope
-                        .and_then(|receiver| receiver.owner)
-                        .and_then(|symbol| self.check.inference.symbol_generic_template(symbol));
-                    let source = id.into_global_any(self.module);
-                    let template = (!generic_parameters.is_empty()).then(|| {
-                        self.check
-                            .declare_generic_template(source, parent, Some(symbol))
-                    });
-
-                    for generic_parameter in generic_parameters {
-                        self.walk_generic_parameter(
-                            template.unwrap(),
-                            *generic_parameter,
-                            self.tree.get(*generic_parameter),
-                        )?;
-                    }
+                    self.walk_generic_template(source, parent, Some(symbol), generic_parameters)?;
                 }
 
                 // walk generic constraints
@@ -1778,7 +1465,7 @@ impl WalkState<'_, '_> {
                     self.walk_type_expression(*value, self.tree.get(*value))?;
                 }
 
-                // bind associated type default to its symbol
+                // constrain associated type default to its symbol
                 if let (Some(symbol), Some(value)) = (
                     self.check
                         .module(self.module)
@@ -1787,15 +1474,17 @@ impl WalkState<'_, '_> {
                 ) {
                     let condition = self.active_static_guard();
                     let value = self.node_type_operand(*value)?;
+                    let induction_declaration =
+                        GenericInductionDeclaration::new(source, parent, Some(symbol));
 
-                    self.bind_symbol_type_operand(symbol, value, condition.clone())?;
+                    self.record_generic_induction_site(induction_declaration, value);
+                    self.constrain_symbol_type(symbol, value, condition.clone())?;
 
                     // constrain the default by the associated type bound
                     if let Some(constraint) = constraint {
                         let constraint = self.node_type_operand(*constraint)?;
                         let origin = Origin::Symbol(symbol);
-
-                        self.check.relate_type(
+                        self.check.constrain_type(
                             origin,
                             TypeRelation::Extends,
                             value,
@@ -1827,7 +1516,7 @@ impl WalkState<'_, '_> {
                     self.walk_static_expression(*value)?;
                 }
 
-                // bind associated const outputs to its symbol
+                // constrain associated const outputs to its symbol
                 if let Some(symbol) = self
                     .check
                     .module(self.module)
@@ -1837,18 +1526,16 @@ impl WalkState<'_, '_> {
                     if let Some(declared_type) = declared_type {
                         let declared_type = self.node_type_operand(*declared_type)?;
                         let condition = self.active_static_guard();
-
-                        self.bind_symbol_type_operand(symbol, declared_type, condition)?;
+                        self.constrain_symbol_type(symbol, declared_type, condition)?;
                     }
 
                     // associated const value lives in static space
                     if let Some(value) = value {
-                        let variable = self.symbol_static_variable(symbol)?;
                         let condition = self.active_static_guard();
-                        let value = self.static_expression_variable(*value, condition.clone())?;
-                        let origin = self.check.variable(variable).source;
-
-                        self.check.equate_static(origin, variable, value, condition);
+                        let value = self.static_expression_operand(*value, condition.clone())?;
+                        let symbol = self.symbol_static_operand(symbol)?;
+                        let origin = Origin::Node(id.into_global_any(self.module));
+                        self.check.equate_static(origin, symbol, value, condition);
                     }
                 }
             }
@@ -1874,7 +1561,6 @@ impl WalkState<'_, '_> {
         let Some(_guard) = self.enter_decorated_static_guard(id.into_any(), None)? else {
             return Ok(());
         };
-
         self.walk_type_expression(
             type_mapped_parameter.source_type,
             self.tree.get(type_mapped_parameter.source_type),
@@ -1931,10 +1617,15 @@ impl WalkState<'_, '_> {
         declaration: &dir::FunctionTypeExpression,
     ) -> CompilerResult<()> {
         // walk generic parameter declarations
-        let template = declaration
-            .declares_generic_template(&self.tree)
-            .then(|| self.check.declare_generic_template(source, None, None));
+        let template = if declaration.declares_generic_template(&self.tree) {
+            Some(self.check.declare_generic_template(source, None, None)?)
+        } else {
+            None
+        };
         if let Some(template) = template {
+            for parameter in &declaration.generic_parameters {
+                self.declare_generic_parameter(template, *parameter, self.tree.get(*parameter))?;
+            }
             for parameter in &declaration.generic_parameters {
                 self.walk_generic_parameter(template, *parameter, self.tree.get(*parameter))?;
             }
@@ -1975,10 +1666,15 @@ impl WalkState<'_, '_> {
         declaration: &dir::ConstructorType,
     ) -> CompilerResult<()> {
         // walk generic parameter declarations
-        let template = declaration
-            .declares_generic_template(&self.tree)
-            .then(|| self.check.declare_generic_template(source, None, None));
+        let template = if declaration.declares_generic_template(&self.tree) {
+            Some(self.check.declare_generic_template(source, None, None)?)
+        } else {
+            None
+        };
         if let Some(template) = template {
+            for parameter in &declaration.generic_parameters {
+                self.declare_generic_parameter(template, *parameter, self.tree.get(*parameter))?;
+            }
             for parameter in &declaration.generic_parameters {
                 self.walk_generic_parameter(template, *parameter, self.tree.get(*parameter))?;
             }
@@ -2002,22 +1698,22 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
-    /// Bind the receiver visible inside one type member method.
+    /// Return the receiver visible inside one type member method.
     ///
     /// Example:
     /// ```ds
     /// method(this: Box): number
     /// ```
-    fn bind_type_method_receiver(
+    fn type_method_receiver_binding(
         &mut self,
         id: dir::LocalNodeId<dir::TypeMember>,
         signature: &dir::FunctionSignature,
         owner: Option<dir::GlobalSymbolId>,
         implicit_receiver_scope: Option<Receiver>,
     ) -> CompilerResult<Option<ReceiverBinding>> {
-        // bind explicit `this` parameters before implicit receivers
+        // prefer explicit `this` parameters before implicit receivers
         if let Some(parameter) = signature.this_parameter {
-            let receiver = self.bind_this_parameter_receiver(parameter, owner)?;
+            let receiver = self.this_parameter_receiver_binding(parameter, owner)?;
 
             return Ok(Some(receiver));
         }
@@ -2047,49 +1743,6 @@ impl WalkState<'_, '_> {
             symbol,
             receiver: scope,
         }))
-    }
-
-    /// Return one string mapping reference.
-    ///
-    /// Example:
-    /// ```ds
-    /// Uppercase<Name>
-    /// ```
-    fn string_mapping_term(
-        &mut self,
-        path: &dir::Path,
-        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let Some(mapping) = self.string_mapping_for_path(self.module, path) else {
-            return Ok(None);
-        };
-        let arguments = self.walk_generic_arguments(generic_arguments)?;
-        let Some(argument) = arguments
-            .first()
-            .and_then(|argument| argument.type_operand())
-        else {
-            return Ok(Some(TypeTerm::Literal(TypeLiteralTerm::Error)));
-        };
-        let operation = self
-            .check
-            .inference
-            .push_term(TypeOperationTerm::StringMapping { mapping, argument });
-
-        Ok(Some(TypeTerm::Operation(operation)))
-    }
-
-    /// Return the string mapping named by one path.
-    fn string_mapping_for_path(
-        &self,
-        module: ModuleId,
-        path: &dir::Path,
-    ) -> Option<dir::StringMapping> {
-        let [name] = path.segments.as_slice() else {
-            return None;
-        };
-        let name = self.check.module(module).strings.get(*name);
-
-        dir::StringMapping::try_from(name).ok()
     }
 
     /// Return one compact scalar range type term.
@@ -2370,25 +2023,23 @@ impl WalkState<'_, '_> {
         Ok(Some(TypeTerm::Operation(operation)))
     }
 
-    /// Bind one type expression to the singleton type of a static computation.
-    fn bind_static_value_type(
+    /// Define one type expression as the singleton type of a static computation.
+    fn set_static_value_type(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
         term: StaticTerm,
     ) -> CompilerResult<()> {
         let node = id.into_global_any(self.module);
         let origin = Origin::Node(node);
-        let variable = self.check.create_static_variable(self.module, origin);
+        let variable = self.check.push_static_variable(self.module, origin);
         let condition = self.active_static_guard();
         let term = self.check.inference.push_term(term);
-
         self.check.equate_static(origin, variable, term, condition);
 
         let term = TypeTerm::StaticValue {
             value: StaticOperand::Variable(variable),
         };
-
-        self.bind_node_type(id, term)?;
+        self.set_node_type_term(id, term)?;
 
         Ok(())
     }

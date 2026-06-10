@@ -57,8 +57,7 @@ impl WalkState<'_, '_> {
 
                 if let (Some((value, path)), Some(term)) = (value, term) {
                     let condition = self.active_static_guard();
-
-                    self.check.relate_pattern(
+                    self.check.constrain_pattern(
                         self.module,
                         PatternRelation::Match(term),
                         pattern.into_any(),
@@ -80,7 +79,6 @@ impl WalkState<'_, '_> {
 
                     let variable = self.node_type_operand(*guard)?;
                     let condition = self.active_static_guard();
-
                     self.check.constrain_condition(
                         self.module,
                         guard.into_any(),

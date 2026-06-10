@@ -28,6 +28,11 @@ impl WalkState<'_, '_> {
             return Ok(Some(receiver.receiver));
         }
 
+        // do not inherit declaration receivers into function bodies
+        if self.flow().current_function().is_some() {
+            return Ok(None);
+        }
+
         // fall back to contextual receiver outside function bodies
         if let Some(receiver) = self.flow().current_receiver() {
             self.select_this_receiver(source, receiver)?;

@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    CheckState, Condition, FlowState, Origin, StaticOperand, StaticTerm, TypeOperand, TypeRelation,
-    TypeTerm, VariableId,
+    CheckState, Condition, FlowState, GenericArgument, Origin, StaticOperand, StaticTerm,
+    TypeLiteralTerm, TypeOperand, TypeRelation, TypeTerm,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -56,49 +56,114 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         let variable = self
             .check
-            .create_type_variable(self.module, Origin::Node(node));
+            .push_type_variable(self.module, Origin::Node(node));
         let operand = TypeOperand::Variable(variable);
-
         self.check.inputs.insert_node_type(node, operand)
     }
 
-    /// Return one node type variable, creating it when missing.
-    pub(in crate::check) fn node_type_variable<T: dir::Node + Clone>(
+    /// Return the effective type operand for one value expression.
+    pub(in crate::check) fn expression_type_operand(
         &mut self,
-        id: dir::LocalNodeId<T>,
-    ) -> CompilerResult<VariableId> {
-        let node = id.into_global_any(self.module);
+        id: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<TypeOperand> {
+        if let Some(narrowed) = self.flow_path_narrowing(id) {
+            return Ok(narrowed);
+        }
 
-        self.node_type_operand(id)?
-            .variable()
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!(
-                    "check node {node:?} has a type operand, not an inference variable"
-                ),
-            })
+        self.node_type_operand(id)
     }
 
-    /// Bind one node type term.
-    pub(in crate::check) fn bind_node_type<T: dir::Node + Clone>(
+    /// Constrain one node to equal a type term.
+    pub(in crate::check) fn constrain_node_type_term<T: dir::Node + Clone>(
         &mut self,
         id: dir::LocalNodeId<T>,
         term: TypeTerm,
     ) -> CompilerResult<TypeOperand> {
-        let node = id.into_global_any(self.module);
-        let operand = self.type_term_operand(Origin::Node(node), term)?;
-
-        self.check.inputs.insert_node_type(node, operand)
+        let operand = self.type_term_operand(term);
+        self.constrain_node_type(id, operand)
     }
 
-    /// Bind one node type operand.
-    pub(in crate::check) fn bind_node_type_operand<T: dir::Node + Clone>(
+    /// Set one node's own type term.
+    pub(in crate::check) fn set_node_type_term<T: dir::Node + Clone>(
+        &mut self,
+        id: dir::LocalNodeId<T>,
+        term: TypeTerm,
+    ) -> CompilerResult<TypeOperand> {
+        let operand = self.type_term_operand(term);
+        self.set_node_type(id, operand)
+    }
+
+    /// Set one node's own type operand.
+    pub(in crate::check) fn set_node_type<T: dir::Node + Clone>(
         &mut self,
         id: dir::LocalNodeId<T>,
         operand: TypeOperand,
     ) -> CompilerResult<TypeOperand> {
         let node = id.into_global_any(self.module);
+        let Some(target) = self.check.inputs.node_type(node) else {
+            return self.check.inputs.insert_node_type(node, operand);
+        };
 
-        self.check.inputs.insert_node_type(node, operand)
+        match target {
+            TypeOperand::Variable(_) => {
+                let origin = Origin::Node(node);
+                let condition = self.active_static_guard();
+                self.check
+                    .constrain_type(origin, TypeRelation::Equal, target, operand, condition);
+
+                Ok(target)
+            }
+            TypeOperand::Term(_) | TypeOperand::Type(_) if target == operand => Ok(target),
+            TypeOperand::Term(_) | TypeOperand::Type(_) => Err(CompilerError::Internal {
+                message: format!("check node {node:?} already has a different type operand"),
+            }),
+        }
+    }
+
+    /// Constrain one node to equal a type operand.
+    pub(in crate::check) fn constrain_node_type<T: dir::Node + Clone>(
+        &mut self,
+        id: dir::LocalNodeId<T>,
+        operand: TypeOperand,
+    ) -> CompilerResult<TypeOperand> {
+        let node = id.into_global_any(self.module);
+        let origin = Origin::Node(node);
+        let condition = self.active_static_guard();
+        let target = self.node_type_operand(id)?;
+        self.check
+            .constrain_type(origin, TypeRelation::Equal, target, operand, condition);
+
+        Ok(target)
+    }
+
+    /// Return a reference to one well-known library type.
+    pub(in crate::check) fn language_type_reference(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        item: dir::LanguageItem,
+        arguments: Vec<GenericArgument>,
+    ) -> TypeTerm {
+        let symbol = self.check.language_symbol(item);
+
+        TypeTerm::Reference {
+            origin: Origin::Node(source),
+            symbol,
+            arguments: arguments.into_iter().collect(),
+        }
+    }
+
+    /// Return a value type with `undefined` included.
+    pub(in crate::check) fn optional_value_type(&mut self, operand: TypeOperand) -> TypeOperand {
+        let undefined = self
+            .check
+            .inference
+            .push_term(TypeTerm::Literal(TypeLiteralTerm::Undefined));
+        let term = TypeTerm::Union {
+            elements: vec![operand, undefined.into()],
+        };
+        let term = self.check.inference.push_term(term);
+
+        term.into()
     }
 
     /// Return one symbol type operand, creating it when missing.
@@ -110,14 +175,16 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return Ok(operand);
         }
 
-        // delegate dependency symbols to component state
-        if symbol.module_id != self.module {
-            return self.check.import_symbol_type_operand(self.module, symbol);
+        // require imported operands to be available at the boundary
+        if !self.check.is_component_module(symbol.module_id) {
+            return Err(CompilerError::Internal {
+                message: format!("external symbol {symbol:?} has no imported type operand"),
+            });
         }
 
         if self
             .check
-            .module(self.module)
+            .module(symbol.module_id)
             .is_import_alias(symbol.local_id)
         {
             return Err(CompilerError::Internal {
@@ -125,88 +192,47 @@ impl<'check, 'state> WalkState<'check, 'state> {
             });
         }
 
-        // create walked local declarations on first use
+        // create source declaration operands on first use
         let variable = self
             .check
-            .create_type_variable(self.module, Origin::Symbol(symbol));
+            .push_type_variable(symbol.module_id, Origin::Symbol(symbol));
         let operand = TypeOperand::Variable(variable);
-
         self.check.inputs.insert_symbol_type(symbol, operand)
     }
 
-    /// Return one symbol type variable, creating it when missing.
-    pub(in crate::check) fn symbol_type_variable(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<VariableId> {
-        if symbol.module_id != self.module {
-            return Err(CompilerError::Internal {
-                message:
-                    "check type variable creation requires a source symbol in the active module"
-                        .to_owned(),
-            });
-        }
-
-        self.symbol_type_operand(symbol)?
-            .variable()
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!(
-                    "check symbol {symbol:?} has a type operand, not an inference variable"
-                ),
-            })
-    }
-
-    /// Bind one symbol type term.
-    pub(in crate::check) fn bind_symbol_type(
+    /// Constrain one symbol to equal a type term.
+    pub(in crate::check) fn constrain_symbol_type_term(
         &mut self,
         symbol: dir::GlobalSymbolId,
         term: TypeTerm,
         condition: Condition,
     ) -> CompilerResult<TypeOperand> {
         if let Some(existing) = self.check.inputs.symbol_type(symbol) {
-            return match existing {
-                TypeOperand::Variable(variable) => {
-                    self.check.equate_type(variable, term, condition);
+            let origin = Origin::Symbol(symbol);
+            let term = self.type_term_operand(term);
+            self.check
+                .constrain_type(origin, TypeRelation::Equal, existing, term, condition);
 
-                    Ok(existing)
-                }
-                TypeOperand::Term(_) | TypeOperand::Type(_) => Err(CompilerError::Internal {
-                    message: format!("check symbol {symbol:?} already has a type operand"),
-                }),
-            };
+            return Ok(existing);
         }
 
-        let operand = self.type_term_operand(Origin::Symbol(symbol), term)?;
-
+        let operand = self.type_term_operand(term);
         self.check.inputs.insert_symbol_type(symbol, operand)
     }
 
-    /// Bind one symbol type operand.
-    pub(in crate::check) fn bind_symbol_type_operand(
+    /// Constrain one symbol to equal a type operand.
+    pub(in crate::check) fn constrain_symbol_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
         operand: TypeOperand,
         condition: Condition,
     ) -> CompilerResult<TypeOperand> {
         if let Some(existing) = self.check.inputs.symbol_type(symbol) {
-            return match existing {
-                TypeOperand::Variable(variable) => {
-                    let origin = Origin::Symbol(symbol);
+            let origin = Origin::Symbol(symbol);
+            self.check
+                .constrain_type(origin, TypeRelation::Equal, existing, operand, condition);
 
-                    self.check.relate_type(
-                        origin,
-                        TypeRelation::Equal,
-                        variable,
-                        operand,
-                        condition,
-                    );
-
-                    Ok(existing)
-                }
-                TypeOperand::Term(_) | TypeOperand::Type(_) => Err(CompilerError::Internal {
-                    message: format!("check symbol {symbol:?} already has a type operand"),
-                }),
-            };
+            return Ok(existing);
         }
 
         self.check.inputs.insert_symbol_type(symbol, operand)
@@ -224,36 +250,57 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         let variable = self
             .check
-            .create_static_variable(self.module, Origin::Node(node));
+            .push_static_variable(self.module, Origin::Node(node));
         let operand = StaticOperand::Variable(variable);
-
         self.check.inputs.insert_node_static(node, operand)
     }
 
-    /// Return one symbol static variable, creating it when missing.
-    pub(in crate::check) fn symbol_static_variable(
+    /// Constrain one node to equal a static term.
+    pub(in crate::check) fn constrain_node_static<T: dir::Node + Clone>(
+        &mut self,
+        id: dir::LocalNodeId<T>,
+        term: StaticTerm,
+        condition: Condition,
+    ) -> CompilerResult<StaticOperand> {
+        let node = id.into_global_any(self.module);
+        let origin = Origin::Node(node);
+        let target = self.node_static_operand(id)?;
+        let term = self.check.inference.push_term(term);
+        self.check.equate_static(origin, target, term, condition);
+
+        Ok(target)
+    }
+
+    /// Set one node's own static operand.
+    pub(in crate::check) fn set_node_static<T: dir::Node + Clone>(
+        &mut self,
+        id: dir::LocalNodeId<T>,
+        operand: StaticOperand,
+    ) -> CompilerResult<StaticOperand> {
+        let node = id.into_global_any(self.module);
+        self.check.inputs.insert_node_static(node, operand)
+    }
+
+    /// Return one symbol static operand, creating it when missing.
+    pub(in crate::check) fn symbol_static_operand(
         &mut self,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<VariableId> {
+    ) -> CompilerResult<StaticOperand> {
         if let Some(operand) = self.check.inputs.symbol_static(symbol) {
-            return operand.variable().ok_or_else(|| CompilerError::Internal {
-                message: format!(
-                    "check symbol {symbol:?} has a static operand, not an inference variable"
-                ),
-            });
+            return Ok(operand);
         }
 
-        if symbol.module_id != self.module {
+        if !self.check.is_component_module(symbol.module_id) {
             return Err(CompilerError::Internal {
                 message:
-                    "check static variable creation requires a source symbol in the active module"
+                    "check static variable creation requires a source symbol in the checked component"
                         .to_owned(),
             });
         }
 
         if self
             .check
-            .module(self.module)
+            .module(symbol.module_id)
             .is_import_alias(symbol.local_id)
         {
             return Err(CompilerError::Internal {
@@ -261,81 +308,45 @@ impl<'check, 'state> WalkState<'check, 'state> {
             });
         }
 
-        // create walked local declarations on first use
+        // create source declaration operands on first use
         let variable = self
             .check
-            .create_static_variable(self.module, Origin::Symbol(symbol));
+            .push_static_variable(symbol.module_id, Origin::Symbol(symbol));
         let operand = StaticOperand::Variable(variable);
-
-        self.check.inputs.insert_symbol_static(symbol, operand)?;
-
-        Ok(variable)
+        self.check.inputs.insert_symbol_static(symbol, operand)
     }
 
-    /// Bind one symbol static term.
-    pub(in crate::check) fn bind_symbol_static(
+    /// Constrain one symbol to equal a static term.
+    pub(in crate::check) fn constrain_symbol_static(
         &mut self,
         symbol: dir::GlobalSymbolId,
         term: StaticTerm,
         condition: Condition,
     ) -> CompilerResult<StaticOperand> {
         if let Some(existing) = self.check.inputs.symbol_static(symbol) {
-            return match existing {
-                StaticOperand::Variable(variable) => {
-                    let origin = Origin::Symbol(symbol);
-                    let term = self.check.inference.push_term(term);
+            let origin = Origin::Symbol(symbol);
+            let term = self.check.inference.push_term(term);
+            self.check.equate_static(origin, existing, term, condition);
 
-                    self.check.equate_static(origin, variable, term, condition);
-
-                    Ok(existing)
-                }
-                StaticOperand::Term(_) | StaticOperand::Static(_) => Err(CompilerError::Internal {
-                    message: format!("check symbol {symbol:?} already has a static operand"),
-                }),
-            };
+            return Ok(existing);
         }
 
         let operand = StaticOperand::Term(self.check.inference.push_term(term));
-
         self.check.inputs.insert_symbol_static(symbol, operand)
     }
 
-    /// Return one static expression variable, creating it when missing.
-    pub(in crate::check) fn static_expression_variable(
+    /// Return one static expression operand, creating it when missing.
+    pub(in crate::check) fn static_expression_operand(
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
         condition: Condition,
-    ) -> CompilerResult<VariableId> {
-        let node = id.into_global_any(self.module);
-        let origin = Origin::Node(node);
-        let variable =
-            self.node_static_operand(id)?
-                .variable()
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!(
-                        "check node {node:?} has a static operand, not an inference variable"
-                    ),
-                })?;
+    ) -> CompilerResult<StaticOperand> {
         let term = StaticTerm::Expression(id.into_global(self.module));
-        let term = self.check.inference.push_term(term);
-
-        self.check.equate_static(origin, variable, term, condition);
-
-        Ok(variable)
+        self.constrain_node_static(id, term, condition)
     }
 
-    /// Create one operand for a type term.
-    fn type_term_operand(&mut self, origin: Origin, term: TypeTerm) -> CompilerResult<TypeOperand> {
-        if term.is_stable(self.check) {
-            let term = self.check.inference.push_term(term);
-
-            return Ok(TypeOperand::Term(term));
-        }
-
-        let variable = self.check.create_type_variable(self.module, origin);
-
-        self.check.equate_type(variable, term, Condition::Always);
-
-        Ok(TypeOperand::Variable(variable))
+    /// Intern one type term as an operand.
+    fn type_term_operand(&mut self, term: TypeTerm) -> TypeOperand {
+        self.check.type_term_operand(term)
     }
 }
