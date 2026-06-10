@@ -51,21 +51,21 @@ function Archive(props: ArchiveProps) {
 
 function PostRow(props: PostRowProps) {
     return (
-        <li class="border-b-2 border-neutral-950">
+        <li class="border-b-2 border-destack-frame">
             <A
-                class="grid gap-3 py-4 hover:bg-white md:grid-cols-[minmax(0,1fr)_auto] md:items-baseline md:px-3"
+                class="grid gap-3 py-4 hover:bg-destack-page md:grid-cols-[minmax(0,1fr)_auto] md:items-baseline md:px-3"
                 href={props.post.route}
             >
                 <span class="grid gap-1">
                     <span class="text-base leading-6 font-black md:text-lg">
                         {props.post.title}
                     </span>
-                    <span class="max-w-2xl text-sm leading-5 font-extrabold text-neutral-500 lowercase">
+                    <span class="max-w-2xl text-sm leading-5 font-extrabold text-destack-soft lowercase">
                         {props.post.subtitle}
                     </span>
                 </span>
 
-                <time class="text-sm font-extrabold whitespace-nowrap text-neutral-500">
+                <time class="text-sm font-extrabold whitespace-nowrap text-destack-soft">
                     {readableDate(props.post.date)}
                 </time>
             </A>

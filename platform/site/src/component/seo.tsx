@@ -3,7 +3,7 @@ import { Link, Meta, Title } from "@solidjs/meta";
 const siteUrl = "https://destack.sh";
 const siteTitle = "Destack";
 const siteDescription =
-    "Destack is a universal software engine for building correct, optimal, integrated software.";
+    "Destack is a universal software engine: one language, one toolchain, and one runtime for libraries, services, and apps, compiled to native and the web.";
 
 type SeoProps = {
     description?: string;
@@ -23,12 +23,14 @@ export function Seo(props: SeoProps) {
             <Title>{title()}</Title>
             <Meta name="description" content={description()} />
             <Meta property="og:description" content={description()} />
+            <Meta property="og:image" content={`${siteUrl}/og.png`} />
             <Meta property="og:site_name" content={siteTitle} />
             <Meta property="og:title" content={title()} />
             <Meta property="og:type" content={type()} />
             <Meta property="og:url" content={url()} />
-            <Meta name="twitter:card" content="summary" />
+            <Meta name="twitter:card" content="summary_large_image" />
             <Meta name="twitter:description" content={description()} />
+            <Meta name="twitter:image" content={`${siteUrl}/og.png`} />
             <Meta name="twitter:title" content={title()} />
             <Link rel="canonical" href={url()} />
         </>

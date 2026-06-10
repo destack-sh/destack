@@ -11,7 +11,7 @@ type BlogArticleProps = {
 
 export function BlogArticle(props: BlogArticleProps) {
     return (
-        <div class="mx-auto grid w-full max-w-[96rem] grid-cols-[minmax(0,56rem)] gap-6 px-4 py-8 md:px-10 md:py-12 2xl:grid-cols-[18rem_minmax(0,56rem)_18rem] 2xl:items-start">
+        <div class="mx-auto grid w-full max-w-[96rem] grid-cols-[minmax(0,56rem)] justify-center gap-6 px-4 py-8 md:px-10 md:py-12 2xl:grid-cols-[18rem_minmax(0,56rem)_18rem] 2xl:items-start">
             <TableOfContents entries={props.post.tableOfContents} />
 
             <div class="relative isolate min-w-0 pr-2 pb-2">
@@ -20,7 +20,7 @@ export function BlogArticle(props: BlogArticleProps) {
                     class="pointer-events-none absolute top-3 right-0 bottom-0 left-3 z-0 bg-size-[3px_3px] bg-[radial-gradient(circle,var(--color-destack-accent)_0_1.15px,transparent_1.3px)]"
                 />
 
-                <article class="relative z-10 grid w-full gap-10 border-2 border-neutral-950 bg-destack-panel px-4 py-6 md:px-8 md:py-8">
+                <article class="relative z-10 grid w-full gap-10 border-2 border-destack-frame bg-destack-panel px-4 py-6 md:px-8 md:py-8">
                     <BlogArticleHeader post={props.post} />
 
                     <div class="grid w-full">
@@ -48,20 +48,20 @@ function BlogArticleHeader(props: BlogArticleHeaderProps) {
     return (
         <header class="grid w-full gap-5">
             <A
-                class="w-max border-b-4 border-neutral-300 text-sm font-extrabold lowercase hover:border-destack-accent"
+                class="w-max border-b-4 border-destack-line text-sm font-extrabold lowercase hover:border-destack-accent"
                 href="/blog/"
             >
                 blog
             </A>
 
-            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-extrabold text-neutral-500 lowercase">
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-extrabold text-destack-soft lowercase">
                 <time>{props.post.date}</time>
                 <span>·</span>
                 <span>{props.post.author}</span>
             </div>
 
             <h1 class="page-title mb-1">{props.post.title}</h1>
-            <p class="text-xl leading-8 font-black text-neutral-700">{props.post.subtitle}</p>
+            <p class="text-xl leading-8 font-black text-destack-soft">{props.post.subtitle}</p>
         </header>
     );
 }
@@ -79,10 +79,10 @@ function TableOfContents(props: TableOfContentsProps) {
                 aria-label="contents"
                 class="sticky top-20 hidden max-h-[calc(100svh-8rem)] overflow-auto pr-3 2xl:block"
             >
-                <p class="mb-3 text-xs font-black tracking-normal text-neutral-500 lowercase">
+                <p class="mb-3 text-xs font-black tracking-normal text-destack-soft lowercase">
                     contents
                 </p>
-                <ol class="grid gap-2 border-l-2 border-neutral-300 pl-3 text-xs leading-5 font-extrabold lowercase">
+                <ol class="grid gap-2 border-l-2 border-destack-line pl-3 text-xs leading-5 font-extrabold lowercase">
                     <For each={props.entries}>
                         {(entry) => (
                             <li
@@ -93,9 +93,9 @@ function TableOfContents(props: TableOfContentsProps) {
                                 <a
                                     class="block border-l-4 py-0.5 pl-2 underline decoration-2 underline-offset-4"
                                     classList={{
-                                        "border-destack-accent text-neutral-950 decoration-destack-accent":
+                                        "border-destack-accent text-destack-text decoration-destack-accent":
                                             activeId() === entry.id,
-                                        "border-transparent text-neutral-500 decoration-neutral-300 hover:text-destack-accent hover:decoration-destack-accent":
+                                        "border-transparent text-destack-soft decoration-destack-line hover:text-destack-accent hover:decoration-destack-accent":
                                             activeId() !== entry.id,
                                     }}
                                     href={`#${entry.id}`}
@@ -177,7 +177,7 @@ function PostNavigation(props: PostNavigationProps) {
     const older = () => props.posts[index() + 1];
 
     return (
-        <nav class="grid gap-3 border-t-2 border-neutral-950 pt-5 md:grid-cols-2">
+        <nav class="grid gap-3 border-t-2 border-destack-frame pt-5 md:grid-cols-2">
             <Show when={newer()}>
                 {(post) => <PostNavigationLink label="newer" post={post()} />}
             </Show>
@@ -197,10 +197,10 @@ type PostNavigationLinkProps = {
 function PostNavigationLink(props: PostNavigationLinkProps) {
     return (
         <A
-            class="grid gap-1 border-2 border-neutral-950 bg-destack-panel p-4 hover:bg-white"
+            class="grid gap-1 border-2 border-destack-frame bg-destack-panel p-4 hover:bg-destack-page"
             href={props.post.route}
         >
-            <span class="text-sm font-extrabold text-neutral-500 lowercase">{props.label}</span>
+            <span class="text-sm font-extrabold text-destack-soft lowercase">{props.label}</span>
             <span class="text-base font-black">{props.post.title}</span>
         </A>
     );

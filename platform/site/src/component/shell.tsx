@@ -12,7 +12,7 @@ type ShellProps = {
 export function Shell(props: ShellProps) {
     return (
         <div
-            class={`grid min-h-svh min-w-0 grid-rows-[3rem_auto_3rem] overflow-x-clip bg-destack-page font-mono text-neutral-950 ${props.class ?? ""}`}
+            class={`grid min-h-svh min-w-0 grid-rows-[3rem_auto_3rem] overflow-x-clip bg-destack-page font-mono text-destack-text ${props.class ?? ""}`}
             classList={{
                 "lg:h-svh lg:grid-rows-[3rem_minmax(0,1fr)_3rem] lg:overflow-hidden":
                     props.isFixed === true,

@@ -1,0 +1,17 @@
+# Destack
+
+> Destack is a universal software engine: one language, one toolchain, and one runtime for libraries, services, and apps, compiled to native and the web from a single tree.
+> The language is strict TypeScript++ - TypeScript-shaped source with value types, nominality, and checked arithmetic.
+> Verification ships as toolchain verbs: destack test, bench, fuzz, and simulate (deterministic fault injection, replayable by seed).
+> Host capability access is deny-by-default and granted per module in source.
+
+## Site
+
+- Home and fiddle (browsable demo workspace): https://destack.sh/
+- Blog: https://destack.sh/blog/
+- Introducing Destack: https://destack.sh/blog/introducing-destack/
+
+## Source
+
+- GitHub: https://github.com/destack-sh/destack
+- npm (TypeScript bridge): https://www.npmjs.com/package/@destack/language
