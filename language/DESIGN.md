@@ -1,6 +1,8 @@
 # Overview
 
-The Destack language (`.ds`) is a superset of "strict modern" TypeScript with support for `.ts` and `.tsx` files, native AOT compilation and a fully integrated toolchain, _and_ it can also compile nicely to standard JS/TS targets.
+The Destack language (`.ds`) is a superset of "strict modern" TypeScript with support for `.ts` and `.tsx` files, true native AOT compilation and a fully integrated toolchain, _and_ it can also "compile" nicely to standard JS/TS targets.
+Strict TypeScript code "just works", but Destack has absolutely **no JavaScript or NPM interoperability**  (see [COMPARISON.md](COMPARISON.md)).
+
 We believe that the ideal way to build correct, optimal, integrated software systems is to build a fully integrated stack, and thus by "language" ("TypeScript++") we mean much more than "just" a coding language: a language, a runtime, a toolchain, plugins, and ultimately, a way of programming.
 
 ## Universality
@@ -15,99 +17,6 @@ The TypeScript ecosystem has good - if not perfect - answers to all modern softw
 
 Excluding the legacy JavaScript baggage and all the dynamic prototype mess, modern TypeScript is surprisingly close to a fully AOT-compilable language (and most browsers retrofit compilation internally already based on these assumptions).
 Embracing TypeScript and "the web ecosystem" lets us build a new toolchain that truly covers the full stack, is immediately familiar to millions of developers, runs transparently on existing targets, and can be completely free of JS overhead and (some) historic baggage.
-
-## Compatibility
-
-**Destack is a superset of the "modern strict" subset of TypeScript**.
-The intended use case for Destack is making TS-shaped code optimal and correct, which requires cutting all accumulated dynamic magic that might smuggle in ambiguity or unsoundness at runtime.
-Accordingly, Destack excludes legacy syntax and all sorts of dynamic shapes and protocols that are not statically sound, and also removes a few rarely used footguns.
-
-It's important to note that Destack deliberately has **no JavaScript or NPM interoperability**: `.ds` code cannot import or call arbitrary JS, and Destack packages cannot depend on npm packages in any way.
-The main reason for this is that to take full advantage of Destack's features and full integration across the stack, we need to essentially rewrite all libraries anyway.
-Earlier versions did support much more general `.js` / `.ds` interop, but that resulted in a huge mess as it invites back in all the ugly stuff (exceptions, dynamic shapes, unsoundness) that we worked so hard to get rid off, which muddies the entire value prop.
-
-### Modules
-
-Destack supports only ESM syntax without namespaces, stringy-modules, and also does not distinguish "type" from "value" imports/exports.
-
-| Feature | Example | Ruling |
-| --- | --- | --- |
-| **Type-only imports / exports** | `import type { User } from "./user"` | supported as plain `import` / `export` aliases, there is but one static module graph |
-| **CommonJS** | `require("x")`, `module.exports` | not supported, a legacy mutable runtime module system |
-| **String module declarations** | `declare module "pkg" { ... }` | not supported, declare real modules instead |
-| **Namespace declarations** | `namespace Name { ... }` | not supported, use real modules with namespace imports or re-exports |
-| **Dynamic module loading** | `import(expr)` | not source-level loading, though JS output may still use dynamic imports for chunking |
-| **Import defer** | `import defer * as ns from "pkg"` | not supported, not real ESM imports (and unclear semantics in AOT) |
-| **Import assertions** | `import data from "./data.json" assert { ... }` | not supported, use standardized `with { ... }` attributes |
-| **String export names** | `export { value as "name" }` | not supported, export names should be identifiers |
-
-### Syntax
-
-Destack does not support JS/TS syntax that conflicts with either Destack-specific features (like `(A, B)` tuples over sequence expressions) or are just plain legacy like `<T>expr` type assertions.
-
-| Feature | Example | Ruling |
-| --- | --- | --- |
-| **Var declarations** | `var x` | not supported, `var` scoping is unnecessary with `const` and `let` |
-| **Ambiguous generic arrow** | `<T>() => value` | not supported, ambiguous with TSX tree syntax, use `<T,>() => value` |
-| **Sequence expressions** | `(a, b, c)` | not supported, parenthesized comma lists are explicit tuples in `.ds` |
-| **Shadowable `undefined`** | `let undefined = value` | not supported, `undefined` is a literal keyword just like `null` |
-| **Single-quoted literals** | `'A'` | `char` in `.ds`, string in `.ts` / `.tsx` |
-| **Type angle assertions** | `<T>value`, `<const>value` | not supported, use `value as T`, `value satisfies T`, or `value as const` |
-| **Private fields** | `#field` | not supported, redundant with real `private` in `.ds` |
-| **Non-null assertions** | `value!` | supported as `Try` / must unwrapping, an _explicit_ runtime operation rather than an erased assertion |
-| **Dynamic constructors** | `new (factory())()` | not supported, construct values with type syntax like `new Widget<T>()` |
-| **XML namespace resolution** | `<svg:path />` | no `xmlns` binding semantics, namespaced tags are intrinsic string tag names like `"svg:path"` |
-
-### Types
-
-Destack requires sound and predictable types and understands only TypeScript-shaped type syntax.
-
-| Feature | Example | Ruling |
-| --- | --- | --- |
-| **Flow and JSDoc typing** | `/** @type {Foo} */` | ignored, or rejected when not valid TS/TS++ |
-| **Import type queries** | `import("pkg").User` | not supported, use ordinary static imports |
-| **Thenables** | `await customThenable` | not supported, `await` works on the well known `Promise<T>` only |
-| **`any`** | `let x: any` | forbidden in all sources, `any` is an unchecked escape hatch in both directions, use `unknown` and narrow explicitly |
-| **Definite assignment assertions** | `let x!: T`, `field!: T` | rejected in `.ds`, locals and fields must be initialized before use |
-| **Runtime `typeof` narrowing** | `typeof x === "string"` | not supported, use `instanceof` or `is` |
-| **Type predicate / assertion signatures** | `value is T`, `asserts value is T` | not supported, callable type guards claim flow refinements that cannot be checked soundly |
-| **Declaration parameter inference** | `function f(x = 1) {}` | not supported, public declaration surfaces need explicit parameter types |
-| **Generic argument ambiguity** | `Foo<{ value: string }>` | object-shaped type arguments need `type`, static value and type arguments share generic forms |
-| **`Record<K, V>`** | `Record<string, User>` | closed utility type, use `Map<K, V>` for dynamic keyed storage |
-| **Circular inference** | mutually inferred module exports | not supported across modules, downstream uses do not refine upstream declarations |
-| **Enum coercion** | `Level.A` as `number` | no implicit coercion, enum fields are nominal constants |
-| **Mutable covariance** | `Circle[]` as `Shape[]` | not supported, mutable generic positions are invariant, use `readonly` views or explicit copies |
-| **Interchangeable `type` / `interface`** | data-shaped `interface Point` in a field | diverges in storage positions, interfaces induce hidden generics when stored, use `type` / `struct` for exact storage or `Dynamic<T>` for erasure |
-
-### Shapes
-
-Destack requires sound static shapes for all object types and thus does not support prototype chains, dynamic declarations, or runtime mutation.
-
-| Feature | Example | Ruling |
-| --- | --- | --- |
-| **Declaration expressions** | `const C = class {}` | not supported, runtime type generation is not statically knowable |
-| **Prototype objects** | `.prototype`, `.__proto__`, `Object.setPrototypeOf` | not supported, prototypes are the dynamic JavaScript object model |
-| **Shape mutation** | `delete obj.x`, `Object.defineProperty` | forbidden, object shapes must stay statically known |
-| **Metaobject dispatch** | `Proxy`, most `Reflect.*` APIs | not supported, dynamic interception hides object behavior from the static model |
-| **Class index signatures** | `class C { [key: string]: T }` | not supported, classes have fixed declared members, use structural object types instead |
-| **Array holes** | `[1,,3]` | not supported, dense sequences keep indexing and layout predictable |
-
-### Runtime
-
-Destack does not support any unsound, imprecise or dynamic legacy hooks into runtime behavior, and that also means exceptions are officially banned (try-catch-finally works with `Result` types though).
-
-| Feature | Example | Ruling |
-| --- | --- | --- |
-| **Sloppy mode** | duplicate declarations, `arguments` magic, `with` | not supported, Destack targets modern strict-mode TypeScript |
-| **Ambient call metadata** | `arguments`, `new.target`, dynamic `this` rebinding | not supported as magic bindings, callable context must be explicit |
-| **Loose equality coercion** | `a == b` on objects | no object coercion, implicit conversion hides behavior |
-| **Truthiness** | `if (value)` | boolean values only, control flow must use explicit boolean tests |
-| **Dynamic code generation** | runtime `eval`, `new Function` | not supported except explicit `comptime eval`, runtime code generation conflicts with AOT |
-| **Exceptions** | executing `throw` | not supported in native Destack code, `try` / `catch` / `finally` work for `Try` / `Result` control flow instead |
-| **Coercion hooks** | `valueOf`, `toString`, `Symbol.toPrimitive` | not used for implicit coercion, conversion should be explicit and typed |
-| **Symbol magic** | `Symbol.hasInstance`, `Symbol.species` | not supported, use typed protocols such as `iterator()` / `asyncIterator()` |
-| **Manual iterator protocol** | `iter.next().done` | not supported, iteration is the nominal `Iterator` protocol with `next(): Option<Item>`, while `for-of`, spread, and `yield*` lower unchanged |
-| **Callable `Symbol`** | `Symbol("name")` | not supported, use `Symbol.create("name")` or `Symbol.for("name")` |
 
 # Language
 
@@ -2388,7 +2297,7 @@ Plain data such as numbers, strings, arrays, tuples, objects, structs, and enums
 
 #### Dynamic Code
 
-Generating and evaluating arbitrary code is supported via `eval` at _compile-time_ by passing the static term of a string:
+Generating and evaluating arbitrary code is supported via `eval` at _compile-time_ by passing a string computed at comptime:
 
 ```ds
 import * as dir from "destack:reflect/dir";
@@ -2619,7 +2528,8 @@ Writes through one managed handle can at most result in _stale_ reads through an
 
 ### Lifetimes
 
-Lifetimes tie a borrow to its source, and in Destack they are just generics: `<L: Lifetime>` parameters on `Borrowed<T, L>`, available to all the regular TypeScript-style type algebra and inference (including flow typing and narrowing).
+Lifetimes tie a borrow to its source, and in Destack they are just generics: `<comptime L: Lifetime>` parameters on `Borrowed<T, L>`, available to all the regular TypeScript-style type algebra and inference (including flow typing and narrowing).
+Like `Access`, `Space`, and `Place`, `Lifetime` is a kind of static _value_ rather than a type, which is why parameters over these forms always carry the `comptime` modifier.
 In practice they are spelled out in exactly one place - `declare` signatures - and inferred everywhere else, including from function bodies.
 
 ```ds
@@ -2642,7 +2552,7 @@ struct WorldView {
 }
 
 // explicit form
-struct WorldView<L1: Lifetime, L2: Lifetime> {
+struct WorldView<comptime L1: Lifetime, comptime L2: Lifetime> {
     engine: Borrowed<Engine, L1>;
     assets: Borrowed<AssetStore, L2>;
 }
@@ -2658,7 +2568,7 @@ function first(a: &Node, b: &Node): &Node {
 }
 
 // explicit form
-function first<L1: Lifetime, L2: Lifetime>(
+function first<comptime L1: Lifetime, comptime L2: Lifetime>(
     a: Borrowed<Node, L1>,
     b: Borrowed<Node, L2>,
 ): Borrowed<Node, L1> {
@@ -2671,7 +2581,7 @@ function choose(a: &Node, b: &Node, flag: boolean): &Node {
 }
 
 // explicit form
-function choose<L1: Lifetime, L2: Lifetime>(
+function choose<comptime L1: Lifetime, comptime L2: Lifetime>(
     a: Borrowed<Node, L1>,
     b: Borrowed<Node, L2>,
     flag: boolean,
@@ -2687,7 +2597,7 @@ Because `declare` functions do not have bodies, it follows that declaration-only
 declare function only(value: &Node): &Node;
 
 // accepted
-declare function only<L: Lifetime>(value: Borrowed<Node, L>): Borrowed<Node, L>;
+declare function only<comptime L: Lifetime>(value: Borrowed<Node, L>): Borrowed<Node, L>;
 
 // rejected
 declare function choose(
@@ -2696,7 +2606,7 @@ declare function choose(
 ): &Node;
 
 // accepted
-declare function choose<L1: Lifetime, L2: Lifetime>(
+declare function choose<comptime L1: Lifetime, comptime L2: Lifetime>(
     a: Borrowed<Node, L1>,
     b: Borrowed<Node, L2>,
 ): Borrowed<Node, L1 | L2>;
@@ -2953,7 +2863,7 @@ newtype Managed<T> = intrinsic;
 /// Owned T (`^T`).
 newtype Owned<T> = intrinsic;
 /// Borrowed T (`&T`).
-newtype Borrowed<T, L: Lifetime, A: Access = "mutable"> = intrinsic;
+newtype Borrowed<T, comptime L: Lifetime, comptime A: Access = "mutable"> = intrinsic;
 /// Raw T (`*T`).
 newtype Raw<T> = intrinsic;
 /// Placed T (`local T` or `shared T`).
