@@ -262,7 +262,6 @@ export type Type<T = unknown> = TypeBase &
         | ReadonlyType
         | KeyOfType
         | MustType
-        | AsComptimeType
         | NotType
         | ValueOfType
         | ReferenceOfType
