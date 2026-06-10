@@ -21,16 +21,12 @@ It's all the same in the main logic though.
 
 ### Blocks
 
-Functions introduce named parameters which are passed to the first block, usually `entry`, each block has 0-n parameters and 0-n instructions with one terminator.
-Blocks are the basic control flow units with:
- - a single entry point with a list of parameters (typed SSA values)
- - a list of instructions
- - a single terminator
+Functions introduce named parameters which are passed to the first block, usually `entry`; each block has 0-n parameters (typed SSA values), 0-n instructions, and exactly one terminator.
 
 ```mir
-entry: // can use any name
+entry: // block and value names are free-form
     v0: int32 = 1
-    second: int32 = 2 // can use any name
+    second: int32 = 2
     jump add(second)
 
 add(value: int32):            // value comes from predecessor
@@ -65,17 +61,23 @@ The terminators themselves are also quite straightforward: control flow can retu
 | `branch` | Conditionally jumps to one of two blocks based on a boolean value. | `branch v0, b1(v1), b2(v2)` |
 | `check` | Conditionally jumps to a success or failure block based on a semantic constraint (`bounds`, `null`, `zeroDivisor`, etc.); easier to optimize than `branch` because the guard kind is explicit. | `check bounds.u v0, v1, v2 -> b1, b2` |
 | `switch` | Jumps to one of many blocks based on an integer value. | `switch v0, b3, 0 => b1, 1 => b2` |
-| `call` | Calls a static function and branches to an explicit continuation. | `call foo(v0): (int32) -> int32 -> okBlock` |
-| `call.indirect` | Calls a function value and branches to an explicit continuation. | `call.indirect v1(v0): (int32) -> int32 -> okBlock` |
-| `call.virtual` | Dispatches a virtual method and branches to an explicit continuation. | `call.virtual receiver, TypeName, 3(v0): (ref<TypeName, managed, readonly>) -> int32 -> okBlock` |
-| `call.dynamic` | Dispatches through a dynamic table and branches to an explicit continuation. | `call.dynamic receiver, DynamicConstraint, 3(v0): (dynamic<DynamicConstraint>) -> int32 -> okBlock` |
-| `tailCall` | Calls a static function and reuses the current frame, never returning to the caller. | `tailCall foo(v0): (int32) -> void` |
-| `tailCall.indirect` | Tail-calls through a function value, reusing the current frame. | `tailCall.indirect v1(v0): (int32) -> void` |
-| `tailCall.virtual` | Tail-calls a virtual method, reusing the current frame. | `tailCall.virtual receiver, TypeName, 3(v0): (ref<TypeName, managed, readonly>) -> void` |
-| `tailCall.dynamic` | Tail-calls through a dynamic table, reusing the current frame. | `tailCall.dynamic receiver, DynamicConstraint, 3(v0): (dynamic<DynamicConstraint>) -> void` |
-| `yield` | Suspends the coroutine, returning a value and remembering where to resume in a "resume block". | `yield v0, resume(v1)` |
-| `trap` | Terminates the program unrecoverably; trap kind is `trap.abort` or `trap.panic`. `trap.panic` carries a non-null readonly managed string payload. | `trap.panic v0` |
-| `unreachable` | Asserts that this point is never reached; traps with a panic if it is. | `unreachable` |
+| `call` (`.indirect`, `.virtual`, `.dynamic`) | Calls and branches to an explicit continuation; the suffix picks static, function-value, virtual, or dynamic-table dispatch. | `call foo(v0): (int32) -> int32 -> okBlock` |
+| `tailCall` (`.indirect`, `.virtual`, `.dynamic`) | Same dispatch flavors, but reuses the current frame and never returns to the caller. | `tailCall foo(v0): (int32) -> void` |
+| `yield` | Suspends the coroutine, yielding a value and remembering where to resume. | `yield v0 -> resume(v1)` |
+| `panic` | Starts unwinding the Worker with an optional readonly managed string payload. | `panic v0` |
+| `unwind.resume` | Ends a cleanup block by continuing the unwind to the next cleanup or boundary. | `unwind.resume` |
+| `trap` | Terminates unrecoverably without unwinding (no cleanup runs). | `trap.abort` |
+| `unreachable` | Asserts that this point is never reached; panics if it is. | `unreachable` |
+
+### Continuations
+
+Calls and yields name their continuation explicitly, and can name a cleanup block after a pipe.
+The normal target always comes first and the unwind target second, positional just like `branch` and `check` edges.
+
+```mir
+call open(v0): (int32) -> File -> done(v1) | cleanup
+yield v0 -> resume(v1) | cleanup
+```
 
 ## Instructions
 
@@ -98,27 +100,16 @@ Instructions perform "operations" and may produce SSA `Value`s.
 | Allocation | `new.zeroed`, `new.uninit`, `new.complete`, `new.slice.zeroed`, `new.slice.uninit`, `frame.alloc.*` |
 | Intrinsics | `intrinsic.*` |
 
-Canonical MIR formatting uses camelCase for multiword instruction and intrinsic names.
-
-`check` carries a semantic constraint (`bounds`, `null`, `zeroDivisor`, `shiftRange`, `overflow`, `dynamicType`, `receiverType`, `interfaceConformance`, etc.) and splits control flow into success and failure paths.
-Canonical MIR spells checks guard-first: `check int.add.overflow.s left, right -> ok, fail`.
+Canonical MIR uses camelCase for multiword instruction and intrinsic names, and spells checks guard-first: `check int.add.overflow.s left, right -> ok, fail`.
 
 ### Pointers and References
 
-References are MIR carriers with explicit storage and place qualifiers.
-Pointer-sized integer types are modeled explicitly.
+MIR uses one `ref` carrier to model a base type plus storage, access, and place, spelled payload-first:
+
 ```mir
 ref<int32, raw, space(shared)>
 ref<int32, raw, readonly, space(gpu)>
 ```
-
-In general, MIR uses `ref` to model one base type plus storage, access, and place:
-- `managed` for runtime managed object references
-- `unique` for unique typed heap references used by `Box`, arrays, and similar storage wrappers
-- `borrowed` for `&T` and `&readonly T`
-- `raw` for "unsafe" physical pointers
-
-Reference syntax is payload-first and spells out qualifiers after the payload type.
 
 | Kind | Mutability | Example | Meaning |
 | --- | --- | --- | --- |
@@ -139,15 +130,9 @@ type Point {
     x: int32;
     y: int32;
 }
-
-function usePoint(point: ref<Point, managed>): ref<Point, managed> {
-entry(point: ref<Point, managed>):
-    return point
-}
 ```
 
-Aliases are referenced with plain names in type positions.
-The underlying MIR still stores and uses the concrete type.
+Aliases are referenced with plain names in type positions; the underlying MIR still stores the concrete type.
 
 ## Functions
 
