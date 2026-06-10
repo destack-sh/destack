@@ -13,7 +13,7 @@ const value = 1 as int32;
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 const value = 1 as int32;
-/// @type.symbol symbol=value type=int32
+/// @type.symbol symbol=value source=value type=int32
 /// @type.node source="1 as int32" type=int32
 /// @type.node source=1 type=1
 /// @coercion.node source="1 as int32" from=1 to=int32 origin=explicit

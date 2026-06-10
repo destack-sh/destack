@@ -232,6 +232,50 @@ const text = identity<string>("x");
 }
 
 #[test]
+fn test_explicit_call_type_argument_mismatch_reports_assignability_error() {
+    let session = TestSession::single(
+        r#"
+function identity<T>(value: T): T {
+    return value;
+}
+
+identity<int32>("x");
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+function identity<T>(value: T): T {
+/// @generic.template source=declaration parameters=[T]
+/// @type.symbol symbol=identity type=<T>(T) => T
+/// @type.symbol symbol=identity.T source=T type=T
+/// @type.symbol symbol=value source="value: T" type=T
+/// @resolution.name source=T target=identity.T
+/// @resolution.name source=T target=identity.T
+
+    return value;
+    /// @type.node source=value type=T
+    /// @resolution.name source=value target=value
+
+}
+
+identity<int32>("x");
+/// @type.node source="identity<int32>(\"x\")" type=<error>
+/// @type.node source=identity type=<T>(T) => T
+/// @resolution.name source=identity target=identity
+/// @type.node source="\"x\"" type="x"
+
+"#,
+        r#"
+/// @diagnostic.error code=EC200 message="type is not assignable"
+/// @diagnostic.label line=6 column=17 source="identity<int32>(\"x\");"
+"#,
+    );
+}
+
+#[test]
 fn test_explicit_function_type_argument_specializes_reference() {
     let session = TestSession::single(
         r#"

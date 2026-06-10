@@ -1,4 +1,5 @@
 mod calls;
-mod diagnostics;
+mod lambdas;
+mod methods;
 mod modules;
-mod value;
+mod r#static;
