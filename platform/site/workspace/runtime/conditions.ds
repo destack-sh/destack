@@ -1,0 +1,22 @@
+/**
+ * Conditions gate sources and code by `mode`, `feature`, `role`, `stage`, and
+ * target facts, declared in `destack.json` and readable via `import.meta`.
+ * File name aliases like `user.test.ds` include sources only when the
+ * condition is active.
+ */
+
+// in-code gating reads the active conditions
+function rendererName(): string {
+    if (import.meta.features.includes("rendererv2")) {
+        "renderer v2"
+    } else {
+        "renderer v1"
+    }
+}
+
+// mode shorthands are plain booleans
+const isTest = import.meta.test;
+const isDev = import.meta.dev;
+
+console.log(`renderer=${rendererName()}`);
+console.log(`test=${isTest} dev=${isDev} modes=${import.meta.modes}`);

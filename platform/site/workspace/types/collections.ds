@@ -1,0 +1,28 @@
+/**
+ * Beyond TypeScript's dynamic arrays, Destack has explicit slices, fixed arrays,
+ * and tuples: `T[]` grows, `[T]` is a pointer plus length, `[T; N]` stores its
+ * elements inline with the length in the type, and tuples are always `(A, B)`.
+ */
+
+// fixed arrays know their length statically and live inline
+const rgb: [uint8; 3] = [255, 128, 0];
+
+// fixed array patterns already know their length
+const [r, g, b] = rgb;
+
+// slice patterns sniff structure with rest bindings
+function sniff(bytes: [uint8]): string {
+    match (bytes) {
+        [0x89, 0x50, 0x4e, 0x47, ...rest] => "png"
+        [0xff, 0xd8, ...rest] => "jpeg"
+        _ => "unknown"
+    }
+}
+
+// tuples are fixed heterogeneous products
+const pair: (string, int32) = ("answer", 42);
+const (label, value) = pair;
+
+console.log(`png header -> ${sniff([0x89, 0x50, 0x4e, 0x47, 0x0d])}`);
+console.log(`jpeg header -> ${sniff([0xff, 0xd8, 0xff])}`);
+console.log(`${label}=${value}, rgb=(${r}, ${g}, ${b})`);

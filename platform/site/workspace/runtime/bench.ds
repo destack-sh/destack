@@ -1,0 +1,24 @@
+/**
+ * Benchmarks register through the same toolchain as tests: `destack bench`
+ * measures work and resource units together, with typed values end to end.
+ */
+
+import { registerCase } from "destack:bench";
+
+function checksum(page: [uint8]): uint64 {
+    let sum: uint64 = 0;
+    for (const byte of page) {
+        sum = sum.wrappingAdd(byte as uint64);
+    }
+    sum
+}
+
+// fixtures stay outside the measured loop
+registerCase("checksum page", { minDuration: "2s" }, (context) => {
+    const page: [uint8; 4096] = [7; 4096];
+
+    // the iteration count and byte volume feed the report
+    const result = context.iter(() => checksum(page));
+
+    context.bytes(4096 * result.iterations);
+});

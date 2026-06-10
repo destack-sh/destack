@@ -1,0 +1,33 @@
+/**
+ * `using` follows the TC39 explicit resource management proposal, with the
+ * nominal `Dispose` interface instead of magic `Symbol` keys.
+ * Cleanup runs at lexical scope exit in LIFO order, on every exit path.
+ */
+
+import { Dispose } from "destack:memory";
+
+struct Span {
+    name: string;
+}
+
+extension of Span implements Dispose {
+    dispose(): void {
+        console.log(`closed ${this.name}`);
+    }
+}
+
+function run(): void {
+    // resources dispose in reverse declaration order at scope exit
+    using outer = Span { name: "outer" },
+          inner = Span { name: "inner" };
+
+    console.log("working");
+}
+
+run();
+
+// loop resources are cleaned up after each iteration
+for (const name of ["first", "second"]) {
+    using span = Span { name };
+    console.log(`inside ${span.name}`);
+}

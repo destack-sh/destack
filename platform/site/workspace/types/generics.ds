@@ -1,0 +1,42 @@
+/**
+ * Generics are TypeScript-shaped, and parameters can also be static values via
+ * the `comptime` modifier - both types and values participate in inference.
+ * Generic functions monomorphize: the `.asm` view contains one concrete copy
+ * per instantiation below.
+ */
+
+// `N` is a static value parameter, inferred from the argument's type
+function copy<T, comptime N: uint>(source: [T; N]): [T; N] {
+    let target: [T; N];
+    for (let i = 0; i < N; i++) {
+        target[i] = source[i];
+    }
+    target
+}
+
+const bytes: [uint8; 3] = [255, 128, 0];
+const names: [string; 2] = ["ada", "grace"];
+
+// two instantiations, two concrete functions in the asm
+const copiedBytes = copy(bytes);
+const copiedNames = copy(names);
+
+copiedBytes satisfies [uint8; 3];
+copiedNames satisfies [string; 2];
+
+// dynamic parameters can also be `comptime`: an ordinary argument expression
+// that must still evaluate during compilation
+function repeat<T>(value: T, comptime count: uint): [T; count] {
+    let values: [T; count];
+    for (let i = 0; i < count; i++) {
+        values[i] = value;
+    }
+    values
+}
+
+const xs = repeat("x", 3);
+xs satisfies [string; 3];
+
+console.log(`copiedBytes=${copiedBytes}`);
+console.log(`copiedNames=${copiedNames}`);
+console.log(`xs=${xs}`);

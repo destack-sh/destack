@@ -1,0 +1,32 @@
+/**
+ * Guards are boolean expressions that refine types in the branch: `value is T`
+ * checks the runtime representation precisely, for primitives, nominal types,
+ * and classes alike.
+ * There is no vague `typeof` in Destack.
+ */
+
+struct User {
+    name: string;
+}
+
+// `is` narrows both branches of a union
+function label(value: User | string): string {
+    if (value is User) {
+        value.name
+    } else {
+        value
+    }
+}
+
+// the negative branch narrows away the covered part
+function half(value: string | int32): int32 {
+    if (value is string) {
+        value.length as int32
+    } else {
+        value / 2
+    }
+}
+
+console.log(label(User { name: "ada" }));
+console.log(label("plain"));
+console.log(`half=${half(42)} length=${half("destack")}`);

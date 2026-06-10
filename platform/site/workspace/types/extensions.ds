@@ -1,0 +1,39 @@
+/**
+ * Extensions add instance and static members to any nominal type, including
+ * types defined in other files or packages.
+ * Members resolve statically - the `.asm` view shows direct calls, with no
+ * dynamic lookup anywhere.
+ */
+
+class Vector2 {
+    x: float32;
+    y: float32;
+
+    constructor(x: float32, y: float32) {
+        this.x = x;
+        this.y = y;
+    }
+}
+
+// extensions can live away from the type, here in the same file
+extension of Vector2 {
+    static ZERO = new Vector2(0.0, 0.0);
+
+    magnitude(): float32 {
+        return (this.x * this.x + this.y * this.y).sqrt();
+    }
+}
+
+// foreign types take extensions too; anonymous ones stay file-local
+extension of int32 {
+    isEven(): boolean {
+        return this % 2 == 0;
+    }
+}
+
+const v = new Vector2(3.0, 4.0);
+const count: int32 = 12;
+
+console.log(`magnitude=${v.magnitude()}`);
+console.log(`zero=(${Vector2.ZERO.x}, ${Vector2.ZERO.y})`);
+console.log(`${count} even? ${count.isEven()}`);

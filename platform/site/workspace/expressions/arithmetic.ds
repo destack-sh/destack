@@ -1,0 +1,29 @@
+/**
+ * Sized integer arithmetic is checked in all modes: overflow traps, with no
+ * debug-only checking and no silent release-mode wraparound.
+ * Modular, clamping, and checked semantics are explicit standard library calls,
+ * and lossy conversions must pick their behavior explicitly.
+ */
+
+const a: uint8 = 200;
+const b: uint8 = 100;
+
+// `a + b` here would trap: 300 does not fit uint8
+
+// explicit semantics instead, each one a deliberate choice
+const wrapped = a.wrappingAdd(b);
+const clamped = a.saturatingAdd(b);
+const checked = a.checkedAdd(b);
+
+wrapped satisfies uint8;
+clamped satisfies uint8;
+checked satisfies uint8 | undefined;
+
+// `as` converts only losslessly; lossy conversions are spelled out
+const wide: int32 = 1000;
+const widened = wide as int64;
+const low = wide.truncate<uint8>();
+const capped = wide.saturate<uint8>();
+
+console.log(`wrapped=${wrapped} clamped=${clamped} checked=${checked}`);
+console.log(`widened=${widened} low=${low} capped=${capped}`);

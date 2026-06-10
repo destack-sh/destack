@@ -1,0 +1,35 @@
+/**
+ * Destack is Result-first: recoverable errors travel as `Result<T, E>`, and
+ * throwing exceptions is not allowed in native Destack code.
+ * `?` propagates failure out of the current expression, postfix `!` traps on
+ * failure, and `??` substitutes a fallback.
+ */
+
+import { Result } from "destack:error";
+
+function parseDigit(raw: string): Result<int, string> {
+    match (raw) {
+        "0" => Result.ok(0)
+        "1" => Result.ok(1)
+        "2" => Result.ok(2)
+        _ => Result.err(`not a digit: ${raw}`)
+    }
+}
+
+// `?` keeps the success value and propagates the failure to the caller
+function parseSum(left: string, right: string): Result<int, string> {
+    const a = parseDigit(left)?;
+    const b = parseDigit(right)?;
+    return Result.ok(a + b);
+}
+
+// the variants are ordinary nominal data, so matching works directly
+function report(result: Result<int, string>): string {
+    match (result) {
+        Ok { value } => `ok: ${value}`
+        Err { error } => `err: ${error}`
+    }
+}
+
+console.log(report(parseSum("1", "2")));
+console.log(report(parseSum("1", "x")));

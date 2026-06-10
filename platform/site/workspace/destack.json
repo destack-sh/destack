@@ -1,0 +1,188 @@
+{
+    "name": "fiddle",
+    "private": true,
+    "description": "The Destack demo workspace.",
+    "targets": {
+        "default": {
+            "include": [
+                "types/primitives.ds",
+                "types/intervals.ds",
+                "types/newtypes.ds",
+                "types/structs.ds",
+                "types/enums.ds",
+                "types/unions.ds",
+                "types/collections.ds",
+                "types/extensions.ds",
+                "types/generics.ds",
+                "types/constraints.ds",
+                "types/reflection.ds",
+                "expressions/values.ds",
+                "expressions/closures.ds",
+                "expressions/patterns.ds",
+                "expressions/guards.ds",
+                "expressions/loops.ds",
+                "expressions/using.ds",
+                "expressions/operators.ds",
+                "expressions/arithmetic.ds",
+                "expressions/errors.ds",
+                "expressions/comptime.ds",
+                "runtime/meta.ds",
+                "runtime/conditions.ds",
+                "runtime/data.ds",
+                "runtime/policy.ds"
+            ]
+        },
+        "types/primitives": {
+            "include": [
+                "types/primitives.ds"
+            ]
+        },
+        "types/intervals": {
+            "include": [
+                "types/intervals.ds"
+            ]
+        },
+        "types/newtypes": {
+            "include": [
+                "types/newtypes.ds"
+            ]
+        },
+        "types/structs": {
+            "include": [
+                "types/structs.ds"
+            ]
+        },
+        "types/enums": {
+            "include": [
+                "types/enums.ds"
+            ]
+        },
+        "types/unions": {
+            "include": [
+                "types/unions.ds"
+            ]
+        },
+        "types/collections": {
+            "include": [
+                "types/collections.ds"
+            ]
+        },
+        "types/extensions": {
+            "include": [
+                "types/extensions.ds"
+            ]
+        },
+        "types/generics": {
+            "include": [
+                "types/generics.ds"
+            ]
+        },
+        "types/constraints": {
+            "include": [
+                "types/constraints.ds"
+            ]
+        },
+        "types/variance": {
+            "include": [
+                "types/variance.ds"
+            ]
+        },
+        "types/readonly": {
+            "include": [
+                "types/readonly.ds"
+            ]
+        },
+        "types/reflection": {
+            "include": [
+                "types/reflection.ds"
+            ]
+        },
+        "expressions/values": {
+            "include": [
+                "expressions/values.ds"
+            ]
+        },
+        "expressions/closures": {
+            "include": [
+                "expressions/closures.ds"
+            ]
+        },
+        "expressions/patterns": {
+            "include": [
+                "expressions/patterns.ds"
+            ]
+        },
+        "expressions/guards": {
+            "include": [
+                "expressions/guards.ds"
+            ]
+        },
+        "expressions/loops": {
+            "include": [
+                "expressions/loops.ds"
+            ]
+        },
+        "expressions/using": {
+            "include": [
+                "expressions/using.ds"
+            ]
+        },
+        "expressions/operators": {
+            "include": [
+                "expressions/operators.ds"
+            ]
+        },
+        "expressions/arithmetic": {
+            "include": [
+                "expressions/arithmetic.ds"
+            ]
+        },
+        "expressions/errors": {
+            "include": [
+                "expressions/errors.ds"
+            ]
+        },
+        "expressions/comptime": {
+            "include": [
+                "expressions/comptime.ds"
+            ]
+        },
+        "runtime/meta": {
+            "include": [
+                "runtime/meta.ds"
+            ]
+        },
+        "runtime/conditions": {
+            "include": [
+                "runtime/conditions.ds"
+            ]
+        },
+        "runtime/data": {
+            "include": [
+                "runtime/data.ds",
+                "runtime/config.json"
+            ]
+        },
+        "runtime/policy": {
+            "include": [
+                "runtime/policy.ds"
+            ]
+        },
+        "runtime/tests": {
+            "include": [
+                "runtime/tests.ds"
+            ]
+        },
+        "runtime/bench": {
+            "include": [
+                "runtime/bench.ds"
+            ]
+        },
+        "runtime/simulation": {
+            "include": [
+                "runtime/simulation.ds"
+            ]
+        }
+    },
+    "defaultTarget": "default"
+}

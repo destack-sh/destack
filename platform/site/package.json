@@ -6,9 +6,9 @@
     "type": "module",
     "description": "Destack website and blog surfaces",
     "scripts": {
-        "build": "bun scripts/sync-assets.mjs && bun scripts/generate-snippets.mjs && bun scripts/generate-posts.mjs && vinxi build && bun scripts/postbuild.mjs",
-        "check": "bun scripts/generate-snippets.mjs --check && bun scripts/generate-posts.mjs --check && bun x tsc -p tsconfig.json --noEmit && bun run build",
-        "dev": "bun scripts/sync-assets.mjs && bun scripts/generate-snippets.mjs && bun scripts/generate-posts.mjs && vinxi dev",
+        "build": "bun scripts/sync-assets.mjs && bun scripts/generate-workspace.mjs && bun scripts/generate-posts.mjs && vinxi build && bun scripts/postbuild.mjs",
+        "check": "bun scripts/generate-workspace.mjs --check && bun scripts/generate-posts.mjs --check && bun x tsc -p tsconfig.json --noEmit && bun run build",
+        "dev": "bun scripts/sync-assets.mjs && bun scripts/generate-workspace.mjs && bun scripts/generate-posts.mjs && (bun scripts/generate-workspace.mjs --watch &) && vinxi dev",
         "format": "echo \"No site formatter defined\"",
         "typecheck": "bun x tsc -p tsconfig.json --noEmit"
     },

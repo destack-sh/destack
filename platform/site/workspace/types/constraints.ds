@@ -1,0 +1,50 @@
+/**
+ * Inline bounds cover the common cases; `where` clauses express the relations
+ * that inline bounds cannot, like constraints on associated members.
+ * All of it is checked during inference, before anything runs.
+ */
+
+// a nominal interface with an associated type
+newtype interface Scored {
+    type Label;
+
+    score(): int;
+    label(): this.Label;
+}
+
+struct Entry {
+    name: string;
+    points: int;
+}
+
+extension of Entry implements Scored {
+    type Label = string;
+
+    score(): int {
+        return this.points;
+    }
+
+    label(): string {
+        return this.name;
+    }
+}
+
+// the inline bound constrains T, the where clause bounds its associated type,
+// something inline bounds cannot express
+function best<T: Scored>(entries: [T]): T.Label where T.Label: string {
+    let winner = entries[0];
+    for (const entry of entries) {
+        if (entry.score() > winner.score()) {
+            winner = entry;
+        }
+    }
+    winner.label()
+}
+
+const entries: [Entry; 3] = [
+    Entry { name: "ada", points: 90 },
+    Entry { name: "grace", points: 97 },
+    Entry { name: "edsger", points: 88 },
+];
+
+console.log(`best=${best(entries)}`);

@@ -1,0 +1,17 @@
+/**
+ * `import.meta` exposes profile and module metadata during static and comptime
+ * evaluation: the values below are baked per target, so the `.js` and `.asm`
+ * views of this file disagree - that is the point.
+ */
+
+// where this build runs
+const output = import.meta.output;
+const host = import.meta.host;
+const platform = import.meta.platform;
+
+// what this build is
+const runtime = import.meta.runtime;
+const isProd = import.meta.prod;
+
+console.log(`output=${output} host=${host} platform=${platform}`);
+console.log(`runtime=${runtime} prod=${isProd}`);

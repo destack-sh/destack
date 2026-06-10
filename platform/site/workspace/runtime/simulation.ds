@@ -1,0 +1,27 @@
+/**
+ * Simulations run code against a controlled world with deterministic faults:
+ * the same seed replays the same schedule, so distributed failures reproduce
+ * exactly instead of flaking.
+ */
+
+import { AsyncResult } from "destack:error";
+import { registerCase } from "destack:simulation";
+import { expect } from "destack:test";
+
+newtype Key = string;
+
+interface Store {
+    write(key: Key, value: string): AsyncResult<void, string>;
+    read(key: Key): AsyncResult<string, string>;
+}
+
+declare function start(world: unknown): AsyncResult<Store, string>;
+
+// the world injects deterministic runtime faults into host bindings
+registerCase("store survives stale reads", async (context) => {
+    const store = await? start(context.world);
+
+    // assertions run against the simulated schedule
+    await? store.write(Key("doc:1"), "ok");
+    expect(await? store.read(Key("doc:1"))).toBe("ok");
+});

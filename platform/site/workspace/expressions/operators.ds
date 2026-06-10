@@ -1,0 +1,33 @@
+/**
+ * Operators dispatch through nominal interfaces: `+` is `Add<T>`, `==` is
+ * `PartialEqual<T>`, comparison is `Compare<T>` or `PartialCompare<T>`.
+ * Implementing the interface is all it takes; resolution is static.
+ */
+
+struct Vec2 {
+    x: float32;
+    y: float32;
+}
+
+extension of Vec2 implements Add {
+    type Output = Vec2;
+
+    add(other: Vec2): Vec2 {
+        Vec2 { x: this.x + other.x, y: this.y + other.y }
+    }
+}
+
+extension of Vec2 implements PartialEqual {
+    equal(other: Vec2): boolean {
+        this.x == other.x && this.y == other.y
+    }
+}
+
+const a = Vec2 { x: 1.0, y: 2.0 };
+const b = Vec2 { x: 3.0, y: 4.0 };
+
+// `+` and `==` now resolve through the implementations above
+const sum = a + b;
+const isSame = sum == Vec2 { x: 4.0, y: 6.0 };
+
+console.log(`sum=(${sum.x}, ${sum.y}) equal=${isSame}`);

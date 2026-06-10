@@ -1,0 +1,26 @@
+/**
+ * TypeScript's discriminated unions, plus nominality: a `newtype` over a union
+ * with the builtin `Tagged` derive gives the union a name, constructors per
+ * variant, and a place to attach behavior.
+ */
+
+@derive(Tagged)
+newtype Shape =
+    | { kind: "rectangle"; width: float32; height: float32 }
+    | { kind: "circle"; radius: float32 };
+
+extension of Shape {
+    area(): float32 {
+        match (this) {
+            Shape.Rectangle({ width, height }) => width * height
+            Shape.Circle({ radius }) => 3.14159 * radius * radius
+        }
+    }
+}
+
+// variants construct through <Type>.<Variant>
+const rectangle = Shape.Rectangle({ width: 10.0, height: 20.0 });
+const circle = Shape.Circle({ radius: 5.0 });
+
+console.log(`rectangle area=${rectangle.area()}`);
+console.log(`circle area=${circle.area()}`);

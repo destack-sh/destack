@@ -1,0 +1,24 @@
+/**
+ * TypeScript erases types at runtime; Destack reflects them at both compile time
+ * and runtime with `Type<T>` as the normalized view.
+ * Layout queries like `sizeOf` are comptime intrinsics - the terminal output
+ * below is computed entirely during compilation.
+ */
+
+struct User {
+    name: string;
+    age: uint;
+}
+
+// a type expression reflects into its `Type` representation
+const UserType = Type.of<User>();
+UserType satisfies Type<User>;
+
+// layout facts are static answers, available to types and comptime code
+const userSize = comptime sizeOf<User>();
+const userAlign = comptime alignOf<User>();
+
+// and they compose into types, like a buffer sized to fit one User
+type InlineUser = [uint8; sizeOf<User>()];
+
+console.log(`size=${userSize} align=${userAlign}`);

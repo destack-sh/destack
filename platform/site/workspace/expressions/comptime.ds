@@ -1,0 +1,35 @@
+/**
+ * `comptime` expressions are ordinary code evaluated by the compiler, with the
+ * results baked into the emitted artifact - the `.js` and `.asm` views show the
+ * finished values, not the code that computed them.
+ * Functions do not declare a side: the same function runs at compile time when
+ * its inputs are static, and at runtime otherwise.
+ */
+
+function factorial(n: int): int {
+    if (n <= 1) {
+        return 1;
+    } else {
+        return n * factorial(n - 1);
+    }
+}
+
+// evaluated by the compiler, baked in as a constant
+const BAKED = comptime factorial(10);
+BAKED satisfies int;
+
+// the same function, called at runtime with a runtime input
+const limit: int = 5;
+const computed = factorial(limit);
+
+// comptime blocks build whole values, like a precomputed table
+const SQUARES: int[] = comptime {
+    let table: int[] = [];
+    for (let i = 0; i < 8; i++) {
+        table.push(i * i);
+    }
+    table
+};
+
+console.log(`baked=${BAKED} computed=${computed}`);
+console.log(`squares=${SQUARES}`);

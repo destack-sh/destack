@@ -1,0 +1,28 @@
+/**
+ * TypeScript's `readonly` is shallow; in Destack `readonly T` is a deep
+ * read-only view, so mutation is forbidden through any nested member.
+ * Both assignments below are compile errors.
+ */
+
+struct Profile {
+    name: string;
+}
+
+struct User {
+    profile: Profile;
+    tags: string[];
+}
+
+const user = User {
+    profile: Profile { name: "ada" },
+    tags: ["engineer"],
+};
+
+// a readonly view of the same value
+const view: readonly User = user;
+
+// ERROR: readonly view
+view.profile.name = "grace";
+
+// ERROR: readonly is deep, nested containers included
+view.tags[0] = "admin";

@@ -1,0 +1,31 @@
+/**
+ * Tests are ordinary declarations in the same toolchain: `destack test` runs
+ * them, and assertions work on typed values, not stringly process output.
+ * The `.test.ds` file name alias includes test sources only in test mode.
+ */
+
+import { Result } from "destack:error";
+import { expect, test } from "destack:test";
+
+type UserPort = 1024..=65535;
+
+function parsePort(raw: string): Result<UserPort, string> {
+    match (raw.parseInt()) {
+        Ok { value } if (value is 1024..=65535) => Result.ok(value)
+        _ => Result.err(`not a user port: ${raw}`)
+    }
+}
+
+// typed results open directly inside tests
+test("parsePort accepts user ports", () => {
+    const port = parsePort("8080")?;
+
+    expect(port).toBe(8080);
+    port satisfies UserPort;
+});
+
+test("parsePort rejects privileged ports", () => {
+    const result = parsePort("80");
+
+    expect(result.isErr()).toBe(true);
+});

@@ -1,0 +1,28 @@
+/**
+ * `loop` is the explicit infinite loop form, and like other expressions, loops
+ * produce values through `break`.
+ * Range expressions iterate, slice, and index; the default range is half-open.
+ */
+
+// a loop is an expression, `break` carries its value out
+let attempts = 0;
+const found = loop {
+    attempts += 1;
+    if (attempts == 3) {
+        break attempts * 10;
+    }
+};
+
+// ranges iterate directly
+let sum = 0;
+for (const i of 1..=5) {
+    sum += i;
+}
+
+// and ranges subscript slices, half-open by default
+const values: [int32] = [1, 2, 3, 4, 5];
+const middle = values[1..4];
+middle satisfies [int32];
+
+console.log(`found=${found} after ${attempts} attempts`);
+console.log(`sum=${sum} middle=${middle}`);

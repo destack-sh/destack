@@ -1,0 +1,34 @@
+/**
+ * TypeScript's destructuring, extended into a full pattern suite: nominal
+ * objects, newtypes, tuples, slices, defaults, and the must pattern, usable in
+ * `let`, parameters, `match`, `if (let ...)`, and `let ... else`.
+ */
+
+struct Point {
+    x: int;
+    y: int;
+}
+
+newtype UserId = uint64;
+
+// nominal object patterns destructure stored fields
+const Point { x, y } = Point { x: 3, y: 4 };
+
+// newtype patterns unwrap the backing value
+const UserId(id) = UserId(7);
+
+// defaults bind fallbacks for missing destructured values
+const { name = "guest" }: { name?: string } = {};
+
+// `let ... else` takes the refutable case out of line
+function describe(maybe: int | null): string {
+    let value! = maybe else {
+        return "nothing";
+    };
+
+    `value ${value}`
+}
+
+console.log(`point=(${x}, ${y}) id=${id} name=${name}`);
+console.log(describe(42));
+console.log(describe(null));

@@ -1,0 +1,25 @@
+/**
+ * Mutable covariance - assigning `Circle[]` to `Shape[]` and then mutating
+ * through the widened alias - is one of TypeScript's best known soundness holes.
+ * Destack derives variance from usage: readonly positions widen, mutable storage
+ * does not, and the error below is the hole staying closed.
+ */
+
+class Shape {
+    name: string = "shape";
+}
+
+class Circle extends Shape {
+    radius: int32 = 1;
+}
+
+const circles: Circle[] = [new Circle(), new Circle()];
+
+// OK: readonly views are covariant, nothing can write through them
+const view: readonly Shape[] = circles;
+
+// OK: an explicit copy reifies Shape elements
+const copies: Shape[] = [...circles];
+
+// ERROR: mutable arrays are invariant
+const shapes: Shape[] = circles;

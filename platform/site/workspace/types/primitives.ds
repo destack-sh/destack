@@ -1,0 +1,38 @@
+/**
+ * Destack keeps TypeScript's `number` and adds precise numeric primitives:
+ * variable-width signed and unsigned integers, concrete float formats, and `char`.
+ * Literal bounds are checked statically when the target type is known.
+ * The `.asm` view shows `uint8` actually stored in one byte; the terminal runs
+ * the same code with TypeScript semantics on the web target.
+ */
+
+// integers come in exact widths, and literals must fit
+const byte: uint8 = 255;
+const offset: int17 = -32768;
+const index: usize = 1024;
+
+// `int` and `uint` are 64-bit; `number` is still float64, exactly as in TypeScript
+const total: int = 1_000_000;
+const ratio: number = 0.5;
+
+// literals start exact and flow into any numeric type that can represent them
+7 satisfies uint3;
+255 satisfies uint8;
+total satisfies int64;
+
+// floats pick a concrete format, including both 16-bit ones
+const half: float16 = 0.25;
+const weight: bfloat16 = 0.25;
+const balance: float64 = 100.25;
+
+// chars are single Unicode scalar values, distinct from one-character strings
+const initial: char = 'D';
+const name: string = "destack";
+
+// arithmetic stays inside the declared width
+function checksum(value: uint8, salt: uint8): uint8 {
+    return value ^ salt;
+}
+
+console.log(`${name} starts with ${initial}`);
+console.log(`checksum=${checksum(byte, 0x5a)}`);
