@@ -193,24 +193,24 @@ extension<K: Hash, V> of ConcurrentMap<K, V> implements Extend<(K, V)> {
 
     /// Clone and return a value by key.
     get<Q: Hash>(&this, key: &readonly Q): V | undefined
-    where (K: Borrow<Q>, Q: Equal<Q>, V: Clone) {
+    where K: Borrow<Q>, Q: Equal<Q>, V: Clone {
         todo("ConcurrentMap.get")
     }
 
     /// Return whether `key` exists.
-    has<Q: Hash>(&this, key: &readonly Q): boolean where (K: Borrow<Q>, Q: Equal<Q>) {
+    has<Q: Hash>(&this, key: &readonly Q): boolean where K: Borrow<Q>, Q: Equal<Q> {
         todo("ConcurrentMap.has")
     }
 
     /// Return a read guard for one entry.
     read<Q: Hash>(&this, key: &readonly Q): ConcurrentMapRead<K, V> | undefined
-    where (K: Borrow<Q>, Q: Equal<Q>) {
+    where K: Borrow<Q>, Q: Equal<Q> {
         todo("ConcurrentMap.read")
     }
 
     /// Return a write guard for one entry.
     write<Q: Hash>(&this, key: &readonly Q): ConcurrentMapWrite<K, V> | undefined
-    where (K: Borrow<Q>, Q: Equal<Q>) {
+    where K: Borrow<Q>, Q: Equal<Q> {
         todo("ConcurrentMap.write")
     }
 
@@ -231,13 +231,13 @@ extension<K: Hash, V> of ConcurrentMap<K, V> implements Extend<(K, V)> {
 
     /// Call `body` with readonly access to one value.
     with<Q: Hash, R>(&this, key: &readonly Q, body: (value: &readonly V) => R): R | undefined
-    where (K: Borrow<Q>, Q: Equal<Q>) {
+    where K: Borrow<Q>, Q: Equal<Q> {
         todo("ConcurrentMap.with")
     }
 
     /// Call `body` with exclusive access to one value.
     update<Q: Hash, R>(&this, key: &readonly Q, body: (value: &exclusive V) => R): R | undefined
-    where (K: Borrow<Q>, Q: Equal<Q>) {
+    where K: Borrow<Q>, Q: Equal<Q> {
         todo("ConcurrentMap.update")
     }
 
@@ -275,13 +275,13 @@ extension<K: Hash, V> of ConcurrentMap<K, V> implements Extend<(K, V)> {
     }
 
     /// Remove a key-value pair.
-    remove<Q: Hash>(&this, key: &readonly Q): V | undefined where (K: Borrow<Q>, Q: Equal<Q>) {
+    remove<Q: Hash>(&this, key: &readonly Q): V | undefined where K: Borrow<Q>, Q: Equal<Q> {
         todo("ConcurrentMap.remove")
     }
 
     /// Remove a key-value pair and return the stored key.
     removeEntry<Q: Hash>(&this, key: &readonly Q): (K, V) | undefined
-    where (K: Borrow<Q>, Q: Equal<Q>) {
+    where K: Borrow<Q>, Q: Equal<Q> {
         todo("ConcurrentMap.removeEntry")
     }
 

@@ -45,9 +45,7 @@ export newtype interface Extend<T, comptime A: Access = "mutable"> {
 
 export extension<I: Iterator> of I {
     /// Collect this iterator into `C`.
-    collect<C>(): C where (
-        C: FromIterator<I.Item>
-    ) {
+    collect<C>(): C where C: FromIterator<I.Item> {
         C.fromIterator(this)
     }
 }
