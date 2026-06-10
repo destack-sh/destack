@@ -103,7 +103,7 @@ export class Promise<T> {
 
     /// Schedule reactions after fulfillment.
     private queueReactions(reactions: PromiseReaction<T>[]): void {
-        for (let index: number = 0; index < reactions.length; index += 1) {
+        for (let index: usize = 0; index < reactions.size; index += 1) {
             this.queueReaction(reactions[index]);
         }
     }
