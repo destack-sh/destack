@@ -1,19 +1,7 @@
 import { Promise } from "destack:async";
 import { todo } from "destack:error";
-import { AsyncResult } from "destack:error";
+import { AsyncResult, Panic } from "destack:error";
 import { Send } from "destack:memory";
-
-/// Worker spawn options.
-export interface WorkerOptions {
-    /// Human-readable worker name.
-    name?: string;
-
-    /// Initial stack size in bytes.
-    stackSize?: usize;
-}
-
-/// Entry function for a worker.
-export type WorkerEntry<T, R> = (message: T) => R | Promise<R>;
 
 /// Isolated worker.
 export class Worker<T, R> {
@@ -21,13 +9,22 @@ export class Worker<T, R> {
     id: uint64;
 
     /// Send one message and wait for a reply.
-    request(message: T): AsyncResult<R, unknown> {
+    request(message: T): AsyncResult<R, WorkerError> {
         todo("Worker.request")
     }
 
     /// Send one message without waiting for a reply.
     post(message: T): void {
         todo("Worker.post");
+    }
+
+    /// Observe this worker's exit.
+    ///
+    /// The worker is the fault boundary: a panic unwinds the worker, and the supervising parent
+    /// observes the termination and the panic payload here and decides what to do (restart,
+    /// propagate, report).
+    exit(): Promise<WorkerExit> {
+        todo("Worker.exit")
     }
 
     /// Request worker shutdown.
@@ -42,7 +39,7 @@ export class WorkerPool<T, R> {
     workers: Worker<T, R>[];
 
     /// Send one request to an available worker.
-    request(message: T): AsyncResult<R, unknown> {
+    request(message: T): AsyncResult<R, WorkerError> {
         todo("WorkerPool.request")
     }
 
@@ -50,6 +47,31 @@ export class WorkerPool<T, R> {
     terminate(): Promise<void> {
         todo("WorkerPool.terminate")
     }
+}
+
+/// Worker exit status observed by the supervising parent.
+@derive(Tagged)
+export newtype WorkerExit =
+    | { kind: "completed" }
+    | { kind: "terminated" }
+    | { kind: "panicked"; panic: Panic };
+
+/// Worker request failure.
+@derive(Tagged)
+export newtype WorkerError =
+    | { kind: "terminated" }
+    | { kind: "panicked"; panic: Panic };
+
+/// Entry function for a worker.
+export type WorkerEntry<T, R> = (message: T) => R | Promise<R>;
+
+/// Worker spawn options.
+export interface WorkerOptions {
+    /// Human-readable worker name.
+    name?: string;
+
+    /// Initial stack size in bytes.
+    stackSize?: usize;
 }
 
 /// Spawn one worker.
