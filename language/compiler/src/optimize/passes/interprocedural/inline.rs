@@ -1395,7 +1395,7 @@ fn terminator_cost(terminator: &mir::Terminator) -> u64 {
             panic!("recovered MIR terminator reached optimizer");
         }
         mir::Terminator::Return { .. } => INLINE_COST_SIMPLE,
-        mir::Terminator::Panic { .. } | mir::Terminator::ResumePanic => INLINE_COST_SIMPLE + 1,
+        mir::Terminator::Panic { .. } | mir::Terminator::ResumeUnwind => INLINE_COST_SIMPLE + 1,
         mir::Terminator::Trap { .. } => INLINE_COST_SIMPLE + 1,
         mir::Terminator::Jump { .. } => INLINE_COST_SIMPLE,
         mir::Terminator::Branch { .. }

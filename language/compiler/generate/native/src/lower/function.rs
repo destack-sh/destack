@@ -1372,7 +1372,7 @@ impl<'a> FunctionLowerer<'a> {
             }
 
             // panic still needs runtime support
-            mir::Terminator::Panic { .. } | mir::Terminator::ResumePanic => {
+            mir::Terminator::Panic { .. } | mir::Terminator::ResumeUnwind => {
                 return Err(CodegenCraneliftError::Internal {
                     message: "panic unwinding requires native runtime lowering".into(),
                 });

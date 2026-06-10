@@ -1940,6 +1940,7 @@ Mechanically, a panic unwinds the _current_ `Worker`:
 1. The panic starts unwinding from the trapping point with a message payload.
 2. Cleanup runs on the way out - `using` / `await using` disposal, `finally` arms, and `Drop` glue for owned values - in the usual LIFO order.
 3. The Worker terminates; a parent or supervisor observes the termination and gets the `Panic` struct - message, source location, and stack trace when available - through the regular `Worker` API and decides what to do (restart, propagate, report).
+4. A panic _during_ that cleanup aborts: there is no unwinding the unwinding.
 
 Conveniently, the Worker thus also becomes the fault boundary, mirroring both the web's worker model and (roughly) Erlang-style supervision: a panic never silently corrupts sibling Workers, and the test harness and the simulator can observe panics as ordinary (deterministic) Worker terminations without any language-level catch.
 Nice.
@@ -2653,6 +2654,7 @@ There is no hidden suspension - no implicit awaits, no preemption points, no sus
 
 Whenever the lifetime of a value ends and it is deallocated, Destack supports running a `Drop` finalizer, similar to Rust's `Drop`.
 This happens when the compiler inserts a drop for an owned local after its last use, when an owned field is being destroyed, and when the runtime reclaims an unreachable managed allocation.
+Drop sites are statically known: a place conditionally moved on one branch is an error at the join, so there are no runtime drop flags, and drops lower to plain calls.
 
 ```ds
 function run(): void {

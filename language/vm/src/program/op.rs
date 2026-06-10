@@ -886,8 +886,8 @@ pub(crate) enum Op {
     Panic,
     /// Panic with a runtime payload.
     PanicValue,
-    /// Resume an active panic.
-    ResumePanic,
+    /// Resume the active unwind.
+    ResumeUnwind,
     /// Mark unreachable execution.
     Unreachable,
 

@@ -33,6 +33,8 @@ pub enum EdgeKind {
     SwitchDefault,
     /// Coroutine resume edge.
     YieldResume,
+    /// Unwind edge from a cancelled or dropped suspension.
+    YieldUnwind,
 }
 
 /// Key identifying a control flow edge.

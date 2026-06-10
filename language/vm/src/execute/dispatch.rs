@@ -1207,7 +1207,7 @@ macro_rules! dispatch_instruction {
                 $step!(super::execute_tensor_transpose($activation, instruction))
             }
             Op::TensorView => $step!(super::execute_tensor_view($activation, instruction)),
-            Op::Panic | Op::PanicValue | Op::ResumePanic => {
+            Op::Panic | Op::PanicValue | Op::ResumeUnwind => {
                 $transfer!(super::execute_panic($activation, instruction))
             }
             Op::Unreachable => $transfer!(super::execute_unreachable($activation, instruction)),

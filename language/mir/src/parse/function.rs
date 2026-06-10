@@ -445,7 +445,7 @@ impl Parser {
                 || self.peek_token(TokenType::Switch)
                 || self.peek_token(TokenType::Yield)
                 || self.peek_token(TokenType::Panic)
-                || self.peek_token(TokenType::ResumePanic)
+                || self.peek_token(TokenType::ResumeUnwind)
                 || self.peek_token(TokenType::Trap)
                 || self.peek_token(TokenType::Unreachable)
                 || self.peek_token(TokenType::TailCall)
@@ -818,12 +818,12 @@ impl Parser {
             TokenType::Call => {
                 self.bump();
                 let (function, arguments, signature) = self.parse_direct_call_target()?;
-                let target = self.parse_call_continuation()?;
+                let (target, unwind) = self.parse_continuation()?;
                 Ok(Terminator::Call {
                     function,
                     call: Call::new(arguments, signature),
                     target,
-                    unwind: None,
+                    unwind,
                 })
             }
             TokenType::Jump => {
@@ -906,13 +906,13 @@ impl Parser {
             TokenType::Yield => {
                 self.bump();
                 let value = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let resume = BlockTarget {
-                    block: self.parse_block_ref()?,
-                    arguments: self.parse_optional_block_arguments()?,
-                };
+                let (resume, unwind) = self.parse_continuation()?;
 
-                Ok(Terminator::Yield { value, resume })
+                Ok(Terminator::Yield {
+                    value,
+                    resume,
+                    unwind,
+                })
             }
             TokenType::Trap => {
                 self.bump();
@@ -936,9 +936,9 @@ impl Parser {
                 };
                 Ok(Terminator::Panic { payload })
             }
-            TokenType::ResumePanic => {
+            TokenType::ResumeUnwind => {
                 self.bump();
-                Ok(Terminator::ResumePanic)
+                Ok(Terminator::ResumeUnwind)
             }
             TokenType::Unreachable => {
                 self.bump();
@@ -963,12 +963,12 @@ impl Parser {
             TokenType::CallIndirect => {
                 self.bump();
                 let (callee, arguments, signature) = self.parse_indirect_call_target()?;
-                let target = self.parse_call_continuation()?;
+                let (target, unwind) = self.parse_continuation()?;
                 Ok(Terminator::CallIndirect {
                     callee,
                     call: Call::new(arguments, signature),
                     target,
-                    unwind: None,
+                    unwind,
                 })
             }
             TokenType::TailCallVirtual => {
@@ -986,14 +986,14 @@ impl Parser {
                 self.bump();
                 let (receiver, class, slot, arguments, signature) =
                     self.parse_class_call_target()?;
-                let target = self.parse_call_continuation()?;
+                let (target, unwind) = self.parse_continuation()?;
                 Ok(Terminator::CallVirtual {
                     receiver,
                     class,
                     slot,
                     call: Call::new(arguments, signature),
                     target,
-                    unwind: None,
+                    unwind,
                 })
             }
             TokenType::TailCallDynamic => {
@@ -1011,14 +1011,14 @@ impl Parser {
                 self.bump();
                 let (receiver, constraint, slot, arguments, signature) =
                     self.parse_dynamic_call_target()?;
-                let target = self.parse_call_continuation()?;
+                let (target, unwind) = self.parse_continuation()?;
                 Ok(Terminator::CallDynamic {
                     receiver,
                     constraint,
                     slot,
                     call: Call::new(arguments, signature),
                     target,
-                    unwind: None,
+                    unwind,
                 })
             }
             TokenType::Identifier => self.parse_allocation_try_terminator(&token),
@@ -1373,14 +1373,25 @@ impl Parser {
     }
 
     /// Parse the continuation for a call terminator.
-    fn parse_call_continuation(&mut self) -> ParseResult<BlockTarget> {
+    /// Parse one continuation: `-> target`, with an optional `| target` unwind alternative.
+    fn parse_continuation(&mut self) -> ParseResult<(BlockTarget, Option<BlockTarget>)> {
         self.eat_token(TokenType::Arrow)?;
         let target = BlockTarget {
             block: self.parse_block_ref()?,
             arguments: self.parse_optional_block_arguments()?,
         };
 
-        Ok(target)
+        // the unwind alternative
+        if !self.eat_token_maybe(TokenType::Pipe) {
+            return Ok((target, None));
+        }
+
+        let unwind = BlockTarget {
+            block: self.parse_block_ref()?,
+            arguments: self.parse_optional_block_arguments()?,
+        };
+
+        Ok((target, Some(unwind)))
     }
 
     /// Collect and predeclare blocks before parsing the function body.

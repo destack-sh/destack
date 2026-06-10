@@ -175,10 +175,13 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             write!(f, [token("unreachable")])
         }
 
-        Terminator::Yield { value, resume } => {
-            write!(f, [token("yield"), space(), value, token(","), space()])?;
-            format_block_target(resume, f)?;
-            Ok(())
+        Terminator::Yield {
+            value,
+            resume,
+            unwind,
+        } => {
+            write!(f, [token("yield"), space(), value])?;
+            format_continuation(resume, unwind.as_ref(), f)
         }
 
         Terminator::Call {
@@ -190,7 +193,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             write!(f, [token("call"), space(), function])?;
             format_value_list(&call.arguments, f)?;
             format_call_signature_suffix(&call.signature, f)?;
-            format_call_continuation(target, unwind.as_ref(), f)
+            format_continuation(target, unwind.as_ref(), f)
         }
 
         Terminator::CallIndirect {
@@ -203,7 +206,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             write!(f, [token("call.indirect"), space(), callee])?;
             format_value_list(&call.arguments, f)?;
             format_call_signature_suffix(&call.signature, f)?;
-            format_call_continuation(target, unwind.as_ref(), f)
+            format_continuation(target, unwind.as_ref(), f)
         }
 
         Terminator::CallVirtual {
@@ -231,7 +234,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             )?;
             format_value_list(&call.arguments, f)?;
             format_call_signature_suffix(&call.signature, f)?;
-            format_call_continuation(target, unwind.as_ref(), f)
+            format_continuation(target, unwind.as_ref(), f)
         }
 
         Terminator::CallDynamic {
@@ -259,7 +262,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             )?;
             format_value_list(&call.arguments, f)?;
             format_call_signature_suffix(&call.signature, f)?;
-            format_call_continuation(target, unwind.as_ref(), f)
+            format_continuation(target, unwind.as_ref(), f)
         }
 
         Terminator::NewZeroedTry {
@@ -332,7 +335,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             Ok(())
         }
 
-        Terminator::ResumePanic => write!(f, [token("panic.resume")]),
+        Terminator::ResumeUnwind => write!(f, [token("unwind.resume")]),
 
         Terminator::Trap { kind, payload } => {
             match kind {
@@ -410,7 +413,8 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
     }
 }
 
-fn format_call_continuation<'a>(
+/// Format one continuation: the normal target, then the unwind alternative.
+fn format_continuation<'a>(
     target: &BlockTarget,
     unwind: Option<&BlockTarget>,
     f: &mut MirFormatter<'a, '_>,
@@ -419,7 +423,7 @@ fn format_call_continuation<'a>(
     format_block_target(target, f)?;
 
     if let Some(unwind) = unwind {
-        write!(f, [token(","), space(), token("unwind"), space()])?;
+        write!(f, [space(), token("|"), space()])?;
         format_block_target(unwind, f)?;
     }
 

@@ -417,9 +417,16 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_values_in_slice(&mut case.target.arguments, from, to);
                 }
             }
-            Terminator::Yield { value, resume } => {
+            Terminator::Yield {
+                value,
+                resume,
+                unwind,
+            } => {
                 Self::replace_value_in_slot(value, from, to);
                 Self::replace_values_in_slice(&mut resume.arguments, from, to);
+                if let Some(unwind) = unwind {
+                    Self::replace_values_in_slice(&mut unwind.arguments, from, to);
+                }
             }
             Terminator::Call {
                 call,
@@ -480,7 +487,7 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(payload, from, to);
                 }
             }
-            Terminator::ResumePanic => {}
+            Terminator::ResumeUnwind => {}
             Terminator::Trap { .. } => {}
             Terminator::Unreachable => {}
             Terminator::TailCall { call, .. } => {

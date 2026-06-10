@@ -395,7 +395,7 @@ impl<'a> BlockLowerer<'a> {
                 Instruction::new(Op::PanicValue, cell_offset(self, payload)?, 0, 0, 0)
             }
 
-            mir::Terminator::ResumePanic => Instruction::new(Op::ResumePanic, 0, 0, 0, 0),
+            mir::Terminator::ResumeUnwind => Instruction::new(Op::ResumeUnwind, 0, 0, 0, 0),
 
             mir::Terminator::Trap { .. } => Instruction::new(Op::Abort, 0, 0, 0, 0),
 
