@@ -267,7 +267,9 @@ global {
 
     // destack:math
     export {
+        Arithmetic,
         BigInt,
+        Cast,
         Complex,
         Complexd,
         Complexf,
@@ -317,6 +319,7 @@ global {
         Vector4d,
         Vector4f,
         Vector4i,
+        Wrapping,
     } from "destack:math";
 
     // destack:compute

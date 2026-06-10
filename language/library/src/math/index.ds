@@ -66,6 +66,7 @@ export {
 } from "./float.ds";
 
 export {
+    Arithmetic,
     checkedAbs,
     checkedAdd,
     checkedDivide,
@@ -116,7 +117,8 @@ export {
     wrappingShiftRight,
     wrappingSubtract,
 } from "./arithmetic.ds";
-export { floatToSignedIntSaturating, floatToUnsignedIntSaturating } from "./cast.ds";
+export { Cast, floatToSignedIntSaturating, floatToUnsignedIntSaturating } from "./cast.ds";
+export { Wrapping } from "./wrapping.ds";
 export {
     convert,
     equal,
