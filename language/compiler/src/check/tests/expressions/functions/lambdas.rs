@@ -205,7 +205,7 @@ const send: ^Function<(string,), void> = (message) => {
 }
 
 #[test]
-fn test_managed_callback_captures_copy_binding() {
+fn test_managed_lambda_captures_copy_binding() {
     let session = TestSession::single(
         r#"
 class Client {

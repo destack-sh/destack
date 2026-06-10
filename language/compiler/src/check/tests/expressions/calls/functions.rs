@@ -27,6 +27,7 @@ function add(left: int32, right: int32): int32 {
     return left + right;
     /// @type.node source="left + right" type=int32
     /// @resolution.name source=left target=left
+    /// @resolution.call source="left + right" parameters=(int32, int32) return=int32 kind=builtin builtin=binary.add
     /// @resolution.name source=right target=right
 
 }
@@ -39,7 +40,7 @@ const value = add(1, 2);
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=4 terms=19 constraints=4 obligations=0 solutions=4 bounds=7 decisions=4
+/// @check.stats.solve variables=14 terms=13 constraints=37 obligations=0 solutions=14 bounds=33 decisions=5
 "#);
 }
 
@@ -69,14 +70,48 @@ const value = add(1, 2);
         DirRows::checked().with_node_types().without_reference_types(),
         r#"
 import { add } from "./math.ds";
-/// @type.symbol symbol=add source=add type=(int32, int32) => int32
 
 const value = add(1, 2);
 /// @type.symbol symbol=value source=value type=int32
 /// @type.node source="add(1, 2)" type=int32
-/// @resolution.name source=add target=add
-/// @resolution.call source="add(1, 2)" parameters=(int32, int32) return=int32 kind=symbol target=add
+/// @resolution.name source=add target=math.add
+/// @resolution.call source="add(1, 2)" parameters=(int32, int32) return=int32 kind=symbol target=math.add
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 "#);
+}
+
+#[test]
+fn test_optional_parameter_function_satisfies_required_parameter_target() {
+    let session = TestSession::single(
+        r#"
+function source(value?: unknown): void {}
+declare function use(callback: (value: unknown) => void): void;
+
+use(source);
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+function source(value?: unknown): void {}
+/// @type.symbol symbol=source source="function source(value?: unknown): void {}" type=(unknown | undefined?) => ()
+/// @type.symbol symbol=value#1 source="value?: unknown" type=unknown | undefined
+
+declare function use(callback: (value: unknown) => void): void;
+/// @type.symbol symbol=use source="declare function use(callback: (value: unknown) => void): void" type=((unknown) => ()) => ()
+/// @type.symbol symbol=callback source="callback: (value: unknown) => void" type=(unknown) => ()
+/// @type.symbol symbol=value#2 source="value: unknown" type=unknown
+
+use(source);
+/// @type.node source=use type=((unknown) => ()) => ()
+/// @type.node source=use(source) type=()
+/// @resolution.name source=use target=use
+/// @resolution.call source=use(source) parameters=((unknown) => ()) return=() kind=symbol target=use
+/// @type.node source=source type=(unknown | undefined?) => ()
+/// @resolution.name source=source target=source
+"#,
+    );
 }

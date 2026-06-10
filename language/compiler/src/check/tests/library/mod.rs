@@ -1,1 +1,1 @@
-mod tests;
+mod check;

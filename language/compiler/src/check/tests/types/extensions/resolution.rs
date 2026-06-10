@@ -74,3 +74,81 @@ const value = point.sum();
 /// @resolution.call source=point.sum() parameters=() return=int32 kind=symbol target=PointMath.sum receiver=Point
 "#);
 }
+
+#[test]
+fn test_missing_extension_method_call_reports_missing_member() {
+    let session = TestSession::single(
+        r#"
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+extension PointMath of Point {
+    sum(): int32 {
+        return this.x + this.y;
+    }
+}
+
+declare const point: Point;
+point.length();
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+struct Point {
+/// @type.symbol symbol=Point type=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+/// @definition.field symbol=Point.y source="y: int32" key=y type=int32
+/// @definition.struct symbol=Point
+
+    x: int32;
+    /// @type.symbol symbol=Point.x source="x: int32" type=int32
+
+    y: int32;
+    /// @type.symbol symbol=Point.y source="y: int32" type=int32
+
+}
+
+extension PointMath of Point {
+/// @definition.extension symbol=PointMath form=inherent target=Point
+/// @definition.method symbol=PointMath.sum slot=sum type=(this: Point) => int32
+/// @resolution.name source=Point target=Point
+
+    sum(): int32 {
+    /// @type.symbol symbol=PointMath.sum type=(this: Point) => int32
+
+        return this.x + this.y;
+        /// @type.node source="this.x + this.y" type=int32
+        /// @type.node source=this type=Point
+        /// @type.node source=this.x type=int32
+        /// @resolution.name source=this target=this
+        /// @resolution.member source=this.x receiver=Point kind=symbol target=Point.x
+        /// @resolution.call source="this.x + this.y" parameters=(int32, int32) return=int32 kind=builtin builtin=binary.add
+        /// @type.node source=this type=Point
+        /// @type.node source=this.y type=int32
+        /// @resolution.name source=this target=this
+        /// @resolution.member source=this.y receiver=Point kind=symbol target=Point.y
+
+    }
+}
+
+declare const point: Point;
+/// @type.symbol symbol=point source=point type=Point
+/// @resolution.name source=Point target=Point
+
+point.length();
+/// @type.node source=point type=Point
+/// @type.node source=point.length() type=<error>
+/// @resolution.name source=point target=point
+
+"#,
+        r#"
+/// @diagnostic.error code=EC300 message="missing member 'length'"
+/// @diagnostic.label line=14 column=1 source="point.length();"
+"#,
+    );
+}
