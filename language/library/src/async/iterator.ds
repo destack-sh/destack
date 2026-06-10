@@ -1,0 +1,31 @@
+import { Option } from "destack:types";
+
+import { Promise } from "./promise.ds";
+
+/// Protocol for asynchronously producing values.
+@languageItem("async.AsyncIterator")
+export newtype interface AsyncIterator {
+    type Item;
+
+    /// Advance and return the next item, or `null` when exhausted.
+    next(): Promise<Option<this.Item>>;
+}
+
+/// Value that can produce an async iterator.
+@languageItem("async.AsyncIterable")
+export newtype interface AsyncIterable {
+    type Item;
+
+    /// Return a new async iterator for this receiver form.
+    asyncIterator(): AsyncIterator<this.Item>;
+}
+
+/// Every async iterator is trivially async-iterable as itself.
+extension<I: AsyncIterator> of I implements AsyncIterable {
+    type Item = I.Item;
+
+    /// Return this async iterator.
+    asyncIterator(): I {
+        this
+    }
+}

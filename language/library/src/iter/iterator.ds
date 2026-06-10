@@ -1,44 +1,32 @@
 import { Access, WithAccess } from "destack:memory";
-
-/// A yielded iterator value.
-@languageItem("iter.IteratorYield")
-export struct IteratorYield<TYield> {
-    /// The iterator is not complete.
-    done: false = false;
-
-    /// The yielded value.
-    value: TYield;
-}
-
-/// A completed iterator value.
-@languageItem("iter.IteratorReturn")
-export struct IteratorReturn<TReturn> {
-    /// The iterator is complete.
-    done: true = true;
-
-    /// The return value.
-    value: TReturn;
-}
-
-/// The union of iterator yield and return results.
-@languageItem("iter.IteratorResult")
-export newtype IteratorResult<T, TReturn = unknown> = IteratorYield<T> | IteratorReturn<TReturn>;
+import { Option } from "destack:types";
 
 /// A protocol for producing a sequence of values.
 @languageItem("iter.Iterator")
-export interface Iterator<T, TReturn = unknown, TNext = unknown> {
-    /// Advance the iterator and return the next result.
-    next(...value: [] | [TNext]): IteratorResult<T, TReturn>;
+export newtype interface Iterator {
+    type Item;
 
-    /// Finalize the iterator and return the completion value.
-    return?(value?: TReturn): IteratorResult<T, TReturn>;
+    /// Advance and return the next item, or `null` when exhausted.
+    next(): Option<this.Item>;
 }
 
 /// A value that can produce an iterator.
 @languageItem("iter.Iterable")
-export interface Iterable<T, TReturn = unknown, TNext = unknown> {
+export newtype interface Iterable {
+    type Item;
+
     /// Return a new iterator for this receiver form.
-    iterator(): Iterator<T, TReturn, TNext>;
+    iterator(): Iterator<this.Item>;
+}
+
+/// Every iterator is trivially iterable as itself.
+extension<I: Iterator> of I implements Iterable {
+    type Item = I.Item;
+
+    /// Return this iterator.
+    iterator(): I {
+        this
+    }
 }
 
 /// Collection built from an iterator.
@@ -55,19 +43,11 @@ export newtype interface Extend<T, comptime A: Access = "mutable"> {
     extend(this: WithAccess<&this, A>, values: Iterable<T>): void;
 }
 
-export extension<T, TReturn = unknown, TNext = unknown> of Iterator<T, TReturn, TNext> {
+export extension<I: Iterator> of I {
     /// Collect this iterator into `C`.
-    collect<C>(): C where C: FromIterator<T> {
+    collect<C>(): C where (
+        C: FromIterator<I.Item>
+    ) {
         C.fromIterator(this)
     }
-}
-
-/// A value that is both iterable and its own iterator.
-export interface IterableIterator<T, TReturn = unknown, TNext = unknown> extends Iterator<
-    T,
-    TReturn,
-    TNext
-> {
-    /// Return an iterator for this value.
-    iterator(): IterableIterator<T, TReturn, TNext>;
 }

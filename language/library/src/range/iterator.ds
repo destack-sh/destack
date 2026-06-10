@@ -1,5 +1,6 @@
 import { todo } from "destack:error";
-import { Iterator, IteratorResult } from "destack:iter";
+import { Iterator } from "destack:iter";
+import { Option } from "destack:types";
 
 import { Bound } from "./bound.ds";
 import { Step } from "./step.ds";
@@ -13,9 +14,11 @@ export struct RangeIterator<T: Step<T>> {
     end: Bound<T>;
 }
 
-extension<T: Step<T>> of RangeIterator<T> implements Iterator<T> {
+extension<T: Step<T>> of RangeIterator<T> implements Iterator {
+    type Item = T;
+
     /// Advance the iterator.
-    next(): IteratorResult<T> {
+    next(): Option<T> {
         todo("RangeIterator.next")
     }
 }
