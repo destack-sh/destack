@@ -27,7 +27,7 @@ export function Panel(props: PanelProps) {
                 }}
             />
 
-            <section class="relative z-10 h-full min-h-0 min-w-0 border-[2.5px] border-neutral-950 bg-destack-panel">
+            <section class="relative z-10 h-full min-h-0 min-w-0 border-[2.5px] border-destack-frame bg-destack-panel">
                 <span class="absolute -top-3 left-3 z-20 bg-destack-page px-1 text-sm font-extrabold lowercase">
                     {props.title}
                 </span>

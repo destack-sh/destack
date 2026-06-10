@@ -44,7 +44,7 @@ function MissingPost() {
             <p class="text-sm font-extrabold text-destack-accent lowercase">missing post</p>
             <h1 class="page-title">this post does not exist</h1>
             <A
-                class="w-max border-b-4 border-neutral-300 text-sm font-extrabold lowercase hover:border-destack-accent"
+                class="w-max border-b-4 border-destack-line text-sm font-extrabold lowercase hover:border-destack-accent"
                 href="/blog/"
             >
                 back to blog
