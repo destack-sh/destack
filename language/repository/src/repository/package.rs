@@ -174,13 +174,13 @@ impl Repository {
             }
         }
 
-        self.push_dependency_package_roots(revision, files, &mut package_roots, &mut seen)?;
+        self.push_module_package_roots(revision, files, &mut package_roots, &mut seen)?;
 
         Ok(package_roots)
     }
 
     /// Add package roots reachable from captured dependency declarations.
-    fn push_dependency_package_roots(
+    fn push_module_package_roots(
         &self,
         revision: Revision,
         files: &OrdMap<FileId, FileEntry>,
