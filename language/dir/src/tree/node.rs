@@ -1,4 +1,6 @@
+use std::cmp::Ordering;
 use std::fmt::{Debug, Formatter};
+use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 
 use destack_source::{ModuleId, ProfileId};
@@ -181,7 +183,7 @@ impl<T: Node> TryFrom<LocalNodeIdAny> for LocalNodeId<T> {
 
 /// Unique identifier for nodes in a local arena, parameterized by node type.
 #[repr(transparent)]
-#[derive(Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(bound = "")]
 pub struct LocalNodeId<T: Node> {
     pub id: u32,
@@ -227,14 +229,45 @@ impl<T: Node> LocalNodeId<T> {
     }
 }
 
+impl<T: Node> Clone for LocalNodeId<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
 impl<T: Node> Debug for LocalNodeId<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LocalNodeId").field("id", &self.id).finish()
     }
 }
 
-// manually mark as Copy since PhantomData over T breaks Copy otherwise (?)
-impl<T: Clone + Node> Copy for LocalNodeId<T> {}
+impl<T: Node> Copy for LocalNodeId<T> {}
+
+impl<T: Node> PartialEq for LocalNodeId<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl<T: Node> Eq for LocalNodeId<T> {}
+
+impl<T: Node> PartialOrd for LocalNodeId<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<T: Node> Ord for LocalNodeId<T> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.id.cmp(&other.id)
+    }
+}
+
+impl<T: Node> Hash for LocalNodeId<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
 
 impl<T: Node> LocalNodeId<T> {
     #[inline]
@@ -244,13 +277,50 @@ impl<T: Node> LocalNodeId<T> {
 }
 
 /// Global node id across modules.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(bound = "")]
 pub struct GlobalNodeId<T: Node> {
     /// The module id of the global node.
     pub module_id: ModuleId,
     /// The local id of the global node.
     pub local_id: LocalNodeId<T>,
+}
+
+impl<T: Node> Clone for GlobalNodeId<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T: Node> Copy for GlobalNodeId<T> {}
+
+impl<T: Node> PartialEq for GlobalNodeId<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.module_id == other.module_id && self.local_id == other.local_id
+    }
+}
+
+impl<T: Node> Eq for GlobalNodeId<T> {}
+
+impl<T: Node> PartialOrd for GlobalNodeId<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<T: Node> Ord for GlobalNodeId<T> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.module_id
+            .cmp(&other.module_id)
+            .then_with(|| self.local_id.cmp(&other.local_id))
+    }
+}
+
+impl<T: Node> Hash for GlobalNodeId<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.module_id.hash(state);
+        self.local_id.hash(state);
+    }
 }
 
 impl<T: Node> GlobalNodeId<T> {
