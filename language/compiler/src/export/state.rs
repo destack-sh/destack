@@ -142,6 +142,57 @@ impl<'a> ExportState<'a> {
         scope.find_symbol(key)
     }
 
+    /// Return the target module for one namespace import symbol.
+    pub(in crate::export) fn namespace_import_target(
+        &self,
+        symbol_id: dir::LocalSymbolId,
+    ) -> Option<ModuleId> {
+        // require an import symbol
+        let symbol = self.bindings.get_symbol(symbol_id);
+        if symbol.kind != dir::SymbolKind::Import {
+            return None;
+        }
+
+        // require a local dependency item declaration
+        let declaration = symbol.declaration?;
+        if declaration.module_id != self.view.tree().module_id {
+            return None;
+        }
+
+        // require a namespace import item
+        let item_id = declaration
+            .local_id
+            .try_into_typed::<dir::DependencyItem>()
+            .ok()?;
+        let item = self.view.get(item_id);
+        if item.binding()? != dir::DependencyBinding::Namespace {
+            return None;
+        }
+
+        // find the import edge that owns this item
+        for edge in self.modules.iter() {
+            if edge.relation != dir::ModuleRelation::Import {
+                continue;
+            }
+
+            let Ok(expression_id) = edge.source.local_id.try_into_typed::<dir::Expression>() else {
+                continue;
+            };
+            let expression = self.view.get(expression_id);
+            let dir::Expression::Import {
+                items: Some(items), ..
+            } = expression
+            else {
+                continue;
+            };
+            if items.contains(&item_id) {
+                return edge.target;
+            }
+        }
+
+        None
+    }
+
     /// Render one static export key.
     pub(in crate::export) fn static_key_text(&self, key: dir::StaticKey) -> String {
         match key {

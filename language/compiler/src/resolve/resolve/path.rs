@@ -1,9 +1,9 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
+use crate::CompilerResult;
 use crate::resolve::resolve::{ExportLookup, ExportTarget};
 use crate::resolve::state::{PathReference, ResolveState};
-use crate::{CompilerError, CompilerResult};
 
 impl ResolveState<'_> {
     /// Resolve namespace path references collected during the resolve walk.
@@ -51,6 +51,7 @@ impl ResolveState<'_> {
             let length = index as u32 + 2;
             let key = dir::ExportKey::named(dir::StaticKey::Name(*segment));
             let resolution = self.resolve_export_target(module, key)?;
+            let is_final = index + 1 == tail.len();
 
             match resolution {
                 // record one symbol prefix
@@ -59,7 +60,12 @@ impl ResolveState<'_> {
                         dir::PathKey::new(reference.source, length),
                         dir::PathResolution::Found(dir::PathTarget::Symbol(symbol)),
                     );
-                    let Some(next) = self.namespace_symbol_module(symbol)? else {
+                    if is_final {
+                        return Ok(());
+                    }
+
+                    // continue only when the symbol itself names another namespace
+                    let Some(next) = self.local_namespace_symbol_module(symbol) else {
                         return Ok(());
                     };
 
@@ -154,37 +160,23 @@ impl ResolveState<'_> {
         Some(module)
     }
 
-    /// Return the namespace module selected by one resolved symbol.
+    /// Return the namespace module selected by one local namespace import symbol.
     ///
     /// Example:
     /// ```ds
-    /// export * as api from "./api.ds";
+    /// import * as api from "./api.ds";
     ///
-    /// dep.api.value;
-    /// // api can be a symbol whose import target is another namespace module
+    /// api.value;
+    /// // api selects the namespace module
     /// ```
-    fn namespace_symbol_module(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<ModuleId>> {
-        // read the symbol import target
-        let target = if symbol.module_id == self.module {
-            self.imports.symbol_target(symbol.local_id)
-        } else {
-            let resolved = self
-                .artifacts
-                .dir_resolved(symbol.module_id, self.profile)
-                .map_err(CompilerError::from)?;
+    fn local_namespace_symbol_module(&self, symbol: dir::GlobalSymbolId) -> Option<ModuleId> {
+        if symbol.module_id != self.module {
+            return None;
+        }
 
-            resolved.imports.symbol_target(symbol.local_id)
-        };
-
-        // require a namespace target
-        let module = match target {
+        match self.imports.symbol_target(symbol.local_id) {
             Some(dir::ImportTarget::Namespace(module)) => Some(module),
             Some(dir::ImportTarget::Symbol(_)) | None => None,
-        };
-
-        Ok(module)
+        }
     }
 }

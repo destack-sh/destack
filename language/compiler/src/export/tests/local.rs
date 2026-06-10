@@ -51,6 +51,44 @@ export { value as renamed };
 }
 
 #[test]
+fn test_export_records_local_namespace_alias() {
+    let compiler = TestSession::new()
+        .module(
+            "main.ds",
+            r#"
+import * as api from "./api.ds";
+export { api };
+"#,
+        )
+        .module(
+            "api.ds",
+            r#"
+export const value = 1;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_exported(
+        "main.ds",
+        DirRows::modules()
+            .with_export()
+            .with_summaries()
+            .with_export_stats(),
+        r#"
+import * as api from "./api.ds";
+/// @module.edge relation=import specifier=./api.ds module=api.ds
+
+export { api };
+/// @export.indirect key=api imported=<namespace> module=api.ds
+
+/// @module.summary edges=1
+/// @export.summary exports=1
+/// @export.stats roots=2 expressions=visibility:2,export:2 symbols=scanned:2
+"#,
+    );
+}
+
+#[test]
 fn test_export_uses_latest_local_binding() {
     let compiler = TestSession::new()
         .module(
@@ -212,6 +250,51 @@ global {
     export { value as globalValue };
 }
 
+/// @export.summary
+/// @export.stats roots=2 expressions=visibility:3,export:3 symbols=scanned:2
+/// @global.summary keys=1 entries=1
+"#,
+    );
+}
+
+#[test]
+fn test_export_records_global_local_namespace_alias() {
+    let compiler = TestSession::new()
+        .module(
+            "main.ds",
+            r#"
+import * as api from "./api.ds";
+
+global {
+    export { api };
+}
+"#,
+        )
+        .module(
+            "api.ds",
+            r#"
+export const value = 1;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_exported(
+        "main.ds",
+        DirRows::modules()
+            .with_export()
+            .with_summaries()
+            .with_export_stats(),
+        r#"
+import * as api from "./api.ds";
+/// @module.edge relation=import specifier=./api.ds module=api.ds
+
+global {
+    export { api };
+    /// @global.indirect key=api imported=<namespace> module=api.ds
+
+}
+
+/// @module.summary edges=1
 /// @export.summary
 /// @export.stats roots=2 expressions=visibility:3,export:3 symbols=scanned:2
 /// @global.summary keys=1 entries=1
