@@ -1,207 +1,361 @@
-use std::ops::ControlFlow;
+use destack_source::ModuleId;
+use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Origin, Solution, StaticOperand, StaticSolution, StaticTerm, TypeOperand,
-    TypeSolution, TypeTerm, VariableId,
+    Answer, BoundSide, CheckEvent, CheckState, Dependency, GenericParameterId, Origin,
+    StaticOperand, StaticSolution, TraceOperand, TypeOperand, TypeOperationTerm, TypeSolution,
+    TypeTerm,
 };
 
-/// Contribution from one bound.
-enum BoundReduction<T> {
-    /// The bound contributes no value.
-    Empty,
-    /// The bound is waiting on more solver input.
-    Pending,
-    /// The bound contributes one value.
-    Value(T),
+/// Component-valid id for one check variable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(in crate::check) struct VariableId {
+    /// The module that produced the variable.
+    pub(in crate::check) module: ModuleId,
+    /// The variable index inside the checked component.
+    pub(in crate::check) index: u32,
 }
 
-impl<T> BoundReduction<T> {
-    /// Add this reduction to one bound collection.
-    fn collect_into(self, values: &mut Vec<T>) -> ControlFlow<()> {
-        match self {
-            Self::Empty => ControlFlow::Continue(()),
-            Self::Pending => ControlFlow::Break(()),
-            Self::Value(value) => {
-                values.push(value);
+impl VariableId {
+    /// Create one variable id.
+    pub(in crate::check) fn new(module: ModuleId, index: u32) -> Self {
+        Self { module, index }
+    }
+}
 
-                ControlFlow::Continue(())
-            }
+/// One solver variable.
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) struct Variable {
+    /// The variable id.
+    pub(in crate::check) id: VariableId,
+    /// The variable kind.
+    pub(in crate::check) kind: VariableKind,
+    /// The source that produced the variable.
+    pub(in crate::check) source: Origin,
+}
+
+impl Variable {
+    /// Create one unsolved variable.
+    pub(in crate::check) fn new(id: VariableId, kind: VariableKind, source: Origin) -> Self {
+        Self { id, kind, source }
+    }
+}
+
+/// The value space of one check variable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum VariableKind {
+    /// Type variable.
+    Type,
+    /// Static value variable.
+    Static,
+}
+
+/// Default value for one omitted generic argument.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum GenericArgumentDefault {
+    /// Type default.
+    Type {
+        /// The generic parameter declaring the default.
+        parameter: GenericParameterId,
+        /// The default value.
+        value: TypeOperand,
+    },
+    /// Static default.
+    Static {
+        /// The generic parameter declaring the default.
+        parameter: GenericParameterId,
+        /// The default value.
+        value: StaticOperand,
+    },
+}
+
+impl GenericArgumentDefault {
+    /// Create one type argument default.
+    pub(in crate::check) fn r#type(parameter: GenericParameterId, value: TypeOperand) -> Self {
+        Self::Type { parameter, value }
+    }
+
+    /// Create one static argument default.
+    pub(in crate::check) fn r#static(parameter: GenericParameterId, value: StaticOperand) -> Self {
+        Self::Static { parameter, value }
+    }
+
+    /// Return the generic parameter declaring this default.
+    pub(in crate::check) fn parameter(self) -> GenericParameterId {
+        match self {
+            Self::Type { parameter, .. } | Self::Static { parameter, .. } => parameter,
         }
     }
 }
 
 impl CheckState<'_> {
-    /// Set one complete variable solution.
-    fn solve_complete_variable(
-        &mut self,
-        variable: VariableId,
-        solution: Solution,
-    ) -> CompilerResult<()> {
-        // wait for complete candidate solutions
-        if !self.solution_is_complete(solution) {
-            return Ok(());
-        }
-
-        self.set_variable_solution(variable, solution)?;
-
-        Ok(())
-    }
-
     /// Solve one type variable from its current bounds.
     pub(in crate::check) fn solve_type_variable(
         &mut self,
         variable: VariableId,
         term: TypeTerm,
-    ) -> CompilerResult<()> {
-        // wait for nested operands to solve
-        if !term.referenced_variables(self).is_empty() {
-            return Ok(());
-        }
-
+    ) -> CompilerResult<Answer<()>> {
         let solution = TypeSolution::Term(self.inference.push_term(term));
 
-        self.solve_complete_variable(variable, solution.into())
+        self.set_variable_solution(variable, solution.into())?;
+
+        Ok(Answer::Ready(()))
     }
 
-    /// Solve one type variable from an omitted generic default.
-    pub(in crate::check) fn solve_default_type_variable(
+    /// Solve one type variable from one operand.
+    fn solve_type_variable_operand(
         &mut self,
         variable: VariableId,
-        default: TypeOperand,
-    ) -> CompilerResult<()> {
-        // keep real lower bounds stronger than defaults
-        if self.inference.has_lower_type_bounds(variable)
-            || self.variable_solution(variable).is_some()
-        {
-            return Ok(());
-        }
-
-        let default = match default {
-            // wait for another variable to solve first
-            TypeOperand::Variable(source) if source != variable => {
-                let Some(default) = self.variable_type_solution_operand(source) else {
-                    return Ok(());
-                };
-
-                default
+        operand: TypeOperand,
+    ) -> CompilerResult<Answer<()>> {
+        let solution = match operand {
+            TypeOperand::Variable(alias) => {
+                return Ok(Answer::pending([Dependency::Variable(alias)]));
             }
-            TypeOperand::Variable(_) => return Ok(()),
-            TypeOperand::Term(_) | TypeOperand::Type(_) => default,
-        };
-        let solution = match default {
             TypeOperand::Term(term) => TypeSolution::Term(term),
             TypeOperand::Type(ty) => TypeSolution::Type(ty),
-            TypeOperand::Variable(_) => return Ok(()),
         };
 
-        self.solve_complete_variable(variable, solution.into())
+        self.set_variable_solution(variable, solution.into())?;
+
+        Ok(Answer::Ready(()))
     }
 
     /// Solve one static variable from its current bounds.
     pub(in crate::check) fn solve_static_variable(
         &mut self,
         variable: VariableId,
-        term: StaticTerm,
-    ) -> CompilerResult<()> {
-        // wait for nested operands to solve
-        if !term.referenced_variables(self).is_empty() {
-            return Ok(());
-        }
+        operand: StaticOperand,
+    ) -> CompilerResult<Answer<()>> {
+        let solution = match operand {
+            StaticOperand::Variable(alias) => {
+                return Ok(Answer::pending([Dependency::Variable(alias)]));
+            }
+            StaticOperand::Term(term) => StaticSolution::Term(term),
+            StaticOperand::Static(value) => StaticSolution::Static(value),
+        };
 
-        let solution = StaticSolution::Term(self.inference.push_term(term));
+        self.set_variable_solution(variable, solution.into())?;
 
-        self.solve_complete_variable(variable, solution.into())
+        Ok(Answer::Ready(()))
     }
 
-    /// Solve one static variable from an omitted generic default.
-    pub(in crate::check) fn solve_default_static_variable(
+    /// Solve one variable from its generic argument default.
+    pub(in crate::check) fn solve_generic_argument_default(
+        &mut self,
+        variable: VariableId,
+    ) -> CompilerResult<Answer<()>> {
+        let Some(default) = self.inference.generic_argument_default(variable) else {
+            return Ok(Answer::Ready(()));
+        };
+
+        let answer = match default {
+            GenericArgumentDefault::Type { value, .. } => {
+                self.solve_type_argument_default(variable, value)?
+            }
+            GenericArgumentDefault::Static { value, .. } => {
+                self.solve_static_argument_default(variable, value)?
+            }
+        };
+
+        Ok(answer)
+    }
+
+    /// Solve one type variable from its default.
+    fn solve_type_argument_default(
+        &mut self,
+        variable: VariableId,
+        default: TypeOperand,
+    ) -> CompilerResult<Answer<()>> {
+        if self.variable_solution(variable).is_some()
+            || self.inference.has_lower_type_bounds(variable)
+        {
+            return Ok(Answer::Ready(()));
+        }
+
+        let origin = self.variable(variable).source;
+        let default = match self.reduce_type_bound(origin, variable, default)? {
+            Answer::Ready(default) => default,
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        };
+        let Ok(solution) = TypeSolution::try_from(default) else {
+            return Ok(Answer::Ready(()));
+        };
+
+        self.set_variable_solution(variable, solution.into())?;
+
+        Ok(Answer::Ready(()))
+    }
+
+    /// Solve one static variable from its default.
+    fn solve_static_argument_default(
         &mut self,
         variable: VariableId,
         default: StaticOperand,
-    ) -> CompilerResult<()> {
-        // keep real lower bounds stronger than defaults
-        if self.inference.has_lower_static_bounds(variable)
-            || self.variable_solution(variable).is_some()
+    ) -> CompilerResult<Answer<()>> {
+        if self.variable_solution(variable).is_some()
+            || self.inference.has_lower_static_bounds(variable)
         {
-            return Ok(());
+            return Ok(Answer::Ready(()));
         }
 
         let default = match default {
-            // wait for another variable to solve first
-            StaticOperand::Variable(source) if source != variable => {
-                let Some(default) = self.variable_static_solution_operand(source) else {
-                    return Ok(());
-                };
-
-                default
+            StaticOperand::Term(_) | StaticOperand::Variable(_) => {
+                let origin = self.variable(variable).source;
+                match self.reduce_static_bound(origin, variable, default)? {
+                    Answer::Ready(default) => default,
+                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+                }
             }
-            StaticOperand::Variable(_) => return Ok(()),
-            StaticOperand::Term(_) | StaticOperand::Static(_) => default,
+            StaticOperand::Static(_) => default,
         };
-        let solution = match default {
-            StaticOperand::Term(term) => StaticSolution::Term(term),
-            StaticOperand::Static(value) => StaticSolution::Static(value),
-            StaticOperand::Variable(_) => return Ok(()),
+        let Ok(solution) = StaticSolution::try_from(default) else {
+            return Ok(Answer::Ready(()));
         };
 
-        self.solve_complete_variable(variable, solution.into())
+        self.set_variable_solution(variable, solution.into())?;
+
+        Ok(Answer::Ready(()))
     }
 
     /// Solve one type variable from lower bounds.
     pub(in crate::check) fn solve_type_variable_from_bounds(
         &mut self,
         variable: VariableId,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Answer<()>> {
         let lower_bounds = self.inference.lower_type_bounds(variable);
+        let upper_bounds = self.inference.upper_type_bounds(variable);
 
-        // wait for useful lower bounds
+        // solve contextual variables from upper bounds
         if lower_bounds.is_empty() {
-            return Ok(());
+            return self.solve_type_variable_from_upper_bounds(variable, &upper_bounds);
         }
 
-        // collect concrete lower bound operands
+        // collect produced operands
         let origin = self.variable(variable).source;
-        let mut operands = Vec::with_capacity(lower_bounds.len());
+        let mut operands = SmallVec::<[TypeOperand; 4]>::new();
+        let mut blockers = SmallVec::<[Dependency; 2]>::new();
+
         for bound in lower_bounds {
-            let reduction = self.reduce_type_bound(origin, variable, bound)?;
-            if reduction.collect_into(&mut operands).is_break() {
-                return Ok(());
-            }
-        }
+            let operand = match self.reduce_type_bound(origin, variable, bound)? {
+                Answer::Ready(operand) => operand,
+                Answer::Pending(dependencies) => {
+                    self.record_event(CheckEvent::BoundPending {
+                        variable,
+                        kind: VariableKind::Type,
+                        side: BoundSide::Lower,
+                        value: TraceOperand::Type(bound),
+                    });
 
-        // solve from the best common concrete operand
-        if operands.is_empty() {
-            return Ok(());
-        }
-        let mut terms = Vec::with_capacity(operands.len());
-        for operand in operands {
-            let Some(term) = self.type_operand_term(operand)? else {
-                return Ok(());
+                    blockers.extend(dependencies);
+
+                    continue;
+                }
             };
+            if matches!(operand, TypeOperand::Variable(bound) if bound == variable) {
+                continue;
+            }
 
-            terms.push(term);
+            operands.push(operand);
         }
-        let term = self.reduce_best_common_terms(variable.module, terms)?;
+
+        // wait for all produced bounds
+        if !blockers.is_empty() {
+            return Ok(Answer::pending(blockers));
+        }
+        if operands.is_empty() {
+            return self.solve_type_variable_from_upper_bounds(variable, &upper_bounds);
+        }
+        let term = match operands.as_slice() {
+            [operand] => {
+                return self.solve_type_variable_operand(variable, *operand);
+            }
+            _ => {
+                let operation = self.inference.push_term(TypeOperationTerm::BestCommon {
+                    elements: operands.into_vec(),
+                });
+
+                TypeTerm::Operation(operation)
+            }
+        };
 
         self.solve_type_variable(variable, term)
     }
 
-    /// Reduce one lower type bound.
-    fn reduce_type_bound(
+    /// Solve one type variable from contextual upper bounds.
+    fn solve_type_variable_from_upper_bounds(
+        &mut self,
+        variable: VariableId,
+        upper_bounds: &[TypeOperand],
+    ) -> CompilerResult<Answer<()>> {
+        if upper_bounds.is_empty() {
+            return Ok(Answer::Ready(()));
+        }
+
+        let origin = self.variable(variable).source;
+        let mut operands = SmallVec::<[TypeOperand; 4]>::new();
+        let mut blockers = SmallVec::<[Dependency; 2]>::new();
+
+        for bound in upper_bounds.iter().copied() {
+            let operand = match self.reduce_type_bound(origin, variable, bound)? {
+                Answer::Ready(operand) => operand,
+                Answer::Pending(dependencies) => {
+                    self.record_event(CheckEvent::BoundPending {
+                        variable,
+                        kind: VariableKind::Type,
+                        side: BoundSide::Upper,
+                        value: TraceOperand::Type(bound),
+                    });
+
+                    blockers.extend(dependencies);
+
+                    continue;
+                }
+            };
+            if matches!(operand, TypeOperand::Variable(bound) if bound == variable) {
+                continue;
+            }
+
+            operands.push(operand);
+        }
+
+        // wait for all contextual bounds before choosing a contextual solution
+        if !blockers.is_empty() {
+            return Ok(Answer::pending(blockers));
+        }
+
+        let term = match operands.as_slice() {
+            [] => return Ok(Answer::Ready(())),
+            [operand] if matches!(operand, TypeOperand::Variable(_)) => {
+                return self.solve_type_variable_operand(variable, *operand);
+            }
+            [operand] => {
+                return self.solve_type_variable_operand(variable, *operand);
+            }
+            _ => TypeTerm::Intersection {
+                elements: operands.into_vec(),
+            },
+        };
+
+        self.solve_type_variable(variable, term)
+    }
+
+    /// Reduce one type bound.
+    pub(in crate::check) fn reduce_type_bound(
         &mut self,
         origin: Origin,
         variable: VariableId,
         bound: TypeOperand,
-    ) -> CompilerResult<BoundReduction<TypeOperand>> {
+    ) -> CompilerResult<Answer<TypeOperand>> {
         // resolve the bound operand
         let operand = match bound {
             TypeOperand::Variable(bound) if bound == variable => {
-                return Ok(BoundReduction::Empty);
+                return Ok(Answer::pending([Dependency::Variable(bound)]));
             }
             TypeOperand::Variable(bound) => {
-                let Some(operand) = self.variable_type_solution_operand(bound) else {
-                    return Ok(BoundReduction::Pending);
+                let Some(operand) = self.solved_type_operand(bound) else {
+                    return Ok(Answer::pending([Dependency::Variable(bound)]));
                 };
 
                 operand
@@ -209,57 +363,106 @@ impl CheckState<'_> {
             TypeOperand::Term(_) | TypeOperand::Type(_) => bound,
         };
 
-        // push upper bounds into the lower bound operand
-        self.expect_type_operand(origin, variable, operand)?;
-
         // reduce the bound operand
-        let Some(operand) = self.reduce_type_operand(origin, operand)? else {
-            return Ok(BoundReduction::Pending);
+        let operand = match self.reduce_type_operand(origin, operand)? {
+            Answer::Ready(operand) => operand,
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
         };
+        if matches!(operand, TypeOperand::Variable(bound) if bound == variable) {
+            return Ok(Answer::Ready(operand));
+        }
 
-        Ok(BoundReduction::Value(operand))
+        Ok(Answer::Ready(operand))
     }
 
     /// Solve one static variable from its bounds.
     pub(in crate::check) fn solve_static_variable_from_bounds(
         &mut self,
         variable: VariableId,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Answer<()>> {
         let lower_bounds = self.inference.lower_static_bounds(variable);
         let upper_bounds = self.inference.upper_static_bounds(variable);
 
         // wait for useful bounds
         if lower_bounds.is_empty() && upper_bounds.is_empty() {
-            return Ok(());
+            return Ok(Answer::Ready(()));
         }
 
         // collect lower bound terms
         let origin = self.variable(variable).source;
-        let mut lower_terms = Vec::with_capacity(lower_bounds.len());
-        for bound in lower_bounds.iter().copied() {
-            let reduction = self.reduce_static_bound(origin, variable, bound)?;
-            if reduction.collect_into(&mut lower_terms).is_break() {
-                return Ok(());
+        let mut ready_lower_bounds = SmallVec::<[StaticOperand; 4]>::new();
+        let mut lower_operands = SmallVec::<[StaticOperand; 4]>::new();
+        let mut blockers = SmallVec::<[Dependency; 2]>::new();
+
+        for bound in lower_bounds {
+            if matches!(bound, StaticOperand::Variable(bound) if bound == variable) {
+                continue;
             }
+
+            let operand = match self.reduce_static_bound(origin, variable, bound)? {
+                Answer::Ready(operand) => operand,
+                Answer::Pending(dependencies) => {
+                    self.record_event(CheckEvent::BoundPending {
+                        variable,
+                        kind: VariableKind::Static,
+                        side: BoundSide::Lower,
+                        value: TraceOperand::Static(bound),
+                    });
+
+                    blockers.extend(dependencies);
+
+                    continue;
+                }
+            };
+
+            ready_lower_bounds.push(bound);
+            lower_operands.push(operand);
         }
 
         // collect upper bound terms
-        let mut upper_terms = Vec::with_capacity(upper_bounds.len());
-        for bound in upper_bounds.iter().copied() {
-            let reduction = self.reduce_static_bound(origin, variable, bound)?;
-            if reduction.collect_into(&mut upper_terms).is_break() {
-                return Ok(());
+        let mut ready_upper_bounds = SmallVec::<[StaticOperand; 4]>::new();
+        let mut upper_operands = SmallVec::<[StaticOperand; 4]>::new();
+        for bound in upper_bounds {
+            if matches!(bound, StaticOperand::Variable(bound) if bound == variable) {
+                continue;
             }
+
+            let operand = match self.reduce_static_bound(origin, variable, bound)? {
+                Answer::Ready(operand) => operand,
+                Answer::Pending(dependencies) => {
+                    self.record_event(CheckEvent::BoundPending {
+                        variable,
+                        kind: VariableKind::Static,
+                        side: BoundSide::Upper,
+                        value: TraceOperand::Static(bound),
+                    });
+
+                    blockers.extend(dependencies);
+
+                    continue;
+                }
+            };
+
+            ready_upper_bounds.push(bound);
+            upper_operands.push(operand);
+        }
+
+        // wait for blocked reductions
+        if !blockers.is_empty() {
+            return Ok(Answer::pending(blockers));
         }
 
         // solve from the static domain
-        let Some(term) =
-            self.reduce_static_bounds(&lower_bounds, &upper_bounds, &lower_terms, &upper_terms)
-        else {
-            return Ok(());
+        let Some(operand) = self.static_bound_solution(
+            &ready_lower_bounds,
+            &ready_upper_bounds,
+            &lower_operands,
+            &upper_operands,
+        ) else {
+            return Ok(Answer::Ready(()));
         };
 
-        self.solve_static_variable(variable, term)
+        self.solve_static_variable(variable, operand)
     }
 
     /// Reduce one static bound.
@@ -268,96 +471,21 @@ impl CheckState<'_> {
         origin: Origin,
         variable: VariableId,
         bound: StaticOperand,
-    ) -> CompilerResult<BoundReduction<StaticTerm>> {
-        // resolve the bound operand
-        let term = match bound {
+    ) -> CompilerResult<Answer<StaticOperand>> {
+        let operand = match bound {
             StaticOperand::Variable(bound) if bound == variable => {
-                return Ok(BoundReduction::Empty);
+                return Ok(Answer::pending([Dependency::Variable(bound)]));
             }
             StaticOperand::Variable(bound) => {
-                let Some(term) = self.static_solution(bound)? else {
-                    return Ok(BoundReduction::Pending);
+                let Some(operand) = self.resolved_static_variable(bound) else {
+                    return Ok(Answer::pending([Dependency::Variable(bound)]));
                 };
 
-                term
+                operand
             }
-            StaticOperand::Term(term) => self.inference.term(term).clone(),
-            StaticOperand::Static(value) => StaticTerm::Static(value),
+            StaticOperand::Term(_) | StaticOperand::Static(_) => bound,
         };
 
-        // reduce the bound term
-        self.reduce_static_bound_term(origin, term)
-    }
-
-    /// Reduce one solved static bound.
-    fn reduce_static_bound_term(
-        &mut self,
-        origin: Origin,
-        term: StaticTerm,
-    ) -> CompilerResult<BoundReduction<StaticTerm>> {
-        // reduce computed static terms
-        let Some(term) = self.reduce_static_term(origin, &term)? else {
-            return Ok(BoundReduction::Pending);
-        };
-
-        Ok(BoundReduction::Value(term))
-    }
-
-    /// Return a solved variable value.
-    pub(in crate::check) fn variable_solution(&self, variable: VariableId) -> Option<Solution> {
-        self.inference.variable_solution(variable)
-    }
-
-    /// Return the type solution for one variable.
-    pub(in crate::check) fn type_solution(
-        &self,
-        variable: VariableId,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let Some(operand) = self.variable_type_solution_operand(variable) else {
-            return Ok(None);
-        };
-        let term = match operand {
-            TypeOperand::Variable(_) => return Ok(None),
-            TypeOperand::Term(term) => self.inference.term(term).clone(),
-            TypeOperand::Type(ty) => TypeTerm::Type(ty),
-        };
-
-        Ok(Some(term))
-    }
-
-    /// Return the static solution for one variable.
-    pub(in crate::check) fn static_solution(
-        &self,
-        variable: VariableId,
-    ) -> CompilerResult<Option<StaticTerm>> {
-        let Some(operand) = self.variable_static_solution_operand(variable) else {
-            return Ok(None);
-        };
-        let term = match operand {
-            StaticOperand::Variable(_) => return Ok(None),
-            StaticOperand::Term(term) => self.inference.term(term).clone(),
-            StaticOperand::Static(value) => StaticTerm::Static(value),
-        };
-
-        Ok(Some(term))
-    }
-
-    /// Return whether one candidate solution contains no inference variables.
-    fn solution_is_complete(&self, solution: Solution) -> bool {
-        match solution {
-            Solution::Type(TypeSolution::Term(term)) => self
-                .inference
-                .term(term)
-                .referenced_variables(self)
-                .is_empty(),
-            Solution::Static(StaticSolution::Term(term)) => self
-                .inference
-                .term(term)
-                .referenced_variables(self)
-                .is_empty(),
-            Solution::Type(TypeSolution::Type(_)) | Solution::Static(StaticSolution::Static(_)) => {
-                true
-            }
-        }
+        self.reduce_static_operand(origin, operand)
     }
 }

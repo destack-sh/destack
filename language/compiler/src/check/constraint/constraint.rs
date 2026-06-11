@@ -1,10 +1,8 @@
-use smallvec::SmallVec;
+use destack_dir as dir;
+
+use crate::check::{CheckState, Condition, Origin, StaticOperand, TypeOperand, TypeRelation};
 
 use super::{PatternRelation, StaticRelation};
-
-use crate::check::{
-    CheckState, Condition, Origin, StaticOperand, TypeOperand, TypeRelation, VariableId,
-};
 
 /// Component-valid id for one check constraint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -26,7 +24,7 @@ impl ConstraintId {
 }
 
 /// One check constraint.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(in crate::check) enum Constraint {
     /// Constrain two type operands.
     ///
@@ -44,6 +42,8 @@ pub(in crate::check) enum Constraint {
         origin: Origin,
         /// The static condition under which this constraint exists.
         condition: Condition,
+        /// The coercion emitted by this relation.
+        coercion: Option<dir::CastOrigin>,
     },
     /// Constrain two static operands.
     ///
@@ -80,50 +80,28 @@ pub(in crate::check) enum Constraint {
 }
 
 impl Constraint {
-    /// Return the static condition guarding this constraint.
-    pub(in crate::check) fn condition(&self) -> Condition {
+    /// Return the source that produced this constraint.
+    pub(in crate::check) fn origin(&self) -> Origin {
         match self {
-            Self::Type { condition, .. }
-            | Self::Static { condition, .. }
-            | Self::Pattern { condition, .. } => condition.clone(),
+            Self::Type { origin, .. }
+            | Self::Static { origin, .. }
+            | Self::Pattern { origin, .. } => *origin,
         }
     }
 
-    /// Return variables referenced by this constraint.
-    pub(in crate::check) fn referenced_variables(
-        &self,
-        state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 4]> {
-        let mut variables = SmallVec::new();
-
-        variables.extend(self.condition().referenced_variables(state));
-
+    /// Return the static condition guarding this constraint.
+    pub(in crate::check) fn condition(&self) -> &Condition {
         match self {
-            Self::Type { left, right, .. } => {
-                variables.extend(left.referenced_variables(state));
-                variables.extend(right.referenced_variables(state));
-            }
-            Self::Static { left, right, .. } => {
-                variables.extend(left.referenced_variables(state));
-                variables.extend(right.referenced_variables(state));
-            }
-            Self::Pattern {
-                relation, value, ..
-            } => {
-                variables.extend(value.referenced_variables(state));
-                variables.extend(relation.referenced_variables(state));
-            }
+            Self::Type { condition, .. }
+            | Self::Static { condition, .. }
+            | Self::Pattern { condition, .. } => condition,
         }
-
-        variables
     }
 }
 
 impl CheckState<'_> {
     /// Store one solver constraint.
-    pub(super) fn push_constraint(&mut self, constraint: Constraint) {
-        let variables = constraint.referenced_variables(self);
-
-        self.inference.push_constraint(constraint, variables);
+    pub(super) fn push_constraint(&mut self, constraint: Constraint) -> ConstraintId {
+        self.inference.push_constraint(constraint)
     }
 }

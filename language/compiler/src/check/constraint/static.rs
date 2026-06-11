@@ -3,9 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{
-    CheckState, Decision, Origin, StaticOperand, StaticTerm, SubstitutionSet, VariableId,
-};
+use crate::check::{Answer, CheckState, Origin, StaticOperand, SubstitutionSet};
 
 /// One static boolean predicate with its reduction context.
 ///
@@ -13,7 +11,7 @@ use crate::check::{
 /// ```ds
 /// if (comptime N == 4) { value }
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) struct ConditionPredicate {
     /// The source that produced this predicate.
     pub(in crate::check) origin: Origin,
@@ -27,7 +25,7 @@ pub(in crate::check) struct ConditionPredicate {
 /// ```ds
 /// if (comptime N == 4) { value }
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(in crate::check) enum Condition {
     /// The item is always present.
     ///
@@ -133,44 +131,20 @@ impl Condition {
 
         Ok(condition)
     }
-
-    /// Return variables referenced by this condition.
-    pub(in crate::check) fn referenced_variables(
-        &self,
-        state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 2]> {
-        match self {
-            Self::Always | Self::Never => SmallVec::new(),
-            Self::When { conditions } => conditions
-                .iter()
-                .flat_map(|condition| condition.operand.referenced_variables(state))
-                .collect(),
-        }
-    }
-}
-
-impl From<&Condition> for Decision {
-    fn from(condition: &Condition) -> Self {
-        match condition {
-            Condition::Always => Self::Yes,
-            Condition::Never => Self::No,
-            Condition::When { .. } => Self::Undecidable,
-        }
-    }
 }
 
 impl CheckState<'_> {
     /// Decide whether one guarded symbol is available after generic substitution.
-    pub(in crate::check) fn reduce_symbol_availability(
+    pub(in crate::check) fn decide_symbol_availability(
         &mut self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
         substitution: &SubstitutionSet,
-    ) -> CompilerResult<Decision> {
+    ) -> CompilerResult<Answer<bool>> {
         let condition = self.symbol_availability(symbol);
         let condition = condition.substitute(module, substitution, self)?;
 
-        self.reduce_condition_decision(&condition)
+        self.decide_condition(&condition)
     }
 
     /// Return the static condition that gates one symbol.
@@ -188,36 +162,46 @@ impl CheckState<'_> {
         &mut self,
         condition: &Condition,
     ) -> CompilerResult<Condition> {
-        let Condition::When { conditions } = condition else {
-            return Ok(condition.clone());
+        let predicates = match condition {
+            Condition::Always => return Ok(Condition::Always),
+            Condition::Never => return Ok(Condition::Never),
+            Condition::When { conditions } => conditions,
         };
+
+        self.reduce_condition_predicates(predicates)
+    }
+
+    /// Reduce one static predicate list through solved predicate terms.
+    pub(in crate::check) fn reduce_condition_predicates(
+        &mut self,
+        predicates: &[ConditionPredicate],
+    ) -> CompilerResult<Condition> {
         let mut remaining = SmallVec::new();
 
         // reduce predicates through solved static values
-        for condition in conditions {
-            let Some(term) = self.static_operand_term(condition.operand)? else {
-                remaining.push(condition.clone());
-                continue;
-            };
-
-            let Some(term) = self.reduce_static_term(condition.origin, &term)? else {
-                remaining.push(condition.clone());
+        for condition in predicates {
+            let Answer::Ready(operand) =
+                self.reduce_static_operand(condition.origin, condition.operand)?
+            else {
+                remaining.push(*condition);
 
                 continue;
             };
 
-            match term {
-                StaticTerm::Literal(dir::StaticTerm::ScalarLiteral {
-                    value: dir::ScalarLiteral::Boolean(true),
-                }) => {}
-                StaticTerm::Literal(dir::StaticTerm::ScalarLiteral {
-                    value: dir::ScalarLiteral::Boolean(false),
-                }) => return Ok(Condition::Never),
-                term => remaining.push(ConditionPredicate {
-                    origin: condition.origin,
-                    operand: self.inference.push_term(term).into(),
-                }),
+            if self.static_operand_boolean(operand) == Some(true) {
+                continue;
             }
+
+            // discard the guarded item when a predicate is false
+            if self.static_operand_boolean(operand) == Some(false) {
+                return Ok(Condition::Never);
+            }
+
+            // keep predicates that reduced but did not close
+            remaining.push(ConditionPredicate {
+                origin: condition.origin,
+                operand,
+            });
         }
 
         let condition = if remaining.is_empty() {
@@ -232,12 +216,35 @@ impl CheckState<'_> {
     }
 
     /// Reduce one static condition to its current decision.
-    pub(in crate::check) fn reduce_condition_decision(
+    pub(in crate::check) fn decide_condition(
         &mut self,
         condition: &Condition,
-    ) -> CompilerResult<Decision> {
+    ) -> CompilerResult<Answer<bool>> {
         let condition = self.reduce_condition(condition)?;
 
-        Ok(Decision::from(&condition))
+        Ok(self.decide_reduced_condition(&condition))
+    }
+
+    /// Reduce one static predicate list to its current decision.
+    pub(in crate::check) fn decide_condition_predicates(
+        &mut self,
+        predicates: &[ConditionPredicate],
+    ) -> CompilerResult<Answer<bool>> {
+        let condition = self.reduce_condition_predicates(predicates)?;
+
+        Ok(self.decide_reduced_condition(&condition))
+    }
+
+    /// Return one already reduced condition's current decision.
+    fn decide_reduced_condition(&self, condition: &Condition) -> Answer<bool> {
+        match condition {
+            Condition::Always => Answer::Ready(true),
+            Condition::Never => Answer::Ready(false),
+            Condition::When { conditions } => Answer::pending(
+                conditions
+                    .iter()
+                    .flat_map(|condition| condition.operand.dependencies(self)),
+            ),
+        }
     }
 }
