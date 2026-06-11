@@ -128,7 +128,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
             .inference
             .generic_template(template)
             .map(|template| template.source)
-            .or_else(|| self.dependency_generic_template_source(template))
+            .or_else(|| self.external_generic_template_source(template))
         {
             return self.node_label(template);
         }
@@ -163,8 +163,8 @@ impl<'a, 'b> DumpContext<'a, 'b> {
             return format!("{template}:{key}");
         }
 
-        if let Some(dependency) = self.check.dependencies.get(&parameter.module_id) {
-            let generic = dependency.generics.get_parameter(parameter.local_id);
+        if let Some(external) = self.check.external_modules.get(&parameter.module_id) {
+            let generic = external.generics.get_parameter(parameter.local_id);
             let template = generic.template().into_global(parameter.module_id);
             let template = self.generic_template_label(template);
             let key = self.generic_parameter_key(generic.key());
@@ -248,13 +248,13 @@ impl<'a, 'b> DumpContext<'a, 'b> {
             .and_then(|symbol| symbol.declaration)
     }
 
-    /// Return one generic template source from a dependency.
-    fn dependency_generic_template_source(
+    /// Return one generic template source from an external module.
+    fn external_generic_template_source(
         &self,
         template: dir::GlobalGenericTemplateId,
     ) -> Option<dir::GlobalNodeIdAny> {
-        let dependency = self.check.dependencies.get(&template.module_id)?;
-        let template = dependency.generics.get_template(template.local_id);
+        let external = self.check.external_modules.get(&template.module_id)?;
+        let template = external.generics.get_template(template.local_id);
 
         Some(template.source)
     }
@@ -268,8 +268,8 @@ impl<'a, 'b> DumpContext<'a, 'b> {
             return Some(DumpSymbol::from(symbol));
         }
 
-        let dependency = self.check.dependencies.get(&symbol.module_id)?;
-        let symbol = dependency.bindings.get_symbol(symbol.local_id);
+        let external = self.check.external_modules.get(&symbol.module_id)?;
+        let symbol = external.bindings.get_symbol(symbol.local_id);
 
         Some(DumpSymbol::from(symbol))
     }
@@ -287,8 +287,8 @@ impl<'a, 'b> DumpContext<'a, 'b> {
             return scope.owner;
         }
 
-        let dependency = self.check.dependencies.get(&module)?;
-        let scope = dependency.bindings.get_scope(symbol.scope);
+        let external = self.check.external_modules.get(&module)?;
+        let scope = external.bindings.get_scope(symbol.scope);
 
         scope.owner
     }
@@ -301,8 +301,8 @@ impl<'a, 'b> DumpContext<'a, 'b> {
             return view.tree().get_span_by_id(node.local_id.id);
         }
 
-        let dependency = self.check.dependencies.get(&node.module_id)?;
-        let view = dependency.view();
+        let external = self.check.external_modules.get(&node.module_id)?;
+        let view = external.view();
 
         view.tree().get_span_by_id(node.local_id.id)
     }
