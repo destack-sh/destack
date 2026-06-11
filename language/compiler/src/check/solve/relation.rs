@@ -1,72 +1,112 @@
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Origin, StaticOperand, StaticRelation, StaticTerm, TypeOperand, TypeRelation,
-    TypeTerm,
+    Answer, CheckEvent, CheckState, Dependency, Origin, StaticOperand, StaticRelation, TypeOperand,
+    TypeRelation,
 };
 
 impl CheckState<'_> {
-    /// Reduce one type relation.
-    pub(in crate::check) fn reduce_type_relation(
+    /// Solve one type relation.
+    pub(in crate::check) fn solve_type_relation(
         &mut self,
         origin: Origin,
         relation: TypeRelation,
         left: impl Into<TypeOperand>,
         right: impl Into<TypeOperand>,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Answer<()>> {
         let left = left.into();
         let right = right.into();
 
         match relation {
-            TypeRelation::Equal => self.reduce_type_equality(origin, left, right),
+            TypeRelation::Equal => self.solve_type_equality(origin, left, right),
             TypeRelation::Assignable | TypeRelation::Castable => {
-                self.reduce_contextual_type_assignability(origin, left, right)
+                self.solve_directed_type_relation(origin, relation, left, right)
             }
             TypeRelation::Satisfies | TypeRelation::Extends | TypeRelation::Implements => {
-                self.reduce_type_assignability(origin, left, right)
+                self.constrain_type_assignability(origin, left, right)?;
+
+                Ok(Answer::Ready(()))
             }
         }
     }
 
-    /// Reduce one type equality relation.
-    pub(in crate::check) fn reduce_type_equality(
+    /// Solve one type equality relation.
+    pub(in crate::check) fn solve_type_equality(
         &mut self,
         origin: Origin,
         left: impl Into<TypeOperand>,
         right: impl Into<TypeOperand>,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Answer<()>> {
         let left = left.into();
         let right = right.into();
-        self.insert_equal_type_bounds(left, right)?;
 
-        let left_value = self.reduce_type_operand(origin, left)?;
-        let right_value = self.reduce_type_operand(origin, right)?;
-
-        match (left_value, right_value) {
-            // push left type into right operand
-            (Some(term), None) => {
-                if let Some(right) = right.variable() {
-                    self.expect_type_operand(origin, right, term)?;
-                }
+        // route computed definitions into the left result
+        if let Some(variable) = left.variable()
+            && let Some(answer) = self.expect_type_operand_bound(origin, variable, right)?
+        {
+            match answer {
+                Answer::Ready(()) => return Ok(Answer::Ready(())),
+                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
             }
-            // push right type into left operand
-            (None, Some(term)) => {
-                if let Some(left) = left.variable() {
-                    self.expect_type_operand(origin, left, term)?;
-                }
-            }
-            // validate reduced terms
-            (Some(left), Some(right)) => {
-                self.constrain_solved_type_operands_equal(origin, left, right)?
-            }
-            // wait for operands
-            (None, None) => {}
         }
 
-        Ok(())
+        // route computed definitions into the right result
+        if let Some(variable) = right.variable()
+            && let Some(answer) = self.expect_type_operand_bound(origin, variable, left)?
+        {
+            match answer {
+                Answer::Ready(()) => return Ok(Answer::Ready(())),
+                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+            }
+        }
+
+        self.bound_equal_types(origin, left, right)?;
+        if self.type_operand_is_open(left) || self.type_operand_is_open(right) {
+            return Ok(Answer::pending(
+                left.dependencies(self)
+                    .into_iter()
+                    .chain(right.dependencies(self)),
+            ));
+        }
+
+        self.solve_type_operands(origin, TypeRelation::Equal, left, right)
     }
 
-    /// Reduce one contextual assignability relation.
-    pub(in crate::check) fn reduce_contextual_type_assignability(
+    /// Solve one directed type relation.
+    pub(in crate::check) fn solve_directed_type_relation(
+        &mut self,
+        origin: Origin,
+        relation: TypeRelation,
+        source: impl Into<TypeOperand>,
+        target: impl Into<TypeOperand>,
+    ) -> CompilerResult<Answer<()>> {
+        let source = source.into();
+        let target = target.into();
+
+        // route computed definitions into the target result
+        if let Some(variable) = target.variable()
+            && let Some(answer) = self.expect_type_operand_bound(origin, variable, source)?
+        {
+            match answer {
+                Answer::Ready(()) => return Ok(Answer::Ready(())),
+                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+            }
+        }
+
+        self.bound_assignable_types(origin, source, target)?;
+        if self.type_operand_is_open(source) || self.type_operand_is_open(target) {
+            return Ok(Answer::pending(
+                source
+                    .dependencies(self)
+                    .into_iter()
+                    .chain(target.dependencies(self)),
+            ));
+        }
+
+        self.solve_type_operands(origin, relation, source, target)
+    }
+
+    /// Constrain one type assignability relation without checking the source definition.
+    pub(in crate::check) fn constrain_type_assignability(
         &mut self,
         origin: Origin,
         source: impl Into<TypeOperand>,
@@ -74,83 +114,100 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         let source = source.into();
         let target = target.into();
-        self.insert_assignable_type_bounds(source, target)?;
-        let target_value = self.reduce_type_operand(origin, target)?;
-        if let Some(target_value) = target_value {
-            self.expect_type_operand_assignability(origin, source, target_value)?;
+        self.bound_assignable_types(origin, source, target)?;
+        if self.type_operand_is_open(source) || self.type_operand_is_open(target) {
+            return Ok(());
         }
-        let source_value = self.reduce_type_operand(origin, source)?;
 
-        match (source_value, target_value) {
-            // validate reduced terms
-            (Some(source_term), Some(target_term)) => {
-                self.constrain_solved_type_operands_assignable(origin, source_term, target_term)?;
-            }
-            // wait for operands
-            (Some(_), None) | (None, Some(_)) | (None, None) => {}
-        }
+        self.solve_type_operands(origin, TypeRelation::Assignable, source, target)?;
 
         Ok(())
     }
 
-    /// Reduce one assignability relation without contextual backpressure.
-    pub(in crate::check) fn reduce_type_assignability(
+    /// Solve one type relation after its variable bounds have been written.
+    fn solve_type_operands(
         &mut self,
         origin: Origin,
-        source: impl Into<TypeOperand>,
-        target: impl Into<TypeOperand>,
-    ) -> CompilerResult<()> {
-        let source = source.into();
-        let target = target.into();
-        self.insert_assignable_type_bounds(source, target)?;
-        let target_value = self.reduce_type_operand(origin, target)?;
-        let source_value = self.reduce_type_operand(origin, source)?;
+        relation: TypeRelation,
+        left: TypeOperand,
+        right: TypeOperand,
+    ) -> CompilerResult<Answer<()>> {
+        let left_reduction = self.reduce_type_operand(origin, left)?;
+        let right_reduction = self.reduce_type_operand(origin, right)?;
 
-        match (source_value, target_value) {
-            (Some(source_term), Some(target_term)) => {
-                self.constrain_solved_type_operands_assignable(origin, source_term, target_term)?;
+        let (left, right) = match (left_reduction, right_reduction) {
+            // reduce both operands
+            (Answer::Ready(reduced_left), Answer::Ready(reduced_right)) => {
+                if reduced_left != left || reduced_right != right {
+                    self.record_event(CheckEvent::RelationReduce {
+                        origin,
+                        relation,
+                        left,
+                        right,
+                        reduced_left: Some(reduced_left),
+                        reduced_right: Some(reduced_right),
+                    });
+                }
+
+                (reduced_left, reduced_right)
             }
-            (Some(_), None) | (None, Some(_)) | (None, None) => {}
-        }
+            // wait for the left operand
+            (Answer::Pending(blockers), Answer::Ready(_)) => {
+                return Ok(Answer::Pending(blockers));
+            }
+            // wait for the right operand
+            (Answer::Ready(_), Answer::Pending(blockers)) => {
+                return Ok(Answer::Pending(blockers));
+            }
+            // wait for both operands
+            (Answer::Pending(left), Answer::Pending(right)) => {
+                return Ok(Answer::pending(left.into_iter().chain(right)));
+            }
+        };
 
-        Ok(())
+        self.solve_closed_type_relation(origin, relation, left, right)
     }
 
-    /// Return the reduced operand for one type operand when available.
-    pub(in crate::check) fn reduce_type_operand(
+    /// Solve one closed type relation.
+    fn solve_closed_type_relation(
         &mut self,
         origin: Origin,
-        operand: TypeOperand,
-    ) -> CompilerResult<Option<TypeOperand>> {
-        let mut operand = operand;
-        let mut seen = Vec::new();
+        relation: TypeRelation,
+        left: TypeOperand,
+        right: TypeOperand,
+    ) -> CompilerResult<Answer<()>> {
+        match relation {
+            TypeRelation::Equal => {
+                self.constrain_type_operands_equal(origin, left, right)?;
 
-        loop {
-            let Some(next) = self.reduce_type_operand_once(origin, operand)? else {
-                return Ok(None);
-            };
-            if next == operand {
-                return Ok(Some(operand));
+                Ok(Answer::Ready(()))
             }
-            if seen.contains(&next) {
-                return Err(self.circular_type_error(origin).into());
-            }
+            TypeRelation::Assignable
+            | TypeRelation::Satisfies
+            | TypeRelation::Extends
+            | TypeRelation::Implements => {
+                self.constrain_type_operands_assignable(origin, left, right)?;
 
-            seen.push(operand);
-            operand = next;
+                Ok(Answer::Ready(()))
+            }
+            TypeRelation::Castable => {
+                let answer = self.decide_type_relation(relation, left, right)?;
+
+                Ok(answer.map(|_| ()))
+            }
         }
     }
 
     /// Return one reduction step for one type operand.
-    fn reduce_type_operand_once(
+    pub(in crate::check) fn reduce_type_operand(
         &mut self,
         origin: Origin,
         operand: TypeOperand,
-    ) -> CompilerResult<Option<TypeOperand>> {
+    ) -> CompilerResult<Answer<TypeOperand>> {
         let operand = match operand {
             TypeOperand::Variable(variable) => {
-                let Some(operand) = self.variable_type_solution_operand(variable) else {
-                    return Ok(None);
+                let Some(operand) = self.solved_type_operand(variable) else {
+                    return Ok(Answer::pending([Dependency::Variable(variable)]));
                 };
 
                 operand
@@ -159,104 +216,127 @@ impl CheckState<'_> {
             TypeOperand::Type(_) => operand,
         };
 
-        Ok(Some(operand))
+        Ok(Answer::Ready(operand))
     }
 
-    /// Reduce one static relation.
-    pub(in crate::check) fn reduce_static_relation(
+    /// Return whether one type operand is a direct unsolved variable.
+    fn type_operand_is_open(&self, operand: TypeOperand) -> bool {
+        let TypeOperand::Variable(variable) = operand else {
+            return false;
+        };
+
+        self.solved_type_operand(variable).is_none()
+    }
+
+    /// Solve one static relation.
+    pub(in crate::check) fn solve_static_relation(
         &mut self,
+        origin: Origin,
         relation: StaticRelation,
         left: impl Into<StaticOperand>,
         right: impl Into<StaticOperand>,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Answer<()>> {
         let left = left.into();
         let right = right.into();
 
         match relation {
-            StaticRelation::Equal => self.reduce_static_equality(left, right),
-            StaticRelation::Assignable => self.reduce_static_assignability(left, right),
+            StaticRelation::Equal => self.solve_static_equality(origin, left, right),
+            StaticRelation::Assignable => self.solve_static_assignability(origin, left, right),
         }
     }
 
-    /// Reduce one static equality relation.
-    pub(in crate::check) fn reduce_static_equality(
+    /// Solve one static equality relation.
+    pub(in crate::check) fn solve_static_equality(
         &mut self,
+        origin: Origin,
         left: impl Into<StaticOperand>,
         right: impl Into<StaticOperand>,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Answer<()>> {
         let left = left.into();
         let right = right.into();
 
-        self.insert_equal_static_bounds(left, right)
+        self.bound_equal_statics(origin, left, right)?;
+        self.solve_static_operands(origin, StaticRelation::Equal, left, right)
     }
 
-    /// Reduce one static assignability relation.
-    pub(in crate::check) fn reduce_static_assignability(
+    /// Solve one static assignability relation.
+    pub(in crate::check) fn solve_static_assignability(
         &mut self,
+        origin: Origin,
         source: impl Into<StaticOperand>,
         target: impl Into<StaticOperand>,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Answer<()>> {
         let source = source.into();
         let target = target.into();
 
-        self.insert_assignable_static_bounds(source, target)
+        self.bound_assignable_statics(origin, source, target)?;
+        self.solve_static_operands(origin, StaticRelation::Assignable, source, target)
     }
 
-    /// Return the solved term for one type operand when available.
-    pub(in crate::check) fn type_operand_term(
-        &self,
-        operand: TypeOperand,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let term = match operand {
-            TypeOperand::Variable(variable) => self.type_solution(variable)?,
-            TypeOperand::Term(term) => Some(self.inference.term(term).clone()),
-            TypeOperand::Type(ty) => Some(TypeTerm::Type(ty)),
-        };
-
-        Ok(term)
-    }
-
-    /// Return the solved term for one static operand when available.
-    pub(in crate::check) fn static_operand_term(
-        &self,
-        operand: StaticOperand,
-    ) -> CompilerResult<Option<StaticTerm>> {
-        let term = match operand {
-            StaticOperand::Variable(variable) => self.static_solution(variable)?,
-            StaticOperand::Term(term) => Some(self.inference.term(term).clone()),
-            StaticOperand::Static(value) => Some(StaticTerm::Static(value)),
-        };
-
-        Ok(term)
-    }
-
-    /// Insert equality bounds between two type operands.
-    fn insert_equal_type_bounds(
+    /// Solve one static relation after its variable bounds have been written.
+    fn solve_static_operands(
         &mut self,
+        origin: Origin,
+        relation: StaticRelation,
+        left: StaticOperand,
+        right: StaticOperand,
+    ) -> CompilerResult<Answer<()>> {
+        let left_reduction = self.reduce_static_operand(origin, left)?;
+        let right_reduction = self.reduce_static_operand(origin, right)?;
+
+        let (left, right) = match (left_reduction, right_reduction) {
+            // reduce both operands
+            (Answer::Ready(left), Answer::Ready(right)) => (left, right),
+            // wait for the left operand
+            (Answer::Pending(blockers), Answer::Ready(_)) => {
+                return Ok(Answer::Pending(blockers));
+            }
+            // wait for the right operand
+            (Answer::Ready(_), Answer::Pending(blockers)) => {
+                return Ok(Answer::Pending(blockers));
+            }
+            // wait for both operands
+            (Answer::Pending(left), Answer::Pending(right)) => {
+                return Ok(Answer::pending(left.into_iter().chain(right)));
+            }
+        };
+
+        match self.decide_static_relation(relation, left, right)? {
+            Answer::Ready(_) => Ok(Answer::Ready(())),
+            Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+        }
+    }
+
+    /// Bound two type operands as equal.
+    fn bound_equal_types(
+        &mut self,
+        origin: Origin,
         left: TypeOperand,
         right: TypeOperand,
     ) -> CompilerResult<()> {
-        self.insert_assignable_type_bounds(left, right)?;
-        self.insert_assignable_type_bounds(right, left)?;
+        self.bound_assignable_types(origin, left, right)?;
+        self.bound_assignable_types(origin, right, left)?;
 
         Ok(())
     }
 
-    /// Insert equality bounds between two static operands.
-    fn insert_equal_static_bounds(
+    /// Bound two static operands as equal.
+    fn bound_equal_statics(
         &mut self,
+        origin: Origin,
         left: StaticOperand,
         right: StaticOperand,
     ) -> CompilerResult<()> {
-        self.insert_assignable_static_bounds(left, right)?;
-        self.insert_assignable_static_bounds(right, left)?;
+        self.bound_assignable_statics(origin, left, right)?;
+        self.bound_assignable_statics(origin, right, left)?;
 
         Ok(())
     }
 
-    /// Insert assignability bounds between two type operands.
-    fn insert_assignable_type_bounds(
+    /// Bound one type operand as assignable to another.
+    fn bound_assignable_types(
         &mut self,
+        _origin: Origin,
         source: TypeOperand,
         target: TypeOperand,
     ) -> CompilerResult<()> {
@@ -264,12 +344,12 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        // wake users of the constrained target
+        // constrain the target variable
         if let Some(target) = target.variable() {
             self.insert_lower_type_bound(target, source)?;
         }
 
-        // wake users of the constrained source
+        // constrain the source variable
         if let Some(source) = source.variable() {
             self.insert_upper_type_bound(source, target)?;
         }
@@ -277,9 +357,10 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Insert assignability bounds between two static operands.
-    fn insert_assignable_static_bounds(
+    /// Bound one static operand as assignable to another.
+    fn bound_assignable_statics(
         &mut self,
+        _origin: Origin,
         source: StaticOperand,
         target: StaticOperand,
     ) -> CompilerResult<()> {
@@ -287,12 +368,12 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        // wake users of the constrained target
+        // constrain the target variable
         if let Some(target) = target.variable() {
             self.insert_lower_static_bound(target, source)?;
         }
 
-        // wake users of the constrained source
+        // constrain the source variable
         if let Some(source) = source.variable() {
             self.insert_upper_static_bound(source, target)?;
         }
