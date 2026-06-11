@@ -999,6 +999,44 @@ b0(v0: Box):
 }
 
 #[test]
+fn test_allow_aggregate_field_return_with_declared_lifetime() {
+    let mut program = TestProgram::mir(
+        r#"
+type Pair<A: lifetime, B: lifetime> {
+    ref<int32, borrowed, readonly, lifetime(A)>;
+    ref<int32, borrowed, readonly, lifetime(B)>;
+}
+
+function test(v0: ref<int32, borrowed, readonly>, v1: ref<int32, borrowed, readonly>, v2: Pair<lifetime(0), lifetime(1)>): ref<int32, borrowed, readonly, lifetime(0)> {
+b0(v0: ref<int32, borrowed, readonly>, v1: ref<int32, borrowed, readonly>, v2: Pair<lifetime(0), lifetime(1)>):
+    v3: ref<int32, borrowed, readonly, lifetime(0)> = field.get v2, 0
+    return v3
+}"#,
+    );
+
+    program.assert_no_ownership_errors();
+}
+
+#[test]
+fn test_reject_aggregate_field_return_with_wrong_lifetime() {
+    let mut program = TestProgram::mir(
+        r#"
+type Pair<A: lifetime, B: lifetime> {
+    ref<int32, borrowed, readonly, lifetime(A)>;
+    ref<int32, borrowed, readonly, lifetime(B)>;
+}
+
+function test(v0: ref<int32, borrowed, readonly>, v1: ref<int32, borrowed, readonly>, v2: Pair<lifetime(0), lifetime(1)>): ref<int32, borrowed, readonly, lifetime(0)> {
+b0(v0: ref<int32, borrowed, readonly>, v1: ref<int32, borrowed, readonly>, v2: Pair<lifetime(0), lifetime(1)>):
+    v3: ref<int32, borrowed, readonly, lifetime(1)> = field.get v2, 1
+    return v3
+}"#,
+    );
+
+    program.assert_borrow_outlives_origin();
+}
+
+#[test]
 fn test_reject_union_borrow_return_as_static() {
     let mut program = TestProgram::mir(
         r#"

@@ -35,8 +35,8 @@ impl FlowState {
 
         // merge borrow sources conservatively across incoming edges
         for predecessor in predecessors {
-            for (value, sources) in &predecessor.borrows.sources {
-                borrows.merge_sources(*value, sources);
+            for binding in &predecessor.borrows.bindings {
+                borrows.merge_sources_at(binding.value, &binding.path, &binding.sources);
             }
         }
 
