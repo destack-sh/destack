@@ -1418,10 +1418,19 @@ impl Tree {
         &self.instruction_arguments[start..end]
     }
 
-    /// Replace a node in-place, preserving the original payload and provenance at a new id.
+    /// Set a node in-place, preserving its source and origin.
+    pub fn set<T>(&mut self, id: LocalNodeId<T>, replacement: T)
+    where
+        T: Node,
+        Self: TreeImpl<T>,
+    {
+        *self.get_mut(id) = replacement;
+    }
+
+    /// Derive a replacement node from its previous contents.
     ///
     /// Returns the ID of the preserved original node.
-    pub fn replace<T>(
+    pub fn derive<T>(
         &mut self,
         id: LocalNodeId<T>,
         replacement: T,
@@ -1444,8 +1453,8 @@ impl Tree {
             self.origin_by_node_id.set(preserved_index, origin);
         }
 
-        // replace in place and derive the slot from the tombstone
-        *self.get_mut(id) = replacement;
+        // derive the slot from the preserved original
+        self.set(id, replacement);
         let index = self.node_index(id.id);
         self.origin_by_node_id
             .set(index, Origin::one(derivation, preserved_id.id));
@@ -1515,8 +1524,12 @@ mod tests {
         assert_eq!(tree.dir_source(derived.id), Some(7));
         assert_eq!(tree.dir_source(synthetic.id), None);
 
-        // replacing keeps the chain alive through the tombstone
-        let preserved = tree.replace(lowered, Terminator::Unreachable, derivation);
+        // plain mutation keeps the original origin
+        tree.set(derived, Terminator::Unreachable);
+        assert_eq!(tree.dir_source(derived.id), Some(7));
+
+        // derivation keeps the chain alive through the tombstone
+        let preserved = tree.derive(lowered, Terminator::Unreachable, derivation);
         assert_eq!(
             tree.origin(lowered.id).unwrap().parent(),
             Some(preserved.id)
