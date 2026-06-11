@@ -10,15 +10,15 @@
 - As with logic, symmetry in naming across related logic is simpler, and simpler is better.
 - Avoid single-letter variables unless obvious (e.g., `i`, `x`, `Vector.x` are fine).
 - Booleans should start with `is_` unless already clear (or otherwise required by context), though enums are usually better anyway.
-- Abstraction sludge names like "seam", "lane", "parts", "info", "factory", "syntax", "semantics", "data", "inner", "wrapper", "facts", "summary", "channel", "boundary", "contract", .. and friends are to be treated with high suspicion and are almost certainly wrong (and temptation to use them implies conceptual muddiness that should be revisited).
+- Abstraction sludge names like "seam", "lane", "parts", "info", "factory", "syntax", "semantics", "data", "inner", "wrapper", "facts", "summary", "channel", "boundary", "contract", "currency", "load bearing", .. and friends are to evil, they're be treated with high suspicion and are almost certainly wrong (and temptation to use them implies conceptual muddiness that should be revisited).
 - The same logic applies for module and file names too: single part file names are clearer while "support", "helper" and "utils" are sludgy.
-- It can be tempting to name things along the lines of "x_for_y" in certain overload situations, however, this is almost always a modeling smell and means we haven't properly generalised or reified our invariants yet. (Note that this does \_not* mean we should introduce arbitrary interfaces or abstractions just to please this rule, that would be just another factoring issue.)
+- It can be tempting to name things along the lines of "x_for_y" in certain overload-ish situations, however, this is almost always a modeling smell and means we haven't properly generalised or reified our invariants yet. (Note that this does *not* mean we should introduce arbitrary interfaces or abstractions just to please this rule, that would be just another factoring issue. Sometimes "x_for_y" is fine, commonly in data transcribing, but usually it's just sludge.)
 - The name of a thing should describe its actual behavior or purpose. This sounds trivial, but e.g., when a function creates or updates a variable, it should be called `upsert*`, when a function only conditionally allocates something it should be called `allocate*maybe` (or `allocate*if*`), and so on.
 
 ### Logic
 
 - Less is more, every line of code is a liability, every bit of state is suspicious. Fewer overloads are better, fewer fields are better, fewer dependencies are better, etc.
-- When writing some logic or function and it turns into 500 lines, wonder if it could be done in 100 lines. If it's 100 lines, maybe it could be 10. If it's 10, maybe we can remove it altogether, or phrase the problem differently to avoid this problem in the first place.
+- When writing some logic or function and it turns into 500 lines, wonder if it could be done in 100 lines. If it's 100 lines, maybe it could be 10. If it's 10, maybe we can remove it altogether, or phrase the problem differently to eliminate the need for this whole piece in the first place.
 - Long methods are allowed if the logic isn't meaningfully extractable / reusable.
 - Having many overloads (or quasi-overloads) that just call one another with different arguments and little or no additional logic is almost always a smell and annoying to read (and a bad source of pointless code bloat).
 - Prefer pure(ish) functions, pass in context explicitly when needed (usually as the last argument).
@@ -179,6 +179,8 @@ else {
 ### Performance
 
 - Performance is a feature and always a strong implicit requirement, even when no hard boundaries have been set (and usually, they aren't).
+- The folk-lore idea that "premature optimisation is the root of all evil" is wrong, since what makes modern computers happy (clear, compact, aligned data structures and simple parallel processing) also lines up very well with what makes modern software pristine.
+- We should always try to stratify and define the performance characteristics of any systems we work with before we touch them and keep them in mind while we work. (What are the bounds for X, Y, Z? latency, RPS, IOPS, throughput, what about p50 p95 p99, ...)
 - Performance has many meanings, but in general it means using the absolute minimum level of resources to solve the real problem we actually have (bandwidth, disk, memory, CPU, whatever it is).
 - Often, though not always, performance "tradeoffs" - like between memory usage and cycles, or between niceness and speed - are not really tradeoffs at all, just poorly factored code that could be much better if we zoom out a little and solve the problem well (or find a way not to do it at all!).
 - Clean code is usually fast code, if by "clean" we mean properly semantically compressed, stupid simple approaches, and not some arbitrary and silly notion of convoluted, theoretical abstraction ideals.
@@ -186,11 +188,13 @@ else {
 - Most of the time, for most problems, arrays and linear approaches are perfectly fine and even beat out anything "smarter". Maps are okay too, usually.
 - Memory access patterns are the dominating factor in most modern software problems, thus, something "dumber" but tighter (like a dense array) is often faster than something "smarter" but looser (like a map) even at high scales.
 - Have sympathy for the real hardware and underlying machinery that must actually execute whatever we write down, and usually that happens in roughly the same way we wrote it, since compilers can't be that smart.
+- Hardware awareness and full stack understanding are especially important in areas we do not fully control, like when we codegen to JS or write something to the web, or some foreign graphics API - how does it _actually_ execute? Which low level operations does what we're doing map to, and what do we really need? 
+- Working bottoms up - which bits and cycles do we _really_ need to spend - is the only true way to bound the lower end of performance, and often a great way of demystifying a system and getting order of magnitude improvements.
 
 ### Failures
 
 - Always prefer explicit, loud errors through conventional, idiomatic channels.
-- As a corollary, silent failures of any kind are evil and only ever cause downstream trouble.
+- As a corollary, silent failures of any kind are evil and only ever cause downstream trouble. We must never fail silently in any live code, and it's _especially_ evil to suppress failures in a way that doesn't even look like a failure (silent fallbacks, defaults, null-ish / sentinel values, etc.).
 - Outside of tests, errors should almost never be suppressed or somehow fall back to "default values" (especially evil are things like defaulting `unwrap_or(0)`, or other special values like `-1`, `MAX`).
 - On the flipside, in general, and especially internally, we should assume that both sides of an API are consenting adults and we should _not_ check every conceivable failure state in every location - this is usually more noise than it's worth.
 - Specifically, being overly defensive and "scared" in some code path is usually a big smell that we haven't really understood and defined the model and its invariants well enough yet. (e.g., handling usize overflows in a modern allocator is just noise)
@@ -206,7 +210,7 @@ else {
 
 ### Dependencies
 
-- Fewer dependencies is better, but sometimes it's worth it.
+- Fewer dependencies is better, but sometimes it's worth it, especially when they wrap or define som ebig ugly contract (a la `windows_sys`) that we would just have to redefine and maintain ourselves anyway.
 - When simple logic is needed, we just implement it ourselves.
 - Moderately complex logic is sometimes vendored.
 - Complex or dev-only dependencies are sometimes okay.
@@ -251,7 +255,7 @@ Ideally, you should format code _before_ running it (via tests or otherwise), so
 
 ### Logic
 
-- Heavy `.clone()` are to be avoided (memory is expensive)
+- Heavy `.clone()` are to be avoided (memory is expensive, fragmentatio is even more expensive)
 - Some `unsafe` is not that terrible if we can prove and test the invariants
 - Put constants at the top of the file (no magic numbers/values)
 - Avoid `unwrap`/`expect`/`panic` etc. outside tests; fail explicitly, use proper Result handling
