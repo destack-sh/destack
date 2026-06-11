@@ -1,6 +1,6 @@
 /**
  * Tests are ordinary declarations in the same toolchain: `destack test` runs
- * them, and assertions work on typed values, not stringly process output.
+ * them, and assertions work directly on typed values.
  * The `.test.ds` file name alias includes test sources only in test mode.
  */
 

@@ -1,7 +1,7 @@
 /**
  * `import.meta` exposes profile and module metadata during static and comptime
  * evaluation: the values below are baked per target, so the `.js` and `.asm`
- * views of this file disagree - that is the point.
+ * views of this file show different constants.
  */
 
 // where this build runs

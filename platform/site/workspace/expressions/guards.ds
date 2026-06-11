@@ -1,8 +1,7 @@
 /**
  * Guards are boolean expressions that refine types in the branch: `value is T`
  * checks the runtime representation precisely, for primitives, nominal types,
- * and classes alike.
- * There is no vague `typeof` in Destack.
+ * and classes alike, and replaces TypeScript's stringly `typeof` checks.
  */
 
 struct User {

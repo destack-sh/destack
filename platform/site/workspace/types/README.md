@@ -1,7 +1,7 @@
 # types/
 
 Destack keeps TypeScript's type forms - `type`, `interface`, and `class` work as you expect - and adds precise primitives, value types, and nominality.
-Where TypeScript projects encode an invariant in conventions and validation code, Destack usually has a direct spelling.
+Most invariants that a TypeScript project encodes in conventions and validation code have a direct spelling in Destack.
 
 For example, the TS ecosystem fakes nominal ids with branding hacks:
 

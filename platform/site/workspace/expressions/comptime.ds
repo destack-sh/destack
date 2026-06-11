@@ -1,7 +1,7 @@
 /**
  * `comptime` expressions are ordinary code evaluated by the compiler, with the
- * results baked into the emitted artifact - the `.js` and `.asm` views show the
- * finished values, not the code that computed them.
+ * results baked into the emitted artifact - the `.js` and `.asm` views contain
+ * only the finished values.
  * Functions do not declare a side: the same function runs at compile time when
  * its inputs are static, and at runtime otherwise.
  */
