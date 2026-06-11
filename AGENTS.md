@@ -236,9 +236,6 @@ Ideally, you should format code _before_ running it (via tests or otherwise), so
 
 ## Rust
 
-### Development
-
-- If you encounter an ICE, just do `cargo clean` (same if you run out of disk space)
 - Comments/documentation goes before _all_ attributes (like `#[inline]`, `#[derive]`, etc.)
 - No `crate::X` within functions, prefer relative references (again, imports at the top)
 - Place imports at the top, prefer `use std::time::Instant` patterns
@@ -247,14 +244,12 @@ Ideally, you should format code _before_ running it (via tests or otherwise), so
 - `mod.rs` and `main.rs` are intended strictly for re-exports (and submodule declarations like `mod submodule;`)
 - Modules should either be `module.rs` or have `module/mod.rs` + real `module/whatever.rs`, never both
 - `Into/From` is great (and sometimes `TryFrom`) and self contained to/from style conversions should usually use them for clarity
+- Avoid "hiding" payloads inside `enum`s that sound like scalars (e.g., no values in variants of a `*Kind` named enum)
 - Avoid `include!` or convoluted `#[path]` to bypass
 - Avoid nesting `mod x { }` inside a file (except for `tests`)
 - Avoid `Cell` and `RefCell`, they almost always imply a bad ownership model
 - Import aliases are evil. 
 - Prefer direct `expr.clone()` over `Arc.clone(expr)`
-
-### Logic
-
 - Heavy `.clone()` are to be avoided (memory is expensive, fragmentatio is even more expensive)
 - Some `unsafe` is not that terrible if we can prove and test the invariants
 - Put constants at the top of the file (no magic numbers/values)
