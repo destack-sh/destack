@@ -42,6 +42,7 @@ export struct AllocationUnsupported {
 }
 
 /// Allocation failure returned by typed fallible allocation APIs.
+@languageItem("memory.AllocationError")
 export newtype AllocationError =
     | AllocationOutOfMemory
     | AllocationCapacityOverflow
