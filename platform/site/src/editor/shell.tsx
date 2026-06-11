@@ -1,5 +1,5 @@
-import { Show, createEffect, createMemo, onCleanup, onMount } from "solid-js";
-import { createStore } from "solid-js/store";
+import { Show, batch, createEffect, createMemo, onCleanup, onMount } from "solid-js";
+import { createStore, reconcile } from "solid-js/store";
 
 import { toggleTheme } from "../component/theme";
 import { CommandBar, type Command } from "./command";
@@ -139,13 +139,13 @@ export function EditorShell(props: EditorShellProps) {
     );
 
     // file operations
-    const open = (path: string) => {
+    const open = (path: string) => batch(() => {
         if (!shell.openPaths.includes(path)) {
             setShell("openPaths", (paths) => [...paths, path]);
         }
         setShell("activePath", path);
-    };
-    const close = (path: string) => {
+    });
+    const close = (path: string) => batch(() => {
         const remaining = shell.openPaths.filter((entry) => entry !== path);
         setShell("openPaths", remaining);
 
@@ -156,7 +156,7 @@ export function EditorShell(props: EditorShellProps) {
         if (remaining.length === 0) {
             setShell("openPaths", [defaultPath]);
         }
-    };
+    });
     const edit = (path: string, source: string) => {
         setWorkspace("files", path, "source", source);
     };
@@ -178,7 +178,7 @@ export function EditorShell(props: EditorShellProps) {
 
         open(`${prefix}${name}`);
     };
-    const rename = (from: string, to: string) => {
+    const rename = (from: string, to: string) => batch(() => {
         if (!renameFile(props.workspace, from, to)) {
             return;
         }
@@ -188,11 +188,11 @@ export function EditorShell(props: EditorShellProps) {
         if (shell.activePath === from) {
             setShell("activePath", to);
         }
-    };
-    const remove = (path: string) => {
+    });
+    const remove = (path: string) => batch(() => {
         deleteFile(props.workspace, path);
         close(path);
-    };
+    });
     const move = (path: string, directory: string) => {
         rename(path, directory === "" ? basename(path) : `${directory}/${basename(path)}`);
     };
@@ -201,17 +201,16 @@ export function EditorShell(props: EditorShellProps) {
             closed.includes(path) ? closed.filter((entry) => entry !== path) : [...closed, path],
         );
     };
-    const resetWorkspace = () => {
-        // back to the pristine seed: files, layout, and persisted state
+    const resetWorkspace = () => batch(() => {
+        // back to the pristine seed: files, layout, and persisted state,
+        // reconciled so unchanged panes survive the reset
         localStorage.removeItem(layoutStorageKey);
-        setWorkspace("files", seedFiles());
-        setShell({
-            activePath: defaultPath,
-            closedDirectories: [],
-            layouts: defaultLayouts(),
-            openPaths: [defaultPath],
-        });
-    };
+        setWorkspace("files", reconcile(seedFiles()));
+        setShell("activePath", defaultPath);
+        setShell("closedDirectories", []);
+        setShell("layouts", reconcile(defaultLayouts(), { key: "view" }));
+        setShell("openPaths", [defaultPath]);
+    });
     const reorder = (from: string, to: string) => {
         setShell("openPaths", (paths) => {
             const list = paths.filter((path) => path !== from);
@@ -288,7 +287,7 @@ export function EditorShell(props: EditorShellProps) {
                 const ids = Object.keys(candidate.views);
                 const hasEditor = leaves.some((id) => candidate.views[id]?.kind === "editor");
                 if (hasEditor && leaves.sort().join(",") === ids.sort().join(",")) {
-                    setShell("layouts", kind, candidate);
+                    setShell("layouts", kind, reconcile(candidate, { key: "view" }));
                 }
             }
         }
@@ -343,7 +342,7 @@ export function EditorShell(props: EditorShellProps) {
 
 
     // view instances: add anywhere, close anything but the last editor
-    const addView = (kind: View["kind"]) => {
+    const addView = (kind: View["kind"]) => batch(() => {
         let counter = 1;
         let id = `${kind}-${counter}`;
         while (layout().views[id] != undefined) {
@@ -352,43 +351,45 @@ export function EditorShell(props: EditorShellProps) {
         }
 
         setShell("layouts", layoutKind(), "views", id, { kind, target: 0 });
-        setShell("layouts", layoutKind(), "dock", (dock) => appendView(dock, id));
-    };
-    const closeView = (id: string) => {
+        setShell("layouts", layoutKind(), "dock", (dock) => reconcile(appendView(dock, id), { key: "view" })(dock));
+    });
+    const closeView = (id: string) => batch(() => {
         const view = layout().views[id];
-        const editors = dockViews(layout().dock).filter((entry) => layout().views[entry]?.kind === "editor");
+        const editors = dockViews(layout().dock).filter(
+            (entry) => layout().views[entry]?.kind === "editor",
+        );
         if (view == undefined || (view.kind === "editor" && editors.length <= 1)) {
             return;
         }
 
         const dock = removeView(layout().dock, id);
         if (dock != undefined) {
-            setShell("layouts", layoutKind(), "dock", dock);
+            setShell("layouts", layoutKind(), "dock", reconcile(dock, { key: "view" }));
             setShell("layouts", layoutKind(), "views", id, undefined!);
         }
-    };
+    });
 
     // chrome rendered into whatever layout the user arranges; accessors stay lazy so
     // layout changes do not remount pane contents
-    const chrome = (id: string): ViewChrome => ({
+    const chrome = (kind: LayoutKind, id: string): ViewChrome => ({
         isClosable: () => {
-            const view = layout().views[id];
+            const view = shell.layouts[kind].views[id];
             const isLastEditor =
                 view?.kind === "editor" &&
-                dockViews(layout().dock).filter((entry) => layout().views[entry]?.kind === "editor")
-                    .length <= 1;
+                dockViews(shell.layouts[kind].dock).filter(
+                    (entry) => shell.layouts[kind].views[entry]?.kind === "editor",
+                ).length <= 1;
 
             return view != undefined && !isLastEditor;
         },
-        title: () => layout().views[id]?.kind ?? "view",
+        title: () => shell.layouts[kind].views[id]?.kind ?? "view",
         render: () => {
-            // the kind is fixed per instance, so branching once is safe
-            const kind = layout().views[id]?.kind;
+            // the view kind is fixed per instance, so branching once is safe
+            const viewKind = shell.layouts[kind].views[id]?.kind;
 
             // explorer is workspace-wide, the rest follow the active file
-            if (kind === "explorer") {
-
-    return (
+            if (viewKind === "explorer") {
+                return (
                     <Explorer
                         activePath={shell.activePath}
                         closedDirectories={shell.closedDirectories}
@@ -402,7 +403,7 @@ export function EditorShell(props: EditorShellProps) {
                     />
                 );
             }
-            if (kind === "editor") {
+            if (viewKind === "editor") {
                 return (
                     <Show when={activeFile()}>
                         {(file) => (
@@ -421,14 +422,14 @@ export function EditorShell(props: EditorShellProps) {
                     </Show>
                 );
             }
-            if (kind === "output") {
+            if (viewKind === "output") {
                 return (
                     <Show when={activeFile()}>
                         {(file) => (
                             <OutputsPane
                                 file={file()}
-                                onTargetChange={(index) => setShell("layouts", layoutKind(), "views", id, "target", index)}
-                                targetIndex={layout().views[id]?.target ?? 0}
+                                onTargetChange={(index) => setShell("layouts", kind, "views", id, "target", index)}
+                                targetIndex={shell.layouts[kind].views[id]?.target ?? 0}
                             />
                         )}
                     </Show>
@@ -515,19 +516,31 @@ export function EditorShell(props: EditorShellProps) {
             >
                 <TitleBar isExpanded={shell.isExpanded} onExpand={toggleExpand} />
 
-                {/* Dock: user-arrangeable splits of view instances */}
+                {/* Dock: user-arrangeable splits of view instances; both layout
+                    kinds stay mounted and the flip only toggles visibility */}
                 <div class="min-h-0 min-w-0">
-                    <DockView
-                        chrome={chrome}
-                        node={layout().dock}
-                        onClose={closeView}
-                        onMove={(view, target, edge) =>
-                            setShell("layouts", layoutKind(), "dock", (dock) => moveView(dock, view, target, edge))
-                        }
-                        onResize={(path, index, delta) =>
-                            setShell("layouts", layoutKind(), "dock", (dock) => resizeSplit(dock, path, index, delta))
-                        }
-                    />
+                    {(["document", "code"] as const).map((kind) => (
+                        <div
+                            class="h-full min-h-0 min-w-0"
+                            classList={{ hidden: layoutKind() !== kind }}
+                        >
+                            <DockView
+                                chrome={(id) => chrome(kind, id)}
+                                node={shell.layouts[kind].dock}
+                                onClose={closeView}
+                                onMove={(view, target, edge) =>
+                                    setShell("layouts", kind, "dock", (dock) =>
+                                        reconcile(moveView(dock, view, target, edge), { key: "view" })(dock),
+                                    )
+                                }
+                                onResize={(path, index, delta) =>
+                                    setShell("layouts", kind, "dock", (dock) =>
+                                        reconcile(resizeSplit(dock, path, index, delta), { key: "view" })(dock),
+                                    )
+                                }
+                            />
+                        </div>
+                    ))}
                 </div>
 
                 <DragGhost />

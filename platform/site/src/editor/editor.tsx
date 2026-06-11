@@ -1,4 +1,4 @@
-import { For, Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
+import { For, Show, createEffect, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 
 import { beginDrag, dragPayload, dropTarget } from "./drag";
 import { MarkdownView } from "./markdown";
@@ -29,6 +29,8 @@ type EditorGroupProps = {
 };
 
 export function EditorGroup(props: EditorGroupProps) {
+    const labels = createMemo(() => tabLabels(props.openFiles));
+
     return (
         <section class="grid h-full min-h-0 min-w-0 grid-rows-[2rem_minmax(0,1fr)] bg-editor-window">
             {/* Open file tabs */}
@@ -38,6 +40,7 @@ export function EditorGroup(props: EditorGroupProps) {
                         <EditorTab
                             file={file}
                             isActive={props.activePath === file.path}
+                            label={labels().get(file.path) ?? basename(file.path)}
                             onClose={() => props.onClose(file.path)}
                             onReorder={props.onReorder}
                             onSelect={() => props.onSelect(file.path)}
@@ -69,6 +72,7 @@ export function EditorGroup(props: EditorGroupProps) {
 type EditorTabProps = {
     file: WorkspaceFile;
     isActive: boolean;
+    label: string;
     onClose: () => void;
     onReorder: (from: string, to: string) => void;
     onSelect: () => void;
@@ -108,7 +112,7 @@ function EditorTab(props: EditorTabProps) {
             onPointerDown={grab}
         >
             <button class="min-w-0 truncate py-1.5 pr-1 pl-3" onClick={props.onSelect} type="button">
-                {basename(props.file.path)}
+                {props.label}
             </button>
 
             {/* Dirty marker doubles as the close affordance */}
@@ -139,8 +143,12 @@ type CodeEditorProps = {
 function CodeEditor(props: CodeEditorProps) {
     let host: HTMLDivElement | undefined;
     let isMounted = false;
+    let isSyncing = false;
     let view: import("codemirror").EditorView | undefined;
     const [isReady, setIsReady] = createSignal(false);
+
+    // the instance serves exactly one file; a path change remounts a new one
+    const boundPath = props.file.path;
 
     onMount(async () => {
         isMounted = true;
@@ -170,6 +178,11 @@ function CodeEditor(props: CodeEditorProps) {
             EditorView.lineWrapping,
             editorThemeFor(EditorView),
             EditorView.updateListener.of((update) => {
+                // programmatic syncs must not echo back into the store
+                if (isSyncing) {
+                    return;
+                }
+
                 if (update.docChanged) {
                     props.onEdit(update.state.doc.toString());
                 }
@@ -201,13 +214,19 @@ function CodeEditor(props: CodeEditorProps) {
         props.onCursorChange(cursorFor(view));
     });
 
-    // sync external source swaps (file switch, reset) into the live document
+    // sync external source resets into the live document; when the active file
+    // changes, the keyed remount takes over instead of this instance
     createEffect(() => {
-        const source = props.file.source;
-        if (view == undefined || view.state.doc.toString() === source) {
+        const file = props.file;
+        const source = file.source;
+        if (file.path !== boundPath || view == undefined) {
+            return;
+        }
+        if (view.state.doc.toString() === source) {
             return;
         }
 
+        isSyncing = true;
         view.dispatch({
             changes: {
                 from: 0,
@@ -215,15 +234,16 @@ function CodeEditor(props: CodeEditorProps) {
                 to: view.state.doc.length,
             },
         });
-        props.onCursorChange(cursorFor(view));
+        isSyncing = false;
     });
 
     onCleanup(() => {
         isMounted = false;
 
-        // remember undo history, selection, and scroll for the next mount
+        // remember undo history, selection, and scroll for the next mount;
+        // never read reactive state here, disposal must not subscribe anything
         if (view != undefined) {
-            editorStates.set(props.file.path, {
+            editorStates.set(boundPath, {
                 state: view.state,
                 scrollTop: view.scrollDOM.scrollTop,
             });
@@ -391,6 +411,34 @@ function editorThemeFor(EditorView: typeof import("codemirror").EditorView) {
         },
         { dark: true },
     );
+}
+
+/// Label every open file, extending duplicated names by path segments until unique.
+function tabLabels(files: readonly WorkspaceFile[]) {
+    const labels = new Map<string, string>();
+
+    for (const file of files) {
+        const segments = file.path.split("/");
+
+        // grow the suffix until no other open file shares it
+        let depth = 1;
+        let label = segments.slice(-depth).join("/");
+        while (
+            depth < segments.length &&
+            files.some(
+                (other) =>
+                    other.path !== file.path &&
+                    other.path.split("/").slice(-depth).join("/") === label,
+            )
+        ) {
+            depth += 1;
+            label = segments.slice(-depth).join("/");
+        }
+
+        labels.set(file.path, label);
+    }
+
+    return labels;
 }
 
 function cursorFor(view: import("codemirror").EditorView): Cursor {

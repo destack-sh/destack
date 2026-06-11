@@ -22,29 +22,15 @@ const headerSwapHeight = 32;
 
 const dragThreshold = 4;
 
-/// One drag can exist at a time, so the controller is a singleton.
-type DragController = {
-    drag: () => { payload: DragPayload; x: number; y: number } | undefined;
-    setDrag: (state: { payload: DragPayload; x: number; y: number } | undefined) => void;
-    target: () => DropTarget | undefined;
-    setTarget: (state: DropTarget | undefined) => void;
-};
+// one drag can exist at a time, so the state is module-global; hot updates
+// reload the page instead of swapping, keeping every subscriber on one instance
+const hot = (import.meta as { hot?: { decline(): void } }).hot;
+hot?.decline();
 
-// stash the singleton on globalThis so dev hot reloads keep one shared instance
-function controller(): DragController {
-    const host = globalThis as { __destackDrag?: DragController };
-    if (host.__destackDrag == undefined) {
-        const [drag, setDrag] = createSignal<
-            { payload: DragPayload; x: number; y: number } | undefined
-        >(undefined);
-        const [target, setTarget] = createSignal<DropTarget | undefined>(undefined);
-        host.__destackDrag = { drag, setDrag, target, setTarget };
-    }
-
-    return host.__destackDrag;
-}
-
-const { drag, setDrag, target, setTarget } = controller();
+const [drag, setDrag] = createSignal<{ payload: DragPayload; x: number; y: number } | undefined>(
+    undefined,
+);
+const [target, setTarget] = createSignal<DropTarget | undefined>(undefined);
 
 /// The payload currently being dragged, if any.
 export function dragPayload() {
