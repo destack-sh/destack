@@ -14,7 +14,7 @@ pub enum CheckError {
     /// ```ds
     /// const value = _;
     /// ```
-    #[diagnostic(code = "EC100", message = "cannot solve constraints")]
+    #[diagnostic(code = "EC100", message = "cannot infer a type here")]
     CannotSolve {
         /// Report the node that requires the solution.
         anchor: DiagnosticAnchor,
@@ -59,8 +59,30 @@ pub enum CheckError {
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
-        /// The unsupported type spelling.
+        /// The unsupported type written form.
         name: String,
+    },
+
+    /// Generic application supplies more arguments than the declaration takes.
+    ///
+    /// ```ds
+    /// Box<int32, string>;
+    /// ```
+    #[diagnostic(
+        code = "EC105",
+        message = "'{name}' takes {expected} generic argument(s), but {supplied} were supplied"
+    )]
+    WrongGenericArity {
+        /// Report the generic application.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The applied declaration name.
+        name: String,
+        /// The declared parameter count.
+        expected: usize,
+        /// The supplied argument count.
+        supplied: usize,
     },
 
     // -------------------------------------------------------------------------
@@ -71,12 +93,19 @@ pub enum CheckError {
     /// ```ds
     /// let value: string = 1;
     /// ```
-    #[diagnostic(code = "EC200", message = "type is not assignable")]
+    #[diagnostic(
+        code = "EC200",
+        message = "type '{source}' is not assignable to type '{target}'"
+    )]
     NotAssignable {
         /// Report the assignment source.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
+        /// The assigned source type.
+        source: String,
+        /// The receiving target type.
+        target: String,
     },
 
     /// Type does not satisfy a required structural or generic constraint.
@@ -84,12 +113,19 @@ pub enum CheckError {
     /// ```ds
     /// value satisfies { name: string };
     /// ```
-    #[diagnostic(code = "EC201", message = "type does not satisfy constraint")]
+    #[diagnostic(
+        code = "EC201",
+        message = "type '{source}' does not satisfy '{target}'"
+    )]
     ConstraintNotSatisfied {
         /// Report the constrained type.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
+        /// The constrained source type.
+        source: String,
+        /// The required constraint.
+        target: String,
     },
 
     /// Type does not extend a required base type.
@@ -97,12 +133,16 @@ pub enum CheckError {
     /// ```ds
     /// class User extends number {}
     /// ```
-    #[diagnostic(code = "EC202", message = "type does not extend required type")]
+    #[diagnostic(code = "EC202", message = "type '{source}' does not extend '{target}'")]
     DoesNotExtend {
         /// Report the extends clause or constrained type.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
+        /// The extending source type.
+        source: String,
+        /// The required base type.
+        target: String,
     },
 
     /// Type does not implement a required contract.
@@ -110,12 +150,19 @@ pub enum CheckError {
     /// ```ds
     /// class User implements Serializable {}
     /// ```
-    #[diagnostic(code = "EC203", message = "type does not implement required contract")]
+    #[diagnostic(
+        code = "EC203",
+        message = "type '{source}' does not implement '{target}'"
+    )]
     DoesNotImplement {
         /// Report the implements clause or constrained type.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
+        /// The implementing source type.
+        source: String,
+        /// The required contract.
+        target: String,
     },
 
     /// Assignment writes through a target that is not writable.
@@ -124,12 +171,16 @@ pub enum CheckError {
     /// const value = 1;
     /// value = 2;
     /// ```
-    #[diagnostic(code = "EC204", message = "assignment target is not writable")]
+    #[diagnostic(code = "EC204", message = "cannot assign to '{place}': {reason}")]
     NotWritable {
         /// Report the mutation.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
+        /// The written place written form.
+        place: String,
+        /// Why the place rejects writes.
+        reason: String,
     },
 
     /// Fresh object literal contains a property that the target cannot accept.
@@ -137,7 +188,10 @@ pub enum CheckError {
     /// ```ds
     /// const value: { name: string } = { name: "Ada", extra: true };
     /// ```
-    #[diagnostic(code = "EC205", message = "excess property '{key}'")]
+    #[diagnostic(
+        code = "EC205",
+        message = "unknown property '{key}' in object literal for type '{target}'"
+    )]
     ExcessProperty {
         /// Report the extra property.
         anchor: DiagnosticAnchor,
@@ -145,6 +199,8 @@ pub enum CheckError {
         module: ModuleId,
         /// The extra property key.
         key: String,
+        /// The receiving target type.
+        target: String,
     },
 
     /// Type cannot be explicitly cast to the requested target type.
@@ -152,12 +208,19 @@ pub enum CheckError {
     /// ```ds
     /// const value = user as int32;
     /// ```
-    #[diagnostic(code = "EC206", message = "type cannot be cast")]
+    #[diagnostic(
+        code = "EC206",
+        message = "type '{source}' cannot be cast to '{target}'"
+    )]
     InvalidCast {
         /// Report the cast expression.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
+        /// The cast source type.
+        source: String,
+        /// The cast target type.
+        target: String,
     },
 
     /// Intrinsic marker type appears outside a compiler-recognized language item.
@@ -186,6 +249,46 @@ pub enum CheckError {
         module: ModuleId,
     },
 
+    /// Argument type is not assignable to its parameter type.
+    ///
+    /// ```ds
+    /// parse(1);
+    /// ```
+    #[diagnostic(
+        code = "EC209",
+        message = "argument of type '{source}' is not assignable to parameter of type '{target}'"
+    )]
+    ArgumentNotAssignable {
+        /// Report the argument expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The argument type.
+        source: String,
+        /// The parameter type.
+        target: String,
+    },
+
+    /// Returned type is not assignable to the declared result type.
+    ///
+    /// ```ds
+    /// function f(): string { 1 }
+    /// ```
+    #[diagnostic(
+        code = "EC210",
+        message = "type '{source}' is not assignable to the declared result type '{target}'"
+    )]
+    ReturnNotAssignable {
+        /// Report the returned expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The returned type.
+        source: String,
+        /// The declared result type.
+        target: String,
+    },
+
     // -------------------------------------------------------------------------
     // 3xx: selection
     // -------------------------------------------------------------------------
@@ -194,7 +297,10 @@ pub enum CheckError {
     /// ```ds
     /// user.missing;
     /// ```
-    #[diagnostic(code = "EC300", message = "missing member '{key}'")]
+    #[diagnostic(
+        code = "EC300",
+        message = "member '{key}' does not exist on type '{receiver}'"
+    )]
     MissingMember {
         /// Report the member access.
         anchor: DiagnosticAnchor,
@@ -202,6 +308,8 @@ pub enum CheckError {
         module: ModuleId,
         /// The selected member key.
         key: String,
+        /// The receiver type.
+        receiver: String,
     },
 
     /// Value is not callable.
@@ -210,12 +318,14 @@ pub enum CheckError {
     /// const value = 1;
     /// value();
     /// ```
-    #[diagnostic(code = "EC301", message = "value is not callable")]
+    #[diagnostic(code = "EC301", message = "value of type '{ty}' is not callable")]
     NotCallable {
         /// Report the call expression.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
+        /// The callee type.
+        ty: String,
     },
 
     /// No overload matches the supplied arguments.
@@ -223,12 +333,17 @@ pub enum CheckError {
     /// ```ds
     /// parse(1, 2, 3);
     /// ```
-    #[diagnostic(code = "EC302", message = "no matching call overload")]
+    #[diagnostic(
+        code = "EC302",
+        message = "no overload matches arguments ({arguments})"
+    )]
     NoMatchingCall {
         /// Report the call expression.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
+        /// The supplied argument types.
+        arguments: String,
     },
 
     /// Member selection has multiple valid targets.
@@ -236,7 +351,7 @@ pub enum CheckError {
     /// ```ds
     /// value.name;
     /// ```
-    #[diagnostic(code = "EC303", message = "ambiguous member '{key}'")]
+    #[diagnostic(code = "EC303", message = "member '{key}' is ambiguous")]
     AmbiguousMember {
         /// Report the member access.
         anchor: DiagnosticAnchor,
@@ -264,7 +379,7 @@ pub enum CheckError {
     /// ```ds
     /// user.privateName;
     /// ```
-    #[diagnostic(code = "EC305", message = "member '{key}' is not accessible")]
+    #[diagnostic(code = "EC305", message = "member '{key}' is {visibility}")]
     InaccessibleMember {
         /// Report the member access.
         anchor: DiagnosticAnchor,
@@ -272,6 +387,8 @@ pub enum CheckError {
         module: ModuleId,
         /// The selected member key.
         key: String,
+        /// The declared visibility.
+        visibility: String,
     },
 
     /// No operator overload matches the supplied operands.
@@ -279,7 +396,10 @@ pub enum CheckError {
     /// ```ds
     /// user + settings;
     /// ```
-    #[diagnostic(code = "EC306", message = "no matching operator '{operator}'")]
+    #[diagnostic(
+        code = "EC306",
+        message = "operator '{operator}' is not defined for {operands}"
+    )]
     NoMatchingOperator {
         /// Report the operator expression.
         anchor: DiagnosticAnchor,
@@ -287,6 +407,8 @@ pub enum CheckError {
         module: ModuleId,
         /// The selected operator.
         operator: String,
+        /// The supplied operand types.
+        operands: String,
     },
 
     /// Strict equality operands do not have identity-compatible types.
@@ -296,13 +418,17 @@ pub enum CheckError {
     /// ```
     #[diagnostic(
         code = "EC307",
-        message = "strict equality requires identity-compatible operands"
+        message = "this comparison is unintentional: types '{left}' and '{right}' have no overlap"
     )]
     InvalidStrictEquality {
         /// Report the strict equality expression.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
+        /// The left operand type.
+        left: String,
+        /// The right operand type.
+        right: String,
     },
 
     /// Reference does not resolve to a visible symbol.
@@ -310,7 +436,7 @@ pub enum CheckError {
     /// ```ds
     /// missing;
     /// ```
-    #[diagnostic(code = "EC308", message = "unresolved reference '{name}'")]
+    #[diagnostic(code = "EC308", message = "cannot find '{name}'")]
     UnresolvedReference {
         /// Report the reference expression.
         anchor: DiagnosticAnchor,
@@ -335,6 +461,102 @@ pub enum CheckError {
         name: String,
     },
 
+    /// Receiver type does not contain a member close to a visible one.
+    ///
+    /// ```ds
+    /// user.nmae;
+    /// ```
+    #[diagnostic(
+        code = "EC310",
+        message = "member '{key}' does not exist on type '{receiver}', did you mean '{suggestion}'?"
+    )]
+    MissingMemberSuggestion {
+        /// Report the member access.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The selected member key.
+        key: String,
+        /// The receiver type.
+        receiver: String,
+        /// The closest visible member key.
+        suggestion: String,
+    },
+
+    /// Reference does not resolve but a close name is visible.
+    ///
+    /// ```ds
+    /// cosnt;
+    /// ```
+    #[diagnostic(
+        code = "EC311",
+        message = "cannot find '{name}', did you mean '{suggestion}'?"
+    )]
+    UnresolvedReferenceSuggestion {
+        /// Report the reference expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The unresolved reference text.
+        name: String,
+        /// The closest visible name.
+        suggestion: String,
+    },
+
+    /// Member access reads through a possibly nullish value.
+    ///
+    /// ```ds
+    /// declare const user: User | undefined;
+    /// user.name;
+    /// ```
+    #[diagnostic(code = "EC312", message = "value is possibly {nullish}")]
+    PossiblyNullish {
+        /// Report the member access.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The nullish part of the receiver.
+        nullish: String,
+    },
+
+    /// Type cannot be constructed with `new`.
+    ///
+    /// ```ds
+    /// new Point(1, 2);
+    /// ```
+    #[diagnostic(
+        code = "EC313",
+        message = "type '{ty}' cannot be constructed with 'new'{hint}"
+    )]
+    NotConstructible {
+        /// Report the construct expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The constructed type.
+        ty: String,
+        /// Construction guidance for the type's kind.
+        hint: String,
+    },
+
+    /// Call supplies the wrong number of arguments.
+    ///
+    /// ```ds
+    /// function pair(a: int32, b: int32) {}
+    /// pair(1);
+    /// ```
+    #[diagnostic(code = "EC314", message = "expected {expected}, but got {supplied}")]
+    WrongArgumentCount {
+        /// Report the call expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The accepted argument count phrase, possibly a range.
+        expected: String,
+        /// The supplied argument count.
+        supplied: usize,
+    },
+
     // -------------------------------------------------------------------------
     // 4xx: expressions
     // -------------------------------------------------------------------------
@@ -343,12 +565,17 @@ pub enum CheckError {
     /// ```ds
     /// if (1) {}
     /// ```
-    #[diagnostic(code = "EC400", message = "condition requires boolean type")]
+    #[diagnostic(
+        code = "EC400",
+        message = "condition must be boolean, found '{actual}'"
+    )]
     NonBooleanCondition {
         /// Report the condition expression.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
+        /// The condition type.
+        actual: String,
     },
 
     /// Static condition could not be evaluated to a boolean value.
@@ -357,7 +584,10 @@ pub enum CheckError {
     /// @if("test")
     /// const value = 1;
     /// ```
-    #[diagnostic(code = "EC401", message = "static condition requires boolean value")]
+    #[diagnostic(
+        code = "EC401",
+        message = "static condition must evaluate to a boolean"
+    )]
     InvalidCondition {
         /// Report the static condition expression.
         anchor: DiagnosticAnchor,
@@ -387,28 +617,17 @@ pub enum CheckError {
     ///     true => 1,
     /// }
     /// ```
-    #[diagnostic(code = "EC403", message = "pattern match is not exhaustive")]
+    #[diagnostic(
+        code = "EC403",
+        message = "match is not exhaustive: '{missing}' is not covered"
+    )]
     NonExhaustivePattern {
         /// Report the match expression.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
-    },
-
-    /// Pattern can never match after earlier patterns.
-    ///
-    /// ```ds
-    /// match (value) {
-    ///     _ => 1,
-    ///     true => 2,
-    /// }
-    /// ```
-    #[diagnostic(code = "EC404", message = "pattern is unreachable")]
-    UnreachablePattern {
-        /// Report the unreachable pattern.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
+        /// One uncovered value or type.
+        missing: String,
     },
 
     /// Local value is used before it is definitely assigned.
@@ -417,12 +636,14 @@ pub enum CheckError {
     /// let value: int32;
     /// value + 1;
     /// ```
-    #[diagnostic(code = "EC405", message = "value is used before assignment")]
+    #[diagnostic(code = "EC405", message = "'{name}' is used before being assigned")]
     UseBeforeAssigned {
         /// Report the use.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
+        /// The used binding name.
+        name: String,
     },
 
     /// Refutable pattern appears outside a matching context.
@@ -432,13 +653,15 @@ pub enum CheckError {
     /// ```
     #[diagnostic(
         code = "EC406",
-        message = "refutable pattern requires a matching context"
+        message = "refutable pattern in binding position: '{missing}' is not covered"
     )]
     RefutablePattern {
         /// Report the refutable pattern.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
+        /// One uncovered value or type.
+        missing: String,
     },
 
     /// Await expression has an invalid shape for its context.
@@ -486,6 +709,43 @@ pub enum CheckError {
         message: String,
     },
 
+    /// Try operator applies to a value that is neither Try nor nullish.
+    ///
+    /// ```ds
+    /// const value = 1?;
+    /// ```
+    #[diagnostic(
+        code = "EC410",
+        message = "'{operator}' requires a Try carrier or nullish value, found '{ty}'"
+    )]
+    InvalidTryOperand {
+        /// Report the try expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The applied operator.
+        operator: String,
+        /// The tried value type.
+        ty: String,
+    },
+
+    /// Nominal pattern names a tag that is not a nominal type.
+    ///
+    /// ```ds
+    /// match (value) {
+    ///     { x: int32 }(inner) => inner,
+    /// }
+    /// ```
+    #[diagnostic(code = "EC411", message = "pattern tag '{ty}' is not a nominal type")]
+    InvalidPatternTag {
+        /// Report the pattern tag.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The non-nominal tag type.
+        ty: String,
+    },
+
     // -------------------------------------------------------------------------
     // 5xx: representation
     // -------------------------------------------------------------------------
@@ -494,12 +754,14 @@ pub enum CheckError {
     /// ```ds
     /// sizeOf<T>();
     /// ```
-    #[diagnostic(code = "EC500", message = "type has no concrete layout")]
+    #[diagnostic(code = "EC500", message = "type '{ty}' has no concrete layout")]
     LayoutNotConcrete {
         /// Report the layout request.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
+        /// The non-concrete type.
+        ty: String,
     },
 
     /// Representation decorator is not valid for the declaration.
@@ -528,12 +790,17 @@ pub enum CheckError {
     ///     override name() {}
     /// }
     /// ```
-    #[diagnostic(code = "EC600", message = "invalid override")]
+    #[diagnostic(
+        code = "EC600",
+        message = "'{member}' does not override an inherited member"
+    )]
     InvalidOverride {
         /// Report the override declaration.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
+        /// The overriding member name.
+        member: String,
     },
 
     /// Concrete type does not implement an abstract member.
@@ -541,7 +808,10 @@ pub enum CheckError {
     /// ```ds
     /// class User extends Entity {}
     /// ```
-    #[diagnostic(code = "EC601", message = "abstract member is not implemented")]
+    #[diagnostic(
+        code = "EC601",
+        message = "abstract member '{member}' is not implemented"
+    )]
     UnimplementedAbstractMember {
         /// Report the concrete declaration.
         anchor: DiagnosticAnchor,
@@ -556,12 +826,17 @@ pub enum CheckError {
     /// ```ds
     /// new AbstractUser();
     /// ```
-    #[diagnostic(code = "EC602", message = "abstract type cannot be constructed")]
+    #[diagnostic(
+        code = "EC602",
+        message = "abstract class '{ty}' cannot be constructed"
+    )]
     CannotConstructAbstractType {
         /// Report the constructor call.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
+        /// The abstract class name.
+        ty: String,
     },
 
     /// Method uses an implicit receiver while implicit receivers are disabled.
@@ -577,5 +852,167 @@ pub enum CheckError {
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
+    },
+
+    /// Two implementations claim the same contract for the same type.
+    ///
+    /// ```ds
+    /// extension of User implements Show {}
+    /// extension of User implements Show {}
+    /// ```
+    #[diagnostic(
+        code = "EC604",
+        message = "conflicting implementations of '{contract}' for type '{ty}'"
+    )]
+    ConflictingImplementation {
+        /// Report the later implementation.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The implemented contract.
+        contract: String,
+        /// The implementing type.
+        ty: String,
+    },
+
+    /// Blanket implementation over a bare parameter is declared outside
+    /// the contract's package.
+    ///
+    /// ```ds
+    /// extension<T: Equal> of T implements PartialEqual {}
+    /// ```
+    #[diagnostic(
+        code = "EC605",
+        message = "blanket implementation over a bare parameter must live in the package declaring '{contract}'"
+    )]
+    ForeignBlanketImplementation {
+        /// Report the blanket implementation.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The implemented contract.
+        contract: String,
+    },
+
+    /// Member shadows an inherited member without the override modifier.
+    ///
+    /// ```ds
+    /// class Admin extends User {
+    ///     show(): string {}
+    /// }
+    /// ```
+    #[diagnostic(
+        code = "EC606",
+        message = "'{member}' shadows an inherited member and must be declared 'override'"
+    )]
+    MissingOverride {
+        /// Report the shadowing member.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The shadowing member name.
+        member: String,
+    },
+
+    /// Override targets an inherited member that is not overridable.
+    ///
+    /// ```ds
+    /// class Admin extends User {
+    ///     override show(): string {}
+    /// }
+    /// ```
+    #[diagnostic(
+        code = "EC607",
+        message = "cannot override '{member}': the inherited member is not virtual"
+    )]
+    OverrideNotVirtual {
+        /// Report the override declaration.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The overridden member name.
+        member: String,
+    },
+
+    /// Class extends a final base class.
+    ///
+    /// ```ds
+    /// class Admin extends FinalUser {}
+    /// ```
+    #[diagnostic(code = "EC608", message = "final class '{ty}' cannot be extended")]
+    FinalClassExtended {
+        /// Report the extending declaration.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The final base class name.
+        ty: String,
+    },
+
+    /// Abstract member is declared in a concrete class.
+    ///
+    /// ```ds
+    /// class User {
+    ///     abstract show(): string;
+    /// }
+    /// ```
+    #[diagnostic(
+        code = "EC609",
+        message = "abstract member '{member}' requires an abstract class"
+    )]
+    AbstractMemberInConcreteClass {
+        /// Report the abstract member.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The abstract member name.
+        member: String,
+    },
+
+    /// Override declaration is not assignable to the inherited member.
+    ///
+    /// ```ds
+    /// class Admin extends User {
+    ///     override show(): int32 {}
+    /// }
+    /// ```
+    #[diagnostic(
+        code = "EC610",
+        message = "override '{member}' has type '{source}', which is not assignable to the inherited type '{target}'"
+    )]
+    IncompatibleOverride {
+        /// Report the override declaration.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The overriding member name.
+        member: String,
+        /// The overriding member type.
+        source: String,
+        /// The inherited member type.
+        target: String,
+    },
+
+    /// Function signature carries a borrow of frame-local data.
+    ///
+    /// ```ds
+    /// function broken(): &string {
+    ///     const name = "local";
+    ///     return &name;
+    /// }
+    /// ```
+    #[diagnostic(
+        code = "EC611",
+        message = "'{name}' returns a borrow that does not outlive the call"
+    )]
+    BorrowEscapesFrame {
+        /// Report the function declaration.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The function name.
+        name: String,
+        /// The frame-local source the borrow derives from.
+        lifetime: String,
     },
 }
