@@ -24,7 +24,7 @@ impl CheckState<'_> {
             let directive = capture.directive;
             let source = self
                 .module(function.module_id)
-                .symbol_declaration_node(function.local_id);
+                .symbol_declaration_node(function.local_id)?;
             let mut captured = Vec::with_capacity(capture.symbols.len());
             let mut fields = Vec::with_capacity(capture.symbols.len());
             let mut bindings = Vec::with_capacity(capture.symbols.len());

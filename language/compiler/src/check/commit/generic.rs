@@ -53,7 +53,7 @@ impl CheckState<'_> {
             .inference
             .generic_parameters()
             .filter(|(_, generic)| generic.parameter().id.module_id == module)
-            .map(|(parameter_id, generic)| (parameter_id, generic.clone()))
+            .map(|(parameter_id, generic)| (parameter_id, *generic))
             .collect::<Vec<_>>();
         parameters.sort_by_key(|(parameter_id, _)| parameter_id.local_id);
 
@@ -167,7 +167,7 @@ impl CheckState<'_> {
             }
             GenericParameterBinding::Static {
                 parameter,
-                constraint,
+                ty,
                 default,
             } => {
                 let constraint = self.commit_generic_constraint(
@@ -175,7 +175,7 @@ impl CheckState<'_> {
                     output,
                     environment,
                     parameter.template,
-                    constraint,
+                    ty,
                 )?;
                 let default = if let Some(operand) = default {
                     self.commit_closed_static_operand(module, output, environment, operand)?
@@ -193,7 +193,7 @@ impl CheckState<'_> {
             }
             GenericParameterBinding::VariadicStatic {
                 parameter,
-                constraint,
+                ty,
                 default,
             } => {
                 let constraint = self.commit_generic_constraint(
@@ -201,7 +201,7 @@ impl CheckState<'_> {
                     output,
                     environment,
                     parameter.template,
-                    constraint,
+                    ty,
                 )?;
                 let default = if let Some(operand) = default {
                     self.commit_closed_static_operand(module, output, environment, operand)?

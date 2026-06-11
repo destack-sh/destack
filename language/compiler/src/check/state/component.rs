@@ -2,12 +2,13 @@ use std::sync::Arc;
 
 use destack_artifact::GlobalEnvironment;
 use destack_dir as dir;
-use destack_repository::ProviderContext;
+use destack_repository::{ArtifactReader, ProviderContext};
 use destack_source::{ModuleId, ProfileId};
 use indexmap::IndexMap;
 
 use crate::check::{
-    CheckDependencyState, CheckModuleState, DefinitionTable, InferenceTable, InputTable,
+    CheckComponentArtifact, CheckExternalModuleState, CheckModuleState, DefinitionTable,
+    InferenceTable, InputTable,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -17,6 +18,8 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) compiler: &'a Compiler,
     /// The provider context that owns artifact reads and diagnostics.
     pub(in crate::check) context: &'a dyn ProviderContext,
+    /// The provider-scoped artifact reader.
+    pub(in crate::check) artifacts: &'a ArtifactReader<'a>,
     /// The active profile.
     pub(in crate::check) profile: ProfileId,
 
@@ -24,8 +27,10 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) environment: Arc<GlobalEnvironment>,
     /// Loaded component modules keyed by module id.
     pub(in crate::check) modules: IndexMap<ModuleId, CheckModuleState>,
-    /// Loaded out-of-component dependencies keyed by module id.
-    pub(in crate::check) dependencies: IndexMap<ModuleId, CheckDependencyState>,
+    /// Loaded out-of-component modules keyed by module id.
+    pub(in crate::check) external_modules: IndexMap<ModuleId, CheckExternalModuleState>,
+    /// Checked component artifact containing each external module.
+    pub(in crate::check) external_components: IndexMap<ModuleId, CheckComponentArtifact>,
 
     /// Input identity to check operand index.
     pub(in crate::check) inputs: InputTable,
@@ -43,17 +48,21 @@ impl<'a> CheckState<'a> {
     pub(in crate::check) fn new(
         compiler: &'a Compiler,
         context: &'a dyn ProviderContext,
+        artifacts: &'a ArtifactReader<'a>,
         profile: ProfileId,
         environment: Arc<GlobalEnvironment>,
+        external_components: IndexMap<ModuleId, CheckComponentArtifact>,
         emit_events: bool,
     ) -> Self {
         Self {
             compiler,
             context,
+            artifacts,
             profile,
             environment,
             modules: IndexMap::new(),
-            dependencies: IndexMap::new(),
+            external_modules: IndexMap::new(),
+            external_components,
             inputs: InputTable::new(),
             inference: InferenceTable::new(),
             definitions: DefinitionTable::new(),
@@ -75,8 +84,15 @@ impl<'a> CheckState<'a> {
     pub(in crate::check) fn walk(&mut self) -> CompilerResult<()> {
         let modules = self.modules.keys().copied().collect::<Vec<_>>();
 
-        // import checked dependency artifacts
-        self.import_component_dependencies()?;
+        // import external checked artifacts
+        self.import_component_external_modules()?;
+        self.import_external_symbol_type_operands()?;
+        self.import_external_definitions()?;
+
+        // declare component headers before any body can read them
+        for module in modules.iter().copied() {
+            self.declare_module_headers(module)?;
+        }
 
         // walk modules in stable component order
         for module in modules.iter().copied() {
@@ -92,22 +108,25 @@ impl<'a> CheckState<'a> {
             return Ok(());
         }
 
-        let artifacts = self.compiler.artifact_reader(self.context);
         let profile = self
             .compiler
             .profile(self.context.revision(), self.profile)?
             .key;
         let module = self.compiler.module(self.context.revision(), module_id)?;
-        let parsed = artifacts
+        let parsed = self
+            .artifacts
             .dir_parsed(module_id)
             .map_err(CompilerError::from)?;
-        let bound = artifacts
+        let bound = self
+            .artifacts
             .dir_bound(module_id, self.profile)
             .map_err(CompilerError::from)?;
-        let resolved = artifacts
+        let resolved = self
+            .artifacts
             .dir_resolved(module_id, self.profile)
             .map_err(CompilerError::from)?;
-        let expanded = artifacts
+        let expanded = self
+            .artifacts
             .dir_expanded(module_id, self.profile)
             .map_err(CompilerError::from)?;
         let strings = Arc::clone(self.compiler.repository.string_pool());
@@ -128,20 +147,20 @@ impl<'a> CheckState<'a> {
     }
 
     /// Return one language symbol resolved for one module.
-    pub(in crate::check) fn language_symbol(
-        &self,
-        module: ModuleId,
-        item: dir::LanguageItem,
-    ) -> dir::GlobalSymbolId {
-        let symbol = self
-            .module(module)
-            .resolved
-            .imports
-            .language_symbol(item)
-            .unwrap_or_else(|| {
-                unreachable!("language item {item} was not resolved for module {module:?}")
-            });
+    pub(in crate::check) fn language_symbol(&self, item: dir::LanguageItem) -> dir::GlobalSymbolId {
+        let symbol = self.environment.language.symbol(item).unwrap_or_else(|| {
+            unreachable!("language item {item} is missing from the global environment")
+        });
 
         symbol
+    }
+
+    /// Return whether one symbol is the resolved language item for one module.
+    pub(in crate::check) fn is_language_symbol(
+        &self,
+        symbol: dir::GlobalSymbolId,
+        item: dir::LanguageItem,
+    ) -> bool {
+        symbol == self.language_symbol(item)
     }
 }

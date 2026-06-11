@@ -2,9 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use indexmap::IndexMap;
 
-use crate::check::{
-    CheckState, Condition, Origin, StaticOperand, TypeOperand, TypeTerm, VariableId,
-};
+use crate::check::{CheckState, StaticOperand, TypeOperand};
 use crate::{CompilerError, CompilerResult};
 
 /// Input identity to check operand index.
@@ -295,34 +293,5 @@ impl CheckState<'_> {
         Err(CompilerError::Internal {
             message: format!("check symbol {symbol} has no static operand"),
         })
-    }
-
-    /// Return one type variable constrained by one operand.
-    pub(in crate::check) fn operand_type_variable(
-        &mut self,
-        module: ModuleId,
-        origin: Origin,
-        operand: TypeOperand,
-        condition: Condition,
-    ) -> VariableId {
-        match operand {
-            TypeOperand::Variable(variable) => variable,
-            TypeOperand::Term(term) => {
-                let variable = self.create_type_variable(module, origin);
-                let term = self.inference.term(term).clone();
-
-                self.equate_type(variable, term, condition);
-
-                variable
-            }
-            TypeOperand::Type(ty) => {
-                let variable = self.create_type_variable(module, origin);
-                let term = TypeTerm::Type(ty);
-
-                self.equate_type(variable, term, condition);
-
-                variable
-            }
-        }
     }
 }

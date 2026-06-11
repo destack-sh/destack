@@ -45,9 +45,8 @@ impl CheckState<'_> {
         let calls = self
             .inference
             .calls()
-            .into_iter()
             .filter_map(|(_, decision)| match decision {
-                CallDecision::Resolved(call) => Some(call),
+                CallDecision::Resolved(call) => Some(call.clone()),
                 CallDecision::Rejected(_) => None,
             })
             .collect::<Vec<_>>();
@@ -97,9 +96,8 @@ impl CheckState<'_> {
         let constructs = self
             .inference
             .constructs()
-            .into_iter()
             .filter_map(|(_, decision)| match decision {
-                ConstructDecision::Resolved(construct) => Some(construct),
+                ConstructDecision::Resolved(construct) => Some(construct.clone()),
                 ConstructDecision::Rejected(_) => None,
             })
             .collect::<Vec<_>>();
@@ -171,9 +169,8 @@ impl CheckState<'_> {
         let operators = self
             .inference
             .operators()
-            .into_iter()
             .filter_map(|(_, decision)| match decision {
-                OperatorDecision::Resolved(operator) => Some(operator),
+                OperatorDecision::Resolved(operator) => Some(operator.clone()),
                 OperatorDecision::Rejected(_) => None,
             })
             .collect::<Vec<_>>();
@@ -292,7 +289,11 @@ impl CheckState<'_> {
 
     /// Write collected name resolutions into the resolution segment.
     fn write_name_resolutions(&self, module: ModuleId, resolutions: &mut dir::ResolutionSegment) {
-        let names = self.inference.names();
+        let names = self
+            .inference
+            .names()
+            .map(|(source, resolution)| (source, resolution.clone()))
+            .collect::<Vec<_>>();
 
         // write lexical resolutions selected by check
         for (source, resolution) in names {
@@ -312,7 +313,7 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         resolutions: &mut dir::ResolutionSegment,
     ) -> CompilerResult<()> {
-        let receivers = self.inference.receivers();
+        let receivers = self.inference.receivers().collect::<Vec<_>>();
 
         // write contextual receiver resolutions
         for receiver in receivers {
@@ -357,10 +358,9 @@ impl CheckState<'_> {
         let members = self
             .inference
             .members()
-            .into_iter()
             .filter_map(|(_, decision)| match decision {
                 MemberDecision::Resolved(member) if member.source.module_id == module => {
-                    Some(member)
+                    Some(member.clone())
                 }
                 MemberDecision::Rejected(_) => None,
                 MemberDecision::Resolved(_) => None,
@@ -449,10 +449,9 @@ impl CheckState<'_> {
         let patterns = self
             .inference
             .patterns()
-            .into_iter()
             .filter_map(|decision| match decision {
                 PatternDecision::Resolved(pattern) if pattern.source.module_id == module => {
-                    Some(pattern)
+                    Some(pattern.clone())
                 }
                 PatternDecision::Rejected(_) => None,
                 PatternDecision::Resolved(_) => None,

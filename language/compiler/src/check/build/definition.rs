@@ -5,7 +5,7 @@ use crate::check::{
     AssociatedConstDefinition, AssociatedTypeDefinition, CheckState, ClassDefinition, Definition,
     EnumDefinition, ExtensionDefinition, ExtensionTarget, ExtensionWhereClause, FieldDefinition,
     GenericInstanceKey, InterfaceDefinition, MethodDefinition, NewtypeDefinition, NominalHeritage,
-    SignatureDefinition, StructDefinition, TypeAliasDefinition, TypeOperand, VariantDefinition,
+    SignatureDefinition, StructDefinition, TypeAliasDefinition, VariantDefinition,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -42,7 +42,7 @@ impl CheckState<'_> {
             let symbols = self.definition_symbols(module);
             for symbol in symbols {
                 let definition = self.build_definition(module, symbol)?;
-                self.definitions.insert(symbol, definition);
+                self.definitions.insert(symbol, definition)?;
             }
         }
 
@@ -57,9 +57,9 @@ impl CheckState<'_> {
     ) -> CompilerResult<Definition> {
         let source = self
             .module(module)
-            .symbol_declaration_node(symbol.local_id)
+            .symbol_declaration_node(symbol.local_id)?
             .into_global(module);
-        let template = self.inference.symbol_generic_template(symbol);
+        let template = self.inference.generic_template_by_symbol(symbol);
         let source_id = source.local_id.into_typed::<dir::Declaration>();
         let declaration = self.module(module).view().get(source_id).clone();
 
@@ -203,7 +203,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<ExtensionDefinition> {
         let source = self
             .module(module)
-            .symbol_declaration_node(symbol.local_id)
+            .symbol_declaration_node(symbol.local_id)?
             .into_global(module);
         let declaration_id = source.local_id.into_typed::<dir::Declaration>();
         let declaration = self.module(module).view().get(declaration_id).clone();
@@ -341,7 +341,7 @@ impl CheckState<'_> {
         let symbol = self.inference.name(source)?.symbol();
         let instance = self
             .inference
-            .symbol_generic_template(symbol)
+            .generic_template_by_symbol(symbol)
             .and_then(|template| {
                 let key = GenericInstanceKey::new(source, template);
 
@@ -453,11 +453,11 @@ impl CheckState<'_> {
                 let Some(slot) = member.slot() else {
                     return Ok(());
                 };
-                let symbol = self.module(module).declaration_symbol(source.local_id);
-                let ty = self.nominal_member_type_operand(module, source, symbol)?;
+                let symbol = self.declaration_symbol_at(module, source.local_id)?;
+                let ty = self.symbol_type_operand(module, symbol)?;
 
                 let method = MethodDefinition {
-                    symbol,
+                    symbol: Some(symbol),
                     source,
                     slot,
                     role: signature.role,
@@ -665,19 +665,5 @@ impl CheckState<'_> {
         };
 
         Ok(symbol)
-    }
-
-    /// Return one nominal member type operand.
-    fn nominal_member_type_operand(
-        &mut self,
-        module: ModuleId,
-        source: dir::GlobalNodeIdAny,
-        symbol: Option<dir::GlobalSymbolId>,
-    ) -> CompilerResult<TypeOperand> {
-        if let Some(symbol) = symbol {
-            return Ok(self.symbol_type_operand(module, symbol)?);
-        }
-
-        self.node_type_operand(source)
     }
 }

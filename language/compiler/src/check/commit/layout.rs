@@ -23,9 +23,8 @@ impl CheckState<'_> {
         let layouts = self
             .inference
             .layouts()
-            .into_iter()
             .filter_map(|decision| match decision {
-                LayoutDecision::Resolved(layout) => Some(layout),
+                LayoutDecision::Resolved(layout) => Some(layout.clone()),
                 LayoutDecision::Rejected(_) => None,
             })
             .collect::<Vec<_>>();
@@ -67,7 +66,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         let source = self
             .module(symbol.module_id)
-            .symbol_declaration_node(symbol.local_id);
+            .symbol_declaration_node(symbol.local_id)?;
         let Some(operand) = self.inputs.symbol_type(symbol) else {
             return Err(CompilerError::Internal {
                 message: format!("nominal symbol {symbol:?} has no type operand"),

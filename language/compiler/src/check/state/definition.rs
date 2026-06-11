@@ -3,16 +3,44 @@ use destack_source::ModuleId;
 use indexmap::IndexMap;
 
 use crate::check::{GenericInstance, GenericTemplateId, StaticOperand, TypeOperand};
+use crate::{CompilerError, CompilerResult};
+
+/// Member namespace selected by member resolution.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::check) enum MemberSpace {
+    /// Instance members selected from a runtime receiver.
+    Instance,
+    /// Static members selected from a declaration receiver.
+    Static,
+}
+
+/// Indexed member lookup key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::check) struct MemberKey {
+    /// The member namespace.
+    pub(in crate::check) space: MemberSpace,
+    /// The member key.
+    pub(in crate::check) key: dir::StaticKey,
+}
+
+impl MemberKey {
+    /// Create a member lookup key.
+    pub(in crate::check) fn new(space: MemberSpace, key: dir::StaticKey) -> Self {
+        Self { space, key }
+    }
+}
 
 /// Checked declaration definitions for one component.
 #[derive(Debug, Default)]
 pub(in crate::check) struct DefinitionTable {
     /// Definitions keyed by declaring symbol.
     definitions: IndexMap<dir::GlobalSymbolId, Definition>,
-    /// Extension symbols keyed by nominal target root.
-    extensions_by_target: IndexMap<dir::GlobalSymbolId, Vec<dir::GlobalSymbolId>>,
-    /// Blanket extension symbols.
-    blanket_extensions: Vec<dir::GlobalSymbolId>,
+    /// Type members keyed by declaring owner and member key.
+    members: IndexMap<(dir::GlobalSymbolId, MemberKey), Vec<TypeMemberDefinition>>,
+    /// Extension symbols keyed by nominal target root and member key.
+    extensions_by_target: IndexMap<(dir::GlobalSymbolId, MemberKey), Vec<dir::GlobalSymbolId>>,
+    /// Blanket extension symbols keyed by member key.
+    blanket_extensions: IndexMap<MemberKey, Vec<dir::GlobalSymbolId>>,
 }
 
 impl DefinitionTable {
@@ -20,40 +48,55 @@ impl DefinitionTable {
     pub(in crate::check) fn new() -> Self {
         Self {
             definitions: IndexMap::new(),
+            members: IndexMap::new(),
             extensions_by_target: IndexMap::new(),
-            blanket_extensions: Vec::new(),
+            blanket_extensions: IndexMap::new(),
         }
     }
 
     /// Insert one checked definition.
-    pub(in crate::check) fn insert(&mut self, symbol: dir::GlobalSymbolId, definition: Definition) {
+    pub(in crate::check) fn insert(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        definition: Definition,
+    ) -> CompilerResult<()> {
         if self.definitions.contains_key(&symbol) {
-            unreachable!("definition symbol {symbol:?} already has a definition");
+            return Err(CompilerError::Internal {
+                message: format!("definition symbol {symbol:?} already has a definition"),
+            });
         }
+
+        self.index_members(symbol, &definition);
 
         // index extension roots as definitions are inserted
         if let Definition::Extension(extension) = &definition {
-            match extension.target.nominal_root() {
-                Some(target) => self
-                    .extensions_by_target
-                    .entry(target)
-                    .or_default()
-                    .push(symbol),
-                None => self.blanket_extensions.push(symbol),
+            for key in extension.member_keys() {
+                match extension.target.nominal_root() {
+                    Some(target) => self
+                        .extensions_by_target
+                        .entry((target, key))
+                        .or_default()
+                        .push(symbol),
+                    None => self.blanket_extensions.entry(key).or_default().push(symbol),
+                }
             }
         }
 
         self.definitions.insert(symbol, definition);
+
+        Ok(())
+    }
+
+    /// Index direct members declared by one definition.
+    fn index_members(&mut self, symbol: dir::GlobalSymbolId, definition: &Definition) {
+        for (key, member) in definition.indexed_members() {
+            self.members.entry((symbol, key)).or_default().push(member);
+        }
     }
 
     /// Return one checked definition.
     pub(in crate::check) fn definition(&self, symbol: dir::GlobalSymbolId) -> Option<&Definition> {
         self.definitions.get(&symbol)
-    }
-
-    /// Return whether one checked definition exists.
-    pub(in crate::check) fn contains_definition(&self, symbol: dir::GlobalSymbolId) -> bool {
-        self.definitions.contains_key(&symbol)
     }
 
     /// Iterate definitions declared by one module.
@@ -68,31 +111,45 @@ impl DefinitionTable {
             })
     }
 
-    /// Return extension symbols declared in one module for one target.
-    pub(in crate::check) fn extension_symbols_for_target(
+    /// Return direct members declared by one owner.
+    pub(in crate::check) fn members(
+        &self,
+        owner: dir::GlobalSymbolId,
+        key: MemberKey,
+    ) -> &[TypeMemberDefinition] {
+        self.members
+            .get(&(owner, key))
+            .map(Vec::as_slice)
+            .unwrap_or_default()
+    }
+
+    /// Return extension symbols declared in one module for one target and key.
+    pub(in crate::check) fn extension_symbols(
         &self,
         module: ModuleId,
         target: dir::GlobalSymbolId,
-    ) -> Vec<dir::GlobalSymbolId> {
+        key: MemberKey,
+    ) -> impl Iterator<Item = dir::GlobalSymbolId> + '_ {
         self.extensions_by_target
-            .get(&target)
+            .get(&(target, key))
             .into_iter()
             .flatten()
             .copied()
-            .filter(|symbol| symbol.module_id == module)
-            .collect()
+            .filter(move |symbol| symbol.module_id == module)
     }
 
-    /// Return blanket extension symbols declared in one module.
+    /// Return blanket extension symbols declared in one module for one key.
     pub(in crate::check) fn blanket_extension_symbols(
         &self,
         module: ModuleId,
-    ) -> Vec<dir::GlobalSymbolId> {
+        key: MemberKey,
+    ) -> impl Iterator<Item = dir::GlobalSymbolId> + '_ {
         self.blanket_extensions
-            .iter()
+            .get(&key)
+            .into_iter()
+            .flatten()
             .copied()
-            .filter(|symbol| symbol.module_id == module)
-            .collect()
+            .filter(move |symbol| symbol.module_id == module)
     }
 }
 
@@ -129,14 +186,14 @@ impl Definition {
         }
     }
 
-    /// Return instance type members for one key.
-    pub(in crate::check) fn type_members(&self, key: &dir::StaticKey) -> Vec<TypeMemberDefinition> {
+    /// Return type-level members with their indexed keys.
+    fn indexed_members(&self) -> Vec<(MemberKey, TypeMemberDefinition)> {
         match self {
-            Self::Struct(definition) => definition.type_members(key),
-            Self::Class(definition) => definition.type_members(key),
-            Self::Interface(definition) => definition.type_members(key),
-            Self::Enum(definition) => definition.type_members(key),
-            Self::Extension(definition) => definition.type_members(key),
+            Self::Struct(definition) => definition.indexed_members(),
+            Self::Class(definition) => definition.indexed_members(),
+            Self::Interface(definition) => definition.indexed_members(),
+            Self::Enum(definition) => definition.indexed_members(),
+            Self::Extension(definition) => definition.indexed_members(),
             Self::TypeAlias(_) | Self::Newtype(_) => Vec::new(),
         }
     }
@@ -204,32 +261,15 @@ pub(in crate::check) struct StructDefinition {
 }
 
 impl StructDefinition {
-    /// Return instance type members for one key.
-    pub(in crate::check) fn type_members(&self, key: &dir::StaticKey) -> Vec<TypeMemberDefinition> {
-        let mut members = Vec::new();
-
-        // collect fields
-        for field in &self.fields {
-            if let Some(member) = field.type_member(key) {
-                members.push(member);
-            }
-        }
-
-        // collect methods
-        for method in &self.methods {
-            if let Some(member) = method.type_member(key) {
-                members.push(member);
-            }
-        }
-
-        // collect associated types
-        for associated_type in &self.associated_types {
-            if let Some(member) = associated_type.type_member(key) {
-                members.push(member);
-            }
-        }
-
-        members
+    /// Return type-level members with their indexed keys.
+    fn indexed_members(&self) -> Vec<(MemberKey, TypeMemberDefinition)> {
+        indexed_type_members(
+            &self.fields,
+            &self.methods,
+            &self.associated_types,
+            &self.static_fields,
+            &self.static_methods,
+        )
     }
 
     /// Return all named instance type members.
@@ -250,9 +290,7 @@ impl StructDefinition {
 
         // collect associated types
         for associated_type in &self.associated_types {
-            if let Some(member) = associated_type.named_type_member() {
-                members.push(member);
-            }
+            members.push(associated_type.named_type_member());
         }
 
         members
@@ -302,32 +340,15 @@ pub(in crate::check) struct ClassDefinition {
 }
 
 impl ClassDefinition {
-    /// Return instance type members for one key.
-    pub(in crate::check) fn type_members(&self, key: &dir::StaticKey) -> Vec<TypeMemberDefinition> {
-        let mut members = Vec::new();
-
-        // collect fields
-        for field in &self.fields {
-            if let Some(member) = field.type_member(key) {
-                members.push(member);
-            }
-        }
-
-        // collect methods
-        for method in &self.methods {
-            if let Some(member) = method.type_member(key) {
-                members.push(member);
-            }
-        }
-
-        // collect associated types
-        for associated_type in &self.associated_types {
-            if let Some(member) = associated_type.type_member(key) {
-                members.push(member);
-            }
-        }
-
-        members
+    /// Return type-level members with their indexed keys.
+    fn indexed_members(&self) -> Vec<(MemberKey, TypeMemberDefinition)> {
+        indexed_type_members(
+            &self.fields,
+            &self.methods,
+            &self.associated_types,
+            &self.static_fields,
+            &self.static_methods,
+        )
     }
 
     /// Return all named instance type members.
@@ -348,9 +369,7 @@ impl ClassDefinition {
 
         // collect associated types
         for associated_type in &self.associated_types {
-            if let Some(member) = associated_type.named_type_member() {
-                members.push(member);
-            }
+            members.push(associated_type.named_type_member());
         }
 
         members
@@ -406,32 +425,15 @@ pub(in crate::check) struct InterfaceDefinition {
 }
 
 impl InterfaceDefinition {
-    /// Return instance type members for one key.
-    pub(in crate::check) fn type_members(&self, key: &dir::StaticKey) -> Vec<TypeMemberDefinition> {
-        let mut members = Vec::new();
-
-        // collect fields
-        for field in &self.fields {
-            if let Some(member) = field.type_member(key) {
-                members.push(member);
-            }
-        }
-
-        // collect methods
-        for method in &self.methods {
-            if let Some(member) = method.type_member(key) {
-                members.push(member);
-            }
-        }
-
-        // collect associated types
-        for associated_type in &self.associated_types {
-            if let Some(member) = associated_type.type_member(key) {
-                members.push(member);
-            }
-        }
-
-        members
+    /// Return type-level members with their indexed keys.
+    fn indexed_members(&self) -> Vec<(MemberKey, TypeMemberDefinition)> {
+        indexed_type_members(
+            &self.fields,
+            &self.methods,
+            &self.associated_types,
+            &self.static_fields,
+            &self.static_methods,
+        )
     }
 
     /// Return all named instance type members.
@@ -452,9 +454,7 @@ impl InterfaceDefinition {
 
         // collect associated types
         for associated_type in &self.associated_types {
-            if let Some(member) = associated_type.named_type_member() {
-                members.push(member);
-            }
+            members.push(associated_type.named_type_member());
         }
 
         members
@@ -502,25 +502,17 @@ pub(in crate::check) struct EnumDefinition {
 }
 
 impl EnumDefinition {
-    /// Return instance type members for one key.
-    pub(in crate::check) fn type_members(&self, key: &dir::StaticKey) -> Vec<TypeMemberDefinition> {
-        let mut members = Vec::new();
+    /// Return type-level members with their indexed keys.
+    fn indexed_members(&self) -> Vec<(MemberKey, TypeMemberDefinition)> {
+        let fields = [];
 
-        // collect methods
-        for method in &self.methods {
-            if let Some(member) = method.type_member(key) {
-                members.push(member);
-            }
-        }
-
-        // collect associated types
-        for associated_type in &self.associated_types {
-            if let Some(member) = associated_type.type_member(key) {
-                members.push(member);
-            }
-        }
-
-        members
+        indexed_type_members(
+            &fields,
+            &self.methods,
+            &self.associated_types,
+            &self.static_fields,
+            &self.static_methods,
+        )
     }
 
     /// Return all named instance type members.
@@ -536,9 +528,7 @@ impl EnumDefinition {
 
         // collect associated types
         for associated_type in &self.associated_types {
-            if let Some(member) = associated_type.named_type_member() {
-                members.push(member);
-            }
+            members.push(associated_type.named_type_member());
         }
 
         members
@@ -608,32 +598,23 @@ pub(in crate::check) struct ExtensionDefinition {
 }
 
 impl ExtensionDefinition {
-    /// Return instance type members for one key.
-    pub(in crate::check) fn type_members(&self, key: &dir::StaticKey) -> Vec<TypeMemberDefinition> {
-        let mut members = Vec::new();
+    /// Return type-level members with their indexed keys.
+    fn indexed_members(&self) -> Vec<(MemberKey, TypeMemberDefinition)> {
+        indexed_type_members(
+            &self.fields,
+            &self.methods,
+            &self.associated_types,
+            &self.static_fields,
+            &self.static_methods,
+        )
+    }
 
-        // collect fields
-        for field in &self.fields {
-            if let Some(member) = field.type_member(key) {
-                members.push(member);
-            }
-        }
-
-        // collect methods
-        for method in &self.methods {
-            if let Some(member) = method.type_member(key) {
-                members.push(member);
-            }
-        }
-
-        // collect associated types
-        for associated_type in &self.associated_types {
-            if let Some(member) = associated_type.type_member(key) {
-                members.push(member);
-            }
-        }
-
-        members
+    /// Return all type-level member keys declared by this extension.
+    fn member_keys(&self) -> Vec<MemberKey> {
+        self.indexed_members()
+            .into_iter()
+            .map(|(key, _)| key)
+            .collect()
     }
 
     /// Return all named instance type members.
@@ -654,9 +635,7 @@ impl ExtensionDefinition {
 
         // collect associated types
         for associated_type in &self.associated_types {
-            if let Some(member) = associated_type.named_type_member() {
-                members.push(member);
-            }
+            members.push(associated_type.named_type_member());
         }
 
         members
@@ -750,23 +729,12 @@ pub(in crate::check) struct FieldDefinition {
 }
 
 impl FieldDefinition {
-    /// Return this field as a type member when its key matches.
-    pub(in crate::check) fn type_member(
-        &self,
-        key: &dir::StaticKey,
-    ) -> Option<TypeMemberDefinition> {
-        if !self.key.matches(key) {
-            return None;
-        }
-
-        Some(self.named_type_member())
-    }
-
     /// Return this field as a named type member.
     pub(in crate::check) fn named_type_member(&self) -> TypeMemberDefinition {
-        TypeMemberDefinition {
+        TypeMemberDefinition::Value {
             symbol: Some(self.symbol),
             key: self.key,
+            role: None,
             ty: self.ty,
         }
     }
@@ -781,39 +749,23 @@ pub(in crate::check) struct MethodDefinition {
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The nominal member slot.
     pub(in crate::check) slot: dir::MemberSlot,
+    /// The method role.
+    pub(in crate::check) role: Option<dir::FunctionRole>,
     /// The checked method type.
     pub(in crate::check) ty: TypeOperand,
 }
 
 impl MethodDefinition {
-    /// Return this method as a type member when its key matches.
-    pub(in crate::check) fn type_member(
-        &self,
-        key: &dir::StaticKey,
-    ) -> Option<TypeMemberDefinition> {
-        let dir::MemberSlot::Key(member_key) = self.slot else {
-            return None;
-        };
-        if !member_key.matches(key) {
-            return None;
-        }
-
-        Some(TypeMemberDefinition {
-            symbol: self.symbol,
-            key: member_key,
-            ty: self.ty,
-        })
-    }
-
     /// Return this method as a named type member.
     pub(in crate::check) fn named_type_member(&self) -> Option<TypeMemberDefinition> {
         let dir::MemberSlot::Key(key) = self.slot else {
             return None;
         };
 
-        Some(TypeMemberDefinition {
+        Some(TypeMemberDefinition::Value {
             symbol: self.symbol,
             key,
+            role: self.role,
             ty: self.ty,
         })
     }
@@ -835,27 +787,14 @@ pub(in crate::check) struct AssociatedTypeDefinition {
 }
 
 impl AssociatedTypeDefinition {
-    /// Return this associated type as a type member when its key matches.
-    pub(in crate::check) fn type_member(
-        &self,
-        key: &dir::StaticKey,
-    ) -> Option<TypeMemberDefinition> {
-        if !self.key.matches(key) {
-            return None;
-        }
-
-        self.named_type_member()
-    }
-
     /// Return this associated type as a named type member.
-    pub(in crate::check) fn named_type_member(&self) -> Option<TypeMemberDefinition> {
-        let ty = self.value.or(self.constraint)?;
-
-        Some(TypeMemberDefinition {
-            symbol: Some(self.symbol),
+    pub(in crate::check) fn named_type_member(&self) -> TypeMemberDefinition {
+        TypeMemberDefinition::AssociatedType {
+            symbol: self.symbol,
             key: self.key,
-            ty,
-        })
+            constraint: self.constraint,
+            value: self.value,
+        }
     }
 }
 
@@ -935,14 +874,121 @@ pub(in crate::check) struct SignatureDefinition {
 }
 
 /// One checked type member selected from a declaration definition.
-#[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct TypeMemberDefinition {
-    /// The declaring member symbol.
-    pub(in crate::check) symbol: Option<dir::GlobalSymbolId>,
-    /// The member key.
-    pub(in crate::check) key: dir::StaticKey,
-    /// The checked member type.
-    pub(in crate::check) ty: TypeOperand,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum TypeMemberDefinition {
+    /// Member with a concrete checked type.
+    Value {
+        /// The declaring member symbol.
+        symbol: Option<dir::GlobalSymbolId>,
+        /// The member key.
+        key: dir::StaticKey,
+        /// The member function role.
+        role: Option<dir::FunctionRole>,
+        /// The checked member type.
+        ty: TypeOperand,
+    },
+    /// Associated type projection with an optional concrete value.
+    AssociatedType {
+        /// The associated type symbol.
+        symbol: dir::GlobalSymbolId,
+        /// The member key.
+        key: dir::StaticKey,
+        /// The upper bound required by this associated type.
+        constraint: Option<TypeOperand>,
+        /// The concrete associated type value.
+        value: Option<TypeOperand>,
+    },
+}
+
+impl TypeMemberDefinition {
+    /// Return the declaring member symbol.
+    pub(in crate::check) fn symbol(&self) -> Option<dir::GlobalSymbolId> {
+        match self {
+            Self::Value { symbol, .. } => *symbol,
+            Self::AssociatedType { symbol, .. } => Some(*symbol),
+        }
+    }
+
+    /// Return the member key.
+    pub(in crate::check) fn key(&self) -> dir::StaticKey {
+        match self {
+            Self::Value { key, .. } | Self::AssociatedType { key, .. } => *key,
+        }
+    }
+
+    /// Return the member function role.
+    pub(in crate::check) fn role(&self) -> Option<dir::FunctionRole> {
+        match self {
+            Self::Value { role, .. } => *role,
+            Self::AssociatedType { .. } => None,
+        }
+    }
+
+    /// Return whether this member is an abstract associated type projection.
+    pub(in crate::check) fn is_abstract_associated_type(&self) -> bool {
+        matches!(self, Self::AssociatedType { value: None, .. })
+    }
+
+    /// Return the concrete member type when this member has one.
+    pub(in crate::check) fn value(&self) -> Option<TypeOperand> {
+        match self {
+            Self::Value { ty, .. } => Some(*ty),
+            Self::AssociatedType { value, .. } => *value,
+        }
+    }
+}
+
+/// Return indexed type-level members from a declaration member list.
+fn indexed_type_members(
+    fields: &[FieldDefinition],
+    methods: &[MethodDefinition],
+    associated_types: &[AssociatedTypeDefinition],
+    static_fields: &[FieldDefinition],
+    static_methods: &[MethodDefinition],
+) -> Vec<(MemberKey, TypeMemberDefinition)> {
+    let mut members = Vec::new();
+
+    // collect instance fields and methods
+    for field in fields {
+        let member = field.named_type_member();
+        let key = MemberKey::new(MemberSpace::Instance, member.key());
+
+        members.push((key, member));
+    }
+    for method in methods {
+        let Some(member) = method.named_type_member() else {
+            continue;
+        };
+        let key = MemberKey::new(MemberSpace::Instance, member.key());
+
+        members.push((key, member));
+    }
+
+    // collect associated types
+    for associated_type in associated_types {
+        let member = associated_type.named_type_member();
+        let key = MemberKey::new(MemberSpace::Instance, member.key());
+
+        members.push((key, member));
+    }
+
+    // collect static fields and methods
+    for field in static_fields {
+        let member = field.named_type_member();
+        let key = MemberKey::new(MemberSpace::Static, member.key());
+
+        members.push((key, member));
+    }
+    for method in static_methods {
+        let Some(member) = method.named_type_member() else {
+            continue;
+        };
+        let key = MemberKey::new(MemberSpace::Static, member.key());
+
+        members.push((key, member));
+    }
+
+    members
 }
 
 /// One checked static member selected from a declaration definition.
