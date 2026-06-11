@@ -275,7 +275,7 @@ impl Tree {
                 .iter()
                 .enumerate()
                 .filter_map(|(index, parameter)| {
-                    self.type_reference_contains_borrowed_refs(&parameter.ty)
+                    self.type_reference_can_source_return_borrow(&parameter.ty)
                         .then_some(index as u32)
                 });
         let lifetime = Lifetime::slot_set(lifetime_slots);
@@ -285,6 +285,20 @@ impl Tree {
         } else {
             lifetime
         }
+    }
+
+    /// Return whether a type reference can source a returned borrow.
+    pub fn type_reference_can_source_return_borrow(&self, ty_ref: &TypeReference) -> bool {
+        let Some(ty) = ty_ref.ty() else {
+            return true;
+        };
+
+        let ty = self.get(ty);
+
+        matches!(
+            ty.reference_kind(),
+            Some(ReferenceKind::Borrowed | ReferenceKind::Managed)
+        ) || self.type_reference_contains_borrowed_refs(ty_ref)
     }
 
     /// Substitute type-local lifetime slots with applied lifetimes.

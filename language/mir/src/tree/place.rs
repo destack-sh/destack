@@ -115,10 +115,25 @@ impl Path {
         self
     }
 
+    /// Return this path with another path appended.
+    #[inline]
+    pub fn with_path(mut self, path: &Path) -> Self {
+        self.projections.extend(path.projections.iter().cloned());
+
+        self
+    }
+
     /// Return whether this path is rooted at the value itself.
     #[inline]
     pub fn is_root(&self) -> bool {
         self.projections.is_empty()
+    }
+
+    /// Replace value references inside this path.
+    pub fn replace_value(&mut self, from: Value, to: Value) {
+        for projection in &mut self.projections {
+            projection.replace_value(from, to);
+        }
     }
 }
 
