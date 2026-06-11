@@ -1,8 +1,7 @@
 use destack_dir as dir;
-use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{CheckState, TypeOperand, TypeTerm, VariableId};
+use crate::check::{Answer, CheckState, Origin, TypeLiteralTerm, TypeOperand, TypeTerm};
 
 /// Runtime key membership check term.
 ///
@@ -19,27 +18,27 @@ pub(in crate::check) struct KeyMembershipTerm {
     pub(in crate::check) receiver: TypeOperand,
 }
 
-impl KeyMembershipTerm {
-    /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(
-        &self,
-        state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 2]> {
-        let mut variables = SmallVec::new();
-
-        variables.extend(self.key.referenced_variables(state));
-        variables.extend(self.receiver.referenced_variables(state));
-
-        variables
-    }
-}
-
 impl CheckState<'_> {
     /// Reduce one runtime key membership check to boolean.
     pub(in crate::check) fn reduce_key_membership_term(
-        &self,
-        _membership: &KeyMembershipTerm,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        Ok(None)
+        &mut self,
+        membership: KeyMembershipTerm,
+    ) -> CompilerResult<Answer<TypeOperand>> {
+        let origin = Origin::Node(membership.source);
+
+        // wait for the key operand
+        let Answer::Ready(_) = self.reduce_type_operand(origin, membership.key)? else {
+            return Ok(Answer::pending(membership.key.dependencies(self)));
+        };
+
+        // wait for the receiver operand
+        let Answer::Ready(_) = self.reduce_type_operand(origin, membership.receiver)? else {
+            return Ok(Answer::pending(membership.receiver.dependencies(self)));
+        };
+
+        let term = TypeTerm::Literal(TypeLiteralTerm::boolean());
+        let operand = self.type_term_operand(term);
+
+        Ok(Answer::Ready(operand))
     }
 }

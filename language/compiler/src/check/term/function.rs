@@ -2,23 +2,25 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
+use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, GenericParameterId, Origin, SubstitutionSet, TypeOperand, TypeRelation,
-    VariableId,
+    Answer, CheckState, Condition, GenericParameterId, Origin, SubstitutionSet, TermId,
+    TypeLiteralTerm, TypeOperand, TypeRelation, TypeTerm,
 };
-use crate::{CompilerError, CompilerResult};
 
 /// Function parameter payload.
 ///
 /// ```ds
 /// value?: string
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(in crate::check) struct FunctionParameter {
     /// The parameter type.
     pub(in crate::check) ty: TypeOperand,
     /// The static generic parameter supplied by this runtime argument.
     pub(in crate::check) static_parameter: Option<GenericParameterId>,
+    /// Whether the parameter type came from inference.
+    pub(in crate::check) is_inferred: bool,
     /// Whether the parameter may be omitted at the call site.
     pub(in crate::check) is_optional: bool,
     /// Whether the parameter captures the remaining call arguments.
@@ -42,6 +44,7 @@ impl FunctionParameter {
         Ok(Self {
             ty: state.substitute_type_operand(module, substitution, self.ty)?,
             static_parameter,
+            is_inferred: self.is_inferred,
             is_optional: self.is_optional,
             is_rest: self.is_rest,
         })
@@ -67,6 +70,40 @@ pub(in crate::check) struct FunctionTerm {
     pub(in crate::check) return_type: Option<TypeOperand>,
     /// Whether this is a generator function.
     pub(in crate::check) is_generator: bool,
+}
+
+impl FunctionTerm {
+    /// Return whether source parameters can receive contextual target arities.
+    pub(in crate::check) fn accepts_contextual_arities(
+        source: &[FunctionParameter],
+        target: &[FunctionParameter],
+    ) -> bool {
+        let source_range = Self::parameter_count_range(source, true);
+        let target_range = Self::parameter_count_range(target, false);
+
+        source_range.accepts(target_range)
+    }
+
+    /// Return the accepted arity range for one parameter sequence.
+    fn parameter_count_range(
+        parameters: &[FunctionParameter],
+        contextual: bool,
+    ) -> FunctionParameterCountRange {
+        let required = parameters
+            .iter()
+            .filter(|parameter| !parameter.is_optional && !parameter.is_rest)
+            .filter(|parameter| !contextual || !parameter.is_inferred)
+            .count();
+
+        FunctionParameterCountRange { required }
+    }
+}
+
+impl FunctionParameterCountRange {
+    /// Return whether this range accepts every target call arity.
+    fn accepts(self, target_range: Self) -> bool {
+        self.required <= target_range.required
+    }
 }
 
 impl FunctionTerm {
@@ -105,114 +142,100 @@ impl FunctionTerm {
             is_generator: self.is_generator,
         })
     }
+}
 
-    /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(
-        &self,
-        state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 2]> {
-        let mut variables = SmallVec::new();
-
-        variables.extend(
-            self.this_parameter
-                .into_iter()
-                .flat_map(|parameter| parameter.referenced_variables(state)),
-        );
-        for parameter in &self.parameters {
-            variables.extend(parameter.ty.referenced_variables(state));
-        }
-        variables.extend(
-            self.return_type
-                .into_iter()
-                .flat_map(|return_type| return_type.referenced_variables(state)),
-        );
-
-        variables
-    }
+/// Function parameter count range.
+struct FunctionParameterCountRange {
+    /// The smallest accepted runtime argument count.
+    required: usize,
 }
 
 impl CheckState<'_> {
-    /// Return a function term from one committed function type.
-    pub(in crate::check) fn function_type_term(
-        &mut self,
-        module: ModuleId,
-        function: dir::FunctionType,
-    ) -> CompilerResult<FunctionTerm> {
-        let mut generic_parameters = Vec::with_capacity(function.generic_parameters.len());
-        for parameter in function.generic_parameters {
-            let dir::Type::Parameter(parameter) = self.r#type(parameter) else {
-                return Err(CompilerError::Internal {
-                    message: "committed function generic parameter is not a parameter type"
-                        .to_owned(),
-                });
-            };
-
-            generic_parameters.push(self.import_generic_parameter_id(module, *parameter)?);
-        }
-
-        let this_parameter = function
-            .this_parameter
-            .map(|parameter| self.import_type_operand(module, parameter))
-            .transpose()?;
-        let mut parameters = Vec::with_capacity(function.parameters.len());
-        for parameter in function.parameters {
-            let static_parameter = parameter
-                .static_parameter
-                .map(|parameter| self.import_generic_parameter_id(module, parameter))
-                .transpose()?;
-
-            parameters.push(FunctionParameter {
-                ty: self.import_type_operand(module, parameter.ty)?,
-                static_parameter,
-                is_optional: parameter.is_optional,
-                is_rest: parameter.is_rest,
-            });
-        }
-        let return_type = function
-            .return_type
-            .map(|return_type| self.import_type_operand(module, return_type))
-            .transpose()?;
-
-        Ok(FunctionTerm {
-            asynchrony: function.asynchrony,
-            generic_parameters: generic_parameters.into(),
-            this_parameter,
-            parameters: parameters.into(),
-            return_type,
-            is_generator: function.is_generator,
-        })
-    }
-
-    /// Expect one function term to satisfy one expected function type.
+    /// Check one function term to satisfy one expected function type.
     pub(in crate::check) fn expect_function_term(
         &mut self,
         origin: Origin,
-        function: &FunctionTerm,
-        expected: &FunctionTerm,
+        function: TermId<FunctionTerm>,
+        expected: TermId<FunctionTerm>,
     ) -> CompilerResult<()> {
-        if function.asynchrony != expected.asynchrony
-            || function.is_generator != expected.is_generator
+        let function_id = function;
+        let expected_id = expected;
+        let function = self.inference.term(function_id);
+        let function_asynchrony = function.asynchrony;
+        let function_is_generator = function.is_generator;
+        let function_this = function.this_parameter;
+        let function_len = function.parameters.len();
+        let function_return = function.return_type;
+
+        let expected = self.inference.term(expected_id);
+        let expected_asynchrony = expected.asynchrony;
+        let expected_is_generator = expected.is_generator;
+        let expected_this = expected.this_parameter;
+        let expected_len = expected.parameters.len();
+        let expected_return = expected.return_type;
+
+        if function_asynchrony != expected_asynchrony
+            || function_is_generator != expected_is_generator
         {
             return Ok(());
         }
 
         // push receiver context into the function input
-        if let (Some(source), Some(target)) = (function.this_parameter, expected.this_parameter) {
-            self.reduce_contextual_type_assignability(origin, target, source)?;
+        if let (Some(source), Some(target)) = (function_this, expected_this) {
+            self.constrain_type(
+                origin,
+                TypeRelation::Assignable,
+                target,
+                source,
+                Condition::Always,
+            );
         }
 
         // push parameter context contravariantly
-        for (source, target) in function.parameters.iter().zip(&expected.parameters) {
-            if source.is_optional != target.is_optional || source.is_rest != target.is_rest {
+        if !self.function_accepts_contextual_arities(function_id, expected_id) {
+            return Ok(());
+        }
+        for index in 0..function_len.min(expected_len) {
+            let source = self.inference.term(function_id).parameters[index];
+            let target = self.inference.term(expected_id).parameters[index];
+
+            if source.is_rest != target.is_rest {
                 continue;
             }
+            let relation = if source.is_inferred {
+                TypeRelation::Equal
+            } else {
+                TypeRelation::Assignable
+            };
 
-            self.reduce_contextual_type_assignability(origin, target.ty, source.ty)?;
+            self.constrain_type(origin, relation, target.ty, source.ty, Condition::Always);
         }
 
         // push return context covariantly
-        if let (Some(source), Some(target)) = (function.return_type, expected.return_type) {
-            self.reduce_contextual_type_assignability(origin, source, target)?;
+        match (function_return, expected_return) {
+            (Some(source), Some(target)) => {
+                self.constrain_type(
+                    origin,
+                    TypeRelation::Assignable,
+                    source,
+                    target,
+                    Condition::Always,
+                );
+            }
+            (None, Some(target)) => {
+                let source = self
+                    .inference
+                    .push_term(TypeTerm::Literal(TypeLiteralTerm::Void));
+
+                self.constrain_type(
+                    origin,
+                    TypeRelation::Assignable,
+                    source,
+                    target,
+                    Condition::Always,
+                );
+            }
+            (Some(_), None) | (None, None) => {}
         }
 
         Ok(())
@@ -221,47 +244,202 @@ impl CheckState<'_> {
     /// Decide exact equality for function terms.
     pub(in crate::check) fn decide_function_equal(
         &mut self,
-        left: &FunctionTerm,
-        right: &FunctionTerm,
-    ) -> CompilerResult<Decision> {
-        if left.asynchrony != right.asynchrony || left.is_generator != right.is_generator {
-            return Ok(Decision::No);
+        left: TermId<FunctionTerm>,
+        right: TermId<FunctionTerm>,
+    ) -> CompilerResult<Answer<bool>> {
+        let left_id = left;
+        let right_id = right;
+        let left = self.inference.term(left_id);
+        let left_asynchrony = left.asynchrony;
+        let left_is_generator = left.is_generator;
+        let left_this = left.this_parameter;
+        let left_return = left.return_type;
+
+        let right = self.inference.term(right_id);
+        let right_asynchrony = right.asynchrony;
+        let right_is_generator = right.is_generator;
+        let right_this = right.this_parameter;
+        let right_return = right.return_type;
+
+        if left_asynchrony != right_asynchrony || left_is_generator != right_is_generator {
+            return Ok(Answer::Ready(false));
         }
 
-        let generics = if left.generic_parameters == right.generic_parameters {
-            Decision::Yes
+        let generics = if self.function_generic_parameters_equal(left_id, right_id) {
+            Answer::Ready(true)
         } else {
-            Decision::No
+            Answer::Ready(false)
         };
-        let this =
-            self.decide_optional_type_operand_equal(left.this_parameter, right.this_parameter)?;
-        let parameters =
-            self.decide_function_parameter_list_equal(&left.parameters, &right.parameters)?;
-        let return_type =
-            self.decide_optional_type_operand_equal(left.return_type, right.return_type)?;
+        let this = self.decide_optional_type_operand_equal(left_this, right_this)?;
+        let parameters = self.decide_function_parameters_equal(left_id, right_id)?;
+        let return_type = self.decide_optional_type_operand_equal(left_return, right_return)?;
 
         Ok(generics.and(this).and(parameters).and(return_type))
     }
 
-    /// Decide exact equality for function parameter terms.
-    fn decide_function_parameter_list_equal(
+    /// Decide whether one function type is assignable to another.
+    pub(in crate::check) fn decide_function_assignable(
         &mut self,
-        left: &[FunctionParameter],
-        right: &[FunctionParameter],
-    ) -> CompilerResult<Decision> {
-        if left.len() != right.len() {
-            return Ok(Decision::No);
+        source: TermId<FunctionTerm>,
+        target: TermId<FunctionTerm>,
+    ) -> CompilerResult<Answer<bool>> {
+        let source_id = source;
+        let target_id = target;
+        let source = self.inference.term(source_id);
+        let source_asynchrony = source.asynchrony;
+        let source_is_generator = source.is_generator;
+        let source_this = source.this_parameter;
+        let source_return = source.return_type;
+
+        let target = self.inference.term(target_id);
+        let target_asynchrony = target.asynchrony;
+        let target_is_generator = target.is_generator;
+        let target_this = target.this_parameter;
+        let target_return = target.return_type;
+
+        if source_asynchrony != target_asynchrony || source_is_generator != target_is_generator {
+            return Ok(Answer::Ready(false));
         }
-        let mut decision = Decision::Yes;
+
+        // compare receiver input contravariantly
+        let receiver = self.decide_function_receiver_assignable(source_this, target_this)?;
+        if receiver == Answer::Ready(false) {
+            return Ok(receiver);
+        }
+
+        // compare runtime inputs contravariantly
+        let parameters = self.decide_function_parameters_assignable(source_id, target_id)?;
+        if parameters == Answer::Ready(false) {
+            return Ok(parameters);
+        }
+
+        // compare outputs covariantly
+        let return_type = self.decide_function_return_assignable(source_return, target_return)?;
+
+        Ok(receiver.and(parameters).and(return_type))
+    }
+
+    /// Decide whether one function receiver can accept another receiver.
+    fn decide_function_receiver_assignable(
+        &mut self,
+        source: Option<TypeOperand>,
+        target: Option<TypeOperand>,
+    ) -> CompilerResult<Answer<bool>> {
+        let decision = match (source, target) {
+            (Some(source), Some(target)) => {
+                self.decide_type_relation(TypeRelation::Assignable, target, source)?
+            }
+            (None, _) => Answer::Ready(true),
+            (Some(_), None) => Answer::Ready(false),
+        };
+
+        Ok(decision)
+    }
+
+    /// Return whether source parameters can receive contextual target arities.
+    fn function_accepts_contextual_arities(
+        &self,
+        source: TermId<FunctionTerm>,
+        target: TermId<FunctionTerm>,
+    ) -> bool {
+        let source = &self.inference.term(source).parameters;
+        let target = &self.inference.term(target).parameters;
+
+        FunctionTerm::accepts_contextual_arities(source, target)
+    }
+
+    /// Return whether two function generic parameter lists match.
+    fn function_generic_parameters_equal(
+        &self,
+        left: TermId<FunctionTerm>,
+        right: TermId<FunctionTerm>,
+    ) -> bool {
+        self.inference.term(left).generic_parameters
+            == self.inference.term(right).generic_parameters
+    }
+
+    /// Decide whether source parameters accept every target call.
+    fn decide_function_parameters_assignable(
+        &mut self,
+        source: TermId<FunctionTerm>,
+        target: TermId<FunctionTerm>,
+    ) -> CompilerResult<Answer<bool>> {
+        if !self.function_accepts_contextual_arities(source, target) {
+            return Ok(Answer::Ready(false));
+        }
+        let mut decision = Answer::Ready(true);
+        let source_len = self.inference.term(source).parameters.len();
+        let target_len = self.inference.term(target).parameters.len();
 
         // compare parameter metadata and types together
-        for (left, right) in left.iter().zip(right) {
+        for index in 0..source_len.min(target_len) {
+            let source = self.inference.term(source).parameters[index];
+            let target = self.inference.term(target).parameters[index];
+
+            if source.is_rest != target.is_rest {
+                return Ok(Answer::Ready(false));
+            }
+            decision = decision.and(self.decide_type_relation(
+                TypeRelation::Assignable,
+                target.ty,
+                source.ty,
+            )?);
+            if decision == Answer::Ready(false) {
+                return Ok(decision);
+            }
+        }
+
+        Ok(decision)
+    }
+
+    /// Decide whether one source return type satisfies one target return type.
+    fn decide_function_return_assignable(
+        &mut self,
+        source: Option<TypeOperand>,
+        target: Option<TypeOperand>,
+    ) -> CompilerResult<Answer<bool>> {
+        let decision = match (source, target) {
+            (Some(source), Some(target)) => {
+                self.decide_type_relation(TypeRelation::Assignable, source, target)?
+            }
+            (Some(_), None) => Answer::Ready(true),
+            (None, Some(target)) => {
+                let void = self
+                    .inference
+                    .push_term(TypeTerm::Literal(TypeLiteralTerm::Void));
+
+                self.decide_type_relation(TypeRelation::Assignable, void, target)?
+            }
+            (None, None) => Answer::Ready(true),
+        };
+
+        Ok(decision)
+    }
+
+    /// Decide exact equality for function parameters.
+    fn decide_function_parameters_equal(
+        &mut self,
+        left: TermId<FunctionTerm>,
+        right: TermId<FunctionTerm>,
+    ) -> CompilerResult<Answer<bool>> {
+        let left_len = self.inference.term(left).parameters.len();
+        let right_len = self.inference.term(right).parameters.len();
+        if left_len != right_len {
+            return Ok(Answer::Ready(false));
+        }
+        let mut decision = Answer::Ready(true);
+
+        // compare parameter metadata and types together
+        for index in 0..left_len {
+            let left = self.inference.term(left).parameters[index];
+            let right = self.inference.term(right).parameters[index];
+
             if left.is_optional != right.is_optional || left.is_rest != right.is_rest {
-                return Ok(Decision::No);
+                return Ok(Answer::Ready(false));
             }
             decision =
                 decision.and(self.decide_type_relation(TypeRelation::Equal, left.ty, right.ty)?);
-            if decision == Decision::No {
+            if decision == Answer::Ready(false) {
                 return Ok(decision);
             }
         }

@@ -2,11 +2,11 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, GenericArgument, Origin, ShapeMember, Solution, SubstitutionSet,
-    TupleElement, TypeLiteralTerm, TypeOperand, TypeRelation, TypeTerm, VariableId,
+    Answer, CheckState, Condition, GenericArgument, Origin, ShapeMember, SubstitutionSet, TermId,
+    TupleElement, TypeLiteralTerm, TypeOperand, TypeRelation, TypeTerm,
 };
+use crate::{CompilerError, CompilerResult};
 
 /// Type-level operation term.
 #[derive(Debug, Clone, PartialEq)]
@@ -117,6 +117,17 @@ pub(in crate::check) enum TypeOperationTerm {
         /// The excluded type.
         target: TypeOperand,
     },
+    /// Type extraction expression.
+    ///
+    /// ```ds
+    /// Extract<T, U>
+    /// ```
+    Extract {
+        /// The source type.
+        source: TypeOperand,
+        /// The extracted type.
+        target: TypeOperand,
+    },
     /// Compiler intrinsic returning a type.
     ///
     /// ```ds
@@ -150,103 +161,30 @@ pub(in crate::check) struct MappedParameter {
 }
 
 impl TypeOperationTerm {
-    /// Return whether this operation is stable semantic output.
-    pub(in crate::check) fn is_stable(&self) -> bool {
+    /// Return whether this operation must reduce before it can be committed.
+    pub(in crate::check) fn must_reduce_for_commit(&self) -> bool {
         matches!(
             self,
-            Self::Conditional { .. }
-                | Self::Index { .. }
-                | Self::TemplateLiteral { .. }
-                | Self::Infer { .. }
-                | Self::KeyOf { .. }
-                | Self::Mapped { .. }
-                | Self::StringMapping { .. }
+            Self::BestCommon { .. }
+                | Self::Widen { .. }
+                | Self::Exclude { .. }
+                | Self::Extract { .. }
+                | Self::Intrinsic { .. }
         )
     }
 
-    /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(
-        &self,
-        state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 2]> {
-        match self {
-            Self::Conditional {
-                left,
-                right,
-                then_type,
-                else_type,
-            } => {
-                let mut variables = left.referenced_variables(state);
-                variables.extend(right.referenced_variables(state));
-                variables.extend(then_type.referenced_variables(state));
-                variables.extend(else_type.referenced_variables(state));
-
-                variables
-            }
-            Self::Index { left, index } => {
-                let mut variables = left.referenced_variables(state);
-                variables.extend(index.referenced_variables(state));
-
-                variables
-            }
-            Self::TemplateLiteral { strings: _, spans } => spans
-                .iter()
-                .flat_map(|span| span.referenced_variables(state))
-                .collect(),
-            Self::Infer {
-                name: _,
-                constraint,
-            } => constraint
-                .iter()
-                .flat_map(|constraint| constraint.referenced_variables(state))
-                .collect(),
-            Self::KeyOf { target } => target.referenced_variables(state),
-            Self::Mapped {
-                parameter,
-                modifiers: _,
-                value,
-            } => {
-                let mut variables = parameter.referenced_variables(state);
-
-                variables.extend(value.referenced_variables(state));
-
-                variables
-            }
-            Self::StringMapping {
-                mapping: _,
-                argument,
-            } => argument.referenced_variables(state),
-            Self::BestCommon { elements } => elements
-                .iter()
-                .flat_map(|element| element.referenced_variables(state))
-                .collect(),
-            Self::Widen { source } => {
-                let mut variables = source.referenced_variables(state);
-
-                // watch nested operands once the source has a structural solution
-                if let TypeOperand::Variable(source) = source
-                    && let Some(Solution::Type(solution)) =
-                        state.inference.variable_solution(*source)
-                {
-                    let operand = TypeOperand::from(solution);
-
-                    variables.extend(operand.referenced_variables(state));
-                }
-
-                variables
-            }
-            Self::Exclude { source, target } => {
-                let mut variables = source.referenced_variables(state);
-
-                variables.extend(target.referenced_variables(state));
-
-                variables
-            }
-            Self::Intrinsic { item: _, arguments } => arguments
-                .iter()
-                .flat_map(|argument| argument.referenced_variables(state))
-                .collect(),
-        }
+    /// Return whether this operation must reduce before member resolution.
+    pub(in crate::check) fn must_reduce_for_member_resolution(&self) -> bool {
+        matches!(
+            self,
+            Self::StringMapping { .. }
+                | Self::Index { .. }
+                | Self::BestCommon { .. }
+                | Self::Widen { .. }
+                | Self::Exclude { .. }
+                | Self::Extract { .. }
+                | Self::Intrinsic { .. }
+        )
     }
 
     /// Substitute generic arguments through this type operation.
@@ -310,6 +248,10 @@ impl TypeOperationTerm {
                 source: state.substitute_type_operand(module, substitution, *source)?,
                 target: state.substitute_type_operand(module, substitution, *target)?,
             },
+            Self::Extract { source, target } => Self::Extract {
+                source: state.substitute_type_operand(module, substitution, *source)?,
+                target: state.substitute_type_operand(module, substitution, *target)?,
+            },
             Self::Intrinsic { item, arguments } => Self::Intrinsic {
                 item: *item,
                 arguments: state
@@ -323,22 +265,6 @@ impl TypeOperationTerm {
 }
 
 impl MappedParameter {
-    /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(
-        &self,
-        state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 2]> {
-        let mut variables = self.constraint.referenced_variables(state);
-
-        variables.extend(
-            self.key_remap
-                .iter()
-                .flat_map(|key_remap| key_remap.referenced_variables(state)),
-        );
-
-        variables
-    }
-
     /// Substitute generic arguments through this mapped parameter.
     pub(in crate::check) fn substitute(
         &self,
@@ -359,6 +285,16 @@ impl MappedParameter {
 }
 
 impl CheckState<'_> {
+    /// Reduce one type extraction term.
+    pub(in crate::check) fn reduce_extract_term(
+        &mut self,
+        origin: Origin,
+        source: TypeOperand,
+        target: TypeOperand,
+    ) -> CompilerResult<Answer<TypeOperand>> {
+        self.reduce_filter_term(origin, source, target, TypeFilter::Extract)
+    }
+
     /// Reduce one conditional type expression.
     pub(in crate::check) fn reduce_conditional_term(
         &mut self,
@@ -366,18 +302,18 @@ impl CheckState<'_> {
         right: TypeOperand,
         then_type: TypeOperand,
         else_type: TypeOperand,
-    ) -> CompilerResult<Option<TypeTerm>> {
+    ) -> CompilerResult<Answer<TypeOperand>> {
         let decision = self.decide_type_relation(TypeRelation::Extends, left, right)?;
         let selected = match decision {
-            Decision::Yes => then_type,
-            Decision::No => else_type,
-            Decision::Undecidable => return Ok(None),
+            Answer::Ready(true) => then_type,
+            Answer::Ready(false) => else_type,
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
         };
 
-        self.type_operand_term(selected)
+        Ok(Answer::Ready(selected))
     }
 
-    /// Expect selected conditional branches to satisfy one expected type.
+    /// Check selected conditional branches to satisfy one expected type.
     pub(in crate::check) fn expect_conditional_term(
         &mut self,
         origin: Origin,
@@ -386,22 +322,22 @@ impl CheckState<'_> {
         then_type: TypeOperand,
         else_type: TypeOperand,
         expected: TypeOperand,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Answer<()>> {
         let decision = self.decide_type_relation(TypeRelation::Extends, left, right)?;
 
         match decision {
             // constrain the selected branch
-            Decision::Yes => self.expect_conditional_branch(origin, then_type, expected)?,
+            Answer::Ready(true) => self.expect_conditional_branch(origin, then_type, expected)?,
             // constrain the selected branch
-            Decision::No => self.expect_conditional_branch(origin, else_type, expected)?,
+            Answer::Ready(false) => self.expect_conditional_branch(origin, else_type, expected)?,
             // constrain every possible branch
-            Decision::Undecidable => {
+            Answer::Pending(_) => {
                 self.expect_conditional_branch(origin, then_type, expected)?;
                 self.expect_conditional_branch(origin, else_type, expected)?;
             }
         };
 
-        Ok(())
+        Ok(Answer::Ready(()))
     }
 
     /// Reduce one indexed access type with a literal key.
@@ -411,24 +347,38 @@ impl CheckState<'_> {
         module: ModuleId,
         left: TypeOperand,
         index: TypeOperand,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let Some(left) = self.reduce_type_operand(origin, left)? else {
-            return Ok(None);
+    ) -> CompilerResult<Answer<TypeOperand>> {
+        let Answer::Ready(left) = self.reduce_type_operand(origin, left)? else {
+            return Ok(Answer::pending(left.dependencies(self)));
         };
-        let Some(left) = self.type_operand_term(left)? else {
-            return Ok(None);
+        let Answer::Ready(index) = self.reduce_type_operand(origin, index)? else {
+            return Ok(Answer::pending(index.dependencies(self)));
         };
-        let Some(index) = self.type_operand_term(index)? else {
-            return Ok(None);
+        let Some(index) = self.type_operand_term_id(index)? else {
+            return Ok(Answer::pending(index.dependencies(self)));
         };
-        let Some(key) = Self::type_term_static_key(&index) else {
-            return Ok(None);
+        let index_term = self.inference.term(index);
+        let Some(key) = index_term.static_key() else {
+            let index = TypeOperand::Term(index);
+            let operation = self
+                .inference
+                .push_term(TypeOperationTerm::Index { left, index });
+
+            let term = self.type_term_operand(TypeTerm::Operation(operation));
+
+            return Ok(Answer::Ready(term));
         };
 
-        self.resolve_member_type(origin, module, &left, &key, &[])
+        let Some(term) = self.resolve_member_type_operand(origin, module, left, &key, &[])? else {
+            let term = self.type_term_operand(TypeTerm::Literal(TypeLiteralTerm::Error));
+
+            return Ok(Answer::Ready(term));
+        };
+
+        Ok(Answer::Ready(term))
     }
 
-    /// Expect one indexed access type to satisfy one expected type.
+    /// Check one indexed access type to satisfy one expected type.
     pub(in crate::check) fn expect_type_index_term(
         &mut self,
         origin: Origin,
@@ -436,15 +386,20 @@ impl CheckState<'_> {
         left: TypeOperand,
         index: TypeOperand,
         expected: TypeOperand,
-    ) -> CompilerResult<()> {
-        let Some(term) = self.reduce_type_index_term(origin, module, left, index)? else {
-            return Ok(());
+    ) -> CompilerResult<Answer<()>> {
+        let term = match self.reduce_type_index_term(origin, module, left, index)? {
+            Answer::Ready(term) => term,
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
         };
-        let term = self.inference.push_term(term);
+        self.constrain_type(
+            origin,
+            TypeRelation::Assignable,
+            term,
+            expected,
+            Condition::Always,
+        );
 
-        self.reduce_contextual_type_assignability(origin, term, expected)?;
-
-        Ok(())
+        Ok(Answer::Ready(()))
     }
 
     /// Reduce one string mapping application.
@@ -454,30 +409,36 @@ impl CheckState<'_> {
         module: ModuleId,
         mapping: dir::StringMapping,
         argument: TypeOperand,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let Some(argument) = self.reduce_type_operand(origin, argument)? else {
-            return Ok(None);
+    ) -> CompilerResult<Answer<TypeOperand>> {
+        let Answer::Ready(argument) = self.reduce_type_operand(origin, argument)? else {
+            return Ok(Answer::pending(argument.dependencies(self)));
         };
-        let Some(argument) = self.type_operand_term(argument)? else {
-            return Ok(None);
+        let Some(argument) = self.type_operand_term_id(argument)? else {
+            return Ok(Answer::pending(argument.dependencies(self)));
         };
-        let literal = match argument {
-            TypeTerm::Literal(TypeLiteralTerm::Scalar(dir::ScalarLiteral::String(value))) => value,
+        let literal = match self.inference.term(argument) {
+            TypeTerm::Literal(TypeLiteralTerm::Scalar(dir::ScalarLiteral::String(value))) => *value,
             TypeTerm::Literal(TypeLiteralTerm::Primitive(dir::PrimitiveType::String)) => {
-                return Ok(Some(argument));
+                return Ok(Answer::Ready(argument.into()));
             }
-            _ => return Ok(Some(TypeTerm::Literal(TypeLiteralTerm::Error))),
+            _ => {
+                let ty = self.type_term_operand(TypeTerm::Literal(TypeLiteralTerm::Error));
+
+                return Ok(Answer::Ready(ty));
+            }
         };
         let value = self.module(module).strings.get(literal);
-        let value = Self::apply_string_mapping(mapping, value);
+        let value = Self::map_string_literal(mapping, value);
         let value = self.module(module).strings.intern(&value);
         let literal = dir::ScalarLiteral::String(value);
 
-        Ok(Some(TypeTerm::Literal(TypeLiteralTerm::Scalar(literal))))
+        let ty = self.type_term_operand(TypeTerm::Literal(TypeLiteralTerm::Scalar(literal)));
+
+        Ok(Answer::Ready(ty))
     }
 
-    /// Apply one string mapping.
-    fn apply_string_mapping(mapping: dir::StringMapping, value: &str) -> String {
+    /// Map one string literal through a string mapping.
+    fn map_string_literal(mapping: dir::StringMapping, value: &str) -> String {
         match mapping {
             dir::StringMapping::Uppercase => value.to_uppercase(),
             dir::StringMapping::Lowercase => value.to_lowercase(),
@@ -512,127 +473,16 @@ impl CheckState<'_> {
         output
     }
 
-    /// Widen one inferred type.
-    pub(in crate::check) fn widen_inferred_type(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        term: TypeTerm,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let term = match term {
-            TypeTerm::Literal(TypeLiteralTerm::Scalar(literal)) => {
-                TypeTerm::Literal(Self::widen_scalar_literal(literal))
-            }
-            TypeTerm::Array { element } => TypeTerm::Array {
-                element: match self.widen_inferred_operand(origin, module, element)? {
-                    Some(element) => element,
-                    None => return Ok(None),
-                },
-            },
-            TypeTerm::FixedArray { element, length } => TypeTerm::FixedArray {
-                element: match self.widen_inferred_operand(origin, module, element)? {
-                    Some(element) => element,
-                    None => return Ok(None),
-                },
-                length,
-            },
-            TypeTerm::Slice { element } => TypeTerm::Slice {
-                element: match self.widen_inferred_operand(origin, module, element)? {
-                    Some(element) => element,
-                    None => return Ok(None),
-                },
-            },
-            TypeTerm::Tuple { form, elements } => {
-                let mut widened = Vec::with_capacity(elements.len());
-
-                // widen elements in source order
-                for element in elements {
-                    let Some(ty) = self.widen_inferred_operand(origin, module, element.ty)? else {
-                        return Ok(None);
-                    };
-
-                    widened.push(TupleElement { ty, ..element });
-                }
-
-                TypeTerm::Tuple {
-                    form,
-                    elements: widened,
-                }
-            }
-            TypeTerm::Shape(shape) => {
-                let members = self.inference.term(shape).members.clone();
-                let mut widened = SmallVec::with_capacity(members.len());
-
-                // widen members in source order
-                for member in &members {
-                    let Some(member) =
-                        self.widen_inferred_shape_member(origin, module, member.clone())?
-                    else {
-                        return Ok(None);
-                    };
-
-                    widened.push(member);
-                }
-                if widened.as_slice() == members.as_slice() {
-                    return Ok(Some(TypeTerm::Shape(shape)));
-                }
-
-                self.push_shape_type(widened)
-            }
-            TypeTerm::Union { elements } => {
-                let mut widened = Vec::with_capacity(elements.len());
-
-                // widen elements in source order
-                for element in elements {
-                    let Some(element) = self.widen_inferred_operand(origin, module, element)?
-                    else {
-                        return Ok(None);
-                    };
-                    let Some(term) = self.type_operand_term(element)? else {
-                        return Ok(None);
-                    };
-
-                    widened.push(term);
-                }
-
-                self.reduce_best_common_terms(module, widened)?
-            }
-            TypeTerm::Intersection { elements } => {
-                let mut widened = Vec::with_capacity(elements.len());
-
-                // widen elements in source order
-                for element in elements {
-                    let Some(element) = self.widen_inferred_operand(origin, module, element)?
-                    else {
-                        return Ok(None);
-                    };
-
-                    widened.push(element);
-                }
-
-                TypeTerm::Intersection { elements: widened }
-            }
-            _ => term,
-        };
-
-        Ok(Some(term))
-    }
-
     /// Reduce one inferred mutable storage type.
     pub(in crate::check) fn reduce_widen_term(
         &mut self,
         origin: Origin,
         source: TypeOperand,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let Some(source_term) = self.type_operand_term(source)? else {
-            return Ok(None);
-        };
-        let Some(term) = self.widen_inferred_type(origin, origin.module(), source_term.clone())?
-        else {
-            return Ok(None);
-        };
-
-        Ok(Some(term))
+    ) -> CompilerResult<Answer<TypeOperand>> {
+        match self.widen_inferred_operand(origin, origin.module(), source)? {
+            Some(term) => Ok(Answer::Ready(term)),
+            None => Ok(Answer::pending(source.dependencies(self))),
+        }
     }
 
     /// Widen one scalar literal.
@@ -664,22 +514,154 @@ impl CheckState<'_> {
         module: ModuleId,
         operand: TypeOperand,
     ) -> CompilerResult<Option<TypeOperand>> {
-        let Some(operand) = self.reduce_type_operand(origin, operand)? else {
+        let Answer::Ready(operand) = self.reduce_type_operand(origin, operand)? else {
             return Ok(None);
         };
-        let Some(term) = self.type_operand_term(operand)? else {
+        let Some(term) = self.type_operand_term_id(operand)? else {
             return Ok(None);
         };
-        let Some(widened) = self.widen_inferred_type(origin, module, term.clone())? else {
-            return Ok(None);
-        };
-        if widened == term {
-            return Ok(Some(operand));
-        }
 
-        let widened = self.inference.push_term(widened);
+        self.widen_inferred_term(origin, module, operand, term)
+    }
 
-        Ok(Some(widened.into()))
+    /// Widen one inferred term.
+    fn widen_inferred_term(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        operand: TypeOperand,
+        term: TermId<TypeTerm>,
+    ) -> CompilerResult<Option<TypeOperand>> {
+        let term = match self.inference.term(term) {
+            TypeTerm::Literal(TypeLiteralTerm::Scalar(literal)) => {
+                TypeTerm::Literal(Self::widen_scalar_literal(*literal))
+            }
+            TypeTerm::Array { element } => {
+                let element = *element;
+                let Some(element) = self.widen_inferred_operand(origin, module, element)? else {
+                    return Ok(None);
+                };
+
+                TypeTerm::Array { element }
+            }
+            TypeTerm::FixedArray { element, length } => {
+                let element = *element;
+                let length = *length;
+                let Some(element) = self.widen_inferred_operand(origin, module, element)? else {
+                    return Ok(None);
+                };
+
+                TypeTerm::FixedArray { element, length }
+            }
+            TypeTerm::Slice { element } => {
+                let element = *element;
+                let Some(element) = self.widen_inferred_operand(origin, module, element)? else {
+                    return Ok(None);
+                };
+
+                TypeTerm::Slice { element }
+            }
+            TypeTerm::Tuple { form, elements } => {
+                let form = *form;
+                let elements = elements.iter().copied().collect::<Vec<_>>();
+                let mut widened = Vec::with_capacity(elements.len());
+                let mut is_changed = false;
+
+                // widen elements in source order
+                for element in elements {
+                    let Some(ty) = self.widen_inferred_operand(origin, module, element.ty)? else {
+                        return Ok(None);
+                    };
+
+                    is_changed |= ty != element.ty;
+                    widened.push(TupleElement { ty, ..element });
+                }
+                if !is_changed {
+                    return Ok(Some(operand));
+                }
+
+                TypeTerm::Tuple {
+                    form,
+                    elements: widened,
+                }
+            }
+            TypeTerm::Shape(shape) => {
+                let shape = *shape;
+                let members = self
+                    .inference
+                    .term(shape)
+                    .members
+                    .iter()
+                    .copied()
+                    .collect::<SmallVec<[_; 2]>>();
+                let mut widened = SmallVec::with_capacity(members.len());
+                let mut is_changed = false;
+
+                // widen members in source order
+                for member in members {
+                    let Some(widened_member) =
+                        self.widen_inferred_shape_member(origin, module, member)?
+                    else {
+                        return Ok(None);
+                    };
+
+                    is_changed |= widened_member != member;
+                    widened.push(widened_member);
+                }
+                if !is_changed {
+                    return Ok(Some(operand));
+                }
+
+                let term = self.push_shape_type(widened);
+
+                return Ok(Some(self.type_term_operand(term)));
+            }
+            TypeTerm::Union { elements } => {
+                let elements = elements.iter().copied().collect::<Vec<_>>();
+                let mut widened = Vec::with_capacity(elements.len());
+
+                // widen elements in source order
+                for element in elements {
+                    let Some(element) = self.widen_inferred_operand(origin, module, element)?
+                    else {
+                        return Ok(None);
+                    };
+
+                    widened.push(element);
+                }
+
+                let Answer::Ready(term) = self.reduce_best_common_term(&widened)? else {
+                    return Ok(None);
+                };
+
+                return Ok(Some(term));
+            }
+            TypeTerm::Intersection { elements } => {
+                let elements = elements.iter().copied().collect::<Vec<_>>();
+                let mut widened = Vec::with_capacity(elements.len());
+                let mut is_changed = false;
+
+                // widen elements in source order
+                for element in elements {
+                    let Some(widened_element) =
+                        self.widen_inferred_operand(origin, module, element)?
+                    else {
+                        return Ok(None);
+                    };
+
+                    is_changed |= widened_element != element;
+                    widened.push(widened_element);
+                }
+                if !is_changed {
+                    return Ok(Some(operand));
+                }
+
+                TypeTerm::Intersection { elements: widened }
+            }
+            _ => return Ok(Some(operand)),
+        };
+
+        Ok(Some(self.type_term_operand(term)))
     }
 
     /// Widen one inferred shape member.
@@ -750,153 +732,157 @@ impl CheckState<'_> {
         Ok(Some(member))
     }
 
-    /// Expect a widened source term to satisfy one expected type.
-    pub(in crate::check) fn expect_widen_term(
-        &mut self,
-        origin: Origin,
-        source: TypeOperand,
-        expected: TypeOperand,
-        _expected_term: &TypeTerm,
-    ) -> CompilerResult<()> {
-        self.reduce_contextual_type_assignability(origin, source, expected)
-    }
-
     /// Reduce one best common type term.
     pub(in crate::check) fn reduce_best_common_term(
         &mut self,
-        _origin: Origin,
-        module: ModuleId,
         elements: &[TypeOperand],
-    ) -> CompilerResult<Option<TypeTerm>> {
+    ) -> CompilerResult<Answer<TypeOperand>> {
         if elements.is_empty() {
-            unreachable!("best common type requires at least one element");
+            let term = self.type_term_operand(TypeTerm::Literal(TypeLiteralTerm::Never));
+
+            return Ok(Answer::Ready(term));
         }
         let mut candidates = Vec::with_capacity(elements.len());
 
         // collect element candidates
         for element in elements {
-            let Some(term) = self.type_operand_term(*element)? else {
-                return Ok(None);
+            let Some(_) = self.type_operand_term_id(*element)? else {
+                return Ok(Answer::pending(element.dependencies(self)));
             };
 
-            candidates.push(term);
+            candidates.push(*element);
         }
 
-        let term = self.reduce_best_common_terms(module, candidates)?;
-
-        Ok(Some(term))
-    }
-
-    /// Expect best common type elements to satisfy one expected type.
-    pub(in crate::check) fn expect_best_common_term(
-        &mut self,
-        origin: Origin,
-        _result: Option<VariableId>,
-        elements: &[TypeOperand],
-        expected: TypeOperand,
-        _expected_term: &TypeTerm,
-    ) -> CompilerResult<()> {
-        // push the expected type into every element
-        for element in elements {
-            self.reduce_contextual_type_assignability(origin, *element, expected)?;
-        }
-
-        Ok(())
+        self.reduce_best_common_terms(&candidates)
     }
 
     /// Reduce a concrete set of candidate terms to their best common type.
     pub(in crate::check) fn reduce_best_common_terms(
         &mut self,
-        _module: ModuleId,
-        candidates: Vec<TypeTerm>,
-    ) -> CompilerResult<TypeTerm> {
+        candidates: &[TypeOperand],
+    ) -> CompilerResult<Answer<TypeOperand>> {
         if candidates.is_empty() {
-            unreachable!("best common type requires at least one candidate");
+            let term = self.type_term_operand(TypeTerm::Literal(TypeLiteralTerm::Never));
+
+            return Ok(Answer::Ready(term));
         }
 
         // choose the first candidate that accepts every element
-        for candidate in &candidates {
-            if self.is_best_common_candidate(candidate, &candidates)? {
-                return Ok(candidate.clone());
+        for candidate in candidates {
+            if self.is_best_common_candidate(*candidate, candidates)? {
+                return Ok(Answer::Ready(*candidate));
             }
         }
         let mut elements = Vec::with_capacity(candidates.len());
 
         // preserve heterogeneous literal arrays as unions
         for candidate in candidates {
-            let candidate = self.inference.push_term(candidate);
-
-            elements.push(candidate.into());
+            elements.push(*candidate);
         }
 
-        Ok(TypeTerm::Union { elements })
+        let term = self.type_term_operand(TypeTerm::Union { elements });
+
+        Ok(Answer::Ready(term))
     }
 
     /// Reduce one type exclusion term.
     pub(in crate::check) fn reduce_exclude_term(
         &mut self,
-        module: ModuleId,
+        origin: Origin,
         source: TypeOperand,
         target: TypeOperand,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let Some(source_term) = self.type_operand_term(source)? else {
-            return Ok(None);
-        };
-        let Some(target_term) = self.type_operand_term(target)? else {
-            return Ok(None);
-        };
-        let term = match (&source_term, &target_term) {
-            (
-                TypeTerm::Form {
-                    form: source_form,
-                    payload: source_value,
-                },
-                TypeTerm::Form {
-                    form: target_form,
-                    payload: target_value,
-                },
-            ) if self
-                .inference
-                .term(*source_form)
-                .same_constructor(self.inference.term(*target_form)) =>
-            {
-                let Some(payload) =
-                    self.reduce_exclude_term(module, *source_value, *target_value)?
-                else {
-                    return Ok(None);
-                };
-                let payload = self.inference.push_term(payload);
+    ) -> CompilerResult<Answer<TypeOperand>> {
+        self.reduce_filter_term(origin, source, target, TypeFilter::Exclude)
+    }
 
-                TypeTerm::Form {
-                    form: source_form.clone(),
-                    payload: payload.into(),
+    /// Reduce one type filter term.
+    fn reduce_filter_term(
+        &mut self,
+        origin: Origin,
+        source: TypeOperand,
+        target: TypeOperand,
+        filter: TypeFilter,
+    ) -> CompilerResult<Answer<TypeOperand>> {
+        let Some(source_term_id) = self.type_operand_term_id(source)? else {
+            return Ok(Answer::pending(source.dependencies(self)));
+        };
+        let Some(target_term_id) = self.type_operand_term_id(target)? else {
+            return Ok(Answer::pending(target.dependencies(self)));
+        };
+        if let Some((source_form, source_value, target_value)) = {
+            let source_term = self.inference.term(source_term_id);
+            let target_term = self.inference.term(target_term_id);
+
+            match (source_term, target_term) {
+                (
+                    TypeTerm::Form {
+                        form: source_form,
+                        payload: source_value,
+                    },
+                    TypeTerm::Form {
+                        form: target_form,
+                        payload: target_value,
+                    },
+                ) if self
+                    .inference
+                    .term(*source_form)
+                    .same_constructor(self.inference.term(*target_form)) =>
+                {
+                    Some((*source_form, *source_value, *target_value))
                 }
+                _ => None,
             }
-            (TypeTerm::Union { elements }, target) => {
-                self.reduce_exclude_union(elements, target)?
-            }
-            (source, target)
-                if self.decide_type_term_relation(TypeRelation::Equal, source, target)?
-                    == Decision::Yes =>
-            {
-                TypeTerm::Literal(TypeLiteralTerm::Never)
-            }
-            _ => source_term,
+        } {
+            let payload =
+                match self.reduce_filter_term(origin, source_value, target_value, filter)? {
+                    Answer::Ready(payload) => payload,
+                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+                };
+            let term = self.type_term_operand(TypeTerm::Form {
+                form: source_form,
+                payload,
+            });
+
+            return Ok(Answer::Ready(term));
+        }
+
+        if let TypeTerm::Union { elements: _ } = self.inference.term(source_term_id) {
+            let term = match self.reduce_filter_union(source_term_id, target_term_id, filter)? {
+                Answer::Ready(term) => term,
+                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+            };
+
+            return Ok(Answer::Ready(term));
+        }
+
+        let matches = match self.decide_type_term_id_relation(
+            Some(origin.module()),
+            TypeRelation::Assignable,
+            source_term_id,
+            target_term_id,
+        )? {
+            Answer::Ready(matches) => matches,
+            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+        };
+        let term = if filter.keeps(matches) {
+            source
+        } else {
+            self.type_term_operand(TypeTerm::Literal(TypeLiteralTerm::Never))
         };
 
-        Ok(Some(term))
+        Ok(Answer::Ready(term))
     }
 
     /// Return whether one candidate accepts every best-common element.
     fn is_best_common_candidate(
         &mut self,
-        candidate: &TypeTerm,
-        elements: &[TypeTerm],
+        candidate: TypeOperand,
+        elements: &[TypeOperand],
     ) -> CompilerResult<bool> {
         for element in elements {
             let decision =
-                self.decide_type_term_relation(TypeRelation::Assignable, element, candidate)?;
-            if decision != Decision::Yes {
+                self.decide_type_relation(TypeRelation::Assignable, *element, candidate)?;
+            if decision != Answer::Ready(true) {
                 return Ok(false);
             }
         }
@@ -904,60 +890,136 @@ impl CheckState<'_> {
         Ok(true)
     }
 
-    /// Reduce one union type exclusion.
-    fn reduce_exclude_union(
+    /// Reduce one union type filter.
+    fn reduce_filter_union(
         &mut self,
-        elements: &[TypeOperand],
-        target: &TypeTerm,
-    ) -> CompilerResult<TypeTerm> {
-        let mut kept = Vec::with_capacity(elements.len());
+        source: TermId<TypeTerm>,
+        target: TermId<TypeTerm>,
+        filter: TypeFilter,
+    ) -> CompilerResult<Answer<TypeOperand>> {
+        let TypeTerm::Union { elements } = self.inference.term(source) else {
+            return Err(CompilerError::Internal {
+                message: "type filter union reducer received a non-union source".into(),
+            });
+        };
+        let len = elements.len();
+        let mut kept = Vec::with_capacity(len);
 
-        // remove elements that are known equal to the excluded type
-        for element in elements {
-            let Some(element_term) = self.type_operand_term(*element)? else {
-                return Ok(TypeTerm::Union {
-                    elements: elements.to_vec(),
+        // keep elements selected by the filter
+        for index in 0..len {
+            let TypeTerm::Union { elements } = self.inference.term(source) else {
+                return Err(CompilerError::Internal {
+                    message: "type filter union source changed during reduction".into(),
                 });
             };
-            if self.decide_type_term_relation(TypeRelation::Equal, &element_term, target)?
-                == Decision::Yes
-            {
-                continue;
-            }
-
-            kept.push(*element);
-        }
-
-        let term = if kept.len() == 1 {
-            let Some(term) = self.type_operand_term(kept[0])? else {
-                return Ok(TypeTerm::Union { elements: kept });
+            let Some(element) = elements.get(index).copied() else {
+                return Err(CompilerError::Internal {
+                    message: "type filter union element index is out of range".into(),
+                });
+            };
+            let Some(element_term) = self.type_operand_term_id(element)? else {
+                return Ok(Answer::pending(element.dependencies(self)));
+            };
+            let matches = match self.decide_filtered_type_term(element_term, target)? {
+                Answer::Ready(matches) => matches,
+                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
             };
 
-            term
-        } else {
-            TypeTerm::Union { elements: kept }
+            if filter.keeps(matches) {
+                kept.push(element);
+            }
+        }
+
+        let term = match kept.as_slice() {
+            [] => self.type_term_operand(TypeTerm::Literal(TypeLiteralTerm::Never)),
+            [element] => *element,
+            _ => self.type_term_operand(TypeTerm::Union { elements: kept }),
         };
 
-        Ok(term)
+        Ok(Answer::Ready(term))
     }
 
-    /// Expect one conditional branch to satisfy the expected result.
+    /// Decide whether one source branch satisfies a filter target.
+    fn decide_filtered_type_term(
+        &mut self,
+        source: TermId<TypeTerm>,
+        target: TermId<TypeTerm>,
+    ) -> CompilerResult<Answer<bool>> {
+        let decision = if let TypeTerm::Union { elements } = self.inference.term(target) {
+            let len = elements.len();
+
+            // union targets accept any matching branch
+            {
+                let mut decision = Answer::Ready(false);
+
+                for index in 0..len {
+                    let TypeTerm::Union { elements } = self.inference.term(target) else {
+                        return Err(CompilerError::Internal {
+                            message: "type filter union target changed during reduction".into(),
+                        });
+                    };
+                    let Some(element) = elements.get(index).copied() else {
+                        return Err(CompilerError::Internal {
+                            message: "type filter target element index is out of range".into(),
+                        });
+                    };
+                    let Some(element) = self.type_operand_term_id(element)? else {
+                        return Ok(Answer::pending(element.dependencies(self)));
+                    };
+                    let element = self.decide_type_term_id_relation(
+                        None,
+                        TypeRelation::Assignable,
+                        source,
+                        element,
+                    )?;
+
+                    decision = decision.or(element);
+                }
+
+                decision
+            }
+        } else {
+            // single targets use assignability
+            self.decide_type_term_id_relation(None, TypeRelation::Assignable, source, target)?
+        };
+
+        Ok(decision)
+    }
+
+    /// Check one conditional branch to satisfy the expected result.
     fn expect_conditional_branch(
         &mut self,
         origin: Origin,
         branch: TypeOperand,
         expected: TypeOperand,
     ) -> CompilerResult<()> {
-        self.reduce_contextual_type_assignability(origin, branch, expected)
-    }
+        self.constrain_type(
+            origin,
+            TypeRelation::Assignable,
+            branch,
+            expected,
+            Condition::Always,
+        );
 
-    /// Return the structural key represented by one literal type.
-    fn type_term_static_key(term: &TypeTerm) -> Option<dir::StaticKey> {
-        match term {
-            TypeTerm::Literal(TypeLiteralTerm::Scalar(dir::ScalarLiteral::String(name))) => {
-                Some(dir::StaticKey::Name(*name))
-            }
-            _ => None,
+        Ok(())
+    }
+}
+
+/// The selected type filter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TypeFilter {
+    /// Keep matching union members.
+    Extract,
+    /// Keep non-matching union members.
+    Exclude,
+}
+
+impl TypeFilter {
+    /// Return whether one filter decision keeps the source.
+    fn keeps(self, decision: bool) -> bool {
+        match self {
+            Self::Extract => decision,
+            Self::Exclude => !decision,
         }
     }
 }

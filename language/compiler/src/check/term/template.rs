@@ -3,8 +3,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CallCallee, CallTerm, CheckState, GenericArgument, Origin, TypeLiteralTerm, TypeOperand,
-    TypeTerm, VariableId,
+    Answer, CallArgument, CallCallee, CallTerm, CheckState, Dependency, GenericArgument, Origin,
+    TermId, TypeLiteralTerm, TypeOperand, TypeTerm, VariableId,
 };
 
 /// Runtime template string term.
@@ -22,35 +22,25 @@ pub(in crate::check) struct TemplateTerm {
     pub(in crate::check) spans: Vec<TypeOperand>,
 }
 
-impl TemplateTerm {
-    /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(
-        &self,
-        state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 2]> {
-        self.spans
-            .iter()
-            .flat_map(|span| span.referenced_variables(state))
-            .collect()
-    }
-}
-
 impl CheckState<'_> {
     /// Reduce one runtime template string to string.
     pub(in crate::check) fn reduce_template_term(
-        &self,
-        template: &TemplateTerm,
-    ) -> CompilerResult<Option<TypeTerm>> {
+        &mut self,
+        template: TermId<TemplateTerm>,
+    ) -> CompilerResult<Answer<TypeOperand>> {
+        let template = self.inference.term(template);
+
         // wait for interpolations so failed operands own their diagnostics
         for span in &template.spans {
-            if self.type_operand_term(*span)?.is_none() {
-                return Ok(None);
+            if self.resolved_type_operand(*span).is_none() {
+                return Ok(Answer::pending(span.dependencies(self)));
             }
         }
 
-        Ok(Some(TypeTerm::Literal(TypeLiteralTerm::Primitive(
-            dir::PrimitiveType::String,
-        ))))
+        let term = TypeTerm::Literal(TypeLiteralTerm::Primitive(dir::PrimitiveType::String));
+        let operand = self.type_term_operand(term);
+
+        Ok(Answer::Ready(operand))
     }
 }
 
@@ -73,95 +63,111 @@ pub(in crate::check) struct TaggedTemplateTerm {
     pub(in crate::check) spans: Vec<TypeOperand>,
 }
 
-impl TaggedTemplateTerm {
-    /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(
-        &self,
-        state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 2]> {
-        let mut variables = SmallVec::new();
-
-        variables.extend(self.tag.referenced_variables(state));
-        variables.extend(
-            self.generic_arguments
-                .iter()
-                .flat_map(|argument| argument.referenced_variables(state)),
-        );
-        variables.extend(
-            self.spans
-                .iter()
-                .flat_map(|span| span.referenced_variables(state)),
-        );
-
-        variables
-    }
-}
-
 impl CheckState<'_> {
     /// Reduce one tagged template as a tag function call.
     pub(in crate::check) fn reduce_tagged_template_term(
         &mut self,
         origin: Origin,
-        template: &TaggedTemplateTerm,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        if self.tagged_template_has_unresolved_input(template)? {
-            return Ok(None);
+        template: TermId<TaggedTemplateTerm>,
+    ) -> CompilerResult<Answer<TypeOperand>> {
+        let blockers = self.tagged_template_blockers(template);
+        if !blockers.is_empty() {
+            return Ok(Answer::pending(blockers));
         }
 
         let call = self.tagged_template_call(template)?;
+        let call = self.inference.push_term(call);
+        let source = self.inference.term(template).source;
 
-        self.reduce_call_term(origin, template.source.module_id, &call)
+        self.reduce_call_term(origin, source.module_id, call)
     }
 
-    /// Expect a tagged template call to produce the expected result.
+    /// Check a tagged template call to produce the expected result.
     pub(in crate::check) fn expect_tagged_template_term(
         &mut self,
         origin: Origin,
-        template: &TaggedTemplateTerm,
+        template: TermId<TaggedTemplateTerm>,
         result: VariableId,
-    ) -> CompilerResult<()> {
-        if self.tagged_template_has_unresolved_input(template)? {
-            return Ok(());
+    ) -> CompilerResult<Answer<()>> {
+        let blockers = self.tagged_template_blockers(template);
+        if !blockers.is_empty() {
+            return Ok(Answer::pending(blockers));
         }
 
         let call = self.tagged_template_call(template)?;
+        let call = self.inference.push_term(call);
 
-        self.expect_call_term(origin, &call, result)
+        self.expect_call_term(origin, call, result)
     }
 
     /// Return the lowered call shape for one tagged template.
-    fn tagged_template_call(&mut self, template: &TaggedTemplateTerm) -> CompilerResult<CallTerm> {
+    fn tagged_template_call(
+        &mut self,
+        template: TermId<TaggedTemplateTerm>,
+    ) -> CompilerResult<CallTerm> {
+        let template = self.inference.term(template);
+        let source = template.source;
+        let tag = template.tag;
+        let generic_arguments = template.generic_arguments.clone();
+        let spans = template.spans.clone();
         let string = TypeTerm::Literal(TypeLiteralTerm::Primitive(dir::PrimitiveType::String));
         let string = self.inference.push_term(string);
         let strings = TypeTerm::Array {
             element: string.into(),
         };
         let strings = self.inference.push_term(strings);
-        let mut arguments = Vec::with_capacity(template.spans.len() + 1);
+        let mut arguments = SmallVec::<[CallArgument; 4]>::new();
 
-        arguments.push(strings.into());
-        arguments.extend(template.spans.iter().copied());
+        arguments.push(CallArgument {
+            source,
+            ty: strings.into(),
+            is_spread: false,
+        });
+        arguments.extend(spans.iter().copied().map(|ty| CallArgument {
+            source,
+            ty,
+            is_spread: false,
+        }));
 
         Ok(CallTerm {
-            source: template.source,
-            callee: CallCallee::Expression(template.tag),
-            generic_arguments: template.generic_arguments.clone(),
-            argument_types: arguments.into(),
-            arguments: Default::default(),
+            source,
+            callee: CallCallee::Expression(tag),
+            generic_arguments,
+            arguments,
         })
     }
 
-    /// Return whether one tagged template still waits on local operands.
-    fn tagged_template_has_unresolved_input(
+    /// Return unresolved dependencies referenced by one tagged template.
+    fn tagged_template_blockers(
         &self,
-        template: &TaggedTemplateTerm,
-    ) -> CompilerResult<bool> {
-        for variable in template.referenced_variables(self) {
+        template: TermId<TaggedTemplateTerm>,
+    ) -> SmallVec<[Dependency; 4]> {
+        let template = self.inference.term(template);
+        let dependencies = template
+            .tag
+            .dependencies(self)
+            .into_iter()
+            .chain(
+                template
+                    .generic_arguments
+                    .iter()
+                    .flat_map(|argument| argument.dependencies(self)),
+            )
+            .chain(
+                template
+                    .spans
+                    .iter()
+                    .flat_map(|span| span.dependencies(self)),
+            );
+        let mut blockers = SmallVec::new();
+
+        // keep only unsolved variables that can still wake this template
+        for variable in dependencies.filter_map(Dependency::solution_variable) {
             if self.variable_solution(variable).is_none() {
-                return Ok(true);
+                blockers.push(Dependency::Variable(variable));
             }
         }
 
-        Ok(false)
+        blockers
     }
 }

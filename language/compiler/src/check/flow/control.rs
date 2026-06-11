@@ -183,7 +183,7 @@ impl WalkState<'_, '_> {
         label: Option<dir::StringId>,
         value: Option<impl Into<TypeOperand>>,
     ) {
-        // normalize omitted break values to void
+        // use void for omitted break values
         let value = value
             .map(Into::into)
             .unwrap_or_else(|| self.void_type_operand());

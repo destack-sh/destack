@@ -2,9 +2,9 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, FunctionTerm, OperatorCandidateDispatch, OperatorDecision, OperatorFailure,
-    OperatorFailureReason, OperatorResolution, Origin, TypeLiteralTerm, TypeOperand, TypeTerm,
-    VariableId,
+    Answer, CheckState, Condition, FunctionTerm, OperatorDecision, OperatorDispatch,
+    OperatorFailure, OperatorFailureReason, OperatorResolution, Origin, TypeLiteralTerm,
+    TypeOperand, TypeRelation, TypeTerm, VariableId,
 };
 
 /// Runtime operator expression term.
@@ -23,23 +23,6 @@ pub(in crate::check) struct OperatorTerm {
     pub(in crate::check) receiver: TypeOperand,
     /// The remaining operand type.
     pub(in crate::check) argument: Option<TypeOperand>,
-}
-
-impl OperatorTerm {
-    /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(
-        &self,
-        state: &CheckState<'_>,
-    ) -> smallvec::SmallVec<[VariableId; 2]> {
-        let mut variables = smallvec::SmallVec::new();
-
-        variables.extend(self.receiver.referenced_variables(state));
-        if let Some(argument) = self.argument {
-            variables.extend(argument.referenced_variables(state));
-        }
-
-        variables
-    }
 }
 
 /// Source operator represented by an operator term.
@@ -74,84 +57,98 @@ impl CheckState<'_> {
     pub(in crate::check) fn reduce_operator_term(
         &mut self,
         origin: Origin,
-        operator: &OperatorTerm,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        if let Some(term) = self.selected_operator_type(operator)? {
-            return Ok(Some(term));
+        operator: OperatorTerm,
+    ) -> CompilerResult<Answer<TypeOperand>> {
+        if let Some(term) = self.selected_operator_type(&operator)? {
+            return Ok(Answer::Ready(term));
         }
 
-        let result = self.select_operator_candidate(origin, operator, None)?;
+        let result = self.select_operator(origin, &operator, None)?;
         match &result {
-            OperatorCandidateDispatch::Builtin { return_type } => {
-                return Ok(Some(return_type.clone()));
+            OperatorDispatch::Builtin { return_type } => {
+                self.select_builtin_operator(&operator, *return_type)?;
+
+                let Some(return_type) = self.operator_return_type_operand(*return_type) else {
+                    return Ok(Answer::pending(return_type.dependencies(self)));
+                };
+
+                return Ok(Answer::Ready(return_type));
             }
-            OperatorCandidateDispatch::Method {
+            OperatorDispatch::Method {
                 symbol,
                 function,
                 return_type,
             } => {
-                self.select_operator_method(operator, *symbol, &function)?;
+                self.select_operator_method(&operator, *symbol, &function)?;
 
-                return Ok(Some(return_type.clone()));
-            }
-            OperatorCandidateDispatch::NoMatch { reason } => {
-                self.reject_operator(operator, *reason)?;
+                let Some(return_type) = self.operator_return_type_operand(*return_type) else {
+                    return Ok(Answer::pending(return_type.dependencies(self)));
+                };
 
-                return Ok(Some(TypeTerm::Literal(TypeLiteralTerm::Error)));
+                return Ok(Answer::Ready(return_type));
             }
-            OperatorCandidateDispatch::Pending => return Ok(None),
+            OperatorDispatch::NoMatch { reason } => {
+                self.reject_operator(&operator, *reason)?;
+
+                let term = TypeTerm::Literal(TypeLiteralTerm::Error);
+                let operand = self.type_term_operand(term);
+
+                return Ok(Answer::Ready(operand));
+            }
+            OperatorDispatch::Pending(blockers) => return Ok(Answer::Pending(blockers.clone())),
         }
     }
 
-    /// Expect resolved operator candidates to produce the expected result.
+    /// Expect one runtime operator expression to produce one result type.
     pub(in crate::check) fn expect_operator_term(
         &mut self,
         origin: Origin,
         operator: &OperatorTerm,
         result: VariableId,
-        expected: TypeOperand,
-    ) -> CompilerResult<()> {
-        let resolved = self.select_operator_candidate(origin, operator, Some(expected))?;
+        expected: Option<TypeOperand>,
+    ) -> CompilerResult<Answer<()>> {
+        let resolved = self.select_operator(origin, operator, expected)?;
 
-        match &resolved {
-            OperatorCandidateDispatch::Builtin { return_type } => {
-                self.select_builtin_operator(operator, result)?;
+        let answer = match &resolved {
+            OperatorDispatch::Builtin { return_type } => {
+                self.select_builtin_operator(operator, *return_type)?;
 
-                self.expect_operator_return_type(origin, &return_type, expected)?
+                self.expect_operator_return_type(origin, *return_type, result, expected)?
             }
-            OperatorCandidateDispatch::Method {
+            OperatorDispatch::Method {
                 symbol,
                 function,
                 return_type,
             } => {
                 self.select_operator_method(operator, *symbol, &function)?;
 
-                self.expect_operator_return_type(origin, &return_type, expected)?
+                self.expect_operator_return_type(origin, *return_type, result, expected)?
             }
-            OperatorCandidateDispatch::NoMatch { reason } => {
+            OperatorDispatch::NoMatch { reason } => {
                 self.reject_operator(operator, *reason)?;
 
-                self.expect_operator_return_type(
-                    origin,
-                    &TypeTerm::Literal(TypeLiteralTerm::Error),
-                    expected,
-                )?
+                let return_type = self.type_term_operand(TypeTerm::Literal(TypeLiteralTerm::Error));
+
+                self.expect_operator_return_type(origin, return_type, result, expected)?
             }
-            OperatorCandidateDispatch::Pending => (),
+            OperatorDispatch::Pending(blockers) => Answer::Pending(blockers.clone()),
         };
 
-        Ok(())
+        Ok(answer)
     }
 
     /// Return the type produced by one selected operator decision.
-    fn selected_operator_type(&self, operator: &OperatorTerm) -> CompilerResult<Option<TypeTerm>> {
+    pub(in crate::check) fn selected_operator_type(
+        &mut self,
+        operator: &OperatorTerm,
+    ) -> CompilerResult<Option<TypeOperand>> {
         let Some(decision) = self.inference.operator(operator.source) else {
             return Ok(None);
         };
 
         let term = match decision {
             OperatorDecision::Resolved(OperatorResolution::Builtin { result, .. }) => {
-                let Some(term) = self.type_operand_term(result.into())? else {
+                let Some(term) = self.operator_return_type_operand(*result) else {
                     return Ok(None);
                 };
 
@@ -159,30 +156,65 @@ impl CheckState<'_> {
             }
             OperatorDecision::Resolved(OperatorResolution::Method { function, .. }) => {
                 let Some(return_type) = function.return_type else {
-                    return Ok(Some(TypeTerm::Literal(TypeLiteralTerm::Void)));
+                    let term = TypeTerm::Literal(TypeLiteralTerm::Void);
+                    let operand = self.type_term_operand(term);
+
+                    return Ok(Some(operand));
                 };
-                let Some(term) = self.type_operand_term(return_type)? else {
+                let Some(term) = self.operator_return_type_operand(return_type) else {
                     return Ok(None);
                 };
 
                 term
             }
-            OperatorDecision::Rejected(_) => TypeTerm::Literal(TypeLiteralTerm::Error),
+            OperatorDecision::Rejected(_) => {
+                let term = TypeTerm::Literal(TypeLiteralTerm::Error);
+
+                self.type_term_operand(term)
+            }
         };
 
         Ok(Some(term))
     }
 
-    /// Expect one selected operator return type to satisfy the result variable.
+    /// Return one resolved operator return operand.
+    fn operator_return_type_operand(&self, return_type: TypeOperand) -> Option<TypeOperand> {
+        let return_type = self.resolved_type_operand(return_type)?;
+
+        match return_type {
+            TypeOperand::Term(_) | TypeOperand::Type(_) => Some(return_type),
+            TypeOperand::Variable(_) => None,
+        }
+    }
+
+    /// Check one selected operator return type to satisfy the result variable.
     fn expect_operator_return_type(
         &mut self,
         origin: Origin,
-        return_type: &TypeTerm,
-        expected: TypeOperand,
-    ) -> CompilerResult<()> {
-        let return_type = self.inference.push_term(return_type.clone());
+        return_type: TypeOperand,
+        result: VariableId,
+        expected: Option<TypeOperand>,
+    ) -> CompilerResult<Answer<()>> {
+        self.constrain_type(
+            origin,
+            TypeRelation::Assignable,
+            return_type,
+            result,
+            Condition::Always,
+        );
 
-        self.reduce_type_assignability(origin, return_type, expected)
+        // push the selected operator result into the contextual expectation
+        if let Some(expected) = expected {
+            self.constrain_type(
+                origin,
+                TypeRelation::Assignable,
+                return_type,
+                expected,
+                Condition::Always,
+            );
+        }
+
+        Ok(Answer::Ready(()))
     }
 
     /// Reject one operator for diagnostics.
@@ -207,7 +239,7 @@ impl CheckState<'_> {
     pub(in crate::check) fn select_builtin_operator(
         &mut self,
         operator: &OperatorTerm,
-        result: VariableId,
+        result: TypeOperand,
     ) -> CompilerResult<()> {
         let resolution = OperatorResolution::Builtin {
             source: operator.source,

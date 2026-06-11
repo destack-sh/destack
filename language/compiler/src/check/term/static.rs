@@ -2,12 +2,12 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::check::{
-    CheckState, Condition, Decision, GenericArgument, GenericParameterId, LayoutQuery, LayoutTerm,
-    NameLookup, Obligation, Origin, PathLookup, StaticOperand, StaticRelation, SubstitutionSet,
-    TypeOperand, TypeRelation, VariableId,
+    Answer, CheckState, Condition, Dependency, DependencyCollector, GenericArgument,
+    GenericParameterId, LayoutQuery, LayoutTerm, NameLookup, Obligation, Origin, PathLookup,
+    StaticOperand, StaticRelation, SubstitutionSet, TermId, TypeOperand, TypeRelation, TypeTerm,
 };
+use crate::{CompilerError, CompilerResult};
 
 /// Term used to define a static variable.
 #[derive(Debug, Clone, PartialEq)]
@@ -49,7 +49,7 @@ pub(in crate::check) enum StaticTerm {
         /// The selected member key.
         key: dir::StaticKey,
         /// The applied static arguments.
-        arguments: Vec<GenericArgument>,
+        arguments: SmallVec<[GenericArgument; 2]>,
     },
     /// Concrete layout query.
     ///
@@ -66,7 +66,7 @@ pub(in crate::check) enum StaticTerm {
         /// The intrinsic language item.
         item: dir::LanguageItem,
         /// The intrinsic arguments.
-        arguments: Vec<GenericArgument>,
+        arguments: SmallVec<[GenericArgument; 2]>,
     },
     /// Static equality comparison.
     ///
@@ -119,172 +119,78 @@ pub(in crate::check) enum StaticTerm {
 }
 
 impl StaticTerm {
-    /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(
+    /// Return dependencies referenced by this static term.
+    pub(in crate::check) fn dependencies(
         &self,
         state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 2]> {
-        let mut variables = SmallVec::new();
-
-        match self {
-            Self::Member {
-                source: _,
-                owner,
-                key: _,
-                arguments,
-            } => {
-                variables.extend(owner.referenced_variables(state));
-                variables.extend(
-                    arguments
-                        .iter()
-                        .flat_map(|argument| argument.referenced_variables(state)),
-                );
-            }
-            Self::Union { elements } => {
-                variables.extend(
-                    elements
-                        .iter()
-                        .flat_map(|element| element.referenced_variables(state)),
-                );
-            }
-            Self::Layout(layout) => variables.extend(layout.referenced_variables(state)),
-            Self::Intrinsic { item: _, arguments } => {
-                variables.extend(
-                    arguments
-                        .iter()
-                        .flat_map(|argument| argument.referenced_variables(state)),
-                );
-            }
-            Self::Equal { left, right, .. } => {
-                variables.extend(left.referenced_variables(state));
-                variables.extend(right.referenced_variables(state));
-            }
-            Self::TypeRelation {
-                relation: _,
-                left,
-                right,
-            } => {
-                variables.extend(left.referenced_variables(state));
-                variables.extend(right.referenced_variables(state));
-            }
-            Self::Conditional {
-                condition,
-                then_value,
-                else_value,
-            } => {
-                variables.extend(condition.referenced_variables(state));
-                variables.extend(then_value.referenced_variables(state));
-                variables.extend(else_value.referenced_variables(state));
-            }
-            Self::Literal(_) | Self::Parameter(_) | Self::Expression(_) | Self::Static(_) => {}
-        }
-
-        variables
+    ) -> SmallVec<[Dependency; 2]> {
+        DependencyCollector::from_static_term(state, self)
     }
 
-    /// Substitute generic arguments through one static term.
-    pub(in crate::check) fn substitute(
+    /// Return whether this term can be affected by one substitution.
+    pub(in crate::check) fn needs_substitution(
         &self,
-        module: ModuleId,
         substitution: &SubstitutionSet,
-        state: &mut CheckState<'_>,
-    ) -> CompilerResult<StaticTerm> {
-        let term = match self {
-            StaticTerm::Expression(expression) => {
-                if let Some(term) = state.static_expression_term(expression.clone())? {
-                    term.substitute(module, substitution, state)?
-                } else {
-                    self.clone()
-                }
-            }
-            StaticTerm::Union { elements } => {
-                let mut substituted = Vec::with_capacity(elements.len());
-
-                for element in elements {
-                    substituted.push(state.substitute_static_operand(
-                        module,
-                        substitution,
-                        *element,
-                    )?);
-                }
-
-                StaticTerm::Union {
-                    elements: substituted,
-                }
-            }
-            StaticTerm::Layout(layout) => {
-                StaticTerm::Layout(layout.substitute(module, substitution, state)?)
-            }
-            StaticTerm::Member {
-                source,
-                owner,
-                key,
-                arguments,
-            } => StaticTerm::Member {
-                source: *source,
-                owner: state.substitute_type_operand(module, substitution, *owner)?,
-                key: *key,
-                arguments: state
-                    .substitute_arguments(module, substitution, arguments)?
-                    .into_vec(),
-            },
-            StaticTerm::Intrinsic { item, arguments } => StaticTerm::Intrinsic {
-                item: *item,
-                arguments: state
-                    .substitute_arguments(module, substitution, arguments)?
-                    .into_vec(),
-            },
-            StaticTerm::Equal {
-                left,
-                right,
-                is_negated,
-            } => StaticTerm::Equal {
-                left: state.substitute_static_operand(module, substitution, *left)?,
-                right: state.substitute_static_operand(module, substitution, *right)?,
-                is_negated: *is_negated,
-            },
-            StaticTerm::TypeRelation {
-                relation,
-                left,
-                right,
-            } => StaticTerm::TypeRelation {
-                relation: *relation,
-                left: state.substitute_type_operand(module, substitution, *left)?,
-                right: state.substitute_type_operand(module, substitution, *right)?,
-            },
-            StaticTerm::Conditional {
-                condition,
-                then_value,
-                else_value,
-            } => StaticTerm::Conditional {
-                condition: state.substitute_static_operand(module, substitution, *condition)?,
-                then_value: state.substitute_static_operand(module, substitution, *then_value)?,
-                else_value: state.substitute_static_operand(module, substitution, *else_value)?,
-            },
-            StaticTerm::Parameter(slot) => {
-                if let Some(argument) = state.substitution_static_operand(substitution, *slot)
-                    && let Some(term) = state.static_operand_term(argument)?
-                {
-                    term
-                } else {
-                    self.clone()
-                }
-            }
-            StaticTerm::Literal(_) | StaticTerm::Static(_) => self.clone(),
+        state: &CheckState<'_>,
+    ) -> CompilerResult<bool> {
+        let needs_substitution = match self {
+            Self::Parameter(parameter) => state
+                .substitution_static_operand(substitution, *parameter)
+                .is_some(),
+            Self::Literal(_) | Self::Static(_) => false,
+            Self::Expression(_)
+            | Self::Member { .. }
+            | Self::Layout(_)
+            | Self::Intrinsic { .. }
+            | Self::Equal { .. }
+            | Self::TypeRelation { .. }
+            | Self::Conditional { .. }
+            | Self::Union { .. } => true,
         };
 
-        Ok(term)
+        Ok(needs_substitution)
+    }
+
+    /// Return the direct operand replacement for this term.
+    pub(in crate::check) fn direct_substitution(
+        &self,
+        substitution: &SubstitutionSet,
+        state: &CheckState<'_>,
+    ) -> Option<StaticOperand> {
+        let Self::Parameter(parameter) = self else {
+            return None;
+        };
+
+        state.substitution_static_operand(substitution, *parameter)
     }
 }
 
 impl CheckState<'_> {
+    /// Return one term id for a resolved static operand.
+    pub(in crate::check) fn static_operand_term_id(
+        &mut self,
+        operand: StaticOperand,
+    ) -> Option<TermId<StaticTerm>> {
+        let operand = self.resolved_static_operand(operand)?;
+
+        match operand {
+            StaticOperand::Term(term) => Some(term),
+            StaticOperand::Static(value) => {
+                let term = self.inference.push_term(StaticTerm::Static(value));
+
+                Some(term)
+            }
+            StaticOperand::Variable(_) => None,
+        }
+    }
+
     /// Decide one static term relation.
     pub(in crate::check) fn decide_static_term_relation(
         &self,
         relation: StaticRelation,
         left: &StaticTerm,
         right: &StaticTerm,
-    ) -> CompilerResult<Decision> {
+    ) -> CompilerResult<Answer<bool>> {
         let decision = match relation {
             StaticRelation::Equal => self.decide_static_equal(left, right)?,
             StaticRelation::Assignable => self.decide_static_assignable(left, right)?,
@@ -299,188 +205,281 @@ impl CheckState<'_> {
         relation: StaticRelation,
         left: impl Into<StaticOperand>,
         right: impl Into<StaticOperand>,
-    ) -> CompilerResult<Decision> {
-        let left = match left.into() {
-            StaticOperand::Variable(variable) => {
-                let Some(term) = self.static_solution(variable)? else {
-                    return Ok(Decision::Undecidable);
-                };
-
-                term
-            }
-            StaticOperand::Term(term) => self.inference.term(term).clone(),
-            StaticOperand::Static(value) => StaticTerm::Static(value),
+    ) -> CompilerResult<Answer<bool>> {
+        let left = left.into();
+        let right = right.into();
+        let Some(left) = self.resolved_static_operand(left) else {
+            return Ok(Answer::pending(left.dependencies(self)));
         };
-        let right = match right.into() {
-            StaticOperand::Variable(variable) => {
-                let Some(term) = self.static_solution(variable)? else {
-                    return Ok(Decision::Undecidable);
-                };
-
-                term
-            }
-            StaticOperand::Term(term) => self.inference.term(term).clone(),
-            StaticOperand::Static(value) => StaticTerm::Static(value),
+        let Some(right) = self.resolved_static_operand(right) else {
+            return Ok(Answer::pending(right.dependencies(self)));
         };
 
-        self.decide_static_term_relation(relation, &left, &right)
+        match (left, right) {
+            (StaticOperand::Term(left), StaticOperand::Term(right)) => {
+                let left = self.inference.term(left);
+                let right = self.inference.term(right);
+
+                self.decide_static_term_relation(relation, left, right)
+            }
+            (StaticOperand::Term(left), StaticOperand::Static(right)) => {
+                let left = self.inference.term(left);
+                let right = StaticTerm::Static(right);
+
+                self.decide_static_term_relation(relation, left, &right)
+            }
+            (StaticOperand::Static(left), StaticOperand::Term(right)) => {
+                let left = StaticTerm::Static(left);
+                let right = self.inference.term(right);
+
+                self.decide_static_term_relation(relation, &left, right)
+            }
+            (StaticOperand::Static(left), StaticOperand::Static(right)) => {
+                let left = StaticTerm::Static(left);
+                let right = StaticTerm::Static(right);
+
+                self.decide_static_term_relation(relation, &left, &right)
+            }
+            (StaticOperand::Variable(variable), _) | (_, StaticOperand::Variable(variable)) => {
+                Ok(Answer::pending([Dependency::Variable(variable)]))
+            }
+        }
     }
 
-    /// Reduce one static term when the solver has enough input.
+    /// Constrain one static value by its declared type.
+    pub(in crate::check) fn constrain_static_value_type(
+        &mut self,
+        origin: Origin,
+        value: StaticOperand,
+        ty: TypeOperand,
+    ) -> CompilerResult<()> {
+        let Answer::Ready(value_ty) = self.static_value_type(origin, value)? else {
+            return Ok(());
+        };
+
+        self.constrain_type(
+            origin,
+            TypeRelation::Assignable,
+            value_ty,
+            ty,
+            Condition::Always,
+        );
+
+        Ok(())
+    }
+
+    /// Decide whether one static value has one declared type.
+    pub(in crate::check) fn decide_static_value_type(
+        &mut self,
+        origin: Origin,
+        value: StaticOperand,
+        ty: TypeOperand,
+    ) -> CompilerResult<Answer<bool>> {
+        let Answer::Ready(value_ty) = self.static_value_type(origin, value)? else {
+            return Ok(Answer::pending(value.dependencies(self)));
+        };
+        let Answer::Ready(value_ty) = self.reduce_type_operand(origin, value_ty)? else {
+            return Ok(Answer::pending(value_ty.dependencies(self)));
+        };
+        let Answer::Ready(ty) = self.reduce_type_operand(origin, ty)? else {
+            return Ok(Answer::pending(ty.dependencies(self)));
+        };
+
+        self.decide_type_relation(TypeRelation::Assignable, value_ty, ty)
+    }
+
+    /// Return the type of one static value when it is known.
+    fn static_value_type(
+        &mut self,
+        origin: Origin,
+        value: StaticOperand,
+    ) -> CompilerResult<Answer<TypeOperand>> {
+        let module = origin.module();
+        let Answer::Ready(value) = self.reduce_static_operand(origin, value)? else {
+            return Ok(Answer::pending(value.dependencies(self)));
+        };
+
+        // use the declared value type of static generic parameters
+        if let StaticOperand::Term(term) = value
+            && let StaticTerm::Parameter(parameter) = self.inference.term(term)
+        {
+            let generic = self.inference.generic_parameter_binding(*parameter)?;
+            let Some(ty) = generic.static_ty() else {
+                return Err(CompilerError::Internal {
+                    message: "static parameter term references a type generic parameter"
+                        .to_string(),
+                });
+            };
+
+            return Ok(Answer::Ready(ty));
+        }
+
+        // otherwise reduce the concrete static value to its singleton type
+        let Answer::Ready(ty) = self.reduce_static_value_term(module, value)? else {
+            return Ok(Answer::pending(value.dependencies(self)));
+        };
+        let ty = self.inference.push_term(ty);
+
+        Ok(Answer::Ready(ty.into()))
+    }
+
+    /// Reduce one static operand when the solver has enough input.
+    pub(in crate::check) fn reduce_static_operand(
+        &mut self,
+        origin: Origin,
+        operand: StaticOperand,
+    ) -> CompilerResult<Answer<StaticOperand>> {
+        let Some(operand) = self.resolved_static_operand(operand) else {
+            return Ok(Answer::pending(operand.dependencies(self)));
+        };
+
+        match operand {
+            StaticOperand::Term(term) => self.reduce_static_term(origin, term),
+            StaticOperand::Static(_) => Ok(Answer::Ready(operand)),
+            StaticOperand::Variable(variable) => {
+                Ok(Answer::pending([Dependency::Variable(variable)]))
+            }
+        }
+    }
+
+    /// Reduce one static term id when the solver has enough input.
     pub(in crate::check) fn reduce_static_term(
         &mut self,
         origin: Origin,
-        term: &StaticTerm,
-    ) -> CompilerResult<Option<StaticTerm>> {
+        term: TermId<StaticTerm>,
+    ) -> CompilerResult<Answer<StaticOperand>> {
         let module = origin.module();
-        let term = match term {
-            StaticTerm::Parameter(_) | StaticTerm::Static(_) => term.clone(),
-            StaticTerm::Expression(expression) => {
-                let Some(term) = self.static_expression_term(expression.clone())? else {
-                    return Ok(None);
-                };
 
-                let Some(term) = self.reduce_static_term(origin, &term)? else {
-                    return Ok(None);
+        match self.inference.term(term) {
+            &StaticTerm::Parameter(_) | &StaticTerm::Literal(_) => Ok(Answer::Ready(term.into())),
+            &StaticTerm::Static(value) => Ok(Answer::Ready(StaticOperand::Static(value))),
+            &StaticTerm::Expression(expression) => {
+                let Some(value) = self.static_expression_term(expression)? else {
+                    return Ok(Answer::pending(
+                        StaticOperand::Term(term).dependencies(self),
+                    ));
                 };
+                let value = self.inference.push_term(value);
 
-                term
+                self.reduce_static_term(origin, value)
             }
-            StaticTerm::Member {
+            &StaticTerm::Member {
                 source: _,
                 owner,
                 key,
-                arguments,
-            } => {
-                if !arguments.is_empty() {
-                    return Ok(None);
-                }
-                let Some(owner) = self.reduce_type_operand(origin, *owner)? else {
-                    return Ok(None);
+                ref arguments,
+            } if arguments.is_empty() => {
+                let Answer::Ready(owner) = self.reduce_type_operand(origin, owner)? else {
+                    return Ok(Answer::pending(owner.dependencies(self)));
                 };
-                let Some(owner) = self.type_operand_term(owner)? else {
-                    return Ok(None);
+                let Some(owner) = self.resolved_type_operand(owner) else {
+                    return Ok(Answer::pending(owner.dependencies(self)));
                 };
-                let Some(term) = self.member_static_term(module, &owner, key)? else {
-                    return Ok(None);
+                let Some(value) = self.member_static_operand(module, owner, key)? else {
+                    return Ok(Answer::pending(owner.dependencies(self)));
                 };
 
-                let Some(term) = self.reduce_static_term(origin, &term)? else {
-                    return Ok(None);
-                };
-
-                term
+                self.reduce_static_operand(origin, value)
             }
-            StaticTerm::Union { elements } => {
-                let Some(term) = self.reduce_static_union(origin, elements)? else {
-                    return Ok(None);
+            StaticTerm::Member { .. } => Err(CompilerError::Internal {
+                message: "static member term with arguments cannot be reduced".into(),
+            }),
+            StaticTerm::Union { elements: _ } => self.reduce_static_union(origin, term),
+            &StaticTerm::Layout(layout) => {
+                let Answer::Ready(value) = self.reduce_layout_term(module, layout)? else {
+                    return Ok(Answer::pending(
+                        StaticOperand::Term(term).dependencies(self),
+                    ));
                 };
+                let value = self.inference.push_term(StaticTerm::Literal(value));
 
-                term
+                Ok(Answer::Ready(value.into()))
             }
-            StaticTerm::Layout(layout) => {
-                let Some(term) = self.reduce_layout_term(module, layout)? else {
-                    return Ok(None);
+            &StaticTerm::Intrinsic { item, arguments: _ } => {
+                let Some(value) = self.memory_static_value_from_term(module, item, term)? else {
+                    return Ok(Answer::pending(
+                        StaticOperand::Term(term).dependencies(self),
+                    ));
                 };
+                let value = self.inference.push_term(StaticTerm::Literal(value));
 
-                StaticTerm::Literal(term)
+                Ok(Answer::Ready(value.into()))
             }
-            StaticTerm::Intrinsic { item, arguments } => {
-                let Some(term) = self.memory_static_value(module, *item, arguments)? else {
-                    return Ok(None);
-                };
-
-                StaticTerm::Literal(term)
-            }
-            StaticTerm::Equal {
+            &StaticTerm::Equal {
                 left,
                 right,
                 is_negated,
             } => {
-                let Some(left) = self.static_operand_term(*left)? else {
-                    return Ok(None);
+                let Answer::Ready(left) = self.reduce_static_operand(origin, left)? else {
+                    return Ok(Answer::pending(left.dependencies(self)));
                 };
-                let Some(left) = self.reduce_static_term(origin, &left)? else {
-                    return Ok(None);
+                let Answer::Ready(right) = self.reduce_static_operand(origin, right)? else {
+                    return Ok(Answer::pending(right.dependencies(self)));
                 };
-                let Some(right) = self.static_operand_term(*right)? else {
-                    return Ok(None);
-                };
-                let Some(right) = self.reduce_static_term(origin, &right)? else {
-                    return Ok(None);
-                };
-                let decision =
-                    self.decide_static_term_relation(StaticRelation::Equal, &left, &right)?;
+                let decision = self.decide_static_relation(StaticRelation::Equal, left, right)?;
                 let value = match decision {
-                    Decision::Yes => !*is_negated,
-                    Decision::No => *is_negated,
-                    Decision::Undecidable => return Ok(None),
+                    Answer::Ready(true) => !is_negated,
+                    Answer::Ready(false) => is_negated,
+                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
                 };
+                let value =
+                    self.inference
+                        .push_term(StaticTerm::Literal(dir::StaticTerm::ScalarLiteral {
+                            value: dir::ScalarLiteral::Boolean(value),
+                        }));
 
-                StaticTerm::Literal(dir::StaticTerm::ScalarLiteral {
-                    value: dir::ScalarLiteral::Boolean(value),
-                })
+                Ok(Answer::Ready(value.into()))
             }
-            StaticTerm::TypeRelation {
+            &StaticTerm::TypeRelation {
                 relation,
                 left,
                 right,
             } => {
-                let decision = self.decide_type_relation(*relation, *left, *right)?;
+                let decision = self.decide_type_relation(relation, left, right)?;
                 let value = match decision {
-                    Decision::Yes => true,
-                    Decision::No => false,
-                    Decision::Undecidable => return Ok(None),
+                    Answer::Ready(value) => value,
+                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
                 };
+                let value =
+                    self.inference
+                        .push_term(StaticTerm::Literal(dir::StaticTerm::ScalarLiteral {
+                            value: dir::ScalarLiteral::Boolean(value),
+                        }));
 
-                StaticTerm::Literal(dir::StaticTerm::ScalarLiteral {
-                    value: dir::ScalarLiteral::Boolean(value),
-                })
+                Ok(Answer::Ready(value.into()))
             }
-            StaticTerm::Conditional {
+            &StaticTerm::Conditional {
                 condition,
                 then_value,
                 else_value,
             } => {
-                let Some(condition) = self.static_operand_term(*condition)? else {
-                    return Ok(None);
-                };
-                let Some(condition) = self.reduce_static_term(origin, &condition)? else {
-                    return Ok(None);
+                let Answer::Ready(condition) = self.reduce_static_operand(origin, condition)?
+                else {
+                    return Ok(Answer::pending(condition.dependencies(self)));
                 };
 
-                match condition {
-                    StaticTerm::Literal(dir::StaticTerm::ScalarLiteral {
-                        value: dir::ScalarLiteral::Boolean(true),
-                    }) => {
-                        let Some(then_value) = self.static_operand_term(*then_value)? else {
-                            return Ok(None);
-                        };
-                        let Some(term) = self.reduce_static_term(origin, &then_value)? else {
-                            return Ok(None);
-                        };
-
-                        term
-                    }
-                    StaticTerm::Literal(dir::StaticTerm::ScalarLiteral {
-                        value: dir::ScalarLiteral::Boolean(false),
-                    }) => {
-                        let Some(else_value) = self.static_operand_term(*else_value)? else {
-                            return Ok(None);
-                        };
-                        let Some(term) = self.reduce_static_term(origin, &else_value)? else {
-                            return Ok(None);
-                        };
-
-                        term
-                    }
-                    _ => return Ok(None),
+                match self.static_operand_boolean(condition) {
+                    Some(true) => self.reduce_static_operand(origin, then_value),
+                    Some(false) => self.reduce_static_operand(origin, else_value),
+                    None => Err(CompilerError::Internal {
+                        message: "static conditional condition is not boolean".into(),
+                    }),
                 }
             }
-            StaticTerm::Literal(_) => term.clone(),
-        };
+        }
+    }
 
-        Ok(Some(term))
+    /// Return one static boolean operand value.
+    pub(in crate::check) fn static_operand_boolean(&self, operand: StaticOperand) -> Option<bool> {
+        match operand {
+            StaticOperand::Term(term) => match self.inference.term(term) {
+                StaticTerm::Literal(dir::StaticTerm::ScalarLiteral {
+                    value: dir::ScalarLiteral::Boolean(value),
+                }) => Some(*value),
+                _ => None,
+            },
+            StaticOperand::Static(_) | StaticOperand::Variable(_) => None,
+        }
     }
 
     /// Decide exact static equality.
@@ -488,22 +487,23 @@ impl CheckState<'_> {
         &self,
         left: &StaticTerm,
         right: &StaticTerm,
-    ) -> CompilerResult<Decision> {
+    ) -> CompilerResult<Answer<bool>> {
         if left == right {
-            return Ok(Decision::Yes);
+            return Ok(Answer::Ready(true));
         }
 
         let decision = match (left, right) {
             (StaticTerm::Literal(left), StaticTerm::Literal(right)) => {
                 if left == right {
-                    Decision::Yes
+                    Answer::Ready(true)
                 } else {
-                    Decision::No
+                    Answer::Ready(false)
                 }
             }
-            (StaticTerm::Static(_), _) | (_, StaticTerm::Static(_)) => Decision::Undecidable,
             (StaticTerm::Parameter(_), _)
             | (_, StaticTerm::Parameter(_))
+            | (StaticTerm::Static(_), _)
+            | (_, StaticTerm::Static(_))
             | (StaticTerm::Expression(_), _)
             | (_, StaticTerm::Expression(_))
             | (StaticTerm::Member { .. }, _)
@@ -519,7 +519,7 @@ impl CheckState<'_> {
             | (StaticTerm::TypeRelation { .. }, _)
             | (_, StaticTerm::TypeRelation { .. })
             | (StaticTerm::Conditional { .. }, _)
-            | (_, StaticTerm::Conditional { .. }) => Decision::Undecidable,
+            | (_, StaticTerm::Conditional { .. }) => self.unresolved_static_relation(left, right),
         };
 
         Ok(decision)
@@ -530,9 +530,9 @@ impl CheckState<'_> {
         &self,
         source: &StaticTerm,
         target: &StaticTerm,
-    ) -> CompilerResult<Decision> {
-        if self.decide_static_equal(source, target)? == Decision::Yes {
-            return Ok(Decision::Yes);
+    ) -> CompilerResult<Answer<bool>> {
+        if self.decide_static_equal(source, target)? == Answer::Ready(true) {
+            return Ok(Answer::Ready(true));
         }
 
         let decision = match (source, target) {
@@ -540,6 +540,10 @@ impl CheckState<'_> {
                 StaticTerm::Literal(dir::StaticTerm::Access { access: source }),
                 StaticTerm::Literal(dir::StaticTerm::Access { access: target }),
             ) => self.decide_access_term_assignable(*source, *target),
+            (
+                StaticTerm::Parameter(parameter),
+                StaticTerm::Literal(dir::StaticTerm::Access { access: target }),
+            ) => self.decide_access_parameter_assignable(*parameter, *target)?,
             (
                 StaticTerm::Literal(dir::StaticTerm::Lifetime { lifetime: source }),
                 StaticTerm::Literal(dir::StaticTerm::Lifetime { lifetime: target }),
@@ -550,10 +554,11 @@ impl CheckState<'_> {
             (source, StaticTerm::Union { elements }) => {
                 self.decide_static_term_assignable_to_union(source, elements)?
             }
-            (StaticTerm::Literal(_), StaticTerm::Literal(_)) => Decision::No,
-            (StaticTerm::Static(_), _) | (_, StaticTerm::Static(_)) => Decision::Undecidable,
+            (StaticTerm::Literal(_), StaticTerm::Literal(_)) => Answer::Ready(false),
             (StaticTerm::Parameter(_), _)
             | (_, StaticTerm::Parameter(_))
+            | (StaticTerm::Static(_), _)
+            | (_, StaticTerm::Static(_))
             | (StaticTerm::Expression(_), _)
             | (_, StaticTerm::Expression(_))
             | (StaticTerm::Member { .. }, _)
@@ -567,7 +572,9 @@ impl CheckState<'_> {
             | (StaticTerm::TypeRelation { .. }, _)
             | (_, StaticTerm::TypeRelation { .. })
             | (StaticTerm::Conditional { .. }, _)
-            | (_, StaticTerm::Conditional { .. }) => Decision::Undecidable,
+            | (_, StaticTerm::Conditional { .. }) => {
+                self.unresolved_static_relation(source, target)
+            }
         };
 
         Ok(decision)
@@ -578,29 +585,38 @@ impl CheckState<'_> {
         &self,
         elements: &[StaticOperand],
         target: &StaticTerm,
-    ) -> CompilerResult<Decision> {
-        let mut saw_undecidable = false;
+    ) -> CompilerResult<Answer<bool>> {
+        let mut decision = Answer::Ready(true);
 
         // require every source element to fit the target
         for element in elements {
-            let Some(element) = self.static_operand_term(*element)? else {
-                saw_undecidable = true;
-
+            let Some(element) = self.resolved_static_operand(*element) else {
+                decision = decision.and(Answer::pending(element.dependencies(self)));
                 continue;
             };
+            let element_decision = match element {
+                StaticOperand::Term(term) => {
+                    self.decide_static_assignable(self.inference.term(term), target)?
+                }
+                StaticOperand::Static(value) => {
+                    let element = StaticTerm::Static(value);
 
-            match self.decide_static_assignable(&element, target)? {
-                Decision::Yes => {}
-                Decision::No => return Ok(Decision::No),
-                Decision::Undecidable => saw_undecidable = true,
+                    self.decide_static_assignable(&element, target)?
+                }
+                StaticOperand::Variable(variable) => {
+                    decision = decision.and(Answer::pending([Dependency::Variable(variable)]));
+                    continue;
+                }
+            };
+
+            match element_decision {
+                Answer::Ready(true) => {}
+                Answer::Ready(false) => return Ok(Answer::Ready(false)),
+                pending @ Answer::Pending(_) => decision = decision.and(pending),
             }
         }
 
-        if saw_undecidable {
-            Ok(Decision::Undecidable)
-        } else {
-            Ok(Decision::Yes)
-        }
+        Ok(decision)
     }
 
     /// Decide whether one source is assignable to any static union element.
@@ -608,38 +624,147 @@ impl CheckState<'_> {
         &self,
         source: &StaticTerm,
         elements: &[StaticOperand],
-    ) -> CompilerResult<Decision> {
-        let mut saw_undecidable = false;
+    ) -> CompilerResult<Answer<bool>> {
+        let mut decision = Answer::Ready(false);
 
         // accept when any target element accepts the source
         for element in elements {
-            let Some(element) = self.static_operand_term(*element)? else {
-                saw_undecidable = true;
-
+            let Some(element) = self.resolved_static_operand(*element) else {
+                decision = decision.or(Answer::pending(element.dependencies(self)));
                 continue;
             };
+            let element_decision = match element {
+                StaticOperand::Term(term) => {
+                    self.decide_static_assignable(source, self.inference.term(term))?
+                }
+                StaticOperand::Static(value) => {
+                    let element = StaticTerm::Static(value);
 
-            match self.decide_static_assignable(source, &element)? {
-                Decision::Yes => return Ok(Decision::Yes),
-                Decision::No => {}
-                Decision::Undecidable => saw_undecidable = true,
+                    self.decide_static_assignable(source, &element)?
+                }
+                StaticOperand::Variable(variable) => {
+                    decision = decision.or(Answer::pending([Dependency::Variable(variable)]));
+                    continue;
+                }
+            };
+
+            match element_decision {
+                Answer::Ready(true) => return Ok(Answer::Ready(true)),
+                Answer::Ready(false) => {}
+                pending @ Answer::Pending(_) => decision = decision.or(pending),
             }
         }
 
-        if saw_undecidable {
-            Ok(Decision::Undecidable)
-        } else {
-            Ok(Decision::No)
-        }
+        Ok(decision)
     }
 
     /// Decide access capability assignability.
-    fn decide_access_term_assignable(&self, source: dir::Access, target: dir::Access) -> Decision {
+    fn decide_access_term_assignable(
+        &self,
+        source: dir::Access,
+        target: dir::Access,
+    ) -> Answer<bool> {
         if Self::access_rank(source) >= Self::access_rank(target) {
-            Decision::Yes
+            Answer::Ready(true)
         } else {
-            Decision::No
+            Answer::Ready(false)
         }
+    }
+
+    /// Decide whether one access parameter is assignable to one access literal.
+    fn decide_access_parameter_assignable(
+        &self,
+        parameter: GenericParameterId,
+        target: dir::Access,
+    ) -> CompilerResult<Answer<bool>> {
+        let parameter = self.inference.generic_parameter_binding(parameter)?;
+        let Some(ty) = parameter.static_ty() else {
+            return Err(CompilerError::Internal {
+                message: "access parameter relation received a type generic parameter".to_string(),
+            });
+        };
+
+        // non-access static parameters cannot satisfy access literals
+        if !self.type_operand_references_language_item(ty, dir::LanguageItem::Access)? {
+            return Ok(Answer::Ready(false));
+        }
+
+        // every access mode can be read
+        if target == dir::Access::Readonly {
+            Ok(Answer::Ready(true))
+        } else {
+            Ok(Answer::Ready(false))
+        }
+    }
+
+    /// Return a closed or blocked answer for unreduced static terms.
+    fn unresolved_static_relation(&self, left: &StaticTerm, right: &StaticTerm) -> Answer<bool> {
+        let dependencies = left
+            .dependencies(self)
+            .into_iter()
+            .chain(right.dependencies(self))
+            .collect::<SmallVec<[_; 2]>>();
+
+        if dependencies.is_empty() {
+            Answer::Ready(false)
+        } else {
+            Answer::pending(dependencies)
+        }
+    }
+
+    /// Return whether one type operand is a reference to one language item.
+    fn type_operand_references_language_item(
+        &self,
+        operand: TypeOperand,
+        item: dir::LanguageItem,
+    ) -> CompilerResult<bool> {
+        let references_item = match operand {
+            TypeOperand::Variable(variable) => {
+                let Some(operand) = self.resolved_type_variable(variable) else {
+                    return Ok(false);
+                };
+
+                match operand {
+                    TypeOperand::Term(term) => {
+                        let term = self.inference.term(term);
+
+                        self.type_term_references_language_item(term, item)
+                    }
+                    TypeOperand::Type(ty) => self.committed_type_references_language_item(ty, item),
+                    TypeOperand::Variable(_) => false,
+                }
+            }
+            TypeOperand::Term(term) => {
+                let term = self.inference.term(term);
+
+                self.type_term_references_language_item(term, item)
+            }
+            TypeOperand::Type(ty) => self.committed_type_references_language_item(ty, item),
+        };
+
+        Ok(references_item)
+    }
+
+    /// Return whether one type term is a reference to one language item.
+    fn type_term_references_language_item(&self, term: &TypeTerm, item: dir::LanguageItem) -> bool {
+        match term {
+            TypeTerm::Reference { symbol, .. } => self.is_language_symbol(*symbol, item),
+            TypeTerm::Type(ty) => self.committed_type_references_language_item(*ty, item),
+            _ => false,
+        }
+    }
+
+    /// Return whether one committed type is a reference to one language item.
+    fn committed_type_references_language_item(
+        &self,
+        ty: dir::GlobalTypeId,
+        item: dir::LanguageItem,
+    ) -> bool {
+        let dir::Type::Reference(reference) = self.r#type(ty) else {
+            return false;
+        };
+
+        self.is_language_symbol(reference.symbol, item)
     }
 
     /// Return the access value represented by one static term.
@@ -650,22 +775,38 @@ impl CheckState<'_> {
         }
     }
 
+    /// Return the access value represented by one static operand.
+    fn static_operand_access(&self, operand: StaticOperand) -> Option<dir::Access> {
+        match operand {
+            StaticOperand::Term(term) => self.static_access(self.inference.term(term)),
+            StaticOperand::Static(_) | StaticOperand::Variable(_) => None,
+        }
+    }
+
     /// Decide lifetime assignability.
     fn decide_lifetime_term_assignable(
         &self,
         source: &dir::Lifetime,
         target: &dir::Lifetime,
-    ) -> Decision {
+    ) -> Answer<bool> {
         if source == target || matches!(source, dir::Lifetime::Static) {
-            Decision::Yes
+            Answer::Ready(true)
         } else {
-            Decision::No
+            Answer::Ready(false)
         }
     }
 
     /// Return whether one static term is a lifetime value.
     fn static_is_lifetime(&self, term: &StaticTerm) -> bool {
         matches!(term, StaticTerm::Literal(dir::StaticTerm::Lifetime { .. }))
+    }
+
+    /// Return whether one static operand is a lifetime value.
+    fn static_operand_is_lifetime(&self, operand: StaticOperand) -> bool {
+        match operand {
+            StaticOperand::Term(term) => self.static_is_lifetime(self.inference.term(term)),
+            StaticOperand::Static(_) | StaticOperand::Variable(_) => false,
+        }
     }
 
     /// Return one access capability rank.
@@ -677,33 +818,33 @@ impl CheckState<'_> {
         }
     }
 
-    /// Reduce static bounds to a solved static term when the static domain can decide them.
-    pub(in crate::check) fn reduce_static_bounds(
-        &self,
+    /// Return a solved static term when the static domain can decide the bounds.
+    pub(in crate::check) fn static_bound_solution(
+        &mut self,
         lower_bounds: &[StaticOperand],
         upper_bounds: &[StaticOperand],
-        lower_terms: &[StaticTerm],
-        upper_terms: &[StaticTerm],
-    ) -> Option<StaticTerm> {
-        if let Some(term) = self.reduce_access_bounds(lower_terms, upper_terms) {
-            return Some(term);
+        lower_operands: &[StaticOperand],
+        upper_operands: &[StaticOperand],
+    ) -> Option<StaticOperand> {
+        if let Some(operand) = self.access_bound_solution(lower_operands, upper_operands) {
+            return Some(operand);
         }
-        if let Some(term) =
-            self.reduce_lifetime_bounds(lower_bounds, upper_bounds, lower_terms, upper_terms)
+        if let Some(operand) =
+            self.lifetime_bound_solution(lower_bounds, upper_bounds, lower_operands, upper_operands)
         {
-            return Some(term);
+            return Some(operand);
         }
 
-        Self::single_static_bound_term(lower_terms)
+        Self::single_static_bound_operand(lower_operands)
     }
 
-    /// Reduce access bounds to the least valid access solution.
-    fn reduce_access_bounds(
-        &self,
-        lower_terms: &[StaticTerm],
-        upper_terms: &[StaticTerm],
-    ) -> Option<StaticTerm> {
-        if lower_terms.is_empty() && upper_terms.is_empty() {
+    /// Return the least valid access solution for solved access bounds.
+    fn access_bound_solution(
+        &mut self,
+        lower_operands: &[StaticOperand],
+        upper_operands: &[StaticOperand],
+    ) -> Option<StaticOperand> {
+        if lower_operands.is_empty() && upper_operands.is_empty() {
             return None;
         }
         let mut lower_access = dir::Access::Readonly;
@@ -711,15 +852,15 @@ impl CheckState<'_> {
         let mut saw_access = false;
 
         // collect minimum required access
-        for term in lower_terms {
-            let access = self.static_access(term)?;
+        for operand in lower_operands {
+            let access = self.static_operand_access(*operand)?;
             lower_access = Self::stricter_access(lower_access, access);
             saw_access = true;
         }
 
         // collect maximum allowed access
-        for term in upper_terms {
-            let access = self.static_access(term)?;
+        for operand in upper_operands {
+            let access = self.static_operand_access(*operand)?;
             upper_access = Self::weaker_access(upper_access, access);
             saw_access = true;
         }
@@ -728,38 +869,46 @@ impl CheckState<'_> {
         }
 
         // preserve exact source access when inference only has an upper bound
-        let access = if lower_terms.is_empty() {
+        let access = if lower_operands.is_empty() {
             upper_access
         } else {
             lower_access
         };
 
-        Some(StaticTerm::Literal(dir::StaticTerm::Access { access }))
+        let term = self
+            .inference
+            .push_term(StaticTerm::Literal(dir::StaticTerm::Access { access }));
+
+        Some(term.into())
     }
 
-    /// Reduce lifetime bounds to an exact or joined lifetime solution.
-    fn reduce_lifetime_bounds(
-        &self,
+    /// Return an exact or joined lifetime solution for solved lifetime bounds.
+    fn lifetime_bound_solution(
+        &mut self,
         lower_bounds: &[StaticOperand],
         upper_bounds: &[StaticOperand],
-        lower_terms: &[StaticTerm],
-        upper_terms: &[StaticTerm],
-    ) -> Option<StaticTerm> {
-        if !lower_terms.iter().all(|term| self.static_is_lifetime(term))
-            || !upper_terms.iter().all(|term| self.static_is_lifetime(term))
+        lower_operands: &[StaticOperand],
+        upper_operands: &[StaticOperand],
+    ) -> Option<StaticOperand> {
+        if !lower_operands
+            .iter()
+            .all(|operand| self.static_operand_is_lifetime(*operand))
+            || !upper_operands
+                .iter()
+                .all(|operand| self.static_operand_is_lifetime(*operand))
         {
             return None;
         }
-        if let Some(term) = Self::single_static_bound_term(lower_terms) {
-            return Some(term);
+        if let Some(operand) = Self::single_static_bound_operand(lower_operands) {
+            return Some(operand);
         }
 
         // preserve exact source lifetime when inference only has one upper bound
         if lower_bounds.is_empty()
             && upper_bounds.len() == 1
-            && let Some(term) = upper_terms.first()
+            && let Some(operand) = upper_operands.first()
         {
-            return Some(term.clone());
+            return Some(*operand);
         }
 
         // join source lifetimes for inferred result lifetimes
@@ -775,9 +924,11 @@ impl CheckState<'_> {
                 }
             }
 
-            return Some(StaticTerm::Union {
+            let term = self.inference.push_term(StaticTerm::Union {
                 elements: elements.into_iter().map(StaticOperand::from).collect(),
             });
+
+            return Some(term.into());
         }
 
         None
@@ -801,56 +952,91 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return the single equivalent static bound term.
-    fn single_static_bound_term(terms: &[StaticTerm]) -> Option<StaticTerm> {
-        let first = terms.first()?;
+    /// Return the single equivalent static bound operand.
+    fn single_static_bound_operand(operands: &[StaticOperand]) -> Option<StaticOperand> {
+        let first = *operands.first()?;
 
-        for term in terms.iter().skip(1) {
-            if term != first {
+        for operand in operands.iter().skip(1) {
+            if *operand != first {
                 return None;
             }
         }
 
-        Some(first.clone())
+        Some(first)
     }
 
     /// Reduce one static union.
     fn reduce_static_union(
         &mut self,
         origin: Origin,
-        elements: &[StaticOperand],
-    ) -> CompilerResult<Option<StaticTerm>> {
-        if elements.is_empty() {
-            return Ok(None);
+        term: TermId<StaticTerm>,
+    ) -> CompilerResult<Answer<StaticOperand>> {
+        let Some(len) = self.static_union_len(term) else {
+            return Err(CompilerError::Internal {
+                message: "static union reducer received a non-union term".into(),
+            });
+        };
+        if len == 0 {
+            return Err(CompilerError::Internal {
+                message: "static union has no elements".into(),
+            });
         }
-        let mut reduced = Vec::with_capacity(elements.len());
+        let mut reduced = Vec::with_capacity(len);
 
-        for element in elements {
-            let Some(term) = self.static_operand_term(*element)? else {
-                return Ok(None);
+        // reduce each element without owning the stored element list
+        for index in 0..len {
+            let Some(element) = self.static_union_element(term, index) else {
+                return Err(CompilerError::Internal {
+                    message: "static union element index is out of range".into(),
+                });
             };
-            let Some(term) = self.reduce_static_term(origin, &term)? else {
-                return Ok(None);
+            let Answer::Ready(element) = self.reduce_static_operand(origin, element)? else {
+                return Ok(Answer::pending(element.dependencies(self)));
             };
 
-            match term {
-                StaticTerm::Union { elements } => reduced.extend(elements),
-                _ => reduced.push(self.inference.push_term(term).into()),
+            match element {
+                StaticOperand::Term(term) => match self.inference.term(term) {
+                    StaticTerm::Union { elements } => reduced.extend(elements.iter().copied()),
+                    _ => reduced.push(element),
+                },
+                StaticOperand::Static(_) => reduced.push(element),
+                StaticOperand::Variable(variable) => {
+                    return Ok(Answer::pending([Dependency::Variable(variable)]));
+                }
             }
         }
 
-        let term = match reduced.as_slice() {
-            [element] => {
-                let Some(term) = self.static_operand_term(*element)? else {
-                    return Ok(None);
-                };
-
-                term
-            }
-            _ => StaticTerm::Union { elements: reduced },
+        let operand = match reduced.as_slice() {
+            [element] => *element,
+            _ => self
+                .inference
+                .push_term(StaticTerm::Union { elements: reduced })
+                .into(),
         };
 
-        Ok(Some(term))
+        Ok(Answer::Ready(operand))
+    }
+
+    /// Return the number of elements in one static union term.
+    fn static_union_len(&self, term: TermId<StaticTerm>) -> Option<usize> {
+        let StaticTerm::Union { elements } = self.inference.term(term) else {
+            return None;
+        };
+
+        Some(elements.len())
+    }
+
+    /// Return one element from a static union term.
+    fn static_union_element(
+        &self,
+        term: TermId<StaticTerm>,
+        index: usize,
+    ) -> Option<StaticOperand> {
+        let StaticTerm::Union { elements } = self.inference.term(term) else {
+            return None;
+        };
+
+        elements.get(index).copied()
     }
 }
 
@@ -887,7 +1073,7 @@ impl CheckState<'_> {
                     source,
                     owner,
                     key: dir::StaticKey::Name(name),
-                    arguments: Vec::new(),
+                    arguments: SmallVec::new(),
                 })
             }
             dir::Expression::Type { value } => self.static_type_expression_term(module, value)?,
@@ -1106,12 +1292,12 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
-        let Some(parameter) = self.inference.symbol_generic_parameter(symbol) else {
+        let Some(parameter) = self.inference.generic_parameter_by_symbol(symbol) else {
             return Ok(None);
         };
         if !self
             .inference
-            .require_generic_parameter(parameter)
+            .generic_parameter_binding(parameter)?
             .is_static()
         {
             return Ok(None);
@@ -1170,11 +1356,8 @@ impl CheckState<'_> {
         let Some(symbol) = self.static_call_symbol(module, left)? else {
             return Ok(None);
         };
-        let query = match self.environment.language.item(symbol) {
-            Some(dir::LanguageItem::SizeOf) => LayoutQuery::Size,
-            Some(dir::LanguageItem::AlignOf) => LayoutQuery::Alignment,
-            Some(dir::LanguageItem::StrideOf) => LayoutQuery::Stride,
-            _ => return Ok(None),
+        let Some(query) = self.layout_query(symbol) else {
+            return Ok(None);
         };
         let Some(target) = self.single_type_generic_argument(module, generic_arguments)? else {
             return Ok(None);
@@ -1239,6 +1422,19 @@ impl CheckState<'_> {
         };
 
         Ok(symbol)
+    }
+
+    /// Return the layout query named by one language symbol.
+    fn layout_query(&self, symbol: dir::GlobalSymbolId) -> Option<LayoutQuery> {
+        if self.is_language_symbol(symbol, dir::LanguageItem::SizeOf) {
+            Some(LayoutQuery::Size)
+        } else if self.is_language_symbol(symbol, dir::LanguageItem::AlignOf) {
+            Some(LayoutQuery::Alignment)
+        } else if self.is_language_symbol(symbol, dir::LanguageItem::StrideOf) {
+            Some(LayoutQuery::Stride)
+        } else {
+            None
+        }
     }
 
     /// Return the one type argument used by a static reflection call.

@@ -23,7 +23,9 @@ impl CheckState<'_> {
         invocation: &DecoratorInvocation,
     ) -> dir::AnnotationTarget {
         let source = invocation.target.into_global_any(module);
-        match self.selected_name(source) {
+        let name = self.inference.name(source);
+
+        match name.map(|resolution| resolution.symbol()) {
             Some(symbol) => match self.environment.language.item(symbol) {
                 Some(item) => dir::AnnotationTarget::LanguageItem(item),
                 None => dir::AnnotationTarget::Symbol(symbol),

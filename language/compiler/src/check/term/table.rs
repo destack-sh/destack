@@ -1,16 +1,16 @@
 use std::fmt::{Debug, Formatter};
+use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 
 use crate::check::{
     AssignPatternTerm, AwaitTerm, CallTerm, ConstructTerm, FormTerm, FunctionTerm, IdentityTerm,
     ImportMetaTerm, IndexSetTerm, IndexTerm, InstanceCheckTerm, KeyMembershipTerm, LayoutTerm,
-    MemberCallTerm, MemberTerm, OperatorTerm, PatternTerm, RangeValueTerm, ReceiverTerm, ShapeTerm,
+    MemberCallTerm, MemberTerm, OperatorTerm, PatternTerm, RangeTerm, ReceiverTerm, ShapeTerm,
     StaticTerm, SuperTerm, TaggedTemplateTerm, TemplateTerm, TreeTerm, TryFailureTerm, TryTerm,
     TypeOperationTerm, TypeTerm, TypeValueTerm, YieldTerm,
 };
 
 /// Typed id for one check term in a component term table.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(in crate::check) struct TermId<T: Term> {
     /// The term index inside its typed arena.
     pub(in crate::check) id: u32,
@@ -24,6 +24,32 @@ impl<T: Term> Clone for TermId<T> {
 }
 
 impl<T: Term> Copy for TermId<T> {}
+
+impl<T: Term> PartialEq for TermId<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl<T: Term> Eq for TermId<T> {}
+
+impl<T: Term> PartialOrd for TermId<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<T: Term> Ord for TermId<T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.id.cmp(&other.id)
+    }
+}
+
+impl<T: Term> Hash for TermId<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
 
 impl<T: Term> TermId<T> {
     /// Create a term id.
@@ -49,16 +75,33 @@ impl<T: Term> Debug for TermId<T> {
 }
 
 /// Term kind stored in a component term table.
-pub(in crate::check) trait Term: Sized {
+pub(in crate::check) trait Term: Sized + PartialEq {
     /// Return this term kind's arena.
     fn arena(table: &TermTable) -> &[Self];
 
     /// Return this term kind's mutable arena.
     fn arena_mut(table: &mut TermTable) -> &mut Vec<Self>;
+
+    /// Push one term and return its id.
+    fn push(table: &mut TermTable, term: Self) -> TermId<Self> {
+        let id = TermId::new(Self::arena(table).len() as u32);
+        Self::arena_mut(table).push(term);
+
+        id
+    }
+
+    /// Truncate this term kind to one arena length.
+    fn truncate(table: &mut TermTable, len: usize) {
+        Self::arena_mut(table).truncate(len);
+    }
 }
 
 macro_rules! define_term_table {
-    ($($field:ident: $term:ty),+ $(,)?) => {
+    (
+        linear {
+            $($field:ident: $term:ty),+ $(,)?
+        }
+    ) => {
         /// Component arena for check terms.
         #[derive(Debug, Default)]
         pub(in crate::check) struct TermTable {
@@ -100,7 +143,7 @@ macro_rules! define_term_table {
             /// Truncate one term table to this cursor.
             fn truncate(self, table: &mut TermTable) {
                 $(
-                    table.$field.truncate(self.$field);
+                    <$term as Term>::truncate(table, self.$field);
                 )+
             }
         }
@@ -125,37 +168,39 @@ macro_rules! define_term_table {
 }
 
 define_term_table! {
-    assign_patterns: AssignPatternTerm,
-    awaits: AwaitTerm,
-    calls: CallTerm,
-    constructs: ConstructTerm,
-    forms: FormTerm,
-    functions: FunctionTerm,
-    identities: IdentityTerm,
-    import_metas: ImportMetaTerm,
-    index_sets: IndexSetTerm,
-    indexes: IndexTerm,
-    instance_checks: InstanceCheckTerm,
-    key_memberships: KeyMembershipTerm,
-    layouts: LayoutTerm,
-    member_calls: MemberCallTerm,
-    members: MemberTerm,
-    operators: OperatorTerm,
-    patterns: PatternTerm,
-    range_values: RangeValueTerm,
-    receivers: ReceiverTerm,
-    shapes: ShapeTerm,
-    statics: StaticTerm,
-    supers: SuperTerm,
-    tagged_templates: TaggedTemplateTerm,
-    templates: TemplateTerm,
-    trees: TreeTerm,
-    try_failures: TryFailureTerm,
-    tries: TryTerm,
-    type_operations: TypeOperationTerm,
-    type_values: TypeValueTerm,
-    types: TypeTerm,
-    yields: YieldTerm,
+    linear {
+        assign_patterns: AssignPatternTerm,
+        awaits: AwaitTerm,
+        calls: CallTerm,
+        constructs: ConstructTerm,
+        forms: FormTerm,
+        functions: FunctionTerm,
+        identities: IdentityTerm,
+        import_metas: ImportMetaTerm,
+        index_sets: IndexSetTerm,
+        indexes: IndexTerm,
+        instance_checks: InstanceCheckTerm,
+        key_memberships: KeyMembershipTerm,
+        layouts: LayoutTerm,
+        member_calls: MemberCallTerm,
+        members: MemberTerm,
+        operators: OperatorTerm,
+        patterns: PatternTerm,
+        range_values: RangeTerm,
+        receivers: ReceiverTerm,
+        shapes: ShapeTerm,
+        statics: StaticTerm,
+        supers: SuperTerm,
+        tagged_templates: TaggedTemplateTerm,
+        templates: TemplateTerm,
+        trees: TreeTerm,
+        try_failures: TryFailureTerm,
+        tries: TryTerm,
+        types: TypeTerm,
+        type_operations: TypeOperationTerm,
+        type_values: TypeValueTerm,
+        yields: YieldTerm,
+    }
 }
 
 impl TermTable {
@@ -164,14 +209,9 @@ impl TermTable {
         Self::default()
     }
 
-    /// Push one term into its arena.
+    /// Return the id for one term.
     pub(in crate::check) fn push<T: Term>(&mut self, term: T) -> TermId<T> {
-        let arena = T::arena_mut(self);
-        let id = TermId::new(arena.len() as u32);
-
-        arena.push(term);
-
-        id
+        T::push(self, term)
     }
 
     /// Return one term by id.

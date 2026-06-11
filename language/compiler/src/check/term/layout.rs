@@ -2,12 +2,12 @@ use destack_artifact::TargetArch;
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::CompilerResult;
 use crate::check::{
-    CheckState, FormTerm, GenericArgument, LayoutDecision, LayoutFailure, LayoutResolution,
-    RepresentationConstraint, ShapeMember, StaticOperand, StaticTerm, SubstitutionSet, TypeOperand,
-    TypeTerm, VariableId,
+    Answer, CheckState, Definition, FieldDefinition, FormTerm, LayoutDecision, LayoutFailure,
+    LayoutResolution, RepresentationConstraint, ShapeMember, ShapeTerm, StaticOperand, StaticTerm,
+    SubstitutionSet, TermId, TypeOperand, TypeTerm,
 };
+use crate::{CompilerError, CompilerResult};
 
 /// Compile-time query over a concrete type layout.
 ///
@@ -16,7 +16,7 @@ use crate::check::{
 /// alignOf<T>()
 /// strideOf<T>()
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(in crate::check) struct LayoutTerm {
     /// The source layout query expression.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
@@ -65,7 +65,7 @@ pub(in crate::check) enum LayoutQuery {
 /// ```ds
 /// struct Point { x: int32, y: int32 }
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct Layout {
     /// The layout shape.
     pub(in crate::check) shape: LayoutShape,
@@ -184,7 +184,7 @@ impl Layout {
 /// { x: int32, y: int32 }
 /// [int32, int32]
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) enum LayoutShape {
     /// No runtime storage.
     ///
@@ -271,7 +271,7 @@ pub(in crate::check) enum LayoutShape {
 /// ```ds
 /// { x: int32 }
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct StructLayout {
     /// The fields in layout order.
     pub(in crate::check) fields: Vec<LayoutField>,
@@ -283,7 +283,7 @@ pub(in crate::check) struct StructLayout {
 /// ```ds
 /// [int32, int32]
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct TupleLayout {
     /// The tuple elements in layout order.
     pub(in crate::check) elements: Vec<LayoutField>,
@@ -295,7 +295,7 @@ pub(in crate::check) struct TupleLayout {
 /// ```ds
 /// [int32]
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(in crate::check) struct SliceLayout {
     /// The slice element type.
     pub(in crate::check) element: LayoutType,
@@ -307,7 +307,7 @@ pub(in crate::check) struct SliceLayout {
 /// ```ds
 /// [int32; 4]
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(in crate::check) struct ArrayLayout {
     /// The array element type.
     pub(in crate::check) element: LayoutType,
@@ -323,7 +323,7 @@ pub(in crate::check) struct ArrayLayout {
 /// ```ds
 /// Option<int32>
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct VariantLayout {
     /// The tag layout.
     pub(in crate::check) tag: VariantTagLayout,
@@ -340,7 +340,7 @@ pub(in crate::check) struct VariantLayout {
 /// @repr(uint8)
 /// enum Status { Ready, Done }
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(in crate::check) struct VariantTagLayout {
     /// The tag type when it has been materialized.
     pub(in crate::check) ty: Option<LayoutType>,
@@ -356,7 +356,7 @@ pub(in crate::check) struct VariantTagLayout {
 /// ```ds
 /// class Service { value: int32 }
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct ObjectLayout {
     /// The fields in layout order.
     pub(in crate::check) fields: Vec<LayoutField>,
@@ -368,7 +368,7 @@ pub(in crate::check) struct ObjectLayout {
 /// ```ds
 /// newtype UserId = int64
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct NewtypeLayout {
     /// The backing type.
     pub(in crate::check) backing_type: LayoutType,
@@ -383,7 +383,7 @@ pub(in crate::check) struct NewtypeLayout {
 /// { x: int32 }
 /// [int32]
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct LayoutField {
     /// The field key.
     pub(in crate::check) key: Option<dir::StaticKey>,
@@ -406,7 +406,7 @@ pub(in crate::check) struct LayoutField {
 /// Some(value)
 /// None
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct VariantCaseLayout {
     /// The logical case type.
     pub(in crate::check) ty: LayoutType,
@@ -421,7 +421,7 @@ pub(in crate::check) struct VariantCaseLayout {
 /// int32
 /// Box<int32>
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(in crate::check) enum LayoutType {
     /// Check type operand.
     ///
@@ -440,14 +440,6 @@ pub(in crate::check) enum LayoutType {
 }
 
 impl LayoutTerm {
-    /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(
-        &self,
-        state: &CheckState<'_>,
-    ) -> smallvec::SmallVec<[VariableId; 2]> {
-        self.target.referenced_variables(state)
-    }
-
     /// Substitute generic arguments through this layout term.
     pub(in crate::check) fn substitute(
         &self,
@@ -470,11 +462,11 @@ impl CheckState<'_> {
         module: ModuleId,
         operand: TypeOperand,
     ) -> CompilerResult<Option<bool>> {
-        let Some(term) = self.type_operand_term(operand)? else {
+        let Some(term) = self.type_operand_term_id(operand)? else {
             return Ok(None);
         };
         let pointer_bytes = self.target_pointer_bytes()?;
-        let layout = self.type_term_layout(module, &term, pointer_bytes)?;
+        let layout = self.type_term_layout(module, term, pointer_bytes)?;
 
         Ok(Some(layout.is_some()))
     }
@@ -483,34 +475,50 @@ impl CheckState<'_> {
     pub(in crate::check) fn reduce_layout_term(
         &mut self,
         module: ModuleId,
-        term: &LayoutTerm,
-    ) -> CompilerResult<Option<dir::StaticTerm>> {
+        term: LayoutTerm,
+    ) -> CompilerResult<Answer<dir::StaticTerm>> {
         if let Some(decision) = self.inference.layout(term.source) {
             return Ok(match decision {
                 LayoutDecision::Resolved(resolution) => {
-                    term.query.value(&resolution.layout).map(|value| {
-                        dir::StaticTerm::ScalarLiteral {
-                            value: dir::ScalarLiteral::Integer(i64::from(value)),
-                        }
+                    let Some(value) = term.query.value(&resolution.layout) else {
+                        return Err(CompilerError::Internal {
+                            message: format!(
+                                "layout query {:?} has no value for resolved layout",
+                                term.query
+                            ),
+                        });
+                    };
+
+                    Answer::Ready(dir::StaticTerm::ScalarLiteral {
+                        value: dir::ScalarLiteral::Integer(i64::from(value)),
                     })
                 }
-                LayoutDecision::Rejected(_) => None,
+                LayoutDecision::Rejected(_) => {
+                    return Err(CompilerError::Internal {
+                        message: format!("layout query {:?} was rejected", term.query),
+                    });
+                }
             });
         }
 
         let pointer_bytes = self.target_pointer_bytes()?;
         let Some(layout) = self.type_operand_layout(module, term.target, pointer_bytes)? else {
-            return Ok(None);
+            return Ok(Answer::pending(term.target.dependencies(self)));
         };
         let Some(value) = term.query.value(&layout) else {
             self.reject_layout(term)?;
 
-            return Ok(None);
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "layout query {:?} has no value for target layout",
+                    term.query
+                ),
+            });
         };
 
         self.select_layout_resolution(term, layout)?;
 
-        Ok(Some(dir::StaticTerm::ScalarLiteral {
+        Ok(Answer::Ready(dir::StaticTerm::ScalarLiteral {
             value: dir::ScalarLiteral::Integer(i64::from(value)),
         }))
     }
@@ -522,30 +530,30 @@ impl CheckState<'_> {
         operand: TypeOperand,
         pointer_bytes: u32,
     ) -> CompilerResult<Option<Layout>> {
-        let Some(term) = self.type_operand_term(operand)? else {
+        let Some(term) = self.type_operand_term_id(operand)? else {
             return Ok(None);
         };
 
-        self.type_term_layout(module, &term, pointer_bytes)
+        self.type_term_layout(module, term, pointer_bytes)
     }
 
     /// Return a concrete layout for one solved type term.
     fn type_term_layout(
         &mut self,
         module: ModuleId,
-        term: &TypeTerm,
+        term: TermId<TypeTerm>,
         pointer_bytes: u32,
     ) -> CompilerResult<Option<Layout>> {
-        let layout = match term {
+        let layout = match self.inference.term(term) {
             TypeTerm::Literal(atom) => {
                 let ty = atom.to_type();
 
                 self.committed_type_layout(module, &ty, pointer_bytes)?
             }
             TypeTerm::Form { form, payload } => {
-                let form = self.inference.term(*form).clone();
+                let form = *self.inference.term(*form);
 
-                self.form_term_layout(module, &form, LayoutType::Operand(*payload), pointer_bytes)?
+                self.form_term_layout(module, form, LayoutType::Operand(*payload), pointer_bytes)?
             }
             TypeTerm::FixedArray { element, length } => {
                 self.fixed_array_term_layout(module, *element, *length, pointer_bytes)?
@@ -570,23 +578,19 @@ impl CheckState<'_> {
                     pointer_bytes,
                 )?
             }
-            TypeTerm::Shape(shape) => {
-                let members = &self.inference.term(*shape).members;
-                let members = members.clone();
-
-                self.shape_layout(module, &members, pointer_bytes)?
-            }
-            TypeTerm::Union { elements } => {
-                let variants = elements.iter().copied().map(LayoutType::Operand);
-
-                self.variant_layout(module, variants, pointer_bytes)?
+            TypeTerm::Shape(shape) => self.shape_layout(module, *shape, pointer_bytes)?,
+            TypeTerm::Union { elements: _ } => {
+                self.union_term_layout(module, term, pointer_bytes)?
             }
             TypeTerm::Intrinsic => None,
             TypeTerm::Reference {
                 origin: _,
                 symbol,
-                arguments,
-            } => self.nominal_layout(module, *symbol, arguments, pointer_bytes)?,
+                arguments: _,
+            } => {
+                let symbol = *symbol;
+                self.nominal_term_layout(module, term, symbol, pointer_bytes)?
+            }
             TypeTerm::Range { .. } => Some(Layout::scalar(16, 8)),
             TypeTerm::Function(_) => Some(Layout::closure(pointer_bytes)),
             TypeTerm::Closure { .. } => Some(Layout::closure(pointer_bytes)),
@@ -694,7 +698,7 @@ impl CheckState<'_> {
     fn form_term_layout(
         &mut self,
         module: ModuleId,
-        form: &FormTerm,
+        form: FormTerm,
         value: LayoutType,
         pointer_bytes: u32,
     ) -> CompilerResult<Option<Layout>> {
@@ -784,10 +788,13 @@ impl CheckState<'_> {
     fn shape_layout(
         &mut self,
         module: ModuleId,
-        members: &[ShapeMember],
+        shape: TermId<ShapeTerm>,
         pointer_bytes: u32,
     ) -> CompilerResult<Option<Layout>> {
-        let fields = members
+        let fields = self
+            .inference
+            .term(shape)
+            .members
             .iter()
             .filter_map(|member| match member {
                 ShapeMember::Field { key, ty, .. } => Some(LayoutFieldInput {
@@ -808,6 +815,52 @@ impl CheckState<'_> {
             RepresentationConstraint::default(),
             pointer_bytes,
         )
+    }
+
+    /// Return a concrete layout for one union term.
+    fn union_term_layout(
+        &mut self,
+        module: ModuleId,
+        term: TermId<TypeTerm>,
+        pointer_bytes: u32,
+    ) -> CompilerResult<Option<Layout>> {
+        let Some(len) = self.layout_union_term_len(term) else {
+            return Ok(None);
+        };
+        let mut variants = Vec::with_capacity(len);
+
+        // collect operand ids without owning the union element list
+        for index in 0..len {
+            let Some(element) = self.layout_union_term_element(term, index) else {
+                return Ok(None);
+            };
+
+            variants.push(LayoutType::Operand(element));
+        }
+
+        self.variant_layout(module, variants, pointer_bytes)
+    }
+
+    /// Return the number of elements in one union term.
+    fn layout_union_term_len(&self, term: TermId<TypeTerm>) -> Option<usize> {
+        let TypeTerm::Union { elements } = self.inference.term(term) else {
+            return None;
+        };
+
+        Some(elements.len())
+    }
+
+    /// Return one element from a union term.
+    fn layout_union_term_element(
+        &self,
+        term: TermId<TypeTerm>,
+        index: usize,
+    ) -> Option<TypeOperand> {
+        let TypeTerm::Union { elements } = self.inference.term(term) else {
+            return None;
+        };
+
+        elements.get(index).copied()
     }
 
     /// Return an aggregate layout for ordered fields.
@@ -851,6 +904,9 @@ impl CheckState<'_> {
         // build output shape
         let shape = match shape {
             AggregateLayoutShape::Struct => LayoutShape::Struct(StructLayout {
+                fields: layout_fields,
+            }),
+            AggregateLayoutShape::Object => LayoutShape::Object(ObjectLayout {
                 fields: layout_fields,
             }),
             AggregateLayoutShape::Tuple => LayoutShape::Tuple(TupleLayout {
@@ -933,33 +989,40 @@ impl CheckState<'_> {
         }))
     }
 
-    /// Return a concrete layout for one nominal reference.
-    fn nominal_layout(
+    /// Return a concrete layout for one nominal reference term.
+    fn nominal_term_layout(
         &mut self,
         module: ModuleId,
+        term: TermId<TypeTerm>,
         symbol: dir::GlobalSymbolId,
-        arguments: &[GenericArgument],
         pointer_bytes: u32,
     ) -> CompilerResult<Option<Layout>> {
-        if let Some(layout) = self.newtype_layout(module, symbol, arguments, pointer_bytes)? {
-            return Ok(Some(layout));
-        }
+        let Some(layout) = self.newtype_term_layout(module, symbol, term, pointer_bytes)? else {
+            return self.nominal_definition_layout(module, symbol, pointer_bytes);
+        };
 
-        self.struct_layout(module, symbol, pointer_bytes)
+        Ok(Some(layout))
     }
 
-    /// Return a concrete layout for one newtype reference.
-    fn newtype_layout(
+    /// Return a concrete layout for one newtype reference term.
+    fn newtype_term_layout(
         &mut self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
-        arguments: &[GenericArgument],
+        term: TermId<TypeTerm>,
         pointer_bytes: u32,
     ) -> CompilerResult<Option<Layout>> {
-        let Some(value) = self.newtype_backing(module, symbol)? else {
+        let Some(value) =
+            self.definitions
+                .definition(symbol)
+                .and_then(|definition| match definition {
+                    Definition::Newtype(definition) => Some(definition.value),
+                    _ => None,
+                })
+        else {
             return Ok(None);
         };
-        let substitution = self.generic_substitution(symbol, arguments)?;
+        let substitution = self.generic_substitution_for_type_term(symbol, term)?;
         let backing = if substitution.is_empty() {
             value
         } else {
@@ -980,28 +1043,50 @@ impl CheckState<'_> {
         }))
     }
 
-    /// Return a concrete layout for one struct reference.
-    fn struct_layout(
+    /// Return a concrete layout for one definition reference.
+    fn nominal_definition_layout(
         &mut self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
         pointer_bytes: u32,
     ) -> CompilerResult<Option<Layout>> {
-        let Some(fields) = self.nominal_fields(module, symbol)? else {
+        let Some(definition) = self.definitions.definition(symbol) else {
             return Ok(None);
         };
-        let fields = fields.into_iter().map(|(key, ty)| LayoutFieldInput {
-            key: Some(key),
-            ty: LayoutType::Operand(ty),
-        });
+        let (fields, shape) = match definition {
+            Definition::Struct(definition) => {
+                let fields = Self::layout_field_inputs(&definition.fields);
+
+                (fields, AggregateLayoutShape::Struct)
+            }
+            Definition::Class(definition) => {
+                let fields = Self::layout_field_inputs(&definition.fields);
+
+                (fields, AggregateLayoutShape::Object)
+            }
+            _ => {
+                return Ok(None);
+            }
+        };
 
         self.aggregate_layout(
             module,
-            fields,
-            AggregateLayoutShape::Struct,
+            fields.into_iter(),
+            shape,
             RepresentationConstraint::default(),
             pointer_bytes,
         )
+    }
+
+    /// Return layout field inputs in declaration order.
+    fn layout_field_inputs(fields: &[FieldDefinition]) -> Vec<LayoutFieldInput> {
+        fields
+            .iter()
+            .map(|field| LayoutFieldInput {
+                key: Some(field.key),
+                ty: LayoutType::Operand(field.ty),
+            })
+            .collect()
     }
 
     /// Return one committed static value as a `usize`.
@@ -1028,24 +1113,23 @@ impl CheckState<'_> {
     }
 
     /// Return one static operand as a `usize`.
-    fn static_usize_operand(&self, value: StaticOperand) -> CompilerResult<Option<u32>> {
-        let value = match value {
-            StaticOperand::Variable(variable) => {
-                let Some(value) = self.static_solution(variable)? else {
-                    return Ok(None);
-                };
-
-                value
-            }
-            StaticOperand::Term(term) => self.inference.term(term).clone(),
-            StaticOperand::Static(value) => {
-                StaticTerm::Literal(self.layout_static_value(value).clone())
-            }
+    fn static_usize_operand(&mut self, value: StaticOperand) -> CompilerResult<Option<u32>> {
+        let Some(value) = self.static_operand_term_id(value) else {
+            return Ok(None);
         };
-        let StaticTerm::Literal(dir::StaticTerm::ScalarLiteral {
-            value: dir::ScalarLiteral::Integer(value),
-        }) = value
-        else {
+        let value = match self.inference.term(value) {
+            StaticTerm::Literal(dir::StaticTerm::ScalarLiteral {
+                value: dir::ScalarLiteral::Integer(value),
+            }) => Some(*value),
+            StaticTerm::Static(value) => match self.layout_static_value(*value) {
+                dir::StaticTerm::ScalarLiteral {
+                    value: dir::ScalarLiteral::Integer(value),
+                } => Some(*value),
+                _ => None,
+            },
+            _ => None,
+        };
+        let Some(value) = value else {
             return Ok(None);
         };
 
@@ -1081,11 +1165,7 @@ impl CheckState<'_> {
     }
 
     /// Select a successful layout query.
-    fn select_layout_resolution(
-        &mut self,
-        term: &LayoutTerm,
-        layout: Layout,
-    ) -> CompilerResult<()> {
+    fn select_layout_resolution(&mut self, term: LayoutTerm, layout: Layout) -> CompilerResult<()> {
         let decision = LayoutDecision::Resolved(LayoutResolution {
             source: term.source,
             target: term.target,
@@ -1099,7 +1179,7 @@ impl CheckState<'_> {
     }
 
     /// Select a failed layout query.
-    fn reject_layout(&mut self, term: &LayoutTerm) -> CompilerResult<()> {
+    fn reject_layout(&mut self, term: LayoutTerm) -> CompilerResult<()> {
         let decision = LayoutDecision::Rejected(LayoutFailure {
             source: term.source,
             target: term.target,
@@ -1157,8 +1237,10 @@ struct LayoutFieldInput {
 
 /// Aggregate layout shape selected by source type syntax.
 enum AggregateLayoutShape {
-    /// Struct or object storage.
+    /// Struct storage.
     Struct,
+    /// Object storage.
+    Object,
     /// Tuple storage.
     Tuple,
 }

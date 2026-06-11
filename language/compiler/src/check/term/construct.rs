@@ -4,9 +4,10 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CallableDispatch, CheckState, ConstructDecision, ConstructFailure, ConstructResolution,
-    ConstructTargetResolution, FunctionTerm, GenericArgument, Origin, TypeLiteralTerm, TypeOperand,
-    TypeTerm, VariableId,
+    Answer, CallArgument, CheckState, Condition, ConstructDecision, ConstructDispatch,
+    ConstructFailure, ConstructResolution, ConstructTargetResolution, FunctionTerm,
+    GenericArgument, Origin, TermId, TypeLiteralTerm, TypeOperand, TypeRelation, TypeTerm,
+    VariableId,
 };
 
 /// Runtime construct expression term.
@@ -23,34 +24,8 @@ pub(in crate::check) struct ConstructTerm {
     pub(in crate::check) callee: TypeOperand,
     /// The explicit construct generic arguments.
     pub(in crate::check) generic_arguments: SmallVec<[GenericArgument; 2]>,
-    /// The argument expression types.
-    pub(in crate::check) argument_types: SmallVec<[TypeOperand; 4]>,
-    /// The argument expression nodes in argument order.
-    pub(in crate::check) arguments: SmallVec<[dir::GlobalNodeId<dir::Expression>; 4]>,
-}
-
-impl ConstructTerm {
-    /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(
-        &self,
-        state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 2]> {
-        let mut variables = SmallVec::new();
-
-        variables.extend(self.callee.referenced_variables(state));
-        variables.extend(
-            self.generic_arguments
-                .iter()
-                .flat_map(|argument| argument.referenced_variables(state)),
-        );
-        variables.extend(
-            self.argument_types
-                .iter()
-                .flat_map(|argument| argument.referenced_variables(state)),
-        );
-
-        variables
-    }
+    /// The runtime construct arguments.
+    pub(in crate::check) arguments: SmallVec<[CallArgument; 4]>,
 }
 
 impl CheckState<'_> {
@@ -59,93 +34,96 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        construct: &ConstructTerm,
-    ) -> CompilerResult<Option<TypeTerm>> {
+        construct: TermId<ConstructTerm>,
+    ) -> CompilerResult<Answer<TypeOperand>> {
+        let source = self.inference.term(construct).source;
         let result = self.select_construct_target(origin, module, construct, None)?;
         let function = match &result {
-            CallableDispatch::ConstructSelected { target, function } => {
-                self.select_construct_resolution(construct, target.clone(), function)?;
+            ConstructDispatch::Selected { target, function } => {
+                self.select_construct_resolution(source, target.clone(), function)?;
 
                 function
             }
-            CallableDispatch::ConstructRejected(failure) => {
-                self.reject_construct(construct, *failure)?;
+            ConstructDispatch::Rejected(failure) => {
+                self.reject_construct(source, *failure)?;
 
-                return Ok(Some(TypeTerm::Literal(TypeLiteralTerm::Error)));
+                let ty = self.type_term_operand(TypeTerm::Literal(TypeLiteralTerm::Error));
+
+                return Ok(Answer::Ready(ty));
             }
-            CallableDispatch::CallSelected { .. } | CallableDispatch::CallRejected(_) => {
-                unreachable!("construct term dispatch produced a call selection");
-            }
-            CallableDispatch::Invalid => {
-                return Ok(Some(TypeTerm::Literal(TypeLiteralTerm::Error)));
-            }
-            CallableDispatch::Pending => return Ok(None),
+            ConstructDispatch::Pending(blockers) => return Ok(Answer::Pending(blockers.clone())),
         };
 
-        let term = match function.return_type {
+        let ty = match function.return_type {
             Some(return_type) => {
-                let Some(term) = self.type_operand_term(return_type)? else {
-                    return Ok(None);
+                let Answer::Ready(return_type) = self.reduce_type_operand(origin, return_type)?
+                else {
+                    return Ok(Answer::pending(return_type.dependencies(self)));
                 };
 
-                term
+                return_type
             }
-            None => TypeTerm::Literal(TypeLiteralTerm::Void),
+            None => self.type_term_operand(TypeTerm::Literal(TypeLiteralTerm::Void)),
         };
-        Ok(Some(term))
+
+        Ok(Answer::Ready(ty))
     }
 
-    /// Expect resolved construct candidates to produce the expected result.
+    /// Expect one runtime construct expression to produce one result type.
     pub(in crate::check) fn expect_construct_term(
         &mut self,
         origin: Origin,
-        construct: &ConstructTerm,
+        construct: TermId<ConstructTerm>,
         result: VariableId,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Answer<()>> {
+        let source = self.inference.term(construct).source;
         let module = result.module;
         let resolved = self.select_construct_target(origin, module, construct, Some(result))?;
         match &resolved {
-            CallableDispatch::ConstructSelected { target, function } => {
-                self.select_construct_resolution(construct, target.clone(), function)?;
+            ConstructDispatch::Selected { target, function } => {
+                self.select_construct_resolution(source, target.clone(), function)?;
 
                 if let Some(return_type) = function.return_type {
-                    self.reduce_contextual_type_assignability(origin, return_type, result)?;
+                    self.constrain_type(
+                        origin,
+                        TypeRelation::Assignable,
+                        return_type,
+                        result,
+                        Condition::Always,
+                    );
                 }
+
+                Ok(Answer::Ready(()))
             }
-            CallableDispatch::ConstructRejected(failure) => {
-                self.reject_construct(construct, *failure)?;
+            ConstructDispatch::Rejected(failure) => {
+                self.reject_construct(source, *failure)?;
                 let error = self
                     .inference
                     .push_term(TypeTerm::Literal(TypeLiteralTerm::Error));
 
-                self.reduce_contextual_type_assignability(origin, error, result)?;
-            }
-            CallableDispatch::CallSelected { .. } | CallableDispatch::CallRejected(_) => {
-                unreachable!("construct term dispatch produced a call selection");
-            }
-            CallableDispatch::Invalid => {
-                let error = self
-                    .inference
-                    .push_term(TypeTerm::Literal(TypeLiteralTerm::Error));
+                self.constrain_type(
+                    origin,
+                    TypeRelation::Assignable,
+                    error,
+                    result,
+                    Condition::Always,
+                );
 
-                self.reduce_contextual_type_assignability(origin, error, result)?;
+                Ok(Answer::Ready(()))
             }
-            CallableDispatch::Pending => {}
+            ConstructDispatch::Pending(blockers) => Ok(Answer::Pending(blockers.clone())),
         }
-
-        Ok(())
     }
 
     /// Reject one construct expression for diagnostics.
     fn reject_construct(
         &mut self,
-        construct: &ConstructTerm,
+        source: dir::GlobalNodeIdAny,
         failure: ConstructFailure,
     ) -> CompilerResult<()> {
         let decision = ConstructDecision::Rejected(failure);
 
-        self.inference
-            .select_construct(construct.source, decision)?;
+        self.inference.select_construct(source, decision)?;
 
         Ok(())
     }
@@ -153,19 +131,18 @@ impl CheckState<'_> {
     /// Select one resolved construct expression for commit.
     fn select_construct_resolution(
         &mut self,
-        construct: &ConstructTerm,
+        source: dir::GlobalNodeIdAny,
         target: ConstructTargetResolution,
         function: &FunctionTerm,
     ) -> CompilerResult<()> {
         let resolution = ConstructResolution {
-            source: construct.source,
+            source,
             target,
             function: function.clone(),
         };
         let decision = ConstructDecision::Resolved(resolution);
 
-        self.inference
-            .select_construct(construct.source, decision)?;
+        self.inference.select_construct(source, decision)?;
 
         Ok(())
     }

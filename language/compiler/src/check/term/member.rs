@@ -2,22 +2,88 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::check::{
-    CandidateResolution, CheckState, GenericArgument, GenericParameterId, MemberDecision,
-    MemberFailure, MemberLookup, MemberResolution, MemberTargetResolution, Origin, StaticTerm,
-    SubstitutionSet, TermId, TypeOperand, TypeOperationTerm, TypeRelation, TypeTerm, VariableId,
+    Answer, CandidateResolution, CheckEvent, CheckState, GenericArgument, GenericParameterId,
+    MemberCandidate, MemberDecision, MemberFailure, MemberLookup, MemberResolution,
+    MemberTargetResolution, Origin, StaticOperand, SubstitutionSet, TypeLiteralTerm, TypeOperand,
+    TypeTerm,
 };
+use crate::{CompilerError, CompilerResult};
 
-use crate::check::Decision;
+/// Receiver used by member resolution.
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) enum MemberReceiver {
+    /// Runtime value receiver.
+    ///
+    /// ```ds
+    /// value.member
+    /// ```
+    Value(TypeOperand),
+    /// Generic type parameter declaration receiver.
+    ///
+    /// ```ds
+    /// T.default()
+    /// ```
+    GenericParameter(GenericParameterId),
+    /// Type declaration receiver.
+    ///
+    /// ```ds
+    /// Promise.resolve(value)
+    /// ```
+    Declaration {
+        /// The work origin that introduced this receiver.
+        origin: Origin,
+        /// The declaration symbol.
+        symbol: dir::GlobalSymbolId,
+        /// The applied static arguments.
+        arguments: SmallVec<[GenericArgument; 2]>,
+    },
+}
+
+impl MemberReceiver {
+    /// Substitute generic arguments through this receiver.
+    pub(in crate::check) fn substitute(
+        &self,
+        module: ModuleId,
+        substitution: &SubstitutionSet,
+        state: &mut CheckState<'_>,
+    ) -> CompilerResult<Self> {
+        let receiver = match self {
+            Self::Value(operand) => {
+                Self::Value(state.substitute_type_operand(module, substitution, *operand)?)
+            }
+            Self::GenericParameter(parameter) => {
+                if let Some(operand) = state.substitution_type_operand(substitution, *parameter) {
+                    state.member_receiver_from_type_operand(operand)?
+                } else {
+                    Self::GenericParameter(*parameter)
+                }
+            }
+            Self::Declaration {
+                origin,
+                symbol,
+                arguments,
+            } => Self::Declaration {
+                origin: *origin,
+                symbol: *symbol,
+                arguments: state
+                    .substitute_arguments(module, substitution, arguments)?
+                    .into_iter()
+                    .collect(),
+            },
+        };
+
+        Ok(receiver)
+    }
+}
 
 /// Type member projection term.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct MemberTerm {
     /// The work origin that introduced this member projection.
     pub(in crate::check) origin: Origin,
-    /// The owner type.
-    pub(in crate::check) owner: TypeOperand,
+    /// The member receiver.
+    pub(in crate::check) receiver: MemberReceiver,
     /// The selected member key.
     pub(in crate::check) key: dir::StaticKey,
     /// The applied static arguments.
@@ -25,23 +91,6 @@ pub(in crate::check) struct MemberTerm {
 }
 
 impl MemberTerm {
-    /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(
-        &self,
-        state: &CheckState<'_>,
-    ) -> smallvec::SmallVec<[VariableId; 2]> {
-        let mut variables = smallvec::SmallVec::new();
-
-        variables.extend(self.owner.referenced_variables(state));
-        variables.extend(
-            self.arguments
-                .iter()
-                .flat_map(|argument| argument.referenced_variables(state)),
-        );
-
-        variables
-    }
-
     /// Substitute generic arguments through this member projection.
     pub(in crate::check) fn substitute(
         &self,
@@ -51,7 +100,7 @@ impl MemberTerm {
     ) -> CompilerResult<Self> {
         let member = Self {
             origin: self.origin,
-            owner: state.substitute_type_operand(module, substitution, self.owner)?,
+            receiver: self.receiver.substitute(module, substitution, state)?,
             key: self.key,
             arguments: state.substitute_arguments(module, substitution, &self.arguments)?,
         };
@@ -61,72 +110,155 @@ impl MemberTerm {
 }
 
 impl CheckState<'_> {
+    /// Return one member receiver from a type operand.
+    pub(in crate::check) fn member_receiver_from_type_operand(
+        &mut self,
+        operand: TypeOperand,
+    ) -> CompilerResult<MemberReceiver> {
+        let Some(term) = self.type_operand_term_id(operand)? else {
+            return Ok(MemberReceiver::Value(operand));
+        };
+
+        let receiver = match self.inference.term(term) {
+            TypeTerm::Parameter(parameter) => MemberReceiver::GenericParameter(*parameter),
+            TypeTerm::Reference {
+                origin,
+                symbol,
+                arguments,
+            } => MemberReceiver::Declaration {
+                origin: *origin,
+                symbol: *symbol,
+                arguments: arguments.iter().copied().collect(),
+            },
+            _ => MemberReceiver::Value(operand),
+        };
+
+        Ok(receiver)
+    }
+
+    /// Return the effective type operand for one member receiver.
+    pub(in crate::check) fn member_receiver_type_operand(
+        &mut self,
+        receiver: &MemberReceiver,
+    ) -> TypeOperand {
+        match receiver {
+            MemberReceiver::Value(operand) => *operand,
+            MemberReceiver::GenericParameter(parameter) => self
+                .inference
+                .push_term(TypeTerm::Parameter(*parameter))
+                .into(),
+            MemberReceiver::Declaration {
+                origin,
+                symbol,
+                arguments,
+            } => self
+                .inference
+                .push_term(TypeTerm::Reference {
+                    origin: *origin,
+                    symbol: *symbol,
+                    arguments: arguments.iter().copied().collect(),
+                })
+                .into(),
+        }
+    }
+
     /// Reduce one member projection to its type.
     pub(in crate::check) fn reduce_member_term(
         &mut self,
-        origin: Origin,
         module: ModuleId,
         source: Origin,
-        owner: TypeOperand,
+        receiver: MemberReceiver,
         key: dir::StaticKey,
         arguments: &[GenericArgument],
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let receiver = owner;
-        let Some(owner) = self.reduce_type_operand(origin, owner)? else {
-            return Ok(None);
-        };
-
-        let lookup = self.resolve_type_member(origin, module, owner, &key)?;
+        projection: Option<TypeOperand>,
+    ) -> CompilerResult<Answer<TypeOperand>> {
+        let receiver_type = self.member_receiver_type_operand(&receiver);
+        let lookup = self.resolve_member(source, module, &receiver, &key)?;
+        if let MemberLookup::Pending(blockers) = lookup {
+            return Ok(Answer::Pending(blockers));
+        }
 
         // select solved member for commit and diagnostics
         if let Origin::Node(source) = source
             && self.inference.member(source).is_none()
         {
-            self.select_member_resolution(source, receiver, key, &lookup)?;
+            self.select_member_resolution(source, receiver_type, key, &lookup)?;
         }
 
-        self.member_type_from_lookup(module, arguments, lookup)
+        let Some(term) =
+            self.member_type_from_lookup(module, source, key, arguments, lookup, projection)?
+        else {
+            self.record_event(CheckEvent::MemberReduce {
+                origin: source,
+                key,
+                value: None,
+            });
+
+            return Err(CompilerError::Internal {
+                message: "resolved member lookup has no readable type".into(),
+            });
+        };
+
+        self.record_event(CheckEvent::MemberReduce {
+            origin: source,
+            key,
+            value: Some(term),
+        });
+
+        Ok(Answer::Ready(term))
     }
 
-    /// Resolve a member type from one reduced type term.
-    pub(in crate::check) fn resolve_member_type(
+    /// Resolve a member type from one reduced receiver operand.
+    pub(in crate::check) fn resolve_member_type_operand(
         &mut self,
         origin: Origin,
         module: ModuleId,
-        term: &TypeTerm,
+        receiver: TypeOperand,
         key: &dir::StaticKey,
         member_arguments: &[GenericArgument],
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let receiver = self.inference.push_term(term.clone());
-        let lookup = self.resolve_type_member(origin, module, receiver.into(), key)?;
+    ) -> CompilerResult<Option<TypeOperand>> {
+        let receiver = MemberReceiver::Value(receiver);
+        let lookup = self.resolve_member(origin, module, &receiver, key)?;
 
-        self.member_type_from_lookup(module, member_arguments, lookup)
+        self.member_type_from_lookup(module, origin, *key, member_arguments, lookup, None)
     }
 
-    /// Return a member type from a resolved member lookup.
-    fn member_type_from_lookup(
+    /// Return a member type from a resolved member result.
+    pub(in crate::check) fn member_type_from_lookup(
         &mut self,
         module: ModuleId,
+        origin: Origin,
+        key: dir::StaticKey,
         member_arguments: &[GenericArgument],
         lookup: MemberLookup,
-    ) -> CompilerResult<Option<TypeTerm>> {
+        projection: Option<TypeOperand>,
+    ) -> CompilerResult<Option<TypeOperand>> {
         match lookup {
-            MemberLookup::Pending => Ok(None),
+            MemberLookup::Pending(_) => Ok(None),
             MemberLookup::Field(member) => {
                 if member_arguments.is_empty() {
-                    self.type_operand_term(member)
+                    Ok(Some(member))
                 } else {
-                    Ok(None)
+                    Ok(Some(self.type_term_operand(TypeTerm::Literal(
+                        TypeLiteralTerm::Error,
+                    ))))
                 }
             }
-            MemberLookup::Found(candidates) => {
-                self.member_candidate_types(module, candidates, member_arguments)
-            }
-            MemberLookup::Missing => Ok(None),
+            MemberLookup::Found(candidates) => self.member_candidate_types(
+                module,
+                origin,
+                key,
+                candidates,
+                member_arguments,
+                projection,
+            ),
+            MemberLookup::Missing => Ok(Some(
+                self.type_term_operand(TypeTerm::Literal(TypeLiteralTerm::Error)),
+            )),
         }
     }
 
-    /// Select the committed member resolution for one lookup.
+    /// Select the committed member resolution for one result.
     fn select_member_resolution(
         &mut self,
         source: dir::GlobalNodeIdAny,
@@ -136,7 +268,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         match lookup {
             // wait for a later solve step
-            MemberLookup::Pending => Ok(()),
+            MemberLookup::Pending(_) => Ok(()),
             // select structural fields
             MemberLookup::Field(_) => {
                 let member = MemberResolution {
@@ -160,7 +292,7 @@ impl CheckState<'_> {
                 self.inference
                     .select_member(source, MemberDecision::Resolved(member))
             }
-            // report missing member candidates
+            // select closed missing members
             MemberLookup::Missing => self.inference.select_member(
                 source,
                 MemberDecision::Rejected(MemberFailure::Missing { key }),
@@ -169,10 +301,7 @@ impl CheckState<'_> {
     }
 
     /// Return the committed target from resolved member candidates.
-    fn member_target_resolution(
-        &self,
-        candidates: &[crate::check::MemberCandidate],
-    ) -> MemberTargetResolution {
+    fn member_target_resolution(&self, candidates: &[MemberCandidate]) -> MemberTargetResolution {
         if candidates.len() == 1 {
             let candidate = &candidates[0];
 
@@ -193,42 +322,52 @@ impl CheckState<'_> {
         MemberTargetResolution::Union(candidates)
     }
 
-    /// Return a member static from one reduced type term.
-    pub(in crate::check) fn member_static_term(
+    /// Return a member static from one reduced owner operand.
+    pub(in crate::check) fn member_static_operand(
         &mut self,
         module: ModuleId,
-        term: &TypeTerm,
-        key: &dir::StaticKey,
-    ) -> CompilerResult<Option<StaticTerm>> {
-        match term {
-            TypeTerm::Form { payload, .. } => {
-                let Some(term) = self.type_operand_term(*payload)? else {
-                    return Ok(None);
-                };
+        owner: TypeOperand,
+        key: dir::StaticKey,
+    ) -> CompilerResult<Option<StaticOperand>> {
+        let Some(term) = self.type_operand_term_id(owner)? else {
+            return Ok(None);
+        };
 
-                self.member_static_term(module, &term, key)
+        match self.inference.term(term) {
+            TypeTerm::Form { payload, .. } => self.member_static_operand(module, *payload, key),
+            TypeTerm::Reference {
+                origin: _,
+                symbol,
+                arguments,
+            } if arguments.is_empty() => self.symbol_member_static(module, *symbol, key),
+            TypeTerm::Reference {
+                origin: _,
+                symbol,
+                arguments,
+            } => {
+                let symbol = *symbol;
+                let arguments = arguments
+                    .iter()
+                    .copied()
+                    .collect::<SmallVec<[GenericArgument; 2]>>();
+
+                self.instantiate_symbol_member_static(module, symbol, &arguments, key)
             }
-            TypeTerm::Reference {
-                origin: _,
-                symbol,
-                arguments,
-            } if arguments.is_empty() => self.symbol_member_static(module, *symbol, *key),
-            TypeTerm::Reference {
-                origin: _,
-                symbol,
-                arguments,
-            } => self.instantiate_symbol_member_static(module, *symbol, arguments, *key),
             _ => Ok(None),
         }
     }
 
-    /// Return the reduced type operand for one generic constraint variable.
-    pub(in crate::check) fn reduced_generic_type_constraint(
+    /// Reduce one generic constraint operand.
+    pub(in crate::check) fn reduce_generic_constraint(
         &mut self,
         origin: Origin,
         constraint: TypeOperand,
     ) -> CompilerResult<Option<TypeOperand>> {
-        self.reduce_type_operand(origin, constraint)
+        let Answer::Ready(constraint) = self.reduce_type_operand(origin, constraint)? else {
+            return Ok(None);
+        };
+
+        Ok(Some(constraint))
     }
 
     /// Return a member static from one nominal declaration.
@@ -237,8 +376,8 @@ impl CheckState<'_> {
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
         key: dir::StaticKey,
-    ) -> CompilerResult<Option<StaticTerm>> {
-        let Some(definition) = self.definition(module, symbol)? else {
+    ) -> CompilerResult<Option<StaticOperand>> {
+        let Some(definition) = self.definitions.definition(symbol) else {
             return Ok(None);
         };
         let members = definition.static_members(&key);
@@ -246,25 +385,32 @@ impl CheckState<'_> {
             return Ok(None);
         };
         let substitution = SubstitutionSet::empty();
-        if self.reduce_symbol_availability(module, member.symbol, &substitution)? != Decision::Yes {
+        if self.decide_symbol_availability(module, member.symbol, &substitution)?
+            != Answer::Ready(true)
+        {
             return Ok(None);
         }
 
-        self.static_operand_term(member.value)
+        Ok(Some(member.value))
     }
 
     /// Return the type terms carried by resolved member candidates.
     fn member_candidate_types(
         &mut self,
         module: ModuleId,
-        candidates: Vec<crate::check::MemberCandidate>,
+        origin: Origin,
+        key: dir::StaticKey,
+        candidates: Vec<MemberCandidate>,
         arguments: &[GenericArgument],
-    ) -> CompilerResult<Option<TypeTerm>> {
+        projection: Option<TypeOperand>,
+    ) -> CompilerResult<Option<TypeOperand>> {
         let mut members = Vec::with_capacity(candidates.len());
 
         // apply member generic arguments to every candidate
         for candidate in candidates {
-            let Some(member) = self.member_candidate_type(module, candidate, arguments)? else {
+            let Some(member) =
+                self.member_candidate_type(module, origin, key, candidate, arguments, projection)?
+            else {
                 return Ok(None);
             };
 
@@ -275,31 +421,54 @@ impl CheckState<'_> {
             return Ok(members.pop());
         }
 
-        let elements = members
-            .into_iter()
-            .map(|member| self.inference.push_term(member).into())
-            .collect();
-
-        Ok(Some(TypeTerm::Union { elements }))
+        Ok(Some(
+            self.type_term_operand(TypeTerm::Union { elements: members }),
+        ))
     }
 
     /// Return the type term carried by one resolved member candidate.
     fn member_candidate_type(
         &mut self,
         module: ModuleId,
-        candidate: crate::check::MemberCandidate,
+        origin: Origin,
+        key: dir::StaticKey,
+        candidate: MemberCandidate,
         arguments: &[GenericArgument],
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let substitution = self.generic_substitution(candidate.symbol, arguments)?;
-        if substitution.is_empty() {
-            return self.type_operand_term(candidate.ty);
-        }
+        projection: Option<TypeOperand>,
+    ) -> CompilerResult<Option<TypeOperand>> {
+        let Some(ty) = candidate.ty else {
+            if let Some(projection) = projection {
+                return Ok(Some(projection));
+            }
 
-        let Some(term) = self.type_operand_term(candidate.ty)? else {
-            return Ok(None);
+            let term = MemberTerm {
+                origin,
+                receiver: MemberReceiver::Value(candidate.receiver),
+                key,
+                arguments: arguments.iter().cloned().collect(),
+            };
+            let term = self.inference.push_term(term);
+
+            return Ok(Some(self.type_term_operand(TypeTerm::Member(term))));
         };
 
-        term.substitute(module, &substitution, self)
+        let substitution = self.generic_substitution(candidate.symbol, arguments)?;
+        let ty = if substitution.is_empty() {
+            ty
+        } else {
+            self.substitute_type_operand(module, &substitution, ty)?
+        };
+        let Some(instance) = candidate.instance else {
+            return Ok(Some(ty));
+        };
+        let substitution = self.generic_instance_substitution(&instance)?;
+        if substitution.is_empty() {
+            return Ok(Some(ty));
+        }
+
+        let ty = self.substitute_type_operand(module, &substitution, ty)?;
+
+        Ok(Some(ty))
     }
 
     /// Instantiate a member static from one applied nominal declaration.
@@ -309,8 +478,8 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
         arguments: &[GenericArgument],
         key: dir::StaticKey,
-    ) -> CompilerResult<Option<StaticTerm>> {
-        let Some(definition) = self.definition(module, symbol)? else {
+    ) -> CompilerResult<Option<StaticOperand>> {
+        let Some(definition) = self.definitions.definition(symbol) else {
             return Ok(None);
         };
         let members = definition.static_members(&key);
@@ -318,17 +487,17 @@ impl CheckState<'_> {
             return Ok(None);
         };
         let substitution = self.generic_substitution(symbol, arguments)?;
-        if self.reduce_symbol_availability(module, member.symbol, &substitution)? != Decision::Yes {
+        if self.decide_symbol_availability(module, member.symbol, &substitution)?
+            != Answer::Ready(true)
+        {
             return Ok(None);
         }
-        let Some(term) = self.static_operand_term(member.value)? else {
-            return Ok(None);
-        };
         if substitution.is_empty() {
-            return Ok(Some(term));
+            return Ok(Some(member.value));
         }
 
-        term.substitute(module, &substitution, self).map(Some)
+        self.substitute_static_operand(module, &substitution, member.value)
+            .map(Some)
     }
 
     /// Return the type constraint for one generic type parameter.
@@ -336,7 +505,7 @@ impl CheckState<'_> {
         &self,
         parameter_id: GenericParameterId,
     ) -> CompilerResult<Option<TypeOperand>> {
-        let generic = self.inference.require_generic_parameter(parameter_id);
+        let generic = self.inference.generic_parameter_binding(parameter_id)?;
         if !generic.is_type() {
             return Ok(None);
         }
@@ -344,163 +513,5 @@ impl CheckState<'_> {
         let constraint = generic.type_constraint();
 
         Ok(constraint)
-    }
-
-    /// Return the member lookup shared by every union element.
-    pub(in crate::check) fn union_member_lookup(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        elements: &[TypeOperand],
-        key: &dir::StaticKey,
-    ) -> CompilerResult<MemberLookup> {
-        let mut candidates = Vec::with_capacity(elements.len());
-        let mut fields = Vec::with_capacity(elements.len());
-
-        // collect one member lookup per union element
-        for element in elements {
-            match self.resolve_type_member(origin, module, *element, key)? {
-                MemberLookup::Pending => return Ok(MemberLookup::Pending),
-                MemberLookup::Missing => return Ok(MemberLookup::Missing),
-                MemberLookup::Found(mut members) => {
-                    candidates.append(&mut members);
-                }
-                MemberLookup::Field(member) => fields.push(member),
-            };
-        }
-
-        // return symbol-backed members when every branch had symbols
-        if fields.is_empty() {
-            return Ok(MemberLookup::from_candidates(candidates));
-        }
-
-        // return a structural union when every branch had a field
-        if candidates.is_empty() {
-            return Ok(self.union_field_lookup(fields));
-        }
-
-        // return an effective field when branch origins are mixed
-        let mut fields = fields;
-        fields.extend(candidates.into_iter().map(|candidate| candidate.ty));
-
-        Ok(self.union_field_lookup(fields))
-    }
-
-    /// Return a union lookup from structural field types.
-    fn union_field_lookup(&mut self, fields: Vec<TypeOperand>) -> MemberLookup {
-        let mut fields = fields;
-        if fields.len() == 1 {
-            let field = fields.remove(0);
-
-            return MemberLookup::Field(field);
-        }
-
-        let field = self
-            .inference
-            .push_term(TypeTerm::Union { elements: fields });
-
-        MemberLookup::Field(field.into())
-    }
-
-    /// Return member lookup from one type operation.
-    pub(in crate::check) fn operation_member_lookup(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        operation: TermId<TypeOperationTerm>,
-        key: &dir::StaticKey,
-    ) -> CompilerResult<MemberLookup> {
-        match self.inference.term(operation).clone() {
-            TypeOperationTerm::Conditional {
-                left,
-                right,
-                then_type,
-                else_type,
-            } => self
-                .conditional_member_lookup(origin, module, left, right, then_type, else_type, key),
-            _ => Ok(MemberLookup::Missing),
-        }
-    }
-
-    /// Return member lookup from one conditional type operation.
-    fn conditional_member_lookup(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        left: TypeOperand,
-        right: TypeOperand,
-        then_type: TypeOperand,
-        else_type: TypeOperand,
-        key: &dir::StaticKey,
-    ) -> CompilerResult<MemberLookup> {
-        let decision = self.decide_type_relation(TypeRelation::Extends, left, right)?;
-
-        match decision {
-            // use the known true branch
-            Decision::Yes => self.resolve_type_member(origin, module, then_type, key),
-            // use the known false branch
-            Decision::No => self.resolve_type_member(origin, module, else_type, key),
-            // merge both possible branches
-            Decision::Undecidable => {
-                let then_lookup = self.resolve_type_member(origin, module, then_type, key)?;
-                let else_lookup = self.resolve_type_member(origin, module, else_type, key)?;
-
-                Ok(self.merge_member_lookups(then_lookup, else_lookup))
-            }
-        }
-    }
-
-    /// Return a lookup from two conditional branches.
-    fn merge_member_lookups(&mut self, left: MemberLookup, right: MemberLookup) -> MemberLookup {
-        match (left, right) {
-            // preserve pending branches
-            (MemberLookup::Pending, _) | (_, MemberLookup::Pending) => MemberLookup::Pending,
-            // require both branches to define the member
-            (MemberLookup::Missing, _) | (_, MemberLookup::Missing) => MemberLookup::Missing,
-            // merge symbol-backed branches
-            (MemberLookup::Found(mut left), MemberLookup::Found(mut right)) => {
-                left.append(&mut right);
-
-                MemberLookup::from_candidates(left)
-            }
-            // merge structural branches
-            (MemberLookup::Field(left), MemberLookup::Field(right)) => {
-                self.merge_field_lookups(left, right)
-            }
-            // merge symbol and field branches as an effective field
-            (MemberLookup::Found(candidates), MemberLookup::Field(member))
-            | (MemberLookup::Field(member), MemberLookup::Found(candidates)) => {
-                self.merge_symbol_and_field_lookup(candidates, member)
-            }
-        }
-    }
-
-    /// Return a lookup from two structural field types.
-    fn merge_field_lookups(&mut self, left: TypeOperand, right: TypeOperand) -> MemberLookup {
-        if left == right {
-            return MemberLookup::Field(left);
-        }
-
-        let field = self.inference.push_term(TypeTerm::Union {
-            elements: vec![left, right],
-        });
-
-        MemberLookup::Field(field.into())
-    }
-
-    /// Return a lookup from symbol candidates and one structural field.
-    fn merge_symbol_and_field_lookup(
-        &mut self,
-        candidates: Vec<crate::check::MemberCandidate>,
-        member: TypeOperand,
-    ) -> MemberLookup {
-        let mut members = candidates
-            .into_iter()
-            .map(|candidate| candidate.ty)
-            .collect::<Vec<_>>();
-
-        members.push(member);
-
-        self.union_field_lookup(members)
     }
 }

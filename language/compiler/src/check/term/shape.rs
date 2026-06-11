@@ -4,7 +4,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, Origin, SubstitutionSet, TypeOperand, TypeRelation, TypeTerm, VariableId,
+    Answer, CheckState, Condition, Definition, GenericArgument, Origin, SubstitutionSet, TermId,
+    TypeOperand, TypeRelation, TypeTerm,
 };
 
 /// Shape member payload.
@@ -17,7 +18,7 @@ use crate::check::{
 /// { new (value: string): User }
 /// { [key: string]: int32 }
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(in crate::check) enum ShapeMember {
     /// Shape field.
     ///
@@ -95,40 +96,6 @@ pub(in crate::check) struct ShapeTerm {
 }
 
 impl ShapeMember {
-    /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(
-        &self,
-        state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 2]> {
-        let mut variables = SmallVec::new();
-
-        match self {
-            Self::Field {
-                key: _,
-                ty,
-                is_optional: _,
-                is_readonly: _,
-            }
-            | Self::CallSignature { ty }
-            | Self::ConstructSignature { ty } => variables.extend(ty.referenced_variables(state)),
-            Self::Spread { origin: _, source } => {
-                variables.extend(source.referenced_variables(state))
-            }
-            Self::IndexSignature {
-                name: _,
-                key_type,
-                value_type,
-                is_optional: _,
-                is_readonly: _,
-            } => {
-                variables.extend(key_type.referenced_variables(state));
-                variables.extend(value_type.referenced_variables(state));
-            }
-        }
-
-        variables
-    }
-
     /// Substitute generic arguments through this shape member.
     pub(in crate::check) fn substitute(
         &self,
@@ -201,21 +168,26 @@ impl CheckState<'_> {
             .collect()
     }
 
-    /// Decide exact equality for shape members.
-    pub(in crate::check) fn decide_shape_members_equal(
+    /// Decide exact equality for two shape terms.
+    pub(in crate::check) fn decide_shape_terms_equal(
         &mut self,
-        left: &[ShapeMember],
-        right: &[ShapeMember],
-    ) -> CompilerResult<Decision> {
-        if left.len() != right.len() {
-            return Ok(Decision::No);
+        left: TermId<ShapeTerm>,
+        right: TermId<ShapeTerm>,
+    ) -> CompilerResult<Answer<bool>> {
+        let left_len = self.inference.term(left).members.len();
+        let right_len = self.inference.term(right).members.len();
+        if left_len != right_len {
+            return Ok(Answer::Ready(false));
         }
-        let mut decision = Decision::Yes;
+        let mut decision = Answer::Ready(true);
 
         // compare shape members in source order
-        for (left, right) in left.iter().zip(right) {
-            decision = decision.and(self.decide_shape_member_equal(left, right)?);
-            if decision == Decision::No {
+        for index in 0..left_len {
+            let left = self.inference.term(left).members[index];
+            let right = self.inference.term(right).members[index];
+
+            decision = decision.and(self.decide_shape_member_equal(&left, &right)?);
+            if decision == Answer::Ready(false) {
                 return Ok(decision);
             }
         }
@@ -228,13 +200,13 @@ impl CheckState<'_> {
         &mut self,
         source: &[ShapeMember],
         target: &[ShapeMember],
-    ) -> CompilerResult<Decision> {
-        let mut decision = Decision::Yes;
+    ) -> CompilerResult<Answer<bool>> {
+        let mut decision = Answer::Ready(true);
 
         // require each target member from the source shape
         for target in target {
             decision = decision.and(self.decide_shape_member_assignable(source, target)?);
-            if decision == Decision::No {
+            if decision == Answer::Ready(false) {
                 return Ok(decision);
             }
         }
@@ -242,18 +214,21 @@ impl CheckState<'_> {
         Ok(decision)
     }
 
-    /// Decide structural shape constraint satisfaction.
-    pub(in crate::check) fn decide_shape_satisfies(
+    /// Decide structural assignability for two shape terms.
+    pub(in crate::check) fn decide_shape_terms_assignable(
         &mut self,
-        source: &[ShapeMember],
-        target: &[ShapeMember],
-    ) -> CompilerResult<Decision> {
-        let mut decision = Decision::Yes;
+        source: TermId<ShapeTerm>,
+        target: TermId<ShapeTerm>,
+    ) -> CompilerResult<Answer<bool>> {
+        let target_len = self.inference.term(target).members.len();
+        let mut decision = Answer::Ready(true);
 
         // require each target member from the source shape
-        for target in target {
-            decision = decision.and(self.decide_shape_member_satisfies(source, target)?);
-            if decision == Decision::No {
+        for index in 0..target_len {
+            let target = self.inference.term(target).members[index];
+
+            decision = decision.and(self.decide_shape_term_member_assignable(source, &target)?);
+            if decision == Answer::Ready(false) {
                 return Ok(decision);
             }
         }
@@ -261,23 +236,54 @@ impl CheckState<'_> {
         Ok(decision)
     }
 
-    /// Relate matching shape fields by equality.
-    pub(in crate::check) fn constrain_shape_members_equal(
+    /// Decide structural satisfaction for two shape terms.
+    pub(in crate::check) fn decide_shape_terms_satisfies(
+        &mut self,
+        source: TermId<ShapeTerm>,
+        target: TermId<ShapeTerm>,
+    ) -> CompilerResult<Answer<bool>> {
+        let target_len = self.inference.term(target).members.len();
+        let mut decision = Answer::Ready(true);
+
+        // require each target member from the source shape
+        for index in 0..target_len {
+            let target = self.inference.term(target).members[index];
+
+            decision = decision.and(self.decide_shape_term_member_satisfies(source, &target)?);
+            if decision == Answer::Ready(false) {
+                return Ok(decision);
+            }
+        }
+
+        Ok(decision)
+    }
+
+    /// Relate matching fields from two shape terms by equality.
+    pub(in crate::check) fn constrain_shape_terms_equal(
         &mut self,
         origin: Origin,
-        left: &[ShapeMember],
-        right: &[ShapeMember],
+        left: TermId<ShapeTerm>,
+        right: TermId<ShapeTerm>,
     ) -> CompilerResult<()> {
+        let left_len = self.inference.term(left).members.len();
+
         // constrain common fields in both directions
-        for left in left {
-            let Some((left_key, left_ty)) = shape_field(left) else {
+        for index in 0..left_len {
+            let left = self.inference.term(left).members[index];
+            let Some((left_key, left_ty)) = shape_field(&left) else {
                 continue;
             };
-            let Some(right_ty) = self.shape_field_type(right, left_key) else {
+            let Some(right_ty) = self.shape_term_field_type(right, left_key) else {
                 continue;
             };
 
-            self.reduce_type_equality(origin, left_ty, right_ty)?;
+            self.constrain_type(
+                origin,
+                TypeRelation::Equal,
+                left_ty,
+                right_ty,
+                Condition::Always,
+            );
         }
 
         Ok(())
@@ -299,32 +305,105 @@ impl CheckState<'_> {
                 continue;
             };
 
-            self.reduce_type_assignability(origin, source_ty, target_ty)?;
+            self.constrain_type(
+                origin,
+                TypeRelation::Assignable,
+                source_ty,
+                target_ty,
+                Condition::Always,
+            );
         }
 
         Ok(())
     }
 
-    /// Expect shape fields to satisfy expected fields.
-    pub(in crate::check) fn expect_shape_member_terms(
+    /// Relate matching fields from two shape terms by assignability.
+    pub(in crate::check) fn constrain_shape_terms_assignable(
         &mut self,
         origin: Origin,
-        members: &[ShapeMember],
-        targets: &[ShapeMember],
+        source: TermId<ShapeTerm>,
+        target: TermId<ShapeTerm>,
     ) -> CompilerResult<()> {
-        // expect common fields to satisfy expected types
-        for target in targets {
-            let Some((target_key, target_ty)) = shape_field(target) else {
+        let target_len = self.inference.term(target).members.len();
+
+        // push target field types into source fields
+        for index in 0..target_len {
+            let target = self.inference.term(target).members[index];
+            let Some((target_key, target_ty)) = shape_field(&target) else {
                 continue;
             };
-            let Some(member_ty) = self.shape_field_type(members, target_key) else {
+            let Some(source_ty) = self.shape_term_field_type(source, target_key) else {
                 continue;
             };
 
-            self.reduce_contextual_type_assignability(origin, member_ty, target_ty)?;
+            self.constrain_type(
+                origin,
+                TypeRelation::Assignable,
+                source_ty,
+                target_ty,
+                Condition::Always,
+            );
         }
 
         Ok(())
+    }
+
+    /// Decide assignability from a structural shape to an interface.
+    pub(in crate::check) fn decide_shape_assignable_to_interface(
+        &mut self,
+        source: &[ShapeMember],
+        symbol: dir::GlobalSymbolId,
+        arguments: &[GenericArgument],
+    ) -> CompilerResult<Answer<bool>> {
+        let Some(target) = self.interface_shape_members(symbol, arguments)? else {
+            return Ok(Answer::Ready(false));
+        };
+
+        self.decide_shape_assignable(source, &target)
+    }
+
+    /// Decide assignability from a declaration reference to a structural shape.
+    pub(in crate::check) fn decide_reference_assignable_to_shape(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        arguments: &[GenericArgument],
+        target: &[ShapeMember],
+    ) -> CompilerResult<Answer<bool>> {
+        let Some(source) = self.reference_shape_members(symbol, arguments)? else {
+            return Ok(Answer::Ready(false));
+        };
+
+        self.decide_shape_assignable(&source, target)
+    }
+
+    /// Constrain a structural shape to an interface.
+    pub(in crate::check) fn constrain_shape_assignable_to_interface(
+        &mut self,
+        origin: Origin,
+        source: &[ShapeMember],
+        symbol: dir::GlobalSymbolId,
+        arguments: &[GenericArgument],
+    ) -> CompilerResult<()> {
+        let Some(target) = self.interface_shape_members(symbol, arguments)? else {
+            return Ok(());
+        };
+
+        self.constrain_shape_members_assignable(origin, source, &target)
+    }
+
+    /// Constrain a declaration reference to a structural shape.
+    pub(in crate::check) fn constrain_reference_assignable_to_shape(
+        &mut self,
+        origin: Origin,
+        symbol: dir::GlobalSymbolId,
+        arguments: &[GenericArgument],
+        target: &[ShapeMember],
+    ) -> CompilerResult<()> {
+        let Some(source) = self.reference_shape_members(symbol, arguments)? else {
+            return Ok(());
+        };
+
+        self.constrain_shape_members_assignable(origin, &source, target)
     }
 
     /// Decide exact equality for one shape member.
@@ -332,7 +411,7 @@ impl CheckState<'_> {
         &mut self,
         left: &ShapeMember,
         right: &ShapeMember,
-    ) -> CompilerResult<Decision> {
+    ) -> CompilerResult<Answer<bool>> {
         let decision = match (left, right) {
             (
                 ShapeMember::Field {
@@ -352,7 +431,7 @@ impl CheckState<'_> {
                     || left_optional != right_optional
                     || left_readonly != right_readonly
                 {
-                    Decision::No
+                    Answer::Ready(false)
                 } else {
                     self.decide_type_relation(TypeRelation::Equal, *left_type, *right_type)?
                 }
@@ -382,7 +461,7 @@ impl CheckState<'_> {
                     || left_optional != right_optional
                     || left_readonly != right_readonly
                 {
-                    Decision::No
+                    Answer::Ready(false)
                 } else {
                     let key =
                         self.decide_type_relation(TypeRelation::Equal, *left_key, *right_key)?;
@@ -392,7 +471,7 @@ impl CheckState<'_> {
                     key.and(value)
                 }
             }
-            _ => Decision::No,
+            _ => Answer::Ready(false),
         };
 
         Ok(decision)
@@ -403,43 +482,74 @@ impl CheckState<'_> {
         &mut self,
         source: &[ShapeMember],
         target: &ShapeMember,
-    ) -> CompilerResult<Decision> {
-        let Some(source) = self.find_shape_member(source, target) else {
+    ) -> CompilerResult<Answer<bool>> {
+        let Some(source) = self.matching_shape_member(source, target) else {
             return Ok(if Self::shape_member_is_optional(target) {
-                Decision::Yes
+                Answer::Ready(true)
             } else {
-                Decision::No
+                Answer::Ready(false)
             });
         };
 
         self.decide_shape_member_value_assignable(source, target)
     }
 
-    /// Decide constraint satisfaction for one target shape member.
-    fn decide_shape_member_satisfies(
+    /// Decide assignability for one target member against a source shape term.
+    fn decide_shape_term_member_assignable(
         &mut self,
-        source: &[ShapeMember],
+        source: TermId<ShapeTerm>,
         target: &ShapeMember,
-    ) -> CompilerResult<Decision> {
-        let Some(source) = self.find_shape_member(source, target) else {
+    ) -> CompilerResult<Answer<bool>> {
+        let Some(source) = self.matching_shape_term_member(source, target) else {
             return Ok(if Self::shape_member_is_optional(target) {
-                Decision::Yes
+                Answer::Ready(true)
             } else {
-                Decision::No
+                Answer::Ready(false)
             });
         };
 
-        self.decide_shape_member_value_satisfies(source, target)
+        self.decide_shape_member_value_assignable(&source, target)
+    }
+
+    /// Decide satisfaction for one target member against a source shape term.
+    fn decide_shape_term_member_satisfies(
+        &mut self,
+        source: TermId<ShapeTerm>,
+        target: &ShapeMember,
+    ) -> CompilerResult<Answer<bool>> {
+        let Some(source) = self.matching_shape_term_member(source, target) else {
+            return Ok(if Self::shape_member_is_optional(target) {
+                Answer::Ready(true)
+            } else {
+                Answer::Ready(false)
+            });
+        };
+
+        self.decide_shape_member_value_satisfies(&source, target)
     }
 
     /// Return a source member matching one target member.
-    fn find_shape_member<'a>(
+    fn matching_shape_member<'a>(
         &self,
         source: &'a [ShapeMember],
         target: &ShapeMember,
     ) -> Option<&'a ShapeMember> {
         source
             .iter()
+            .find(|source| Self::shape_member_matches(source, target))
+    }
+
+    /// Return a source member matching one target member.
+    fn matching_shape_term_member(
+        &self,
+        source: TermId<ShapeTerm>,
+        target: &ShapeMember,
+    ) -> Option<ShapeMember> {
+        self.inference
+            .term(source)
+            .members
+            .iter()
+            .copied()
             .find(|source| Self::shape_member_matches(source, target))
     }
 
@@ -477,7 +587,7 @@ impl CheckState<'_> {
         &mut self,
         source: &ShapeMember,
         target: &ShapeMember,
-    ) -> CompilerResult<Decision> {
+    ) -> CompilerResult<Answer<bool>> {
         let decision = match (source, target) {
             (
                 ShapeMember::Field {
@@ -494,7 +604,7 @@ impl CheckState<'_> {
                 },
             ) => {
                 if *source_optional && !*target_optional || *source_readonly && !*target_readonly {
-                    Decision::No
+                    Answer::Ready(false)
                 } else {
                     self.decide_type_relation(TypeRelation::Assignable, *source_type, *target_type)?
                 }
@@ -524,7 +634,7 @@ impl CheckState<'_> {
                 },
             ) => {
                 if *source_optional && !*target_optional || *source_readonly && !*target_readonly {
-                    Decision::No
+                    Answer::Ready(false)
                 } else {
                     let key = self.decide_type_relation(
                         TypeRelation::Assignable,
@@ -540,7 +650,7 @@ impl CheckState<'_> {
                     key.and(value)
                 }
             }
-            _ => Decision::No,
+            _ => Answer::Ready(false),
         };
 
         Ok(decision)
@@ -551,7 +661,7 @@ impl CheckState<'_> {
         &mut self,
         source: &ShapeMember,
         target: &ShapeMember,
-    ) -> CompilerResult<Decision> {
+    ) -> CompilerResult<Answer<bool>> {
         let decision = match (source, target) {
             (
                 ShapeMember::Field {
@@ -566,7 +676,7 @@ impl CheckState<'_> {
                 },
             ) => {
                 if *source_optional && !*target_optional {
-                    Decision::No
+                    Answer::Ready(false)
                 } else {
                     self.decide_type_relation(TypeRelation::Satisfies, *source_type, *target_type)?
                 }
@@ -594,7 +704,7 @@ impl CheckState<'_> {
                 },
             ) => {
                 if *source_optional && !*target_optional {
-                    Decision::No
+                    Answer::Ready(false)
                 } else {
                     let key = self.decide_type_relation(
                         TypeRelation::Assignable,
@@ -610,7 +720,7 @@ impl CheckState<'_> {
                     key.and(value)
                 }
             }
-            _ => Decision::No,
+            _ => Answer::Ready(false),
         };
 
         Ok(decision)
@@ -627,6 +737,107 @@ impl CheckState<'_> {
 
             member_key.matches(&key).then_some(ty)
         })
+    }
+
+    /// Return one shape term field type by key.
+    fn shape_term_field_type(
+        &self,
+        shape: TermId<ShapeTerm>,
+        key: dir::StaticKey,
+    ) -> Option<TypeOperand> {
+        self.inference
+            .term(shape)
+            .members
+            .iter()
+            .find_map(|member| {
+                let (member_key, ty) = shape_field(member)?;
+
+                member_key.matches(&key).then_some(ty)
+            })
+    }
+
+    /// Return the structural members declared by one interface reference.
+    fn interface_shape_members(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        arguments: &[GenericArgument],
+    ) -> CompilerResult<Option<SmallVec<[ShapeMember; 2]>>> {
+        let fields = {
+            let Some(definition) = self.definitions.definition(symbol) else {
+                return Ok(None);
+            };
+            let Definition::Interface(definition) = definition else {
+                return Ok(None);
+            };
+            if definition.is_nominal {
+                return Ok(None);
+            }
+
+            definition
+                .fields
+                .iter()
+                .map(|field| (field.key, field.ty))
+                .collect::<Vec<_>>()
+        };
+        let substitution = self.generic_substitution(symbol, arguments)?;
+        let mut members = SmallVec::with_capacity(fields.len());
+
+        // substitute interface fields into the applied reference
+        for (key, ty) in fields {
+            let ty = if substitution.is_empty() {
+                ty
+            } else {
+                self.substitute_type_operand(symbol.module_id, &substitution, ty)?
+            };
+
+            members.push(ShapeMember::Field {
+                key,
+                ty,
+                is_optional: false,
+                is_readonly: false,
+            });
+        }
+
+        Ok(Some(members))
+    }
+
+    /// Return structural members available through one declaration reference.
+    fn reference_shape_members(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        arguments: &[GenericArgument],
+    ) -> CompilerResult<Option<SmallVec<[ShapeMember; 2]>>> {
+        let members = {
+            let Some(definition) = self.definitions.definition(symbol) else {
+                return Ok(None);
+            };
+
+            definition
+                .named_type_members()
+                .into_iter()
+                .filter_map(|member| Some((member.key(), member.value()?)))
+                .collect::<Vec<_>>()
+        };
+        let substitution = self.generic_substitution(symbol, arguments)?;
+        let mut shape = SmallVec::with_capacity(members.len());
+
+        // substitute declaration members into the applied reference
+        for (key, ty) in members {
+            let ty = if substitution.is_empty() {
+                ty
+            } else {
+                self.substitute_type_operand(symbol.module_id, &substitution, ty)?
+            };
+
+            shape.push(ShapeMember::Field {
+                key,
+                ty,
+                is_optional: false,
+                is_readonly: false,
+            });
+        }
+
+        Ok(Some(shape))
     }
 }
 

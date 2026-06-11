@@ -1,9 +1,7 @@
 use destack_dir as dir;
-use destack_source::ModuleId;
-use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{CheckState, GenericArgument, Origin, TypeOperand, TypeTerm, VariableId};
+use crate::check::{Answer, CheckState, GenericArgument, Origin, TypeOperand, TypeTerm};
 
 /// Runtime `type T` reflection term.
 ///
@@ -29,27 +27,13 @@ pub(in crate::check) struct ImportMetaTerm {
     pub(in crate::check) source: dir::GlobalNodeIdAny,
 }
 
-impl TypeValueTerm {
-    /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(
-        &self,
-        state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 2]> {
-        let mut variables = SmallVec::new();
-        variables.extend(self.ty.referenced_variables(state));
-
-        variables
-    }
-}
-
 impl CheckState<'_> {
     /// Reduce one reflected type value to `Type<T>`.
     pub(in crate::check) fn reduce_type_value_term(
         &mut self,
-        module: ModuleId,
-        value: &TypeValueTerm,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let symbol = self.language_symbol(module, dir::LanguageItem::Type);
+        value: TypeValueTerm,
+    ) -> CompilerResult<Answer<TypeOperand>> {
+        let symbol = self.language_symbol(dir::LanguageItem::Type);
         let argument = GenericArgument::Type(value.ty);
 
         let term = TypeTerm::Reference {
@@ -57,22 +41,24 @@ impl CheckState<'_> {
             symbol,
             arguments: vec![argument].into(),
         };
+        let operand = self.type_term_operand(term);
 
-        Ok(Some(term))
+        Ok(Answer::Ready(operand))
     }
 
     /// Reduce `import.meta` to the builtin import meta interface.
     pub(in crate::check) fn reduce_import_meta_term(
-        &self,
-        module: ModuleId,
-        meta: &ImportMetaTerm,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let symbol = self.language_symbol(module, dir::LanguageItem::ImportMeta);
-
-        Ok(Some(TypeTerm::Reference {
+        &mut self,
+        meta: ImportMetaTerm,
+    ) -> CompilerResult<Answer<TypeOperand>> {
+        let symbol = self.language_symbol(dir::LanguageItem::ImportMeta);
+        let term = TypeTerm::Reference {
             origin: Origin::Node(meta.source),
             symbol,
             arguments: Vec::new().into(),
-        }))
+        };
+        let operand = self.type_term_operand(term);
+
+        Ok(Answer::Ready(operand))
     }
 }

@@ -10,7 +10,7 @@ use crate::check::TypeOperand;
 /// object.field = next
 /// values[index] = next
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(in crate::check) struct Place {
     /// The selected storage type.
     pub(in crate::check) ty: TypeOperand,
@@ -40,7 +40,7 @@ impl Place {
 /// values[index]
 /// *pointer
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(in crate::check) enum PlaceTarget {
     /// Local or imported value binding.
     ///
