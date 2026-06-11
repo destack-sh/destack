@@ -169,3 +169,29 @@ type t = [a: A, b?: B, ...c: C[]]
         (type_annotation
           (array_type
             (type_identifier)))))))
+
+=======================================
+Static conditional array lengths
+:language(destack)
+=======================================
+
+type Sized<comptime N: uint> = [uint8; N > 4 ? 2 : 5];
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (tuple_type
+      (type_identifier)
+      (static_conditional
+        (static_comparison
+          (identifier)
+          (number))
+        (number)
+        (number)))))
