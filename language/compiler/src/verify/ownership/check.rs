@@ -1,9 +1,7 @@
-use std::collections::HashMap;
-
 use crate::verify::VerifyState;
 use destack_mir as mir;
 
-use super::function::{FunctionBorrowContract, FunctionVerifyState};
+use super::function::FunctionVerifyState;
 
 /// Ownership check for one MIR tree.
 pub(crate) struct OwnershipCheck<'a, 'b> {
@@ -13,8 +11,6 @@ pub(crate) struct OwnershipCheck<'a, 'b> {
     state: &'a mut VerifyState<'b>,
     /// Functions participating in ownership checking.
     functions: Vec<mir::LocalNodeId<mir::Function>>,
-    /// Solved return lifetimes for functions.
-    function_lifetimes: HashMap<mir::LocalNodeId<mir::Function>, mir::Lifetime>,
 }
 
 impl<'a, 'b> OwnershipCheck<'a, 'b> {
@@ -29,15 +25,13 @@ impl<'a, 'b> OwnershipCheck<'a, 'b> {
             tree,
             state,
             functions,
-            function_lifetimes: HashMap::new(),
         }
     }
 
-    /// Verify ownership and write solved contracts.
+    /// Verify ownership.
     pub(crate) fn run(mut self) {
         self.rebuild_function_metadata();
-        self.solve_contracts();
-        self.replay_functions();
+        self.check_functions();
     }
 
     /// Rebuild MIR metadata used by ownership checking.
@@ -47,94 +41,21 @@ impl<'a, 'b> OwnershipCheck<'a, 'b> {
         }
     }
 
-    /// Solve transitive borrow contracts to a fixed point.
-    fn solve_contracts(&mut self) {
-        loop {
-            let mut is_changed = false;
-
-            // infer contracts against the previous iteration
-            for index in 0..self.functions.len() {
-                let function_id = self.functions[index];
-                let Some(contract) = self.infer_contract(function_id) else {
-                    continue;
-                };
-
-                if self.write_contract(function_id, contract) {
-                    is_changed = true;
-                }
-            }
-
-            if !is_changed {
-                break;
-            }
-        }
-    }
-
-    /// Replay functions once solved contracts are stable.
-    fn replay_functions(&mut self) {
+    /// Check every reachable function.
+    fn check_functions(&mut self) {
         for index in 0..self.functions.len() {
             let function_id = self.functions[index];
-            let Some(contract) = self.check_function(function_id) else {
-                continue;
-            };
-
-            self.write_contract(function_id, contract);
+            self.check_function(function_id);
         }
     }
 
-    /// Check one function without emitting diagnostics.
-    fn infer_contract(
-        &mut self,
-        function_id: mir::LocalNodeId<mir::Function>,
-    ) -> Option<FunctionBorrowContract> {
-        self.tree.get(function_id).entry?;
-
-        let function = self.tree.get(function_id);
-
-        Some(
-            FunctionVerifyState::for_contract(
-                function,
-                self.tree,
-                self.state,
-                &self.function_lifetimes,
-            )
-            .check(),
-        )
-    }
-
-    /// Check one function and emit diagnostics.
-    fn check_function(
-        &mut self,
-        function_id: mir::LocalNodeId<mir::Function>,
-    ) -> Option<FunctionBorrowContract> {
-        self.tree.get(function_id).entry?;
-
-        let function = self.tree.get(function_id);
-
-        Some(
-            FunctionVerifyState::new(function, self.tree, self.state, &self.function_lifetimes)
-                .check(),
-        )
-    }
-
-    /// Write one function borrow contract and return whether it changed.
-    fn write_contract(
-        &mut self,
-        function_id: mir::LocalNodeId<mir::Function>,
-        contract: FunctionBorrowContract,
-    ) -> bool {
-        let function = self.tree.get_mut(function_id);
-        let current_lifetime = self.function_lifetimes.get(&function_id);
-        if function.borrow_obligations == contract.borrow_obligations
-            && current_lifetime == Some(&contract.return_lifetime)
-        {
-            return false;
+    /// Check one function when it has a body.
+    fn check_function(&mut self, function_id: mir::LocalNodeId<mir::Function>) {
+        if self.tree.get(function_id).entry.is_none() {
+            return;
         }
 
-        function.borrow_obligations = contract.borrow_obligations;
-        self.function_lifetimes
-            .insert(function_id, contract.return_lifetime);
-
-        true
+        let function = self.tree.get(function_id);
+        FunctionVerifyState::new(function, self.tree, self.state).check();
     }
 }

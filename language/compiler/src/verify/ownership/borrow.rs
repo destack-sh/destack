@@ -1,4 +1,4 @@
-use destack_mir::{self as mir, LifetimeSlot};
+use destack_mir as mir;
 
 /// Source that keeps a borrowed value valid.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -80,11 +80,22 @@ pub(super) struct BorrowSources {
     sources: Vec<BorrowSource>,
 }
 
-/// Borrow sources keyed by SSA value.
+/// Borrow sources keyed by SSA value path.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(super) struct BorrowMap {
     /// Stored source bindings.
-    pub(super) sources: Vec<(mir::Value, BorrowSources)>,
+    pub(super) bindings: Vec<BorrowBinding>,
+}
+
+/// Borrow sources for one value path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct BorrowBinding {
+    /// SSA value carrying the borrowed path.
+    pub(super) value: mir::Value,
+    /// Path inside the value.
+    pub(super) path: mir::Path,
+    /// Sources that keep the path live.
+    pub(super) sources: BorrowSources,
 }
 
 impl BorrowSources {
@@ -178,22 +189,6 @@ impl BorrowSources {
             .all(|source| source.is_covered_by(required))
     }
 
-    /// Return the external lifetime covered by these sources.
-    pub(super) fn lifetime(&self) -> mir::Lifetime {
-        mir::Lifetime::new(self.sources.iter().filter_map(|source| match source {
-            BorrowSource::Static => Some(mir::LifetimeTerm::Static),
-            BorrowSource::Slot(index)
-            | BorrowSource::Managed {
-                parameter: Some(index),
-                ..
-            } => Some(mir::LifetimeTerm::Slot(LifetimeSlot(*index))),
-            BorrowSource::Owned
-            | BorrowSource::Managed {
-                parameter: None, ..
-            } => None,
-        }))
-    }
-
     /// Merge two source sets.
     pub(super) fn merge(&self, other: &Self) -> Self {
         Self::new(self.sources.iter().chain(&other.sources).cloned())
@@ -203,41 +198,90 @@ impl BorrowSources {
 impl BorrowMap {
     /// Bind one value to borrow sources.
     pub(super) fn insert(&mut self, value: mir::Value, sources: BorrowSources) {
+        self.insert_at(value, mir::Path::root(), sources);
+    }
+
+    /// Bind one value path to borrow sources.
+    pub(super) fn insert_at(&mut self, value: mir::Value, path: mir::Path, sources: BorrowSources) {
         if sources.is_empty() {
             return;
         }
 
         // replace existing bindings instead of growing duplicate rows
-        if let Some((_, current)) = self.sources.iter_mut().find(|(slot, _)| *slot == value) {
-            *current = sources;
+        if let Some(current) = self
+            .bindings
+            .iter_mut()
+            .find(|binding| binding.value == value && binding.path == path)
+        {
+            current.sources = sources;
             return;
         }
 
-        self.sources.push((value, sources));
+        self.bindings.push(BorrowBinding {
+            value,
+            path,
+            sources,
+        });
     }
 
-    /// Return borrow sources for one value.
-    pub(super) fn get(&self, value: mir::Value) -> Option<&BorrowSources> {
-        self.sources
-            .iter()
-            .find_map(|(slot, sources)| (*slot == value).then_some(sources))
+    /// Bind all source paths for one value.
+    pub(super) fn insert_bindings(
+        &mut self,
+        value: mir::Value,
+        bindings: Vec<(mir::Path, BorrowSources)>,
+    ) {
+        let mut root_sources = BorrowSources::none();
+
+        // keep a conservative root view for whole-value checks
+        for (path, sources) in bindings {
+            root_sources = root_sources.merge(&sources);
+            self.insert_at(value, path, sources);
+        }
+
+        self.insert(value, root_sources);
     }
 
-    /// Merge one value source set.
-    pub(super) fn merge_sources(&mut self, value: mir::Value, sources: &BorrowSources) {
+    /// Return borrow sources for one value path.
+    pub(super) fn get_at(&self, value: mir::Value, path: &mir::Path) -> Option<&BorrowSources> {
+        self.bindings.iter().find_map(|binding| {
+            (binding.value == value && &binding.path == path).then_some(&binding.sources)
+        })
+    }
+
+    /// Merge one value path source set.
+    pub(super) fn merge_sources_at(
+        &mut self,
+        value: mir::Value,
+        path: &mir::Path,
+        sources: &BorrowSources,
+    ) {
         // accumulate sources from repeated paths
         let sources = self
-            .get(value)
+            .get_at(value, path)
             .map(|current| current.merge(sources))
             .unwrap_or_else(|| sources.clone());
 
-        self.insert(value, sources);
+        self.insert_at(value, path.clone(), sources);
     }
 
     /// Bind successor parameter sources.
     pub(super) fn bind(&mut self, argument: mir::Value, parameter: mir::Value) {
-        if let Some(sources) = self.get(argument).cloned() {
-            self.insert(parameter, sources);
+        let mut bindings = Vec::new();
+
+        // copy argument path facts to the successor parameter
+        for binding in &self.bindings {
+            if binding.value == argument {
+                bindings.push((binding.path.clone(), binding.sources.clone()));
+            }
+        }
+
+        for (path, sources) in bindings {
+            self.insert_at(parameter, path, sources);
+        }
+
+        // update value references embedded in dynamic paths
+        for binding in &mut self.bindings {
+            binding.path.replace_value(argument, parameter);
         }
     }
 }
