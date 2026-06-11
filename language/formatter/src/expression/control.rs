@@ -1210,20 +1210,38 @@ pub(crate) fn format_break_expression<'ast>(
     }
 
     if let Some(value) = value {
+        // labeled values separate with a colon
         if label.is_some() {
             write!(f, [token(":")])?;
             write!(f, [space(), value])?;
-        } else if matches!(
-            f.context().tree.get(*value),
-            Expression::Parenthesized { .. }
-        ) {
+        }
+        // a lone identifier value keeps exactly one parenthesis pair, since a
+        // bare identifier operand reads as a label
+        else if let Some(identifier_id) = break_value_identifier(f.context(), *value) {
+            write!(f, [space(), token("("), identifier_id, token(")")])?;
+        }
+        // other values print bare
+        else {
             write!(f, [space(), value])?;
-        } else {
-            write!(f, [space(), token("("), value, token(")")])?;
         }
     }
 
     Ok(())
+}
+
+/// Return the lone identifier inside one break value, unwrapping parentheses.
+fn break_value_identifier(
+    context: &DestackFormatContext<'_>,
+    value_id: LocalNodeId<Expression>,
+) -> Option<LocalNodeId<Expression>> {
+    let mut current_id = value_id;
+
+    // unwrap parenthesized layers down to the operand
+    while let Expression::Parenthesized { expression } = context.tree.get(current_id) {
+        current_id = *expression;
+    }
+
+    matches!(context.tree.get(current_id), Expression::Identifier { .. }).then_some(current_id)
 }
 
 /// Format one continue expression in statement position.

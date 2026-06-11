@@ -421,3 +421,29 @@ function* t11() {
         ],
     );
 }
+
+/// Break values print bare, with parentheses only around lone identifiers.
+#[test]
+fn test_format_break_value_forms() {
+    assert_format_program!(
+        r#"const a = loop { break 10; };
+const b = loop { break (result); };
+const c = loop { break count * 2; };
+const d = outer: loop { break outer: "done"; };
+"#,
+        r#"const a = loop {
+    break 10;
+};
+const b = loop {
+    break (result);
+};
+const c = loop {
+    break count * 2;
+};
+const d = outer: loop {
+    break outer: "done";
+};
+"#,
+        FileType::Destack
+    );
+}
