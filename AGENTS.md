@@ -72,7 +72,7 @@ match extracted {
 
 ### Factoring
 
-- The point of all code is to solve real-world problems and model them with the fewest, most pristine nouns and verbs (types and functions) possible _that the machine understands well_, using the fewest possible resources (bytes, instructions, cycles, whatever) on the expected hardware and under expected usage scenarios.
+- The point of all code is to solve real-world problems and model them with the fewest, most pristine nouns and verbs (types and functions) possible _that the target machine understands well_, using the fewest possible resources (bytes, instructions, cycles, whatever) on the expected hardware and under expected usage scenarios.
 - Where good relevant prior art exists, we should try to follow it, especially in terminology, configuration, interfaces, and even behavior where sensible.
 - Most code on the internet, on StackOverflow, or on open source libraries, and even in their documentation, is not very good. Anything external we take in should be treated with great suspicion.
 - Every proposed change is really a question: "what shape should the codebase have in the long term to support changes and features _like_ this?"; the answer to that question leads to a more maintainable codebase, even if it means more work in the short term.
@@ -82,7 +82,7 @@ match extracted {
 - Logic should be "incrementally granular" (as per Casey Muratori), i.e., ideally we should be able to reuse logic _and_ state at various pieces of granularity.
 - Conceptually, incremental granularity means not hiding details too much, and assuming (especially internally, within the castle) that the caller is a consenting adult.
 - Relatedly, try hard to _avoid_ "banana and the jungle" shaped model solutions where pulling in one component requires pulling in a whole deep object graph (except in situations where there really are obvious god objects, like a current `World` in a game or whatever).
-- That said, it is often beneficial to have strong clear nouns and verbs, and it's usually easier to think about state when it is bundled in nouns (dare I say "objects", but no OOP abstraction nonsense).
+- That said, it is often beneficial to have strong clear nouns and verbs tied together, as it's usually easier to think about state and responsibility when it is bundled with the relevant nouns (dare I say "objects", but no OOP abstraction "Dog extends Animal" nonsense).
 - Even associated functions (that don't depend on state at all) often benefit from being tied to relevant nouns in cases where one presents itself, just because it reads nicer.
 - More specifically, as a trivial example, when a function takes an array of something, try to make it work on a single "element" instead and just loop in the caller. Prefer parametric mutability. etc. etc., that sort of thing.
 - Usually, in each file, the "top" / most important nouns should go up top (constants at the very top above it), followed by successively more internal / inner nouns, and any relevant free functions at the very bottom (+ tests as needed ofc).
@@ -107,18 +107,18 @@ match extracted {
 
 ### Comments
 
+- Documentation comments for functions/types/etc. _should_ be proper sentences _with_ punctuation.
 - Inline comments should be short and begin with a lowercase letter.
 - (This extends to comments in _any_ code file, even scripts. I just like lowercase better.)
-- Place comments above a related code block (usually 2-10 lines).
-- Most comments are <1 sentence and should not include a period at the end (again, lowercase).
-- Avoid using hyphens inside comments, instead prefer colons or commas (except for proper compound words)
+- Place comments above a related code block (usually 2-6 lines).
+- Most comments should be <=1 sentence and should not include a period at the end (again, lowercase).
+- Avoid using hyphens inside comments, instead prefer colons or commas (except for proper compound words that need hpyhens of course)
 - Inline comments may also just be single words or sequences of words if the "scoping" is clear; i.e., not every inline comment needs to be a sentence.
 - Comments serve to organize the reader's mental model of the code, so they can be just anything from a one-word summary, a three word phrase, or a short explanatory note.
 - Most logic block comments of more than one/two words should be action / verb shaped, e.g.:
-  "// build drop plan for each function" is much better than "// each function gets an independent drop plan" (begin with a verb!)
+  "// build drop plan for each function" is much better than "// each function gets an independent drop plan" (see how muddy that is.. begin with a verb!)
 - Trivial functions (<3-4 lines) do not _need_ comments / blank lines, especially when the comments just repeat the documentation above.
-- Also, tests don't need quite the same level of comments, especially within obvious test cases.
-- Documentation comments for functions/types/etc. _should_ be proper sentences _with_ punctuation.
+- Tests don't need _quite_ the same level of comments, especially within obvious test cases. That said, even there, it's usually nice to spell out what exactly we're trying to assert and why.
 - Files should NOT have a top-level documentation comments. They always get stale.
 - Go multiline if there is more than one sentence. Only one sentence should begin per line.
 - For methods, documentation should be imperative, usually starting with a verb (e.g., "Send a message").
@@ -144,6 +144,7 @@ else {
 - The logic block treatment also applies just as well to TSX and tree-like structures, so for example:
 
 ```tsx
+{/* Container */}
 <div>
     {/* Top button */}
     <button /> ... </button>
@@ -178,18 +179,18 @@ else {
 
 ### Performance
 
-- Performance is a feature and always a strong implicit requirement, even when no hard boundaries have been set (and usually, they aren't).
+- Performance is a feature and always a strong implicit requirement, even when no hard boundaries have been set (and usually, they aren't, because we don't know yet what we're even supposed to be doing).
 - The folk-lore idea that "premature optimisation is the root of all evil" is wrong, since what makes modern computers happy (clear, compact, aligned data structures and simple parallel processing) also lines up very well with what makes modern software pristine.
 - Data oriented design. DATA ORIENTED DESIGN. DATA. ORIENTED. DESIGN. DOD. In case of doubt, to make the machine go vroom, we want data oriented design (a la Mike Acton et al). Actually, basically always DOD. DOD!
-- We should always try to stratify and define the performance characteristics of any systems we work with before we touch them and keep them in mind while we work. (What are the bounds for X, Y, Z? latency, RPS, IOPS, throughput, what about p50 p95 p99, ...)
-- Performance has many meanings, but in general it means using the absolute minimum level of resources to solve the real problem we actually have (bandwidth, disk, memory, CPU, whatever it is).
+- We should always at least _try_ to stratify and define the performance characteristics of any systems we work with before we touch them and keep them in mind while we work. (What are the bounds for X, Y, Z? latency, RPS, IOPS, throughput, what about p50 p95 p99, ...)
+- Performance has many meanings, but in general it means using the absolute minimum level of resources to solve the real problem we actually have correctly and robustly (bandwidth, disk, memory, CPU, whatever it is).
 - Often, though not always, performance "tradeoffs" - like between memory usage and cycles, or between niceness and speed - are not really tradeoffs at all, just poorly factored code that could be much better if we zoom out a little and solve the problem well (or find a way not to do it at all!).
 - Clean code is usually fast code, if by "clean" we mean properly semantically compressed, stupid simple approaches, and not some arbitrary and silly notion of convoluted, theoretical abstraction ideals.
 - The fastest code is code that doesn't run at all, the best data structures are the ones we don't need. Text book data structures, algorithms and fanciness are rarely required.
-- Most of the time, for most problems, arrays and linear approaches are perfectly fine and even beat out anything "smarter". Maps are okay too, usually.
+- Most of the time, for most problems, arrays and linear approaches are perfectly fine and even beat out anything "smarter". Maps are okay too, sometimes.
 - Memory access patterns are the dominating factor in most modern software problems, thus, something "dumber" but tighter (like a dense array) is often faster than something "smarter" but looser (like a map) even at high scales.
-- Have sympathy for the real hardware and underlying machinery that must actually execute whatever we write down, and usually that happens in roughly the same way we wrote it, since compilers can't be that smart.
-- Hardware awareness and full stack understanding are especially important in areas we do not fully control, like when we codegen to JS or write something to the web, or some foreign graphics API - how does it _actually_ execute? Which low level operations does what we're doing map to, and what do we really need? 
+- Have sympathy for the real hardware and underlying machinery that must actually execute whatever we write down, and usually that happens in roughly the same way we wrote it, since compilers can't be that smart (because most modern languages are very liberal).
+- Hardware awareness and full stack understanding are especially important on targets we do not fully control, like when we codegen to JS or write something to the web, or some foreign graphics API - how does it _actually_ execute? Which low level operations does what we're doing map to, and what do we really need? 
 - Working bottoms up - which bits and cycles do we _really_ need to spend - is the only true way to bound the lower end of performance, and often a great way of demystifying a system and getting order of magnitude improvements.
 
 ### Failures
