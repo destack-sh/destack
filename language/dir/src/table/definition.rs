@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Extension, FunctionRole, GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId,
-    LocalGenericInstanceId, LocalGenericTemplateId, MemberSlot, SegmentView, StaticKey,
+    LocalGenericTemplateId, MemberSlot, SegmentView, StaticKey,
 };
 
 /// Cumulative declaration definitions for one DIR module.
@@ -436,8 +436,8 @@ pub struct NominalHeritage {
     pub source: GlobalNodeIdAny,
     /// The heritage nominal symbol.
     pub symbol: GlobalSymbolId,
-    /// The generic instance used at the relation site.
-    pub instance: Option<LocalGenericInstanceId>,
+    /// The generic arguments used at the relation site, empty when not applied.
+    pub arguments: Vec<GlobalTypeId>,
 }
 
 /// One checked field member.

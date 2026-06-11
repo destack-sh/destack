@@ -2,37 +2,13 @@ use serde::{Deserialize, Serialize};
 
 use destack_source::ModuleId;
 
-use crate::{
-    Declaration, FunctionSignature, GlobalGenericParameterId, GlobalSymbolId, GlobalTypeId,
-    LocalNodeId, ScalarLiteral, StaticKey, StringId, TypeLiteral,
-};
+use crate::{FunctionSignature, GlobalTypeId, ScalarLiteral, StaticKey};
 
-/// Static value produced by checked static evaluation.
+/// Concrete static value produced by checked static evaluation.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum StaticTerm {
-    /// Generic parameter reference.
-    Parameter(GlobalGenericParameterId),
-    /// Static symbol reference.
-    Symbol { symbol: GlobalSymbolId },
-    /// Normalized access value.
-    Access { access: Access },
-    /// Normalized storage space value.
-    Space { space: Space },
-    /// Normalized place value.
-    Place { place: Place },
-    /// Normalized lifetime value.
-    Lifetime { lifetime: Lifetime },
     /// Scalar literal.
     ScalarLiteral { value: ScalarLiteral },
-    /// Type literal.
-    TypeLiteral { value: TypeLiteral },
-    /// Declaration reference with optional static arguments.
-    Declaration {
-        /// The declaration node.
-        declaration: LocalNodeId<Declaration>,
-        /// Static generic arguments.
-        generic_arguments: Option<Vec<StaticArgument>>,
-    },
     /// Type value.
     Type { ty: GlobalTypeId },
     /// Array value.
@@ -42,7 +18,7 @@ pub enum StaticTerm {
         /// The repeated value.
         value: Box<StaticTerm>,
         /// The fixed array length.
-        length: Box<StaticTerm>,
+        length: u64,
     },
     /// Tuple value.
     Tuple { elements: Vec<StaticTerm> },
@@ -58,66 +34,6 @@ pub enum StaticTerm {
         /// The struct properties.
         properties: Vec<StaticProperty>,
     },
-    /// Union of static values.
-    Union { elements: Vec<GlobalStaticId> },
-}
-
-/// Normalized memory access value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Access {
-    /// Shared readonly access.
-    Readonly,
-    /// Mutable access.
-    Mutable,
-    /// Exclusive access.
-    Exclusive,
-}
-
-/// Normalized storage space value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Space {
-    /// Local storage.
-    Local,
-    /// Shared storage.
-    Shared,
-    /// Static storage.
-    Static,
-    /// Frame storage.
-    Frame,
-}
-
-/// Normalized place value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Place {
-    /// Ambient placement.
-    Ambient,
-    /// Concrete storage space.
-    Space(Space),
-}
-
-/// Normalized lifetime value.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Lifetime {
-    /// Static lifetime.
-    Static,
-    /// Symbolic lifetime parameter or associated constant.
-    Symbol(GlobalSymbolId),
-}
-
-/// Static argument in a checked static context.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct StaticArgument {
-    /// The optional argument name.
-    pub name: Option<StringId>,
-    /// The static value id.
-    pub value: GlobalStaticId,
-}
-
-impl StaticArgument {
-    /// Build a positional static argument.
-    pub fn value(value: GlobalStaticId) -> Self {
-        Self { name: None, value }
-    }
 }
 
 /// Static object property in a checked static context.

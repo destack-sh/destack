@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Asynchrony, GlobalGenericParameterId, GlobalStaticId, GlobalSymbolId, MappedTypeModifier,
-    ScalarLiteral, StaticArgument, StaticKey, StringId, TypeLiteral,
+    ScalarLiteral, StaticKey, StringId, TypeLiteral,
 };
 
 use super::{FloatType, PrimitiveType};
@@ -59,13 +59,14 @@ pub struct MappedTypeParameter {
     pub key_remap: Option<GlobalTypeId>,
 }
 
-/// Reference to one type declaration.
+/// One declaration applied to its complete positional arguments.
+/// A non-generic reference is an instance with no arguments.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ReferenceType {
+pub struct GenericInstance {
     /// The referenced declaration symbol.
     pub symbol: GlobalSymbolId,
-    /// The static arguments applied to the reference.
-    pub arguments: Vec<StaticArgument>,
+    /// The complete positional arguments in declaration order.
+    pub arguments: Vec<GlobalTypeId>,
 }
 
 /// Member type selected from an owner type.
@@ -75,8 +76,8 @@ pub struct MemberType {
     pub owner: GlobalTypeId,
     /// The selected member key.
     pub key: StaticKey,
-    /// The static arguments applied to the member.
-    pub arguments: Vec<StaticArgument>,
+    /// The complete positional arguments applied to the member.
+    pub arguments: Vec<GlobalTypeId>,
 }
 
 /// Explicit runtime `Dynamic<T>` representation.
@@ -104,20 +105,75 @@ pub enum Form {
     Owned,
     /// Borrowed value.
     Borrowed {
-        /// The solved borrow lifetime value.
-        lifetime: GlobalStaticId,
-        /// The solved borrow access value.
-        access: GlobalStaticId,
+        /// The solved borrow lifetime singleton.
+        lifetime: GlobalTypeId,
+        /// The solved borrow access singleton.
+        access: GlobalTypeId,
     },
     /// Raw pointer value.
     Raw,
     /// Placed value.
     Placed {
-        /// The solved concrete or ambient place value.
-        place: GlobalStaticId,
+        /// The solved concrete or ambient place singleton.
+        place: GlobalTypeId,
     },
     /// Readonly view.
     Readonly,
+}
+
+/// Singleton type of one normalized memory value.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum MemoryLiteral {
+    /// Memory access singleton.
+    Access(Access),
+    /// Storage space singleton.
+    Space(Space),
+    /// Placement singleton.
+    Place(Place),
+    /// Lifetime singleton.
+    Lifetime(Lifetime),
+}
+
+/// Normalized memory access value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Access {
+    /// Shared readonly access.
+    Readonly,
+    /// Mutable access.
+    Mutable,
+    /// Exclusive access.
+    Exclusive,
+}
+
+/// Normalized storage space value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Space {
+    /// Local storage.
+    Local,
+    /// Shared storage.
+    Shared,
+    /// Static storage.
+    Static,
+    /// Frame storage.
+    Frame,
+}
+
+/// Normalized place value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Place {
+    /// Ambient placement.
+    Ambient,
+    /// Concrete storage space.
+    Space(Space),
+}
+
+/// Normalized lifetime value.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Lifetime {
+    /// Static lifetime.
+    Static,
+    /// Symbolic lifetime parameter or associated constant.
+    Symbol(GlobalSymbolId),
 }
 
 /// An index signature in an object type.
@@ -205,8 +261,8 @@ pub struct ArrayType {
 pub struct FixedArrayType {
     /// The element type.
     pub element: GlobalTypeId,
-    /// The static array length.
-    pub count: GlobalStaticId,
+    /// The static array length singleton.
+    pub count: GlobalTypeId,
 }
 
 /// Compact scalar interval type.
@@ -338,6 +394,10 @@ pub enum TypeOperation {
 /// A canonical solved type.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Type {
+    /// One open inference variable.
+    /// Only present in working types during check, never in committed tables.
+    Variable(TypeVariableId),
+
     /// Error type that could not be resolved.
     Error,
     /// Never type `never`.
@@ -358,13 +418,19 @@ pub enum Type {
     Primitive(PrimitiveType),
     /// Scalar literal type.
     Literal(ScalarLiteral),
+    /// Singleton type of one normalized memory value.
+    /// The only committed spelling: check normalizes literal spellings like
+    /// `"shared"` to memory singletons at language-item-typed positions.
+    Memory(MemoryLiteral),
+    /// Singleton type of one committed static value.
+    Static(GlobalStaticId),
     /// Compiler intrinsic type body.
     Intrinsic,
 
     /// Generic parameter.
     Parameter(GlobalGenericParameterId),
     /// Type declaration reference.
-    Reference(ReferenceType),
+    Reference(GenericInstance),
     /// This type in a method signature.
     This,
     /// Member type selected from an owner type.
@@ -513,6 +579,22 @@ impl TypeElement {
             is_readonly: false,
             is_rest: false,
         }
+    }
+}
+
+/// Identifier for one open inference variable inside a checked component.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct TypeVariableId {
+    /// The module that allocated the variable.
+    pub module_id: ModuleId,
+    /// The variable index inside the module.
+    pub index: u32,
+}
+
+impl TypeVariableId {
+    /// Create a new type variable id.
+    pub fn new(module_id: ModuleId, index: u32) -> Self {
+        Self { module_id, index }
     }
 }
 
