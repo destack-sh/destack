@@ -577,7 +577,7 @@ fn replace_constant_calls(
         }
 
         // replace the call with a constant instruction
-        tree.replace(
+        tree.set(
             call_instruction,
             mir::Instruction::Const {
                 destination,

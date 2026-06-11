@@ -492,7 +492,7 @@ fn clone_function(
         // update the cloned block instruction list
         let mut new_block = tree.get(new_block_id).clone();
         new_block.instructions = new_instructions;
-        tree.replace(new_block_id, new_block);
+        tree.set(new_block_id, new_block);
     }
 
     // remap terminators with new block ids
@@ -501,7 +501,7 @@ fn clone_function(
         let terminator_id = tree.get(new_block_id).terminator;
         let mut terminator = tree.get(terminator_id).clone();
         terminator_remap(&mut terminator, &block_map, &value_map);
-        tree.replace(terminator_id, terminator);
+        tree.set(terminator_id, terminator);
     }
 
     // build the new function
@@ -631,7 +631,7 @@ fn update_callsite(
         function: new_callee.into(),
         call,
     };
-    tree.replace(callsite.call_instruction, updated);
+    tree.set(callsite.call_instruction, updated);
     *tree.metadata.functions.call_mut(callsite_id) = metadata;
 
     true

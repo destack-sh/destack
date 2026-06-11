@@ -646,8 +646,8 @@ fn unswitch_loop(
                 .collect(),
         },
     };
-    tree.replace(branch_block.terminator, branch_terminator);
-    tree.replace(candidate.branch_block, branch_block);
+    tree.set(branch_block.terminator, branch_terminator);
+    tree.set(candidate.branch_block, branch_block);
 
     // modify cloned branch block: always take the "else" branch
     let cloned = tree.get(cloned_branch_block).clone();
@@ -667,8 +667,8 @@ fn unswitch_loop(
             arguments: else_arguments.into_iter().map(Into::into).collect(),
         },
     };
-    tree.replace(cloned.terminator, cloned_terminator);
-    tree.replace(cloned_branch_block, cloned);
+    tree.set(cloned.terminator, cloned_terminator);
+    tree.set(cloned_branch_block, cloned);
 
     // modify preheader: branch based on condition
     let mut preheader = tree.get(candidate.preheader).clone();
@@ -708,8 +708,8 @@ fn unswitch_loop(
                 .collect(),
         },
     };
-    tree.replace(preheader.terminator, preheader_terminator);
-    tree.replace(candidate.preheader, preheader);
+    tree.set(preheader.terminator, preheader_terminator);
+    tree.set(candidate.preheader, preheader);
 
     // remap terminators in cloned blocks (except the branch block which we already handled)
     for (&original, &cloned_id) in &block_map {
@@ -720,7 +720,7 @@ fn unswitch_loop(
         let block = tree.get(cloned_id);
         let mut terminator = tree.get(block.terminator).clone();
         terminator_remap(&mut terminator, &block_map, &value_map);
-        tree.replace(block.terminator, terminator);
+        tree.set(block.terminator, terminator);
     }
 
     // add cloned blocks to function (sorted for deterministic output)
@@ -1303,8 +1303,8 @@ b3:
         };
 
         let mut profile = mir::Profile::new();
-        profile.blocks.insert(entry_block, 100);
-        profile.blocks.insert(header_block, 1);
+        profile.blocks.insert(entry_block, mir::Count::new(100));
+        profile.blocks.insert(header_block, mir::Count::new(1));
 
         test.run_pass_with_profile(&LoopUnswitch, profile);
         test.assert_output(input);

@@ -1344,6 +1344,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         let mir::Terminator::Yield {
             value: yielded,
             resume,
+            unwind,
         } = terminator
         else {
             return Vec::new();
@@ -1364,7 +1365,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 continue;
             };
             if self.is_borrowed_value(value)
-                && self.is_value_live_across_suspension(value, resume)
+                && self.is_value_live_across_suspension(value, resume, unwind.as_ref())
                 && !values.contains(&value)
             {
                 values.push(value);
@@ -1375,7 +1376,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         for (index, _) in self.function.value_types.iter().enumerate() {
             let value = mir::Value::new(index as u32);
             if self.is_borrowed_value(value)
-                && self.is_value_live_across_suspension(value, resume)
+                && self.is_value_live_across_suspension(value, resume, unwind.as_ref())
                 && !values.contains(&value)
             {
                 values.push(value);
@@ -1399,8 +1400,19 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         &self,
         value: mir::Value,
         resume: &mir::BlockTarget,
+        unwind: Option<&mir::BlockTarget>,
     ) -> bool {
-        if resume
+        self.is_value_live_at_suspension_target(value, resume)
+            || unwind.is_some_and(|unwind| self.is_value_live_at_suspension_target(value, unwind))
+    }
+
+    /// Return whether one value reaches a suspension target.
+    fn is_value_live_at_suspension_target(
+        &self,
+        value: mir::Value,
+        target: &mir::BlockTarget,
+    ) -> bool {
+        if target
             .arguments
             .iter()
             .any(|argument| argument.value() == Some(value))
@@ -1408,7 +1420,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             return true;
         }
 
-        let Some(block) = resume.block.block() else {
+        let Some(block) = target.block.block() else {
             return false;
         };
 

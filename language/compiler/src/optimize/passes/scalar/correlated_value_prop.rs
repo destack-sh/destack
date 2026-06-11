@@ -605,7 +605,7 @@ fn apply_range_constraint(
                     destination: destination.into(),
                     value: mir::Constant::Boolean { value: result },
                 };
-                tree.replace(instruction_id, new_instruction);
+                tree.set(instruction_id, new_instruction);
                 changed = true;
             }
         }

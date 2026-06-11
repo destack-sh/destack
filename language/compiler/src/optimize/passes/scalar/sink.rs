@@ -308,13 +308,13 @@ fn run_sink(
         for w in &work_items {
             from.instructions.remove(w.instruction_idx);
         }
-        tree.replace(from_block, from);
+        tree.set(from_block, from);
 
         // insert at beginning of target blocks
         for (instruction_id, to_block) in to_sink {
             let mut to = tree.get(to_block).clone();
             to.instructions.insert(0, instruction_id);
-            tree.replace(to_block, to);
+            tree.set(to_block, to);
         }
     }
 

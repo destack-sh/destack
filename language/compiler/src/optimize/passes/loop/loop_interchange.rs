@@ -364,8 +364,8 @@ fn apply_interchange(tree: &mut mir::Tree, candidate: &InterchangeCandidate) -> 
                 .collect(),
         },
     };
-    tree.replace(candidate.outer_preheader, preheader_block);
-    tree.replace(
+    tree.set(candidate.outer_preheader, preheader_block);
+    tree.set(
         tree.get(candidate.outer_preheader).terminator,
         preheader_terminator,
     );
@@ -419,8 +419,8 @@ fn apply_interchange(tree: &mut mir::Tree, candidate: &InterchangeCandidate) -> 
             },
         }
     };
-    tree.replace(candidate.inner_header, inner_header_block);
-    tree.replace(
+    tree.set(candidate.inner_header, inner_header_block);
+    tree.set(
         tree.get(candidate.inner_header).terminator,
         new_inner_terminator,
     );
@@ -464,8 +464,8 @@ fn apply_interchange(tree: &mut mir::Tree, candidate: &InterchangeCandidate) -> 
             },
         }
     };
-    tree.replace(candidate.outer_header, outer_header_block);
-    tree.replace(
+    tree.set(candidate.outer_header, outer_header_block);
+    tree.set(
         tree.get(candidate.outer_header).terminator,
         new_outer_terminator,
     );

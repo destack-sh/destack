@@ -565,12 +565,20 @@ impl<'a> SccpState<'a> {
                     }
                 }
             }
-            mir::Terminator::Yield { resume, .. } => {
+            mir::Terminator::Yield { resume, unwind, .. } => {
                 let Some(resume_block) = resume.block.block() else {
                     return;
                 };
 
                 self.mark_edge_executable(block_id, resume_block, &resume.arguments);
+
+                if let Some(unwind) = unwind {
+                    let Some(unwind_block) = unwind.block.block() else {
+                        return;
+                    };
+
+                    self.mark_edge_executable(block_id, unwind_block, &unwind.arguments);
+                }
             }
             mir::Terminator::Call { target, unwind, .. }
             | mir::Terminator::CallIndirect { target, unwind, .. }
@@ -1081,7 +1089,7 @@ fn apply_sccp_result(
                 destination: destination.into(),
                 value: constant,
             };
-            tree.replace(instruction_id, new_instruction);
+            tree.set(instruction_id, new_instruction);
             value_changed = true;
         }
 
@@ -1090,7 +1098,7 @@ fn apply_sccp_result(
             && new_terminator != terminator
         {
             let terminator_id = tree.get(block_id).terminator;
-            tree.replace(terminator_id, new_terminator);
+            tree.set(terminator_id, new_terminator);
             cfg_changed = true;
         }
     }
@@ -1231,7 +1239,7 @@ fn function_substitute_constant_uses(
 
             // update instruction when rewritten
             if new_instruction != instruction {
-                tree.replace(instruction_id, new_instruction);
+                tree.set(instruction_id, new_instruction);
                 remap_instruction_memory_accesses(tree, instruction_id, substitutions);
                 changed = true;
             }
@@ -1242,7 +1250,7 @@ fn function_substitute_constant_uses(
 
         // update terminator when rewritten
         if new_terminator != terminator {
-            tree.replace(terminator_id, new_terminator);
+            tree.set(terminator_id, new_terminator);
             changed = true;
         }
     }

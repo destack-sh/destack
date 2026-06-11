@@ -311,7 +311,7 @@ fn run_licm(
         for instruction_id in instructions {
             preheader.instructions.push(instruction_id);
         }
-        tree.replace(preheader_id, preheader);
+        tree.set(preheader_id, preheader);
     }
 
     true

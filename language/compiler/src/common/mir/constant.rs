@@ -228,7 +228,7 @@ pub fn apply_constant_parameters(
         let terminator = tree.get(terminator_id).clone();
         let updated = terminator_substitute_uses(&terminator, &substitutions);
         if terminator != updated {
-            tree.replace(terminator_id, updated);
+            tree.set(terminator_id, updated);
         }
     }
 

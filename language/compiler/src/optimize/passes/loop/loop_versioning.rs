@@ -261,7 +261,7 @@ fn run_loop_versioning(
             let block = tree.get(cloned_id);
             let mut terminator = tree.get(block.terminator).clone();
             terminator_remap(&mut terminator, &block_map, &value_map);
-            tree.replace(block.terminator, terminator);
+            tree.set(block.terminator, terminator);
         }
 
         // remove bounds checks in the cloned loop
@@ -294,8 +294,8 @@ fn run_loop_versioning(
                 arguments: preheader_args.iter().copied().map(Into::into).collect(),
             },
         };
-        tree.replace(preheader_block.terminator, preheader_terminator);
-        tree.replace(preheader, preheader_block);
+        tree.set(preheader_block.terminator, preheader_terminator);
+        tree.set(preheader, preheader_block);
 
         // append cloned blocks
         let mut cloned_blocks: Vec<_> = block_map.values().copied().collect();
@@ -648,8 +648,8 @@ fn strip_bounds_checks(
         let new_terminator = mir::Terminator::Jump {
             target: success.clone(),
         };
-        tree.replace(block.terminator, new_terminator);
-        tree.replace(cloned_id, block);
+        tree.set(block.terminator, new_terminator);
+        tree.set(cloned_id, block);
     }
 }
 

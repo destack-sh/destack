@@ -178,12 +178,20 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
                     }
                 }
             }
-            mir::Terminator::Yield { resume, .. } => {
+            mir::Terminator::Yield { resume, unwind, .. } => {
                 if let Some(target_block) = resume.block.block() {
                     predecessors
                         .get_mut(&target_block)
                         .unwrap()
                         .push((block_id, resume.arguments.clone()));
+                }
+                if let Some(unwind) = unwind
+                    && let Some(target_block) = unwind.block.block()
+                {
+                    predecessors
+                        .get_mut(&target_block)
+                        .unwrap()
+                        .push((block_id, unwind.arguments.clone()));
                 }
             }
             mir::Terminator::Call { target, unwind, .. }
@@ -334,7 +342,7 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
 
             // replace instructions when substitutions apply
             if new_instruction != instruction {
-                tree.replace(instruction_id, new_instruction);
+                tree.set(instruction_id, new_instruction);
                 remap_instruction_memory_accesses(tree, instruction_id, &substitutions);
             }
         }
@@ -371,8 +379,8 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
             let mut new_block = block.clone();
             new_block.parameters = new_parameters;
             new_block.instructions = new_instructions;
-            tree.replace(block.terminator, new_terminator);
-            tree.replace(block_id, new_block);
+            tree.set(block.terminator, new_terminator);
+            tree.set(block_id, new_block);
         }
     }
 
@@ -510,19 +518,46 @@ fn remove_arguments_at_indices(
                 cases: new_cases,
             }
         }
-        mir::Terminator::Yield { value, resume } => {
-            if let Some(indices) = resume
+        mir::Terminator::Yield {
+            value,
+            resume,
+            unwind,
+        } => {
+            let new_resume_args = if let Some(indices) = resume
                 .block
                 .block()
                 .and_then(|block| removed_indices.get(&block))
             {
-                let new_args = filter_indices(&resume.arguments, indices);
+                filter_indices(&resume.arguments, indices)
+            } else {
+                resume.arguments.clone()
+            };
+
+            let new_unwind = unwind.as_ref().map(|unwind| {
+                let arguments = if let Some(indices) = unwind
+                    .block
+                    .block()
+                    .and_then(|block| removed_indices.get(&block))
+                {
+                    filter_indices(&unwind.arguments, indices)
+                } else {
+                    unwind.arguments.clone()
+                };
+
+                mir::BlockTarget {
+                    block: unwind.block,
+                    arguments,
+                }
+            });
+
+            if new_resume_args != resume.arguments || new_unwind != *unwind {
                 mir::Terminator::Yield {
                     value: *value,
                     resume: mir::BlockTarget {
                         block: resume.block,
-                        arguments: new_args,
+                        arguments: new_resume_args,
                     },
+                    unwind: new_unwind,
                 }
             } else {
                 terminator.clone()

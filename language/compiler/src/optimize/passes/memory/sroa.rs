@@ -603,7 +603,7 @@ fn split_allocation(
         let mut block = tree.get(block_id).clone();
         if block.instructions != new_instructions {
             block.instructions = new_instructions;
-            tree.replace(block_id, block);
+            tree.set(block_id, block);
         }
     }
 
@@ -786,7 +786,7 @@ fn apply_substitutions(
             let instruction = tree.get(inst_id).clone();
             let new_instruction =
                 instruction_substitute_uses_in_tree(&instruction, substitutions, tree);
-            tree.replace(inst_id, new_instruction);
+            tree.set(inst_id, new_instruction);
             remap_instruction_memory_accesses(tree, inst_id, substitutions);
         }
 
@@ -794,7 +794,7 @@ fn apply_substitutions(
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator).clone();
         let new_terminator = terminator_substitute_uses(&terminator, substitutions);
-        tree.replace(block.terminator, new_terminator);
+        tree.set(block.terminator, new_terminator);
     }
 }
 

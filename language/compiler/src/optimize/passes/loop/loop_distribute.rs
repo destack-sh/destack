@@ -592,8 +592,8 @@ fn apply_distribution(
             let terminator_id = block.terminator;
             let mut terminator = tree.get(terminator_id).clone();
             terminator_remap(&mut terminator, &block_map, &value_map);
-            tree.replace(cloned_id, block);
-            tree.replace(terminator_id, terminator);
+            tree.set(cloned_id, block);
+            tree.set(terminator_id, terminator);
         }
 
         // insert cloned blocks into the function
@@ -653,8 +653,8 @@ fn apply_distribution(
                 .collect(),
         },
     };
-    tree.replace(candidate.preheader, preheader_block);
-    tree.replace(tree.get(candidate.preheader).terminator, new_terminator);
+    tree.set(candidate.preheader, preheader_block);
+    tree.set(tree.get(candidate.preheader).terminator, new_terminator);
 
     true
 }
@@ -711,7 +711,7 @@ fn prune_latch_instructions(
 
     // commit the filtered latch
     block.instructions = filtered;
-    tree.replace(latch, block);
+    tree.set(latch, block);
 }
 
 /// Update the header terminator to chain loop exits.
@@ -763,8 +763,8 @@ fn update_header_exit(
     };
 
     // store the rewritten terminator
-    tree.replace(header, header_block);
-    tree.replace(tree.get(header).terminator, new_terminator);
+    tree.set(header, header_block);
+    tree.set(tree.get(header).terminator, new_terminator);
     true
 }
 

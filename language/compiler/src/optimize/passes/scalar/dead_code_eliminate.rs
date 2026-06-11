@@ -174,7 +174,7 @@ fn run_dead_code_elimination(
         if live_instructions.len() != original_len {
             let mut new_block = block.clone();
             new_block.instructions = live_instructions;
-            tree.replace(block_id, new_block);
+            tree.set(block_id, new_block);
             changed = true;
         }
     }
@@ -254,7 +254,7 @@ fn remove_dead_stores(
             new_block
                 .instructions
                 .retain(|id| !dead_stores.contains(id));
-            tree.replace(block_id, new_block);
+            tree.set(block_id, new_block);
         }
     }
 

@@ -118,7 +118,7 @@ fn replace_check_with_jump(
     // build a jump terminator replacement
     let block = tree.get(block_id);
     let new_terminator = mir::Terminator::Jump { target };
-    tree.replace(block.terminator, new_terminator);
+    tree.set(block.terminator, new_terminator);
 }
 
 #[cfg(test)]

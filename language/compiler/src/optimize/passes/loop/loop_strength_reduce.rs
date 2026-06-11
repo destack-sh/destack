@@ -594,7 +594,7 @@ fn run_loop_strength_reduce(
 
             // replace instructions that changed
             if new_instruction != instruction {
-                tree.replace(instruction_id, new_instruction);
+                tree.set(instruction_id, new_instruction);
                 remap_instruction_memory_accesses(tree, instruction_id, &substitutions);
             }
         }
@@ -612,7 +612,7 @@ fn run_loop_strength_reduce(
         // replace blocks that changed
         if new_terminator != terminator {
             let terminator_id = block.terminator;
-            tree.replace(terminator_id, new_terminator);
+            tree.set(terminator_id, new_terminator);
         }
     }
 
@@ -723,7 +723,7 @@ fn apply_candidates_for_loop(
             ty: item.new_param.ty.into(),
         });
     }
-    tree.replace(header, header_block);
+    tree.set(header, header_block);
 
     // insert latch updates
     let mut latch_block = latch_block;
@@ -741,12 +741,12 @@ fn apply_candidates_for_loop(
     }
 
     // install latch terminator
-    tree.replace(latch_block.terminator, latch_terminator);
-    tree.replace(latch, latch_block);
+    tree.set(latch_block.terminator, latch_terminator);
+    tree.set(latch, latch_block);
 
     // install preheader terminator
     if preheader_terminator != preheader_current_terminator {
-        tree.replace(preheader_block.terminator, preheader_terminator);
+        tree.set(preheader_block.terminator, preheader_terminator);
     }
 
     // return substitutions
@@ -1203,21 +1203,42 @@ fn append_arguments_for_successor(
                 cases: updated_cases,
             })
         }
-        mir::Terminator::Yield { value, resume } => {
-            // ensure the yield resumes to the successor
-            if resume.block != successor.into() {
+        mir::Terminator::Yield {
+            value,
+            resume,
+            unwind,
+        } => {
+            let successor = mir::BlockReference::from(successor);
+            let mut touched = false;
+
+            // append resume arguments
+            let mut updated_resume = resume.clone();
+            if resume.block == successor {
+                updated_resume
+                    .arguments
+                    .extend(new_args.iter().copied().map(mir::ValueReference::from));
+                touched = true;
+            }
+
+            // append unwind arguments
+            let mut updated_unwind = unwind.clone();
+            if let Some(unwind) = &mut updated_unwind
+                && unwind.block == successor
+            {
+                unwind
+                    .arguments
+                    .extend(new_args.iter().copied().map(mir::ValueReference::from));
+                touched = true;
+            }
+
+            if !touched {
                 return None;
             }
 
-            // append resume arguments
-            let mut updated_args = resume.arguments.clone();
-            updated_args.extend(new_args.iter().copied().map(mir::ValueReference::from));
             Some(mir::Terminator::Yield {
                 value: *value,
-                resume: mir::BlockTarget {
-                    block: resume.block,
-                    arguments: updated_args,
-                },
+                resume: updated_resume,
+                unwind: updated_unwind,
             })
         }
         _ => None,
@@ -1718,7 +1739,7 @@ impl<'a> ScevMaterializer<'a> {
         let instruction_id = self.tree.insert(instruction);
         let mut preheader_block = self.tree.get(self.preheader).clone();
         preheader_block.instructions.push(instruction_id);
-        self.tree.replace(self.preheader, preheader_block);
+        self.tree.set(self.preheader, preheader_block);
         instruction_id
     }
 

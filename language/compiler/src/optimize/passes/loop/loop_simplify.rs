@@ -325,7 +325,7 @@ fn insert_preheader(
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
         if let Some(new_terminator) = redirect_terminator(terminator, header, preheader_id) {
-            tree.replace(block.terminator, new_terminator);
+            tree.set(block.terminator, new_terminator);
             redirected = true;
         }
     }
@@ -474,14 +474,34 @@ fn redirect_terminator(
             }
         }
 
-        mir::Terminator::Yield { value, resume } => {
+        mir::Terminator::Yield {
+            value,
+            resume,
+            unwind,
+        } => {
+            let mut new_resume = resume.clone();
+            let mut new_unwind = unwind.clone();
+            let mut changed = false;
+
+            // redirect resume edge
             if resume.block.block() == Some(old_target) {
+                new_resume.block = new_target.into();
+                changed = true;
+            }
+
+            // redirect unwind edge
+            if let Some(unwind) = &mut new_unwind
+                && unwind.block.block() == Some(old_target)
+            {
+                unwind.block = new_target.into();
+                changed = true;
+            }
+
+            if changed {
                 Some(mir::Terminator::Yield {
                     value: *value,
-                    resume: mir::BlockTarget {
-                        block: new_target.into(),
-                        arguments: resume.arguments.clone(),
-                    },
+                    resume: new_resume,
+                    unwind: new_unwind,
                 })
             } else {
                 None
@@ -541,7 +561,7 @@ fn merge_latches(
         let latch_block = tree.get(latch_id);
         let latch_terminator = tree.get(latch_block.terminator);
         if let Some(new_terminator) = redirect_terminator(latch_terminator, header, new_latch_id) {
-            tree.replace(latch_block.terminator, new_terminator);
+            tree.set(latch_block.terminator, new_terminator);
         }
     }
 
@@ -599,7 +619,7 @@ fn insert_dedicated_exit(
         if let Some(new_terminator) =
             redirect_terminator(exiting_terminator, exit_block, dedicated_id)
         {
-            tree.replace(exiting_block.terminator, new_terminator);
+            tree.set(exiting_block.terminator, new_terminator);
             redirected = true;
         }
     }

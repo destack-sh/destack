@@ -136,7 +136,7 @@ fn run_constant_fold(
                             destination: mir::ValueReference::Value(destination),
                             value: result.clone(),
                         };
-                        tree.replace(instruction_id, new_instruction);
+                        tree.set(instruction_id, new_instruction);
                         block_constants.insert(destination, result);
                         changed = true;
                     } else {
@@ -165,7 +165,7 @@ fn run_constant_fold(
                             destination: mir::ValueReference::Value(destination),
                             value: result.clone(),
                         };
-                        tree.replace(instruction_id, new_instruction);
+                        tree.set(instruction_id, new_instruction);
                         block_constants.insert(destination, result);
                         changed = true;
                     } else {
@@ -207,7 +207,7 @@ fn run_constant_fold(
                                 destination: mir::ValueReference::Value(destination),
                                 value: result.clone(),
                             };
-                            tree.replace(instruction_id, new_instruction);
+                            tree.set(instruction_id, new_instruction);
                             block_constants.insert(destination, result.clone());
                             changed = true;
                         } else {
@@ -253,7 +253,7 @@ fn run_constant_fold(
                             destination: mir::ValueReference::Value(destination),
                             value: result.clone(),
                         };
-                        tree.replace(instruction_id, new_instruction);
+                        tree.set(instruction_id, new_instruction);
                         block_constants.insert(destination, result);
                         changed = true;
                     } else {
@@ -290,7 +290,7 @@ fn run_constant_fold(
                                 destination: mir::ValueReference::Value(destination),
                                 value: result.clone(),
                             };
-                            tree.replace(instruction_id, new_instruction);
+                            tree.set(instruction_id, new_instruction);
                             block_constants.insert(destination, result);
                             changed = true;
                         } else {
@@ -331,7 +331,7 @@ fn run_constant_fold(
 
                 // replace instructions when substitutions apply
                 if updated != instruction {
-                    tree.replace(instruction_id, updated);
+                    tree.set(instruction_id, updated);
                     remap_instruction_memory_accesses(tree, instruction_id, &substitutions);
                 }
             }
@@ -352,8 +352,8 @@ fn run_constant_fold(
             if new_terminator != terminator || new_instructions.len() != block.instructions.len() {
                 let mut new_block = block.clone();
                 new_block.instructions = new_instructions;
-                tree.replace(block.terminator, new_terminator);
-                tree.replace(block_id, new_block);
+                tree.set(block.terminator, new_terminator);
+                tree.set(block_id, new_block);
             }
         }
 
@@ -437,7 +437,7 @@ fn fold_terminators(
 
         // update the terminator when a constant fold applies
         if let Some(new_terminator) = new_terminator {
-            tree.replace(block.terminator, new_terminator);
+            tree.set(block.terminator, new_terminator);
             changed = true;
         }
     }

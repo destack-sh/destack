@@ -430,7 +430,7 @@ fn insert_block_parameters(
             block_params.insert((block_id, local), param_value);
         }
 
-        tree.replace(block_id, block);
+        tree.set(block_id, block);
     }
 
     block_params
@@ -533,8 +533,8 @@ fn rename_variables(
 
         if new_terminator != terminator {
             let new_block = block.clone();
-            tree.replace(block.terminator, new_terminator);
-            tree.replace(block_id, new_block);
+            tree.set(block.terminator, new_terminator);
+            tree.set(block_id, new_block);
         }
 
         // record current stack depths for children
@@ -564,7 +564,7 @@ fn rename_variables(
             let new_instruction =
                 instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
             if new_instruction != instruction {
-                tree.replace(instruction_id, new_instruction);
+                tree.set(instruction_id, new_instruction);
                 remap_instruction_memory_accesses(tree, instruction_id, &substitutions);
             }
         }
@@ -575,8 +575,8 @@ fn rename_variables(
         let new_terminator = terminator_substitute_uses(&terminator, &substitutions);
         if new_terminator != terminator {
             let new_block = block.clone();
-            tree.replace(block.terminator, new_terminator);
-            tree.replace(block_id, new_block);
+            tree.set(block.terminator, new_terminator);
+            tree.set(block_id, new_block);
         }
     }
 
@@ -593,7 +593,7 @@ fn rename_variables(
         if new_instructions.len() != block.instructions.len() {
             let mut new_block = block.clone();
             new_block.instructions = new_instructions;
-            tree.replace(block_id, new_block);
+            tree.set(block_id, new_block);
         }
     }
 }
@@ -908,7 +908,11 @@ fn update_terminator_arguments(
                 cases: new_cases,
             }
         }
-        mir::Terminator::Yield { value, resume } => {
+        mir::Terminator::Yield {
+            value,
+            resume,
+            unwind,
+        } => {
             let new_resume_args = extend_arguments(
                 resume.block,
                 &resume.arguments,
@@ -922,6 +926,16 @@ fn update_terminator_arguments(
                     block: resume.block,
                     arguments: new_resume_args,
                 },
+                unwind: unwind.as_ref().map(|unwind| mir::BlockTarget {
+                    block: unwind.block,
+                    arguments: extend_arguments(
+                        unwind.block,
+                        &unwind.arguments,
+                        block_params,
+                        value_stacks,
+                        substitutions,
+                    ),
+                }),
             }
         }
         mir::Terminator::Call {

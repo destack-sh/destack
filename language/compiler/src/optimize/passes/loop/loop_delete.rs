@@ -399,8 +399,8 @@ fn delete_loop(function: &mut mir::Function, tree: &mut mir::Tree, candidate: &D
                 .collect(),
         },
     };
-    tree.replace(candidate.preheader, preheader);
-    tree.replace(tree.get(candidate.preheader).terminator, new_terminator);
+    tree.set(candidate.preheader, preheader);
+    tree.set(tree.get(candidate.preheader).terminator, new_terminator);
 
     // remove loop blocks from function (they're now unreachable)
     function

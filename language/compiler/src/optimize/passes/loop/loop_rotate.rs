@@ -352,8 +352,8 @@ fn rotate_loop(
     };
 
     let preheader = tree.get(candidate.preheader).clone();
-    tree.replace(candidate.preheader, preheader);
-    tree.replace(
+    tree.set(candidate.preheader, preheader);
+    tree.set(
         tree.get(candidate.preheader).terminator,
         preheader_terminator,
     );
@@ -390,8 +390,8 @@ fn rotate_loop(
     };
 
     let latch = tree.get(candidate.latch).clone();
-    tree.replace(candidate.latch, latch);
-    tree.replace(tree.get(candidate.latch).terminator, latch_terminator);
+    tree.set(candidate.latch, latch);
+    tree.set(tree.get(candidate.latch).terminator, latch_terminator);
 
     // header is now unreachable, SimplifyCfg will remove it
 

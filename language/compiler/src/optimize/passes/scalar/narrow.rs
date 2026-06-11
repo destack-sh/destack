@@ -149,7 +149,7 @@ fn run_narrow(
 
             // commit instruction updates when changed
             if updated {
-                tree.replace(instruction_id, instruction);
+                tree.set(instruction_id, instruction);
                 changed = true;
             }
             new_instructions.push(instruction_id);
@@ -211,8 +211,8 @@ fn run_narrow(
         if new_instructions != block.instructions || new_terminator != terminator {
             let mut updated_block = block;
             updated_block.instructions = new_instructions;
-            tree.replace(updated_block.terminator, new_terminator);
-            tree.replace(block_id, updated_block);
+            tree.set(updated_block.terminator, new_terminator);
+            tree.set(block_id, updated_block);
             changed = true;
         }
     }

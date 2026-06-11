@@ -182,7 +182,7 @@ fn run_reassociate(
                         left: base.into(),
                         right: last.into(),
                     };
-                    tree.replace(*instruction_id, new_instruction.clone());
+                    tree.set(*instruction_id, new_instruction.clone());
                     value_to_instruction.insert(
                         destination,
                         InstructionRef {
@@ -240,7 +240,7 @@ fn run_reassociate(
         if new_instructions != block.instructions {
             let mut updated_block = block.clone();
             updated_block.instructions = new_instructions;
-            tree.replace(block_id, updated_block);
+            tree.set(block_id, updated_block);
             changed = true;
         }
     }

@@ -80,16 +80,30 @@ pub fn terminator_arguments_for_successor(
             &[]
         }
 
-        mir::Terminator::Yield { resume, .. } if resume.block.block() == Some(successor) => {
-            &resume.arguments
+        mir::Terminator::Yield { resume, unwind, .. } => {
+            if resume.block.block() == Some(successor) {
+                &resume.arguments
+            } else if let Some(unwind) = unwind
+                && unwind.block.block() == Some(successor)
+            {
+                &unwind.arguments
+            } else {
+                &[]
+            }
         }
-        mir::Terminator::Call { target, .. }
-        | mir::Terminator::CallIndirect { target, .. }
-        | mir::Terminator::CallVirtual { target, .. }
-        | mir::Terminator::CallDynamic { target, .. }
-            if target.block.block() == Some(successor) =>
-        {
-            &target.arguments
+        mir::Terminator::Call { target, unwind, .. }
+        | mir::Terminator::CallIndirect { target, unwind, .. }
+        | mir::Terminator::CallVirtual { target, unwind, .. }
+        | mir::Terminator::CallDynamic { target, unwind, .. } => {
+            if target.block.block() == Some(successor) {
+                &target.arguments
+            } else if let Some(unwind) = unwind
+                && unwind.block.block() == Some(successor)
+            {
+                &unwind.arguments
+            } else {
+                &[]
+            }
         }
 
         _ => &[],
@@ -301,7 +315,11 @@ pub fn append_successor_arguments(
                 cases: new_cases,
             }
         }
-        mir::Terminator::Yield { value, resume } => {
+        mir::Terminator::Yield {
+            value,
+            resume,
+            unwind,
+        } => {
             let mut new_resume = resume.clone();
             if resume.block.block() == Some(successor) {
                 new_resume
@@ -309,9 +327,19 @@ pub fn append_successor_arguments(
                     .extend(extra_args.iter().copied().map(mir::ValueReference::from));
             }
 
+            let mut new_unwind = unwind.clone();
+            if let Some(unwind) = &mut new_unwind
+                && unwind.block.block() == Some(successor)
+            {
+                unwind
+                    .arguments
+                    .extend(extra_args.iter().copied().map(mir::ValueReference::from));
+            }
+
             mir::Terminator::Yield {
                 value: *value,
                 resume: new_resume,
+                unwind: new_unwind,
             }
         }
         _ => terminator.clone(),
@@ -319,7 +347,7 @@ pub fn append_successor_arguments(
 
     // write back only when arguments changed
     if new_terminator != terminator {
-        tree.replace(terminator_id, new_terminator);
+        tree.set(terminator_id, new_terminator);
     }
 }
 
@@ -533,21 +561,39 @@ fn redirect_successor_to_edge(
                 cases: new_cases,
             }
         }
-        mir::Terminator::Yield { value, resume } => {
+        mir::Terminator::Yield {
+            value,
+            resume,
+            unwind,
+        } => {
+            let mut new_resume = resume.clone();
+            let mut new_unwind = unwind.clone();
+            let mut changed = false;
+
             // rewrite the resume target when it matches the successor
-            let new_resume = if resume.block.block() == Some(successor) {
-                let mut new_resume = resume.clone();
+            if resume.block.block() == Some(successor) {
                 new_resume.block = mir::BlockReference::from(edge_block);
                 new_resume.arguments = Vec::new();
+                changed = true;
+            }
 
-                new_resume
-            } else {
+            // rewrite the unwind target when it matches the successor
+            if let Some(unwind) = &mut new_unwind
+                && unwind.block.block() == Some(successor)
+            {
+                unwind.block = mir::BlockReference::from(edge_block);
+                unwind.arguments = Vec::new();
+                changed = true;
+            }
+
+            if !changed {
                 return false;
-            };
+            }
 
             mir::Terminator::Yield {
                 value: *value,
                 resume: new_resume,
+                unwind: new_unwind,
             }
         }
         _ => return false,
@@ -555,7 +601,7 @@ fn redirect_successor_to_edge(
 
     // update the terminator
     if new_terminator != terminator {
-        tree.replace(terminator_id, new_terminator);
+        tree.set(terminator_id, new_terminator);
         true
     } else {
         false
@@ -715,7 +761,7 @@ pub fn apply_substitutions_in_dominated_blocks(
 
             // replace when a rewrite occurred
             if updated != instruction {
-                tree.replace(instruction_id, updated);
+                tree.set(instruction_id, updated);
                 remap_instruction_memory_accesses(tree, instruction_id, substitutions);
                 changed = true;
             }
@@ -727,8 +773,8 @@ pub fn apply_substitutions_in_dominated_blocks(
         // replace the terminator when it changes
         if new_terminator != terminator {
             let new_block = block;
-            tree.replace(block_id, new_block);
-            tree.replace(terminator_id, new_terminator);
+            tree.set(block_id, new_block);
+            tree.set(terminator_id, new_terminator);
             changed = true;
         }
     }
@@ -799,9 +845,27 @@ pub fn terminator_arguments_for_successor_checked(
                 }
             }
         }
-        mir::Terminator::Yield { resume, .. } => {
+        mir::Terminator::Yield { resume, unwind, .. } => {
             if resume.block.block() == Some(successor) {
                 record_arguments(&mut candidate, &mut is_conflict, &resume.arguments);
+            }
+            if let Some(unwind) = unwind
+                && unwind.block.block() == Some(successor)
+            {
+                record_arguments(&mut candidate, &mut is_conflict, &unwind.arguments);
+            }
+        }
+        mir::Terminator::Call { target, unwind, .. }
+        | mir::Terminator::CallIndirect { target, unwind, .. }
+        | mir::Terminator::CallVirtual { target, unwind, .. }
+        | mir::Terminator::CallDynamic { target, unwind, .. } => {
+            if target.block.block() == Some(successor) {
+                record_arguments(&mut candidate, &mut is_conflict, &target.arguments);
+            }
+            if let Some(unwind) = unwind
+                && unwind.block.block() == Some(successor)
+            {
+                record_arguments(&mut candidate, &mut is_conflict, &unwind.arguments);
             }
         }
         _ => {}
@@ -1229,7 +1293,7 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::Tree) -> 
 
         // update the terminator when it changes
         if let Some(terminator) = new_terminator {
-            tree.replace(block.terminator, terminator);
+            tree.set(block.terminator, terminator);
             changed = true;
         }
     }
@@ -1579,12 +1643,20 @@ pub fn terminator_substitute_uses(
                 })
                 .collect(),
         },
-        mir::Terminator::Yield { value, resume } => mir::Terminator::Yield {
+        mir::Terminator::Yield {
+            value,
+            resume,
+            unwind,
+        } => mir::Terminator::Yield {
             value: substitute(*value),
             resume: mir::BlockTarget {
                 block: resume.block,
                 arguments: resume.arguments.iter().copied().map(substitute).collect(),
             },
+            unwind: unwind.as_ref().map(|unwind| mir::BlockTarget {
+                block: unwind.block,
+                arguments: unwind.arguments.iter().copied().map(substitute).collect(),
+            }),
         },
         mir::Terminator::Call {
             function,

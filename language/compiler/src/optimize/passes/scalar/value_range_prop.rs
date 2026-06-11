@@ -126,7 +126,7 @@ fn run_value_range_propagation(
                 destination,
                 value: constant.clone(),
             };
-            tree.replace(instruction_id, new_instruction);
+            tree.set(instruction_id, new_instruction);
             changed = true;
         }
     }
