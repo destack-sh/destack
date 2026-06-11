@@ -57,15 +57,13 @@ impl NameLookup {
         let mut candidates = candidates
             .into_iter()
             .filter(|candidate| candidate.condition.is_guaranteed_by(guard))
-            .collect::<SmallVec<_>>();
+            .collect::<SmallVec<[NameCandidate; 4]>>();
 
         // preserve lookup cardinality after filtering
         if candidates.is_empty() {
             Self::Missing
         } else if candidates.len() == 1 {
-            let candidate = candidates.remove(0);
-
-            Self::Found(candidate)
+            Self::Found(candidates.remove(0))
         } else {
             Self::Ambiguous(candidates)
         }

@@ -53,7 +53,7 @@ pub(in crate::check) enum MemberDecision {
 /// value.member
 /// value["member"]
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub(in crate::check) struct MemberResolution {
     /// The source member expression.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
@@ -61,6 +61,12 @@ pub(in crate::check) struct MemberResolution {
     pub(in crate::check) receiver: TypeOperand,
     /// The resolved member target.
     pub(in crate::check) target: MemberTargetResolution,
+}
+
+impl PartialEq for MemberResolution {
+    fn eq(&self, other: &Self) -> bool {
+        self.source == other.source && self.target == other.target
+    }
 }
 
 /// Solved member target resolved by the solver.
