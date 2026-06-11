@@ -325,7 +325,11 @@ pub fn collect_non_escaping_frame_allocs(
                     }
                 }
             }
-            mir::Terminator::Yield { value, resume, .. } => {
+            mir::Terminator::Yield {
+                value,
+                resume,
+                unwind,
+            } => {
                 record_stack_escape_reference(
                     *value,
                     definitions,
@@ -345,6 +349,19 @@ pub fn collect_non_escaping_frame_allocs(
                         &frame_allocs,
                         &mut escaping,
                     );
+                }
+                if let Some(unwind) = unwind {
+                    for arg in unwind.arguments.iter().copied() {
+                        record_stack_escape_reference(
+                            arg,
+                            definitions,
+                            &local_defs,
+                            &param_defs,
+                            tree,
+                            &frame_allocs,
+                            &mut escaping,
+                        );
+                    }
                 }
             }
             mir::Terminator::Call { call, target, .. } => {
@@ -677,8 +694,11 @@ pub(crate) fn collect_block_param_defs(
                     add_param_defs(&mut defs, &case.target, tree);
                 }
             }
-            mir::Terminator::Yield { resume, .. } => {
+            mir::Terminator::Yield { resume, unwind, .. } => {
                 add_param_defs(&mut defs, resume, tree);
+                if let Some(unwind) = unwind {
+                    add_param_defs(&mut defs, unwind, tree);
+                }
             }
             _ => {}
         }

@@ -419,7 +419,7 @@ fn clone_loop_blocks_internal(
         // attach cloned instructions to the new block
         let mut new_block = tree.get(new_block_id).clone();
         new_block.instructions = new_instructions;
-        tree.replace(new_block_id, new_block);
+        tree.set(new_block_id, new_block);
     }
 
     (block_map, value_map, instruction_id_map)

@@ -324,8 +324,8 @@ fn run_loop_idiom(
                         arguments: Vec::new(),
                     },
                 };
-                tree.replace(mem_block, mem_block_data);
-                tree.replace(tree.get(mem_block).terminator, mem_terminator);
+                tree.set(mem_block, mem_block_data);
+                tree.set(tree.get(mem_block).terminator, mem_terminator);
 
                 // bypass the original loop body
                 let mut preheader_block = tree.get(preheader).clone();
@@ -349,9 +349,9 @@ fn run_loop_idiom(
                             arguments: Vec::new(),
                         },
                     };
-                    tree.replace(preheader_block.terminator, preheader_terminator);
+                    tree.set(preheader_block.terminator, preheader_terminator);
                 }
-                tree.replace(preheader, preheader_block);
+                tree.set(preheader, preheader_block);
 
                 // preserve original loop blocks now unreachable
                 changed = true;
@@ -497,8 +497,8 @@ fn run_loop_idiom(
                     arguments: Vec::new(),
                 },
             };
-            tree.replace(mem_block, mem_block_data);
-            tree.replace(tree.get(mem_block).terminator, mem_terminator);
+            tree.set(mem_block, mem_block_data);
+            tree.set(tree.get(mem_block).terminator, mem_terminator);
 
             let mut preheader_block = tree.get(preheader).clone();
             if should_guard {
@@ -521,9 +521,9 @@ fn run_loop_idiom(
                         arguments: Vec::new(),
                     },
                 };
-                tree.replace(preheader_block.terminator, preheader_terminator);
+                tree.set(preheader_block.terminator, preheader_terminator);
             }
-            tree.replace(preheader, preheader_block);
+            tree.set(preheader, preheader_block);
 
             changed = true;
             changed_this_iteration = true;
@@ -906,7 +906,7 @@ fn insert_bound_guard(
             arguments: Vec::new(),
         },
     };
-    tree.replace(preheader_block.terminator, guard_terminator);
+    tree.set(preheader_block.terminator, guard_terminator);
 
     Some(guard_inst)
 }

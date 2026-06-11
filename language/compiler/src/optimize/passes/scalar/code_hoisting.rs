@@ -320,13 +320,13 @@ fn hoist_common_prefix(
     // update the header block with hoisted instructions
     let mut header_block = tree.get(header).clone();
     header_block.instructions = new_header_instructions;
-    tree.replace(header, header_block);
+    tree.set(header, header_block);
 
     // drop hoisted instructions from both successor blocks
     let then_trimmed = drop_instructions(&then_data, &hoisted_then_ids);
     let else_trimmed = drop_instructions(&else_data, &hoisted_else_ids);
-    tree.replace(then_block, then_trimmed);
-    tree.replace(else_block, else_trimmed);
+    tree.set(then_block, then_trimmed);
+    tree.set(else_block, else_trimmed);
 
     // apply substitutions to dominated blocks
     let then_changed = apply_substitutions_in_dominated_blocks(

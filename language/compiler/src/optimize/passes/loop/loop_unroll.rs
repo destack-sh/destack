@@ -1683,7 +1683,7 @@ fn peel_jam_remainder(
             let block = tree.get(cloned_id);
             let mut terminator = tree.get(block.terminator).clone();
             terminator_remap(&mut terminator, &block_map, &value_map);
-            tree.replace(block.terminator, terminator);
+            tree.set(block.terminator, terminator);
         }
 
         // insert cloned blocks into the function
@@ -1711,7 +1711,7 @@ fn peel_jam_remainder(
             arguments: preheader_args,
         },
     };
-    tree.replace(preheader_block.terminator, preheader_terminator);
+    tree.set(preheader_block.terminator, preheader_terminator);
 
     // chain peeled iterations together
     for (index, iteration) in peeled_iterations.iter().enumerate() {
@@ -1728,7 +1728,7 @@ fn peel_jam_remainder(
             return false;
         }
 
-        tree.replace(iteration.latch, latch_block);
+        tree.set(iteration.latch, latch_block);
     }
 
     true
@@ -1900,9 +1900,9 @@ fn rewrite_outer_latch_step(
             arguments,
         },
     };
-    tree.replace(latch_block.terminator, new_terminator);
+    tree.set(latch_block.terminator, new_terminator);
 
-    tree.replace(candidate.outer_latch, latch_block);
+    tree.set(candidate.outer_latch, latch_block);
 
     true
 }
@@ -1984,7 +1984,7 @@ fn jam_inner_body(
 
     let mut latch_block = tree.get(candidate.inner_latch).clone();
     latch_block.instructions = new_instructions;
-    tree.replace(candidate.inner_latch, latch_block);
+    tree.set(candidate.inner_latch, latch_block);
 
     true
 }
@@ -2170,7 +2170,7 @@ fn unroll_loop(
             let block = tree.get(cloned_id);
             let mut terminator = tree.get(block.terminator).clone();
             terminator_remap(&mut terminator, &block_map, &value_map);
-            tree.replace(block.terminator, terminator);
+            tree.set(block.terminator, terminator);
         }
 
         // add cloned blocks to the function
@@ -2212,7 +2212,7 @@ fn unroll_loop(
             return false;
         }
 
-        tree.replace(iteration.latch, latch_block);
+        tree.set(iteration.latch, latch_block);
     }
 
     true
@@ -2248,7 +2248,7 @@ fn peel_remainder(
             let block = tree.get(cloned_id);
             let mut terminator = tree.get(block.terminator).clone();
             terminator_remap(&mut terminator, &block_map, &value_map);
-            tree.replace(block.terminator, terminator);
+            tree.set(block.terminator, terminator);
         }
 
         // insert cloned blocks into the function
@@ -2276,7 +2276,7 @@ fn peel_remainder(
             arguments: preheader_args,
         },
     };
-    tree.replace(preheader_block.terminator, preheader_terminator);
+    tree.set(preheader_block.terminator, preheader_terminator);
 
     // chain peeled iterations together
     for (index, iteration) in peeled_iterations.iter().enumerate() {
@@ -2293,7 +2293,7 @@ fn peel_remainder(
             return false;
         }
 
-        tree.replace(iteration.latch, latch_block);
+        tree.set(iteration.latch, latch_block);
     }
 
     true
@@ -2363,7 +2363,7 @@ fn rewrite_latch_to_jump(
             arguments: latch_args.to_vec(),
         },
     };
-    tree.replace(block.terminator, new_terminator);
+    tree.set(block.terminator, new_terminator);
 
     true
 }
@@ -2403,7 +2403,7 @@ fn rewrite_latch_block(
                 arguments: latch_args.to_vec(),
             },
         };
-        tree.replace(block.terminator, new_terminator);
+        tree.set(block.terminator, new_terminator);
 
         return true;
     }
@@ -2427,7 +2427,7 @@ fn rewrite_latch_block(
                 arguments: exit_arguments,
             },
         };
-        tree.replace(block.terminator, new_terminator);
+        tree.set(block.terminator, new_terminator);
 
         return true;
     }
@@ -2440,7 +2440,7 @@ fn rewrite_latch_block(
                 arguments: latch_args.to_vec(),
             },
         };
-        tree.replace(block.terminator, new_terminator);
+        tree.set(block.terminator, new_terminator);
 
         return true;
     }
@@ -2480,7 +2480,7 @@ fn rewrite_latch_block(
             arguments: else_arguments,
         },
     };
-    tree.replace(block.terminator, new_terminator);
+    tree.set(block.terminator, new_terminator);
 
     true
 }

@@ -416,7 +416,7 @@ fn run_instruction_combine(
                         };
                         block_constants.insert(dest, value);
                         value_to_instruction.insert(dest, new_instruction.clone());
-                        tree.replace(instruction_id, new_instruction);
+                        tree.set(instruction_id, new_instruction);
                     }
                     Simplification::Substitute(replacement) => {
                         let dest = instruction
@@ -466,7 +466,7 @@ fn run_instruction_combine(
                 let new_instruction =
                     instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
                 if new_instruction != instruction {
-                    tree.replace(instruction_id, new_instruction);
+                    tree.set(instruction_id, new_instruction);
                     remap_instruction_memory_accesses(tree, instruction_id, &substitutions);
                 }
             }
@@ -488,8 +488,8 @@ fn run_instruction_combine(
             if new_terminator != terminator || filtered.len() != block.instructions.len() {
                 let mut new_block = block.clone();
                 new_block.instructions = filtered;
-                tree.replace(block_id, new_block);
-                tree.replace(terminator_id, new_terminator);
+                tree.set(block_id, new_block);
+                tree.set(terminator_id, new_terminator);
             }
         }
     }

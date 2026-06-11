@@ -368,7 +368,7 @@ fn update_call_sites(
                             target: target.clone(),
                             unwind: unwind.clone(),
                         };
-                        tree.replace(terminator_id, new_terminator);
+                        tree.set(terminator_id, new_terminator);
                     }
                     mir::Terminator::TailCall { function, call } => {
                         // filter the argument list
@@ -379,7 +379,7 @@ fn update_call_sites(
                             function: *function,
                             call: new_call,
                         };
-                        tree.replace(terminator_id, new_terminator);
+                        tree.set(terminator_id, new_terminator);
                     }
                     _ => {}
                 }

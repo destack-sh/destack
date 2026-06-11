@@ -877,7 +877,7 @@ fn apply_fusion(
 
     // commit the rewritten latch
     latch_block.instructions = new_instructions;
-    tree.replace(candidate.first.latch, latch_block);
+    tree.set(candidate.first.latch, latch_block);
 
     // update loop1 header exit to loop2 exit
     let header_block = tree.get(candidate.first.header).clone();
@@ -912,8 +912,8 @@ fn apply_fusion(
             else_target: else_target.clone(),
         }
     };
-    tree.replace(candidate.first.header, header_block);
-    tree.replace(tree.get(candidate.first.header).terminator, new_terminator);
+    tree.set(candidate.first.header, header_block);
+    tree.set(tree.get(candidate.first.header).terminator, new_terminator);
 
     // drop loop2 blocks from the function
     let mut to_remove = HashSet::new();

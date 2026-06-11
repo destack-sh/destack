@@ -226,7 +226,7 @@ fn run_load_pre(
             };
             let mut updated_block = tree.get(block_id).clone();
             updated_block.parameters.push(param);
-            tree.replace(block_id, updated_block);
+            tree.set(block_id, updated_block);
             changed = true;
 
             // insert loads on each edge and append arguments
@@ -262,7 +262,7 @@ fn run_load_pre(
                     // append the new load before the terminator
                     let mut insertion_block_data = tree.get(insertion_block).clone();
                     insertion_block_data.instructions.push(load_id);
-                    tree.replace(insertion_block, insertion_block_data);
+                    tree.set(insertion_block, insertion_block_data);
 
                     // clone memory access metadata when present
                     clone_load_metadata(tree, load.load_id, load_id, insertion.pointer);

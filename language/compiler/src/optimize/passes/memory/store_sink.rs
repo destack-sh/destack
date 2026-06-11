@@ -460,7 +460,7 @@ fn insert_store_for_candidate(
     let instruction_id = tree.insert(instruction);
     let mut block = tree.get(block_id).clone();
     block.instructions.push(instruction_id);
-    tree.replace(block_id, block);
+    tree.set(block_id, block);
     instruction_id
 }
 

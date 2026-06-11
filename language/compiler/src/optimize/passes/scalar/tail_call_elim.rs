@@ -180,7 +180,7 @@ fn try_accumulator_transform(
         value: acc_value.into(),
         ty: return_type.into(),
     });
-    tree.replace(entry_block, new_entry);
+    tree.set(entry_block, new_entry);
 
     // also add to function parameters
     function.parameters.push(mir::Parameter {
@@ -288,7 +288,7 @@ fn try_accumulator_transform_exported(
         value: acc_value.into(),
         ty: return_type.into(),
     });
-    tree.replace(impl_entry_block, new_impl_entry);
+    tree.set(impl_entry_block, new_impl_entry);
 
     // add to impl function parameters
     impl_function.parameters.push(mir::Parameter {
@@ -377,7 +377,7 @@ fn clone_function_as_impl(
         let block = tree.get(new_block_id).clone();
         let terminator = tree.get(block.terminator);
         let fixed_terminator = remap_terminator_blocks(terminator, &block_map);
-        tree.replace(block.terminator, fixed_terminator);
+        tree.set(block.terminator, fixed_terminator);
     }
 
     // create impl function
@@ -621,8 +621,12 @@ fn remap_terminator_blocks(
         | mir::Terminator::TailCallVirtual { .. }
         | mir::Terminator::TailCallDynamic { .. }
         | mir::Terminator::TailCallIndirect { .. } => terminator.clone(),
-        // yield has a resume block that needs remapping
-        mir::Terminator::Yield { value, resume } => mir::Terminator::Yield {
+        // remap yield continuations
+        mir::Terminator::Yield {
+            value,
+            resume,
+            unwind,
+        } => mir::Terminator::Yield {
             value: *value,
             resume: mir::BlockTarget {
                 block: resume
@@ -633,6 +637,15 @@ fn remap_terminator_blocks(
                     .unwrap_or(resume.block),
                 arguments: resume.arguments.clone(),
             },
+            unwind: unwind.as_ref().map(|unwind| mir::BlockTarget {
+                block: unwind
+                    .block
+                    .block()
+                    .and_then(|block| block_map.get(&block).copied())
+                    .map(mir::BlockReference::from)
+                    .unwrap_or(unwind.block),
+                arguments: unwind.arguments.clone(),
+            }),
         },
     }
 }
@@ -664,7 +677,7 @@ fn update_recursive_calls_to_impl(
                 function: impl_function_id.into(),
                 call,
             };
-            tree.replace(instr_id, new_instr);
+            tree.set(instr_id, new_instr);
         }
     }
 }
@@ -723,7 +736,7 @@ fn rewrite_as_wrapper(
         instructions: vec![const_id, call_id],
         terminator: entry_terminator,
     };
-    tree.replace(entry_block, new_entry);
+    tree.set(entry_block, new_entry);
 
     // clear other blocks from function (they're now orphaned, DCE will clean up)
     function.blocks = vec![entry_block];
@@ -853,7 +866,7 @@ fn update_call_site(
 
     let mut new_block = block;
     new_block.instructions = new_instructions;
-    tree.replace(call_site.block_id, new_block);
+    tree.set(call_site.block_id, new_block);
 }
 
 /// Check if an operator is associative (and commutative for safety).
@@ -1198,8 +1211,8 @@ fn transform_accumulator_block(
     let block = tree.get(pattern.block_id);
     let mut new_block = block.clone();
     new_block.instructions = new_instructions;
-    tree.replace(new_block.terminator, new_terminator);
-    tree.replace(pattern.block_id, new_block);
+    tree.set(new_block.terminator, new_terminator);
+    tree.set(pattern.block_id, new_block);
 
     // old instructions become orphaned (not referenced by any block)
     // they will be cleaned up by DCE or tree compaction
@@ -1236,8 +1249,8 @@ fn transform_base_case_block(
         let new_terminator = mir::Terminator::Return {
             value: Some(acc_value.into()),
         };
-        tree.replace(new_block.terminator, new_terminator);
-        tree.replace(block_id, new_block);
+        tree.set(new_block.terminator, new_terminator);
+        tree.set(block_id, new_block);
     } else {
         // return OP(acc, original_value)
         let Some(acc_type) = function.return_type.ty() else {
@@ -1258,8 +1271,8 @@ fn transform_base_case_block(
         let new_terminator = mir::Terminator::Return {
             value: Some(result_val.into()),
         };
-        tree.replace(new_block.terminator, new_terminator);
-        tree.replace(block_id, new_block);
+        tree.set(new_block.terminator, new_terminator);
+        tree.set(block_id, new_block);
     }
 }
 
@@ -1337,8 +1350,8 @@ fn transform_self_recursive_tail_call(
 
     let mut new_block = block.clone();
     new_block.instructions = new_instructions;
-    tree.replace(new_block.terminator, new_terminator);
-    tree.replace(block_id, new_block);
+    tree.set(new_block.terminator, new_terminator);
+    tree.set(block_id, new_block);
 
     true
 }
@@ -1409,8 +1422,8 @@ fn transform_sibling_tail_call(
 
             let mut new_block = block.clone();
             new_block.instructions = new_instructions;
-            tree.replace(new_block.terminator, new_terminator);
-            tree.replace(block_id, new_block);
+            tree.set(new_block.terminator, new_terminator);
+            tree.set(block_id, new_block);
 
             true
         }
@@ -1447,8 +1460,8 @@ fn transform_sibling_tail_call(
 
             let mut new_block = block.clone();
             new_block.instructions = new_instructions;
-            tree.replace(new_block.terminator, new_terminator);
-            tree.replace(block_id, new_block);
+            tree.set(new_block.terminator, new_terminator);
+            tree.set(block_id, new_block);
 
             true
         }

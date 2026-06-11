@@ -932,7 +932,7 @@ fn replace_terminator_with_jump(
     // overwrite the terminator with a jump
     let block = tree.get(block_id);
     let terminator = mir::Terminator::Jump { target };
-    tree.replace(block.terminator, terminator);
+    tree.set(block.terminator, terminator);
 }
 
 #[cfg(test)]

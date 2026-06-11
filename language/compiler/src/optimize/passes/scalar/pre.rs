@@ -308,7 +308,7 @@ fn run_pre(
         for placement in placements {
             block.parameters.push(placement.param.clone());
         }
-        tree.replace(block_id, block);
+        tree.set(block_id, block);
     }
 
     // compute substitutions, exit values, and edge blocks
@@ -682,7 +682,7 @@ fn insert_expression_in_block(
     // insert into the block before the terminator
     let mut block = tree.get(insert_block).clone();
     block.instructions.push(instruction_id);
-    tree.replace(insert_block, block);
+    tree.set(insert_block, block);
 
     Some(destination)
 }

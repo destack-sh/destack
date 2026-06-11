@@ -142,8 +142,8 @@ fn run_loop_peel(
             let terminator_id = block.terminator;
             let mut terminator = tree.get(terminator_id).clone();
             terminator_remap(&mut terminator, &block_map, &value_map);
-            tree.replace(cloned_id, block);
-            tree.replace(terminator_id, terminator);
+            tree.set(cloned_id, block);
+            tree.set(terminator_id, terminator);
         }
 
         // redirect preheader to the peeled iteration
@@ -154,8 +154,8 @@ fn run_loop_peel(
                 arguments: preheader_args.into_iter().map(Into::into).collect(),
             },
         };
-        tree.replace(preheader, preheader_block);
-        tree.replace(tree.get(preheader).terminator, preheader_terminator);
+        tree.set(preheader, preheader_block);
+        tree.set(tree.get(preheader).terminator, preheader_terminator);
 
         // redirect cloned backedge to original header
         let cloned_latch_block = tree.get(cloned_latch).clone();
@@ -164,8 +164,8 @@ fn run_loop_peel(
         if !redirect_backedge(&mut cloned_latch_terminator, cloned_header, lp.header) {
             continue;
         }
-        tree.replace(cloned_latch, cloned_latch_block);
-        tree.replace(cloned_latch_terminator_id, cloned_latch_terminator);
+        tree.set(cloned_latch, cloned_latch_block);
+        tree.set(cloned_latch_terminator_id, cloned_latch_terminator);
 
         // append cloned blocks to the function
         let mut cloned_blocks: Vec<_> = block_map.values().copied().collect();

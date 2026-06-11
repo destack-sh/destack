@@ -296,7 +296,7 @@ fn run_induction_simplify(
             let mut new_instructions = inserts;
             new_instructions.extend(header_block.instructions.iter().copied());
             header_block.instructions = new_instructions;
-            tree.replace(header_id, header_block);
+            tree.set(header_id, header_block);
         }
     }
 
@@ -349,7 +349,7 @@ fn run_induction_simplify(
 
             // replace instructions that changed
             if new_instruction != instruction {
-                tree.replace(instruction_id, new_instruction);
+                tree.set(instruction_id, new_instruction);
                 remap_instruction_memory_accesses(tree, instruction_id, &substitutions);
             }
         }
@@ -385,8 +385,8 @@ fn run_induction_simplify(
         if new_terminator != terminator || new_parameters.len() != block.parameters.len() {
             let mut new_block = block.clone();
             new_block.parameters = new_parameters;
-            tree.replace(block_id, new_block);
-            tree.replace(terminator_id, new_terminator);
+            tree.set(block_id, new_block);
+            tree.set(terminator_id, new_terminator);
         }
     }
 
@@ -642,20 +642,46 @@ fn remove_arguments_at_indices(
                 terminator.clone()
             }
         }
-        mir::Terminator::Yield { value, resume } => {
-            // update resume arguments when needed
-            if let Some(indices) = resume
+        mir::Terminator::Yield {
+            value,
+            resume,
+            unwind,
+        } => {
+            let new_resume_args = if let Some(indices) = resume
                 .block
                 .block()
                 .and_then(|block| removed_indices.get(&block))
             {
-                let new_args = filter_indices(&resume.arguments, indices);
+                filter_indices(&resume.arguments, indices)
+            } else {
+                resume.arguments.clone()
+            };
+
+            let new_unwind = unwind.as_ref().map(|unwind| {
+                let arguments = if let Some(indices) = unwind
+                    .block
+                    .block()
+                    .and_then(|block| removed_indices.get(&block))
+                {
+                    filter_indices(&unwind.arguments, indices)
+                } else {
+                    unwind.arguments.clone()
+                };
+
+                mir::BlockTarget {
+                    block: unwind.block,
+                    arguments,
+                }
+            });
+
+            if new_resume_args != resume.arguments || new_unwind != *unwind {
                 mir::Terminator::Yield {
                     value: *value,
                     resume: mir::BlockTarget {
                         block: resume.block,
-                        arguments: new_args,
+                        arguments: new_resume_args,
                     },
+                    unwind: new_unwind,
                 }
             } else {
                 terminator.clone()

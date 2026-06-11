@@ -246,7 +246,7 @@ fn eliminate_common_subexpressions_in_block(
         let new_instruction =
             instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
         if new_instruction != instruction {
-            tree.replace(instruction_id, new_instruction);
+            tree.set(instruction_id, new_instruction);
             remap_instruction_memory_accesses(tree, instruction_id, &substitutions);
         }
     }
@@ -260,8 +260,8 @@ fn eliminate_common_subexpressions_in_block(
     // update block: remove redundant instructions and update terminator
     let mut new_block = block.clone();
     new_block.instructions.retain(|id| !to_remove.contains(id));
-    tree.replace(block_id, new_block);
-    tree.replace(terminator_id, new_terminator);
+    tree.set(block_id, new_block);
+    tree.set(terminator_id, new_terminator);
 
     true
 }
