@@ -188,6 +188,21 @@ impl GenericSegment {
         parameter_id
     }
 
+    /// Append a generic parameter and register it on its declaring template.
+    pub fn push_template_parameter(
+        &mut self,
+        parameter: GenericParameterBinding,
+    ) -> LocalGenericParameterId {
+        let template_id = parameter.template;
+        let parameter_id = self.push_parameter(parameter);
+
+        // register the parameter in declaration order
+        let slot = template_id.0 - self.first_template_id;
+        self.templates.get_mut(slot).parameters.push(parameter_id);
+
+        parameter_id
+    }
+
     /// Get a generic template by id.
     pub fn get_template(&self, template_id: LocalGenericTemplateId) -> &GenericTemplate {
         self.get_local_template(template_id).unwrap_or_else(|| {
@@ -238,7 +253,7 @@ impl GenericSegment {
     }
 
     /// Get a generic template owned by this table segment.
-    pub(crate) fn get_local_template(
+    pub fn get_local_template(
         &self,
         template_id: LocalGenericTemplateId,
     ) -> Option<&GenericTemplate> {
@@ -247,13 +262,24 @@ impl GenericSegment {
     }
 
     /// Get a generic parameter owned by this table segment.
-    pub(crate) fn get_local_parameter(
+    pub fn get_local_parameter(
         &self,
         parameter_id: LocalGenericParameterId,
     ) -> Option<&GenericParameterBinding> {
         self.contains_parameter_id(parameter_id).then(|| {
             self.parameters
                 .get(parameter_id.0 - self.first_parameter_id)
+        })
+    }
+
+    /// Return one local parameter binding mutably.
+    pub fn get_local_parameter_mut(
+        &mut self,
+        parameter_id: LocalGenericParameterId,
+    ) -> Option<&mut GenericParameterBinding> {
+        self.contains_parameter_id(parameter_id).then(|| {
+            self.parameters
+                .get_mut(parameter_id.0 - self.first_parameter_id)
         })
     }
 

@@ -248,6 +248,38 @@ pub struct Layout {
     pub size: Option<u32>,
     /// The alignment in bytes.
     pub alignment: Option<u32>,
+    /// The largest niche of free scalar values, when one exists.
+    pub niche: Option<Niche>,
+}
+
+/// One niche of free values inside a layout.
+///
+/// The niched scalar stores only values inside `start..=end`, leaving
+/// every other bit pattern of its width free for enclosing layouts to
+/// encode variant tags without extra storage.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Niche {
+    /// The byte offset of the niched scalar.
+    pub offset: u32,
+    /// The niched scalar width in bytes.
+    pub width: u32,
+    /// The first valid value stored by the type.
+    pub start: u128,
+    /// The last valid value stored by the type.
+    pub end: u128,
+}
+
+impl Niche {
+    /// Return the number of free values below and above the valid range.
+    pub fn free_values(&self) -> u128 {
+        let span = match self.width {
+            16.. => u128::MAX,
+            width => (1u128 << (u32::from(width as u8) * 8)).saturating_sub(1),
+        };
+        let valid = self.end.saturating_sub(self.start).saturating_add(1);
+
+        span.saturating_sub(valid).saturating_add(1)
+    }
 }
 
 /// Concrete memory layout shape.
@@ -275,6 +307,8 @@ pub enum LayoutShape {
     Closure,
     /// Transparent nominal storage.
     Newtype(NewtypeLayout),
+    /// Pointer storage slot for an indirectly stored value.
+    Pointer(PointerLayout),
 }
 
 /// Concrete layout for a struct.
@@ -289,6 +323,13 @@ pub struct StructLayout {
 pub struct TupleLayout {
     /// The tuple elements in layout order.
     pub elements: Vec<LayoutField>,
+}
+
+/// Concrete layout for a pointer storage slot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PointerLayout {
+    /// The pointed-to value type.
+    pub pointee: GlobalTypeId,
 }
 
 /// Concrete layout for a slice header.
