@@ -174,6 +174,19 @@ impl Parser {
                 return None;
             }
 
+            // angle counting ignores nested delimiter groups: `<N = (A > B)>`
+            let group = match token_type {
+                TokenType::OpenParenthesis => Some((token_type, TokenType::CloseParenthesis)),
+                TokenType::OpenBracket => Some((token_type, TokenType::CloseBracket)),
+                TokenType::OpenBrace => Some((token_type, TokenType::CloseBrace)),
+                _ => None,
+            };
+            if let Some((open, close)) = group {
+                self.bump();
+                self.scan_balanced_follow_token_after_open(open, close, true)?;
+                continue;
+            }
+
             // close this angle group
             if close_width == angle_depth {
                 self.bump();

@@ -155,11 +155,11 @@ const bad: Keys = "name";
 
 - contains: not assignable
 
-## in
+## key membership
 
-### in returns true for existing keys
+### conditionals answer existing keys
 
-Static `in` answers membership at the type level.
+Key membership at the type level is spelled through `keyof` and a conditional, as in TypeScript.
 
 ```ds
 interface Person {
@@ -167,12 +167,12 @@ interface Person {
     age: number;
 }
 
-type HasName = "name" in Person;
+type HasName = "name" extends keyof Person ? true : false;
 
 const ok: HasName = true;
 ```
 
-### in returns false for missing keys
+### conditionals answer missing keys
 
 Missing keys answer `false`.
 
@@ -182,12 +182,12 @@ interface Person {
     age: number;
 }
 
-type HasTitle = "title" in Person;
+type HasTitle = "title" extends keyof Person ? true : false;
 
 const ok: HasTitle = false;
 ```
 
-### in uses shared union keys
+### membership uses shared union keys
 
 Union membership follows the shared keys.
 
@@ -195,14 +195,14 @@ Union membership follows the shared keys.
 type Left = { shared: string; left: int32 };
 type Right = { shared: string; right: int32 };
 
-type HasLeft = "left" in (Left | Right);
-type HasShared = "shared" in (Left | Right);
+type HasLeft = "left" extends keyof (Left | Right) ? true : false;
+type HasShared = "shared" extends keyof (Left | Right) ? true : false;
 
 const left: HasLeft = false;
 const shared: HasShared = true;
 ```
 
-### in uses intersection keys
+### membership uses intersection keys
 
 Intersection membership includes every key.
 
@@ -210,7 +210,7 @@ Intersection membership includes every key.
 type Left = { shared: string; left: int32 };
 type Right = { shared: string; right: int32 };
 
-type HasLeft = "left" in (Left & Right);
+type HasLeft = "left" extends keyof (Left & Right) ? true : false;
 
 const ok: HasLeft = true;
 ```

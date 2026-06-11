@@ -141,10 +141,10 @@ fn test_parse_direct_maybe_before_index() {
     });
 }
 
-/// Parse compact ternary after an identifier condition.
+/// Parse a detached question mark after an identifier condition as a ternary.
 #[test]
 fn test_parse_identifier_question_expression_as_ternary() {
-    let mut test = TestParser::new_with_language("a?b:c", LanguageType::Destack);
+    let mut test = TestParser::new_with_language("a ? b : c", LanguageType::Destack);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 

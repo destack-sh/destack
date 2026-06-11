@@ -975,10 +975,15 @@ impl Parser {
 
     /// Eat a break expression.
     ///
+    /// A lone identifier operand is always a label as in TypeScript; every
+    /// other same-line expression is a value, and `break (label)` forces an
+    /// identifier-valued break.
+    ///
     /// Examples:
     /// ```
     /// break
     /// break label
+    /// break value * 2
     /// break (value)
     /// break label: value
     /// ```
@@ -991,7 +996,7 @@ impl Parser {
         let (label, label_span, value_id) = if can_insert_semicolon {
             (None, None, None)
         }
-        // identifier-headed forms are labels, not unlabeled values
+        // identifier-headed forms are labels or expressions continuing past one
         else if self.peek_is(TokenType::Identifier) {
             let next_token = self.next_token();
 
@@ -1010,13 +1015,18 @@ impl Parser {
                 let (label, label_span) = self.eat_identifier_with_span()?;
                 (Some(label), Some(label_span), None)
             }
-            // unlabeled values must be parenthesized
+            // identifier-headed value: break value * 2
+            else if self.language.is_destack() {
+                let value_id = self.eat_expression(self.flags.not_in_position())?;
+                (None, None, Some(value_id))
+            }
+            // labels are the only break operands in TypeScript
             else {
                 return Err(ParserError::unexpected(self.peek()?.span));
             }
         }
-        // trailing value: break (value)
-        else if self.language.is_destack() && self.peek_is(TokenType::OpenParenthesis) {
+        // trailing value: break "done"
+        else if self.language.is_destack() && !self.is_any_stop() {
             let value_id = self.eat_expression(self.flags.not_in_position())?;
             (None, None, Some(value_id))
         }
