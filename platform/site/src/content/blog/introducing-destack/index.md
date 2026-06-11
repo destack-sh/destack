@@ -1,14 +1,14 @@
 ---
 title: "introducing destack"
 subtitle: "the absurdly integrated stack for humans building correct, optimal, integrated software systems on TypeScript++"
-date: "2026-06-14"
+date: "2026-06-18"
 tags: ["language", "runtime", "platform"]
 author: "Florian"
 ---
 
 In 1972, [C introduced higher order programming](https://en.wikipedia.org/wiki/C_(programming_language)#History), and some 50 years later, programming is still astoundingly immature.
-Software "engineering" is anything but, and while our tools have gotten prettier, the fundamental motions are unchanged.
-Despite incredible hardware advances, accumulated wisdom, and many libraries and languages and tools, nobody today would accuse the average software product of being anywhere close to correct or optimal.
+Software "engineering" is anything but, and while our tools have gotten prettier, the fundamental motions have barely unchanged.
+Despite incredible hardware advances, accumulated wisdom, and many libraries and languages and tools, nobody would accuse today's average software of being anywhere close to correct or optimal.
 
 - curious state of affairs that software, the _one_ domain where we should be able to draw and redraw new lines of abstraction quite freely, is so stuck on a specific evolved path
 - the 30 million lines problem
