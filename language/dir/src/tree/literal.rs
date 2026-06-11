@@ -21,7 +21,7 @@ use crate::{Argument, FloatType, IntegerType, LocalNodeId, PrimitiveType, String
 /// /abc/
 /// /abc/g
 /// ```
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum ScalarLiteral {
     /// Null value.
     Null,
