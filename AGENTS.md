@@ -180,6 +180,7 @@ else {
 
 - Performance is a feature and always a strong implicit requirement, even when no hard boundaries have been set (and usually, they aren't).
 - The folk-lore idea that "premature optimisation is the root of all evil" is wrong, since what makes modern computers happy (clear, compact, aligned data structures and simple parallel processing) also lines up very well with what makes modern software pristine.
+- Data oriented design. DATA ORIENTED DESIGN. DATA. ORIENTED. DESIGN. DOD. In case of doubt, to make the machine go vroom, we want data oriented design (a la Mike Acton et al). Actually, basically always DOD. DOD!
 - We should always try to stratify and define the performance characteristics of any systems we work with before we touch them and keep them in mind while we work. (What are the bounds for X, Y, Z? latency, RPS, IOPS, throughput, what about p50 p95 p99, ...)
 - Performance has many meanings, but in general it means using the absolute minimum level of resources to solve the real problem we actually have (bandwidth, disk, memory, CPU, whatever it is).
 - Often, though not always, performance "tradeoffs" - like between memory usage and cycles, or between niceness and speed - are not really tradeoffs at all, just poorly factored code that could be much better if we zoom out a little and solve the problem well (or find a way not to do it at all!).
