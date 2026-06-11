@@ -1,20 +1,7 @@
-mod argument;
-mod call;
-mod constraint;
 mod context;
-mod dependency;
 mod dump;
-mod form;
 mod format;
-mod function;
 mod layout;
 mod literal;
-mod operand;
-mod pattern;
-mod resolution;
-mod shape;
-mod r#static;
-mod term;
-mod type_operation;
 
 pub(in crate::check) use context::*;
