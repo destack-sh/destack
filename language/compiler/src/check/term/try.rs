@@ -1,10 +1,11 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, GenericArgument, Origin, TypeOperand, TypeRelation, TypeTerm, VariableId,
+    Answer, CheckState, Condition, GenericArgument, MemberLookup, MemberReceiver, Origin, TermId,
+    TypeLiteralTerm, TypeOperand, TypeRelation, TypeTerm, VariableId,
 };
+use crate::{CompilerError, CompilerResult};
 
 /// Runtime try operator term.
 ///
@@ -22,19 +23,6 @@ pub(in crate::check) struct TryTerm {
     pub(in crate::check) kind: TryTermKind,
 }
 
-impl TryTerm {
-    /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(
-        &self,
-        state: &CheckState<'_>,
-    ) -> smallvec::SmallVec<[VariableId; 2]> {
-        let mut variables = smallvec::SmallVec::new();
-        variables.extend(self.value.referenced_variables(state));
-
-        variables
-    }
-}
-
 /// Runtime try failure projection.
 ///
 /// ```ds
@@ -48,17 +36,12 @@ pub(in crate::check) struct TryFailureTerm {
     pub(in crate::check) value: TypeOperand,
 }
 
-impl TryFailureTerm {
-    /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(
-        &self,
-        state: &CheckState<'_>,
-    ) -> smallvec::SmallVec<[VariableId; 2]> {
-        let mut variables = smallvec::SmallVec::new();
-        variables.extend(self.value.referenced_variables(state));
-
-        variables
-    }
+/// Opened try operator shape.
+struct TryOpening {
+    /// The value produced when evaluation continues.
+    success: TypeOperand,
+    /// The value propagated when evaluation breaks.
+    residual: TypeOperand,
 }
 
 /// Try operator behavior.
@@ -68,7 +51,7 @@ impl TryFailureTerm {
 /// result?
 /// result!
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(in crate::check) enum TryTermKind {
     /// Propagate failure through the enclosing return type.
     ///
@@ -92,17 +75,13 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        tried: &TryTerm,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let Some(value) = self.try_associated_type_operand(origin, module, tried.value, "Value")?
-        else {
-            return Ok(None);
-        };
-        let Some(value) = self.type_operand_term(value)? else {
-            return Ok(None);
+        tried: TryTerm,
+    ) -> CompilerResult<Answer<TypeOperand>> {
+        let Some(value) = self.try_output_type_operand(origin, module, tried.value)? else {
+            return Ok(Answer::pending(tried.value.dependencies(self)));
         };
 
-        Ok(Some(value))
+        Ok(Answer::Ready(value))
     }
 
     /// Reduce one try failure projection.
@@ -110,75 +89,77 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        tried: &TryFailureTerm,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let Some(failure) =
-            self.try_associated_type_operand(origin, module, tried.value, "Failure")?
-        else {
-            return Ok(None);
-        };
-        let Some(failure) = self.type_operand_term(failure)? else {
-            return Ok(None);
+        tried: TryFailureTerm,
+    ) -> CompilerResult<Answer<TypeOperand>> {
+        let Some(failure) = self.try_residual_type_operand(origin, module, tried.value)? else {
+            return Ok(Answer::pending(tried.value.dependencies(self)));
         };
 
-        Ok(Some(failure))
+        Ok(Answer::Ready(failure))
     }
 
-    /// Expect a try value projection to produce the expected result.
+    /// Check a try value projection to produce the expected result.
     pub(in crate::check) fn expect_try_term(
         &mut self,
         origin: Origin,
         tried: &TryTerm,
         result: VariableId,
-    ) -> CompilerResult<()> {
-        let Some(value) =
-            self.try_associated_type_operand(origin, result.module, tried.value, "Value")?
-        else {
-            return Ok(());
+    ) -> CompilerResult<Answer<()>> {
+        let Some(value) = self.try_output_type_operand(origin, result.module, tried.value)? else {
+            return Ok(Answer::pending(tried.value.dependencies(self)));
         };
 
-        self.reduce_contextual_type_assignability(origin, value, result)?;
+        self.constrain_type(
+            origin,
+            TypeRelation::Assignable,
+            value,
+            result,
+            Condition::Always,
+        );
 
-        Ok(())
+        Ok(Answer::Ready(()))
     }
 
-    /// Expect a try failure projection to produce the expected result.
+    /// Check a try failure projection to produce the expected result.
     pub(in crate::check) fn expect_try_failure_term(
         &mut self,
         origin: Origin,
         tried: &TryFailureTerm,
         result: VariableId,
-    ) -> CompilerResult<()> {
-        let Some(failure) =
-            self.try_associated_type_operand(origin, result.module, tried.value, "Failure")?
+    ) -> CompilerResult<Answer<()>> {
+        let Some(failure) = self.try_residual_type_operand(origin, result.module, tried.value)?
         else {
-            return Ok(());
+            return Ok(Answer::pending(tried.value.dependencies(self)));
         };
 
-        self.reduce_contextual_type_assignability(origin, failure, result)?;
+        self.constrain_type(
+            origin,
+            TypeRelation::Assignable,
+            failure,
+            result,
+            Condition::Always,
+        );
 
-        Ok(())
+        Ok(Answer::Ready(()))
     }
 
     /// Decide whether a propagated try failure fits an enclosing return type.
-    pub(in crate::check) fn reduce_try_propagation(
+    pub(in crate::check) fn decide_try_propagation(
         &mut self,
         source: dir::GlobalNodeIdAny,
         value: TypeOperand,
         return_type: TypeOperand,
-    ) -> CompilerResult<Decision> {
-        let Some(failure) = self.try_associated_type_operand(
-            Origin::Node(source),
-            source.module_id,
-            value,
-            "Failure",
-        )?
+    ) -> CompilerResult<Answer<bool>> {
+        let Some(failure) =
+            self.try_residual_type_operand(Origin::Node(source), source.module_id, value)?
         else {
-            return Ok(Decision::Undecidable);
+            return Ok(Answer::pending(value.dependencies(self)));
         };
-        let target = self.from_residual_type(source, source.module_id, failure)?;
-        let Some(return_type) = self.reduce_type_operand(Origin::Node(source), return_type)? else {
-            return Ok(Decision::Undecidable);
+        let target = self.from_residual_type(source, failure)?;
+        let Answer::Ready(return_type) =
+            self.reduce_type_operand(Origin::Node(source), return_type)?
+        else {
+            return Ok(Answer::pending(return_type.dependencies(self)));
         };
 
         let target = self.inference.push_term(target);
@@ -187,24 +168,217 @@ impl CheckState<'_> {
     }
 
     /// Return one try associated type.
+    fn try_output_type_operand(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        value: TypeOperand,
+    ) -> CompilerResult<Option<TypeOperand>> {
+        let Some(opening) = self.open_try_operand(origin, module, value)? else {
+            return Ok(None);
+        };
+
+        Ok(Some(opening.success))
+    }
+
+    /// Return one try residual type.
+    fn try_residual_type_operand(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        value: TypeOperand,
+    ) -> CompilerResult<Option<TypeOperand>> {
+        let Some(opening) = self.open_try_operand(origin, module, value)? else {
+            return Ok(None);
+        };
+
+        Ok(Some(opening.residual))
+    }
+
+    /// Return the opened success and residual types for one try operand.
+    fn open_try_operand(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        value: TypeOperand,
+    ) -> CompilerResult<Option<TryOpening>> {
+        let Answer::Ready(value) = self.reduce_type_operand(origin, value)? else {
+            return Ok(None);
+        };
+        let Some(term) = self.type_operand_term_id(value)? else {
+            return Ok(None);
+        };
+
+        let opening = self.open_nullish_type_term(term)?;
+        let success =
+            self.try_associated_type_operand(origin, module, opening.success, "Output")?;
+        let residual =
+            self.try_associated_type_operand(origin, module, opening.success, "Residual")?;
+
+        // keep nullish-only opening when the value is not a try carrier
+        let Answer::Ready(success) = success else {
+            return Ok(None);
+        };
+        let Answer::Ready(residual) = residual else {
+            return Ok(None);
+        };
+        let success = success.unwrap_or(opening.success);
+        let residual = match residual {
+            Some(residual) => residual,
+            None => self
+                .inference
+                .push_term(TypeTerm::Literal(TypeLiteralTerm::Never))
+                .into(),
+        };
+        let residual = self.union_type_operands([opening.residual, residual])?;
+
+        Ok(Some(TryOpening { success, residual }))
+    }
+
+    /// Return one type term after removing outer nullish values.
+    fn open_nullish_type_term(&mut self, term: TermId<TypeTerm>) -> CompilerResult<TryOpening> {
+        let term_id = term;
+        let term = self.inference.term(term_id);
+        match term {
+            TypeTerm::Literal(literal) if literal.is_nullish() => {
+                let literal = literal.clone();
+                let success = self
+                    .inference
+                    .push_term(TypeTerm::Literal(TypeLiteralTerm::Never))
+                    .into();
+                let residual = self.inference.push_term(TypeTerm::Literal(literal)).into();
+
+                Ok(TryOpening { success, residual })
+            }
+            TypeTerm::Union { elements } => {
+                let elements = elements.iter().copied().collect();
+
+                self.open_nullish_union(elements)
+            }
+            _ => {
+                let success = TypeOperand::Term(term_id);
+                let residual = self
+                    .inference
+                    .push_term(TypeTerm::Literal(TypeLiteralTerm::Never))
+                    .into();
+
+                Ok(TryOpening { success, residual })
+            }
+        }
+    }
+
+    /// Return one union after removing outer nullish values.
+    fn open_nullish_union(&mut self, elements: Vec<TypeOperand>) -> CompilerResult<TryOpening> {
+        let mut success = Vec::with_capacity(elements.len());
+        let mut residual = Vec::new();
+
+        // split nullish and non-nullish union members
+        for element in elements {
+            let Some(term) = self.type_operand_term_id(element)? else {
+                return Ok(TryOpening {
+                    success: self.type_term_operand(TypeTerm::Union { elements: success }),
+                    residual: self.type_term_operand(TypeTerm::Union { elements: residual }),
+                });
+            };
+            let TypeTerm::Literal(literal) = self.inference.term(term) else {
+                success.push(element);
+
+                continue;
+            };
+
+            if literal.is_nullish() {
+                residual.push(element);
+            } else {
+                success.push(element);
+            }
+        }
+
+        // collapse simple union results
+        let success = self.union_type_operands_or_never(success)?;
+        let residual = self.union_type_operands_or_never(residual)?;
+
+        Ok(TryOpening { success, residual })
+    }
+
+    /// Return one try associated type when the opened value is a try carrier.
     fn try_associated_type_operand(
         &mut self,
-        _origin: Origin,
-        _module: ModuleId,
-        _value: TypeOperand,
-        _name: &str,
-    ) -> CompilerResult<Option<TypeOperand>> {
-        Ok(None)
+        origin: Origin,
+        module: ModuleId,
+        value: TypeOperand,
+        name: &str,
+    ) -> CompilerResult<Answer<Option<TypeOperand>>> {
+        let key = dir::StaticKey::Name(dir::StringId::for_text(name));
+        let receiver = MemberReceiver::Value(value);
+        let lookup = self.resolve_member(origin, module, &receiver, &key)?;
+
+        match lookup {
+            MemberLookup::Pending(blockers) => Ok(Answer::Pending(blockers)),
+            MemberLookup::Missing => Ok(Answer::Ready(None)),
+            lookup => {
+                let Some(member) =
+                    self.member_type_from_lookup(module, origin, key, &[], lookup, None)?
+                else {
+                    return Err(CompilerError::Internal {
+                        message: format!("try associated type {name} has no readable member type"),
+                    });
+                };
+
+                Ok(Answer::Ready(Some(member)))
+            }
+        }
+    }
+
+    /// Return a compact union from operands.
+    fn union_type_operands(
+        &mut self,
+        elements: impl IntoIterator<Item = TypeOperand>,
+    ) -> CompilerResult<TypeOperand> {
+        let mut elements = elements.into_iter().collect::<Vec<_>>();
+        let mut kept = Vec::with_capacity(elements.len());
+
+        // remove never members
+        for element in elements.drain(..) {
+            let Some(term) = self.type_operand_term_id(element)? else {
+                kept.push(element);
+
+                continue;
+            };
+            if !matches!(
+                self.inference.term(term),
+                TypeTerm::Literal(TypeLiteralTerm::Never)
+            ) {
+                kept.push(element);
+            }
+        }
+
+        self.union_type_operands_or_never(kept)
+    }
+
+    /// Return a compact union from operands or never.
+    fn union_type_operands_or_never(
+        &mut self,
+        elements: Vec<TypeOperand>,
+    ) -> CompilerResult<TypeOperand> {
+        if elements.is_empty() {
+            Ok(self
+                .inference
+                .push_term(TypeTerm::Literal(TypeLiteralTerm::Never))
+                .into())
+        } else if elements.len() == 1 {
+            Ok(elements[0])
+        } else {
+            Ok(self.type_term_operand(TypeTerm::Union { elements }))
+        }
     }
 
     /// Return the `FromResidual<R>` protocol type.
     pub(in crate::check) fn from_residual_type(
         &mut self,
         source: dir::GlobalNodeIdAny,
-        module: ModuleId,
         failure: TypeOperand,
     ) -> CompilerResult<TypeTerm> {
-        let symbol = self.language_symbol(module, dir::LanguageItem::FromResidual);
+        let symbol = self.language_symbol(dir::LanguageItem::FromResidual);
         let argument = GenericArgument::Type(failure);
 
         Ok(TypeTerm::Reference {

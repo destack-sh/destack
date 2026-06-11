@@ -2,10 +2,10 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::check::{CheckState, Decision, Origin, SubstitutionSet, TypeOperand, TypeRelation};
+use crate::check::{Answer, CheckState, SubstitutionSet, TypeOperand, TypeRelation};
 
 /// Tuple element payload.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) struct TupleElement {
     /// The optional label for the element.
     pub(in crate::check) label: Option<dir::StringId>,
@@ -51,132 +51,34 @@ impl CheckState<'_> {
             .collect()
     }
 
-    /// Decide exact equality for tuple element lists.
-    pub(in crate::check) fn decide_tuple_elements_equal(
-        &mut self,
-        left: &[TupleElement],
-        right: &[TupleElement],
-    ) -> CompilerResult<Decision> {
-        if left.len() != right.len() {
-            return Ok(Decision::No);
-        }
-        let mut decision = Decision::Yes;
-
-        // compare matching element slots
-        for (left, right) in left.iter().zip(right) {
-            decision = decision.and(self.decide_tuple_element_equal(left, right)?);
-            if decision == Decision::No {
-                return Ok(decision);
-            }
-        }
-
-        Ok(decision)
-    }
-
-    /// Decide tuple element assignability.
-    pub(in crate::check) fn decide_tuple_elements_assignable(
-        &mut self,
-        source: &[TupleElement],
-        target: &[TupleElement],
-    ) -> CompilerResult<Decision> {
-        if source.len() != target.len() {
-            return Ok(Decision::No);
-        }
-        let mut decision = Decision::Yes;
-
-        // compare matching element slots
-        for (source, target) in source.iter().zip(target) {
-            decision = decision.and(self.decide_tuple_element_assignable(source, target)?);
-            if decision == Decision::No {
-                return Ok(decision);
-            }
-        }
-
-        Ok(decision)
-    }
-
-    /// Relate matching tuple elements by equality.
-    pub(in crate::check) fn constrain_tuple_elements_equal(
-        &mut self,
-        origin: Origin,
-        left: &[TupleElement],
-        right: &[TupleElement],
-    ) -> CompilerResult<()> {
-        if left.len() != right.len() {
-            return Ok(());
-        }
-        // constrain each matching element
-        for (left, right) in left.iter().zip(right) {
-            self.reduce_type_equality(origin, left.ty, right.ty)?;
-        }
-
-        Ok(())
-    }
-
-    /// Relate matching tuple elements by assignability.
-    pub(in crate::check) fn constrain_tuple_elements_assignable(
-        &mut self,
-        origin: Origin,
-        source: &[TupleElement],
-        target: &[TupleElement],
-    ) -> CompilerResult<()> {
-        if source.len() != target.len() {
-            return Ok(());
-        }
-        // constrain each matching element
-        for (source, target) in source.iter().zip(target) {
-            self.reduce_type_assignability(origin, source.ty, target.ty)?;
-        }
-
-        Ok(())
-    }
-
-    /// Expect tuple elements to satisfy expected elements.
-    pub(in crate::check) fn expect_tuple_element_terms(
-        &mut self,
-        origin: Origin,
-        elements: &[TupleElement],
-        targets: &[TupleElement],
-    ) -> CompilerResult<()> {
-        if elements.len() != targets.len() {
-            return Ok(());
-        }
-        // push each expected element type
-        for (element, target) in elements.iter().zip(targets) {
-            self.reduce_contextual_type_assignability(origin, element.ty, target.ty)?;
-        }
-
-        Ok(())
-    }
-
     /// Decide exact equality for one tuple element.
-    fn decide_tuple_element_equal(
+    pub(in crate::check) fn decide_tuple_element_equal(
         &mut self,
         left: &TupleElement,
         right: &TupleElement,
-    ) -> CompilerResult<Decision> {
+    ) -> CompilerResult<Answer<bool>> {
         if left.label != right.label
             || left.is_optional != right.is_optional
             || left.is_readonly != right.is_readonly
             || left.is_rest != right.is_rest
         {
-            return Ok(Decision::No);
+            return Ok(Answer::Ready(false));
         }
 
         self.decide_type_relation(TypeRelation::Equal, left.ty, right.ty)
     }
 
     /// Decide one tuple element assignability.
-    fn decide_tuple_element_assignable(
+    pub(in crate::check) fn decide_tuple_element_assignable(
         &mut self,
         source: &TupleElement,
         target: &TupleElement,
-    ) -> CompilerResult<Decision> {
+    ) -> CompilerResult<Answer<bool>> {
         if source.is_rest != target.is_rest
             || source.is_readonly && !target.is_readonly
             || source.is_optional && !target.is_optional
         {
-            return Ok(Decision::No);
+            return Ok(Answer::Ready(false));
         }
 
         self.decide_type_relation(TypeRelation::Assignable, source.ty, target.ty)

@@ -1,9 +1,8 @@
 use destack_dir as dir;
-use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
-use crate::check::{CheckState, GenericArgument, TypeOperand, TypeTerm, VariableId};
+use crate::check::{Answer, CheckState, GenericArgument, TermId, TypeOperand};
+use crate::{CompilerError, CompilerResult};
 
 /// Runtime tree expression term.
 ///
@@ -24,44 +23,16 @@ pub(in crate::check) struct TreeTerm {
     pub(in crate::check) elements: Vec<TypeOperand>,
 }
 
-impl TreeTerm {
-    /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(
-        &self,
-        state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 8]> {
-        let mut variables = SmallVec::new();
-
-        if let Some(tag) = self.tag {
-            variables.extend(tag.referenced_variables(state));
-        }
-        variables.extend(
-            self.generic_arguments
-                .iter()
-                .flat_map(|argument| argument.referenced_variables(state)),
-        );
-        variables.extend(
-            self.arguments
-                .iter()
-                .flat_map(|argument| argument.referenced_variables(state)),
-        );
-        variables.extend(
-            self.elements
-                .iter()
-                .flat_map(|element| element.referenced_variables(state)),
-        );
-
-        variables
-    }
-}
-
 impl CheckState<'_> {
     /// Reduce one tree expression when tree dispatch is known.
     pub(in crate::check) fn reduce_tree_term(
         &mut self,
-        _module: ModuleId,
-        _tree: &TreeTerm,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        Ok(None)
+        tree: TermId<TreeTerm>,
+    ) -> CompilerResult<Answer<TypeOperand>> {
+        let source = self.inference.term(tree).source;
+
+        Err(CompilerError::Internal {
+            message: format!("tree expression {source:?} cannot be reduced yet"),
+        })
     }
 }

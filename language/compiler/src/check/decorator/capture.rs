@@ -1,6 +1,7 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
+use crate::CompilerResult;
 use crate::check::CheckState;
 
 impl CheckState<'_> {
@@ -8,9 +9,11 @@ impl CheckState<'_> {
     pub(in crate::check) fn capture_directive_for_symbol(
         &self,
         symbol: dir::GlobalSymbolId,
-    ) -> Option<dir::CaptureDirective> {
+    ) -> CompilerResult<Option<dir::CaptureDirective>> {
         let module = symbol.module_id;
-        let source = self.module(module).symbol_declaration_node(symbol.local_id);
+        let source = self
+            .module(module)
+            .symbol_declaration_node(symbol.local_id)?;
         let invocations = self.decorator_invocations(module, source);
         let mut directive = None;
 
@@ -23,7 +26,7 @@ impl CheckState<'_> {
             directive = self.capture_directive_from_arguments(module, &invocation.arguments);
         }
 
-        directive
+        Ok(directive)
     }
 
     /// Return the capture directive represented by decorator invocation arguments.

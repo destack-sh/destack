@@ -2,35 +2,33 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckError, CheckState, Condition, Decision, Obligation, Place, PlaceTarget, ShapeMember,
+    Answer, CheckError, CheckState, Condition, Obligation, Place, PlaceTarget, ShapeMember,
     TypeOperand, TypeTerm,
 };
 
 impl CheckState<'_> {
-    /// Push an obligation for one place to accept a write.
-    pub(in crate::check) fn push_writable_place_obligation(
+    /// Constrain one place to accept a write.
+    pub(in crate::check) fn constrain_writable_place(
         &mut self,
         place: Place,
         condition: Condition,
     ) {
         self.push_obligation(Obligation::WritablePlace { place, condition });
     }
-}
 
-impl CheckState<'_> {
     /// Check one writable place requirement.
     pub(in crate::check) fn check_writable_place(
         &mut self,
         place: Place,
     ) -> CompilerResult<Option<CheckError>> {
         let diagnostic = match self.decide_writable_place(place)? {
-            Decision::Yes => return Ok(None),
-            Decision::No => {
+            Answer::Ready(true) => return Ok(None),
+            Answer::Ready(false) => {
                 let (module, anchor) = self.source_anchor(place.source);
 
                 CheckError::NotWritable { anchor, module }
             }
-            Decision::Undecidable => {
+            Answer::Pending(_) => {
                 let (module, anchor) = self.source_anchor(place.source);
 
                 CheckError::CannotSolve { anchor, module }
@@ -41,13 +39,13 @@ impl CheckState<'_> {
     }
 
     /// Return whether one place is writable.
-    fn decide_writable_place(&self, place: Place) -> CompilerResult<Decision> {
+    fn decide_writable_place(&mut self, place: Place) -> CompilerResult<Answer<bool>> {
         let decision = match place.target {
             PlaceTarget::Binding { symbol } => {
                 self.decide_writable_binding(place.source, symbol)?
             }
             PlaceTarget::Member { owner, key } => self.decide_writable_member(owner, key)?,
-            PlaceTarget::Index { .. } | PlaceTarget::Dereference => Decision::Yes,
+            PlaceTarget::Index { .. } | PlaceTarget::Dereference => Answer::Ready(true),
         };
 
         Ok(decision)
@@ -58,9 +56,9 @@ impl CheckState<'_> {
         &self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Decision> {
+    ) -> CompilerResult<Answer<bool>> {
         if symbol.module_id != source.module_id {
-            return Ok(Decision::No);
+            return Ok(Answer::Ready(false));
         }
 
         let input = self.module(symbol.module_id);
@@ -77,22 +75,22 @@ impl CheckState<'_> {
             .symbol_target(symbol.local_id)
             .is_none();
 
-        Ok(Decision::from(is_writable))
+        Ok(Answer::from(is_writable))
     }
 
     /// Return whether one member target can be assigned.
     fn decide_writable_member(
-        &self,
+        &mut self,
         owner: TypeOperand,
         key: dir::StaticKey,
-    ) -> CompilerResult<Decision> {
-        let Some(owner) = self.type_operand_term(owner)? else {
-            return Ok(Decision::Undecidable);
+    ) -> CompilerResult<Answer<bool>> {
+        let Some(owner) = self.type_operand_term_id(owner)? else {
+            return Ok(Answer::pending(owner.dependencies(self)));
         };
 
         // structural fields carry their write access directly
-        if let TypeTerm::Shape(shape) = owner {
-            let members = self.inference.term(shape).members.clone();
+        if let TypeTerm::Shape(shape) = self.inference.term(owner) {
+            let members = self.inference.term(*shape).members.iter().copied();
             for member in members {
                 if let ShapeMember::Field {
                     key: member_key,
@@ -101,13 +99,13 @@ impl CheckState<'_> {
                 } = member
                     && member_key.matches(&key)
                 {
-                    return Ok(Decision::from(!is_readonly));
+                    return Ok(Answer::from(!is_readonly));
                 }
             }
 
-            return Ok(Decision::Yes);
+            return Ok(Answer::Ready(true));
         }
 
-        Ok(Decision::Yes)
+        Ok(Answer::Ready(true))
     }
 }

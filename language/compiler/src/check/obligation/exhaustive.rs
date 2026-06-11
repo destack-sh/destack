@@ -3,12 +3,12 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckError, CheckState, Condition, Decision, MatchCase, Obligation, Origin, TypeOperand,
+    Answer, CheckError, CheckState, Condition, MatchCase, Obligation, Origin, TypeOperand,
 };
 
 impl CheckState<'_> {
-    /// Push an obligation for one match expression to cover every known value.
-    pub(in crate::check) fn push_exhaustive_match_obligation(
+    /// Constrain one match expression to cover every known value.
+    pub(in crate::check) fn constrain_exhaustive_match(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
@@ -35,13 +35,13 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<CheckError>> {
         let decision = self.decide_match_cases_cover_operand(Origin::Node(source), cases, value)?;
         let diagnostic = match decision {
-            Decision::Yes => return Ok(None),
-            Decision::No => {
+            Answer::Ready(true) => return Ok(None),
+            Answer::Ready(false) => {
                 let (module, anchor) = self.source_anchor(source);
 
                 CheckError::NonExhaustivePattern { anchor, module }
             }
-            Decision::Undecidable => {
+            Answer::Pending(_) => {
                 let (module, anchor) = self.source_anchor(source);
 
                 CheckError::CannotSolve { anchor, module }

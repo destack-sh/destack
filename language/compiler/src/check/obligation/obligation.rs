@@ -4,7 +4,7 @@ use destack_source::ModuleId;
 use crate::{CompilerResult, DiagnosticAnchor};
 
 use crate::check::{
-    CheckError, CheckState, Condition, Decision, PatternTerm, Place, TermId, TypeOperand,
+    Answer, CheckError, CheckState, Condition, PatternTerm, Place, TermId, TypeOperand,
 };
 
 /// Selector for one active match case.
@@ -44,7 +44,6 @@ pub(in crate::check) enum MatchCase {
 /// match (value) { _ => value }
 /// const { name } = user
 /// sizeOf<T>()
-/// Dynamic<T>
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) enum Obligation {
@@ -120,19 +119,6 @@ pub(in crate::check) enum Obligation {
         /// The static condition under which this obligation exists.
         condition: Condition,
     },
-    /// A `Dynamic<T>` constraint must support runtime dynamic dispatch.
-    ///
-    /// ```ds
-    /// Dynamic<T>
-    /// ```
-    DynamicSafe {
-        /// The `Dynamic<T>` source expression.
-        source: dir::GlobalNodeIdAny,
-        /// The constraint that must be dynamically representable.
-        constraint: TypeOperand,
-        /// The static condition under which this obligation exists.
-        condition: Condition,
-    },
 }
 
 impl CheckState<'_> {
@@ -163,11 +149,11 @@ impl CheckState<'_> {
                 cases,
                 condition,
             } => {
-                let condition = self.reduce_condition_decision(&condition)?;
-                if let Some(diagnostic) = self.obligation_condition_diagnostic(source, condition) {
+                let condition = self.decide_condition(&condition)?;
+                if let Some(diagnostic) = self.obligation_condition_diagnostic(source, &condition) {
                     return Ok(Some(diagnostic));
                 }
-                if condition == Decision::Yes {
+                if condition == Answer::Ready(true) {
                     return self.check_match_exhaustive(source, value, &cases);
                 }
             }
@@ -177,11 +163,11 @@ impl CheckState<'_> {
                 value,
                 condition,
             } => {
-                let condition = self.reduce_condition_decision(&condition)?;
-                if let Some(diagnostic) = self.obligation_condition_diagnostic(source, condition) {
+                let condition = self.decide_condition(&condition)?;
+                if let Some(diagnostic) = self.obligation_condition_diagnostic(source, &condition) {
                     return Ok(Some(diagnostic));
                 }
-                if condition == Decision::Yes {
+                if condition == Answer::Ready(true) {
                     return self.check_irrefutable_pattern(source, pattern, value);
                 }
             }
@@ -191,22 +177,22 @@ impl CheckState<'_> {
                 return_type,
                 condition,
             } => {
-                let condition = self.reduce_condition_decision(&condition)?;
-                if let Some(diagnostic) = self.obligation_condition_diagnostic(source, condition) {
+                let condition = self.decide_condition(&condition)?;
+                if let Some(diagnostic) = self.obligation_condition_diagnostic(source, &condition) {
                     return Ok(Some(diagnostic));
                 }
-                if condition == Decision::Yes {
+                if condition == Answer::Ready(true) {
                     return self.check_try_propagates(source, value, return_type);
                 }
             }
             Obligation::WritablePlace { place, condition } => {
-                let condition = self.reduce_condition_decision(&condition)?;
+                let condition = self.decide_condition(&condition)?;
                 if let Some(diagnostic) =
-                    self.obligation_condition_diagnostic(place.source, condition)
+                    self.obligation_condition_diagnostic(place.source, &condition)
                 {
                     return Ok(Some(diagnostic));
                 }
-                if condition == Decision::Yes {
+                if condition == Answer::Ready(true) {
                     return self.check_writable_place(place);
                 }
             }
@@ -215,29 +201,28 @@ impl CheckState<'_> {
                 ty,
                 condition,
             } => {
-                let condition = self.reduce_condition_decision(&condition)?;
-                if let Some(diagnostic) = self.obligation_condition_diagnostic(source, condition) {
+                let condition = self.decide_condition(&condition)?;
+                if let Some(diagnostic) = self.obligation_condition_diagnostic(source, &condition) {
                     return Ok(Some(diagnostic));
                 }
-                if condition == Decision::Yes {
+                if condition == Answer::Ready(true) {
                     return self.check_concrete_type(source, ty);
                 }
             }
-            Obligation::DynamicSafe { .. } => {}
         }
 
         Ok(None)
     }
 
-    /// Return an undecidable condition diagnostic for one obligation when needed.
+    /// Return a pending condition diagnostic for one obligation when needed.
     fn obligation_condition_diagnostic(
         &self,
         source: dir::GlobalNodeIdAny,
-        condition: Decision,
+        condition: &Answer<bool>,
     ) -> Option<CheckError> {
         match condition {
-            Decision::Yes | Decision::No => None,
-            Decision::Undecidable => {
+            Answer::Ready(_) => None,
+            Answer::Pending(_) => {
                 let (module, anchor) = self.source_anchor(source);
                 Some(CheckError::CannotSolve { anchor, module })
             }

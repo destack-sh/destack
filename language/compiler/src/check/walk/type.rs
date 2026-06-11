@@ -296,7 +296,7 @@ impl WalkState<'_, '_> {
             return TypeTerm::Literal(TypeLiteralTerm::Error);
         }
 
-        // normalize void to the unit type
+        // lower void to the unit type
         if *value == dir::TypeLiteral::Void {
             return TypeTerm::unit();
         }

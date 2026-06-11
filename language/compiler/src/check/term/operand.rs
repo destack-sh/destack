@@ -4,7 +4,11 @@ use std::hash::{Hash, Hasher};
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::check::{CheckState, StaticTerm, TermId, TypeTerm, VariableId};
+use crate::CompilerResult;
+use crate::check::{
+    CheckState, Dependency, DependencyCollector, StaticTerm, SubstitutionSet, TermId, TypeTerm,
+    VariableId,
+};
 
 /// Type relation operand.
 pub(in crate::check) enum TypeOperand {
@@ -71,16 +75,34 @@ impl TypeOperand {
         }
     }
 
-    /// Return variables referenced by this operand.
-    pub(in crate::check) fn referenced_variables(
+    /// Return dependencies referenced by this operand.
+    pub(in crate::check) fn dependencies(
         self,
         state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 2]> {
-        match self {
-            Self::Variable(variable) => smallvec::smallvec![variable],
-            Self::Term(term) => state.inference.term(term).referenced_variables(state),
-            Self::Type(_) => SmallVec::new(),
-        }
+    ) -> SmallVec<[Dependency; 2]> {
+        DependencyCollector::from_type_operand(state, self)
+    }
+
+    /// Return whether this operand can be affected by one substitution.
+    pub(in crate::check) fn needs_substitution(
+        self,
+        substitution: &SubstitutionSet,
+        state: &CheckState<'_>,
+    ) -> CompilerResult<bool> {
+        let needs_substitution = match self {
+            Self::Term(term) => state
+                .inference
+                .term(term)
+                .needs_substitution(substitution, state)?,
+            Self::Variable(variable) => state
+                .solved_type_operand(variable)
+                .map(|operand| operand.needs_substitution(substitution, state))
+                .transpose()?
+                .unwrap_or(false),
+            Self::Type(_) => true,
+        };
+
+        Ok(needs_substitution)
     }
 }
 
@@ -93,16 +115,34 @@ impl StaticOperand {
         }
     }
 
-    /// Return variables referenced by this operand.
-    pub(in crate::check) fn referenced_variables(
+    /// Return dependencies referenced by this operand.
+    pub(in crate::check) fn dependencies(
         self,
         state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 2]> {
-        match self {
-            Self::Variable(variable) => smallvec::smallvec![variable],
-            Self::Term(term) => state.inference.term(term).referenced_variables(state),
-            Self::Static(_) => SmallVec::new(),
-        }
+    ) -> SmallVec<[Dependency; 2]> {
+        DependencyCollector::from_static_operand(state, self)
+    }
+
+    /// Return whether this operand can be affected by one substitution.
+    pub(in crate::check) fn needs_substitution(
+        self,
+        substitution: &SubstitutionSet,
+        state: &CheckState<'_>,
+    ) -> CompilerResult<bool> {
+        let needs_substitution = match self {
+            Self::Term(term) => state
+                .inference
+                .term(term)
+                .needs_substitution(substitution, state)?,
+            Self::Variable(variable) => state
+                .solved_static_operand(variable)
+                .map(|operand| operand.needs_substitution(substitution, state))
+                .transpose()?
+                .unwrap_or(false),
+            Self::Static(_) => false,
+        };
+
+        Ok(needs_substitution)
     }
 }
 

@@ -1,11 +1,12 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
+use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::check::{
-    CheckState, FormTerm, GenericArgument, StaticOperand, StaticTerm, TermId, TypeLiteralTerm,
-    TypeOperand, TypeTerm, VariableId,
+    Answer, CheckState, FormTerm, GenericArgument, StaticOperand, StaticTerm, TermId,
+    TypeLiteralTerm, TypeOperand, TypeTerm,
 };
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     pub(in crate::check) fn reduce_memory_term(
@@ -13,26 +14,32 @@ impl CheckState<'_> {
         module: ModuleId,
         item: dir::LanguageItem,
         arguments: &[GenericArgument],
-    ) -> CompilerResult<Option<TypeTerm>> {
+    ) -> CompilerResult<Answer<TypeOperand>> {
         let Some(target) = self.generic_argument_type_operand(arguments, 0) else {
-            return Ok(None);
+            return Err(CompilerError::Internal {
+                message: format!("memory intrinsic {item:?} has no target type argument"),
+            });
         };
         let Some(term) = (match item {
             dir::LanguageItem::PayloadOf => self.memory_payload_type(target)?,
             dir::LanguageItem::BaseOf => self.memory_base_type(module, target)?,
             dir::LanguageItem::WithBase => {
                 let Some(base) = self.generic_argument_type_operand(arguments, 1) else {
-                    return Ok(None);
+                    return Err(CompilerError::Internal {
+                        message: "WithBase intrinsic has no base type argument".into(),
+                    });
                 };
 
                 self.memory_with_base_type(module, target, base)?
             }
             dir::LanguageItem::WithPlace => {
                 let Some(place) = self.generic_argument_static_operand(arguments, 1)? else {
-                    return Ok(None);
+                    return Err(CompilerError::Internal {
+                        message: "WithPlace intrinsic has no place argument".into(),
+                    });
                 };
                 let Some(place) = self.place_value(module, place)? else {
-                    return Ok(None);
+                    return self.pending_memory_intrinsic(item, target, arguments);
                 };
                 let place = self
                     .inference
@@ -42,10 +49,12 @@ impl CheckState<'_> {
             }
             dir::LanguageItem::WithSpace => {
                 let Some(space) = self.generic_argument_static_operand(arguments, 1)? else {
-                    return Ok(None);
+                    return Err(CompilerError::Internal {
+                        message: "WithSpace intrinsic has no space argument".into(),
+                    });
                 };
                 let Some(space) = self.space_value(module, space)? else {
-                    return Ok(None);
+                    return self.pending_memory_intrinsic(item, target, arguments);
                 };
                 let place = self
                     .inference
@@ -57,34 +66,72 @@ impl CheckState<'_> {
             }
             dir::LanguageItem::WithLifetime => {
                 let Some(lifetime) = self.generic_argument_static_operand(arguments, 1)? else {
-                    return Ok(None);
+                    return Err(CompilerError::Internal {
+                        message: "WithLifetime intrinsic has no lifetime argument".into(),
+                    });
                 };
 
                 self.memory_with_lifetime_type(module, target, lifetime)?
             }
             dir::LanguageItem::WithAccess => {
                 let Some(access) = self.generic_argument_static_operand(arguments, 1)? else {
-                    return Ok(None);
+                    return Err(CompilerError::Internal {
+                        message: "WithAccess intrinsic has no access argument".into(),
+                    });
                 };
 
                 self.memory_with_access_type(module, target, access)?
             }
             dir::LanguageItem::WithOwnership => {
                 let Some(ownership) = self.generic_argument_static_operand(arguments, 1)? else {
-                    return Ok(None);
+                    return Err(CompilerError::Internal {
+                        message: "WithOwnership intrinsic has no ownership argument".into(),
+                    });
                 };
                 let Some(lifetime) = self.generic_argument_static_operand(arguments, 2)? else {
-                    return Ok(None);
+                    return Err(CompilerError::Internal {
+                        message: "WithOwnership intrinsic has no lifetime argument".into(),
+                    });
                 };
 
                 self.memory_with_ownership_type(module, target, ownership, lifetime)?
             }
-            _ => return Ok(None),
+            _ => {
+                return Err(CompilerError::Internal {
+                    message: format!("language item {item:?} is not a memory type intrinsic"),
+                });
+            }
         }) else {
-            return Ok(None);
+            return self.pending_memory_intrinsic(item, target, arguments);
         };
 
-        Ok(Some(term))
+        Ok(Answer::Ready(term))
+    }
+
+    /// Return blockers for a memory intrinsic that cannot reduce yet.
+    fn pending_memory_intrinsic(
+        &self,
+        item: dir::LanguageItem,
+        target: TypeOperand,
+        arguments: &[GenericArgument],
+    ) -> CompilerResult<Answer<TypeOperand>> {
+        let blockers = target
+            .dependencies(self)
+            .into_iter()
+            .chain(
+                arguments
+                    .iter()
+                    .flat_map(|argument| argument.dependencies(self)),
+            )
+            .collect::<SmallVec<[_; 4]>>();
+
+        if blockers.is_empty() {
+            Err(CompilerError::Internal {
+                message: format!("memory intrinsic {item:?} could not reduce"),
+            })
+        } else {
+            Ok(Answer::pending(blockers))
+        }
     }
 
     /// Return one type argument operand.
@@ -113,27 +160,29 @@ impl CheckState<'_> {
             return Ok(None);
         };
 
-        self.type_operand_static_operand(operand)
+        self.static_operand_from_type(operand)
     }
 
     /// Return the static interpretation of one type operand.
-    fn type_operand_static_operand(
+    pub(in crate::check) fn static_operand_from_type(
         &mut self,
         operand: TypeOperand,
     ) -> CompilerResult<Option<StaticOperand>> {
-        let Some(term) = self.type_operand_term(operand)? else {
+        let Some(term) = self.type_operand_term_id(operand)? else {
             return Ok(None);
         };
-        let term = match term {
+        let term = match self.inference.term(term) {
             TypeTerm::Literal(TypeLiteralTerm::Scalar(value)) => {
-                StaticTerm::Literal(dir::StaticTerm::ScalarLiteral { value })
+                StaticTerm::Literal(dir::StaticTerm::ScalarLiteral { value: *value })
             }
-            TypeTerm::Parameter(slot) => StaticTerm::Parameter(slot),
+            TypeTerm::Parameter(slot) => StaticTerm::Parameter(*slot),
             TypeTerm::Reference {
                 origin: _,
                 symbol,
                 arguments,
             } => {
+                let symbol = *symbol;
+                let arguments = arguments.iter().copied().collect();
                 let Some(item) = self.environment.language.item(symbol) else {
                     return Ok(None);
                 };
@@ -143,13 +192,14 @@ impl CheckState<'_> {
 
                 StaticTerm::Intrinsic { item, arguments }
             }
-            TypeTerm::StaticValue { value } => return Ok(Some(value.into())),
+            TypeTerm::StaticValue { value } => return Ok(Some(*value)),
             TypeTerm::Type(_) => return Ok(None),
             TypeTerm::Union { elements } => {
+                let elements = elements.iter().copied().collect::<Vec<_>>();
                 let mut values = Vec::with_capacity(elements.len());
 
                 for element in elements {
-                    let Some(value) = self.type_operand_static_operand(element)? else {
+                    let Some(value) = self.static_operand_from_type(element)? else {
                         return Ok(None);
                     };
 
@@ -224,33 +274,14 @@ impl CheckState<'_> {
         )
     }
 
-    /// Return one type argument variable by position.
-    pub(in crate::check) fn type_argument_variable_at(
-        &self,
-        arguments: &[GenericArgument],
-        index: usize,
-    ) -> Option<VariableId> {
-        arguments.get(index).and_then(|argument| {
-            argument
-                .type_operand()
-                .and_then(|operand| operand.variable())
-        })
-    }
-
     /// Return the immediate payload under one memory form.
-    fn memory_payload_type(&mut self, target: TypeOperand) -> CompilerResult<Option<TypeTerm>> {
-        let Some(target) = self.type_operand_term(target)? else {
+    fn memory_payload_type(&mut self, target: TypeOperand) -> CompilerResult<Option<TypeOperand>> {
+        let Some(target) = self.type_operand_term_id(target)? else {
             return Ok(None);
         };
-        let term = match target {
-            TypeTerm::Form { payload, .. } => {
-                let Some(payload) = self.type_operand_term(payload)? else {
-                    return Ok(None);
-                };
-
-                payload
-            }
-            _ => target,
+        let term = match self.inference.term(target) {
+            TypeTerm::Form { payload, .. } => *payload,
+            _ => target.into(),
         };
 
         Ok(Some(term))
@@ -261,19 +292,20 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         target: TypeOperand,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let Some(target) = self.type_operand_term(target)? else {
+    ) -> CompilerResult<Option<TypeOperand>> {
+        let Some(target) = self.type_operand_term_id(target)? else {
             return Ok(None);
         };
-        let term = match target {
+        let term = match self.inference.term(target) {
             TypeTerm::Form { payload, .. } => {
+                let payload = *payload;
                 let Some(term) = self.memory_base_type(module, payload)? else {
                     return Ok(None);
                 };
 
                 term
             }
-            _ => target,
+            _ => target.into(),
         };
 
         Ok(Some(term))
@@ -285,29 +317,21 @@ impl CheckState<'_> {
         module: ModuleId,
         target: TypeOperand,
         base: TypeOperand,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let Some(target) = self.type_operand_term(target)? else {
+    ) -> CompilerResult<Option<TypeOperand>> {
+        let Some(target) = self.type_operand_term_id(target)? else {
             return Ok(None);
         };
-        let term = match target {
+        let term = match self.inference.term(target) {
             TypeTerm::Form { form, payload } => {
+                let form = *form;
+                let payload = *payload;
                 let Some(payload) = self.memory_with_base_type(module, payload, base)? else {
                     return Ok(None);
                 };
-                let payload = self.inference.push_term(payload);
 
-                TypeTerm::Form {
-                    form,
-                    payload: payload.into(),
-                }
+                self.type_term_operand(TypeTerm::Form { form, payload })
             }
-            _ => {
-                let Some(base) = self.type_operand_term(base)? else {
-                    return Ok(None);
-                };
-
-                base
-            }
+            _ => base,
         };
 
         Ok(Some(term))
@@ -320,39 +344,43 @@ impl CheckState<'_> {
         target: TypeOperand,
         ownership: StaticOperand,
         lifetime: StaticOperand,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let Some(target) = self.type_operand_term(target)? else {
+    ) -> CompilerResult<Option<TypeOperand>> {
+        let Some(target) = self.type_operand_term_id(target)? else {
             return Ok(None);
         };
         let Some(form) = self.ownership_form(module, ownership, lifetime)? else {
             return Ok(None);
         };
-        let term = match target {
+        let term = match self.inference.term(target) {
             TypeTerm::Form {
                 form: wrapper,
                 payload,
             } if matches!(
-                self.inference.term(wrapper),
+                self.inference.term(*wrapper),
                 FormTerm::Placed { .. } | FormTerm::Readonly
             ) =>
             {
+                let wrapper = *wrapper;
+                let payload = *payload;
                 let Some(payload) =
                     self.memory_with_ownership_type(module, payload, ownership, lifetime)?
                 else {
                     return Ok(None);
                 };
-                let payload = self.inference.push_term(payload);
 
-                TypeTerm::Form {
+                self.type_term_operand(TypeTerm::Form {
                     form: wrapper,
-                    payload: payload.into(),
-                }
+                    payload,
+                })
             }
-            TypeTerm::Form { payload, .. } => TypeTerm::Form { form, payload },
-            _ => TypeTerm::Form {
+            TypeTerm::Form { payload, .. } => self.type_term_operand(TypeTerm::Form {
                 form,
-                payload: self.inference.push_term(target).into(),
-            },
+                payload: *payload,
+            }),
+            _ => self.type_term_operand(TypeTerm::Form {
+                form,
+                payload: target.into(),
+            }),
         };
 
         Ok(Some(term))
@@ -364,22 +392,24 @@ impl CheckState<'_> {
         _module: ModuleId,
         target: TypeOperand,
         place: StaticOperand,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let Some(target) = self.type_operand_term(target)? else {
+    ) -> CompilerResult<Option<TypeOperand>> {
+        let Some(target) = self.type_operand_term_id(target)? else {
             return Ok(None);
         };
-        let payload = match target {
+        let payload = match self.inference.term(target) {
             TypeTerm::Form { form, payload }
-                if matches!(self.inference.term(form), FormTerm::Placed { .. }) =>
+                if matches!(self.inference.term(*form), FormTerm::Placed { .. }) =>
             {
-                payload
+                *payload
             }
-            _ => self.inference.push_term(target).into(),
+            _ => target.into(),
         };
 
         let form = self.inference.push_term(FormTerm::Placed { place });
 
-        Ok(Some(TypeTerm::Form { form, payload }))
+        Ok(Some(
+            self.type_term_operand(TypeTerm::Form { form, payload }),
+        ))
     }
 
     /// Rewrite the borrow lifetime inside a type.
@@ -388,35 +418,35 @@ impl CheckState<'_> {
         module: ModuleId,
         target: TypeOperand,
         lifetime: StaticOperand,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let Some(target) = self.type_operand_term(target)? else {
+    ) -> CompilerResult<Option<TypeOperand>> {
+        let Some(target) = self.type_operand_term_id(target)? else {
             return Ok(None);
         };
-        let term = match target {
-            TypeTerm::Form { form, payload } => match self.inference.term(form).clone() {
+        let term = match self.inference.term(target) {
+            TypeTerm::Form { form, payload } => match self.inference.term(*form) {
                 FormTerm::Borrowed { access, .. } => {
+                    let access = *access;
+                    let payload = *payload;
                     let form = self
                         .inference
                         .push_term(FormTerm::Borrowed { lifetime, access });
 
-                    TypeTerm::Form { form, payload }
+                    self.type_term_operand(TypeTerm::Form { form, payload })
                 }
                 FormTerm::Placed { .. } | FormTerm::Readonly => {
+                    let form = *form;
+                    let payload = *payload;
                     let Some(payload) =
                         self.memory_with_lifetime_type(module, payload, lifetime)?
                     else {
                         return Ok(None);
                     };
-                    let payload = self.inference.push_term(payload);
 
-                    TypeTerm::Form {
-                        form,
-                        payload: payload.into(),
-                    }
+                    self.type_term_operand(TypeTerm::Form { form, payload })
                 }
-                FormTerm::Managed | FormTerm::Owned | FormTerm::Raw => target,
+                FormTerm::Managed | FormTerm::Owned | FormTerm::Raw => target.into(),
             },
-            _ => target,
+            _ => target.into(),
         };
 
         Ok(Some(term))
@@ -428,34 +458,34 @@ impl CheckState<'_> {
         module: ModuleId,
         target: TypeOperand,
         access: StaticOperand,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let Some(target) = self.type_operand_term(target)? else {
+    ) -> CompilerResult<Option<TypeOperand>> {
+        let Some(target) = self.type_operand_term_id(target)? else {
             return Ok(None);
         };
-        let term = match target {
-            TypeTerm::Form { form, payload } => match self.inference.term(form).clone() {
+        let term = match self.inference.term(target) {
+            TypeTerm::Form { form, payload } => match self.inference.term(*form) {
                 FormTerm::Borrowed { lifetime, .. } => {
+                    let lifetime = *lifetime;
+                    let payload = *payload;
                     let form = self
                         .inference
                         .push_term(FormTerm::Borrowed { lifetime, access });
 
-                    TypeTerm::Form { form, payload }
+                    self.type_term_operand(TypeTerm::Form { form, payload })
                 }
                 FormTerm::Placed { .. } | FormTerm::Readonly => {
+                    let form = *form;
+                    let payload = *payload;
                     let Some(payload) = self.memory_with_access_type(module, payload, access)?
                     else {
                         return Ok(None);
                     };
-                    let payload = self.inference.push_term(payload);
 
-                    TypeTerm::Form {
-                        form,
-                        payload: payload.into(),
-                    }
+                    self.type_term_operand(TypeTerm::Form { form, payload })
                 }
-                FormTerm::Managed | FormTerm::Owned | FormTerm::Raw => target,
+                FormTerm::Managed | FormTerm::Owned | FormTerm::Raw => target.into(),
             },
-            _ => target,
+            _ => target.into(),
         };
 
         Ok(Some(term))
@@ -485,14 +515,14 @@ impl CheckState<'_> {
         Ok(Some(self.inference.push_term(form)))
     }
 
-    /// Return a memory intrinsic static value.
-    pub(in crate::check) fn memory_static_value(
+    /// Return a memory intrinsic static value from a stored term.
+    pub(in crate::check) fn memory_static_value_from_term(
         &mut self,
         module: ModuleId,
         item: dir::LanguageItem,
-        arguments: &[GenericArgument],
+        term: TermId<StaticTerm>,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
-        let Some(target) = self.generic_argument_type_operand(arguments, 0) else {
+        let Some(target) = self.static_term_type_argument(term, 0) else {
             return Ok(None);
         };
         let value = match item {
@@ -501,7 +531,7 @@ impl CheckState<'_> {
                 if let Some(payload) = self.memory_ownership_value(module, target)? {
                     Some(payload)
                 } else {
-                    self.static_argument_value(arguments, 1)?
+                    self.static_term_argument_value(term, 1)?
                 }
             }
             dir::LanguageItem::PlaceOf => self.memory_place_value(module, target)?,
@@ -509,11 +539,11 @@ impl CheckState<'_> {
                 if let Some(payload) = self.memory_place_value(module, target)? {
                     Some(payload)
                 } else {
-                    self.static_argument_value(arguments, 1)?
+                    self.static_term_argument_value(term, 1)?
                 }
             }
             dir::LanguageItem::PlaceIn => {
-                let Some(space) = self.generic_argument_static_operand(arguments, 1)? else {
+                let Some(space) = self.static_term_static_argument(term, 1)? else {
                     return Ok(None);
                 };
 
@@ -524,7 +554,7 @@ impl CheckState<'_> {
                 if let Some(payload) = self.memory_space_value(module, target)? {
                     Some(payload)
                 } else {
-                    self.static_argument_value(arguments, 1)?
+                    self.static_term_argument_value(term, 1)?
                 }
             }
             dir::LanguageItem::LifetimeOf => self.memory_lifetime_value(module, target)?,
@@ -532,7 +562,7 @@ impl CheckState<'_> {
                 if let Some(payload) = self.memory_lifetime_value(module, target)? {
                     Some(payload)
                 } else {
-                    self.static_argument_value(arguments, 1)?
+                    self.static_term_argument_value(term, 1)?
                 }
             }
             dir::LanguageItem::AccessOf => self.memory_access_value(module, target)?,
@@ -540,7 +570,7 @@ impl CheckState<'_> {
                 if let Some(payload) = self.memory_access_value(module, target)? {
                     Some(payload)
                 } else {
-                    self.static_argument_value(arguments, 1)?
+                    self.static_term_argument_value(term, 1)?
                 }
             }
             dir::LanguageItem::IsManaged
@@ -551,7 +581,7 @@ impl CheckState<'_> {
             }
             dir::LanguageItem::IsShared => self.memory_shared_value(module, target)?,
             dir::LanguageItem::IsSharedIn => {
-                let Some(space) = self.generic_argument_static_operand(arguments, 1)? else {
+                let Some(space) = self.static_term_static_argument(term, 1)? else {
                     return Ok(None);
                 };
 
@@ -563,23 +593,82 @@ impl CheckState<'_> {
         Ok(value)
     }
 
+    /// Return one type argument from a stored static intrinsic term.
+    fn static_term_type_argument(
+        &self,
+        term: TermId<StaticTerm>,
+        index: usize,
+    ) -> Option<TypeOperand> {
+        let StaticTerm::Intrinsic { arguments, .. } = self.inference.term(term) else {
+            return None;
+        };
+
+        arguments.get(index).and_then(GenericArgument::type_operand)
+    }
+
+    /// Return one static argument from a stored static intrinsic term.
+    fn static_term_static_argument(
+        &mut self,
+        term: TermId<StaticTerm>,
+        index: usize,
+    ) -> CompilerResult<Option<StaticOperand>> {
+        let Some((r#static, ty)) = self.static_term_argument_operands(term, index) else {
+            return Ok(None);
+        };
+        if let Some(operand) = r#static {
+            return Ok(Some(operand));
+        }
+        let Some(operand) = ty else {
+            return Ok(None);
+        };
+
+        self.static_operand_from_type(operand)
+    }
+
+    /// Return one static argument's solved value from a stored static intrinsic term.
+    fn static_term_argument_value(
+        &mut self,
+        term: TermId<StaticTerm>,
+        index: usize,
+    ) -> CompilerResult<Option<dir::StaticTerm>> {
+        let Some(operand) = self.static_term_static_argument(term, index)? else {
+            return Ok(None);
+        };
+
+        self.static_literal(operand)
+    }
+
+    /// Return both possible interpretations of one stored generic argument.
+    fn static_term_argument_operands(
+        &self,
+        term: TermId<StaticTerm>,
+        index: usize,
+    ) -> Option<(Option<StaticOperand>, Option<TypeOperand>)> {
+        let StaticTerm::Intrinsic { arguments, .. } = self.inference.term(term) else {
+            return None;
+        };
+        let argument = arguments.get(index)?;
+
+        Some((argument.static_operand(), argument.type_operand()))
+    }
+
     /// Return the outer ownership value.
     fn memory_ownership_value(
-        &self,
+        &mut self,
         module: ModuleId,
         target: TypeOperand,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
-        let Some(target) = self.type_operand_term(target)? else {
+        let Some(target) = self.type_operand_term_id(target)? else {
             return Ok(None);
         };
-        let value = match target {
-            TypeTerm::Form { form, payload } => match self.inference.term(form) {
+        let value = match self.inference.term(target) {
+            TypeTerm::Form { form, payload } => match self.inference.term(*form) {
                 FormTerm::Managed => Some(self.ownership_static(module, "managed")?),
                 FormTerm::Owned => Some(self.ownership_static(module, "owned")?),
                 FormTerm::Borrowed { .. } => Some(self.ownership_static(module, "borrowed")?),
                 FormTerm::Raw => Some(self.ownership_static(module, "raw")?),
                 FormTerm::Placed { .. } | FormTerm::Readonly => {
-                    self.memory_ownership_value(module, payload)?
+                    self.memory_ownership_value(module, *payload)?
                 }
             },
             _ => None,
@@ -590,17 +679,17 @@ impl CheckState<'_> {
 
     /// Return the outer placement value.
     fn memory_place_value(
-        &self,
+        &mut self,
         module: ModuleId,
         target: TypeOperand,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
-        let Some(target) = self.type_operand_term(target)? else {
+        let Some(target) = self.type_operand_term_id(target)? else {
             return Ok(None);
         };
-        let value = match target {
-            TypeTerm::Form { form, payload } => match self.inference.term(form) {
+        let value = match self.inference.term(target) {
+            TypeTerm::Form { form, payload } => match self.inference.term(*form) {
                 FormTerm::Placed { place } => self.static_literal(*place)?,
-                FormTerm::Readonly => self.memory_place_value(module, payload)?,
+                FormTerm::Readonly => self.memory_place_value(module, *payload)?,
                 FormTerm::Managed | FormTerm::Owned | FormTerm::Borrowed { .. } | FormTerm::Raw => {
                     None
                 }
@@ -613,7 +702,7 @@ impl CheckState<'_> {
 
     /// Return a placement resolved within one concrete space.
     fn memory_place_in_value(
-        &self,
+        &mut self,
         module: ModuleId,
         target: TypeOperand,
         space: StaticOperand,
@@ -635,7 +724,7 @@ impl CheckState<'_> {
 
     /// Return the concrete space value.
     fn memory_space_value(
-        &self,
+        &mut self,
         module: ModuleId,
         target: TypeOperand,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
@@ -652,18 +741,18 @@ impl CheckState<'_> {
 
     /// Return the borrow lifetime value.
     fn memory_lifetime_value(
-        &self,
+        &mut self,
         module: ModuleId,
         target: TypeOperand,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
-        let Some(target) = self.type_operand_term(target)? else {
+        let Some(target) = self.type_operand_term_id(target)? else {
             return Ok(None);
         };
-        let value = match target {
-            TypeTerm::Form { form, payload } => match self.inference.term(form) {
+        let value = match self.inference.term(target) {
+            TypeTerm::Form { form, payload } => match self.inference.term(*form) {
                 FormTerm::Borrowed { lifetime, .. } => self.static_literal(*lifetime)?,
                 FormTerm::Placed { .. } | FormTerm::Readonly => {
-                    self.memory_lifetime_value(module, payload)?
+                    self.memory_lifetime_value(module, *payload)?
                 }
                 FormTerm::Managed | FormTerm::Owned | FormTerm::Raw => None,
             },
@@ -675,18 +764,18 @@ impl CheckState<'_> {
 
     /// Return the borrow access value.
     fn memory_access_value(
-        &self,
+        &mut self,
         module: ModuleId,
         target: TypeOperand,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
-        let Some(target) = self.type_operand_term(target)? else {
+        let Some(target) = self.type_operand_term_id(target)? else {
             return Ok(None);
         };
-        let value = match target {
-            TypeTerm::Form { form, payload } => match self.inference.term(form) {
+        let value = match self.inference.term(target) {
+            TypeTerm::Form { form, payload } => match self.inference.term(*form) {
                 FormTerm::Borrowed { access, .. } => self.static_literal(*access)?,
                 FormTerm::Placed { .. } | FormTerm::Readonly => {
-                    self.memory_access_value(module, payload)?
+                    self.memory_access_value(module, *payload)?
                 }
                 FormTerm::Managed | FormTerm::Owned | FormTerm::Raw => None,
             },
@@ -698,7 +787,7 @@ impl CheckState<'_> {
 
     /// Return whether the outer ownership matches one predicate.
     fn memory_ownership_predicate_value(
-        &self,
+        &mut self,
         module: ModuleId,
         item: dir::LanguageItem,
         target: TypeOperand,
@@ -722,7 +811,7 @@ impl CheckState<'_> {
 
     /// Return whether a type is explicitly shared.
     fn memory_shared_value(
-        &self,
+        &mut self,
         module: ModuleId,
         target: TypeOperand,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
@@ -738,7 +827,7 @@ impl CheckState<'_> {
 
     /// Return whether a type resolves to shared in one space.
     fn memory_shared_in_value(
-        &self,
+        &mut self,
         module: ModuleId,
         target: TypeOperand,
         space: StaticOperand,
@@ -756,15 +845,15 @@ impl CheckState<'_> {
 
     /// Return one static operand's solved literal value.
     pub(in crate::check) fn static_literal(
-        &self,
+        &mut self,
         operand: StaticOperand,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
-        let Some(term) = self.static_operand_term(operand)? else {
+        let Some(term) = self.static_operand_term_id(operand) else {
             return Ok(None);
         };
-        let value = match term {
+        let value = match self.inference.term(term) {
             StaticTerm::Static(_) => None,
-            StaticTerm::Literal(payload) => Some(payload),
+            StaticTerm::Literal(payload) => Some(payload.clone()),
             StaticTerm::Parameter(_)
             | StaticTerm::Expression(_)
             | StaticTerm::Member { .. }
@@ -779,22 +868,9 @@ impl CheckState<'_> {
         Ok(value)
     }
 
-    /// Return one static argument's solved value.
-    fn static_argument_value(
-        &mut self,
-        arguments: &[GenericArgument],
-        index: usize,
-    ) -> CompilerResult<Option<dir::StaticTerm>> {
-        let Some(operand) = self.generic_argument_static_operand(arguments, index)? else {
-            return Ok(None);
-        };
-
-        self.static_literal(operand)
-    }
-
     /// Return one solved ownership spelling.
     fn ownership_value(
-        &self,
+        &mut self,
         module: ModuleId,
         operand: StaticOperand,
     ) -> CompilerResult<Option<String>> {
@@ -811,9 +887,9 @@ impl CheckState<'_> {
         Ok(value)
     }
 
-    /// Return one normalized shared value.
+    /// Return one place value.
     fn place_value(
-        &self,
+        &mut self,
         module: ModuleId,
         operand: StaticOperand,
     ) -> CompilerResult<Option<dir::Place>> {
@@ -828,9 +904,9 @@ impl CheckState<'_> {
         self.place_from_static(&term, module)
     }
 
-    /// Return one normalized space value.
+    /// Return one space value.
     fn space_value(
-        &self,
+        &mut self,
         module: ModuleId,
         operand: StaticOperand,
     ) -> CompilerResult<Option<dir::Space>> {
@@ -845,7 +921,7 @@ impl CheckState<'_> {
         self.space_from_static(&term, module)
     }
 
-    /// Return one normalized shared value from a static term.
+    /// Return one place value from a static term.
     fn place_from_static(
         &self,
         term: &dir::StaticTerm,
@@ -870,7 +946,7 @@ impl CheckState<'_> {
         Ok(place)
     }
 
-    /// Return one normalized space value from a static term.
+    /// Return one space value from a static term.
     fn space_from_static(
         &self,
         term: &dir::StaticTerm,
@@ -906,7 +982,7 @@ impl CheckState<'_> {
         Ok(name)
     }
 
-    /// Return one normalized space from a module string.
+    /// Return one space from a module string.
     fn space_from_string_in(
         &self,
         module: ModuleId,

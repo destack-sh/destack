@@ -6,7 +6,7 @@ use crate::check::{
     FlowCheckpoint, FormTerm, GenericArgument, GenericParameterId, IdentityTerm, ImportMetaTerm,
     IndexKind, IndexSetTerm, IndexTerm, InstanceCheckTerm, KeyMembershipTerm, MatchCase,
     MemberCallTerm, MemberProjectionOrigin, MemberReceiver, MemberTerm, OperatorTerm,
-    OperatorTermKind, Origin, PatternRelation, RangeValueTerm, ShapeMember, StaticTerm, SuperTerm,
+    OperatorTermKind, Origin, PatternRelation, RangeTerm, ShapeMember, StaticTerm, SuperTerm,
     TaggedTemplateTerm, TemplateTerm, TreeTerm, TryTerm, TryTermKind, TupleElement,
     TypeLiteralTerm, TypeOperand, TypeOperationTerm, TypeRelation, TypeTerm, TypeValueTerm,
     VariableId, WalkState, YieldTerm,
@@ -777,7 +777,7 @@ impl WalkState<'_, '_> {
             .map(|start| self.node_type_operand(start))
             .transpose()?;
         let end_variable = end.map(|end| self.node_type_operand(end)).transpose()?;
-        let range = self.check.inference.push_term(RangeValueTerm {
+        let range = self.check.inference.push_term(RangeTerm {
             source: id.into_global_any(self.module),
             start: start_variable,
             end: end_variable,

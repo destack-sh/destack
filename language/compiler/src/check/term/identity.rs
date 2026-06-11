@@ -1,10 +1,9 @@
 use destack_dir as dir;
-use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, IdentityDecision, IdentityFailure, IdentityResolution, TypeLiteralTerm,
-    TypeOperand, TypeTerm, VariableId,
+    Answer, CheckState, IdentityDecision, IdentityFailure, IdentityResolution, TermId,
+    TypeLiteralTerm, TypeOperand, TypeTerm,
 };
 
 /// Runtime identity equality term.
@@ -24,45 +23,38 @@ pub(in crate::check) struct IdentityTerm {
     pub(in crate::check) right: TypeOperand,
 }
 
-impl IdentityTerm {
-    /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(
-        &self,
-        state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 2]> {
-        let mut variables = SmallVec::new();
-
-        variables.extend(self.left.referenced_variables(state));
-        variables.extend(self.right.referenced_variables(state));
-
-        variables
-    }
-}
-
 impl CheckState<'_> {
     /// Reduce one strict identity comparison to boolean.
     pub(in crate::check) fn reduce_identity_term(
         &mut self,
         identity: &IdentityTerm,
-    ) -> CompilerResult<Option<TypeTerm>> {
+    ) -> CompilerResult<Answer<TypeOperand>> {
         if let Some(decision) = self.inference.identity(identity.source) {
             return Ok(match decision {
                 IdentityDecision::Resolved(_) => {
-                    Some(TypeTerm::Literal(TypeLiteralTerm::boolean()))
+                    let term = TypeTerm::Literal(TypeLiteralTerm::boolean());
+                    let operand = self.type_term_operand(term);
+
+                    Answer::Ready(operand)
                 }
-                IdentityDecision::Rejected(_) => None,
+                IdentityDecision::Rejected(_) => {
+                    let term = TypeTerm::Literal(TypeLiteralTerm::Error);
+                    let operand = self.type_term_operand(term);
+
+                    Answer::Ready(operand)
+                }
             });
         }
 
-        let Some(left) = self.type_operand_term(identity.left)? else {
-            return Ok(None);
+        let Some(left) = self.type_operand_term_id(identity.left)? else {
+            return Ok(Answer::pending(identity.left.dependencies(self)));
         };
-        let Some(right) = self.type_operand_term(identity.right)? else {
-            return Ok(None);
+        let Some(right) = self.type_operand_term_id(identity.right)? else {
+            return Ok(Answer::pending(identity.right.dependencies(self)));
         };
 
         // choose identity comparison only for identity bearing domains
-        let is_compatible = self.identity_compatible(&left, &right)?;
+        let is_compatible = self.identity_compatible(left, right)?;
         if is_compatible {
             let resolution = IdentityResolution {
                 source: identity.source,
@@ -73,7 +65,10 @@ impl CheckState<'_> {
             self.inference
                 .select_identity(identity.source, IdentityDecision::Resolved(resolution))?;
 
-            return Ok(Some(TypeTerm::Literal(TypeLiteralTerm::boolean())));
+            let term = TypeTerm::Literal(TypeLiteralTerm::boolean());
+            let operand = self.type_term_operand(term);
+
+            return Ok(Answer::Ready(operand));
         }
 
         self.inference.select_identity(
@@ -81,11 +76,18 @@ impl CheckState<'_> {
             IdentityDecision::Rejected(IdentityFailure::Incompatible),
         )?;
 
-        Ok(None)
+        let term = TypeTerm::Literal(TypeLiteralTerm::Error);
+        let operand = self.type_term_operand(term);
+
+        Ok(Answer::Ready(operand))
     }
 
     /// Return whether strict identity can compare both operands.
-    fn identity_compatible(&mut self, left: &TypeTerm, right: &TypeTerm) -> CompilerResult<bool> {
+    fn identity_compatible(
+        &mut self,
+        left: TermId<TypeTerm>,
+        right: TermId<TypeTerm>,
+    ) -> CompilerResult<bool> {
         let left = self.supports_identity(left)?;
         let right = self.supports_identity(right)?;
 
@@ -93,22 +95,24 @@ impl CheckState<'_> {
     }
 
     /// Return whether one type carries scalar or reference identity.
-    fn supports_identity(&mut self, term: &TypeTerm) -> CompilerResult<bool> {
-        let is_supported = match term {
+    fn supports_identity(&mut self, term: TermId<TypeTerm>) -> CompilerResult<bool> {
+        let is_supported = match self.inference.term(term) {
             TypeTerm::Literal(literal) => Self::literal_supports_identity(literal),
             TypeTerm::Form { payload, .. } => {
-                let Some(term) = self.type_operand_term(*payload)? else {
+                let Some(term) = self.type_operand_term_id(*payload)? else {
                     return Ok(false);
                 };
 
-                return self.supports_identity(&term);
+                return self.supports_identity(term);
             }
             TypeTerm::Union { elements } => {
+                let elements = elements.iter().copied().collect::<Vec<_>>();
+
                 for element in elements {
-                    let Some(term) = self.type_operand_term(*element)? else {
+                    let Some(term) = self.type_operand_term_id(element)? else {
                         return Ok(false);
                     };
-                    if !self.supports_identity(&term)? {
+                    if !self.supports_identity(term)? {
                         return Ok(false);
                     }
                 }

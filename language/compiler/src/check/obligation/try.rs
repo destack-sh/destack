@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{CheckState, Decision, TypeOperand};
+use crate::check::{Answer, CheckState, TypeOperand};
 use crate::{CheckError, CompilerResult};
 
 impl CheckState<'_> {
@@ -21,10 +21,10 @@ impl CheckState<'_> {
 
             return Ok(Some(diagnostic));
         };
-        let decision = self.reduce_try_propagation(source, value, return_type)?;
+        let decision = self.decide_try_propagation(source, value, return_type)?;
 
         // reject incompatible failure propagation
-        if decision == Decision::No {
+        if decision == Answer::Ready(false) {
             let (module, anchor) = self.source_anchor(source);
             let diagnostic = CheckError::DoesNotImplement { anchor, module };
 
@@ -32,7 +32,7 @@ impl CheckState<'_> {
         }
 
         // require more solved type information
-        if decision == Decision::Undecidable {
+        if decision.is_pending() {
             let (module, anchor) = self.source_anchor(source);
             let diagnostic = CheckError::CannotSolve { anchor, module };
 

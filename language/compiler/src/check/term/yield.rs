@@ -1,7 +1,10 @@
 use destack_dir as dir;
 
-use crate::CompilerResult;
-use crate::check::{CheckState, Origin, TypeLiteralTerm, TypeOperand, TypeTerm, VariableId};
+use crate::check::{
+    Answer, CheckState, Condition, Origin, TypeLiteralTerm, TypeOperand, TypeRelation, TypeTerm,
+    VariableId,
+};
+use crate::{CompilerError, CompilerResult};
 
 /// Runtime yield expression term.
 ///
@@ -24,69 +27,55 @@ pub(in crate::check) struct YieldTerm {
     pub(in crate::check) cardinality: dir::YieldCardinality,
 }
 
-impl YieldTerm {
-    /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(
-        &self,
-        state: &CheckState<'_>,
-    ) -> smallvec::SmallVec<[VariableId; 2]> {
-        let mut variables = smallvec::SmallVec::new();
-
-        if let Some(value) = self.value {
-            variables.extend(value.referenced_variables(state));
-        }
-        if let Some(target) = self.yield_target {
-            variables.extend(target.referenced_variables(state));
-        }
-        if let Some(target) = self.resume_target {
-            variables.extend(target.referenced_variables(state));
-        }
-        if let Some(target) = self.delegate_return_target {
-            variables.extend(target.referenced_variables(state));
-        }
-
-        variables
-    }
-}
-
 impl CheckState<'_> {
     /// Reduce one yield expression result from the active generator channel.
     pub(in crate::check) fn reduce_yield_term(
-        &self,
-        yielded: &YieldTerm,
-    ) -> CompilerResult<Option<TypeTerm>> {
+        &mut self,
+        yielded: YieldTerm,
+    ) -> CompilerResult<Answer<TypeOperand>> {
         let ty = match yielded.cardinality {
             dir::YieldCardinality::Scalar => yielded.resume_target,
             dir::YieldCardinality::Generator => yielded.delegate_return_target,
         };
 
         let Some(ty) = ty else {
-            return Ok(Some(TypeTerm::Literal(TypeLiteralTerm::Error)));
+            let term = TypeTerm::Literal(TypeLiteralTerm::Error);
+            let operand = self.type_term_operand(term);
+
+            return Ok(Answer::Ready(operand));
         };
-        let Some(term) = self.type_operand_term(ty)? else {
-            return Ok(None);
+        let Some(term) = self.type_operand_term_id(ty)? else {
+            return Ok(Answer::pending(ty.dependencies(self)));
         };
 
-        Ok(Some(term))
+        Ok(Answer::Ready(term.into()))
     }
 
-    /// Expect a yield expression result to match its resume channel.
+    /// Check a yield expression result to match its resume channel.
     pub(in crate::check) fn expect_yield_term(
         &mut self,
         origin: Origin,
         yielded: &YieldTerm,
         result: VariableId,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Answer<()>> {
         let source = match yielded.cardinality {
             dir::YieldCardinality::Scalar => yielded.resume_target,
             dir::YieldCardinality::Generator => yielded.delegate_return_target,
         };
         let Some(source) = source else {
-            return Ok(());
+            return Err(CompilerError::Internal {
+                message: "yield term has no active resume target".into(),
+            });
         };
 
-        self.reduce_contextual_type_assignability(origin, source, result)?;
+        self.constrain_type(
+            origin,
+            TypeRelation::Assignable,
+            source,
+            result,
+            Condition::Always,
+        );
 
-        Ok(())
+        Ok(Answer::Ready(()))
     }
 }

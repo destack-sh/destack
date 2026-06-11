@@ -3,13 +3,12 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckError, CheckState, Condition, Decision, Obligation, Origin, PatternTerm, TermId,
-    TypeOperand,
+    Answer, CheckError, CheckState, Condition, Obligation, Origin, PatternTerm, TermId, TypeOperand,
 };
 
 impl CheckState<'_> {
-    /// Push an obligation for one binding pattern to cover its matched value type.
-    pub(in crate::check) fn push_irrefutable_pattern_obligation(
+    /// Constrain one binding pattern to cover its matched value type.
+    pub(in crate::check) fn constrain_irrefutable_pattern(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
@@ -26,9 +25,7 @@ impl CheckState<'_> {
 
         self.push_obligation(obligation);
     }
-}
 
-impl CheckState<'_> {
     /// Check whether one pattern is irrefutable for its matched value type.
     pub(in crate::check) fn check_irrefutable_pattern(
         &mut self,
@@ -38,13 +35,13 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<CheckError>> {
         let decision = self.decide_pattern_covers_operand(Origin::Node(source), pattern, value)?;
         let diagnostic = match decision {
-            Decision::Yes => return Ok(None),
-            Decision::No => {
+            Answer::Ready(true) => return Ok(None),
+            Answer::Ready(false) => {
                 let (module, anchor) = self.source_anchor(source);
 
                 CheckError::RefutablePattern { anchor, module }
             }
-            Decision::Undecidable => {
+            Answer::Pending(_) => {
                 let (module, anchor) = self.source_anchor(source);
 
                 CheckError::CannotSolve { anchor, module }

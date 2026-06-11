@@ -1,10 +1,8 @@
-use destack_source::ModuleId;
-use smallvec::SmallVec;
-
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, StaticOperand, StaticRelation, SubstitutionSet, VariableId,
+    Answer, CheckState, Condition, Origin, StaticOperand, StaticRelation, SubstitutionSet,
 };
+use destack_source::ModuleId;
 
 /// Check-local memory form term.
 ///
@@ -14,7 +12,7 @@ use crate::check::{
 /// ^value
 /// shared ^value
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(in crate::check) enum FormTerm {
     /// Managed value form.
     ///
@@ -83,25 +81,6 @@ impl FormTerm {
         )
     }
 
-    /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(
-        &self,
-        state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 2]> {
-        let mut variables = SmallVec::new();
-
-        match self {
-            Self::Borrowed { lifetime, access } => {
-                variables.extend(lifetime.referenced_variables(state));
-                variables.extend(access.referenced_variables(state));
-            }
-            Self::Placed { place } => variables.extend(place.referenced_variables(state)),
-            Self::Managed | Self::Owned | Self::Raw | Self::Readonly => {}
-        }
-
-        variables
-    }
-
     /// Substitute generic arguments through this memory form.
     pub(in crate::check) fn substitute(
         &self,
@@ -117,7 +96,7 @@ impl FormTerm {
             Self::Placed { place } => Self::Placed {
                 place: state.substitute_static_operand(module, substitution, *place)?,
             },
-            Self::Managed | Self::Owned | Self::Raw | Self::Readonly => self.clone(),
+            Self::Managed | Self::Owned | Self::Raw | Self::Readonly => *self,
         };
 
         Ok(form)
@@ -130,9 +109,9 @@ impl CheckState<'_> {
         &self,
         left: &FormTerm,
         right: &FormTerm,
-    ) -> CompilerResult<Decision> {
+    ) -> CompilerResult<Answer<bool>> {
         if left == right {
-            return Ok(Decision::Yes);
+            return Ok(Answer::Ready(true));
         }
 
         let decision = match (left, right) {
@@ -151,7 +130,7 @@ impl CheckState<'_> {
                     *left_lifetime,
                     *right_lifetime,
                 )?;
-                if lifetime != Decision::Yes {
+                if lifetime != Answer::Ready(true) {
                     return Ok(lifetime);
                 }
 
@@ -160,7 +139,7 @@ impl CheckState<'_> {
             (FormTerm::Placed { place: left }, FormTerm::Placed { place: right }) => {
                 self.decide_static_relation(StaticRelation::Equal, *left, *right)?
             }
-            _ => Decision::No,
+            _ => Answer::Ready(false),
         };
 
         Ok(decision)
@@ -171,9 +150,9 @@ impl CheckState<'_> {
         &self,
         source: &FormTerm,
         target: &FormTerm,
-    ) -> CompilerResult<Decision> {
-        if self.decide_form_equal(source, target)? == Decision::Yes {
-            return Ok(Decision::Yes);
+    ) -> CompilerResult<Answer<bool>> {
+        if self.decide_form_equal(source, target)? == Answer::Ready(true) {
+            return Ok(Answer::Ready(true));
         }
 
         let decision = match (source, target) {
@@ -192,7 +171,7 @@ impl CheckState<'_> {
                     *source_lifetime,
                     *target_lifetime,
                 )?;
-                if lifetime != Decision::Yes {
+                if lifetime != Answer::Ready(true) {
                     return Ok(lifetime);
                 }
 
@@ -204,8 +183,8 @@ impl CheckState<'_> {
             (FormTerm::Managed, FormTerm::Managed)
             | (FormTerm::Owned, FormTerm::Owned)
             | (FormTerm::Raw, FormTerm::Raw)
-            | (FormTerm::Readonly, FormTerm::Readonly) => Decision::Yes,
-            _ => Decision::No,
+            | (FormTerm::Readonly, FormTerm::Readonly) => Answer::Ready(true),
+            _ => Answer::Ready(false),
         };
 
         Ok(decision)
@@ -216,13 +195,14 @@ impl CheckState<'_> {
         &self,
         source: StaticOperand,
         target: StaticOperand,
-    ) -> CompilerResult<Decision> {
+    ) -> CompilerResult<Answer<bool>> {
         self.decide_static_relation(StaticRelation::Assignable, source, target)
     }
 
     /// Constrain two memory forms by equality.
     pub(in crate::check) fn constrain_form_equal(
         &mut self,
+        origin: Origin,
         left: &FormTerm,
         right: &FormTerm,
     ) -> CompilerResult<()> {
@@ -237,11 +217,29 @@ impl CheckState<'_> {
                     access: right_access,
                 },
             ) => {
-                self.reduce_static_equality(*left_lifetime, *right_lifetime)?;
-                self.reduce_static_equality(*left_access, *right_access)?;
+                self.constrain_static(
+                    origin,
+                    StaticRelation::Equal,
+                    *left_lifetime,
+                    *right_lifetime,
+                    Condition::Always,
+                );
+                self.constrain_static(
+                    origin,
+                    StaticRelation::Equal,
+                    *left_access,
+                    *right_access,
+                    Condition::Always,
+                );
             }
             (FormTerm::Placed { place: left }, FormTerm::Placed { place: right }) => {
-                self.reduce_static_equality(*left, *right)?
+                self.constrain_static(
+                    origin,
+                    StaticRelation::Equal,
+                    *left,
+                    *right,
+                    Condition::Always,
+                );
             }
             (FormTerm::Managed, FormTerm::Managed)
             | (FormTerm::Owned, FormTerm::Owned)
@@ -256,12 +254,19 @@ impl CheckState<'_> {
     /// Constrain two memory forms by assignability.
     pub(in crate::check) fn constrain_form_assignable(
         &mut self,
+        origin: Origin,
         source: &FormTerm,
         target: &FormTerm,
     ) -> CompilerResult<()> {
         match (source, target) {
             (FormTerm::Placed { place: source }, FormTerm::Placed { place: target }) => {
-                self.reduce_static_equality(*source, *target)?
+                self.constrain_static(
+                    origin,
+                    StaticRelation::Equal,
+                    *source,
+                    *target,
+                    Condition::Always,
+                );
             }
             (
                 FormTerm::Borrowed {
@@ -273,42 +278,21 @@ impl CheckState<'_> {
                     access: target_access,
                 },
             ) => {
-                self.reduce_static_assignability(*source_lifetime, *target_lifetime)?;
-                self.reduce_static_assignability(*source_access, *target_access)?;
+                self.constrain_static(
+                    origin,
+                    StaticRelation::Assignable,
+                    *source_lifetime,
+                    *target_lifetime,
+                    Condition::Always,
+                );
+                self.constrain_static(
+                    origin,
+                    StaticRelation::Assignable,
+                    *source_access,
+                    *target_access,
+                    Condition::Always,
+                );
             }
-            (FormTerm::Managed, FormTerm::Managed)
-            | (FormTerm::Owned, FormTerm::Owned)
-            | (FormTerm::Raw, FormTerm::Raw)
-            | (FormTerm::Readonly, FormTerm::Readonly) => (),
-            _ => (),
-        }
-
-        Ok(())
-    }
-
-    /// Expect one form term to satisfy expected form fields.
-    pub(in crate::check) fn expect_form_term(
-        &mut self,
-        form: &FormTerm,
-        target: &FormTerm,
-    ) -> CompilerResult<()> {
-        match (form, target) {
-            (
-                FormTerm::Borrowed { lifetime, access },
-                FormTerm::Borrowed {
-                    lifetime: target_lifetime,
-                    access: target_access,
-                },
-            ) => {
-                self.reduce_static_assignability(*lifetime, *target_lifetime)?;
-                self.reduce_static_assignability(*access, *target_access)?;
-            }
-            (
-                FormTerm::Placed { place },
-                FormTerm::Placed {
-                    place: target_place,
-                },
-            ) => self.reduce_static_equality(*place, *target_place)?,
             (FormTerm::Managed, FormTerm::Managed)
             | (FormTerm::Owned, FormTerm::Owned)
             | (FormTerm::Raw, FormTerm::Raw)

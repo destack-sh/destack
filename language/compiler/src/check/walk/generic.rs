@@ -153,7 +153,10 @@ impl CheckState<'_> {
             TypeOperand::Term(term) => {
                 let dependencies = TypeOperand::Term(term).dependencies(self);
 
-                for variable in Dependency::variables(dependencies) {
+                for variable in dependencies
+                    .into_iter()
+                    .filter_map(Dependency::solution_variable)
+                {
                     self.collect_induced_variable(site, variable, visited, parameters)?;
                 }
             }
@@ -219,7 +222,10 @@ impl CheckState<'_> {
         let dependencies = operand.dependencies(self);
 
         // recurse into every variable referenced by the static operand
-        for variable in Dependency::variables(dependencies) {
+        for variable in dependencies
+            .into_iter()
+            .filter_map(Dependency::solution_variable)
+        {
             self.collect_induced_variable(site, variable, visited, parameters)?;
         }
 

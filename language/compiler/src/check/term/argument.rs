@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, Origin, StaticOperand, StaticRelation, SubstitutionSet, TypeOperand,
-    TypeRelation, VariableId,
+    Answer, CheckState, Condition, Dependency, Origin, StaticOperand, StaticRelation,
+    SubstitutionSet, TypeOperand, TypeRelation, VariableKind,
 };
 
 /// Argument supplied to a generic use.
@@ -16,7 +16,7 @@ use crate::check::{
 /// Array<int32, 4>
 /// Protocol<Item = string>
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) enum GenericArgument {
     /// Type argument.
     ///
@@ -93,58 +93,79 @@ pub(in crate::check) enum GenericArgument {
 }
 
 /// Source syntax for a generic argument whose parameter kind is not selected yet.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) struct TypeOrStaticArgument {
     /// The generic argument node.
     pub(in crate::check) source: dir::GlobalNodeId<dir::GenericArgument>,
-    /// The type-space expression that can become a type or static argument.
-    pub(in crate::check) value: dir::GlobalNodeId<dir::TypeExpression>,
+    /// The walked type-space operand.
+    pub(in crate::check) ty: TypeOperand,
+    /// The walked static-space operand.
+    pub(in crate::check) r#static: Option<StaticOperand>,
 }
 
 impl GenericArgument {
     /// Create one unselected ordinary generic argument.
     pub(in crate::check) fn type_or_static(
         source: dir::GlobalNodeId<dir::GenericArgument>,
-        value: dir::GlobalNodeId<dir::TypeExpression>,
+        ty: TypeOperand,
+        r#static: Option<StaticOperand>,
     ) -> Self {
         Self::TypeOrStatic {
-            source: TypeOrStaticArgument { source, value },
+            source: TypeOrStaticArgument {
+                source,
+                ty,
+                r#static,
+            },
         }
     }
 
     /// Create one unselected spread generic argument.
     pub(in crate::check) fn spread_type_or_static(
         source: dir::GlobalNodeId<dir::GenericArgument>,
-        value: dir::GlobalNodeId<dir::TypeExpression>,
+        ty: TypeOperand,
+        r#static: Option<StaticOperand>,
     ) -> Self {
         Self::SpreadTypeOrStatic {
-            source: TypeOrStaticArgument { source, value },
+            source: TypeOrStaticArgument {
+                source,
+                ty,
+                r#static,
+            },
         }
     }
 
-    /// Return the variables referenced by this argument.
-    pub(in crate::check) fn referenced_variables(
+    /// Return selections referenced by this argument.
+    pub(in crate::check) fn dependencies(
         &self,
         state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 2]> {
-        let mut variables = SmallVec::new();
+    ) -> SmallVec<[Dependency; 2]> {
+        let mut dependencies = SmallVec::new();
 
         match self {
-            Self::Type(operand) | Self::SpreadType(operand) => {
-                variables.extend(operand.referenced_variables(state));
+            Self::Type(operand)
+            | Self::SpreadType(operand)
+            | Self::AssociatedType { value: operand, .. }
+            | Self::TypeOrStatic {
+                source: TypeOrStaticArgument { ty: operand, .. },
+            }
+            | Self::SpreadTypeOrStatic {
+                source: TypeOrStaticArgument { ty: operand, .. },
+            } => {
+                dependencies.extend(operand.dependencies(state));
             }
             Self::Static(operand)
             | Self::SpreadStatic(operand)
             | Self::AssociatedConst { value: operand, .. } => {
-                variables.extend(operand.referenced_variables(state));
+                dependencies.extend(operand.dependencies(state));
             }
-            Self::AssociatedType { value: operand, .. } => {
-                variables.extend(operand.referenced_variables(state));
-            }
-            Self::TypeOrStatic { .. } | Self::SpreadTypeOrStatic { .. } => {}
+        }
+        if let Self::TypeOrStatic { source } | Self::SpreadTypeOrStatic { source } = self
+            && let Some(value) = source.r#static
+        {
+            dependencies.extend(value.dependencies(state));
         }
 
-        variables
+        dependencies
     }
 
     /// Return the type interpretation of this argument.
@@ -152,11 +173,13 @@ impl GenericArgument {
         match self {
             Self::Type(operand) | Self::SpreadType(operand) => Some(*operand),
             Self::AssociatedType { value, .. } => Some(*value),
-            Self::Static(_)
-            | Self::SpreadStatic(_)
-            | Self::AssociatedConst { .. }
-            | Self::TypeOrStatic { .. }
-            | Self::SpreadTypeOrStatic { .. } => None,
+            Self::TypeOrStatic {
+                source: TypeOrStaticArgument { ty, .. },
+            }
+            | Self::SpreadTypeOrStatic {
+                source: TypeOrStaticArgument { ty, .. },
+            } => Some(*ty),
+            Self::Static(_) | Self::SpreadStatic(_) | Self::AssociatedConst { .. } => None,
         }
     }
 
@@ -165,12 +188,50 @@ impl GenericArgument {
         match self {
             Self::Static(operand) | Self::SpreadStatic(operand) => Some(*operand),
             Self::AssociatedConst { value, .. } => Some(*value),
-            Self::Type(_)
-            | Self::SpreadType(_)
-            | Self::AssociatedType { .. }
-            | Self::TypeOrStatic { .. }
-            | Self::SpreadTypeOrStatic { .. } => None,
+            Self::TypeOrStatic { source } | Self::SpreadTypeOrStatic { source } => source.r#static,
+            Self::Type(_) | Self::SpreadType(_) | Self::AssociatedType { .. } => None,
         }
+    }
+
+    /// Specialize this argument under one known generic parameter kind.
+    pub(in crate::check) fn specialize(
+        &self,
+        kind: VariableKind,
+        state: &mut CheckState<'_>,
+    ) -> CompilerResult<Self> {
+        let argument = match (kind, self) {
+            (VariableKind::Type, Self::TypeOrStatic { source }) => Self::Type(source.ty),
+            (VariableKind::Type, Self::SpreadTypeOrStatic { source }) => {
+                Self::SpreadType(source.ty)
+            }
+            (VariableKind::Static, Self::TypeOrStatic { source }) => {
+                let operand = if let Some(operand) = source.r#static {
+                    Some(operand)
+                } else {
+                    state.static_operand_from_type(source.ty)?
+                };
+                let Some(operand) = operand else {
+                    return Ok(Self::TypeOrStatic { source: *source });
+                };
+
+                Self::Static(operand)
+            }
+            (VariableKind::Static, Self::SpreadTypeOrStatic { source }) => {
+                let operand = if let Some(operand) = source.r#static {
+                    Some(operand)
+                } else {
+                    state.static_operand_from_type(source.ty)?
+                };
+                let Some(operand) = operand else {
+                    return Ok(Self::SpreadTypeOrStatic { source: *source });
+                };
+
+                Self::SpreadStatic(operand)
+            }
+            (_, argument) => *argument,
+        };
+
+        Ok(argument)
     }
 
     /// Substitute generic arguments through this argument.
@@ -196,7 +257,16 @@ impl GenericArgument {
                 value: state.substitute_static_operand(module, substitution, *value)?,
             },
             Self::TypeOrStatic { source } => Self::TypeOrStatic {
-                source: source.clone(),
+                source: TypeOrStaticArgument {
+                    source: source.source,
+                    ty: state.substitute_type_operand(module, substitution, source.ty)?,
+                    r#static: source
+                        .r#static
+                        .map(|operand| {
+                            state.substitute_static_operand(module, substitution, operand)
+                        })
+                        .transpose()?,
+                },
             },
             Self::SpreadType(operand) => {
                 Self::SpreadType(state.substitute_type_operand(module, substitution, *operand)?)
@@ -207,11 +277,50 @@ impl GenericArgument {
                 *operand,
             )?),
             Self::SpreadTypeOrStatic { source } => Self::SpreadTypeOrStatic {
-                source: source.clone(),
+                source: TypeOrStaticArgument {
+                    source: source.source,
+                    ty: state.substitute_type_operand(module, substitution, source.ty)?,
+                    r#static: source
+                        .r#static
+                        .map(|operand| {
+                            state.substitute_static_operand(module, substitution, operand)
+                        })
+                        .transpose()?,
+                },
             },
         };
 
         Ok(argument)
+    }
+
+    /// Return whether this argument can be affected by one substitution.
+    pub(in crate::check) fn needs_substitution(
+        &self,
+        substitution: &SubstitutionSet,
+        state: &CheckState<'_>,
+    ) -> CompilerResult<bool> {
+        let needs_substitution = match self {
+            Self::Type(operand)
+            | Self::SpreadType(operand)
+            | Self::AssociatedType { value: operand, .. } => {
+                operand.needs_substitution(substitution, state)?
+            }
+            Self::Static(operand)
+            | Self::SpreadStatic(operand)
+            | Self::AssociatedConst { value: operand, .. } => {
+                operand.needs_substitution(substitution, state)?
+            }
+            Self::TypeOrStatic { source } | Self::SpreadTypeOrStatic { source } => {
+                source.ty.needs_substitution(substitution, state)?
+                    || source
+                        .r#static
+                        .map(|operand| operand.needs_substitution(substitution, state))
+                        .transpose()?
+                        .unwrap_or(false)
+            }
+        };
+
+        Ok(needs_substitution)
     }
 }
 
@@ -241,33 +350,12 @@ impl CheckState<'_> {
             .collect()
     }
 
-    /// Decide exact equality for argument lists.
-    pub(in crate::check) fn decide_argument_list_equal(
-        &mut self,
-        left: &[GenericArgument],
-        right: &[GenericArgument],
-    ) -> CompilerResult<Decision> {
-        if left.len() != right.len() {
-            return Ok(Decision::No);
-        }
-
-        let mut decision = Decision::Yes;
-        for (left, right) in left.iter().zip(right) {
-            decision = decision.and(self.decide_argument_equal(left, right)?);
-            if decision == Decision::No {
-                return Ok(decision);
-            }
-        }
-
-        Ok(decision)
-    }
-
     /// Decide exact equality for one argument.
     pub(in crate::check) fn decide_argument_equal(
         &mut self,
         left: &GenericArgument,
         right: &GenericArgument,
-    ) -> CompilerResult<Decision> {
+    ) -> CompilerResult<Answer<bool>> {
         let decision = match (left, right) {
             (GenericArgument::Type(left), GenericArgument::Type(right))
             | (GenericArgument::SpreadType(left), GenericArgument::SpreadType(right)) => {
@@ -312,33 +400,14 @@ impl CheckState<'_> {
             {
                 self.decide_static_relation(StaticRelation::Equal, left, right)?
             }
-            _ => Decision::No,
+            _ => Answer::Ready(false),
         };
 
         Ok(decision)
     }
 
-    /// Constrain matching generic arguments by exact equality.
-    pub(in crate::check) fn constrain_argument_list_equal(
-        &mut self,
-        origin: Origin,
-        left: &[GenericArgument],
-        right: &[GenericArgument],
-    ) -> CompilerResult<()> {
-        if left.len() != right.len() {
-            return Ok(());
-        }
-
-        // constrain matching argument positions
-        for (left, right) in left.iter().zip(right) {
-            self.constrain_argument_equal(origin, left, right)?;
-        }
-
-        Ok(())
-    }
-
     /// Constrain one generic argument by exact equality.
-    fn constrain_argument_equal(
+    pub(in crate::check) fn constrain_argument_equal(
         &mut self,
         origin: Origin,
         left: &GenericArgument,
@@ -347,11 +416,23 @@ impl CheckState<'_> {
         match (left, right) {
             (GenericArgument::Type(left), GenericArgument::Type(right))
             | (GenericArgument::SpreadType(left), GenericArgument::SpreadType(right)) => {
-                self.reduce_type_equality(origin, *left, *right)?
+                self.constrain_type(
+                    origin,
+                    TypeRelation::Equal,
+                    *left,
+                    *right,
+                    Condition::Always,
+                );
             }
             (GenericArgument::Static(left), GenericArgument::Static(right))
             | (GenericArgument::SpreadStatic(left), GenericArgument::SpreadStatic(right)) => {
-                self.reduce_static_equality(*left, *right)?
+                self.constrain_static(
+                    origin,
+                    StaticRelation::Equal,
+                    *left,
+                    *right,
+                    Condition::Always,
+                );
             }
             (
                 GenericArgument::AssociatedType {
@@ -362,7 +443,15 @@ impl CheckState<'_> {
                     name: right_name,
                     value: right,
                 },
-            ) if left_name == right_name => self.reduce_type_equality(origin, *left, *right)?,
+            ) if left_name == right_name => {
+                self.constrain_type(
+                    origin,
+                    TypeRelation::Equal,
+                    *left,
+                    *right,
+                    Condition::Always,
+                );
+            }
             (
                 GenericArgument::AssociatedConst {
                     name: left_name,
@@ -372,17 +461,31 @@ impl CheckState<'_> {
                     name: right_name,
                     value: right,
                 },
-            ) if left_name == right_name => self.reduce_static_equality(*left, *right)?,
+            ) if left_name == right_name => {
+                self.constrain_static(
+                    origin,
+                    StaticRelation::Equal,
+                    *left,
+                    *right,
+                    Condition::Always,
+                );
+            }
             (left, right)
                 if let (Some(left), Some(right)) = (left.type_operand(), right.type_operand()) =>
             {
-                self.reduce_type_equality(origin, left, right)?
+                self.constrain_type(origin, TypeRelation::Equal, left, right, Condition::Always);
             }
             (left, right)
                 if let (Some(left), Some(right)) =
                     (left.static_operand(), right.static_operand()) =>
             {
-                self.reduce_static_equality(left, right)?
+                self.constrain_static(
+                    origin,
+                    StaticRelation::Equal,
+                    left,
+                    right,
+                    Condition::Always,
+                );
             }
             _ => (),
         }
