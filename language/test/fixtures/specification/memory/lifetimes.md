@@ -615,9 +615,9 @@ async function read(packet: shared ^Packet): Promise<int32> {
 }
 ```
 
-### exclusive borrow cannot cross await
+### exclusive parameter borrow can cross await
 
-Exclusive borrowed access must not cross suspension.
+Exclusive borrowed parameters may cross suspension when the caller proves the source is suspension-stable.
 
 ```ds
 declare function ready(): Promise<void>;
@@ -628,11 +628,9 @@ async function write(value: &exclusive int32): Promise<void> {
 }
 ```
 
-- contains: exclusive
+### local exclusive borrow can cross await
 
-### local exclusive borrow cannot cross await
-
-Exclusive borrowed access from a local value must not cross suspension.
+Owned locals stay uniquely owned by the suspended async frame.
 
 ```ds
 declare function ready(): Promise<void>;
@@ -643,8 +641,6 @@ async function write(value: int32): Promise<void> {
     *exclusive = 1;
 }
 ```
-
-- contains: exclusive
 
 ### exclusive borrow can begin after await
 
@@ -684,9 +680,9 @@ function* read(value: int32): Generator<int32, void, unknown> {
 }
 ```
 
-### exclusive borrow cannot cross yield
+### exclusive parameter borrow can cross yield
 
-Exclusive borrowed access must not cross generator suspension.
+Exclusive borrowed parameters use the same source proof rule in generators.
 
 ```ds
 function* write(value: &exclusive int32): Generator<void, void, unknown> {
@@ -695,11 +691,9 @@ function* write(value: &exclusive int32): Generator<void, void, unknown> {
 }
 ```
 
-- contains: exclusive
+### local exclusive borrow can cross yield
 
-### local exclusive borrow cannot cross yield
-
-Exclusive borrowed access from a local value must not cross generator suspension.
+Owned locals stay uniquely owned by the suspended generator frame.
 
 ```ds
 function* write(value: int32): Generator<void, void, unknown> {
@@ -708,5 +702,3 @@ function* write(value: int32): Generator<void, void, unknown> {
     *exclusive = 1;
 }
 ```
-
-- contains: exclusive

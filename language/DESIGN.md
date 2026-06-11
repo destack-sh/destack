@@ -3028,8 +3028,7 @@ for (const point of ^points) {
 
 ### Capabilities
 
-Like other systems-y languages, Destack encodes synchronization and memory primitives as (newtype) interfaces like `Copy`, `Clone`, `Send`, and `Sync`.
-(As said, these are separate from and orthogonal to ownership and placement.)
+Inspired by many other systems-y languages, Destack encodes synchronization and memory primitives as trait-like interfaces like `Copy`, `Clone`, `Send`, and `Sync`.
 
 | Capability | Meaning |
 |------------|---------|
@@ -3039,7 +3038,7 @@ Like other systems-y languages, Destack encodes synchronization and memory primi
 | `Sync` | References to shared values can be used concurrently through the type's own API. |
 
 Like Rust's auto traits, `Send` and `Sync` are derived structurally by default (a type is `Send` when all of its fields are) and can be opted out of explicitly.
-Implementing `Send` or `Sync` _manually_ - against the structural evidence, as interior-mutability primitives must - is an `@unsafe` claim like any other unchecked memory invariant.
+Implementing `Send` or `Sync` _manually_ - against the structural evidence, as interior-mutability primitives must - is an `@unsafe` claim like any other unchecked memory assertion.
 For borrows and handles, the rules follow per memory form:
 
 | Form | Crosses Workers when |
@@ -3049,12 +3048,11 @@ For borrows and handles, the rules follow per memory form:
 | `^T` | `T: Send` |
 | `&readonly T` | `T: Sync`, and the source is owned or static |
 | `&exclusive T` | `T: Send`, and the source is owned or static |
-| `&T` | never, aliased mutability is only sound within one Worker |
+| `&T` | never, aliased mutability |
 | `shared` static binding | requires `T: Sync` outright, the binding reaches every Worker by construction |
 
-The `&T` row is the important one: the aliased-mutable middle of the borrow ladder is only safe because a Worker is a single-threaded execution domain with explicit suspension points, and so it must never cross one.
-
-It should be noted again that `shared T` means `T` lives in [shared space](#shared-space); it does _not_ make `T` automatically `Sync` by itself.
+The `&T` row is the important one: the aliased-mutable middle of the borrow ladder is only safe because a Worker is a single-threaded execution domain, and so it must never cross a Worker boundary.
+Also, note again `shared T` means `T` lives in [shared space](#shared-space); it does _not_ make `T` automatically `Sync` by itself.
 Userland APIs such as channels, Worker pools, atomics, locks, and actors can require `Send` or `Sync` when they need those stronger guarantees, very similar to Rust or even Swift.
 
 ### Synchronization
