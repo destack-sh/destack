@@ -115,19 +115,6 @@ impl Parser {
         self.infix_operator_from_current_token_type(token_type)
     }
 
-    /// Return an infix operator at one token offset.
-    pub(in crate::parse) fn peek_infix_operator_at_offset_maybe(
-        &mut self,
-        offset: usize,
-    ) -> Option<ExpressionInfixOperator> {
-        let token = self.token_at_offset(offset);
-        let token_type = token.token.ty();
-
-        Self::infix_operator_from_token(self.language.is_destack(), token_type, || {
-            self.keyword_at_offset(offset)
-        })
-    }
-
     /// Return the parser infix operator for the current token type.
     pub(super) fn infix_operator_from_current_token_type(
         &self,

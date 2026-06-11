@@ -439,11 +439,8 @@ impl Parser {
             return false;
         }
 
-        if self.current_token_is_on_new_line() {
-            return false;
-        }
-
-        self.question_can_end_postfix()
+        // an attached question mark is try-propagation, a detached one a ternary
+        self.question_is_attached_to_operand()
     }
 
     /// Parse a Destack tagged object literal postfix when present.
@@ -610,46 +607,15 @@ impl Parser {
         }
     }
 
-    /// Return whether `?` can finish one postfix expression here.
-    fn question_can_end_postfix(&mut self) -> bool {
-        if self.current_token_is_on_new_line() {
-            return false;
-        }
+    /// Return whether the current question token touches the token before it.
+    fn question_is_attached_to_operand(&mut self) -> bool {
+        let question_start = match self.peek() {
+            Ok(token) => token.span.start,
+            Err(_) => return false,
+        };
 
-        if self.next_token_type() == TokenType::OpenParenthesis {
-            return false;
-        }
-
-        if self.is_next_any_stop() || self.is_next_any_close_parenthesis() {
-            return true;
-        }
-
-        if matches!(
-            self.next_token_type(),
-            TokenType::Dot | TokenType::OpenBracket
-        ) {
-            return !self.next_bracket_is_conditional_branch();
-        }
-
-        if self.next_token_type() == TokenType::LessThan
-            && self.allow_tree_literals()
-            && self.is_tree_literal_start_at_offset(1)
-        {
-            return false;
-        }
-
-        self.peek_infix_operator_at_offset_maybe(1).is_some()
-    }
-
-    /// Return whether `?[...]` starts a ternary then branch.
-    fn next_bracket_is_conditional_branch(&mut self) -> bool {
-        if self.next_token_type() != TokenType::OpenBracket {
-            return false;
-        }
-
-        self.lookahead(|parser| {
-            parser.scan_bracket_follow_token_at_offset(1) == Some(TokenType::Colon)
-        })
+        self.prev()
+            .is_some_and(|previous| previous.span.end == question_start)
     }
 
     /// Parse a value dot postfix.
