@@ -80,6 +80,11 @@ module.exports = grammar(JavaScript, {
     .filter((conflict) => !sameConflict(conflict, ['class_static_block', '_property_name']))
     .filter((conflict) => !sameConflict(conflict, ['_initializer', 'binary_expression']))
     .concat([
+      [$.subscript_expression, $.match_arm_expression_statement],
+      [$.new_expression, $.pattern],
+      [$.primary_expression, $._static_value_operand],
+      [$.primary_expression, $.static_value_argument],
+      [$.primary_expression, $._struct_literal_generic_type, $._static_value_call_expression],
       [$.nested_identifier, $.nested_type_identifier, $.primary_expression],
       [$.nested_identifier, $.nested_type_identifier],
       [$.primary_expression, $.nested_identifier],
@@ -153,7 +158,6 @@ module.exports = grammar(JavaScript, {
       [$.call_expression, $.match_arm_expression_statement],
       [$.primary_expression, $.match_arm_expression_statement],
       [$.primary_expression, $.await_try_propagation_expression],
-      [$.subscript_expression, $.match_arm_expression_statement],
       [$.binary_expression, $.match_arm_expression_statement],
       [$.if_statement, $.primary_expression, $.if_let_condition],
       [$.primary_expression, $.if_let_condition],
@@ -251,6 +255,7 @@ module.exports = grammar(JavaScript, {
 
     new_expression: $ => prec.right('new', seq(
       'new',
+      optional(token.immediate('?')),
       field('constructor', $.primary_expression),
       field('type_arguments', optional($.type_arguments)),
       field('arguments', optional($.arguments)),
@@ -674,6 +679,9 @@ module.exports = grammar(JavaScript, {
       $.empty_statement,
     ),
 
+    // NOTE #Robustness: a bare expression arm followed by an arm whose pattern
+    // starts with '[' or '(' loses the GLR fork to subscript/call continuation;
+    // fixing this needs newline awareness in the shared scanner
     match_arm_expression_statement: $ => choice(
       prec.dynamic(2, $.call_expression),
       prec.dynamic(1, seq(
@@ -713,7 +721,10 @@ module.exports = grammar(JavaScript, {
       $.rest_pattern,
       seq(
         field('name', $._property_name),
-        optional(seq(':', field('value', $.match_pattern))),
+        optional(choice(
+          seq(':', field('value', $.match_pattern)),
+          seq('=', field('default', choice($.literal_type, $.identifier))),
+        )),
       ),
     ),
 
@@ -791,7 +802,7 @@ module.exports = grammar(JavaScript, {
     where_clause: $ => seq(
       'where',
       choice(
-        $.where_constraint,
+        commaSep1($.where_constraint),
         seq(
           '(',
           commaSep1($.where_constraint),
@@ -802,8 +813,8 @@ module.exports = grammar(JavaScript, {
     ),
 
     where_constraint: $ => seq(
-      field('name', $._type_identifier),
-      ':',
+      field('name', choice($._type_identifier, $.nested_type_identifier)),
+      field('operator', choice(':', '==')),
       field('type', $.type),
     ),
 
@@ -921,6 +932,8 @@ module.exports = grammar(JavaScript, {
       repeat1(field('guard', $.static_if_guard)),
       choice(
         $.declaration,
+        $.import_statement,
+        $.export_statement,
         $._statement_target,
       ),
     )),
@@ -1019,7 +1032,8 @@ module.exports = grammar(JavaScript, {
       '/>',
     )),
 
-    export_specifier: (_, previous) => seq(
+    export_specifier: ($, previous) => seq(
+      repeat(field('guard', $.static_if_guard)),
       optional('type'),
       previous,
     ),
@@ -1027,6 +1041,7 @@ module.exports = grammar(JavaScript, {
     _import_identifier: $ => choice($.identifier, alias('type', $.identifier)),
 
     import_specifier: $ => seq(
+      repeat(field('guard', $.static_if_guard)),
       optional('type'),
       choice(
         field('name', $._import_identifier),
@@ -1601,6 +1616,7 @@ module.exports = grammar(JavaScript, {
       'of',
       field('target', $.type),
       optional($.implements_clause),
+      optional($.where_clause),
       field('body', $.class_body),
     ),
 
@@ -2154,6 +2170,7 @@ module.exports = grammar(JavaScript, {
     explicit_type_argument: $ => prec(1, seq(
       'type',
       $.type,
+      optional(seq('=', field('value', $.type))),
     )),
 
     object_type: $ => seq(
@@ -2213,8 +2230,10 @@ module.exports = grammar(JavaScript, {
     type_parameter: $ => seq(
       choice(
         seq(
+          repeat(field('guard', $.static_if_guard)),
           optional(choice('const', 'comptime')),
-          optional(choice('in', 'out')),
+          optional('in'),
+          optional('out'),
           optional('...'),
           field('name', $._type_identifier),
           field('constraint', optional($.constraint)),
@@ -2248,12 +2267,16 @@ module.exports = grammar(JavaScript, {
         $.string,
         $.true,
         $.false,
-        $.identifier,
+        seq(
+          $.identifier,
+          optional(seq('=', choice($.number, $.string, $.true, $.false, $.identifier))),
+        ),
         $.static_value_argument,
       ),
     ),
 
     static_value_argument: $ => choice(
+      $.parenthesized_expression,
       alias($._static_value_call_expression, $.call_expression),
       prec.left(seq(
         field('left', $._static_value_operand),
@@ -2265,6 +2288,7 @@ module.exports = grammar(JavaScript, {
     _static_value_operand: $ => choice(
       $.number,
       $.identifier,
+      $.parenthesized_expression,
       alias($._static_value_call_expression, $.call_expression),
       seq('(', $.static_value_argument, ')'),
     ),
@@ -2369,7 +2393,22 @@ module.exports = grammar(JavaScript, {
       $.number,
       $.identifier,
       $.associated_type_projection,
+      $.static_conditional,
     ),
+
+    static_conditional: $ => prec.right(seq(
+      field('condition', $.static_comparison),
+      '?',
+      field('consequence', $._fixed_array_length),
+      ':',
+      field('alternative', $._fixed_array_length),
+    )),
+
+    static_comparison: $ => prec.left(seq(
+      field('left', $._static_value_operand),
+      field('operator', choice('<', '<=', '>', '>=', '==', '!=')),
+      field('right', $._static_value_operand),
+    )),
 
     predefined_type_parameters: $ => seq(
       '(',

@@ -31,4 +31,11 @@
   "readonly"
   "override"
   "satisfies"
+  "extension"
+  "newtype"
+  "struct"
+  "comptime"
+  "where"
+  "match"
+  "using"
 ] @keyword

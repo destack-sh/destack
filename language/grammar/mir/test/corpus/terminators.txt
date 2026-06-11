@@ -10,7 +10,7 @@ block1(v2: int64):
 block2(v3: int64):
     jump block4
 block3:
-    yield v2
+    yield v2 -> resume(v3) | cleanup
 block4:
     switch v1, block5, block6
 block5:
@@ -18,7 +18,7 @@ block5:
 block6:
     panic
 block7:
-    panic.resume
+    unwind.resume
 block8:
     trap.abort
 block9:
@@ -92,6 +92,13 @@ block9:
   (punctuation)
   (terminator_keyword)
   (ssa_identifier)
+  (arrow)
+  (identifier)
+  (punctuation)
+  (ssa_identifier)
+  (punctuation)
+  (operator)
+  (identifier)
   (block_identifier)
   (punctuation)
   (terminator_keyword)
@@ -109,7 +116,7 @@ block9:
   (terminator_keyword)
   (block_identifier)
   (punctuation)
-  (terminator_keyword)
+  (identifier)
   (block_identifier)
   (punctuation)
   (terminator_keyword)

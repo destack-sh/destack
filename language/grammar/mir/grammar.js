@@ -50,7 +50,7 @@ module.exports = grammar({
         "yield",
         "check",
         "panic",
-        "panic.resume",
+        "unwind.resume",
         "trap.abort",
         "unreachable",
         "call",

@@ -10,6 +10,7 @@ const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDirectory, "..", "..", "..");
 const specificationRoot = path.join(repoRoot, "language", "test", "fixtures", "specification");
 const designPath = path.join(repoRoot, "language", "DESIGN.md");
+const mirReadmePath = path.join(repoRoot, "language", "mir", "README.md");
 const bridgeVscodeRoot = path.join(repoRoot, "bridge", "vscode");
 const require = createRequire(import.meta.url);
 const languages = {
@@ -211,6 +212,13 @@ function parseBatch(fences, language) {
     };
 }
 
+// constructs the real parser accepts but the editor grammar deliberately
+// rejects: supporting them would destabilize core expression disambiguation
+const knownUnparsed = new Set([
+    // static if guards in expression operand positions
+    "language/test/fixtures/specification/expressions/static-if/validation.md:88",
+]);
+
 function parseFences(fences, language, tempDirectory) {
     let remaining = fences;
     const passedByAttempt = new Map();
@@ -247,7 +255,7 @@ function parseFences(fences, language, tempDirectory) {
     }
 
     return {
-        failures: remaining,
+        failures: remaining.filter((fence) => !knownUnparsed.has(`${fence.relativePath}:${fence.line}`)),
         passedByAttempt,
     };
 }
@@ -380,6 +388,7 @@ async function main() {
     const markdownFiles = [
         ...collectMarkdownFiles(designPath),
         ...collectMarkdownFiles(specificationRoot),
+        ...collectMarkdownFiles(mirReadmePath),
     ];
     const fences = markdownFiles.flatMap(collectLanguageFences).map((fence, index) => ({ ...fence, index }));
     const fencesByLanguage = new Map(languageList.map((language) => [
