@@ -471,6 +471,21 @@ pub enum CheckError {
         message: String,
     },
 
+    /// Static operation could not be evaluated.
+    ///
+    /// ```ds
+    /// type Block = [uint8; 1 / 0];
+    /// ```
+    #[diagnostic(code = "EC409", message = "static evaluation failed: {message}")]
+    InvalidStaticOperation {
+        /// Report the static operation.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// Describe why the evaluation failed.
+        message: String,
+    },
+
     // -------------------------------------------------------------------------
     // 5xx: representation
     // -------------------------------------------------------------------------
