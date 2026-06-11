@@ -2512,8 +2512,8 @@ let exclusiveX = &exclusive point.x;
 
 #### Stability
 
-Allowing multiple live mutable borrows are memory safe only because every operation that may _invalidate_ another live borrow requires exclusivity.
-Writing through a non-exclusive borrow is therefore allowed only when the place is **overwrite-stable**: the old value needs no destruction (no drop glue), and the new bytes mean what the old bytes meant (one fixed layout, no variant tag) - which scalar and managed-reference fields trivially satisfy.
+Allowing multiple live mutable borrows is memory safe only because every operation that may _invalidate_ another live borrow requires exclusivity (via `&exclusive`).
+Writing through a non-exclusive borrow is therefore allowed only when that place is **overwrite-stable**: the old value requires no destruction (no `Drop`), and the new bytes mean what the old bytes meant (one fixed layout, no variant tag), both of which scalar and managed-reference fields trivially satisfy.
 Everything else requires `&exclusive`: overwriting a variant reinterprets the payload under a live interior borrow, overwriting an owning value frees memory a borrow may still target, and so on.
 
 ```ds
@@ -2529,8 +2529,29 @@ let alias = &frame;         // non-exclusive borrows may overlap
 *alias = Frame { pixels: Buffer.open() }; // ERROR: overwrite drops the old buffer under `pixels`
 ```
 
-It should be noted that as with the rest of borrowing and ownership, _regular_ managed land needs none of this because managed handles alias freely through the heap.
+It should be noted that as with the rest of borrowing and ownership, _regular_ managed land needs to know about exactly zero of this because managed handles alias freely and mutably.
 Writes through one managed handle can at most result in _stale_ reads through another (a "borrow" into an array taken before it grew still reads the old buffer), which is just ordinary TypeScript aliasing, and not really a memory safety problem in itself.
+
+#### Rooting
+
+Borrows into managed storage stay valid via something we call "automatic rooting": the compiler remembers every managed handle a borrow needs via a hidden frame slot that keeps it alive until the borrow's last use (and the collector scans that slot like any other handle local).
+This is essentially what we always want anyway, and it lets the GC not worry about interior borrows _at all_: no write can invalidate a borrow rooted in managed storage since overwriting the path the borrow came through leaves the old object alive.
+
+```ds
+class Profile {
+    name: string;
+}
+
+class User {
+    profile: Profile;
+}
+
+let name = &user.profile.name;          // roots the `user.profile` handle
+user.profile = new Profile("other");    // OK: the old profile stays pinned
+print(*name);                           // still reads the borrowed profile
+```
+
+The hidden slot is just a compiler temporary, and borrows of temporaries follow the same extension rules as Rust: a borrow that initializes a binding extends its temporary to the binding's lifetime, and any other temporary lives to the end of the enclosing statement.
 
 ### Lifetimes
 
