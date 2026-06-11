@@ -2,8 +2,8 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Asynchrony, GlobalGenericParameterId, GlobalStaticId, GlobalSymbolId, MappedTypeModifier,
-    ScalarLiteral, StaticKey, StringId, TypeLiteral,
+    Asynchrony, BinaryOperator, GlobalGenericParameterId, GlobalStaticId, GlobalSymbolId,
+    MappedTypeModifier, ScalarLiteral, StaticKey, StringId, TypeLiteral, UnaryOperator,
 };
 
 use super::{FloatType, PrimitiveType};
@@ -97,7 +97,7 @@ pub struct FormType {
 }
 
 /// Canonical memory or access form constructor.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Form {
     /// Automatically managed runtime value.
     Managed,
@@ -172,12 +172,14 @@ pub enum Place {
 pub enum Lifetime {
     /// Static lifetime.
     Static,
+    /// The enclosing frame's lifetime.
+    Frame,
     /// Symbolic lifetime parameter or associated constant.
     Symbol(GlobalSymbolId),
 }
 
 /// An index signature in an object type.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TypeIndexSignature {
     /// The parameter name like `K`.
     pub name: StringId,
@@ -202,6 +204,8 @@ pub struct ConditionalType {
     pub then_type: GlobalTypeId,
     /// The type selected when the condition does not hold.
     pub else_type: GlobalTypeId,
+    /// Whether the conditional distributes over union-valued left operands.
+    pub is_distributive: bool,
 }
 
 /// A mapped type.
@@ -367,6 +371,137 @@ pub struct IntersectionType {
     pub elements: Vec<GlobalTypeId>,
 }
 
+/// One static binary operation over singleton operands.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StaticBinaryType {
+    /// The applied operator.
+    pub operator: StaticBinaryOperator,
+    /// The left operand.
+    pub left: GlobalTypeId,
+    /// The right operand.
+    pub right: GlobalTypeId,
+}
+
+/// One static binary operator.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum StaticBinaryOperator {
+    /// `left + right`.
+    Add,
+    /// `left - right`.
+    Subtract,
+    /// `left * right`.
+    Multiply,
+    /// `left / right`.
+    Divide,
+    /// `left % right`.
+    Remainder,
+    /// `left ** right`.
+    Exponent,
+    /// `left << right`.
+    ShiftLeft,
+    /// `left >> right`.
+    ShiftRight,
+    /// `left >>> right`.
+    UnsignedShiftRight,
+    /// `left & right`.
+    BitwiseAnd,
+    /// `left ^ right`.
+    BitwiseXor,
+    /// `left | right`.
+    BitwiseOr,
+    /// `left == right`.
+    Equal,
+    /// `left === right`.
+    EqualStrict,
+    /// `left != right`.
+    NotEqual,
+    /// `left !== right`.
+    NotEqualStrict,
+    /// `left < right`.
+    LessThan,
+    /// `left <= right`.
+    LessThanOrEqual,
+    /// `left > right`.
+    GreaterThan,
+    /// `left >= right`.
+    GreaterThanOrEqual,
+    /// `left && right`.
+    And,
+    /// `left || right`.
+    Or,
+}
+
+impl TryFrom<BinaryOperator> for StaticBinaryOperator {
+    type Error = ();
+
+    /// Map one source binary operator onto its static operator.
+    fn try_from(operator: BinaryOperator) -> Result<Self, ()> {
+        let operator = match operator {
+            BinaryOperator::Add => Self::Add,
+            BinaryOperator::Subtract => Self::Subtract,
+            BinaryOperator::Multiply => Self::Multiply,
+            BinaryOperator::Divide => Self::Divide,
+            BinaryOperator::Remainder => Self::Remainder,
+            BinaryOperator::Exponent => Self::Exponent,
+            BinaryOperator::ShiftLeft => Self::ShiftLeft,
+            BinaryOperator::ShiftRight => Self::ShiftRight,
+            BinaryOperator::UnsignedShiftRight => Self::UnsignedShiftRight,
+            BinaryOperator::ElementwiseAnd => Self::BitwiseAnd,
+            BinaryOperator::ElementwiseXor => Self::BitwiseXor,
+            BinaryOperator::ElementwiseOr => Self::BitwiseOr,
+            BinaryOperator::Equal => Self::Equal,
+            BinaryOperator::EqualStrict => Self::EqualStrict,
+            BinaryOperator::NotEqual => Self::NotEqual,
+            BinaryOperator::NotEqualStrict => Self::NotEqualStrict,
+            BinaryOperator::LessThan => Self::LessThan,
+            BinaryOperator::LessThanOrEqual => Self::LessThanOrEqual,
+            BinaryOperator::GreaterThan => Self::GreaterThan,
+            BinaryOperator::GreaterThanOrEqual => Self::GreaterThanOrEqual,
+            BinaryOperator::And => Self::And,
+            BinaryOperator::Or => Self::Or,
+            _ => return Err(()),
+        };
+
+        Ok(operator)
+    }
+}
+
+/// One static unary operation over one singleton operand.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StaticUnaryType {
+    /// The applied operator.
+    pub operator: StaticUnaryOperator,
+    /// The operand.
+    pub target: GlobalTypeId,
+}
+
+/// One static unary operator.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum StaticUnaryOperator {
+    /// `!target`.
+    Not,
+    /// `-target`.
+    Negate,
+    /// `~target`.
+    BitwiseNot,
+}
+
+impl TryFrom<UnaryOperator> for StaticUnaryOperator {
+    type Error = ();
+
+    /// Map one source unary operator onto its static operator.
+    fn try_from(operator: UnaryOperator) -> Result<Self, ()> {
+        let operator = match operator {
+            UnaryOperator::Not => Self::Not,
+            UnaryOperator::Negate => Self::Negate,
+            UnaryOperator::ElementwiseNot => Self::BitwiseNot,
+            _ => return Err(()),
+        };
+
+        Ok(operator)
+    }
+}
+
 /// Type-level operation preserved by check.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TypeOperation {
@@ -389,6 +524,20 @@ pub enum TypeOperation {
     Infer(InferType),
     /// `keyof T`.
     KeyOf(UnaryType),
+    /// Try success projection like `value?` continuing evaluation.
+    TryOutput {
+        /// The tried value type.
+        value: GlobalTypeId,
+    },
+    /// Try failure projection like `value?` propagating its residual.
+    TryResidual {
+        /// The tried value type.
+        value: GlobalTypeId,
+    },
+    /// Static binary operation like `N * 2` or `Mode == "inline"`.
+    StaticBinary(StaticBinaryType),
+    /// Static unary operation like `!Wide`.
+    StaticUnary(StaticUnaryType),
 }
 
 /// A canonical solved type.
@@ -542,7 +691,7 @@ impl Type {
 
 /// A field in an object-like type.
 /// Methods are represented as fields whose `ty` is a `Type::Function`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TypeField {
     /// The key of the field.
     pub key: StaticKey,
@@ -555,7 +704,7 @@ pub struct TypeField {
 }
 
 /// An element in a tuple type.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TypeElement {
     /// The optional label for the element.
     pub label: Option<StringId>,

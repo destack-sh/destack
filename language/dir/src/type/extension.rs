@@ -1,10 +1,7 @@
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    AssociatedConstDefinition, AssociatedTypeDefinition, FieldDefinition, GlobalNodeIdAny,
-    GlobalSymbolId, GlobalTypeId, MethodDefinition, NominalHeritage,
-};
+use crate::{DefinitionMember, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, NominalHeritage};
 
 /// How an extension declaration relates to its target type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -33,18 +30,8 @@ pub struct Extension {
     pub implements: Vec<NominalHeritage>,
     /// The checked where clauses that gate this extension.
     pub where_clauses: Vec<ExtensionWhereClause>,
-    /// The extension fields.
-    pub fields: Vec<FieldDefinition>,
-    /// The extension static fields.
-    pub static_fields: Vec<FieldDefinition>,
-    /// The extension methods.
-    pub methods: Vec<MethodDefinition>,
-    /// The extension static methods.
-    pub static_methods: Vec<MethodDefinition>,
-    /// The associated types.
-    pub associated_types: Vec<AssociatedTypeDefinition>,
-    /// The associated constants.
-    pub associated_consts: Vec<AssociatedConstDefinition>,
+    /// The members in declaration order.
+    pub members: Vec<DefinitionMember>,
 }
 
 impl Extension {
@@ -55,12 +42,7 @@ impl Extension {
         target: ExtensionTarget,
         implements: Vec<NominalHeritage>,
         where_clauses: Vec<ExtensionWhereClause>,
-        fields: Vec<FieldDefinition>,
-        static_fields: Vec<FieldDefinition>,
-        methods: Vec<MethodDefinition>,
-        static_methods: Vec<MethodDefinition>,
-        associated_types: Vec<AssociatedTypeDefinition>,
-        associated_consts: Vec<AssociatedConstDefinition>,
+        members: Vec<DefinitionMember>,
     ) -> Self {
         Self {
             symbol,
@@ -68,12 +50,7 @@ impl Extension {
             target,
             implements,
             where_clauses,
-            fields,
-            static_fields,
-            methods,
-            static_methods,
-            associated_types,
-            associated_consts,
+            members,
         }
     }
 
