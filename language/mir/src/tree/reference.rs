@@ -101,10 +101,18 @@ impl TypeReference {
 
     /// Return borrowed reference-like paths carried by this type reference.
     pub fn borrowed_paths(&self, tree: &Tree) -> Vec<BorrowedPath> {
-        let lifetimes = self.lifetimes().to_vec();
+        self.borrowed_paths_with_lifetimes(tree, self.lifetimes())
+    }
+
+    /// Return borrowed paths with explicit outer lifetime arguments.
+    pub fn borrowed_paths_with_lifetimes(
+        &self,
+        tree: &Tree,
+        lifetimes: &[Lifetime],
+    ) -> Vec<BorrowedPath> {
         let mut borrowed_paths = Vec::new();
 
-        self.collect_borrowed_paths_into(tree, &lifetimes, Path::root(), &mut borrowed_paths);
+        self.collect_borrowed_paths_into(tree, lifetimes, Path::root(), &mut borrowed_paths);
 
         borrowed_paths
     }
