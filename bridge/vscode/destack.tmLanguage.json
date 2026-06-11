@@ -432,7 +432,7 @@
               "name": "punctuation.separator.type.annotation.ds"
             }
           },
-          "end": "(?=\\s*(?:where\\b|=|,|\\)|\\]|\\}|;|$))",
+          "end": "(?=\\s*(?:where\\b|=|,|\\)|\\]|\\}|;|$))|(?<=[\\w>)\\]])\\s*(?=\\{)",
           "patterns": [
             {
               "include": "#type-optional"
@@ -450,7 +450,7 @@
               "name": "keyword.operator.arrow.ds"
             }
           },
-          "end": "(?=\\s*(?:where\\b|=|,|\\)|\\]|\\}|;|$))",
+          "end": "(?=\\s*(?:where\\b|=|,|\\)|\\]|\\}|;|$))|(?<=[\\w>)\\]])\\s*(?=\\{)",
           "patterns": [
             {
               "include": "#type-optional"

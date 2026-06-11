@@ -1,0 +1,12 @@
+// SYNTAX TEST "source.ds"
+
+// memory / suspension / borrows across awaits
+async function read(user: ^User): Promise<string> {
+    const name = &readonly user.name;
+//  ^^^^^ keyword.declaration.type.ds
+
+    await tick();
+//        ^^^^ entity.name.function.call.ds
+
+    return `${name}`;
+}
