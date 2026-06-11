@@ -1,4 +1,4 @@
 mod definition;
-mod dependency;
+mod external;
 mod generic;
 mod operand;

@@ -6,11 +6,11 @@ use destack_source::ModuleId;
 
 use super::CheckState;
 
-/// Committed tables loaded for one out-of-component dependency module.
-pub(in crate::check) struct CheckDependencyState {
-    /// The parsed dependency module.
+/// Committed tables loaded for one out-of-component external module.
+pub(in crate::check) struct CheckExternalModuleState {
+    /// The parsed external module.
     pub(in crate::check) parsed: Arc<DirParsed>,
-    /// The expanded dependency module.
+    /// The expanded external module.
     pub(in crate::check) expanded: Arc<DirExpanded>,
     /// The committed binding table.
     pub(in crate::check) bindings: dir::BindingTable<'static>,
@@ -24,7 +24,7 @@ pub(in crate::check) struct CheckDependencyState {
     pub(in crate::check) definitions: dir::DefinitionTable<'static>,
 }
 
-impl CheckDependencyState {
+impl CheckExternalModuleState {
     /// Return the post-expansion DIR tree view visible to check.
     pub(in crate::check) fn view(&self) -> dir::View<'_> {
         dir::View::with_patches(
@@ -35,10 +35,10 @@ impl CheckDependencyState {
 }
 
 impl CheckState<'_> {
-    /// Return loaded state for one dependency module.
-    pub(in crate::check) fn dependency(&self, module: ModuleId) -> &CheckDependencyState {
-        self.dependencies
+    /// Return loaded state for one external module.
+    pub(in crate::check) fn external_module(&self, module: ModuleId) -> &CheckExternalModuleState {
+        self.external_modules
             .get(&module)
-            .unwrap_or_else(|| unreachable!("dependency {module:?} was not loaded"))
+            .unwrap_or_else(|| unreachable!("external module {module:?} was not loaded"))
     }
 }

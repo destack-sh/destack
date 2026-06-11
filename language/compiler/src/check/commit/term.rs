@@ -2,13 +2,13 @@ use destack_artifact::GlobalEnvironment;
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::CompilerResult;
 use crate::check::{
     Answer, CheckState, FormTerm, FunctionParameter, FunctionTerm, GenericArgument,
-    GenericInstance, GenericParameterBinding, GenericParameterId, MemberTerm, Origin, ShapeMember,
-    ShapeTerm, StaticOperand, StaticTerm, TermId, TupleElement, TypeOperand, TypeOperationTerm,
-    TypeTerm, VariableId,
+    GenericInstance, GenericParameterId, MemberTerm, Origin, ShapeMember, ShapeTerm, StaticOperand,
+    StaticTerm, TermId, TupleElement, TypeOperand, TypeOperationTerm, TypeTerm, VariableId,
+    VariableKind,
 };
+use crate::{CompilerError, CompilerResult};
 
 use super::CheckModuleOutput;
 
@@ -38,7 +38,7 @@ impl CheckState<'_> {
         for (symbol, operand) in symbol_types {
             let source = self
                 .module(symbol.module_id)
-                .symbol_declaration_node(symbol.local_id);
+                .symbol_declaration_node(symbol.local_id)?;
             let Some(type_id) =
                 self.commit_type_operand(module, output, environment, operand, source)?
             else {
@@ -93,11 +93,6 @@ impl CheckState<'_> {
         operand: TypeOperand,
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let origin = Origin::Node(source.into_global(module));
-        let Answer::Ready(operand) = self.normalize_type_operand(origin, operand)? else {
-            return Ok(None);
-        };
-
         match operand {
             TypeOperand::Variable(variable) => {
                 self.commit_type_variable(module, output, environment, variable, source)
@@ -170,9 +165,8 @@ impl CheckState<'_> {
                 symbol,
                 arguments,
             } => {
-                self.import_symbol_generic_template(module, *symbol)?;
                 let arguments =
-                    if let Some(template) = self.inference.symbol_generic_template(*symbol) {
+                    if let Some(template) = self.inference.generic_template_by_symbol(*symbol) {
                         self.commit_reference_arguments(
                             module,
                             output,
@@ -204,7 +198,7 @@ impl CheckState<'_> {
             }
             TypeTerm::Member(member) => {
                 let member = self.inference.term(*member).clone();
-                let owner = self.member_receiver_type_operand(&member.owner);
+                let owner = self.member_receiver_type_operand(&member.receiver);
                 let Some(owner) =
                     self.commit_type_operand(module, output, environment, owner, source)?
                 else {
@@ -265,7 +259,13 @@ impl CheckState<'_> {
                 },
             }),
             TypeTerm::Shape(shape) => {
-                let members = self.inference.term(*shape).members.clone();
+                let members = self
+                    .inference
+                    .term(*shape)
+                    .members
+                    .iter()
+                    .copied()
+                    .collect::<Vec<_>>();
 
                 let Some(shape) =
                     self.commit_shape_type(module, output, environment, &members, source)?
@@ -386,24 +386,80 @@ impl CheckState<'_> {
         can_reduce_members: bool,
     ) -> CompilerResult<Answer<TypeTerm>> {
         match term {
+            TypeTerm::Operation(operation)
+                if self.inference.term(*operation).must_reduce_for_commit() =>
+            {
+                let reduced = match self.reduce_type_term(origin, term.clone())? {
+                    Answer::Ready(reduced) => reduced,
+                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+                };
+
+                self.committable_type_operand_term(origin, module, reduced, can_reduce_members)
+            }
             TypeTerm::Member(member) if can_reduce_members => {
                 let member = self.inference.term(*member).clone();
 
                 self.reduce_committable_member_term(origin, module, &member, can_reduce_members)
             }
             TypeTerm::Shape(shape) if can_reduce_members || self.shape_has_spread(*shape) => {
-                let Answer::Ready(reduced) = self.reduce_type_term(origin, term)? else {
-                    return Ok(Answer::Pending);
+                let reduced = match self.reduce_type_term(origin, term.clone())? {
+                    Answer::Ready(reduced) => reduced,
+                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
                 };
 
-                let Some(term) = self.type_operand_term(reduced)? else {
-                    return Ok(Answer::Pending);
+                let Some(term) = self.type_operand_term_id(reduced)? else {
+                    return Ok(Answer::pending(reduced.dependencies(self)));
                 };
 
-                Ok(Answer::Ready(term))
+                Ok(Answer::Ready(self.inference.term(term).clone()))
+            }
+            TypeTerm::StaticValue { .. }
+            | TypeTerm::Call(_)
+            | TypeTerm::Construct(_)
+            | TypeTerm::RangeValue(_)
+            | TypeTerm::Tree(_)
+            | TypeTerm::TypeValue(_)
+            | TypeTerm::ImportMeta(_)
+            | TypeTerm::Receiver(_)
+            | TypeTerm::Super(_)
+            | TypeTerm::Operator(_)
+            | TypeTerm::Index(_)
+            | TypeTerm::IndexSet(_)
+            | TypeTerm::KeyMembership(_)
+            | TypeTerm::InstanceCheck(_)
+            | TypeTerm::Identity(_)
+            | TypeTerm::Await(_)
+            | TypeTerm::Try(_)
+            | TypeTerm::Yield(_)
+            | TypeTerm::TryFailure(_)
+            | TypeTerm::Template(_)
+            | TypeTerm::TaggedTemplate(_) => {
+                let reduced = match self.reduce_type_term(origin, term.clone())? {
+                    Answer::Ready(reduced) => reduced,
+                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+                };
+
+                self.committable_type_operand_term(origin, module, reduced, can_reduce_members)
             }
             _ => Ok(Answer::Ready(term.clone())),
         }
+    }
+
+    /// Return the term represented by one reduced commit operand.
+    fn committable_type_operand_term(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        operand: TypeOperand,
+        can_reduce_members: bool,
+    ) -> CompilerResult<Answer<TypeTerm>> {
+        let Some(term) = self.type_operand_term_id(operand)? else {
+            return Ok(Answer::pending(operand.dependencies(self)));
+        };
+
+        let term = self.inference.term(term).clone();
+
+        self.reduce_committable_type_term(origin, module, &term, can_reduce_members)
     }
 
     /// Reduce one member projection for commit without selecting it.
@@ -414,26 +470,35 @@ impl CheckState<'_> {
         member: &MemberTerm,
         can_reduce_members: bool,
     ) -> CompilerResult<Answer<TypeTerm>> {
-        let owner = self.member_receiver_type_operand(&member.owner);
-        let Some(owner) = self.type_operand_term(owner)? else {
-            return Ok(Answer::Pending);
+        let owner = self.member_receiver_type_operand(&member.receiver);
+        let Some(owner) = self.type_operand_term_id(owner)? else {
+            return Ok(Answer::pending(owner.dependencies(self)));
         };
-        let Answer::Ready(owner) =
-            self.reduce_committable_type_term(origin, module, &owner, can_reduce_members)?
+        let owner = self.inference.term(owner).clone();
+        let owner =
+            match self.reduce_committable_type_term(origin, module, &owner, can_reduce_members)? {
+                Answer::Ready(owner) => owner,
+                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+            };
+
+        let owner = self.type_term_operand(owner);
+        let Some(term) = self.resolve_member_type_operand(
+            origin,
+            module,
+            owner,
+            &member.key,
+            &member.arguments,
+        )?
         else {
-            return Ok(Answer::Pending);
+            return Err(CompilerError::Internal {
+                message: "committable member projection did not resolve".into(),
+            });
+        };
+        let Some(term) = self.type_operand_term_id(term)? else {
+            return Ok(Answer::pending(term.dependencies(self)));
         };
 
-        let Some(term) =
-            self.resolve_member_type(origin, module, &owner, &member.key, &member.arguments)?
-        else {
-            return Ok(Answer::Pending);
-        };
-        let Some(term) = self.type_operand_term(term)? else {
-            return Ok(Answer::Pending);
-        };
-
-        Ok(Answer::Ready(term))
+        Ok(Answer::Ready(self.inference.term(term).clone()))
     }
 
     /// Return whether one shape still contains a spread member.
@@ -520,7 +585,7 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         variable: VariableId,
     ) -> CompilerResult<Option<dir::GlobalStaticId>> {
-        let Some(solution) = self.variable_static_solution_operand(variable) else {
+        let Some(solution) = self.solved_static_operand(variable) else {
             return Ok(None);
         };
 
@@ -579,7 +644,7 @@ impl CheckState<'_> {
 
     /// Return one solved type term for commit.
     fn commit_variable_term(&mut self, variable: VariableId) -> Option<TypeTerm> {
-        match self.variable_type_solution_operand(variable)? {
+        match self.solved_type_operand(variable)? {
             TypeOperand::Variable(_) => None,
             TypeOperand::Term(term) => Some(self.inference.term(term).clone()),
             TypeOperand::Type(ty) => Some(TypeTerm::Type(ty)),
@@ -783,18 +848,18 @@ impl CheckState<'_> {
         let parameters = self
             .inference
             .generic_template_parameters(template)
-            .map(|(_, parameter)| parameter.clone())
+            .map(|(_, parameter)| parameter.kind())
             .collect::<Vec<_>>();
         let mut committed = Vec::with_capacity(arguments.len());
 
         // commit each argument with parameter context when available
         for (index, argument) in arguments.iter().enumerate() {
-            let argument = if let Some(parameter) = parameters.get(index) {
+            let argument = if let Some(kind) = parameters.get(index) {
                 self.commit_owner_argument_term(
                     module,
                     output,
                     environment,
-                    parameter,
+                    *kind,
                     argument,
                     source,
                 )?
@@ -817,11 +882,11 @@ impl CheckState<'_> {
         module: ModuleId,
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
-        parameter: &GenericParameterBinding,
+        kind: VariableKind,
         argument: &GenericArgument,
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<Option<dir::StaticArgument>> {
-        let argument = argument.specialize(parameter, self)?;
+        let argument = argument.specialize(kind, self)?;
 
         self.commit_argument_term(module, output, environment, &argument, source)
     }
@@ -947,8 +1012,7 @@ impl CheckState<'_> {
         let mut index_signatures = Vec::new();
 
         // collect solved shape members
-        for member in members {
-            let member = member.clone();
+        for member in members.iter().copied() {
             match member {
                 ShapeMember::Field {
                     key,
@@ -1201,7 +1265,7 @@ impl CheckState<'_> {
             TypeOperationTerm::BestCommon { .. }
             | TypeOperationTerm::Widen { .. }
             | TypeOperationTerm::Exclude { .. }
-            | TypeOperationTerm::NarrowMember { .. }
+            | TypeOperationTerm::Extract { .. }
             | TypeOperationTerm::Intrinsic { .. } => return Ok(None),
         };
 

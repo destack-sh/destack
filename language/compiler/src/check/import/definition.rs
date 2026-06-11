@@ -5,95 +5,96 @@ use crate::check::{
     AssociatedConstDefinition, AssociatedTypeDefinition, CheckState, ClassDefinition, Definition,
     EnumDefinition, ExtensionDefinition, ExtensionTarget, ExtensionWhereClause, FieldDefinition,
     GenericArgument, GenericInstance, InterfaceDefinition, MethodDefinition, NewtypeDefinition,
-    NominalHeritage, SignatureDefinition, StructDefinition, TypeAliasDefinition, TypeOperand,
-    VariantDefinition,
+    NominalHeritage, SignatureDefinition, StructDefinition, TypeAliasDefinition, VariantDefinition,
 };
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
-    /// Return one visible checked definition.
-    pub(in crate::check) fn definition(
+    /// Import external committed definitions.
+    pub(in crate::check) fn import_external_definitions(&mut self) -> CompilerResult<()> {
+        let modules = self.modules.keys().copied().collect::<Vec<_>>();
+        let mut symbols = Vec::new();
+
+        // collect external definition symbols before mutating definitions
+        for module in modules {
+            symbols.extend(self.external_definition_symbols(module));
+        }
+
+        // import each external definition once
+        for (module, symbol) in symbols {
+            self.import_definition_symbol(module, symbol)?;
+        }
+
+        Ok(())
+    }
+
+    /// Import one committed definition into the checked definition table.
+    fn import_definition_symbol(
         &mut self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<&Definition>> {
-        if self.definitions.contains_definition(symbol) {
-            return Ok(self.definitions.definition(symbol));
+    ) -> CompilerResult<()> {
+        if self.definitions.definition(symbol).is_some() {
+            return Ok(());
         }
         if self.is_component_module(symbol.module_id) {
-            return Ok(None);
+            return Ok(());
         }
 
-        let Some(definition) = self
-            .dependency(symbol.module_id)
+        let definition = self
+            .external_module(symbol.module_id)
             .definitions
             .definition(symbol)
-            .cloned()
-        else {
-            return Ok(None);
+            .cloned();
+        let Some(definition) = definition else {
+            return Ok(());
         };
         let source = self
-            .dependency(symbol.module_id)
+            .external_module(symbol.module_id)
             .definitions
             .definition_source(symbol)
             .ok_or_else(|| CompilerError::Internal {
-                message: format!("dependency definition symbol {symbol:?} has no source"),
+                message: format!("external definition symbol {symbol:?} has no source"),
             })?;
-        let definition = self.import_definition(module, symbol, source, definition)?;
+        let definition = self.import_definition(module, symbol, source, &definition)?;
 
-        self.definitions.insert(symbol, definition);
-
-        Ok(self.definitions.definition(symbol))
+        self.definitions.insert(symbol, definition)
     }
 
-    /// Return one newtype backing type operand in a component module context.
-    pub(in crate::check) fn newtype_backing(
-        &mut self,
+    /// Return definition symbols named by one component module.
+    fn external_definition_symbols(
+        &self,
         module: ModuleId,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<TypeOperand>> {
-        match self.definition(module, symbol)? {
-            Some(Definition::Newtype(definition)) => Ok(Some(definition.value)),
-            _ => Ok(None),
+    ) -> Vec<(ModuleId, dir::GlobalSymbolId)> {
+        let state = self.module(module);
+        let mut symbols = Vec::new();
+
+        // collect explicitly imported definition symbols
+        for (_, symbol) in state.resolved.imports.symbol_targets() {
+            if self.is_component_module(symbol.module_id) {
+                continue;
+            }
+            if self
+                .external_module(symbol.module_id)
+                .definitions
+                .definition(symbol)
+                .is_some()
+            {
+                symbols.push((module, symbol));
+            }
         }
-    }
 
-    /// Return nominal fields as operands in a component module context.
-    pub(in crate::check) fn nominal_fields(
-        &mut self,
-        module: ModuleId,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<Vec<(dir::StaticKey, TypeOperand)>>> {
-        let Some(definition) = self.definition(module, symbol)? else {
-            return Ok(None);
-        };
-        let fields = match definition {
-            Definition::Struct(definition) => &definition.fields,
-            Definition::Class(definition) => &definition.fields,
-            Definition::Interface(definition) => &definition.fields,
-            _ => return Ok(None),
-        };
+        // collect definitions from external modules
+        for external_module in state.external_modules.iter().copied() {
+            symbols.extend(
+                self.external_module(external_module)
+                    .definitions
+                    .iter_definitions()
+                    .map(|(symbol, _)| (module, symbol)),
+            );
+        }
 
-        Ok(Some(
-            fields.iter().map(|field| (field.key, field.ty)).collect(),
-        ))
-    }
-
-    /// Return one visible extension definition.
-    pub(in crate::check) fn extension_definition(
-        &mut self,
-        module: ModuleId,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<ExtensionDefinition>> {
-        let Some(definition) = self.definition(module, symbol)? else {
-            return Ok(None);
-        };
-        let extension = match definition {
-            Definition::Extension(extension) => Some(extension.clone()),
-            _ => None,
-        };
-
-        Ok(extension)
+        symbols
     }
 
     /// Import one checked definition from committed definition metadata.
@@ -102,7 +103,7 @@ impl CheckState<'_> {
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
         source: dir::GlobalNodeIdAny,
-        definition: dir::Definition,
+        definition: &dir::Definition,
     ) -> CompilerResult<Definition> {
         match definition {
             dir::Definition::TypeAlias(definition) => {
@@ -119,34 +120,35 @@ impl CheckState<'_> {
             dir::Definition::Struct(definition) => Ok(Definition::Struct(StructDefinition {
                 source,
                 template: self.import_definition_template(module, symbol, definition.template)?,
-                implements: self.import_nominal_heritages(module, definition.implements)?,
-                fields: self.import_field_definitions(module, definition.fields)?,
-                static_fields: self.import_field_definitions(module, definition.static_fields)?,
-                methods: self.import_method_definitions(module, definition.methods)?,
+                implements: self.import_nominal_heritages(module, &definition.implements)?,
+                fields: self.import_field_definitions(module, &definition.fields)?,
+                static_fields: self.import_field_definitions(module, &definition.static_fields)?,
+                methods: self.import_method_definitions(module, &definition.methods)?,
                 static_methods: self
-                    .import_method_definitions(module, definition.static_methods)?,
+                    .import_method_definitions(module, &definition.static_methods)?,
                 associated_types: self
-                    .import_associated_type_definitions(module, definition.associated_types)?,
+                    .import_associated_type_definitions(module, &definition.associated_types)?,
                 associated_consts: self
-                    .import_associated_const_definitions(module, definition.associated_consts)?,
+                    .import_associated_const_definitions(module, &definition.associated_consts)?,
             })),
             dir::Definition::Class(definition) => Ok(Definition::Class(ClassDefinition {
                 source,
                 template: self.import_definition_template(module, symbol, definition.template)?,
                 extends: definition
                     .extends
+                    .as_ref()
                     .map(|heritage| self.import_nominal_heritage(module, heritage))
                     .transpose()?,
-                implements: self.import_nominal_heritages(module, definition.implements)?,
-                fields: self.import_field_definitions(module, definition.fields)?,
-                static_fields: self.import_field_definitions(module, definition.static_fields)?,
-                methods: self.import_method_definitions(module, definition.methods)?,
+                implements: self.import_nominal_heritages(module, &definition.implements)?,
+                fields: self.import_field_definitions(module, &definition.fields)?,
+                static_fields: self.import_field_definitions(module, &definition.static_fields)?,
+                methods: self.import_method_definitions(module, &definition.methods)?,
                 static_methods: self
-                    .import_method_definitions(module, definition.static_methods)?,
+                    .import_method_definitions(module, &definition.static_methods)?,
                 associated_types: self
-                    .import_associated_type_definitions(module, definition.associated_types)?,
+                    .import_associated_type_definitions(module, &definition.associated_types)?,
                 associated_consts: self
-                    .import_associated_const_definitions(module, definition.associated_consts)?,
+                    .import_associated_const_definitions(module, &definition.associated_consts)?,
             })),
             dir::Definition::Interface(definition) => {
                 Ok(Definition::Interface(InterfaceDefinition {
@@ -157,40 +159,40 @@ impl CheckState<'_> {
                         definition.template,
                     )?,
                     is_nominal: definition.is_nominal,
-                    extends: self.import_nominal_heritages(module, definition.extends)?,
-                    fields: self.import_field_definitions(module, definition.fields)?,
+                    extends: self.import_nominal_heritages(module, &definition.extends)?,
+                    fields: self.import_field_definitions(module, &definition.fields)?,
                     static_fields: self
-                        .import_field_definitions(module, definition.static_fields)?,
-                    methods: self.import_method_definitions(module, definition.methods)?,
+                        .import_field_definitions(module, &definition.static_fields)?,
+                    methods: self.import_method_definitions(module, &definition.methods)?,
                     static_methods: self
-                        .import_method_definitions(module, definition.static_methods)?,
+                        .import_method_definitions(module, &definition.static_methods)?,
                     call_signatures: self
-                        .import_signature_definitions(module, definition.call_signatures)?,
+                        .import_signature_definitions(module, &definition.call_signatures)?,
                     construct_signatures: self
-                        .import_signature_definitions(module, definition.construct_signatures)?,
+                        .import_signature_definitions(module, &definition.construct_signatures)?,
                     index_signatures: self
-                        .import_signature_definitions(module, definition.index_signatures)?,
+                        .import_signature_definitions(module, &definition.index_signatures)?,
                     associated_types: self
-                        .import_associated_type_definitions(module, definition.associated_types)?,
+                        .import_associated_type_definitions(module, &definition.associated_types)?,
                     associated_consts: self.import_associated_const_definitions(
                         module,
-                        definition.associated_consts,
+                        &definition.associated_consts,
                     )?,
                 }))
             }
             dir::Definition::Enum(definition) => Ok(Definition::Enum(EnumDefinition {
                 source,
                 template: self.import_definition_template(module, symbol, definition.template)?,
-                implements: self.import_nominal_heritages(module, definition.implements)?,
-                variants: self.import_variant_definitions(module, definition.variants)?,
-                static_fields: self.import_field_definitions(module, definition.static_fields)?,
-                methods: self.import_method_definitions(module, definition.methods)?,
+                implements: self.import_nominal_heritages(module, &definition.implements)?,
+                variants: self.import_variant_definitions(module, &definition.variants)?,
+                static_fields: self.import_field_definitions(module, &definition.static_fields)?,
+                methods: self.import_method_definitions(module, &definition.methods)?,
                 static_methods: self
-                    .import_method_definitions(module, definition.static_methods)?,
+                    .import_method_definitions(module, &definition.static_methods)?,
                 associated_types: self
-                    .import_associated_type_definitions(module, definition.associated_types)?,
+                    .import_associated_type_definitions(module, &definition.associated_types)?,
                 associated_consts: self
-                    .import_associated_const_definitions(module, definition.associated_consts)?,
+                    .import_associated_const_definitions(module, &definition.associated_consts)?,
             })),
             dir::Definition::Newtype(definition) => Ok(Definition::Newtype(NewtypeDefinition {
                 source,
@@ -208,13 +210,13 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         source: dir::GlobalNodeIdAny,
-        extension: dir::Extension,
+        extension: &dir::Extension,
     ) -> CompilerResult<ExtensionDefinition> {
-        let target = self.import_extension_target(module, extension.target)?;
+        let target = self.import_extension_target(module, &extension.target)?;
         let mut where_clauses = Vec::with_capacity(extension.where_clauses.len());
 
         // import extension where clauses
-        for where_clause in extension.where_clauses {
+        for where_clause in &extension.where_clauses {
             where_clauses.push(ExtensionWhereClause {
                 source: where_clause.source,
                 left: self.import_type_operand(module, where_clause.left)?,
@@ -226,16 +228,16 @@ impl CheckState<'_> {
             source,
             form: extension.form,
             target,
-            implements: self.import_nominal_heritages(module, extension.implements)?,
+            implements: self.import_nominal_heritages(module, &extension.implements)?,
             where_clauses,
-            fields: self.import_field_definitions(module, extension.fields)?,
-            static_fields: self.import_field_definitions(module, extension.static_fields)?,
-            methods: self.import_method_definitions(module, extension.methods)?,
-            static_methods: self.import_method_definitions(module, extension.static_methods)?,
+            fields: self.import_field_definitions(module, &extension.fields)?,
+            static_fields: self.import_field_definitions(module, &extension.static_fields)?,
+            methods: self.import_method_definitions(module, &extension.methods)?,
+            static_methods: self.import_method_definitions(module, &extension.static_methods)?,
             associated_types: self
-                .import_associated_type_definitions(module, extension.associated_types)?,
+                .import_associated_type_definitions(module, &extension.associated_types)?,
             associated_consts: self
-                .import_associated_const_definitions(module, extension.associated_consts)?,
+                .import_associated_const_definitions(module, &extension.associated_consts)?,
         })
     }
 
@@ -243,15 +245,15 @@ impl CheckState<'_> {
     fn import_extension_target(
         &mut self,
         module: ModuleId,
-        target: dir::ExtensionTarget,
+        target: &dir::ExtensionTarget,
     ) -> CompilerResult<ExtensionTarget> {
         let target = match target {
             dir::ExtensionTarget::Nominal { root, ty } => ExtensionTarget::Nominal {
-                root,
-                ty: self.import_type_operand(module, ty)?,
+                root: *root,
+                ty: self.import_type_operand(module, *ty)?,
             },
             dir::ExtensionTarget::Blanket { ty } => ExtensionTarget::Blanket {
-                ty: self.import_type_operand(module, ty)?,
+                ty: self.import_type_operand(module, *ty)?,
             },
         };
 
@@ -279,7 +281,7 @@ impl CheckState<'_> {
     pub(super) fn import_nominal_heritages(
         &mut self,
         module: ModuleId,
-        heritages: Vec<dir::NominalHeritage>,
+        heritages: &[dir::NominalHeritage],
     ) -> CompilerResult<Vec<NominalHeritage>> {
         let mut imported = Vec::with_capacity(heritages.len());
 
@@ -294,11 +296,13 @@ impl CheckState<'_> {
     fn import_nominal_heritage(
         &mut self,
         module: ModuleId,
-        heritage: dir::NominalHeritage,
+        heritage: &dir::NominalHeritage,
     ) -> CompilerResult<NominalHeritage> {
         let instance = heritage
             .instance
-            .map(|instance| self.import_generic_instance(module, heritage.symbol, instance))
+            .map(|instance| {
+                self.import_generic_instance(module, heritage.source, heritage.symbol, instance)
+            })
             .transpose()?;
 
         Ok(NominalHeritage {
@@ -312,15 +316,39 @@ impl CheckState<'_> {
     fn import_generic_instance(
         &mut self,
         module: ModuleId,
+        source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
         instance: dir::LocalGenericInstanceId,
     ) -> CompilerResult<GenericInstance> {
-        let instance = self
-            .dependency(symbol.module_id)
+        let external = self.external_module(source.module_id);
+        let instance = external
             .generics
-            .get_instance(instance)
-            .clone();
-        let template = instance.template.into_global(symbol.module_id);
+            .get_instance_maybe(instance)
+            .cloned()
+            .ok_or_else(|| {
+                let symbol_label = self.dump_in_module(module, &symbol);
+                let module_label = self.dump_in_module(module, &module);
+                let source_label = self.dump_in_module(module, &source);
+                let instances = external
+                    .generics
+                    .iter_instances()
+                    .map(|(instance_id, _)| format!("{instance_id:?}"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let source_instances = external
+                    .generics
+                    .node_instance_ids(source)
+                    .map(|instance_id| format!("{instance_id:?}"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                CompilerError::Internal {
+                    message: format!(
+                        "definition heritage {source_label} for {symbol_label} imported by {module_label} references missing generic instance {instance:?}, source instances=[{source_instances}], available instances=[{instances}]"
+                    ),
+                }
+            })?;
+        let template = instance.template;
         let mut arguments = Vec::with_capacity(instance.arguments.len());
         for argument in instance.arguments {
             arguments.push(GenericArgument::Static(
@@ -335,7 +363,7 @@ impl CheckState<'_> {
     pub(super) fn import_field_definitions(
         &mut self,
         module: ModuleId,
-        fields: Vec<dir::FieldDefinition>,
+        fields: &[dir::FieldDefinition],
     ) -> CompilerResult<Vec<FieldDefinition>> {
         let mut imported = Vec::with_capacity(fields.len());
 
@@ -355,7 +383,7 @@ impl CheckState<'_> {
     pub(super) fn import_method_definitions(
         &mut self,
         module: ModuleId,
-        methods: Vec<dir::MethodDefinition>,
+        methods: &[dir::MethodDefinition],
     ) -> CompilerResult<Vec<MethodDefinition>> {
         let mut imported = Vec::with_capacity(methods.len());
 
@@ -364,6 +392,7 @@ impl CheckState<'_> {
                 symbol: method.symbol,
                 source: method.source,
                 slot: method.slot,
+                role: method.role,
                 ty: self.import_type_operand(module, method.ty)?,
             });
         }
@@ -375,7 +404,7 @@ impl CheckState<'_> {
     pub(super) fn import_associated_type_definitions(
         &mut self,
         module: ModuleId,
-        types: Vec<dir::AssociatedTypeDefinition>,
+        types: &[dir::AssociatedTypeDefinition],
     ) -> CompilerResult<Vec<AssociatedTypeDefinition>> {
         let mut imported = Vec::with_capacity(types.len());
 
@@ -402,7 +431,7 @@ impl CheckState<'_> {
     pub(super) fn import_associated_const_definitions(
         &mut self,
         module: ModuleId,
-        consts: Vec<dir::AssociatedConstDefinition>,
+        consts: &[dir::AssociatedConstDefinition],
     ) -> CompilerResult<Vec<AssociatedConstDefinition>> {
         let mut imported = Vec::with_capacity(consts.len());
 
@@ -426,7 +455,7 @@ impl CheckState<'_> {
     fn import_variant_definitions(
         &mut self,
         module: ModuleId,
-        variants: Vec<dir::VariantDefinition>,
+        variants: &[dir::VariantDefinition],
     ) -> CompilerResult<Vec<VariantDefinition>> {
         let mut imported = Vec::with_capacity(variants.len());
 
@@ -449,7 +478,7 @@ impl CheckState<'_> {
     fn import_signature_definitions(
         &mut self,
         module: ModuleId,
-        signatures: Vec<dir::SignatureDefinition>,
+        signatures: &[dir::SignatureDefinition],
     ) -> CompilerResult<Vec<SignatureDefinition>> {
         let mut imported = Vec::with_capacity(signatures.len());
 

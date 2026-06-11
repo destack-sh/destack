@@ -30,7 +30,7 @@ pub(in crate::check) use language::*;
 pub(in crate::check) use obligation::*;
 pub(in crate::check) use resolution::*;
 pub(in crate::check) use resolve::*;
-pub(in crate::check) use solve::{Decision, SolveTask};
+pub(in crate::check) use solve::*;
 pub(in crate::check) use state::*;
 pub(in crate::check) use term::*;
 pub(in crate::check) use walk::*;

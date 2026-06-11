@@ -1,81 +1,7 @@
-use destack_dir as dir;
-
 use crate::check::{
-    CheckEvent, CheckState, Dump, DumpContext, StaticOperand, StaticTerm, TermId, TraceOperand,
-    TypeOperand, TypeTerm, VariableId,
+    CheckEvent, CheckState, Dump, DumpContext, Solution, StaticOperand, TypeOperand, VariableId,
 };
 use crate::{CompilerError, CompilerResult};
-
-/// Solved value for one check variable.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(in crate::check) enum Solution {
-    /// Solved type value.
-    Type(TypeSolution),
-    /// Solved static value.
-    Static(StaticSolution),
-}
-
-/// Solved type value for one check variable.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(in crate::check) enum TypeSolution {
-    /// Check term value.
-    Term(TermId<TypeTerm>),
-    /// Committed type value.
-    Type(dir::GlobalTypeId),
-}
-
-/// Solved static value for one check variable.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(in crate::check) enum StaticSolution {
-    /// Check term value.
-    Term(TermId<StaticTerm>),
-    /// Committed static value.
-    Static(dir::GlobalStaticId),
-}
-
-impl From<TypeSolution> for TypeOperand {
-    /// Convert a type solution into a type operand.
-    fn from(solution: TypeSolution) -> Self {
-        match solution {
-            TypeSolution::Term(term) => Self::Term(term),
-            TypeSolution::Type(ty) => Self::Type(ty),
-        }
-    }
-}
-
-impl From<StaticSolution> for StaticOperand {
-    /// Convert a static solution into a static operand.
-    fn from(solution: StaticSolution) -> Self {
-        match solution {
-            StaticSolution::Term(term) => Self::Term(term),
-            StaticSolution::Static(value) => Self::Static(value),
-        }
-    }
-}
-
-impl From<TypeSolution> for Solution {
-    /// Convert a type solution into a variable solution.
-    fn from(solution: TypeSolution) -> Self {
-        Self::Type(solution)
-    }
-}
-
-impl From<StaticSolution> for Solution {
-    /// Convert a static solution into a variable solution.
-    fn from(solution: StaticSolution) -> Self {
-        Self::Static(solution)
-    }
-}
-
-impl Solution {
-    /// Convert this solution into a trace operand.
-    pub(in crate::check) fn trace_operand(self) -> TraceOperand {
-        match self {
-            Self::Type(solution) => TraceOperand::Type(solution.into()),
-            Self::Static(solution) => TraceOperand::Static(solution.into()),
-        }
-    }
-}
 
 impl CheckState<'_> {
     /// Set one complete variable solution.
@@ -97,8 +23,7 @@ impl CheckState<'_> {
             });
         }
 
-        self.inference.set_variable_solution(variable, solution)?;
-        self.inference.wake_variable(variable);
+        self.inference.write_variable_solution(variable, solution);
 
         self.record_event(CheckEvent::SolutionSet {
             variable,
@@ -110,7 +35,7 @@ impl CheckState<'_> {
     }
 
     /// Return the solved type operand for one variable.
-    pub(in crate::check) fn variable_type_solution_operand(
+    pub(in crate::check) fn solved_type_operand(
         &self,
         variable: VariableId,
     ) -> Option<TypeOperand> {
@@ -121,13 +46,64 @@ impl CheckState<'_> {
     }
 
     /// Return the solved static operand for one variable.
-    pub(in crate::check) fn variable_static_solution_operand(
+    pub(in crate::check) fn solved_static_operand(
         &self,
         variable: VariableId,
     ) -> Option<StaticOperand> {
         match self.inference.variable_solution(variable) {
             Some(Solution::Static(solution)) => Some(solution.into()),
             Some(Solution::Type(_)) | None => None,
+        }
+    }
+
+    /// Return a solved variable value.
+    pub(in crate::check) fn variable_solution(&self, variable: VariableId) -> Option<Solution> {
+        self.inference.variable_solution(variable)
+    }
+
+    /// Return the resolved type operand for one variable.
+    pub(in crate::check) fn resolved_type_variable(
+        &self,
+        variable: VariableId,
+    ) -> Option<TypeOperand> {
+        let Some(operand) = self.solved_type_operand(variable) else {
+            return None;
+        };
+
+        self.resolved_type_operand(operand)
+    }
+
+    /// Return the resolved static operand for one variable.
+    pub(in crate::check) fn resolved_static_variable(
+        &self,
+        variable: VariableId,
+    ) -> Option<StaticOperand> {
+        let Some(operand) = self.solved_static_operand(variable) else {
+            return None;
+        };
+
+        self.resolved_static_operand(operand)
+    }
+
+    /// Return one resolved type operand.
+    pub(in crate::check) fn resolved_type_operand(
+        &self,
+        operand: TypeOperand,
+    ) -> Option<TypeOperand> {
+        match operand {
+            TypeOperand::Variable(variable) => self.resolved_type_variable(variable),
+            TypeOperand::Term(_) | TypeOperand::Type(_) => Some(operand),
+        }
+    }
+
+    /// Return one resolved static operand.
+    pub(in crate::check) fn resolved_static_operand(
+        &self,
+        operand: StaticOperand,
+    ) -> Option<StaticOperand> {
+        match operand {
+            StaticOperand::Variable(variable) => self.resolved_static_variable(variable),
+            StaticOperand::Term(_) | StaticOperand::Static(_) => Some(operand),
         }
     }
 }

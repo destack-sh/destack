@@ -1,8 +1,7 @@
-use destack_repository::ProviderContext;
-use destack_source::{ModuleId, ProfileId};
+use destack_source::{ComponentId, ModuleId, ProfileId};
 use indexmap::{IndexMap, IndexSet};
 
-use crate::{Compiler, CompilerError, CompilerResult};
+use crate::{CompilerError, CompilerResult};
 
 /// Resolved module dependency graph for component discovery.
 pub(in crate::check) struct CheckComponentGraph {
@@ -10,9 +9,18 @@ pub(in crate::check) struct CheckComponentGraph {
     edges: IndexMap<ModuleId, Vec<ModuleId>>,
 }
 
+/// Artifact coordinates for one checked component.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::check) struct CheckComponentArtifact {
+    /// The checked component entry module.
+    pub entry: ModuleId,
+    /// The checked component id.
+    pub component: ComponentId,
+}
+
 impl CheckComponentGraph {
     /// Create a resolved dependency graph.
-    fn new(edges: IndexMap<ModuleId, Vec<ModuleId>>) -> Self {
+    pub(in crate::check) fn new(edges: IndexMap<ModuleId, Vec<ModuleId>>) -> Self {
         Self { edges }
     }
 
@@ -34,10 +42,10 @@ impl CheckComponentGraph {
         modules
     }
 
-    /// Return outgoing dependencies from one component.
-    pub(in crate::check) fn dependencies(&self, component: &[ModuleId]) -> Vec<ModuleId> {
+    /// Return external modules reached from one component.
+    pub(in crate::check) fn external_modules(&self, component: &[ModuleId]) -> Vec<ModuleId> {
         let component = component.iter().copied().collect::<IndexSet<_>>();
-        let mut dependencies = IndexSet::new();
+        let mut external_modules = IndexSet::new();
 
         // collect unique edges leaving the component
         for module in &component {
@@ -45,16 +53,36 @@ impl CheckComponentGraph {
                 continue;
             };
 
-            for dependency in module_dependencies {
-                if !component.contains(dependency) {
-                    dependencies.insert(*dependency);
+            for external_module in module_dependencies {
+                if !component.contains(external_module) {
+                    external_modules.insert(*external_module);
                 }
             }
         }
 
-        let mut dependencies = dependencies.into_iter().collect::<Vec<_>>();
-        dependencies.sort_unstable();
-        dependencies
+        let mut external_modules = external_modules.into_iter().collect::<Vec<_>>();
+        external_modules.sort_unstable();
+        external_modules
+    }
+
+    /// Return outgoing component artifacts from one component.
+    pub(in crate::check) fn external_components(
+        &self,
+        profile: ProfileId,
+        component: &[ModuleId],
+    ) -> CompilerResult<IndexMap<ModuleId, CheckComponentArtifact>> {
+        let external_modules = self.external_modules(component);
+        let mut components = IndexMap::new();
+
+        // map every outgoing module edge to its owning component
+        for external_module in external_modules {
+            components.insert(
+                external_module,
+                self.component_artifact(profile, external_module)?,
+            );
+        }
+
+        Ok(components)
     }
 
     /// Return reverse dependency edges for loaded modules.
@@ -108,53 +136,22 @@ impl CheckComponentGraph {
 
         reachable
     }
-}
 
-impl Compiler {
-    /// Load the resolved dependency graph reachable from one module.
-    pub(in crate::check) fn collect_check_component_graph(
+    /// Return checked component coordinates for one module in this graph.
+    pub(in crate::check) fn component_artifact(
         &self,
-        module: ModuleId,
         profile: ProfileId,
-        context: &dyn ProviderContext,
-    ) -> CompilerResult<CheckComponentGraph> {
-        let edges = self.collect_check_component_closure(module, profile, context)?;
-
-        Ok(CheckComponentGraph::new(edges))
-    }
-
-    /// Load resolved dependency edges reachable from one module.
-    fn collect_check_component_closure(
-        &self,
         module: ModuleId,
-        profile: ProfileId,
-        context: &dyn ProviderContext,
-    ) -> CompilerResult<IndexMap<ModuleId, Vec<ModuleId>>> {
-        let artifacts = self.artifact_reader(context);
-        let mut graph = IndexMap::new();
-        let mut pending = vec![module];
+    ) -> CompilerResult<CheckComponentArtifact> {
+        let component_modules = self.component(module);
+        let entry = component_modules
+            .first()
+            .copied()
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("checked external module {module:?} has no component"),
+            })?;
+        let component = ComponentId::from_modules(profile, component_modules.iter().copied());
 
-        // load each resolved module once
-        while let Some(module) = pending.pop() {
-            if graph.contains_key(&module) {
-                continue;
-            }
-
-            let resolved = artifacts
-                .dir_resolved(module, profile)
-                .map_err(CompilerError::from)?;
-            let dependencies = resolved.imports.dependencies.clone();
-
-            // schedule dependencies before committing this node
-            for dependency in dependencies.iter().rev() {
-                if !graph.contains_key(dependency) {
-                    pending.push(*dependency);
-                }
-            }
-
-            graph.insert(module, dependencies);
-        }
-
-        Ok(graph)
+        Ok(CheckComponentArtifact { entry, component })
     }
 }

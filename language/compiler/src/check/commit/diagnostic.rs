@@ -56,7 +56,7 @@ impl CheckState<'_> {
             let MemberFailure::Missing { key } = failure;
             let module = source.module_id;
             let anchor = self.diagnostic_anchor(module, source.local_id);
-            let key = self.member_key_label(module, key);
+            let key = self.member_key_label(module, *key);
             let diagnostic = CheckError::MissingMember {
                 anchor,
                 module,
@@ -150,10 +150,18 @@ impl CheckState<'_> {
         &mut self,
         diagnostics: &mut Vec<CheckError>,
     ) -> CompilerResult<()> {
-        let constraints = self.inference.constraints().cloned().collect::<Vec<_>>();
+        let constraints = self
+            .inference
+            .constraints_with_ids()
+            .map(|(id, constraint)| (id, constraint.clone()))
+            .collect::<Vec<_>>();
 
         // render rejected constraints
-        for constraint in constraints {
+        for (id, constraint) in constraints {
+            if self.inference.is_constraint_complete(id) {
+                continue;
+            }
+
             self.collect_constraint_diagnostic(&constraint, diagnostics)?;
         }
 
@@ -169,12 +177,11 @@ impl CheckState<'_> {
         let condition = constraint.condition();
         match self.decide_condition(&condition)? {
             Answer::Ready(false) => return Ok(()),
-            Answer::Pending => return Ok(()),
+            Answer::Pending(_) => return Ok(()),
             Answer::Ready(true) => {}
         }
 
         match constraint {
-            Constraint::TypeReduction { .. } => {}
             Constraint::Type {
                 relation,
                 left,
@@ -231,7 +238,7 @@ impl CheckState<'_> {
         relation: TypeRelation,
         origin: Origin,
     ) -> CompilerResult<CheckError> {
-        let (module, anchor) = self.anchor(origin);
+        let (module, anchor) = self.anchor(origin)?;
         let diagnostic = match relation {
             TypeRelation::Equal => CheckError::CannotSolve { anchor, module },
             TypeRelation::Assignable => CheckError::NotAssignable { anchor, module },
@@ -250,7 +257,7 @@ impl CheckState<'_> {
         relation: StaticRelation,
         origin: Origin,
     ) -> CompilerResult<CheckError> {
-        let (module, anchor) = self.anchor(origin);
+        let (module, anchor) = self.anchor(origin)?;
         let diagnostic = match relation {
             StaticRelation::Equal | StaticRelation::Assignable => {
                 CheckError::CannotSolve { anchor, module }
@@ -261,7 +268,7 @@ impl CheckState<'_> {
     }
 
     /// Return the diagnostic anchor for a constraint origin.
-    fn anchor(&self, origin: Origin) -> (ModuleId, DiagnosticAnchor) {
+    fn anchor(&self, origin: Origin) -> CompilerResult<(ModuleId, DiagnosticAnchor)> {
         self.origin_diagnostic_anchor(origin)
     }
 }

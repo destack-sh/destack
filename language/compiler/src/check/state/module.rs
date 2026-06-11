@@ -8,6 +8,7 @@ use destack_source::ModuleId;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::check::{Capture, CheckError, CheckState, Condition};
+use crate::{CompilerError, CompilerResult};
 
 /// State owned by one module inside a checked component.
 pub(in crate::check) struct CheckModuleState {
@@ -27,7 +28,7 @@ pub(in crate::check) struct CheckModuleState {
     pub(in crate::check) expanded: Arc<DirExpanded>,
 
     /// Out-of-component modules visible from this module.
-    pub(in crate::check) dependencies: IndexSet<ModuleId>,
+    pub(in crate::check) external_modules: IndexSet<ModuleId>,
     /// Captures discovered while walking this module.
     pub(in crate::check) captures: Vec<Capture>,
     /// Static availability of declarations in this module.
@@ -60,7 +61,7 @@ impl CheckModuleState {
             bound,
             resolved,
             expanded,
-            dependencies: IndexSet::new(),
+            external_modules: IndexSet::new(),
             captures: Vec::new(),
             availability: IndexMap::new(),
             diagnostics: Vec::new(),
@@ -82,6 +83,53 @@ impl CheckModuleState {
         self.expanded.binding_table(&self.bound)
     }
 
+    /// Return the symbol introduced by a source declaration node.
+    pub(in crate::check) fn declaration_symbol(
+        &self,
+        node: dir::LocalNodeIdAny,
+    ) -> Option<dir::GlobalSymbolId> {
+        let symbol = self
+            .binding_table()
+            .declaration_symbol(node.into_global(self.module.id))?;
+
+        Some(symbol.into_global(self.module.id))
+    }
+
+    /// Return the implicit receiver symbol introduced for one member node.
+    pub(in crate::check) fn implicit_receiver_symbol(
+        &self,
+        node: dir::LocalNodeIdAny,
+    ) -> Option<dir::GlobalSymbolId> {
+        let symbol = self
+            .binding_table()
+            .implicit_receiver_symbol(node.into_global(self.module.id))?;
+
+        Some(symbol.into_global(self.module.id))
+    }
+
+    /// Return one source symbol's declaration node.
+    pub(in crate::check) fn symbol_declaration_node(
+        &self,
+        symbol: dir::LocalSymbolId,
+    ) -> CompilerResult<dir::LocalNodeIdAny> {
+        let bindings = self.binding_table();
+        let binding = bindings.get_symbol(symbol);
+
+        // require source symbols to have local declaration nodes
+        let Some(declaration) = binding.declaration else {
+            return Err(CompilerError::Internal {
+                message: format!("source symbol {symbol:?} has no declaration node"),
+            });
+        };
+        if declaration.module_id != self.module.id {
+            return Err(CompilerError::Internal {
+                message: format!("source symbol {symbol:?} declaration points outside its module"),
+            });
+        }
+
+        Ok(declaration.local_id)
+    }
+
     /// Return the cumulative type table visible to check inputs.
     pub(in crate::check) fn type_table(&self) -> dir::TypeTable<'static> {
         self.expanded.type_table(&self.bound)
@@ -92,15 +140,13 @@ impl CheckModuleState {
         self.expanded.static_table(&self.bound)
     }
 
-    /// Return whether this module can read one dependency module.
-    pub(in crate::check) fn imports_dependency(&self, module: ModuleId) -> bool {
-        self.dependencies.contains(&module)
+    /// Return whether this module can read another module.
+    pub(in crate::check) fn imports_module(&self, module: ModuleId) -> bool {
+        self.external_modules.contains(&module)
     }
 
-    /// Allocate one generic template id owned by this module.
-    pub(in crate::check) fn allocate_generic_template_id(
-        &mut self,
-    ) -> dir::GlobalGenericTemplateId {
+    /// Return one fresh generic template id owned by this module.
+    pub(in crate::check) fn fresh_generic_template_id(&mut self) -> dir::GlobalGenericTemplateId {
         let local_id = dir::LocalGenericTemplateId::new(self.next_generic_template_id);
         self.next_generic_template_id += 1;
         local_id.into_global(self.module.id)
@@ -129,10 +175,8 @@ impl CheckModuleState {
         self.resolved.imports.symbol_target(symbol).is_some()
     }
 
-    /// Allocate one generic parameter id owned by this module.
-    pub(in crate::check) fn allocate_generic_parameter_id(
-        &mut self,
-    ) -> dir::GlobalGenericParameterId {
+    /// Return one fresh generic parameter id owned by this module.
+    pub(in crate::check) fn fresh_generic_parameter_id(&mut self) -> dir::GlobalGenericParameterId {
         let local_id = dir::LocalGenericParameterId::new(self.next_generic_parameter_id);
 
         self.next_generic_parameter_id += 1;
@@ -163,23 +207,42 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return one component or dependency type.
+    /// Return one binding table by module.
+    pub(in crate::check) fn binding_table(&self, module: ModuleId) -> dir::BindingTable<'_> {
+        if let Some(module) = self.modules.get(&module) {
+            module.binding_table()
+        } else {
+            self.external_module(module).bindings.clone()
+        }
+    }
+
+    /// Return one component or external type.
     pub(in crate::check) fn r#type(&self, ty: dir::GlobalTypeId) -> &dir::Type {
         if let Some(module) = self.modules.get(&ty.module_id) {
             module.r#type(ty.local_id)
         } else {
-            self.dependency(ty.module_id).types.get_type(ty.local_id)
+            self.external_module(ty.module_id)
+                .types
+                .get_type(ty.local_id)
         }
     }
 
-    /// Return one component or dependency static.
+    /// Return one component or external static.
     pub(in crate::check) fn r#static(&self, value: dir::GlobalStaticId) -> &dir::StaticTerm {
         if let Some(module) = self.modules.get(&value.module_id) {
             module.r#static(value.local_id)
         } else {
-            self.dependency(value.module_id)
+            self.external_module(value.module_id)
                 .statics
                 .get_static(value.local_id)
         }
+    }
+
+    /// Return the declaration kind for one symbol.
+    pub(in crate::check) fn symbol_kind(&self, symbol: dir::GlobalSymbolId) -> dir::SymbolKind {
+        let binding_table = self.binding_table(symbol.module_id);
+        let symbol = binding_table.get_symbol(symbol.local_id);
+
+        symbol.kind
     }
 }
