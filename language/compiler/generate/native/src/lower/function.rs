@@ -641,8 +641,10 @@ impl<'a> FunctionLowerer<'a> {
                 ));
             }
 
-            // assume: no op for codegen (optimizer handled it)
-            mir::Instruction::Assume { .. } => {}
+            // optimizer only markers
+            mir::Instruction::Assume { .. }
+            | mir::Instruction::ProfileIncrement { .. }
+            | mir::Instruction::ProfileValue { .. } => {}
 
             // extract_field: load at computed offset (struct/tuple field read)
             mir::Instruction::FieldGet {

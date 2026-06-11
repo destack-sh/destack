@@ -547,8 +547,8 @@ impl TestProgram {
     ) {
         // record the edge profile count
         profile.edges.insert(
-            mir::EdgeKey::new(source, mir::EdgeKind::Jump, target),
-            count,
+            mir::Edge::new(source, mir::Successor::Jump, target),
+            mir::Count::new(count),
         );
     }
 
@@ -560,7 +560,7 @@ impl TestProgram {
         count: u64,
     ) {
         // record the function entry count
-        profile.functions.insert(function, count);
+        profile.functions.insert(function, mir::Count::new(count));
     }
 
     /// Record a block execution profile count.
@@ -571,7 +571,7 @@ impl TestProgram {
         count: u64,
     ) {
         // record the block execution count
-        profile.blocks.insert(block, count);
+        profile.blocks.insert(block, mir::Count::new(count));
     }
 
     /// Record a control flow edge profile count.
@@ -579,13 +579,13 @@ impl TestProgram {
         &self,
         profile: &mut mir::Profile,
         source: mir::LocalNodeId<mir::Block>,
-        kind: mir::EdgeKind,
+        kind: mir::Successor,
         target: mir::LocalNodeId<mir::Block>,
         count: u64,
     ) {
         // record the edge execution count
-        let edge = mir::EdgeKey::new(source, kind, target);
-        profile.edges.insert(edge, count);
+        let edge = mir::Edge::new(source, kind, target);
+        profile.edges.insert(edge, mir::Count::new(count));
     }
 
     /// Record a callsite profile count.
@@ -599,9 +599,9 @@ impl TestProgram {
         profile.callsites.insert(
             mir::CallSite::Instruction(callsite),
             mir::CallSiteProfile {
-                total_count: count,
+                total_count: mir::Count::new(count),
                 targets: Vec::new(),
-                unknown_count: 0,
+                unknown_count: mir::Count::default(),
             },
         );
     }

@@ -426,6 +426,7 @@ fn inline_score(
     let mut hotness = callsite_hotness(profile, caller_id, callsite);
     let entry_count = profile
         .and_then(|profile| profile.function_count(caller_id))
+        .map(mir::Count::get)
         .unwrap_or(0);
 
     if profile.is_some() {
@@ -871,12 +872,12 @@ fn split_block_for_inline(
             arguments: entry_arguments,
         },
     };
-    tree.replace(block.terminator, jump_terminator);
-    tree.replace(block_id, block);
+    tree.set(block.terminator, jump_terminator);
+    tree.set(block_id, block);
 
     // finish the continuation block
     continuation_block.instructions = after_instructions;
-    tree.replace(continuation_terminator, original_terminator);
+    tree.set(continuation_terminator, original_terminator);
 
     // insert the continuation block into the caller
     let continuation_id = tree.insert(continuation_block);
@@ -905,14 +906,14 @@ fn substitute_value_in_function(
         for instruction_id in &block.instructions {
             let instruction = tree.get(*instruction_id).clone();
             let updated = instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
-            tree.replace(*instruction_id, updated);
+            tree.set(*instruction_id, updated);
             remap_instruction_memory_accesses(tree, *instruction_id, &substitutions);
         }
 
         let terminator = tree.get(block.terminator).clone();
         let updated_terminator = terminator_substitute_uses(&terminator, &substitutions);
         if updated_terminator != terminator {
-            tree.replace(block.terminator, updated_terminator);
+            tree.set(block.terminator, updated_terminator);
         }
     }
 }
@@ -958,13 +959,13 @@ fn remap_inline_blocks(
 
         // remap the terminator and commit the new block body
         new_block.instructions = new_instructions;
-        tree.replace(new_block.terminator, original_terminator);
+        tree.set(new_block.terminator, original_terminator);
 
         let mut remapped_terminator = tree.get(new_block.terminator).clone();
         terminator_remap(&mut remapped_terminator, block_map, value_map);
-        tree.replace(new_block.terminator, remapped_terminator);
+        tree.set(new_block.terminator, remapped_terminator);
 
-        tree.replace(new_block_id, new_block);
+        tree.set(new_block_id, new_block);
     }
 }
 
@@ -997,8 +998,8 @@ fn rewrite_inlined_returns(
                 arguments: arguments.into_iter().map(Into::into).collect(),
             },
         };
-        tree.replace(block.terminator, new_terminator);
-        tree.replace(new_block_id, block);
+        tree.set(block.terminator, new_terminator);
+        tree.set(new_block_id, block);
     }
 }
 
@@ -1137,6 +1138,7 @@ fn inline_budget_for_function(
             INLINE_BUDGET_MAX,
         );
     };
+    let entry_count = entry_count.get();
 
     if entry_count == 0 {
         return scale_inline_budget(
@@ -1186,7 +1188,7 @@ fn inline_benefit(
         .and_then(|profile| {
             profile
                 .callsite_profile(mir::CallSite::Instruction(callsite_id))
-                .map(|callsite_profile| callsite_profile.total_count)
+                .map(|callsite_profile| callsite_profile.total_count.get())
         })
         .unwrap_or(0);
     let callsite_count = if callsite_count == 0 {
@@ -1236,6 +1238,7 @@ fn inline_budget_for_module(
         let Some(entry_count) = profile.function_count(function_id) else {
             continue;
         };
+        let entry_count = entry_count.get();
         total_entry = total_entry.saturating_add(entry_count);
     }
 
@@ -1268,6 +1271,7 @@ fn inline_scc_budgets(
 
         let entry = profile
             .and_then(|profile| profile.function_count(function_id))
+            .map(mir::Count::get)
             .unwrap_or(0);
         let total = scc_entry_counts.entry(scc_id).or_insert(0);
         *total = total.saturating_add(entry);
@@ -1307,7 +1311,9 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::Tree) -> u64 {
         | mir::Instruction::ClosureEnvironment { .. }
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::Slice { .. }
-        | mir::Instruction::Assume { .. } => INLINE_COST_SIMPLE,
+        | mir::Instruction::Assume { .. }
+        | mir::Instruction::ProfileIncrement { .. }
+        | mir::Instruction::ProfileValue { .. } => INLINE_COST_SIMPLE,
         mir::Instruction::VectorSplat { .. }
         | mir::Instruction::VectorExtract { .. }
         | mir::Instruction::VectorInsert { .. }
@@ -1813,7 +1819,7 @@ b2(v7: int32):
     fn test_inline_budget_scales_with_profile() {
         let function_id = mir::LocalNodeId::<mir::Function>::new(1);
         let mut profile = mir::Profile::new();
-        profile.functions.insert(function_id, 500);
+        profile.functions.insert(function_id, mir::Count::new(500));
 
         let base = inline_budget_for_function(function_id, None, 100);
         let scaled = inline_budget_for_function(function_id, Some(&profile), 100);

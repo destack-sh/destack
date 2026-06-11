@@ -162,7 +162,8 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         // deallocation has side effects
         mir::Instruction::Free { .. } => false,
 
-        // intrinsics may have side effects
+        // instrumentation and intrinsics may have side effects
+        mir::Instruction::ProfileIncrement { .. } | mir::Instruction::ProfileValue { .. } => false,
         mir::Instruction::Intrinsic { .. } => false,
     }
 }
@@ -332,7 +333,10 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         // deallocation has side effects
         mir::Instruction::Free { .. } => true,
 
-        // intrinsics may have side effects (check purity for safe removal)
+        // profile instrumentation must be preserved
+        mir::Instruction::ProfileIncrement { .. } | mir::Instruction::ProfileValue { .. } => true,
+
+        // intrinsics may have side effects, check purity for safe removal
         mir::Instruction::Intrinsic { intrinsic, .. } => {
             !intrinsic.is_pure() || matches!(intrinsic, mir::Intrinsic::BlackBox)
         }
@@ -375,6 +379,8 @@ pub fn instruction_may_affect_memory(instruction: &mir::Instruction) -> bool {
             | mir::Instruction::CallVirtual { .. }
             | mir::Instruction::CallDynamic { .. }
             | mir::Instruction::CallIndirect { .. }
+            | mir::Instruction::ProfileIncrement { .. }
+            | mir::Instruction::ProfileValue { .. }
             | mir::Instruction::Intrinsic { .. }
             | mir::Instruction::AtomicLoad { .. }
             | mir::Instruction::AtomicStore { .. }
@@ -1146,6 +1152,10 @@ pub fn instruction_substitute_uses(
             value: substitute(value),
             result_type: result_type.clone(),
         },
+        mir::Instruction::ProfileValue { counter, value } => mir::Instruction::ProfileValue {
+            counter: *counter,
+            value: substitute(value),
+        },
         // instructions without value operands or with externalized arguments
         mir::Instruction::Const { .. }
         | mir::Instruction::LocalGet { .. }
@@ -1162,6 +1172,7 @@ pub fn instruction_substitute_uses(
         | mir::Instruction::NewUninit { .. }
         | mir::Instruction::FrameAllocZeroed { .. }
         | mir::Instruction::FrameAllocUninit { .. }
+        | mir::Instruction::ProfileIncrement { .. }
         | mir::Instruction::Intrinsic { .. } => instruction.clone(),
     }
 }
@@ -1745,7 +1756,7 @@ pub fn apply_substitutions_in_function(
                 let updated =
                     instruction_substitute_uses_in_tree(&instruction, substitutions, tree);
                 if updated != instruction {
-                    tree.replace(instruction_id, updated);
+                    tree.set(instruction_id, updated);
                     remap_instruction_memory_accesses(tree, instruction_id, substitutions);
                     changed = true;
                 }
@@ -1765,8 +1776,8 @@ pub fn apply_substitutions_in_function(
         if new_instructions.len() != block.instructions.len() || new_terminator != terminator {
             let mut new_block = block;
             new_block.instructions = new_instructions;
-            tree.replace(block_id, new_block);
-            tree.replace(terminator_id, new_terminator);
+            tree.set(block_id, new_block);
+            tree.set(terminator_id, new_terminator);
             changed = true;
         }
     }
@@ -2834,6 +2845,13 @@ pub fn instruction_map(
             offset: remap(*offset),
             byte_len: remap(*byte_len),
         },
+        mir::Instruction::ProfileIncrement { counter } => {
+            mir::Instruction::ProfileIncrement { counter: *counter }
+        }
+        mir::Instruction::ProfileValue { counter, value } => mir::Instruction::ProfileValue {
+            counter: *counter,
+            value: remap(*value),
+        },
     }
 }
 
@@ -3614,6 +3632,13 @@ pub fn instruction_map_with_locals(
             offset: remap(*offset),
             byte_len: remap(*byte_len),
         },
+        mir::Instruction::ProfileIncrement { counter } => {
+            mir::Instruction::ProfileIncrement { counter: *counter }
+        }
+        mir::Instruction::ProfileValue { counter, value } => mir::Instruction::ProfileValue {
+            counter: *counter,
+            value: remap(*value),
+        },
     }
 }
 
@@ -3772,10 +3797,18 @@ pub fn terminator_remap(
                 remap_value(v);
             }
         }
-        mir::Terminator::Yield { value, resume } => {
+        mir::Terminator::Yield {
+            value,
+            resume,
+            unwind,
+        } => {
             remap_value(value);
             remap_target(resume);
             remap_args(&mut resume.arguments);
+            if let Some(unwind) = unwind {
+                remap_target(unwind);
+                remap_args(&mut unwind.arguments);
+            }
         }
         mir::Terminator::Call {
             call,

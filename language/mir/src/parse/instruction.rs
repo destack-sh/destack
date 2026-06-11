@@ -6,11 +6,12 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use crate::{
     ArgumentSlice, AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CastOperator,
     CompareExchangeAccess, DispatchSlot, FenceAccess, FunctionReference, Instruction, LocalNodeId,
-    MemoryFlags, MemoryOrdering, MemoryScope, Place, PlaceOrigin, Projection, SpaceSet, SyncScope,
-    TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
-    TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorIndexReduceOperator,
-    TensorIndexTieBreak, TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode,
-    Type, TypeReference, UnaryOperator, ValueReference, VectorConvertMode, VectorReduceOperator,
+    MemoryFlags, MemoryOrdering, MemoryScope, Place, PlaceOrigin, ProfileCounterId, Projection,
+    SpaceSet, SyncScope, TensorConvertMode, TensorConvolutionDimensionNumbers,
+    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
+    TensorIndexReduceOperator, TensorIndexTieBreak, TensorReduceOperator,
+    TensorScatterDimensionNumbers, TensorScatterMode, Type, TypeReference, UnaryOperator,
+    ValueReference, VectorConvertMode, VectorReduceOperator,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -96,6 +97,8 @@ impl Parser {
                     | "atomic.store"
                     | "atomic.fence"
                     | "assume"
+                    | "profile.increment"
+                    | "profile.value"
                     | "tensor.store"
                     | "tensor.fill"
                     | "tensor.copy"
@@ -167,6 +170,16 @@ impl Parser {
             "assume" => {
                 let condition = self.parse_value_segment(&mut segment_spans)?;
                 Instruction::Assume { condition }
+            }
+            "profile.increment" => {
+                let counter = self.parse_profile_counter_segment(&mut segment_spans)?;
+                Instruction::ProfileIncrement { counter }
+            }
+            "profile.value" => {
+                let counter = self.parse_profile_counter_segment(&mut segment_spans)?;
+                self.eat_token(TokenType::Comma)?;
+                let value = self.parse_value_segment(&mut segment_spans)?;
+                Instruction::ProfileValue { counter, value }
             }
 
             // tensor side effects
@@ -1110,6 +1123,34 @@ impl Parser {
 
         self.eat_token(TokenType::CloseBracket)?;
         Ok(values)
+    }
+
+    /// Parse a profile counter reference.
+    fn parse_profile_counter_segment(
+        &mut self,
+        segment_spans: &mut Vec<Span>,
+    ) -> ParseResult<ProfileCounterId> {
+        let keyword = self.eat_token(TokenType::Identifier)?;
+        segment_spans.push(keyword.span);
+        if self.tree.source_text(keyword.span) != "counter" {
+            return Err(ParseError::invalid("profile counter", self.pos()));
+        }
+
+        let open = self.eat_token(TokenType::OpenParenthesis)?;
+        segment_spans.push(open.span);
+
+        let number = self.eat_token(TokenType::Integer)?;
+        segment_spans.push(number.span);
+        let value = self
+            .tree
+            .source_text(number.span)
+            .parse::<u32>()
+            .map_err(|_| ParseError::invalid("profile counter", self.pos()))?;
+
+        let close = self.eat_token(TokenType::CloseParenthesis)?;
+        segment_spans.push(close.span);
+
+        Ok(ProfileCounterId(value))
     }
 
     /// Parse a parenthesized list of values.

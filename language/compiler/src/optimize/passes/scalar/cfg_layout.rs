@@ -100,8 +100,8 @@ const HOT_EDGE_DUP_MIN_RATIO: f64 = 0.20;
 struct EdgePredecessor {
     /// The predecessor block.
     pred: mir::LocalNodeId<mir::Block>,
-    /// The edge kind from the predecessor.
-    edge_kind: mir::EdgeKind,
+    /// The successor from the predecessor.
+    successor: mir::Successor,
     /// Arguments passed to the target block.
     arguments: Vec<mir::ValueReference>,
     /// Profile count for this edge.
@@ -329,22 +329,22 @@ fn duplicate_hot_edges(
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
 
-        let mut record_edge = |edge_kind: mir::EdgeKind,
+        let mut record_edge = |successor: mir::Successor,
                                target: &mir::BlockTarget,
                                arguments: &[mir::ValueReference]| {
             let Some(target_block) = target.block.block() else {
                 return;
             };
 
-            let edge = mir::EdgeKey::new(block_id, edge_kind, target_block);
-            let count = profile.edge_count(&edge).unwrap_or(0);
+            let edge = mir::Edge::new(block_id, successor, target_block);
+            let count = profile.edge_count(&edge).map(mir::Count::get).unwrap_or(0);
 
             predecessors
                 .entry(target_block)
                 .or_default()
                 .push(EdgePredecessor {
                     pred: block_id,
-                    edge_kind,
+                    successor,
                     arguments: arguments.to_vec(),
                     count,
                 });
@@ -352,7 +352,7 @@ fn duplicate_hot_edges(
 
         match terminator {
             mir::Terminator::Jump { target } => {
-                record_edge(mir::EdgeKind::Jump, target, &target.arguments);
+                record_edge(mir::Successor::Jump, target, &target.arguments);
             }
             mir::Terminator::Branch {
                 then_target,
@@ -360,12 +360,12 @@ fn duplicate_hot_edges(
                 ..
             } => {
                 record_edge(
-                    mir::EdgeKind::BranchThen,
+                    mir::Successor::BranchThen,
                     then_target,
                     &then_target.arguments,
                 );
                 record_edge(
-                    mir::EdgeKind::BranchElse,
+                    mir::Successor::BranchElse,
                     else_target,
                     &else_target.arguments,
                 );
@@ -373,8 +373,8 @@ fn duplicate_hot_edges(
             mir::Terminator::Check {
                 success, failure, ..
             } => {
-                record_edge(mir::EdgeKind::CheckSuccess, success, &success.arguments);
-                record_edge(mir::EdgeKind::CheckFailure, failure, &failure.arguments);
+                record_edge(mir::Successor::CheckSuccess, success, &success.arguments);
+                record_edge(mir::Successor::CheckFailure, failure, &failure.arguments);
             }
             _ => {}
         }
@@ -516,12 +516,12 @@ fn duplicate_hot_edges(
             let pred_block = tree.get(pred.pred).clone();
             let pred_terminator = tree.get(pred_block.terminator);
             let Some(updated) =
-                rewrite_hot_edge_target(pred_terminator, pred.edge_kind, target, new_block_id)
+                rewrite_hot_edge_target(pred_terminator, pred.successor, target, new_block_id)
             else {
                 continue;
             };
 
-            tree.replace(pred_block.terminator, updated);
+            tree.set(pred_block.terminator, updated);
 
             // track hot block counts for layout ordering
             let new_count = if pred.count > 0 {
@@ -607,7 +607,7 @@ fn insert_block_after(
 /// Rewrite a hot edge target to the duplicated block.
 fn rewrite_hot_edge_target(
     terminator: &mir::Terminator,
-    edge_kind: mir::EdgeKind,
+    successor: mir::Successor,
     target: mir::LocalNodeId<mir::Block>,
     new_target: mir::LocalNodeId<mir::Block>,
 ) -> Option<mir::Terminator> {
@@ -616,7 +616,7 @@ fn rewrite_hot_edge_target(
         target: jump_target,
         ..
     } = terminator
-        && matches!(edge_kind, mir::EdgeKind::Jump)
+        && matches!(successor, mir::Successor::Jump)
         && jump_target.block.block() == Some(target)
     {
         return Some(mir::Terminator::Jump {
@@ -633,8 +633,8 @@ fn rewrite_hot_edge_target(
         else_target,
     } = terminator
     {
-        return match edge_kind {
-            mir::EdgeKind::BranchThen if then_target.block.block() == Some(target) => {
+        return match successor {
+            mir::Successor::BranchThen if then_target.block.block() == Some(target) => {
                 Some(mir::Terminator::Branch {
                     condition: *condition,
                     then_target: mir::BlockTarget {
@@ -644,7 +644,7 @@ fn rewrite_hot_edge_target(
                     else_target: else_target.clone(),
                 })
             }
-            mir::EdgeKind::BranchElse if else_target.block.block() == Some(target) => {
+            mir::Successor::BranchElse if else_target.block.block() == Some(target) => {
                 Some(mir::Terminator::Branch {
                     condition: *condition,
                     then_target: then_target.clone(),
@@ -665,8 +665,8 @@ fn rewrite_hot_edge_target(
         failure,
     } = terminator
     {
-        return match edge_kind {
-            mir::EdgeKind::CheckSuccess if success.block.block() == Some(target) => {
+        return match successor {
+            mir::Successor::CheckSuccess if success.block.block() == Some(target) => {
                 let mut updated_success = success.clone();
                 updated_success.block = new_target.into();
                 updated_success.arguments = Vec::new();
@@ -676,7 +676,7 @@ fn rewrite_hot_edge_target(
                     failure: failure.clone(),
                 })
             }
-            mir::EdgeKind::CheckFailure if failure.block.block() == Some(target) => {
+            mir::Successor::CheckFailure if failure.block.block() == Some(target) => {
                 let mut updated_failure = failure.clone();
                 updated_failure.block = new_target.into();
                 updated_failure.arguments = Vec::new();
@@ -749,8 +749,8 @@ fn select_hot_successor(
         }
 
         // compute edge and block weights
-        let edge_key = (block_id, successor);
-        let weight = edge_weights.get(&edge_key).copied().unwrap_or(0);
+        let edge = (block_id, successor);
+        let weight = edge_weights.get(&edge).copied().unwrap_or(0);
         let count = block_counts.get(&successor).copied().unwrap_or(0);
 
         // update the best candidate when hotter
@@ -793,10 +793,10 @@ fn compute_edge_weights(
         // read terminator edge list
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
-        for (edge_key, target) in terminator_edges(block_id, terminator) {
+        for (edge, target) in terminator_edges(block_id, terminator) {
             // prefer explicit edge profiles
-            let edge_weight = if let Some(count) = profile.edge_count(&edge_key) {
-                count
+            let edge_weight = if let Some(count) = profile.edge_count(&edge) {
+                count.get()
             } else {
                 block_counts.get(&target).copied().unwrap_or(0)
             };
@@ -1057,8 +1057,8 @@ b2:
         test.record_block_count(&mut profile, block1, 90);
         test.record_block_count(&mut profile, block2, 10);
 
-        test.record_edge_count(&mut profile, entry, mir::EdgeKind::BranchThen, block1, 20);
-        test.record_edge_count(&mut profile, entry, mir::EdgeKind::BranchElse, block2, 80);
+        test.record_edge_count(&mut profile, entry, mir::Successor::BranchThen, block1, 20);
+        test.record_edge_count(&mut profile, entry, mir::Successor::BranchElse, block2, 80);
 
         test.run_pass_with_profile(&CfgLayout, profile);
         test.assert_output(expected);
@@ -1103,9 +1103,9 @@ b3:
         test.record_block_count(&mut profile, entry, 100);
         test.record_block_count(&mut profile, block1, 20);
         test.record_block_count(&mut profile, block2, 40);
-        test.record_edge_count(&mut profile, entry, mir::EdgeKind::BranchThen, block2, 80);
-        test.record_edge_count(&mut profile, entry, mir::EdgeKind::BranchElse, block1, 20);
-        test.record_edge_count(&mut profile, block1, mir::EdgeKind::Jump, block2, 20);
+        test.record_edge_count(&mut profile, entry, mir::Successor::BranchThen, block2, 80);
+        test.record_edge_count(&mut profile, entry, mir::Successor::BranchElse, block1, 20);
+        test.record_edge_count(&mut profile, block1, mir::Successor::Jump, block2, 20);
 
         test.run_pass_with_profile(&CfgLayout, profile);
         test.assert_output(expected);

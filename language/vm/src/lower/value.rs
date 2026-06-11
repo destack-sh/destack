@@ -729,7 +729,9 @@ fn infer_instruction_shape(
         | mir::Instruction::Drop { .. }
         | mir::Instruction::Pin { .. }
         | mir::Instruction::Unpin { .. }
-        | mir::Instruction::Assume { .. } => None,
+        | mir::Instruction::Assume { .. }
+        | mir::Instruction::ProfileIncrement { .. }
+        | mir::Instruction::ProfileValue { .. } => None,
     }
 }
 

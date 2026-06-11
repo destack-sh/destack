@@ -41,13 +41,13 @@ pub fn callsite_hotness(
     };
 
     // reject zero callsites
-    let total_count = callsite_profile.total_count;
+    let total_count = callsite_profile.total_count.get();
     if total_count == 0 {
         return CallsiteHotness::Cold;
     }
 
     // treat high unknown ratios as cold
-    let unknown_count = callsite_profile.unknown_count;
+    let unknown_count = callsite_profile.unknown_count.get();
     let unknown_ratio = unknown_count as f64 / total_count as f64;
     if unknown_ratio > UNKNOWN_RATIO_MAX {
         return CallsiteHotness::Cold;
@@ -67,6 +67,7 @@ pub fn callsite_hotness(
     let Some(entry_count) = profile.function_count(caller) else {
         return CallsiteHotness::Unknown;
     };
+    let entry_count = entry_count.get();
 
     // reject zero entry counts
     if entry_count == 0 {
@@ -133,7 +134,10 @@ pub fn block_execution_counts(
     let mut counts = HashMap::new();
     for &block_id in &function.blocks {
         // read block profile counts when present
-        let count = profile.block_count(block_id).unwrap_or(0);
+        let count = profile
+            .block_count(block_id)
+            .map(mir::Count::get)
+            .unwrap_or(0);
 
         // keep only non zero counts
         if count > 0 {
@@ -178,9 +182,9 @@ fn incoming_edge_counts(
         let edges = terminator_edges(block_id, terminator);
 
         // accumulate edge counts for each successor
-        for (edge_key, target) in edges {
+        for (edge, target) in edges {
             // skip when no edge profile exists
-            let Some(count) = profile.edge_count(&edge_key) else {
+            let Some(count) = profile.edge_count(&edge).map(mir::Count::get) else {
                 continue;
             };
 
@@ -202,15 +206,12 @@ fn incoming_edge_counts(
 pub fn terminator_edges(
     source: mir::LocalNodeId<mir::Block>,
     terminator: &mir::Terminator,
-) -> Vec<(mir::EdgeKey, mir::LocalNodeId<mir::Block>)> {
+) -> Vec<(mir::Edge, mir::LocalNodeId<mir::Block>)> {
     match terminator {
         mir::Terminator::Error => Vec::new(),
         mir::Terminator::Jump { target, .. } => {
             target.block.block().map_or_else(Vec::new, |target| {
-                vec![(
-                    mir::EdgeKey::new(source, mir::EdgeKind::Jump, target),
-                    target,
-                )]
+                vec![(mir::Edge::new(source, mir::Successor::Jump, target), target)]
             })
         }
         mir::Terminator::Branch {
@@ -223,7 +224,7 @@ pub fn terminator_edges(
             // then edge
             if let Some(target) = then_target.block.block() {
                 edges.push((
-                    mir::EdgeKey::new(source, mir::EdgeKind::BranchThen, target),
+                    mir::Edge::new(source, mir::Successor::BranchThen, target),
                     target,
                 ));
             }
@@ -231,7 +232,7 @@ pub fn terminator_edges(
             // else edge
             if let Some(target) = else_target.block.block() {
                 edges.push((
-                    mir::EdgeKey::new(source, mir::EdgeKind::BranchElse, target),
+                    mir::Edge::new(source, mir::Successor::BranchElse, target),
                     target,
                 ));
             }
@@ -246,7 +247,7 @@ pub fn terminator_edges(
             // success edge
             if let Some(target) = success.block.block() {
                 edges.push((
-                    mir::EdgeKey::new(source, mir::EdgeKind::CheckSuccess, target),
+                    mir::Edge::new(source, mir::Successor::CheckSuccess, target),
                     target,
                 ));
             }
@@ -254,7 +255,7 @@ pub fn terminator_edges(
             // failure edge
             if let Some(target) = failure.block.block() {
                 edges.push((
-                    mir::EdgeKey::new(source, mir::EdgeKind::CheckFailure, target),
+                    mir::Edge::new(source, mir::Successor::CheckFailure, target),
                     target,
                 ));
             }
@@ -277,14 +278,14 @@ pub fn terminator_edges(
 
             if let Some(target) = success.block.block() {
                 edges.push((
-                    mir::EdgeKey::new(source, mir::EdgeKind::AllocationSuccess, target),
+                    mir::Edge::new(source, mir::Successor::TrySuccess, target),
                     target,
                 ));
             }
 
             if let Some(target) = failure.block.block() {
                 edges.push((
-                    mir::EdgeKey::new(source, mir::EdgeKind::AllocationFailure, target),
+                    mir::Edge::new(source, mir::Successor::TryFailure, target),
                     target,
                 ));
             }
@@ -297,7 +298,7 @@ pub fn terminator_edges(
             // default edge
             if let Some(target) = default.block.block() {
                 edges.push((
-                    mir::EdgeKey::new(source, mir::EdgeKind::SwitchDefault, target),
+                    mir::Edge::new(source, mir::Successor::SwitchDefault, target),
                     target,
                 ));
             }
@@ -312,20 +313,33 @@ pub fn terminator_edges(
                 };
 
                 edges.push((
-                    mir::EdgeKey::new(source, mir::EdgeKind::SwitchCase { value }, target),
+                    mir::Edge::new(source, mir::Successor::SwitchCase { value }, target),
                     target,
                 ));
             }
 
             edges
         }
-        mir::Terminator::Yield { resume, .. } => {
-            resume.block.block().map_or_else(Vec::new, |target| {
-                vec![(
-                    mir::EdgeKey::new(source, mir::EdgeKind::YieldResume, target),
+        mir::Terminator::Yield { resume, unwind, .. } => {
+            let mut edges = Vec::with_capacity(2);
+
+            if let Some(target) = resume.block.block() {
+                edges.push((
+                    mir::Edge::new(source, mir::Successor::YieldResume, target),
                     target,
-                )]
-            })
+                ));
+            }
+
+            if let Some(unwind) = unwind
+                && let Some(target) = unwind.block.block()
+            {
+                edges.push((
+                    mir::Edge::new(source, mir::Successor::YieldUnwind, target),
+                    target,
+                ));
+            }
+
+            edges
         }
         mir::Terminator::Call { target, unwind, .. }
         | mir::Terminator::CallIndirect { target, unwind, .. }
@@ -335,7 +349,7 @@ pub fn terminator_edges(
 
             if let Some(target) = target.block.block() {
                 edges.push((
-                    mir::EdgeKey::new(source, mir::EdgeKind::Call, target),
+                    mir::Edge::new(source, mir::Successor::CallReturn, target),
                     target,
                 ));
             }
@@ -344,7 +358,7 @@ pub fn terminator_edges(
                 && let Some(target) = unwind.block.block()
             {
                 edges.push((
-                    mir::EdgeKey::new(source, mir::EdgeKind::CallUnwind, target),
+                    mir::Edge::new(source, mir::Successor::CallUnwind, target),
                     target,
                 ));
             }

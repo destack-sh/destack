@@ -341,8 +341,8 @@ fn apply_if_convert(
             arguments: select_args,
         },
     };
-    tree.replace(candidate.header, header);
-    tree.replace(tree.get(candidate.header).terminator, new_terminator);
+    tree.set(candidate.header, header);
+    tree.set(tree.get(candidate.header).terminator, new_terminator);
 
     true
 }
@@ -410,19 +410,19 @@ fn branch_profile_counts(
     profile: Option<&mir::Profile>,
 ) -> Option<(u64, u64)> {
     let profile = profile?;
-    let then_edge = mir::EdgeKey::new(
+    let then_edge = mir::Edge::new(
         candidate.header,
-        mir::EdgeKind::BranchThen,
+        mir::Successor::BranchThen,
         candidate.then_block,
     );
-    let else_edge = mir::EdgeKey::new(
+    let else_edge = mir::Edge::new(
         candidate.header,
-        mir::EdgeKind::BranchElse,
+        mir::Successor::BranchElse,
         candidate.else_block,
     );
 
-    let then_count = profile.edge_count(&then_edge)?;
-    let else_count = profile.edge_count(&else_edge)?;
+    let then_count = profile.edge_count(&then_edge)?.get();
+    let else_count = profile.edge_count(&else_edge)?.get();
 
     Some((then_count, else_count))
 }

@@ -307,8 +307,8 @@ fn fold_branches(
                     };
 
                     let new_block = block.clone();
-                    tree.replace(block_id, new_block);
-                    tree.replace(terminator_id, mir::Terminator::Jump { target });
+                    tree.set(block_id, new_block);
+                    tree.set(terminator_id, mir::Terminator::Jump { target });
                     changed = true;
                 }
             }
@@ -331,8 +331,8 @@ fn fold_branches(
                     };
 
                     let new_block = block.clone();
-                    tree.replace(block_id, new_block);
-                    tree.replace(terminator_id, mir::Terminator::Jump { target });
+                    tree.set(block_id, new_block);
+                    tree.set(terminator_id, mir::Terminator::Jump { target });
                     changed = true;
                 }
             }
@@ -365,8 +365,8 @@ fn fold_branches(
                         if let Some(lowered) =
                             lower_boolean_switch(*value, default, cases, is_boolean_value)
                         {
-                            tree.replace(block_id, new_block);
-                            tree.replace(terminator_id, lowered);
+                            tree.set(block_id, new_block);
+                            tree.set(terminator_id, lowered);
                             changed = true;
                             continue;
                         }
@@ -381,14 +381,14 @@ fn fold_branches(
                             range_value,
                         ) {
                             new_block.instructions.extend(new_instructions);
-                            tree.replace(terminator_id, lowered);
+                            tree.set(terminator_id, lowered);
                         } else {
-                            tree.replace(terminator_id, new_terminator);
+                            tree.set(terminator_id, new_terminator);
                         }
                     } else {
-                        tree.replace(terminator_id, new_terminator);
+                        tree.set(terminator_id, new_terminator);
                     }
-                    tree.replace(block_id, new_block);
+                    tree.set(block_id, new_block);
                     changed = true;
                     continue;
                 }
@@ -398,8 +398,8 @@ fn fold_branches(
                     lower_boolean_switch(*value, default, cases, is_boolean_value)
                 {
                     let new_block = block.clone();
-                    tree.replace(block_id, new_block);
-                    tree.replace(terminator_id, new_terminator);
+                    tree.set(block_id, new_block);
+                    tree.set(terminator_id, new_terminator);
                     changed = true;
                     continue;
                 }
@@ -410,8 +410,8 @@ fn fold_branches(
                 {
                     let mut new_block = block.clone();
                     new_block.instructions.extend(new_instructions);
-                    tree.replace(block_id, new_block);
-                    tree.replace(terminator_id, new_terminator);
+                    tree.set(block_id, new_block);
+                    tree.set(terminator_id, new_terminator);
                     changed = true;
                 }
             }
@@ -525,7 +525,7 @@ fn thread_edge_conditions(
 
         // update block terminator when changes were made
         if let Some(terminator) = new_terminator {
-            tree.replace(terminator_id, terminator);
+            tree.set(terminator_id, terminator);
             changed = true;
         }
     }
@@ -1613,7 +1613,7 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Tree
         );
 
         if new_terminator != *terminator {
-            tree.replace(terminator_id, new_terminator);
+            tree.set(terminator_id, new_terminator);
             changed = true;
         }
     }
@@ -1864,8 +1864,8 @@ fn remap_block_targets(
         terminator_remap(&mut new_terminator, redirects, &value_map);
 
         if new_terminator != *tree.get(new_block.terminator) {
-            tree.replace(new_block.terminator, new_terminator);
-            tree.replace(block_id, new_block);
+            tree.set(new_block.terminator, new_terminator);
+            tree.set(block_id, new_block);
             changed = true;
         }
     }
@@ -1930,7 +1930,7 @@ fn fold_redundant_edges(function: &mir::Function, tree: &mut mir::Tree) -> bool 
         };
 
         if let Some(new_terminator) = new_terminator {
-            tree.replace(block.terminator, new_terminator);
+            tree.set(block.terminator, new_terminator);
             changed = true;
         }
     }
@@ -2018,8 +2018,8 @@ fn fold_same_target_branches(function: &mut mir::Function, tree: &mut mir::Tree)
                 arguments: new_arguments,
             },
         };
-        tree.replace(new_block.terminator, new_terminator);
-        tree.replace(block_id, new_block);
+        tree.set(new_block.terminator, new_terminator);
+        tree.set(block_id, new_block);
         changed = true;
     }
 
@@ -2239,8 +2239,8 @@ fn tail_duplicate_blocks(
                     arguments: Vec::new(),
                 },
             };
-            tree.replace(updated_pred.terminator, new_pred_terminator);
-            tree.replace(pred.pred, updated_pred);
+            tree.set(updated_pred.terminator, new_pred_terminator);
+            tree.set(pred.pred, updated_pred);
             changed = true;
         }
     }
@@ -2289,8 +2289,8 @@ fn select_tail_dup_predecessors(
     let mut total_count = 0_u64;
     let mut counts: HashMap<mir::LocalNodeId<mir::Block>, u64> = HashMap::new();
     for pred in jump_predecessors {
-        let edge = mir::EdgeKey::new(pred.pred, mir::EdgeKind::Jump, block_id);
-        let count = profile.edge_count(&edge).unwrap_or(0);
+        let edge = mir::Edge::new(pred.pred, mir::Successor::Jump, block_id);
+        let count = profile.edge_count(&edge).map(mir::Count::get).unwrap_or(0);
         total_count = total_count.saturating_add(count);
         counts.insert(pred.pred, count);
     }
@@ -2541,7 +2541,7 @@ fn split_critical_edges(function: &mut mir::Function, tree: &mut mir::Tree) -> b
 
         // update the terminator when it changes
         if let Some(new_terminator) = new_terminator {
-            tree.replace(block.terminator, new_terminator);
+            tree.set(block.terminator, new_terminator);
             changed = true;
         }
     }
@@ -2745,8 +2745,8 @@ fn merge_blocks(
                 new_block.instructions.push(new_id);
             }
 
-            tree.replace(block_id, new_block);
-            tree.replace(terminator_id, target_terminator);
+            tree.set(block_id, new_block);
+            tree.set(terminator_id, target_terminator);
 
             // mark target as merged away
             merged_away.insert(target);
@@ -4228,7 +4228,7 @@ b0:
                         );
                     }
                 }
-                mir::Terminator::Yield { resume, .. } => {
+                mir::Terminator::Yield { resume, unwind, .. } => {
                     check_edge(
                         resume
                             .block
@@ -4241,6 +4241,20 @@ b0:
                             .collect::<Vec<_>>(),
                         &mut mismatches,
                     );
+                    if let Some(unwind) = unwind {
+                        check_edge(
+                            unwind
+                                .block
+                                .block()
+                                .expect("yield unwind target should be concrete"),
+                            &unwind
+                                .arguments
+                                .iter()
+                                .filter_map(|value| value.value())
+                                .collect::<Vec<_>>(),
+                            &mut mismatches,
+                        );
+                    }
                 }
                 mir::Terminator::Call { target, .. } => {
                     check_edge(
@@ -4501,7 +4515,11 @@ b0:
                         }
                     }
                 }
-                mir::Terminator::Yield { value, resume } => {
+                mir::Terminator::Yield {
+                    value,
+                    resume,
+                    unwind,
+                } => {
                     let value = value.value().expect("yield value should be concrete");
                     if !defined_values.contains(&value) {
                         undefined.push(format!(
@@ -4515,6 +4533,16 @@ b0:
                                 "block {:?} terminator uses {:?} without definition: {:?}",
                                 block_id, argument, terminator
                             ));
+                        }
+                    }
+                    if let Some(unwind) = unwind {
+                        for argument in unwind.arguments.iter().filter_map(|value| value.value()) {
+                            if !defined_values.contains(&argument) {
+                                undefined.push(format!(
+                                    "block {:?} terminator uses {:?} without definition: {:?}",
+                                    block_id, argument, terminator
+                                ));
+                            }
                         }
                     }
                 }
