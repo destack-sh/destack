@@ -7,7 +7,7 @@ use smallvec::SmallVec;
 
 use crate::{
     Extension, FunctionRole, GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId,
-    LocalGenericTemplateId, MemberSlot, SegmentView, StaticKey,
+    LocalGenericTemplateId, MemberSlot, MethodAbstraction, SegmentView, StaticKey,
 };
 
 /// Cumulative declaration definitions for one DIR module.
@@ -343,6 +343,10 @@ pub struct StructDefinition {
 pub struct ClassDefinition {
     /// The generic template declared by the class.
     pub template: Option<LocalGenericTemplateId>,
+    /// Whether the class is abstract.
+    pub is_abstract: bool,
+    /// Whether the class rejects subclasses.
+    pub is_final: bool,
     /// The extended class.
     pub extends: Option<NominalHeritage>,
     /// The implemented interfaces.
@@ -408,6 +412,10 @@ pub struct FieldDefinition {
     pub key: StaticKey,
     /// The checked field type.
     pub ty: GlobalTypeId,
+    /// Whether subclasses must provide the field.
+    pub is_abstract: bool,
+    /// Whether the field overrides an inherited member.
+    pub is_override: bool,
     /// The @if availability condition guarding this member, when guarded.
     pub condition: Option<GlobalTypeId>,
 }
@@ -427,6 +435,10 @@ pub struct MethodDefinition {
     pub role: Option<FunctionRole>,
     /// The checked method type.
     pub ty: GlobalTypeId,
+    /// The abstraction mode governing overrides.
+    pub abstraction: MethodAbstraction,
+    /// Whether the method overrides an inherited member.
+    pub is_override: bool,
     /// The @if availability condition guarding this member, when guarded.
     pub condition: Option<GlobalTypeId>,
 }

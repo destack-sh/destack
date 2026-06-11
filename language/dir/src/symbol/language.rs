@@ -758,6 +758,12 @@ define_language_items! {
             Dynamic => (Newtype, "memory/dynamic", "Dynamic"),
         }
 
+        /// `destack:memory/error`.
+        error {
+            /// Allocation failure for fallible allocation.
+            AllocationError => (Newtype, "memory/error", "AllocationError"),
+        }
+
         /// `destack:memory/binding`.
         binding {
             /// Memory binding family.
