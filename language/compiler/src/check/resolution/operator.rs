@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{FunctionTerm, OperatorTermKind, TypeOperand, VariableId};
+use crate::check::{FunctionTerm, OperatorTermKind, TypeOperand};
 
 /// Solved runtime operator resolved by the solver.
 ///
@@ -28,7 +28,7 @@ pub(in crate::check) enum OperatorResolution {
         /// The remaining operand type.
         argument: Option<TypeOperand>,
         /// The result type.
-        result: VariableId,
+        result: TypeOperand,
     },
     /// Symbol-backed operator method.
     ///
