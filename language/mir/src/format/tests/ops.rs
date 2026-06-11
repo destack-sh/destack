@@ -43,7 +43,7 @@ entry0(value0: vector<int32, 4>, value1: int32, value2: tensor<int32, (2, 2)>, v
     );
 }
 
-/// Formats check terminators and assume instructions canonically.
+/// Formats check terminators and marker instructions canonically.
 #[test]
 fn test_format_check_and_assume() {
     assert_format(
@@ -52,6 +52,8 @@ function guard(value0: uint32, value1: uint32, value2: [int32; 4]): int32 {
 entry0(value0: uint32, value1: uint32, value2: [int32; 4]):
     value3: boolean = int.lt.u value0, value1
     assume value3
+    profile.increment counter(0)
+    profile.value counter(1), value3
     check bounds.u value0, value1, value2 -> block1(value0), block2
 
 block1(value4: uint32):

@@ -668,7 +668,9 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::FieldAddr { .. }
         | mir::Instruction::ElementAddr { .. }
-        | mir::Instruction::Assume { .. } => None,
+        | mir::Instruction::Assume { .. }
+        | mir::Instruction::ProfileIncrement { .. }
+        | mir::Instruction::ProfileValue { .. } => None,
     }
 }
 

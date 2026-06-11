@@ -7,11 +7,11 @@ use smallvec::{SmallVec, smallvec};
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CompareExchangeAccess, Constant,
     DispatchSlot, FenceAccess, FunctionReference, GlobalReference, Intrinsic, LocalReference, Node,
-    NodeType, Place, PlaceEffect, Projection, TensorConvertMode, TensorConvolutionDimensionNumbers,
-    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
-    TensorIndexReduceOperator, TensorIndexTieBreak, TensorReduceOperator,
-    TensorScatterDimensionNumbers, TensorScatterMode, TypeReference, UnaryOperator, ValueReference,
-    VectorConvertMode, VectorReduceOperator,
+    NodeType, Place, PlaceEffect, ProfileCounterId, Projection, TensorConvertMode,
+    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
+    TensorGatherDimensionNumbers, TensorIndexReduceOperator, TensorIndexTieBreak,
+    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, TypeReference,
+    UnaryOperator, ValueReference, VectorConvertMode, VectorReduceOperator,
 };
 
 /// Compact representation of an argument slice stored in an external buffer.
@@ -899,6 +899,20 @@ pub enum Instruction {
         condition: ValueReference,
     },
 
+    // profile instrumentation
+    /// Increment one profile counter.
+    ProfileIncrement {
+        /// The counter to increment.
+        counter: ProfileCounterId,
+    },
+    /// Record one profiled runtime value.
+    ProfileValue {
+        /// The counter receiving the sampled value.
+        counter: ProfileCounterId,
+        /// The sampled MIR value.
+        value: ValueReference,
+    },
+
     // intrinsics
     /// Call a compiler intrinsic.
     ///
@@ -1066,6 +1080,8 @@ impl Instruction {
             | Instruction::AtomicRmw { .. }
             | Instruction::AtomicFence { .. }
             | Instruction::Assume { .. }
+            | Instruction::ProfileIncrement { .. }
+            | Instruction::ProfileValue { .. }
             | Instruction::Intrinsic { .. } => None,
         }
     }
@@ -1151,6 +1167,8 @@ impl Instruction {
             Instruction::AtomicRmw { destination, .. } => Some(*destination),
             Instruction::AtomicFence { .. } => None,
             Instruction::Assume { .. } => None,
+            Instruction::ProfileIncrement { .. } => None,
+            Instruction::ProfileValue { .. } => None,
             Instruction::Intrinsic { destination, .. } => *destination,
         }
     }
@@ -1289,6 +1307,8 @@ impl Instruction {
             Instruction::AtomicRmw { pointer, value, .. } => smallvec![*pointer, *value],
             Instruction::AtomicFence { .. } => smallvec![],
             Instruction::Assume { condition } => smallvec![*condition],
+            Instruction::ProfileIncrement { .. } => smallvec![],
+            Instruction::ProfileValue { value, .. } => smallvec![*value],
             // Arguments stored externally - return empty
             Instruction::Intrinsic { .. } => smallvec![],
         }

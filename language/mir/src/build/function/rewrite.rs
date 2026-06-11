@@ -324,6 +324,10 @@ impl<'a> FunctionBuilder<'a> {
                 Instruction::Assume { condition } => {
                     Self::replace_value_in_slot(condition, from, to);
                 }
+                Instruction::ProfileIncrement { .. } => {}
+                Instruction::ProfileValue { value, .. } => {
+                    Self::replace_value_in_slot(value, from, to);
+                }
 
                 // arguments stored externally
                 Instruction::Struct { .. }

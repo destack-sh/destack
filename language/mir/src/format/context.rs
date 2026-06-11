@@ -787,6 +787,8 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
             | Instruction::Drop { .. }
             | Instruction::Unpin { .. }
             | Instruction::Assume { .. }
+            | Instruction::ProfileIncrement { .. }
+            | Instruction::ProfileValue { .. }
             | Instruction::Intrinsic { .. } => {}
             _ => {}
         }

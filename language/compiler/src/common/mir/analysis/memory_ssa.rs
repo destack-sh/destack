@@ -838,7 +838,9 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::TensorCompare { .. }
             | mir::Instruction::TensorSelect { .. }
             | mir::Instruction::TensorConvert { .. }
-            | mir::Instruction::Assume { .. } => SmallVec::new(),
+            | mir::Instruction::Assume { .. }
+            | mir::Instruction::ProfileIncrement { .. }
+            | mir::Instruction::ProfileValue { .. } => SmallVec::new(),
             mir::Instruction::TensorLoad { view, .. } => {
                 let Some(view) = view.value() else {
                     return Self::single_effect(MemoryAccessEffect::read(

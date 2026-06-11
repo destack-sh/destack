@@ -1637,6 +1637,31 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 format_fence_access(*access, f)
             }
 
+            Instruction::ProfileIncrement { counter } => {
+                write!(
+                    f,
+                    [
+                        token("profile.increment"),
+                        space(),
+                        text(&format!("counter({})", counter.0))
+                    ]
+                )
+            }
+
+            Instruction::ProfileValue { counter, value } => {
+                write!(
+                    f,
+                    [
+                        token("profile.value"),
+                        space(),
+                        text(&format!("counter({})", counter.0)),
+                        token(","),
+                        space(),
+                        value
+                    ]
+                )
+            }
+
             Instruction::Intrinsic {
                 destination,
                 intrinsic,
