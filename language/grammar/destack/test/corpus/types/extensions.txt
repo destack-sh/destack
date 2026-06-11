@@ -91,3 +91,97 @@ extension<T> of Box<T> implements Dereference {
                 (member_expression
                   (this)
                   (property_identifier))))))))))
+
+=======================================
+Receiver parameters and method where clauses
+:language(destack)
+=======================================
+
+extension of Cell<T> {
+    get(&readonly this): T where T: Copy {
+        this.value
+    }
+    set(&exclusive this, value: T): void {
+        this.value = value;
+    }
+    intoInner(^this): T {
+        this.value
+    }
+    peek(&this): &T {
+        &this.value
+    }
+}
+
+---
+
+(program
+  (extension_declaration
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (receiver_parameter
+              (this))))
+        (type_annotation
+          (type_identifier))
+        (where_clause
+          (where_constraint
+            (type_identifier)
+            (type_identifier)))
+        (statement_block
+          (expression_statement
+            (member_expression
+              (this)
+              (property_identifier)))))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (receiver_parameter
+              (this)))
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (predefined_type))
+        (statement_block
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (this)
+                (property_identifier))
+              (identifier)))))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (receiver_parameter
+              (this))))
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (member_expression
+              (this)
+              (property_identifier)))))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (receiver_parameter
+              (this))))
+        (type_annotation
+          (memory_type
+            (type_identifier)))
+        (statement_block
+          (expression_statement
+            (memory_expression
+              (member_expression
+                (this)
+                (property_identifier)))))))))

@@ -410,10 +410,6 @@
     "named": true,
     "subtypes": [
       {
-        "type": "assert_statement",
-        "named": true
-      },
-      {
         "type": "break_statement",
         "named": true
       },
@@ -718,6 +714,10 @@
         {
           "type": "override_modifier",
           "named": true
+        },
+        {
+          "type": "where_clause",
+          "named": true
         }
       ]
     }
@@ -984,22 +984,6 @@
           "named": true
         }
       ]
-    }
-  },
-  {
-    "type": "assert_statement",
-    "named": true,
-    "fields": {
-      "condition": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "expression",
-            "named": true
-          }
-        ]
-      }
     }
   },
   {
@@ -6169,6 +6153,10 @@
         {
           "type": "override_modifier",
           "named": true
+        },
+        {
+          "type": "where_clause",
+          "named": true
         }
       ]
     }
@@ -6256,6 +6244,10 @@
         },
         {
           "type": "override_modifier",
+          "named": true
+        },
+        {
+          "type": "where_clause",
           "named": true
         }
       ]
@@ -6713,6 +6705,10 @@
         "types": [
           {
             "type": "pattern",
+            "named": true
+          },
+          {
+            "type": "receiver_parameter",
             "named": true
           },
           {
@@ -7326,6 +7322,21 @@
     }
   },
   {
+    "type": "receiver_parameter",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "this",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "regex",
     "named": true,
     "fields": {
@@ -7385,6 +7396,10 @@
         "types": [
           {
             "type": "pattern",
+            "named": true
+          },
+          {
+            "type": "receiver_parameter",
             "named": true
           },
           {
@@ -8574,6 +8589,10 @@
             "named": true
           },
           {
+            "type": "identifier",
+            "named": true
+          },
+          {
             "type": "member_expression",
             "named": true
           },
@@ -9397,6 +9416,10 @@
         "required": true,
         "types": [
           {
+            "type": "generic_type",
+            "named": true
+          },
+          {
             "type": "nested_type_identifier",
             "named": true
           },
@@ -9804,10 +9827,6 @@
     "named": false
   },
   {
-    "type": "assert",
-    "named": false
-  },
-  {
     "type": "asserts",
     "named": false
   },
@@ -10029,11 +10048,11 @@
   },
   {
     "type": "number",
-    "named": true
+    "named": false
   },
   {
     "type": "number",
-    "named": false
+    "named": true
   },
   {
     "type": "object",

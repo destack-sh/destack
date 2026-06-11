@@ -113,11 +113,13 @@ size satisfies 4;
         (number))))
   (comptime_block_statement
     (statement_block
-      (assert_statement
-        (parenthesized_expression
-          (binary_expression
-            (identifier)
-            (number))))))
+      (expression_statement
+        (call_expression
+          (identifier)
+          (arguments
+            (binary_expression
+              (identifier)
+              (number)))))))
   (empty_statement)
   (value_satisfies_statement
     (identifier)

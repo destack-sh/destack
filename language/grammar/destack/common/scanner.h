@@ -162,6 +162,25 @@ static bool scan_automatic_semicolon(TSLexer *lexer, const bool *valid_symbols, 
             skip(lexer);
             return lexer->lookahead != '=';
 
+#ifdef DESTACK_WHERE_CONTINUATION
+            // Don't insert a semicolon before a `where` clause continuing a
+            // signature on the next line, but do insert one before an identifier.
+        case 'w':
+            skip(lexer);
+
+            for (unsigned i = 0; i < 4; i++) {
+                if (lexer->lookahead != "here"[i]) {
+                    return true;
+                }
+                skip(lexer);
+            }
+
+            if (!iswalnum(lexer->lookahead) && lexer->lookahead != '_' && lexer->lookahead != '$') {
+                return false;
+            }
+            break;
+#endif
+
             // Don't insert a semicolon before `in` or `instanceof`, but do insert one
             // before an identifier.
         case 'i':
@@ -192,7 +211,16 @@ static bool scan_automatic_semicolon(TSLexer *lexer, const bool *valid_symbols, 
     return true;
 }
 
-static bool scan_ternary_qmark(TSLexer *lexer) {
+static bool scan_ternary_qmark(TSLexer *lexer, bool question_attached) {
+#ifdef DESTACK_ATTACHED_TRY
+    // An attached question mark is try-propagation, a detached one a ternary.
+    if (question_attached) {
+        return false;
+    }
+#else
+    (void)question_attached;
+#endif
+
     for (;;) {
         if (!iswspace(lexer->lookahead)) {
             break;
@@ -334,16 +362,19 @@ static inline bool external_scanner_scan(void *payload, TSLexer *lexer, const bo
         return true;
     }
 
+    // Capture attachment before any scan consumes the separating whitespace.
+    bool question_attached = lexer->lookahead == '?';
+
     if (valid_symbols[AUTOMATIC_SEMICOLON] || valid_symbols[FUNCTION_SIGNATURE_AUTOMATIC_SEMICOLON]) {
         bool scanned_comment = false;
         bool ret = scan_automatic_semicolon(lexer, valid_symbols, &scanned_comment);
         if (!ret && !scanned_comment && valid_symbols[TERNARY_QMARK] && lexer->lookahead == '?') {
-            return scan_ternary_qmark(lexer);
+            return scan_ternary_qmark(lexer, question_attached);
         }
         return ret;
     }
     if (valid_symbols[TERNARY_QMARK]) {
-        return scan_ternary_qmark(lexer);
+        return scan_ternary_qmark(lexer, question_attached);
     }
 
     if (valid_symbols[HTML_COMMENT] && !valid_symbols[LOGICAL_OR] && !valid_symbols[ESCAPE_SEQUENCE] &&
