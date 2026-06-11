@@ -1,8 +1,8 @@
 /**
  * Extensions add instance and static members to any nominal type, including
  * types defined in other files or packages.
- * Members resolve statically - the `.asm` view shows direct calls, with no
- * dynamic lookup anywhere.
+ * Members resolve statically - the `.asm` view shows direct calls with no
+ * dynamic lookup.
  */
 
 class Vector2 {

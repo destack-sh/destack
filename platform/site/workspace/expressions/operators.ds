@@ -1,7 +1,7 @@
 /**
  * Operators dispatch through nominal interfaces: `+` is `Add<T>`, `==` is
  * `PartialEqual<T>`, comparison is `Compare<T>` or `PartialCompare<T>`.
- * Implementing the interface is all it takes; resolution is static.
+ * Any nominal type can implement them, and resolution is static.
  */
 
 struct Vec2 {

@@ -17,7 +17,7 @@ if (parsed.ok && parsed.value >= 1024) {
 }
 ```
 
-In Destack the match is the value: the Result variants destructure in place, the guard rides on the pattern, and there is nothing to assign:
+In Destack the `match` itself is the value: the Result variants destructure in place, guards attach directly to their patterns, and no mutable binding is needed:
 
 ```ds
 const status = match (parsePort(input)) {
@@ -27,7 +27,7 @@ const status = match (parsePort(input)) {
 };
 ```
 
-Patterns, guards, loops with break values, `using` cleanup, operator interfaces, and `comptime` evaluation all compose on the same principle.
+Patterns, guards, loops with break values, `using` cleanup, operator interfaces, and `comptime` evaluation all build on the same expression model.
 The files below walk through them in order.
 
 | file | shows |

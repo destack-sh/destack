@@ -2,7 +2,7 @@
  * Mutable covariance - assigning `Circle[]` to `Shape[]` and then mutating
  * through the widened alias - is one of TypeScript's best known soundness holes.
  * Destack derives variance from usage: readonly positions widen, mutable storage
- * does not, and the error below is the hole staying closed.
+ * does not, and the widening below is therefore a compile error.
  */
 
 class Shape {

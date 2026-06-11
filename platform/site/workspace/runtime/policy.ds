@@ -1,7 +1,7 @@
 /**
  * Policies declare a module's host capability access: allowed effects are
- * explicit, everything else fails at the binding boundary.
- * Dependencies get the capabilities you grant them, nothing more.
+ * explicit, and everything else fails at the binding boundary.
+ * Dependencies are limited to whatever capabilities you grant them.
  */
 
 import { Result } from "destack:error";

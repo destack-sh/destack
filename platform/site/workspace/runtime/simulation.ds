@@ -1,7 +1,7 @@
 /**
  * Simulations run code against a controlled world with deterministic faults:
- * the same seed replays the same schedule, so distributed failures reproduce
- * exactly instead of flaking.
+ * the same seed replays the same schedule, so a distributed failure reproduces
+ * exactly on every run.
  */
 
 import { AsyncResult } from "destack:error";

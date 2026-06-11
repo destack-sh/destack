@@ -1,19 +1,20 @@
 # runtime/
 
-Destack's runtime and toolchain are part of the language design rather than an ecosystem to assemble.
-Modules carry metadata and conditions, data files import as typed literals, and host access is granted per module instead of ambiently.
+Destack ships with a fully integrated, native language runtime that extends and generalises familiar paradigms (like module metadata, conditional inclusion, and typed data imports) into one coherent system.
+Oh, and we also have built-in verification tooling and granular deny-by-default permissioning.
 
-Verification works the same way: test, bench, fuzz, and simulation are toolchain verbs, not packages to wire up.
+The verification tools are plain toolchain verbs:
 
 ```sh
-destack test       # typed tests, no runner to configure
+destack test       # typed tests
 destack bench      # measured work and resource units
 destack fuzz       # generators and shrinking
 destack simulate   # deterministic fault injection, replayable by seed
 ```
 
-Host capabilities are deny-by-default, and grants live in source where review happens.
-A module states what it may touch, and everything else fails at the binding boundary:
+All of them run ordinary Destack code through the same compiler pipeline, so assertions and reports work on typed values.
+
+Permissioning is deny-by-default: a module declares the host capabilities it may use, the grant lives in source, and any other host access fails at the binding boundary:
 
 ```ds
 @policy({

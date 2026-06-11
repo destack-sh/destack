@@ -1,6 +1,6 @@
 /**
- * `using` follows the TC39 explicit resource management proposal, with the
- * nominal `Dispose` interface instead of magic `Symbol` keys.
+ * `using` follows the TC39 explicit resource management proposal, keyed on the
+ * nominal `Dispose` interface (TC39 keys disposal on well-known `Symbol`s).
  * Cleanup runs at lexical scope exit in LIFO order, on every exit path.
  */
 

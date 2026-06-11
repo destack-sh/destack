@@ -1,7 +1,6 @@
 /**
  * Data files import as modules: parsed at compile time and typed as exact
- * readonly literals, so configuration mistakes are type errors, not runtime
- * surprises.
+ * readonly literals, so a configuration mistake is a compile-time type error.
  */
 
 import config from "./config.json";
