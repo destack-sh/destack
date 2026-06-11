@@ -1,3 +1,8 @@
+// next-line `where` clauses continue signatures in destack only
+#define DESTACK_WHERE_CONTINUATION
+// an attached `?` is try-propagation in destack only
+#define DESTACK_ATTACHED_TRY
+
 #include "../../common/scanner.h"
 
 void *tree_sitter_destack_external_scanner_create() { return NULL; }

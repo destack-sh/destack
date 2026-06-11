@@ -92,6 +92,10 @@ module.exports = grammar(JavaScript, {
       [$._call_signature, $.function_type],
 
       [$.primary_expression, $._parameter_name],
+      [$.primary_expression, $.receiver_parameter],
+      [$.primary_expression, $.receiver_parameter, $.primary_type],
+      [$.receiver_parameter, $.primary_type],
+      [$.where_clause],
       [$.primary_expression, $._parameter_name, $.primary_type],
       [$.primary_expression, $.literal_type],
       [$.primary_expression, $.literal_type, $.rest_pattern],
@@ -107,6 +111,11 @@ module.exports = grammar(JavaScript, {
       [$.rest_pattern, $.literal_type],
       [$.rest_pattern, $.predefined_type],
       [$.rest_pattern, $._try_propagation_argument],
+      [$._try_propagation_argument, $.primary_type],
+      [$.pattern, $._try_propagation_argument, $.primary_type],
+      [$._try_propagation_argument, $.optional_tuple_parameter, $.primary_type],
+      [$._try_propagation_argument, $.type_query],
+      [$.rest_pattern, $._try_propagation_argument, $.primary_type],
       [$._destructuring_pattern, $._let_else_pattern],
       [$.variable_declarator, $._let_else_pattern],
       [$._parameter_name, $.primary_type],
@@ -472,7 +481,6 @@ module.exports = grammar(JavaScript, {
       $.value_satisfies_statement,
       $.let_else_statement,
       $.using_assignment_statement,
-      $.assert_statement,
       $.dereference_assignment_statement,
       $.loop_expression,
       $.export_statement,
@@ -531,12 +539,6 @@ module.exports = grammar(JavaScript, {
 
     using_assignment_statement: $ => seq(
       field('expression', $.using_assignment_expression),
-      $._semicolon,
-    ),
-
-    assert_statement: $ => seq(
-      'assert',
-      field('condition', $.expression),
       $._semicolon,
     ),
 
@@ -799,6 +801,8 @@ module.exports = grammar(JavaScript, {
       ')',
     ),
 
+    // a bare constraint list eats commas greedily; the parenthesized form
+    // bounds the list explicitly where members are comma-separated
     where_clause: $ => seq(
       'where',
       choice(
@@ -813,7 +817,7 @@ module.exports = grammar(JavaScript, {
     ),
 
     where_constraint: $ => seq(
-      field('name', choice($._type_identifier, $.nested_type_identifier)),
+      field('name', choice($._type_identifier, $.nested_type_identifier, $.generic_type)),
       field('operator', choice(':', '==')),
       field('type', $.type),
     ),
@@ -834,7 +838,10 @@ module.exports = grammar(JavaScript, {
       )),
     ))),
 
+    // the scanner only lexes a ternary question mark when it is detached, so
+    // an attached `?` after any of these operands is try-propagation
     _try_propagation_argument: $ => choice(
+      $.identifier,
       $.parenthesized_expression,
       $.member_expression,
       $.subscript_expression,
@@ -1035,7 +1042,14 @@ module.exports = grammar(JavaScript, {
     export_specifier: ($, previous) => seq(
       repeat(field('guard', $.static_if_guard)),
       optional('type'),
-      previous,
+      choice(
+        previous,
+        // `type` itself is exportable as a plain name
+        seq(
+          field('name', alias('type', $.identifier)),
+          optional(seq('as', field('alias', $._module_export_name))),
+        ),
+      ),
     ),
 
     _import_identifier: $ => choice($.identifier, alias('type', $.identifier)),
@@ -1162,12 +1176,14 @@ module.exports = grammar(JavaScript, {
       optional($.accessibility_modifier),
       optional('static'),
       optional($.override_modifier),
-      optional('virtual'),
+      // the modifier form requires whitespace so `virtual:` stays a field name
+      optional(alias(token(seq('virtual', /[ \t]+/)), 'virtual')),
       optional('async'),
       optional(choice('get', 'set')),
       field('name', $._property_name),
       optional('?'),
       $._call_signature,
+      optional($.where_clause),
       field('body', $.statement_block),
     )),
 
@@ -1177,12 +1193,14 @@ module.exports = grammar(JavaScript, {
       optional('static'),
       optional('readonly'),
       optional($.override_modifier),
-      optional('virtual'),
+      // the modifier form requires whitespace so `virtual:` stays a field name
+      optional(alias(token(seq('virtual', /[ \t]+/)), 'virtual')),
       optional('async'),
       optional(choice('get', 'set')),
       field('name', $._property_name),
       optional('?'),
       $._call_signature,
+      optional($.where_clause),
     ),
 
     abstract_method_signature: $ => seq(
@@ -1194,6 +1212,7 @@ module.exports = grammar(JavaScript, {
       field('name', $._property_name),
       optional('?'),
       $._call_signature,
+      optional($.where_clause),
     ),
 
     parenthesized_expression: $ => seq(
@@ -1355,6 +1374,7 @@ module.exports = grammar(JavaScript, {
       field('name', $._property_name),
       optional('?'),
       $._call_signature,
+      optional($.where_clause),
       field('body', $.statement_block),
     )),
 
@@ -1770,9 +1790,17 @@ module.exports = grammar(JavaScript, {
       field('pattern', choice(
         $.pattern,
         $.this,
+        $.receiver_parameter,
         alias('in', $.identifier),
         alias('out', $.identifier),
+        alias('match', $.identifier),
       )),
+    ),
+
+    // methods bind their receiver through an explicit memory form
+    receiver_parameter: $ => seq(
+      choice('^', seq('&', optional(choice('readonly', 'exclusive')))),
+      $.this,
     ),
 
     _initializer: $ => (
