@@ -3,6 +3,7 @@ use std::sync::Arc;
 use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 
 use crate::{
     Extension, FunctionRole, GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId,
@@ -333,18 +334,8 @@ pub struct StructDefinition {
     pub template: Option<LocalGenericTemplateId>,
     /// The implemented interfaces.
     pub implements: Vec<NominalHeritage>,
-    /// The instance fields.
-    pub fields: Vec<FieldDefinition>,
-    /// The static fields.
-    pub static_fields: Vec<FieldDefinition>,
-    /// The instance methods.
-    pub methods: Vec<MethodDefinition>,
-    /// The static methods.
-    pub static_methods: Vec<MethodDefinition>,
-    /// The associated types.
-    pub associated_types: Vec<AssociatedTypeDefinition>,
-    /// The associated constants.
-    pub associated_consts: Vec<AssociatedConstDefinition>,
+    /// The members in declaration order.
+    pub members: Vec<DefinitionMember>,
 }
 
 /// Checked declaration data for one nominal class.
@@ -356,18 +347,8 @@ pub struct ClassDefinition {
     pub extends: Option<NominalHeritage>,
     /// The implemented interfaces.
     pub implements: Vec<NominalHeritage>,
-    /// The instance fields.
-    pub fields: Vec<FieldDefinition>,
-    /// The static fields.
-    pub static_fields: Vec<FieldDefinition>,
-    /// The instance methods.
-    pub methods: Vec<MethodDefinition>,
-    /// The static methods.
-    pub static_methods: Vec<MethodDefinition>,
-    /// The associated types.
-    pub associated_types: Vec<AssociatedTypeDefinition>,
-    /// The associated constants.
-    pub associated_consts: Vec<AssociatedConstDefinition>,
+    /// The members in declaration order.
+    pub members: Vec<DefinitionMember>,
 }
 
 /// Checked declaration data for one nominal interface.
@@ -379,24 +360,8 @@ pub struct InterfaceDefinition {
     pub is_nominal: bool,
     /// The inherited interfaces.
     pub extends: Vec<NominalHeritage>,
-    /// The instance fields.
-    pub fields: Vec<FieldDefinition>,
-    /// The static fields.
-    pub static_fields: Vec<FieldDefinition>,
-    /// The instance methods.
-    pub methods: Vec<MethodDefinition>,
-    /// The static methods.
-    pub static_methods: Vec<MethodDefinition>,
-    /// The call signatures.
-    pub call_signatures: Vec<SignatureDefinition>,
-    /// The construct signatures.
-    pub construct_signatures: Vec<SignatureDefinition>,
-    /// The index signatures.
-    pub index_signatures: Vec<SignatureDefinition>,
-    /// The associated types.
-    pub associated_types: Vec<AssociatedTypeDefinition>,
-    /// The associated constants.
-    pub associated_consts: Vec<AssociatedConstDefinition>,
+    /// The members in declaration order.
+    pub members: Vec<DefinitionMember>,
 }
 
 /// Checked declaration data for one nominal enum.
@@ -406,18 +371,8 @@ pub struct EnumDefinition {
     pub template: Option<LocalGenericTemplateId>,
     /// The implemented interfaces.
     pub implements: Vec<NominalHeritage>,
-    /// The enum variants.
-    pub variants: Vec<VariantDefinition>,
-    /// The static fields.
-    pub static_fields: Vec<FieldDefinition>,
-    /// The instance methods.
-    pub methods: Vec<MethodDefinition>,
-    /// The static methods.
-    pub static_methods: Vec<MethodDefinition>,
-    /// The associated types.
-    pub associated_types: Vec<AssociatedTypeDefinition>,
-    /// The associated constants.
-    pub associated_consts: Vec<AssociatedConstDefinition>,
+    /// The members in declaration order.
+    pub members: Vec<DefinitionMember>,
 }
 
 /// Checked declaration data for one nominal type alias.
@@ -443,6 +398,8 @@ pub struct NominalHeritage {
 /// One checked field member.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FieldDefinition {
+    /// The member space declaring the field.
+    pub space: MemberSpace,
     /// The field symbol.
     pub symbol: GlobalSymbolId,
     /// The source member node.
@@ -451,11 +408,15 @@ pub struct FieldDefinition {
     pub key: StaticKey,
     /// The checked field type.
     pub ty: GlobalTypeId,
+    /// The @if availability condition guarding this member, when guarded.
+    pub condition: Option<GlobalTypeId>,
 }
 
 /// One method member.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MethodDefinition {
+    /// The member space declaring the method.
+    pub space: MemberSpace,
     /// The method symbol.
     pub symbol: Option<GlobalSymbolId>,
     /// The source member node.
@@ -466,6 +427,8 @@ pub struct MethodDefinition {
     pub role: Option<FunctionRole>,
     /// The checked method type.
     pub ty: GlobalTypeId,
+    /// The @if availability condition guarding this member, when guarded.
+    pub condition: Option<GlobalTypeId>,
 }
 
 /// One checked associated type.
@@ -481,6 +444,8 @@ pub struct AssociatedTypeDefinition {
     pub constraint: Option<GlobalTypeId>,
     /// The concrete associated type value.
     pub value: Option<GlobalTypeId>,
+    /// The @if availability condition guarding this member, when guarded.
+    pub condition: Option<GlobalTypeId>,
 }
 
 /// One checked associated constant.
@@ -496,6 +461,8 @@ pub struct AssociatedConstDefinition {
     pub ty: GlobalTypeId,
     /// The checked static value.
     pub value: Option<GlobalStaticId>,
+    /// The @if availability condition guarding this member, when guarded.
+    pub condition: Option<GlobalTypeId>,
 }
 
 /// One checked enum variant.
@@ -509,6 +476,8 @@ pub struct VariantDefinition {
     pub key: StaticKey,
     /// The checked variant value.
     pub value: Option<GlobalStaticId>,
+    /// The @if availability condition guarding this member, when guarded.
+    pub condition: Option<GlobalTypeId>,
 }
 
 /// One checked symbol-free signature member.
@@ -518,4 +487,165 @@ pub struct SignatureDefinition {
     pub source: GlobalNodeIdAny,
     /// The checked signature type.
     pub ty: GlobalTypeId,
+    /// The @if availability condition guarding this member, when guarded.
+    pub condition: Option<GlobalTypeId>,
+}
+
+/// Member namespace selected by member lookup.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum MemberSpace {
+    /// Instance members selected from a runtime receiver.
+    Instance,
+    /// Static members selected from a declaration receiver.
+    Static,
+}
+
+/// One checked declaration member.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DefinitionMember {
+    /// Field member with a checked type.
+    Field(FieldDefinition),
+    /// Method member with a checked type.
+    Method(MethodDefinition),
+    /// Associated type member.
+    AssociatedType(AssociatedTypeDefinition),
+    /// Associated constant member.
+    AssociatedConst(AssociatedConstDefinition),
+    /// Enum variant member.
+    Variant(VariantDefinition),
+    /// Structural call signature member.
+    CallSignature(SignatureDefinition),
+    /// Structural construct signature member.
+    ConstructSignature(SignatureDefinition),
+    /// Structural index signature member.
+    IndexSignature(SignatureDefinition),
+}
+
+impl DefinitionMember {
+    /// Return the @if availability condition guarding this member.
+    pub fn condition(&self) -> Option<GlobalTypeId> {
+        match self {
+            Self::Field(field) => field.condition,
+            Self::Method(method) => method.condition,
+            Self::AssociatedType(associated) => associated.condition,
+            Self::AssociatedConst(associated) => associated.condition,
+            Self::Variant(variant) => variant.condition,
+            Self::CallSignature(signature)
+            | Self::ConstructSignature(signature)
+            | Self::IndexSignature(signature) => signature.condition,
+        }
+    }
+
+    /// Return the member space declaring this member.
+    pub fn space(&self) -> MemberSpace {
+        match self {
+            Self::Field(field) => field.space,
+            Self::Method(method) => method.space,
+            // associated members and variants live on the declaration
+            Self::AssociatedType(_) | Self::AssociatedConst(_) | Self::Variant(_) => {
+                MemberSpace::Static
+            }
+            // structural signatures describe instances
+            Self::CallSignature(_) | Self::ConstructSignature(_) | Self::IndexSignature(_) => {
+                MemberSpace::Instance
+            }
+        }
+    }
+
+    /// Return the declaring member symbol.
+    pub fn symbol(&self) -> Option<GlobalSymbolId> {
+        match self {
+            Self::Field(field) => Some(field.symbol),
+            Self::Method(method) => method.symbol,
+            Self::AssociatedType(associated) => Some(associated.symbol),
+            Self::AssociatedConst(associated) => Some(associated.symbol),
+            Self::Variant(variant) => Some(variant.symbol),
+            Self::CallSignature(_) | Self::ConstructSignature(_) | Self::IndexSignature(_) => None,
+        }
+    }
+
+    /// Return the member key when the member is keyed.
+    pub fn key(&self) -> Option<StaticKey> {
+        match self {
+            Self::Field(field) => Some(field.key),
+            Self::Method(method) => match method.slot {
+                MemberSlot::Key(key) => Some(key),
+                MemberSlot::Constructor | MemberSlot::New | MemberSlot::Call => None,
+            },
+            Self::AssociatedType(associated) => Some(associated.key),
+            Self::AssociatedConst(associated) => Some(associated.key),
+            Self::Variant(variant) => Some(variant.key),
+            Self::CallSignature(_) | Self::ConstructSignature(_) | Self::IndexSignature(_) => None,
+        }
+    }
+
+    /// Return the checked member type when the member declares one.
+    pub fn ty(&self) -> Option<GlobalTypeId> {
+        match self {
+            Self::Field(field) => Some(field.ty),
+            Self::Method(method) => Some(method.ty),
+            Self::AssociatedType(associated) => associated.value,
+            Self::AssociatedConst(associated) => Some(associated.ty),
+            Self::Variant(_) => None,
+            Self::CallSignature(signature)
+            | Self::ConstructSignature(signature)
+            | Self::IndexSignature(signature) => Some(signature.ty),
+        }
+    }
+
+    /// Return the committed member value when the member carries one.
+    pub fn value(&self) -> Option<GlobalStaticId> {
+        match self {
+            Self::AssociatedConst(associated) => associated.value,
+            Self::Variant(variant) => variant.value,
+            _ => None,
+        }
+    }
+}
+
+impl Definition {
+    /// Return the members in declaration order.
+    pub fn members(&self) -> &[DefinitionMember] {
+        match self {
+            Self::Struct(definition) => &definition.members,
+            Self::Class(definition) => &definition.members,
+            Self::Interface(definition) => &definition.members,
+            Self::Enum(definition) => &definition.members,
+            Self::Extension(extension) => &extension.members,
+            Self::TypeAlias(_) | Self::Newtype(_) => &[],
+        }
+    }
+
+    /// Iterate members in one member space.
+    pub fn members_in(&self, space: MemberSpace) -> impl Iterator<Item = &DefinitionMember> + '_ {
+        self.members()
+            .iter()
+            .filter(move |member| member.space() == space)
+    }
+
+    /// Iterate members with one key in one member space.
+    pub fn members_with_key(
+        &self,
+        space: MemberSpace,
+        key: StaticKey,
+    ) -> impl Iterator<Item = &DefinitionMember> + '_ {
+        self.members_in(space)
+            .filter(move |member| member.key() == Some(key))
+    }
+
+    /// Return the heritage clauses this definition relates to.
+    pub fn heritages(&self) -> SmallVec<[&NominalHeritage; 2]> {
+        match self {
+            Self::Struct(definition) => definition.implements.iter().collect(),
+            Self::Class(definition) => definition
+                .extends
+                .iter()
+                .chain(definition.implements.iter())
+                .collect(),
+            Self::Interface(definition) => definition.extends.iter().collect(),
+            Self::Enum(definition) => definition.implements.iter().collect(),
+            Self::Extension(extension) => extension.implements.iter().collect(),
+            Self::TypeAlias(_) | Self::Newtype(_) => SmallVec::new(),
+        }
+    }
 }
