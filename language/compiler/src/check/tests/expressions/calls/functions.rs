@@ -115,3 +115,42 @@ use(source);
 "#,
     );
 }
+
+#[test]
+fn test_callback_can_ignore_contextual_parameter() {
+    let session = TestSession::single(
+        r#"
+declare function map<T>(callback: (value: unknown) => T): T;
+
+const value = map(() => 1);
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+declare function map<T>(callback: (value: unknown) => T): T;
+/// @generic.template source=declaration parameters=[T]
+/// @type.symbol symbol=map source="declare function map<T>(callback: (value: unknown) => T): T" type=<T>((unknown) => T) => T
+/// @type.symbol symbol=map.T source=T type=T
+/// @type.symbol symbol=callback source="callback: (value: unknown) => T" type=(unknown) => T
+/// @type.symbol symbol=value#1 source="value: unknown" type=unknown
+/// @resolution.name source=T target=map.T
+/// @resolution.name source=T target=map.T
+
+const value = map(() => 1);
+/// @type.symbol symbol=value#2 source=value type=1
+/// @generic.instance source="map(() => 1)" id=map<1>
+/// @type.node source="map(() => 1)" type=1
+/// @type.node source=map type=<T>((unknown) => T) => T
+/// @resolution.name source=map target=map
+/// @resolution.call source="map(() => 1)" parameters=((unknown) => 1) return=1 kind=symbol target=map instance=map<1>
+/// @type.symbol symbol=symbol5 source="() => 1" type=() => 1
+/// @type.node source="() => 1" type=() => 1
+/// @type.node source=1 type=1
+
+/// @generic.instance id=map<1> template=map arguments=[1]
+"#,
+    );
+}
