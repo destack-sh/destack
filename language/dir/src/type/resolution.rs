@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Access, BinaryOperator, GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId,
-    LocalGenericInstanceId, RangeEnd, StaticKey, UnaryOperator,
+    Access, BinaryOperator, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, RangeEnd, ScalarLiteral,
+    StaticKey, UnaryOperator,
 };
 
 /// Receiver selected by contextual lookup, such as `this` or `super`.
@@ -222,8 +222,8 @@ pub struct MemberCandidate {
     pub receiver: GlobalTypeId,
     /// The selected member symbol.
     pub symbol: GlobalSymbolId,
-    /// The generic instance of the member symbol, if statically applied.
-    pub instance: Option<LocalGenericInstanceId>,
+    /// The generic arguments of the member symbol, empty when not statically applied.
+    pub arguments: Vec<GlobalTypeId>,
 }
 
 /// Callable selected at a call site.
@@ -282,8 +282,8 @@ pub enum CallTarget {
     /// callback(value)
     /// ```
     Expression {
-        /// The generic instance of the callable value, if statically applied.
-        instance: Option<LocalGenericInstanceId>,
+        /// The generic arguments of the callable value, empty when not statically applied.
+        arguments: Vec<GlobalTypeId>,
     },
     /// Exactly one symbol-backed callable selected at compile time.
     ///
@@ -348,8 +348,8 @@ pub struct CallCandidate {
     pub receiver: Option<GlobalTypeId>,
     /// The selected callable symbol.
     pub symbol: GlobalSymbolId,
-    /// The generic instance of the callable symbol, if statically applied.
-    pub instance: Option<LocalGenericInstanceId>,
+    /// The generic arguments of the callable symbol, empty when not statically applied.
+    pub arguments: Vec<GlobalTypeId>,
 }
 
 /// Construct expression selected at a usage site.
@@ -433,8 +433,8 @@ pub struct ClassConstructCandidate {
     pub symbol: GlobalSymbolId,
     /// The selected explicit constructor symbol, when declared.
     pub constructor: Option<GlobalSymbolId>,
-    /// The generic instance of the class symbol, if statically applied.
-    pub instance: Option<LocalGenericInstanceId>,
+    /// The generic arguments of the class symbol, empty when not statically applied.
+    pub arguments: Vec<GlobalTypeId>,
 }
 
 /// One newtype construction candidate after overload selection.
@@ -447,8 +447,8 @@ pub struct ClassConstructCandidate {
 pub struct NewtypeConstructCandidate {
     /// The selected newtype symbol.
     pub symbol: GlobalSymbolId,
-    /// The generic instance of the newtype symbol, if statically applied.
-    pub instance: Option<LocalGenericInstanceId>,
+    /// The generic arguments of the newtype symbol, empty when not statically applied.
+    pub arguments: Vec<GlobalTypeId>,
 }
 
 /// Pattern meaning selected during checking.
@@ -494,21 +494,21 @@ pub struct PatternBindingResolution {
 }
 
 /// Static literal selected by one pattern.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PatternLiteralResolution {
-    /// The committed static literal value.
-    pub value: GlobalStaticId,
+    /// The committed literal value.
+    pub value: ScalarLiteral,
 }
 
 /// Scalar range selected by one pattern.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PatternRangeResolution {
     /// The scalar domain constrained by the range.
     pub domain: GlobalTypeId,
     /// The optional committed lower bound.
-    pub start: Option<GlobalStaticId>,
+    pub start: Option<ScalarLiteral>,
     /// The optional committed upper bound.
-    pub end: Option<GlobalStaticId>,
+    pub end: Option<ScalarLiteral>,
     /// Whether the upper bound is inclusive.
     pub end_bound: RangeEnd,
 }
@@ -541,8 +541,8 @@ pub enum PatternSequenceResolution {
     FixedArray {
         /// The fixed element fields.
         fields: Vec<PatternFieldResolution>,
-        /// The committed array length.
-        length: GlobalStaticId,
+        /// The committed array length singleton.
+        length: GlobalTypeId,
     },
 }
 
@@ -558,8 +558,8 @@ pub struct PatternShapeResolution {
 pub struct PatternNominalResolution {
     /// The selected nominal symbol.
     pub symbol: GlobalSymbolId,
-    /// The generic instance of the nominal symbol, if statically applied.
-    pub instance: Option<LocalGenericInstanceId>,
+    /// The generic arguments of the nominal symbol, empty when not statically applied.
+    pub arguments: Vec<GlobalTypeId>,
     /// The nominal field mapping in source order.
     pub fields: Vec<PatternFieldResolution>,
 }
@@ -569,8 +569,8 @@ pub struct PatternNominalResolution {
 pub struct PatternNewtypeResolution {
     /// The selected newtype symbol.
     pub symbol: GlobalSymbolId,
-    /// The generic instance of the newtype symbol, if statically applied.
-    pub instance: Option<LocalGenericInstanceId>,
+    /// The generic arguments of the newtype symbol, empty when not statically applied.
+    pub arguments: Vec<GlobalTypeId>,
     /// The wrapped value pattern.
     pub value: Option<GlobalNodeIdAny>,
 }
@@ -580,10 +580,10 @@ pub struct PatternNewtypeResolution {
 pub struct PatternVariantResolution {
     /// The selected variant symbol.
     pub symbol: GlobalSymbolId,
-    /// The generic instance of the variant symbol, if statically applied.
-    pub instance: Option<LocalGenericInstanceId>,
-    /// The static discriminant value, when one is materialized.
-    pub discriminant: Option<GlobalStaticId>,
+    /// The generic arguments of the variant symbol, empty when not statically applied.
+    pub arguments: Vec<GlobalTypeId>,
+    /// The discriminant value, when one is materialized.
+    pub discriminant: Option<ScalarLiteral>,
     /// The variant field mapping in source order.
     pub fields: Vec<PatternFieldResolution>,
 }

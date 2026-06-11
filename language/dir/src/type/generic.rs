@@ -1,12 +1,7 @@
-use std::fmt::Display;
-
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId, StaticArgument, StringId,
-    VarianceModifier,
-};
+use crate::{GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, StringId, VarianceModifier};
 
 /// Unique identifier for generic templates.
 #[repr(transparent)]
@@ -108,62 +103,6 @@ impl From<GlobalGenericParameterId> for LocalGenericParameterId {
     }
 }
 
-/// Unique identifier for generic instances.
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct LocalGenericInstanceId(pub u32);
-
-impl LocalGenericInstanceId {
-    /// Wrap an id as a local generic instance id.
-    pub fn new(id: u32) -> Self {
-        Self(id)
-    }
-
-    /// Turn into a global generic instance id.
-    pub fn into_global(self, module_id: ModuleId) -> GlobalGenericInstanceId {
-        GlobalGenericInstanceId {
-            module_id,
-            local_id: self,
-        }
-    }
-}
-
-/// Global generic instance id across modules.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct GlobalGenericInstanceId {
-    /// The module id of the global generic instance.
-    pub module_id: ModuleId,
-    /// The local generic instance id.
-    pub local_id: LocalGenericInstanceId,
-}
-
-impl GlobalGenericInstanceId {
-    /// Create a new global generic instance id.
-    pub fn new(module_id: ModuleId, local_id: LocalGenericInstanceId) -> Self {
-        Self {
-            module_id,
-            local_id,
-        }
-    }
-
-    /// Turn into a local generic instance id.
-    pub fn into_local(self) -> LocalGenericInstanceId {
-        self.local_id
-    }
-}
-
-impl From<GlobalGenericInstanceId> for LocalGenericInstanceId {
-    fn from(id: GlobalGenericInstanceId) -> Self {
-        id.local_id
-    }
-}
-
-impl Display for LocalGenericInstanceId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{}", self.0)
-    }
-}
-
 /// Source that introduced one generic parameter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum GenericParameterOrigin {
@@ -219,112 +158,21 @@ impl GenericTemplate {
 
 /// One declaration-side generic parameter.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum GenericParameterBinding {
-    /// Type generic parameter.
-    Type {
-        /// The generic template that owns this parameter.
-        template: LocalGenericTemplateId,
-        /// The parameter key.
-        key: GenericParameterKey,
-        /// The parameter variance.
-        variance: Option<VarianceModifier>,
-        /// The optional type constraint.
-        constraint: Option<GlobalTypeId>,
-        /// The optional type default.
-        default: Option<GlobalTypeId>,
-        /// The parameter origin.
-        origin: GenericParameterOrigin,
-    },
-    /// Variadic type generic parameter.
-    VariadicType {
-        /// The generic template that owns this parameter.
-        template: LocalGenericTemplateId,
-        /// The parameter key.
-        key: GenericParameterKey,
-        /// The parameter variance.
-        variance: Option<VarianceModifier>,
-        /// The optional type constraint.
-        constraint: Option<GlobalTypeId>,
-        /// The optional type default.
-        default: Option<GlobalTypeId>,
-        /// The parameter origin.
-        origin: GenericParameterOrigin,
-    },
-    /// Static generic parameter.
-    Static {
-        /// The generic template that owns this parameter.
-        template: LocalGenericTemplateId,
-        /// The parameter key.
-        key: GenericParameterKey,
-        /// The optional static value type constraint.
-        constraint: Option<GlobalTypeId>,
-        /// The optional static default.
-        default: Option<GlobalStaticId>,
-        /// The parameter origin.
-        origin: GenericParameterOrigin,
-    },
-    /// Variadic static generic parameter.
-    VariadicStatic {
-        /// The generic template that owns this parameter.
-        template: LocalGenericTemplateId,
-        /// The parameter key.
-        key: GenericParameterKey,
-        /// The optional static value type constraint.
-        constraint: Option<GlobalTypeId>,
-        /// The optional static default.
-        default: Option<GlobalStaticId>,
-        /// The parameter origin.
-        origin: GenericParameterOrigin,
-    },
-}
-
-impl GenericParameterBinding {
-    /// Return the owner generic template.
-    pub fn template(&self) -> LocalGenericTemplateId {
-        match self {
-            Self::Type { template, .. }
-            | Self::VariadicType { template, .. }
-            | Self::Static { template, .. }
-            | Self::VariadicStatic { template, .. } => *template,
-        }
-    }
-
-    /// Return the parameter key.
-    pub fn key(&self) -> GenericParameterKey {
-        match self {
-            Self::Type { key, .. }
-            | Self::VariadicType { key, .. }
-            | Self::Static { key, .. }
-            | Self::VariadicStatic { key, .. } => *key,
-        }
-    }
-
-    /// Return the parameter origin.
-    pub fn origin(&self) -> GenericParameterOrigin {
-        match self {
-            Self::Type { origin, .. }
-            | Self::VariadicType { origin, .. }
-            | Self::Static { origin, .. }
-            | Self::VariadicStatic { origin, .. } => *origin,
-        }
-    }
-}
-
-/// One concrete instance of static arguments to a generic template.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct GenericInstance {
-    /// The generic template being applied.
-    pub template: GlobalGenericTemplateId,
-    /// The static arguments in declaration order.
-    pub arguments: Vec<StaticArgument>,
-}
-
-impl GenericInstance {
-    /// Create a generic instance.
-    pub fn new(template: GlobalGenericTemplateId, arguments: Vec<StaticArgument>) -> Self {
-        Self {
-            template,
-            arguments,
-        }
-    }
+pub struct GenericParameterBinding {
+    /// The generic template that owns this parameter.
+    pub template: LocalGenericTemplateId,
+    /// The parameter key.
+    pub key: GenericParameterKey,
+    /// The parameter variance, rejected on comptime parameters.
+    pub variance: Option<VarianceModifier>,
+    /// The optional constraint.
+    pub constraint: Option<GlobalTypeId>,
+    /// The optional default.
+    pub default: Option<GlobalTypeId>,
+    /// The parameter origin.
+    pub origin: GenericParameterOrigin,
+    /// Whether the parameter captures remaining arguments.
+    pub is_variadic: bool,
+    /// Whether arguments must solve to singleton types.
+    pub is_comptime: bool,
 }

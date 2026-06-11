@@ -915,9 +915,9 @@ const rectangle = Rectangle {
 };
 ```
 
-Transparent types - type aliases - conditionally induce generic only in constraint positions (like a function parameter) but require a concrete type in storage positions (like a field in an aggregate).
+Transparent types - type aliases - induce a generic in constraint positions (like a function parameter) but are encoded directly in storage positions (like a field in an aggregate).
 This is primarily such that the common pattern of `class Player { status: "running" | "walking" | "idle" }` (which is really just a type alias) works as expected without any additional confusing generics.
-Unlike transparent type aliases, interfaces always induce a generic in constraint positions (even as both behave like structural types in general):
+Unlike transparent type aliases, interfaces also induce a generic in storage positions (even as both behave like structural types in general):
 
 ```ds
 interface PointLike {
@@ -944,7 +944,7 @@ struct Rectangle<TStart: PointLike, TEnd: PointLike> {
 }
 ```
 
-Anonymous constraint expressions, like those with methods, require a specific type to be filled in at usage sites and thus induce a generic:
+Anonymous constraint expressions require a specific type to be filled in at usage sites and thus induce a generic:
 
 ```ds
 newtype interface Writer {
