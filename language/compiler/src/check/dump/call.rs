@@ -1,22 +1,14 @@
 use crate::check::{
-    CallCallee, CallTerm, ConstructTerm, Dump, DumpContext, MemberCallTerm, MemberProjectionOrigin,
-    MemberReceiver,
+    CallArgument, CallCallee, CallTerm, ConstructTerm, Dump, DumpContext, MemberCallTerm,
+    MemberProjectionOrigin, MemberReceiver,
 };
 
 use super::argument::dump_arguments;
 use super::format::{dump_list, dump_record};
-use super::operand::dump_type_operands;
 
 impl Dump for CallTerm {
     /// Render one call term.
     fn dump(&self, context: &DumpContext<'_, '_>) -> String {
-        let arguments = self
-            .arguments
-            .iter()
-            .map(|value| context.node_label(value.clone().into()))
-            .collect::<Vec<_>>()
-            .join(",");
-
         dump_record(
             "CallTerm",
             [
@@ -26,11 +18,21 @@ impl Dump for CallTerm {
                     "generic_arguments",
                     dump_arguments(&self.generic_arguments, context),
                 ),
-                ("arguments", dump_list(arguments)),
-                (
-                    "argument_types",
-                    dump_type_operands(&self.argument_types, context),
-                ),
+                ("arguments", dump_call_arguments(&self.arguments, context)),
+            ],
+        )
+    }
+}
+
+impl Dump for CallArgument {
+    /// Render one call argument.
+    fn dump(&self, context: &DumpContext<'_, '_>) -> String {
+        dump_record(
+            "CallArgument",
+            [
+                ("source", context.node_label(self.source)),
+                ("ty", self.ty.dump(context)),
+                ("is_spread", self.is_spread.to_string()),
             ],
         )
     }
@@ -119,13 +121,6 @@ impl Dump for MemberProjectionOrigin {
 impl Dump for ConstructTerm {
     /// Render one construct term.
     fn dump(&self, context: &DumpContext<'_, '_>) -> String {
-        let arguments = self
-            .arguments
-            .iter()
-            .map(|value| context.node_label(value.clone().into()))
-            .collect::<Vec<_>>()
-            .join(",");
-
         dump_record(
             "ConstructTerm",
             [
@@ -135,12 +130,19 @@ impl Dump for ConstructTerm {
                     "generic_arguments",
                     dump_arguments(&self.generic_arguments, context),
                 ),
-                ("arguments", dump_list(arguments)),
-                (
-                    "argument_types",
-                    dump_type_operands(&self.argument_types, context),
-                ),
+                ("arguments", dump_call_arguments(&self.arguments, context)),
             ],
         )
     }
+}
+
+/// Render call arguments.
+fn dump_call_arguments(arguments: &[CallArgument], context: &DumpContext<'_, '_>) -> String {
+    let arguments = arguments
+        .iter()
+        .map(|argument| argument.dump(context))
+        .collect::<Vec<_>>()
+        .join(",");
+
+    dump_list(arguments)
 }

@@ -2,9 +2,9 @@ use destack_dir as dir;
 
 use crate::check::{
     AwaitTerm, Dump, DumpContext, IdentityTerm, ImportMetaTerm, IndexKind, IndexSetTerm, IndexTerm,
-    InstanceCheckTerm, KeyMembershipTerm, OperatorTerm, OperatorTermKind, RangeValueTerm,
-    ReceiverTerm, SuperTerm, TaggedTemplateTerm, TemplateTerm, TreeTerm, TryFailureTerm, TryTerm,
-    TryTermKind, TypeTerm, TypeValueTerm, YieldTerm,
+    InstanceCheckTerm, KeyMembershipTerm, OperatorTerm, OperatorTermKind, RangeTerm, ReceiverTerm,
+    SuperTerm, TaggedTemplateTerm, TemplateTerm, TreeTerm, TryFailureTerm, TryTerm, TryTermKind,
+    TypeTerm, TypeValueTerm, YieldTerm,
 };
 
 use super::argument::dump_arguments;
@@ -93,7 +93,7 @@ impl Dump for TypeTerm {
                 dump_record(
                     "TypeTerm.Member",
                     [
-                        ("owner", member.owner.dump(context)),
+                        ("receiver", member.receiver.dump(context)),
                         ("key", key),
                         ("arguments", arguments),
                     ],
@@ -248,7 +248,7 @@ impl Dump for TypeTerm {
     }
 }
 
-impl Dump for RangeValueTerm {
+impl Dump for RangeTerm {
     /// Render one runtime range value term.
     fn dump(&self, context: &DumpContext<'_, '_>) -> String {
         dump_record(

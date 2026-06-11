@@ -23,6 +23,9 @@ impl Dump for Dependency {
                     ],
                 )
             }
+            Self::Bounds(variable) => {
+                dump_record("Dependency.Bounds", [("value", variable.dump(context))])
+            }
             Self::Variable(variable) => {
                 let solution = context.check.variable_solution(*variable);
                 let state = if solution.is_some() { "solved" } else { "open" };

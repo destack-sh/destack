@@ -25,8 +25,8 @@ impl Dump for PatternSource {
     fn dump(&self, context: &DumpContext<'_, '_>) -> String {
         match self {
             Self::Node(node) => dump_record("PatternSource.Node", [("value", node.dump(context))]),
-            Self::Synthetic(origin) => dump_record(
-                "PatternSource.Synthetic",
+            Self::Generated(origin) => dump_record(
+                "PatternSource.Generated",
                 [("origin", origin.dump(context))],
             ),
         }
