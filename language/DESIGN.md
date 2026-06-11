@@ -1413,6 +1413,8 @@ let status = outer: loop {
 status satisfies "done";
 ```
 
+The `break` operand still follows TypeScript's label rule, of course: a lone identifier is still a label.
+
 ### Using
 
 Resource management with `using` and `await using` follows the [TC39 explicit resource management proposal](https://github.com/tc39/proposal-explicit-resource-management), but of course with nominal interfaces instead of magic `Symbol` keys:
@@ -1866,6 +1868,9 @@ Postfix `!` is the "must" forced unwrap form: it opens the same outer nullish an
 const config = loadConfig()!;
 config satisfies Config;
 ```
+
+Regarding precedence, whitespace decides between the try operator and a ternary, which should mostly follow how we would naturally type (and format) these expressions anyway: an attached question mark is try-propagation, a detached one is a ternary condition.
+This keeps the branches unambiguous in both directions: `flag ? -x : x` is a conditional, and `x? - 1` subtracts from the opened success value (so a compact ternary requires its spaces in `.ds`).
 
 #### Try
 
