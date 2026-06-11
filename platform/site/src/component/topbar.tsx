@@ -1,12 +1,16 @@
 import { A } from "@solidjs/router";
+import { createSignal, onCleanup } from "solid-js";
 
 import { Icon } from "./icon";
 import { ThemeToggle } from "./theme";
 
+const copiedFeedbackMs = 2000;
+const installCommand = "curl -fsSL https://destack.sh/install | sh";
+
 const communityLinks = [
     ["blog", "/blog/"],
     ["discord", "https://discord.gg/xUFQ45TWYd"],
-    ["twitter", "https://twitter.com/destack"],
+    ["x", "https://x.com/destack"],
     ["github", "https://github.com/destack-sh/destack"],
 ] as const;
 
@@ -19,9 +23,7 @@ export function TopBar() {
                     <span>destack</span>
                 </A>
 
-                <p class="hidden min-w-0 truncate text-sm font-extrabold lowercase md:block">
-                    program the universe
-                </p>
+                <InstallCommand />
 
                 <nav class="flex shrink-0 items-center justify-end gap-1 text-xs font-extrabold lowercase sm:gap-2 sm:text-sm">
                     {communityLinks.map(([label, href], index) => (
@@ -43,6 +45,36 @@ export function TopBar() {
                 </nav>
             </div>
         </header>
+    );
+}
+
+function InstallCommand() {
+    const [isCopied, setIsCopied] = createSignal(false);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const copy = async () => {
+        await navigator.clipboard.writeText(installCommand);
+
+        clearTimeout(timer);
+        setIsCopied(true);
+        timer = setTimeout(() => setIsCopied(false), copiedFeedbackMs);
+    };
+
+    onCleanup(() => clearTimeout(timer));
+
+    return (
+        <button
+            aria-label="copy install command"
+            class="group hidden min-w-0 items-baseline gap-2 text-xs font-extrabold whitespace-nowrap md:flex"
+            onClick={copy}
+            type="button"
+        >
+            <span class="text-destack-accent">$</span>
+            <code class="min-w-0 truncate">{installCommand}</code>
+            <span class="w-[6ch] text-left text-destack-cream/50 lowercase group-hover:text-destack-accent">
+                {isCopied() ? "copied" : "copy"}
+            </span>
+        </button>
     );
 }
 
