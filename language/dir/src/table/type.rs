@@ -431,6 +431,13 @@ impl TypeSegment {
         self.first_type_id + self.types.len() as u32
     }
 
+    /// Drop the youngest types down to one count.
+    pub fn truncate_types(&mut self, count: u32) {
+        let keep = count.saturating_sub(self.first_type_id) as usize;
+        self.types.truncate(keep);
+        self.sources.truncate(keep);
+    }
+
     /// Return the number of entries in this table.
     pub fn len(&self) -> u32 {
         self.type_count()

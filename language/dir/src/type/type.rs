@@ -88,7 +88,7 @@ pub struct DynamicType {
 }
 
 /// Canonical memory or access form.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FormType {
     /// The form constructor.
     pub form: Form,
