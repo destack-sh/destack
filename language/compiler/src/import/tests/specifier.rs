@@ -2,7 +2,7 @@ use crate::tests::{DirRows, TestSession};
 
 #[test]
 fn test_import_resolves_builtin_package_export() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -26,7 +26,7 @@ import { Math } from "destack:math";
 
 #[test]
 fn test_import_reports_builtin_internal_subpath() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -46,7 +46,7 @@ import { HostError } from "destack:error/host";
 
 #[test]
 fn test_import_reports_private_specifier() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r##"
@@ -66,7 +66,7 @@ import { value } from "#internal";
 
 #[test]
 fn test_import_reports_absolute_specifier() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -92,7 +92,7 @@ export let value = 1;
 
 #[test]
 fn test_import_reports_scheme_specifier() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -112,7 +112,7 @@ import { value } from "host:runtime";
 
 #[test]
 fn test_import_reports_local_query_specifier() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -138,7 +138,7 @@ export let value = 1;
 
 #[test]
 fn test_import_reports_conditional_file_specifier() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"

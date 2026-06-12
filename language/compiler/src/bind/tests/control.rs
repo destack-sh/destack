@@ -2,7 +2,7 @@ use crate::tests::{DirRows, TestSession};
 
 #[test]
 fn test_bind_loop_and_if_let_scopes() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -58,7 +58,7 @@ let output: number = if (let Some(value) = maybe) {
 
 #[test]
 fn test_bind_redeclaration_cursors() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -103,7 +103,7 @@ let x: number = x;
 
 #[test]
 fn test_bind_declaration_context_stays_on_declared_pattern() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"

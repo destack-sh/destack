@@ -2,7 +2,7 @@ use crate::tests::{DirRows, TestSession};
 
 #[test]
 fn test_import_records_local_import_edge() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -32,7 +32,7 @@ import { Foo } from "./dep.ds";
 
 #[test]
 fn test_import_records_side_effect_edge() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -62,7 +62,7 @@ import "./dep.ds";
 
 #[test]
 fn test_import_resolves_extensionless_source_path() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -92,7 +92,7 @@ import { Foo } from "./dep";
 
 #[test]
 fn test_import_resolves_relative_parent_path() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "src/main.ds",
             r#"
@@ -122,7 +122,7 @@ import { Foo } from "../dep.ds";
 
 #[test]
 fn test_import_renders_multi_module_snapshot() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -159,7 +159,7 @@ export type Foo = string;
 
 #[test]
 fn test_import_reports_missing_local_module() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -179,7 +179,7 @@ import { Missing } from "./missing.ds";
 
 #[test]
 fn test_import_reports_ambiguous_extensionless_specifier() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -211,7 +211,7 @@ export let value = 2;
 
 #[test]
 fn test_import_reports_cross_package_relative_specifier() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"

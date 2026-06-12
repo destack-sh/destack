@@ -10,7 +10,7 @@ fn test_resolve_stats_dedupe_repeated_global_references() {
         .map(|index| format!("const value{index} = answer;"))
         .collect::<Vec<_>>()
         .join("\n");
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -61,7 +61,7 @@ fn test_resolve_stats_cache_repeated_export_lookups() {
         .collect::<Vec<_>>()
         .join(", ");
     let source = format!("import {{ {imports} }} from \"./dep\";");
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module("main.ds", &source)
         .module("dep.ds", "export const target = 1;")
         .build();
@@ -100,7 +100,7 @@ fn test_resolve_stats_load_export_table_once_for_distinct_imports() {
         .collect::<Vec<_>>()
         .join("\n");
     let source = format!("import {{ {imports} }} from \"./dep\";");
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module("main.ds", &source)
         .module("dep.ds", &exports)
         .build();
@@ -137,7 +137,7 @@ fn test_resolve_stats_cache_repeated_namespace_paths() {
         "import * as dep from \"./dep\";\n\
 {references}"
     );
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module("main.ds", &source)
         .module("dep.ds", "export const target = 1;")
         .build();
@@ -177,7 +177,7 @@ fn test_resolve_stats_cache_repeated_nested_namespace_paths() {
         "import * as dep from \"./dep\";\n\
 {references}"
     );
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module("main.ds", &source)
         .module("dep.ds", "export * as api from \"./api\";")
         .module("api.ds", "export const target = 1;")

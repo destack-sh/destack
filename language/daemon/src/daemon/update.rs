@@ -222,13 +222,13 @@ impl Workspace {
                     })?;
             }
             session::Edit::Remove { path } => {
-                if let Err(error) = self.repository.file_system().remove_file(path) {
-                    if error.kind() != io::ErrorKind::NotFound {
-                        return Err(DaemonError::FileWrite {
-                            path: path.to_path_buf(),
-                            error,
-                        });
-                    }
+                if let Err(error) = self.repository.file_system().remove_file(path)
+                    && error.kind() != io::ErrorKind::NotFound
+                {
+                    return Err(DaemonError::FileWrite {
+                        path: path.to_path_buf(),
+                        error,
+                    });
                 }
             }
             session::Edit::EditText { .. } => {

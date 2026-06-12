@@ -2,7 +2,7 @@ use crate::tests::{DirRows, TestSession};
 
 #[test]
 fn test_bind_module_scope_surface() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -104,7 +104,7 @@ type Pick<T> = {
 
 #[test]
 fn test_bind_module_directive_namespace() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"

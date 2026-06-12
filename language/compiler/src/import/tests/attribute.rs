@@ -2,7 +2,7 @@ use crate::tests::{DirRows, TestSession};
 
 #[test]
 fn test_import_records_loader_attribute() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -34,7 +34,7 @@ import data from "./data.json" with { type: "json" };
 
 #[test]
 fn test_import_applies_loader_extension() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -66,7 +66,7 @@ import data from "./data" with { type: "json" };
 
 #[test]
 fn test_import_reports_invalid_loader_attribute() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -94,7 +94,7 @@ import data from "./data.json" with { type: true };
 
 #[test]
 fn test_import_reports_unknown_loader_attribute() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"

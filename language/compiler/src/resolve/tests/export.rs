@@ -2,7 +2,7 @@ use crate::tests::{DirRows, TestSession};
 
 #[test]
 fn test_resolve_follows_indirect_reexport_target() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -38,7 +38,7 @@ import { renamed } from "./mid.ds";
 
 #[test]
 fn test_resolve_follows_default_reexport_target() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -75,7 +75,7 @@ import { renamed } from "./mid.ds";
 
 #[test]
 fn test_resolve_follows_star_reexport_target() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -111,7 +111,7 @@ import { value } from "./mid.ds";
 
 #[test]
 fn test_resolve_prefers_explicit_export_over_star_export() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -154,7 +154,7 @@ import { value } from "./mid.ds";
 
 #[test]
 fn test_resolve_follows_star_reexport_cycle_when_target_is_found() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -197,7 +197,7 @@ import { value } from "./a.ds";
 
 #[test]
 fn test_resolve_reports_missing_star_reexport_cycle_target() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -228,7 +228,7 @@ export * from "./a.ds";
 
 #[test]
 fn test_resolve_reports_missing_reexport_target() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"

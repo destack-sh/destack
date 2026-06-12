@@ -126,7 +126,7 @@ impl ProviderTrace {
 
         // order kinds by their total time
         let mut rows = rows.into_iter().collect::<Vec<_>>();
-        rows.sort_by(|left, right| right.1.0.cmp(&left.1.0));
+        rows.sort_by_key(|(_, totals)| std::cmp::Reverse(totals.0));
 
         let mut output = String::new();
         output.push_str("artifact                    outcome     total      count        max\n");

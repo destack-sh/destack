@@ -2,7 +2,7 @@ use crate::tests::{DirRows, TestSession};
 
 #[test]
 fn test_export_records_indirect_binding() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -37,7 +37,7 @@ export { Foo as Bar } from "./dep.ds";
 
 #[test]
 fn test_export_records_default_indirect_aliases() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"

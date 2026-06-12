@@ -2,7 +2,7 @@ use crate::tests::{DirRows, TestSession};
 
 #[test]
 fn test_import_records_reexport_edge() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -32,7 +32,7 @@ export { Foo as Bar } from "./dep.ds";
 
 #[test]
 fn test_import_records_reexport_loader_attribute() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
