@@ -1,5 +1,5 @@
 use crate::parse::{DeclarationHeader, PendingDecorators, is_declaration_keyword};
-use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
+use crate::{Parser, ParserCheckpoint, ParserError, ParserResult, ParserSpanStart};
 use destack_dir::{
     Asynchrony, Declaration, DependencyBinding, DependencyForm, DependencyItem, EnumKind,
     ExportKind, Expression, Keyword, LocalNodeId, TokenType, TypeKind,
@@ -108,7 +108,7 @@ impl Parser {
         // const enum declarations
         else if keyword == Keyword::Const
             && self.next_keyword() == Some(Keyword::Enum)
-            && !self.next_token().token.is_on_new_line()
+            && !self.next_token().is_on_new_line()
         {
             self.eat_keyword(Keyword::Const)?;
             let declaration = self.eat_enum(start, EnumKind::Const, header)?;
@@ -152,11 +152,7 @@ impl Parser {
         else if matches!(
             keyword,
             Keyword::Type | Keyword::Newtype | Keyword::Readonly
-        ) && !self.next_token().token.is_on_new_line()
-            && self.lookahead(|parser| {
-                parser.bump();
-                parser.identifier_starts_type_alias()
-            })
+        ) && self.type_keyword_starts_alias_declaration()
         {
             let keyword =
                 self.eat_keyword_in(&[Keyword::Type, Keyword::Readonly, Keyword::Newtype])?;
@@ -175,7 +171,7 @@ impl Parser {
         else if (keyword == Keyword::Async
             || keyword == Keyword::Comptime && self.language.is_destack())
             && self.next_keyword() == Some(Keyword::Function)
-            && !self.next_token().token.is_on_new_line()
+            && !self.next_token().is_on_new_line()
         {
             let declaration = self.eat_function(start, header)?;
 
@@ -203,15 +199,15 @@ impl Parser {
             return self.eat_export().map(Some);
         }
 
-        let checkpoint = self.checkpoint();
-        let mark = self.tree.next_id();
+        let mut checkpoint = (!self.export_prefix_definitely_starts_declaration())
+            .then(|| (self.checkpoint(), self.tree.next_id()));
         let mut header = DeclarationHeader::default();
 
         // export prefix
         match self.eat_export_prefix(&mut header)? {
             ExportPrefix::Declaration => {}
             ExportPrefix::Expression => {
-                self.restore(checkpoint, mark);
+                self.restore_export_checkpoint(checkpoint.take())?;
                 let expression = self.eat_export()?;
 
                 return Ok(Some(expression));
@@ -229,7 +225,7 @@ impl Parser {
 
         // modifier line boundary
         if header.has_modifier() && self.current_token_is_on_new_line() {
-            self.restore(checkpoint, mark);
+            self.restore_export_checkpoint(checkpoint.take())?;
             return Ok(None);
         }
 
@@ -239,7 +235,7 @@ impl Parser {
                 return Ok(Some(expression));
             }
 
-            self.restore(checkpoint, mark);
+            self.restore_export_checkpoint(checkpoint.take())?;
             return Ok(None);
         };
 
@@ -251,9 +247,9 @@ impl Parser {
         // ambient enum split by newline
         if keyword == Keyword::Enum
             && header.declare_span.is_some()
-            && self.token_at_offset(1).token.is_on_new_line()
+            && self.token_at_offset(1).is_on_new_line()
         {
-            self.restore(checkpoint, mark);
+            self.restore_export_checkpoint(checkpoint.take())?;
             return Ok(None);
         }
 
@@ -273,9 +269,23 @@ impl Parser {
             return Ok(Some(expression_id));
         }
 
-        self.restore(checkpoint, mark);
+        self.restore_export_checkpoint(checkpoint.take())?;
 
         Ok(None)
+    }
+
+    /// Restore a speculative export prefix checkpoint.
+    fn restore_export_checkpoint(
+        &mut self,
+        checkpoint: Option<(ParserCheckpoint, u32)>,
+    ) -> ParserResult<()> {
+        let Some((checkpoint, mark)) = checkpoint else {
+            return Err(ParserError::unexpected(self.peek()?.span));
+        };
+
+        self.restore(checkpoint, mark);
+
+        Ok(())
     }
 
     /// Parse an optional export prefix before a declaration.
@@ -326,18 +336,78 @@ impl Parser {
             return false;
         }
 
+        let next_token = self.token_at_offset(1);
         if matches!(
-            self.token_type_at_offset(1),
+            next_token.ty(),
             TokenType::OpenBrace | TokenType::Multiply | TokenType::Assign
         ) {
             return true;
         }
 
-        self.keyword_at_offset(1) == Some(Keyword::Type)
-            && matches!(
-                self.token_type_at_offset(2),
-                TokenType::OpenBrace | TokenType::Multiply | TokenType::End
-            )
+        if next_token.keyword() != Some(Keyword::Type) {
+            return false;
+        }
+
+        let after_type = self.token_at_offset(2);
+
+        matches!(
+            after_type.ty(),
+            TokenType::OpenBrace | TokenType::Multiply | TokenType::End
+        )
+    }
+
+    /// Return whether the current export prefix can only start a declaration.
+    fn export_prefix_definitely_starts_declaration(&mut self) -> bool {
+        if self.current_keyword() != Some(Keyword::Export) {
+            return false;
+        }
+
+        let next_token = self.token_at_offset(1);
+        if next_token.is_on_new_line() {
+            return false;
+        }
+
+        if matches!(
+            next_token.ty(),
+            TokenType::OpenBrace | TokenType::Multiply | TokenType::Assign
+        ) {
+            return false;
+        }
+
+        let next_keyword = next_token.keyword();
+        if next_keyword == Some(Keyword::Default) {
+            let declaration = self.token_at_offset(2);
+            if declaration.is_on_new_line() {
+                return false;
+            }
+
+            return declaration
+                .keyword()
+                .is_some_and(Self::is_direct_export_declaration_keyword);
+        }
+
+        if next_keyword == Some(Keyword::Async) {
+            return self.token_at_offset(2).keyword() == Some(Keyword::Function);
+        }
+
+        next_keyword.is_some_and(Self::is_direct_export_declaration_keyword)
+    }
+
+    /// Return whether one keyword directly starts an exported declaration.
+    fn is_direct_export_declaration_keyword(keyword: Keyword) -> bool {
+        matches!(
+            keyword,
+            Keyword::Struct
+                | Keyword::Class
+                | Keyword::Enum
+                | Keyword::Function
+                | Keyword::Interface
+                | Keyword::Type
+                | Keyword::Newtype
+                | Keyword::Const
+                | Keyword::Let
+                | Keyword::Using
+        )
     }
 
     /// Return whether `export type` starts an export clause.

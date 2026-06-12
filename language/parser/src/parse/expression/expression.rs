@@ -246,22 +246,19 @@ impl Parser {
         }
 
         let next_token = self.next_token();
-        if next_token.token.ty() == TokenType::Spread {
+        if next_token.ty() == TokenType::Spread {
             return true;
         }
 
-        if next_token.token.ty() == TokenType::OpenBracket {
+        if next_token.ty() == TokenType::OpenBracket {
             return self.bracket_key_starts_statement_object();
         }
 
-        if !self.token_can_start_statement_object_key(next_token.token.ty()) {
+        if !self.token_can_start_statement_object_key(next_token.ty()) {
             return false;
         }
 
-        if !self.literal_can_start_statement_object_key(
-            next_token.token.ty(),
-            next_token.token.literal(),
-        ) {
+        if !self.literal_can_start_statement_object_key(next_token.ty(), next_token.literal()) {
             return false;
         }
 
@@ -399,7 +396,7 @@ impl Parser {
     ) -> ParserResult<(destack_core::StringId, Span)> {
         if self.peek_is(TokenType::Literal)
             && matches!(
-                self.current_token().token.literal(),
+                self.current_token().literal(),
                 Some(TokenLiteral::Boolean { .. })
             )
         {
