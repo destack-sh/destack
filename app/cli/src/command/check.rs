@@ -4,11 +4,12 @@ use crate::common::{
     ReportArgs, WatchCompileReason, is_tty, report_error,
 };
 use crate::console;
+use crate::console::{render_stage_summary, render_timeline};
 use crate::error::CliResult;
 use crate::pipeline::daemon::{
     CommandOptionsBuilder, DaemonCommandResult, DiagnosticCommandSummary,
     command_inputs_from_sources, emit_daemon_text_output, finish_diagnostic_command,
-    run_root_command_once,
+    run_root_command_once_with_progress,
 };
 use crate::pipeline::input::{ResolveSourcesError, resolve_sources};
 use crate::pipeline::watch::{
@@ -19,6 +20,7 @@ use destack_daemon::WatchPolicy;
 use destack_daemon::protocol::{
     CommandCheckOptions, CommandLintOptions, CommandPayload, CommonCommandOptions,
 };
+use destack_repository::TraceReport;
 
 /// State for check watch mode.
 struct CheckWatchState {
@@ -128,6 +130,10 @@ pub struct CheckArgs {
     /// Show progress indicator (auto, on, off, detailed).
     #[arg(long, value_enum, default_value = "auto")]
     pub progress: Progress,
+
+    /// Show a detailed per-worker timeline.
+    #[arg(long)]
+    pub timings: bool,
 }
 
 /// Check source files for type errors and lint issues.
@@ -172,12 +178,22 @@ fn run_check_via_daemon(
     };
 
     // execute the daemon command
-    let result = match run_root_command_once(&args.program, common, payload) {
+    let result = match run_root_command_once_with_progress(
+        &args.program,
+        common,
+        payload,
+        context.progress_reporter.as_ref(),
+    ) {
         Ok(result) => result,
         Err(error) => return report_error(command_name, &args.report, &error.to_string()),
     };
 
-    finish_diagnostic_command(
+    let data = result
+        .response
+        .data
+        .as_ref()
+        .and_then(|payload| payload.to_json_value().ok());
+    let exit_code = finish_diagnostic_command(
         command_name,
         &args.report,
         &result,
@@ -185,8 +201,27 @@ fn run_check_via_daemon(
         &context.format_options,
         context.line_writer().as_ref(),
         context.summary(args, &result),
-        None,
-    )
+        data.clone(),
+    );
+
+    // show where the check spent its time in text mode
+    if !args.report.is_json() {
+        let timings = data
+            .as_ref()
+            .and_then(|value| value.get("timings"))
+            .and_then(|value| serde_json::from_value::<TraceReport>(value.clone()).ok());
+        if let Some(report) = timings {
+            println!("{}", render_stage_summary(&report));
+            if args.timings {
+                let timeline = render_timeline(&report);
+                if !timeline.is_empty() {
+                    println!("\n{timeline}");
+                }
+            }
+        }
+    }
+
+    exit_code
 }
 
 /// Run check in watch mode with incremental updates.
@@ -327,7 +362,7 @@ where
 impl CheckExecutionContext {
     /// Build the shared execution context for a check command.
     fn new(args: &CheckArgs) -> Self {
-        let progress_reporter = ProgressReporter::with_label(progress_mode(args), "Checking");
+        let progress_reporter = ProgressReporter::with_label(progress_mode(args), "check");
         let format_options = FormatOptions {
             format: args.format.into(),
             quiet: args.quiet,
@@ -494,6 +529,7 @@ fn build_check_command(
             unsafe_fixes: args.unsafe_fixes,
             diff: args.diff,
         },
+        timings: args.timings,
     });
 
     Ok((common, payload))

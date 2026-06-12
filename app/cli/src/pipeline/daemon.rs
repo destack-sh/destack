@@ -7,8 +7,8 @@ use destack_daemon::protocol::{
     Client, CommandEnvVar, CommandInput, CommandMessagePayload, CommandOutputChunk, CommandPayload,
     CommandRequest, CommandResponse, CommandRunPayload, CommandTargetOverrides,
     CommonCommandOptions, DaemonMessageRecord, DaemonRequest, DaemonResponse, DiagnosticBatch,
-    FileUpdateImage, ManifestOverride, OutputStream, QueryRequestBody, QueryResponseBody,
-    RootHandleId, RootOpenOptions,
+    FileUpdateImage, ManifestOverride, OutputStream, ProgressEvent, QueryRequestBody,
+    QueryResponseBody, RequestOptions, RootHandleId, RootOpenOptions,
 };
 use destack_daemon::{
     CommandRevision, DaemonConnectOptions, DaemonConnection, DaemonEndpoint, DaemonLaunch,
@@ -24,9 +24,9 @@ use crate::common::program::{
 };
 use crate::common::{
     CommandError, CommandReport, DiagnosticFormat, FormatOptions, InputSource, LineWriter,
-    ProgramArgs, ReportArgs, TargetArgs, collect_diagnostics_json, format_diagnostics_with_writer,
-    parse_command_payload, parse_required_command_payload, print_report, report_error,
-    report_from_message_payload, report_from_payload,
+    ProgramArgs, ProgressReporter, ReportArgs, TargetArgs, collect_diagnostics_json,
+    format_diagnostics_with_writer, parse_command_payload, parse_required_command_payload,
+    print_report, report_error, report_from_message_payload, report_from_payload,
 };
 use crate::console;
 use crate::error::{CliError, CliResult};
@@ -432,6 +432,17 @@ impl DaemonClient {
         common: CommonCommandOptions,
         payload: CommandPayload,
     ) -> CliResult<DaemonCommandResult> {
+        self.run_root_command_with_progress(root, common, payload, None)
+    }
+
+    /// Run a command for a root, streaming progress to one reporter.
+    pub fn run_root_command_with_progress(
+        &self,
+        root: &Path,
+        common: CommonCommandOptions,
+        payload: CommandPayload,
+        progress: Option<&ProgressReporter>,
+    ) -> CliResult<DaemonCommandResult> {
         // resolve the root handle
         let handle = self
             .root_handle(root)
@@ -444,9 +455,18 @@ impl DaemonClient {
             common,
             payload,
         };
+        let mut on_progress = |event: ProgressEvent| {
+            if let Some(reporter) = progress {
+                reporter.update_remote(&event.task, event.message.as_deref(), event.done);
+            }
+        };
         let response = self
             .client
-            .send_request(DaemonRequest::Command(Box::new(request)))
+            .send_request_with_progress(
+                DaemonRequest::Command(Box::new(request)),
+                RequestOptions::default(),
+                &mut on_progress,
+            )
             .map_err(|error| CliError::message(format!("command request failed: {error}")))?;
 
         // unwrap the protocol response
@@ -644,10 +664,20 @@ pub fn run_root_command_once(
     common: CommonCommandOptions,
     payload: CommandPayload,
 ) -> CliResult<DaemonCommandResult> {
+    run_root_command_once_with_progress(program, common, payload, None)
+}
+
+/// Run a one-shot daemon command, streaming progress to one reporter.
+pub fn run_root_command_once_with_progress(
+    program: &ProgramArgs,
+    common: CommonCommandOptions,
+    payload: CommandPayload,
+    progress: Option<&ProgressReporter>,
+) -> CliResult<DaemonCommandResult> {
     // prepare the repository for a one-shot run
     let repository = program.setup();
 
-    run_root_command_with_repository(repository, program, common, payload)
+    run_root_command_with_repository_progress(repository, program, common, payload, progress)
 }
 
 /// Run a daemon command using an existing repository.
@@ -656,6 +686,17 @@ pub fn run_root_command_with_repository(
     program: &ProgramArgs,
     common: CommonCommandOptions,
     payload: CommandPayload,
+) -> CliResult<DaemonCommandResult> {
+    run_root_command_with_repository_progress(repository, program, common, payload, None)
+}
+
+/// Run a daemon command using an existing repository, with progress.
+fn run_root_command_with_repository_progress(
+    repository: Arc<Repository>,
+    program: &ProgramArgs,
+    common: CommonCommandOptions,
+    payload: CommandPayload,
+    progress: Option<&ProgressReporter>,
 ) -> CliResult<DaemonCommandResult> {
     // resolve roots for the daemon repository
     let roots = watch_roots(program, &repository);
@@ -666,7 +707,7 @@ pub fn run_root_command_with_repository(
     let daemon = DaemonClient::new(repository.clone(), roots, program)?;
 
     // execute the command and shutdown
-    let result = daemon.run_root_command(&root, common, payload)?;
+    let result = daemon.run_root_command_with_progress(&root, common, payload, progress)?;
     daemon.shutdown();
     Ok(result)
 }
@@ -730,25 +771,42 @@ pub struct DiagnosticCommandSummary<'a> {
 }
 
 /// Print a compact diagnostic command summary.
+/// Clean runs lead with a green check, failing runs with a red cross
+/// and the error count; counts of one drop their noise words.
 fn print_diagnostic_command_summary(
     summary: &DiagnosticCommandSummary<'_>,
     errors: usize,
     warnings: usize,
     line_writer: Option<&LineWriter>,
 ) {
-    let mut parts = vec![
-        format!("{} {}", summary.verb, pluralize(summary.modules, "module")),
-        pluralize(summary.profiles, "profile"),
-    ];
+    let status = if errors > 0 {
+        console::red("✗")
+    } else if warnings > 0 {
+        console::color_for_stream("✓", "33", console::Stream::Stderr)
+    } else {
+        console::green("✓")
+    };
 
-    if summary.targets > 0 {
+    let mut parts = vec![console::bold(&format!(
+        "{} {}",
+        summary.verb.to_lowercase(),
+        pluralize(summary.modules, "module")
+    ))];
+    if summary.targets > 1 {
         parts.push(pluralize(summary.targets, "target"));
     }
+    if errors > 0 {
+        parts.push(console::red(&pluralize(errors, "error")));
+    }
+    if warnings > 0 {
+        parts.push(console::color_for_stream(
+            &pluralize(warnings, "warning"),
+            "33",
+            console::Stream::Stderr,
+        ));
+    }
 
-    parts.push(pluralize(errors, "error"));
-    parts.push(pluralize(warnings, "warning"));
-
-    let line = parts.join(", ");
+    let line = format!("{status} {}", parts.join(" · "));
     if let Some(line_writer) = line_writer {
         line_writer(&line);
     } else {

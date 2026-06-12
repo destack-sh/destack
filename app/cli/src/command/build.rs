@@ -4,6 +4,7 @@ use crate::common::{
     DiagnosticArgs, DiagnosticFormat, FormatOptions, InputArgs, InputSource, ProgramArgs,
     ReportArgs, TargetArgs, WatchCompileReason, report_error,
 };
+use crate::console::{render_stage_summary, render_timeline};
 use crate::error::CliResult;
 use crate::pipeline::daemon::{
     CommandOptionsBuilder, DiagnosticCommandSummary, command_inputs_from_sources,
@@ -18,6 +19,7 @@ use crate::pipeline::watch::{
 use crate::pipeline::workspace::{load_destack_config_for_program, workspace_context};
 use clap::Args;
 use destack_daemon::WatchPolicy;
+use destack_repository::TraceReport;
 
 /// State for build watch mode.
 struct BuildWatchState {
@@ -50,6 +52,10 @@ pub struct BuildArgs {
     /// Show what would be built without compiling.
     #[arg(long)]
     pub dry_run: bool,
+
+    /// Show a detailed per-worker build timeline.
+    #[arg(long)]
+    pub timings: bool,
 }
 
 /// Compile source files and produce output.
@@ -112,7 +118,9 @@ fn run_build_via_daemon(args: &BuildArgs, target_name: &str) -> i32 {
         .target_overrides(target_overrides_from_args(&args.target))
         .dry_run(args.dry_run)
         .build();
-    let payload = CommandPayload::Build(CommandBuildOptions::default());
+    let payload = CommandPayload::Build(CommandBuildOptions {
+        timings: args.timings,
+    });
 
     // execute the daemon command
     let result =
@@ -143,7 +151,7 @@ fn run_build_via_daemon(args: &BuildArgs, target_name: &str) -> i32 {
         format: DiagnosticFormat::Text,
         ..FormatOptions::default()
     };
-    finish_diagnostic_command(
+    let exit_code = finish_diagnostic_command(
         "build",
         &args.report,
         &result,
@@ -156,8 +164,27 @@ fn run_build_via_daemon(args: &BuildArgs, target_name: &str) -> i32 {
             profiles: result.response.profile_count,
             targets: result.response.target_count,
         }),
-        data,
-    )
+        data.clone(),
+    );
+
+    // show where the build spent its time in text mode
+    if !args.report.is_json() {
+        let timings = data
+            .as_ref()
+            .and_then(|value| value.get("timings"))
+            .and_then(|value| serde_json::from_value::<TraceReport>(value.clone()).ok());
+        if let Some(report) = timings {
+            println!("{}", render_stage_summary(&report));
+            if args.timings {
+                let timeline = render_timeline(&report);
+                if !timeline.is_empty() {
+                    println!("\n{timeline}");
+                }
+            }
+        }
+    }
+
+    exit_code
 }
 
 /// Compile source files and produce output in watch mode.
