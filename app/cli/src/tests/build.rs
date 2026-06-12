@@ -18,6 +18,7 @@ fn test_build_dry_run_single_file() {
         diagnostics: DiagnosticArgs::default(),
         report: ReportArgs::default(),
         dry_run: true,
+        timings: false,
     };
 
     // run the build command

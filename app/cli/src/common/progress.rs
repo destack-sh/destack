@@ -207,6 +207,26 @@ impl ProgressReporter {
         })
     }
 
+    /// Update the status line from one remote daemon progress event.
+    pub fn update_remote(&self, task: &str, message: Option<&str>, done: bool) {
+        if done {
+            self.status.disable_steady_tick();
+            self.stop_ticker.store(true, Ordering::Relaxed);
+            return;
+        }
+
+        // remote updates share the ticker line's shape
+        let styled_label = style_label(&self.label);
+        let sep = console::dim(" · ");
+        let mut parts = vec![task.to_string()];
+        if let Some(message) = message {
+            parts.push(message.to_string());
+        }
+        parts.push(console::format_duration(self.started_at.elapsed()));
+        self.status
+            .set_message(format!("{styled_label}{sep}{}", parts.join(&sep)));
+    }
+
     /// Finish the progress display.
     pub fn finish(&self) {
         self.status.finish_and_clear();
@@ -268,9 +288,9 @@ fn update_status(
     let styled_label = style_label(label);
     let message = if let Some(module) = active_module {
         let module_display = console::dim(&module);
-        format!("{styled_label} {status_text} {module_display}")
+        format!("{styled_label}{sep}{status_text} {module_display}")
     } else {
-        format!("{styled_label} {status_text}")
+        format!("{styled_label}{sep}{status_text}")
     };
     status.set_message(message);
 }
