@@ -76,7 +76,7 @@ pub fn resolution_target_symbols(
             dir::MemberTarget::Symbol(candidate) => {
                 push_unique_symbol(&mut symbols, candidate.symbol);
             }
-            dir::MemberTarget::Union(candidates) => {
+            dir::MemberTarget::Overloaded(candidates) | dir::MemberTarget::Union(candidates) => {
                 for candidate in candidates {
                     push_unique_symbol(&mut symbols, candidate.symbol);
                 }
