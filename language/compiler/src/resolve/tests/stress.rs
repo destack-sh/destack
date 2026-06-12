@@ -40,12 +40,10 @@ global {
         "resolve.stats.roots={ITEMS}\n\
 resolve.stats.expressions={}\n\
 resolve.stats.types=0\n\
-resolve.stats.globals=required:1,modules:1\n\
+resolve.stats.globals=required:1\n\
 resolve.stats.lookups.local={ITEMS}\n\
 resolve.stats.lookups.import_items=0\n\
-resolve.stats.lookups.reexport_items=0\n\
-resolve.stats.loads.exports=0\n\
-resolve.stats.loads.globals=1",
+resolve.stats.lookups.reexport_items=0",
         ITEMS * 2
     );
 
@@ -79,8 +77,7 @@ resolve.stats.exports=miss:1,hit:{},cycle:0\n\
 resolve.stats.lookups.local=0\n\
 resolve.stats.lookups.import_items={ITEMS}\n\
 resolve.stats.lookups.reexport_items=0\n\
-resolve.stats.loads.exports=1\n\
-resolve.stats.loads.globals=0",
+resolve.stats.loads.exports=1",
         ITEMS - 1
     );
 
@@ -118,8 +115,7 @@ resolve.stats.exports=miss:{ITEMS},hit:0,cycle:0\n\
 resolve.stats.lookups.local=0\n\
 resolve.stats.lookups.import_items={ITEMS}\n\
 resolve.stats.lookups.reexport_items=0\n\
-resolve.stats.loads.exports=1\n\
-resolve.stats.loads.globals=0",
+resolve.stats.loads.exports=1",
     );
 
     assert_eq!(metadata, expected);
@@ -151,12 +147,12 @@ fn test_resolve_stats_cache_repeated_namespace_paths() {
 resolve.stats.expressions={}\n\
 resolve.stats.types=0\n\
 resolve.stats.clauses=import:1,reexport:0\n\
+resolve.stats.language=required:5\n\
 resolve.stats.exports=miss:1,hit:{},cycle:0\n\
 resolve.stats.lookups.local={ITEMS}\n\
 resolve.stats.lookups.import_items=1\n\
 resolve.stats.lookups.reexport_items=0\n\
-resolve.stats.loads.exports=1\n\
-resolve.stats.loads.globals=0",
+resolve.stats.loads.exports=1",
         ITEMS + 1,
         ITEMS * 2 + 1,
         ITEMS - 1
@@ -192,12 +188,12 @@ fn test_resolve_stats_cache_repeated_nested_namespace_paths() {
 resolve.stats.expressions={}\n\
 resolve.stats.types=0\n\
 resolve.stats.clauses=import:1,reexport:0\n\
+resolve.stats.language=required:5\n\
 resolve.stats.exports=miss:2,hit:{},cycle:0\n\
 resolve.stats.lookups.local={ITEMS}\n\
 resolve.stats.lookups.import_items=1\n\
 resolve.stats.lookups.reexport_items=0\n\
-resolve.stats.loads.exports=2\n\
-resolve.stats.loads.globals=0",
+resolve.stats.loads.exports=2",
         ITEMS + 1,
         ITEMS * 3 + 1,
         (ITEMS - 1) * 2

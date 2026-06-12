@@ -90,8 +90,14 @@ dep.value;
 /// @path.symbol source=dep.value target=dep.value
 /// @path.namespace source=dep module=dep.ds
 
-/// @import.summary symbols=1
-/// @resolve.stats roots=2 expressions=3 types=0 clauses=import:1,reexport:0 exports=miss:1,hit:0,cycle:0
+/// @import.language item=collections.Array symbol=collections.array.Array
+/// @import.language item=collections.FixedArray symbol=collections.array.FixedArray
+/// @import.language item=collections.Slice symbol=collections.slice.Slice
+/// @import.language item=math.Number symbol=math.number.Number
+/// @import.language item=string.String symbol=string.string.String
+
+/// @import.summary symbols=1 language=5
+/// @resolve.stats roots=2 expressions=3 types=0 clauses=import:1,reexport:0 language=required:5 exports=miss:1,hit:0,cycle:0
 /// @path.summary paths=2
 "#,
     );
@@ -134,8 +140,14 @@ dep.api.value;
 /// @path.namespace source=dep module=dep.ds
 /// @path.namespace source=dep.api module=api.ds
 
-/// @import.summary symbols=1
-/// @resolve.stats roots=2 expressions=4 types=0 clauses=import:1,reexport:0 exports=miss:2,hit:0,cycle:0
+/// @import.language item=collections.Array symbol=collections.array.Array
+/// @import.language item=collections.FixedArray symbol=collections.array.FixedArray
+/// @import.language item=collections.Slice symbol=collections.slice.Slice
+/// @import.language item=math.Number symbol=math.number.Number
+/// @import.language item=string.String symbol=string.string.String
+
+/// @import.summary symbols=1 language=5
+/// @resolve.stats roots=2 expressions=4 types=0 clauses=import:1,reexport:0 language=required:5 exports=miss:2,hit:0,cycle:0
 /// @path.summary paths=3
 "#,
     );
@@ -179,8 +191,14 @@ dep.api.value;
 /// @path.namespace source=dep module=dep.ds
 /// @path.namespace source=dep.api module=api.ds
 
-/// @import.summary symbols=1
-/// @resolve.stats roots=2 expressions=4 types=0 clauses=import:1,reexport:0 exports=miss:2,hit:0,cycle:0
+/// @import.language item=collections.Array symbol=collections.array.Array
+/// @import.language item=collections.FixedArray symbol=collections.array.FixedArray
+/// @import.language item=collections.Slice symbol=collections.slice.Slice
+/// @import.language item=math.Number symbol=math.number.Number
+/// @import.language item=string.String symbol=string.string.String
+
+/// @import.summary symbols=1 language=5
+/// @resolve.stats roots=2 expressions=4 types=0 clauses=import:1,reexport:0 language=required:5 exports=miss:2,hit:0,cycle:0
 /// @path.summary paths=3
 "#,
     );
@@ -266,7 +284,7 @@ import { todo } from "destack:error";
 /// @import.symbol symbol=todo target=error.panic.todo
 
 /// @import.summary symbols=1
-/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:10,hit:0,cycle:0
+/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:9,hit:0,cycle:0
 "#,
     );
 }
