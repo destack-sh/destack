@@ -46,7 +46,7 @@ const value = add(1, 2);
 
 #[test]
 fn test_imported_function_call_selects_exported_symbol() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "math.ds",
             r#"

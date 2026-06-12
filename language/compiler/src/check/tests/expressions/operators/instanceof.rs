@@ -15,6 +15,13 @@ const ok = value instanceof User;
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
+=== annotated ===
+class User {}
+declare const value: unknown;
+
+const ok: boolean = value instanceof User;
+
+=== checked ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"

@@ -13,21 +13,26 @@ const first = values[0];
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
+let values: float64[] = [1, 2];
+const first: float64 = values[0];
+
+=== checked ===
 let values = [1, 2];
-/// @type.symbol symbol=values type=Array<int32>
+/// @type.symbol symbol=values source=values type=Array<float64>
 /// @type.node source=[1, 2] type=Array<1 | 2>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
 const first = values[0];
-/// @type.symbol symbol=first type=int32
-/// @type.node source=values type=Array<int32>
-/// @type.node source=values[0] type=int32
+/// @type.symbol symbol=first source=first type=float64
+/// @type.node source=values type=Array<float64>
+/// @type.node source=values[0] type=float64
 /// @resolution.name source=values target=values
-/// @resolution.member source=values[0] receiver=Array<int32> kind=builtin builtin=subscript.index
+/// @resolution.call source=values[0] parameters=() return=float64 kind=expression
 /// @type.node source=0 type=0
 
-/// @check.stats.solve variables=0 terms=10 constraints=0 obligations=0 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=4 types=14 constraints=7 obligations=0 solutions=4 bounds=5 decisions=2
 "#,
     );
 }
@@ -45,21 +50,26 @@ const first = values[0];
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
 const values: (1 | 2)[] = [1, 2];
-/// @type.symbol symbol=values type=Array<1 | 2>
+const first: 1 | 2 = values[0];
+
+=== checked ===
+const values: (1 | 2)[] = [1, 2];
+/// @type.symbol symbol=values source=values type=Array<1 | 2>
 /// @type.node source=[1, 2] type=Array<1 | 2>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
 const first = values[0];
-/// @type.symbol symbol=first type=1 | 2
+/// @type.symbol symbol=first source=first type=1 | 2
 /// @type.node source=values type=Array<1 | 2>
 /// @type.node source=values[0] type=1 | 2
 /// @resolution.name source=values target=values
-/// @resolution.member source=values[0] receiver=Array<1 | 2> kind=builtin builtin=subscript.index
+/// @resolution.call source=values[0] parameters=() return=1 | 2 kind=expression
 /// @type.node source=0 type=0
 
-/// @check.stats.solve variables=0 terms=13 constraints=1 obligations=0 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=3 types=13 constraints=7 obligations=0 solutions=3 bounds=6 decisions=2
 "#,
     );
 }

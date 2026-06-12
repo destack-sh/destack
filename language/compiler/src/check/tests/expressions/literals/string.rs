@@ -14,11 +14,15 @@ const value = "hello";
             .with_reference_types()
             .with_check_stats(),
         r#"
+=== annotated ===
+const value: "hello" = "hello";
+
+=== checked ===
 const value = "hello";
 /// @type.symbol symbol=value source=value type="hello"
 /// @type.node source="\"hello\"" type="hello"
 
-/// @check.stats.solve variables=0 terms=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -35,11 +39,15 @@ let value = "hello";
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
+let value: string = "hello";
+
+=== checked ===
 let value = "hello";
-/// @type.symbol symbol=value type=string
+/// @type.symbol symbol=value source=value type=string
 /// @type.node source="\"hello\"" type="hello"
 
-/// @check.stats.solve variables=0 terms=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -56,11 +64,15 @@ const value: string = "hello";
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
 const value: string = "hello";
-/// @type.symbol symbol=value type=string
+
+=== checked ===
+const value: string = "hello";
+/// @type.symbol symbol=value source=value type=string
 /// @type.node source="\"hello\"" type="hello"
 
-/// @check.stats.solve variables=0 terms=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -77,11 +89,15 @@ const value = "";
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
+const value: "" = "";
+
+=== checked ===
 const value = "";
-/// @type.symbol symbol=value type=""
+/// @type.symbol symbol=value source=value type=""
 /// @type.node source="\"\"" type=""
 
-/// @check.stats.solve variables=0 terms=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -98,15 +114,19 @@ const value: number = "hello";
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
 const value: number = "hello";
-/// @type.symbol symbol=value type=float64
+
+=== checked ===
+const value: number = "hello";
+/// @type.symbol symbol=value source=value type=float64
 /// @type.node source="\"hello\"" type="hello"
 
-/// @check.stats.solve variables=0 terms=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type is not assignable"
+/// @diagnostic.error code=EC200 message="type '\"hello\"' is not assignable to type 'float64'"
 /// @diagnostic.label line=2 column=23 source="const value: number = \"hello\";"
 "#,
     );

@@ -70,7 +70,7 @@ const length = point.length();
 
 #[test]
 fn test_imported_struct_member_access_selects_exported_field() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "geometry.ds",
             r#"

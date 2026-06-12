@@ -8,7 +8,7 @@ const DEFAULT_TARGET: &str = "default";
 /// Check every builtin library module.
 #[test]
 fn test_check_library() -> Result<(), String> {
-    let session = TestSession::new().build();
+    let session = TestSession::builder().build();
     let repository = session.repository();
     let package = repository.builtin_package();
     let target = TargetId::new(package.package_id(), DEFAULT_TARGET);
