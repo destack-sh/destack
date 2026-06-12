@@ -1,14 +1,11 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-
-use destack_artifact::{DiagnosticAnchor, DirExported, DirResolved};
+use destack_artifact::{DiagnosticAnchor, DirResolved};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_repository::ArtifactReader;
 use destack_source::{ModuleId, ProfileId};
 use indexmap::IndexSet;
 
-use crate::resolve::resolve::ExportLookup;
+use crate::export::{ExportLookup, ExportResolver};
 use crate::resolve::stats::ResolveStats;
 use crate::{CompilerResult, ResolveError};
 
@@ -16,8 +13,6 @@ use crate::{CompilerResult, ResolveError};
 pub(in crate::resolve) struct ResolveState<'a> {
     /// Provider-scoped artifact reader.
     pub(in crate::resolve) artifacts: ArtifactReader<'a>,
-    /// The active profile.
-    pub(in crate::resolve) profile: ProfileId,
     /// The current module.
     pub(in crate::resolve) module: ModuleId,
     /// The expanded DIR view.
@@ -48,30 +43,10 @@ pub(in crate::resolve) struct ResolveState<'a> {
     pub(in crate::resolve) language_items: IndexSet<dir::LanguageItem>,
     /// Function contexts visible while walking active roots.
     pub(in crate::resolve) function_stack: Vec<FunctionContext>,
-    /// Export lookups already resolved during this provider run.
-    pub(in crate::resolve) export_lookups: HashMap<ExportLookupKey, ExportLookupState>,
-    /// Exported modules already loaded during this provider run.
-    pub(in crate::resolve) exported_modules: HashMap<ModuleId, Arc<DirExported>>,
+    /// The memoized export lookups shared by this provider run.
+    pub(in crate::resolve) exports: ExportResolver,
     /// The DIR visitor options.
     pub(in crate::resolve) options: dir::NodeVisitorOptions,
-}
-
-/// Cache key for one exported name in one module.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(in crate::resolve) struct ExportLookupKey {
-    /// The module that owns the export table.
-    pub(in crate::resolve) module: ModuleId,
-    /// The export key being looked up.
-    pub(in crate::resolve) key: dir::ExportKey,
-}
-
-/// Memoized export lookup state.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(in crate::resolve) enum ExportLookupState {
-    /// The lookup is currently resolving.
-    Resolving,
-    /// The lookup has resolved.
-    Resolved(ExportLookup),
 }
 
 /// One import or re-export clause to resolve.
@@ -125,7 +100,6 @@ impl<'a> ResolveState<'a> {
         // initialize phase output
         Self {
             artifacts,
-            profile,
             module,
             view,
             bindings,
@@ -141,8 +115,7 @@ impl<'a> ResolveState<'a> {
             global_keys: IndexSet::new(),
             language_items: IndexSet::new(),
             function_stack: Vec::new(),
-            export_lookups: HashMap::new(),
-            exported_modules: HashMap::new(),
+            exports: ExportResolver::new(profile),
             options: dir::NodeVisitorOptions::default(),
         }
     }
@@ -202,6 +175,16 @@ impl<'a> ResolveState<'a> {
     /// Drain recoverable diagnostics.
     pub(in crate::resolve) fn take_diagnostics(&mut self) -> Vec<ResolveError> {
         std::mem::take(&mut self.diagnostics)
+    }
+
+    /// Resolve one exported target through this state's export resolver.
+    pub(in crate::resolve) fn resolve_export_target(
+        &mut self,
+        module: ModuleId,
+        key: dir::ExportKey,
+    ) -> CompilerResult<ExportLookup> {
+        self.exports
+            .resolve_export_target(&self.artifacts, module, key)
     }
 
     /// Finish resolved DIR.

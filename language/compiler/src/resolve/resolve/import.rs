@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::resolve::resolve::{ExportLookup, ExportTarget};
+use crate::export::{ExportLookup, ExportTarget};
 use crate::resolve::state::{ModuleClause, ResolveState};
 
 impl ResolveState<'_> {
