@@ -79,7 +79,7 @@ const value = answer;
 /// @import.global key=answer targets=[globals.answer]
 
 /// @import.summary globals=1
-/// @resolve.stats roots=1 expressions=2 types=0 globals=required:1,modules:1
+/// @resolve.stats roots=1 expressions=2 types=0 globals=required:1
 "#,
     );
 }
@@ -126,10 +126,10 @@ export type Option = string;
         r#"
 let local = Function;
 
-/// @import.global key=Function targets=[types.Function]
+/// @import.global key=Function targets=[types.function.Function, types.Function]
 
 /// @import.summary globals=1
-/// @resolve.stats roots=1 expressions=2 types=0 globals=required:1,modules:1 exports=miss:1,hit:0,cycle:0
+/// @resolve.stats roots=1 expressions=2 types=0 globals=required:1
 "#,
     );
 }
@@ -178,7 +178,7 @@ let local = api;
 /// @import.global key=api targets=[api.ds]
 
 /// @import.summary globals=1
-/// @resolve.stats roots=1 expressions=2 types=0 globals=required:1,modules:1
+/// @resolve.stats roots=1 expressions=2 types=0 globals=required:1
 "#,
     );
 }
@@ -226,10 +226,15 @@ let local = api.value;
 /// @path.symbol source=api.value target=api.value
 /// @path.namespace source=api module=api.ds
 
+/// @import.language item=collections.Array symbol=collections.array.Array
+/// @import.language item=collections.FixedArray symbol=collections.array.FixedArray
+/// @import.language item=collections.Slice symbol=collections.slice.Slice
+/// @import.language item=math.Number symbol=math.number.Number
+/// @import.language item=string.String symbol=string.string.String
 /// @import.global key=api targets=[api.ds]
 
-/// @import.summary globals=1
-/// @resolve.stats roots=1 expressions=3 types=0 globals=required:1,modules:1 exports=miss:1,hit:0,cycle:0
+/// @import.summary globals=1 language=5
+/// @resolve.stats roots=1 expressions=3 types=0 globals=required:1 language=required:5 exports=miss:1,hit:0,cycle:0
 /// @path.summary paths=2
 "#,
     );
@@ -276,10 +281,10 @@ export class Promise<T> {}
         r#"
 let promise: Promise<string>;
 
-/// @import.global key=Promise targets=[async.Promise]
+/// @import.global key=Promise targets=[async.promise.Promise, async.Promise]
 
 /// @import.summary globals=1
-/// @resolve.stats roots=1 expressions=1 types=2 globals=required:1,modules:1 exports=miss:1,hit:0,cycle:0
+/// @resolve.stats roots=1 expressions=1 types=2 globals=required:1
 "#,
     );
 }
@@ -304,7 +309,7 @@ let promise: Promise<string>;
 /// @import.global key=Promise targets=[async.promise.Promise]
 
 /// @import.summary globals=1
-/// @resolve.stats roots=1 expressions=1 types=2 globals=required:1,modules:0
+/// @resolve.stats roots=1 expressions=1 types=2 globals=required:1
 "#,
     );
 }
@@ -378,10 +383,15 @@ const runtime = import.meta.runtime;
         r#"
 const runtime = import.meta.runtime;
 
+/// @import.language item=collections.Array symbol=collections.array.Array
+/// @import.language item=collections.FixedArray symbol=collections.array.FixedArray
+/// @import.language item=collections.Slice symbol=collections.slice.Slice
+/// @import.language item=math.Number symbol=math.number.Number
 /// @import.language item=module.ImportMeta symbol=module.meta.ImportMeta
+/// @import.language item=string.String symbol=string.string.String
 
-/// @import.summary language=1
-/// @resolve.stats roots=1 expressions=3 types=0 language=required:1
+/// @import.summary language=6
+/// @resolve.stats roots=1 expressions=3 types=0 language=required:6
 "#,
     );
 }
@@ -548,8 +558,14 @@ export const value = 1;
 const api = {};
 const value = api.value;
 
-/// @import.summary
-/// @resolve.stats roots=2 expressions=5 types=0
+/// @import.language item=collections.Array symbol=collections.array.Array
+/// @import.language item=collections.FixedArray symbol=collections.array.FixedArray
+/// @import.language item=collections.Slice symbol=collections.slice.Slice
+/// @import.language item=math.Number symbol=math.number.Number
+/// @import.language item=string.String symbol=string.string.String
+
+/// @import.summary language=5
+/// @resolve.stats roots=2 expressions=5 types=0 language=required:5
 "#,
     );
 }

@@ -142,6 +142,7 @@ export type Foo = string;
         DirRows::modules().with_summaries().with_import_stats(),
         r#"
 === main.ds ===
+
 import { Foo } from "./dep.ds";
 /// @module.edge relation=import specifier=./dep.ds module=dep.ds
 
@@ -149,6 +150,7 @@ import { Foo } from "./dep.ds";
 /// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0
 
 === dep.ds ===
+
 export type Foo = string;
 
 /// @module.summary edges=0
