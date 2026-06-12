@@ -270,6 +270,30 @@ impl CallResolution {
     }
 }
 
+/// Paired accessor calls for one place read and written together.
+///
+/// Compound assignment reads through one accessor and writes its
+/// result back through the other.
+///
+/// Examples:
+/// ```ds
+/// values[index] += 1    // read: index(usize), write: indexSet(usize, T)
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ReadWriteResolution {
+    /// The read accessor call.
+    pub read: CallResolution,
+    /// The write accessor call.
+    pub write: CallResolution,
+}
+
+impl ReadWriteResolution {
+    /// Create a read-write resolution.
+    pub fn new(read: CallResolution, write: CallResolution) -> Self {
+        Self { read, write }
+    }
+}
+
 /// Callable target selected at a call site.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CallTarget {

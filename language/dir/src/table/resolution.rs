@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     CallResolution, ConstructResolution, GlobalNodeIdAny, GlobalSymbolId, LabelResolution,
-    MemberResolution, NameResolution, PatternResolution, ReceiverResolution, SegmentView,
+    MemberResolution, NameResolution, PatternResolution, ReadWriteResolution, ReceiverResolution,
+    SegmentView,
 };
 
 /// Cumulative checked resolutions for one DIR module.
@@ -88,6 +89,13 @@ impl<'a> ResolutionTable<'a> {
         self.visible_entries(|segment| &segment.calls)
     }
 
+    /// Iterate visible read-write resolutions.
+    pub fn read_write_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, &ReadWriteResolution)> + '_ {
+        self.visible_entries(|segment| &segment.read_writes)
+    }
+
     /// Iterate visible construct resolutions.
     pub fn construct_entries(
         &self,
@@ -130,6 +138,11 @@ impl<'a> ResolutionTable<'a> {
     /// Get the call resolution for a node.
     pub fn call_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&CallResolution> {
         self.lookup(node_id, |segment| &segment.calls)
+    }
+
+    /// Get the paired read-write resolution for a node.
+    pub fn read_write_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&ReadWriteResolution> {
+        self.lookup(node_id, |segment| &segment.read_writes)
     }
 
     /// Get the construct resolution for a node.
@@ -201,6 +214,8 @@ pub struct ResolutionSegment {
     pub(crate) members: IndexMap<GlobalNodeIdAny, MemberResolution>,
     /// Checked call resolutions keyed by DIR node.
     pub(crate) calls: IndexMap<GlobalNodeIdAny, CallResolution>,
+    /// Checked paired read-write resolutions keyed by DIR node.
+    pub(crate) read_writes: IndexMap<GlobalNodeIdAny, ReadWriteResolution>,
     /// Checked construct resolutions keyed by DIR node.
     pub(crate) constructs: IndexMap<GlobalNodeIdAny, ConstructResolution>,
     /// Checked pattern resolutions keyed by DIR node.
@@ -217,6 +232,7 @@ impl ResolutionSegment {
             receivers: IndexMap::new(),
             members: IndexMap::new(),
             calls: IndexMap::new(),
+            read_writes: IndexMap::new(),
             constructs: IndexMap::new(),
             patterns: IndexMap::new(),
         }
@@ -242,6 +258,10 @@ impl ResolutionSegment {
 
         if let Some(resolution) = self.calls.get(&source).cloned() {
             self.calls.insert(target, resolution);
+        }
+
+        if let Some(resolution) = self.read_writes.get(&source).cloned() {
+            self.read_writes.insert(target, resolution);
         }
 
         if let Some(resolution) = self.constructs.get(&source).cloned() {
@@ -321,6 +341,20 @@ impl ResolutionSegment {
         self.calls.get(&node_id)
     }
 
+    /// Set the paired read-write resolution for a node.
+    pub fn set_read_write_resolution(
+        &mut self,
+        node_id: GlobalNodeIdAny,
+        resolution: ReadWriteResolution,
+    ) {
+        self.read_writes.insert(node_id, resolution);
+    }
+
+    /// Get the paired read-write resolution for a node.
+    pub fn read_write_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&ReadWriteResolution> {
+        self.read_writes.get(&node_id)
+    }
+
     /// Set the construct resolution for a node.
     pub fn set_construct_resolution(
         &mut self,
@@ -384,6 +418,15 @@ impl ResolutionSegment {
     /// Iterate visible call resolutions.
     pub fn call_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &CallResolution)> + '_ {
         self.calls
+            .iter()
+            .map(|(node_id, resolution)| (*node_id, resolution))
+    }
+
+    /// Iterate visible read-write resolutions.
+    pub fn read_write_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, &ReadWriteResolution)> + '_ {
+        self.read_writes
             .iter()
             .map(|(node_id, resolution)| (*node_id, resolution))
     }
