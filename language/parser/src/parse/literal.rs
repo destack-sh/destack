@@ -1,9 +1,9 @@
+use crate::parse::error::ParserResultExt;
 use std::borrow::Cow;
 use std::str::Chars;
 
 use crate::lex::decode_html_entity;
 use crate::parse::mode::ContextualLexMode;
-use crate::parse::prelude::*;
 use crate::parse::scope::ExpressionScope;
 use crate::parse::{RecoveryPoint, TypeMemberContainerKind};
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
@@ -164,7 +164,7 @@ impl Parser {
 
     /// Peek a scalar literal token.
     #[inline]
-    pub fn peek_scalar_literal(&mut self) -> ParserResult<&TokenSpan> {
+    pub fn peek_scalar_literal(&mut self) -> ParserResult<TokenSpan> {
         if self.peek_is(TokenType::Literal) {
             Ok(self.peek()?)
         } else {
@@ -190,7 +190,7 @@ impl Parser {
     /// /abc/g
     /// ```
     pub fn eat_scalar_literal(&mut self) -> ParserResult<ScalarLiteral> {
-        let literal_span = *self.eat()?;
+        let literal_span = self.eat()?;
         let Some(body) = literal_span.token.literal() else {
             return Err(ParserError::unexpected(literal_span.span));
         };
@@ -519,7 +519,7 @@ impl Parser {
         &mut self,
         follow_mode: ContextualLexMode,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        let token = *self.peek()?;
+        let token = self.peek()?;
         let Some(body) = token.token.literal() else {
             return Err(ParserError::unexpected(token.span));
         };
@@ -725,7 +725,7 @@ impl Parser {
 
     /// Peek a template literal.
     #[inline]
-    pub fn peek_template_literal(&mut self) -> ParserResult<&TokenSpan> {
+    pub fn peek_template_literal(&mut self) -> ParserResult<TokenSpan> {
         if self.peek_is(TokenType::TemplateString) || self.peek_is(TokenType::TemplateStringStart) {
             Ok(self.peek()?)
         } else {
@@ -813,7 +813,7 @@ impl Parser {
         allow_legacy_octal_escapes: bool,
         mut parse_span: impl FnMut(&mut Parser) -> ParserResult<T>,
     ) -> ParserResult<(Vec<StringId>, Vec<T>)> {
-        let next = *self.eat()?;
+        let next = self.eat()?;
         let next_str = self.file.span_str(next.span);
 
         // template string without interpolation
@@ -849,7 +849,7 @@ impl Parser {
             while !self.peek_is(TokenType::TemplateStringEnd) {
                 // middle chunk: remove } prefix and ${ suffix
                 if self.peek_is(TokenType::TemplateStringMiddle) {
-                    let token = *self.eat()?;
+                    let token = self.eat()?;
                     let token_str = self.file.span_str(token.span);
                     let string = Self::template_chunk_body(token_str, 1, 2);
                     self.validate_template_literal_chunk_maybe(
@@ -874,7 +874,7 @@ impl Parser {
             }
 
             // end chunk: remove } prefix and ` suffix
-            let token = *self.eat_token(TokenType::TemplateStringEnd)?;
+            let token = self.eat_token(TokenType::TemplateStringEnd)?;
             let token_str = self.file.span_str(token.span);
             let string = Self::template_chunk_body(token_str, 1, 1);
             self.validate_template_literal_chunk_maybe(
@@ -1388,7 +1388,7 @@ impl Parser {
     ) -> ParserResult<bool> {
         let mut skipped = false;
         loop {
-            let token = *self.peek()?;
+            let token = self.peek()?;
 
             // skip non-meaningful whitespace-only tree strings
             if token.token.ty() == TokenType::Literal

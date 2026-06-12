@@ -1,7 +1,7 @@
 use super::PendingDecorators;
 use crate::parse::DeclarationHeader;
+use crate::parse::error::ParserResultExt;
 use crate::parse::flags::ParserFlags;
-use crate::parse::prelude::*;
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
 use destack_dir::{
@@ -194,7 +194,7 @@ impl Parser {
     fn peek_enum_field_is(&mut self) -> bool {
         let is_computed_name = self.peek_is(TokenType::OpenBracket);
         let is_bare_name = (self.peek_name_is() || self.peek_numeric_literal_is())
-            && (self.next_token().token.is_on_new_line()
+            && (self.next_token().is_on_new_line()
                 || matches!(
                     self.token_type_at_offset(1),
                     TokenType::Assign
@@ -245,7 +245,7 @@ impl Parser {
                     self.peek()?.token.literal(),
                     Some(TokenLiteral::String { .. })
                 ) {
-                let token = *self.peek()?;
+                let token = self.peek()?;
                 let content = self.get_string_literal_str(token).to_owned();
                 let string_id = self.strings.intern(&content);
                 self.bump();

@@ -3,7 +3,7 @@ use destack_source::{NodeSpanList, NodeSpanType, Span};
 use smallvec::SmallVec;
 
 use crate::{Parser, ParserError, ParserResult};
-use destack_dir::{Expression, LocalNodeId, Path, TokenType};
+use destack_dir::{Expression, LocalNodeId, Path, TokenSpan, TokenType};
 
 impl Parser {
     /// Eat a path.
@@ -160,12 +160,13 @@ impl Parser {
             return false;
         }
 
-        let dot_end = self.current_token().span.end;
+        let dot_end = self.current_token().end();
         let next = self.token_at_offset(1);
-        if next.token.ty() != TokenType::Identifier {
+        if next.ty() != TokenType::Identifier {
             return false;
         }
 
+        let next = TokenSpan::new(next, self.file_id);
         allows_leading_comment || !self.token_has_leading_comment_after(dot_end, next)
     }
 }

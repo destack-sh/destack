@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use super::lexer::Lexer;
 use destack_dir::{Keyword, TokenLiteral, TokenType, is_identifier_continue, is_identifier_start};
 use destack_unicode::UnicodeEmoji;
@@ -14,7 +12,7 @@ impl Lexer {
     /// Eat ascii identifier continuation bytes.
     #[inline]
     fn eat_ascii_identifier_continue(&mut self) {
-        let bytes = self.remaining_text().as_bytes();
+        let bytes = self.scanner.remaining_bytes();
         let mut index = 0usize;
         while index < bytes.len() && is_ascii_identifier_continue_byte(bytes[index]) {
             index += 1;
@@ -34,11 +32,9 @@ impl Lexer {
         first_char: char,
     ) -> (TokenType, Option<TokenLiteral>) {
         debug_assert!(is_identifier_start(first_char));
-        let start_position = self.position();
-
-        // fast path: ascii identifier tails dominate script sources
+        // consume ascii identifier tails in bulk
         if first_char.is_ascii() {
-            // consume mixed ascii and unicode identifier tails without char by char ascii scans
+            // continue through mixed ascii and unicode identifier tails
             loop {
                 self.eat_ascii_identifier_continue();
 
@@ -46,9 +42,14 @@ impl Lexer {
                     break;
                 }
 
-                let current = self.peek();
-                if !current.is_ascii() && is_identifier_continue(current) {
-                    self.eat();
+                let byte = self.scanner.byte();
+                if byte.is_ascii() {
+                    break;
+                }
+
+                let current = self.scanner.peek_char();
+                if is_identifier_continue(current) {
+                    self.scanner.eat_char();
                     continue;
                 }
 
@@ -61,31 +62,31 @@ impl Lexer {
 
         // check for unicode escapes mid-identifier (e.g., `AB\u{43}`)
         // only consume escapes that decode to identifier continuations
-        if self.peek() == '\\'
-            && self.peek_next() == 'u'
+        if self.scanner.byte() == b'\\'
+            && self.scanner.byte_at(1) == b'u'
             && self.next_unicode_escape_continues_identifier()
         {
             self.eat_identifier_with_unicode_escapes();
             return (TokenType::Identifier, None);
         }
         // known prefixes must have been handled earlier
-        match self.peek() {
-            '#' => return (TokenType::UnknownLiteralPrefix, None),
-            c if !c.is_ascii() && c.is_emoji_char() => {
+        match self.scanner.byte() {
+            b'#' => return (TokenType::UnknownLiteralPrefix, None),
+            byte if !byte.is_ascii() && self.scanner.peek_char().is_emoji_char() => {
                 return (self.eat_invalid_identifier(), None);
             }
             _ => {}
         }
         // boolean
-        let source = self.source_text();
-        if first_char == 't' && source[start_position - 1..self.position()].eq("true") {
+        let bytes = self.token_bytes();
+        if first_char == 't' && bytes == b"true" {
             (
                 TokenType::Literal,
                 Some(TokenLiteral::Boolean { value: true }),
             )
         }
         // false
-        else if first_char == 'f' && source[start_position - 1..self.position()].eq("false") {
+        else if first_char == 'f' && bytes == b"false" {
             (
                 TokenType::Literal,
                 Some(TokenLiteral::Boolean { value: false }),
@@ -116,10 +117,10 @@ impl Lexer {
         &mut self,
     ) -> Option<(TokenType, Option<TokenLiteral>)> {
         // check for \u
-        if self.peek() != 'u' {
+        if self.scanner.byte() != b'u' {
             return None;
         }
-        self.eat(); // eat 'u'
+        self.scanner.advance_ascii_byte();
 
         // parse and validate the escaped code point for identifier-start
         let ch = self.eat_unicode_escape_char()?;
@@ -136,21 +137,27 @@ impl Lexer {
     /// Continue eating an identifier that may contain unicode escapes.
     fn eat_identifier_with_unicode_escapes(&mut self) {
         loop {
-            let c = self.peek();
-            if is_identifier_continue(c) {
-                self.eat();
-            } else if c == '\\' && self.peek_next() == 'u' {
+            self.eat_ascii_identifier_continue();
+
+            let byte = self.scanner.byte();
+            if byte == b'\\' && self.scanner.byte_at(1) == b'u' {
                 // validate the unicode escape before consuming it
                 if !self.next_unicode_escape_continues_identifier() {
                     break;
                 }
-                self.eat(); // eat '\'
-                self.eat(); // eat 'u'
+                self.scanner.advance_ascii_byte();
+                self.scanner.advance_ascii_byte();
                 if self.eat_unicode_escape_char().is_none() {
                     break;
                 }
-            } else {
+            } else if byte.is_ascii() {
                 break;
+            } else {
+                let c = self.scanner.peek_char();
+                if !is_identifier_continue(c) {
+                    break;
+                }
+                self.scanner.eat_char();
             }
         }
     }
@@ -172,7 +179,13 @@ impl Lexer {
                     return None;
                 }
 
-                let digit = (byte as char).to_digit(16)?;
+                let digit = if byte.is_ascii_digit() {
+                    u32::from(byte - b'0')
+                } else if (b'a'..=b'f').contains(&byte) {
+                    u32::from(byte - b'a') + 10
+                } else {
+                    u32::from(byte - b'A') + 10
+                };
                 value = value.checked_mul(16)?.checked_add(digit)?;
                 digit_count += 1;
                 index += 1;
@@ -196,7 +209,13 @@ impl Lexer {
                 if !byte.is_ascii_hexdigit() {
                     return None;
                 }
-                let digit = (byte as char).to_digit(16)?;
+                let digit = if byte.is_ascii_digit() {
+                    u32::from(byte - b'0')
+                } else if (b'a'..=b'f').contains(&byte) {
+                    u32::from(byte - b'a') + 10
+                } else {
+                    u32::from(byte - b'A') + 10
+                };
                 value = value.checked_mul(16)?.checked_add(digit)?;
             }
 
@@ -210,14 +229,15 @@ impl Lexer {
     ///
     /// The lexer cursor must be positioned after `'u'` when this is called.
     fn eat_unicode_escape_char(&mut self) -> Option<char> {
-        let bytes = self.remaining_text().as_bytes();
+        let bytes = self.scanner.remaining_bytes();
         let Some((decoded, consumed)) = Self::decode_identifier_unicode_escape_body(bytes) else {
             self.eat_invalid_unicode_escape_body_prefix();
             return None;
         };
 
-        for _ in 0..consumed {
-            self.eat();
+        if consumed > 0 {
+            self.scanner
+                .advance_ascii_bytes(consumed, bytes[consumed - 1]);
         }
 
         Some(decoded)
@@ -228,11 +248,11 @@ impl Lexer {
     /// This preserves legacy lexer behavior where malformed escapes are grouped
     /// into a single unknown token prefix like `\u11`.
     pub(super) fn eat_invalid_unicode_escape_body_prefix(&mut self) {
-        if self.peek() == '{' {
-            self.eat(); // eat '{'
+        if self.scanner.byte() == b'{' {
+            self.scanner.advance_ascii_byte();
             let mut digit_count = 0usize;
-            while self.peek().is_ascii_hexdigit() {
-                self.eat();
+            while self.scanner.byte().is_ascii_hexdigit() {
+                self.scanner.advance_ascii_byte();
                 digit_count += 1;
                 if digit_count > 6 {
                     break;
@@ -242,16 +262,16 @@ impl Lexer {
         }
 
         for _ in 0..4 {
-            if !self.peek().is_ascii_hexdigit() {
+            if !self.scanner.byte().is_ascii_hexdigit() {
                 break;
             }
-            self.eat();
+            self.scanner.advance_ascii_byte();
         }
     }
 
     /// Decode a unicode escape sequence at the current position without consuming it.
     fn peek_unicode_escape_ahead_char(&self) -> Option<char> {
-        let bytes = self.remaining_text().as_bytes();
+        let bytes = self.scanner.remaining_bytes();
         if bytes.len() < 2 || bytes[0] != b'\\' || bytes[1] != b'u' {
             return None;
         }
@@ -270,15 +290,19 @@ impl Lexer {
 /// Return a keyword for an identifier when it can match keyword shape.
 #[inline]
 pub(crate) fn keyword_from_identifier(identifier: &str) -> Option<Keyword> {
-    // reject lengths outside keyword bounds
     let bytes = identifier.as_bytes();
+    keyword_from_identifier_bytes(bytes)
+}
+
+/// Return a keyword for identifier bytes when they can match keyword shape.
+#[inline]
+pub(crate) fn keyword_from_identifier_bytes(bytes: &[u8]) -> Option<Keyword> {
     let length = bytes.len();
     if !(2..=11).contains(&length) {
         return None;
     }
 
-    // reject impossible length and first byte pairs
-    let first = *bytes.first()?;
+    let first = bytes[0];
     let can_match_keyword = matches!(
         (length, first),
         (2, b'a' | b'd' | b'i' | b'o' | b't')
@@ -314,5 +338,85 @@ pub(crate) fn keyword_from_identifier(identifier: &str) -> Option<Keyword> {
         return None;
     }
 
-    Keyword::from_str(identifier).ok()
+    match bytes {
+        b"abstract" => Some(Keyword::Abstract),
+        b"accessor" => Some(Keyword::Accessor),
+        b"any" => Some(Keyword::Any),
+        b"as" => Some(Keyword::As),
+        b"async" => Some(Keyword::Async),
+        b"await" => Some(Keyword::Await),
+        b"break" => Some(Keyword::Break),
+        b"case" => Some(Keyword::Case),
+        b"catch" => Some(Keyword::Catch),
+        b"class" => Some(Keyword::Class),
+        b"comptime" => Some(Keyword::Comptime),
+        b"const" => Some(Keyword::Const),
+        b"constructor" => Some(Keyword::Constructor),
+        b"continue" => Some(Keyword::Continue),
+        b"debugger" => Some(Keyword::Debugger),
+        b"declare" => Some(Keyword::Declare),
+        b"default" => Some(Keyword::Default),
+        b"do" => Some(Keyword::Do),
+        b"else" => Some(Keyword::Else),
+        b"enum" => Some(Keyword::Enum),
+        b"exclusive" => Some(Keyword::Exclusive),
+        b"export" => Some(Keyword::Export),
+        b"extends" => Some(Keyword::Extends),
+        b"extension" => Some(Keyword::Extension),
+        b"false" => None,
+        b"final" => Some(Keyword::Final),
+        b"finally" => Some(Keyword::Finally),
+        b"for" => Some(Keyword::For),
+        b"from" => Some(Keyword::From),
+        b"function" => Some(Keyword::Function),
+        b"get" => Some(Keyword::Get),
+        b"if" => Some(Keyword::If),
+        b"implements" => Some(Keyword::Implements),
+        b"import" => Some(Keyword::Import),
+        b"in" => Some(Keyword::In),
+        b"infer" => Some(Keyword::Infer),
+        b"interface" => Some(Keyword::Interface),
+        b"instanceof" => Some(Keyword::InstanceOf),
+        b"is" => Some(Keyword::Is),
+        b"keyof" => Some(Keyword::Keyof),
+        b"let" => Some(Keyword::Let),
+        b"local" => Some(Keyword::Local),
+        b"loop" => Some(Keyword::Loop),
+        b"match" => Some(Keyword::Match),
+        b"move" => Some(Keyword::Move),
+        b"never" => Some(Keyword::Never),
+        b"new" => Some(Keyword::New),
+        b"newtype" => Some(Keyword::Newtype),
+        b"null" => Some(Keyword::Null),
+        b"of" => Some(Keyword::Of),
+        b"override" => Some(Keyword::Override),
+        b"package" => Some(Keyword::Package),
+        b"private" => Some(Keyword::Private),
+        b"protected" => Some(Keyword::Protected),
+        b"public" => Some(Keyword::Public),
+        b"readonly" => Some(Keyword::Readonly),
+        b"return" => Some(Keyword::Return),
+        b"satisfies" => Some(Keyword::Satisfies),
+        b"set" => Some(Keyword::Set),
+        b"shared" => Some(Keyword::Shared),
+        b"static" => Some(Keyword::Static),
+        b"struct" => Some(Keyword::Struct),
+        b"super" => Some(Keyword::Super),
+        b"switch" => Some(Keyword::Switch),
+        b"this" => Some(Keyword::This),
+        b"throw" => Some(Keyword::Throw),
+        b"true" => None,
+        b"try" => Some(Keyword::Try),
+        b"type" => Some(Keyword::Type),
+        b"typeof" => Some(Keyword::Typeof),
+        b"undefined" => Some(Keyword::Undefined),
+        b"using" => Some(Keyword::Using),
+        b"virtual" => Some(Keyword::Virtual),
+        b"void" => Some(Keyword::Void),
+        b"where" => Some(Keyword::Where),
+        b"while" => Some(Keyword::While),
+        b"with" => Some(Keyword::With),
+        b"yield" => Some(Keyword::Yield),
+        _ => None,
+    }
 }

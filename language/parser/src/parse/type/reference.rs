@@ -57,7 +57,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
     ) -> LocalNodeId<TypeExpression> {
-        let name_span = self.current_token().span;
+        let name_span = self.current_token().span(self.file_id);
         self.bump();
         let id = self.insert_node(
             TypeExpression::Infer {

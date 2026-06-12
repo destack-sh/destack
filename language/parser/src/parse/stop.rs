@@ -114,12 +114,12 @@ impl Parser {
     pub fn is_next_any_stop(&mut self) -> bool {
         let token = self.next_token();
 
-        token.token.is_on_new_line() || Self::is_any_stop_token(token.token.ty())
+        token.is_on_new_line() || Self::is_any_stop_token(token.ty())
     }
 
     /// Peek an item stop.
     #[inline]
-    pub fn peek_item_stop(&mut self) -> ParserResult<&TokenSpan> {
+    pub fn peek_item_stop(&mut self) -> ParserResult<TokenSpan> {
         let eof_span = self.eof_span();
         if let Ok(token) = self.peek()
             && Self::is_item_stop_token(token.token.ty())
@@ -146,7 +146,7 @@ impl Parser {
 
     /// Peek a statement stop.
     #[inline]
-    pub fn peek_statement_stop(&mut self) -> ParserResult<&TokenSpan> {
+    pub fn peek_statement_stop(&mut self) -> ParserResult<TokenSpan> {
         let eof_span = self.eof_span();
         if let Ok(token) = self.peek()
             && Self::is_statement_stop_token(token.token.ty())
@@ -176,7 +176,7 @@ impl Parser {
 
     /// Peek any stop.
     #[inline]
-    pub fn peek_any_stop(&mut self) -> ParserResult<&TokenSpan> {
+    pub fn peek_any_stop(&mut self) -> ParserResult<TokenSpan> {
         let eof_span = self.eof_span();
         if let Ok(token) = self.peek()
             && Self::is_any_stop_token(token.token.ty())
@@ -192,8 +192,8 @@ impl Parser {
     pub fn peek_next_any_stop(&mut self) -> ParserResult<TokenSpan> {
         let eof_span = self.eof_span();
         let token = self.next_token();
-        if token.token.is_on_new_line() || Self::is_any_stop_token(token.token.ty()) {
-            return Ok(token);
+        if token.is_on_new_line() || Self::is_any_stop_token(token.ty()) {
+            return Ok(TokenSpan::new(token, self.file_id));
         }
 
         Err(ParserError::expected(eof_span, TokenType::Semicolon))
@@ -218,7 +218,7 @@ impl Parser {
 
     /// Peek any open parenthesis (`(`, `[`, `{`)
     #[inline]
-    pub fn peek_any_open_parenthesis(&mut self) -> ParserResult<&TokenSpan> {
+    pub fn peek_any_open_parenthesis(&mut self) -> ParserResult<TokenSpan> {
         let eof_span = self.eof_span();
         if let Ok(token) = self.peek()
             && (token.token.ty() == TokenType::OpenParenthesis
@@ -233,7 +233,7 @@ impl Parser {
 
     /// Peek any close parenthesis (`)`, `]`, `}`)
     #[inline]
-    pub fn peek_any_close_parenthesis(&mut self) -> ParserResult<&TokenSpan> {
+    pub fn peek_any_close_parenthesis(&mut self) -> ParserResult<TokenSpan> {
         let eof_span = self.eof_span();
         if let Ok(token) = self.peek()
             && (token.token.ty() == TokenType::CloseParenthesis
@@ -250,10 +250,8 @@ impl Parser {
     pub fn peek_next_any_close_parenthesis(&mut self) -> ParserResult<TokenSpan> {
         let eof_span = self.eof_span();
         let token = self.next_token();
-        if token.token.ty() == TokenType::CloseParenthesis
-            || token.token.ty() == TokenType::CloseBracket
-        {
-            return Ok(token);
+        if token.ty() == TokenType::CloseParenthesis || token.ty() == TokenType::CloseBracket {
+            return Ok(TokenSpan::new(token, self.file_id));
         }
 
         Err(ParserError::expected(eof_span, TokenType::CloseParenthesis))
@@ -274,7 +272,7 @@ impl Parser {
         self.lookahead(|parser| {
             while parser.peek_token_type() != TokenType::End {
                 if parser.peek_is(target_token) {
-                    return Ok(parser.current_token().span);
+                    return Ok(parser.current_token().span(parser.file_id));
                 }
 
                 parser.bump();
@@ -292,7 +290,7 @@ impl Parser {
         target_token: TokenType,
     ) -> ParserResult<Span> {
         self.lookahead(|parser| {
-            while parser.current_token().span.start < position
+            while parser.current_token().start() < position
                 && parser.peek_token_type() != TokenType::End
             {
                 parser.bump();
@@ -300,7 +298,7 @@ impl Parser {
 
             while parser.peek_token_type() != TokenType::End {
                 if parser.peek_is(target_token) {
-                    return Ok(parser.current_token().span);
+                    return Ok(parser.current_token().span(parser.file_id));
                 }
 
                 parser.bump();
@@ -319,7 +317,7 @@ impl Parser {
         self.lookahead(|parser| {
             if parser.peek_token_type() != open_token {
                 return Err(ParserError::expected(
-                    parser.current_token().span,
+                    parser.current_token().span(parser.file_id),
                     open_token,
                 ));
             }
@@ -334,7 +332,7 @@ impl Parser {
                 }
 
                 if depth == 0 {
-                    return Ok(parser.current_token().span);
+                    return Ok(parser.current_token().span(parser.file_id));
                 }
 
                 parser.bump();
@@ -355,7 +353,7 @@ impl Parser {
                 let span = parser
                     .prev()
                     .map(|token| token.span)
-                    .unwrap_or_else(|| parser.current_token().span);
+                    .unwrap_or_else(|| parser.current_token().span(parser.file_id));
                 return Err(ParserError::expected(span, open_token));
             }
 
@@ -369,7 +367,7 @@ impl Parser {
                 }
 
                 if depth == 0 {
-                    return Ok(parser.current_token().span);
+                    return Ok(parser.current_token().span(parser.file_id));
                 }
 
                 parser.bump();
@@ -414,7 +412,7 @@ impl Parser {
                 } else if token_type == close_token {
                     depth = depth.saturating_sub(1);
                 } else if depth == 1 && token_type == target_type {
-                    return Ok(parser.current_token().span);
+                    return Ok(parser.current_token().span(parser.file_id));
                 }
 
                 if depth == 0 {
@@ -441,7 +439,7 @@ impl Parser {
             let mut bracket_depth = 0u32;
             let mut angle_depth = 0u32;
 
-            while parser.current_token().span.start <= close_span.start
+            while parser.current_token().start() <= close_span.start
                 && parser.peek_token_type() != TokenType::End
             {
                 let token_type = parser.peek_token_type();

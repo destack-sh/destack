@@ -459,7 +459,7 @@ impl Parser {
     /// "foo/bar:something"
     /// ```
     fn eat_dependency_target_with_span(&mut self) -> ParserResult<(StringId, Span)> {
-        let token = *self.peek_token(TokenType::Literal)?;
+        let token = self.peek_token(TokenType::Literal)?;
 
         // module targets accept regular string literals, including unterminated ones for recovery
         let is_valid_target = matches!(

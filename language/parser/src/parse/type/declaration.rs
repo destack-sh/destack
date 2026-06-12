@@ -70,6 +70,33 @@ impl Parser {
         })
     }
 
+    /// Return true when the current type keyword starts an alias declaration.
+    pub(in crate::parse) fn type_keyword_starts_alias_declaration(&mut self) -> bool {
+        let name = self.next_token();
+        if !name.is(TokenType::Identifier) || name.is_on_new_line() {
+            return false;
+        }
+
+        let after_name = self.token_type_at_offset(2);
+        if after_name == TokenType::Assign {
+            return true;
+        }
+
+        if after_name != TokenType::LessThan {
+            return false;
+        }
+
+        self.lookahead(|parser| {
+            parser.bump();
+            parser.bump();
+            parser.bump();
+
+            parser
+                .scan_angle_follow_token_after_open(1)
+                .is_none_or(|token_type| token_type == TokenType::Assign)
+        })
+    }
+
     /// Return type keyword metadata.
     pub(in crate::parse) fn type_keyword_header(
         &mut self,
@@ -195,7 +222,7 @@ impl Parser {
     fn eat_type_alias_value(&mut self) -> ParserResult<LocalNodeId<TypeExpression>> {
         // bare intrinsic marker
         if self.peek_identifier_is() {
-            let reference = *self.peek()?;
+            let reference = self.peek()?;
             let is_bare_intrinsic = self.get_span_str(reference.span) == "intrinsic"
                 && Self::is_type_expression_boundary_token(self.next_token_type());
 

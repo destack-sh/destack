@@ -1,5 +1,5 @@
+use crate::parse::error::ParserResultExt;
 use crate::parse::flags::ParserFlags;
-use crate::parse::prelude::*;
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
 use destack_dir::{
@@ -812,7 +812,7 @@ impl Parser {
 
     // eat a boolean pattern field name as Name::Identifier
     fn eat_boolean_pattern_name_with_span(&mut self) -> ParserResult<(Name, Span)> {
-        let token = *self.peek()?;
+        let token = self.peek()?;
         if token.token.ty() != TokenType::Literal
             || !matches!(token.token.literal(), Some(TokenLiteral::Boolean { .. }))
         {

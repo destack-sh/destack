@@ -1,16 +1,18 @@
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use destack_dir::TokenSpan;
+use destack_dir::Token;
 use destack_source::{File, FileId, LanguageType, Span};
 
 use super::scanner::Scanner;
 use super::trivia::{Trivia, TriviaCheckpoint};
 
+const ESTIMATED_TOKEN_BYTES: usize = 4;
+
 /// Lexer over a source string.
 pub struct Lexer {
     /// The source scanner.
-    scanner: Scanner,
+    pub(super) scanner: Scanner,
     /// The options for the lexer.
     pub(super) options: LexerOptions,
     /// The language type for parsing behavior.
@@ -22,15 +24,15 @@ pub struct Lexer {
     /// The trivia retention mode.
     pub(super) trivia_mode: ParserTriviaMode,
     /// The semantic tokens produced so far.
-    pub(super) tokens: Vec<TokenSpan>,
+    pub(super) tokens: Vec<Token>,
     /// The side tokens produced so far.
-    pub(super) side_tokens: Vec<TokenSpan>,
+    pub(super) side_tokens: Vec<Token>,
     /// Whether side trivia since the previous semantic token had a line terminator.
     pub(super) pending_line_terminator_before_next: bool,
     /// Whether EOF has been reached.
     pub(super) is_finished: bool,
     /// The cached EOF token, when available.
-    pub(super) eof_token: Option<TokenSpan>,
+    pub(super) eof_token: Option<Token>,
 }
 
 impl Debug for Lexer {
@@ -47,11 +49,26 @@ impl Debug for Lexer {
 impl Lexer {
     /// Create a new Lexer from a file.
     pub fn new(file: Arc<File>, language: LanguageType) -> Lexer {
+        Self::new_with_capacity(file, language, 0, 0)
+    }
+
+    /// Create a lexer that stores tokens internally.
+    pub(super) fn new_storing_tokens(file: Arc<File>, language: LanguageType) -> Lexer {
         let source_len = file.text().len();
-        let estimated_tokens = source_len / 6;
+        let estimated_tokens = source_len / ESTIMATED_TOKEN_BYTES;
         let semantic_token_capacity = estimated_tokens;
         let side_token_capacity = estimated_tokens / 2;
 
+        Self::new_with_capacity(file, language, semantic_token_capacity, side_token_capacity)
+    }
+
+    /// Create a lexer with explicit token buffer capacities.
+    fn new_with_capacity(
+        file: Arc<File>,
+        language: LanguageType,
+        semantic_token_capacity: usize,
+        side_token_capacity: usize,
+    ) -> Lexer {
         Lexer {
             scanner: Scanner::new(file),
             options: LexerOptions::default(),
@@ -67,34 +84,31 @@ impl Lexer {
         }
     }
 
-    /// Create a checkpoint for speculative parser movement.
-    pub(crate) fn checkpoint(&self) -> LexerCheckpoint {
-        LexerCheckpoint {
-            scanner: self.scanner.clone(),
+    /// Create a compact lexer state after a semantic token boundary.
+    pub(crate) fn state(&self) -> LexerState {
+        LexerState {
+            position: self.position(),
             options: self.options.checkpoint(),
-            trivia: self.trivia.checkpoint(),
             last_side_token_had_line_terminator: self.last_side_token_had_line_terminator,
             pending_line_terminator_before_next: self.pending_line_terminator_before_next,
             trivia_mode: self.trivia_mode,
             is_finished: self.is_finished,
             eof_token: self.eof_token,
-            tokens_len: self.tokens.len(),
-            side_tokens_len: self.side_tokens.len(),
+            trivia: self.trivia.checkpoint(),
         }
     }
 
-    /// Restore the lexer to a checkpoint.
-    pub(crate) fn restore(&mut self, checkpoint: LexerCheckpoint) {
-        self.scanner = checkpoint.scanner;
-        self.options.restore(checkpoint.options);
-        self.trivia.restore(checkpoint.trivia);
-        self.last_side_token_had_line_terminator = checkpoint.last_side_token_had_line_terminator;
-        self.pending_line_terminator_before_next = checkpoint.pending_line_terminator_before_next;
-        self.trivia_mode = checkpoint.trivia_mode;
-        self.is_finished = checkpoint.is_finished;
-        self.eof_token = checkpoint.eof_token;
-        self.tokens.truncate(checkpoint.tokens_len);
-        self.side_tokens.truncate(checkpoint.side_tokens_len);
+    /// Restore a compact lexer state.
+    pub(crate) fn restore_state(&mut self, state: LexerState) {
+        self.scanner.set_position(state.position);
+        self.options.restore(state.options);
+        self.last_side_token_had_line_terminator = state.last_side_token_had_line_terminator;
+        self.pending_line_terminator_before_next = state.pending_line_terminator_before_next;
+        self.trivia_mode = state.trivia_mode;
+        self.is_finished = state.is_finished;
+        self.eof_token = state.eof_token;
+        self.side_tokens.clear();
+        self.trivia.restore(state.trivia);
     }
 
     /// Return the remaining source text.
@@ -115,24 +129,6 @@ impl Lexer {
         self.scanner.previous()
     }
 
-    /// Peek the next symbol from the input stream without consuming it.
-    #[inline]
-    pub fn peek(&self) -> char {
-        self.scanner.peek()
-    }
-
-    /// Peek the second symbol from the input stream without consuming it.
-    #[inline]
-    pub fn peek_next(&self) -> char {
-        self.scanner.peek_next()
-    }
-
-    /// Peek the third symbol from the input stream without consuming it.
-    #[inline]
-    pub fn peek_next_next(&self) -> char {
-        self.scanner.peek_next_next()
-    }
-
     /// Return whether there is nothing more to consume.
     #[inline]
     pub fn is_end(&self) -> bool {
@@ -145,15 +141,16 @@ impl Lexer {
         self.scanner.token_len()
     }
 
+    /// Return the current token source bytes.
+    #[inline]
+    pub(super) fn token_bytes(&self) -> &[u8] {
+        self.scanner.token_bytes()
+    }
+
     /// Reset the current token start to the current scanner position.
     #[inline]
     pub fn reset_token_start(&mut self) {
         self.scanner.reset_token_start();
-    }
-
-    /// Move to the next character.
-    pub fn eat(&mut self) -> Option<char> {
-        self.scanner.eat()
     }
 
     /// Advance by a known run of ascii bytes.
@@ -237,15 +234,13 @@ impl ParserTriviaMode {
     }
 }
 
-/// A checkpoint for live lexer cursor rollback.
-#[derive(Debug)]
-pub(crate) struct LexerCheckpoint {
-    /// The source scanner.
-    scanner: Scanner,
-    /// The lexer option checkpoint.
+/// Compact lexer state after one semantic token boundary.
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct LexerState {
+    /// The current source byte position.
+    position: usize,
+    /// The contextual lexer options.
     options: LexerOptionsCheckpoint,
-    /// The live trivia checkpoint.
-    trivia: TriviaCheckpoint,
     /// Whether the most recent side token had a line terminator.
     last_side_token_had_line_terminator: bool,
     /// Whether the next semantic token is line-leading.
@@ -255,11 +250,9 @@ pub(crate) struct LexerCheckpoint {
     /// Whether EOF has been reached.
     is_finished: bool,
     /// The EOF token if EOF has been reached.
-    eof_token: Option<TokenSpan>,
-    /// The semantic token buffer length.
-    tokens_len: usize,
-    /// The side token buffer length.
-    side_tokens_len: usize,
+    eof_token: Option<Token>,
+    /// The retained trivia state.
+    trivia: TriviaCheckpoint,
 }
 
 /// The options for the lexer.
@@ -272,7 +265,7 @@ pub(super) struct LexerOptions {
 }
 
 /// A checkpoint for contextual lexer options.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 struct LexerOptionsCheckpoint {
     /// The active template string stack mark.
     template_string_stack: LexerStackMark,
