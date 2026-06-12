@@ -269,7 +269,86 @@ pub struct Niche {
     pub end: u128,
 }
 
+impl Layout {
+    /// Return a storage-free layout.
+    pub fn unit() -> Layout {
+        Layout {
+            shape: LayoutShape::None,
+            size: Some(0),
+            alignment: Some(1),
+            niche: None,
+        }
+    }
+
+    /// Return a builtin scalar layout.
+    pub fn scalar(size: u32, alignment: u32, niche: Option<Niche>) -> Layout {
+        Layout {
+            shape: LayoutShape::Scalar,
+            size: Some(size),
+            alignment: Some(alignment),
+            niche,
+        }
+    }
+
+    /// Return a pointer layout, niched when the pointer cannot be null.
+    pub fn pointer(pointer_bytes: u32, non_null: bool) -> Layout {
+        let niche = non_null.then(|| Niche::non_null_pointer(pointer_bytes));
+
+        Layout::scalar(pointer_bytes, pointer_bytes, niche)
+    }
+
+    /// Return a pointer storage slot layout naming its pointee.
+    pub fn pointer_slot(pointee: GlobalTypeId, pointer_bytes: u32, non_null: bool) -> Layout {
+        let niche = non_null.then(|| Niche::non_null_pointer(pointer_bytes));
+
+        Layout {
+            shape: LayoutShape::Pointer(PointerLayout { pointee }),
+            size: Some(pointer_bytes),
+            alignment: Some(pointer_bytes),
+            niche,
+        }
+    }
+
+    /// Return an erased value layout.
+    pub fn dynamic(pointer_bytes: u32) -> Layout {
+        Layout {
+            shape: LayoutShape::Dynamic,
+            size: Some(pointer_bytes * 2),
+            alignment: Some(pointer_bytes),
+            niche: None,
+        }
+    }
+
+    /// Return a runtime closure layout.
+    pub fn closure(pointer_bytes: u32) -> Layout {
+        Layout {
+            shape: LayoutShape::Closure,
+            size: Some(pointer_bytes * 2),
+            alignment: Some(pointer_bytes),
+            niche: None,
+        }
+    }
+}
+
 impl Niche {
+    /// Return the niche of one non-null pointer scalar.
+    pub fn non_null_pointer(pointer_bytes: u32) -> Niche {
+        Niche {
+            offset: 0,
+            width: pointer_bytes,
+            start: 1,
+            end: Niche::scalar_max(pointer_bytes),
+        }
+    }
+
+    /// Return the largest value one scalar width can store.
+    pub fn scalar_max(bytes: u32) -> u128 {
+        match bytes {
+            16.. => u128::MAX,
+            bytes => (1u128 << (bytes * 8)) - 1,
+        }
+    }
+
     /// Return the number of free values below and above the valid range.
     pub fn free_values(&self) -> u128 {
         let span = match self.width {

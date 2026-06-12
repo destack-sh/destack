@@ -106,35 +106,45 @@ impl From<GlobalGenericParameterId> for LocalGenericParameterId {
 /// Source that introduced one generic parameter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum GenericParameterOrigin {
-    /// The parameter was written in source.
+    /// The parameter was written in source, like the `T` in `<T extends Clone>`.
     Explicit,
-    /// The parameter was induced by check.
+    /// The parameter was induced by check, like the hidden `T0` a
+    /// `writer: Writer` interface-typed parameter generalizes into.
     Induced(GenericParameterInduction),
 }
 
 /// Reason one generic parameter was induced.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum GenericParameterInduction {
-    /// A parameter type induced a hidden constrained type parameter.
+    /// A parameter type induced a hidden constrained type parameter:
+    /// `function write(writer: Writer)` generalizes to `<T0 extends Writer>`.
     ParameterConstraint,
-    /// A storage type induced a hidden constrained type parameter.
+    /// A storage type induced a hidden constrained type parameter:
+    /// `struct Logger { writer: Writer }` generalizes the stored field.
     StorageConstraint,
-    /// A type form parameter escaped.
+    /// A type form parameter escaped: the elided lifetime in
+    /// `&exclusive this` generalizes to a hidden `L0`.
     Form,
-    /// A comptime runtime parameter was lifted.
+    /// A comptime runtime parameter was lifted, like `comptime size: usize`.
     Comptime,
 }
 
 /// User-visible key of one generic parameter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GenericParameterKey {
-    /// Explicit source symbol.
+    /// Explicit source symbol, like the `T` in `<T>`.
     Symbol(GlobalSymbolId),
-    /// Generated checked parameter key.
+    /// Generated checked parameter key, like the induced `T0` or `L0`.
     Generated(StringId),
 }
 
 /// One declaration of generic parameters.
+///
+/// Examples:
+/// ```ds
+/// class Box<T> { ... }            // one template with one parameter
+/// function zip<A, B>(...) { ... } // one template with two parameters
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GenericTemplate {
     /// The source node that declares this template.
@@ -157,6 +167,12 @@ impl GenericTemplate {
 }
 
 /// One declaration-side generic parameter.
+///
+/// Examples:
+/// ```ds
+/// <T extends Serializable = string>
+/// <comptime Size: usize>
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GenericParameterBinding {
     /// The generic template that owns this parameter.
