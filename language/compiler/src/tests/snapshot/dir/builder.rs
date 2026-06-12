@@ -306,80 +306,6 @@ impl<'a> DirSnapshotBuilder<'a> {
         self.rows.push(row);
     }
 
-    /// Return the debug label for one checked generic instance.
-    pub(super) fn generic_instance_label(
-        &self,
-        instance_id: dir::LocalGenericInstanceId,
-    ) -> String {
-        let Some(generics) = &self.generics else {
-            panic!("dir snapshot missing generic table for {instance_id:?}");
-        };
-
-        // render the solved semantic instance
-        let instance = generics.get_instance(instance_id);
-        if instance.arguments.is_empty() {
-            return self.generic_template_label(instance.template);
-        }
-
-        let arguments = instance
-            .arguments
-            .iter()
-            .map(|argument| self.static_argument_label(argument))
-            .collect::<Vec<_>>()
-            .join(", ");
-        let symbol = self.generic_template_label(instance.template);
-
-        format!("{symbol}<{arguments}>")
-    }
-
-    /// Return the debug label for one generic template.
-    pub(super) fn generic_template_label(
-        &self,
-        template_id: dir::GlobalGenericTemplateId,
-    ) -> String {
-        let source = if template_id.module_id == self.tree.module_id {
-            let Some(generics) = &self.generics else {
-                return format!("template#{}", template_id.local_id.0);
-            };
-
-            generics.get_template(template_id.local_id).source
-        } else if let Some(generics) = self.foreign_generics.get(&template_id.module_id) {
-            generics.get_template(template_id.local_id).source
-        } else {
-            return format!("template#{}", template_id.local_id.0);
-        };
-
-        self.template_source_label(source)
-    }
-
-    /// Return the debug label for one generic template source node.
-    fn template_source_label(&self, source: dir::GlobalNodeIdAny) -> String {
-        if let Some(symbol) = self.symbol_for_declaration(source) {
-            return self.symbol_path_label(symbol);
-        }
-
-        self.node_label(source)
-    }
-
-    /// Return the declaration symbol for one local or foreign declaration node.
-    fn symbol_for_declaration(&self, source: dir::GlobalNodeIdAny) -> Option<dir::GlobalSymbolId> {
-        if source.local_id.ty != dir::NodeType::Declaration {
-            return None;
-        }
-
-        if source.module_id == self.tree.module_id {
-            return self
-                .binding_table()
-                .declaration_symbol(source)
-                .map(|symbol| symbol.into_global(source.module_id));
-        }
-
-        self.foreign_bindings
-            .get(&source.module_id)?
-            .declaration_symbol(source)
-            .map(|symbol| symbol.into_global(source.module_id))
-    }
-
     /// Add semantic language item identities from resolved imports.
     pub(crate) fn add_language_items(&mut self, imports: &dir::ImportTable) {
         for (item, symbol) in &imports.language_symbol_by_item {
@@ -657,11 +583,6 @@ impl<'a> DirSnapshotBuilder<'a> {
         self.static_term_label(term)
     }
 
-    /// Render a type value stored in a static term.
-    fn static_type_label(&self, type_id: dir::GlobalTypeId) -> String {
-        self.global_type_label(type_id)
-    }
-
     /// Render one local symbol id using its source name when possible.
     pub(crate) fn local_symbol_label(&self, symbol_id: dir::LocalSymbolId) -> String {
         self.binding_names().symbol(symbol_id)
@@ -748,6 +669,7 @@ impl<'a> DirSnapshotBuilder<'a> {
             dir::LayoutShape::Dynamic => "dynamic".to_string(),
             dir::LayoutShape::Closure => "closure".to_string(),
             dir::LayoutShape::Newtype(_) => "newtype".to_string(),
+            dir::LayoutShape::Pointer(_) => "pointer".to_string(),
         }
     }
 
@@ -774,47 +696,11 @@ impl<'a> DirSnapshotBuilder<'a> {
         self.symbol_path_label(candidate.symbol)
     }
 
-    /// Render one static argument label.
-    pub(crate) fn static_argument_label(&self, argument: &dir::StaticArgument) -> String {
-        // render the argument value before adding an optional name
-        let value = self.static_argument_value_label(argument.value);
-        if let Some(name) = argument.name {
-            format!("{}={value}", self.strings.get(name))
-        } else {
-            value
-        }
-    }
-
-    /// Render one static argument value.
-    pub(super) fn static_argument_value_label(&self, static_id: dir::GlobalStaticId) -> String {
-        self.global_static_label(static_id)
-    }
-
     /// Render one static term label.
     pub(crate) fn static_term_label(&self, term: &dir::StaticTerm) -> String {
         match term {
-            dir::StaticTerm::Parameter(parameter) => self.generic_parameter_label(parameter),
-            dir::StaticTerm::Symbol { symbol } => self.symbol_path_label(*symbol),
-            dir::StaticTerm::Access { access } => {
-                Self::string_literal_label(&Self::variant_label(access))
-            }
-            dir::StaticTerm::Space { space } => {
-                Self::string_literal_label(&Self::variant_label(space))
-            }
-            dir::StaticTerm::Place { place } => Self::place_label(place),
-            dir::StaticTerm::Lifetime { lifetime } => self.lifetime_label(lifetime),
-            dir::StaticTerm::Union { elements } => elements
-                .iter()
-                .map(|element| self.global_static_label(*element))
-                .collect::<Vec<_>>()
-                .join(" | "),
             dir::StaticTerm::ScalarLiteral { value } => self.scalar_literal_label(value),
-            dir::StaticTerm::TypeLiteral { value } => Self::variant_label(value),
-            dir::StaticTerm::Declaration {
-                declaration,
-                generic_arguments,
-            } => self.static_declaration_label(*declaration, generic_arguments.as_deref()),
-            dir::StaticTerm::Type { ty } => self.static_type_label(*ty),
+            dir::StaticTerm::Type { ty } => self.global_type_label(*ty),
             dir::StaticTerm::Array { elements } => {
                 // render array elements recursively
                 let elements = elements
@@ -828,7 +714,6 @@ impl<'a> DirSnapshotBuilder<'a> {
             dir::StaticTerm::FixedArray { value, length } => {
                 // render repeated fixed array syntax
                 let value = self.static_term_label(value);
-                let length = self.static_term_label(length);
 
                 format!("[{value}; {length}]")
             }
@@ -906,29 +791,12 @@ impl<'a> DirSnapshotBuilder<'a> {
         match trigger {
             dir::MacroTrigger::Decorator(node_id) => {
                 // render the decorator node kind as the trigger
-                let node_id = node_id.clone().into_any();
+                let node_id = (*node_id).into_any();
 
                 format!("decorator:{}", self.node_label(node_id))
             }
             dir::MacroTrigger::AutoDerive => "auto_derive".to_string(),
         }
-    }
-
-    /// Render one declaration reference.
-    pub(crate) fn declaration_label(
-        &self,
-        declaration: dir::LocalNodeId<dir::Declaration>,
-    ) -> String {
-        // resolve declarations through the binding table
-        let declaration = declaration.into_global_any(self.tree.module_id);
-        if let Some(symbol_id) = self.binding_table().declaration_symbol(declaration) {
-            let symbol_id = symbol_id.into_global(self.tree.module_id);
-
-            return self.symbol_path_label(symbol_id);
-        }
-
-        // fall back to the node kind for synthetic declarations
-        self.node_label(declaration)
     }
 
     /// Render one node id.
@@ -1113,78 +981,6 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
     }
 
-    /// Render one static declaration term label.
-    fn static_declaration_label(
-        &self,
-        declaration: dir::LocalNodeId<dir::Declaration>,
-        generic_arguments: Option<&[dir::StaticArgument]>,
-    ) -> String {
-        // render declaration references with applied static arguments
-        let declaration = self.declaration_label(declaration);
-        if let Some(arguments) = generic_arguments {
-            let arguments = arguments
-                .iter()
-                .map(|argument| self.static_argument_label(argument))
-                .collect::<Vec<_>>()
-                .join(", ");
-
-            format!("{declaration}<{arguments}>")
-        } else {
-            declaration
-        }
-    }
-
-    /// Render one normalized place label.
-    fn place_label(place: &dir::Place) -> String {
-        let value = match place {
-            dir::Place::Ambient => "ambient".to_string(),
-            dir::Place::Space(space) => Self::variant_label(space),
-        };
-
-        Self::string_literal_label(&value)
-    }
-
-    /// Render one static string literal label.
-    fn string_literal_label(value: &str) -> String {
-        format!("{value:?}")
-    }
-
-    /// Render one normalized lifetime label.
-    fn lifetime_label(&self, lifetime: &dir::Lifetime) -> String {
-        match lifetime {
-            dir::Lifetime::Static => "static".to_string(),
-            dir::Lifetime::Symbol(symbol) => self.symbol_path_label(*symbol),
-        }
-    }
-
-    /// Render one generic parameter label.
-    fn generic_parameter_label(&self, parameter: &dir::GlobalGenericParameterId) -> String {
-        let Some(generics) = self.generic_table(parameter.module_id) else {
-            return format!("generic#{}", parameter.local_id.0);
-        };
-        let generic = generics.get_parameter(parameter.local_id);
-        let template = generics.get_template(generic.template());
-
-        match generic.key() {
-            dir::GenericParameterKey::Symbol(symbol) => self.symbol_path_label(symbol),
-            dir::GenericParameterKey::Generated(name) => {
-                let owner = self.node_label(template.source);
-                let name = self.strings.get(name);
-
-                format!("{owner}.{name}")
-            }
-        }
-    }
-
-    /// Return one local or foreign generic table.
-    fn generic_table(&self, module: ModuleId) -> Option<&dir::GenericTable<'_>> {
-        if module == self.tree.module_id {
-            self.generics.as_ref()
-        } else {
-            self.foreign_generics.get(&module)
-        }
-    }
-
     /// Render static property labels.
     fn static_property_labels(&self, properties: &[dir::StaticProperty]) -> String {
         properties
@@ -1279,7 +1075,7 @@ impl<'a> DirSnapshotBuilder<'a> {
     fn module_label(&self, module_id: ModuleId) -> String {
         let module = self.module_path(module_id);
         let module = module.strip_prefix("destack://").unwrap_or(&module);
-        let module = module.strip_suffix(".ds").unwrap_or(&module);
+        let module = module.strip_suffix(".ds").unwrap_or(module);
         let module = module.trim_start_matches("./");
         let module = module.trim_start_matches(['/', '\\']);
         let module = module.replace(['/', '\\'], ".");

@@ -30,7 +30,7 @@ impl DirSnapshotBuilder<'_> {
             dir::Type::Literal(literal) => self.scalar_literal_label(literal),
             dir::Type::Intrinsic => "intrinsic".to_string(),
             dir::Type::Parameter(parameter) => self.parameter_type_label(parameter),
-            dir::Type::Reference(named) => self.reference_type_label(named),
+            dir::Type::Reference(named) => self.reference_type_label(types, named),
             dir::Type::This => "this".to_string(),
             dir::Type::Member(member) => self.member_type_label(types, member),
             dir::Type::Form(form) => self.form_type_label(types, form),
@@ -49,6 +49,9 @@ impl DirSnapshotBuilder<'_> {
             dir::Type::Function(function) => self.function_type_label(types, function),
             dir::Type::Closure(closure) => self.closure_type_label(types, closure),
             dir::Type::Union(union) => self.type_id_list_label(types, &union.elements, " | "),
+            dir::Type::Variable(variable) => format!("?{}", variable.index),
+            dir::Type::Memory(literal) => Self::memory_literal_type_label(literal),
+            dir::Type::Static(static_id) => self.global_static_label(*static_id),
             dir::Type::Intersection(intersection) => {
                 self.type_id_list_label(types, &intersection.elements, " & ")
             }
@@ -87,17 +90,22 @@ impl DirSnapshotBuilder<'_> {
     }
 
     /// Return one reference type label.
-    fn reference_type_label(&self, reference: &dir::ReferenceType) -> String {
+    fn reference_type_label(
+        &self,
+        types: &dir::TypeTable<'_>,
+        reference: &dir::GenericInstance,
+    ) -> String {
         if reference.arguments.is_empty() {
             return self.symbol_path_label(reference.symbol);
         }
 
-        if let Some(label) = self.collection_type_label(reference.symbol, &reference.arguments) {
+        if let Some(label) =
+            self.collection_type_label(types, reference.symbol, &reference.arguments)
+        {
             return label;
         }
 
-        // render static arguments only when the reference is applied
-        let arguments = self.static_argument_list_label(&reference.arguments);
+        let arguments = self.type_id_list_label(types, &reference.arguments, ", ");
         let symbol = self.symbol_path_label(reference.symbol);
 
         format!("{symbol}<{arguments}>")
@@ -111,7 +119,7 @@ impl DirSnapshotBuilder<'_> {
             return format!("{owner}.{key}");
         }
 
-        let arguments = self.static_argument_list_label(&member.arguments);
+        let arguments = self.type_id_list_label(types, &member.arguments, ", ");
 
         format!("{owner}.{key}<{arguments}>")
     }
@@ -119,34 +127,31 @@ impl DirSnapshotBuilder<'_> {
     /// Return one collection type label.
     pub(super) fn collection_type_label(
         &self,
+        types: &dir::TypeTable<'_>,
         symbol: dir::GlobalSymbolId,
-        arguments: &[dir::StaticArgument],
+        arguments: &[dir::GlobalTypeId],
     ) -> Option<String> {
         let item = self.language_item_by_symbol.get(&symbol)?;
-        let unnamed = arguments.iter().all(|argument| argument.name.is_none());
-        if !unnamed {
-            return None;
-        }
 
         match (item, arguments) {
             (dir::LanguageItem::Array, [element]) => {
-                let element = self.static_argument_value_label(element.value);
+                let element = self.type_id_label(types, *element);
 
                 Some(format!("Array<{element}>"))
             }
             (dir::LanguageItem::ReadonlyArray, [element]) => {
-                let element = self.static_argument_value_label(element.value);
+                let element = self.type_id_label(types, *element);
 
                 Some(format!("ReadonlyArray<{element}>"))
             }
             (dir::LanguageItem::FixedArray, [element, count]) => {
-                let element = self.static_argument_value_label(element.value);
-                let count = self.static_argument_value_label(count.value);
+                let element = self.type_id_label(types, *element);
+                let count = self.type_id_label(types, *count);
 
                 Some(format!("FixedArray<{element}, {count}>"))
             }
             (dir::LanguageItem::Slice, [element]) => {
-                let element = self.static_argument_value_label(element.value);
+                let element = self.type_id_label(types, *element);
 
                 Some(format!("Slice<{element}>"))
             }
@@ -164,14 +169,14 @@ impl DirSnapshotBuilder<'_> {
             dir::Form::Managed => format!("Managed<{value}>"),
             dir::Form::Owned => format!("Owned<{value}>"),
             dir::Form::Borrowed { lifetime, access } => {
-                let lifetime = self.global_static_label(*lifetime);
-                let access = self.global_static_label(*access);
+                let lifetime = self.type_id_label(types, *lifetime);
+                let access = self.type_id_label(types, *access);
 
                 format!("Borrowed<{value}, {lifetime}, {access}>")
             }
             dir::Form::Raw => format!("Raw<{value}>"),
             dir::Form::Placed { place } => {
-                let place = self.global_static_label(*place);
+                let place = self.type_id_label(types, *place);
 
                 format!("Placed<{value}, {place}>")
             }
@@ -213,7 +218,49 @@ impl DirSnapshotBuilder<'_> {
 
                 format!("keyof {target}")
             }
+            dir::TypeOperation::TryOutput { value } => {
+                let value = self.type_id_label(types, *value);
+
+                format!("TryOutput<{value}>")
+            }
+            dir::TypeOperation::TryResidual { value } => {
+                let value = self.type_id_label(types, *value);
+
+                format!("TryResidual<{value}>")
+            }
+            dir::TypeOperation::StaticBinary(binary) => {
+                let left = self.type_id_label(types, binary.left);
+                let right = self.type_id_label(types, binary.right);
+                let operator = static_binary_operator_label(binary.operator);
+
+                format!("{left} {operator} {right}")
+            }
+            dir::TypeOperation::StaticUnary(unary) => {
+                let target = self.type_id_label(types, unary.target);
+                let operator = static_unary_operator_label(unary.operator);
+
+                format!("{operator}{target}")
+            }
         }
+    }
+
+    /// Return one memory literal type label.
+    fn memory_literal_type_label(literal: &dir::MemoryLiteral) -> String {
+        let value = match literal {
+            dir::MemoryLiteral::Access(access) => DirSnapshotBuilder::variant_label(access),
+            dir::MemoryLiteral::Space(space) => DirSnapshotBuilder::variant_label(space),
+            dir::MemoryLiteral::Place(dir::Place::Ambient) => "ambient".to_string(),
+            dir::MemoryLiteral::Place(dir::Place::Space(space)) => {
+                DirSnapshotBuilder::variant_label(space)
+            }
+            dir::MemoryLiteral::Lifetime(dir::Lifetime::Static) => "static".to_string(),
+            dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame) => "frame".to_string(),
+            dir::MemoryLiteral::Lifetime(dir::Lifetime::Symbol(symbol)) => {
+                return format!("lifetime#{:?}", symbol.local_id);
+            }
+        };
+
+        format!("{value:?}")
     }
 
     /// Return one string mapping label.
@@ -313,10 +360,10 @@ impl DirSnapshotBuilder<'_> {
 
     /// Return one fixed array type label.
     fn array_type_label(&self, types: &dir::TypeTable<'_>, array: &dir::ArrayType) -> String {
-        // render homogeneous array notation
+        // intrinsic collections render their declared names
         let element = self.type_id_label(types, array.element);
 
-        format!("{element}[]")
+        format!("Array<{element}>")
     }
 
     /// Return one fixed array type label.
@@ -325,11 +372,11 @@ impl DirSnapshotBuilder<'_> {
         types: &dir::TypeTable<'_>,
         array: &dir::FixedArrayType,
     ) -> String {
-        // render element and count
+        // intrinsic collections render their declared names
         let element = self.type_id_label(types, array.element);
-        let count = self.global_static_label(array.count);
+        let count = self.type_id_label(types, array.count);
 
-        format!("[{element}; {count}]")
+        format!("FixedArray<{element}, {count}>")
     }
 
     /// Return one range type label.
@@ -352,10 +399,10 @@ impl DirSnapshotBuilder<'_> {
 
     /// Return one slice type label.
     fn slice_type_label(&self, types: &dir::TypeTable<'_>, slice: &dir::SliceType) -> String {
-        // render slice notation
+        // intrinsic collections render their declared names
         let element = self.type_id_label(types, slice.element);
 
-        format!("[{element}]")
+        format!("Slice<{element}>")
     }
 
     /// Return one tuple type label.
@@ -524,13 +571,12 @@ impl DirSnapshotBuilder<'_> {
         let parameters = parameters
             .iter()
             .map(|parameter| self.function_parameter_label(types, parameter));
-        let parameters = this_parameter
+
+        this_parameter
             .into_iter()
             .chain(parameters)
             .collect::<Vec<_>>()
-            .join(", ");
-
-        parameters
+            .join(", ")
     }
 
     /// Return one function parameter list label.
@@ -609,9 +655,9 @@ impl DirSnapshotBuilder<'_> {
         let Some((generics, generic)) = self.generic_parameter_context(parameter) else {
             return format!("generic#{}", parameter.local_id.0);
         };
-        let template = generics.get_template(generic.template());
+        let template = generics.get_template(generic.template);
 
-        match generic.key() {
+        match generic.key {
             dir::GenericParameterKey::Symbol(symbol) => {
                 if symbol.module_id == self.tree.module_id {
                     self.symbol_label(symbol)
@@ -638,46 +684,16 @@ impl DirSnapshotBuilder<'_> {
             return String::new();
         };
 
-        match generic {
-            dir::GenericParameterBinding::Type {
-                constraint,
-                default,
-                ..
-            }
-            | dir::GenericParameterBinding::VariadicType {
-                constraint,
-                default,
-                ..
-            } => {
-                let constraint = constraint
-                    .map(|ty| format!(": {}", self.type_id_label(types, ty)))
-                    .unwrap_or_default();
-                let default = default
-                    .map(|ty| format!(" = {}", self.type_id_label(types, ty)))
-                    .unwrap_or_default();
+        let constraint = generic
+            .constraint
+            .map(|ty| format!(": {}", self.type_id_label(types, ty)))
+            .unwrap_or_default();
+        let default = generic
+            .default
+            .map(|ty| format!(" = {}", self.type_id_label(types, ty)))
+            .unwrap_or_default();
 
-                format!("{constraint}{default}")
-            }
-            dir::GenericParameterBinding::Static {
-                constraint,
-                default,
-                ..
-            }
-            | dir::GenericParameterBinding::VariadicStatic {
-                constraint,
-                default,
-                ..
-            } => {
-                let constraint = constraint
-                    .map(|ty| format!(": {}", self.type_id_label(types, ty)))
-                    .unwrap_or_default();
-                let default = default
-                    .map(|static_id| format!(" = {}", self.global_static_label(static_id)))
-                    .unwrap_or_default();
-
-                format!("{constraint}{default}")
-            }
-        }
+        format!("{constraint}{default}")
     }
 
     /// Return the generic slot represented by one parameter type.
@@ -709,15 +725,6 @@ impl DirSnapshotBuilder<'_> {
             .join(separator)
     }
 
-    /// Return one static argument list label.
-    fn static_argument_list_label(&self, arguments: &[dir::StaticArgument]) -> String {
-        arguments
-            .iter()
-            .map(|argument| self.static_argument_label(argument))
-            .collect::<Vec<_>>()
-            .join(", ")
-    }
-
     /// Return one tuple element list label.
     fn tuple_element_list_label(
         &self,
@@ -743,5 +750,42 @@ impl DirSnapshotBuilder<'_> {
             .map(|type_id| self.function_generic_parameter_label(types, *type_id))
             .collect::<Vec<_>>()
             .join(", ")
+    }
+}
+
+/// Return one static binary operator spelling.
+fn static_binary_operator_label(operator: dir::StaticBinaryOperator) -> &'static str {
+    match operator {
+        dir::StaticBinaryOperator::Add => "+",
+        dir::StaticBinaryOperator::Subtract => "-",
+        dir::StaticBinaryOperator::Multiply => "*",
+        dir::StaticBinaryOperator::Divide => "/",
+        dir::StaticBinaryOperator::Remainder => "%",
+        dir::StaticBinaryOperator::Exponent => "**",
+        dir::StaticBinaryOperator::ShiftLeft => "<<",
+        dir::StaticBinaryOperator::ShiftRight => ">>",
+        dir::StaticBinaryOperator::UnsignedShiftRight => ">>>",
+        dir::StaticBinaryOperator::BitwiseAnd => "&",
+        dir::StaticBinaryOperator::BitwiseXor => "^",
+        dir::StaticBinaryOperator::BitwiseOr => "|",
+        dir::StaticBinaryOperator::Equal => "==",
+        dir::StaticBinaryOperator::EqualStrict => "===",
+        dir::StaticBinaryOperator::NotEqual => "!=",
+        dir::StaticBinaryOperator::NotEqualStrict => "!==",
+        dir::StaticBinaryOperator::LessThan => "<",
+        dir::StaticBinaryOperator::LessThanOrEqual => "<=",
+        dir::StaticBinaryOperator::GreaterThan => ">",
+        dir::StaticBinaryOperator::GreaterThanOrEqual => ">=",
+        dir::StaticBinaryOperator::And => "&&",
+        dir::StaticBinaryOperator::Or => "||",
+    }
+}
+
+/// Return one static unary operator spelling.
+fn static_unary_operator_label(operator: dir::StaticUnaryOperator) -> &'static str {
+    match operator {
+        dir::StaticUnaryOperator::Not => "!",
+        dir::StaticUnaryOperator::Negate => "-",
+        dir::StaticUnaryOperator::BitwiseNot => "~",
     }
 }

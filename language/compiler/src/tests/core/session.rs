@@ -97,7 +97,7 @@ pub(crate) struct TestSession {
 #[allow(dead_code)]
 impl TestSession {
     /// Create a new test session builder.
-    pub(crate) fn new() -> TestSessionBuilder {
+    pub(crate) fn builder() -> TestSessionBuilder {
         TestSessionBuilder::default()
     }
 
@@ -113,7 +113,7 @@ impl TestSession {
 
     /// Build a single-module test session.
     pub(crate) fn single(source: &str) -> Self {
-        Self::new().module("main.ds", source).build()
+        Self::builder().module("main.ds", source).build()
     }
 
     /// Build one test session from source files.
@@ -130,7 +130,7 @@ impl TestSession {
         );
         let repository = Arc::new(Repository::new(
             root,
-            Arc::new(MemoryCacheStore::new()),
+            shared_cache_store(),
             Arc::new(MemoryFileSystem::new()),
             environment,
             Settings::default(),
@@ -459,8 +459,8 @@ impl TestSession {
         files: &BTreeMap<String, FileContent>,
     ) -> BTreeMap<ModuleId, String> {
         let mut paths = files
-            .iter()
-            .filter_map(|(path, _)| {
+            .keys()
+            .filter_map(|path| {
                 let module_id = repository
                     .module_id_for_path(revision, path.as_ref())
                     .expect("test module lookup should work")?;
@@ -612,7 +612,7 @@ impl TestSession {
                     self.render_module_snapshot(path, entry, rows)
                 };
 
-                format!("=== {path} ===\n{body}")
+                format!("=== {path} ===\n\n{body}")
             })
             .collect::<Vec<_>>()
             .join("\n\n")
@@ -693,13 +693,30 @@ impl TestSession {
             }
         }
 
-        if let Some(resolved) = &resolved {
-            if selection.includes_import() {
-                builder.add_resolved(selection, resolved);
-            }
+        if let Some(resolved) = &resolved
+            && selection.includes_import()
+        {
+            builder.add_resolved(selection, resolved);
         }
 
-        builder.render()
+        // lead with the annotated render, the cleaner of the two views
+        let annotated = self.annotated_snapshot(path, entry);
+        let rows = builder.render();
+
+        format!("=== annotated ===\n{annotated}\n\n=== checked ===\n{rows}")
+    }
+
+    /// Return the annotated source render for one checked module.
+    fn annotated_snapshot(&self, path: &str, entry: &TestModule) -> String {
+        let key = self.dir_checked_component_key(path);
+        let labels = BTreeMap::from([
+            ("phase".to_string(), "check".to_string()),
+            ("module".to_string(), entry.module.uri.to_string()),
+        ]);
+
+        self.artifact_text_sidecar(key, "annotated", &labels)
+            .trim_matches('\n')
+            .to_string()
     }
 
     /// Return parsed DIR for one module entry.
@@ -911,14 +928,13 @@ impl TestSession {
                 .artifacts()
                 .dir_expanded(&expanded_version)
                 .expect("test builtin expanded artifact should exist");
-            let types =
-                dir::TypeTable::from_segments(vec![bound.types.clone(), expanded.types.clone()]);
-            let statics = dir::StaticTable::from_segments(vec![
-                bound.statics.clone(),
-                expanded.statics.clone(),
-            ]);
+            // builtin modules carry checked layers like any other module
+            let checked = self.dir_checked_module(module_id, entry.profile);
+            let generics = checked.generic_table();
+            let types = checked.type_table(&bound, &expanded);
+            let statics = checked.static_table(&bound, &expanded);
 
-            tables.push((None, types, statics));
+            tables.push((Some(generics), types, statics));
         }
 
         tables
@@ -963,7 +979,21 @@ fn assert_equal(actual: impl AsRef<str>, expected: &str) {
     if actual == expected {
         return;
     }
+
     let diff = format_diff(expected, actual, &DiffOptions::new());
 
     panic!("snapshot mismatch\n\n{diff}");
+}
+
+/// Return the cache store shared by every test session in this process.
+///
+/// Sharing rests on the same invariant the production cache rests on:
+/// artifact keys are content addressed, so a hit can only ever replay
+/// the exact computation it names. Tests exploit it so the library
+/// packages every fixture imports check once per process instead of
+/// once per test.
+fn shared_cache_store() -> Arc<MemoryCacheStore> {
+    static STORE: std::sync::OnceLock<Arc<MemoryCacheStore>> = std::sync::OnceLock::new();
+
+    Arc::clone(STORE.get_or_init(|| Arc::new(MemoryCacheStore::new())))
 }

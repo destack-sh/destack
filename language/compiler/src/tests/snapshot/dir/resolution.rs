@@ -145,12 +145,7 @@ fn add_member_resolution_row(
         dir::MemberTarget::Symbol(candidate) => row
             .field("kind", "symbol")
             .field("target", builder.member_candidate_label(candidate))
-            .optional_field(
-                "instance",
-                candidate
-                    .instance
-                    .map(|id| builder.generic_instance_label(id)),
-            ),
+            .optional_field("arguments", arguments_label(builder, &candidate.arguments)),
         dir::MemberTarget::Union(candidates) => row.field("kind", "union").list_field(
             "targets",
             candidates
@@ -183,10 +178,9 @@ fn add_call_resolution_row(
         dir::CallTarget::Builtin(builtin) => row
             .field("kind", "builtin")
             .field("builtin", builtin_call_label(*builtin)),
-        dir::CallTarget::Expression { instance } => row.field("kind", "expression").optional_field(
-            "instance",
-            instance.map(|id| builder.generic_instance_label(id)),
-        ),
+        dir::CallTarget::Expression { arguments } => row
+            .field("kind", "expression")
+            .optional_field("arguments", arguments_label(builder, arguments)),
         dir::CallTarget::Symbol(candidate) => {
             add_call_candidate_fields(builder, row.field("kind", "symbol"), candidate)
         }
@@ -254,17 +248,19 @@ fn add_pattern_resolution_row(
                 binding.pattern.map(|node| builder.node_label(node)),
             ),
         dir::PatternResolution::Literal(literal) => {
-            row.field("value", builder.global_static_label(literal.value))
+            row.field("value", builder.scalar_literal_label(&literal.value))
         }
         dir::PatternResolution::Range(range) => row
             .type_field("domain", builder.global_type_label(range.domain))
             .optional_field(
                 "start",
-                range.start.map(|value| builder.global_static_label(value)),
+                range
+                    .start
+                    .map(|value| builder.scalar_literal_label(&value)),
             )
             .optional_field(
                 "end",
-                range.end.map(|value| builder.global_static_label(value)),
+                range.end.map(|value| builder.scalar_literal_label(&value)),
             )
             .field("bound", DirSnapshotBuilder::variant_label(range.end_bound)),
         dir::PatternResolution::Tuple(tuple) => {
@@ -278,35 +274,20 @@ fn add_pattern_resolution_row(
         }
         dir::PatternResolution::Nominal(nominal) => row
             .field("target", builder.symbol_path_label(nominal.symbol))
-            .optional_field(
-                "instance",
-                nominal
-                    .instance
-                    .map(|id| builder.generic_instance_label(id)),
-            )
+            .optional_field("arguments", arguments_label(builder, &nominal.arguments))
             .list_field("fields", pattern_field_labels(builder, &nominal.fields)),
         dir::PatternResolution::Newtype(newtype) => row
             .field("target", builder.symbol_path_label(newtype.symbol))
-            .optional_field(
-                "instance",
-                newtype
-                    .instance
-                    .map(|id| builder.generic_instance_label(id)),
-            )
+            .optional_field("arguments", arguments_label(builder, &newtype.arguments))
             .optional_field("value", newtype.value.map(|node| builder.node_label(node))),
         dir::PatternResolution::Variant(variant) => row
             .field("target", builder.symbol_path_label(variant.symbol))
-            .optional_field(
-                "instance",
-                variant
-                    .instance
-                    .map(|id| builder.generic_instance_label(id)),
-            )
+            .optional_field("arguments", arguments_label(builder, &variant.arguments))
             .optional_field(
                 "discriminant",
                 variant
                     .discriminant
-                    .map(|value| builder.global_static_label(value)),
+                    .map(|value| builder.scalar_literal_label(&value)),
             )
             .list_field("fields", pattern_field_labels(builder, &variant.fields)),
         dir::PatternResolution::Union(union) => row.list_field(
@@ -395,12 +376,7 @@ fn add_call_candidate_fields(
             "receiver",
             candidate.receiver.map(|ty| builder.global_type_label(ty)),
         )
-        .optional_field(
-            "instance",
-            candidate
-                .instance
-                .map(|id| builder.generic_instance_label(id)),
-        )
+        .optional_field("arguments", arguments_label(builder, &candidate.arguments))
 }
 
 /// Add direct class construct candidate fields.
@@ -416,12 +392,7 @@ fn add_class_construct_candidate_fields(
                 .constructor
                 .map(|symbol| builder.symbol_path_label(symbol)),
         )
-        .optional_field(
-            "instance",
-            candidate
-                .instance
-                .map(|id| builder.generic_instance_label(id)),
-        )
+        .optional_field("arguments", arguments_label(builder, &candidate.arguments))
 }
 
 /// Add direct newtype construct candidate fields.
@@ -431,12 +402,7 @@ fn add_construct_candidate_fields(
     candidate: &dir::NewtypeConstructCandidate,
 ) -> SnapshotRow {
     row.field("target", builder.symbol_path_label(candidate.symbol))
-        .optional_field(
-            "instance",
-            candidate
-                .instance
-                .map(|id| builder.generic_instance_label(id)),
-        )
+        .optional_field("arguments", arguments_label(builder, &candidate.arguments))
 }
 
 /// Add ordered pattern sequence fields.
@@ -462,7 +428,7 @@ fn add_pattern_sequence_fields(
             ),
         dir::PatternSequenceResolution::FixedArray { fields, length } => row
             .field("sequence", "fixed_array")
-            .field("length", builder.global_static_label(*length))
+            .field("length", builder.global_type_label(*length))
             .list_field("fields", pattern_field_labels(builder, fields)),
     }
 }
@@ -508,4 +474,22 @@ fn pattern_rest_label(
     let pattern = builder.node_label(pattern);
 
     format!("...{pattern}")
+}
+
+/// Render one applied generic argument list label.
+fn arguments_label(
+    builder: &DirSnapshotBuilder<'_>,
+    arguments: &[dir::GlobalTypeId],
+) -> Option<String> {
+    if arguments.is_empty() {
+        return None;
+    }
+
+    Some(
+        arguments
+            .iter()
+            .map(|argument| builder.global_type_label(*argument))
+            .collect::<Vec<_>>()
+            .join(", "),
+    )
 }
