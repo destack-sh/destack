@@ -1,8 +1,8 @@
 use destack_dir as dir;
 
+use crate::CompilerResult;
 use crate::check::{
-    ControlTarget, FlowBranch, Obligation, Origin, TryFailureTerm, TryTarget, TypeLiteralTerm,
-    TypeOperand, TypeOperationTerm, TypeRelation, TypeTerm, VariableId, WalkState,
+    ControlTarget, FlowBranch, Obligation, Origin, Relation, TryObligation, TryTarget, WalkState,
 };
 
 impl WalkState<'_, '_> {
@@ -12,7 +12,7 @@ impl WalkState<'_, '_> {
         label: Option<dir::StringId>,
         allows_continue: bool,
         source: dir::LocalNodeId<dir::Expression>,
-        result: TypeOperand,
+        result: dir::GlobalTypeId,
     ) {
         // capture flow state before the control body
         let checkpoint = self.flow().fork();
@@ -32,95 +32,45 @@ impl WalkState<'_, '_> {
     }
 
     /// Leave one break or continue target, define its result, and return break branch flow.
+    /// Break values already bound the result at their break sites.
     pub(in crate::check) fn leave_control_target(
         &mut self,
-        fallthrough: Option<TypeOperand>,
-    ) -> Vec<FlowBranch> {
+        fallthrough: Option<dir::GlobalTypeId>,
+    ) -> CompilerResult<Vec<FlowBranch>> {
         // remove target before resolving its result
         let target = self.flow_mut().pop_target();
-        let condition = self.flow().active_static_guard();
+        let origin = Origin::Node(target.source);
 
-        // define the control expression result
         match (target.break_values.as_slice(), fallthrough) {
             // fall through without break
             ([], Some(fallthrough)) => {
-                let origin = Origin::Node(target.source);
-
-                self.check.constrain_type(
-                    origin,
-                    TypeRelation::Equal,
-                    target.result,
-                    fallthrough,
-                    condition,
-                );
+                self.relate_types(origin, Relation::Equal, target.result, fallthrough);
             }
             // loop expression with no exit
             ([], None) => {
-                let origin = Origin::Node(target.source);
-                let term = TypeTerm::Literal(TypeLiteralTerm::Never);
-                let operand = self.check.type_term_operand(term);
+                let never = self.push_type(dir::Type::Never, target.source.local_id)?;
 
-                self.check.constrain_type(
-                    origin,
-                    TypeRelation::Equal,
-                    target.result,
-                    operand,
-                    condition,
-                );
+                self.relate_types(origin, Relation::Equal, target.result, never);
             }
-            // single break branch
-            ([value], None) => {
-                let origin = Origin::Node(target.source);
-
-                self.check.constrain_type(
-                    origin,
-                    TypeRelation::Equal,
-                    target.result,
-                    *value,
-                    condition,
-                );
+            // break exits already bound the result, add the fallthrough exit
+            (_, Some(fallthrough)) => {
+                self.relate_types(origin, Relation::Assignable, fallthrough, target.result);
             }
-            // multiple break and fallthrough branches
-            (values, fallthrough) => {
-                let mut elements =
-                    Vec::with_capacity(values.len() + usize::from(fallthrough.is_some()));
-                elements.extend(values.iter().copied());
-
-                // include the fallthrough value as another exit
-                if let Some(fallthrough) = fallthrough {
-                    elements.push(fallthrough);
-                }
-
-                // compute the common result of every exit
-                let operation = self
-                    .check
-                    .inference
-                    .push_term(TypeOperationTerm::BestCommon { elements });
-
-                let term = TypeTerm::Operation(operation);
-                let origin = Origin::Node(target.source);
-                let operand = self.check.type_term_operand(term);
-
-                self.check.constrain_type(
-                    origin,
-                    TypeRelation::Equal,
-                    target.result,
-                    operand,
-                    condition,
-                );
-            }
+            // break exits already bound the result
+            (_, None) => {}
         }
 
         // return branches that escaped by break
-        target.break_branches
+        Ok(target.break_branches)
     }
 
     /// Enter one try failure target.
-    pub(in crate::check) fn enter_try_target(&mut self, source: dir::LocalNodeIdAny) -> VariableId {
-        // create the failure result variable
-        let source = source.into_global(self.module);
-        let origin = Origin::Node(source);
-        let failure = self.check.push_type_variable(self.module, origin);
+    pub(in crate::check) fn enter_try_target(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // open the failure result variable
+        let failure = self.open_type(source)?;
         let target = TryTarget {
             failure,
             failures: Vec::new(),
@@ -129,51 +79,27 @@ impl WalkState<'_, '_> {
         // expose target to nested try propagation
         self.flow_mut().push_try(target);
 
-        failure
+        Ok(failure)
     }
 
     /// Leave one try failure target and define its collected failure type.
-    pub(in crate::check) fn leave_try_target(&mut self) -> VariableId {
+    /// Collected failures bound the target at their propagation sites.
+    pub(in crate::check) fn leave_try_target(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+    ) -> CompilerResult<dir::GlobalTypeId> {
         // remove target before resolving its failure result
         let target = self.flow_mut().pop_try();
-        let condition = self.flow().active_static_guard();
 
-        // define the propagated failure type
-        match target.failures.as_slice() {
-            // no propagated failure
-            [] => {
-                let term = TypeTerm::Literal(TypeLiteralTerm::Never);
+        // close failure-free try bodies to never
+        if target.failures.is_empty() {
+            let origin = Origin::Node(source.into_global(self.module));
+            let never = self.push_type(dir::Type::Never, source)?;
 
-                self.check.equate_type(target.failure, term, condition);
-            }
-            // single propagated failure
-            [failure] => {
-                let origin = self.check.variable(target.failure).source;
-
-                self.check.constrain_type(
-                    origin,
-                    TypeRelation::Equal,
-                    target.failure,
-                    *failure,
-                    condition,
-                );
-            }
-            // multiple propagated failures
-            failures => {
-                let operation = self
-                    .check
-                    .inference
-                    .push_term(TypeOperationTerm::BestCommon {
-                        elements: failures.to_vec(),
-                    });
-
-                let term = TypeTerm::Operation(operation);
-
-                self.check.equate_type(target.failure, term, condition);
-            }
+            self.relate_types(origin, Relation::Equal, target.failure, never);
         }
 
-        target.failure
+        Ok(target.failure)
     }
 
     /// Break to one control target.
@@ -181,12 +107,13 @@ impl WalkState<'_, '_> {
         &mut self,
         source: dir::LocalNodeIdAny,
         label: Option<dir::StringId>,
-        value: Option<impl Into<TypeOperand>>,
-    ) {
+        value: Option<dir::GlobalTypeId>,
+    ) -> CompilerResult<()> {
         // use void for omitted break values
-        let value = value
-            .map(Into::into)
-            .unwrap_or_else(|| self.void_type_operand());
+        let value = match value {
+            Some(value) => value,
+            None => self.push_type(dir::Type::Void, source)?,
+        };
         let origin = Origin::Node(source.into_global(self.module));
 
         // resolve the selected control target
@@ -194,7 +121,7 @@ impl WalkState<'_, '_> {
             self.check
                 .report_invalid_control_flow(self.module, source, "break has no target");
 
-            return;
+            return Ok(());
         };
 
         // capture branch flow at the break site
@@ -204,11 +131,10 @@ impl WalkState<'_, '_> {
         // store value and captured branch flow
         self.flow_mut().push_break_branch(index, value, branch);
 
-        let condition = self.flow().active_static_guard();
-
         // require the break value to match the target result
-        self.check
-            .constrain_type(origin, TypeRelation::Assignable, value, result, condition);
+        self.relate_types(origin, Relation::Assignable, value, result);
+
+        Ok(())
     }
 
     /// Continue to one control target.
@@ -241,33 +167,36 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn propagate_try(
         &mut self,
         source: dir::LocalNodeIdAny,
-        value: impl Into<TypeOperand>,
-    ) {
-        let value = value.into();
-
-        // collect local try failure
+        value: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        // collect the local failure projection on the innermost try target
         if self.flow_mut().current_try_mut().is_some() {
-            let source = source.into_global(self.module);
-            let tried = self
-                .check
-                .inference
-                .push_term(TryFailureTerm { source, value });
-            let failure = self.check.inference.push_term(TypeTerm::TryFailure(tried));
+            let operation = dir::TypeOperation::TryResidual { value };
+            let failure = self.push_type(dir::Type::Operation(operation), source)?;
+            let origin = Origin::Node(source.into_global(self.module));
 
-            // record failure on the innermost try target
+            let mut result = None;
             if let Some(target) = self.flow_mut().current_try_mut() {
-                target.failures.push(failure.into());
+                target.failures.push(failure);
+                result = Some(target.failure);
+            }
+            if let Some(result) = result {
+                self.relate_types(origin, Relation::Assignable, failure, result);
             }
 
-            return;
+            return Ok(());
         }
 
         // propagate to the enclosing function
-        self.check.push_obligation(Obligation::TryPropagation {
+        let return_type = self.current_return_target();
+        let condition = self.flow().active_static_guard();
+        self.check.push_obligation(Obligation::Try(TryObligation {
             source: source.into_global(self.module),
+            condition,
             value,
-            return_type: self.current_return_target(),
-            condition: self.flow().active_static_guard(),
-        });
+            return_type,
+        }));
+
+        Ok(())
     }
 }

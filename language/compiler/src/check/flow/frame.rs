@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use indexmap::IndexSet;
 
-use crate::check::{FlowBranch, FlowCheckpoint, ReceiverBinding, TypeOperand, VariableId};
+use crate::check::{FlowBranch, FlowCheckpoint, ReceiverBinding};
 
 /// A function body currently being walked.
 #[derive(Debug)]
@@ -17,11 +17,11 @@ pub(in crate::check) struct FunctionFrame {
     /// The lexical receiver visible inside this function.
     pub(in crate::check::flow) receiver: Option<ReceiverBinding>,
     /// The value accepted by `return` inside this function body.
-    pub(in crate::check::flow) return_target: TypeOperand,
+    pub(in crate::check::flow) return_target: dir::GlobalTypeId,
     /// The value accepted by `yield` inside this generator body.
-    pub(in crate::check::flow) yield_target: Option<VariableId>,
+    pub(in crate::check::flow) yield_target: Option<dir::GlobalTypeId>,
     /// The value produced when this generator resumes after `yield`.
-    pub(in crate::check::flow) resume_target: Option<VariableId>,
+    pub(in crate::check::flow) resume_target: Option<dir::GlobalTypeId>,
     /// The function asynchrony.
     pub(in crate::check::flow) asynchrony: dir::Asynchrony,
     /// Outer symbols read by this function.
@@ -40,9 +40,9 @@ pub(in crate::check) struct ControlTarget {
     /// The expression node that owns this control frame.
     pub(in crate::check::flow) source: dir::GlobalNodeIdAny,
     /// The result type receiving break values.
-    pub(in crate::check::flow) result: TypeOperand,
+    pub(in crate::check::flow) result: dir::GlobalTypeId,
     /// Break values collected while walking the control body.
-    pub(in crate::check::flow) break_values: Vec<TypeOperand>,
+    pub(in crate::check::flow) break_values: Vec<dir::GlobalTypeId>,
     /// Flow branches collected at break sites.
     pub(in crate::check::flow) break_branches: Vec<FlowBranch>,
     /// Flow branches collected at continue sites.
@@ -55,7 +55,7 @@ pub(in crate::check) struct ControlTarget {
 #[derive(Debug)]
 pub(in crate::check) struct TryTarget {
     /// The result type receiving propagated failures.
-    pub(in crate::check::flow) failure: VariableId,
+    pub(in crate::check::flow) failure: dir::GlobalTypeId,
     /// Failure values collected while walking the try body.
-    pub(in crate::check::flow) failures: Vec<TypeOperand>,
+    pub(in crate::check::flow) failures: Vec<dir::GlobalTypeId>,
 }

@@ -2,19 +2,16 @@ use destack_dir as dir;
 use indexmap::IndexSet;
 
 use crate::CompilerResult;
-use crate::check::{
-    FunctionFrame, GenericArgument, Origin, ReceiverBinding, TypeLiteralTerm, TypeOperand,
-    TypeRelation, TypeTerm, VariableId, WalkState,
-};
+use crate::check::{ConstraintCause, FunctionFrame, Origin, ReceiverBinding, Relation, WalkState};
 
 impl WalkState<'_, '_> {
     /// Enter one function body while walking.
     pub(in crate::check) fn enter_function_frame(
         &mut self,
         symbol: dir::GlobalSymbolId,
-        return_target: TypeOperand,
-        yield_target: Option<VariableId>,
-        resume_target: Option<VariableId>,
+        return_target: dir::GlobalTypeId,
+        yield_target: Option<dir::GlobalTypeId>,
+        resume_target: Option<dir::GlobalTypeId>,
         asynchrony: dir::Asynchrony,
         receiver: Option<ReceiverBinding>,
     ) {
@@ -59,7 +56,7 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn constrain_return_value(
         &mut self,
         source: dir::LocalNodeIdAny,
-        value: impl Into<TypeOperand>,
+        value: dir::GlobalTypeId,
     ) {
         // reject returns outside function bodies
         let Some(function) = self.flow().current_function() else {
@@ -71,14 +68,14 @@ impl WalkState<'_, '_> {
 
         // constrain value against the active return target
         let origin = Origin::Node(source.into_global(self.module));
-        let condition = self.flow().active_static_guard();
+        let return_target = function.return_target;
 
-        self.check.constrain_type(
+        self.push_relation(
             origin,
-            TypeRelation::Assignable,
+            ConstraintCause::Return,
+            Relation::Assignable,
             value,
-            function.return_target,
-            condition,
+            return_target,
         );
     }
 
@@ -87,15 +84,15 @@ impl WalkState<'_, '_> {
         &mut self,
         source: dir::LocalNodeIdAny,
         cardinality: dir::YieldCardinality,
-        value: Option<TypeOperand>,
-        delegate_return_target: Option<TypeOperand>,
-    ) {
+        value: Option<dir::GlobalTypeId>,
+        delegate_return_target: Option<dir::GlobalTypeId>,
+    ) -> CompilerResult<()> {
         // require a surrounding function body
         let Some(function) = self.flow().current_function() else {
             self.check
                 .report_invalid_yield(self.module, source, "yield requires a generator");
 
-            return;
+            return Ok(());
         };
 
         // require a generator yield target
@@ -103,7 +100,7 @@ impl WalkState<'_, '_> {
             self.check
                 .report_invalid_yield(self.module, source, "yield requires a generator");
 
-            return;
+            return Ok(());
         };
 
         // snapshot function channels before reporting constraints
@@ -115,16 +112,15 @@ impl WalkState<'_, '_> {
         if cardinality == dir::YieldCardinality::Scalar {
             let value = match value {
                 Some(value) => value,
-                None => self.void_type_operand(),
+                None => self.push_type(dir::Type::Void, source)?,
             };
-            let condition = self.flow().active_static_guard();
 
-            self.check.constrain_type(
+            self.push_relation(
                 origin,
-                TypeRelation::Assignable,
+                ConstraintCause::Yield,
+                Relation::Assignable,
                 value,
                 yield_target,
-                condition,
             );
         }
         // yield* values
@@ -136,29 +132,22 @@ impl WalkState<'_, '_> {
                 dir::Asynchrony::Sync => dir::LanguageItem::Iterable,
                 dir::Asynchrony::Async => dir::LanguageItem::AsyncIterable,
             };
-            let symbol = self.check.language_symbol(item);
-
-            // apply yield delegate channels
-            let yield_target = GenericArgument::Type(yield_target.into());
-            let delegate_return_target = GenericArgument::Type(delegate_return_target);
-            let resume_target = GenericArgument::Type(resume_target.into());
-            let expected = TypeTerm::Reference {
-                origin: Origin::Node(source.into_global(self.module)),
-                symbol,
-                arguments: vec![yield_target, delegate_return_target, resume_target].into(),
-            };
-            let expected = self.check.inference.push_term(expected);
-            let condition = self.flow().active_static_guard();
+            let expected = self.language_type_reference(
+                source,
+                item,
+                vec![yield_target, delegate_return_target, resume_target],
+            )?;
 
             // require delegated value to implement the protocol
-            self.check
-                .constrain_type(origin, TypeRelation::Assignable, value, expected, condition);
+            self.relate_types(origin, Relation::Assignable, value, expected);
         }
         // reject malformed delegation
         else {
             self.check
                 .report_invalid_yield(self.module, source, "yield* requires a value");
         }
+
+        Ok(())
     }
 
     /// Validate one await expression against the current async context.
@@ -178,43 +167,29 @@ impl WalkState<'_, '_> {
         }
     }
 
-    /// Return the current generator yield target.
-    pub(in crate::check) fn current_yield_target(&self) -> Option<TypeOperand> {
-        self.flow()
-            .current_function()
-            .and_then(|function| function.yield_target)
-            .map(TypeOperand::from)
-    }
-
     /// Return the current generator resume target.
-    pub(in crate::check) fn current_resume_target(&self) -> Option<TypeOperand> {
+    pub(in crate::check) fn current_resume_target(&self) -> Option<dir::GlobalTypeId> {
         self.flow()
             .current_function()
             .and_then(|function| function.resume_target)
-            .map(TypeOperand::from)
     }
 
     /// Return the enclosing function return target.
-    pub(in crate::check) fn current_return_target(&self) -> Option<TypeOperand> {
+    pub(in crate::check) fn current_return_target(&self) -> Option<dir::GlobalTypeId> {
         self.flow()
             .current_function()
             .map(|function| function.return_target)
     }
 
     /// Constrain a void return to the current function.
-    pub(in crate::check) fn constrain_void_return(&mut self, source: dir::LocalNodeIdAny) {
+    pub(in crate::check) fn constrain_void_return(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+    ) -> CompilerResult<()> {
         // reuse normal return constraint logic
-        let value = self.void_type_operand();
-
+        let value = self.push_type(dir::Type::Void, source)?;
         self.constrain_return_value(source, value);
-    }
 
-    /// Return the void type operand.
-    pub(in crate::check) fn void_type_operand(&mut self) -> TypeOperand {
-        // intern canonical void type
-        let term = TypeTerm::Literal(TypeLiteralTerm::Void);
-        let term = self.check.inference.push_term(term);
-
-        term.into()
+        Ok(())
     }
 }

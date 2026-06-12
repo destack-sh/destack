@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Receiver, ReceiverBinding, ReceiverResolution, WalkState};
+use crate::check::{Decision, Receiver, ReceiverBinding, WalkState};
 
 impl WalkState<'_, '_> {
     /// Resolve `this` at the current walk point.
@@ -21,8 +21,8 @@ impl WalkState<'_, '_> {
             else {
                 self.flow_mut().capture_receiver(receiver);
                 let resolution = dir::NameResolution::new(receiver.symbol);
-
-                self.check.inference.select_name(source, resolution)?;
+                self.check
+                    .record_decision(source, Decision::Name(resolution))?;
             }
 
             return Ok(Some(receiver.receiver));
@@ -124,8 +124,9 @@ impl WalkState<'_, '_> {
         // select bare receiver symbols directly
         let Some(owner) = receiver.receiver.owner else {
             let resolution = dir::NameResolution::new(receiver.symbol);
-
-            return self.check.inference.select_name(source, resolution);
+            return self
+                .check
+                .record_decision(source, Decision::Name(resolution));
         };
 
         self.select_this_receiver(
@@ -133,6 +134,7 @@ impl WalkState<'_, '_> {
             Receiver {
                 owner: Some(owner),
                 ty: receiver.receiver.ty,
+                super_ty: receiver.receiver.super_ty,
             },
         )
     }
@@ -148,13 +150,13 @@ impl WalkState<'_, '_> {
         };
 
         // select receiver with owner metadata
-        let resolution = ReceiverResolution {
-            source,
+        let resolution = dir::ReceiverResolution {
             kind: dir::ReceiverKind::This,
             owner,
             ty: receiver.ty,
         };
 
-        self.check.inference.select_receiver(resolution)
+        self.check
+            .record_decision(source, Decision::Receiver(resolution))
     }
 }
