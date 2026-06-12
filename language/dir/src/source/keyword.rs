@@ -2,7 +2,10 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
+const KEYWORD_MAX: u8 = Keyword::With as u8;
+
 /// A Keyword in the language.
+#[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Keyword {
     // ------------------------------------------------------------
@@ -199,6 +202,23 @@ pub enum Keyword {
 }
 
 impl Keyword {
+    /// Convert a dense keyword code into a keyword.
+    #[inline]
+    pub fn from_code(code: u8) -> Option<Self> {
+        if code > KEYWORD_MAX {
+            return None;
+        }
+
+        // keywords are a dense repr(u8) enum from 0 through KEYWORD_MAX
+        Some(unsafe { std::mem::transmute::<u8, Keyword>(code) })
+    }
+
+    /// Return this keyword as its dense code.
+    #[inline]
+    pub const fn code(self) -> u8 {
+        self as u8
+    }
+
     pub const fn is_control(&self) -> bool {
         matches!(
             self,

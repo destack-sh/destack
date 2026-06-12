@@ -509,7 +509,7 @@ impl From<&ScalarLiteral> for Type {
             ScalarLiteral::String(_)
             | ScalarLiteral::Integer(_)
             | ScalarLiteral::Float(_)
-            | ScalarLiteral::Bigint(_) => Self::Literal(value.clone()),
+            | ScalarLiteral::Bigint(_) => Self::Literal(*value),
             ScalarLiteral::RegexString { .. } => Self::Object,
         }
     }

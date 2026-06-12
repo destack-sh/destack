@@ -1,30 +1,70 @@
 use std::fmt::{Display, Formatter};
+use std::hash::{Hash, Hasher};
 
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+use super::Keyword;
 
 pub use destack_unicode::UNICODE_VERSION;
 
 const TOKEN_TYPE_BITS: u32 = 0x0000_00ff;
 const TOKEN_LINE_BIT: u32 = 0x0000_0100;
+const TOKEN_KEYWORD_BITS: u32 = 0x0000_fe00;
+const TOKEN_KEYWORD_SHIFT: u32 = 9;
 const TOKEN_LITERAL_SHIFT: u32 = 16;
+const TOKEN_NON_KEYWORD_CODE: u8 = 0x7f;
+const TOKEN_TYPE_MAX: u8 = TokenType::CoalesceAssign as u8;
+const TOKEN_NEWLINE_CODE: u8 = TokenType::Newline as u8;
+const TOKEN_WHITESPACE_CODE: u8 = TokenType::Whitespace as u8;
+const TOKEN_LINE_COMMENT_CODE: u8 = TokenType::LineComment as u8;
+const TOKEN_BLOCK_COMMENT_CODE: u8 = TokenType::BlockComment as u8;
+const TOKEN_DOC_LINE_COMMENT_CODE: u8 = TokenType::DocLineComment as u8;
+const TOKEN_DOC_BLOCK_COMMENT_CODE: u8 = TokenType::DocBlockComment as u8;
 const LITERAL_KIND_BITS: u16 = 0x000f;
 const LITERAL_FLAG_A: u16 = 0x0010;
 const LITERAL_FLAG_B: u16 = 0x0020;
 const LITERAL_BASE_SHIFT: u16 = 6;
 
+const _: () = assert!(Keyword::With as u8 + 1 < TOKEN_NON_KEYWORD_CODE);
+
 /// A source Token.
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone)]
 pub struct Token {
+    /// The start byte of the token in its source file.
+    start: u32,
     /// The length of the token in bytes.
     len: u32,
-    /// Packed token type, line boundary flag, and literal metadata.
+    /// Packed token type, line boundary flag, keyword cache, and literal metadata.
     bits: u32,
+}
+
+impl PartialEq for Token {
+    fn eq(&self, other: &Self) -> bool {
+        let left_bits = self.bits & !TOKEN_KEYWORD_BITS;
+        let right_bits = other.bits & !TOKEN_KEYWORD_BITS;
+
+        self.start == other.start && self.len == other.len && left_bits == right_bits
+    }
+}
+
+impl Eq for Token {}
+
+impl Hash for Token {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        let bits = self.bits & !TOKEN_KEYWORD_BITS;
+
+        self.start.hash(state);
+        self.len.hash(state);
+        bits.hash(state);
+    }
 }
 
 /// Serializable token record.
 #[derive(Deserialize)]
 struct TokenRecord {
+    /// The start byte of the token in its source file.
+    start: u32,
     /// The token tag.
     ty: TokenType,
     /// The length of the token in bytes.
@@ -38,8 +78,10 @@ struct TokenRecord {
 impl std::fmt::Debug for Token {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Token")
+            .field("start", &self.start())
             .field("ty", &self.ty())
             .field("len", &self.len())
+            .field("keyword", &self.keyword())
             .field("literal", &self.literal())
             .field("is_on_new_line", &self.is_on_new_line())
             .finish()
@@ -48,7 +90,13 @@ impl std::fmt::Debug for Token {
 
 impl Display for Token {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<Token {:?}, {}>", self.ty(), self.len())
+        write!(
+            f,
+            "<Token {:?}, {}..{}>",
+            self.ty(),
+            self.start(),
+            self.end()
+        )
     }
 }
 
@@ -57,7 +105,8 @@ impl Serialize for Token {
     where
         S: Serializer,
     {
-        let mut token = serializer.serialize_struct("Token", 4)?;
+        let mut token = serializer.serialize_struct("Token", 5)?;
+        token.serialize_field("start", &self.start())?;
         token.serialize_field("ty", &self.ty())?;
         token.serialize_field("len", &self.len())?;
         token.serialize_field("literal", &self.literal())?;
@@ -73,14 +122,17 @@ impl<'de> Deserialize<'de> for Token {
     {
         let record = TokenRecord::deserialize(deserializer)?;
 
-        Ok(Token::new(record.ty, record.len, record.literal)
-            .with_on_new_line(record.is_on_new_line))
+        Ok(
+            Token::new(record.ty, record.start, record.len, record.literal)
+                .with_on_new_line(record.is_on_new_line),
+        )
     }
 }
 
 impl Token {
     /// Create a token.
-    pub const fn new(ty: TokenType, len: u32, literal: Option<TokenLiteral>) -> Token {
+    #[inline(always)]
+    pub const fn new(ty: TokenType, start: u32, len: u32, literal: Option<TokenLiteral>) -> Token {
         let literal = match literal {
             Some(literal) => literal.bits(),
             None => 0,
@@ -88,23 +140,89 @@ impl Token {
         let token_type = ty as u32;
         let bits = token_type | (literal << TOKEN_LITERAL_SHIFT);
 
-        Token { len, bits }
+        Token { start, len, bits }
+    }
+
+    /// Create a token without literal metadata.
+    #[inline(always)]
+    pub const fn simple(ty: TokenType, start: u32, len: u32) -> Token {
+        Token {
+            start,
+            len,
+            bits: ty as u32,
+        }
+    }
+
+    /// Create an identifier token with optional keyword identity.
+    #[inline(always)]
+    pub const fn identifier(start: u32, len: u32, keyword: Option<Keyword>) -> Token {
+        let mut token = Token::simple(TokenType::Identifier, start, len);
+        let code = match keyword {
+            Some(keyword) => keyword.code() + 1,
+            None => TOKEN_NON_KEYWORD_CODE,
+        } as u32;
+        token.bits |= code << TOKEN_KEYWORD_SHIFT;
+
+        token
     }
 
     /// Create an end token.
-    pub const fn end() -> Token {
-        Token::new(TokenType::End, 0, None)
+    #[inline(always)]
+    pub const fn eof(start: u32) -> Token {
+        Token::simple(TokenType::End, start, 0)
     }
 
     /// Return the token tag.
-    #[inline]
+    #[inline(always)]
     pub fn ty(self) -> TokenType {
         let code = (self.bits & TOKEN_TYPE_BITS) as u8;
+        debug_assert!(
+            code <= TOKEN_TYPE_MAX,
+            "packed token type code must be valid"
+        );
 
-        match TokenType::try_from(code) {
-            Ok(ty) => ty,
-            Err(_) => TokenType::Unknown,
-        }
+        // token bits are private and only built from TokenType values
+        unsafe { std::mem::transmute::<u8, TokenType>(code) }
+    }
+
+    /// Return whether this token has the given tag.
+    #[inline]
+    pub const fn is(self, token_type: TokenType) -> bool {
+        self.bits & TOKEN_TYPE_BITS == token_type as u32
+    }
+
+    /// Return whether this token is semantic source content.
+    #[inline]
+    pub const fn is_semantic(self) -> bool {
+        let code = (self.bits & TOKEN_TYPE_BITS) as u8;
+
+        !matches!(
+            code,
+            TOKEN_NEWLINE_CODE
+                | TOKEN_WHITESPACE_CODE
+                | TOKEN_LINE_COMMENT_CODE
+                | TOKEN_BLOCK_COMMENT_CODE
+                | TOKEN_DOC_LINE_COMMENT_CODE
+                | TOKEN_DOC_BLOCK_COMMENT_CODE
+        )
+    }
+
+    /// Return the start byte in the source file.
+    #[inline]
+    pub const fn start(self) -> u32 {
+        self.start
+    }
+
+    /// Return the exclusive end byte in the source file.
+    #[inline]
+    pub const fn end(self) -> u32 {
+        self.start + self.len
+    }
+
+    /// Return the source span for this token in one file.
+    #[inline]
+    pub fn span(self, file: destack_source::FileId) -> destack_source::Span {
+        destack_source::Span::new(file, self.start, self.end())
     }
 
     /// Return the length of the token in bytes.
@@ -125,6 +243,40 @@ impl Token {
         let code = (self.bits >> TOKEN_LITERAL_SHIFT) as u16;
 
         TokenLiteral::from_bits(code)
+    }
+
+    /// Return the keyword identity carried by this identifier token.
+    #[inline]
+    pub fn keyword(self) -> Option<Keyword> {
+        if !self.is(TokenType::Identifier) {
+            return None;
+        }
+
+        let code = ((self.bits & TOKEN_KEYWORD_BITS) >> TOKEN_KEYWORD_SHIFT) as u8;
+        if code == 0 {
+            return None;
+        }
+
+        Keyword::from_code(code - 1)
+    }
+
+    /// Return the keyword classification carried by this identifier token.
+    #[inline]
+    pub fn classified_keyword(self) -> Option<Option<Keyword>> {
+        if !self.is(TokenType::Identifier) {
+            return None;
+        }
+
+        let code = ((self.bits & TOKEN_KEYWORD_BITS) >> TOKEN_KEYWORD_SHIFT) as u8;
+        if code == 0 {
+            return None;
+        }
+
+        if code == TOKEN_NON_KEYWORD_CODE {
+            return Some(None);
+        }
+
+        Some(Keyword::from_code(code - 1))
     }
 
     /// Return whether the token is preceded by a line terminator.
@@ -397,86 +549,23 @@ impl TryFrom<u8> for TokenType {
 
     /// Convert a packed token type code into a token type.
     fn try_from(code: u8) -> Result<Self, Self::Error> {
-        match code {
-            0 => Ok(TokenType::Newline),
-            1 => Ok(TokenType::Whitespace),
-            2 => Ok(TokenType::Unknown),
-            3 => Ok(TokenType::End),
-            4 => Ok(TokenType::LineComment),
-            5 => Ok(TokenType::BlockComment),
-            6 => Ok(TokenType::DocLineComment),
-            7 => Ok(TokenType::DocBlockComment),
-            8 => Ok(TokenType::Identifier),
-            9 => Ok(TokenType::InvalidIdentifier),
-            10 => Ok(TokenType::UnknownLiteralPrefix),
-            11 => Ok(TokenType::Literal),
-            12 => Ok(TokenType::TemplateStringStart),
-            13 => Ok(TokenType::TemplateStringMiddle),
-            14 => Ok(TokenType::TemplateStringEnd),
-            15 => Ok(TokenType::TemplateString),
-            16 => Ok(TokenType::Colon),
-            17 => Ok(TokenType::Semicolon),
-            18 => Ok(TokenType::Comma),
-            19 => Ok(TokenType::Dot),
-            20 => Ok(TokenType::Range),
-            21 => Ok(TokenType::RangeInclusive),
-            22 => Ok(TokenType::Spread),
-            23 => Ok(TokenType::Arrow),
-            24 => Ok(TokenType::ArrowWide),
-            25 => Ok(TokenType::At),
-            26 => Ok(TokenType::Hash),
-            27 => Ok(TokenType::ElementwiseNot),
-            28 => Ok(TokenType::Maybe),
-            29 => Ok(TokenType::Coalesce),
-            30 => Ok(TokenType::Not),
-            31 => Ok(TokenType::OpenParenthesis),
-            32 => Ok(TokenType::CloseParenthesis),
-            33 => Ok(TokenType::OpenBrace),
-            34 => Ok(TokenType::CloseBrace),
-            35 => Ok(TokenType::OpenBracket),
-            36 => Ok(TokenType::CloseBracket),
-            37 => Ok(TokenType::Multiply),
-            38 => Ok(TokenType::Exponent),
-            39 => Ok(TokenType::Divide),
-            40 => Ok(TokenType::Remainder),
-            41 => Ok(TokenType::Add),
-            42 => Ok(TokenType::Subtract),
-            43 => Ok(TokenType::Increment),
-            44 => Ok(TokenType::Decrement),
-            45 => Ok(TokenType::ShiftLeft),
-            46 => Ok(TokenType::ShiftRight),
-            47 => Ok(TokenType::UnsignedShiftRight),
-            48 => Ok(TokenType::ElementwiseAnd),
-            49 => Ok(TokenType::ElementwiseXor),
-            50 => Ok(TokenType::ElementwiseOr),
-            51 => Ok(TokenType::Equal),
-            52 => Ok(TokenType::EqualWide),
-            53 => Ok(TokenType::NotEqual),
-            54 => Ok(TokenType::NotEqualWide),
-            55 => Ok(TokenType::LessThan),
-            56 => Ok(TokenType::LessThanOrEqual),
-            57 => Ok(TokenType::GreaterThan),
-            58 => Ok(TokenType::GreaterThanOrEqual),
-            59 => Ok(TokenType::LogicalAnd),
-            60 => Ok(TokenType::LogicalOr),
-            61 => Ok(TokenType::Assign),
-            62 => Ok(TokenType::MultiplyAssign),
-            63 => Ok(TokenType::ExponentAssign),
-            64 => Ok(TokenType::DivideAssign),
-            65 => Ok(TokenType::RemainderAssign),
-            66 => Ok(TokenType::AddAssign),
-            67 => Ok(TokenType::SubtractAssign),
-            68 => Ok(TokenType::ShiftLeftAssign),
-            69 => Ok(TokenType::ShiftRightAssign),
-            70 => Ok(TokenType::UnsignedShiftRightAssign),
-            71 => Ok(TokenType::ElementwiseAndAssign),
-            72 => Ok(TokenType::ElementwiseXorAssign),
-            73 => Ok(TokenType::ElementwiseOrAssign),
-            74 => Ok(TokenType::LogicalAndAssign),
-            75 => Ok(TokenType::LogicalOrAssign),
-            76 => Ok(TokenType::CoalesceAssign),
-            _ => Err(TokenTypeCodeError),
+        match TokenType::from_code(code) {
+            Some(token_type) => Ok(token_type),
+            None => Err(TokenTypeCodeError),
         }
+    }
+}
+
+impl TokenType {
+    /// Convert a dense token type code into a token type.
+    #[inline(always)]
+    pub fn from_code(code: u8) -> Option<Self> {
+        if code > TOKEN_TYPE_MAX {
+            return None;
+        }
+
+        // token types are a dense repr(u8) enum from 0 through TOKEN_TYPE_MAX
+        Some(unsafe { std::mem::transmute::<u8, TokenType>(code) })
     }
 }
 
@@ -770,8 +859,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_pack_token_in_eight_bytes() {
-        assert_eq!(size_of::<Token>(), 8);
+    fn test_pack_token_in_twelve_bytes() {
+        assert_eq!(size_of::<Token>(), 12);
     }
 
     #[test]
@@ -817,7 +906,7 @@ mod tests {
         ];
 
         for literal in literals {
-            let token = Token::new(TokenType::Literal, 7, literal).with_on_new_line(true);
+            let token = Token::new(TokenType::Literal, 0, 7, literal).with_on_new_line(true);
 
             assert_eq!(token.ty(), TokenType::Literal);
             assert_eq!(token.len(), 7);
