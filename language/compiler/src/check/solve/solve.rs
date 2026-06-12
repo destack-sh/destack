@@ -1,183 +1,197 @@
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, CheckEvent, CheckState, Condition, Constraint, ConstraintId, Task, TraceConstraintKind,
-    TraceOperand, TracePatternRelation, VariableId, VariableKind,
+    Answer, CheckEvent, CheckState, Condition, Constraint, ConstraintId, Dependency, Mutation,
+    Task, TaskTiming,
 };
 use crate::{CompilerError, CompilerResult};
+
+const SOLVER_MAX_STEPS: usize = 50_000; // (this is really an internal error)
 
 impl CheckState<'_> {
     /// Solve collected component constraints to a fixed point.
     pub(in crate::check) fn solve(&mut self) -> CompilerResult<()> {
-        if self.inference.is_probing() {
+        // the journal records only while a probe is active
+        if self.journal.is_active() {
             return Err(CompilerError::Internal {
-                message: "solver cannot drain work while inference probe is active".into(),
+                message: "solver cannot drain work while a probe is active".into(),
             });
         }
 
         self.record_event(CheckEvent::SolveStart {
-            tasks: self.inference.task_count(),
-            variables: self.inference.variable_count(),
+            tasks: self.queue.len(),
+            variables: self.variables.count(),
         });
 
-        let mut steps = 0;
-        loop {
-            let Some(task) = self.inference.pop_task()? else {
-                break;
-            };
-
-            let answer = match task {
-                Task::Constraint(constraint) => self.solve_constraint(constraint),
-                Task::Variable(variable) => self.solve_variable(variable),
-                Task::ArgumentDefault(variable) => self.solve_generic_argument_default(variable),
-            }?;
-
-            match answer {
-                Answer::Ready(()) => self.inference.finish_task(task)?,
-                Answer::Pending(blockers) => self.inference.block_task(task, blockers)?,
+        let mut timing = TaskTiming::new();
+        let mut steps = 0usize;
+        while let Some(task) = self.pop_task() {
+            // a diverging queue is a solver bug; fail loudly with the task
+            if steps > SOLVER_MAX_STEPS {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "solve diverged after {steps} steps on {task:?}, {} tasks queued",
+                        self.queue.len()
+                    ),
+                });
             }
 
-            self.record_event(CheckEvent::SolveStep { step: steps });
+            let started = timing.observe();
+            let answer = self.run_task(task)?;
+            timing.finish(task, started);
+
+            // park pending tasks on their blockers
+            if let Answer::Pending(blockers) = answer {
+                self.park_task(task, &blockers)?;
+            }
+
+            self.record_event(CheckEvent::SolveStep { step: steps, task });
             steps += 1;
         }
+        timing.report(steps);
 
         self.record_event(CheckEvent::SolveFinish {
             iterations: steps,
-            variables: self.inference.variable_count(),
+            variables: self.variables.count(),
         });
 
         Ok(())
     }
 
-    /// Solve one active constraint once.
-    fn solve_constraint(&mut self, id: ConstraintId) -> CompilerResult<Answer<()>> {
-        if self.inference.is_constraint_complete(id) {
-            return Ok(Answer::Ready(()));
-        }
-
-        let origin = self.inference.constraint_by_id(id).origin();
-        let condition_decision = match self.inference.constraint_by_id(id).condition() {
-            Condition::Always => Answer::Ready(true),
-            Condition::Never => Answer::Ready(false),
-            Condition::When { conditions } => {
-                let predicates = conditions.iter().copied().collect::<SmallVec<[_; 2]>>();
-
-                self.decide_condition_predicates(&predicates)?
-            }
-        };
-        if let Answer::Pending(blockers) = condition_decision {
-            return Ok(Answer::Pending(blockers));
-        }
-        if condition_decision == Answer::Ready(false) {
-            self.inference.complete_constraint(id);
-
-            return Ok(Answer::Ready(()));
-        }
-
-        let answer = if let Constraint::Type {
-            relation,
-            left,
-            right,
-            origin,
-            condition: _,
-            coercion: _,
-        } = self.inference.constraint_by_id(id)
-        {
-            let relation = *relation;
-            let left = *left;
-            let right = *right;
-            let origin = *origin;
-
-            self.record_event(CheckEvent::ConstraintSolve {
-                constraint: id,
-                kind: TraceConstraintKind::Type(relation),
-                origin,
-                left: Some(TraceOperand::Type(left)),
-                right: TraceOperand::Type(right),
-            });
-
-            self.solve_type_relation(origin, relation, left, right)?
-        } else if let Constraint::Static {
-            relation,
-            left,
-            right,
-            origin,
-            condition: _,
-        } = self.inference.constraint_by_id(id)
-        {
-            let relation = *relation;
-            let left = *left;
-            let right = *right;
-            let origin = *origin;
-
-            self.record_event(CheckEvent::ConstraintSolve {
-                constraint: id,
-                kind: TraceConstraintKind::Static(relation),
-                origin,
-                left: Some(TraceOperand::Static(left)),
-                right: TraceOperand::Static(right),
-            });
-
-            self.solve_static_relation(origin, relation, left, right)?
-        } else if let Constraint::Pattern {
-            relation,
-            value,
-            origin,
-            condition: _,
-        } = self.inference.constraint_by_id(id)
-        {
-            let relation = *relation;
-            let value = *value;
-            let origin = *origin;
-            let kind = TracePatternRelation::from(&relation);
-
-            self.record_event(CheckEvent::ConstraintSolve {
-                constraint: id,
-                kind: TraceConstraintKind::Pattern(kind),
-                origin,
-                left: None,
-                right: TraceOperand::Type(value),
-            });
-
-            self.solve_pattern_relation(origin, relation, value)?
-        } else {
-            unreachable!("constraint variant must be type, static, or pattern")
-        };
-
-        match answer {
-            Answer::Ready(()) => {
-                self.inference.complete_constraint(id);
-
-                Ok(Answer::Ready(()))
-            }
-            Answer::Pending(blockers) if blockers.is_empty() => {
-                let constraint = self.inference.constraint_by_id(id);
-                let constraint = self.dump_in_module(origin.module(), constraint);
-
-                Err(CompilerError::Internal {
-                    message: format!(
-                        "check constraint {id:?} is pending without dependencies: {constraint}"
-                    ),
-                })
-            }
-            Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+    /// Run one solver task once.
+    fn run_task(&mut self, task: Task) -> CompilerResult<Answer<()>> {
+        match task {
+            Task::Relate(constraint) => self.run_relate(constraint),
+            Task::Select(node) => self.run_select(node),
+            Task::Solve(variable) => self.run_solve(variable),
+            Task::Oblige(obligation) => self.run_obligation(obligation),
         }
     }
 
-    /// Solve one variable from its collected bounds.
-    fn solve_variable(&mut self, variable: VariableId) -> CompilerResult<Answer<()>> {
-        self.record_event(CheckEvent::VariableSolve { variable });
-
-        // skip solved variables
-        if self.variable_solution(variable).is_some() {
+    /// Solve one relation constraint once.
+    fn run_relate(&mut self, id: ConstraintId) -> CompilerResult<Answer<()>> {
+        if self.constraints.is_complete(id) {
             return Ok(Answer::Ready(()));
         }
 
-        // dispatch by variable domain
-        let kind = self.variable(variable).kind;
-        match kind {
-            VariableKind::Type => self.solve_type_variable_from_bounds(variable),
-            VariableKind::Static => self.solve_static_variable_from_bounds(variable),
+        // copy the constraint's identity and its condition predicates
+        let (relation, cause, left, right, origin, predicates) = {
+            let constraint = self.constraints.get(id)?;
+            let predicates = match &constraint.condition {
+                Condition::Always => SmallVec::new(),
+                Condition::When(predicates) => predicates.clone(),
+            };
+
+            (
+                constraint.relation,
+                constraint.cause,
+                constraint.left,
+                constraint.right,
+                constraint.origin,
+                predicates,
+            )
+        };
+
+        // gate conditional constraints on their predicates
+        if !predicates.is_empty() {
+            match self.decide_condition(&predicates)? {
+                // skip constraints whose condition failed
+                Answer::Ready(false) => {
+                    self.complete_constraint(id);
+
+                    return Ok(Answer::Ready(()));
+                }
+                Answer::Ready(true) => {}
+                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+            }
         }
+
+        // solve the gated relation under its own guard assumptions
+        let mark = self.assume(&predicates)?;
+        let answer = self.relate(origin, relation, cause, left, right);
+        self.release_assumptions(mark);
+
+        match answer? {
+            Answer::Ready(()) => {
+                self.complete_constraint(id);
+                self.record_event(CheckEvent::Relate {
+                    constraint: id,
+                    finished: true,
+                });
+
+                Ok(Answer::Ready(()))
+            }
+            Answer::Pending(blockers) if blockers.is_empty() => Err(CompilerError::Internal {
+                message: format!("check constraint {id:?} is pending without dependencies"),
+            }),
+            Answer::Pending(blockers) => {
+                self.record_event(CheckEvent::Relate {
+                    constraint: id,
+                    finished: false,
+                });
+
+                Ok(Answer::Pending(blockers))
+            }
+        }
+    }
+
+    /// Collect one journaled constraint and schedule it.
+    pub(in crate::check) fn push_constraint(&mut self, constraint: Constraint) -> ConstraintId {
+        let id = self.constraints.allocate(constraint);
+        self.journal.record(Mutation::ConstraintAllocated);
+        self.queue_task(Task::Relate(id));
+
+        id
+    }
+
+    /// Queue one solver task.
+    pub(in crate::check) fn queue_task(&mut self, task: Task) {
+        self.queue.push(task);
+        self.journal.record(Mutation::TaskQueued { task });
+    }
+
+    /// Pop the next solver task.
+    fn pop_task(&mut self) -> Option<Task> {
+        let task = self.queue.pop();
+
+        if let Some(task) = task {
+            self.journal.record(Mutation::TaskPopped { task });
+        }
+
+        task
+    }
+
+    /// Park one task on its blocking dependencies.
+    fn park_task(&mut self, task: Task, blockers: &[Dependency]) -> CompilerResult<()> {
+        for blocker in blockers {
+            match *blocker {
+                // park on the variable representative
+                Dependency::Variable(variable) => {
+                    let representative = self.variables.representative(variable)?;
+                    let state = self.variables.get_mut(representative)?;
+
+                    if !state.waiters.contains(&task) {
+                        state.waiters.push(task);
+                        self.journal.record(Mutation::WaiterPushed {
+                            variable: representative,
+                        });
+                    }
+                }
+                // park on the undecided node
+                Dependency::Decision(node) => {
+                    self.decisions.wait(node, task);
+                    self.journal.record(Mutation::DecisionWaiterPushed { node });
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Mark one constraint complete.
+    pub(in crate::check) fn complete_constraint(&mut self, id: ConstraintId) {
+        self.constraints.complete(id);
+        self.journal
+            .record(Mutation::ConstraintCompleted { constraint: id });
     }
 }
