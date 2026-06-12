@@ -1,6 +1,6 @@
 use crate::{Block, Function, assert_node};
 
-use super::tests::{TestParser, comment_texts};
+use super::{TestParser, comment_texts};
 
 #[test]
 fn test_parse_declaration_comments() {
