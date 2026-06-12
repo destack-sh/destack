@@ -10,7 +10,7 @@ export newtype Pin<T> = intrinsic;
 
 export extension<T> of Pin<T> implements Dereference<"readonly">, As<T>, Borrow<T> {
     /// The projected result form.
-    type Output = &readonly T;
+    type Output = T;
 
     /// Pin a movable root.
     static new(value: T): Pin<T> where T: Unpin {
