@@ -1,5 +1,5 @@
 use destack_core::StringId;
-use destack_dir::{GlobalSymbolId, LanguageItem};
+use destack_dir::{GlobalSymbolId, ImportTarget, LanguageItem, StaticKey};
 use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -39,6 +39,8 @@ pub struct GlobalEnvironment {
     pub language: LanguageEnvironment,
     /// Explicit global modules in load order.
     pub globals: Vec<ModuleId>,
+    /// Resolved global bindings by key across the global modules.
+    pub global_targets_by_key: IndexMap<StaticKey, Vec<ImportTarget>>,
 }
 
 /// Resolved compiler-known intrinsic bindings for a profile.
