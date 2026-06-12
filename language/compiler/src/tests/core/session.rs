@@ -69,7 +69,8 @@ impl TestSessionBuilder {
                 content: r#"{
   "compiler": {
     "emitStats": true,
-    "emitEvents": true
+    "emitEvents": true,
+    "emitCheckedTypes": true
   }
 }"#
                 .to_string(),
@@ -1011,18 +1012,16 @@ fn assert_equal(actual: impl AsRef<str>, expected: &str) {
 /// Rewrite one expectation literal at its call site.
 /// Returns false for expectations that need a manual seed: empty
 /// strings carry no anchor text to locate in the test source.
-fn update_expectation(
-    caller: &std::panic::Location<'_>,
-    expected: &str,
-    actual: &str,
-) -> bool {
+fn update_expectation(caller: &std::panic::Location<'_>, expected: &str, actual: &str) -> bool {
     if expected.is_empty() {
         return false;
     }
 
     // serialize whole-file rewrites across parallel tests
     static UPDATE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-    let guard = UPDATE_LOCK.lock().expect("snapshot update lock is never poisoned");
+    let guard = UPDATE_LOCK
+        .lock()
+        .expect("snapshot update lock is never poisoned");
 
     // caller paths are workspace-relative
     let path = std::path::Path::new(caller.file());

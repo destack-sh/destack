@@ -25,6 +25,10 @@ impl SnapshotTable for dir::ResolutionSegment {
             add_call_resolution_row(builder, node_id, resolution);
         }
 
+        for (node_id, resolution) in self.read_write_entries() {
+            add_read_write_resolution_row(builder, node_id, resolution);
+        }
+
         for (node_id, resolution) in self.construct_entries() {
             add_construct_resolution_row(builder, node_id, resolution);
         }
@@ -38,6 +42,7 @@ impl SnapshotTable for dir::ResolutionSegment {
         let receiver_count = self.receiver_entries().count();
         let member_count = self.member_entries().count();
         let call_count = self.call_entries().count();
+        let read_write_count = self.read_write_entries().count();
         let construct_count = self.construct_entries().count();
         let pattern_count = self.pattern_entries().count();
         if name_count == 0
@@ -45,6 +50,7 @@ impl SnapshotTable for dir::ResolutionSegment {
             && receiver_count == 0
             && member_count == 0
             && call_count == 0
+            && read_write_count == 0
             && construct_count == 0
             && pattern_count == 0
         {
@@ -146,6 +152,12 @@ fn add_member_resolution_row(
             .field("kind", "symbol")
             .field("target", builder.member_candidate_label(candidate))
             .optional_field("arguments", arguments_label(builder, &candidate.arguments)),
+        dir::MemberTarget::Overloaded(candidates) => row.field("kind", "overloaded").list_field(
+            "targets",
+            candidates
+                .iter()
+                .map(|candidate| builder.member_candidate_label(candidate)),
+        ),
         dir::MemberTarget::Union(candidates) => row.field("kind", "union").list_field(
             "targets",
             candidates
@@ -190,6 +202,30 @@ fn add_call_resolution_row(
                 .iter()
                 .map(|candidate| builder.call_candidate_label(candidate)),
         ),
+    };
+
+    builder.push(row);
+}
+
+/// Add one paired read-write resolution row.
+fn add_read_write_resolution_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    resolution: &dir::ReadWriteResolution,
+) {
+    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "readwrite")
+        .optional_field("source", builder.node_source(node_id))
+        .type_field(
+            "element",
+            builder.global_type_label(resolution.read.return_type),
+        );
+
+    // both halves resolve symbol-backed accessor methods
+    let row = match (&resolution.read.target, &resolution.write.target) {
+        (dir::CallTarget::Symbol(read), dir::CallTarget::Symbol(write)) => row
+            .field("read", builder.call_candidate_label(read))
+            .field("write", builder.call_candidate_label(write)),
+        _ => row,
     };
 
     builder.push(row);
