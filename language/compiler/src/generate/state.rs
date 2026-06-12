@@ -24,13 +24,13 @@ impl GenerateState<'_, dir::Tree> {
     pub(in crate::generate) fn anchor(&self, node: dir::GlobalNodeIdAny) -> DiagnosticAnchor {
         assert_eq!(
             self.module_id, node.module_id,
-            "script diagnostic node belongs to a different module"
+            "JS diagnostic node belongs to a different module"
         );
 
         let span = self
             .tree
             .get_span_by_id(node.local_id.id)
-            .expect("script diagnostic node is missing a source span");
+            .expect("JS diagnostic node is missing a source span");
 
         DiagnosticAnchor::Span(span)
     }
@@ -43,7 +43,7 @@ impl GenerateState<'_, mir::Tree> {
         let span = self
             .tree
             .get_span_by_id(node.id)
-            .expect("binary diagnostic node is missing a source span");
+            .expect("native diagnostic node is missing a source span");
 
         DiagnosticAnchor::Span(span)
     }

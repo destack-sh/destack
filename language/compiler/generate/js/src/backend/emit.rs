@@ -9,7 +9,7 @@ use crate::{CodegenJsError, CodegenJsResult, CodegenJsWarning};
 /// Structured JavaScript lowering output for one module.
 #[derive(Debug)]
 pub struct ModuleLowerOutput {
-    /// The lowered script module.
+    /// The lowered JS module.
     pub module: js::Module,
     /// Warnings encountered during emission.
     pub warnings: Vec<CodegenJsWarning>,

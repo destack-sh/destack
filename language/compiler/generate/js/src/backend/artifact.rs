@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    DirBound, DirCheckedModule, DirExpanded, DirImported, DirParsed, EmitFormat, ScriptDeclaration,
-    ScriptLanguage, ScriptOutput,
+    DirBound, DirCheckedModule, DirExpanded, DirImported, DirParsed, EmitFormat, JsDeclaration,
+    JsLanguage, JsOutput,
 };
 use destack_core::StringPool;
 use destack_js as js;
@@ -11,9 +11,9 @@ use destack_repository::{Module, Target};
 use super::lower_module;
 use crate::{CodegenJsError, CodegenJsResult, CodegenJsWarning};
 
-/// One generator for script module outputs.
+/// One generator for JS module outputs.
 #[derive(Debug)]
-pub struct ScriptOutputGenerator<'a> {
+pub struct JsOutputGenerator<'a> {
     /// The current module snapshot.
     module: Arc<Module>,
     /// The current parsed DIR.
@@ -32,8 +32,8 @@ pub struct ScriptOutputGenerator<'a> {
     target: &'a Target,
 }
 
-impl<'a> ScriptOutputGenerator<'a> {
-    /// Create one script output generator.
+impl<'a> JsOutputGenerator<'a> {
+    /// Create one JS output generator.
     pub fn new(
         module: Arc<Module>,
         parsed: Arc<DirParsed>,
@@ -56,10 +56,10 @@ impl<'a> ScriptOutputGenerator<'a> {
         }
     }
 
-    /// Generate one script output.
+    /// Generate one JS output.
     pub fn generate(
         self,
-    ) -> CodegenJsResult<(ScriptOutput, Vec<CodegenJsWarning>, Vec<CodegenJsError>)> {
+    ) -> CodegenJsResult<(JsOutput, Vec<CodegenJsWarning>, Vec<CodegenJsError>)> {
         // validate target
         if !self.target.uses_js_generate_pipeline() {
             return Err(CodegenJsError::UnsupportedTarget {
@@ -76,11 +76,11 @@ impl<'a> ScriptOutputGenerator<'a> {
         let expanded = self.expanded.as_ref();
         let checked = self.checked.as_ref();
 
-        // resource modules are linked directly in the script linker
+        // resource modules are linked directly in the JS linker
         if !module.is_code() {
             return Err(CodegenJsError::Internal {
                 message: format!(
-                    "resource script outputs are linked directly for module '{}'",
+                    "resource JS outputs are linked directly for module '{}'",
                     module.uri
                 ),
             });
@@ -99,28 +99,28 @@ impl<'a> ScriptOutputGenerator<'a> {
         )?;
         let warnings = lower.warnings;
         let errors = lower.errors;
-        let artifact = self.build_script_artifact(lower.module, true)?;
+        let artifact = self.build_js_artifact(lower.module, true)?;
 
         Ok((artifact, warnings, errors))
     }
 
-    /// Build one script output from one lowered module tree.
-    fn build_script_artifact(
+    /// Build one JS output from one lowered module tree.
+    fn build_js_artifact(
         &self,
         module: js::Module,
         has_top_level_side_effects: bool,
-    ) -> CodegenJsResult<ScriptOutput> {
+    ) -> CodegenJsResult<JsOutput> {
         // declaration output
         let declaration = if self.target.declaration && matches!(self.target.emit, EmitFormat::Js) {
-            Some(ScriptDeclaration::default())
+            Some(JsDeclaration::default())
         } else {
             None
         };
 
         // language selection
         let language = match self.target.emit {
-            EmitFormat::Js => ScriptLanguage::JavaScript,
-            EmitFormat::Ts => ScriptLanguage::TypeScript,
+            EmitFormat::Js => JsLanguage::JavaScript,
+            EmitFormat::Ts => JsLanguage::TypeScript,
             _ => {
                 return Err(CodegenJsError::UnsupportedTarget {
                     format: format!("{:?}", self.target.emit),
@@ -129,7 +129,7 @@ impl<'a> ScriptOutputGenerator<'a> {
             }
         };
 
-        Ok(ScriptOutput {
+        Ok(JsOutput {
             language,
             module,
             declaration,

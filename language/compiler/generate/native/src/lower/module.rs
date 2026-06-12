@@ -17,7 +17,7 @@ use crate::{CodegenCraneliftError, CodegenCraneliftResult, CodegenCraneliftWarni
 /// Internal output from module lowering (bytes + warnings).
 #[derive(Debug)]
 pub(crate) struct ModuleLowerOutput {
-    /// Generated binary output (object file or wasm).
+    /// Generated native output (object file or wasm).
     pub bytes: Vec<u8>,
     /// Warnings encountered during generation.
     pub warnings: Vec<CodegenCraneliftWarning>,

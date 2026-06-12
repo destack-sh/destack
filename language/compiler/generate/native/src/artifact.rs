@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
-use destack_artifact::{BinaryOutput, EmitFormat, MirLowered, MirOptimized};
+use destack_artifact::{EmitFormat, MirLowered, MirOptimized, NativeOutput};
 use destack_core::StringPool;
 use destack_repository::{Module, Target};
 
 use crate::{CodegenCraneliftError, CodegenCraneliftResult, CodegenCraneliftWarning};
 
-/// One generator for binary module outputs.
+/// One generator for native module outputs.
 #[derive(Debug)]
-pub struct BinaryOutputGenerator<'a> {
+pub struct NativeOutputGenerator<'a> {
     /// The current module snapshot.
     module: Arc<Module>,
     /// Shared strings referenced by MIR.
@@ -21,8 +21,8 @@ pub struct BinaryOutputGenerator<'a> {
     target: &'a Target,
 }
 
-impl<'a> BinaryOutputGenerator<'a> {
-    /// Create one binary output generator.
+impl<'a> NativeOutputGenerator<'a> {
+    /// Create one native output generator.
     pub fn new(
         module: Arc<Module>,
         strings: Arc<StringPool>,
@@ -39,11 +39,11 @@ impl<'a> BinaryOutputGenerator<'a> {
         }
     }
 
-    /// Generate one binary output.
+    /// Generate one native output.
     pub fn generate(
         self,
     ) -> CodegenCraneliftResult<(
-        BinaryOutput,
+        NativeOutput,
         Vec<CodegenCraneliftWarning>,
         Vec<CodegenCraneliftError>,
     )> {
@@ -77,8 +77,8 @@ impl<'a> BinaryOutputGenerator<'a> {
         };
 
         let artifact = match self.target.emit {
-            EmitFormat::Native => BinaryOutput::object(compile_output.bytes),
-            EmitFormat::Wasm => BinaryOutput::wasm(compile_output.bytes, None),
+            EmitFormat::Native => NativeOutput::object(compile_output.bytes),
+            EmitFormat::Wasm => NativeOutput::wasm(compile_output.bytes, None),
             _ => unreachable!(),
         };
 

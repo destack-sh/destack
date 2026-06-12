@@ -14,7 +14,7 @@ impl Compiler {
         target_id: &TargetId,
         target: &Target,
     ) -> CompilerResult<ArtifactKey> {
-        // script generation reads checked DIR
+        // JS generation reads checked DIR
         if target.uses_js_generate_pipeline() {
             return Ok(ArtifactKey::dir_checked(module_id, profile));
         }
@@ -68,7 +68,7 @@ impl Compiler {
         // dispatch through the selected code generation family
         if target.uses_js_generate_pipeline() {
             return self
-                .generate_script_module_output(module_id, &target, profile, context, artifacts)
+                .generate_js_module_output(module_id, &target, profile, context, artifacts)
                 .map_err(CompilerError::from);
         }
 
@@ -77,7 +77,7 @@ impl Compiler {
         {
             if target.uses_native_generate_pipeline() {
                 return self
-                    .generate_binary_module_output(
+                    .generate_native_module_output(
                         module_id, &target, target_id, profile, context, artifacts,
                     )
                     .map_err(CompilerError::from);

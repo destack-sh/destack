@@ -34,7 +34,7 @@ impl EmitFormat {
         matches!(self, Self::Wasm)
     }
 
-    /// Whether this family produces native binary output.
+    /// Whether this family produces native output.
     pub fn is_native(&self) -> bool {
         matches!(self, Self::Native)
     }
