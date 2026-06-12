@@ -121,6 +121,49 @@ pub enum ArtifactKey {
     WorkspaceLinted,
 }
 
+/// High-level toolchain stage that owns one artifact kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ArtifactStage {
+    /// Source parsing into DIR.
+    Parse,
+    /// Name binding through import, export, and symbol resolution.
+    Bind,
+    /// Comptime expansion and materialization around check.
+    Macro,
+    /// Type checking.
+    Check,
+    /// MIR synthesis, from elaboration through optimization.
+    Lower,
+    /// Target code emission per module.
+    Emit,
+    /// Final program assembly across modules.
+    Link,
+    /// Lint analysis over modules, packages, and the workspace.
+    Lint,
+    /// Query indexes serving editors and tooling.
+    Query,
+    /// Build initialization: environment and dependency resolution.
+    Init,
+}
+
+impl ArtifactStage {
+    /// Return this stage's display name.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Parse => "parse",
+            Self::Bind => "bind",
+            Self::Macro => "macro",
+            Self::Check => "check",
+            Self::Lower => "lower",
+            Self::Emit => "emit",
+            Self::Link => "link",
+            Self::Lint => "lint",
+            Self::Query => "query",
+            Self::Init => "init",
+        }
+    }
+}
+
 impl ArtifactKey {
     /// Return the provider family responsible for this artifact.
     pub fn provider(self) -> ArtifactProvider {
@@ -294,6 +337,61 @@ impl ArtifactKey {
         Self::WorkspaceLinted
     }
 
+    /// Return the toolchain stage that owns this artifact kind.
+    pub fn stage(&self) -> ArtifactStage {
+        match self {
+            Self::DirParsed { .. } | Self::Data { .. } => ArtifactStage::Parse,
+            Self::DirBound { .. }
+            | Self::DirImported { .. }
+            | Self::DirExported { .. }
+            | Self::DirResolved { .. } => ArtifactStage::Bind,
+            Self::DirExpanded { .. } | Self::DirMaterialized { .. } => ArtifactStage::Macro,
+            Self::DirCheckedComponent { .. } | Self::DirChecked { .. } => ArtifactStage::Check,
+            Self::DirElaborated { .. }
+            | Self::MirLowered { .. }
+            | Self::MirVerified { .. }
+            | Self::MirOptimized { .. } => ArtifactStage::Lower,
+            Self::ModuleOutput { .. } => ArtifactStage::Emit,
+            Self::PackageOutput { .. } => ArtifactStage::Link,
+            Self::ModuleLinted { .. } | Self::PackageLinted { .. } | Self::WorkspaceLinted => {
+                ArtifactStage::Lint
+            }
+            Self::ModuleQueryIndex { .. } | Self::WorkspaceQueryIndex { .. } => {
+                ArtifactStage::Query
+            }
+            Self::GlobalEnvironment { .. } | Self::DependencyIndex { .. } => ArtifactStage::Init,
+        }
+    }
+
+    /// Return the human-facing display name for this key's kind.
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            Self::GlobalEnvironment { .. } => "environment",
+            Self::DependencyIndex { .. } => "dependency.index",
+            Self::DirParsed { .. } => "dir.parse",
+            Self::Data { .. } => "data",
+            Self::DirBound { .. } => "dir.bind",
+            Self::DirImported { .. } => "dir.import",
+            Self::DirExpanded { .. } => "dir.expand",
+            Self::DirExported { .. } => "dir.export",
+            Self::DirResolved { .. } => "dir.resolve",
+            Self::DirCheckedComponent { .. } => "dir.check.component",
+            Self::DirChecked { .. } => "dir.check",
+            Self::DirMaterialized { .. } => "dir.materialize",
+            Self::DirElaborated { .. } => "dir.elaborate",
+            Self::MirLowered { .. } => "mir.lower",
+            Self::MirVerified { .. } => "mir.verify",
+            Self::MirOptimized { .. } => "mir.optimize",
+            Self::ModuleQueryIndex { .. } => "module.index",
+            Self::WorkspaceQueryIndex { .. } => "workspace.index",
+            Self::ModuleOutput { .. } => "module.emit",
+            Self::PackageOutput { .. } => "package.link",
+            Self::ModuleLinted { .. } => "module.lint",
+            Self::PackageLinted { .. } => "package.lint",
+            Self::WorkspaceLinted => "workspace.lint",
+        }
+    }
+
     /// Return the stable short name for this key.
     pub fn name(&self) -> &'static str {
         match self {
@@ -354,6 +452,14 @@ impl ArtifactKey {
 }
 
 impl ArtifactKey {
+    /// Return the target id encoded in this key when one exists.
+    pub fn target_id(&self) -> Option<TargetId> {
+        match self {
+            Self::ModuleOutput { target, .. } | Self::PackageOutput { target, .. } => Some(*target),
+            _ => None,
+        }
+    }
+
     /// Return the profile id encoded in this key when one exists.
     pub fn profile_id(&self) -> Option<ProfileId> {
         match self {
