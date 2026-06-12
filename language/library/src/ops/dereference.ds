@@ -1,4 +1,4 @@
-import { Access } from "destack:memory";
+import { Access, WithAccess } from "destack:memory";
 
 /// Interface for dereference projection `*a`.
 ///
@@ -8,6 +8,6 @@ export newtype interface Dereference<comptime A: Access = "readonly"> {
     /// The projected result form.
     type Output;
 
-    /// Project the receiver into the requested access form.
-    dereference(): this.Output;
+    /// Borrow the projected place under the requested access form.
+    dereference(): WithAccess<&this.Output, A>;
 }

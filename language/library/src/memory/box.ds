@@ -18,7 +18,7 @@ export newtype Box<T> = Unique<Owned<T>>;
 
 extension<T, comptime A: Access = "readonly"> of Box<T> implements Dereference<A>, As<T, A>, Borrow<T, A> {
     /// The projected result form.
-    type Output = WithAccess<&T, A>;
+    type Output = T;
 
     /// Allocate `value` on the heap.
     static new(value: ^T): Box<T> {
