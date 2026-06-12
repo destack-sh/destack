@@ -8,7 +8,7 @@ use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Query;
 use destack_repository::{Ref, Repository, Revision};
-use destack_session::{FileChange, Session, SessionEventHandler};
+use destack_session::{Edit, Session, SessionEventHandler};
 use destack_source::{DiagnosticCollection, FileType, ModuleId, ProfileId, TargetId};
 
 use crate::common::{DiagnosticArgs, InputArgs, InputSource, ProgramArgs, print_diagnostics};
@@ -340,12 +340,12 @@ impl CompilerContext {
         let logical_path = cli_input_logical_path(kind, name, file_type);
         let path = self.repository.path().join(&logical_path);
         self.session
-            .apply_file(
+            .edit(
                 self.session.head(),
-                path.as_path(),
-                FileChange::Text {
-                    content: content.to_string(),
-                },
+                vec![Edit::SetText {
+                    path: logical_path.into(),
+                    text: content.to_string(),
+                }],
             )
             .map_err(|error| CliError::message(error.to_string()))?;
         let module_id = self
