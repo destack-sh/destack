@@ -289,6 +289,24 @@ pub enum CheckError {
         target: String,
     },
 
+    /// Spread source has no property surface to merge.
+    ///
+    /// ```ds
+    /// const merged = { ...1 };
+    /// ```
+    #[diagnostic(
+        code = "EC211",
+        message = "type '{source}' cannot be spread into an object literal"
+    )]
+    SpreadNotObject {
+        /// Report the spread expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The spread source type.
+        source: String,
+    },
+
     // -------------------------------------------------------------------------
     // 3xx: selection
     // -------------------------------------------------------------------------

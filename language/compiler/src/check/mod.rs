@@ -1,13 +1,11 @@
-mod build;
 mod commit;
 mod decorator;
-mod dump;
 mod error;
 mod flow;
-mod import;
 mod language;
 mod obligation;
 mod provide;
+mod reify;
 mod select;
 mod solve;
 mod state;
@@ -18,11 +16,13 @@ mod warning;
 pub use error::*;
 pub use warning::*;
 
+pub(crate) use state::CheckSession;
+
 pub(in crate::check) use decorator::*;
-pub(in crate::check) use dump::*;
 pub(in crate::check) use flow::*;
 pub(in crate::check) use language::*;
 pub(in crate::check) use obligation::*;
+pub(in crate::check) use reify::*;
 pub(in crate::check) use select::*;
 pub(in crate::check) use solve::*;
 pub(in crate::check) use state::*;
