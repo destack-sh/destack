@@ -62,7 +62,7 @@ let shape: Rectangle | Circle = Rectangle {};
 
 shape.draw();
 /// @resolution.name source=shape target=shape
-/// @resolution.member source=shape.draw receiver=Rectangle | Circle kind=symbol target=Rectangle.draw
+/// @resolution.member source=shape.draw receiver=Rectangle | Circle kind=union targets=[Rectangle.draw, Circle.draw]
 /// @resolution.call source=shape.draw() parameters=() return=void kind=symbol target=Rectangle.draw receiver=Rectangle | Circle
 
 "#);
@@ -141,7 +141,7 @@ function draw(shape: Shape): void {
 
     shape.draw();
     /// @resolution.name source=shape target=shape
-    /// @resolution.member source=shape.draw receiver=Rectangle | Circle kind=symbol target=Rectangle.draw
+    /// @resolution.member source=shape.draw receiver=Rectangle | Circle kind=union targets=[Rectangle.draw, Circle.draw]
     /// @resolution.call source=shape.draw() parameters=() return=void kind=symbol target=Rectangle.draw receiver=Rectangle | Circle
 
 }

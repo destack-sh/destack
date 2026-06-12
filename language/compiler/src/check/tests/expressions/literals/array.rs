@@ -84,7 +84,7 @@ const first = values[0];
 /// @type.node source=values type=Readonly<[1, 2]>
 /// @type.node source=values[0] type=1
 /// @resolution.name source=values target=values
-/// @resolution.call source=values[0] parameters=() return=1 kind=expression
+/// @resolution.member source=values[0] receiver=[1, 2] kind=builtin builtin=subscript.index
 /// @type.node source=0 type=0
 
 /// @check.stats.solve variables=3 types=12 constraints=6 obligations=0 solutions=3 bounds=4 decisions=2

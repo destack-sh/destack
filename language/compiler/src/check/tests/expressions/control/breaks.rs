@@ -16,16 +16,22 @@ while (true) {
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
+=== annotated ===
+while (true) {
+    const stop: () => void = (): void => {
+        break;
+    };
+}
+
+=== checked ===
 while (true) {
 /// @type.node type=void
 /// @type.node source=true type=true
 
     const stop = () => {
-    /// @type.node type=void
-    /// @type.symbol symbol=stop type=() => void
+    /// @type.symbol symbol=stop source=stop type=() => void
     /// @type.symbol symbol=symbol1 type=() => void
     /// @type.node type=() => void
-    /// @type.node type=void
 
         break;
         /// @type.node source=break type=never

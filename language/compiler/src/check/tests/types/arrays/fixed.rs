@@ -13,13 +13,18 @@ const byte = bytes[1];
         "main.ds",
         DirRows::checked(),
         r#"
+=== annotated ===
 declare const bytes: [uint8; 4];
-/// @type.symbol symbol=bytes source=bytes type=[uint8; 4]
+const byte: uint8 = bytes[1];
+
+=== checked ===
+declare const bytes: [uint8; 4];
+/// @type.symbol symbol=bytes source=bytes type=FixedArray<uint8, 4>
 
 const byte = bytes[1];
 /// @type.symbol symbol=byte source=byte type=uint8
 /// @resolution.name source=bytes target=bytes
-/// @resolution.member source=bytes[1] receiver=[uint8; 4] kind=builtin builtin=subscript.index
+/// @resolution.call source=bytes[1] parameters=(usize) return=uint8 kind=symbol target=collections.array.index#1 receiver=FixedArray<uint8, 4>
 "#,
     );
 }
@@ -37,15 +42,20 @@ const size = bytes.size;
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
+=== annotated ===
 declare const bytes: [uint8; 4];
-/// @type.symbol symbol=bytes source=bytes type=[uint8; 4]
+const size: usize = bytes.size;
+
+=== checked ===
+declare const bytes: [uint8; 4];
+/// @type.symbol symbol=bytes source=bytes type=FixedArray<uint8, 4>
 
 const size = bytes.size;
 /// @type.symbol symbol=size source=size type=usize
-/// @resolution.name source=bytes target=bytes
-/// @resolution.member source=bytes.size receiver=[uint8; 4] kind=symbol target=collections.array.FixedArray.size
-/// @type.node source=bytes type=[uint8; 4]
+/// @type.node source=bytes type=FixedArray<uint8, 4>
 /// @type.node source=bytes.size type=usize
+/// @resolution.name source=bytes target=bytes
+/// @resolution.member source=bytes.size receiver=FixedArray<uint8, 4> kind=symbol target=collections.array.size#1
 "#,
     );
 }

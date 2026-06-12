@@ -22,6 +22,20 @@ const length = point.length();
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
+=== annotated ===
+struct Point {
+    x: int32;
+
+    length(): int32 {
+        return this.x;
+    }
+}
+
+const point: Point = Point { x: 1 };
+const x: int32 = point.x;
+const length: int32 = point.length();
+
+=== checked ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
@@ -94,6 +108,13 @@ const x = point.x;
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
+=== annotated ===
+import { Point } from "./geometry.ds";
+
+const point: Point = Point { x: 1 };
+const x: int32 = point.x;
+
+=== checked ===
 import { Point } from "./geometry.ds";
 
 const point = Point { x: 1 };
@@ -126,25 +147,31 @@ values.push(1);
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
+=== annotated ===
+let values: int32[] = [];
+const length: float64 = values.length;
+values.push(1);
+
+=== checked ===
 let values: int32[] = [];
 /// @type.symbol symbol=values source=values type=Array<int32>
 /// @type.node source=[] type=Array<int32>
 
 const length = values.length;
-/// @type.symbol symbol=length source=length type=number
-/// @resolution.name source=values target=values
-/// @resolution.member source=values.length receiver=Array<int32> kind=symbol target=collections.array.Array.length
+/// @type.symbol symbol=length source=length type=float64
 /// @type.node source=values type=Array<int32>
-/// @type.node source=values.length type=number
+/// @type.node source=values.length type=float64
+/// @resolution.name source=values target=values
+/// @resolution.member source=values.length receiver=Array<int32> kind=symbol target=collections.array.length#2
 
 values.push(1);
-/// @resolution.name source=values target=values
-/// @resolution.member source=values.push receiver=Array<int32> kind=symbol target=collections.array.Array.push
-/// @resolution.call source=values.push(1) parameters=(int32) return=void kind=symbol target=collections.array.Array.push receiver=Array<int32>
 /// @type.node source=values type=Array<int32>
-/// @type.node source=values.push type=(this: Array<int32>, value: int32) => void
+/// @type.node source=values.push type=(this: Borrowed<Array<int32>, member.L0, "exclusive">, int32) => void
 /// @type.node source=values.push(1) type=void
-/// @type.node source=1 type=int32
+/// @resolution.name source=values target=values
+/// @resolution.member source=values.push receiver=Array<int32> kind=overloaded targets=[collections.array.push#1, collections.array.push#2]
+/// @resolution.call source=values.push(1) parameters=(int32) return=void kind=symbol target=collections.array.push#1 receiver=Array<int32>
+/// @type.node source=1 type=1
 
 "#,
     );

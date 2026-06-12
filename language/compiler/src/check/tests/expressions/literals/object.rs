@@ -451,7 +451,7 @@ struct Point {
 }
 
 const base: { x: int32; y: int32 } = { x: 1, y: 2 };
-const point: Point = _ { ...base };
+const point: Point = Point { ...base };
 
 === checked ===
 struct Point {

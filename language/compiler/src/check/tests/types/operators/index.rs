@@ -36,17 +36,17 @@ type User = { name: string; age: int32 };
 
 type Keys = keyof User;
 /// @type.symbol symbol=Keys source="type Keys = keyof User" type="name" | "age"
-/// @definition.type symbol=Keys source="type Keys = keyof User" value=keyof { name: string; age: int32 }
+/// @definition.type symbol=Keys source="type Keys = keyof User" value="name" | "age"
 /// @resolution.name source=User target=User
 
 type Name = User["name"];
 /// @type.symbol symbol=Name source="type Name = User[\"name\"]" type=string
-/// @definition.type symbol=Name source="type Name = User[\"name\"]" value={ name: string; age: int32 }["name"]
+/// @definition.type symbol=Name source="type Name = User[\"name\"]" value=string
 /// @resolution.name source=User target=User
 
 type Value = User["name" | "age"];
 /// @type.symbol symbol=Value source="type Value = User[\"name\" | \"age\"]" type=string | int32
-/// @definition.type symbol=Value source="type Value = User[\"name\" | \"age\"]" value={ name: string; age: int32 }["name" | "age"]
+/// @definition.type symbol=Value source="type Value = User[\"name\" | \"age\"]" value=string | int32
 /// @resolution.name source=User target=User
 
 declare const key: Keys;
