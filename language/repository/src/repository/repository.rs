@@ -43,6 +43,8 @@ pub struct Repository {
     pub(crate) builtin: BuiltinPackage,
     /// Parsed file data by exact file content.
     pub(crate) file_cache: FileCache,
+    /// Named physical bases for dependency roots outside the workspace.
+    pub(crate) mounts: DashMap<String, PathBuf>,
     /// Shared derived artifacts.
     pub(crate) artifacts: Arc<ArtifactStore>,
     /// Shared interned strings for this repository.
@@ -75,6 +77,7 @@ impl Repository {
             artifact_versions,
             file_cache,
             files: file_contents,
+            mounts: DashMap::new(),
             builtin: BuiltinPackage::new(),
             artifacts: Arc::new(ArtifactStore::default()),
             strings: Arc::new(StringPool::new()),

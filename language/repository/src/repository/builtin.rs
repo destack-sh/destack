@@ -133,10 +133,17 @@ impl BuiltinPackage {
         let path = specifier
             .strip_prefix(BUILTIN_PACKAGE_URI)
             .or_else(|| specifier.strip_prefix("destack:"))?;
-        let path = canonical_builtin_path(path);
-        let uri = format!("{BUILTIN_PACKAGE_URI}{path}");
 
-        Some(Uri::from_string(uri))
+        Some(self.canonical_module_uri(canonical_builtin_path(path)))
+    }
+
+    /// Return the canonical module URI for one extensionless builtin path.
+    fn canonical_module_uri(&self, path: &str) -> Uri {
+        let key = format!("{BUILTIN_PACKAGE_URI}{path}");
+        match self.file_by_path.get(key.as_str()) {
+            Some(file) => Uri::from_string(format!("{BUILTIN_PACKAGE_URI}{}", file.path)),
+            None => Uri::from_string(key),
+        }
     }
 
     /// Return one builtin module URI from a relative builtin specifier.
@@ -166,10 +173,8 @@ impl BuiltinPackage {
         }
 
         let path = parts.join("/");
-        let path = canonical_builtin_path(&path);
-        let uri = format!("{BUILTIN_PACKAGE_URI}{path}");
 
-        Some(Uri::from_string(uri))
+        Some(self.canonical_module_uri(canonical_builtin_path(&path)))
     }
 
     /// Return one builtin file by file id.
@@ -248,7 +253,7 @@ impl BuiltinFile {
         let module = Module::blank(
             self.module_id(package),
             self.file_id(),
-            Uri::from_string(self.uri),
+            Uri::from_string(format!("{BUILTIN_PACKAGE_URI}{}", self.path)),
             Some(PathBuf::from(self.path)),
             package,
             Some(LanguageType::Destack),
@@ -278,7 +283,7 @@ impl BuiltinFile {
         File::from_content(
             self.file_id(),
             self.name(),
-            Uri::from_string(self.uri),
+            Uri::from_string(format!("{BUILTIN_PACKAGE_URI}{}", self.path)),
             None,
             FileType::Destack,
             content,
@@ -300,10 +305,8 @@ impl BuiltinPackage {
         }
 
         let path = export.path.strip_prefix("./src/")?;
-        let path = canonical_builtin_path(path);
-        let uri = format!("{BUILTIN_PACKAGE_URI}{path}");
 
-        Some(Uri::from_string(uri))
+        Some(self.canonical_module_uri(canonical_builtin_path(path)))
     }
 }
 
@@ -339,7 +342,7 @@ mod tests {
             .module_uri_for_relative_specifier("destack://error", "./panic.ds")
             .expect("builtin relative import should resolve");
 
-        assert_eq!(uri, Uri::from_string("destack://error/panic"));
+        assert_eq!(uri, Uri::from_string("destack://error/panic.ds"));
     }
 
     #[test]
@@ -349,6 +352,6 @@ mod tests {
             .module_uri_for_relative_specifier("destack://error/host", "./panic.ds")
             .expect("builtin relative import should resolve");
 
-        assert_eq!(uri, Uri::from_string("destack://error/panic"));
+        assert_eq!(uri, Uri::from_string("destack://error/panic.ds"));
     }
 }

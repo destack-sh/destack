@@ -42,7 +42,7 @@ impl Repository {
 
         // collect base files and their conditional files
         for (file_id, entry) in files.iter() {
-            let path = self.file_entry_path(entry);
+            let path = PathBuf::from(self.logical_path_text(entry.logical_path));
             let Some(candidate) =
                 self.module_file_candidate(revision, *file_id, path, packages, &mut known_aliases)?
             else {
@@ -170,7 +170,7 @@ impl Repository {
         Module::blank(
             module_id,
             candidate.file_id,
-            Uri::from_path(&candidate.path),
+            Uri::logical(candidate.path.to_string_lossy()),
             Some(candidate.path),
             candidate.package_id,
             language_type,
@@ -195,7 +195,7 @@ impl Repository {
 
         ModuleFile::new(
             candidate.file_id,
-            Uri::from_path(&candidate.path),
+            Uri::logical(candidate.path.to_string_lossy()),
             Some(candidate.path),
             language_type,
             loader,

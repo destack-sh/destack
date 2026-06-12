@@ -11,10 +11,6 @@ use crate::config::{ConditionGate, Dependency, Export};
 use crate::repository::{FileEntry, Repository, RepositoryError, Revision};
 use crate::{DestackFile, Package, PackageDependencies, PackageExport, PackageIndex, PackageKind};
 
-const DEFAULT_REGISTRY_DIRECTORY: &str = "default";
-const GIT_PACKAGE_DIRECTORY: &str = "git";
-const REGISTRY_PACKAGE_DIRECTORY: &str = "registry";
-
 impl Repository {
     /// Build one tracked file id for one package-relative file when it exists.
     fn tracked_file_id(&self, files: &OrdMap<FileId, FileEntry>, path: &Path) -> Option<FileId> {
@@ -151,20 +147,21 @@ impl Repository {
             } else {
                 PackageKind::Implicit
             };
-            if seen.insert(self.root.clone()) {
-                package_roots.push((self.root.clone(), kind));
+            let workspace_root = PathBuf::new();
+            if seen.insert(workspace_root.clone()) {
+                package_roots.push((workspace_root, kind));
             }
         }
         // explicit workspace packages
         else {
             for entry in files.values() {
-                let path = self.file_entry_path(entry);
+                let path = PathBuf::from(self.logical_path_text(entry.logical_path));
                 let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
                     continue;
                 };
 
                 if file_name == "destack.json" {
-                    let package_root = path.parent().unwrap_or(self.root.as_path()).to_path_buf();
+                    let package_root = path.parent().unwrap_or(Path::new("")).to_path_buf();
                     if self.is_workspace_package_root(&package_root, workspace_packages)
                         && seen.insert(package_root.clone())
                     {
@@ -358,7 +355,7 @@ impl Repository {
         Package {
             id: self.package_id(kind, package_root),
             kind,
-            uri: Uri::from_path(package_root),
+            uri: Uri::logical(package_root.to_string_lossy()),
             path: Some(package_root.to_path_buf()),
             name: None,
             version: None,
@@ -446,10 +443,13 @@ impl Repository {
     ) -> Option<PathBuf> {
         match dependency {
             Dependency::Workspace => None,
-            Dependency::Registry { registry, version } => {
-                Some(self.registry_package_root(package_name, registry.as_deref(), version))
+            Dependency::Registry {
+                registry: _,
+                version,
+            } => Some(Self::mount_root(&format!("{package_name}@{version}"))),
+            Dependency::Path { path } => {
+                Some(self.path_dependency_root(current_root, package_name, path))
             }
-            Dependency::Path { path } => Some(self.path_dependency_root(current_root, path)),
             Dependency::Git {
                 url,
                 path,
@@ -461,14 +461,27 @@ impl Repository {
     }
 
     /// Return one local path dependency root.
-    fn path_dependency_root(&self, current_root: &Path, path: &Path) -> PathBuf {
-        let path = if path.is_absolute() {
-            path.to_path_buf()
-        } else {
-            current_root.join(path)
-        };
+    /// Dependencies inside the workspace keep workspace logical roots;
+    ///  roots escaping the workspace live under their dependency mount.
+    fn path_dependency_root(
+        &self,
+        current_root: &Path,
+        package_name: &str,
+        path: &Path,
+    ) -> PathBuf {
+        if path.is_absolute() {
+            return Self::mount_root(package_name);
+        }
 
-        normalize_package_path(path)
+        match normalize_logical_package_path(current_root.join(path)) {
+            Some(path) => path,
+            None => Self::mount_root(package_name),
+        }
+    }
+
+    /// Return the logical mount root for one dependency name.
+    fn mount_root(name: &str) -> PathBuf {
+        PathBuf::from(format!("{}{name}", super::file::MOUNT_PREFIX))
     }
 
     /// Return one materialized git dependency root.
@@ -482,35 +495,12 @@ impl Repository {
     ) -> Option<PathBuf> {
         let source = (url, rev.as_deref(), tag.as_deref(), branch.as_deref());
         let source_hash = stable_hash_value_128(&source);
-        let package_root = self
-            .layout
-            .packages
-            .join(GIT_PACKAGE_DIRECTORY)
-            .join(format!("{source_hash:032x}"));
+        let package_root = Self::mount_root(&format!("git-{source_hash:032x}"));
 
         match path {
             Some(path) => normalize_package_subpath(&package_root, path),
             None => Some(package_root),
         }
-    }
-
-    /// Return one materialized registry dependency root.
-    fn registry_package_root(
-        &self,
-        package_name: &str,
-        registry: Option<&str>,
-        version: &str,
-    ) -> PathBuf {
-        let registry = registry
-            .or(self.settings.registry.as_deref())
-            .unwrap_or(DEFAULT_REGISTRY_DIRECTORY);
-
-        self.layout
-            .packages
-            .join(REGISTRY_PACKAGE_DIRECTORY)
-            .join(registry)
-            .join(package_name)
-            .join(version)
     }
 
     /// Resolve condition references in conditional dependency declarations.
@@ -584,7 +574,7 @@ impl Repository {
             Some(patterns) => patterns
                 .iter()
                 .any(|pattern| self.matches_workspace_package_pattern(package_root, pattern)),
-            None => package_root == self.root,
+            None => package_root.as_os_str().is_empty() || package_root == self.root,
         }
     }
 
@@ -612,24 +602,25 @@ impl Repository {
     }
 }
 
-/// Normalize one package path lexically.
-fn normalize_package_path(path: PathBuf) -> PathBuf {
+/// Normalize one logical package path lexically.
+/// Returns none when the path escapes the workspace root.
+fn normalize_logical_package_path(path: PathBuf) -> Option<PathBuf> {
     let mut normalized = PathBuf::new();
 
     for component in path.components() {
         match component {
             std::path::Component::CurDir => {}
             std::path::Component::ParentDir => {
-                normalized.pop();
+                if !normalized.pop() {
+                    return None;
+                }
             }
             std::path::Component::Normal(component) => normalized.push(component),
-            std::path::Component::RootDir | std::path::Component::Prefix(_) => {
-                normalized.push(component.as_os_str());
-            }
+            std::path::Component::RootDir | std::path::Component::Prefix(_) => return None,
         }
     }
 
-    normalized
+    Some(normalized)
 }
 
 /// Normalize one package store subpath without escaping the package root.
@@ -637,7 +628,7 @@ fn normalize_package_subpath(package_root: &Path, path: &Path) -> Option<PathBuf
     if path.is_absolute() {
         return None;
     }
-    let path = normalize_package_path(package_root.join(path));
+    let path = normalize_logical_package_path(package_root.join(path))?;
 
     path.starts_with(package_root).then_some(path)
 }
