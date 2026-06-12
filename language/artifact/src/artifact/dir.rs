@@ -75,9 +75,9 @@ pub struct DirParsedFile {
     /// The top-level expressions parsed from this file.
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
     /// The source file tokens.
-    pub tokens: Vec<dir::TokenRange>,
+    pub tokens: Vec<dir::Token>,
     /// The source file side tokens.
-    pub side_tokens: Vec<dir::TokenRange>,
+    pub side_tokens: Vec<dir::Token>,
     /// Stable anchor expression for diagnostics in this file.
     pub anchor_expression: dir::LocalNodeId<dir::Expression>,
 }
@@ -89,7 +89,8 @@ impl DirParsedFile {
 
         self.tokens
             .iter()
-            .map(move |token| token.with_file(file_id))
+            .copied()
+            .map(move |token| dir::TokenSpan::new(token, file_id))
     }
 
     /// Iterate full side token spans for this physical file.
@@ -98,7 +99,8 @@ impl DirParsedFile {
 
         self.side_tokens
             .iter()
-            .map(move |token| token.with_file(file_id))
+            .copied()
+            .map(move |token| dir::TokenSpan::new(token, file_id))
     }
 }
 
