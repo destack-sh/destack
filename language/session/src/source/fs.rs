@@ -160,7 +160,69 @@ impl<'a> FileSystemSource<'a> {
         // add the requested file
         self.import_file_with_logical_path(&path, logical_path)?;
 
+        // relative imports resolve against the file's package: scan the
+        // nearest manifest's package, or the file's own directory when
+        // no manifest exists
+        let directory = path.parent().map(Path::to_path_buf);
+        if let Some(directory) = directory {
+            match self.find_enclosing_package(&directory)? {
+                Some((package_root, config)) => {
+                    self.queue_package(package_root, config);
+                    self.scan_queued_packages()?;
+                }
+                None => self.import_sibling_files(&directory, &path)?,
+            }
+        }
+
         Ok(Some(self.edits))
+    }
+
+    /// Return the nearest enclosing package manifest within the root.
+    fn find_enclosing_package(
+        &self,
+        directory: &Path,
+    ) -> Result<Option<(PathBuf, DestackFile)>, SessionError> {
+        let mut current = Some(directory);
+        while let Some(candidate) = current {
+            if let Some(config) = self.read_source_config(candidate)? {
+                return Ok(Some((candidate.to_path_buf(), config)));
+            }
+            if candidate == self.root {
+                break;
+            }
+            current = candidate
+                .parent()
+                .filter(|parent| parent.starts_with(self.root));
+        }
+
+        Ok(None)
+    }
+
+    /// Import the trackable files beside one directly loaded file.
+    fn import_sibling_files(
+        &mut self,
+        directory: &Path,
+        loaded: &Path,
+    ) -> Result<(), SessionError> {
+        let entries = match self.repository.file_system().read_dir(directory) {
+            Ok(entries) => entries,
+            Err(_) => return Ok(()),
+        };
+
+        for entry in entries {
+            if entry == loaded || !Self::tracks_path(&entry) {
+                continue;
+            }
+            let metadata = match self.repository.file_system().metadata(&entry) {
+                Ok(metadata) => metadata,
+                Err(_) => continue,
+            };
+            if metadata.is_file {
+                self.import_file(&entry)?;
+            }
+        }
+
+        Ok(())
     }
 
     /// Read one `destack.json` from a physical directory when present.
@@ -540,7 +602,11 @@ impl FileSystemSource<'_> {
         // queue packages from the workspace manifest
         self.queue_workspace_packages(workspace_config)?;
 
-        // expand package sources and local dependencies
+        self.scan_queued_packages()
+    }
+
+    /// Expand queued package sources and their local dependencies.
+    fn scan_queued_packages(&mut self) -> Result<(), SessionError> {
         let mut index = 0;
         while index < self.pending_packages.len() {
             let (package_root, config) = self.pending_packages[index].clone();
