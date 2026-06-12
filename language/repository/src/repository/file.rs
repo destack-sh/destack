@@ -11,12 +11,8 @@ use destack_source::{
 use im::OrdMap;
 use rustc_hash::FxHashSet;
 
-/// Normalize one logical file path.
-pub(crate) fn normalize_logical_path(value: impl AsRef<str>) -> String {
-    let value = value.as_ref();
-
-    value.replace('\\', "/")
-}
+/// The logical path prefix for mounted dependency roots.
+pub(crate) const MOUNT_PREFIX: &str = "mount:";
 
 /// The file binding for one file in one revision.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -77,10 +73,16 @@ impl FileStore {
 
 impl Repository {
     /// Normalize one logical path for one workspace file path.
+    #[track_caller]
     pub fn logical_path(&self, path: &Path) -> String {
         // prefer the direct workspace relative path
         if let Ok(logical_path) = path.strip_prefix(&self.root) {
             return normalize_logical_path(logical_path.to_string_lossy());
+        }
+
+        // mounted dependency roots map under their declared names
+        if let Some(logical_path) = self.mounted_logical_path(path) {
+            return logical_path;
         }
 
         // retry through canonical paths to collapse host path aliases
@@ -108,7 +110,64 @@ impl Repository {
 
     /// Return the physical workspace path for one file entry.
     pub(crate) fn file_entry_path(&self, entry: &FileEntry) -> PathBuf {
-        self.root.join(self.logical_path_text(entry.logical_path))
+        self.physical_path(self.logical_path_text(entry.logical_path))
+    }
+
+    /// Return the physical path for one logical repository path.
+    pub fn physical_path(&self, logical_path: &str) -> PathBuf {
+        if let Some((mount, relative)) = split_mounted_path(logical_path)
+            && let Some(base) = self.mounts.get(mount)
+        {
+            return base.join(relative);
+        }
+
+        self.root.join(logical_path)
+    }
+
+    /// Register one named dependency mount.
+    pub fn add_mount(&self, name: &str, base: PathBuf) -> Result<(), RepositoryError> {
+        let base = self.fs.canonicalize(&base).unwrap_or(base);
+        if let Some(existing) = self.mounts.get(name) {
+            if *existing != base {
+                return Err(RepositoryError::MountConflict {
+                    name: name.to_string(),
+                    existing: existing.clone(),
+                    base,
+                });
+            }
+
+            return Ok(());
+        }
+        self.mounts.insert(name.to_string(), base);
+
+        Ok(())
+    }
+
+    /// Return the mounted logical path for one physical path.
+    fn mounted_logical_path(&self, path: &Path) -> Option<String> {
+        for entry in self.mounts.iter() {
+            let relative = match path.strip_prefix(entry.value()) {
+                Ok(relative) => relative.to_path_buf(),
+                Err(_) => {
+                    let Ok(canonical) = self.fs.canonicalize(path) else {
+                        continue;
+                    };
+                    let Ok(relative) = canonical.strip_prefix(entry.value()) else {
+                        continue;
+                    };
+
+                    relative.to_path_buf()
+                }
+            };
+
+            return Some(format!(
+                "{MOUNT_PREFIX}{}/{}",
+                entry.key(),
+                normalize_logical_path(relative.to_string_lossy())
+            ));
+        }
+
+        None
     }
 
     /// Build one file id for one workspace path.
@@ -288,4 +347,18 @@ impl Repository {
 
         directories
     }
+}
+
+/// Split one logical path into its mount name and relative remainder.
+pub(crate) fn split_mounted_path(logical_path: &str) -> Option<(&str, &str)> {
+    let mounted = logical_path.strip_prefix(MOUNT_PREFIX)?;
+
+    mounted.split_once('/').or(Some((mounted, "")))
+}
+
+/// Normalize one logical file path.
+pub(crate) fn normalize_logical_path(value: impl AsRef<str>) -> String {
+    let value = value.as_ref();
+
+    value.replace('\\', "/")
 }

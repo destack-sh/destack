@@ -10,6 +10,16 @@ use crate::repository::{Ref, Revision};
 /// One error raised by repository operations.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RepositoryError {
+    /// One mount name was registered with two different bases.
+    MountConflict {
+        /// The conflicting mount name.
+        name: String,
+        /// The base already registered.
+        existing: std::path::PathBuf,
+        /// The base that failed to register.
+        base: std::path::PathBuf,
+    },
+
     /// The requested ref does not exist.
     MissingRef { reference: Ref },
     /// The requested revision does not exist.
@@ -83,6 +93,16 @@ pub enum RepositoryError {
 impl fmt::Display for RepositoryError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::MountConflict {
+                name,
+                existing,
+                base,
+            } => {
+                write!(
+                    formatter,
+                    "dependency mount '{name}' maps to {existing:?} and {base:?}"
+                )
+            }
             Self::MissingRef { reference } => {
                 write!(formatter, "missing repository ref '{reference}'")
             }
