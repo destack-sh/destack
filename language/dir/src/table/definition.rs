@@ -214,6 +214,11 @@ impl DefinitionSegment {
         self.definitions.get(&symbol)
     }
 
+    /// Return one definition for in-place mutation.
+    pub fn definition_mut(&mut self, symbol: GlobalSymbolId) -> Option<&mut Definition> {
+        self.definitions.get_mut(&symbol)
+    }
+
     /// Get all extension symbols targeting a specific type symbol.
     pub fn target_extensions(&self, target_symbol: GlobalSymbolId) -> &[GlobalSymbolId] {
         self.extensions_by_target_symbol
@@ -625,7 +630,7 @@ impl Definition {
             Self::Interface(definition) => definition.template,
             Self::Enum(definition) => definition.template,
             Self::Newtype(definition) => definition.template,
-            _ => None,
+            Self::Extension(extension) => extension.template,
         }
     }
 

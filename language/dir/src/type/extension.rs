@@ -1,29 +1,55 @@
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{DefinitionMember, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, NominalHeritage};
+use crate::{
+    DefinitionMember, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LocalGenericTemplateId,
+    NominalHeritage,
+};
 
 /// How an extension declaration relates to its target type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExtensionForm {
     /// Inherent extension defined in same module as target type.
     /// Automatically visible wherever the type is used.
+    ///
+    /// Examples:
+    /// ```ds
+    /// struct Vector { x: float64; y: float64 }
+    /// extension of Vector { length(): float64 { ... } }
+    /// ```
     Inherent,
     /// Local extension on a foreign type.
     /// Only visible in the defining module.
+    ///
+    /// Examples:
+    /// ```ds
+    /// extension of string { shout(): string { ... } }
+    /// ```
     Local,
     /// Named extension on a foreign type.
     /// Must be explicitly imported to use (outside of the defining module).
+    ///
+    /// Examples:
+    /// ```ds
+    /// export extension Slugify of string { slug(): string { ... } }
+    /// ```
     Named,
 }
 
 /// A resolved extension declaration.
+///
+/// Examples:
+/// ```ds
+/// extension<T> of Array<T> implements Iterable<T> { ... }
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Extension {
     /// The extension declaration's symbol.
     pub symbol: GlobalSymbolId,
     /// The extension declaration form.
     pub form: ExtensionForm,
+    /// The extension's generic template.
+    pub template: Option<LocalGenericTemplateId>,
     /// The checked receiver target.
     pub target: ExtensionTarget,
     /// The implemented interfaces.
@@ -39,6 +65,7 @@ impl Extension {
     pub fn new(
         symbol: GlobalSymbolId,
         form: ExtensionForm,
+        template: Option<LocalGenericTemplateId>,
         target: ExtensionTarget,
         implements: Vec<NominalHeritage>,
         where_clauses: Vec<ExtensionWhereClause>,
@@ -47,6 +74,7 @@ impl Extension {
         Self {
             symbol,
             form,
+            template,
             target,
             implements,
             where_clauses,
@@ -128,6 +156,11 @@ impl ExtensionTarget {
 }
 
 /// A checked where clause attached to one extension.
+///
+/// Examples:
+/// ```ds
+/// extension<T> of Array<T> where T: Comparable { sort(): void { ... } }
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExtensionWhereClause {
     /// The source where clause node.

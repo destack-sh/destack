@@ -2,7 +2,12 @@ use std::hash::{Hash, Hasher};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Argument, FloatType, IntegerType, LocalNodeId, PrimitiveType, StringId};
+use destack_core::StringPool;
+
+use crate::{
+    Argument, FloatType, IntegerType, LanguageItem, Layout, LocalNodeId, PrimitiveType, RangeType,
+    StringId,
+};
 
 /// A ScalarLiteral is literal scalar value.
 ///
@@ -44,6 +49,105 @@ pub enum ScalarLiteral {
         content: StringId,
         flags: Option<StringId>,
     },
+}
+
+impl ScalarLiteral {
+    /// Return the printed text of this literal inside a template.
+    pub fn template_text(&self, strings: &StringPool) -> Option<String> {
+        match self {
+            Self::String(value) => Some(strings.get(*value).to_string()),
+            Self::Character(value) => Some(value.to_string()),
+            Self::Boolean(value) => Some(value.to_string()),
+            Self::Integer(value) => Some(value.to_string()),
+            Self::Bigint(value) => Some(value.to_string()),
+            // floats print like javascript numbers
+            Self::Float(value) => {
+                if value.fract() == 0.0 && value.is_finite() {
+                    Some(format!("{}", *value as i64))
+                } else {
+                    Some(value.to_string())
+                }
+            }
+            Self::Null => Some("null".to_string()),
+            Self::Undefined => Some("undefined".to_string()),
+            Self::RegexString { .. } => None,
+        }
+    }
+
+    /// Return whether this literal value inhabits one primitive type.
+    pub fn fits_primitive(&self, primitive: PrimitiveType) -> bool {
+        match (self, primitive) {
+            (Self::String(_), PrimitiveType::String) => true,
+            (Self::Character(_), PrimitiveType::Character) => true,
+            (Self::Character(_), PrimitiveType::String) => true,
+            (Self::Boolean(_), PrimitiveType::Boolean) => true,
+            (Self::Bigint(_), PrimitiveType::Bigint) => true,
+            (Self::Integer(value), PrimitiveType::Integer(integer)) => integer.fits_literal(*value),
+            (Self::Integer(value), PrimitiveType::Float(float)) => {
+                float.fits_integer_literal(*value)
+            }
+            (Self::Float(value), PrimitiveType::Float(float)) => float.fits_literal(*value),
+            _ => false,
+        }
+    }
+
+    /// Return whether this literal value inhabits one interval type.
+    pub fn fits_range(&self, range: &RangeType) -> bool {
+        let below_start = match (&range.start, self) {
+            (Some(Self::Integer(start)), Self::Integer(value)) => value < start,
+            (Some(Self::Character(start)), Self::Character(value)) => value < start,
+            (Some(_), _) => return false,
+            (None, _) => false,
+        };
+        if below_start {
+            return false;
+        }
+
+        match (&range.end, self) {
+            (Some(Self::Integer(end)), Self::Integer(value)) => {
+                if range.is_inclusive {
+                    value <= end
+                } else {
+                    value < end
+                }
+            }
+            (Some(Self::Character(end)), Self::Character(value)) => {
+                if range.is_inclusive {
+                    value <= end
+                } else {
+                    value < end
+                }
+            }
+            (Some(_), _) => false,
+            (None, _) => true,
+        }
+    }
+
+    /// Return this literal singleton's layout.
+    /// Singleton values are statically known and occupy no storage.
+    pub fn layout(&self) -> Option<Layout> {
+        match self {
+            Self::Null
+            | Self::Undefined
+            | Self::Boolean(_)
+            | Self::Integer(_)
+            | Self::Float(_)
+            | Self::Character(_)
+            | Self::String(_)
+            | Self::Bigint(_) => Some(Layout::unit()),
+            // regex literals are managed runtime objects
+            Self::RegexString { .. } => None,
+        }
+    }
+
+    /// Return the language item owning this literal's members.
+    pub fn owner_item(&self) -> Option<LanguageItem> {
+        match self {
+            Self::String(_) => Some(LanguageItem::String),
+            Self::Integer(_) | Self::Float(_) => Some(LanguageItem::Number),
+            _ => None,
+        }
+    }
 }
 
 impl PartialEq for ScalarLiteral {

@@ -9,8 +9,8 @@ use crate::{
 ///
 /// Examples:
 /// ```ds
-/// this
-/// super
+/// this.name      // owner: the enclosing class, ty: its instance type
+/// super.render() // owner: the enclosing class, ty: its superclass type
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReceiverResolution {
@@ -35,24 +35,25 @@ pub enum ReceiverKind {
     ///
     /// Examples:
     /// ```ds
-    /// this
+    /// this.name
     /// ```
     This,
     /// The active superclass receiver.
     ///
     /// Examples:
     /// ```ds
-    /// super
+    /// super.render()
     /// ```
     Super,
 }
 
 /// Target selected by lexical or path lookup.
+/// Overloaded names select every declaration; call sites narrow later.
 ///
 /// Examples:
 /// ```ds
-/// value
-/// namespace.value
+/// print(value)   // `print` selects its one declared symbol
+/// parse(input)   // an overloaded `parse` selects every overload
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NameResolution {
@@ -99,26 +100,31 @@ impl NameResolution {
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LabelResolution {
-    /// An explicit label target, such as `break outer`.
+    /// An explicit label target.
     ///
     /// Examples:
     /// ```ds
-    /// break outer
+    /// outer: while (running) {
+    ///     break outer;
+    /// }
     /// ```
     Symbol(GlobalSymbolId),
-    /// The nearest loop target.
+    /// The nearest enclosing loop target.
     ///
     /// Examples:
     /// ```ds
-    /// break
-    /// continue
+    /// while (running) {
+    ///     continue;
+    /// }
     /// ```
     Loop,
-    /// The nearest function target.
+    /// The enclosing function target.
     ///
     /// Examples:
     /// ```ds
-    /// return value
+    /// function read(): string {
+    ///     return line;
+    /// }
     /// ```
     Function,
 }
@@ -127,8 +133,8 @@ pub enum LabelResolution {
 ///
 /// Examples:
 /// ```ds
-/// value.member
-/// value[index]
+/// user.name      // receiver: User, target: the selected member
+/// bytes[2]       // receiver: uint8[], target: the builtin subscript (if bytes is a slice)
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MemberResolution {
@@ -146,66 +152,69 @@ impl MemberResolution {
 }
 
 /// Member target selected at a usage site.
-///
-/// Examples:
-/// ```ds
-/// value.member
-/// value[index]
-/// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MemberTarget {
     /// Compiler builtin selected at a member usage site.
     ///
     /// Examples:
     /// ```ds
-    /// value[index]
-    /// value[start..end]
+    /// bytes[2]       // element reads have no declaration symbol
+    /// bytes[1..3]
     /// ```
     Builtin(BuiltinMember),
     /// Structural field selected from a shape type.
     ///
     /// Examples:
     /// ```ds
-    /// value.field
+    /// declare const point: { x: int32 };
+    /// point.x        // a field key on a shape, not a declaration
     /// ```
     Field(StaticKey),
     /// Exactly one symbol-backed member selected at compile time.
     ///
     /// Examples:
     /// ```ds
-    /// value.method
+    /// user.rename(name)   // `rename` has exactly one declaration
     /// ```
     Symbol(MemberCandidate),
-    /// Symbol-backed members selected from a union receiver.
+    /// Overloaded symbol-backed members deferred to call selection.
+    /// A call is valid when one candidate accepts it.
     ///
     /// Examples:
     /// ```ds
-    /// value.method
+    /// values.push(1)
+    /// // `push(value: T)` and `push(...values: T[])` stay candidates
+    /// // until the call site selects one
+    /// ```
+    Overloaded(Vec<MemberCandidate>),
+    /// Symbol-backed members selected from a union receiver.
+    /// A call is valid only when every candidate accepts it.
+    ///
+    /// Examples:
+    /// ```ds
+    /// declare const shape: Rectangle | Circle;
+    /// shape.draw()
+    /// // Rectangle.draw and Circle.draw both stay selected: the
+    /// // runtime value can be either variant
     /// ```
     Union(Vec<MemberCandidate>),
 }
 
 /// Compiler builtin member selected at a usage site.
-///
-/// Examples:
-/// ```ds
-/// value[index]
-/// value[start..end]
-/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BuiltinMember {
-    /// Indexed element access, such as `value[index]`.
+    /// Indexed element access.
     ///
     /// Examples:
     /// ```ds
-    /// value[index]
+    /// bytes[2]
     /// ```
     Index,
-    /// Range slice access, such as `value[start..end]`.
+    /// Range slice access.
     ///
     /// Examples:
     /// ```ds
-    /// value[start..end]
+    /// bytes[1..3]
     /// ```
     Slice,
 }
@@ -214,7 +223,9 @@ pub enum BuiltinMember {
 ///
 /// Examples:
 /// ```ds
-/// value.method
+/// values.push(1)
+/// // one candidate per matching declaration, its type already
+/// // applied to the Array<int32> receiver
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MemberCandidate {
@@ -222,6 +233,8 @@ pub struct MemberCandidate {
     pub receiver: GlobalTypeId,
     /// The selected member symbol.
     pub symbol: GlobalSymbolId,
+    /// The member type applied to the matched receiver.
+    pub ty: GlobalTypeId,
     /// The generic arguments of the member symbol, empty when not statically applied.
     pub arguments: Vec<GlobalTypeId>,
 }
@@ -230,8 +243,7 @@ pub struct MemberCandidate {
 ///
 /// Examples:
 /// ```ds
-/// fn(value)
-/// receiver.method(value)
+/// print("hi")    // parameters: (string), return: void
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CallResolution {
@@ -259,12 +271,6 @@ impl CallResolution {
 }
 
 /// Callable target selected at a call site.
-///
-/// Examples:
-/// ```ds
-/// fn(value)
-/// receiver.method(value)
-/// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CallTarget {
     /// Compiler builtin selected at a usage site.
@@ -279,7 +285,8 @@ pub enum CallTarget {
     ///
     /// Examples:
     /// ```ds
-    /// callback(value)
+    /// const double = (value: int32) => value * 2;
+    /// double(21)     // calls a function-typed value
     /// ```
     Expression {
         /// The generic arguments of the callable value, empty when not statically applied.
@@ -289,26 +296,20 @@ pub enum CallTarget {
     ///
     /// Examples:
     /// ```ds
-    /// print(value)
-    /// receiver.method(value)
+    /// values.push(1) // the matching `push` overload won selection
     /// ```
     Symbol(CallCandidate),
     /// Symbol-backed callables selected from a union receiver.
     ///
     /// Examples:
     /// ```ds
-    /// value.method()
+    /// declare const shape: Rectangle | Circle;
+    /// shape.draw()   // every variant's `draw` must accept the call
     /// ```
     Union(Vec<CallCandidate>),
 }
 
 /// Compiler builtin callable selected at a usage site.
-///
-/// Examples:
-/// ```ds
-/// left + right
-/// !flag
-/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum BuiltinCall {
     /// Builtin unary operator behavior.
@@ -339,8 +340,7 @@ pub enum BuiltinCall {
 ///
 /// Examples:
 /// ```ds
-/// print(value)
-/// receiver.method(value)
+/// values.push(1) // `push#1` applied to the Array<int32> receiver
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CallCandidate {
@@ -385,27 +385,21 @@ impl ConstructResolution {
 }
 
 /// Construct target selected at a usage site.
-///
-/// Examples:
-/// ```ds
-/// new User(name)
-/// UserId(raw)
-/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ConstructTarget {
     /// Class construction selected at compile time.
     ///
     /// Examples:
     /// ```ds
-    /// new User(name)
-    /// new User()
+    /// new User("ada")    // selects User and its matching constructor
     /// ```
     Class(ClassConstructCandidate),
     /// Newtype wrapper constructor selected at compile time.
     ///
     /// Examples:
     /// ```ds
-    /// UserId(raw)
+    /// newtype UserId = string;
+    /// UserId("u-1")      // wraps the raw value in the newtype
     /// ```
     Newtype(NewtypeConstructCandidate),
 }
@@ -454,33 +448,33 @@ pub struct NewtypeConstructCandidate {
 /// Pattern meaning selected during checking.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PatternResolution {
-    /// Pattern that accepts the input without binding.
+    /// Pattern that accepts the input without binding, like `_`.
     Wildcard,
-    /// Pattern that binds a symbol and may refine with a nested pattern.
+    /// Pattern that binds a symbol, like `value`.
     Binding(PatternBindingResolution),
-    /// Pattern that accepts one static literal value.
+    /// Pattern that accepts one static literal value, like `"ok"` or `0`.
     Literal(PatternLiteralResolution),
-    /// Pattern that accepts one scalar interval.
+    /// Pattern that accepts one scalar interval, like `0..10` or `..=255`.
     Range(PatternRangeResolution),
-    /// Pattern that destructures a tuple-shaped input.
+    /// Pattern that destructures a tuple-shaped input, like `(x, y)`.
     Tuple(PatternTupleResolution),
-    /// Pattern that destructures an ordered collection.
+    /// Pattern that destructures an ordered collection, like `[head, ...tail]`.
     Sequence(PatternSequenceResolution),
-    /// Pattern that destructures a structural input.
+    /// Pattern that destructures a structural input, like `{ kind: "ok", value }`.
     Shape(PatternShapeResolution),
-    /// Pattern that destructures a symbol-backed nominal input.
+    /// Pattern that destructures a symbol-backed nominal input, like `Point { x, y }`.
     Nominal(PatternNominalResolution),
-    /// Pattern that unwraps a symbol-backed newtype input.
+    /// Pattern that unwraps a symbol-backed newtype input, like `UserId(value)`.
     Newtype(PatternNewtypeResolution),
-    /// Pattern that selects a symbol-backed variant input.
+    /// Pattern that selects a symbol-backed variant input, like `State.Ready`.
     Variant(PatternVariantResolution),
-    /// Pattern that accepts one of several alternatives.
+    /// Pattern that accepts one of several alternatives, like `0 | 1 | 2`.
     Union(PatternUnionResolution),
-    /// Pattern that borrows the input before matching.
+    /// Pattern that borrows the input before matching, like `&readonly value`.
     Borrow(PatternBorrowResolution),
-    /// Pattern that moves the input before matching.
+    /// Pattern that moves the input before matching, like `^value`.
     Move(PatternMoveResolution),
-    /// Pattern that dereferences the input before matching.
+    /// Pattern that dereferences the input before matching, like `*Point { x, y }`.
     Dereference(PatternDereferenceResolution),
 }
 
@@ -523,21 +517,21 @@ pub struct PatternTupleResolution {
 /// Ordered collection selected by one pattern.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PatternSequenceResolution {
-    /// Dynamically sized array pattern.
+    /// Dynamically sized array pattern, like `[head, ...tail]` over `T[]`.
     Array {
         /// The fixed prefix and suffix fields.
         fields: Vec<PatternFieldResolution>,
         /// The rest field, when present.
         rest: Option<PatternRestResolution>,
     },
-    /// Borrowed slice pattern.
+    /// Borrowed slice pattern, like `[head, ...tail]` over `[T]`.
     Slice {
         /// The fixed prefix and suffix fields.
         fields: Vec<PatternFieldResolution>,
         /// The rest field, when present.
         rest: Option<PatternRestResolution>,
     },
-    /// Fixed-size array pattern.
+    /// Fixed-size array pattern, like `[a, b, c]` over `[T; 3]`.
     FixedArray {
         /// The fixed element fields.
         fields: Vec<PatternFieldResolution>,

@@ -3,6 +3,12 @@ use serde::{Deserialize, Serialize};
 use crate::GlobalTypeId;
 
 /// One solved relation between declarations.
+///
+/// Examples:
+/// ```ds
+/// class Admin extends User { ... }
+/// struct Point implements Printable { ... }
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Relation {
     /// The relation kind.
@@ -31,8 +37,8 @@ impl Relation {
 /// The kind of solved relation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RelationKind {
-    /// A single inheritance parent relation.
+    /// A single inheritance parent relation, like `class Admin extends User`.
     Extends,
-    /// An explicit interface conformance relation.
+    /// An explicit interface conformance relation, like `struct Point implements Printable`.
     Implements,
 }
