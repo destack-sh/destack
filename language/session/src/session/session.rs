@@ -5,7 +5,7 @@ use std::thread;
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Query;
-use destack_repository::{Ref, Repository, Revision};
+use destack_repository::{ProviderTrace, Ref, Repository, Revision};
 use destack_source::{FileId, ModuleId};
 
 use crate::executor::Executor;
@@ -45,6 +45,11 @@ impl Session {
     /// Return the default session worker count.
     pub fn default_worker_count() -> usize {
         thread::available_parallelism().map_or(1, usize::from)
+    }
+
+    /// Return the provider attempt trace of the latest finished run.
+    pub fn last_trace(&self) -> Option<Arc<ProviderTrace>> {
+        self.state.last_trace()
     }
 
     /// Create a private session head rooted at one explicit revision.

@@ -37,6 +37,7 @@ impl Executor {
         // fixed workers
         for worker_index in 0..worker_count {
             let worker = Worker {
+                index: worker_index,
                 session: state.clone(),
                 scheduler: scheduler.clone(),
             };
@@ -85,6 +86,7 @@ impl Executor {
         let result = self.wait_for_run(run.as_ref());
 
         self.scheduler.remove_run(run.id());
+        self.state.set_last_trace(Arc::clone(run.trace()));
         self.state
             .emit_event(SessionEvent::RunFinished { run_id: run.id() });
 
