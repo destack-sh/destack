@@ -2,8 +2,7 @@
 
 use cranelift_control::ControlPlane;
 
-use crate::ir::types::*;
-use crate::ir::{self};
+use crate::ir::{self, types::*};
 use crate::isa::aarch64;
 use crate::isa::aarch64::inst::*;
 use crate::trace;
@@ -3693,7 +3692,9 @@ fn emit_return_call_common_sequence<T>(
         }
     }
 
-    if let Some(key) = info.key {
+    if (setup_area_size > 0 || info.sign_return_address_all)
+        && let Some(key) = info.key
+    {
         sink.put4(key.enc_auti_hint());
     }
 }

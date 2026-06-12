@@ -1,6 +1,6 @@
 [package]
 name = "regalloc2"
-version = "0.15.0"
+version = "0.15.1"
 authors = [
     "Chris Fallin <chris@cfallin.org>",
     "Mozilla SpiderMonkey Developers",
@@ -14,7 +14,7 @@ repository = "https://github.com/bytecodealliance/regalloc2"
 log = { version = "0.4.8", default-features = false }
 smallvec = { version = "1.6.1", features = ["union"] }
 rustc-hash = { version = "2.0.0", default-features = false }
-hashbrown = { version = "0.15", default-features = false, features = [] }
+hashbrown = { version = "0.17", default-features = false, features = [] }
 
 # Optional serde support, enabled by feature below.
 serde = { version = "1.0.136", features = [
@@ -46,3 +46,6 @@ fuzzing = ["arbitrary", "arbtest", "checker", "trace-log"]
 
 # Enables serde for exposed types.
 enable-serde = ["serde"]
+
+[lints.clippy]
+all = { level = "allow", priority = -1 }

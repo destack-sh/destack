@@ -6,21 +6,20 @@ use generated_code::MInst;
 
 // Types that the generated ISLE code uses via `use super::*`.
 use self::generated_code::{FpuOPWidth, VecAluOpRR, VecLmul};
-use crate::ir::immediates::*;
-use crate::ir::types::*;
-use crate::ir::{
-    AtomicRmwOp, BlockCall, ExternalName, Inst, InstructionData, MemFlags, Opcode, TrapCode, Value,
-    ValueList,
-};
 use crate::isa::riscv64::Riscv64Backend;
-use crate::isa::riscv64::inst::*;
 use crate::isa::riscv64::lower::args::{
     FReg, VReg, WritableFReg, WritableVReg, WritableXReg, XReg,
 };
-use crate::machinst::isle::*;
-use crate::machinst::{
-    ArgPair, CallArgList, CallInfo, CallRetList, InstOutput, MachInst, Reg, VCodeConstant,
-    VCodeConstantData,
+use crate::machinst::Reg;
+use crate::machinst::{CallInfo, MachInst, isle::*};
+use crate::machinst::{VCodeConstant, VCodeConstantData};
+use crate::{
+    ir::{
+        AtomicRmwOp, BlockCall, ExternalName, Inst, InstructionData, MemFlags, Opcode, TrapCode,
+        Value, ValueList, immediates::*, types::*,
+    },
+    isa::riscv64::inst::*,
+    machinst::{ArgPair, CallArgList, CallRetList, InstOutput},
 };
 use alloc::boxed::Box;
 use alloc::vec::Vec;

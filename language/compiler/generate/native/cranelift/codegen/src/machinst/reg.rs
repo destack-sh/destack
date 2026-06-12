@@ -2,10 +2,8 @@
 //! interface over the register allocator so that we can more easily
 //! swap it out or shim it when necessary.
 
-use alloc::string::String;
-use alloc::vec::Vec;
-use core::fmt::Debug;
-use core::hash::Hash;
+use alloc::{string::String, vec::Vec};
+use core::{fmt::Debug, hash::Hash};
 use regalloc2::{Operand, OperandConstraint, OperandKind, OperandPos, PReg, PRegSet, VReg};
 
 #[cfg(feature = "enable-serde")]

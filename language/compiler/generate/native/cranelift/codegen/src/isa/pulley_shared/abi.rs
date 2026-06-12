@@ -1,12 +1,14 @@
 //! Implementation of a standard Pulley ABI.
 
-use super::inst::*;
-use super::{PulleyFlags, PulleyTargetKind};
-use crate::ir::types::*;
-use crate::ir::{self, MemFlags, Signature};
+use super::{PulleyFlags, PulleyTargetKind, inst::*};
 use crate::isa::pulley_shared::PointerWidth;
-use crate::machinst::*;
-use crate::{CodegenResult, isa, settings};
+use crate::{
+    CodegenResult,
+    ir::{self, MemFlags, Signature, types::*},
+    isa,
+    machinst::*,
+    settings,
+};
 use alloc::borrow::ToOwned;
 use alloc::vec::Vec;
 use core::marker::PhantomData;

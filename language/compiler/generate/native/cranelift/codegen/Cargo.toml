@@ -1,7 +1,7 @@
 [package]
 authors = ["The Cranelift Project Developers"]
 name = "cranelift-codegen"
-version = "0.131.1"
+version = "0.132.1"
 description = "Low-level code generator library"
 license = "Apache-2.0 WITH LLVM-exception"
 documentation = "https://docs.rs/cranelift-codegen"
@@ -10,9 +10,8 @@ categories = ["no-std"]
 readme = "README.md"
 keywords = ["compile", "compiler", "jit"]
 build = "build.rs"
-edition = "2024"
-rust-version = "1.92.0"
-
+edition.workspace = true
+rust-version.workspace = true
 
 [package.metadata.docs.rs]
 # Ask Cargo to build docs with the feature `all-arch`
@@ -23,7 +22,7 @@ anyhow = { workspace = true, optional = true, features = ['std'] }
 bumpalo = { workspace = true }
 capstone = { workspace = true, optional = true }
 cranelift-assembler-x64 = { workspace = true }
-cranelift-codegen-shared = { path = "./shared", version = "0.131.1" }
+cranelift-codegen-shared = { path = "./shared", version = "0.132.1" }
 cranelift-entity = { workspace = true }
 cranelift-bforest = { workspace = true }
 cranelift-bitset = { workspace = true }
@@ -39,7 +38,7 @@ gimli = { workspace = true, features = ["write"], optional = true }
 smallvec = { workspace = true }
 regalloc2 = { workspace = true, features = ["checker"] }
 souper-ir = { version = "2.1.0", optional = true }
-sha2 = { version = "0.10.2", optional = true }
+sha2 = { workspace = true, optional = true }
 rustc-hash = { workspace = true }
 wasmtime-core = { workspace = true }
 libm = { workspace = true }
@@ -55,7 +54,7 @@ env_logger = { workspace = true }
 proptest = { workspace = true }
 
 [build-dependencies]
-cranelift-codegen-meta = { path = "meta", version = "0.131.1" }
+cranelift-codegen-meta = { path = "meta", version = "0.132.1" }
 cranelift-isle = { workspace = true }
 
 [features]
@@ -135,3 +134,6 @@ isle-errors = ["cranelift-isle/fancy-errors"]
 #
 # Enabled by default.
 timing = []
+
+[lints.clippy]
+all = { level = "allow", priority = -1 }

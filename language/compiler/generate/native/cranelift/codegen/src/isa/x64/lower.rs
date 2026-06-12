@@ -6,11 +6,10 @@ pub(super) mod isle;
 use crate::ir::{
     Endianness, ExternalName, Inst as IRInst, InstructionData, LibCall, Opcode, Type, types,
 };
-use crate::isa::CallConv;
-use crate::isa::x64::X64Backend;
 use crate::isa::x64::abi::*;
 use crate::isa::x64::inst::args::*;
 use crate::isa::x64::inst::*;
+use crate::isa::{CallConv, x64::X64Backend};
 use crate::machinst::lower::*;
 use crate::machinst::*;
 use crate::result::CodegenResult;

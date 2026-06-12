@@ -1,6 +1,8 @@
 //! Contains traits that a user of this assembler must implement.
 
-use crate::{Amode, DeferredTarget, GprMem, XmmMem, gpr, xmm};
+use crate::gpr;
+use crate::xmm;
+use crate::{Amode, DeferredTarget, GprMem, XmmMem};
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt;

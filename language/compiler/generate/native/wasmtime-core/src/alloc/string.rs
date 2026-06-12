@@ -1,10 +1,9 @@
-use crate::alloc::{TryClone, str_ptr_from_raw_parts, try_realloc};
-use crate::error::OutOfMemory;
-use core::borrow::Borrow;
-use core::{fmt, mem, ops};
-use std_alloc::alloc::Layout;
-use std_alloc::boxed::Box;
-use std_alloc::string as inner;
+use crate::{
+    alloc::{TryClone, str_ptr_from_raw_parts, try_realloc},
+    error::OutOfMemory,
+};
+use core::{borrow::Borrow, fmt, mem, ops};
+use std_alloc::{alloc::Layout, boxed::Box, string as inner};
 
 /// A newtype wrapper around [`std::string::String`] that only exposes
 /// fallible-allocation methods.
@@ -61,10 +60,28 @@ impl Borrow<str> for TryString {
     }
 }
 
+impl TryFrom<&str> for TryString {
+    type Error = OutOfMemory;
+
+    #[inline]
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let mut s = TryString::new();
+        s.push_str(value)?;
+        Ok(s)
+    }
+}
+
 impl From<inner::String> for TryString {
     #[inline]
     fn from(inner: inner::String) -> Self {
         Self { inner }
+    }
+}
+
+impl From<TryString> for inner::String {
+    #[inline]
+    fn from(s: TryString) -> Self {
+        s.inner
     }
 }
 

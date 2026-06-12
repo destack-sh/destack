@@ -3,8 +3,7 @@
 use crate::{domtree, postorder, Block};
 use arbitrary::{Arbitrary, Result, Unstructured};
 use std::collections::HashSet;
-use std::vec;
-use std::vec::Vec;
+use std::{vec, vec::Vec};
 
 #[derive(Clone, Debug)]
 struct CFG {

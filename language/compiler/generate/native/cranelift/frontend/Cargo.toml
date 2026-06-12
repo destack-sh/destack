@@ -1,16 +1,15 @@
 [package]
 authors = ["The Cranelift Project Developers"]
 name = "cranelift-frontend"
-version = "0.131.1"
+version = "0.132.1"
 description = "Cranelift IR builder helper"
 license = "Apache-2.0 WITH LLVM-exception"
 documentation = "https://docs.rs/cranelift-frontend"
 categories = ["no-std"]
 repository = "https://github.com/bytecodealliance/wasmtime"
 readme = "README.md"
-edition = "2024"
-rust-version = "1.92.0"
-
+edition.workspace = true
+rust-version.workspace = true
 
 [dependencies]
 cranelift-codegen = { workspace = true }
@@ -28,3 +27,6 @@ cranelift-codegen = { workspace = true, features = ['x86'] }
 default = ["std"]
 std = ["cranelift-codegen/std"]
 core = ["hashbrown", "cranelift-codegen/core"]
+
+[lints.clippy]
+all = { level = "allow", priority = -1 }

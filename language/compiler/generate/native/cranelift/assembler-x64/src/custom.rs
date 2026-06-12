@@ -73,7 +73,8 @@ pub mod encode {
 }
 
 pub mod mnemonic {
-    use crate::{Registers, XmmMem, inst};
+    use crate::inst;
+    use crate::{Registers, XmmMem};
     use alloc::borrow::Cow;
 
     macro_rules! lock {
@@ -188,7 +189,8 @@ pub mod mnemonic {
 }
 
 pub mod display {
-    use crate::{Amode, Gpr, GprMem, Registers, Size, inst};
+    use crate::inst;
+    use crate::{Amode, Gpr, GprMem, Registers, Size};
     use alloc::string::ToString;
     use core::fmt;
 

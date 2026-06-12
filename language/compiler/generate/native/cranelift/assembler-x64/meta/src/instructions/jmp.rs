@@ -1,7 +1,5 @@
-use crate::dsl::Customization::*;
-use crate::dsl::Feature::*;
-use crate::dsl::Location::*;
-use crate::dsl::{Inst, fmt, inst, r, rex, sxq};
+use crate::dsl::{Customization::*, Feature::*, Inst, Location::*};
+use crate::dsl::{fmt, inst, r, rex, sxq};
 
 #[rustfmt::skip] // Keeps instructions on a single line.
 pub fn list() -> Vec<Inst> {

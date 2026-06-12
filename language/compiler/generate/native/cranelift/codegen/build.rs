@@ -18,9 +18,10 @@ use cranelift_codegen_meta as meta;
 use cranelift_isle::error::Errors;
 use meta::isle::IsleCompilation;
 
+use std::env;
 use std::io::Read;
+use std::process;
 use std::time::Instant;
-use std::{env, process};
 
 fn main() {
     let start_time = Instant::now();

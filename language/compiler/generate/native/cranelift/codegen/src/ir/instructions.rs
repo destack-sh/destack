@@ -17,11 +17,12 @@ use serde_derive::{Deserialize, Serialize};
 
 use crate::bitset::ScalarBitSet;
 use crate::entity;
-use crate::ir::condcodes::{FloatCC, IntCC};
-use crate::ir::trapcode::TrapCode;
 use crate::ir::{
     self, Block, ExceptionTable, ExceptionTables, FuncRef, MemFlags, SigRef, StackSlot, Type,
-    Value, types,
+    Value,
+    condcodes::{FloatCC, IntCC},
+    trapcode::TrapCode,
+    types,
 };
 
 /// Some instructions use an external list of argument values because there is not enough space in

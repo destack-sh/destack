@@ -6,11 +6,12 @@ use crate::packed_option::PackedOption;
 use alloc::string::String;
 #[cfg(test)]
 use core::fmt;
-use core::marker::PhantomData;
-use core::mem;
-use core::ops::{Bound, RangeBounds};
-use wasmtime_core::alloc::PanicOnOom as _;
-use wasmtime_core::error::OutOfMemory;
+use core::{
+    marker::PhantomData,
+    mem,
+    ops::{Bound, RangeBounds},
+};
+use wasmtime_core::{alloc::PanicOnOom as _, error::OutOfMemory};
 
 /// Tag type defining forest types for a map.
 struct MapTypes<K, V>(PhantomData<(K, V)>);
@@ -869,8 +870,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloc::vec;
-    use alloc::vec::Vec;
+    use alloc::{vec, vec::Vec};
     use core::mem;
 
     #[test]

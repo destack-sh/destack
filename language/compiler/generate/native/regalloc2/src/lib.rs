@@ -37,9 +37,8 @@ macro_rules! trace_enabled {
 
 use alloc::rc::Rc;
 use allocator_api2::vec::Vec as Vec2;
-use core::hash::BuildHasherDefault;
-use core::iter::FromIterator;
 use core::ops::Deref as _;
+use core::{hash::BuildHasherDefault, iter::FromIterator};
 use rustc_hash::FxHasher;
 type FxHashMap<K, V> = hashbrown::HashMap<K, V, BuildHasherDefault<FxHasher>>;
 type FxHashSet<V> = hashbrown::HashSet<V, BuildHasherDefault<FxHasher>>;
@@ -1829,8 +1828,7 @@ unsafe impl allocator_api2::alloc::Allocator for Bump {
 
 #[cfg(test)]
 mod tests {
-    use super::RegClass::*;
-    use super::{PReg, PRegSet};
+    use super::{PReg, PRegSet, RegClass::*};
 
     #[test]
     fn preg_set_len() {

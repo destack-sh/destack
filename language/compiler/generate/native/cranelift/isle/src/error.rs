@@ -2,8 +2,7 @@
 
 use std::sync::Arc;
 
-use crate::files::Files;
-use crate::lexer::Pos;
+use crate::{files::Files, lexer::Pos};
 
 /// A collection of errors from attempting to compile some ISLE source files.
 pub struct Errors {

@@ -7,8 +7,9 @@
 //!
 //! - Floating-point immediates (FIMM instruction).
 
+use crate::ir::Inst as IRInst;
 use crate::ir::condcodes::{FloatCC, IntCC};
-use crate::ir::{Inst as IRInst, Opcode, Value};
+use crate::ir::{Opcode, Value};
 use crate::isa::aarch64::AArch64Backend;
 use crate::isa::aarch64::inst::*;
 use crate::machinst::lower::*;

@@ -14,8 +14,8 @@ use cranelift_codegen::ir::immediates::{
     Ieee16, Ieee32, Ieee64, Ieee128, Imm64, Offset32, Uimm32, Uimm64,
 };
 use cranelift_codegen::ir::instructions::{InstructionData, InstructionFormat, VariableArgs};
-use cranelift_codegen::ir::types::*;
-use cranelift_codegen::ir::{self, DebugTag, StackSlotKey, UserExternalNameRef};
+use cranelift_codegen::ir::{self, StackSlotKey, UserExternalNameRef};
+use cranelift_codegen::ir::{DebugTag, types::*};
 
 use cranelift_codegen::ir::{
     AbiParam, ArgumentExtension, ArgumentPurpose, Block, BlockArg, Constant, ConstantData,
@@ -25,11 +25,11 @@ use cranelift_codegen::ir::{
 };
 use cranelift_codegen::isa::{self, CallConv};
 use cranelift_codegen::packed_option::ReservedValue;
-use cranelift_codegen::settings::Configurable;
-use cranelift_codegen::{settings, timing};
+use cranelift_codegen::{settings, settings::Configurable, timing};
 use smallvec::SmallVec;
+use std::mem;
 use std::str::FromStr;
-use std::{mem, u16, u32};
+use std::{u16, u32};
 use target_lexicon::Triple;
 
 macro_rules! match_imm {

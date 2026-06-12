@@ -1,8 +1,6 @@
 use crate::error::ptr::{MutPtr, OwnedPtr, SharedPtr};
 use crate::error::{ConcreteError, DynError, Error, ErrorExt, OutOfMemory};
-use core::any::TypeId;
-use core::fmt;
-use core::ptr::NonNull;
+use core::{any::TypeId, fmt, ptr::NonNull};
 use std_alloc::boxed::Box;
 
 /// A vtable containing the `ErrorExt` methods for some type `T`.

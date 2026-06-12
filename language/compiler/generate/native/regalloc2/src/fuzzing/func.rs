@@ -12,7 +12,8 @@ use alloc::vec::Vec;
 use alloc::{format, vec};
 use core::ops::RangeInclusive;
 
-use arbitrary::{Arbitrary, Result as ArbitraryResult, Unstructured};
+use arbitrary::Result as ArbitraryResult;
+use arbitrary::{Arbitrary, Unstructured};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum InstOpcode {

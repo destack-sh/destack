@@ -10,15 +10,14 @@ mod features;
 pub mod format;
 
 pub use custom::{Custom, Customization};
+pub use encoding::{Encoding, ModRmKind, OpcodeMod};
+pub use encoding::{Evex, Length, Vex, VexEscape, VexPrefix, evex, vex};
 pub use encoding::{
-    Encoding, Evex, Group1Prefix, Group2Prefix, Group3Prefix, Group4Prefix, Length, ModRmKind,
-    OpcodeMod, Opcodes, Prefixes, Rex, TupleType, Vex, VexEscape, VexPrefix, evex, rex, vex,
+    Group1Prefix, Group2Prefix, Group3Prefix, Group4Prefix, Opcodes, Prefixes, Rex, TupleType, rex,
 };
 pub use features::{ALL_FEATURES, Feature, Features};
-pub use format::{
-    Eflags, Extension, Format, Location, Mutability, Operand, OperandKind, RegClass, align, fmt,
-    implicit, r, rw, sxl, sxq, sxw, w,
-};
+pub use format::{Eflags, Extension, Format, Location, Mutability, Operand, OperandKind, RegClass};
+pub use format::{align, fmt, implicit, r, rw, sxl, sxq, sxw, w};
 
 /// Abbreviated constructor for an x64 instruction.
 pub fn inst(

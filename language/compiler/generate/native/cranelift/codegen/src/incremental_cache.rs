@@ -26,10 +26,10 @@ use core::hash::{Hash, Hasher};
 use crate::alloc::vec::Vec;
 use crate::ir::Function;
 use crate::ir::function::{FunctionStencil, VersionMarker};
-use crate::isa::TargetIsa;
 use crate::machinst::{CompiledCode, CompiledCodeStencil};
 use crate::result::CompileResult;
-use crate::{CompileError, Context, timing, trace};
+use crate::{CompileError, Context, trace};
+use crate::{isa::TargetIsa, timing};
 use alloc::borrow::Cow;
 use cranelift_control::ControlPlane;
 

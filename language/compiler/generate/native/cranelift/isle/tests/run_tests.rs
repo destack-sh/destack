@@ -3,8 +3,11 @@
 use std::io::BufWriter;
 use std::iter::zip;
 
+use cranelift_isle::compile;
 use cranelift_isle::error::Errors;
-use cranelift_isle::{compile, lexer, parser, printer};
+use cranelift_isle::lexer;
+use cranelift_isle::parser;
+use cranelift_isle::printer;
 
 fn build(filename: &str) -> Result<String, Errors> {
     compile::from_files(&[filename], &Default::default())

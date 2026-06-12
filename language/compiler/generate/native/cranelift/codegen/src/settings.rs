@@ -24,7 +24,8 @@ use crate::constant_hash::{probe, simple_hash};
 use crate::isa::TargetIsa;
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
-use core::{fmt, str};
+use core::fmt;
+use core::str;
 
 /// A string-based configurator for settings groups.
 ///
@@ -475,8 +476,9 @@ impl<'a> From<&'a dyn TargetIsa> for FlagsOrIsa<'a> {
 
 #[cfg(test)]
 mod tests {
+    use super::Configurable;
     use super::SetError::*;
-    use super::{Configurable, Flags, builder};
+    use super::{Flags, builder};
     use alloc::string::ToString;
 
     #[test]

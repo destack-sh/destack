@@ -7,12 +7,15 @@ mod settings;
 
 use self::inst::EmitInfo;
 use super::{Builder as IsaBuilder, FunctionAlignment};
-use crate::dominator_tree::DominatorTree;
-use crate::isa::{self, IsaFlagsHashKey, OwnedTargetIsa, TargetIsa};
-use crate::machinst::{self, CompiledCodeStencil, MachInst, SigSet, VCode};
-use crate::result::CodegenResult;
-use crate::settings::{self as shared_settings, Flags};
-use crate::{MachTextSectionBuilder, TextSectionBuilder, ir};
+use crate::{
+    MachTextSectionBuilder, TextSectionBuilder,
+    dominator_tree::DominatorTree,
+    ir,
+    isa::{self, IsaFlagsHashKey, OwnedTargetIsa, TargetIsa},
+    machinst::{self, CompiledCodeStencil, MachInst, SigSet, VCode},
+    result::CodegenResult,
+    settings::{self as shared_settings, Flags},
+};
 use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec::Vec;

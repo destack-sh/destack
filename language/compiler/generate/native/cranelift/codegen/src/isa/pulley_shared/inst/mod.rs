@@ -7,8 +7,8 @@ use crate::ir::types::{self, F32, F64, I8, I8X16, I16, I32, I64, I128};
 use crate::ir::{self, MemFlags, Type};
 use crate::isa::FunctionAlignment;
 use crate::isa::pulley_shared::abi::PulleyMachineDeps;
-use crate::machinst::*;
-use crate::{CodegenError, CodegenResult, settings, trace};
+use crate::{CodegenError, CodegenResult, settings};
+use crate::{machinst::*, trace};
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
@@ -25,7 +25,8 @@ pub use self::emit::*;
 //=============================================================================
 // Instructions (top level): definition
 
-pub use crate::isa::pulley_shared::lower::isle::generated_code::{MInst as Inst, RawInst};
+pub use crate::isa::pulley_shared::lower::isle::generated_code::MInst as Inst;
+pub use crate::isa::pulley_shared::lower::isle::generated_code::RawInst;
 
 impl From<RawInst> for Inst {
     fn from(raw: RawInst) -> Inst {

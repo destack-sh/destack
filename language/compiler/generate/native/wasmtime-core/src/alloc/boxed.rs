@@ -1,8 +1,9 @@
 use super::{TryClone, TryNew, TryVec, try_alloc};
-use crate::alloc::str_ptr_from_slice_ptr;
-use crate::error::OutOfMemory;
-use core::alloc::Layout;
-use core::mem::{self, MaybeUninit};
+use crate::{alloc::str_ptr_from_slice_ptr, error::OutOfMemory};
+use core::{
+    alloc::Layout,
+    mem::{self, MaybeUninit},
+};
 use std_alloc::boxed::Box;
 
 /// Allocate an `Box<MaybeUninit<T>>` with uninitialized contents, returning

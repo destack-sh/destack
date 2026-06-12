@@ -1,7 +1,10 @@
 use proc_macro::TokenStream;
 use quote::{ToTokens, TokenStreamExt, quote};
-use syn::parse::{Parse, ParseStream};
-use syn::{Attribute, Result, Signature, Visibility, braced, parse_macro_input, token};
+use syn::{
+    Attribute, Result, Signature, Visibility, braced,
+    parse::{Parse, ParseStream},
+    parse_macro_input, token,
+};
 
 pub fn run(attrs: TokenStream, item: TokenStream) -> TokenStream {
     let mut cfg = None;

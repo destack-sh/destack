@@ -1207,10 +1207,9 @@ mod tests {
     };
     use alloc::string::ToString;
     use cranelift_codegen::ir::condcodes::IntCC;
-    use cranelift_codegen::ir::types::*;
     use cranelift_codegen::ir::{
         AbiParam, BlockCall, ExceptionTableData, ExtFuncData, ExternalName, Function, InstBuilder,
-        MemFlags, Signature, UserExternalName, UserFuncName, Value,
+        MemFlags, Signature, UserExternalName, UserFuncName, Value, types::*,
     };
     use cranelift_codegen::isa::{CallConv, TargetFrontendConfig, TargetIsa};
     use cranelift_codegen::settings;

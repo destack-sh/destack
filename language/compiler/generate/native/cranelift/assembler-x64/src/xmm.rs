@@ -1,7 +1,6 @@
 //! Xmm register operands; see [`Xmm`].
 
-use crate::rex::encode_modrm;
-use crate::{AsReg, CodeSink};
+use crate::{AsReg, CodeSink, rex::encode_modrm};
 
 use alloc::string::String;
 

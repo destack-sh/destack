@@ -1,8 +1,10 @@
 use crate::{FxHashSet, PReg, PRegSet, RegClass};
 use alloc::vec;
 use alloc::vec::Vec;
-use core::fmt;
-use core::ops::{Index, IndexMut};
+use core::{
+    fmt,
+    ops::{Index, IndexMut},
+};
 
 /// A least-recently-used cache organized as a linked list based on a vector.
 pub struct Lru {

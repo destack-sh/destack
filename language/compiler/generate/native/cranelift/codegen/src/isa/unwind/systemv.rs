@@ -1,10 +1,9 @@
 //! System V ABI unwind information.
 
-use crate::CodegenError;
-use crate::binemit::CodeOffset;
 use crate::isa::unwind::UnwindInst;
 use crate::machinst::Reg;
 use crate::result::CodegenResult;
+use crate::{CodegenError, binemit::CodeOffset};
 use alloc::vec::Vec;
 use gimli::write::{Address, FrameDescriptionEntry};
 
@@ -97,8 +96,7 @@ impl From<gimli::write::CallFrameInstruction> for CallFrameInstruction {
 impl From<CallFrameInstruction> for gimli::write::CallFrameInstruction {
     fn from(cfi: CallFrameInstruction) -> gimli::write::CallFrameInstruction {
         use CallFrameInstruction as ClifCfi;
-        use gimli::Register;
-        use gimli::write::{CallFrameInstruction as GimliCfi, Expression};
+        use gimli::{Register, write::CallFrameInstruction as GimliCfi, write::Expression};
 
         match cfi {
             ClifCfi::Cfa(reg, offset) => GimliCfi::Cfa(Register(reg), offset),

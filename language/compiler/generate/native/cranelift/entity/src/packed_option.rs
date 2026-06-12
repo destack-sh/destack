@@ -8,8 +8,7 @@
 //! to represent `None`.
 
 use core::{fmt, mem};
-use wasmtime_core::alloc::TryClone;
-use wasmtime_core::error::OutOfMemory;
+use wasmtime_core::{alloc::TryClone, error::OutOfMemory};
 
 #[cfg(feature = "enable-serde")]
 use serde_derive::{Deserialize, Serialize};

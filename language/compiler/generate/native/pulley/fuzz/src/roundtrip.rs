@@ -1,5 +1,7 @@
-use pulley_interpreter::decode::{Decoder, SafeBytecodeStream};
-use pulley_interpreter::op::{MaterializeOpsVisitor, Op};
+use pulley_interpreter::{
+    decode::{Decoder, SafeBytecodeStream},
+    op::{MaterializeOpsVisitor, Op},
+};
 
 pub fn roundtrip(ops: Vec<Op>) {
     let _ = env_logger::try_init();

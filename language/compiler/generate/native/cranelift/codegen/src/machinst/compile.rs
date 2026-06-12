@@ -5,7 +5,8 @@ use crate::ir::Function;
 use crate::isa::TargetIsa;
 use crate::machinst::*;
 use crate::settings::RegallocAlgorithm;
-use crate::{timing, trace};
+use crate::timing;
+use crate::trace;
 
 use regalloc2::{Algorithm, RegallocOptions};
 

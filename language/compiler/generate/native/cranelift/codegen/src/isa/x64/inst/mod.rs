@@ -8,8 +8,8 @@ use crate::isa::x64::abi::X64ABIMachineSpec;
 use crate::isa::x64::inst::regs::pretty_print_reg;
 use crate::isa::x64::settings as x64_settings;
 use crate::isa::{CallConv, FunctionAlignment};
-use crate::machinst::*;
-use crate::{CodegenError, CodegenResult, settings, trace};
+use crate::{CodegenError, CodegenResult, settings};
+use crate::{machinst::*, trace};
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec;
@@ -35,7 +35,8 @@ use args::*;
 // Instructions (top level): definition
 
 // `Inst` is defined inside ISLE as `MInst`. We publicly re-export it here.
-pub use super::lower::isle::generated_code::{AtomicRmwSeqOp, MInst as Inst};
+pub use super::lower::isle::generated_code::AtomicRmwSeqOp;
+pub use super::lower::isle::generated_code::MInst as Inst;
 
 /// Out-of-line data for return-calls, to keep the size of `Inst` down.
 #[derive(Clone, Debug)]

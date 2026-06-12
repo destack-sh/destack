@@ -16,10 +16,8 @@ use crate::machinst::{
 use crate::result::{CodegenError, CodegenResult};
 use crate::settings::{self as shared_settings, Flags};
 use crate::{Final, MachBufferFinalized};
-use alloc::borrow::ToOwned;
-use alloc::boxed::Box;
 use alloc::string::String;
-use alloc::vec::Vec;
+use alloc::{borrow::ToOwned, boxed::Box, vec::Vec};
 use core::fmt;
 use cranelift_control::ControlPlane;
 use target_lexicon::Triple;
