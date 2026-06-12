@@ -5,7 +5,7 @@ use destack_parser::{Parser, ParserOptions, ParserTriviaMode};
 use destack_source::{File, FileId, FileType, LanguageType, Uri, glob};
 use pprof::ProfilerGuard;
 use pprof::flamegraph::Options as FlamegraphOptions;
-use rayon::prelude::*;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::hint::black_box;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -54,7 +54,7 @@ impl ParserBenchStage {
 }
 
 /// One parser stage summary from a dry run.
-#[derive(Debug, Copy, Clone, Default)]
+#[derive(Debug, Clone, Default)]
 struct ParserBenchStageStats {
     /// The semantic token count.
     tokens: u64,
@@ -288,6 +288,19 @@ fn parser_corpus_filter() -> Option<Vec<String>> {
     } else {
         Some(filters)
     }
+}
+
+/// Return whether the single-file benchmark group should run.
+fn should_run_single_file_bench() -> bool {
+    if env::var("DESTACK_PARSE_FILE").is_ok() {
+        return true;
+    }
+
+    if env::var("DESTACK_PARSE_CORPUS").is_ok() || env::var("DESTACK_PARSE_FILES").is_ok() {
+        return false;
+    }
+
+    true
 }
 
 /// Return whether a corpus should run.
@@ -702,6 +715,10 @@ fn load_single_file(path: &Path) -> (Arc<File>, u64) {
 
 /// Benchmark parsing for a single source file.
 fn bench_parse_single(criterion: &mut Criterion) {
+    if !should_run_single_file_bench() {
+        return;
+    }
+
     // workspace root
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let workspace_root_path = manifest_dir
