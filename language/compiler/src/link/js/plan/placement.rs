@@ -480,7 +480,7 @@ mod tests {
     #[test]
     fn test_resolves_script_module_output_path() {
         let target = Target::js();
-        let package_id = PackageId::from_path(Path::new("/workspace/pkg"));
+        let package_id = PackageId::from_path(Path::new("pkg"));
         let module = Module::blank(
             ModuleId::from_relative_path(package_id, Path::new("src/util/math.ds")),
             FileId::from_logical_str("src/util/math.ds"),
