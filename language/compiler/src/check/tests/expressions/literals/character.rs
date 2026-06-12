@@ -12,11 +12,15 @@ const value = 'a';
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
+const value: 'a' = 'a';
+
+=== checked ===
 const value = 'a';
-/// @type.symbol symbol=value type='a'
+/// @type.symbol symbol=value source=value type='a'
 /// @type.node source='a' type='a'
 
-/// @check.stats.solve variables=0 terms=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -33,11 +37,15 @@ let value = 'a';
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
+let value: char = 'a';
+
+=== checked ===
 let value = 'a';
-/// @type.symbol symbol=value type=char
+/// @type.symbol symbol=value source=value type=char
 /// @type.node source='a' type='a'
 
-/// @check.stats.solve variables=0 terms=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -54,11 +62,15 @@ const value: char = 'a';
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
 const value: char = 'a';
-/// @type.symbol symbol=value type=char
+
+=== checked ===
+const value: char = 'a';
+/// @type.symbol symbol=value source=value type=char
 /// @type.node source='a' type='a'
 
-/// @check.stats.solve variables=0 terms=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -75,16 +87,19 @@ const value: string = 'a';
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
 const value: string = 'a';
-/// @type.symbol symbol=value type=string
+
+=== checked ===
+const value: string = 'a';
+/// @type.symbol symbol=value source=value type=string
 /// @type.node source='a' type='a'
 
-/// @check.stats.solve variables=0 terms=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type is not assignable"
-/// @diagnostic.label line=2 column=23 source="const value: string = 'a';"
+
 "#,
     );
 }
@@ -101,15 +116,19 @@ const value: int32 = 'a';
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
 const value: int32 = 'a';
-/// @type.symbol symbol=value type=int32
+
+=== checked ===
+const value: int32 = 'a';
+/// @type.symbol symbol=value source=value type=int32
 /// @type.node source='a' type='a'
 
-/// @check.stats.solve variables=0 terms=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type is not assignable"
+/// @diagnostic.error code=EC200 message="type ''a'' is not assignable to type 'int32'"
 /// @diagnostic.label line=2 column=22 source="const value: int32 = 'a';"
 "#,
     );
@@ -127,11 +146,15 @@ const value: char | string = 'a';
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
 const value: char | string = 'a';
-/// @type.symbol symbol=value type=char | string
+
+=== checked ===
+const value: char | string = 'a';
+/// @type.symbol symbol=value source=value type=char | string
 /// @type.node source='a' type='a'
 
-/// @check.stats.solve variables=0 terms=5 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=5 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }

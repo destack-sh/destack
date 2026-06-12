@@ -12,11 +12,15 @@ const value = 42;
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
+const value: 42 = 42;
+
+=== checked ===
 const value = 42;
 /// @type.symbol symbol=value source=value type=42
 /// @type.node source=42 type=42
 
-/// @check.stats.solve variables=0 terms=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -33,11 +37,15 @@ let value = 42;
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
+let value: float64 = 42 as float64;
+
+=== checked ===
 let value = 42;
-/// @type.symbol symbol=value source=value type=int32
+/// @type.symbol symbol=value source=value type=float64
 /// @type.node source=42 type=42
 
-/// @check.stats.solve variables=0 terms=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -54,11 +62,15 @@ const value: int32 = 42;
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
+const value: int32 = 42;
+
+=== checked ===
 const value: int32 = 42;
 /// @type.symbol symbol=value source=value type=int32
 /// @type.node source=42 type=42
 
-/// @check.stats.solve variables=0 terms=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -75,11 +87,15 @@ const value: "ready" = "ready";
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
+const value: "ready" = "ready";
+
+=== checked ===
 const value: "ready" = "ready";
 /// @type.symbol symbol=value source=value type="ready"
 /// @type.node source="\"ready\"" type="ready"
 
-/// @check.stats.solve variables=0 terms=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -96,11 +112,15 @@ const value: true = true;
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
+const value: true = true;
+
+=== checked ===
 const value: true = true;
 /// @type.symbol symbol=value source=value type=true
 /// @type.node source=true type=true
 
-/// @check.stats.solve variables=0 terms=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -117,11 +137,15 @@ const value = null;
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
+const value: null = null;
+
+=== checked ===
 const value = null;
 /// @type.symbol symbol=value source=value type=null
 /// @type.node source=null type=null
 
-/// @check.stats.solve variables=0 terms=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -138,11 +162,15 @@ const value = undefined;
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
+const value: undefined = undefined;
+
+=== checked ===
 const value = undefined;
 /// @type.symbol symbol=value source=value type=undefined
 /// @type.node source=undefined type=undefined
 
-/// @check.stats.solve variables=0 terms=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -159,12 +187,16 @@ const value = 42 satisfies int32;
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
+const value: 42 = 42 satisfies int32;
+
+=== checked ===
 const value = 42 satisfies int32;
 /// @type.symbol symbol=value source=value type=42
 /// @type.node source="42 satisfies int32" type=42
 /// @type.node source=42 type=42
 
-/// @check.stats.solve variables=0 terms=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }

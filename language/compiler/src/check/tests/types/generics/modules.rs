@@ -2,7 +2,7 @@ use crate::tests::{DirRows, TestSession};
 
 #[test]
 fn test_imported_generic_type_reference_classifies_type_arguments() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "lib.ds",
             r#"
@@ -58,7 +58,7 @@ type Wrapped<T> = Box<T>;
 
 #[test]
 fn test_generic_newtype_interface_extends_generic_interface() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "ops.ds",
             r#"
@@ -126,7 +126,7 @@ type Used = Equal<string>;
 
 #[test]
 fn test_imported_generic_function_instantiates_in_calling_module() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "lib.ds",
             r#"
@@ -193,7 +193,7 @@ const text = identity("x");
 
 #[test]
 fn test_imported_generic_function_uses_exported_body_inference() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "lib.ds",
             r#"

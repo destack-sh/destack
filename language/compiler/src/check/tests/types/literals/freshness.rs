@@ -14,23 +14,29 @@ const value: Named = { name: "Ada", extra: true };
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
 type Named = { name: string };
-/// @type.symbol symbol=Named type={ name: string }
-/// @type.symbol symbol=Named.name type=string
 
 const value: Named = { name: "Ada", extra: true };
-/// @type.symbol symbol=value type={ name: string }
+
+=== checked ===
+type Named = { name: string };
+/// @type.symbol symbol=Named source="type Named = { name: string }" type={ name: string }
+/// @definition.type symbol=Named source="type Named = { name: string }" value={ name: string }
+
+const value: Named = { name: "Ada", extra: true };
+/// @type.symbol symbol=value source=value type={ name: string }
 /// @resolution.name source=Named target=Named
-/// @type.node source="{ name: \"Ada\", extra: true }" type={ name: "Ada"; extra: true }
+/// @type.node source="{ name: \"Ada\", extra: true }" type=Managed<{ name: "Ada"; extra: true }>
 /// @type.node source="\"Ada\"" type="Ada"
 /// @type.node source=true type=true
 
-/// @check.stats.solve variables=0 terms=8 constraints=1 obligations=0 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=8 constraints=1 obligations=0 solutions=0 bounds=0 decisions=1
 
 "#,
         r#"
-/// @diagnostic.error code=EC205 message="excess property 'extra'"
-/// @diagnostic.label line=4 column=37 source="const value: Named = { name: \"Ada\", extra: true };"
+/// @diagnostic.error code=EC205 message="unknown property 'extra' in object literal for type '{ name: string }'"
+/// @diagnostic.label line=4 column=22 source="const value: Named = { name: \"Ada\", extra: true };"
 "#,
     );
 }
@@ -50,23 +56,30 @@ const value: Named = source;
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
 type Named = { name: string };
-/// @type.symbol symbol=Named type={ name: string }
-/// @type.symbol symbol=Named.name type=string
+
+const source: { name: string; extra: boolean } = { name: "Ada", extra: true };
+const value: Named = source;
+
+=== checked ===
+type Named = { name: string };
+/// @type.symbol symbol=Named source="type Named = { name: string }" type={ name: string }
+/// @definition.type symbol=Named source="type Named = { name: string }" value={ name: string }
 
 const source = { name: "Ada", extra: true };
-/// @type.symbol symbol=source type={ name: string; extra: boolean }
-/// @type.node source="{ name: \"Ada\", extra: true }" type={ name: "Ada"; extra: true }
+/// @type.symbol symbol=source source=source type=Managed<{ name: string; extra: boolean }>
+/// @type.node source="{ name: \"Ada\", extra: true }" type=Managed<{ name: "Ada"; extra: true }>
 /// @type.node source="\"Ada\"" type="Ada"
 /// @type.node source=true type=true
 
 const value: Named = source;
-/// @type.symbol symbol=value type={ name: string }
+/// @type.symbol symbol=value source=value type={ name: string }
 /// @resolution.name source=Named target=Named
-/// @type.node source=source type={ name: string; extra: boolean }
+/// @type.node source=source type=Managed<{ name: string; extra: boolean }>
 /// @resolution.name source=source target=source
 
-/// @check.stats.solve variables=0 terms=11 constraints=1 obligations=0 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=13 constraints=1 obligations=0 solutions=0 bounds=0 decisions=2
 "#,
     );
 }

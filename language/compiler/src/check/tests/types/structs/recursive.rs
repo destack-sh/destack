@@ -2,7 +2,7 @@ use crate::tests::{DirRows, TestSession};
 
 #[test]
 fn test_circular_struct_fields_preserve_nominal_targets() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "left.ds",
             r#"
@@ -59,7 +59,7 @@ export struct Right {
 
 #[test]
 fn test_circular_class_fields_preserve_nominal_targets() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "player.ds",
             r#"

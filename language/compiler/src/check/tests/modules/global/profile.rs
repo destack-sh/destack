@@ -2,7 +2,7 @@ use crate::tests::{DirRows, TestSession};
 
 #[test]
 fn test_profile_global_binding_resolves_as_name() {
-    let session = TestSession::new()
+    let session = TestSession::builder()
         .data(
             "destack.json",
             r#"

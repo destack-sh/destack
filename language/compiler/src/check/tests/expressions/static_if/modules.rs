@@ -2,7 +2,7 @@ use crate::tests::{DirRows, TestSession};
 
 #[test]
 fn test_static_if_true_namespace_export_is_available() {
-    let session = TestSession::new()
+    let session = TestSession::builder()
         .module(
             "dep.ds",
             r#"
@@ -49,7 +49,7 @@ const result = dep.value;
 
 #[test]
 fn test_static_if_false_namespace_export_is_unavailable() {
-    let session = TestSession::new()
+    let session = TestSession::builder()
         .module(
             "dep.ds",
             r#"

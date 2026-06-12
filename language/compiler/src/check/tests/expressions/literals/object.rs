@@ -12,13 +12,17 @@ const value = { a: 1, b: "two" };
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
+const value: { a: float64; b: string } = { a: 1, b: "two" };
+
+=== checked ===
 const value = { a: 1, b: "two" };
-/// @type.symbol symbol=value source=value type={ a: int32; b: string }
-/// @type.node source="{ a: 1, b: \"two\" }" type={ a: 1; b: "two" }
+/// @type.symbol symbol=value source=value type=Managed<{ a: float64; b: string }>
+/// @type.node source="{ a: 1, b: \"two\" }" type=Managed<{ a: 1; b: "two" }>
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 
-/// @check.stats.solve variables=1 terms=20 constraints=1 obligations=0 solutions=1 bounds=2 decisions=0
+/// @check.stats.solve variables=0 types=9 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -37,6 +41,12 @@ const person = { name, age };
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
+const name: "Ada" = "Ada";
+const age: 42 = 42;
+const person: { name: string; age: float64 } = { name, age };
+
+=== checked ===
 const name = "Ada";
 /// @type.symbol symbol=name source=name type="Ada"
 /// @type.node source="\"Ada\"" type="Ada"
@@ -46,14 +56,14 @@ const age = 42;
 /// @type.node source=42 type=42
 
 const person = { name, age };
-/// @type.symbol symbol=person source=person type={ name: string; age: int32 }
-/// @type.node source="{ name, age }" type={ name: "Ada"; age: 42 }
+/// @type.symbol symbol=person source=person type=Managed<{ name: string; age: float64 }>
+/// @type.node source="{ name, age }" type=Managed<{ name: "Ada"; age: 42 }>
 /// @type.node source=name type="Ada"
 /// @resolution.name source=name target=name
 /// @type.node source=age type=42
 /// @resolution.name source=age target=age
 
-/// @check.stats.solve variables=1 terms=22 constraints=1 obligations=0 solutions=1 bounds=2 decisions=2
+/// @check.stats.solve variables=0 types=11 constraints=0 obligations=0 solutions=0 bounds=0 decisions=2
 "#,
     );
 }
@@ -70,11 +80,15 @@ const value = {};
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
-const value = {};
-/// @type.symbol symbol=value source=value type={  }
-/// @type.node source={} type={  }
+=== annotated ===
+const value: {} = {};
 
-/// @check.stats.solve variables=1 terms=6 constraints=1 obligations=0 solutions=1 bounds=2 decisions=0
+=== checked ===
+const value = {};
+/// @type.symbol symbol=value source=value type=Managed<{  }>
+/// @type.node source={} type=Managed<{  }>
+
+/// @check.stats.solve variables=0 types=5 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -91,14 +105,18 @@ const value = { a: 1, b: "two" } as const;
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
+const value: { a: 1; b: "two" } = { a: 1, b: "two" } as const;
+
+=== checked ===
 const value = { a: 1, b: "two" } as const;
-/// @type.symbol symbol=value source=value type={ readonly a: 1; readonly b: "two" }
-/// @type.node source="{ a: 1, b: \"two\" } as const" type={ readonly a: 1; readonly b: "two" }
-/// @type.node source="{ a: 1, b: \"two\" }" type={ readonly a: 1; readonly b: "two" }
+/// @type.symbol symbol=value source=value type=Managed<{ a: 1; b: "two" }>
+/// @type.node source="{ a: 1, b: \"two\" } as const" type=Managed<{ a: 1; b: "two" }>
+/// @type.node source="{ a: 1, b: \"two\" }" type=Managed<{ a: 1; b: "two" }>
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 
-/// @check.stats.solve variables=0 terms=5 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=5 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -115,19 +133,21 @@ const value: { a: number; b: string } = { a: 1, b: 2 };
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
+const value: { a: number; b: string } = { a: 1, b: 2 };
+
+=== checked ===
 const value: { a: number; b: string } = { a: 1, b: 2 };
 /// @type.symbol symbol=value source=value type={ a: float64; b: string }
-/// @type.symbol symbol=a source="a: number" type=float64
-/// @type.symbol symbol=b source="b: string" type=string
-/// @type.node source="{ a: 1, b: 2 }" type={ a: 1; b: 2 }
+/// @type.node source="{ a: 1, b: 2 }" type=Managed<{ a: 1; b: 2 }>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 terms=9 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=8 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type is not assignable"
+/// @diagnostic.error code=EC200 message="type '{ a: 1; b: 2 }' is not assignable to type '{ a: float64; b: string }'"
 /// @diagnostic.label line=2 column=41 source="const value: { a: number; b: string } = { a: 1, b: 2 };"
 "#,
     );
@@ -145,13 +165,16 @@ const state: { reactions: int32[] } = { reactions: [] };
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
+const state: { reactions: int32[] } = { reactions: [] };
+
+=== checked ===
 const state: { reactions: int32[] } = { reactions: [] };
 /// @type.symbol symbol=state source=state type={ reactions: Array<int32> }
-/// @type.symbol symbol=reactions source="reactions: int32[]" type=Array<int32>
-/// @type.node source="{ reactions: [] }" type={ reactions: Array<int32> }
+/// @type.node source="{ reactions: [] }" type=Managed<{ reactions: Array<int32> }>
 /// @type.node source=[] type=Array<int32>
 
-/// @check.stats.solve variables=1 terms=8 constraints=1 obligations=0 solutions=1 bounds=2 decisions=0
+/// @check.stats.solve variables=1 types=8 constraints=2 obligations=0 solutions=1 bounds=2 decisions=0
 "#,
     );
 }
@@ -172,29 +195,38 @@ const mode = config.mode;
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
+type Mode = "dev" | "prod";
+type Shape = { mode: Mode };
+
+let config: { mode: "dev" } = { mode: "dev" } satisfies Shape;
+const mode: "dev" = config.mode;
+
+=== checked ===
 type Mode = "dev" | "prod";
 /// @type.symbol symbol=Mode source="type Mode = \"dev\" | \"prod\"" type="dev" | "prod"
+/// @definition.type symbol=Mode source="type Mode = \"dev\" | \"prod\"" value="dev" | "prod"
 
 type Shape = { mode: Mode };
 /// @type.symbol symbol=Shape source="type Shape = { mode: Mode }" type={ mode: "dev" | "prod" }
-/// @type.symbol symbol=Shape.mode source="mode: Mode" type="dev" | "prod"
+/// @definition.type symbol=Shape source="type Shape = { mode: Mode }" value={ mode: "dev" | "prod" }
 /// @resolution.name source=Mode target=Mode
 
 let config = { mode: "dev" } satisfies Shape;
-/// @type.symbol symbol=config source=config type={ mode: "dev" }
-/// @type.node source="{ mode: \"dev\" } satisfies Shape" type={ mode: "dev" }
-/// @type.node source="{ mode: \"dev\" }" type={ mode: "dev" }
+/// @type.symbol symbol=config source=config type=Managed<{ mode: "dev" }>
+/// @type.node source="{ mode: \"dev\" } satisfies Shape" type=Managed<{ mode: "dev" }>
+/// @type.node source="{ mode: \"dev\" }" type=Managed<{ mode: "dev" }>
 /// @type.node source="\"dev\"" type="dev"
 /// @resolution.name source=Shape target=Shape
 
 const mode = config.mode;
 /// @type.symbol symbol=mode source=mode type="dev"
-/// @type.node source=config type={ mode: "dev" }
+/// @type.node source=config type=Managed<{ mode: "dev" }>
 /// @type.node source=config.mode type="dev"
 /// @resolution.name source=config target=config
-/// @resolution.member source=config.mode receiver={ mode: "dev" } kind=field key=mode
+/// @resolution.member source=config.mode receiver=Managed<{ mode: "dev" }> kind=field key=mode
 
-/// @check.stats.solve variables=0 terms=22 constraints=1 obligations=0 solutions=0 bounds=0 decisions=4
+/// @check.stats.solve variables=2 types=13 constraints=2 obligations=0 solutions=2 bounds=2 decisions=4
 "#,
     );
 }
@@ -212,20 +244,25 @@ const value = { ...base, c: true };
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
+const base: { a: float64; b: string } = { a: 1, b: "two" };
+const value: { a: float64; b: string; c: true } = { ...base, c: true };
+
+=== checked ===
 const base = { a: 1, b: "two" };
-/// @type.symbol symbol=base source=base type={ a: int32; b: string }
-/// @type.node source="{ a: 1, b: \"two\" }" type={ a: 1; b: "two" }
+/// @type.symbol symbol=base source=base type=Managed<{ a: float64; b: string }>
+/// @type.node source="{ a: 1, b: \"two\" }" type=Managed<{ a: 1; b: "two" }>
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 
 const value = { ...base, c: true };
-/// @type.symbol symbol=value source=value type={ a: int32; b: string; c: boolean }
-/// @type.node source="{ ...base, c: true }" type={ a: int32; b: string; c: true }
-/// @type.node source=base type={ a: int32; b: string }
+/// @type.symbol symbol=value source=value type=Managed<{ a: float64; b: string; c: true }>
+/// @type.node source="{ ...base, c: true }" type=Managed<{ a: float64; b: string; c: true }>
+/// @type.node source=base type=Managed<{ a: float64; b: string }>
 /// @resolution.name source=base target=base
 /// @type.node source=true type=true
 
-/// @check.stats.solve variables=2 terms=34 constraints=2 obligations=0 solutions=2 bounds=4 decisions=1
+/// @check.stats.solve variables=2 types=15 constraints=1 obligations=0 solutions=2 bounds=2 decisions=1
 "#,
     );
 }
@@ -243,20 +280,25 @@ const value = { ...base, b: "two" };
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
+const base: { a: float64; b: float64 } = { a: 1, b: 2 };
+const value: { a: float64; b: "two" } = { ...base, b: "two" };
+
+=== checked ===
 const base = { a: 1, b: 2 };
-/// @type.symbol symbol=base source=base type={ a: int32; b: int32 }
-/// @type.node source="{ a: 1, b: 2 }" type={ a: 1; b: 2 }
+/// @type.symbol symbol=base source=base type=Managed<{ a: float64; b: float64 }>
+/// @type.node source="{ a: 1, b: 2 }" type=Managed<{ a: 1; b: 2 }>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
 const value = { ...base, b: "two" };
-/// @type.symbol symbol=value source=value type={ a: int32; b: string }
-/// @type.node source="{ ...base, b: \"two\" }" type={ a: int32; b: "two" }
-/// @type.node source=base type={ a: int32; b: int32 }
+/// @type.symbol symbol=value source=value type=Managed<{ a: float64; b: "two" }>
+/// @type.node source="{ ...base, b: \"two\" }" type=Managed<{ a: float64; b: "two" }>
+/// @type.node source=base type=Managed<{ a: float64; b: float64 }>
 /// @resolution.name source=base target=base
 /// @type.node source="\"two\"" type="two"
 
-/// @check.stats.solve variables=2 terms=34 constraints=2 obligations=0 solutions=2 bounds=4 decisions=1
+/// @check.stats.solve variables=2 types=15 constraints=1 obligations=0 solutions=2 bounds=2 decisions=1
 "#,
     );
 }
@@ -279,6 +321,16 @@ const moved = Point { ...point, x: 3 };
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+const point: Point = Point { x: 1, y: 2 };
+const moved: Point = Point { ...point, x: 3 };
+
+=== checked ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
@@ -308,7 +360,7 @@ const moved = Point { ...point, x: 3 };
 /// @resolution.name source=point target=point
 /// @type.node source=3 type=3
 
-/// @check.stats.solve variables=1 terms=18 constraints=3 obligations=0 solutions=1 bounds=2 decisions=3
+/// @check.stats.solve variables=3 types=15 constraints=5 obligations=1 solutions=3 bounds=4 decisions=3
 "#,
     );
 }
@@ -331,6 +383,16 @@ const object = { ...point, label: "origin" };
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+const point: Point = Point { x: 1, y: 2 };
+const object: { x: int32; y: int32; label: "origin" } = { ...point, label: "origin" };
+
+=== checked ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
@@ -353,13 +415,13 @@ const point = Point { x: 1, y: 2 };
 /// @type.node source=2 type=2
 
 const object = { ...point, label: "origin" };
-/// @type.symbol symbol=object source=object type={ x: int32; y: int32; label: string }
-/// @type.node source="{ ...point, label: \"origin\" }" type={ x: int32; y: int32; label: "origin" }
+/// @type.symbol symbol=object source=object type=Managed<{ x: int32; y: int32; label: "origin" }>
+/// @type.node source="{ ...point, label: \"origin\" }" type=Managed<{ x: int32; y: int32; label: "origin" }>
 /// @type.node source=point type=Point
 /// @resolution.name source=point target=point
 /// @type.node source="\"origin\"" type="origin"
 
-/// @check.stats.solve variables=2 terms=31 constraints=3 obligations=0 solutions=2 bounds=4 decisions=2
+/// @check.stats.solve variables=4 types=17 constraints=5 obligations=1 solutions=4 bounds=5 decisions=2
 "#,
     );
 }
@@ -373,7 +435,7 @@ struct Point {
     y: int32;
 }
 
-const base = { x: 1, y: 2 };
+const base: { x: int32; y: int32 } = { x: 1, y: 2 };
 const point: Point = _ { ...base };
 "#,
     );
@@ -382,6 +444,16 @@ const point: Point = _ { ...base };
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
+=== annotated ===
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+const base: { x: int32; y: int32 } = { x: 1, y: 2 };
+const point: Point = _ { ...base };
+
+=== checked ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
@@ -396,20 +468,20 @@ struct Point {
 
 }
 
-const base = { x: 1, y: 2 };
+const base: { x: int32; y: int32 } = { x: 1, y: 2 };
 /// @type.symbol symbol=base source=base type={ x: int32; y: int32 }
-/// @type.node source="{ x: 1, y: 2 }" type={ x: 1; y: 2 }
+/// @type.node source="{ x: 1, y: 2 }" type=Managed<{ x: 1; y: 2 }>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
 const point: Point = _ { ...base };
 /// @type.symbol symbol=point source=point type=Point
 /// @resolution.name source=Point target=Point
-/// @type.node source="_ { ...base }" type={ x: int32; y: int32 }
+/// @type.node source="_ { ...base }" type=Point
 /// @type.node source=base type={ x: int32; y: int32 }
 /// @resolution.name source=base target=base
 
-/// @check.stats.solve variables=3 terms=32 constraints=4 obligations=0 solutions=3 bounds=6 decisions=2
+/// @check.stats.solve variables=2 types=18 constraints=4 obligations=1 solutions=2 bounds=3 decisions=2
 "#,
     );
 }
@@ -435,6 +507,19 @@ const object = { ...user };
         "main.ds",
         DirRows::none().with_check_stats(),
         r#"
+=== annotated ===
+class User {
+    name: string;
+
+    constructor(name: string): User {
+        this.name = name;
+    }
+}
+
+const user: User = new User("Ada");
+const object: { name: string } = { ...user };
+
+=== checked ===
 class User {
     name: string;
 
@@ -446,11 +531,11 @@ class User {
 const user = new User("Ada");
 const object = { ...user };
 
-/// @check.stats.solve variables=4 terms=35 constraints=5 obligations=1 solutions=4 bounds=8 decisions=6
+/// @check.stats.solve variables=6 types=18 constraints=6 obligations=3 solutions=6 bounds=7 decisions=6
 "#,
         r#"
-/// @diagnostic.error code=EC409 message="spread source has no fields"
-/// @diagnostic.label line=11 column=18 source="const object = { ...user };"
+/// @diagnostic.error code=EC500 message="type 'User' has no concrete layout"
+/// @diagnostic.label line=2 column=1 source="class User {"
 "#,
     );
 }
