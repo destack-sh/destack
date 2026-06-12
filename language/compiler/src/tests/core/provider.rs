@@ -412,23 +412,6 @@ impl ProviderContext for TestProviderContext<'_> {
         self.provider.emit_events
     }
 
-    /// Emit annotated source sidecars for workspace check attempts.
-    /// Builtin components render nothing tests read, so they skip the
-    /// formatter work.
-    fn emit_checked_types(&self) -> bool {
-        let ArtifactKey::DirCheckedComponent { entry, .. } = self.key else {
-            return false;
-        };
-        let builtin = self.provider.repository.builtin_package().package_id();
-
-        self.provider
-            .repository
-            .module(self.provider.revision, entry)
-            .ok()
-            .flatten()
-            .is_some_and(|module| module.package_id != builtin)
-    }
-
     /// Require one artifact and return its exact version when ready.
     fn require(&self, key: ArtifactKey) -> Result<ArtifactVersion, ProviderError> {
         if key == self.key {
