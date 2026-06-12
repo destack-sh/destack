@@ -616,6 +616,19 @@ impl DefinitionMember {
 }
 
 impl Definition {
+    /// Return the declared generic template, when the definition has one.
+    pub fn template(&self) -> Option<LocalGenericTemplateId> {
+        match self {
+            Self::TypeAlias(definition) => definition.template,
+            Self::Struct(definition) => definition.template,
+            Self::Class(definition) => definition.template,
+            Self::Interface(definition) => definition.template,
+            Self::Enum(definition) => definition.template,
+            Self::Newtype(definition) => definition.template,
+            _ => None,
+        }
+    }
+
     /// Return the members in declaration order.
     pub fn members(&self) -> &[DefinitionMember] {
         match self {
