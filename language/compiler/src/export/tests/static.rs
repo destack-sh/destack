@@ -2,7 +2,7 @@ use crate::tests::{DirRows, TestSession};
 
 #[test]
 fn test_export_omits_static_if_false_declaration() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -27,7 +27,7 @@ export let value: number = 1;
 
 #[test]
 fn test_export_omits_static_if_false_clause() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -56,7 +56,7 @@ export { value };
 
 #[test]
 fn test_export_omits_static_if_false_clause_item() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -81,7 +81,7 @@ export { @if(false) value };
 
 #[test]
 fn test_export_omits_static_if_false_global_declaration() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -110,7 +110,7 @@ global {
 
 #[test]
 fn test_export_omits_static_if_false_global_reexport() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -143,7 +143,7 @@ global {
 
 #[test]
 fn test_export_records_static_if_true_reexport_item() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"

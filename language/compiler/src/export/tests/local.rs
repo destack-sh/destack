@@ -2,7 +2,7 @@ use crate::tests::{DirRows, TestSession};
 
 #[test]
 fn test_export_records_local_value() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -26,7 +26,7 @@ export let value: number = 1;
 
 #[test]
 fn test_export_records_local_alias() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -52,7 +52,7 @@ export { value as renamed };
 
 #[test]
 fn test_export_records_local_namespace_alias() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -90,7 +90,7 @@ export { api };
 
 #[test]
 fn test_export_uses_latest_local_binding() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -118,7 +118,7 @@ export { value };
 
 #[test]
 fn test_export_records_global_symbols() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -152,7 +152,7 @@ global {
 
 #[test]
 fn test_export_records_global_reexports() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -190,7 +190,7 @@ global {
 
 #[test]
 fn test_export_records_global_namespace_reexport() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -226,7 +226,7 @@ global {
 
 #[test]
 fn test_export_records_global_local_export() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -259,7 +259,7 @@ global {
 
 #[test]
 fn test_export_records_global_local_namespace_alias() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"

@@ -11,7 +11,7 @@ fn test_import_stats_ignore_function_body_size() {
         .collect::<Vec<_>>()
         .join("\n");
     let source = format!("import {{ dep }} from \"./dep\";\n\nfunction heavy() {{\n{body}\n}}");
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module("main.ds", &source)
         .module("dep.ds", "export const dep = 1;")
         .build();
@@ -39,7 +39,7 @@ fn test_import_stats_scale_with_many_module_clauses() {
         .map(|_| "import { dep } from \"./dep\";".to_string())
         .collect::<Vec<_>>()
         .join("\n");
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module("main.ds", &source)
         .module("dep.ds", "export const dep = 1;")
         .build();

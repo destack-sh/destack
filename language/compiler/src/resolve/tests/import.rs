@@ -2,7 +2,7 @@ use crate::tests::{DirRows, TestSession};
 
 #[test]
 fn test_resolve_records_named_import_target() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -32,7 +32,7 @@ import { value } from "./dep.ds";
 
 #[test]
 fn test_resolve_records_namespace_import_target() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -62,7 +62,7 @@ import * as dep from "./dep.ds";
 
 #[test]
 fn test_resolve_records_namespace_import_path() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -99,7 +99,7 @@ dep.value;
 
 #[test]
 fn test_resolve_records_nested_namespace_import_path() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -143,7 +143,7 @@ dep.api.value;
 
 #[test]
 fn test_resolve_records_exported_namespace_import_alias_path() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -188,7 +188,7 @@ dep.api.value;
 
 #[test]
 fn test_resolve_records_default_import_target() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -219,7 +219,7 @@ import value from "./dep.ds";
 
 #[test]
 fn test_resolve_records_type_only_import_target() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -249,7 +249,7 @@ import type { Foo } from "./dep.ds";
 
 #[test]
 fn test_resolve_records_builtin_star_import_target() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -273,7 +273,7 @@ import { todo } from "destack:error";
 
 #[test]
 fn test_resolve_reports_missing_named_import() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -298,7 +298,7 @@ export let value = 1;
 
 #[test]
 fn test_resolve_reports_default_import_hidden_by_star_export() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -330,7 +330,7 @@ export { value as default };
 
 #[test]
 fn test_resolve_reports_ambiguous_star_import() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"

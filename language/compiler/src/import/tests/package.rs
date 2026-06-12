@@ -2,7 +2,7 @@ use crate::tests::{DirRows, TestSession};
 
 #[test]
 fn test_import_resolves_package_export() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -69,7 +69,7 @@ import { Button } from "@acme/ui/button";
 
 #[test]
 fn test_import_resolves_package_root_export() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -136,7 +136,7 @@ import { Button } from "@acme/ui";
 
 #[test]
 fn test_import_resolves_package_pattern_export() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -203,7 +203,7 @@ import { Button } from "@acme/ui/button";
 
 #[test]
 fn test_import_resolves_nested_package_pattern_export() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -270,7 +270,7 @@ import { Button } from "@acme/ui/forms/button";
 
 #[test]
 fn test_import_prefers_exact_package_export() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -347,7 +347,7 @@ import { Button } from "@acme/ui/button";
 
 #[test]
 fn test_import_resolves_dependency_enabled_by_condition() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -423,7 +423,7 @@ import { Button } from "@acme/ui/button";
 
 #[test]
 fn test_import_resolves_dependency_enabled_by_any_condition() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -500,7 +500,7 @@ import { Button } from "@acme/ui/button";
 
 #[test]
 fn test_import_resolves_export_enabled_by_condition() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -576,7 +576,7 @@ import { Button } from "@acme/ui/button";
 
 #[test]
 fn test_import_reports_export_disabled_by_not_condition() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -645,7 +645,7 @@ export type Button = string;
 
 #[test]
 fn test_import_resolves_path_dependency() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -713,7 +713,7 @@ import { Button } from "@acme/ui/button";
 
 #[test]
 fn test_import_resolves_path_dependency_outside_workspace_members() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -781,7 +781,7 @@ import { Button } from "@acme/ui/button";
 
 #[test]
 fn test_import_reports_missing_bare_package_dependency() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -801,7 +801,7 @@ import { value } from "pkg";
 
 #[test]
 fn test_import_reports_missing_scoped_package_dependency() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -821,7 +821,7 @@ import { value } from "@scope/pkg";
 
 #[test]
 fn test_import_reports_dependency_disabled_by_condition() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -890,7 +890,7 @@ export type Button = string;
 
 #[test]
 fn test_import_reports_export_disabled_by_condition() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -959,7 +959,7 @@ export type Button = string;
 
 #[test]
 fn test_import_reports_non_module_package_export() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -1016,7 +1016,7 @@ import { Button } from "@acme/ui/button";
 
 #[test]
 fn test_import_reports_cross_package_export_path() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"

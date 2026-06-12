@@ -2,7 +2,7 @@ use crate::tests::{DirRows, TestSession};
 
 #[test]
 fn test_resolve_ignores_unreferenced_profile_global_symbols() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -43,7 +43,7 @@ let local = 1;
 
 #[test]
 fn test_resolve_records_profile_global_symbol_names() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -86,7 +86,7 @@ const value = answer;
 
 #[test]
 fn test_resolve_records_profile_global_reexports() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -136,7 +136,7 @@ let local = Function;
 
 #[test]
 fn test_resolve_records_profile_global_namespace_reexports() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -185,7 +185,7 @@ let local = api;
 
 #[test]
 fn test_resolve_records_profile_global_namespace_paths() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -237,7 +237,7 @@ let local = api.value;
 
 #[test]
 fn test_resolve_records_referenced_type_profile_globals() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -286,7 +286,7 @@ let promise: Promise<string>;
 
 #[test]
 fn test_resolve_records_referenced_builtin_language_symbol_names() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -311,7 +311,7 @@ let promise: Promise<string>;
 
 #[test]
 fn test_resolve_records_async_function_language_item() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -336,7 +336,7 @@ const load = async () => 1;
 
 #[test]
 fn test_resolve_keeps_async_language_item_separate_from_local_promise() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -363,7 +363,7 @@ const load = async () => 1;
 
 #[test]
 fn test_resolve_records_import_meta_language_item() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -388,7 +388,7 @@ const runtime = import.meta.runtime;
 
 #[test]
 fn test_resolve_records_operator_language_item() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -417,7 +417,7 @@ const value = left + right;
 
 #[test]
 fn test_resolve_does_not_import_shadowed_profile_globals() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -460,7 +460,7 @@ const value = answer;
 
 #[test]
 fn test_resolve_does_not_import_nested_shadowed_profile_globals() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -507,7 +507,7 @@ function read() {
 
 #[test]
 fn test_resolve_does_not_resolve_shadowed_profile_global_namespace_paths() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -556,7 +556,7 @@ const value = api.value;
 
 #[test]
 fn test_resolve_side_effect_import_does_not_import_globals() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -587,7 +587,7 @@ import "./dep.ds";
 
 #[test]
 fn test_resolve_named_import_does_not_import_globals() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"

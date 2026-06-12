@@ -2,7 +2,7 @@ use crate::tests::{DirRows, TestSession};
 
 #[test]
 fn test_import_records_static_if_true_import_edge() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -34,7 +34,7 @@ import { Foo } from "./dep.ds";
 
 #[test]
 fn test_import_omits_static_if_false_import_edge() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -65,7 +65,7 @@ import { Foo } from "./dep.ds";
 
 #[test]
 fn test_import_omits_static_if_false_reexport_edge() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -96,7 +96,7 @@ export { Foo } from "./dep.ds";
 
 #[test]
 fn test_import_records_static_if_true_reexport_edge() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -128,7 +128,7 @@ export { Foo } from "./dep.ds";
 
 #[test]
 fn test_import_records_static_if_global_import_edge() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -165,7 +165,7 @@ global {
 
 #[test]
 fn test_import_omits_static_if_false_import_item_edge() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -188,7 +188,7 @@ import { @if(false) Foo } from "./missing.ds";
 
 #[test]
 fn test_import_records_static_if_true_import_item_edge() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -219,7 +219,7 @@ import { @if(false) Foo, @if(true) Bar } from "./dep.ds";
 
 #[test]
 fn test_import_omits_static_if_false_reexport_item_edge() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -242,7 +242,7 @@ export { @if(false) Foo } from "./missing.ds";
 
 #[test]
 fn test_import_records_static_if_active_mode_edge() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -284,7 +284,7 @@ import { Foo } from "./dep.ds";
 
 #[test]
 fn test_import_omits_static_if_inactive_mode_edge() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -325,7 +325,7 @@ import { Foo } from "./dep.ds";
 
 #[test]
 fn test_import_records_static_if_active_role_edge() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -371,7 +371,7 @@ import { Foo } from "./dep.ds";
 
 #[test]
 fn test_import_records_static_if_runtime_edge() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -417,7 +417,7 @@ import { Foo } from "./dep.ds";
 
 #[test]
 fn test_import_omits_static_if_platform_edge() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -462,7 +462,7 @@ import { Foo } from "./dep.ds";
 
 #[test]
 fn test_import_omits_static_if_undefined_product_edge() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -493,7 +493,7 @@ import { Foo } from "./dep.ds";
 
 #[test]
 fn test_import_omits_static_if_target_family_edge() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .data(
             "destack.json",
             r#"
@@ -538,7 +538,7 @@ import { Foo } from "./dep.ds";
 
 #[test]
 fn test_import_static_if_false_suppresses_unresolved_module() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -563,7 +563,7 @@ import { Foo } from "./missing.ds";
 
 #[test]
 fn test_import_static_if_short_circuits_false_and_runtime_condition() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -598,7 +598,7 @@ import { Foo } from "./dep.ds";
 
 #[test]
 fn test_import_static_if_short_circuits_true_or_runtime_condition() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -634,7 +634,7 @@ import { Foo } from "./dep.ds";
 
 #[test]
 fn test_import_static_if_multiple_guards_are_conjunctive() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -667,7 +667,7 @@ import { Foo } from "./dep.ds";
 
 #[test]
 fn test_import_reports_static_if_missing_condition() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -694,7 +694,7 @@ export type Foo = string;
 
 #[test]
 fn test_import_reports_static_if_extra_condition() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -721,7 +721,7 @@ export type Foo = string;
 
 #[test]
 fn test_import_reports_static_if_non_boolean_condition() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -748,7 +748,7 @@ export type Foo = string;
 
 #[test]
 fn test_import_reports_static_if_runtime_condition() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"

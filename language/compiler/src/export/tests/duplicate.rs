@@ -2,7 +2,7 @@ use crate::tests::TestSession;
 
 #[test]
 fn test_export_reports_duplicate_key() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -22,7 +22,7 @@ export { value };
 
 #[test]
 fn test_export_merges_type_spelling_into_same_key() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -43,7 +43,7 @@ export type { Foo };
 
 #[test]
 fn test_export_reports_missing_local_binding() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -62,7 +62,7 @@ export { missing };
 
 #[test]
 fn test_export_reports_global_default_key_reexport() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"
@@ -89,7 +89,7 @@ export const value = 1;
 
 #[test]
 fn test_export_reports_global_namespace_reexport() {
-    let compiler = TestSession::new()
+    let compiler = TestSession::builder()
         .module(
             "main.ds",
             r#"

@@ -97,13 +97,18 @@ pub fn render_timeline(report: &TraceReport) -> String {
             let end = artifact.start_micros + artifact.micros.max(1);
             let first = (artifact.start_micros / cell_micros) as usize;
             let last = ((end - 1) / cell_micros) as usize;
-            for cell in first..=last.min(LANE_WIDTH - 1) {
+            for (cell, lanes) in busy
+                .iter_mut()
+                .enumerate()
+                .take(last.min(LANE_WIDTH - 1) + 1)
+                .skip(first)
+            {
                 let cell_start = cell as u64 * cell_micros;
                 let cell_end = cell_start + cell_micros;
                 let overlap = end
                     .min(cell_end)
                     .saturating_sub(artifact.start_micros.max(cell_start));
-                busy[cell][kind] += overlap;
+                lanes[kind] += overlap;
             }
         }
 
@@ -147,7 +152,7 @@ pub fn render_timeline(report: &TraceReport) -> String {
     // legend: colored kinds when possible, stage glyphs otherwise
     if colored {
         let mut legend = kinds.iter().collect::<Vec<_>>();
-        legend.sort_by(|left, right| right.micros.cmp(&left.micros));
+        legend.sort_by_key(|kind| std::cmp::Reverse(kind.micros));
         let entries = legend
             .into_iter()
             .map(|kind| format!("{} {}", color("█", kind_color(&kind.name)), kind.name))
@@ -167,7 +172,7 @@ pub fn render_timeline(report: &TraceReport) -> String {
         .iter()
         .filter(|artifact| artifact.outcome == "ready")
         .collect::<Vec<_>>();
-    slowest.sort_by(|left, right| right.micros.cmp(&left.micros));
+    slowest.sort_by_key(|artifact| std::cmp::Reverse(artifact.micros));
     if !slowest.is_empty() {
         output.push_str(&format!("\n{}\n", bold("slowest artifacts:")));
         for artifact in slowest.into_iter().take(SLOWEST_COUNT) {
