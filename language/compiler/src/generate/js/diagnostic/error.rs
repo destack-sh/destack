@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_js as js;
 
-use crate::{CodegenJsWarning, ModuleLowerer};
+use crate::generate::js::{CodegenJsWarning, ModuleLowerer};
 
 /// Error during JS code generation.
 #[derive(Debug, Clone)]

@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_js as js;
 
-use crate::{CodegenJsError, CodegenJsResult, ModuleLowerer};
+use crate::generate::js::{CodegenJsError, CodegenJsResult, ModuleLowerer};
 
 #[allow(clippy::too_many_arguments)]
 impl ModuleLowerer<'_> {

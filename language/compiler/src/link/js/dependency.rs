@@ -1,4 +1,4 @@
-use destack_codegen_js::{
+use crate::generate::js::{
     DependencyForm, Expression, LocalNodeId, Module, Node, NodeVisitor, NodeVisitorOptions,
     ScalarLiteral, Statement, Tree, walk_expression, walk_statement,
 };
@@ -95,7 +95,7 @@ pub(crate) fn dynamic_js_dependencies(module: &Module) -> Vec<DynamicJsDependenc
 
     // dynamic imports can appear under any root expression or statement
     for root in &module.roots {
-        destack_codegen_js::walk_root(&mut collector, &module.tree, root);
+        js::walk_root(&mut collector, &module.tree, root);
     }
 
     collector.into_dependencies()

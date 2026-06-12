@@ -1,7 +1,7 @@
+use crate::generate::js;
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use destack_artifact::{Data, EmitFormat, JsDeclaration, JsLanguage, JsOutput};
-use destack_codegen_js as js;
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_repository::Module;

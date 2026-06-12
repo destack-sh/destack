@@ -1,6 +1,6 @@
+use crate::generate::js;
 use crate::{Compiler, LinkError, LinkResult};
 use destack_artifact::OutputFile;
-use destack_codegen_js as js;
 use destack_repository::BundleMode;
 use destack_source::{FileType, ModuleId};
 

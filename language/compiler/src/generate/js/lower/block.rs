@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_js as js;
 
-use crate::{CodegenJsError, CodegenJsResult, ModuleLowerer};
+use crate::generate::js::{CodegenJsError, CodegenJsResult, ModuleLowerer};
 
 impl ModuleLowerer<'_> {
     /// Lower one expression into a JS statement.

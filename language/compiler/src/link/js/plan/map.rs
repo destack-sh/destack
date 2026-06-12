@@ -1,9 +1,9 @@
 use destack_repository::ProviderContext;
 use std::path::{Component, Path, PathBuf};
 
+use crate::generate::js;
 use crate::link::{SourceMapBuilder, SourceMapMarker};
 use crate::{CompilerResult, JsLinker};
-use destack_codegen_js as js;
 use destack_source::ModuleId;
 
 impl JsLinker<'_> {

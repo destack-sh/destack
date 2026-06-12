@@ -1,4 +1,4 @@
-use crate::{CodegenJsError, CodegenJsResult};
+use crate::generate::js::{CodegenJsError, CodegenJsResult};
 use destack_artifact::DirParsed;
 use destack_fir as fir;
 use destack_js as js;

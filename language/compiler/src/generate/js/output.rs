@@ -8,8 +8,9 @@ use destack_core::StringPool;
 use destack_js as js;
 use destack_repository::{Module, Target};
 
-use super::lower_module;
-use crate::{CodegenJsError, CodegenJsResult, CodegenJsWarning};
+use crate::generate::js::{CodegenJsError, CodegenJsResult, CodegenJsWarning};
+
+use super::lower::lower_module;
 
 /// One generator for JS module outputs.
 #[derive(Debug)]

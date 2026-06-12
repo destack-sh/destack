@@ -41,7 +41,6 @@ required-features = ["schema"]
 [dependencies]
 # language
 destack_artifact = { workspace = true }
-destack_codegen_js = { workspace = true }
 destack_compiler = { workspace = true }
 destack_dir = { workspace = true }
 destack_engine = { workspace = true }

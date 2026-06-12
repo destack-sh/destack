@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
+use crate::generate::js;
 use crate::{Compiler, LinkError, LinkResult};
 use destack_artifact::{EmitFormat, JsOutput, ModuleOutput};
-use destack_codegen_js as js;
 use destack_repository::{BundleFormat, BundleMode, Target};
 use destack_source::{FileType, ModuleId, PackageId};
 

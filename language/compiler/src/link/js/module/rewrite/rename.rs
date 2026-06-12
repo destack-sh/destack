@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::str::FromStr;
 
-use destack_codegen_js as js;
+use crate::generate::js;
 use destack_source::ModuleId;
 
 use super::super::linker::OutputModule;

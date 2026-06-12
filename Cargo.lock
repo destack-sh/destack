@@ -948,7 +948,6 @@ dependencies = [
  "clap_complete",
  "console",
  "destack_artifact",
- "destack_codegen_js",
  "destack_compiler",
  "destack_daemon",
  "destack_dir",
@@ -975,26 +974,6 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "destack_codegen_js"
-version = "0.55.4"
-dependencies = [
- "base64",
- "dashmap",
- "destack_artifact",
- "destack_core",
- "destack_dir",
- "destack_fir",
- "destack_js",
- "destack_mir",
- "destack_repository",
- "destack_source",
- "parking_lot",
- "serde_json",
- "smallvec",
- "tracing",
 ]
 
 [[package]]
@@ -1031,13 +1010,13 @@ dependencies = [
  "dashmap",
  "destack_artifact",
  "destack_artifact_macros",
- "destack_codegen_js",
  "destack_codegen_native",
  "destack_core",
  "destack_dir",
  "destack_engine",
  "destack_fir",
  "destack_formatter",
+ "destack_js",
  "destack_linter",
  "destack_mir",
  "destack_parser",
@@ -1486,7 +1465,6 @@ version = "0.55.4"
 dependencies = [
  "clap",
  "destack_artifact",
- "destack_codegen_js",
  "destack_compiler",
  "destack_core",
  "destack_dir",
