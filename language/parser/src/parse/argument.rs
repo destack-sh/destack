@@ -1,14 +1,14 @@
+use crate::parse::error::ParserResultExt;
 use destack_dir::{
     Argument, Expression, GenericArgument, GenericParameter, Keyword, LocalNodeId,
     MethodAbstraction, Name, NodeType, Parameter, Pattern, ScalarLiteral, StringId, ThisForm,
-    TokenLiteral, TokenSpan, TokenType, TypeExpression, VarianceModifier, Visibility,
+    Token, TokenLiteral, TokenType, TypeExpression, VarianceModifier, Visibility,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::lex::decode_html_entities;
 use crate::parse::flags::ParserFlags;
 use crate::parse::mode::ContextualLexMode;
-use crate::parse::prelude::*;
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
 /// Parsed parameter head as either one pattern or one named binding.
@@ -476,7 +476,7 @@ impl Parser {
     /// Return true when the next same-line token can start a member name.
     pub(crate) fn next_same_line_token_starts_member_name(&mut self) -> bool {
         let next_token = self.next_token();
-        if next_token.token.is_on_new_line() {
+        if next_token.is_on_new_line() {
             return false;
         }
 
@@ -484,10 +484,10 @@ impl Parser {
     }
 
     /// Return true when one token can start a member name.
-    fn token_starts_member_name(&self, token: TokenSpan) -> bool {
+    pub(crate) fn token_starts_member_name(&self, token: Token) -> bool {
         // check for common member name starters
         if matches!(
-            token.token.ty(),
+            token.ty(),
             TokenType::Identifier
                 | TokenType::Hash
                 | TokenType::OpenBracket
@@ -497,13 +497,13 @@ impl Parser {
         ) {
             return true;
         }
-        if token.token.ty() != TokenType::Literal {
+        if !token.is(TokenType::Literal) {
             return false;
         }
 
         // check for valid literal member names
         matches!(
-            token.token.literal(),
+            token.literal(),
             Some(TokenLiteral::String {
                 is_terminated: true,
                 has_invalid_escape: false,
@@ -537,14 +537,14 @@ impl Parser {
 
         // eat modifiers in any order
         loop {
-            // fast path: modifiers only start on identifiers and known modifier keywords
+            // modifiers only start on identifiers and known modifier keywords
             if !self.peek_is(TokenType::Identifier) {
                 break;
             }
             let current_keyword = self.current_keyword();
             let is_out_variance_modifier = allow_variance_modifier
                 && self.current_identifier_str_is("out")
-                && !self.next_token().token.is_on_new_line()
+                && !self.next_token().is_on_new_line()
                 && (self.token_type_at_offset(1) == TokenType::Identifier
                     || self.keyword_at_offset(1) == Some(Keyword::In));
             let can_start_modifier = current_keyword.is_some_and(|keyword| {
@@ -775,9 +775,8 @@ impl Parser {
                 && self.is_keyword(Keyword::Comptime)
             {
                 let next_token = self.next_token();
-                let target_starts_after_comptime = next_token.token.ty() == TokenType::OpenBrace
-                    || !next_token.token.is_on_new_line()
-                        && self.token_starts_member_name(next_token);
+                let target_starts_after_comptime = next_token.ty() == TokenType::OpenBrace
+                    || !next_token.is_on_new_line() && self.token_starts_member_name(next_token);
                 if !target_starts_after_comptime {
                     break;
                 }
@@ -1774,7 +1773,7 @@ impl Parser {
         else {
             // jsx content without braces must be text or nested tags
             if self.language.supports_jsx() && self.flags.is_in_tree_literal() {
-                let token = *self.peek()?;
+                let token = self.peek()?;
                 let is_tree_text = token.token.ty() == TokenType::Literal
                     && matches!(
                         token.token.literal(),
@@ -1955,7 +1954,7 @@ impl Parser {
     /// title="A&#160;&#xA0;B"
     /// ```
     fn eat_tree_attribute_string_literal(&mut self) -> ParserResult<(StringId, Span)> {
-        let token = *self.peek_string_literal()?;
+        let token = self.peek_string_literal()?;
         let content = self.get_string_literal_str(token);
 
         // match JSX transforms by decoding attribute entities

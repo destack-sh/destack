@@ -126,13 +126,13 @@ pub fn colorize_source(file: &File) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use destack_source::{FileType, Uri};
+    use super::colorize_source;
+    use destack_source::{File, FileId, FileType, Uri};
 
     #[test]
     fn test_colorize_source_simple() {
         let file = File::from_text(
-            destack_source::FileId::new(0),
+            FileId::new(0),
             "test.ds".to_string(),
             Uri::from_string("test.ds"),
             None,

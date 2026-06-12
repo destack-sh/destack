@@ -43,7 +43,7 @@ pub(super) struct Trivia {
 }
 
 /// A checkpoint for speculative trivia rollback.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub(super) struct TriviaCheckpoint {
     /// The live boundary state.
     state: TriviaState,
@@ -154,18 +154,18 @@ impl Trivia {
         }
     }
 
-    /// Attach pending leading comments to one semantic token boundary.
-    pub(super) fn handle_token(&mut self, token_span: TokenSpan) {
-        self.state.previous_token_type = token_span.token.ty();
+    /// Attach pending leading comments to one semantic token start.
+    pub(super) fn handle_token_start(&mut self, token_type: TokenType, start: u32) {
+        self.state.previous_token_type = token_type;
 
-        let active_comment_end = self.active_comment_end(token_span.span.start);
+        let active_comment_end = self.active_comment_end(start);
 
         if self.state.processed < active_comment_end {
             for index in self.state.processed..active_comment_end {
                 self.record_comment_undo(index);
                 let comment = &mut self.comments[index];
                 comment.position = CommentPosition::Leading;
-                comment.attached_to = token_span.span.start;
+                comment.attached_to = start;
             }
 
             self.state.processed = active_comment_end;

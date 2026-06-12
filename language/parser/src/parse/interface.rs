@@ -1,6 +1,6 @@
-use crate::parse::prelude::*;
+use crate::parse::error::ParserResultExt;
 use crate::parse::{DeclarationHeader, TypeMemberContainerKind};
-use crate::{Parser, ParserResult, ParserSpanStart};
+use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
 use destack_dir::{
     Declaration, InterfaceDeclaration, Keyword, LocalNodeId, NodeType, TokenType, TypeKind,

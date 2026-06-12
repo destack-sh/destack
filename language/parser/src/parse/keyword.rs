@@ -22,8 +22,8 @@ impl Parser {
 
     /// Peek a keyword.
     #[inline]
-    pub fn peek_keyword(&mut self, keyword: Keyword) -> ParserResult<&TokenSpan> {
-        let current = *self.peek_token(TokenType::Identifier)?;
+    pub fn peek_keyword(&mut self, keyword: Keyword) -> ParserResult<TokenSpan> {
+        let current = self.peek_token(TokenType::Identifier)?;
         if !self.is_keyword(keyword) {
             Err(ParserError::expected(current.span, TokenType::Identifier))
         } else {
@@ -34,7 +34,7 @@ impl Parser {
     /// Peek any keyword.
     #[inline]
     pub fn peek_any_keyword(&mut self) -> ParserResult<Keyword> {
-        let current = *self.peek_token(TokenType::Identifier)?;
+        let current = self.peek_token(TokenType::Identifier)?;
         self.current_keyword()
             .ok_or_else(|| ParserError::expected(current.span, TokenType::Identifier))
     }
@@ -43,46 +43,54 @@ impl Parser {
     #[inline]
     pub fn peek_next_keyword(&mut self, keyword: Keyword) -> ParserResult<TokenSpan> {
         let token = self.next_token();
-        if token.token.ty() != TokenType::Identifier || self.keyword_at_offset(1) != Some(keyword) {
-            return Err(ParserError::expected(token.span, TokenType::Identifier));
+        let span = token.span(self.file_id);
+        if !token.is(TokenType::Identifier) || self.keyword_at_offset(1) != Some(keyword) {
+            return Err(ParserError::expected(span, TokenType::Identifier));
         }
 
-        Ok(token)
+        Ok(TokenSpan::new(token, self.file_id))
     }
 
     /// Peek any next keyword.
     #[inline]
     pub fn peek_next_any_keyword(&mut self) -> ParserResult<Keyword> {
         let token = self.next_token();
-        if token.token.ty() != TokenType::Identifier {
-            return Err(ParserError::expected(token.span, TokenType::Identifier));
+        let span = token.span(self.file_id);
+        if !token.is(TokenType::Identifier) {
+            return Err(ParserError::expected(span, TokenType::Identifier));
         }
 
         self.keyword_at_offset(1)
-            .ok_or_else(|| ParserError::expected(token.span, TokenType::Identifier))
+            .ok_or_else(|| ParserError::expected(span, TokenType::Identifier))
     }
 
     /// Peek the next next keyword.
     #[inline]
     pub fn peek_next_next_keyword(&mut self, keyword: Keyword) -> ParserResult<TokenSpan> {
         let token = self.token_at_offset(2);
-        if token.token.ty() != TokenType::Identifier || self.keyword_at_offset(2) != Some(keyword) {
-            return Err(ParserError::expected(token.span, TokenType::Identifier));
+        let span = token.span(self.file_id);
+        if !token.is(TokenType::Identifier) || self.keyword_at_offset(2) != Some(keyword) {
+            return Err(ParserError::expected(span, TokenType::Identifier));
         }
 
-        Ok(token)
+        Ok(TokenSpan::new(token, self.file_id))
     }
 
     /// Eat a keyword.
-    pub fn eat_keyword(&mut self, keyword: Keyword) -> ParserResult<&TokenSpan> {
+    pub fn eat_keyword(&mut self, keyword: Keyword) -> ParserResult<TokenSpan> {
         self.peek_keyword(keyword)?;
         self.eat_token(TokenType::Identifier)
     }
 
     /// Eat any keyword.
     pub fn eat_keyword_any(&mut self) -> ParserResult<Keyword> {
-        let current = *self.eat_token(TokenType::Identifier)?;
-        keyword_from_identifier(self.get_token_str(current))
+        let current = self.eat_token(TokenType::Identifier)?;
+        if let Some(keyword) = current.token.classified_keyword() {
+            return keyword
+                .ok_or_else(|| ParserError::expected(current.span, TokenType::Identifier));
+        }
+
+        keyword_from_identifier(self.get_token_span_str(current))
             .ok_or_else(|| ParserError::expected(current.span, TokenType::Identifier))
     }
 

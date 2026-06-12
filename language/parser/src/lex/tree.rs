@@ -1,62 +1,57 @@
 use super::html::HTML_NAMED_ENTITIES;
 use super::lexer::Lexer;
-use destack_dir::{
-    Token, TokenLiteral, TokenSpan, TokenType, is_identifier_continue, is_identifier_start,
-};
+use destack_dir::{Token, TokenLiteral, TokenType, is_identifier_continue, is_identifier_start};
 use destack_source::{File, Span};
 use memchr::memchr;
 
 impl Lexer {
     /// Return one tree child token from the live lexer cursor.
-    pub(crate) fn next_tree_child_token(&mut self) -> TokenSpan {
+    pub(crate) fn next_tree_child_token(&mut self) -> Token {
         let is_on_new_line = self.pending_line_terminator_before_next;
         let token = Self::tree_child_token(self.file(), self.position() as u32, is_on_new_line);
-        self.set_position(token.span.end as usize);
+        self.set_position(token.end() as usize);
 
         self.prepare_semantic_token(token)
     }
 
     /// Return one tree tag token from the live lexer cursor.
-    pub(crate) fn next_tree_tag_token(&mut self) -> TokenSpan {
+    pub(crate) fn next_tree_tag_token(&mut self) -> Token {
         self.eat_tree_tag_trivia();
 
         let is_on_new_line = self.pending_line_terminator_before_next;
         let token = Self::tree_tag_token(self.file(), self.position() as u32, is_on_new_line);
-        self.set_position(token.span.end as usize);
+        self.set_position(token.end() as usize);
 
         self.prepare_semantic_token(token)
     }
 
     /// Return one tree attribute value token from the live lexer cursor.
-    pub(crate) fn next_tree_attribute_value_token(&mut self) -> Option<TokenSpan> {
+    pub(crate) fn next_tree_attribute_value_token(&mut self) -> Option<Token> {
         let is_on_new_line = self.pending_line_terminator_before_next;
         let token =
             Self::tree_attribute_value_token(self.file(), self.position() as u32, is_on_new_line)?;
-        self.set_position(token.span.end as usize);
+        self.set_position(token.end() as usize);
 
         Some(self.prepare_semantic_token(token))
     }
 
     /// Return one contextual tree child token from source.
-    pub(crate) fn tree_child_token(file: &File, start: u32, is_on_new_line: bool) -> TokenSpan {
+    pub(crate) fn tree_child_token(file: &File, start: u32, is_on_new_line: bool) -> Token {
         let source = file.text();
         let start = start as usize;
         let bytes = source.as_bytes();
 
         if start >= bytes.len() {
-            return TokenSpan {
-                token: Token::end(),
-                span: Span::new(file.id, file.len, file.len),
-            };
+            return Token::eof(file.len);
         }
 
         let byte = bytes[start];
         if byte == b'<' {
-            return Self::source_token(file, TokenType::LessThan, start, 1, is_on_new_line, None);
+            return Self::source_token(TokenType::LessThan, start, 1, is_on_new_line, None);
         }
 
         if byte == b'{' {
-            return Self::source_token(file, TokenType::OpenBrace, start, 1, is_on_new_line, None);
+            return Self::source_token(TokenType::OpenBrace, start, 1, is_on_new_line, None);
         }
 
         let end = Self::tree_child_text_end(bytes, start);
@@ -72,7 +67,6 @@ impl Lexer {
                 };
 
                 return Self::source_token(
-                    file,
                     TokenType::Literal,
                     start,
                     entity_end - start,
@@ -83,7 +77,6 @@ impl Lexer {
         }
 
         Self::source_token(
-            file,
             TokenType::Literal,
             start,
             end - start,
@@ -93,57 +86,30 @@ impl Lexer {
     }
 
     /// Return one contextual tree tag token from source.
-    pub(crate) fn tree_tag_token(file: &File, start: u32, is_on_new_line: bool) -> TokenSpan {
+    pub(crate) fn tree_tag_token(file: &File, start: u32, is_on_new_line: bool) -> Token {
         let source = file.text();
         let bytes = source.as_bytes();
         let offset = start as usize;
         let Some(byte) = bytes.get(offset).copied() else {
-            return TokenSpan {
-                token: Token::end(),
-                span: Span::new(file.id, file.len, file.len),
-            };
+            return Token::eof(file.len);
         };
 
         match byte {
-            b'<' => Self::source_token(file, TokenType::LessThan, offset, 1, is_on_new_line, None),
-            b'/' => Self::source_token(file, TokenType::Divide, offset, 1, is_on_new_line, None),
-            b'>' => Self::source_token(
-                file,
-                TokenType::GreaterThan,
-                offset,
-                1,
-                is_on_new_line,
-                None,
-            ),
-            b':' => Self::source_token(file, TokenType::Colon, offset, 1, is_on_new_line, None),
-            b',' => Self::source_token(file, TokenType::Comma, offset, 1, is_on_new_line, None),
-            b'.' => Self::source_token(file, TokenType::Dot, offset, 1, is_on_new_line, None),
-            b'-' => Self::source_token(file, TokenType::Subtract, offset, 1, is_on_new_line, None),
-            b'=' => Self::source_token(file, TokenType::Assign, offset, 1, is_on_new_line, None),
-            b'{' => Self::source_token(file, TokenType::OpenBrace, offset, 1, is_on_new_line, None),
-            b'}' => {
-                Self::source_token(file, TokenType::CloseBrace, offset, 1, is_on_new_line, None)
-            }
-            b'[' => Self::source_token(
-                file,
-                TokenType::OpenBracket,
-                offset,
-                1,
-                is_on_new_line,
-                None,
-            ),
-            b']' => Self::source_token(
-                file,
-                TokenType::CloseBracket,
-                offset,
-                1,
-                is_on_new_line,
-                None,
-            ),
+            b'<' => Self::source_token(TokenType::LessThan, offset, 1, is_on_new_line, None),
+            b'/' => Self::source_token(TokenType::Divide, offset, 1, is_on_new_line, None),
+            b'>' => Self::source_token(TokenType::GreaterThan, offset, 1, is_on_new_line, None),
+            b':' => Self::source_token(TokenType::Colon, offset, 1, is_on_new_line, None),
+            b',' => Self::source_token(TokenType::Comma, offset, 1, is_on_new_line, None),
+            b'.' => Self::source_token(TokenType::Dot, offset, 1, is_on_new_line, None),
+            b'-' => Self::source_token(TokenType::Subtract, offset, 1, is_on_new_line, None),
+            b'=' => Self::source_token(TokenType::Assign, offset, 1, is_on_new_line, None),
+            b'{' => Self::source_token(TokenType::OpenBrace, offset, 1, is_on_new_line, None),
+            b'}' => Self::source_token(TokenType::CloseBrace, offset, 1, is_on_new_line, None),
+            b'[' => Self::source_token(TokenType::OpenBracket, offset, 1, is_on_new_line, None),
+            b']' => Self::source_token(TokenType::CloseBracket, offset, 1, is_on_new_line, None),
             b'\'' | b'"' => {
                 let (end, literal) = Self::tree_attribute_string(file.text(), offset, byte);
                 Self::source_token(
-                    file,
                     TokenType::Literal,
                     offset,
                     end - offset,
@@ -154,7 +120,6 @@ impl Lexer {
             byte if Self::byte_starts_tree_tag_identifier(byte) => {
                 let end = Self::tree_tag_identifier_end(source, offset);
                 Self::source_token(
-                    file,
                     TokenType::Identifier,
                     offset,
                     end - offset,
@@ -167,7 +132,6 @@ impl Lexer {
                 if is_identifier_start(character) {
                     let end = Self::tree_tag_identifier_end(source, offset);
                     Self::source_token(
-                        file,
                         TokenType::Identifier,
                         offset,
                         end - offset,
@@ -176,7 +140,6 @@ impl Lexer {
                     )
                 } else {
                     Self::source_token(
-                        file,
                         TokenType::Unknown,
                         offset,
                         character.len_utf8(),
@@ -193,7 +156,7 @@ impl Lexer {
         file: &File,
         start: u32,
         is_on_new_line: bool,
-    ) -> Option<TokenSpan> {
+    ) -> Option<Token> {
         let start = start as usize;
         let byte = file.text().as_bytes().get(start).copied()?;
 
@@ -203,7 +166,6 @@ impl Lexer {
 
         let (end, literal) = Self::tree_attribute_string(file.text(), start, byte);
         Some(Self::source_token(
-            file,
             TokenType::Literal,
             start,
             end - start,
@@ -292,19 +254,13 @@ impl Lexer {
 
     /// Build one token from a source byte range.
     fn source_token(
-        file: &File,
         token_type: TokenType,
         start: usize,
         len: usize,
         is_on_new_line: bool,
         literal: Option<TokenLiteral>,
-    ) -> TokenSpan {
-        let span = Span::new(file.id, start as u32, start as u32 + len as u32);
-
-        TokenSpan {
-            token: Token::new(token_type, len as u32, literal).with_on_new_line(is_on_new_line),
-            span,
-        }
+    ) -> Token {
+        Token::new(token_type, start as u32, len as u32, literal).with_on_new_line(is_on_new_line)
     }
 }
 

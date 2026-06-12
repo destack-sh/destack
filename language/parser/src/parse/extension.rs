@@ -1,5 +1,5 @@
 use crate::parse::DeclarationHeader;
-use crate::parse::prelude::*;
+use crate::parse::error::ParserResultExt;
 use crate::{Parser, ParserResult, ParserSpanStart};
 
 use destack_dir::{Declaration, ExtensionDeclaration, Keyword, LocalNodeId, NodeType, TokenType};

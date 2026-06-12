@@ -88,14 +88,24 @@ impl ExpressionScope {
 
     /// Return true when this scope stops before an operator.
     pub(super) fn stops_before(self, operator: ExpressionInfixOperator) -> bool {
+        self.stops_before_precedence(operator.precedence(), operator.is_right_associative())
+    }
+
+    /// Return true when this scope stops before a binding power.
+    #[inline]
+    pub(super) fn stops_before_precedence(
+        self,
+        precedence: u16,
+        is_right_associative: bool,
+    ) -> bool {
         let Some(minimum_precedence) = self.minimum_precedence else {
             return false;
         };
 
-        if operator.is_right_associative() {
-            minimum_precedence > operator.precedence()
+        if is_right_associative {
+            minimum_precedence > precedence
         } else {
-            minimum_precedence >= operator.precedence()
+            minimum_precedence >= precedence
         }
     }
 }

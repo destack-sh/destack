@@ -1,5 +1,5 @@
+use crate::parse::error::ParserResultExt;
 use crate::parse::flags::ParserFlags;
-use crate::parse::prelude::*;
 use crate::parse::scan::DelimiterDepth;
 use crate::parse::{DeclarationHeader, RecoveryPoint};
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
@@ -24,7 +24,7 @@ pub static FUNCTION_MODIFIERS: [Keyword; 8] = [
     Keyword::New,
 ];
 
-/// The head shapes accepted by the fast arrow path.
+/// The head shapes accepted by direct arrow-head parsing.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ArrowHeadShape {
     /// No dynamic parameters: `()`.

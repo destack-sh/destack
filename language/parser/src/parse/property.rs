@@ -137,9 +137,9 @@ impl Parser {
         }
 
         let next_token = self.next_token();
-        let can_start_async_method = !next_token.token.is_on_new_line()
+        let can_start_async_method = !next_token.is_on_new_line()
             && matches!(
-                next_token.token.ty(),
+                next_token.ty(),
                 TokenType::Identifier
                     | TokenType::Literal
                     | TokenType::Hash
@@ -202,36 +202,41 @@ impl Parser {
         allow_constructor_role: bool,
         allow_new_role: bool,
     ) -> Option<FunctionRole> {
-        if self.is_keyword(Keyword::Get)
-            && self.next_token_starts_member_name()
-            && self.next_token_type() != TokenType::OpenParenthesis
-        {
-            self.bump(); // eat get keyword
-            Some(FunctionRole::Getter)
-        } else if self.is_keyword(Keyword::Set)
-            && self.next_token_starts_member_name()
-            && self.next_token_type() != TokenType::OpenParenthesis
-        {
-            self.bump(); // eat set keyword
-            Some(FunctionRole::Setter)
-        } else if allow_constructor_role
-            && self.is_keyword(Keyword::Constructor)
-            && matches!(
-                self.next_token_type(),
-                TokenType::LessThan | TokenType::OpenParenthesis
-            )
-        {
-            self.bump(); // eat constructor keyword
-            Some(FunctionRole::Constructor)
-        } else if allow_new_role
-            && self.is_keyword(Keyword::New)
-            && matches!(
-                self.next_token_type(),
-                TokenType::LessThan | TokenType::OpenParenthesis
-            )
-        {
-            self.bump(); // eat new keyword
-            Some(FunctionRole::New)
+        let keyword = self.current_keyword()?;
+
+        // accessors need one member-name lookahead
+        if matches!(keyword, Keyword::Get | Keyword::Set) {
+            let next_token = self.next_token();
+            if !self.token_starts_member_name(next_token)
+                || next_token.is(TokenType::OpenParenthesis)
+            {
+                return None;
+            }
+
+            self.bump();
+
+            return match keyword {
+                Keyword::Get => Some(FunctionRole::Getter),
+                Keyword::Set => Some(FunctionRole::Setter),
+                _ => None,
+            };
+        }
+
+        // constructors and new methods only need delimiter lookahead
+        let role = if allow_constructor_role && keyword == Keyword::Constructor {
+            FunctionRole::Constructor
+        } else if allow_new_role && keyword == Keyword::New {
+            FunctionRole::New
+        } else {
+            return None;
+        };
+
+        if matches!(
+            self.next_token_type(),
+            TokenType::LessThan | TokenType::OpenParenthesis
+        ) {
+            self.bump();
+            Some(role)
         } else {
             None
         }
@@ -374,6 +379,13 @@ impl Parser {
 
     /// Return whether the current type member modifiers introduce an associated member.
     fn type_member_modifiers_start_associated_member(&mut self) -> bool {
+        if !matches!(
+            self.current_keyword(),
+            Some(Keyword::Abstract | Keyword::Override)
+        ) {
+            return false;
+        }
+
         self.lookahead(|parser| {
             let mut consumed_modifier = false;
 
@@ -1038,7 +1050,7 @@ impl Parser {
         match token_type {
             TokenType::Identifier => true,
             TokenType::Literal => matches!(
-                self.current_token().token.literal(),
+                self.current_token().literal(),
                 Some(
                     TokenLiteral::String {
                         is_terminated: true,
@@ -1717,21 +1729,25 @@ impl Parser {
         };
 
         // abstract
-        let next_token = self.next_token();
-        let abstract_is_modifier = self.is_keyword(Keyword::Abstract)
-            && !next_token.token.is_on_new_line()
-            && matches!(
-                next_token.token.ty(),
-                TokenType::Identifier
-                    | TokenType::Literal
-                    | TokenType::Hash
-                    | TokenType::OpenBracket
-                    | TokenType::OpenParenthesis
-                    | TokenType::LessThan
-            );
-        let is_abstract = if abstract_is_modifier {
-            self.bump(); // eat abstract
-            true
+        let is_abstract = if self.is_keyword(Keyword::Abstract) {
+            let next_token = self.next_token();
+            let abstract_is_modifier = !next_token.is_on_new_line()
+                && matches!(
+                    next_token.ty(),
+                    TokenType::Identifier
+                        | TokenType::Literal
+                        | TokenType::Hash
+                        | TokenType::OpenBracket
+                        | TokenType::OpenParenthesis
+                        | TokenType::LessThan
+                );
+
+            if abstract_is_modifier {
+                self.bump(); // eat abstract
+                true
+            } else {
+                false
+            }
         } else {
             false
         };

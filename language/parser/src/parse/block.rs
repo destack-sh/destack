@@ -1,13 +1,13 @@
+use crate::parse::error::ParserResultExt;
 use destack_core::StringId;
 use destack_dir::{
     Block, BlockContext, BlockForm, Declaration, Expression, FunctionDeclaration, FunctionForm,
-    Keyword, LocalNodeId, NodeType, TokenSpan, TokenType, YieldCardinality,
+    Keyword, LocalNodeId, NodeType, Token, TokenType, YieldCardinality,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use super::r#if::IfHead;
 use crate::parse::flags::ParserFlags;
-use crate::parse::prelude::*;
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
 /// One pending statement-position if branch.
@@ -279,7 +279,7 @@ impl Parser {
         }
 
         let token = match self.peek() {
-            Ok(token) if Self::is_close_delimiter_token(token.token.ty()) => *token,
+            Ok(token) if Self::is_close_delimiter_token(token.token.ty()) => token,
             _ => return Ok(false),
         };
 
@@ -307,8 +307,9 @@ impl Parser {
         }
 
         // inspect the label target to determine whether label parsing is allowed here
-        let label_target_type = self.token_type_at_offset(2);
-        let label_target_keyword = self.keyword_at_offset(2);
+        let label_target = self.token_at_offset(2);
+        let label_target_type = label_target.ty();
+        let label_target_keyword = label_target.keyword();
 
         // label targets that are always expression statements
         let is_label_expression = matches!(
@@ -955,10 +956,10 @@ impl Parser {
 
     /// Return true when one token ends a bare label form.
     #[inline]
-    fn token_ends_label_statement(&self, token: TokenSpan) -> bool {
-        token.token.is_on_new_line()
+    fn token_ends_label_statement(&self, token: Token) -> bool {
+        token.is_on_new_line()
             || matches!(
-                token.token.ty(),
+                token.ty(),
                 TokenType::Semicolon | TokenType::CloseBrace | TokenType::End
             )
     }
@@ -1002,8 +1003,8 @@ impl Parser {
 
             // labeled value: break label: value
             if self.language.is_destack()
-                && !next_token.token.is_on_new_line()
-                && next_token.token.ty() == TokenType::Colon
+                && !next_token.is_on_new_line()
+                && next_token.ty() == TokenType::Colon
             {
                 let (label, label_span) = self.eat_identifier_with_span()?;
                 self.bump(); // eat colon

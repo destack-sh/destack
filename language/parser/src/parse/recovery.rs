@@ -178,7 +178,7 @@ impl Parser {
         let next = self.next_token();
         let following_token_type = self.token_type_at_offset(2);
 
-        next.token.is_on_new_line()
+        next.is_on_new_line()
             && !Self::token_continues_current_recovery_item(following_token_type)
             && self
                 .keyword_at_offset(1)

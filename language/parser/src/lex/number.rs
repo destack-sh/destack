@@ -1,14 +1,20 @@
 use super::lexer::Lexer;
 use destack_dir::{NumberBase, TokenLiteral, is_identifier_start};
 
+/// Return whether a byte can start an ASCII identifier.
+#[inline]
+fn is_ascii_identifier_start_byte(byte: u8) -> bool {
+    byte.is_ascii() && is_identifier_start(byte as char)
+}
+
 impl Lexer {
     /// Return whether `.e` or `.E` starts a decimal exponent after a dot.
     #[inline]
     fn dot_starts_decimal_exponent(&self) -> bool {
-        let exponent_marker = self.peek_next();
-        let exponent_head = self.peek_next_next();
-        (exponent_marker == 'e' || exponent_marker == 'E')
-            && (exponent_head.is_ascii_digit() || exponent_head == '+' || exponent_head == '-')
+        let exponent_marker = self.scanner.byte_at(1);
+        let exponent_head = self.scanner.byte_at(2);
+        matches!(exponent_marker, b'e' | b'E')
+            && (exponent_head.is_ascii_digit() || matches!(exponent_head, b'+' | b'-'))
     }
 
     /// Parse a number literal after its first digit.
@@ -19,11 +25,11 @@ impl Lexer {
         let mut base = NumberBase::Decimal;
         if first_digit == '0' {
             // parse encoding base
-            match self.peek() {
+            match self.scanner.byte() {
                 // binary literal
-                'b' | 'B' => {
+                b'b' | b'B' => {
                     base = NumberBase::Binary;
-                    self.eat();
+                    self.scanner.advance_ascii_byte();
                     if !self.eat_decimal_digits() {
                         return TokenLiteral::Int {
                             base,
@@ -34,9 +40,9 @@ impl Lexer {
                 }
 
                 // octal literal
-                'o' | 'O' => {
+                b'o' | b'O' => {
                     base = NumberBase::Octal;
-                    self.eat();
+                    self.scanner.advance_ascii_byte();
                     if !self.eat_decimal_digits() {
                         return TokenLiteral::Int {
                             base,
@@ -47,9 +53,9 @@ impl Lexer {
                 }
 
                 // hexadecimal literal
-                'x' | 'X' => {
+                b'x' | b'X' => {
                     base = NumberBase::Hexadecimal;
-                    self.eat();
+                    self.scanner.advance_ascii_byte();
                     if !self.eat_hexadecimal_digits() {
                         return TokenLiteral::Int {
                             base,
@@ -60,12 +66,12 @@ impl Lexer {
                 }
 
                 // not a base prefix; consume additional digits
-                '0'..='9' | '_' => {
+                b'0'..=b'9' | b'_' => {
                     self.eat_decimal_digits();
                 }
 
                 // also not a base prefix; nothing more to do here
-                '.' | 'e' | 'E' | 'n' => {}
+                b'.' | b'e' | b'E' | b'n' => {}
 
                 // just a 0
                 _ => {
@@ -81,14 +87,14 @@ impl Lexer {
             self.eat_decimal_digits();
         }
 
-        match self.peek() {
+        match self.scanner.byte() {
             // js and ts decimal member syntax: `123..prop` and `0..prop`
             // consume the first dot into a float literal so the second dot can start member access
-            '.' if self.peek_next() == '.'
-                && is_identifier_start(self.peek_next_next())
+            b'.' if self.scanner.byte_at(1) == b'.'
+                && is_ascii_identifier_start_byte(self.scanner.byte_at(2))
                 && (self.language.is_javascript() || self.language.is_typescript()) =>
             {
-                self.eat();
+                self.scanner.advance_ascii_byte();
                 TokenLiteral::Float {
                     base,
                     is_empty_exponent: false,
@@ -98,21 +104,21 @@ impl Lexer {
             // don't be greedy if this is actually an
             // integer literal followed by field or method access
             // (`12.foo()` and `12..toString()`)
-            '.' if self.peek_next() != '.'
-                && (!is_identifier_start(self.peek_next())
+            b'.' if self.scanner.byte_at(1) != b'.'
+                && (!is_ascii_identifier_start_byte(self.scanner.byte_at(1))
                     || self.dot_starts_decimal_exponent()) =>
             {
                 // might have stuff after the ., and if it does, it starts with a number
-                self.eat();
+                self.scanner.advance_ascii_byte();
                 let mut is_empty_exponent = false;
 
-                if self.peek().is_ascii_digit() {
+                if self.scanner.byte().is_ascii_digit() {
                     self.eat_decimal_digits();
                 }
 
                 // allow exponent forms without a fractional part (`1.e1`)
-                if self.peek() == 'e' || self.peek() == 'E' {
-                    self.eat();
+                if matches!(self.scanner.byte(), b'e' | b'E') {
+                    self.scanner.advance_ascii_byte();
                     is_empty_exponent = !self.eat_float_exponent();
                 }
 
@@ -121,16 +127,16 @@ impl Lexer {
                     is_empty_exponent,
                 }
             }
-            'e' | 'E' => {
-                self.eat();
+            b'e' | b'E' => {
+                self.scanner.advance_ascii_byte();
                 let is_empty_exponent = !self.eat_float_exponent();
                 TokenLiteral::Float {
                     base,
                     is_empty_exponent,
                 }
             }
-            'n' => {
-                self.eat();
+            b'n' => {
+                self.scanner.advance_ascii_byte();
                 TokenLiteral::Int {
                     base,
                     is_empty: false,
@@ -150,8 +156,8 @@ impl Lexer {
         let base = NumberBase::Decimal;
         let is_empty_exponent = {
             self.eat_decimal_digits();
-            if matches!(self.peek(), 'e' | 'E') {
-                self.eat();
+            if matches!(self.scanner.byte(), b'e' | b'E') {
+                self.scanner.advance_ascii_byte();
                 !self.eat_float_exponent()
             } else {
                 false
@@ -167,19 +173,25 @@ impl Lexer {
     ///
     /// Returns whether any digits were parsed.
     pub(crate) fn eat_decimal_digits(&mut self) -> bool {
+        let bytes = self.scanner.remaining_bytes();
+        let mut index = 0usize;
         let mut has_digits = false;
-        loop {
-            match self.peek() {
-                '_' => {
-                    self.eat();
-                }
-                '0'..='9' => {
+
+        while index < bytes.len() {
+            match bytes[index] {
+                b'_' => {}
+                b'0'..=b'9' => {
                     has_digits = true;
-                    self.eat();
                 }
                 _ => break,
             }
+            index += 1;
         }
+
+        if index > 0 {
+            self.scanner.advance_ascii_bytes(index, bytes[index - 1]);
+        }
+
         has_digits
     }
 
@@ -187,19 +199,25 @@ impl Lexer {
     ///
     /// Returns whether any digits were parsed.
     pub(crate) fn eat_hexadecimal_digits(&mut self) -> bool {
+        let bytes = self.scanner.remaining_bytes();
+        let mut index = 0usize;
         let mut has_digits = false;
-        loop {
-            match self.peek() {
-                '_' => {
-                    self.eat();
-                }
-                '0'..='9' | 'a'..='f' | 'A'..='F' => {
+
+        while index < bytes.len() {
+            match bytes[index] {
+                b'_' => {}
+                b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F' => {
                     has_digits = true;
-                    self.eat();
                 }
                 _ => break,
             }
+            index += 1;
         }
+
+        if index > 0 {
+            self.scanner.advance_ascii_bytes(index, bytes[index - 1]);
+        }
+
         has_digits
     }
 
@@ -208,8 +226,8 @@ impl Lexer {
     /// Returns whether the exponent is non-empty.
     pub(crate) fn eat_float_exponent(&mut self) -> bool {
         debug_assert!(self.previous() == 'e' || self.previous() == 'E');
-        if self.peek() == '-' || self.peek() == '+' {
-            self.eat();
+        if matches!(self.scanner.byte(), b'-' | b'+') {
+            self.scanner.advance_ascii_byte();
         }
         self.eat_decimal_digits()
     }

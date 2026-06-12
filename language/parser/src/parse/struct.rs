@@ -1,7 +1,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate::parse::DeclarationHeader;
-use crate::parse::prelude::*;
+use crate::parse::error::ParserResultExt;
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
 use destack_dir::{
