@@ -4,7 +4,7 @@ use destack_dir as dir;
 use destack_js as js;
 use destack_repository::{Module, Target};
 
-use crate::{CodegenJsError, CodegenJsResult, CodegenJsWarning, ScriptSymbolId};
+use crate::generate::js::{CodegenJsError, CodegenJsResult, CodegenJsWarning, ScriptSymbolId};
 
 /// Context for lowering a DIR module to JS AST.
 #[derive(Debug)]

@@ -4,7 +4,7 @@ use destack_dir::is_identifier;
 use destack_js as js;
 use smallvec::smallvec;
 
-use crate::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
+use crate::generate::js::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
 
 impl ModuleLowerer<'_> {
     /// Insert one path expression from string segments.

@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_js as js;
 use smallvec::SmallVec;
 
-use crate::{CodegenJsResult, ModuleLowerer};
+use crate::generate::js::{CodegenJsResult, ModuleLowerer};
 
 impl ModuleLowerer<'_> {
     /// Lower a DIR path into a JS path.

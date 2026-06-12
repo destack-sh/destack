@@ -1,7 +1,7 @@
 use std::collections::{HashSet, VecDeque};
 
+use crate::generate::js::DependencyForm;
 use destack_artifact::{ArtifactKey, ModuleOutput};
-use destack_codegen_js::DependencyForm;
 use destack_repository::ProviderError;
 use destack_source::ModuleId;
 use indexmap::IndexSet;

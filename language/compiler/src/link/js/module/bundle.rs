@@ -1,5 +1,5 @@
+use crate::generate::js;
 use destack_artifact::JsOutput;
-use destack_codegen_js as js;
 use destack_repository::{ProviderContext, Target};
 use destack_source::{ModuleId, PackageId, ProfileId, Span, TargetId};
 

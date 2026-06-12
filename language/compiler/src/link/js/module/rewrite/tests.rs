@@ -1,4 +1,4 @@
-use destack_codegen_js as js;
+use crate::generate::js;
 use destack_core::StringPool;
 use destack_repository::Target;
 

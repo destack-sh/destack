@@ -15,12 +15,12 @@ doctest = false
 # language
 destack_artifact = { workspace = true }
 destack_artifact_macros = { workspace = true }
-destack_codegen_js = { workspace = true }
 destack_codegen_native = { workspace = true, optional = true }
 destack_core = { workspace = true }
 destack_dir = { workspace = true }
 destack_engine = { workspace = true }
 destack_fir = { workspace = true }
+destack_js = { workspace = true }
 destack_mir = { workspace = true }
 destack_parser = { workspace = true }
 destack_query = { workspace = true }

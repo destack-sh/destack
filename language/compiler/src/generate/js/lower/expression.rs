@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_js as js;
 
-use crate::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
+use crate::generate::js::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
 
 impl ModuleLowerer<'_> {
     /// Lower one reference type into a JS callee.
@@ -143,16 +143,18 @@ impl ModuleLowerer<'_> {
         &mut self,
         source_id: dir::LocalNodeIdAny,
         attributes: &dir::ImportAttributeClause,
-    ) -> CodegenJsResult<crate::DependencyAttributeClause> {
+    ) -> CodegenJsResult<crate::generate::js::DependencyAttributeClause> {
         let properties = attributes
             .attributes
             .iter()
             .map(|attribute| self.lower_import_attribute_property(source_id, attribute))
             .collect::<Result<Vec<_>, CodegenJsError>>()?;
 
-        Ok(crate::DependencyAttributeClause {
+        Ok(crate::generate::js::DependencyAttributeClause {
             kind: match attributes.kind {
-                dir::ImportAttributeClauseKind::With => crate::DependencyAttributeClauseKind::With,
+                dir::ImportAttributeClauseKind::With => {
+                    crate::generate::js::DependencyAttributeClauseKind::With
+                }
             },
             properties,
         })

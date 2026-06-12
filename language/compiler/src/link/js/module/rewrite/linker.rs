@@ -1,4 +1,4 @@
-use destack_codegen_js as js;
+use crate::generate::js;
 use destack_repository::Target;
 
 use super::super::linker::OutputModule;

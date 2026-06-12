@@ -3,22 +3,23 @@ use destack_core::StringPool;
 use destack_js as js;
 use destack_repository::{Module, Target};
 
-use crate::lower::ModuleLowerer;
-use crate::{CodegenJsError, CodegenJsResult, CodegenJsWarning};
+use crate::generate::js::{CodegenJsError, CodegenJsResult, CodegenJsWarning};
+
+use super::ModuleLowerer;
 
 /// Structured JavaScript lowering output for one module.
 #[derive(Debug)]
-pub struct ModuleLowerOutput {
+pub(in crate::generate::js) struct ModuleLowerOutput {
     /// The lowered JS module.
-    pub module: js::Module,
+    pub(in crate::generate::js) module: js::Module,
     /// Warnings encountered during emission.
-    pub warnings: Vec<CodegenJsWarning>,
+    pub(in crate::generate::js) warnings: Vec<CodegenJsWarning>,
     /// Non fatal errors encountered during emission.
-    pub errors: Vec<CodegenJsError>,
+    pub(in crate::generate::js) errors: Vec<CodegenJsError>,
 }
 
 /// Lower one patched DIR module into a structured JavaScript module.
-pub fn lower_module(
+pub(in crate::generate::js) fn lower_module(
     module: &Module,
     parsed: &DirParsed,
     strings: &StringPool,

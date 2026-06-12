@@ -1,6 +1,21 @@
+mod diagnostic;
+mod dumper;
+mod lower;
+mod output;
+mod print;
+
+pub(crate) use destack_js::*;
+pub(crate) use diagnostic::*;
+pub(crate) use dumper::*;
+pub(crate) use lower::*;
+pub(crate) use output::*;
+pub(crate) use print::*;
+
+#[cfg(test)]
+pub(crate) mod tests;
+
 use crate::{Compiler, CompilerError, CompilerResult, GenerateError, GenerateWarning};
 use destack_artifact::ModuleOutput;
-use destack_codegen_js::{CodegenJsError, CodegenJsWarning};
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProfileId, ProviderContext, Target};
 use destack_source::ModuleId;
@@ -35,9 +50,9 @@ impl Compiler {
             .dir_checked(module_id, profile)
             .map_err(CompilerError::from)?;
 
-        // generate one JS output through the current backend
+        // generate one JS output
         let state = GenerateState::new(module_id, &parsed.tree);
-        let (artifact, warnings, errors) = destack_codegen_js::JsOutputGenerator::new(
+        let (artifact, warnings, errors) = JsOutputGenerator::new(
             module.clone(),
             parsed.clone(),
             bound.clone(),
@@ -49,7 +64,7 @@ impl Compiler {
         )
         .generate()
         .map_err(|error| Self::map_js_generate_error(&state, error))?;
-        // map backend diagnostics into compiler diagnostics
+        // map JS diagnostics into compiler diagnostics
         for warning in warnings {
             let warning = Self::map_js_generate_warning(&state, warning);
             self.emit_diagnostic(context, warning)?;
@@ -62,7 +77,7 @@ impl Compiler {
         Ok(ModuleOutput::Js(Box::new(artifact)))
     }
 
-    /// Map one JS backend error to a compiler error.
+    /// Map one JS generation error to a compiler error.
     fn map_js_generate_error(
         state: &GenerateState<'_, dir::Tree>,
         error: CodegenJsError,
@@ -112,7 +127,7 @@ impl Compiler {
         }
     }
 
-    /// Map one JS backend warning to a compiler warning.
+    /// Map one JS generation warning to a compiler warning.
     fn map_js_generate_warning(
         state: &GenerateState<'_, dir::Tree>,
         warning: CodegenJsWarning,

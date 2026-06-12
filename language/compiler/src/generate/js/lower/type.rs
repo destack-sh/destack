@@ -1,4 +1,4 @@
-use crate::{CodegenJsError, CodegenJsResult, ModuleLowerer};
+use crate::generate::js::{CodegenJsError, CodegenJsResult, ModuleLowerer};
 use destack_dir as dir;
 use destack_js as js;
 

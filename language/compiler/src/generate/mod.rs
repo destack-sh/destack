@@ -1,5 +1,5 @@
 mod error;
-mod js;
+pub(crate) mod js;
 #[cfg(feature = "native")]
 mod native;
 mod provide;

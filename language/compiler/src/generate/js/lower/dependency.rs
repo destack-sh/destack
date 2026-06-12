@@ -1,4 +1,4 @@
-use crate::{
+use crate::generate::js::{
     CodegenJsError, CodegenJsResult, CodegenJsResultExt, DependencyBinding, DependencyForm,
     DependencyItem, Expression, LocalNodeId, ModuleLowerer,
 };

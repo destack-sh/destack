@@ -1,13 +1,13 @@
 use std::path::{Component, Path, PathBuf};
 
+use crate::generate::js::{
+    JsFormatOptions, Module as ScriptModule, PrintedJsModule,
+    print_js_module as print_codegen_script_module,
+};
 use crate::link::{OutputLayout, SourceMapBuilder, SourceMapMarker};
 use crate::{CompilerError, CompilerResult, JsLinker};
 use base64::Engine as _;
 use destack_artifact::{EmitFormat, JsOutput, OutputContent, OutputFile, SourceMapArtifact};
-use destack_codegen_js::{
-    JsFormatOptions, Module as ScriptModule, PrintedJsModule,
-    print_js_module as print_codegen_script_module,
-};
 use destack_repository::{Module, ProviderContext, SourceMapMode, Target};
 use destack_source::{FileType, ModuleId, Uri};
 
