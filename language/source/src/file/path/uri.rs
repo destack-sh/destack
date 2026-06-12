@@ -28,6 +28,16 @@ impl Uri {
         (name, uri)
     }
 
+    /// Create a canonical URI from one logical repository path.
+    /// Workspace paths render as `file://`; mounted dependency paths as `mount://`.
+    pub fn logical(logical_path: impl AsRef<str>) -> Self {
+        let logical_path = logical_path.as_ref().replace('\\', "/");
+        match logical_path.strip_prefix("mount:") {
+            Some(mounted) => Self(format!("mount://{mounted}")),
+            None => Self(format!("file://{logical_path}")),
+        }
+    }
+
     /// Create a new URI from a string.
     pub fn from_string<T: Into<String>>(uri: T) -> Self {
         Self(uri.into())

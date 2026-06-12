@@ -101,6 +101,10 @@ impl ModuleId {
         package_root: Option<&Path>,
         loader_salt: Option<&str>,
     ) -> Self {
+        debug_assert!(
+            !path.is_absolute(),
+            "module identities derive from logical paths, got {path:?}"
+        );
         let relative = if let Some(root) = package_root {
             path.strip_prefix(root).unwrap_or(path)
         } else {

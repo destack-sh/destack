@@ -40,6 +40,10 @@ impl FileId {
     /// This should be one repository or import relative path for physical files,
     /// or one explicit logical path for virtual files.
     pub fn from_logical_str(path: &str) -> Self {
+        debug_assert!(
+            !path.starts_with('/'),
+            "file identities derive from logical paths, got {path:?}"
+        );
         let path = path.replace('\\', "/");
         Self(stable_source_id(FILE_LOGICAL_DOMAIN, &[path.as_bytes()]))
     }

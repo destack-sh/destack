@@ -43,6 +43,10 @@ impl PackageId {
 
     /// Create a PackageId from a directory path (for physical packages).
     pub fn from_path(path: &Path) -> Self {
+        debug_assert!(
+            !path.is_absolute(),
+            "package identities derive from logical paths, got {path:?}"
+        );
         let path = stable_source_path(path);
         Self(stable_source_id(
             PACKAGE_DOMAIN,
