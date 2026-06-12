@@ -329,83 +329,7 @@ impl ModuleLowerer<'_> {
                     .tree
                     .insert_from_source_any(ty, self.module.id, source_id))
             }
-            dir::StaticTerm::TypeLiteral { value } => {
-                let literal = self.lower_type_literal_value(value).ok_or_else(|| {
-                    CodegenJsError::UnsupportedConstruct {
-                        node: source_id.into_global(self.module.id),
-                        message: Some(
-                            "unsupported static type literal in JS type arguments".to_string(),
-                        ),
-                    }
-                })?;
-                let ty = js::TypeExpression::Scalar(literal);
-
-                Ok(self
-                    .tree
-                    .insert_from_source_any(ty, self.module.id, source_id))
-            }
             dir::StaticTerm::Type { ty } => self.lower_type(*ty),
-            dir::StaticTerm::Symbol { symbol } => {
-                self.lower_reference_type_from_symbol(source_id, *symbol, None)
-            }
-            dir::StaticTerm::Parameter(parameter) => {
-                self.lower_generic_parameter_type(source_id, *parameter)
-            }
-            dir::StaticTerm::Access { access } => {
-                self.lower_static_string_type(source_id, &format!("{access:?}").to_lowercase())
-            }
-            dir::StaticTerm::Space { space } => {
-                self.lower_static_string_type(source_id, &format!("{space:?}").to_lowercase())
-            }
-            dir::StaticTerm::Place { place } => {
-                let place = match place {
-                    dir::Place::Ambient => "ambient".to_string(),
-                    dir::Place::Space(space) => format!("{space:?}").to_lowercase(),
-                };
-
-                self.lower_static_string_type(source_id, &place)
-            }
-            dir::StaticTerm::Lifetime { lifetime } => match lifetime {
-                dir::Lifetime::Static => self.lower_static_string_type(source_id, "static"),
-                dir::Lifetime::Symbol(symbol) => {
-                    self.lower_reference_type_from_symbol(source_id, *symbol, None)
-                }
-            },
-            dir::StaticTerm::Union { elements } => {
-                let elements = elements
-                    .iter()
-                    .map(|element| {
-                        let element = self.require_static(*element)?.clone();
-
-                        self.lower_semantic_static_type_expression(source_id, &element)
-                    })
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
-                let ty = js::TypeExpression::Union { elements };
-
-                Ok(self
-                    .tree
-                    .insert_from_source_any(ty, self.module.id, source_id))
-            }
-            dir::StaticTerm::Declaration {
-                declaration,
-                generic_arguments,
-            } => {
-                let Some(symbol) = self.source_symbol_for_node(*declaration) else {
-                    return Err(CodegenJsError::UnsupportedConstruct {
-                        node: declaration.into_global_any(self.module.id),
-                        message: Some(
-                            "static declaration references need a bound source symbol".to_string(),
-                        ),
-                    });
-                };
-                let symbol = symbol.into_global(self.module.id);
-
-                self.lower_reference_type_from_symbol(
-                    source_id,
-                    symbol,
-                    generic_arguments.as_deref(),
-                )
-            }
             dir::StaticTerm::Array { .. }
             | dir::StaticTerm::FixedArray { .. }
             | dir::StaticTerm::Tuple { .. }
@@ -417,17 +341,6 @@ impl ModuleLowerer<'_> {
                 ),
             }),
         }
-    }
-
-    /// Lower one semantic static argument into one JS type argument.
-    fn lower_semantic_static_type_argument(
-        &mut self,
-        source_id: dir::LocalNodeIdAny,
-        argument: &dir::StaticArgument,
-    ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
-        let value = self.require_static(argument.value)?.clone();
-
-        self.lower_semantic_static_type_expression(source_id, &value)
     }
 
     /// Lower one normalized static string into a JS string literal type.
@@ -446,24 +359,12 @@ impl ModuleLowerer<'_> {
             .insert_from_source_any(ty, self.module.id, source_id))
     }
 
-    /// Lower one semantic static argument list into JS type arguments.
-    fn lower_semantic_static_type_arguments(
-        &mut self,
-        source_id: dir::LocalNodeIdAny,
-        arguments: &[dir::StaticArgument],
-    ) -> CodegenJsResult<Vec<js::LocalNodeId<js::TypeExpression>>> {
-        arguments
-            .iter()
-            .map(|argument| self.lower_semantic_static_type_argument(source_id, argument))
-            .collect()
-    }
-
     /// Lower one reference symbol into a JS path type.
     fn lower_reference_type_from_symbol(
         &mut self,
         source_id: dir::LocalNodeIdAny,
         symbol_id: dir::GlobalSymbolId,
-        generic_arguments: Option<&[dir::StaticArgument]>,
+        generic_arguments: Option<&[dir::GlobalTypeId]>,
     ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
         if symbol_id.module_id != self.module.id {
             return Err(CodegenJsError::UnsupportedConstruct {
@@ -490,9 +391,10 @@ impl ModuleLowerer<'_> {
             segments: smallvec::smallvec![segment],
         };
         let generic_arguments = generic_arguments
-            .map(|arguments| self.lower_semantic_static_type_arguments(source_id, arguments))
-            .transpose()?
-            .unwrap_or_default();
+            .unwrap_or_default()
+            .iter()
+            .map(|argument| self.lower_type(*argument))
+            .collect::<Result<Vec<_>, CodegenJsError>>()?;
         let ty = js::TypeExpression::Path {
             path,
             generic_arguments,
@@ -517,7 +419,7 @@ impl ModuleLowerer<'_> {
         }
 
         // lower by committed parameter key
-        let key = self.generics.get_parameter(parameter.local_id).key();
+        let key = self.generics.get_parameter(parameter.local_id).key;
         match key {
             dir::GenericParameterKey::Symbol(symbol) => {
                 self.lower_reference_type_from_symbol(source_id, symbol, None)
@@ -933,6 +835,16 @@ impl ModuleLowerer<'_> {
                     self.tree
                         .insert_from_source_any(ty, self.module.id, source_id)
                 }
+                // narrowing and static operations close before lowering
+                dir::TypeOperation::TryOutput { .. }
+                | dir::TypeOperation::TryResidual { .. }
+                | dir::TypeOperation::StaticBinary(_)
+                | dir::TypeOperation::StaticUnary(_) => {
+                    return Err(CodegenJsError::Internal {
+                        message: "JS lowering cannot emit an unevaluated static operation"
+                            .to_string(),
+                    });
+                }
             },
             dir::Type::Parameter(parameter) => {
                 self.lower_generic_parameter_type(source_id, *parameter)?
@@ -1089,6 +1001,28 @@ impl ModuleLowerer<'_> {
                 let ty = js::TypeExpression::FunctionTypeDeclaration(signature);
                 self.tree
                     .insert_from_source_any(ty, self.module.id, source_id)
+            }
+            dir::Type::Memory(memory) => {
+                let value = match memory {
+                    dir::MemoryLiteral::Access(access) => format!("{access:?}").to_lowercase(),
+                    dir::MemoryLiteral::Space(space) => format!("{space:?}").to_lowercase(),
+                    dir::MemoryLiteral::Place(dir::Place::Ambient) => "ambient".to_string(),
+                    dir::MemoryLiteral::Place(dir::Place::Space(space)) => {
+                        format!("{space:?}").to_lowercase()
+                    }
+                    dir::MemoryLiteral::Lifetime(dir::Lifetime::Static) => "static".to_string(),
+                    dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame) => "frame".to_string(),
+                    dir::MemoryLiteral::Lifetime(dir::Lifetime::Symbol(symbol)) => {
+                        return self.lower_reference_type_from_symbol(source_id, *symbol, None);
+                    }
+                };
+
+                self.lower_static_string_type(source_id, &value)?
+            }
+            dir::Type::Static(static_id) => {
+                let value = self.require_static(*static_id)?.clone();
+
+                self.lower_semantic_static_type_expression(source_id, &value)?
             }
             _ => {
                 return Err(CodegenJsError::UnsupportedConstruct {
