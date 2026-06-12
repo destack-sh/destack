@@ -1,6 +1,10 @@
-use crate::tests::*;
+use crate::tests::TestParser;
 use crate::{Parser, assert_expression_path, assert_name, assert_node, assert_path, assert_string};
-use destack_dir::*;
+use destack_dir::{
+    Declaration, Expression, GenericArgument, GenericParameter, Key, LocalNodeId,
+    MappedTypeModifier, Name, Parameter, ScalarLiteral, TypeDeclaration, TypeExpression,
+    TypeLiteral, TypeMember,
+};
 use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
 /// Assert one plain type reference without generic arguments.

@@ -5,13 +5,12 @@ use destack_dir::{
     ScalarLiteral, ThisForm, TypeDeclaration, TypeExpression, TypeLiteral, VarianceModifier,
     WhereClause, YieldCardinality,
 };
-
 use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
 use crate::parse::DeclarationHeader;
 use crate::{
-    ParserOptions, ParserTriviaMode, TestParser, assert_comment, assert_expression_path,
-    assert_name, assert_node, assert_path, assert_string,
+    ParserOptions, ParserTokenHistory, ParserTriviaMode, TestParser, assert_comment,
+    assert_expression_path, assert_name, assert_node, assert_path, assert_string,
 };
 
 #[test]
@@ -1597,6 +1596,7 @@ fn test_parse_parenthesized_arrow_call_without_preserved_wrappers() {
     let mut parser = test.prepare();
     parser.apply_options(ParserOptions {
         trivia_mode: ParserTriviaMode::Full,
+        token_history: ParserTokenHistory::Record,
         preserve_parenthesized_wrappers: false,
         ..ParserOptions::default()
     });

@@ -1,6 +1,10 @@
-use crate::tests::*;
+use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_node, assert_string};
-use destack_dir::*;
+use destack_dir::{
+    AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Declaration, Expression,
+    FunctionDeclaration, FunctionForm, GenericArgument, GenericParameter, LetKind, ScalarLiteral,
+    TypeExpression, TypeLiteral,
+};
 use destack_source::LanguageType;
 
 /// Parse async generic arrows with extends and default type parameters in assignments.

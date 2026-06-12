@@ -1,6 +1,6 @@
-use crate::tests::*;
+use crate::tests::TestParser;
 use crate::{assert_node, assert_string};
-use destack_dir::*;
+use destack_dir::{BinaryOperator, Expression, RangeEnd, ScalarLiteral};
 
 #[test]
 fn test_parse_half_open_range_expression() {

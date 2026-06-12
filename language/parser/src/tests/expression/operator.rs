@@ -1,6 +1,9 @@
-use crate::tests::*;
+use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_name, assert_node, assert_string};
-use destack_dir::*;
+use destack_dir::{
+    Argument, AssignOperator, AssignPattern, AssignPatternField, BinaryOperator, Expression,
+    IfCondition, IfForm, LocalNodeId, ScalarLiteral, TypeExpression, TypeLiteral,
+};
 use destack_source::LanguageType;
 
 /// Assert one assign pattern is an expression path.

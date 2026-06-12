@@ -1,6 +1,11 @@
-use crate::tests::*;
+use crate::tests::{TestParser, block_expression_ids};
 use crate::{assert_comment, assert_expression_path, assert_node, assert_string};
-use destack_dir::*;
+use destack_dir::{
+    Argument, AssignOperator, AssignPattern, BinaryOperator, Block, BlockForm, ClassDeclaration,
+    CommentKind, Declaration, Declarator, DependencyBinding, DependencyForm, DependencyItem,
+    Expression, FunctionDeclaration, IfCondition, ImportAttributeClauseKind, Key, Name, NodeType,
+    Parameter, Pattern, Property, ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral,
+};
 use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
 
 /// Parse a do block expression with a value tail.

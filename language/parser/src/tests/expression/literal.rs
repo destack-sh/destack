@@ -1,6 +1,10 @@
-use crate::tests::*;
+use crate::tests::{TestParser, block_expression_ids};
 use crate::{assert_expression_path, assert_node, assert_path, assert_string};
-use destack_dir::*;
+use destack_dir::{
+    Argument, Block, Declaration, Declarator, Expression, FunctionDeclaration, FunctionForm,
+    FunctionRole, InferForm, Key, Name, NodeType, Pattern, PostfixPosition, Property,
+    ScalarLiteral, TupleElement, TypeExpression,
+};
 use destack_source::LanguageType;
 
 /// Parse a tuple literal with two elements.

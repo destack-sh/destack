@@ -1,6 +1,9 @@
-use crate::tests::*;
+use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_node, assert_string};
-use destack_dir::*;
+use destack_dir::{
+    Argument, AssignOperator, BinaryOperator, Declaration, Declarator, DependencyItem, Expression,
+    FunctionDeclaration, PostfixPosition, ScalarLiteral, TemplateLiteral, UnaryOperator,
+};
 use destack_source::LanguageType;
 
 /// Parse regex literals inside template interpolation expressions.

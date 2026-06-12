@@ -1,13 +1,12 @@
-use destack_dir::{
-    CommentKind, Declaration, Expression, GenericArgument, GenericParameter, IntegerType,
-    InterfaceDeclaration, Key, Name, Parameter, Pattern, PatternField, TypeExpression, TypeKind,
-    TypeLiteral, TypeMember, VarianceModifier, WhereClause,
-};
-
 use crate::parse::DeclarationHeader;
 use crate::{
     TestParser, assert_comment, assert_expression_path, assert_name, assert_node, assert_path,
     assert_string,
+};
+use destack_dir::{
+    CommentKind, Declaration, Expression, GenericArgument, GenericParameter, IntegerType,
+    InterfaceDeclaration, Key, Name, Parameter, Pattern, PatternField, TypeExpression, TypeKind,
+    TypeLiteral, TypeMember, VarianceModifier, WhereClause,
 };
 use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 

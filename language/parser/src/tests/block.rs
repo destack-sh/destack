@@ -6,8 +6,8 @@ use destack_dir::{
 use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
 use crate::{
-    ParserOptions, ParserTriviaMode, TestParser, assert_comment, assert_expression_path,
-    assert_node, assert_string, block_expression_ids,
+    ParserOptions, ParserTokenHistory, ParserTriviaMode, TestParser, assert_comment,
+    assert_expression_path, assert_node, assert_string, block_expression_ids,
 };
 
 #[test]
@@ -616,6 +616,7 @@ fn test_parse_statement_leading_semicolon_parenthesized_arrow_call_without_wrapp
     let mut parser = test.prepare();
     parser.apply_options(ParserOptions {
         trivia_mode: ParserTriviaMode::Full,
+        token_history: ParserTokenHistory::Record,
         preserve_parenthesized_wrappers: false,
         ..ParserOptions::default()
     });
@@ -642,6 +643,7 @@ fn test_parse_statement_span_preserves_skipped_parenthesized_wrapper() {
     let mut parser = test.prepare();
     parser.apply_options(ParserOptions {
         trivia_mode: ParserTriviaMode::Full,
+        token_history: ParserTokenHistory::Record,
         preserve_parenthesized_wrappers: false,
         ..ParserOptions::default()
     });
@@ -666,6 +668,7 @@ fn test_parse_root_statement_span_preserves_skipped_parenthesized_wrapper() {
     let mut parser = test.prepare();
     parser.apply_options(ParserOptions {
         trivia_mode: ParserTriviaMode::Full,
+        token_history: ParserTokenHistory::Record,
         preserve_parenthesized_wrappers: false,
         ..ParserOptions::default()
     });
@@ -693,6 +696,7 @@ fn test_parse_root_statement_span_preserves_leading_parenthesized_wrapper() {
     let mut parser = test.prepare();
     parser.apply_options(ParserOptions {
         trivia_mode: ParserTriviaMode::Full,
+        token_history: ParserTokenHistory::Record,
         preserve_parenthesized_wrappers: false,
         ..ParserOptions::default()
     });

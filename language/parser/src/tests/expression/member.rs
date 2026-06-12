@@ -1,9 +1,12 @@
-use crate::tests::*;
+use crate::tests::TestParser;
 use crate::{
     assert_comment, assert_expression_path, assert_node, assert_string,
     assert_value_expression_path,
 };
-use destack_dir::*;
+use destack_dir::{
+    Argument, CommentKind, Expression, Key, Name, PostfixPosition, Property, RangeEnd,
+    ScalarLiteral, TokenType, TypeExpression, TypeLiteral,
+};
 use destack_source::LanguageType;
 
 #[test]

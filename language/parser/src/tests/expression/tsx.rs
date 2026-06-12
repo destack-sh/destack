@@ -1,6 +1,10 @@
-use crate::tests::*;
+use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_name, assert_node, assert_path, assert_string};
-use destack_dir::*;
+use destack_dir::{
+    Argument, BinaryOperator, Declaration, Expression, FunctionDeclaration, FunctionForm,
+    GenericParameter, IfCondition, IfForm, NodeType, Parameter, ScalarLiteral, TypeExpression,
+    TypeLiteral,
+};
 use destack_source::LanguageType;
 
 #[test]

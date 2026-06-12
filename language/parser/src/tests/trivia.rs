@@ -1,12 +1,12 @@
-use std::sync::Arc;
-
-use destack_core::StringPool;
 use destack_dir::{
     Argument, Block, BlockContext, BlockForm, ClassDeclaration, Comment, CommentContent,
     CommentKind, CommentPosition, Declaration, Declarator, Decorator, DecoratorPosition,
     Expression, FunctionDeclaration, LocalNodeId, Member, Parameter, Property, StructDeclaration,
     TokenType, TypeDeclaration, TypeExpression, normalize_comment_payload,
 };
+use std::sync::Arc;
+
+use destack_core::StringPool;
 use destack_source::LanguageType;
 
 use crate::{
@@ -276,7 +276,7 @@ fn test_attach_comments_keeps_one_comment_after_restore_and_reparse() {
     // speculative lookahead across the comment
     let mark = parser.checkpoint();
     let mark_node_id = parser.tree.next_id();
-    let next_span = parser.next_token().span;
+    let next_span = parser.next_token().span(parser.file_id);
     assert_eq!(parser.get_span_str(next_span), "b");
 
     // restore and consume the same boundary again

@@ -1,6 +1,9 @@
-use crate::tests::*;
+use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_node, assert_path, assert_string};
-use destack_dir::*;
+use destack_dir::{
+    Argument, ClassDeclaration, Declaration, Expression, FunctionDeclaration, FunctionForm,
+    GenericArgument, Key, Member, Name, Property, TypeExpression,
+};
 use destack_source::LanguageType;
 
 /// Parse a class expression with implements.

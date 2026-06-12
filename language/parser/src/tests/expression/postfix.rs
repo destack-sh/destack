@@ -1,6 +1,10 @@
-use crate::tests::*;
+use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_node, assert_string};
-use destack_dir::*;
+use destack_dir::{
+    Argument, BinaryOperator, Declaration, Declarator, Expression, FunctionDeclaration,
+    IfCondition, IfForm, LocalNodeId, Parameter, PostfixPosition, ScalarLiteral, TypeExpression,
+    TypeLiteral,
+};
 use destack_source::LanguageType;
 
 /// Assert one direct maybe expression wrapping a call.

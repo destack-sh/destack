@@ -1,6 +1,10 @@
-use crate::tests::*;
+use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_node, assert_path, assert_string};
-use destack_dir::*;
+use destack_dir::{
+    BinaryOperator, Block, Declaration, Declarator, EnumDeclaration, EnumField, EnumKind,
+    ExportKind, Expression, GenericArgument, Pattern, ScalarLiteral, TypeDeclaration,
+    TypeExpression, TypeLiteral,
+};
 use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
 
 /// Parse labeled statements when the target statement starts on a new line.
