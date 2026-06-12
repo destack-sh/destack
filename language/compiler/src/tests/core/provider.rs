@@ -6,7 +6,10 @@ use destack_artifact::{
     ArtifactProvider, ArtifactSidecar, ArtifactVersion, DiagnosticAnchor, DiagnosticContext,
     DiagnosticDisplay, DiagnosticError, DiagnosticLike,
 };
-use destack_repository::{ProviderContext, ProviderError, Repository, Revision};
+use destack_repository::{
+    ArtifactTracer, ProviderContext, ProviderError, ProviderTrace, Repository, Revision,
+    TraceOutcome,
+};
 use destack_source::{
     DiagnosticCollection, DiagnosticLabel, FileContentId, FileId, ModuleId, Span,
 };
@@ -26,6 +29,8 @@ pub(crate) struct TestProvider {
     compiler: Compiler,
     /// Whether provider attempts should emit event traces.
     emit_events: bool,
+    /// The provider attempt trace for this test session.
+    trace: Arc<ProviderTrace>,
 }
 
 impl TestProvider {
@@ -38,6 +43,7 @@ impl TestProvider {
             revision,
             compiler,
             emit_events,
+            trace: ProviderTrace::new(),
         }
     }
 
@@ -89,8 +95,9 @@ impl TestProvider {
 
     /// Provide one missing artifact.
     fn provide(&self, key: ArtifactKey) -> Result<ArtifactVersion, ProviderError> {
-        // run provider against this attempt context
-        let context = TestProviderContext::new(self, key);
+        // run provider against this traced attempt context
+        let tracer = Arc::new(self.trace.begin(key, 0));
+        let context = TestProviderContext::new(self, key, Arc::clone(&tracer));
         let result = match key.provider() {
             ArtifactProvider::Loader => self.provide_loader(key),
             ArtifactProvider::Compiler => self.compiler.provide(&context),
@@ -98,6 +105,12 @@ impl TestProvider {
                 ProviderError::internal(format!("unsupported test artifact key: {key:?}")),
             )),
         };
+        let outcome = match &result {
+            Ok(_) => TraceOutcome::Ready,
+            Err(error) if matches!(**error, ProviderError::Blocked { .. }) => TraceOutcome::Blocked,
+            Err(_) => TraceOutcome::Failed,
+        };
+        tracer.finish(outcome);
 
         // publish the attempt outcome
         match result {
@@ -150,21 +163,19 @@ impl TestProvider {
     ) -> Result<ArtifactVersion, ProviderError> {
         // collect attempt output
         let mut dependencies = context.dependencies();
-        if let ArtifactPayload::DirParsed(_) = &payload {
-            if let ArtifactKey::DirParsed { module } = key {
-                let module = self
-                    .repository
-                    .module(self.revision, module)
-                    .map_err(|error| ProviderError::internal(error.to_string()))?
-                    .ok_or_else(|| {
-                        ProviderError::internal(format!("missing module: {module:?}"))
-                    })?;
-                dependencies.extend(parsed_dependencies(
-                    self.repository.as_ref(),
-                    self.revision,
-                    module.as_ref(),
-                ));
-            }
+        if let ArtifactPayload::DirParsed(_) = &payload
+            && let ArtifactKey::DirParsed { module } = key
+        {
+            let module = self
+                .repository
+                .module(self.revision, module)
+                .map_err(|error| ProviderError::internal(error.to_string()))?
+                .ok_or_else(|| ProviderError::internal(format!("missing module: {module:?}")))?;
+            dependencies.extend(parsed_dependencies(
+                self.repository.as_ref(),
+                self.revision,
+                module.as_ref(),
+            ));
         }
         let diagnostics = context.diagnostics();
         let sidecars = context.sidecars();
@@ -258,17 +269,20 @@ struct TestProviderContext<'a> {
     diagnostics: RefCell<DiagnosticCollection>,
     /// The sidecars recorded by this attempt.
     sidecars: RefCell<Vec<ArtifactSidecar>>,
+    /// The tracer for this attempt.
+    tracer: Arc<ArtifactTracer>,
 }
 
 impl<'a> TestProviderContext<'a> {
     /// Create one test provider context.
-    fn new(provider: &'a TestProvider, key: ArtifactKey) -> Self {
+    fn new(provider: &'a TestProvider, key: ArtifactKey, tracer: Arc<ArtifactTracer>) -> Self {
         Self {
             provider,
             key,
             dependencies: RefCell::new(IndexSet::new()),
             diagnostics: RefCell::new(DiagnosticCollection::new()),
             sidecars: RefCell::new(Vec::new()),
+            tracer,
         }
     }
 
@@ -398,6 +412,23 @@ impl ProviderContext for TestProviderContext<'_> {
         self.provider.emit_events
     }
 
+    /// Emit annotated source sidecars for workspace check attempts.
+    /// Builtin components render nothing tests read, so they skip the
+    /// formatter work.
+    fn emit_checked_types(&self) -> bool {
+        let ArtifactKey::DirCheckedComponent { entry, .. } = self.key else {
+            return false;
+        };
+        let builtin = self.provider.repository.builtin_package().package_id();
+
+        self.provider
+            .repository
+            .module(self.provider.revision, entry)
+            .ok()
+            .flatten()
+            .is_some_and(|module| module.package_id != builtin)
+    }
+
     /// Require one artifact and return its exact version when ready.
     fn require(&self, key: ArtifactKey) -> Result<ArtifactVersion, ProviderError> {
         if key == self.key {
@@ -465,5 +496,10 @@ impl ProviderContext for TestProviderContext<'_> {
         self.diagnostics.borrow_mut().insert(diagnostic);
 
         Ok(())
+    }
+
+    /// Return the tracer recording this attempt.
+    fn tracer(&self) -> Option<&ArtifactTracer> {
+        Some(&self.tracer)
     }
 }

@@ -37,90 +37,31 @@ fn add_definition_rows(
         dir::Definition::Struct(definition) => {
             add_declaration_row(builder, symbol, "struct", source, definition.template);
             add_heritage(builder, symbol, "implements", &definition.implements);
-            add_members(
-                builder,
-                symbol,
-                &definition.fields,
-                &definition.static_fields,
-                &definition.methods,
-                &definition.static_methods,
-            );
-            add_associated(
-                builder,
-                symbol,
-                &definition.associated_types,
-                &definition.associated_consts,
-            );
+            add_members(builder, symbol, &definition.members);
         }
         dir::Definition::Class(definition) => {
-            add_declaration_row(builder, symbol, "class", source, definition.template);
+            let row = declaration_row(builder, symbol, "class", source, definition.template)
+                .optional_field(
+                    "abstract",
+                    definition.is_abstract.then(|| "true".to_string()),
+                )
+                .optional_field("final", definition.is_final.then(|| "true".to_string()));
+            builder.push(row);
             add_optional_heritage(builder, symbol, "extends", definition.extends.as_ref());
             add_heritage(builder, symbol, "implements", &definition.implements);
-            add_members(
-                builder,
-                symbol,
-                &definition.fields,
-                &definition.static_fields,
-                &definition.methods,
-                &definition.static_methods,
-            );
-            add_associated(
-                builder,
-                symbol,
-                &definition.associated_types,
-                &definition.associated_consts,
-            );
+            add_members(builder, symbol, &definition.members);
         }
         dir::Definition::Interface(definition) => {
-            add_interface_declaration_row(
-                builder,
-                symbol,
-                source,
-                definition.template,
-                definition.is_nominal,
-            );
+            let row = declaration_row(builder, symbol, "interface", source, definition.template)
+                .optional_field("nominal", definition.is_nominal.then(|| "true".to_string()));
+            builder.push(row);
             add_heritage(builder, symbol, "extends", &definition.extends);
-            add_members(
-                builder,
-                symbol,
-                &definition.fields,
-                &definition.static_fields,
-                &definition.methods,
-                &definition.static_methods,
-            );
-            add_signatures(builder, symbol, "call", &definition.call_signatures);
-            add_signatures(
-                builder,
-                symbol,
-                "construct",
-                &definition.construct_signatures,
-            );
-            add_signatures(builder, symbol, "index", &definition.index_signatures);
-            add_associated(
-                builder,
-                symbol,
-                &definition.associated_types,
-                &definition.associated_consts,
-            );
+            add_members(builder, symbol, &definition.members);
         }
         dir::Definition::Enum(definition) => {
             add_declaration_row(builder, symbol, "enum", source, definition.template);
             add_heritage(builder, symbol, "implements", &definition.implements);
-            add_variants(builder, symbol, &definition.variants);
-            add_members(
-                builder,
-                symbol,
-                &[],
-                &definition.static_fields,
-                &definition.methods,
-                &definition.static_methods,
-            );
-            add_associated(
-                builder,
-                symbol,
-                &definition.associated_types,
-                &definition.associated_consts,
-            );
+            add_members(builder, symbol, &definition.members);
         }
         dir::Definition::Newtype(definition) => {
             add_newtype_row(builder, symbol, source, definition);
@@ -129,20 +70,7 @@ fn add_definition_rows(
             add_extension_row(builder, symbol, source, extension);
             add_heritage(builder, symbol, "implements", &extension.implements);
             add_extension_where_clauses(builder, symbol, &extension.where_clauses);
-            add_members(
-                builder,
-                symbol,
-                &extension.fields,
-                &extension.static_fields,
-                &extension.methods,
-                &extension.static_methods,
-            );
-            add_associated(
-                builder,
-                symbol,
-                &extension.associated_types,
-                &extension.associated_consts,
-            );
+            add_members(builder, symbol, &extension.members);
         }
     }
 }
@@ -185,6 +113,20 @@ fn add_newtype_row(
     builder.push(row);
 }
 
+/// Build one definition declaration row.
+fn declaration_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    symbol: dir::GlobalSymbolId,
+    kind: &'static str,
+    source: dir::GlobalNodeIdAny,
+    template: Option<dir::LocalGenericTemplateId>,
+) -> SnapshotRow {
+    SnapshotRow::new(builder.anchor_symbol(symbol), "definition", kind)
+        .field("symbol", builder.symbol_path_label(symbol))
+        .optional_field("source", builder.node_source(source))
+        .optional_field("template", template.map(|template| format!("{template:?}")))
+}
+
 /// Add one definition declaration row.
 fn add_declaration_row(
     builder: &mut DirSnapshotBuilder<'_>,
@@ -193,27 +135,7 @@ fn add_declaration_row(
     source: dir::GlobalNodeIdAny,
     template: Option<dir::LocalGenericTemplateId>,
 ) {
-    let row = SnapshotRow::new(builder.anchor_symbol(symbol), "definition", kind)
-        .field("symbol", builder.symbol_path_label(symbol))
-        .optional_field("source", builder.node_source(source))
-        .optional_field("template", template.map(|template| format!("{template:?}")));
-
-    builder.push(row);
-}
-
-/// Add one interface declaration row.
-fn add_interface_declaration_row(
-    builder: &mut DirSnapshotBuilder<'_>,
-    symbol: dir::GlobalSymbolId,
-    source: dir::GlobalNodeIdAny,
-    template: Option<dir::LocalGenericTemplateId>,
-    is_nominal: bool,
-) {
-    let row = SnapshotRow::new(builder.anchor_symbol(symbol), "definition", "interface")
-        .field("symbol", builder.symbol_path_label(symbol))
-        .optional_field("source", builder.node_source(source))
-        .optional_field("template", template.map(|template| format!("{template:?}")))
-        .optional_field("nominal", is_nominal.then(|| "true".to_string()));
+    let row = declaration_row(builder, symbol, kind, source, template);
 
     builder.push(row);
 }
@@ -249,16 +171,19 @@ fn add_one_heritage(
     relation: &'static str,
     heritage: &dir::NominalHeritage,
 ) {
+    let arguments = (!heritage.arguments.is_empty()).then(|| {
+        heritage
+            .arguments
+            .iter()
+            .map(|argument| builder.global_type_label(*argument))
+            .collect::<Vec<_>>()
+            .join(", ")
+    });
     let row = SnapshotRow::new(builder.anchor_symbol(owner), "definition", relation)
         .field("symbol", builder.symbol_path_label(owner))
         .optional_field("source", builder.node_source(heritage.source))
         .field("target", builder.symbol_path_label(heritage.symbol))
-        .optional_field(
-            "instance",
-            heritage
-                .instance
-                .map(|instance| builder.generic_instance_label(instance)),
-        );
+        .optional_field("arguments", arguments);
 
     builder.push(row);
 }
@@ -299,29 +224,31 @@ fn add_extension_where_clauses(
     }
 }
 
-/// Add field and method rows.
+/// Add member rows in declaration order.
 fn add_members(
     builder: &mut DirSnapshotBuilder<'_>,
     owner: dir::GlobalSymbolId,
-    fields: &[dir::FieldDefinition],
-    static_fields: &[dir::FieldDefinition],
-    methods: &[dir::MethodDefinition],
-    static_methods: &[dir::MethodDefinition],
+    members: &[dir::DefinitionMember],
 ) {
-    for field in fields {
-        add_field(builder, owner, field, false);
-    }
-
-    for field in static_fields {
-        add_field(builder, owner, field, true);
-    }
-
-    for method in methods {
-        add_method(builder, owner, method, false);
-    }
-
-    for method in static_methods {
-        add_method(builder, owner, method, true);
+    for member in members {
+        match member {
+            dir::DefinitionMember::Field(field) => add_field(builder, owner, field),
+            dir::DefinitionMember::Method(method) => add_method(builder, owner, method),
+            dir::DefinitionMember::AssociatedType(ty) => add_associated_type(builder, owner, ty),
+            dir::DefinitionMember::AssociatedConst(value) => {
+                add_associated_const(builder, owner, value);
+            }
+            dir::DefinitionMember::Variant(variant) => add_variant(builder, owner, variant),
+            dir::DefinitionMember::CallSignature(signature) => {
+                add_signature(builder, owner, "call", signature);
+            }
+            dir::DefinitionMember::ConstructSignature(signature) => {
+                add_signature(builder, owner, "construct", signature);
+            }
+            dir::DefinitionMember::IndexSignature(signature) => {
+                add_signature(builder, owner, "index", signature);
+            }
+        }
     }
 }
 
@@ -330,13 +257,15 @@ fn add_field(
     builder: &mut DirSnapshotBuilder<'_>,
     owner: dir::GlobalSymbolId,
     field: &dir::FieldDefinition,
-    is_static: bool,
 ) {
     let row = SnapshotRow::new(builder.anchor_symbol(owner), "definition", "field")
         .field("symbol", builder.symbol_path_label(field.symbol))
         .optional_field("source", builder.node_source(field.source))
         .field("key", builder.static_key(field.key))
-        .optional_field("static", is_static.then(|| "true".to_string()))
+        .optional_field("static", static_label(field.space))
+        .optional_field("abstract", field.is_abstract.then(|| "true".to_string()))
+        .optional_field("override", field.is_override.then(|| "true".to_string()))
+        .optional_field("condition", condition_label(builder, field.condition))
         .type_field("type", builder.global_type_label(field.ty));
 
     builder.push(row);
@@ -347,8 +276,12 @@ fn add_method(
     builder: &mut DirSnapshotBuilder<'_>,
     owner: dir::GlobalSymbolId,
     method: &dir::MethodDefinition,
-    is_static: bool,
 ) {
+    let abstraction = match method.abstraction {
+        dir::MethodAbstraction::Concrete => None,
+        dir::MethodAbstraction::Virtual => Some("virtual".to_string()),
+        dir::MethodAbstraction::Abstract => Some("abstract".to_string()),
+    };
     let row = SnapshotRow::new(builder.anchor_symbol(owner), "definition", "method")
         .optional_field(
             "symbol",
@@ -358,97 +291,119 @@ fn add_method(
         )
         .optional_field("source", builder.node_source(method.source))
         .field("slot", member_slot_label(method.slot, builder))
-        .optional_field("static", is_static.then(|| "true".to_string()))
+        .optional_field("static", static_label(method.space))
+        .optional_field("role", method.role.map(DirSnapshotBuilder::variant_label))
+        .optional_field("abstraction", abstraction)
+        .optional_field("override", method.is_override.then(|| "true".to_string()))
+        .optional_field("condition", condition_label(builder, method.condition))
         .type_field("type", builder.global_type_label(method.ty));
 
     builder.push(row);
 }
 
-/// Add symbol-free signature rows.
-fn add_signatures(
+/// Add one associated type row.
+fn add_associated_type(
+    builder: &mut DirSnapshotBuilder<'_>,
+    owner: dir::GlobalSymbolId,
+    ty: &dir::AssociatedTypeDefinition,
+) {
+    let row = SnapshotRow::new(
+        builder.anchor_symbol(owner),
+        "definition",
+        "associated.type",
+    )
+    .field("symbol", builder.symbol_path_label(ty.symbol))
+    .optional_field("source", builder.node_source(ty.source))
+    .field("key", builder.static_key(ty.key))
+    .optional_field(
+        "constraint",
+        ty.constraint
+            .map(|constraint| builder.global_type_label(constraint)),
+    )
+    .optional_field(
+        "value",
+        ty.value.map(|value| builder.global_type_label(value)),
+    )
+    .optional_field("condition", condition_label(builder, ty.condition));
+
+    builder.push(row);
+}
+
+/// Add one associated const row.
+fn add_associated_const(
+    builder: &mut DirSnapshotBuilder<'_>,
+    owner: dir::GlobalSymbolId,
+    value: &dir::AssociatedConstDefinition,
+) {
+    let row = SnapshotRow::new(
+        builder.anchor_symbol(owner),
+        "definition",
+        "associated.const",
+    )
+    .field("symbol", builder.symbol_path_label(value.symbol))
+    .optional_field("source", builder.node_source(value.source))
+    .field("key", builder.static_key(value.key))
+    .type_field("type", builder.global_type_label(value.ty))
+    .optional_field(
+        "value",
+        value.value.map(|value| builder.global_static_label(value)),
+    )
+    .optional_field("condition", condition_label(builder, value.condition));
+
+    builder.push(row);
+}
+
+/// Add one enum variant row.
+fn add_variant(
+    builder: &mut DirSnapshotBuilder<'_>,
+    owner: dir::GlobalSymbolId,
+    variant: &dir::VariantDefinition,
+) {
+    let row = SnapshotRow::new(builder.anchor_symbol(owner), "definition", "variant")
+        .field("symbol", builder.symbol_path_label(variant.symbol))
+        .optional_field("source", builder.node_source(variant.source))
+        .field("key", builder.static_key(variant.key))
+        .optional_field(
+            "value",
+            variant
+                .value
+                .map(|value| builder.global_static_label(value)),
+        )
+        .optional_field("condition", condition_label(builder, variant.condition));
+
+    builder.push(row);
+}
+
+/// Add one symbol-free signature row.
+fn add_signature(
     builder: &mut DirSnapshotBuilder<'_>,
     owner: dir::GlobalSymbolId,
     kind: &'static str,
-    signatures: &[dir::SignatureDefinition],
+    signature: &dir::SignatureDefinition,
 ) {
-    for signature in signatures {
-        let row = SnapshotRow::new(builder.anchor_symbol(owner), "definition", "signature")
-            .field("kind", kind)
-            .optional_field("source", builder.node_source(signature.source))
-            .type_field("type", builder.global_type_label(signature.ty));
+    let row = SnapshotRow::new(builder.anchor_symbol(owner), "definition", "signature")
+        .field("kind", kind)
+        .optional_field("source", builder.node_source(signature.source))
+        .optional_field("condition", condition_label(builder, signature.condition))
+        .type_field("type", builder.global_type_label(signature.ty));
 
-        builder.push(row);
+    builder.push(row);
+}
+
+/// Return one static-space marker label.
+fn static_label(space: dir::MemberSpace) -> Option<String> {
+    match space {
+        dir::MemberSpace::Instance => None,
+        dir::MemberSpace::Static => Some("true".to_string()),
     }
 }
 
-/// Add associated member rows.
-fn add_associated(
+/// Return one rendered @if condition label.
+fn condition_label(
     builder: &mut DirSnapshotBuilder<'_>,
-    owner: dir::GlobalSymbolId,
-    types: &[dir::AssociatedTypeDefinition],
-    consts: &[dir::AssociatedConstDefinition],
-) {
-    for ty in types {
-        let row = SnapshotRow::new(
-            builder.anchor_symbol(owner),
-            "definition",
-            "associated.type",
-        )
-        .field("symbol", builder.symbol_path_label(ty.symbol))
-        .optional_field("source", builder.node_source(ty.source))
-        .field("key", builder.static_key(ty.key))
-        .optional_field(
-            "constraint",
-            ty.constraint
-                .map(|constraint| builder.global_type_label(constraint)),
-        )
-        .optional_field(
-            "value",
-            ty.value.map(|value| builder.global_type_label(value)),
-        );
-
-        builder.push(row);
-    }
-
-    for value in consts {
-        let row = SnapshotRow::new(
-            builder.anchor_symbol(owner),
-            "definition",
-            "associated.const",
-        )
-        .field("symbol", builder.symbol_path_label(value.symbol))
-        .optional_field("source", builder.node_source(value.source))
-        .field("key", builder.static_key(value.key))
-        .type_field("type", builder.global_type_label(value.ty))
-        .optional_field(
-            "value",
-            value.value.map(|value| builder.global_static_label(value)),
-        );
-
-        builder.push(row);
-    }
-}
-
-/// Add enum variant rows.
-fn add_variants(
-    builder: &mut DirSnapshotBuilder<'_>,
-    owner: dir::GlobalSymbolId,
-    variants: &[dir::VariantDefinition],
-) {
-    for variant in variants {
-        let row = SnapshotRow::new(builder.anchor_symbol(owner), "definition", "variant")
-            .field("symbol", builder.symbol_path_label(variant.symbol))
-            .optional_field("source", builder.node_source(variant.source))
-            .field("key", builder.static_key(variant.key))
-            .optional_field(
-                "value",
-                variant
-                    .value
-                    .map(|value| builder.global_static_label(value)),
-            );
-
-        builder.push(row);
-    }
+    condition: Option<dir::GlobalTypeId>,
+) -> Option<String> {
+    condition.map(|condition| builder.global_type_label(condition))
 }
 
 /// Return one member slot label.
