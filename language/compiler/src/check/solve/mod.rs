@@ -1,11 +1,12 @@
-mod decision;
+mod answer;
+mod condition;
+mod constraint;
 mod relation;
 mod solution;
 mod solve;
 mod task;
-mod variable;
 
-pub(in crate::check) use decision::*;
-pub(in crate::check) use solution::*;
+pub(in crate::check) use answer::*;
+pub(in crate::check) use constraint::*;
+pub(in crate::check) use relation::*;
 pub(in crate::check) use task::*;
-pub(in crate::check) use variable::*;
