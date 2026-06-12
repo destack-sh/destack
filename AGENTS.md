@@ -112,6 +112,7 @@ match extracted {
 - (This extends to comments in _any_ code file, even scripts. I just like lowercase better.)
 - Place comments above a related code block (usually 2-6 lines).
 - Most comments should be <=1 sentence and should not include a period at the end (again, lowercase).
+- When a a regular line comment needs to be multiple lines add a leading space to following lines, and ideally try to make the comment read naturally line by line (even if it means splitting a sentence grammatically).
 - Avoid using hyphens inside comments, instead prefer colons or commas (except for proper compound words that need hpyhens of course)
 - Inline comments may also just be single words or sequences of words if the "scoping" is clear; i.e., not every inline comment needs to be a sentence.
 - Comments serve to organize the reader's mental model of the code, so they can be just anything from a one-word summary, a three word phrase, or a short explanatory note.
@@ -124,6 +125,8 @@ match extracted {
 - For methods, documentation should be imperative, usually starting with a verb (e.g., "Send a message").
 - _All_ functions, types, variants/fields, etc. should have documentation (one line is fine).
 - Documentation comments do not need to start with a verb, they should just plainly state what the thing is (e.g., for a field, "The blocks built so far." is better than "Represents the blocks built up to this point."; more succinct is better).
+- Most documentation comments should also be just one line (at our 100 char width).
+- When we really need to have multiple lines for some documentation, try to go for a "regular header" + blank line + 1-n "paragraph" style.
 - When documenting if/else-if/else-_like_ logic, the comments should go _before_ each case like so:
 
 ```text
