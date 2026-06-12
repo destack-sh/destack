@@ -5,25 +5,25 @@ members = [
 	"language/artifact",
 	"language/artifact/macros",
 	"language/compiler",
-	"language/compiler/generate/native",
-	"language/compiler/generate/native/cranelift/assembler-x64",
-	"language/compiler/generate/native/cranelift/bforest",
-	"language/compiler/generate/native/cranelift/bitset",
-	"language/compiler/generate/native/cranelift/codegen",
-	"language/compiler/generate/native/cranelift/control",
-	"language/compiler/generate/native/cranelift/entity",
-	"language/compiler/generate/native/cranelift/frontend",
-	"language/compiler/generate/native/cranelift/isle",
-	"language/compiler/generate/native/cranelift/module",
-	"language/compiler/generate/native/cranelift/native",
-	"language/compiler/generate/native/cranelift/object",
-	"language/compiler/generate/native/cranelift/reader",
-	"language/compiler/generate/native/cranelift/serde",
-	"language/compiler/generate/native/cranelift/srcgen",
-	"language/compiler/generate/native/pulley",
-	"language/compiler/generate/native/pulley/macros",
-	"language/compiler/generate/native/regalloc2",
-	"language/compiler/generate/native/wasmtime-core",
+	"language/compiler/native",
+	"language/compiler/native/cranelift/assembler-x64",
+	"language/compiler/native/cranelift/bforest",
+	"language/compiler/native/cranelift/bitset",
+	"language/compiler/native/cranelift/codegen",
+	"language/compiler/native/cranelift/control",
+	"language/compiler/native/cranelift/entity",
+	"language/compiler/native/cranelift/frontend",
+	"language/compiler/native/cranelift/isle",
+	"language/compiler/native/cranelift/module",
+	"language/compiler/native/cranelift/native",
+	"language/compiler/native/cranelift/object",
+	"language/compiler/native/cranelift/reader",
+	"language/compiler/native/cranelift/serde",
+	"language/compiler/native/cranelift/srcgen",
+	"language/compiler/native/pulley",
+	"language/compiler/native/pulley/macros",
+	"language/compiler/native/regalloc2",
+	"language/compiler/native/wasmtime-core",
 	"language/compiler/generate/js",
 	"language/core",
 	"language/dir",
@@ -79,7 +79,7 @@ rust-version = "1.93.0"
 destack_artifact = { path = "language/artifact" }
 destack_artifact_macros = { path = "language/artifact/macros" }
 destack_codegen_js = { path = "language/compiler/generate/js" }
-destack_codegen_native = { path = "language/compiler/generate/native" }
+destack_codegen_native = { path = "language/compiler/native" }
 destack_compiler = { path = "language/compiler" }
 destack_core = { path = "language/core" }
 destack_dir = { path = "language/dir" }
@@ -125,24 +125,24 @@ destack_python = { path = "bridge/python/rust" }
 destack_zed = { path = "bridge/zed" }
 
 # codegen
-cranelift-assembler-x64 = { path = "language/compiler/generate/native/cranelift/assembler-x64" }
-cranelift-bforest = { path = "language/compiler/generate/native/cranelift/bforest" }
-cranelift-bitset = { path = "language/compiler/generate/native/cranelift/bitset" }
-cranelift-codegen = { path = "language/compiler/generate/native/cranelift/codegen" }
-cranelift-control = { path = "language/compiler/generate/native/cranelift/control" }
-cranelift-entity = { path = "language/compiler/generate/native/cranelift/entity" }
-cranelift-frontend = { path = "language/compiler/generate/native/cranelift/frontend" }
-cranelift-isle = { path = "language/compiler/generate/native/cranelift/isle" }
-cranelift-module = { path = "language/compiler/generate/native/cranelift/module" }
-cranelift-native = { path = "language/compiler/generate/native/cranelift/native" }
-cranelift-object = { path = "language/compiler/generate/native/cranelift/object" }
-cranelift-reader = { path = "language/compiler/generate/native/cranelift/reader" }
-cranelift-serde = { path = "language/compiler/generate/native/cranelift/serde" }
-cranelift-srcgen = { path = "language/compiler/generate/native/cranelift/srcgen" }
-regalloc2 = { path = "language/compiler/generate/native/regalloc2" }
-wasmtime-core = { path = "language/compiler/generate/native/wasmtime-core", package = "wasmtime-internal-core" }
-pulley-interpreter = { path = "language/compiler/generate/native/pulley" }
-pulley-macros = { path = "language/compiler/generate/native/pulley/macros" }
+cranelift-assembler-x64 = { path = "language/compiler/native/cranelift/assembler-x64" }
+cranelift-bforest = { path = "language/compiler/native/cranelift/bforest" }
+cranelift-bitset = { path = "language/compiler/native/cranelift/bitset" }
+cranelift-codegen = { path = "language/compiler/native/cranelift/codegen" }
+cranelift-control = { path = "language/compiler/native/cranelift/control" }
+cranelift-entity = { path = "language/compiler/native/cranelift/entity" }
+cranelift-frontend = { path = "language/compiler/native/cranelift/frontend" }
+cranelift-isle = { path = "language/compiler/native/cranelift/isle" }
+cranelift-module = { path = "language/compiler/native/cranelift/module" }
+cranelift-native = { path = "language/compiler/native/cranelift/native" }
+cranelift-object = { path = "language/compiler/native/cranelift/object" }
+cranelift-reader = { path = "language/compiler/native/cranelift/reader" }
+cranelift-serde = { path = "language/compiler/native/cranelift/serde" }
+cranelift-srcgen = { path = "language/compiler/native/cranelift/srcgen" }
+regalloc2 = { path = "language/compiler/native/regalloc2" }
+wasmtime-core = { path = "language/compiler/native/wasmtime-core", package = "wasmtime-internal-core" }
+pulley-interpreter = { path = "language/compiler/native/pulley" }
+pulley-macros = { path = "language/compiler/native/pulley/macros" }
 target-lexicon = "0.13.4"
 
 # cranelift external deps (from wasmtime workspace)

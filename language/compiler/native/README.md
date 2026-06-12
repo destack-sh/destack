@@ -1,4 +1,4 @@
-# generate/native
+# native
 
 Native and WebAssembly code generation using [Cranelift](https://cranelift.dev/).
 Takes MIR and produces object files (`.o`) or WASM modules (`.wasm`).
@@ -9,7 +9,7 @@ Cranelift is a fast, portable code generator originally built for Firefox's WASM
 Not as optimizing as LLVM, but compiles much faster and produces good code for most use cases.
 
 For Destack, compilation speed matters more than the last 5% of runtime performance.
-We do our own optimizations in MIR anyway (see [compiler/README.md](../../compiler/README.md)).
+We do our own optimizations in MIR anyway (see [compiler/README.md](../README.md)).
 We can always add an LLVM backend later for release builds if needed.
 
 ## Pipeline
