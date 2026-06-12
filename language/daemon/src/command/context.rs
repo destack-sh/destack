@@ -106,21 +106,12 @@ impl<'a> CommandContext<'a> {
         let report = trace.report(
             detailed,
             |key| {
-                let display = key.module_id().and_then(|module| {
+                key.module_id().and_then(|module| {
                     self.repository
                         .module_display(revision, module)
                         .ok()
                         .flatten()
-                })?;
-
-                // workspace paths render relative to the command root
-                let relative = std::path::Path::new(&display)
-                    .strip_prefix(&self.root)
-                    .ok()
-                    .and_then(|path| path.to_str())
-                    .map(str::to_string);
-
-                Some(relative.unwrap_or(display))
+                })
             },
             |target| {
                 self.repository
