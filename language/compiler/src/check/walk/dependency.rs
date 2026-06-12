@@ -15,7 +15,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::DependencyItem>,
         dependency_item: &dir::DependencyItem,
     ) -> CompilerResult<()> {
-        let Some(_guard) = self.enter_decorated_static_guard(id.into_any(), None)? else {
+        let Some(_guard) = self.enter_decorated_static_guard(id.into_any())? else {
             return Ok(());
         };
 

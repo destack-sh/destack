@@ -1,9 +1,8 @@
 use destack_dir as dir;
-use destack_source::ModuleId;
 
 use crate::check::{
-    GenericInductionDeclaration, GenericTemplateId, Origin, Receiver, ReceiverBinding, TypeOperand,
-    TypeTerm, WalkState,
+    Decision, GenericInductionDeclaration, GenericTemplateId, HeritageObligation, LayoutObligation,
+    Obligation, Origin, Receiver, ReceiverBinding, Relation, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -20,7 +19,8 @@ impl WalkState<'_, '_> {
         expression: &dir::Expression,
     ) -> CompilerResult<()> {
         if let dir::Expression::Declaration(declaration) = expression {
-            self.declare_declaration_header(*declaration, self.tree.get(*declaration))?;
+            let declaration = *declaration;
+            self.declare_declaration_header(declaration, self.tree.get(declaration))?;
         }
 
         Ok(())
@@ -37,7 +37,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::Declaration,
     ) -> CompilerResult<()> {
-        let Some(_guard) = self.enter_decorated_static_guard(id.into_any(), None)? else {
+        let Some(_guard) = self.enter_decorated_static_guard(id.into_any())? else {
             return Ok(());
         };
 
@@ -143,18 +143,22 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::Declaration,
     ) -> CompilerResult<()> {
-        let Some(_guard) = self.enter_decorated_static_guard(id.into_any(), None)? else {
+        let Some(_guard) = self.enter_decorated_static_guard(id.into_any())? else {
             return Ok(());
         };
 
         match declaration {
             // global { ... }
             dir::Declaration::Global(declaration) => {
-                self.walk_global_declaration(declaration)?;
+                for expression in &declaration.expressions {
+                    self.walk_expression(*expression, self.tree.get(*expression))?;
+                }
             }
             // module M { ... }
             dir::Declaration::Module(declaration) => {
-                self.walk_module_declaration(declaration)?;
+                for expression in &declaration.expressions {
+                    self.walk_expression(*expression, self.tree.get(*expression))?;
+                }
             }
             // type X = T
             dir::Declaration::Type(declaration) => {
@@ -189,40 +193,6 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
-    /// Walk one global declaration.
-    ///
-    /// Example:
-    /// ```ds
-    /// global { console.log("ready") }
-    /// ```
-    fn walk_global_declaration(
-        &mut self,
-        declaration: &dir::GlobalDeclaration,
-    ) -> CompilerResult<()> {
-        for expression in &declaration.expressions {
-            self.walk_expression(*expression, self.tree.get(*expression))?;
-        }
-
-        Ok(())
-    }
-
-    /// Walk one module declaration.
-    ///
-    /// Example:
-    /// ```ds
-    /// module app { export const value = 1 }
-    /// ```
-    fn walk_module_declaration(
-        &mut self,
-        declaration: &dir::ModuleDeclaration,
-    ) -> CompilerResult<()> {
-        for expression in &declaration.expressions {
-            self.walk_expression(*expression, self.tree.get(*expression))?;
-        }
-
-        Ok(())
-    }
-
     /// Walk one type declaration.
     ///
     /// Example:
@@ -234,7 +204,6 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::TypeDeclaration,
     ) -> CompilerResult<()> {
-        // get declaration symbol
         let Some(symbol) = self
             .check
             .module(self.module)
@@ -242,22 +211,63 @@ impl WalkState<'_, '_> {
         else {
             return Ok(());
         };
+
         // walk generic header
         let source = id.into_global_any(self.module);
-        let induction_declaration = GenericInductionDeclaration::new(source, None, Some(symbol));
-        self.walk_generic_template(source, None, Some(symbol), &declaration.generic_parameters)?;
+        let induction = GenericInductionDeclaration::new(source, None, Some(symbol));
+        let template = self.walk_generic_template(
+            source,
+            None,
+            Some(symbol),
+            &declaration.generic_parameters,
+        )?;
         for where_clause in &declaration.where_clauses {
-            self.walk_where_clause(*where_clause, self.tree.get(*where_clause))?;
+            self.walk_where_clause(*where_clause)?;
         }
 
-        let value_expression = self.tree.get(declaration.value);
-        let is_intrinsic = matches!(value_expression, dir::TypeExpression::Intrinsic);
-
-        // constrain intrinsic nominal declarations
+        // intrinsic nominal declarations stay opaque
+        let is_intrinsic = matches!(
+            self.tree.get(declaration.value),
+            dir::TypeExpression::Intrinsic
+        );
         if is_intrinsic {
-            self.constrain_node_type_term(declaration.value, TypeTerm::Intrinsic)?;
-
             if !declaration.is_nominal {
+                // declared intrinsic aliases expand to builtin operations
+                let mapping = self
+                    .check
+                    .environment
+                    .language
+                    .item(symbol)
+                    .and_then(string_mapping_for_item);
+                if let Some(mapping) = mapping
+                    && let Some(template_id) = template
+                    && let Some(parameter) = self
+                        .check
+                        .generic_template(template_id)
+                        .and_then(|template| template.parameters.first().copied())
+                {
+                    let source = declaration.value.into_any();
+                    let target = self.push_type(
+                        dir::Type::Parameter(parameter.into_global(self.module)),
+                        source,
+                    )?;
+                    let value = self.push_type(
+                        dir::Type::Operation(dir::TypeOperation::StringMapping { mapping, target }),
+                        source,
+                    )?;
+                    self.declare_symbol_type(symbol, value)?;
+                    self.check.insert_definition(
+                        symbol,
+                        id.into_global_any(self.module),
+                        dir::Definition::TypeAlias(dir::TypeAliasDefinition {
+                            template: template.map(|template| template.local_id),
+                            value,
+                        }),
+                    )?;
+
+                    return Ok(());
+                }
+
                 self.check
                     .report_invalid_intrinsic_type(self.module, declaration.value.into_any());
             }
@@ -265,21 +275,25 @@ impl WalkState<'_, '_> {
             return Ok(());
         }
 
-        // walk type expression itself
-        self.walk_type_expression(declaration.value, value_expression)?;
+        // walk the written value
+        let value = self.walk_type_expression(declaration.value)?;
+        self.record_type_induction_site(induction, value);
 
-        // constrain transparent aliases to their right hand side
-        if !declaration.is_nominal {
-            let value = self.node_type_operand(declaration.value)?;
-            let condition = self.active_static_guard();
-            self.record_generic_induction_site(induction_declaration, value);
-            self.constrain_symbol_type(symbol, value, condition)?;
-        }
-        // constrain nominal declarations to a fresh symbol type
-        else {
-            let backing = self.node_type_operand(declaration.value)?;
-            self.record_generic_induction_site(induction_declaration, backing);
-        }
+        // transparent aliases expand to their value, newtypes wrap it
+        let definition = if declaration.is_nominal {
+            dir::Definition::Newtype(dir::NewtypeDefinition {
+                template: template.map(|template| template.local_id),
+                value,
+            })
+        } else {
+            self.declare_symbol_type(symbol, value)?;
+
+            dir::Definition::TypeAlias(dir::TypeAliasDefinition {
+                template: template.map(|template| template.local_id),
+                value,
+            })
+        };
+        self.check.insert_definition(symbol, source, definition)?;
 
         Ok(())
     }
@@ -302,32 +316,50 @@ impl WalkState<'_, '_> {
         else {
             return Ok(());
         };
+
         // walk generic header
         let source = id.into_global_any(self.module);
-        let induction_declaration = GenericInductionDeclaration::new(source, None, Some(symbol));
-        self.walk_generic_template(source, None, Some(symbol), &declaration.generic_parameters)?;
+        let induction = GenericInductionDeclaration::new(source, None, Some(symbol));
+        let template = self.walk_generic_template(
+            source,
+            None,
+            Some(symbol),
+            &declaration.generic_parameters,
+        )?;
         for where_clause in &declaration.where_clauses {
-            self.walk_where_clause(*where_clause, self.tree.get(*where_clause))?;
+            self.walk_where_clause(*where_clause)?;
         }
-        let receiver = self.nominal_receiver(symbol);
-
+        let receiver = self.nominal_receiver(id.into_any(), symbol)?;
         let _receiver = self.enter_receiver_maybe(Some(receiver));
 
         // walk implemented contracts
+        let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
-            self.walk_type_expression(*implemented_type, self.tree.get(*implemented_type))?;
-            self.record_type_induction_site(induction_declaration, *implemented_type)?;
+            let ty = self.walk_type_expression(*implemented_type)?;
+            self.record_type_induction_site(induction, ty);
+            implements.extend(self.nominal_heritage(*implemented_type, ty)?);
         }
 
         // walk members
+        let mut members = Vec::new();
         for member in &declaration.members {
-            self.walk_member(
+            members.extend(self.walk_member(
                 *member,
                 self.tree.get(*member),
                 Some(receiver),
-                Some(induction_declaration),
-            )?;
+                Some(induction),
+            )?);
         }
+
+        let definition = dir::Definition::Struct(dir::StructDefinition {
+            template: template.map(|template| template.local_id),
+            implements,
+            members,
+        });
+        self.check.insert_definition(symbol, source, definition)?;
+
+        // concrete structs need one fixed representation
+        self.oblige_declaration_layout(symbol, receiver, template);
 
         Ok(())
     }
@@ -350,38 +382,72 @@ impl WalkState<'_, '_> {
         else {
             return Ok(());
         };
+
         // walk generic header
         let source = id.into_global_any(self.module);
-        let induction_declaration = GenericInductionDeclaration::new(source, None, Some(symbol));
-        self.walk_generic_template(source, None, Some(symbol), &declaration.generic_parameters)?;
+        let induction = GenericInductionDeclaration::new(source, None, Some(symbol));
+        let template = self.walk_generic_template(
+            source,
+            None,
+            Some(symbol),
+            &declaration.generic_parameters,
+        )?;
         for where_clause in &declaration.where_clauses {
-            self.walk_where_clause(*where_clause, self.tree.get(*where_clause))?;
+            self.walk_where_clause(*where_clause)?;
         }
-        let receiver = self.nominal_receiver(symbol);
-
+        let receiver = self.nominal_receiver(id.into_any(), symbol)?;
         let _receiver = self.enter_receiver_maybe(Some(receiver));
 
         // walk superclass type
+        let mut extends = None;
+        let mut super_ty = None;
         if let Some(extends_type) = declaration.extends_type {
-            self.walk_type_expression(extends_type, self.tree.get(extends_type))?;
-            self.record_type_induction_site(induction_declaration, extends_type)?;
+            let ty = self.walk_type_expression(extends_type)?;
+            self.record_type_induction_site(induction, ty);
+            extends = self.nominal_heritage(extends_type, ty)?;
+            super_ty = Some(ty);
         }
 
         // walk implemented contracts
+        let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
-            self.walk_type_expression(*implemented_type, self.tree.get(*implemented_type))?;
-            self.record_type_induction_site(induction_declaration, *implemented_type)?;
+            let ty = self.walk_type_expression(*implemented_type)?;
+            self.record_type_induction_site(induction, ty);
+            implements.extend(self.nominal_heritage(*implemented_type, ty)?);
         }
 
+        // members see the superclass through the receiver
+        let receiver = Receiver {
+            super_ty,
+            ..receiver
+        };
+
         // walk members
+        let mut members = Vec::new();
         for member in &declaration.members {
-            self.walk_member(
+            members.extend(self.walk_member(
                 *member,
                 self.tree.get(*member),
                 Some(receiver),
-                Some(induction_declaration),
-            )?;
+                Some(induction),
+            )?);
         }
+
+        let definition = dir::Definition::Class(dir::ClassDefinition {
+            template: template.map(|template| template.local_id),
+            is_abstract: declaration.is_abstract,
+            is_final: declaration.is_final,
+            extends,
+            implements,
+            members,
+        });
+        self.check.insert_definition(symbol, source, definition)?;
+
+        // heritage rules check once the inherited surfaces close
+        self.oblige_class_heritage(source, symbol);
+
+        // concrete classes need one fixed representation
+        self.oblige_declaration_layout(symbol, receiver, template);
 
         Ok(())
     }
@@ -404,37 +470,53 @@ impl WalkState<'_, '_> {
         else {
             return Ok(());
         };
+
         // walk generic header
         let source = id.into_global_any(self.module);
-        let induction_declaration = GenericInductionDeclaration::new(source, None, Some(symbol));
-        self.walk_generic_template(source, None, Some(symbol), &declaration.generic_parameters)?;
+        let induction = GenericInductionDeclaration::new(source, None, Some(symbol));
+        let template = self.walk_generic_template(
+            source,
+            None,
+            Some(symbol),
+            &declaration.generic_parameters,
+        )?;
         for where_clause in &declaration.where_clauses {
-            self.walk_where_clause(*where_clause, self.tree.get(*where_clause))?;
+            self.walk_where_clause(*where_clause)?;
         }
-        let receiver = self.nominal_receiver(symbol);
-
+        let receiver = self.nominal_receiver(id.into_any(), symbol)?;
         let _receiver = self.enter_receiver_maybe(Some(receiver));
 
-        // walk implemented contracts and variants
+        // walk implemented contracts
+        let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
-            self.walk_type_expression(*implemented_type, self.tree.get(*implemented_type))?;
-            self.record_type_induction_site(induction_declaration, *implemented_type)?;
+            let ty = self.walk_type_expression(*implemented_type)?;
+            self.record_type_induction_site(induction, ty);
+            implements.extend(self.nominal_heritage(*implemented_type, ty)?);
         }
 
-        // walk fields
+        // walk variants and members
+        let mut members = Vec::new();
         for field in &declaration.fields {
-            self.walk_enum_field(*field, self.tree.get(*field))?;
+            members.extend(self.walk_enum_field(*field, self.tree.get(*field))?);
         }
-
-        // walk members
         for member in &declaration.members {
-            self.walk_member(
+            members.extend(self.walk_member(
                 *member,
                 self.tree.get(*member),
                 Some(receiver),
-                Some(induction_declaration),
-            )?;
+                Some(induction),
+            )?);
         }
+
+        let definition = dir::Definition::Enum(dir::EnumDefinition {
+            template: template.map(|template| template.local_id),
+            implements,
+            members,
+        });
+        self.check.insert_definition(symbol, source, definition)?;
+
+        // enums need one fixed backing representation
+        self.oblige_declaration_layout(symbol, receiver, template);
 
         Ok(())
     }
@@ -457,27 +539,48 @@ impl WalkState<'_, '_> {
         else {
             return Ok(());
         };
+
         // walk generic header
         let source = id.into_global_any(self.module);
-        let induction_declaration = GenericInductionDeclaration::new(source, None, Some(symbol));
-        self.walk_generic_template(source, None, Some(symbol), &declaration.generic_parameters)?;
+        let induction = GenericInductionDeclaration::new(source, None, Some(symbol));
+        let template = self.walk_generic_template(
+            source,
+            None,
+            Some(symbol),
+            &declaration.generic_parameters,
+        )?;
         for where_clause in &declaration.where_clauses {
-            self.walk_where_clause(*where_clause, self.tree.get(*where_clause))?;
+            self.walk_where_clause(*where_clause)?;
         }
-        let receiver = self.nominal_receiver(symbol);
-
+        let receiver = self.nominal_receiver(id.into_any(), symbol)?;
         let _receiver = self.enter_receiver_maybe(Some(receiver));
 
         // walk inherited contracts
+        let mut extends = Vec::new();
         for extends_type in &declaration.extends_types {
-            self.walk_type_expression(*extends_type, self.tree.get(*extends_type))?;
-            self.record_type_induction_site(induction_declaration, *extends_type)?;
+            let ty = self.walk_type_expression(*extends_type)?;
+            self.record_type_induction_site(induction, ty);
+            extends.extend(self.nominal_heritage(*extends_type, ty)?);
         }
 
         // walk members
+        let mut members = Vec::new();
         for member in &declaration.members {
-            self.walk_type_member(*member, self.tree.get(*member), Some(induction_declaration))?;
+            members.extend(self.walk_type_member(
+                *member,
+                self.tree.get(*member),
+                Some(receiver),
+                Some(induction),
+            )?);
         }
+
+        let definition = dir::Definition::Interface(dir::InterfaceDefinition {
+            template: template.map(|template| template.local_id),
+            is_nominal: declaration.is_nominal,
+            extends,
+            members,
+        });
+        self.check.insert_definition(symbol, source, definition)?;
 
         Ok(())
     }
@@ -503,43 +606,105 @@ impl WalkState<'_, '_> {
 
         // walk generic header
         let source = id.into_global_any(self.module);
-        let induction_declaration = GenericInductionDeclaration::new(source, None, Some(symbol));
+        let induction = GenericInductionDeclaration::new(source, None, Some(symbol));
         self.walk_generic_template(source, None, Some(symbol), &declaration.generic_parameters)?;
+        let mut where_clauses = Vec::new();
         for where_clause in &declaration.where_clauses {
-            self.walk_where_clause(*where_clause, self.tree.get(*where_clause))?;
+            where_clauses.extend(self.walk_extension_where_clause(*where_clause)?);
         }
 
         // walk target before exposing receiver
-        self.walk_type_expression(
-            declaration.target_type,
-            self.tree.get(declaration.target_type),
-        )?;
-        self.record_type_induction_site(induction_declaration, declaration.target_type)?;
-
-        let receiver = Some(Receiver {
+        let target_type = self.walk_type_expression(declaration.target_type)?;
+        self.record_type_induction_site(induction, target_type);
+        let target = self.extension_target(declaration.target_type, target_type)?;
+        let receiver = Receiver {
             owner: Some(symbol),
-            ty: self.node_type_operand(declaration.target_type)?,
-        });
+            ty: target_type,
+            super_ty: None,
+        };
+        let _receiver = self.enter_receiver_maybe(Some(receiver));
 
-        let _receiver = self.enter_receiver_maybe(receiver);
-
-        // walk implements
+        // walk implemented contracts
+        let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
-            self.walk_type_expression(*implemented_type, self.tree.get(*implemented_type))?;
-            self.record_type_induction_site(induction_declaration, *implemented_type)?;
+            let ty = self.walk_type_expression(*implemented_type)?;
+            self.record_type_induction_site(induction, ty);
+            implements.extend(self.nominal_heritage(*implemented_type, ty)?);
         }
 
         // walk members
+        let mut members = Vec::new();
         for member in &declaration.members {
-            self.walk_member(
+            members.extend(self.walk_member(
                 *member,
                 self.tree.get(*member),
-                receiver,
-                Some(induction_declaration),
-            )?;
+                Some(receiver),
+                Some(induction),
+            )?);
         }
 
+        // named extensions import explicitly, inherent ones travel with their target declaration
+        let form = match &target {
+            dir::ExtensionTarget::Nominal { root, .. } if root.module_id == self.module => {
+                dir::ExtensionForm::Inherent
+            }
+            _ if declaration.name.is_some() => dir::ExtensionForm::Named,
+            _ => dir::ExtensionForm::Local,
+        };
+        let definition = dir::Definition::Extension(dir::Extension {
+            symbol,
+            form,
+            target,
+            implements,
+            where_clauses,
+            members,
+        });
+        self.check.insert_definition(symbol, source, definition)?;
+
+        // coherence rules report at the later declaration
+        self.check
+            .check_extension_coherence(self.module, source, symbol)?;
+
         Ok(())
+    }
+
+    /// Queue one class heritage obligation under the active guard.
+    fn oblige_class_heritage(&mut self, source: dir::GlobalNodeIdAny, symbol: dir::GlobalSymbolId) {
+        let condition = self.active_static_guard();
+        self.check
+            .push_obligation(Obligation::Heritage(HeritageObligation {
+                source,
+                condition,
+                symbol,
+            }));
+    }
+
+    /// Demand one concrete declaration's layout.
+    /// Generic declarations lay out per instantiation instead.
+    fn oblige_declaration_layout(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        receiver: Receiver,
+        template: Option<GenericTemplateId>,
+    ) {
+        if template.is_some() {
+            return;
+        }
+        let Some(source) = self
+            .check
+            .module(self.module)
+            .symbol_declaration_node(symbol.local_id)
+            .ok()
+        else {
+            return;
+        };
+        let condition = self.active_static_guard();
+        self.check
+            .push_obligation(Obligation::Layout(LayoutObligation {
+                source: source.into_global(self.module),
+                condition,
+                ty: receiver.ty,
+            }));
     }
 
     /// Walk one function declaration.
@@ -553,62 +718,51 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::FunctionDeclaration,
     ) -> CompilerResult<()> {
-        if let Some(symbol) = self
+        let symbol = self
             .check
             .module(self.module)
-            .declaration_symbol(id.into_any())
-        {
-            // walk signature before reading its term inputs
-            let source = id.into_global_any(self.module);
-            let induction_declaration =
-                GenericInductionDeclaration::new(source, None, Some(symbol));
-            let template =
-                self.signature_template(source, None, Some(symbol), &declaration.signature)?;
-            self.walk_function_signature(template, &declaration.signature)?;
-
-            let result = self.function_result_operand(
-                self.module,
-                id.into_any(),
-                &declaration.signature,
-                declaration.body,
-            )?;
-
-            // constrain function symbol type
-            let term = self.function_signature_term(
-                &declaration.signature,
-                template,
-                None,
-                result.map(Into::into),
-            )?;
-            let condition = self.active_static_guard();
-
-            let operand = self
-                .check
-                .inference
-                .push_term(TypeTerm::Function(term))
-                .into();
-
-            self.record_generic_induction_site(induction_declaration, operand);
-            self.constrain_symbol_type(symbol, operand, condition)?;
-
-            // walk body after its result operand exists
-            if let (Some(body), Some(result)) = (declaration.body, result) {
-                let receiver = declaration
-                    .signature
-                    .this_parameter
-                    .map(|parameter| self.this_parameter_receiver_binding(parameter, None))
-                    .transpose()?;
-                self.walk_function_body(symbol, &declaration.signature, body, result, receiver)?;
-            }
-        } else {
-            // validate local signature
+            .declaration_symbol(id.into_any());
+        let Some(symbol) = symbol else {
+            // validate local signatures without a declaration symbol
             self.walk_function_signature(None, &declaration.signature)?;
+
+            return Ok(());
+        };
+
+        // walk signature before reading its inputs
+        let source = id.into_global_any(self.module);
+        let induction = GenericInductionDeclaration::new(source, None, Some(symbol));
+        let template =
+            self.signature_template(source, None, Some(symbol), &declaration.signature)?;
+        self.walk_function_signature(template, &declaration.signature)?;
+        let result =
+            self.function_result_type(id.into_any(), &declaration.signature, declaration.body)?;
+
+        // tie the function symbol to its signature type
+        let function = self.function_signature_type(
+            id.into_any(),
+            &declaration.signature,
+            template,
+            None,
+            result,
+        )?;
+        self.record_type_induction_site(induction, function);
+        self.declare_symbol_type(symbol, function)?;
+
+        // walk body after its result exists
+        if let (Some(body), Some(result)) = (declaration.body, result) {
+            let receiver = declaration
+                .signature
+                .this_parameter
+                .map(|parameter| self.this_parameter_receiver_binding(parameter, None))
+                .transpose()?;
+            self.walk_function_body(symbol, &declaration.signature, body, result, receiver)?;
         }
 
         Ok(())
     }
 
-    /// Walk one enum field.
+    /// Walk one enum field and return its variant row.
     ///
     /// Example:
     /// ```ds
@@ -618,52 +772,113 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::EnumField>,
         enum_field: &dir::EnumField,
-    ) -> CompilerResult<()> {
-        let Some(_guard) = self.enter_decorated_static_guard(id.into_any(), None)? else {
-            return Ok(());
+    ) -> CompilerResult<Option<dir::DefinitionMember>> {
+        let Some(_guard) = self.enter_decorated_static_guard(id.into_any())? else {
+            return Ok(None);
         };
+        let condition = self.member_condition(id.into_any())?;
+        let (name, value) = (enum_field.name, enum_field.value);
 
-        if let Some(value) = enum_field.value {
-            // check enum value in declaration context
+        if let Some(value) = value {
+            // check enum values in declaration context
             let before_value = self.fork_flow();
             self.walk_expression(value, self.tree.get(value))?;
             self.restore_flow(before_value);
+
+            // record the written variant value
+            if let Some(symbol) = self
+                .check
+                .module(self.module)
+                .declaration_symbol(id.into_any())
+            {
+                let spelled = self.lower_static_predicate(value)?;
+                self.declare_symbol_value(symbol, spelled)?;
+            }
         }
+
+        let Some(symbol) = self
+            .check
+            .module(self.module)
+            .declaration_symbol(id.into_any())
+        else {
+            return Ok(None);
+        };
+
+        Ok(Some(dir::DefinitionMember::Variant(
+            dir::VariantDefinition {
+                symbol,
+                source: id.into_global_any(self.module),
+                key: name.static_key(),
+                value: None,
+                condition,
+            },
+        )))
+    }
+
+    /// Walk one where clause as a satisfaction constraint.
+    ///
+    /// Example:
+    /// ```ds
+    /// where T: Copy
+    /// ```
+    pub(in crate::check) fn walk_where_clause(
+        &mut self,
+        id: dir::LocalNodeId<dir::WhereClause>,
+    ) -> CompilerResult<()> {
+        self.walk_extension_where_clause(id)?;
 
         Ok(())
     }
 
-    /// Constrain the value produced by a function body that reaches its end.
-    ///
-    /// Example:
-    /// ```ds
-    /// function value(): number { 1 }
-    /// ```
-    pub(in crate::check) fn constrain_function_completion_return(
+    /// Walk one where clause and return its checked sides.
+    fn walk_extension_where_clause(
         &mut self,
-        body: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<()> {
-        match self.tree.get(body) {
-            // { ... }
-            dir::Expression::Block(block) => {
-                let block = self.tree.get(*block);
-                if block.context == dir::BlockContext::Expression
-                    && let Some(tail) = block.tail_expression
-                {
-                    let value = self.node_type_operand(tail)?;
-                    self.constrain_return_value(tail.into_any(), value);
-                } else {
-                    self.constrain_void_return(body.into_any());
-                }
-            }
-            // expression
-            _ => {
-                let value = self.node_type_operand(body)?;
-                self.constrain_return_value(body.into_any(), value);
-            }
-        };
+        id: dir::LocalNodeId<dir::WhereClause>,
+    ) -> CompilerResult<Option<dir::ExtensionWhereClause>> {
+        let clause = self.tree.get(id);
+        let (left, right) = (clause.left, clause.right);
+        let left = self.walk_type_expression(left)?;
+        let right = self.walk_type_expression(right)?;
 
-        Ok(())
+        // bounds on own unconstrained parameters attach as constraints,
+        // every other clause checks satisfaction at the declaration
+        let attached = self.attach_parameter_bound(left, right)?;
+        if !attached {
+            let origin = Origin::Node(id.into_global_any(self.module));
+            self.relate_type(origin, Relation::Satisfies, left, right);
+        }
+
+        Ok(Some(dir::ExtensionWhereClause {
+            source: id.into_global_any(self.module),
+            left,
+            right,
+        }))
+    }
+
+    /// Attach one where bound onto its bare parameter when it has no
+    /// constraint yet. Returns whether the bound was attached.
+    fn attach_parameter_bound(
+        &mut self,
+        left: dir::GlobalTypeId,
+        right: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let dir::Type::Parameter(parameter) = self.check.ty(left)? else {
+            return Ok(false);
+        };
+        let parameter = *parameter;
+
+        // keep explicit inline bounds, their clause still checks
+        let Some(binding) = self.check.generic_parameter(parameter) else {
+            return Ok(false);
+        };
+        if binding.constraint.is_some() {
+            return Ok(false);
+        }
+        let default = binding.default;
+        self.check
+            .update_generic_parameter_bounds(parameter, Some(right), default)?;
+
+        Ok(true)
     }
 
     /// Walk one function signature without entering the function body.
@@ -712,12 +927,12 @@ impl WalkState<'_, '_> {
 
         // walk return type
         if let Some(return_type) = signature.return_type {
-            self.walk_type_expression(return_type, self.tree.get(return_type))?;
+            self.walk_type_expression(return_type)?;
         }
 
         // walk where clauses
         for where_clause in &signature.where_clauses {
-            self.walk_where_clause(*where_clause, self.tree.get(*where_clause))?;
+            self.walk_where_clause(*where_clause)?;
         }
 
         Ok(())
@@ -769,45 +984,46 @@ impl WalkState<'_, '_> {
         let Some(ty) = self.parameter_type(parameter)? else {
             return Err(CompilerError::Internal {
                 message: format!(
-                    "this parameter {:?} has no type operand",
+                    "this parameter {:?} has no type",
                     parameter.into_global(self.module)
                 ),
             });
         };
+
         Ok(ReceiverBinding {
             symbol,
-            receiver: Receiver { owner, ty },
+            receiver: Receiver {
+                owner,
+                ty,
+                super_ty: None,
+            },
         })
     }
 
-    /// Return one function result operand.
+    /// Return one function result type.
     ///
     /// Example:
     /// ```ds
     /// function value(): number { 1 }
     /// ```
-    pub(in crate::check) fn function_result_operand(
+    pub(in crate::check) fn function_result_type(
         &mut self,
-        module: ModuleId,
         source: dir::LocalNodeIdAny,
         signature: &dir::FunctionSignature,
         body: Option<dir::LocalNodeId<dir::Expression>>,
-    ) -> CompilerResult<Option<TypeOperand>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // use explicit return annotations
         if let Some(return_type) = signature.return_type {
-            return Ok(Some(self.node_type_operand(return_type)?));
+            return Ok(Some(self.walk_type_expression(return_type)?));
         }
 
         // skip ambient signatures
-        let Some(_) = body else {
+        if body.is_none() {
             return Ok(None);
-        };
+        }
 
-        // allocate the inferred result operand
-        let origin = Origin::Node(source.into_global(module));
-        let variable = self.check.push_type_variable(module, origin);
-
-        Ok(Some(TypeOperand::Variable(variable)))
+        // open the inferred result
+        Ok(Some(self.open_type(source)?))
     }
 
     /// Return one nominal declaration receiver scope.
@@ -816,13 +1032,92 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// struct Box { value: number }
     /// ```
-    fn nominal_receiver(&mut self, symbol: dir::GlobalSymbolId) -> Receiver {
-        let ty = self.check.declaration_type_term(symbol);
-        let ty = self.check.inference.push_term(ty).into();
+    fn nominal_receiver(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Receiver> {
+        // apply the declaration's own parameters as arguments
+        let parameters = self
+            .check
+            .generics
+            .template_by_symbol(symbol)
+            .map(|template| self.check.generic_template_parameters(template))
+            .unwrap_or_default();
+        let mut arguments = Vec::with_capacity(parameters.len());
+        for parameter in parameters {
+            arguments.push(self.push_type(dir::Type::Parameter(parameter), source)?);
+        }
+        let ty = self.push_type(
+            dir::Type::Reference(dir::GenericInstance { symbol, arguments }),
+            source,
+        )?;
 
-        Receiver {
+        Ok(Receiver {
             owner: Some(symbol),
             ty,
+            super_ty: None,
+        })
+    }
+
+    /// Return one heritage application from a walked annotation.
+    /// Non-reference heritages are reported by their own relations.
+    fn nominal_heritage(
+        &mut self,
+        source: dir::LocalNodeId<dir::TypeExpression>,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::NominalHeritage>> {
+        let heritage = match self.check.ty(ty)? {
+            dir::Type::Reference(instance) => Some(dir::NominalHeritage {
+                source: source.into_global_any(self.module),
+                symbol: instance.symbol,
+                arguments: instance.arguments.clone(),
+            }),
+            _ => None,
+        };
+
+        Ok(heritage)
+    }
+
+    /// Return one extension target from a walked target annotation.
+    /// Nominal targets classify by their written name resolution, so
+    /// still-open header types cannot demote them to blankets.
+    fn extension_target(
+        &mut self,
+        annotation: dir::LocalNodeId<dir::TypeExpression>,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::ExtensionTarget> {
+        // nominal roots anchor member lookup
+        if let dir::Type::Reference(instance) = self.check.ty(ty)? {
+            return Ok(dir::ExtensionTarget::Nominal {
+                root: instance.symbol,
+                ty,
+            });
         }
+
+        // written references classify by their resolved declaration
+        if let dir::TypeExpression::Reference { .. } = self.tree.get(annotation)
+            && let Some(Decision::Name(resolution)) = self
+                .check
+                .decisions
+                .get(annotation.into_global_any(self.module))
+            && let [symbol] = resolution.symbols()
+            && self.check.symbol_kind(*symbol).is_nominal()
+        {
+            return Ok(dir::ExtensionTarget::Nominal { root: *symbol, ty });
+        }
+
+        Ok(dir::ExtensionTarget::Blanket { ty })
+    }
+}
+
+/// Return the string mapping one language item declares, when any.
+fn string_mapping_for_item(item: dir::LanguageItem) -> Option<dir::StringMapping> {
+    match item {
+        dir::LanguageItem::Uppercase => Some(dir::StringMapping::Uppercase),
+        dir::LanguageItem::Lowercase => Some(dir::StringMapping::Lowercase),
+        dir::LanguageItem::Capitalize => Some(dir::StringMapping::Capitalize),
+        dir::LanguageItem::Uncapitalize => Some(dir::StringMapping::Uncapitalize),
+        _ => None,
     }
 }

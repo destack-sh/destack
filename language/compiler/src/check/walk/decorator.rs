@@ -1,5 +1,5 @@
 use crate::CompilerResult;
-use crate::check::WalkState;
+use crate::check::{Decision, NameLookup, WalkState};
 use destack_dir as dir;
 
 impl WalkState<'_, '_> {
@@ -25,14 +25,7 @@ impl WalkState<'_, '_> {
             self.walk_decorator_target_name(invocation.target)?;
         }
 
-        // walk annotation arguments as static metadata
-        for argument in invocation.arguments {
-            let Some(value) = self.tree.get(argument).value() else {
-                continue;
-            };
-            self.walk_static_expression(value)?;
-        }
-
+        // annotation arguments are read by their decorator consumers
         Ok(())
     }
 
@@ -48,41 +41,26 @@ impl WalkState<'_, '_> {
         target: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
         let source = target.into_global_any(self.module);
-        let guard = self.active_static_guard();
 
-        match self.tree.get(target) {
-            // select bare decorator target
-            dir::Expression::Identifier { name } => {
-                if let Some(symbol) = self.check.symbol_by_name_under(
-                    self.module,
-                    target.into_any(),
-                    *name,
-                    dir::SymbolSpace::Value,
-                    &guard,
-                ) {
-                    self.check
-                        .inference
-                        .select_name(source, dir::NameResolution::new(symbol))?;
-                }
-            }
-
-            // select qualified decorator target
-            dir::Expression::QualifiedReference { path, .. } => {
-                if let Some(symbol) = self.check.symbol_by_path_under(
-                    self.module,
-                    target.into_any(),
-                    path,
-                    dir::SymbolSpace::Value,
-                    &guard,
-                ) {
-                    self.check
-                        .inference
-                        .select_name(source, dir::NameResolution::new(symbol))?;
-                }
-            }
-
+        // select bare decorator targets
+        let name = match self.tree.get(target) {
+            dir::Expression::Identifier { name } => *name,
             // leave non-reference decorator targets unresolved
-            _ => {}
+            _ => return Ok(()),
+        };
+        let lookup = self.check.lookup_name(
+            self.module,
+            target.into_any(),
+            name,
+            dir::SymbolSpace::Value,
+        );
+        if let NameLookup::Found(candidate) = lookup {
+            if let Some(symbol) = candidate.symbol() {
+                let resolution = dir::NameResolution::new(symbol);
+
+                self.check
+                    .record_decision(source, Decision::Name(resolution))?;
+            }
         }
 
         Ok(())

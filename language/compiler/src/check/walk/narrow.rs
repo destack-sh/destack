@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{NarrowPredicate, TypeLiteralTerm, TypeOperand, TypeTerm, WalkState};
+use crate::check::{NarrowPredicate, WalkState};
 
 /// The condition branch being entered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -44,7 +44,7 @@ impl WalkState<'_, '_> {
             // if let pattern = value
             dir::IfCondition::Let { declarator, .. } if branch == ConditionBranch::True => {
                 self.mark_declarator_assigned(self.tree.get(*declarator));
-                self.narrow_declarator_pattern_success(*declarator)?;
+                self.narrow_declarator_match(*declarator)?;
             }
             // if let pattern = value
             dir::IfCondition::Let { .. } => {}
@@ -67,14 +67,16 @@ impl WalkState<'_, '_> {
         match self.tree.get(id) {
             // (value)
             dir::Expression::Parenthesized { expression } => {
-                self.narrow_expression(*expression, branch)?;
+                let expression = *expression;
+                self.narrow_expression(expression, branch)?;
             }
             // !value
             dir::Expression::Unary {
                 operator: dir::UnaryOperator::Not,
                 right,
             } => {
-                self.narrow_expression(*right, branch.opposite())?;
+                let right = *right;
+                self.narrow_expression(right, branch.opposite())?;
             }
             // left && right
             dir::Expression::Binary {
@@ -82,8 +84,9 @@ impl WalkState<'_, '_> {
                 operator: dir::BinaryOperator::And,
                 right,
             } if branch == ConditionBranch::True => {
-                self.narrow_expression(*left, branch)?;
-                self.narrow_expression(*right, branch)?;
+                let (left, right) = (*left, *right);
+                self.narrow_expression(left, branch)?;
+                self.narrow_expression(right, branch)?;
             }
             // left || right
             dir::Expression::Binary {
@@ -91,8 +94,9 @@ impl WalkState<'_, '_> {
                 operator: dir::BinaryOperator::Or,
                 right,
             } if branch == ConditionBranch::False => {
-                self.narrow_expression(*left, branch)?;
-                self.narrow_expression(*right, branch)?;
+                let (left, right) = (*left, *right);
+                self.narrow_expression(left, branch)?;
+                self.narrow_expression(right, branch)?;
             }
             // left === right
             dir::Expression::Binary {
@@ -100,13 +104,14 @@ impl WalkState<'_, '_> {
                 operator,
                 right,
             } if operator.is_equality() => {
+                let (left, right) = (*left, *right);
                 let branch = if operator.is_negative_equality() {
                     branch.opposite()
                 } else {
                     branch
                 };
-                self.narrow_by_equality(*left, *right, branch)?;
-                self.narrow_by_equality(*right, *left, branch)?;
+                self.narrow_by_equality(left, right, branch)?;
+                self.narrow_by_equality(right, left, branch)?;
             }
             // key in value
             dir::Expression::Binary {
@@ -114,15 +119,18 @@ impl WalkState<'_, '_> {
                 operator: dir::BinaryOperator::In,
                 right,
             } => {
-                self.narrow_by_key_membership(*left, *right, branch)?;
+                let (left, right) = (*left, *right);
+                self.narrow_by_key_membership(left, right, branch)?;
             }
             // value is T
             dir::Expression::Is { value, target_type } => {
-                self.narrow_by_is(*value, *target_type, branch)?;
+                let (value, target_type) = (*value, *target_type);
+                self.narrow_by_is(value, target_type, branch)?;
             }
             // value instanceof Target
             dir::Expression::InstanceOf { value, target } => {
-                self.narrow_by_instance(*value, *target, branch)?;
+                let (value, target) = (*value, *target);
+                self.narrow_by_instance(value, target, branch)?;
             }
             // expressions without flow effects
             _ => {}
@@ -146,19 +154,14 @@ impl WalkState<'_, '_> {
         let Some(path) = self.flow_path(value) else {
             return Ok(());
         };
-        let target = self.node_type_operand(target_type)?;
-        let source = self.node_type_operand(value)?;
+        let target = self.walk_type_expression(target_type)?;
+        let source = self.node_type(value)?;
+        let predicate = match branch {
+            ConditionBranch::True => NarrowPredicate::Is(target),
+            ConditionBranch::False => NarrowPredicate::IsNot(target),
+        };
 
-        match branch {
-            ConditionBranch::True => {
-                self.narrow_flow_path_by(path, source, NarrowPredicate::Is(target));
-            }
-            ConditionBranch::False => {
-                self.narrow_flow_path_by(path, source, NarrowPredicate::IsNot(target));
-            }
-        }
-
-        Ok(())
+        self.narrow_flow_path_by(path, source, value.into_any(), predicate)
     }
 
     /// Narrow flow from one `"key" in value` expression.
@@ -182,10 +185,9 @@ impl WalkState<'_, '_> {
         let Some(key) = self.tree.get(key).static_key() else {
             return Ok(());
         };
-        let source = self.expression_type_operand(value)?;
-        self.narrow_flow_path_by(path, source, NarrowPredicate::HasKey(key));
+        let source = self.expression_type(value)?;
 
-        Ok(())
+        self.narrow_flow_path_by(path, source, value.into_any(), NarrowPredicate::HasKey(key))
     }
 
     /// Narrow flow from one `value instanceof Target` expression.
@@ -203,19 +205,14 @@ impl WalkState<'_, '_> {
         let Some(path) = self.flow_path(value) else {
             return Ok(());
         };
-        let target = self.node_type_operand(target)?;
-        let source = self.node_type_operand(value)?;
+        let target = self.node_type(target)?;
+        let source = self.node_type(value)?;
+        let predicate = match branch {
+            ConditionBranch::True => NarrowPredicate::Is(target),
+            ConditionBranch::False => NarrowPredicate::IsNot(target),
+        };
 
-        match branch {
-            ConditionBranch::True => {
-                self.narrow_flow_path_by(path, source, NarrowPredicate::Is(target));
-            }
-            ConditionBranch::False => {
-                self.narrow_flow_path_by(path, source, NarrowPredicate::IsNot(target));
-            }
-        }
-
-        Ok(())
+        self.narrow_flow_path_by(path, source, value.into_any(), predicate)
     }
 
     /// Narrow flow from one equality expression.
@@ -233,16 +230,16 @@ impl WalkState<'_, '_> {
         let Some(path) = self.flow_path(value) else {
             return Ok(());
         };
-        let Some(target) = self.equality_target_type(target) else {
+        let Some(target) = self.equality_target_type(target)? else {
             return Ok(());
         };
 
-        let source = self.node_type_operand(value)?;
+        let source = self.node_type(value)?;
         let predicate = match branch {
             ConditionBranch::True => NarrowPredicate::Is(target),
             ConditionBranch::False => NarrowPredicate::IsNot(target),
         };
-        self.narrow_flow_path_by(path, source, predicate);
+        self.narrow_flow_path_by(path, source, value.into_any(), predicate)?;
         self.narrow_parent_by_member_predicate(value, predicate)?;
 
         Ok(())
@@ -271,10 +268,8 @@ impl WalkState<'_, '_> {
         };
 
         // narrow base with a structural member predicate
-        let source = self.expression_type_operand(base)?;
-        self.narrow_base_flow_path_by_member(base_path, source, key, predicate);
-
-        Ok(())
+        let source = self.expression_type(base)?;
+        self.narrow_base_flow_path_by_member(base_path, source, base.into_any(), key, predicate)
     }
 
     /// Return the base expression for one member path expression.
@@ -295,6 +290,7 @@ impl WalkState<'_, '_> {
     }
 
     /// Return the literal type used by one equality test.
+    /// Nullish targets use the canonical nullish types.
     ///
     /// Example:
     /// ```ds
@@ -303,28 +299,16 @@ impl WalkState<'_, '_> {
     fn equality_target_type(
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<TypeOperand> {
-        let literal = match self.tree.get(id) {
-            // literal
-            dir::Expression::ScalarLiteral(value) => value,
-            // not a literal equality target
-            _ => return None,
-        };
-        let term = self.equality_literal_target(literal);
-
-        let term = self.check.inference.push_term(term);
-
-        Some(term.into())
-    }
-
-    /// Return the target type used by one literal equality test.
-    fn equality_literal_target(&mut self, literal: &dir::ScalarLiteral) -> TypeTerm {
-        match literal {
-            // nullish equality uses canonical nullish types
-            dir::ScalarLiteral::Null => TypeTerm::Literal(TypeLiteralTerm::Null),
-            dir::ScalarLiteral::Undefined => TypeTerm::Literal(TypeLiteralTerm::Undefined),
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let ty = match self.tree.get(id) {
+            dir::Expression::ScalarLiteral(dir::ScalarLiteral::Null) => dir::Type::Null,
+            dir::Expression::ScalarLiteral(dir::ScalarLiteral::Undefined) => dir::Type::Undefined,
             // other scalar equality keeps the literal exact
-            literal => TypeTerm::Literal(TypeLiteralTerm::Scalar(literal.clone())),
-        }
+            dir::Expression::ScalarLiteral(value) => dir::Type::Literal(*value),
+            // not a literal equality target
+            _ => return Ok(None),
+        };
+
+        Ok(Some(self.push_type(ty, id.into_any())?))
     }
 }

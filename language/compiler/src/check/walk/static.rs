@@ -1,12 +1,10 @@
 use std::ptr::NonNull;
 
-use crate::CompilerResult;
-use crate::check::{
-    Condition, ConditionPredicate, FlowState, NameLookup, Origin, Receiver, StaticIfCondition,
-    StaticOperand, StaticTerm, WalkState,
-};
-use crate::common::dir::r#static::{StaticContext, StaticFailure};
 use destack_dir as dir;
+
+use crate::CompilerResult;
+use crate::check::{Condition, FlowState, NameLookup, NameTarget, StaticIfCondition, WalkState};
+use crate::common::dir::r#static::{StaticContext, StaticFailure, StaticValue};
 
 /// One active static guard scope.
 pub(in crate::check) struct StaticGuard {
@@ -32,8 +30,19 @@ impl Drop for StaticGuard {
     }
 }
 
+/// One walk-time guard evaluation outcome.
+pub(in crate::check) enum GuardOutcome {
+    /// The guard decided statically false: the node is absent.
+    Absent,
+    /// The guard holds under the collected condition.
+    Present(Condition),
+}
+
 impl WalkState<'_, '_> {
     /// Evaluate the static guard attached to one decorated node.
+    ///
+    /// Profile-level conditions decide eagerly; everything else lowers
+    /// to predicate types that the solver decides or assumes.
     ///
     /// Example:
     /// ```ds
@@ -43,8 +52,7 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn static_guard_condition(
         &mut self,
         decorated: dir::LocalNodeIdAny,
-        receiver: Option<Receiver>,
-    ) -> CompilerResult<Condition> {
+    ) -> CompilerResult<GuardOutcome> {
         let invocations = self.check.decorator_invocations(self.module, decorated);
         let mut condition = Condition::Always;
 
@@ -58,20 +66,19 @@ impl WalkState<'_, '_> {
                     self.check
                         .report_invalid_static_guard(self.module, decorator.condition_anchor());
 
-                    return Ok(Condition::Never);
+                    return Ok(GuardOutcome::Absent);
                 };
-                let next = self.evaluate_static_guard(receiver, condition_expression)?;
 
-                condition = condition.and(next);
-                if condition.is_never() {
-                    return Ok(Condition::Never);
+                match self.evaluate_static_guard(condition_expression)? {
+                    GuardOutcome::Absent => return Ok(GuardOutcome::Absent),
+                    GuardOutcome::Present(next) => condition = condition.and(next),
                 }
             } else {
                 self.walk_decorator(invocation.decorator)?;
             }
         }
 
-        Ok(condition)
+        Ok(GuardOutcome::Present(condition))
     }
 
     /// Enter one already evaluated static guard.
@@ -82,6 +89,8 @@ impl WalkState<'_, '_> {
     }
 
     /// Enter the static guard attached to one decorated node.
+    /// Returns none when the guard decided statically false and the
+    /// declaration must not be walked.
     ///
     /// Example:
     /// ```ds
@@ -91,34 +100,72 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn enter_decorated_static_guard(
         &mut self,
         decorated: dir::LocalNodeIdAny,
-        receiver: Option<Receiver>,
     ) -> CompilerResult<Option<StaticGuard>> {
-        let decorated_condition = self.static_guard_condition(decorated, receiver)?;
-        let condition = self.active_static_guard().and(decorated_condition.clone());
+        let outcome = self.static_guard_condition(decorated)?;
+        let symbol = self.check.module(self.module).declaration_symbol(decorated);
 
-        // store symbol availability after combining guards
-        if let Some(symbol) = self.check.module(self.module).declaration_symbol(decorated) {
-            self.check
-                .module_mut(self.module)
-                .availability
-                .insert(symbol, condition.clone());
-        }
+        match outcome {
+            // record absent declarations so name lookup drops them
+            GuardOutcome::Absent => {
+                if let Some(symbol) = symbol {
+                    self.check
+                        .module_mut(self.module)
+                        .unavailable
+                        .insert(symbol);
+                }
 
-        // skip unreachable declarations
-        if condition.is_never() {
-            Ok(None)
-        }
-        // enter conditional declarations
-        else {
-            self.flow_mut().push_static_guard(decorated_condition);
+                Ok(None)
+            }
+            GuardOutcome::Present(condition) => {
+                // store availability after combining enclosing guards
+                let combined = self.active_static_guard().and(condition.clone());
+                if let Some(symbol) = symbol {
+                    if combined != Condition::Always {
+                        self.check
+                            .module_mut(self.module)
+                            .availability
+                            .insert(symbol, combined);
+                    }
+                }
 
-            Ok(Some(StaticGuard::new(self.flow_mut())))
+                self.flow_mut().push_static_guard(condition);
+
+                Ok(Some(StaticGuard::new(self.flow_mut())))
+            }
         }
     }
 
     /// Return the active static guard.
     pub(in crate::check) fn active_static_guard(&self) -> Condition {
         self.flow().active_static_guard()
+    }
+
+    /// Return the active guard as one stored member condition.
+    /// Nested guards conjoin into a single predicate written form.
+    pub(in crate::check) fn member_condition(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let predicates = self.guard_predicates();
+
+        match predicates.as_slice() {
+            [] => Ok(None),
+            [single] => Ok(Some(*single)),
+            // conjoin nested guard predicates into one and-chain
+            [first, rest @ ..] => {
+                let mut joined = *first;
+                for predicate in rest.iter().copied() {
+                    let operation = dir::TypeOperation::StaticBinary(dir::StaticBinaryType {
+                        operator: dir::StaticBinaryOperator::And,
+                        left: joined,
+                        right: predicate,
+                    });
+                    joined = self.push_type(dir::Type::Operation(operation), source)?;
+                }
+
+                Ok(Some(joined))
+            }
+        }
     }
 
     /// Evaluate one static guard expression.
@@ -129,510 +176,206 @@ impl WalkState<'_, '_> {
     /// ```
     fn evaluate_static_guard(
         &mut self,
-        receiver: Option<Receiver>,
         condition: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Condition> {
+    ) -> CompilerResult<GuardOutcome> {
         let module = self.module;
-        let condition_node = condition;
 
-        let _receiver = self.enter_receiver_maybe(receiver);
-        let input = self.check.module(module);
-        let context = StaticContext::new(
-            input.view(),
-            input.module.as_ref(),
-            &input.profile,
-            &input.profile.conditions,
-            &input.strings,
-        );
-        let evaluated = context.evaluate_boolean(condition_node);
+        // decide profile-level conditions eagerly
+        let evaluated = {
+            let input = self.check.module(module);
+            let context = StaticContext::new(
+                input.view(),
+                input.module.as_ref(),
+                &input.profile,
+                &input.profile.conditions,
+                &input.strings,
+            );
+
+            context.evaluate_boolean(condition)
+        };
 
         match evaluated {
-            Ok(true) => Ok(Condition::Always),
-            Ok(false) => Ok(Condition::Never),
+            Ok(true) => Ok(GuardOutcome::Present(Condition::Always)),
+            Ok(false) => Ok(GuardOutcome::Absent),
             Err(StaticFailure::NotBoolean(expression)) => {
                 self.check
                     .report_invalid_static_guard(module, expression.into_any());
 
-                Ok(Condition::Never)
+                Ok(GuardOutcome::Absent)
             }
-            Err(StaticFailure::NotStatic(expression)) => {
-                let condition_guard = self.active_static_guard();
-                let variable = self.static_expression_operand(condition_node, condition_guard)?;
+            // open conditions lower to predicate types for the solver
+            Err(StaticFailure::NotStatic(_)) => {
+                let predicate = self.lower_static_predicate(condition)?;
 
-                // walk static guard leaves without runtime condition constraints
-                self.walk_static_expression(expression)?;
-
-                Ok(Condition::When {
-                    conditions: smallvec::smallvec![ConditionPredicate {
-                        origin: Origin::Node(condition_node.into_global_any(module)),
-                        operand: variable.into(),
-                    }],
-                })
+                Ok(GuardOutcome::Present(Condition::When(smallvec::smallvec![
+                    predicate
+                ])))
             }
         }
     }
 
-    /// Walk leaves needed by one static expression.
+    /// Lower one static guard expression to a predicate type.
     ///
     /// Example:
     /// ```ds
-    /// this.Place == local
+    /// Mode == "inline"
     /// ```
-    pub(in crate::check) fn walk_static_expression(
+    pub(in crate::check) fn lower_static_predicate(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let source = expression.into_any();
+
+        // embed eagerly evaluable subtrees as literals, covering profile
+        // and module metadata like import.meta inside mixed guards
+        let evaluated = {
+            let input = self.check.module(self.module);
+            let context = StaticContext::new(
+                input.view(),
+                input.module.as_ref(),
+                &input.profile,
+                &input.profile.conditions,
+                &input.strings,
+            );
+
+            context.evaluate_expression(expression).ok()
+        };
+        if let Some(value) = evaluated {
+            if let Some(literal) = self.static_value_literal(value) {
+                return self.push_type(dir::Type::Literal(literal), source);
+            }
+        }
+
         match self.tree.get(expression) {
             // (C)
             dir::Expression::Parenthesized { expression } => {
-                self.walk_static_expression(*expression)?;
+                let expression = *expression;
+
+                self.lower_static_predicate(expression)
             }
-            // this
-            dir::Expression::This => {
-                let source = expression.into_global_any(self.module);
-                if let Some(term) = self.this_receiver_type_term(source)? {
-                    self.constrain_node_type_term(expression, term)?;
+            // 1
+            dir::Expression::ScalarLiteral(value) => {
+                let value = *value;
+
+                self.push_type(dir::Type::Literal(value), source)
+            }
+            // this carries the instantiated receiver form
+            dir::Expression::This => self.push_type(dir::Type::This, source),
+            // names reference comptime parameters and static constants
+            dir::Expression::Identifier { name } => {
+                let name = *name;
+                let lookup =
+                    self.check
+                        .lookup_name(self.module, source, name, dir::SymbolSpace::Value);
+                let symbol = match lookup {
+                    NameLookup::Found(candidate) => match candidate.target {
+                        NameTarget::Symbol(symbol) => Some(symbol),
+                        NameTarget::Namespace(_) => None,
+                    },
+                    NameLookup::Missing | NameLookup::Ambiguous(_) => None,
+                };
+                let Some(symbol) = symbol else {
+                    self.check.report_invalid_static_guard(self.module, source);
+
+                    return self.push_type(
+                        dir::Type::Literal(dir::ScalarLiteral::Boolean(false)),
+                        source,
+                    );
+                };
+
+                // comptime parameters write their parameter type so
+                // instantiation substitution reaches the predicate
+                if let Some(parameter) = self.check.generics.parameter_by_symbol(symbol) {
+                    return self.push_type(dir::Type::Parameter(parameter), source);
                 }
+
+                let reference = dir::Type::Reference(dir::GenericInstance {
+                    symbol,
+                    arguments: Vec::new(),
+                });
+
+                self.push_type(reference, source)
             }
-            // this.X
-            dir::Expression::Member { left, .. } | dir::Expression::PrivateMember { left, .. } => {
-                self.walk_static_expression(*left)?;
-            }
-            // C && D, C == D
-            dir::Expression::Binary { left, right, .. } => {
-                self.walk_static_expression(*left)?;
-                self.walk_static_expression(*right)?;
+            // C == D, N * 2
+            dir::Expression::Binary {
+                left,
+                operator,
+                right,
+            } => {
+                let (operator, left, right) = (*operator, *left, *right);
+                let Ok(operator) = dir::StaticBinaryOperator::try_from(operator) else {
+                    self.check.report_invalid_static_guard(self.module, source);
+
+                    return self.push_type(
+                        dir::Type::Literal(dir::ScalarLiteral::Boolean(false)),
+                        source,
+                    );
+                };
+                let left = self.lower_static_predicate(left)?;
+                let right = self.lower_static_predicate(right)?;
+                let operation = dir::TypeOperation::StaticBinary(dir::StaticBinaryType {
+                    operator,
+                    left,
+                    right,
+                });
+
+                self.push_type(dir::Type::Operation(operation), source)
             }
             // !C
-            dir::Expression::Unary { right, .. } => {
-                self.walk_static_expression(*right)?;
-            }
-            // <T extends U>
-            dir::Expression::Type { value } => {
-                self.walk_static_type_expression(*value)?;
-            }
-            // C[I]
-            dir::Expression::Index { left, index, .. } => {
-                self.walk_static_expression(*left)?;
-                if let Some(index) = index {
-                    self.walk_static_expression(*index)?;
-                }
-            }
-            // literal or non static leaf
-            _ => {}
-        }
+            dir::Expression::Unary { operator, right } => {
+                let (operator, target) = (*operator, *right);
+                let Ok(operator) = dir::StaticUnaryOperator::try_from(operator) else {
+                    self.check.report_invalid_static_guard(self.module, source);
 
-        Ok(())
-    }
-
-    /// Walk leaves needed by a type-space static expression.
-    ///
-    /// Example:
-    /// ```ds
-    /// T extends Borrowed
-    /// ```
-    pub(in crate::check) fn walk_static_type_expression(
-        &mut self,
-        expression: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> CompilerResult<()> {
-        match self.tree.get(expression) {
-            // (T)
-            dir::TypeExpression::Parenthesized { expression } => {
-                self.walk_static_type_expression(*expression)?;
-            }
-            // T extends U
-            dir::TypeExpression::Extends { left, right }
-            | dir::TypeExpression::Implements { left, right } => {
-                self.walk_type_expression(*left, self.tree.get(*left))?;
-                self.walk_type_expression(*right, self.tree.get(*right))?;
-            }
-            // T extends U ? X : Y
-            dir::TypeExpression::Conditional {
-                left: _,
-                extends_type: _,
-                then_type: _,
-                else_type: _,
-            } => {
-                self.walk_type_expression(expression, self.tree.get(expression))?;
-            }
-            // other type expressions are walked normally when directly needed
-            _ => self.walk_type_expression(expression, self.tree.get(expression))?,
-        }
-
-        Ok(())
-    }
-
-    /// Walk one static expression and return its operand.
-    ///
-    /// Example:
-    /// ```ds
-    /// <Size + 1>
-    /// ```
-    pub(in crate::check) fn walk_static_expression_operand(
-        &mut self,
-        expression: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<StaticOperand> {
-        // walk static leaves without keeping expression flow changes
-        let before_expression = self.fork_flow();
-        self.walk_static_expression(expression)?;
-        self.restore_flow(before_expression);
-
-        // return the argument local static variable
-        let condition = self.active_static_guard();
-        let variable = self.static_expression_operand(expression, condition)?;
-
-        Ok(variable.into())
-    }
-
-    /// Return one node-backed static operand from a type-space static argument.
-    ///
-    /// Example:
-    /// ```ds
-    /// <Size>
-    /// ```
-    pub(in crate::check) fn static_argument_operand(
-        &mut self,
-        id: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> CompilerResult<StaticOperand> {
-        let module = self.module;
-        let source = id.into_global_any(module);
-        let origin = Origin::Node(source);
-        if let Some(operand) = self.check.inputs.node_static(source) {
-            return Ok(operand);
-        }
-        let variable = self.check.push_static_variable(module, origin);
-
-        if let Some(operand) = self.static_argument_value_operand(id)? {
-            let condition = self.active_static_guard();
-            self.check
-                .equate_static(origin, variable, operand, condition);
-        }
-        self.check
-            .inputs
-            .insert_node_static(source, variable.into())?;
-
-        Ok(variable.into())
-    }
-
-    /// Return one static value interpretation of a type-space argument.
-    ///
-    /// Example:
-    /// ```ds
-    /// <{ a: 2, b: [1, 2, 3] }>
-    /// ```
-    pub(in crate::check) fn static_argument_value_operand(
-        &mut self,
-        id: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> CompilerResult<Option<StaticOperand>> {
-        let term = match self.tree.get(id) {
-            // <(C)>
-            dir::TypeExpression::Parenthesized { expression } => {
-                return self.static_argument_value_operand(*expression);
-            }
-            // <1>
-            dir::TypeExpression::ScalarLiteral { value } => {
-                StaticTerm::Literal(dir::StaticTerm::ScalarLiteral {
-                    value: value.clone(),
-                })
-            }
-            // <"name">
-            dir::TypeExpression::Literal { value } => {
-                StaticTerm::Literal(dir::StaticTerm::TypeLiteral {
-                    value: value.clone(),
-                })
-            }
-            // <{ name: "value" }>
-            dir::TypeExpression::Object { members } => {
-                let Some(term) = self.static_object_argument_term(members)? else {
-                    return Ok(None);
+                    return self.push_type(
+                        dir::Type::Literal(dir::ScalarLiteral::Boolean(false)),
+                        source,
+                    );
                 };
+                let target = self.lower_static_predicate(target)?;
+                let operation =
+                    dir::TypeOperation::StaticUnary(dir::StaticUnaryType { operator, target });
 
-                term
+                self.push_type(dir::Type::Operation(operation), source)
             }
-            // <[1, 2]>
-            dir::TypeExpression::Tuple { elements } => {
-                let Some(term) = self.static_tuple_argument_term(elements)? else {
-                    return Ok(None);
-                };
-
-                term
-            }
-            // <L | R>
-            dir::TypeExpression::Union { elements } => StaticTerm::Union {
-                elements: {
-                    let mut operands = Vec::with_capacity(elements.len());
-
-                    // collect union operands
-                    for element in elements {
-                        operands.push(self.static_argument_operand(*element)?);
-                    }
-
-                    operands
-                },
-            },
-            // <readonly [1, 2]>
-            dir::TypeExpression::ArrayTuple { elements } => {
-                let Some(term) = self.static_tuple_argument_term(elements)? else {
-                    return Ok(None);
-                };
-
-                term
-            }
-            // <C>
-            dir::TypeExpression::Reference {
-                path,
-                generic_arguments,
-            } => {
-                return self.static_reference_argument_operand(id, path, generic_arguments);
-            }
-            // <T.Value>
-            dir::TypeExpression::Member {
+            // member chains project static members off their owners
+            dir::Expression::Member {
                 left,
-                name,
-                generic_arguments,
+                name: Some(name),
             } => {
-                let arguments = self.walk_generic_arguments(generic_arguments)?;
+                let (left, name) = (*left, *name);
+                let owner = self.lower_static_predicate(left)?;
+                let member = dir::Type::Member(dir::MemberType {
+                    owner,
+                    key: dir::StaticKey::Name(name),
+                    arguments: Vec::new(),
+                });
 
-                StaticTerm::Member {
-                    source: id.into_global_any(self.module),
-                    owner: self.node_type_operand(*left)?,
-                    key: dir::StaticKey::Name(*name),
-                    arguments,
-                }
+                self.push_type(member, source)
             }
-            // not static value syntax
-            _ => return Ok(None),
-        };
+            _ => {
+                self.check.report_invalid_static_guard(self.module, source);
 
-        Ok(Some(self.check.inference.push_term(term).into()))
+                self.push_type(
+                    dir::Type::Literal(dir::ScalarLiteral::Boolean(false)),
+                    source,
+                )
+            }
+        }
     }
 
-    /// Return one static reference argument operand.
-    ///
-    /// Example:
-    /// ```ds
-    /// <LifetimeOf<T>>
-    /// ```
-    fn static_reference_argument_operand(
-        &mut self,
-        id: dir::LocalNodeId<dir::TypeExpression>,
-        path: &dir::Path,
-        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-    ) -> CompilerResult<Option<StaticOperand>> {
-        let [name] = path.segments.as_slice() else {
-            return Ok(None);
-        };
+    /// Return one eagerly evaluated static value as a scalar literal.
+    fn static_value_literal(&mut self, value: StaticValue) -> Option<dir::ScalarLiteral> {
+        match value {
+            StaticValue::Boolean(value) => Some(dir::ScalarLiteral::Boolean(value)),
+            StaticValue::String(value) => {
+                let id = self.check.module_mut(self.module).strings.intern(&value);
 
-        // use bare static parameter
-        let term = if generic_arguments.is_empty()
-            && let Some(operand) = self.static_parameter_argument_operand(id, *name)?
-        {
-            operand
-        }
-        // build static memory intrinsic
-        else if let Some(term) =
-            self.static_intrinsic_argument_term(id, *name, generic_arguments)?
-        {
-            self.check.inference.push_term(term).into()
-        }
-        // not a static reference argument
-        else {
-            return Ok(None);
-        };
-
-        Ok(Some(term))
-    }
-
-    /// Return one static parameter argument operand.
-    ///
-    /// Example:
-    /// ```ds
-    /// <Size>
-    /// ```
-    fn static_parameter_argument_operand(
-        &mut self,
-        id: dir::LocalNodeId<dir::TypeExpression>,
-        name: dir::StringId,
-    ) -> CompilerResult<Option<StaticOperand>> {
-        let guard = self.active_static_guard();
-        let lookup = self
-            .check
-            .lookup_name_by_name(self.module, id.into_any(), name, dir::SymbolSpace::Value)
-            .available_under(&guard);
-        let symbol = match lookup {
-            NameLookup::Found(candidate) => {
-                let Some(symbol) = candidate.symbol() else {
-                    return Ok(None);
-                };
-
-                symbol
+                Some(dir::ScalarLiteral::String(id))
             }
-            NameLookup::Missing => return Ok(None),
-            NameLookup::Ambiguous(_) => {
-                let path = dir::Path {
-                    segments: smallvec::smallvec![name],
-                };
-                self.check
-                    .report_ambiguous_reference(self.module, id.into_any(), &path);
-
-                return Ok(None);
-            }
-        };
-
-        if self.check.symbol_kind(symbol) != dir::SymbolKind::GenericValueParameter {
-            return Ok(None);
+            StaticValue::Scalar(value) => Some(value),
+            StaticValue::Undefined => Some(dir::ScalarLiteral::Undefined),
+            StaticValue::Object | StaticValue::StringList(_) => None,
         }
-
-        let operand = self.check.symbol_static_operand(self.module, symbol)?;
-
-        Ok(Some(operand))
-    }
-
-    /// Return one static intrinsic argument term.
-    ///
-    /// Example:
-    /// ```ds
-    /// <LifetimeOf<T>>
-    /// ```
-    fn static_intrinsic_argument_term(
-        &mut self,
-        id: dir::LocalNodeId<dir::TypeExpression>,
-        name: dir::StringId,
-        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-    ) -> CompilerResult<Option<StaticTerm>> {
-        let guard = self.active_static_guard();
-        let lookup = self
-            .check
-            .lookup_name_by_name(self.module, id.into_any(), name, dir::SymbolSpace::Type)
-            .available_under(&guard);
-        let symbol = match lookup {
-            NameLookup::Found(candidate) => {
-                let Some(symbol) = candidate.symbol() else {
-                    return Ok(None);
-                };
-
-                symbol
-            }
-            NameLookup::Missing => return Ok(None),
-            NameLookup::Ambiguous(_) => {
-                let path = dir::Path {
-                    segments: smallvec::smallvec![name],
-                };
-                self.check
-                    .report_ambiguous_reference(self.module, id.into_any(), &path);
-
-                return Ok(None);
-            }
-        };
-        let Some(item) = self.check.environment.language.item(symbol) else {
-            return Ok(None);
-        };
-
-        if !Self::is_memory_static_intrinsic(item) {
-            return Ok(None);
-        }
-
-        let arguments = self.walk_generic_arguments(generic_arguments)?;
-
-        Ok(Some(StaticTerm::Intrinsic { item, arguments }))
-    }
-
-    /// Return one static object value from type-space object syntax.
-    ///
-    /// Example:
-    /// ```ds
-    /// { a: 2, b: [1, 2, 3] }
-    /// ```
-    fn static_object_argument_term(
-        &mut self,
-        members: &[dir::LocalNodeId<dir::TypeMember>],
-    ) -> CompilerResult<Option<StaticTerm>> {
-        let mut properties = Vec::with_capacity(members.len());
-
-        for member in members {
-            match self.tree.get(*member) {
-                // <{ key: value }>
-                dir::TypeMember::Field {
-                    key,
-                    declared_type: Some(value),
-                    is_static: false,
-                    is_optional: false,
-                    ..
-                } => {
-                    let Some(key) = key.static_key(&self.tree) else {
-                        return Ok(None);
-                    };
-                    let Some(operand) = self.static_argument_value_operand(*value)? else {
-                        return Ok(None);
-                    };
-                    let Some(operand) = self.check.resolved_static_operand(operand) else {
-                        return Ok(None);
-                    };
-                    let value = match operand {
-                        StaticOperand::Term(term) => match self.check.inference.term(term) {
-                            StaticTerm::Literal(value) => value.clone(),
-                            _ => return Ok(None),
-                        },
-                        StaticOperand::Static(value) => self.check.r#static(value).clone(),
-                        StaticOperand::Variable(_) => return Ok(None),
-                    };
-
-                    properties.push(dir::StaticProperty::Field { key, value });
-                }
-                // not static object member syntax
-                _ => return Ok(None),
-            }
-        }
-
-        Ok(Some(StaticTerm::Literal(dir::StaticTerm::Object {
-            properties,
-        })))
-    }
-
-    /// Return one static tuple value from type-space tuple syntax.
-    ///
-    /// Example:
-    /// ```ds
-    /// [1, 2, 3]
-    /// ```
-    fn static_tuple_argument_term(
-        &mut self,
-        elements: &[dir::LocalNodeId<dir::TupleElement>],
-    ) -> CompilerResult<Option<StaticTerm>> {
-        let mut values = Vec::with_capacity(elements.len());
-
-        for element in elements {
-            match self.tree.get(*element) {
-                // <[value]>
-                dir::TupleElement::Element {
-                    value,
-                    is_optional: false,
-                    ..
-                } => {
-                    let Some(operand) = self.static_argument_value_operand(*value)? else {
-                        return Ok(None);
-                    };
-                    let Some(operand) = self.check.resolved_static_operand(operand) else {
-                        return Ok(None);
-                    };
-                    let value = match operand {
-                        StaticOperand::Term(term) => match self.check.inference.term(term) {
-                            StaticTerm::Literal(value) => value.clone(),
-                            _ => return Ok(None),
-                        },
-                        StaticOperand::Static(value) => self.check.r#static(value).clone(),
-                        StaticOperand::Variable(_) => return Ok(None),
-                    };
-
-                    values.push(value);
-                }
-                // not static tuple element syntax
-                _ => return Ok(None),
-            }
-        }
-
-        Ok(Some(StaticTerm::Literal(dir::StaticTerm::Tuple {
-            elements: values,
-        })))
     }
 }

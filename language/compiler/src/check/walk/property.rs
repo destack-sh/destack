@@ -1,11 +1,10 @@
 use destack_dir as dir;
-use destack_source::ModuleId;
 use std::ptr::NonNull;
 
 use crate::CompilerResult;
 use crate::check::{
     FlowState, GenericInductionDeclaration, GenericInductionPosition, Origin, Receiver,
-    ReceiverBinding, TypeOperand, TypeRelation, TypeTerm, WalkState,
+    ReceiverBinding, Relation, WalkState,
 };
 
 /// One active receiver scope.
@@ -56,7 +55,25 @@ impl WalkState<'_, '_> {
         }
     }
 
-    /// Walk one property.
+    /// Walk one literal's properties and return its direct fields.
+    /// Returns whether any spread property defers the literal's shape
+    /// to selection.
+    pub(in crate::check) fn walk_literal_properties(
+        &mut self,
+        properties: &[dir::LocalNodeId<dir::Property>],
+    ) -> CompilerResult<(Vec<dir::TypeField>, bool)> {
+        let mut fields = Vec::new();
+        let mut has_spread = false;
+        for property in properties {
+            has_spread |= matches!(self.tree.get(*property), dir::Property::Spread { .. });
+            fields.extend(self.walk_property(*property, self.tree.get(*property))?);
+        }
+
+        Ok((fields, has_spread))
+    }
+
+    /// Walk one object literal property and return its shape field.
+    /// Spread and computed properties contribute no direct field.
     ///
     /// Example:
     /// ```ds
@@ -66,20 +83,32 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::Property>,
         property: &dir::Property,
-    ) -> CompilerResult<()> {
-        let Some(_guard) = self.enter_decorated_static_guard(id.into_any(), None)? else {
-            return Ok(());
+    ) -> CompilerResult<Option<dir::TypeField>> {
+        let Some(_guard) = self.enter_decorated_static_guard(id.into_any())? else {
+            return Ok(None);
         };
 
         match property {
             // { key: value }
             dir::Property::Field { key, value, .. } => {
+                let (key, value) = (*key, *value);
+
                 // compute runtime property key
                 if let dir::Key::Expression(key) = key {
-                    self.walk_expression(*key, self.tree.get(*key))?;
+                    self.walk_expression(key, self.tree.get(key))?;
                 }
+                self.walk_expression(value, self.tree.get(value))?;
 
-                self.walk_expression(*value, self.tree.get(*value))?;
+                let Some(key) = key.direct_static_key() else {
+                    return Ok(None);
+                };
+
+                Ok(Some(dir::TypeField {
+                    key,
+                    ty: self.node_type(value)?,
+                    is_optional: false,
+                    is_readonly: false,
+                }))
             }
             // { method() {} }
             dir::Property::Method {
@@ -87,11 +116,11 @@ impl WalkState<'_, '_> {
                 signature,
                 body,
             } => {
-                if let Some(key) = key {
+                let (key, body) = (*key, *body);
+
+                if let Some(dir::Key::Expression(key)) = key {
                     // compute runtime property key
-                    if let dir::Key::Expression(key) = key {
-                        self.walk_expression(*key, self.tree.get(*key))?;
-                    }
+                    self.walk_expression(key, self.tree.get(key))?;
                 }
 
                 let symbol = self
@@ -99,42 +128,48 @@ impl WalkState<'_, '_> {
                     .module(self.module)
                     .declaration_symbol(id.into_any());
 
-                // walk signature before reading its term inputs
+                // walk signature before reading its inputs
                 let source = id.into_global_any(self.module);
-                let template = self.signature_template(source, None, symbol, signature)?;
+                let template = self.signature_template(source, None, symbol, &signature)?;
                 self.walk_function_signature(template, signature)?;
-                let result =
-                    self.function_result_operand(self.module, id.into_any(), signature, *body)?;
+                let result = self.function_result_type(id.into_any(), signature, body)?;
 
-                // constrain method property symbol type
+                // write the method's function type
+                let method =
+                    self.function_signature_type(id.into_any(), signature, template, None, result)?;
                 if let Some(symbol) = symbol {
-                    let term = self.function_signature_term(
-                        signature,
-                        template,
-                        None,
-                        result.map(Into::into),
-                    )?;
-                    let condition = self.active_static_guard();
-                    self.constrain_symbol_type_term(symbol, TypeTerm::Function(term), condition)?;
+                    self.declare_symbol_type(symbol, method)?;
                 }
 
-                // walk method body after its result operand exists
+                // walk method body after its result exists
                 if let (Some(symbol), Some(body), Some(result)) = (symbol, body, result) {
-                    self.walk_function_body(symbol, signature, *body, result, None)?;
+                    self.walk_function_body(symbol, signature, body, result, None)?;
                 }
+
+                let Some(key) = key.and_then(dir::Key::direct_static_key) else {
+                    return Ok(None);
+                };
+
+                Ok(Some(dir::TypeField {
+                    key,
+                    ty: method,
+                    is_optional: false,
+                    is_readonly: false,
+                }))
             }
             // { ...value }
             dir::Property::Spread { value } => {
-                self.walk_expression(*value, self.tree.get(*value))?;
+                let value = *value;
+                self.walk_expression(value, self.tree.get(value))?;
+
+                Ok(None)
             }
             // ignore damaged syntax
-            dir::Property::Error => {}
-        };
-
-        Ok(())
+            dir::Property::Error => Ok(None),
+        }
     }
 
-    /// Walk one member.
+    /// Walk one declaration member and return its checked row.
     ///
     /// Example:
     /// ```ds
@@ -146,7 +181,7 @@ impl WalkState<'_, '_> {
         member: &dir::Member,
         receiver_scope: Option<Receiver>,
         induction_declaration: Option<GenericInductionDeclaration>,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Option<dir::DefinitionMember>> {
         let member_receiver = match member {
             dir::Member::StaticBlock { .. } | dir::Member::ComptimeBlock { .. } => None,
             dir::Member::Field { .. }
@@ -156,21 +191,23 @@ impl WalkState<'_, '_> {
             dir::Member::Error => None,
         };
 
-        let Some(_guard) = self.enter_decorated_static_guard(id.into_any(), member_receiver)?
-        else {
-            return Ok(());
+        let Some(_guard) = self.enter_decorated_static_guard(id.into_any())? else {
+            return Ok(None);
         };
+        let condition = self.member_condition(id.into_any())?;
         let _receiver = self.enter_receiver_scope(member_receiver);
 
         match member {
             // type Item = T
             dir::Member::AssociatedType {
+                name,
                 generic_parameters,
                 where_clauses,
                 constraint,
                 value,
                 ..
             } => {
+                let (name, constraint, value) = (*name, *constraint, *value);
                 let symbol = self
                     .check
                     .module(self.module)
@@ -185,71 +222,96 @@ impl WalkState<'_, '_> {
 
                 // walk where clauses
                 for where_clause in where_clauses {
-                    self.walk_where_clause(*where_clause, self.tree.get(*where_clause))?;
+                    self.walk_where_clause(*where_clause)?;
                 }
 
-                // walk associated type constraint
-                if let Some(constraint) = constraint {
-                    self.walk_type_expression(*constraint, self.tree.get(*constraint))?;
+                // walk constraint and value
+                let constraint = constraint
+                    .map(|constraint| self.walk_type_expression(constraint))
+                    .transpose()?;
+                let value = value
+                    .map(|value| self.walk_type_expression(value))
+                    .transpose()?;
+
+                // tie the member symbol to its value
+                if let (Some(value), Some(symbol)) = (value, symbol) {
+                    let induction = GenericInductionDeclaration::new(source, parent, Some(symbol));
+                    self.record_type_induction_site(induction, value);
+                    self.declare_symbol_type(symbol, value)?;
                 }
 
-                // walk associated type value
-                if let Some(value) = value {
-                    self.walk_type_expression(*value, self.tree.get(*value))?;
-                }
+                let Some(symbol) = symbol else {
+                    return Ok(None);
+                };
 
-                // constrain associated type value
-                if let Some(value) = value
-                    && let Some(symbol) = symbol
-                {
-                    let value = self.node_type_operand(*value)?;
-                    let condition = self.active_static_guard();
-                    let induction_declaration = GenericInductionDeclaration::new(source, parent, Some(symbol));
-                    self.record_generic_induction_site(induction_declaration, value);
-                    self.constrain_symbol_type(symbol, value, condition)?;
-                }
+                Ok(Some(dir::DefinitionMember::AssociatedType(
+                    dir::AssociatedTypeDefinition {
+                        symbol,
+                        source,
+                        key: dir::StaticKey::Name(name),
+                        constraint,
+                        value,
+                        condition,
+                    },
+                )))
             }
             // const item: T = value
             dir::Member::AssociatedConst {
+                name,
                 declared_type,
                 value,
                 ..
             } => {
+                let (name, declared_type, value) = (*name, *declared_type, *value);
+
                 if value.is_some() && declared_type.is_none() {
-                    self.check.report_missing_type_annotation(self.module, id.into_any());
+                    self.check
+                        .report_missing_type_annotation(self.module, id.into_any());
                 }
 
-                // walk associated const type
-                if let Some(declared_type) = declared_type {
-                    self.walk_type_expression(*declared_type, self.tree.get(*declared_type))?;
-                }
+                // walk the declared type
+                let declared = declared_type
+                    .map(|declared_type| self.walk_type_expression(declared_type))
+                    .transpose()?;
 
-                // walk associated const value
-                if let Some(value) = value {
-                    self.walk_static_expression(*value)?;
-                }
+                // the value is a static written form checked against the type
+                let spelled = value
+                    .map(|value| self.lower_static_predicate(value))
+                    .transpose()?;
 
-                if let Some(symbol) = self
+                let symbol = self
                     .check
                     .module(self.module)
-                    .declaration_symbol(id.into_any())
-                {
-                    // associated const type lives in type space
-                    if let Some(declared_type) = declared_type {
-                        let declared_type = self.node_type_operand(*declared_type)?;
-                        let condition = self.active_static_guard();
-                        self.constrain_symbol_type(symbol, declared_type, condition)?;
-                    }
+                    .declaration_symbol(id.into_any());
+                if let Some(symbol) = symbol {
+                    let ty = match declared {
+                        Some(declared) => declared,
+                        None => self.symbol_type(symbol)?,
+                    };
+                    self.declare_symbol_type(symbol, ty)?;
 
-                    // associated const value lives in static space
-                    if let Some(value) = value {
-                        let condition = self.active_static_guard();
-                        let symbol = self.symbol_static_operand(symbol)?;
-                        let value = self.static_expression_operand(*value, condition.clone())?;
+                    if let Some(spelled) = spelled {
+                        // the written value flows into the declared type
                         let origin = Origin::Node(id.into_global_any(self.module));
-                        self.check.equate_static(origin, symbol, value, condition);
+                        self.relate_type(origin, Relation::Assignable, spelled, ty);
+                        self.declare_symbol_value(symbol, spelled)?;
                     }
                 }
+
+                let (Some(symbol), Some(ty)) = (symbol, declared) else {
+                    return Ok(None);
+                };
+
+                Ok(Some(dir::DefinitionMember::AssociatedConst(
+                    dir::AssociatedConstDefinition {
+                        symbol,
+                        source: id.into_global_any(self.module),
+                        key: dir::StaticKey::Name(name),
+                        ty,
+                        value: None,
+                        condition,
+                    },
+                )))
             }
             // field: T = value
             dir::Member::Field {
@@ -257,160 +319,492 @@ impl WalkState<'_, '_> {
                 declared_type,
                 default,
                 is_optional,
+                is_static,
+                is_abstract,
+                is_override,
                 ..
             } => {
+                let (key, declared_type, default, is_optional, is_static) =
+                    (*key, *declared_type, *default, *is_optional, *is_static);
+                let (is_abstract, is_override) = (*is_abstract, *is_override);
+
                 if declared_type.is_none() {
-                    self.check.report_missing_type_annotation(self.module, id.into_any());
+                    self.check
+                        .report_missing_type_annotation(self.module, id.into_any());
                 }
 
-                // check computed member key in declaration context
+                // check computed member keys in declaration context
                 if let dir::Key::Expression(key) = key {
                     let before_key = self.fork_flow();
-                    self.walk_expression(*key, self.tree.get(*key))?;
+                    self.walk_expression(key, self.tree.get(key))?;
                     self.restore_flow(before_key);
                 }
-
-                if let Some(declared_type) = declared_type {
-                    self.walk_type_expression(*declared_type, self.tree.get(*declared_type))?;
-                }
                 if let Some(default) = default {
-                    // check field default in declaration context
+                    // check field defaults in declaration context
                     let before_default = self.fork_flow();
-                    self.walk_expression(*default, self.tree.get(*default))?;
+                    self.walk_expression(default, self.tree.get(default))?;
                     self.restore_flow(before_default);
                 }
 
-                // derive declared field type
-                let field_type = if let Some(declared_type) = declared_type {
-                    let field_type = self.node_type_operand(*declared_type)?;
-                    let condition = self.active_static_guard();
-                    let source = id.into_global_any(self.module);
-                    let field_type = self.induce_constraint_type_operand(
-                        source,
-                        field_type,
-                        GenericInductionPosition::Storage,
-                        condition.clone(),
-                    )?;
-                    let field_type = if *is_optional {
-                        self.optional_value_type(field_type)
-                    } else {
-                        field_type
-                    };
+                // derive the declared field type
+                let field_type = match declared_type {
+                    Some(declared_type) => {
+                        let spelled = self.walk_type_expression(declared_type)?;
+                        let spelled = self.induce_constraint_type(
+                            id.into_any(),
+                            spelled,
+                            GenericInductionPosition::Storage,
+                        )?;
+                        let spelled = if is_optional {
+                            self.optional_value_type(spelled, id.into_any())?
+                        } else {
+                            spelled
+                        };
 
-                    Some(field_type)
-                } else {
-                    None
+                        Some(spelled)
+                    }
+                    None => None,
                 };
 
-                // constrain direct field symbol type
-                if let Some(field_type) = field_type
-                    && key.direct_static_key().is_some()
-                    && let Some(symbol) =
-                        self.check.module(self.module).declaration_symbol(id.into_any())
-                {
-                    let condition = self.active_static_guard();
-
-                    if let Some(induction_declaration) = induction_declaration {
-                        self.record_generic_induction_site(induction_declaration, field_type);
+                // tie the field symbol to its type
+                let symbol = self
+                    .check
+                    .module(self.module)
+                    .declaration_symbol(id.into_any());
+                if let (Some(field_type), Some(symbol)) = (field_type, symbol) {
+                    if let Some(induction) = induction_declaration {
+                        self.record_type_induction_site(induction, field_type);
                     }
-                    self.constrain_symbol_type(symbol, field_type, condition)?;
+                    self.declare_symbol_type(symbol, field_type)?;
                 }
 
                 // defaults must fit the declared field type
                 if let (Some(field_type), Some(default)) = (field_type, default) {
-                    let origin = Origin::Node((*default).into_global_any(self.module));
-                    let value = self.node_type_operand(*default)?;
-                    let condition = self.active_static_guard();
-                    self.check.constrain_type(
-                        origin,
-                        TypeRelation::Assignable,
-                        value,
-                        field_type,
-                        condition,
-                    );
+                    self.expect_assignable(default, field_type)?;
                 }
+
+                let (Some(symbol), Some(ty), Some(key)) =
+                    (symbol, field_type, key.direct_static_key())
+                else {
+                    return Ok(None);
+                };
+
+                Ok(Some(dir::DefinitionMember::Field(dir::FieldDefinition {
+                    space: if is_static {
+                        dir::MemberSpace::Static
+                    } else {
+                        dir::MemberSpace::Instance
+                    },
+                    symbol,
+                    source: id.into_global_any(self.module),
+                    key,
+                    ty,
+                    is_abstract,
+                    is_override,
+                    condition,
+                })))
             }
             // method() {}
             dir::Member::Method {
                 key,
                 signature,
                 body,
+                abstraction,
                 is_static,
+                is_override,
                 ..
             } => {
-                if let Some(key) = key {
-                    // check computed member key in declaration context
-                    if let dir::Key::Expression(key) = key {
-                        let before_key = self.fork_flow();
-                        self.walk_expression(*key, self.tree.get(*key))?;
-                        self.restore_flow(before_key);
-                    }
+                let (key, body, is_static) = (*key, *body, *is_static);
+                let (abstraction, is_override) = (*abstraction, *is_override);
+
+                if let Some(dir::Key::Expression(key)) = key {
+                    // check computed member keys in declaration context
+                    let before_key = self.fork_flow();
+                    self.walk_expression(key, self.tree.get(key))?;
+                    self.restore_flow(before_key);
                 }
 
-                let symbol = self.check.module(self.module).declaration_symbol(id.into_any());
-
+                let symbol = self
+                    .check
+                    .module(self.module)
+                    .declaration_symbol(id.into_any());
                 let receiver_owner = member_receiver.and_then(|scope| scope.owner);
                 let parent = self.enclosing_generic_template(receiver_scope, induction_declaration);
                 let source = id.into_global_any(self.module);
+                let template = self.signature_template(source, parent, symbol, &signature)?;
+                let captured_template = template.or(parent);
+
+                // walk signature before reading its inputs
+                self.walk_function_signature(template, signature)?;
+                let implicit_receiver_scope = if is_static { None } else { receiver_scope };
+                let receiver = self.method_receiver_binding(
+                    id,
+                    signature,
+                    receiver_owner,
+                    implicit_receiver_scope,
+                )?;
+                let result = self.method_result_type(id, signature, body, receiver)?;
+
+                // write the method's function type
+                let receiver_type = receiver
+                    .filter(|_| Self::is_receiver_visible_in_method_type(signature))
+                    .map(|receiver| receiver.receiver.ty);
+                let method = self.function_signature_type(
+                    id.into_any(),
+                    signature,
+                    captured_template,
+                    receiver_type,
+                    result,
+                )?;
+                let induction = GenericInductionDeclaration::new(source, parent, symbol);
+                self.record_type_induction_site(induction, method);
+
+                // tie the method symbol to its type
+                if let Some(symbol) = symbol {
+                    self.declare_symbol_type(symbol, method)?;
+                }
+
+                // walk method body after its result exists
+                if let (Some(body), Some(symbol), Some(result)) = (body, symbol, result) {
+                    self.walk_function_body(symbol, signature, body, result, receiver)?;
+                }
+
+                // place the method into its declaration slot
+                let slot = match signature.role {
+                    Some(dir::FunctionRole::Constructor) => dir::MemberSlot::Constructor,
+                    Some(dir::FunctionRole::New) => dir::MemberSlot::New,
+                    Some(dir::FunctionRole::Call) => dir::MemberSlot::Call,
+                    _ => match key.and_then(dir::Key::direct_static_key) {
+                        Some(key) => dir::MemberSlot::Key(key),
+                        None => return Ok(None),
+                    },
+                };
+
+                Ok(Some(dir::DefinitionMember::Method(dir::MethodDefinition {
+                    space: if is_static {
+                        dir::MemberSpace::Static
+                    } else {
+                        dir::MemberSpace::Instance
+                    },
+                    symbol,
+                    source,
+                    slot,
+                    role: signature.role,
+                    ty: method,
+                    abstraction,
+                    is_override,
+                    condition,
+                })))
+            }
+            // static { ... }, comptime { ... }
+            dir::Member::StaticBlock { body } | dir::Member::ComptimeBlock { body } => {
+                let body = *body;
+
+                // check member blocks in declaration context
+                let before_body = self.fork_flow();
+                self.walk_expression(body, self.tree.get(body))?;
+                self.restore_flow(before_body);
+
+                Ok(None)
+            }
+            // ignore damaged syntax
+            dir::Member::Error => Ok(None),
+        }
+    }
+
+    /// Walk one type-space member and return its checked row.
+    ///
+    /// Example:
+    /// ```ds
+    /// interface Reader { read(): string }
+    /// ```
+    pub(in crate::check) fn walk_type_member(
+        &mut self,
+        id: dir::LocalNodeId<dir::TypeMember>,
+        member: &dir::TypeMember,
+        receiver_scope: Option<Receiver>,
+        induction_declaration: Option<GenericInductionDeclaration>,
+    ) -> CompilerResult<Option<dir::DefinitionMember>> {
+        let Some(_guard) = self.enter_decorated_static_guard(id.into_any())? else {
+            return Ok(None);
+        };
+        let condition = self.member_condition(id.into_any())?;
+        let _receiver = self.enter_receiver_scope(receiver_scope);
+        let source = id.into_global_any(self.module);
+
+        match member {
+            // field: T
+            dir::TypeMember::Field {
+                key,
+                declared_type,
+                is_static,
+                is_optional,
+                ..
+            } => {
+                let (key, declared_type, is_static, is_optional) =
+                    (*key, *declared_type, *is_static, *is_optional);
+
+                if declared_type.is_none() {
+                    self.check
+                        .report_missing_type_annotation(self.module, id.into_any());
+                }
+                let Some(declared_type) = declared_type else {
+                    return Ok(None);
+                };
+                let spelled = self.walk_type_expression(declared_type)?;
+                let spelled = if is_optional {
+                    self.optional_value_type(spelled, id.into_any())?
+                } else {
+                    spelled
+                };
+
+                // tie the field symbol to its type
+                let symbol = self
+                    .check
+                    .module(self.module)
+                    .declaration_symbol(id.into_any());
+                if let Some(symbol) = symbol {
+                    self.declare_symbol_type(symbol, spelled)?;
+                }
+
+                let (Some(symbol), Some(key)) = (symbol, key.direct_static_key()) else {
+                    return Ok(None);
+                };
+
+                Ok(Some(dir::DefinitionMember::Field(dir::FieldDefinition {
+                    space: if is_static {
+                        dir::MemberSpace::Static
+                    } else {
+                        dir::MemberSpace::Instance
+                    },
+                    symbol,
+                    source,
+                    key,
+                    ty: spelled,
+                    is_abstract: false,
+                    is_override: false,
+                    condition,
+                })))
+            }
+            // method(): T
+            dir::TypeMember::Method {
+                key,
+                signature,
+                body,
+                is_static,
+                ..
+            } => {
+                let (key, body, is_static) = (*key, *body, *is_static);
+                let symbol = self
+                    .check
+                    .module(self.module)
+                    .declaration_symbol(id.into_any());
+                let parent = self.enclosing_generic_template(receiver_scope, induction_declaration);
                 let template = self.signature_template(source, parent, symbol, signature)?;
                 let captured_template = template.or(parent);
 
-                // walk signature before reading its term inputs
+                // walk signature before reading its inputs
                 self.walk_function_signature(template, signature)?;
-                let implicit_receiver_scope = if *is_static { None } else { receiver_scope };
-                let receiver =
-                    self.method_receiver_binding(id, signature, receiver_owner, implicit_receiver_scope)?;
-                let result = self.method_result_operand(
-                    self.module,
-                    id,
-                    signature,
-                    *body,
-                    receiver,
-                )?;
-
-                let term = self.function_signature_term(
+                let result = self.function_result_type(id.into_any(), signature, body)?;
+                let receiver_type = receiver_scope
+                    .filter(|_| !is_static)
+                    .map(|receiver| receiver.ty);
+                let method = self.function_signature_type(
+                    id.into_any(),
                     signature,
                     captured_template,
-                    receiver
-                        .filter(|_| Self::is_receiver_visible_in_method_type(signature))
-                        .map(|receiver| receiver.receiver.ty),
-                    result.map(Into::into),
+                    receiver_type,
+                    result,
                 )?;
-                let operand = self
-                    .check
-                    .inference
-                    .push_term(TypeTerm::Function(term))
-                    .into();
-                let induction_declaration = GenericInductionDeclaration::new(source, parent, symbol);
 
-                // collect generics induced by this method type
-                self.record_generic_induction_site(induction_declaration, operand);
-
-                // constrain direct method symbol type
+                // tie the method symbol to its type
                 if let Some(symbol) = symbol {
-                    let condition = self.active_static_guard();
-                    self.constrain_symbol_type(symbol, operand, condition)?;
+                    self.declare_symbol_type(symbol, method)?;
                 }
 
-                // walk method body after its result operand exists
-                if let Some(body) = body && let Some(symbol) = symbol && let Some(result) = result {
-                    self.walk_function_body(symbol, signature, *body, result, receiver)?;
+                // walk default method bodies
+                if let (Some(body), Some(symbol), Some(result)) = (body, symbol, result) {
+                    self.walk_function_body(symbol, signature, body, result, None)?;
                 }
+
+                let slot = match signature.role {
+                    Some(dir::FunctionRole::Constructor) => dir::MemberSlot::Constructor,
+                    Some(dir::FunctionRole::New) => dir::MemberSlot::New,
+                    Some(dir::FunctionRole::Call) => dir::MemberSlot::Call,
+                    _ => match key.direct_static_key() {
+                        Some(key) => dir::MemberSlot::Key(key),
+                        None => return Ok(None),
+                    },
+                };
+
+                Ok(Some(dir::DefinitionMember::Method(dir::MethodDefinition {
+                    space: if is_static {
+                        dir::MemberSpace::Static
+                    } else {
+                        dir::MemberSpace::Instance
+                    },
+                    symbol,
+                    source,
+                    slot,
+                    role: signature.role,
+                    ty: method,
+                    abstraction: dir::MethodAbstraction::Concrete,
+                    is_override: false,
+                    condition,
+                })))
             }
-            // static { ... }
-            dir::Member::StaticBlock { body }
-            // comptime { ... }
-            | dir::Member::ComptimeBlock { body } => {
-                // check member block in declaration context
-                let before_body = self.fork_flow();
-                self.walk_expression(*body, self.tree.get(*body))?;
-                self.restore_flow(before_body);
+            // (value: T): U
+            dir::TypeMember::CallSignature { signature } => {
+                let ty = self.function_type(id.into_any(), signature, None, None)?;
+
+                Ok(Some(dir::DefinitionMember::CallSignature(
+                    dir::SignatureDefinition {
+                        source,
+                        ty,
+                        condition,
+                    },
+                )))
+            }
+            // new (value: T): U
+            dir::TypeMember::ConstructSignature { signature } => {
+                let ty = self.constructor_type(id.into_any(), signature, None, None)?;
+
+                Ok(Some(dir::DefinitionMember::ConstructSignature(
+                    dir::SignatureDefinition {
+                        source,
+                        ty,
+                        condition,
+                    },
+                )))
+            }
+            // [key: K]: V
+            dir::TypeMember::IndexSignature {
+                key_type,
+                value_type,
+                ..
+            } => {
+                let (key_type, value_type) = (*key_type, *value_type);
+                let key_type = self.walk_type_expression(key_type)?;
+                let value_type = self.walk_type_expression(value_type)?;
+
+                // index signatures write as their value function shape
+                let _ = key_type;
+
+                Ok(Some(dir::DefinitionMember::IndexSignature(
+                    dir::SignatureDefinition {
+                        source,
+                        ty: value_type,
+                        condition,
+                    },
+                )))
+            }
+            // type Item = T
+            dir::TypeMember::AssociatedType {
+                name,
+                generic_parameters,
+                where_clauses,
+                constraint,
+                value,
+                ..
+            } => {
+                let (name, constraint, value) = (*name, *constraint, *value);
+                let symbol = self
+                    .check
+                    .module(self.module)
+                    .declaration_symbol(id.into_any());
+
+                // walk generic parameters
+                let parent = self.enclosing_generic_template(receiver_scope, induction_declaration);
+                if let Some(symbol) = symbol {
+                    self.walk_generic_template(source, parent, Some(symbol), generic_parameters)?;
+                }
+                for where_clause in where_clauses {
+                    self.walk_where_clause(*where_clause)?;
+                }
+
+                let constraint = constraint
+                    .map(|constraint| self.walk_type_expression(constraint))
+                    .transpose()?;
+                let value = value
+                    .map(|value| self.walk_type_expression(value))
+                    .transpose()?;
+
+                // tie the member symbol to its value
+                if let (Some(value), Some(symbol)) = (value, symbol) {
+                    self.declare_symbol_type(symbol, value)?;
+                }
+
+                let Some(symbol) = symbol else {
+                    return Ok(None);
+                };
+
+                Ok(Some(dir::DefinitionMember::AssociatedType(
+                    dir::AssociatedTypeDefinition {
+                        symbol,
+                        source,
+                        key: dir::StaticKey::Name(name),
+                        constraint,
+                        value,
+                        condition,
+                    },
+                )))
+            }
+            // const item: T = value
+            dir::TypeMember::AssociatedConst {
+                name,
+                declared_type,
+                value,
+                ..
+            } => {
+                let (name, declared_type, value) = (*name, *declared_type, *value);
+
+                if value.is_some() && declared_type.is_none() {
+                    self.check
+                        .report_missing_type_annotation(self.module, id.into_any());
+                }
+
+                let declared = declared_type
+                    .map(|declared_type| self.walk_type_expression(declared_type))
+                    .transpose()?;
+                let spelled = value
+                    .map(|value| self.lower_static_predicate(value))
+                    .transpose()?;
+
+                let symbol = self
+                    .check
+                    .module(self.module)
+                    .declaration_symbol(id.into_any());
+                if let Some(symbol) = symbol {
+                    if let Some(declared) = declared {
+                        self.declare_symbol_type(symbol, declared)?;
+                    }
+                    if let Some(spelled) = spelled {
+                        if let Some(declared) = declared {
+                            let origin = Origin::Node(source);
+                            self.relate_type(origin, Relation::Assignable, spelled, declared);
+                        }
+                        self.declare_symbol_value(symbol, spelled)?;
+                    }
+                }
+
+                let (Some(symbol), Some(ty)) = (symbol, declared) else {
+                    return Ok(None);
+                };
+
+                Ok(Some(dir::DefinitionMember::AssociatedConst(
+                    dir::AssociatedConstDefinition {
+                        symbol,
+                        source,
+                        key: dir::StaticKey::Name(name),
+                        ty,
+                        value: None,
+                        condition,
+                    },
+                )))
             }
             // ignore damaged syntax
-            dir::Member::Error => {}
-        };
-
-        Ok(())
+            dir::TypeMember::Error => Ok(None),
+        }
     }
 
     /// Return the lexical receiver visible inside one method body.
@@ -469,20 +863,19 @@ impl WalkState<'_, '_> {
         )
     }
 
-    /// Return one method body or call signature result operand.
+    /// Return one method body or call signature result type.
     ///
     /// Example:
     /// ```ds
     /// method(): number { 1 }
     /// ```
-    fn method_result_operand(
+    fn method_result_type(
         &mut self,
-        module: ModuleId,
         id: dir::LocalNodeId<dir::Member>,
         signature: &dir::FunctionSignature,
         body: Option<dir::LocalNodeId<dir::Expression>>,
         receiver: Option<ReceiverBinding>,
-    ) -> CompilerResult<Option<TypeOperand>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // use the receiver as the constructor result
         if matches!(
             signature.role,
@@ -492,6 +885,6 @@ impl WalkState<'_, '_> {
         }
 
         // return regular method result
-        self.function_result_operand(module, id.into_any(), signature, body)
+        self.function_result_type(id.into_any(), signature, body)
     }
 }

@@ -1,13 +1,10 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
-use indexmap::{IndexMap, IndexSet};
-use smallvec::SmallVec;
+use indexmap::IndexMap;
 
 use crate::check::{
-    CheckState, Condition, Dependency, GenericArgument, GenericInductionParameter,
-    GenericInductionSite, GenericParameterBinding, GenericTemplateId, Origin, Receiver,
-    StaticOperand, StaticSolution, StaticTerm, TypeOperand, TypeRelation, TypeSolution, TypeTerm,
-    VariableId, VariableKind, WalkState,
+    CheckState, Condition, Constraint, ConstraintCause, GenericInductionParameter,
+    GenericInductionSite, GenericTemplateId, Origin, Receiver, Relation, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -67,7 +64,7 @@ impl WalkState<'_, '_> {
     ) -> Option<GenericTemplateId> {
         // prefer the declaration that owns the member
         if let Some(symbol) = declaration.and_then(|declaration| declaration.symbol)
-            && let Some(template) = self.check.inference.generic_template_by_symbol(symbol)
+            && let Some(template) = self.check.generics.template_by_symbol(symbol)
         {
             return Some(template);
         }
@@ -80,302 +77,10 @@ impl WalkState<'_, '_> {
         // use receiver-owned member scopes
         receiver
             .and_then(|receiver| receiver.owner)
-            .and_then(|symbol| self.check.inference.generic_template_by_symbol(symbol))
-    }
-}
-
-/// One escaping variable that receives an induced generic.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct GenericInductionKey {
-    /// The declaration node that receives the generated generic parameter.
-    declaration: dir::GlobalNodeIdAny,
-    /// The enclosing generic template.
-    parent: Option<dir::GlobalGenericTemplateId>,
-    /// The declaration symbol indexed by the generated template.
-    symbol: Option<dir::GlobalSymbolId>,
-    /// The variable rewritten to the generated parameter.
-    variable: VariableId,
-}
-
-impl CheckState<'_> {
-    /// Complete generic walk state before solving.
-    pub(in crate::check) fn finish_walk_generics(
-        &mut self,
-        modules: &[ModuleId],
-    ) -> CompilerResult<()> {
-        let sites = self
-            .inference
-            .generic_induction_sites()
-            .cloned()
-            .collect::<Vec<_>>();
-        let mut parameters = IndexMap::new();
-
-        // collect all generated parameters before mutating generic tables
-        for site in sites {
-            self.collect_induced_parameters(site, &mut parameters)?;
-        }
-
-        // insert generated parameters and rewrite their variables
-        for (key, parameter) in parameters {
-            self.insert_induced_generic(key, parameter)?;
-        }
-
-        // constrain reference declarations after generated parameters exist
-        for module in modules {
-            self.constrain_declaration_types(*module)?;
-        }
-
-        Ok(())
+            .and_then(|symbol| self.check.generics.template_by_symbol(symbol))
     }
 
-    /// Collect generic parameters induced by one declaration site.
-    fn collect_induced_parameters(
-        &self,
-        site: GenericInductionSite,
-        parameters: &mut IndexMap<GenericInductionKey, GenericInductionParameter>,
-    ) -> CompilerResult<()> {
-        let mut visited = IndexSet::new();
-        self.collect_induced_type_operand(&site, site.operand, &mut visited, parameters)
-    }
-
-    /// Collect induced parameters reachable from one type operand.
-    fn collect_induced_type_operand(
-        &self,
-        site: &GenericInductionSite,
-        operand: TypeOperand,
-        visited: &mut IndexSet<VariableId>,
-        parameters: &mut IndexMap<GenericInductionKey, GenericInductionParameter>,
-    ) -> CompilerResult<()> {
-        match operand {
-            TypeOperand::Variable(variable) => {
-                self.collect_induced_variable(site, variable, visited, parameters)?;
-            }
-            TypeOperand::Term(term) => {
-                let dependencies = TypeOperand::Term(term).dependencies(self);
-
-                for variable in dependencies
-                    .into_iter()
-                    .filter_map(Dependency::solution_variable)
-                {
-                    self.collect_induced_variable(site, variable, visited, parameters)?;
-                }
-            }
-            TypeOperand::Type(_) => {}
-        }
-
-        Ok(())
-    }
-
-    /// Collect one induced variable and variables beneath its solved operand.
-    fn collect_induced_variable(
-        &self,
-        site: &GenericInductionSite,
-        variable: VariableId,
-        visited: &mut IndexSet<VariableId>,
-        parameters: &mut IndexMap<GenericInductionKey, GenericInductionParameter>,
-    ) -> CompilerResult<()> {
-        if !visited.insert(variable) {
-            return Ok(());
-        }
-
-        // record leaves that walk explicitly marked as inducible
-        if let Some(parameter) = self.inference.generic_induction_parameter(variable) {
-            let key = GenericInductionKey {
-                declaration: site.declaration,
-                parent: site.parent,
-                symbol: site.symbol,
-                variable,
-            };
-
-            parameters.entry(key).or_insert(parameter);
-        }
-
-        match self.variable(variable).kind {
-            // follow explicit type solutions
-            VariableKind::Type => {
-                let Some(operand) = self.solved_type_operand(variable) else {
-                    return Ok(());
-                };
-                self.collect_induced_type_operand(site, operand, visited, parameters)?;
-            }
-
-            // follow explicit static solutions
-            VariableKind::Static => {
-                let Some(operand) = self.solved_static_operand(variable) else {
-                    return Ok(());
-                };
-                self.collect_induced_static_operand(site, operand, visited, parameters)?;
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Collect induced parameters reachable from one static operand.
-    fn collect_induced_static_operand(
-        &self,
-        site: &GenericInductionSite,
-        operand: StaticOperand,
-        visited: &mut IndexSet<VariableId>,
-        parameters: &mut IndexMap<GenericInductionKey, GenericInductionParameter>,
-    ) -> CompilerResult<()> {
-        let dependencies = operand.dependencies(self);
-
-        // recurse into every variable referenced by the static operand
-        for variable in dependencies
-            .into_iter()
-            .filter_map(Dependency::solution_variable)
-        {
-            self.collect_induced_variable(site, variable, visited, parameters)?;
-        }
-
-        Ok(())
-    }
-
-    /// Insert one induced generic parameter.
-    fn insert_induced_generic(
-        &mut self,
-        key: GenericInductionKey,
-        generic: GenericInductionParameter,
-    ) -> CompilerResult<()> {
-        if key.declaration.module_id != key.variable.module {
-            return Err(CompilerError::Internal {
-                message: "induced generic template and variable are in different modules"
-                    .to_string(),
-            });
-        }
-
-        let template = self.declare_generic_template(key.declaration, key.parent, key.symbol)?;
-        let header =
-            self.fresh_induced_generic_parameter(template, generic.prefix, generic.induction);
-        let parameter = header.id;
-        let kind = generic.kind;
-
-        match kind {
-            VariableKind::Type => {
-                let generic = GenericParameterBinding::r#type(header, None, generic.ty, None);
-                let parameter = self.inference.push_term(TypeTerm::Parameter(parameter));
-                self.inference.insert_generic_parameter(generic)?;
-                self.set_variable_solution(key.variable, TypeSolution::Term(parameter).into())?;
-            }
-            VariableKind::Static => {
-                let generic = GenericParameterBinding::r#static(header, generic.ty, None);
-                let parameter = self.inference.push_term(StaticTerm::Parameter(parameter));
-                self.inference.insert_generic_parameter(generic)?;
-                self.set_variable_solution(key.variable, StaticSolution::Term(parameter).into())?;
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Constrain concrete and constraint declaration symbol types.
-    fn constrain_declaration_types(&mut self, module: ModuleId) -> CompilerResult<()> {
-        let binding_table = self.module(module).binding_table();
-        let symbols = binding_table
-            .symbol_ids()
-            .map(|symbol: dir::LocalSymbolId| symbol.into_global(module))
-            .filter(|symbol| {
-                let kind = self.symbol_kind(*symbol);
-
-                kind.is_type_definition() && !kind.is_type_alias()
-            })
-            .collect::<Vec<_>>();
-
-        // constrain each declaration as its own applied type
-        for symbol in symbols {
-            self.constrain_declaration_type(symbol)?;
-        }
-
-        Ok(())
-    }
-
-    /// Constrain one declaration symbol as its own applied type.
-    fn constrain_declaration_type(&mut self, symbol: dir::GlobalSymbolId) -> CompilerResult<()> {
-        let term = self.declaration_type_term(symbol);
-        let term = self.type_term_operand(term);
-        let origin = Origin::Symbol(symbol);
-        let target = match self.inputs.symbol_type(symbol) {
-            Some(operand) => operand,
-            None => {
-                let variable = self.push_type_variable(symbol.module_id, origin);
-                let operand = TypeOperand::Variable(variable);
-                self.inputs.insert_symbol_type(symbol, operand)?;
-
-                operand
-            }
-        };
-        self.constrain_type(origin, TypeRelation::Equal, target, term, Condition::Always);
-
-        Ok(())
-    }
-
-    /// Return one declaration symbol's applied reference type.
-    pub(in crate::check) fn declaration_type_term(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-    ) -> TypeTerm {
-        let arguments = self
-            .inference
-            .generic_template_by_symbol(symbol)
-            .map(|template| self.generic_template_arguments(template))
-            .unwrap_or_default();
-
-        TypeTerm::Reference {
-            origin: Origin::Symbol(symbol),
-            symbol,
-            arguments,
-        }
-    }
-
-    /// Return generic arguments that pass one template's parameters to itself.
-    fn generic_template_arguments(
-        &mut self,
-        template: dir::GlobalGenericTemplateId,
-    ) -> SmallVec<[GenericArgument; 2]> {
-        // freeze parameter order before allocating parameter terms
-        let parameters = self
-            .inference
-            .generic_template_parameters(template)
-            .map(|(parameter, generic)| (parameter, generic.is_static(), generic.is_variadic()))
-            .collect::<Vec<_>>();
-
-        parameters
-            .into_iter()
-            .map(
-                |(parameter, is_static, is_variadic)| match (is_static, is_variadic) {
-                    // type parameter
-                    (false, false) => {
-                        let term = self.inference.push_term(TypeTerm::Parameter(parameter));
-
-                        GenericArgument::Type(term.into())
-                    }
-                    // variadic type parameter
-                    (false, true) => {
-                        let term = self.inference.push_term(TypeTerm::Parameter(parameter));
-
-                        GenericArgument::SpreadType(term.into())
-                    }
-                    // static parameter
-                    (true, false) => {
-                        let term = self.inference.push_term(StaticTerm::Parameter(parameter));
-
-                        GenericArgument::Static(term.into())
-                    }
-                    // variadic static parameter
-                    (true, true) => {
-                        let term = self.inference.push_term(StaticTerm::Parameter(parameter));
-
-                        GenericArgument::SpreadStatic(term.into())
-                    }
-                },
-            )
-            .collect()
-    }
-}
-
-impl WalkState<'_, '_> {
-    /// Declare one generic template header.
+    /// Declare one generic template header with its parameter identities.
     ///
     /// Example:
     /// ```ds
@@ -408,34 +113,7 @@ impl WalkState<'_, '_> {
         Ok(Some(template))
     }
 
-    /// Record one operand that can induce generics on a declaration.
-    pub(in crate::check) fn record_generic_induction_site(
-        &mut self,
-        declaration: GenericInductionDeclaration,
-        operand: TypeOperand,
-    ) {
-        let site = GenericInductionSite::new(
-            declaration.declaration,
-            declaration.parent,
-            declaration.symbol,
-            operand,
-        );
-        self.check.inference.record_generic_induction_site(site);
-    }
-
-    /// Record one type annotation that can induce generics on a declaration.
-    pub(in crate::check) fn record_type_induction_site(
-        &mut self,
-        declaration: GenericInductionDeclaration,
-        ty: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> CompilerResult<()> {
-        let operand = self.node_type_operand(ty)?;
-        self.record_generic_induction_site(declaration, operand);
-
-        Ok(())
-    }
-
-    /// Declare one generic template from explicit generic parameters.
+    /// Declare one generic template and walk its parameter bounds.
     pub(in crate::check) fn walk_generic_template(
         &mut self,
         source: dir::GlobalNodeIdAny,
@@ -454,5 +132,186 @@ impl WalkState<'_, '_> {
         }
 
         Ok(Some(template))
+    }
+
+    /// Record one declaration type that can induce generics.
+    pub(in crate::check) fn record_type_induction_site(
+        &mut self,
+        declaration: GenericInductionDeclaration,
+        ty: dir::GlobalTypeId,
+    ) {
+        self.check
+            .generics
+            .record_induction_site(GenericInductionSite {
+                declaration: declaration.declaration,
+                parent: declaration.parent,
+                symbol: declaration.symbol,
+                ty,
+            });
+    }
+
+    /// Return an induced variable for one constraint type when needed.
+    ///
+    /// Interface-typed annotations open an inducible hole bounded by the
+    /// interface: holes that escape unsolved become generated generic
+    /// parameters after the walk.
+    ///
+    /// Example:
+    /// ```ds
+    /// writer: Writer
+    /// ```
+    pub(in crate::check) fn induce_constraint_type(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        ty: dir::GlobalTypeId,
+        position: GenericInductionPosition,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        if !self.is_constraint_type(ty)? {
+            return Ok(ty);
+        }
+
+        // open the inducible hole bounded by its interface
+        let node = source.into_global(self.module);
+        let origin = Origin::Node(node);
+        let variable = self
+            .check
+            .allocate_variable(self.module, origin, Widening::Preserve);
+        let induced = self.check.push_variable_type(variable, source)?;
+        let recipe = GenericInductionParameter {
+            prefix: "T",
+            constraint: Some(ty),
+            is_comptime: false,
+            induction: position.induction(),
+        };
+        self.check.generics.insert_induction(variable, recipe)?;
+        self.relate_type(origin, Relation::Assignable, induced, ty);
+
+        Ok(induced)
+    }
+
+    /// Return whether one type writes an inducible constraint.
+    fn is_constraint_type(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+        let symbol = match self.check.ty(ty)? {
+            dir::Type::Reference(instance) if instance.arguments.is_empty() => instance.symbol,
+            _ => return Ok(false),
+        };
+        let kind = self.check.symbol_kind(symbol);
+
+        Ok(matches!(
+            kind,
+            dir::SymbolKind::AssociatedType
+                | dir::SymbolKind::Interface
+                | dir::SymbolKind::NewtypeInterface,
+        ))
+    }
+}
+
+impl CheckState<'_> {
+    /// Complete generic walk state before solving.
+    ///
+    /// Inducible holes still reachable from recorded declaration types
+    /// become generated generic parameters on their declarations.
+    pub(in crate::check) fn propagate_induced_generics(
+        &mut self,
+        modules: &[ModuleId],
+    ) -> CompilerResult<()> {
+        let sites = self.generics.induction_sites().cloned().collect::<Vec<_>>();
+
+        // collect all generated parameters before mutating generic tables
+        let mut induced = IndexMap::new();
+        for site in sites {
+            for variable in self.type_variables(site.ty)? {
+                let representative = self.variables.representative(variable)?;
+                let Some(recipe) = self.generics.induction(representative) else {
+                    continue;
+                };
+
+                induced
+                    .entry((site.declaration, representative))
+                    .or_insert((site.parent, site.symbol, recipe));
+            }
+        }
+
+        // insert generated parameters and solve their variables
+        for ((declaration, variable), (parent, symbol, recipe)) in induced {
+            let template = self.declare_generic_template(declaration, parent, symbol)?;
+            let parameter = self.declare_induced_generic_parameter(template, recipe)?;
+            let source = self.origin_source_node(Origin::Node(declaration))?;
+            let solution = self.push_working_type(
+                declaration.module_id,
+                dir::Type::Parameter(parameter),
+                source,
+            )?;
+            self.set_solution(variable, solution)?;
+        }
+
+        // tie type declarations to their own applied references
+        for module in modules {
+            self.declare_module_reference_types(*module)?;
+        }
+
+        Ok(())
+    }
+
+    /// Tie each type declaration symbol to its own applied reference.
+    fn declare_module_reference_types(&mut self, module: ModuleId) -> CompilerResult<()> {
+        let binding_table = self.module(module).binding_table();
+        let symbols = binding_table
+            .symbol_ids()
+            .map(|symbol: dir::LocalSymbolId| symbol.into_global(module))
+            .filter(|symbol| {
+                let kind = self.symbol_kind(*symbol);
+
+                kind.is_type_definition() && !kind.is_type_alias()
+            })
+            .collect::<Vec<_>>();
+
+        for symbol in symbols {
+            self.declare_symbol_reference_type(symbol)?;
+        }
+
+        Ok(())
+    }
+
+    /// Tie one declaration symbol to its own applied reference type.
+    fn declare_symbol_reference_type(&mut self, symbol: dir::GlobalSymbolId) -> CompilerResult<()> {
+        let origin = Origin::Symbol(symbol);
+        let source = self.origin_source_node(origin)?;
+
+        // apply the declaration's own parameters as arguments
+        let parameters = self
+            .generics
+            .template_by_symbol(symbol)
+            .map(|template| self.generic_template_parameters(template))
+            .unwrap_or_default();
+        let mut arguments = Vec::with_capacity(parameters.len());
+        for parameter in parameters {
+            arguments.push(self.push_working_type(
+                symbol.module_id,
+                dir::Type::Parameter(parameter),
+                source,
+            )?);
+        }
+        let reference = self.push_working_type(
+            symbol.module_id,
+            dir::Type::Reference(dir::GenericInstance { symbol, arguments }),
+            source,
+        )?;
+
+        // bind or equate the declaration's recorded type
+        if let Some(existing) = self.inputs.symbol_type(symbol) {
+            self.push_constraint(Constraint {
+                relation: Relation::Equal,
+                left: existing,
+                right: reference,
+                origin,
+                condition: Condition::Always,
+                cause: ConstraintCause::General,
+            });
+        } else {
+            self.inputs.set_symbol_type(symbol, reference)?;
+        }
+
+        Ok(())
     }
 }
