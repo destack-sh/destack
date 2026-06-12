@@ -19,9 +19,11 @@ global {
 
     // destack:types
     export {
+        Capitalize,
         Exclude,
         Extract,
         Function,
+        Lowercase,
         MutableFields,
         NonNullable,
         Omit,
@@ -33,6 +35,8 @@ global {
         Record,
         Required,
         Symbol,
+        Uncapitalize,
+        Uppercase,
     } from "destack:types";
 
     // destack:memory
