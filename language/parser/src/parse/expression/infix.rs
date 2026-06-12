@@ -149,11 +149,11 @@ impl Parser {
             return Ok(None);
         }
 
-        let Some(operator) = self.infix_operator_from_current_token_type(token_type) else {
+        let Some(operator) = self.current_infix_operator_maybe() else {
             return Ok(None);
         };
 
-        if is_on_new_line && matches!(operator, ExpressionInfixOperator::Range(_)) {
+        if is_on_new_line && matches!(operator.operator, ExpressionInfixOperator::Range(_)) {
             return Ok(None);
         }
 
@@ -167,18 +167,18 @@ impl Parser {
 
         if is_on_new_line
             && matches!(
-                operator,
+                operator.operator,
                 ExpressionInfixOperator::As | ExpressionInfixOperator::Satisfies
             )
         {
             return Ok(None);
         }
 
-        if scope.stops_before(operator) {
+        if scope.stops_before_precedence(operator.precedence, operator.is_right_associative) {
             return Ok(None);
         }
 
-        match operator {
+        match operator.operator {
             ExpressionInfixOperator::Assign(_) => Ok(None),
             ExpressionInfixOperator::TypeBinary(operator) => {
                 let Some(left_type) = self.static_type_left(left) else {

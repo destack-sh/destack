@@ -32,14 +32,18 @@ impl Parser {
             return Ok(None);
         }
 
-        let checkpoint = self.checkpoint();
-        let mark = self.tree.next_id();
+        let checkpoint = if head == LambdaHead::Tentative {
+            Some((self.checkpoint(), self.tree.next_id()))
+        } else {
+            None
+        };
+
         match self.eat_function(start, DeclarationHeader::default()) {
             Ok(declaration) => Ok(Some(self.declaration_expression(start, declaration))),
             Err(error) => {
-                if head == LambdaHead::Definite {
+                let Some((checkpoint, mark)) = checkpoint else {
                     return self.definite_lambda_error(error);
-                }
+                };
 
                 self.restore(checkpoint, mark);
                 Err(error)
@@ -103,7 +107,7 @@ impl Parser {
 
     /// Return whether `async` can begin an async lambda or function expression.
     fn can_start_async_lambda_head(&mut self) -> bool {
-        if self.next_token().token.is_on_new_line() {
+        if self.next_token().is_on_new_line() {
             return false;
         }
 
