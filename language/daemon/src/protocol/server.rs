@@ -7,10 +7,11 @@ use crate::{Daemon, DaemonError};
 
 use super::connection::Connection;
 use super::{
-    DaemonRequest, DaemonResponse, HandshakeRequest, HandshakeResponse, PayloadSendError,
-    PayloadWriteError, PayloadWriter, ProtocolCodec, ProtocolError, ProtocolErrorCode,
-    ProtocolLimits, ProtocolMessage, ProtocolRange, ProtocolRequest, ProtocolResponse,
-    RepositoryId, ServerControl, ServerDescriptor, Transport, TransportError,
+    DaemonNotification, DaemonRequest, DaemonResponse, HandshakeRequest, HandshakeResponse,
+    PayloadSendError, PayloadWriteError, PayloadWriter, ProgressEvent, ProgressNotification,
+    ProtocolCodec, ProtocolError, ProtocolErrorCode, ProtocolLimits, ProtocolMessage,
+    ProtocolNotification, ProtocolRange, ProtocolRequest, ProtocolResponse, RepositoryId,
+    ServerControl, ServerDescriptor, Transport, TransportError,
 };
 
 /// Server side protocol handler for daemon requests.
@@ -93,7 +94,7 @@ impl Server {
                 Ok(message) => message,
                 Err(error) => break Err(error),
             };
-            let response = match self.handle_message(message) {
+            let response = match self.handle_message(transport, message) {
                 Ok(response) => response,
                 Err(error) => break Err(error),
             };
@@ -143,8 +144,9 @@ impl Server {
     }
 
     /// Handle a protocol message and return an optional response.
-    fn handle_message(
+    fn handle_message<T: Transport + ?Sized>(
         &self,
+        transport: &T,
         message: ProtocolMessage,
     ) -> Result<Option<(ProtocolMessage, PayloadWriter)>, ServerError> {
         // mark activity for this message
@@ -152,7 +154,7 @@ impl Server {
 
         match message {
             ProtocolMessage::Request(request) => {
-                let (response, payloads) = self.handle_request(*request);
+                let (response, payloads) = self.handle_request(transport, *request);
                 Ok(Some((
                     ProtocolMessage::Response(Box::new(response)),
                     payloads,
@@ -167,7 +169,11 @@ impl Server {
     }
 
     /// Handle a protocol request and return the response.
-    fn handle_request(&self, request: ProtocolRequest) -> (ProtocolResponse, PayloadWriter) {
+    fn handle_request<T: Transport + ?Sized>(
+        &self,
+        transport: &T,
+        request: ProtocolRequest,
+    ) -> (ProtocolResponse, PayloadWriter) {
         let mut payloads = PayloadWriter::new(self.payload_limits());
         let payload = match request.payload {
             DaemonRequest::Handshake(handshake) => self.handle_handshake(handshake),
@@ -182,7 +188,24 @@ impl Server {
             DaemonRequest::StartWatch(request) => self.handle_start_watch(request),
             DaemonRequest::NextWatchBatch(request) => self.handle_next_watch_batch(request),
             DaemonRequest::StopWatch(request) => self.handle_stop_watch(request),
-            DaemonRequest::Command(request) => self.handle_command(*request, &mut payloads),
+            DaemonRequest::Command(request) => {
+                // stream progress frames while the command executes
+                let handle = request.handle;
+                let notify = |event: ProgressEvent| {
+                    let notification = ProtocolNotification {
+                        payload: DaemonNotification::Progress(ProgressNotification {
+                            handle,
+                            event,
+                        }),
+                    };
+                    let _ = self.send_message(
+                        transport,
+                        &ProtocolMessage::Notification(Box::new(notification)),
+                    );
+                };
+
+                self.handle_command(*request, &mut payloads, &notify)
+            }
             DaemonRequest::Query(query) => self.handle_query(query, &mut payloads),
         };
 

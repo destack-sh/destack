@@ -1,11 +1,14 @@
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, mpsc};
+use std::time::{Duration, Instant};
 
 use destack_compiler::Compiler;
 use destack_repository::Revision;
+use destack_session::{SessionEvent, SessionEventHandler};
 use destack_source::{Diagnostic, DiagnosticCollection};
+use parking_lot::Mutex;
 
-use crate::protocol::{CommandOutputChunk, OutputStream};
+use crate::protocol::{CommandOutputChunk, OutputStream, ProgressEvent};
 use crate::{Daemon, Workspace};
 
 use super::context::CommandContext;
@@ -82,6 +85,45 @@ pub(super) struct CommandOutcome {
     pub(super) target_count: usize,
 }
 
+/// Progress sink for one command execution.
+pub type CommandProgress<'a> = Option<&'a (dyn Fn(ProgressEvent) + Sync)>;
+
+/// Build one session event handler forwarding throttled progress.
+/// Counting stays exact; emission throttles to one event per interval
+/// so slow transports never stall the workers.
+fn session_progress_handler(sender: mpsc::Sender<ProgressEvent>) -> SessionEventHandler {
+    let throttle = Mutex::new((None::<Instant>, 0usize));
+
+    Arc::new(move |event| match event {
+        SessionEvent::TaskFinished { artifact_key, .. }
+        | SessionEvent::TaskFailed { artifact_key, .. } => {
+            let mut throttle = throttle.lock();
+            throttle.1 += 1;
+            let due = throttle
+                .0
+                .is_none_or(|last| last.elapsed() >= Duration::from_millis(80));
+            if due {
+                throttle.0 = Some(Instant::now());
+                let _ = sender.send(ProgressEvent {
+                    task: artifact_key.stage().name().to_string(),
+                    message: Some(format!("{} artifacts", throttle.1)),
+                    percent: None,
+                    done: false,
+                });
+            }
+        }
+        SessionEvent::RunFinished { .. } => {
+            let _ = sender.send(ProgressEvent {
+                task: String::new(),
+                message: None,
+                percent: None,
+                done: true,
+            });
+        }
+        _ => {}
+    })
+}
+
 impl CommandOutcome {
     /// Build a command outcome payload.
     pub(super) fn new(
@@ -129,6 +171,34 @@ impl Daemon {
         common: &CommonCommandOptions,
         payload: &CommandPayload,
         revision: CommandRevision,
+        progress: CommandProgress<'_>,
+    ) -> CommandResult<DaemonCommandResult> {
+        std::thread::scope(|scope| {
+            // forward throttled session progress to the connection
+            let event_handler = progress.map(|notify| {
+                let (sender, receiver) = mpsc::channel::<ProgressEvent>();
+                scope.spawn(move || {
+                    while let Ok(event) = receiver.recv() {
+                        notify(event);
+                    }
+                });
+
+                session_progress_handler(sender)
+            });
+
+            self.run_root_command_inner(workspace, root, common, payload, revision, event_handler)
+        })
+    }
+
+    /// Execute a command request against one forked command session.
+    fn run_root_command_inner(
+        &self,
+        workspace: &Workspace,
+        root: &Path,
+        common: &CommonCommandOptions,
+        payload: &CommandPayload,
+        revision: CommandRevision,
+        event_handler: Option<SessionEventHandler>,
     ) -> CommandResult<DaemonCommandResult> {
         let repository = Arc::clone(&workspace.repository);
         let compiler = Arc::new(Compiler::new(Arc::clone(&repository)));
@@ -143,6 +213,7 @@ impl Daemon {
             common,
             revision,
             &mut output,
+            event_handler,
         )?;
 
         // execute the requested command

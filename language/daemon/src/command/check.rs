@@ -31,6 +31,9 @@ pub struct CommandCheckOptions {
     pub lint: bool,
     /// Lint/fix options for the check command.
     pub lint_options: CommandLintOptions,
+    /// Whether the response carries a detailed attempt timeline.
+    #[serde(default)]
+    pub timings: bool,
 }
 
 impl CommandContext<'_> {
@@ -55,6 +58,9 @@ impl CommandContext<'_> {
         self.session
             .provide(revision, &artifact_keys)
             .map_err(|error| error.to_string())?;
+
+        // report where the check spent its time
+        let timings = self.command_timings(revision, options.timings);
         let diagnostics = self
             .repository
             .diagnostics(revision, None)
@@ -63,13 +69,13 @@ impl CommandContext<'_> {
         let exit_code = diagnostics.get_status_code();
         let profile_count = self.selected_profile_count(revision, &modules)?;
 
-        Ok(CommandOutcome::new(
-            diagnostics,
-            exit_code,
-            modules.len(),
-            profile_count,
-            0,
-        ))
+        let mut outcome =
+            CommandOutcome::new(diagnostics, exit_code, modules.len(), profile_count, 0);
+        if let Some(timings) = timings {
+            outcome = outcome.with_data(serde_json::json!({ "timings": timings }));
+        }
+
+        Ok(outcome)
     }
 
     /// Execute a lint command.

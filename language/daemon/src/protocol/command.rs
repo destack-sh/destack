@@ -14,6 +14,7 @@ impl Server {
         &self,
         request: CommandRequest,
         payloads: &mut PayloadWriter,
+        notify: &(dyn Fn(super::ProgressEvent) + Sync),
     ) -> Result<DaemonResponse, ProtocolError> {
         self.require_session()?;
         let (entry, workspace) = self.resolve_root(request.handle)?;
@@ -27,6 +28,7 @@ impl Server {
                 &request.common,
                 &request.payload,
                 request.revision,
+                Some(notify),
             )
             .map_err(|error| self.command_error(error))?;
         let data = match result.data {
