@@ -197,6 +197,24 @@ pub enum MemoryLiteral {
     Lifetime(Lifetime),
 }
 
+impl MemoryLiteral {
+    /// Return the canonical source text of one memory literal.
+    pub fn text(&self) -> &'static str {
+        match self {
+            Self::Access(Access::Readonly) => "readonly",
+            Self::Access(Access::Mutable) => "mutable",
+            Self::Access(Access::Exclusive) => "exclusive",
+            Self::Space(Space::Local) | Self::Place(Place::Space(Space::Local)) => "local",
+            Self::Space(Space::Shared) | Self::Place(Place::Space(Space::Shared)) => "shared",
+            Self::Space(Space::Static) | Self::Place(Place::Space(Space::Static)) => "static",
+            Self::Space(Space::Frame) | Self::Place(Place::Space(Space::Frame)) => "frame",
+            Self::Place(Place::Ambient) => "ambient",
+            Self::Lifetime(Lifetime::Frame) => "frame",
+            Self::Lifetime(_) => "static",
+        }
+    }
+}
+
 /// Normalized memory access value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Access {

@@ -6,7 +6,7 @@ use destack_core::StringPool;
 
 use crate::{
     Argument, FloatType, IntegerType, LanguageItem, Layout, LocalNodeId, PrimitiveType, RangeType,
-    StringId,
+    StringId, Type,
 };
 
 /// A ScalarLiteral is literal scalar value.
@@ -52,6 +52,22 @@ pub enum ScalarLiteral {
 }
 
 impl ScalarLiteral {
+    /// Widen one scalar literal to its base type.
+    pub fn widen(&self) -> Type {
+        match self {
+            // numeric literals without a numeric context widen to plain number
+            Self::Integer(_) => Type::Primitive(PrimitiveType::Float(FloatType::Float64)),
+            Self::Float(_) => Type::Primitive(PrimitiveType::Float(FloatType::Float64)),
+            Self::Bigint(_) => Type::Primitive(PrimitiveType::Bigint),
+            Self::String(_) => Type::Primitive(PrimitiveType::String),
+            Self::Boolean(_) => Type::Primitive(PrimitiveType::Boolean),
+            Self::Character(_) => Type::Primitive(PrimitiveType::Character),
+            Self::Null => Type::Null,
+            Self::Undefined => Type::Undefined,
+            Self::RegexString { .. } => Type::Object,
+        }
+    }
+
     /// Return the printed text of this literal inside a template.
     pub fn template_text(&self, strings: &StringPool) -> Option<String> {
         match self {

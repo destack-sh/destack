@@ -646,6 +646,14 @@ impl Definition {
         }
     }
 
+    /// Iterate the instance fields in declaration order.
+    pub fn instance_fields(&self) -> impl Iterator<Item = &FieldDefinition> + '_ {
+        self.members().iter().filter_map(|member| match member {
+            DefinitionMember::Field(field) if field.space == MemberSpace::Instance => Some(field),
+            _ => None,
+        })
+    }
+
     /// Iterate members in one member space.
     pub fn members_in(&self, space: MemberSpace) -> impl Iterator<Item = &DefinitionMember> + '_ {
         self.members()
