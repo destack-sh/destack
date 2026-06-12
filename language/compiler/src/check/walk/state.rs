@@ -1,9 +1,9 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
+use smallvec::SmallVec;
 
 use crate::check::{
-    CheckState, Condition, FlowState, GenericArgument, Origin, StaticOperand, StaticTerm,
-    TypeLiteralTerm, TypeOperand, TypeRelation, TypeTerm,
+    CheckState, Condition, Constraint, ConstraintCause, FlowState, Origin, Relation, Task, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -44,309 +44,277 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self.flow
     }
 
-    /// Return one node type operand, creating it when missing.
-    pub(in crate::check) fn node_type_operand<T: dir::Node + Clone>(
+    /// Return one node's working type, opening a variable when missing.
+    pub(in crate::check) fn node_type<T: dir::Node>(
         &mut self,
         id: dir::LocalNodeId<T>,
-    ) -> CompilerResult<TypeOperand> {
-        let node = id.into_global_any(self.module);
-        if let Some(operand) = self.check.inputs.node_type(node) {
-            return Ok(operand);
-        }
-
-        let variable = self
-            .check
-            .push_type_variable(self.module, Origin::Node(node));
-        let operand = TypeOperand::Variable(variable);
-        self.check.inputs.insert_node_type(node, operand)
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.node_type_any(id.into_global_any(self.module))
     }
 
-    /// Return the effective type operand for one value expression.
-    pub(in crate::check) fn expression_type_operand(
+    /// Return one node's working type by any id, opening a variable when missing.
+    pub(in crate::check) fn node_type_any(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        if let Some(ty) = self.check.inputs.node_type(node) {
+            return Ok(ty);
+        }
+
+        // open a fresh variable carrying the node origin; node types
+        // state what an expression is, only bindings widen
+        let origin = Origin::Node(node);
+        let variable = self
+            .check
+            .allocate_variable(self.module, origin, Widening::Preserve);
+        let ty = self.check.push_variable_type(variable, node.local_id)?;
+        self.check.inputs.set_node_type(node, ty)?;
+
+        Ok(ty)
+    }
+
+    /// Open one fresh inference type at a source node.
+    pub(in crate::check) fn open_type(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let origin = Origin::Node(source.into_global(self.module));
+        let variable = self
+            .check
+            .allocate_variable(self.module, origin, Widening::Preserve);
+
+        self.check.push_variable_type(variable, source)
+    }
+
+    /// Return the effective type for one value expression, preferring
+    /// the active flow narrowing over the node's own type.
+    pub(in crate::check) fn expression_type(
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<TypeOperand> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         if let Some(narrowed) = self.flow_path_narrowing(id) {
             return Ok(narrowed);
         }
 
-        self.node_type_operand(id)
+        self.node_type(id)
     }
 
-    /// Constrain one node to equal a type term.
-    pub(in crate::check) fn constrain_node_type_term<T: dir::Node + Clone>(
+    /// Declare one node's own type, equating against an existing type.
+    pub(in crate::check) fn declare_node_type<T: dir::Node>(
         &mut self,
         id: dir::LocalNodeId<T>,
-        term: TypeTerm,
-    ) -> CompilerResult<TypeOperand> {
-        let operand = self.type_term_operand(term);
-        self.constrain_node_type(id, operand)
-    }
-
-    /// Set one node's own type term.
-    pub(in crate::check) fn set_node_type_term<T: dir::Node + Clone>(
-        &mut self,
-        id: dir::LocalNodeId<T>,
-        term: TypeTerm,
-    ) -> CompilerResult<TypeOperand> {
-        let operand = self.type_term_operand(term);
-        self.set_node_type(id, operand)
-    }
-
-    /// Set one node's own type operand.
-    pub(in crate::check) fn set_node_type<T: dir::Node + Clone>(
-        &mut self,
-        id: dir::LocalNodeId<T>,
-        operand: TypeOperand,
-    ) -> CompilerResult<TypeOperand> {
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let node = id.into_global_any(self.module);
         let Some(target) = self.check.inputs.node_type(node) else {
-            return self.check.inputs.insert_node_type(node, operand);
+            self.check.inputs.set_node_type(node, ty)?;
+
+            return Ok(ty);
         };
 
-        match target {
-            TypeOperand::Variable(_) => {
-                let origin = Origin::Node(node);
-                let condition = self.active_static_guard();
-                self.check
-                    .constrain_type(origin, TypeRelation::Equal, target, operand, condition);
-
-                Ok(target)
-            }
-            TypeOperand::Term(_) | TypeOperand::Type(_) if target == operand => Ok(target),
-            TypeOperand::Term(_) | TypeOperand::Type(_) => Err(CompilerError::Internal {
-                message: format!("check node {node:?} already has a different type operand"),
-            }),
-        }
-    }
-
-    /// Constrain one node to equal a type operand.
-    pub(in crate::check) fn constrain_node_type<T: dir::Node + Clone>(
-        &mut self,
-        id: dir::LocalNodeId<T>,
-        operand: TypeOperand,
-    ) -> CompilerResult<TypeOperand> {
-        let node = id.into_global_any(self.module);
-        let origin = Origin::Node(node);
-        let condition = self.active_static_guard();
-        let target = self.node_type_operand(id)?;
-        self.check
-            .constrain_type(origin, TypeRelation::Equal, target, operand, condition);
+        self.relate_type(Origin::Node(node), Relation::Equal, target, ty);
 
         Ok(target)
     }
 
-    /// Return a reference to one well-known library type.
+    /// Expect one node's type to flow into a contextual type.
+    pub(in crate::check) fn expect_assignable<T: dir::Node>(
+        &mut self,
+        id: dir::LocalNodeId<T>,
+        expected: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let node = id.into_global_any(self.module);
+        let target = self.node_type_any(node)?;
+        self.relate_type(Origin::Node(node), Relation::Assignable, target, expected);
+
+        Ok(target)
+    }
+
+    /// Collect one relation constraint under the active static guard.
+    pub(in crate::check) fn relate_type(
+        &mut self,
+        origin: Origin,
+        relation: Relation,
+        left: dir::GlobalTypeId,
+        right: dir::GlobalTypeId,
+    ) {
+        self.push_relation(origin, ConstraintCause::General, relation, left, right);
+    }
+
+    /// Collect one relation constraint with its failure context.
+    pub(in crate::check) fn push_relation(
+        &mut self,
+        origin: Origin,
+        cause: ConstraintCause,
+        relation: Relation,
+        left: dir::GlobalTypeId,
+        right: dir::GlobalTypeId,
+    ) {
+        let condition = self.flow.active_static_guard();
+        self.check.push_constraint(Constraint {
+            relation,
+            left,
+            right,
+            origin,
+            condition,
+            cause,
+        });
+    }
+
+    /// Queue one node selection under the active static guard.
+    pub(in crate::check) fn queue_select(&mut self, node: dir::GlobalNodeIdAny) {
+        // record the guard context the selection must run under
+        if let Condition::When(predicates) = self.flow.active_static_guard() {
+            self.check.inputs.set_node_condition(node, predicates);
+        }
+
+        self.check.queue_task(Task::Select(node));
+    }
+
+    /// Return one symbol's working type, opening a variable when missing.
+    pub(in crate::check) fn symbol_type(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        if let Some(ty) = self.check.inputs.symbol_type(symbol) {
+            return Ok(ty);
+        }
+
+        // external symbols chase aliases, then read committed types
+        if !self.check.is_component_module(symbol.module_id) {
+            let symbol = self.check.resolve_external_alias(symbol)?;
+            self.check.import_external_module(symbol.module_id)?;
+            let committed = self
+                .check
+                .external_modules
+                .get(&symbol.module_id)
+                .and_then(|external| external.types.get_symbol_type_id(symbol));
+            let Some(ty) = committed else {
+                return Err(CompilerError::Internal {
+                    message: format!("external symbol {symbol:?} has no imported type"),
+                });
+            };
+            self.check.inputs.set_symbol_type(symbol, ty)?;
+
+            return Ok(ty);
+        }
+        if self
+            .check
+            .module(symbol.module_id)
+            .is_import_alias(symbol.local_id)
+        {
+            return Err(CompilerError::Internal {
+                message: format!("import alias {symbol:?} reached type creation"),
+            });
+        }
+
+        // open source declaration types on first use
+        let origin = Origin::Symbol(symbol);
+        let source = self
+            .check
+            .module(symbol.module_id)
+            .symbol_declaration_node(symbol.local_id)?;
+        let variable = self
+            .check
+            .allocate_variable(symbol.module_id, origin, Widening::Preserve);
+        let ty = self.check.push_variable_type(variable, source)?;
+        self.check.inputs.set_symbol_type(symbol, ty)?;
+
+        Ok(ty)
+    }
+
+    /// Return one binding's working type, opening a variable with the
+    /// requested widening policy when missing.
+    pub(in crate::check) fn binding_type(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        widening: Widening,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        if let Some(ty) = self.check.inputs.symbol_type(symbol) {
+            return Ok(ty);
+        }
+
+        let origin = Origin::Symbol(symbol);
+        let source = self
+            .check
+            .module(symbol.module_id)
+            .symbol_declaration_node(symbol.local_id)?;
+        let variable = self
+            .check
+            .allocate_variable(symbol.module_id, origin, widening);
+        let ty = self.check.push_variable_type(variable, source)?;
+        self.check.inputs.set_symbol_type(symbol, ty)?;
+
+        Ok(ty)
+    }
+
+    /// Declare one symbol's type, equating against an existing type.
+    pub(in crate::check) fn declare_symbol_type(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        if let Some(existing) = self.check.inputs.symbol_type(symbol) {
+            self.relate_type(Origin::Symbol(symbol), Relation::Equal, existing, ty);
+
+            return Ok(existing);
+        }
+
+        self.check.inputs.set_symbol_type(symbol, ty)?;
+
+        Ok(ty)
+    }
+
+    /// Declare one symbol's static value singleton type.
+    pub(in crate::check) fn declare_symbol_value(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        value: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        self.check.inputs.set_symbol_value(symbol, value)
+    }
+
+    /// Push one working type at a source node.
+    pub(in crate::check) fn push_type(
+        &mut self,
+        ty: dir::Type,
+        source: dir::LocalNodeIdAny,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.check.push_working_type(self.module, ty, source)
+    }
+
+    /// Return a reference type for one well-known library declaration.
     pub(in crate::check) fn language_type_reference(
         &mut self,
-        source: dir::GlobalNodeIdAny,
+        source: dir::LocalNodeIdAny,
         item: dir::LanguageItem,
-        arguments: Vec<GenericArgument>,
-    ) -> TypeTerm {
+        arguments: Vec<dir::GlobalTypeId>,
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let symbol = self.check.language_symbol(item);
+        let reference = dir::Type::Reference(dir::GenericInstance { symbol, arguments });
 
-        TypeTerm::Reference {
-            origin: Origin::Node(source),
-            symbol,
-            arguments: arguments.into_iter().collect(),
-        }
+        self.push_type(reference, source)
     }
 
     /// Return a value type with `undefined` included.
-    pub(in crate::check) fn optional_value_type(&mut self, operand: TypeOperand) -> TypeOperand {
-        let undefined = self
-            .check
-            .inference
-            .push_term(TypeTerm::Literal(TypeLiteralTerm::Undefined));
-        let term = TypeTerm::Union {
-            elements: vec![operand, undefined.into()],
-        };
-        let term = self.check.inference.push_term(term);
-
-        term.into()
-    }
-
-    /// Return one symbol type operand, creating it when missing.
-    pub(in crate::check) fn symbol_type_operand(
+    pub(in crate::check) fn optional_value_type(
         &mut self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<TypeOperand> {
-        if let Some(operand) = self.check.inputs.symbol_type(symbol) {
-            return Ok(operand);
-        }
+        ty: dir::GlobalTypeId,
+        source: dir::LocalNodeIdAny,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let undefined = self.push_type(dir::Type::Undefined, source)?;
+        let union = dir::Type::Union(dir::UnionType {
+            elements: vec![ty, undefined],
+        });
 
-        // require imported operands to be available at the boundary
-        if !self.check.is_component_module(symbol.module_id) {
-            return Err(CompilerError::Internal {
-                message: format!("external symbol {symbol:?} has no imported type operand"),
-            });
-        }
-
-        if self
-            .check
-            .module(symbol.module_id)
-            .is_import_alias(symbol.local_id)
-        {
-            return Err(CompilerError::Internal {
-                message: format!("import alias {symbol:?} reached type operand creation"),
-            });
-        }
-
-        // create source declaration operands on first use
-        let variable = self
-            .check
-            .push_type_variable(symbol.module_id, Origin::Symbol(symbol));
-        let operand = TypeOperand::Variable(variable);
-        self.check.inputs.insert_symbol_type(symbol, operand)
+        self.push_type(union, source)
     }
 
-    /// Constrain one symbol to equal a type term.
-    pub(in crate::check) fn constrain_symbol_type_term(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        term: TypeTerm,
-        condition: Condition,
-    ) -> CompilerResult<TypeOperand> {
-        if let Some(existing) = self.check.inputs.symbol_type(symbol) {
-            let origin = Origin::Symbol(symbol);
-            let term = self.type_term_operand(term);
-            self.check
-                .constrain_type(origin, TypeRelation::Equal, existing, term, condition);
-
-            return Ok(existing);
+    /// Return the predicates of the active static guard.
+    pub(in crate::check) fn guard_predicates(&self) -> SmallVec<[dir::GlobalTypeId; 2]> {
+        match self.flow.active_static_guard() {
+            Condition::Always => SmallVec::new(),
+            Condition::When(predicates) => predicates,
         }
-
-        let operand = self.type_term_operand(term);
-        self.check.inputs.insert_symbol_type(symbol, operand)
-    }
-
-    /// Constrain one symbol to equal a type operand.
-    pub(in crate::check) fn constrain_symbol_type(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        operand: TypeOperand,
-        condition: Condition,
-    ) -> CompilerResult<TypeOperand> {
-        if let Some(existing) = self.check.inputs.symbol_type(symbol) {
-            let origin = Origin::Symbol(symbol);
-            self.check
-                .constrain_type(origin, TypeRelation::Equal, existing, operand, condition);
-
-            return Ok(existing);
-        }
-
-        self.check.inputs.insert_symbol_type(symbol, operand)
-    }
-
-    /// Return one node static operand, creating it when missing.
-    pub(in crate::check) fn node_static_operand<T: dir::Node + Clone>(
-        &mut self,
-        id: dir::LocalNodeId<T>,
-    ) -> CompilerResult<StaticOperand> {
-        let node = id.into_global_any(self.module);
-        if let Some(operand) = self.check.inputs.node_static(node) {
-            return Ok(operand);
-        }
-
-        let variable = self
-            .check
-            .push_static_variable(self.module, Origin::Node(node));
-        let operand = StaticOperand::Variable(variable);
-        self.check.inputs.insert_node_static(node, operand)
-    }
-
-    /// Constrain one node to equal a static term.
-    pub(in crate::check) fn constrain_node_static<T: dir::Node + Clone>(
-        &mut self,
-        id: dir::LocalNodeId<T>,
-        term: StaticTerm,
-        condition: Condition,
-    ) -> CompilerResult<StaticOperand> {
-        let node = id.into_global_any(self.module);
-        let origin = Origin::Node(node);
-        let target = self.node_static_operand(id)?;
-        let term = self.check.inference.push_term(term);
-        self.check.equate_static(origin, target, term, condition);
-
-        Ok(target)
-    }
-
-    /// Set one node's own static operand.
-    pub(in crate::check) fn set_node_static<T: dir::Node + Clone>(
-        &mut self,
-        id: dir::LocalNodeId<T>,
-        operand: StaticOperand,
-    ) -> CompilerResult<StaticOperand> {
-        let node = id.into_global_any(self.module);
-        self.check.inputs.insert_node_static(node, operand)
-    }
-
-    /// Return one symbol static operand, creating it when missing.
-    pub(in crate::check) fn symbol_static_operand(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<StaticOperand> {
-        if let Some(operand) = self.check.inputs.symbol_static(symbol) {
-            return Ok(operand);
-        }
-
-        if !self.check.is_component_module(symbol.module_id) {
-            return Err(CompilerError::Internal {
-                message:
-                    "check static variable creation requires a source symbol in the checked component"
-                        .to_owned(),
-            });
-        }
-
-        if self
-            .check
-            .module(symbol.module_id)
-            .is_import_alias(symbol.local_id)
-        {
-            return Err(CompilerError::Internal {
-                message: format!("import alias {symbol:?} reached static operand creation"),
-            });
-        }
-
-        // create source declaration operands on first use
-        let variable = self
-            .check
-            .push_static_variable(symbol.module_id, Origin::Symbol(symbol));
-        let operand = StaticOperand::Variable(variable);
-        self.check.inputs.insert_symbol_static(symbol, operand)
-    }
-
-    /// Constrain one symbol to equal a static term.
-    pub(in crate::check) fn constrain_symbol_static(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        term: StaticTerm,
-        condition: Condition,
-    ) -> CompilerResult<StaticOperand> {
-        if let Some(existing) = self.check.inputs.symbol_static(symbol) {
-            let origin = Origin::Symbol(symbol);
-            let term = self.check.inference.push_term(term);
-            self.check.equate_static(origin, existing, term, condition);
-
-            return Ok(existing);
-        }
-
-        let operand = StaticOperand::Term(self.check.inference.push_term(term));
-        self.check.inputs.insert_symbol_static(symbol, operand)
-    }
-
-    /// Return one static expression operand, creating it when missing.
-    pub(in crate::check) fn static_expression_operand(
-        &mut self,
-        id: dir::LocalNodeId<dir::Expression>,
-        condition: Condition,
-    ) -> CompilerResult<StaticOperand> {
-        let term = StaticTerm::Expression(id.into_global(self.module));
-        self.constrain_node_static(id, term, condition)
-    }
-
-    /// Intern one type term as an operand.
-    fn type_term_operand(&mut self, term: TypeTerm) -> TypeOperand {
-        self.check.type_term_operand(term)
     }
 }

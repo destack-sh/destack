@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{ConditionBranch, FlowPath, PatternRelation, TypeOperand, WalkState};
+use crate::check::{ConditionBranch, FlowPath, Origin, Relation, WalkState};
 
 impl WalkState<'_, '_> {
     /// Walk one match case.
@@ -14,7 +14,7 @@ impl WalkState<'_, '_> {
         &mut self,
         _id: dir::LocalNodeId<dir::MatchCase>,
         match_case: &dir::MatchCase,
-        value: Option<(TypeOperand, Option<FlowPath>)>,
+        value: Option<(dir::GlobalTypeId, Option<FlowPath>)>,
     ) -> CompilerResult<()> {
         match match_case {
             // case pattern if guard => expression
@@ -45,28 +45,21 @@ impl WalkState<'_, '_> {
     fn walk_match_selector(
         &mut self,
         selector: &dir::MatchSelector,
-        value: Option<(TypeOperand, Option<FlowPath>)>,
+        value: Option<(dir::GlobalTypeId, Option<FlowPath>)>,
     ) -> CompilerResult<()> {
         match selector {
             // case pattern if guard
             dir::MatchSelector::Pattern { pattern, guard } => {
-                // walk pattern and constrain it against the matched value
+                // walk pattern and flow the matched value into its holes
                 self.walk_pattern(*pattern, self.tree.get(*pattern))?;
 
-                let term = self.pattern_term(self.module, *pattern)?;
-
-                if let (Some((value, path)), Some(term)) = (value, term) {
-                    let condition = self.active_static_guard();
-                    self.check.constrain_pattern(
-                        self.module,
-                        PatternRelation::Match(term),
-                        pattern.into_any(),
-                        value,
-                        condition,
-                    );
+                if let Some((value, path)) = value {
+                    let origin = Origin::Node(pattern.into_global_any(self.module));
+                    let pattern_type = self.node_type(*pattern)?;
+                    self.relate_type(origin, Relation::Assignable, value, pattern_type);
 
                     if let Some(path) = path {
-                        self.narrow_pattern_success(path, *pattern)?;
+                        self.narrow_pattern_match(path, *pattern)?;
                     }
                 }
 
@@ -77,14 +70,14 @@ impl WalkState<'_, '_> {
                 if let Some(guard) = guard {
                     self.walk_expression(*guard, self.tree.get(*guard))?;
 
-                    let variable = self.node_type_operand(*guard)?;
-                    let condition = self.active_static_guard();
-                    self.check.constrain_condition(
-                        self.module,
+                    // guards produce runtime booleans
+                    let origin = Origin::Node(guard.into_global_any(self.module));
+                    let condition = self.node_type(*guard)?;
+                    let boolean = self.push_type(
+                        dir::Type::Primitive(dir::PrimitiveType::Boolean),
                         guard.into_any(),
-                        variable,
-                        condition,
-                    );
+                    )?;
+                    self.relate_type(origin, Relation::Assignable, condition, boolean);
                     self.narrow_expression(*guard, ConditionBranch::True)?;
                 }
             }

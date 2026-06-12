@@ -1,10 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{
-    IndexKind, IndexTerm, MemberReceiver, MemberTerm, Origin, Place, PlaceTarget, TypeTerm,
-    WalkState,
-};
+use crate::check::{Decision, NameLookup, Place, PlaceTarget, WalkState};
 
 impl WalkState<'_, '_> {
     /// Walk one assignment target as a place.
@@ -26,14 +23,17 @@ impl WalkState<'_, '_> {
             dir::Expression::Member { left, .. }
             // value.#member
             | dir::Expression::PrivateMember { left, .. } => {
-                self.walk_expression(*left, self.tree.get(*left))?;
+                let left = *left;
+
+                self.walk_expression(left, self.tree.get(left))?;
             }
             // value[index]
             dir::Expression::Index { left, index, .. } => {
-                self.walk_expression(*left, self.tree.get(*left))?;
+                let (left, index) = (*left, *index);
+                self.walk_expression(left, self.tree.get(left))?;
 
                 if let Some(index) = index {
-                    self.walk_expression(*index, self.tree.get(*index))?;
+                    self.walk_expression(index, self.tree.get(index))?;
                 }
             }
             // *value
@@ -41,7 +41,9 @@ impl WalkState<'_, '_> {
                 operator: dir::UnaryOperator::Dereference,
                 right,
             } => {
-                self.walk_expression(*right, self.tree.get(*right))?;
+                let right = *right;
+
+                self.walk_expression(right, self.tree.get(right))?;
             }
             // check non place expression normally
             _ => {
@@ -49,9 +51,9 @@ impl WalkState<'_, '_> {
             }
         }
 
-        // place
-        if let Some(place) = self.place_term(id)? {
-            self.constrain_node_type(id, place.ty)?;
+        // tie the target node to its place type
+        if let Some(place) = self.assignment_place(id)? {
+            self.declare_node_type(id, place.ty)?;
         }
 
         Ok(())
@@ -63,48 +65,37 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// value[index]
     /// ```
-    pub(in crate::check) fn place_term(
+    pub(in crate::check) fn assignment_place(
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<Place>> {
         let module = self.module;
         let source = id.into_global_any(module);
-        let (ty, target) = match self.tree.get(id) {
+
+        match self.tree.get(id) {
             // x
             dir::Expression::Identifier { name } => {
-                let guard = self.active_static_guard();
-                let Some(symbol) = self.check.symbol_by_name_under(
-                    module,
-                    id.into_any(),
-                    *name,
-                    dir::SymbolSpace::Value,
-                    &guard,
-                ) else {
+                let name = *name;
+                let lookup =
+                    self.check
+                        .lookup_name(module, id.into_any(), name, dir::SymbolSpace::Value);
+                let symbol = match lookup {
+                    NameLookup::Found(candidate) => candidate.symbol(),
+                    NameLookup::Missing | NameLookup::Ambiguous(_) => None,
+                };
+                let Some(symbol) = symbol else {
                     return Ok(None);
                 };
                 self.capture_symbol_reference(symbol);
-                self.select_value_reference(source, symbol)?;
-                let ty = self.symbol_type_operand(symbol)?;
+                self.check
+                    .record_decision(source, Decision::Name(dir::NameResolution::new(symbol)))?;
+                let ty = self.symbol_type(symbol)?;
 
-                (ty, PlaceTarget::Binding { symbol })
-            }
-            // namespace.x
-            dir::Expression::QualifiedReference { path, .. } => {
-                let guard = self.active_static_guard();
-                let Some(symbol) = self.check.symbol_by_path_under(
-                    module,
-                    id.into_any(),
-                    path,
-                    dir::SymbolSpace::Value,
-                    &guard,
-                ) else {
-                    return Ok(None);
-                };
-                self.capture_symbol_reference(symbol);
-                self.select_value_reference(source, symbol)?;
-                let ty = self.symbol_type_operand(symbol)?;
-
-                (ty, PlaceTarget::Binding { symbol })
+                Ok(Some(Place::new(
+                    ty,
+                    PlaceTarget::Binding { symbol },
+                    source,
+                )))
             }
             // value.member
             dir::Expression::Member {
@@ -116,17 +107,19 @@ impl WalkState<'_, '_> {
                 left,
                 name: Some(name),
             } => {
-                let owner = self.node_type_operand(*left)?;
-                let key = dir::StaticKey::Name(*name);
-                let member = self.check.inference.push_term(MemberTerm {
-                    origin: Origin::Node(source),
-                    receiver: MemberReceiver::Value(owner),
-                    key,
-                    arguments: Vec::new().into(),
-                });
-                let term = self.check.inference.push_term(TypeTerm::Member(member));
+                let (left, name) = (*left, *name);
+                let owner = self.node_type(left)?;
+                let key = dir::StaticKey::Name(name);
 
-                (term.into(), PlaceTarget::Member { owner, key })
+                // member selection binds the target node type
+                let ty = self.node_type(id)?;
+                self.queue_select(source);
+
+                Ok(Some(Place::new(
+                    ty,
+                    PlaceTarget::Member { owner, key },
+                    source,
+                )))
             }
             // value[index]
             dir::Expression::Index {
@@ -134,42 +127,36 @@ impl WalkState<'_, '_> {
                 index: Some(index),
                 ..
             } => {
-                let index_node = *index;
-                let receiver = self.node_type_operand(*left)?;
-                let index = self.node_type_operand(index_node)?;
-                let kind = if matches!(self.tree.get(index_node), dir::Expression::RangeExpression { .. }) {
-                    IndexKind::Slice
-                } else {
-                    IndexKind::Element
-                };
-                let term = self.check.inference.push_term(IndexTerm {
-                    source,
-                    kind,
-                    receiver,
-                    index,
-                    key: self.tree.get(index_node).static_key(),
-                });
-                let term = self.check.inference.push_term(TypeTerm::Index(term));
+                let (left, index) = (*left, *index);
+                let receiver = self.node_type(left)?;
+                let index = self.node_type(index)?;
 
-                (term.into(), PlaceTarget::Index { receiver, index })
+                // index selection binds the target node type
+                let ty = self.node_type(id)?;
+                self.queue_select(source);
+
+                Ok(Some(Place::new(
+                    ty,
+                    PlaceTarget::Index { receiver, index },
+                    source,
+                )))
             }
             // *value
             dir::Expression::Unary {
                 operator: dir::UnaryOperator::Dereference,
                 right,
             } => {
-                let ty = self.node_type_operand(*right)?;
+                let right = *right;
+                let ty = self.node_type(right)?;
 
-                (ty.into(), PlaceTarget::Dereference)
+                Ok(Some(Place::new(ty, PlaceTarget::Dereference, source)))
             }
             // not writable place syntax
             _ => {
                 self.check.report_not_writable(module, id.into_any());
 
-                return Ok(None);
+                Ok(None)
             }
-        };
-
-        Ok(Some(Place::new(ty, target, source)))
+        }
     }
 }
