@@ -48,6 +48,8 @@ impl ResolveState<'_> {
                     });
                 }
 
+                self.require_member_owner_language_items();
+
                 self.member_path_collection_depth += 1;
                 dir::walk_expression(self, tree, id, expression);
                 self.member_path_collection_depth -= 1;
