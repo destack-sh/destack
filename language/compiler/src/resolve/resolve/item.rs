@@ -44,6 +44,21 @@ impl ResolveState<'_> {
         self.require_language_item(dir::LanguageItem::FromResidual);
     }
 
+    /// Require the owner surfaces member access can demand.
+    ///
+    /// The check projects scalar and collection receivers onto these
+    /// declarations, so this set mirrors the owner items its member
+    /// lookup reaches. Declaring the demand as import edges merges the
+    /// mutually dependent core components, which on-demand artifact
+    /// requires cannot serve across a component cycle.
+    pub(in crate::resolve) fn require_member_owner_language_items(&mut self) {
+        self.require_language_item(dir::LanguageItem::String);
+        self.require_language_item(dir::LanguageItem::Number);
+        self.require_language_item(dir::LanguageItem::Array);
+        self.require_language_item(dir::LanguageItem::Slice);
+        self.require_language_item(dir::LanguageItem::FixedArray);
+    }
+
     /// Require the iterable item implied by yield delegation.
     ///
     /// Example:
