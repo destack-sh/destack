@@ -1,11 +1,14 @@
+use crate::tests::TestParser;
+use destack_dir::{
+    CommentKind, CommentPosition, Declaration, Declarator, Decorator, DecoratorPosition,
+    Expression, TokenType, TypeDeclaration, TypeExpression, TypeLiteral, normalize_comment_payload,
+};
 use std::sync::Arc;
 
-use crate::tests::*;
 use crate::{
     Parser, ParserOptions, ParserTriviaMode, assert_comment, assert_expression_path, assert_node,
 };
 use destack_core::StringPool;
-use destack_dir::*;
 use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
 
 #[test]

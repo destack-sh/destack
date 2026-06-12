@@ -1,6 +1,9 @@
-use crate::tests::*;
+use crate::tests::TestParser;
 use crate::{assert_comment, assert_expression_path, assert_node, assert_path, assert_string};
-use destack_dir::*;
+use destack_dir::{
+    CommentKind, Declaration, Declarator, Expression, GenericArgument, InferForm, IntegerType,
+    ScalarLiteral, TupleElement, TypeDeclaration, TypeExpression, TypeLiteral,
+};
 use destack_source::LanguageType;
 
 /// Parse conditional types with infer constraints.

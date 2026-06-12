@@ -1,6 +1,9 @@
-use crate::tests::*;
+use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_node, assert_path, assert_string};
-use destack_dir::*;
+use destack_dir::{
+    Declaration, Expression, GenericArgument, GenericParameter, TypeDeclaration, TypeExpression,
+    TypeLiteral,
+};
 use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
 #[test]

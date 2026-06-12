@@ -1,6 +1,9 @@
-use crate::tests::*;
+use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_node, assert_path};
-use destack_dir::*;
+use destack_dir::{
+    BinaryOperator, Expression, Mutability, ScalarLiteral, TypeExpression, UnaryOperator,
+    VarianceBound,
+};
 use destack_source::LanguageType;
 
 /// Unary operator spans point at the operator token.

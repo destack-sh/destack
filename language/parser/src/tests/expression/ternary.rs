@@ -1,6 +1,10 @@
-use crate::tests::*;
+use crate::tests::TestParser;
 use crate::{assert_comment, assert_expression_path, assert_node, assert_string};
-use destack_dir::*;
+use destack_dir::{
+    AssignOperator, BinaryOperator, Block, CommentKind, Declaration, Declarator, ExportKind,
+    Expression, FunctionDeclaration, FunctionForm, IfCondition, IfForm, Key, Name, Pattern,
+    Property, ScalarLiteral,
+};
 use destack_source::LanguageType;
 
 /// Parse `true ? 1 : 2`.

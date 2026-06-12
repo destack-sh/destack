@@ -1,3 +1,4 @@
+use crate::tests::{TestParser, block_expression_ids};
 use destack_dir::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, ClassDeclaration, CommentKind,
     Declaration, Expression, FunctionDeclaration, FunctionForm, FunctionRole, GenericArgument,
@@ -8,11 +9,7 @@ use destack_dir::{
 use destack_source::LanguageType;
 
 use crate::parse::TypeMemberContainerKind;
-use crate::tests::TestParser;
-use crate::{
-    assert_comment, assert_expression_path, assert_node, assert_path, assert_string,
-    block_expression_ids,
-};
+use crate::{assert_comment, assert_expression_path, assert_node, assert_path, assert_string};
 
 #[test]
 fn test_parse_member_with_private_hash_name() {

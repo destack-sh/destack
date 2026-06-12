@@ -1,6 +1,9 @@
-use crate::tests::*;
+use crate::tests::{TestParser, block_expression_ids};
 use crate::{assert_expression_path, assert_node};
-use destack_dir::*;
+use destack_dir::{
+    Argument, Asynchrony, BinaryOperator, Declaration, Expression, FunctionDeclaration,
+    FunctionForm, IfForm, Property, ScalarLiteral, UnaryOperator,
+};
 use destack_source::LanguageType;
 
 /// Comma in parentheses preserves the explicit sequence grouping.

@@ -1,7 +1,7 @@
+use crate::tests::TestParser;
 use destack_dir::{Expression, IfCondition, IfForm, Key, ScalarLiteral};
 use destack_source::LanguageType;
 
-use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_node, assert_string};
 
 #[test]

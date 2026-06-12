@@ -1,6 +1,5 @@
-use destack_dir::TokenType;
-
 use crate::{TestParser, assert_path};
+use destack_dir::TokenType;
 
 #[test]
 fn test_parse_simple_path_single_segment() {

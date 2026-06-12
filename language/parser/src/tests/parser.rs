@@ -1,13 +1,13 @@
-use std::sync::Arc;
-
-use destack_core::StringPool;
 use destack_dir::{
-    AssignPattern, Block, Expression, LocalNodeId, NodeType, StringId, TokenType, TypeExpression,
+    AssignPattern, Block, Expression, LocalNodeId, NodeType, TokenType, TypeExpression,
     normalize_comment_payload,
 };
+use std::sync::Arc;
+
+use destack_core::{StringId, StringPool};
 use destack_source::{File, FileId, FileType, LanguageType, Uri};
 
-use crate::{Parser, ParserOptions, ParserTriviaMode};
+use crate::{Parser, ParserOptions, ParserTokenHistory, ParserTriviaMode};
 
 /// A test wrapper for Parser.
 #[derive(Debug)]
@@ -46,6 +46,8 @@ impl TestParser {
             self.language,
             ParserOptions {
                 trivia_mode: ParserTriviaMode::Full,
+                preserve_parenthesized_wrappers: true,
+                token_history: ParserTokenHistory::Record,
                 ..ParserOptions::default()
             },
             Arc::new(StringPool::new()),
