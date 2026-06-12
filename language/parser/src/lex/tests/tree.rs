@@ -1,4 +1,7 @@
-use super::*;
+use super::{
+    LanguageType, TokenLiteral, TokenType, assert_tokenize_eq_roundtrip,
+    assert_tree_tokenize_eq_roundtrip, lex_source_with_tree_literals, token,
+};
 
 /// Tree literals after type aliases should enter tree tokenization at the next tree expression.
 #[test]
@@ -33,9 +36,9 @@ fn test_lex_tree_after_type_alias_before_tree() {
 fn test_lex_html_entities_outside_tree_not_decoded() {
     assert_tokenize_eq_roundtrip!(
         "&nbsp;",
-        Token::new(TokenType::ElementwiseAnd, 1, None),
-        Token::new(TokenType::Identifier, 4, None),
-        Token::new(TokenType::Semicolon, 1, None),
+        token(TokenType::ElementwiseAnd, 1, None),
+        token(TokenType::Identifier, 4, None),
+        token(TokenType::Semicolon, 1, None),
     );
 }
 
@@ -44,10 +47,10 @@ fn test_lex_html_entities_outside_tree_not_decoded() {
 fn test_lex_html_entities_inside_tree_content() {
     assert_tree_tokenize_eq_roundtrip!(
         "<div>&nbsp;</div>",
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Identifier, 3, None),  // div
-        Token::new(TokenType::GreaterThan, 1, None), // >
-        Token::new(
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Identifier, 3, None),  // div
+        token(TokenType::GreaterThan, 1, None), // >
+        token(
             TokenType::Literal,
             6,
             Some(TokenLiteral::Character {
@@ -55,10 +58,10 @@ fn test_lex_html_entities_inside_tree_content() {
                 is_html_entity: true,
             })
         ), // &nbsp;
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Divide, 1, None),      // /
-        Token::new(TokenType::Identifier, 3, None),  // div
-        Token::new(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Divide, 1, None),      // /
+        token(TokenType::Identifier, 3, None),  // div
+        token(TokenType::GreaterThan, 1, None), // >
     );
 }
 
@@ -67,10 +70,10 @@ fn test_lex_html_entities_inside_tree_content() {
 fn test_lex_html_entities_various_inside_tree() {
     assert_tree_tokenize_eq_roundtrip!(
         "<p>&#160;&#xA0;&amp;</p>",
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Identifier, 1, None),  // p
-        Token::new(TokenType::GreaterThan, 1, None), // >
-        Token::new(
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Identifier, 1, None),  // p
+        token(TokenType::GreaterThan, 1, None), // >
+        token(
             TokenType::Literal,
             6,
             Some(TokenLiteral::Character {
@@ -78,7 +81,7 @@ fn test_lex_html_entities_various_inside_tree() {
                 is_html_entity: true,
             })
         ), // &#160;
-        Token::new(
+        token(
             TokenType::Literal,
             6,
             Some(TokenLiteral::Character {
@@ -86,7 +89,7 @@ fn test_lex_html_entities_various_inside_tree() {
                 is_html_entity: true,
             })
         ), // &#xA0;
-        Token::new(
+        token(
             TokenType::Literal,
             5,
             Some(TokenLiteral::Character {
@@ -94,10 +97,10 @@ fn test_lex_html_entities_various_inside_tree() {
                 is_html_entity: true,
             })
         ), // &amp;
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Divide, 1, None),      // /
-        Token::new(TokenType::Identifier, 1, None),  // p
-        Token::new(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Divide, 1, None),      // /
+        token(TokenType::Identifier, 1, None),  // p
+        token(TokenType::GreaterThan, 1, None), // >
     );
 }
 
@@ -106,8 +109,8 @@ fn test_lex_html_entities_various_inside_tree() {
 fn test_lex_entity_like_text_without_semicolon_outside_tree_not_decoded() {
     assert_tokenize_eq_roundtrip!(
         "&nbsp",
-        Token::new(TokenType::ElementwiseAnd, 1, None),
-        Token::new(TokenType::Identifier, 4, None),
+        token(TokenType::ElementwiseAnd, 1, None),
+        token(TokenType::Identifier, 4, None),
     );
 }
 
@@ -117,10 +120,10 @@ fn test_lex_tree_self_closing() {
     // <A/> - self-closing tree tag
     assert_tree_tokenize_eq_roundtrip!(
         "<A/>",
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Identifier, 1, None),  // A
-        Token::new(TokenType::Divide, 1, None),      // /
-        Token::new(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Identifier, 1, None),  // A
+        token(TokenType::Divide, 1, None),      // /
+        token(TokenType::GreaterThan, 1, None), // >
     );
 }
 
@@ -129,16 +132,16 @@ fn test_lex_tree_self_closing() {
 fn test_lex_tree_unicode_tag_identifier() {
     assert_tree_tokenize_eq_roundtrip!(
         "<µtag µ_>µ_</µtag>",
-        Token::new(TokenType::LessThan, 1, None),
-        Token::new(TokenType::Identifier, 5, None),
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(TokenType::Identifier, 3, None),
-        Token::new(TokenType::GreaterThan, 1, None),
-        Token::new(TokenType::Literal, 3, Some(TokenLiteral::TreeString)),
-        Token::new(TokenType::LessThan, 1, None),
-        Token::new(TokenType::Divide, 1, None),
-        Token::new(TokenType::Identifier, 5, None),
-        Token::new(TokenType::GreaterThan, 1, None),
+        token(TokenType::LessThan, 1, None),
+        token(TokenType::Identifier, 5, None),
+        token(TokenType::Whitespace, 1, None),
+        token(TokenType::Identifier, 3, None),
+        token(TokenType::GreaterThan, 1, None),
+        token(TokenType::Literal, 3, Some(TokenLiteral::TreeString)),
+        token(TokenType::LessThan, 1, None),
+        token(TokenType::Divide, 1, None),
+        token(TokenType::Identifier, 5, None),
+        token(TokenType::GreaterThan, 1, None),
     );
 }
 
@@ -148,14 +151,14 @@ fn test_lex_tree_with_text_content() {
     // <div>Hello</div> - tag with text content
     assert_tree_tokenize_eq_roundtrip!(
         "<div>Hello</div>",
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Identifier, 3, None),  // div
-        Token::new(TokenType::GreaterThan, 1, None), // >
-        Token::new(TokenType::Literal, 5, Some(TokenLiteral::TreeString)), // Hello
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Divide, 1, None),      // /
-        Token::new(TokenType::Identifier, 3, None),  // div
-        Token::new(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Identifier, 3, None),  // div
+        token(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::Literal, 5, Some(TokenLiteral::TreeString)), // Hello
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Divide, 1, None),      // /
+        token(TokenType::Identifier, 3, None),  // div
+        token(TokenType::GreaterThan, 1, None), // >
     );
 }
 
@@ -164,14 +167,14 @@ fn test_lex_tree_with_text_content() {
 fn test_lex_tree_closing_tag_with_trivia() {
     assert_tree_tokenize_eq_roundtrip!(
         "<div>< /div>",
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Identifier, 3, None),  // div
-        Token::new(TokenType::GreaterThan, 1, None), // >
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Whitespace, 1, None),  // (space)
-        Token::new(TokenType::Divide, 1, None),      // /
-        Token::new(TokenType::Identifier, 3, None),  // div
-        Token::new(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Identifier, 3, None),  // div
+        token(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Whitespace, 1, None),  // (space)
+        token(TokenType::Divide, 1, None),      // /
+        token(TokenType::Identifier, 3, None),  // div
+        token(TokenType::GreaterThan, 1, None), // >
     );
 }
 
@@ -180,16 +183,16 @@ fn test_lex_tree_closing_tag_with_trivia() {
 fn test_lex_tree_closing_tag_with_comment_trivia() {
     assert_tree_tokenize_eq_roundtrip!(
         "<div>< /*comment*/ /div>",
-        Token::new(TokenType::LessThan, 1, None),      // <
-        Token::new(TokenType::Identifier, 3, None),    // div
-        Token::new(TokenType::GreaterThan, 1, None),   // >
-        Token::new(TokenType::LessThan, 1, None),      // <
-        Token::new(TokenType::Whitespace, 1, None),    // (space)
-        Token::new(TokenType::BlockComment, 11, None), // /*comment*/
-        Token::new(TokenType::Whitespace, 1, None),    // (space)
-        Token::new(TokenType::Divide, 1, None),        // /
-        Token::new(TokenType::Identifier, 3, None),    // div
-        Token::new(TokenType::GreaterThan, 1, None),   // >
+        token(TokenType::LessThan, 1, None),      // <
+        token(TokenType::Identifier, 3, None),    // div
+        token(TokenType::GreaterThan, 1, None),   // >
+        token(TokenType::LessThan, 1, None),      // <
+        token(TokenType::Whitespace, 1, None),    // (space)
+        token(TokenType::BlockComment, 11, None), // /*comment*/
+        token(TokenType::Whitespace, 1, None),    // (space)
+        token(TokenType::Divide, 1, None),        // /
+        token(TokenType::Identifier, 3, None),    // div
+        token(TokenType::GreaterThan, 1, None),   // >
     );
 }
 
@@ -199,16 +202,16 @@ fn test_lex_tree_with_expression_container() {
     // <div>{x}</div> - tag with expression container
     assert_tree_tokenize_eq_roundtrip!(
         "<div>{x}</div>",
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Identifier, 3, None),  // div
-        Token::new(TokenType::GreaterThan, 1, None), // >
-        Token::new(TokenType::OpenBrace, 1, None),   // {
-        Token::new(TokenType::Identifier, 1, None),  // x
-        Token::new(TokenType::CloseBrace, 1, None),  // }
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Divide, 1, None),      // /
-        Token::new(TokenType::Identifier, 3, None),  // div
-        Token::new(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Identifier, 3, None),  // div
+        token(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::OpenBrace, 1, None),   // {
+        token(TokenType::Identifier, 1, None),  // x
+        token(TokenType::CloseBrace, 1, None),  // }
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Divide, 1, None),      // /
+        token(TokenType::Identifier, 3, None),  // div
+        token(TokenType::GreaterThan, 1, None), // >
     );
 }
 
@@ -218,18 +221,18 @@ fn test_lex_tree_with_text_and_expression() {
     // <div>Hello {name}!</div> - mixed text and expression
     assert_tree_tokenize_eq_roundtrip!(
         "<div>Hello {name}!</div>",
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Identifier, 3, None),  // div
-        Token::new(TokenType::GreaterThan, 1, None), // >
-        Token::new(TokenType::Literal, 6, Some(TokenLiteral::TreeString)), // "Hello "
-        Token::new(TokenType::OpenBrace, 1, None),   // {
-        Token::new(TokenType::Identifier, 4, None),  // name
-        Token::new(TokenType::CloseBrace, 1, None),  // }
-        Token::new(TokenType::Literal, 1, Some(TokenLiteral::TreeString)), // "!"
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Divide, 1, None),      // /
-        Token::new(TokenType::Identifier, 3, None),  // div
-        Token::new(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Identifier, 3, None),  // div
+        token(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::Literal, 6, Some(TokenLiteral::TreeString)), // "Hello "
+        token(TokenType::OpenBrace, 1, None),   // {
+        token(TokenType::Identifier, 4, None),  // name
+        token(TokenType::CloseBrace, 1, None),  // }
+        token(TokenType::Literal, 1, Some(TokenLiteral::TreeString)), // "!"
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Divide, 1, None),      // /
+        token(TokenType::Identifier, 3, None),  // div
+        token(TokenType::GreaterThan, 1, None), // >
     );
 }
 
@@ -238,15 +241,15 @@ fn test_lex_tree_with_text_and_expression() {
 fn test_lex_tree_with_generic_arguments() {
     assert_tokenize_eq_roundtrip!(
         "<Component<any>></Component>",
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Identifier, 9, None),  // Component
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Identifier, 3, None),  // any
-        Token::new(TokenType::ShiftRight, 2, None),  // >>
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Divide, 1, None),      // /
-        Token::new(TokenType::Identifier, 9, None),  // Component
-        Token::new(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Identifier, 9, None),  // Component
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Identifier, 3, None),  // any
+        token(TokenType::ShiftRight, 2, None),  // >>
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Divide, 1, None),      // /
+        token(TokenType::Identifier, 9, None),  // Component
+        token(TokenType::GreaterThan, 1, None), // >
     );
 }
 
@@ -255,16 +258,16 @@ fn test_lex_tree_with_generic_arguments() {
 fn test_lex_generic_arrow_not_tree() {
     assert_tokenize_eq_roundtrip!(
         "<T>(x) => x",
-        Token::new(TokenType::LessThan, 1, None),        // <
-        Token::new(TokenType::Identifier, 1, None),      // T
-        Token::new(TokenType::GreaterThan, 1, None),     // >
-        Token::new(TokenType::OpenParenthesis, 1, None), // (
-        Token::new(TokenType::Identifier, 1, None),      // x
-        Token::new(TokenType::CloseParenthesis, 1, None), // )
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(TokenType::ArrowWide, 2, None), // =>
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(TokenType::Identifier, 1, None), // x
+        token(TokenType::LessThan, 1, None),         // <
+        token(TokenType::Identifier, 1, None),       // T
+        token(TokenType::GreaterThan, 1, None),      // >
+        token(TokenType::OpenParenthesis, 1, None),  // (
+        token(TokenType::Identifier, 1, None),       // x
+        token(TokenType::CloseParenthesis, 1, None), // )
+        token(TokenType::Whitespace, 1, None),
+        token(TokenType::ArrowWide, 2, None), // =>
+        token(TokenType::Whitespace, 1, None),
+        token(TokenType::Identifier, 1, None), // x
     );
 }
 
@@ -273,17 +276,17 @@ fn test_lex_generic_arrow_not_tree() {
 fn test_lex_generic_arrow_not_tree_with_comment() {
     assert_tokenize_eq_roundtrip!(
         "<T>(/*x*/y) => y",
-        Token::new(TokenType::LessThan, 1, None),        // <
-        Token::new(TokenType::Identifier, 1, None),      // T
-        Token::new(TokenType::GreaterThan, 1, None),     // >
-        Token::new(TokenType::OpenParenthesis, 1, None), // (
-        Token::new(TokenType::BlockComment, 5, None),    // /*x*/
-        Token::new(TokenType::Identifier, 1, None),      // y
-        Token::new(TokenType::CloseParenthesis, 1, None), // )
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(TokenType::ArrowWide, 2, None), // =>
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(TokenType::Identifier, 1, None), // y
+        token(TokenType::LessThan, 1, None),         // <
+        token(TokenType::Identifier, 1, None),       // T
+        token(TokenType::GreaterThan, 1, None),      // >
+        token(TokenType::OpenParenthesis, 1, None),  // (
+        token(TokenType::BlockComment, 5, None),     // /*x*/
+        token(TokenType::Identifier, 1, None),       // y
+        token(TokenType::CloseParenthesis, 1, None), // )
+        token(TokenType::Whitespace, 1, None),
+        token(TokenType::ArrowWide, 2, None), // =>
+        token(TokenType::Whitespace, 1, None),
+        token(TokenType::Identifier, 1, None), // y
     );
 }
 
@@ -293,11 +296,11 @@ fn test_lex_comparison_not_tree() {
     // a < b should be comparison, not tree opening
     assert_tokenize_eq_roundtrip!(
         "a < b",
-        Token::new(TokenType::Identifier, 1, None), // a
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(TokenType::LessThan, 1, None), // <
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(TokenType::Identifier, 1, None), // b
+        token(TokenType::Identifier, 1, None), // a
+        token(TokenType::Whitespace, 1, None),
+        token(TokenType::LessThan, 1, None), // <
+        token(TokenType::Whitespace, 1, None),
+        token(TokenType::Identifier, 1, None), // b
     );
 }
 
@@ -307,12 +310,12 @@ fn test_lex_tree_after_return() {
     // return <A/> - tree after keyword
     assert_tree_tokenize_eq_roundtrip!(
         "return <A/>",
-        Token::new(TokenType::Identifier, 6, None), // return
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Identifier, 1, None),  // A
-        Token::new(TokenType::Divide, 1, None),      // /
-        Token::new(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::Identifier, 6, None), // return
+        token(TokenType::Whitespace, 1, None),
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Identifier, 1, None),  // A
+        token(TokenType::Divide, 1, None),      // /
+        token(TokenType::GreaterThan, 1, None), // >
     );
 }
 
@@ -322,12 +325,12 @@ fn test_lex_tree_after_open_paren() {
     // (<A/>) - tree in parentheses
     assert_tree_tokenize_eq_roundtrip!(
         "(<A/>)",
-        Token::new(TokenType::OpenParenthesis, 1, None), // (
-        Token::new(TokenType::LessThan, 1, None),        // <
-        Token::new(TokenType::Identifier, 1, None),      // A
-        Token::new(TokenType::Divide, 1, None),          // /
-        Token::new(TokenType::GreaterThan, 1, None),     // >
-        Token::new(TokenType::CloseParenthesis, 1, None), // )
+        token(TokenType::OpenParenthesis, 1, None),  // (
+        token(TokenType::LessThan, 1, None),         // <
+        token(TokenType::Identifier, 1, None),       // A
+        token(TokenType::Divide, 1, None),           // /
+        token(TokenType::GreaterThan, 1, None),      // >
+        token(TokenType::CloseParenthesis, 1, None), // )
     );
 }
 
@@ -337,11 +340,11 @@ fn test_lex_tree_fragment() {
     // <></> - empty fragment
     assert_tree_tokenize_eq_roundtrip!(
         "<></>",
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::GreaterThan, 1, None), // >
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Divide, 1, None),      // /
-        Token::new(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Divide, 1, None),      // /
+        token(TokenType::GreaterThan, 1, None), // >
     );
 }
 
@@ -350,14 +353,14 @@ fn test_lex_tree_fragment() {
 fn test_lex_tree_invalid_html_entity_as_text() {
     assert_tree_tokenize_eq_roundtrip!(
         "<A>&#x1g4q9;</A>",
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Identifier, 1, None),  // A
-        Token::new(TokenType::GreaterThan, 1, None), // >
-        Token::new(TokenType::Literal, 9, Some(TokenLiteral::TreeString)), // &#x1g4q9;
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Divide, 1, None),      // /
-        Token::new(TokenType::Identifier, 1, None),  // A
-        Token::new(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Identifier, 1, None),  // A
+        token(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::Literal, 9, Some(TokenLiteral::TreeString)), // &#x1g4q9;
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Divide, 1, None),      // /
+        token(TokenType::Identifier, 1, None),  // A
+        token(TokenType::GreaterThan, 1, None), // >
     );
 }
 
@@ -366,14 +369,14 @@ fn test_lex_tree_invalid_html_entity_as_text() {
 fn test_lex_tree_html5_only_entity_as_text() {
     assert_tree_tokenize_eq_roundtrip!(
         "<A>&Acy;</A>",
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Identifier, 1, None),  // A
-        Token::new(TokenType::GreaterThan, 1, None), // >
-        Token::new(TokenType::Literal, 5, Some(TokenLiteral::TreeString)), // &Acy;
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Divide, 1, None),      // /
-        Token::new(TokenType::Identifier, 1, None),  // A
-        Token::new(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Identifier, 1, None),  // A
+        token(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::Literal, 5, Some(TokenLiteral::TreeString)), // &Acy;
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Divide, 1, None),      // /
+        token(TokenType::Identifier, 1, None),  // A
+        token(TokenType::GreaterThan, 1, None), // >
     );
 }
 
@@ -383,17 +386,17 @@ fn test_lex_tree_nested() {
     // <A><B/></A> - nested tree element
     assert_tree_tokenize_eq_roundtrip!(
         "<A><B/></A>",
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Identifier, 1, None),  // A
-        Token::new(TokenType::GreaterThan, 1, None), // >
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Identifier, 1, None),  // B
-        Token::new(TokenType::Divide, 1, None),      // /
-        Token::new(TokenType::GreaterThan, 1, None), // >
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Divide, 1, None),      // /
-        Token::new(TokenType::Identifier, 1, None),  // A
-        Token::new(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Identifier, 1, None),  // A
+        token(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Identifier, 1, None),  // B
+        token(TokenType::Divide, 1, None),      // /
+        token(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Divide, 1, None),      // /
+        token(TokenType::Identifier, 1, None),  // A
+        token(TokenType::GreaterThan, 1, None), // >
     );
 }
 
@@ -403,19 +406,19 @@ fn test_lex_tree_nested_with_whitespace() {
     // nested with whitespace
     assert_tree_tokenize_eq_roundtrip!(
         "<A>\n    <B/>\n</A>",
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Identifier, 1, None),  // A
-        Token::new(TokenType::GreaterThan, 1, None), // >
-        Token::new(TokenType::Literal, 5, Some(TokenLiteral::TreeString)), // "\n    " (whitespace)
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Identifier, 1, None),  // B
-        Token::new(TokenType::Divide, 1, None),      // /
-        Token::new(TokenType::GreaterThan, 1, None), // >
-        Token::new(TokenType::Literal, 1, Some(TokenLiteral::TreeString)), // "\n" (whitespace)
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Divide, 1, None),      // /
-        Token::new(TokenType::Identifier, 1, None),  // A
-        Token::new(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Identifier, 1, None),  // A
+        token(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::Literal, 5, Some(TokenLiteral::TreeString)), // "\n    " (whitespace)
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Identifier, 1, None),  // B
+        token(TokenType::Divide, 1, None),      // /
+        token(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::Literal, 1, Some(TokenLiteral::TreeString)), // "\n" (whitespace)
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Divide, 1, None),      // /
+        token(TokenType::Identifier, 1, None),  // A
+        token(TokenType::GreaterThan, 1, None), // >
     );
 }
 
@@ -471,17 +474,17 @@ fn test_lex_tree_text_with_colon() {
     // <h4>Tool: {x}</h4> - text containing colon should be lexed as TreeString
     assert_tree_tokenize_eq_roundtrip!(
         "<h4>Tool: {x}</h4>",
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Identifier, 2, None),  // h4
-        Token::new(TokenType::GreaterThan, 1, None), // >
-        Token::new(TokenType::Literal, 6, Some(TokenLiteral::TreeString)), // "Tool: "
-        Token::new(TokenType::OpenBrace, 1, None),   // {
-        Token::new(TokenType::Identifier, 1, None),  // x
-        Token::new(TokenType::CloseBrace, 1, None),  // }
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Divide, 1, None),      // /
-        Token::new(TokenType::Identifier, 2, None),  // h4
-        Token::new(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Identifier, 2, None),  // h4
+        token(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::Literal, 6, Some(TokenLiteral::TreeString)), // "Tool: "
+        token(TokenType::OpenBrace, 1, None),   // {
+        token(TokenType::Identifier, 1, None),  // x
+        token(TokenType::CloseBrace, 1, None),  // }
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Divide, 1, None),      // /
+        token(TokenType::Identifier, 2, None),  // h4
+        token(TokenType::GreaterThan, 1, None), // >
     );
 }
 
@@ -490,30 +493,30 @@ fn test_lex_tree_text_with_colon() {
 fn test_lex_tree_nested_with_attr_expression() {
     assert_tree_tokenize_eq_roundtrip!(
         "<div key={index}><h4>Tool: {x}</h4></div>",
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Identifier, 3, None),  // div
-        Token::new(TokenType::Whitespace, 1, None),  // (space)
-        Token::new(TokenType::Identifier, 3, None),  // key
-        Token::new(TokenType::Assign, 1, None),      // =
-        Token::new(TokenType::OpenBrace, 1, None),   // {
-        Token::new(TokenType::Identifier, 5, None),  // index
-        Token::new(TokenType::CloseBrace, 1, None),  // }
-        Token::new(TokenType::GreaterThan, 1, None), // >
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Identifier, 2, None),  // h4
-        Token::new(TokenType::GreaterThan, 1, None), // >
-        Token::new(TokenType::Literal, 6, Some(TokenLiteral::TreeString)), // "Tool: "
-        Token::new(TokenType::OpenBrace, 1, None),   // {
-        Token::new(TokenType::Identifier, 1, None),  // x
-        Token::new(TokenType::CloseBrace, 1, None),  // }
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Divide, 1, None),      // /
-        Token::new(TokenType::Identifier, 2, None),  // h4
-        Token::new(TokenType::GreaterThan, 1, None), // >
-        Token::new(TokenType::LessThan, 1, None),    // <
-        Token::new(TokenType::Divide, 1, None),      // /
-        Token::new(TokenType::Identifier, 3, None),  // div
-        Token::new(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Identifier, 3, None),  // div
+        token(TokenType::Whitespace, 1, None),  // (space)
+        token(TokenType::Identifier, 3, None),  // key
+        token(TokenType::Assign, 1, None),      // =
+        token(TokenType::OpenBrace, 1, None),   // {
+        token(TokenType::Identifier, 5, None),  // index
+        token(TokenType::CloseBrace, 1, None),  // }
+        token(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Identifier, 2, None),  // h4
+        token(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::Literal, 6, Some(TokenLiteral::TreeString)), // "Tool: "
+        token(TokenType::OpenBrace, 1, None),   // {
+        token(TokenType::Identifier, 1, None),  // x
+        token(TokenType::CloseBrace, 1, None),  // }
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Divide, 1, None),      // /
+        token(TokenType::Identifier, 2, None),  // h4
+        token(TokenType::GreaterThan, 1, None), // >
+        token(TokenType::LessThan, 1, None),    // <
+        token(TokenType::Divide, 1, None),      // /
+        token(TokenType::Identifier, 3, None),  // div
+        token(TokenType::GreaterThan, 1, None), // >
     );
 }
 
@@ -650,16 +653,16 @@ fn test_lex_tree_text_after_map_callback_blocks() {
 fn test_lex_tree_with_comment_container() {
     assert_tree_tokenize_eq_roundtrip!(
         "<div>{/* comment */}</div>",
-        Token::new(TokenType::LessThan, 1, None),      // <
-        Token::new(TokenType::Identifier, 3, None),    // div
-        Token::new(TokenType::GreaterThan, 1, None),   // >
-        Token::new(TokenType::OpenBrace, 1, None),     // {
-        Token::new(TokenType::BlockComment, 13, None), // /* comment */
-        Token::new(TokenType::CloseBrace, 1, None),    // }
-        Token::new(TokenType::LessThan, 1, None),      // <
-        Token::new(TokenType::Divide, 1, None),        // /
-        Token::new(TokenType::Identifier, 3, None),    // div
-        Token::new(TokenType::GreaterThan, 1, None),   // >
+        token(TokenType::LessThan, 1, None),      // <
+        token(TokenType::Identifier, 3, None),    // div
+        token(TokenType::GreaterThan, 1, None),   // >
+        token(TokenType::OpenBrace, 1, None),     // {
+        token(TokenType::BlockComment, 13, None), // /* comment */
+        token(TokenType::CloseBrace, 1, None),    // }
+        token(TokenType::LessThan, 1, None),      // <
+        token(TokenType::Divide, 1, None),        // /
+        token(TokenType::Identifier, 3, None),    // div
+        token(TokenType::GreaterThan, 1, None),   // >
     );
 }
 

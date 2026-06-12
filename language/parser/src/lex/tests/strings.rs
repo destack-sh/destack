@@ -1,11 +1,14 @@
-use super::*;
+use super::{
+    LanguageType, TokenLiteral, TokenType, assert_legacy_string_escape_is_invalid_across_languages,
+    assert_tokenize_eq_roundtrip, eof, lex_source_tokens, token,
+};
 
 /// Single-quoted one-character strings should lex as terminated string literals.
 #[test]
 fn test_lex_single_quoted_single_character_strings() {
     assert_tokenize_eq_roundtrip!(
         "'a' ' ' '\\n'",
-        Token::new(
+        token(
             TokenType::Literal,
             3,
             Some(TokenLiteral::String {
@@ -13,8 +16,8 @@ fn test_lex_single_quoted_single_character_strings() {
                 has_invalid_escape: false,
             })
         ),
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(
+        token(TokenType::Whitespace, 1, None),
+        token(
             TokenType::Literal,
             3,
             Some(TokenLiteral::String {
@@ -22,8 +25,8 @@ fn test_lex_single_quoted_single_character_strings() {
                 has_invalid_escape: false,
             })
         ),
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(
+        token(TokenType::Whitespace, 1, None),
+        token(
             TokenType::Literal,
             4,
             Some(TokenLiteral::String {
@@ -39,7 +42,7 @@ fn test_lex_single_quoted_single_character_strings() {
 fn test_lex_single_quoted_strings() {
     assert_tokenize_eq_roundtrip!(
         "'ab' 'multi word' '../ivm/catch.ts'",
-        Token::new(
+        token(
             TokenType::Literal,
             4,
             Some(TokenLiteral::String {
@@ -47,8 +50,8 @@ fn test_lex_single_quoted_strings() {
                 has_invalid_escape: false,
             })
         ),
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(
+        token(TokenType::Whitespace, 1, None),
+        token(
             TokenType::Literal,
             12,
             Some(TokenLiteral::String {
@@ -56,8 +59,8 @@ fn test_lex_single_quoted_strings() {
                 has_invalid_escape: false,
             })
         ),
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(
+        token(TokenType::Whitespace, 1, None),
+        token(
             TokenType::Literal,
             17,
             Some(TokenLiteral::String {
@@ -73,7 +76,7 @@ fn test_lex_single_quoted_strings() {
 fn test_lex_string_unicode_escape_with_long_leading_zeros() {
     assert_tokenize_eq_roundtrip!(
         "\"\\u{00000000034}\"",
-        Token::new(
+        token(
             TokenType::Literal,
             17,
             Some(TokenLiteral::String {
@@ -89,9 +92,9 @@ fn test_lex_string_unicode_escape_with_long_leading_zeros() {
 fn test_lex_template_strings() {
     assert_tokenize_eq_roundtrip!(
         "`plain` `two words`",
-        Token::new(TokenType::TemplateString, 7, None),
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(TokenType::TemplateString, 11, None),
+        token(TokenType::TemplateString, 7, None),
+        token(TokenType::Whitespace, 1, None),
+        token(TokenType::TemplateString, 11, None),
     );
 }
 
@@ -100,8 +103,8 @@ fn test_lex_template_strings() {
 fn test_lex_tagged_template_strings() {
     assert_tokenize_eq_roundtrip!(
         "tag`item`",
-        Token::new(TokenType::Identifier, 3, None),
-        Token::new(TokenType::TemplateString, 6, None),
+        token(TokenType::Identifier, 3, None),
+        token(TokenType::TemplateString, 6, None),
     );
 }
 
@@ -110,10 +113,10 @@ fn test_lex_tagged_template_strings() {
 fn test_lex_tagged_template_with_legacy_octal_escape() {
     assert_tokenize_eq_roundtrip!(
         r"String.raw`\1`",
-        Token::new(TokenType::Identifier, 6, None),
-        Token::new(TokenType::Dot, 1, None),
-        Token::new(TokenType::Identifier, 3, None),
-        Token::new(TokenType::TemplateString, 4, None),
+        token(TokenType::Identifier, 6, None),
+        token(TokenType::Dot, 1, None),
+        token(TokenType::Identifier, 3, None),
+        token(TokenType::TemplateString, 4, None),
     );
 }
 
@@ -122,11 +125,11 @@ fn test_lex_tagged_template_with_legacy_octal_escape() {
 fn test_lex_template_strings_with_interpolation_mixed() {
     assert_tokenize_eq_roundtrip!(
         "`a ${b} c ${d} e`",
-        Token::new(TokenType::TemplateStringStart, 5, None),
-        Token::new(TokenType::Identifier, 1, None),
-        Token::new(TokenType::TemplateStringMiddle, 6, None),
-        Token::new(TokenType::Identifier, 1, None),
-        Token::new(TokenType::TemplateStringEnd, 4, None),
+        token(TokenType::TemplateStringStart, 5, None),
+        token(TokenType::Identifier, 1, None),
+        token(TokenType::TemplateStringMiddle, 6, None),
+        token(TokenType::Identifier, 1, None),
+        token(TokenType::TemplateStringEnd, 4, None),
     );
 }
 /// Template strings with one interpolation should emit start and end tokens.
@@ -134,9 +137,9 @@ fn test_lex_template_strings_with_interpolation_mixed() {
 fn test_lex_template_strings_with_interpolation() {
     assert_tokenize_eq_roundtrip!(
         "`${stmt}`",
-        Token::new(TokenType::TemplateStringStart, 3, None),
-        Token::new(TokenType::Identifier, 4, None),
-        Token::new(TokenType::TemplateStringEnd, 2, None),
+        token(TokenType::TemplateStringStart, 3, None),
+        token(TokenType::Identifier, 4, None),
+        token(TokenType::TemplateStringEnd, 2, None),
     );
 }
 
@@ -145,13 +148,13 @@ fn test_lex_template_strings_with_interpolation() {
 fn test_lex_template_strings_with_interpolation_adjacent() {
     assert_tokenize_eq_roundtrip!(
         "`${a}${b}${c}`",
-        Token::new(TokenType::TemplateStringStart, 3, None),
-        Token::new(TokenType::Identifier, 1, None),
-        Token::new(TokenType::TemplateStringMiddle, 3, None),
-        Token::new(TokenType::Identifier, 1, None),
-        Token::new(TokenType::TemplateStringMiddle, 3, None),
-        Token::new(TokenType::Identifier, 1, None),
-        Token::new(TokenType::TemplateStringEnd, 2, None),
+        token(TokenType::TemplateStringStart, 3, None),
+        token(TokenType::Identifier, 1, None),
+        token(TokenType::TemplateStringMiddle, 3, None),
+        token(TokenType::Identifier, 1, None),
+        token(TokenType::TemplateStringMiddle, 3, None),
+        token(TokenType::Identifier, 1, None),
+        token(TokenType::TemplateStringEnd, 2, None),
     );
 }
 
@@ -160,9 +163,9 @@ fn test_lex_template_strings_with_interpolation_adjacent() {
 fn test_lex_template_strings_with_escaped_interpolation_prefix() {
     assert_tokenize_eq_roundtrip!(
         r"`\${${value}}`",
-        Token::new(TokenType::TemplateStringStart, 6, None),
-        Token::new(TokenType::Identifier, 5, None),
-        Token::new(TokenType::TemplateStringEnd, 3, None),
+        token(TokenType::TemplateStringStart, 6, None),
+        token(TokenType::Identifier, 5, None),
+        token(TokenType::TemplateStringEnd, 3, None),
     );
 }
 
@@ -171,12 +174,12 @@ fn test_lex_template_strings_with_escaped_interpolation_prefix() {
 fn test_lex_tagged_template_strings_with_interpolation_mixed() {
     assert_tokenize_eq_roundtrip!(
         "tag`sum ${lhs} + ${rhs}`",
-        Token::new(TokenType::Identifier, 3, None),
-        Token::new(TokenType::TemplateStringStart, 7, None),
-        Token::new(TokenType::Identifier, 3, None),
-        Token::new(TokenType::TemplateStringMiddle, 6, None),
-        Token::new(TokenType::Identifier, 3, None),
-        Token::new(TokenType::TemplateStringEnd, 2, None),
+        token(TokenType::Identifier, 3, None),
+        token(TokenType::TemplateStringStart, 7, None),
+        token(TokenType::Identifier, 3, None),
+        token(TokenType::TemplateStringMiddle, 6, None),
+        token(TokenType::Identifier, 3, None),
+        token(TokenType::TemplateStringEnd, 2, None),
     );
 }
 
@@ -185,18 +188,18 @@ fn test_lex_tagged_template_strings_with_interpolation_mixed() {
 fn test_lex_tagged_template_strings_with_interpolation_nested() {
     assert_tokenize_eq_roundtrip!(
         "tag`sum ${text + {`${nested}`}}`",
-        Token::new(TokenType::Identifier, 3, None),
-        Token::new(TokenType::TemplateStringStart, 7, None),
-        Token::new(TokenType::Identifier, 4, None),
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(TokenType::Add, 1, None),
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(TokenType::OpenBrace, 1, None),
-        Token::new(TokenType::TemplateStringStart, 3, None),
-        Token::new(TokenType::Identifier, 6, None),
-        Token::new(TokenType::TemplateStringEnd, 2, None),
-        Token::new(TokenType::CloseBrace, 1, None),
-        Token::new(TokenType::TemplateStringEnd, 2, None),
+        token(TokenType::Identifier, 3, None),
+        token(TokenType::TemplateStringStart, 7, None),
+        token(TokenType::Identifier, 4, None),
+        token(TokenType::Whitespace, 1, None),
+        token(TokenType::Add, 1, None),
+        token(TokenType::Whitespace, 1, None),
+        token(TokenType::OpenBrace, 1, None),
+        token(TokenType::TemplateStringStart, 3, None),
+        token(TokenType::Identifier, 6, None),
+        token(TokenType::TemplateStringEnd, 2, None),
+        token(TokenType::CloseBrace, 1, None),
+        token(TokenType::TemplateStringEnd, 2, None),
     );
 }
 
@@ -208,7 +211,7 @@ fn test_lex_unterminated_single_quote_eof() {
     assert_eq!(
         semantic_tokens,
         vec![
-            Token::new(
+            token(
                 TokenType::Literal,
                 1,
                 Some(TokenLiteral::String {
@@ -216,7 +219,7 @@ fn test_lex_unterminated_single_quote_eof() {
                     has_invalid_escape: false,
                 }),
             ),
-            Token::end(),
+            eof(),
         ],
     );
 
@@ -231,7 +234,7 @@ fn test_lex_unterminated_single_quote_with_escape_eof() {
     assert_eq!(
         semantic_tokens,
         vec![
-            Token::new(
+            token(
                 TokenType::Literal,
                 3,
                 Some(TokenLiteral::String {
@@ -239,7 +242,7 @@ fn test_lex_unterminated_single_quote_with_escape_eof() {
                     has_invalid_escape: true,
                 }),
             ),
-            Token::end(),
+            eof(),
         ],
     );
 
@@ -254,7 +257,7 @@ fn test_lex_unterminated_single_quote_with_trailing_slash_eof() {
     assert_eq!(
         semantic_tokens,
         vec![
-            Token::new(
+            token(
                 TokenType::Literal,
                 2,
                 Some(TokenLiteral::String {
@@ -262,7 +265,7 @@ fn test_lex_unterminated_single_quote_with_trailing_slash_eof() {
                     has_invalid_escape: true,
                 }),
             ),
-            Token::end(),
+            eof(),
         ],
     );
 
@@ -277,7 +280,7 @@ fn test_lex_unterminated_single_quote_hex_escape() {
     assert_eq!(
         semantic_tokens,
         vec![
-            Token::new(
+            token(
                 TokenType::Literal,
                 4,
                 Some(TokenLiteral::String {
@@ -285,7 +288,7 @@ fn test_lex_unterminated_single_quote_hex_escape() {
                     has_invalid_escape: true,
                 }),
             ),
-            Token::end(),
+            eof(),
         ],
     );
 
@@ -300,7 +303,7 @@ fn test_lex_unterminated_single_quote_octal_escape() {
     assert_eq!(
         semantic_tokens,
         vec![
-            Token::new(
+            token(
                 TokenType::Literal,
                 4,
                 Some(TokenLiteral::String {
@@ -308,7 +311,7 @@ fn test_lex_unterminated_single_quote_octal_escape() {
                     has_invalid_escape: true,
                 }),
             ),
-            Token::end(),
+            eof(),
         ],
     );
 
@@ -323,7 +326,7 @@ fn test_lex_single_quote_before_newline_is_unterminated() {
     assert_eq!(
         semantic_tokens,
         vec![
-            Token::new(
+            token(
                 TokenType::Literal,
                 1,
                 Some(TokenLiteral::String {
@@ -331,11 +334,11 @@ fn test_lex_single_quote_before_newline_is_unterminated() {
                     has_invalid_escape: false,
                 }),
             ),
-            Token::end(),
+            eof(),
         ],
     );
 
-    assert_eq!(side_tokens, vec![Token::new(TokenType::Newline, 1, None)]);
+    assert_eq!(side_tokens, vec![token(TokenType::Newline, 1, None)]);
 }
 
 /// Double-quoted strings should terminate lexing before raw newlines.
@@ -347,7 +350,7 @@ fn test_lex_double_quote_with_newline_is_unterminated() {
     assert_eq!(
         semantic_tokens,
         vec![
-            Token::new(
+            token(
                 TokenType::Literal,
                 6,
                 Some(TokenLiteral::String {
@@ -355,8 +358,8 @@ fn test_lex_double_quote_with_newline_is_unterminated() {
                     has_invalid_escape: false,
                 }),
             ),
-            Token::new(TokenType::Identifier, 5, None),
-            Token::new(
+            token(TokenType::Identifier, 5, None),
+            token(
                 TokenType::Literal,
                 1,
                 Some(TokenLiteral::String {
@@ -364,11 +367,11 @@ fn test_lex_double_quote_with_newline_is_unterminated() {
                     has_invalid_escape: false,
                 }),
             ),
-            Token::end(),
+            eof(),
         ],
     );
 
-    assert_eq!(side_tokens, vec![Token::new(TokenType::Newline, 1, None)]);
+    assert_eq!(side_tokens, vec![token(TokenType::Newline, 1, None)]);
 }
 
 /// Legacy escaped digit sequences should be invalid across language modes.
@@ -391,8 +394,8 @@ fn test_lex_unterminated_single_quote_inside_parentheses() {
     assert_eq!(
         semantic_tokens,
         vec![
-            Token::new(TokenType::OpenParenthesis, 1, None),
-            Token::new(
+            token(TokenType::OpenParenthesis, 1, None),
+            token(
                 TokenType::Literal,
                 2,
                 Some(TokenLiteral::String {
@@ -400,7 +403,7 @@ fn test_lex_unterminated_single_quote_inside_parentheses() {
                     has_invalid_escape: false,
                 }),
             ),
-            Token::end(),
+            eof(),
         ],
     );
 
@@ -415,7 +418,7 @@ fn test_lex_unterminated_single_quote_is_marked() {
     assert_eq!(
         semantic_tokens,
         vec![
-            Token::new(
+            token(
                 TokenType::Literal,
                 4,
                 Some(TokenLiteral::String {
@@ -423,7 +426,7 @@ fn test_lex_unterminated_single_quote_is_marked() {
                     has_invalid_escape: false,
                 }),
             ),
-            Token::end(),
+            eof(),
         ],
     );
 

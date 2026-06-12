@@ -1,4 +1,7 @@
-use super::*;
+use super::{
+    LanguageType, TokenLiteral, TokenType, assert_tokenize_eq_roundtrip, eof, lex_source_tokens,
+    token,
+};
 
 /// String literals should lex after import from even without separating whitespace.
 #[test]
@@ -6,12 +9,12 @@ fn test_lex_string_literal_after_import_from_without_space() {
     // lex import with adjacent string literal
     assert_tokenize_eq_roundtrip!(
         "import Foo from'./bar'",
-        Token::new(TokenType::Identifier, 6, None),
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(TokenType::Identifier, 3, None),
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(TokenType::Identifier, 4, None),
-        Token::new(
+        token(TokenType::Identifier, 6, None),
+        token(TokenType::Whitespace, 1, None),
+        token(TokenType::Identifier, 3, None),
+        token(TokenType::Whitespace, 1, None),
+        token(TokenType::Identifier, 4, None),
+        token(
             TokenType::Literal,
             7,
             Some(TokenLiteral::String {
@@ -31,22 +34,22 @@ fn test_lex_divide_after_switch_header() {
     assert_eq!(
         semantic_tokens,
         vec![
-            Token::new(TokenType::Identifier, 6, None),
-            Token::new(TokenType::OpenParenthesis, 1, None),
-            Token::new(TokenType::Identifier, 1, None),
-            Token::new(TokenType::CloseParenthesis, 1, None),
-            Token::new(TokenType::Divide, 1, None),
-            Token::new(TokenType::Identifier, 3, None),
-            Token::new(TokenType::Divide, 1, None),
-            Token::end(),
+            token(TokenType::Identifier, 6, None),
+            token(TokenType::OpenParenthesis, 1, None),
+            token(TokenType::Identifier, 1, None),
+            token(TokenType::CloseParenthesis, 1, None),
+            token(TokenType::Divide, 1, None),
+            token(TokenType::Identifier, 3, None),
+            token(TokenType::Divide, 1, None),
+            eof(),
         ],
     );
 
     assert_eq!(
         side_tokens,
         vec![
-            Token::new(TokenType::Whitespace, 1, None),
-            Token::new(TokenType::Whitespace, 1, None),
+            token(TokenType::Whitespace, 1, None),
+            token(TokenType::Whitespace, 1, None),
         ],
     );
 }
@@ -60,22 +63,22 @@ fn test_lex_divide_after_catch_header() {
     assert_eq!(
         semantic_tokens,
         vec![
-            Token::new(TokenType::Identifier, 5, None),
-            Token::new(TokenType::OpenParenthesis, 1, None),
-            Token::new(TokenType::Identifier, 1, None),
-            Token::new(TokenType::CloseParenthesis, 1, None),
-            Token::new(TokenType::Divide, 1, None),
-            Token::new(TokenType::Identifier, 3, None),
-            Token::new(TokenType::Divide, 1, None),
-            Token::end(),
+            token(TokenType::Identifier, 5, None),
+            token(TokenType::OpenParenthesis, 1, None),
+            token(TokenType::Identifier, 1, None),
+            token(TokenType::CloseParenthesis, 1, None),
+            token(TokenType::Divide, 1, None),
+            token(TokenType::Identifier, 3, None),
+            token(TokenType::Divide, 1, None),
+            eof(),
         ],
     );
 
     assert_eq!(
         side_tokens,
         vec![
-            Token::new(TokenType::Whitespace, 1, None),
-            Token::new(TokenType::Whitespace, 1, None),
+            token(TokenType::Whitespace, 1, None),
+            token(TokenType::Whitespace, 1, None),
         ],
     );
 }
@@ -85,14 +88,14 @@ fn test_lex_divide_after_catch_header() {
 fn test_lex_regex_like_source_stays_raw() {
     assert_tokenize_eq_roundtrip!(
         "/abc/ /foo/gi",
-        Token::new(TokenType::Divide, 1, None),
-        Token::new(TokenType::Identifier, 3, None),
-        Token::new(TokenType::Divide, 1, None),
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(TokenType::Divide, 1, None),
-        Token::new(TokenType::Identifier, 3, None),
-        Token::new(TokenType::Divide, 1, None),
-        Token::new(TokenType::Identifier, 2, None),
+        token(TokenType::Divide, 1, None),
+        token(TokenType::Identifier, 3, None),
+        token(TokenType::Divide, 1, None),
+        token(TokenType::Whitespace, 1, None),
+        token(TokenType::Divide, 1, None),
+        token(TokenType::Identifier, 3, None),
+        token(TokenType::Divide, 1, None),
+        token(TokenType::Identifier, 2, None),
     );
 }
 
@@ -107,32 +110,32 @@ fn test_lex_regex_like_source_in_expression_context_stays_raw() {
     assert_eq!(
         semantic_tokens,
         vec![
-            Token::new(TokenType::Identifier, 5, None),
-            Token::new(TokenType::Identifier, 1, None),
-            Token::new(TokenType::Assign, 1, None),
-            Token::new(TokenType::OpenParenthesis, 1, None),
-            Token::new(TokenType::CloseParenthesis, 1, None),
-            Token::new(TokenType::ArrowWide, 2, None),
-            Token::new(TokenType::Divide, 1, None),
-            Token::new(TokenType::Identifier, 3, None),
-            Token::new(TokenType::Divide, 1, None),
-            Token::new(TokenType::Dot, 1, None),
-            Token::new(TokenType::Identifier, 4, None),
-            Token::new(TokenType::OpenParenthesis, 1, None),
-            Token::new(TokenType::Identifier, 5, None),
-            Token::new(TokenType::CloseParenthesis, 1, None),
-            Token::end(),
+            token(TokenType::Identifier, 5, None),
+            token(TokenType::Identifier, 1, None),
+            token(TokenType::Assign, 1, None),
+            token(TokenType::OpenParenthesis, 1, None),
+            token(TokenType::CloseParenthesis, 1, None),
+            token(TokenType::ArrowWide, 2, None),
+            token(TokenType::Divide, 1, None),
+            token(TokenType::Identifier, 3, None),
+            token(TokenType::Divide, 1, None),
+            token(TokenType::Dot, 1, None),
+            token(TokenType::Identifier, 4, None),
+            token(TokenType::OpenParenthesis, 1, None),
+            token(TokenType::Identifier, 5, None),
+            token(TokenType::CloseParenthesis, 1, None),
+            eof(),
         ],
     );
 
     assert_eq!(
         side_tokens,
         vec![
-            Token::new(TokenType::Whitespace, 1, None),
-            Token::new(TokenType::Whitespace, 1, None),
-            Token::new(TokenType::Whitespace, 1, None),
-            Token::new(TokenType::Whitespace, 1, None),
-            Token::new(TokenType::Whitespace, 1, None),
+            token(TokenType::Whitespace, 1, None),
+            token(TokenType::Whitespace, 1, None),
+            token(TokenType::Whitespace, 1, None),
+            token(TokenType::Whitespace, 1, None),
+            token(TokenType::Whitespace, 1, None),
         ],
     );
 }
@@ -146,22 +149,22 @@ fn test_lex_regex_like_tree_attribute_stays_raw() {
     type=/text/i
     // comment
 />",
-        Token::new(TokenType::Newline, 1, None),
-        Token::new(TokenType::LessThan, 1, None),
-        Token::new(TokenType::Identifier, 5, None),
-        Token::new(TokenType::Newline, 1, None),
-        Token::new(TokenType::Whitespace, 4, None),
-        Token::new(TokenType::Identifier, 4, None),
-        Token::new(TokenType::Assign, 1, None),
-        Token::new(TokenType::Divide, 1, None),
-        Token::new(TokenType::Identifier, 4, None),
-        Token::new(TokenType::Divide, 1, None),
-        Token::new(TokenType::Identifier, 1, None),
-        Token::new(TokenType::Newline, 1, None),
-        Token::new(TokenType::Whitespace, 4, None),
-        Token::new(TokenType::LineComment, 10, None),
-        Token::new(TokenType::Newline, 1, None),
-        Token::new(TokenType::Divide, 1, None),
-        Token::new(TokenType::GreaterThan, 1, None),
+        token(TokenType::Newline, 1, None),
+        token(TokenType::LessThan, 1, None),
+        token(TokenType::Identifier, 5, None),
+        token(TokenType::Newline, 1, None),
+        token(TokenType::Whitespace, 4, None),
+        token(TokenType::Identifier, 4, None),
+        token(TokenType::Assign, 1, None),
+        token(TokenType::Divide, 1, None),
+        token(TokenType::Identifier, 4, None),
+        token(TokenType::Divide, 1, None),
+        token(TokenType::Identifier, 1, None),
+        token(TokenType::Newline, 1, None),
+        token(TokenType::Whitespace, 4, None),
+        token(TokenType::LineComment, 10, None),
+        token(TokenType::Newline, 1, None),
+        token(TokenType::Divide, 1, None),
+        token(TokenType::GreaterThan, 1, None),
     );
 }

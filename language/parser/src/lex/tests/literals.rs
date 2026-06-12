@@ -1,11 +1,11 @@
-use super::*;
+use super::{NumberBase, TokenLiteral, TokenType, assert_tokenize_eq_roundtrip, token};
 
 /// Decimal bigint literals should lex as integer literals marked bigint.
 #[test]
 fn test_lex_bigint_literal() {
     assert_tokenize_eq_roundtrip!(
         "0n",
-        Token::new(
+        token(
             TokenType::Literal,
             2,
             Some(TokenLiteral::Int {
@@ -36,23 +36,23 @@ false
 0b101n
 0o77n
 "####,
-        Token::new(TokenType::Newline, 1, None),
+        token(TokenType::Newline, 1, None),
         // true
-        Token::new(
+        token(
             TokenType::Literal,
             4,
             Some(TokenLiteral::Boolean { value: true })
         ),
-        Token::new(TokenType::Newline, 1, None),
+        token(TokenType::Newline, 1, None),
         // false
-        Token::new(
+        token(
             TokenType::Literal,
             5,
             Some(TokenLiteral::Boolean { value: false })
         ),
-        Token::new(TokenType::Newline, 1, None),
+        token(TokenType::Newline, 1, None),
         // 'a'
-        Token::new(
+        token(
             TokenType::Literal,
             3,
             Some(TokenLiteral::String {
@@ -60,9 +60,9 @@ false
                 has_invalid_escape: false,
             })
         ),
-        Token::new(TokenType::Newline, 1, None),
+        token(TokenType::Newline, 1, None),
         // "a"
-        Token::new(
+        token(
             TokenType::Literal,
             3,
             Some(TokenLiteral::String {
@@ -70,9 +70,9 @@ false
                 has_invalid_escape: false,
             })
         ),
-        Token::new(TokenType::Newline, 1, None),
+        token(TokenType::Newline, 1, None),
         // 1234
-        Token::new(
+        token(
             TokenType::Literal,
             4,
             Some(TokenLiteral::Int {
@@ -82,8 +82,8 @@ false
             })
         ),
         // 0b101
-        Token::new(TokenType::Newline, 1, None),
-        Token::new(
+        token(TokenType::Newline, 1, None),
+        token(
             TokenType::Literal,
             5,
             Some(TokenLiteral::Int {
@@ -92,9 +92,9 @@ false
                 is_bigint: false,
             })
         ),
-        Token::new(TokenType::Newline, 1, None),
+        token(TokenType::Newline, 1, None),
         // 0xABC
-        Token::new(
+        token(
             TokenType::Literal,
             5,
             Some(TokenLiteral::Int {
@@ -103,9 +103,9 @@ false
                 is_bigint: false,
             })
         ),
-        Token::new(TokenType::Newline, 1, None),
+        token(TokenType::Newline, 1, None),
         // 1.0
-        Token::new(
+        token(
             TokenType::Literal,
             3,
             Some(TokenLiteral::Float {
@@ -113,9 +113,9 @@ false
                 is_empty_exponent: false
             })
         ),
-        Token::new(TokenType::Newline, 1, None),
+        token(TokenType::Newline, 1, None),
         // 1.0e10
-        Token::new(
+        token(
             TokenType::Literal,
             6,
             Some(TokenLiteral::Float {
@@ -123,9 +123,9 @@ false
                 is_empty_exponent: false
             })
         ),
-        Token::new(TokenType::Newline, 1, None),
+        token(TokenType::Newline, 1, None),
         // 2n
-        Token::new(
+        token(
             TokenType::Literal,
             2,
             Some(TokenLiteral::Int {
@@ -134,9 +134,9 @@ false
                 is_bigint: true,
             })
         ),
-        Token::new(TokenType::Newline, 1, None),
+        token(TokenType::Newline, 1, None),
         // 0xABn
-        Token::new(
+        token(
             TokenType::Literal,
             5,
             Some(TokenLiteral::Int {
@@ -145,9 +145,9 @@ false
                 is_bigint: true,
             })
         ),
-        Token::new(TokenType::Newline, 1, None),
+        token(TokenType::Newline, 1, None),
         // 0b101n
-        Token::new(
+        token(
             TokenType::Literal,
             6,
             Some(TokenLiteral::Int {
@@ -156,9 +156,9 @@ false
                 is_bigint: true,
             })
         ),
-        Token::new(TokenType::Newline, 1, None),
+        token(TokenType::Newline, 1, None),
         // 0o77n
-        Token::new(
+        token(
             TokenType::Literal,
             5,
             Some(TokenLiteral::Int {
@@ -167,7 +167,7 @@ false
                 is_bigint: true,
             })
         ),
-        Token::new(TokenType::Newline, 1, None),
+        token(TokenType::Newline, 1, None),
     );
 }
 
@@ -176,7 +176,7 @@ false
 fn test_lex_decimal_literal_with_dot_exponent() {
     assert_tokenize_eq_roundtrip!(
         "1.e1 0.e60",
-        Token::new(
+        token(
             TokenType::Literal,
             4,
             Some(TokenLiteral::Float {
@@ -184,8 +184,8 @@ fn test_lex_decimal_literal_with_dot_exponent() {
                 is_empty_exponent: false
             })
         ),
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(
+        token(TokenType::Whitespace, 1, None),
+        token(
             TokenType::Literal,
             5,
             Some(TokenLiteral::Float {
@@ -201,7 +201,7 @@ fn test_lex_decimal_literal_with_dot_exponent() {
 fn test_lex_uppercase_radix_prefixes() {
     assert_tokenize_eq_roundtrip!(
         "0B101 0O77 0XFF",
-        Token::new(
+        token(
             TokenType::Literal,
             5,
             Some(TokenLiteral::Int {
@@ -210,8 +210,8 @@ fn test_lex_uppercase_radix_prefixes() {
                 is_bigint: false,
             })
         ),
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(
+        token(TokenType::Whitespace, 1, None),
+        token(
             TokenType::Literal,
             4,
             Some(TokenLiteral::Int {
@@ -220,8 +220,8 @@ fn test_lex_uppercase_radix_prefixes() {
                 is_bigint: false,
             })
         ),
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(
+        token(TokenType::Whitespace, 1, None),
+        token(
             TokenType::Literal,
             4,
             Some(TokenLiteral::Int {
