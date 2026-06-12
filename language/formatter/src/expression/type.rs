@@ -2492,8 +2492,8 @@ pub(crate) fn write_type_expression_body<'ast>(
     is_in_explicit_parentheses: bool,
 ) -> FormatResult<()> {
     match expression {
-        TypeExpression::Parenthesized { .. } => {
-            unreachable!("formatter normalization should remove parenthesized type expressions");
+        TypeExpression::Parenthesized { expression } => {
+            write!(f, [token("("), *expression, token(")")])?;
         }
         TypeExpression::ScalarLiteral { value } => {
             format_scalar_literal(value, f.context().span(node_id), f)?;
