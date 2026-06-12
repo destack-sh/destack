@@ -984,7 +984,6 @@ dependencies = [
  "base64",
  "dashmap",
  "destack_artifact",
- "destack_codegen_lib",
  "destack_core",
  "destack_dir",
  "destack_fir",
@@ -994,22 +993,6 @@ dependencies = [
  "destack_source",
  "parking_lot",
  "serde_json",
- "smallvec",
- "tracing",
-]
-
-[[package]]
-name = "destack_codegen_lib"
-version = "0.55.4"
-dependencies = [
- "dashmap",
- "destack_artifact",
- "destack_dir",
- "destack_fir",
- "destack_mir",
- "destack_repository",
- "destack_source",
- "parking_lot",
  "smallvec",
  "tracing",
 ]
@@ -1025,7 +1008,6 @@ dependencies = [
  "cranelift-object",
  "dashmap",
  "destack_artifact",
- "destack_codegen_lib",
  "destack_core",
  "destack_dir",
  "destack_fir",
@@ -1505,7 +1487,6 @@ dependencies = [
  "clap",
  "destack_artifact",
  "destack_codegen_js",
- "destack_codegen_lib",
  "destack_compiler",
  "destack_core",
  "destack_dir",

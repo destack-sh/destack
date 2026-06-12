@@ -24,7 +24,6 @@ members = [
 	"language/compiler/generate/native/pulley/macros",
 	"language/compiler/generate/native/regalloc2",
 	"language/compiler/generate/native/wasmtime-core",
-	"language/compiler/generate/core",
 	"language/compiler/generate/js",
 	"language/core",
 	"language/dir",
@@ -80,7 +79,6 @@ rust-version = "1.93.0"
 destack_artifact = { path = "language/artifact" }
 destack_artifact_macros = { path = "language/artifact/macros" }
 destack_codegen_js = { path = "language/compiler/generate/js" }
-destack_codegen_lib = { path = "language/compiler/generate/core" }
 destack_codegen_native = { path = "language/compiler/generate/native" }
 destack_compiler = { path = "language/compiler" }
 destack_core = { path = "language/core" }

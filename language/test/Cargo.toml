@@ -61,7 +61,6 @@ harness = false
 # language
 destack_artifact = { workspace = true }
 destack_codegen_js = { workspace = true }
-destack_codegen_lib = { workspace = true }
 destack_compiler = { workspace = true }
 destack_core = { workspace = true }
 destack_dir = { workspace = true }
