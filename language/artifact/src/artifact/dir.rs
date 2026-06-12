@@ -219,6 +219,10 @@ pub struct DirResolved {
     pub imports: dir::ImportTable,
     /// Resolved namespace import paths.
     pub paths: dir::PathTable,
+    /// Modules this module imports, deduplicated in resolution order.
+    /// Component discovery reads these edges without rebuilding them
+    /// from the import table.
+    pub import_modules: Vec<ModuleId>,
 }
 
 /// Checked DIR output for one source component.
