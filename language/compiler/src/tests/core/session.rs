@@ -289,41 +289,49 @@ impl TestSession {
     }
 
     /// Assert bound DIR rows for one module.
+    #[track_caller]
     pub(crate) fn assert_dir_bound(&self, path: &str, rows: DirRows, expected: &str) {
         self.assert_dir(path, rows, expected, Self::dir_bound_key, false);
     }
 
     /// Assert imported DIR rows for one module.
+    #[track_caller]
     pub(crate) fn assert_dir_imported(&self, path: &str, rows: DirRows, expected: &str) {
         self.assert_dir(path, rows, expected, Self::dir_imported_key, false);
     }
 
     /// Assert imported DIR rows for multiple modules.
+    #[track_caller]
     pub(crate) fn assert_dir_imported_many(&self, paths: &[&str], rows: DirRows, expected: &str) {
         self.assert_dir_many(paths, rows, expected, Self::dir_imported_key, false);
     }
 
     /// Assert expanded DIR rows for one module.
+    #[track_caller]
     pub(crate) fn assert_dir_expanded(&self, path: &str, rows: DirRows, expected: &str) {
         self.assert_dir(path, rows, expected, Self::dir_expanded_key, false);
     }
 
     /// Assert exported DIR rows for one module.
+    #[track_caller]
     pub(crate) fn assert_dir_exported(&self, path: &str, rows: DirRows, expected: &str) {
         self.assert_dir(path, rows, expected, Self::dir_exported_key, false);
     }
 
     /// Assert resolved DIR rows for one module.
+    #[track_caller]
     pub(crate) fn assert_dir_resolved(&self, path: &str, rows: DirRows, expected: &str) {
         self.assert_dir(path, rows, expected, Self::dir_resolved_key, false);
     }
 
     /// Assert checked DIR rows for one module.
+    #[track_caller]
     pub(crate) fn assert_dir_checked(&self, path: &str, rows: DirRows, expected: &str) {
         self.assert_dir(path, rows, expected, Self::dir_checked_key, true);
     }
 
     /// Assert checked DIR rows and diagnostics for one module.
+    #[track_caller]
     pub(crate) fn assert_dir_checked_and_diagnostics(
         &self,
         path: &str,
@@ -339,6 +347,7 @@ impl TestSession {
     }
 
     /// Assert imported DIR diagnostics for one module.
+    #[track_caller]
     pub(crate) fn assert_dir_imported_diagnostics(&self, path: &str, expected: &str) {
         self.provide_dir_imported(path)
             .expect("artifact should be provided with diagnostics");
@@ -346,6 +355,7 @@ impl TestSession {
     }
 
     /// Assert exported DIR diagnostics for one module.
+    #[track_caller]
     pub(crate) fn assert_dir_exported_diagnostics(&self, path: &str, expected: &str) {
         self.provide_dir_exported(path)
             .expect("artifact should be provided with diagnostics");
@@ -353,6 +363,7 @@ impl TestSession {
     }
 
     /// Assert resolved DIR diagnostics for one module.
+    #[track_caller]
     pub(crate) fn assert_dir_resolved_diagnostics(&self, path: &str, expected: &str) {
         self.provide_dir_resolved(path)
             .expect("artifact should be provided with diagnostics");
@@ -360,11 +371,13 @@ impl TestSession {
     }
 
     /// Assert diagnostics for one artifact key.
+    #[track_caller]
     pub(crate) fn assert_diagnostics(&self, key: ArtifactKey, expected: &str) {
         assert_equal(self.diagnostic_snapshot(key), expected);
     }
 
     /// Assert checked DIR rows for multiple modules.
+    #[track_caller]
     pub(crate) fn assert_dir_checked_many(&self, paths: &[&str], rows: DirRows, expected: &str) {
         self.assert_dir_many(paths, rows, expected, Self::dir_checked_key, true);
     }
@@ -556,6 +569,7 @@ impl TestSession {
     }
 
     /// Assert one rendered DIR snapshot.
+    #[track_caller]
     fn assert_dir(
         &self,
         path: &str,
@@ -568,6 +582,7 @@ impl TestSession {
     }
 
     /// Assert rendered DIR snapshots.
+    #[track_caller]
     fn assert_dir_many(
         &self,
         paths: &[&str],
@@ -973,6 +988,7 @@ fn sidecar_phase(row: &'static str) -> &'static str {
 }
 
 /// Assert exact multiline text equality.
+#[track_caller]
 fn assert_equal(actual: impl AsRef<str>, expected: &str) {
     let actual = actual.as_ref();
     let expected = expected.trim_matches('\n');
@@ -980,9 +996,70 @@ fn assert_equal(actual: impl AsRef<str>, expected: &str) {
         return;
     }
 
+    // refresh judged expectations in place instead of failing
+    if std::env::var_os("DESTACK_SNAPSHOT_UPDATE").is_some()
+        && update_expectation(std::panic::Location::caller(), expected, actual)
+    {
+        return;
+    }
+
     let diff = format_diff(expected, actual, &DiffOptions::new());
 
     panic!("snapshot mismatch\n\n{diff}");
+}
+
+/// Rewrite one expectation literal at its call site.
+/// Returns false for expectations that need a manual seed: empty
+/// strings carry no anchor text to locate in the test source.
+fn update_expectation(
+    caller: &std::panic::Location<'_>,
+    expected: &str,
+    actual: &str,
+) -> bool {
+    if expected.is_empty() {
+        return false;
+    }
+
+    // serialize whole-file rewrites across parallel tests
+    static UPDATE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let guard = UPDATE_LOCK.lock().expect("snapshot update lock is never poisoned");
+
+    // caller paths are workspace-relative
+    let path = std::path::Path::new(caller.file());
+    let path = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .expect("the compiler manifest sits two levels under the workspace")
+            .join(path)
+    };
+    let content = std::fs::read_to_string(&path).expect("test source should be readable");
+
+    // pick the expectation occurrence nearest the assert call
+    let needle = format!("\n{expected}\n");
+    let caller_line = caller.line() as usize;
+    let nearest = content
+        .match_indices(&needle)
+        .map(|(offset, _)| offset)
+        .min_by_key(|offset| {
+            let line = content[..*offset].matches('\n').count() + 1;
+
+            line.abs_diff(caller_line)
+        });
+    let Some(offset) = nearest else {
+        return false;
+    };
+
+    let mut updated = content;
+    updated.replace_range(offset..offset + needle.len(), &format!("\n{actual}\n"));
+    std::fs::write(&path, updated).expect("test source should be writable");
+    drop(guard);
+
+    eprintln!("snapshot updated at {}:{}", caller.file(), caller_line);
+
+    true
 }
 
 /// Return the cache store shared by every test session in this process.
