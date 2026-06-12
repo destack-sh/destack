@@ -1,5 +1,6 @@
 mod dependency;
 mod error;
+mod global;
 mod import;
 mod language;
 mod provide;

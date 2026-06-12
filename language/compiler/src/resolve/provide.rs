@@ -64,26 +64,14 @@ impl Compiler {
         // require exported modules read by resolve lookups
         let mut exported_modules = IndexSet::new();
         exported_modules.extend(state.module_clause_targets());
-        exported_modules.extend(environment.globals.iter().copied());
         self.require_exported_modules(exported_modules, profile, &state.artifacts)?;
 
-        // resolve explicit module clauses through exports
-        state.resolve_module_clauses()?;
-
-        // resolve globals through exports
-        state.resolve_profile_globals(&environment.globals)?;
-
-        // resolve source-visible language globals
-        state.resolve_language_globals(&environment.language)?;
-
-        // resolve namespace path references
-        state.resolve_path_references()?;
-
-        // resolve syntax-required language item modules
-        state.resolve_syntax_language_items(&environment.language)?;
+        // resolve every collected reference
+        state.resolve(&environment)?;
 
         // emit resolve stats before diagnostics are drained
-        let stats = state.stats;
+        let mut stats = state.stats;
+        stats.record_exports(state.exports.stats());
         context.emit_sidecar(ArtifactSidecar::new(
             "metadata",
             iter::once(("phase", "resolve")),
@@ -104,7 +92,7 @@ impl Compiler {
     }
 
     /// Require exported modules reachable through re-exports.
-    fn require_exported_modules(
+    pub(crate) fn require_exported_modules(
         &self,
         modules: impl IntoIterator<Item = ModuleId>,
         profile: ProfileId,

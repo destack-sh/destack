@@ -1,9 +1,30 @@
+use destack_artifact::GlobalEnvironment;
 use destack_dir as dir;
 use dir::NodeVisitor as _;
 
+use crate::CompilerResult;
 use crate::resolve::state::ResolveState;
 
 impl ResolveState<'_> {
+    /// Resolve every collected reference against required inputs.
+    pub(in crate::resolve) fn resolve(
+        &mut self,
+        environment: &GlobalEnvironment,
+    ) -> CompilerResult<()> {
+        // explicit module clauses resolve through exports
+        self.resolve_module_clauses()?;
+
+        // globals resolve through the profile's precomputed table
+        self.resolve_profile_globals(environment)?;
+
+        // source-visible language globals and namespace paths follow
+        self.resolve_language_globals(&environment.language)?;
+        self.resolve_path_references()?;
+
+        // syntax-required language item modules resolve last
+        self.resolve_syntax_language_items(&environment.language)
+    }
+
     /// Walk active roots and collect references and syntax language items.
     ///
     /// Example:
