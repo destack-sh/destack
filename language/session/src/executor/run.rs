@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use destack_repository::ProviderTrace;
 use parking_lot::Mutex;
 
 use super::task::Task;
@@ -24,6 +27,8 @@ pub(super) struct Run {
     roots: Vec<Task>,
     /// The first infrastructure error seen by any worker.
     error: Mutex<Option<SessionError>>,
+    /// The provider attempt trace for this run.
+    trace: Arc<ProviderTrace>,
 }
 
 impl Run {
@@ -33,7 +38,13 @@ impl Run {
             id,
             roots,
             error: Mutex::new(None),
+            trace: ProviderTrace::new(),
         }
+    }
+
+    /// Return the provider attempt trace for this run.
+    pub(super) fn trace(&self) -> &Arc<ProviderTrace> {
+        &self.trace
     }
 
     /// Return this session run id.

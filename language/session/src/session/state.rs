@@ -5,7 +5,8 @@ use destack_artifact::ArtifactOutcome;
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Query;
-use destack_repository::Repository;
+use destack_repository::{ProviderTrace, Repository};
+use parking_lot::Mutex;
 
 use crate::SessionError;
 use crate::executor::{RunId, Task};
@@ -26,6 +27,8 @@ pub(crate) struct SessionState {
     event_handler: Option<SessionEventHandler>,
     /// Monotonic ids for session runs.
     next_run_id: AtomicU32,
+    /// The provider attempt trace of the latest finished run.
+    last_trace: Mutex<Option<Arc<ProviderTrace>>>,
 }
 
 impl std::fmt::Debug for SessionState {
@@ -58,7 +61,18 @@ impl SessionState {
             query,
             event_handler,
             next_run_id: AtomicU32::new(1),
+            last_trace: Mutex::new(None),
         }
+    }
+
+    /// Record the provider attempt trace of one finished run.
+    pub(crate) fn set_last_trace(&self, trace: Arc<ProviderTrace>) {
+        *self.last_trace.lock() = Some(trace);
+    }
+
+    /// Return the provider attempt trace of the latest finished run.
+    pub(crate) fn last_trace(&self) -> Option<Arc<ProviderTrace>> {
+        self.last_trace.lock().clone()
     }
 
     /// Return the repository for this session.

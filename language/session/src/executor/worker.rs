@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::{ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactProvider};
-use destack_repository::{ProviderError, ProviderResult};
+use destack_repository::{ProviderError, ProviderResult, TraceOutcome};
 
 use super::attempt::ProviderAttempt;
 use super::run::{Run, RunId};
@@ -12,6 +12,8 @@ use crate::{SessionError, SessionEvent, SessionState};
 /// One worker in the session artifact executor.
 #[derive(Debug, Clone)]
 pub(super) struct Worker {
+    /// The index of this worker in the session pool.
+    pub(super) index: usize,
     /// Shared session state for provider execution.
     pub(super) session: Arc<SessionState>,
     /// Shared scheduler for artifact work.
@@ -58,9 +60,17 @@ impl Worker {
             artifact_key: task.key,
         });
 
-        // call the provider with one concrete attempt
-        let attempt = ProviderAttempt::new(self.session.repository(), task.revision, task.key);
+        // call the provider with one concrete, traced attempt
+        let tracer = Arc::new(run.trace().begin(task.key, self.index));
+        let attempt = ProviderAttempt::new(self.session.repository(), task.revision, task.key)
+            .with_tracer(Arc::clone(&tracer));
         let result = self.call_provider(&attempt);
+        let outcome = match &result {
+            Ok(_) => TraceOutcome::Ready,
+            Err(error) if matches!(**error, ProviderError::Blocked { .. }) => TraceOutcome::Blocked,
+            Err(_) => TraceOutcome::Failed,
+        };
+        tracer.finish(outcome);
 
         self.handle_provider_result(&attempt, run.id(), task, result)
     }

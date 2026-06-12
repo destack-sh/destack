@@ -5,7 +5,7 @@ use destack_artifact::{
     ArtifactSidecar, ArtifactVersion, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
     DiagnosticError, DiagnosticLike,
 };
-use destack_repository::{ProviderContext, ProviderError, Repository, Revision};
+use destack_repository::{ArtifactTracer, ProviderContext, ProviderError, Repository, Revision};
 use destack_source::{
     DiagnosticCollection, DiagnosticLabel, FileContentId, FileId, ModuleId, PackageId, Span,
 };
@@ -28,6 +28,8 @@ pub(crate) struct ProviderAttempt {
     diagnostics: Mutex<DiagnosticCollection>,
     /// The sidecars produced by this attempt.
     sidecars: Mutex<Vec<ArtifactSidecar>>,
+    /// The tracer for this attempt, when the run is traced.
+    tracer: Option<Arc<ArtifactTracer>>,
 }
 
 impl ProviderAttempt {
@@ -40,7 +42,15 @@ impl ProviderAttempt {
             dependencies: Mutex::new(Vec::new()),
             diagnostics: Mutex::new(DiagnosticCollection::new()),
             sidecars: Mutex::new(Vec::new()),
+            tracer: None,
         }
+    }
+
+    /// Attach one tracer to this attempt.
+    pub(crate) fn with_tracer(mut self, tracer: Arc<ArtifactTracer>) -> Self {
+        self.tracer = Some(tracer);
+
+        self
     }
 
     /// Return the pinned repository revision for this attempt.
@@ -408,5 +418,10 @@ impl ProviderContext for ProviderAttempt {
         self.emit_diagnostics(diagnostics);
 
         Ok(())
+    }
+
+    /// Return the tracer recording this attempt, when the run is traced.
+    fn tracer(&self) -> Option<&ArtifactTracer> {
+        self.tracer.as_deref()
     }
 }
