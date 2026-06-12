@@ -1,15 +1,16 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use destack_artifact::DirExported;
 use destack_dir as dir;
-use destack_source::ModuleId;
+use destack_repository::ArtifactReader;
+use destack_source::{ModuleId, ProfileId};
 
-use crate::resolve::state::{ExportLookupKey, ExportLookupState, ResolveState};
 use crate::{CompilerError, CompilerResult};
 
 /// Result of looking up an exported target.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(in crate::resolve) enum ExportLookup {
+pub(crate) enum ExportLookup {
     /// One export target was resolved.
     Found(ExportTarget),
     /// Multiple star exports provide the same key.
@@ -20,7 +21,7 @@ pub(in crate::resolve) enum ExportLookup {
 
 /// One target resolved through an export surface.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::resolve) enum ExportTarget {
+pub(crate) enum ExportTarget {
     /// A symbol export target.
     Symbol(dir::GlobalSymbolId),
     /// A namespace export target.
@@ -35,7 +36,7 @@ impl ExportTarget {
     /// dep.api.value
     /// // dep.api can resolve to a namespace, dep.api.value can resolve to a symbol
     /// ```
-    pub(in crate::resolve) fn path_target(self) -> dir::PathTarget {
+    pub(crate) fn path_target(self) -> dir::PathTarget {
         match self {
             Self::Symbol(symbol) => dir::PathTarget::Symbol(symbol),
             Self::Namespace(module) => dir::PathTarget::Namespace(module),
@@ -43,7 +44,57 @@ impl ExportTarget {
     }
 }
 
-impl ResolveState<'_> {
+/// Cache key for one exported name in one module.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct ExportLookupKey {
+    /// The module that owns the export table.
+    module: ModuleId,
+    /// The export key being looked up.
+    key: dir::ExportKey,
+}
+
+/// Memoized export lookup state.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ExportLookupState {
+    /// The lookup is currently resolving.
+    Resolving,
+    /// The lookup has resolved.
+    Resolved(ExportLookup),
+}
+
+/// Memoized export lookups over one profile's exported modules.
+#[derive(Debug)]
+pub(crate) struct ExportResolver {
+    /// The active profile.
+    profile: ProfileId,
+    /// Export lookups already resolved through this resolver.
+    lookups: HashMap<ExportLookupKey, ExportLookupState>,
+    /// Exported modules already loaded through this resolver.
+    modules: HashMap<ModuleId, Arc<DirExported>>,
+    /// Cache hits observed for stats.
+    cache_hits: usize,
+    /// Cache misses observed for stats.
+    cache_misses: usize,
+    /// Cycle hits observed for stats.
+    cycle_hits: usize,
+    /// Export table loads observed for stats.
+    table_loads: usize,
+}
+
+impl ExportResolver {
+    /// Create an empty export resolver for one profile.
+    pub(crate) fn new(profile: ProfileId) -> Self {
+        Self {
+            profile,
+            lookups: HashMap::new(),
+            modules: HashMap::new(),
+            cache_hits: 0,
+            cache_misses: 0,
+            cycle_hits: 0,
+            table_loads: 0,
+        }
+    }
+
     /// Resolve one exported target through direct and indirect exports.
     ///
     /// Example:
@@ -51,31 +102,31 @@ impl ResolveState<'_> {
     /// import { value } from "./dep.ds";
     /// // value can come from dep.ds directly or through export { value } from "./inner.ds"
     /// ```
-    pub(in crate::resolve) fn resolve_export_target(
+    pub(crate) fn resolve_export_target(
         &mut self,
+        artifacts: &ArtifactReader<'_>,
         module: ModuleId,
         key: dir::ExportKey,
     ) -> CompilerResult<ExportLookup> {
         let cache_key = ExportLookupKey { module, key };
         let is_cycle = matches!(
-            self.export_lookups.get(&cache_key),
+            self.lookups.get(&cache_key),
             Some(ExportLookupState::Resolving)
         );
         if let Some(lookup) = self.cached_export_lookup(cache_key) {
-            self.stats.export_cache_hits += 1;
+            self.cache_hits += 1;
             if is_cycle {
-                self.stats.export_cycle_hits += 1;
+                self.cycle_hits += 1;
             }
 
             return Ok(lookup);
         }
 
-        self.stats.export_cache_misses += 1;
-        self.export_lookups
-            .insert(cache_key, ExportLookupState::Resolving);
+        self.cache_misses += 1;
+        self.lookups.insert(cache_key, ExportLookupState::Resolving);
 
-        let lookup = self.resolve_export_target_uncached(module, key)?;
-        self.export_lookups
+        let lookup = self.resolve_export_target_uncached(artifacts, module, key)?;
+        self.lookups
             .insert(cache_key, ExportLookupState::Resolved(lookup.clone()));
 
         Ok(lookup)
@@ -90,7 +141,7 @@ impl ResolveState<'_> {
     /// // the second lookup can reuse the first export result
     /// ```
     fn cached_export_lookup(&self, key: ExportLookupKey) -> Option<ExportLookup> {
-        match self.export_lookups.get(&key).cloned() {
+        match self.lookups.get(&key).cloned() {
             Some(ExportLookupState::Resolved(lookup)) => Some(lookup),
 
             // break export cycles without hiding other star branches
@@ -109,16 +160,17 @@ impl ResolveState<'_> {
     /// ```
     fn resolve_export_target_uncached(
         &mut self,
+        artifacts: &ArtifactReader<'_>,
         module: ModuleId,
         key: dir::ExportKey,
     ) -> CompilerResult<ExportLookup> {
-        let exported = self.exported_module(module)?;
+        let exported = self.exported_module(artifacts, module)?;
 
         if let Some(export) = exported.exports.export_by_key.get(&key).copied() {
-            return self.resolve_export_entry(module, export);
+            return self.resolve_export_entry(artifacts, module, export);
         }
 
-        self.resolve_star_export_target(key, &exported.exports)
+        self.resolve_star_export_target(artifacts, key, &exported.exports)
     }
 
     /// Return one exported module loaded through this provider run.
@@ -129,18 +181,21 @@ impl ResolveState<'_> {
     /// export { value } from "./dep.ds";
     /// // both clauses read the same exported module artifact
     /// ```
-    fn exported_module(&mut self, module: ModuleId) -> CompilerResult<Arc<DirExported>> {
-        if let Some(exported) = self.exported_modules.get(&module) {
+    pub(crate) fn exported_module(
+        &mut self,
+        artifacts: &ArtifactReader<'_>,
+        module: ModuleId,
+    ) -> CompilerResult<Arc<DirExported>> {
+        if let Some(exported) = self.modules.get(&module) {
             return Ok(exported.clone());
         }
 
-        self.stats.export_table_loads += 1;
+        self.table_loads += 1;
 
-        let exported = self
-            .artifacts
+        let exported = artifacts
             .dir_exported(module, self.profile)
             .map_err(CompilerError::from)?;
-        self.exported_modules.insert(module, exported.clone());
+        self.modules.insert(module, exported.clone());
 
         Ok(exported)
     }
@@ -155,6 +210,7 @@ impl ResolveState<'_> {
     /// ```
     fn resolve_export_entry(
         &mut self,
+        artifacts: &ArtifactReader<'_>,
         module: ModuleId,
         export: dir::ExportEntry,
     ) -> CompilerResult<ExportLookup> {
@@ -174,7 +230,7 @@ impl ResolveState<'_> {
                     return Ok(ExportLookup::Missing);
                 };
 
-                self.resolve_export_target(target, key)
+                self.resolve_export_target(artifacts, target, key)
             }
         }
     }
@@ -189,6 +245,7 @@ impl ResolveState<'_> {
     /// ```
     fn resolve_star_export_target(
         &mut self,
+        artifacts: &ArtifactReader<'_>,
         key: dir::ExportKey,
         exports: &dir::ExportTable,
     ) -> CompilerResult<ExportLookup> {
@@ -204,7 +261,7 @@ impl ResolveState<'_> {
                 continue;
             };
 
-            match self.resolve_export_target(target, key)? {
+            match self.resolve_export_target(artifacts, target, key)? {
                 ExportLookup::Found(target) => {
                     insert_export_target(&mut targets, target);
                 }
@@ -224,6 +281,31 @@ impl ResolveState<'_> {
             _ => Ok(ExportLookup::Ambiguous(targets)),
         }
     }
+}
+
+impl ExportResolver {
+    /// Return this resolver's observed lookup counters.
+    pub(crate) fn stats(&self) -> ExportLookupStats {
+        ExportLookupStats {
+            cache_hits: self.cache_hits,
+            cache_misses: self.cache_misses,
+            cycle_hits: self.cycle_hits,
+            table_loads: self.table_loads,
+        }
+    }
+}
+
+/// Observed export lookup counters for phase stats.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ExportLookupStats {
+    /// Cache hits observed.
+    pub(crate) cache_hits: usize,
+    /// Cache misses observed.
+    pub(crate) cache_misses: usize,
+    /// Cycle hits observed.
+    pub(crate) cycle_hits: usize,
+    /// Export table loads observed.
+    pub(crate) table_loads: usize,
 }
 
 /// Insert one export target if it is not already present.
