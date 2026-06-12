@@ -59,7 +59,8 @@ impl ModuleQueryContext<'_> {
                     dir::MemberTarget::Symbol(candidate) => {
                         dir.insert_reference_target_keys(&mut targets, candidate.symbol)
                     }
-                    dir::MemberTarget::Union(candidates) => {
+                    dir::MemberTarget::Overloaded(candidates)
+                    | dir::MemberTarget::Union(candidates) => {
                         for candidate in candidates {
                             dir.insert_reference_target_keys(&mut targets, candidate.symbol);
                         }
@@ -828,9 +829,11 @@ impl DirQueryContext<'_> {
         };
 
         match &resolution.target {
-            dir::MemberTarget::Union(candidates) => candidates.iter().any(|candidate| {
-                ctx.symbol_matches_reference_target(candidate.symbol, canonical_id)
-            }),
+            dir::MemberTarget::Overloaded(candidates) | dir::MemberTarget::Union(candidates) => {
+                candidates.iter().any(|candidate| {
+                    ctx.symbol_matches_reference_target(candidate.symbol, canonical_id)
+                })
+            }
             _ => false,
         }
     }

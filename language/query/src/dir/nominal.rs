@@ -170,7 +170,8 @@ impl DirQueryContext<'_> {
 
                     Some(candidate.symbol)
                 }
-                dir::MemberTarget::Union(candidates) => {
+                dir::MemberTarget::Overloaded(candidates)
+                | dir::MemberTarget::Union(candidates) => {
                     if candidates.len() == 1 {
                         let symbol_id = candidates[0].symbol;
                         if !self.symbol_is_visible(symbol_id) {
