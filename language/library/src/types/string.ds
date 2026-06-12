@@ -1,15 +1,15 @@
 /// Map each string in `S` to its uppercase form.
-@languageItem("types.string.Uppercase")
+@languageItem("types.Uppercase")
 export type Uppercase<S: string> = intrinsic;
 
 /// Map each string in `S` to its lowercase form.
-@languageItem("types.string.Lowercase")
+@languageItem("types.Lowercase")
 export type Lowercase<S: string> = intrinsic;
 
 /// Map each string in `S` to capitalize its first character.
-@languageItem("types.string.Capitalize")
+@languageItem("types.Capitalize")
 export type Capitalize<S: string> = intrinsic;
 
 /// Map each string in `S` to uncapitalize its first character.
-@languageItem("types.string.Uncapitalize")
+@languageItem("types.Uncapitalize")
 export type Uncapitalize<S: string> = intrinsic;

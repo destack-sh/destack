@@ -1412,6 +1412,18 @@ define_language_items! {
             Record => (Type, "types/object", "Record"),
         }
 
+        /// `destack:types/string`.
+        string {
+            /// Uppercase string mapping alias.
+            Uppercase => (Type, "types/string", "Uppercase"),
+            /// Lowercase string mapping alias.
+            Lowercase => (Type, "types/string", "Lowercase"),
+            /// Capitalize string mapping alias.
+            Capitalize => (Type, "types/string", "Capitalize"),
+            /// Uncapitalize string mapping alias.
+            Uncapitalize => (Type, "types/string", "Uncapitalize"),
+        }
+
         /// `destack:types/option`.
         option {
             /// Explicit optional value.
