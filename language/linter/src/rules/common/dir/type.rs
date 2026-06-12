@@ -381,7 +381,7 @@ fn evaluate_reference_boolean_type_query(
     ctx: &LintModuleContext<'_>,
     statics: Option<&dir::StaticTable<'_>>,
     symbol: dir::GlobalSymbolId,
-    generic_arguments: Option<&[dir::StaticArgument]>,
+    generic_arguments: Option<&[dir::GlobalTypeId]>,
     query: TypeBooleanQuery<'_>,
     state: &mut TypeBooleanQueryState,
 ) -> bool {
@@ -424,7 +424,7 @@ fn evaluate_reference_boolean_type_query(
         }
         TypeBooleanQuery::MapWithEmptyValue { map_symbol } => {
             if symbol == map_symbol
-                && generic_arguments_contain_empty_map_value(ctx, statics, generic_arguments)
+                && generic_arguments_contain_empty_map_value(ctx, generic_arguments)
             {
                 return true;
             }
@@ -643,7 +643,10 @@ fn evaluate_terminal_boolean_type_query(
             | dir::Type::Shape(_)
             | dir::Type::Closure(_)
             | dir::Type::Function(_) => false,
+            dir::Type::Memory(_) => false,
             dir::Type::Parameter(_)
+            | dir::Type::Variable(_)
+            | dir::Type::Static(_)
             | dir::Type::Reference(_)
             | dir::Type::Member(_)
             | dir::Type::This
@@ -658,11 +661,10 @@ fn evaluate_terminal_boolean_type_query(
     }
 }
 
-/// Return true when static arguments contain an empty map value argument.
+/// Return true when generic arguments contain an empty map value argument.
 fn generic_arguments_contain_empty_map_value(
     ctx: &LintModuleContext<'_>,
-    _statics: Option<&dir::StaticTable<'_>>,
-    generic_arguments: Option<&[dir::StaticArgument]>,
+    generic_arguments: Option<&[dir::GlobalTypeId]>,
 ) -> bool {
     let Some(generic_arguments) = generic_arguments else {
         return false;
@@ -671,25 +673,7 @@ fn generic_arguments_contain_empty_map_value(
         return false;
     }
 
-    generic_argument_is_void_or_never_type(ctx, &generic_arguments[1])
-}
-
-/// Return true when one static argument resolves to `void` or `never`.
-fn generic_argument_is_void_or_never_type(
-    ctx: &LintModuleContext<'_>,
-    generic_argument: &dir::StaticArgument,
-) -> bool {
-    let Some(term) = ctx.checked_static(generic_argument.value) else {
-        return false;
-    };
-
-    match &term {
-        dir::StaticTerm::Type { ty } => is_void_or_never_type(ctx, *ty),
-        dir::StaticTerm::TypeLiteral {
-            value: dir::TypeLiteral::Void | dir::TypeLiteral::Never,
-        } => true,
-        _ => false,
-    }
+    is_void_or_never_type(ctx, generic_arguments[1])
 }
 
 /// Return true when one type is string-like.
@@ -822,10 +806,8 @@ fn is_string_array_type_inner(
             if array_symbol.is_none_or(|array_symbol| reference.symbol != array_symbol) {
                 false
             } else {
-                reference.arguments.first().is_some_and(|generic_argument| {
-                    generic_argument_type_id(ctx, generic_argument).is_some_and(|element_type_id| {
-                        is_string_type(ctx, element_type_id, string_symbol)
-                    })
+                reference.arguments.first().is_some_and(|element_type_id| {
+                    is_string_type(ctx, *element_type_id, string_symbol)
                 })
             }
         }
@@ -851,17 +833,6 @@ fn is_string_array_type_inner(
 
     state.leave_type_id(normalized_type_id);
     result
-}
-
-/// Resolve one static argument into a concrete type id when available.
-fn generic_argument_type_id(
-    ctx: &LintModuleContext<'_>,
-    generic_argument: &dir::StaticArgument,
-) -> Option<dir::GlobalTypeId> {
-    match ctx.checked_static(generic_argument.value)? {
-        dir::StaticTerm::Type { ty } => Some(ty),
-        _ => None,
-    }
 }
 
 /// Return true when the type may behave as array-like in `for-in` iteration.
@@ -1357,6 +1328,9 @@ fn type_truthiness_inner(
     } else {
         match ty {
             dir::Type::Never | dir::Type::Any | dir::Type::Unknown => TypeTruthiness::Unknown,
+            dir::Type::Variable(_) | dir::Type::Memory(_) | dir::Type::Static(_) => {
+                TypeTruthiness::Unknown
+            }
             dir::Type::Void | dir::Type::Null | dir::Type::Undefined => TypeTruthiness::AlwaysFalsy,
             dir::Type::Object => TypeTruthiness::AlwaysTruthy,
             dir::Type::Primitive(primitive) => match primitive {
@@ -1470,6 +1444,8 @@ fn type_nullishness_inner(
         match ty {
             dir::Type::Null | dir::Type::Undefined | dir::Type::Void => TypeNullishness::Always,
             dir::Type::Never | dir::Type::Any | dir::Type::Unknown => TypeNullishness::Maybe,
+            dir::Type::Variable(_) | dir::Type::Static(_) => TypeNullishness::Maybe,
+            dir::Type::Memory(_) => TypeNullishness::Never,
             dir::Type::Object
             | dir::Type::Primitive(_)
             | dir::Type::Range(_)
