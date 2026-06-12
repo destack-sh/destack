@@ -37,7 +37,7 @@ macro_rules! assert_node {
     }};
 }
 
-/// A test wrapper for MIR parsing.
+/// A MIR parse test fixture.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct TestParser<'a> {
     /// The raw MIR fixture source.

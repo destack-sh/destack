@@ -1,7 +1,7 @@
 use crate::{Block, Function, Global, Local, TypeAlias, assert_node};
 use destack_source::{NodeSpanList, NodeSpanRegion, NodeSpanType};
 
-use super::tests::{TestParser, span_for_text, span_for_text_in, span_for_text_in_after};
+use super::{TestParser, span_for_text, span_for_text_in, span_for_text_in_after};
 
 /// Parsed MIR records main spans for item and block names.
 #[test]

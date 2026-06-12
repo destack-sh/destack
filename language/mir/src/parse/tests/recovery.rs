@@ -4,7 +4,7 @@ use crate::{
 };
 use destack_source::DiagnosticSeverity;
 
-use super::tests::TestParser;
+use super::TestParser;
 
 /// Recovering parse returns partial MIR and shared diagnostics after a syntax error.
 #[test]

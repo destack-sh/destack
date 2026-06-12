@@ -1,4 +1,6 @@
+mod fixture;
 mod recovery;
 mod source;
-mod tests;
 mod trivia;
+
+pub(super) use fixture::*;
