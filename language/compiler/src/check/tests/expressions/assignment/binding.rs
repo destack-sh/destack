@@ -267,7 +267,7 @@ values = [1, 2];
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=1 types=9 constraints=5 obligations=1 solutions=1 bounds=2 decisions=1
+/// @check.stats.solve variables=1 types=9 constraints=6 obligations=1 solutions=1 bounds=3 decisions=1
 "#,
     );
 }

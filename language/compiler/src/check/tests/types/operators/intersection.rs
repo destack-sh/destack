@@ -37,8 +37,8 @@ type Aged = { age: int32 };
 /// @definition.type symbol=Aged source="type Aged = { age: int32 }" value={ age: int32 }
 
 type Person = Named & Aged;
-/// @type.symbol symbol=Person source="type Person = Named & Aged" type={ name: string } & { age: int32 }
-/// @definition.type symbol=Person source="type Person = Named & Aged" value={ name: string } & { age: int32 }
+/// @type.symbol symbol=Person source="type Person = Named & Aged" type={ name: string; age: int32 }
+/// @definition.type symbol=Person source="type Person = Named & Aged" value={ name: string; age: int32 }
 /// @resolution.name source=Named target=Named
 /// @resolution.name source=Aged target=Aged
 

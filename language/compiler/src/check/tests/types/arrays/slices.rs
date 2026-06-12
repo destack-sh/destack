@@ -13,16 +13,22 @@ const slice = bytes[1..3];
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
+=== annotated ===
 declare const bytes: [uint8; 4];
-/// @type.symbol symbol=bytes type=[uint8; 4]
+const slice: Slice<uint8> = bytes[1..3];
+
+=== checked ===
+declare const bytes: [uint8; 4];
+/// @type.symbol symbol=bytes source=bytes type=FixedArray<uint8, 4>
 
 const slice = bytes[1..3];
-/// @type.symbol symbol=slice type=[uint8]
-/// @type.node source=bytes type=[uint8; 4]
-/// @type.node source=bytes[1..3] type=[uint8]
+/// @type.symbol symbol=slice source=slice type=collections.slice.Slice<uint8>
+/// @type.node source=bytes type=FixedArray<uint8, 4>
+/// @type.node source=bytes[1..3] type=collections.slice.Slice<uint8>
 /// @resolution.name source=bytes target=bytes
-/// @resolution.member source=bytes[1..3] receiver=[uint8; 4] kind=builtin builtin=subscript.slice
+/// @resolution.call source=bytes[1..3] parameters=(unknown) return=collections.slice.Slice<uint8> kind=symbol target=collections.array.index#6 receiver=FixedArray<uint8, 4>
 /// @type.node source=1 type=1
+/// @type.node source=1..3 type=range.range.Range<1 | 3>
 /// @type.node source=3 type=3
 "#,
     );
