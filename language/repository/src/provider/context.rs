@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use destack_artifact::{
     ArtifactDependency, ArtifactKey, ArtifactSidecar, ArtifactVersion, DiagnosticContext,
     DiagnosticError, DiagnosticLike,
@@ -6,7 +8,7 @@ use destack_source::DiagnosticCollection;
 
 use crate::Revision;
 
-use super::ProviderError;
+use super::{ArtifactTracer, ProviderError};
 
 /// Context exposed to one artifact provider attempt.
 pub trait ProviderContext: DiagnosticContext {
@@ -19,6 +21,25 @@ pub trait ProviderContext: DiagnosticContext {
     /// Return whether this attempt should emit event traces.
     fn emit_events(&self) -> bool {
         false
+    }
+
+    /// Return the tracer recording this attempt, when the run is traced.
+    fn tracer(&self) -> Option<&ArtifactTracer> {
+        None
+    }
+
+    /// Record one interior phase that started at one instant.
+    fn emit_span(&self, name: &'static str, started: Instant) {
+        if let Some(tracer) = self.tracer() {
+            tracer.record_span(name, started);
+        }
+    }
+
+    /// Record one named counter for this attempt.
+    fn emit_counter(&self, name: &'static str, value: u64) {
+        if let Some(tracer) = self.tracer() {
+            tracer.record_counter(name, value);
+        }
     }
 
     /// Require one artifact and return its exact version when ready.
