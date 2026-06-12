@@ -5,6 +5,9 @@ use crate::{
     ProfileOptions, Stage, Target, profile_flags_for_compiler_options,
 };
 
+/// The builtin prelude global grounding every profile.
+const PRELUDE_GLOBAL: &str = "destack:prelude";
+
 /// Build one profile key for one target.
 pub(crate) fn profile_key_for_target(
     target_name: &str,
@@ -62,11 +65,8 @@ pub(crate) fn profile_key_for_target(
 
     // compiler flags
     let flags = profile_flags_for_compiler_options(&compiler_options);
-    let globals = compiler_options
-        .globals
-        .iter()
-        .map(|path| path.display().to_string())
-        .collect();
+
+    let globals = profile_globals(&compiler_options);
     let tree = compiler_options.tree.clone();
     let derive = compiler_options
         .derive
@@ -156,6 +156,19 @@ fn condition_set_from_compiler_options(
         host: None,
         runtime: None,
     }
+}
+
+/// Build one profile's global modules.
+fn profile_globals(compiler_options: &CompilerOptions) -> Vec<String> {
+    let mut globals = vec![PRELUDE_GLOBAL.to_string()];
+    globals.extend(
+        compiler_options
+            .globals
+            .iter()
+            .map(|path| path.display().to_string()),
+    );
+
+    globals
 }
 
 /// Build compiler options after profile, product, and target modifiers.
