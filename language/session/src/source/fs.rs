@@ -383,15 +383,15 @@ impl<'a> FileSystemSource<'a> {
         package_root: &Path,
         config: &DestackFile,
     ) -> Result<(), SessionError> {
-        let dependencies = config.dependencies.values().chain(
+        let dependencies = config.dependencies.iter().chain(
             config
                 .conditional_dependencies
                 .iter()
-                .flat_map(|conditional| conditional.dependencies.values()),
+                .flat_map(|conditional| conditional.dependencies.iter()),
         );
 
         // add filesystem path dependencies
-        for dependency in dependencies {
+        for (name, dependency) in dependencies {
             let Dependency::Path { path } = dependency else {
                 continue;
             };
@@ -399,6 +399,13 @@ impl<'a> FileSystemSource<'a> {
             let Some(config) = self.read_source_config(&dependency_root)? else {
                 continue;
             };
+
+            // roots escaping the workspace mount under their dependency name
+            if !dependency_root.starts_with(self.root) {
+                self.repository
+                    .add_mount(name, dependency_root.clone())
+                    .map_err(SessionError::from)?;
+            }
 
             self.queue_package(dependency_root, config);
         }

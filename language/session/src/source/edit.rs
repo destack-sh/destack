@@ -42,9 +42,9 @@ impl Edit {
                 Self::write_bytes(file_system, &path, &bytes)
             }
             Self::EditText { path, edits } => {
-                let path = root.join(path);
+                let full_path = root.join(&path);
 
-                Self::edit_text(file_system, &path, edits)
+                Self::edit_text(file_system, &full_path, &path, edits)
             }
             Self::Remove { path } => {
                 let path = root.join(path);
@@ -102,6 +102,7 @@ impl Edit {
     fn edit_text(
         file_system: &dyn FileSystem,
         path: &Path,
+        logical_path: &Path,
         edits: Vec<TextEdit>,
     ) -> Result<(), SessionError> {
         let text = file_system
@@ -111,7 +112,7 @@ impl Edit {
                 path: path.to_path_buf(),
                 message: error.to_string(),
             })?;
-        let file_id = source::FileId::from_logical_path(path);
+        let file_id = source::FileId::from_logical_path(logical_path);
         let name = path
             .file_name()
             .and_then(|name| name.to_str())
