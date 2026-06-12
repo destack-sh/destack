@@ -1,17 +1,15 @@
 use destack_dir as dir;
 
-use crate::check::{
-    CheckEvent, FlowPath, NameLookup, ShapeMember, TypeLiteralTerm, TypeOperand, TypeOperationTerm,
-    TypeTerm, WalkState,
-};
+use crate::CompilerResult;
+use crate::check::{FlowPath, NameLookup, WalkState};
 
 /// Runtime flow predicate used to narrow one stable path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) enum NarrowPredicate {
     /// Keep values assignable to the target type.
-    Is(TypeOperand),
+    Is(dir::GlobalTypeId),
     /// Keep values not assignable to the target type.
-    IsNot(TypeOperand),
+    IsNot(dir::GlobalTypeId),
     /// Keep objects with a known member key.
     HasKey(dir::StaticKey),
 }
@@ -25,43 +23,27 @@ impl WalkState<'_, '_> {
         match self.tree.get(id) {
             // value
             dir::Expression::Identifier { name } => {
-                let guard = self.active_static_guard();
-
-                // resolve root binding
-                let lookup = self
-                    .check.lookup_name_by_name(
-                        self.module,
-                        id.into_any(),
-                        *name,
-                        dir::SymbolSpace::Value,
-                    )
-                    .available_under(&guard);
+                // resolve the stable root binding, ambiguity has no path
+                let lookup =
+                    self.check
+                        .lookup_name(self.module, id.into_any(), *name, dir::SymbolSpace::Value);
                 let symbol = match lookup {
                     NameLookup::Found(candidate) => candidate.symbol()?,
-                    NameLookup::Missing => return None,
-                    NameLookup::Ambiguous(_) => return None,
+                    NameLookup::Missing | NameLookup::Ambiguous(_) => return None,
                 };
 
                 Some(FlowPath::symbol(symbol))
             }
             // namespace
             dir::Expression::QualifiedReference { path, .. } if path.segments.len() == 1 => {
-                let guard = self.active_static_guard();
-
-                // resolve root binding
+                // resolve the stable root binding, ambiguity has no path
                 let name = path.segments[0];
-                let lookup = self
-                    .check.lookup_name_by_name(
-                        self.module,
-                        id.into_any(),
-                        name,
-                        dir::SymbolSpace::Value,
-                    )
-                    .available_under(&guard);
+                let lookup =
+                    self.check
+                        .lookup_name(self.module, id.into_any(), name, dir::SymbolSpace::Value);
                 let symbol = match lookup {
                     NameLookup::Found(candidate) => candidate.symbol()?,
-                    NameLookup::Missing => return None,
-                    NameLookup::Ambiguous(_) => return None,
+                    NameLookup::Missing | NameLookup::Ambiguous(_) => return None,
                 };
 
                 Some(FlowPath::symbol(symbol))
@@ -111,25 +93,15 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn flow_path_narrowing(
         &self,
         id: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<TypeOperand> {
+    ) -> Option<dir::GlobalTypeId> {
         // resolve path before reading narrowing table
         let path = self.flow_path(id)?;
 
         self.flow().narrowing(&path)
     }
 
-    /// Narrow one flow path to an exact type operand.
-    pub(in crate::check) fn narrow_flow_path(
-        &mut self,
-        path: FlowPath,
-        ty: impl Into<TypeOperand>,
-    ) {
-        let ty = ty.into();
-
-        self.check.record_event(CheckEvent::FlowNarrow {
-            path: path.clone(),
-            value: ty,
-        });
+    /// Narrow one flow path to an exact type.
+    pub(in crate::check) fn narrow_flow_path(&mut self, path: FlowPath, ty: dir::GlobalTypeId) {
         self.flow_mut().narrow(path, ty);
     }
 
@@ -137,104 +109,112 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn narrow_flow_path_by(
         &mut self,
         path: FlowPath,
-        source: TypeOperand,
+        source: dir::GlobalTypeId,
+        source_node: dir::LocalNodeIdAny,
         predicate: NarrowPredicate,
-    ) {
+    ) -> CompilerResult<()> {
         match predicate {
-            // keep matching values
+            // keep matching values: source extends target ? source : never
             NarrowPredicate::Is(target) => {
-                let operation = self
-                    .check
-                    .inference
-                    .push_term(TypeOperationTerm::Extract { source, target });
-                let narrowed = self
-                    .check
-                    .inference
-                    .push_term(TypeTerm::Operation(operation));
+                let never = self.push_type(dir::Type::Never, source_node)?;
+                let operation = dir::TypeOperation::Conditional(dir::ConditionalType {
+                    left: source,
+                    right: target,
+                    then_type: source,
+                    else_type: never,
+                    is_distributive: true,
+                });
+                let narrowed = self.push_type(dir::Type::Operation(operation), source_node)?;
 
                 self.narrow_flow_path(path, narrowed);
             }
 
-            // keep non-matching values
+            // keep non-matching values: source extends target ? never : source
             NarrowPredicate::IsNot(target) => {
-                let operation = self
-                    .check
-                    .inference
-                    .push_term(TypeOperationTerm::Exclude { source, target });
-                let narrowed = self
-                    .check
-                    .inference
-                    .push_term(TypeTerm::Operation(operation));
+                let never = self.push_type(dir::Type::Never, source_node)?;
+                let operation = dir::TypeOperation::Conditional(dir::ConditionalType {
+                    left: source,
+                    right: target,
+                    then_type: never,
+                    else_type: source,
+                    is_distributive: true,
+                });
+                let narrowed = self.push_type(dir::Type::Operation(operation), source_node)?;
 
                 self.narrow_flow_path(path, narrowed);
             }
 
             // keep objects with the requested key
             NarrowPredicate::HasKey(key) => {
-                let unknown = self
-                    .check
-                    .inference
-                    .push_term(TypeTerm::Literal(TypeLiteralTerm::Unknown))
-                    .into();
-                let target = self.member_shape_type(key, unknown);
+                let unknown = self.push_type(dir::Type::Unknown, source_node)?;
+                let target = self.member_shape_type(key, unknown, source_node)?;
                 let predicate = NarrowPredicate::Is(target);
 
-                self.narrow_flow_path_by(path, source, predicate);
+                self.narrow_flow_path_by(path, source, source_node, predicate)?;
             }
         }
+
+        Ok(())
     }
 
     /// Narrow one base flow path from a member predicate.
     pub(in crate::check) fn narrow_base_flow_path_by_member(
         &mut self,
         path: FlowPath,
-        source: TypeOperand,
+        source: dir::GlobalTypeId,
+        source_node: dir::LocalNodeIdAny,
         key: dir::StaticKey,
         predicate: NarrowPredicate,
-    ) {
+    ) -> CompilerResult<()> {
         let predicate = match predicate {
             // keep parent values with a matching member type
             NarrowPredicate::Is(ty) => {
-                let target = self.member_shape_type(key, ty);
+                let target = self.member_shape_type(key, ty, source_node)?;
 
                 NarrowPredicate::Is(target)
             }
 
             // keep parent values without a matching member type
             NarrowPredicate::IsNot(ty) => {
-                let target = self.member_shape_type(key, ty);
+                let target = self.member_shape_type(key, ty, source_node)?;
 
                 NarrowPredicate::IsNot(target)
             }
 
             // keep parent values with a member that has the nested key
             NarrowPredicate::HasKey(member_key) => {
-                let unknown = self
-                    .check
-                    .inference
-                    .push_term(TypeTerm::Literal(TypeLiteralTerm::Unknown))
-                    .into();
-                let member = self.member_shape_type(member_key, unknown);
-                let target = self.member_shape_type(key, member);
+                let unknown = self.push_type(dir::Type::Unknown, source_node)?;
+                let member = self.member_shape_type(member_key, unknown, source_node)?;
+                let target = self.member_shape_type(key, member, source_node)?;
 
                 NarrowPredicate::Is(target)
             }
         };
 
-        self.narrow_flow_path_by(path, source, predicate);
+        self.narrow_flow_path_by(path, source, source_node, predicate)
     }
 
-    /// Return one structural member shape type.
-    fn member_shape_type(&mut self, key: dir::StaticKey, ty: TypeOperand) -> TypeOperand {
-        let member = ShapeMember::Field {
+    /// Return one single-field structural shape type.
+    fn member_shape_type(
+        &mut self,
+        key: dir::StaticKey,
+        ty: dir::GlobalTypeId,
+        source_node: dir::LocalNodeIdAny,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let field = dir::TypeField {
             key,
             ty,
             is_optional: false,
             is_readonly: false,
         };
-        let target = self.check.push_shape_type(vec![member].into());
+        let shape = dir::ShapeType {
+            fields: vec![field],
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures: Vec::new(),
+        };
 
-        self.check.inference.push_term(target).into()
+        self.push_type(dir::Type::Shape(shape), source_node)
     }
 
     /// Clear flow narrowings invalidated by mutating an expression.

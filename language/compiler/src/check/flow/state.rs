@@ -3,7 +3,7 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::check::{
     Capture, Condition, ControlTarget, FlowPath, FunctionFrame, Receiver, ReceiverBinding,
-    TryTarget, TypeOperand,
+    TryTarget,
 };
 
 /// Flow state while walking one module.
@@ -22,7 +22,7 @@ pub(in crate::check) struct FlowState {
     /// Local symbols definitely assigned at the current walk point.
     pub(in crate::check::flow) assigned: IndexSet<dir::GlobalSymbolId>,
     /// Narrowed type operands keyed by flow path.
-    pub(in crate::check::flow) narrowings: IndexMap<FlowPath, TypeOperand>,
+    pub(in crate::check::flow) narrowings: IndexMap<FlowPath, dir::GlobalTypeId>,
 
     /// Flow mutations made since walking started.
     mutations: Vec<FlowMutation>,
@@ -57,7 +57,7 @@ pub(in crate::check) struct FlowBranch {
     /// Symbols assigned by this branch.
     assigned_symbols: IndexSet<dir::GlobalSymbolId>,
     /// Narrowings touched by this branch.
-    narrowings: IndexMap<FlowPath, Option<TypeOperand>>,
+    narrowings: IndexMap<FlowPath, Option<dir::GlobalTypeId>>,
 }
 
 /// One reversible flow mutation.
@@ -75,7 +75,7 @@ enum FlowMutation {
         /// The narrowed path.
         path: FlowPath,
         /// The previous narrowing at the same path.
-        previous: Option<TypeOperand>,
+        previous: Option<dir::GlobalTypeId>,
     },
 }
 
@@ -249,7 +249,7 @@ impl FlowState {
     pub(in crate::check) fn control_target_result(
         &self,
         index: usize,
-    ) -> (FlowCheckpoint, TypeOperand) {
+    ) -> (FlowCheckpoint, dir::GlobalTypeId) {
         let target = &self.targets[index];
 
         (target.checkpoint, target.result)
@@ -259,7 +259,7 @@ impl FlowState {
     pub(in crate::check) fn push_break_branch(
         &mut self,
         index: usize,
-        value: TypeOperand,
+        value: dir::GlobalTypeId,
         branch: FlowBranch,
     ) {
         let target = &mut self.targets[index];
@@ -346,18 +346,13 @@ impl FlowState {
         self.assigned.insert(symbol);
     }
 
-    /// Return whether one local symbol is definitely assigned.
-    pub(in crate::check) fn is_assigned(&self, symbol: dir::GlobalSymbolId) -> bool {
-        self.assigned.contains(&symbol)
-    }
-
     /// Return the current narrowing for one flow path.
-    pub(in crate::check) fn narrowing(&self, path: &FlowPath) -> Option<TypeOperand> {
+    pub(in crate::check) fn narrowing(&self, path: &FlowPath) -> Option<dir::GlobalTypeId> {
         self.narrowings.get(path).copied()
     }
 
     /// Narrow one path at the current walk point.
-    pub(in crate::check) fn narrow(&mut self, path: FlowPath, ty: TypeOperand) {
+    pub(in crate::check) fn narrow(&mut self, path: FlowPath, ty: dir::GlobalTypeId) {
         // record previous narrowing for rollback
         let previous = self.narrowings.get(&path).copied();
 
