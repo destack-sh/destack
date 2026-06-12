@@ -1,7 +1,6 @@
 //! Printer for ISLE language.
 
-use std::io::Write;
-use std::vec;
+use std::{io::Write, vec};
 
 use crate::ast::*;
 

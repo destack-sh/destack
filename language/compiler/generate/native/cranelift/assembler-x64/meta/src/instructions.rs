@@ -117,8 +117,7 @@ fn check_avx_alternates(all: &mut [Inst]) {
 /// - the SSE and AVX instructions do not have the same opcode
 /// - the operand formats do not match the expected patterns
 fn check_sse_matches_avx(sse_inst: &Inst, avx_inst: &Inst) {
-    use crate::dsl::Mutability::*;
-    use crate::dsl::OperandKind::*;
+    use crate::dsl::{Mutability::*, OperandKind::*};
 
     debug_assert_eq!(
         &format!("v{}", sse_inst.mnemonic),

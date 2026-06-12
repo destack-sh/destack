@@ -1,11 +1,13 @@
 use crate::alloc::{TryClone, try_realloc};
 use crate::error::OutOfMemory;
 use core::borrow::Borrow;
-use core::cmp::Ordering;
-use core::num::NonZeroUsize;
-use core::ops::{Deref, DerefMut, Index, IndexMut};
-use core::slice::SliceIndex;
-use core::{fmt, mem};
+use core::{
+    cmp::Ordering,
+    fmt, mem,
+    num::NonZeroUsize,
+    ops::{Deref, DerefMut, Index, IndexMut},
+    slice::SliceIndex,
+};
 #[cfg(feature = "serde")]
 use serde::ser::SerializeSeq;
 use std_alloc::alloc::Layout;

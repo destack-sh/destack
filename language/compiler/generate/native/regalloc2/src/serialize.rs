@@ -1,8 +1,6 @@
 use core::fmt;
 
-use alloc::format;
-use alloc::string::ToString;
-use alloc::vec::Vec;
+use alloc::{format, string::ToString, vec::Vec};
 use serde::{Deserialize, Serialize};
 
 use crate::{Block, Function, Inst, InstRange, MachineEnv, Operand, PRegSet, RegClass, VReg};

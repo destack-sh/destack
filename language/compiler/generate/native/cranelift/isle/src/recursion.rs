@@ -2,9 +2,11 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::error::{Error, Span};
-use crate::sema::{TermEnv, TermId};
-use crate::trie_again::{Binding, RuleSet};
+use crate::{
+    error::{Error, Span},
+    sema::{TermEnv, TermId},
+    trie_again::{Binding, RuleSet},
+};
 
 /// Check for recursive terms.
 pub fn check(terms: &[(TermId, RuleSet)], termenv: &TermEnv) -> Result<(), Vec<Error>> {

@@ -1,8 +1,12 @@
 //! AArch64 ISA definitions: registers.
 
-use crate::isa::aarch64::inst::{OperandSize, ScalarSize, VectorSize};
-use crate::machinst::{RealReg, Reg, RegClass, Writable};
-use regalloc2::{PReg, VReg};
+use crate::isa::aarch64::inst::OperandSize;
+use crate::isa::aarch64::inst::ScalarSize;
+use crate::isa::aarch64::inst::VectorSize;
+use crate::machinst::RealReg;
+use crate::machinst::{Reg, RegClass, Writable};
+use regalloc2::PReg;
+use regalloc2::VReg;
 
 use alloc::string::{String, ToString};
 

@@ -1,14 +1,12 @@
-use crate::cfg::CFGInfo;
-use crate::ion::Stats;
 use crate::moves::{MoveAndScratchResolver, ParallelMoves};
-use crate::ssa::validate_ssa;
+use crate::{cfg::CFGInfo, ion::Stats, Allocation, RegAllocError};
+use crate::{ssa::validate_ssa, Edit, Function, MachineEnv, Output, ProgPoint};
 use crate::{
-    Allocation, AllocationKind, Block, Edit, Function, FxHashMap, Inst, InstPosition, MachineEnv,
-    Operand, OperandConstraint, OperandKind, OperandPos, Output, PReg, PRegSet, ProgPoint,
-    RegAllocError, RegClass, SpillSlot, VReg,
+    AllocationKind, Block, FxHashMap, Inst, InstPosition, Operand, OperandConstraint, OperandKind,
+    OperandPos, PReg, PRegSet, RegClass, SpillSlot, VReg,
 };
-use alloc::vec::Vec;
-use alloc::{format, vec};
+use alloc::format;
+use alloc::{vec, vec::Vec};
 use core::convert::TryInto;
 use core::fmt;
 use core::iter::FromIterator;

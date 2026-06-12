@@ -1,8 +1,9 @@
 //! Dynamic IR types
 
+use crate::ir::GlobalValue;
+use crate::ir::PrimaryMap;
 use crate::ir::entities::DynamicType;
 use crate::ir::types::*;
-use crate::ir::{GlobalValue, PrimaryMap};
 
 #[cfg(feature = "enable-serde")]
 use serde_derive::{Deserialize, Serialize};

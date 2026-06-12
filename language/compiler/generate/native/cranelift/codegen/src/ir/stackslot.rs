@@ -186,8 +186,9 @@ pub type DynamicStackSlots = PrimaryMap<DynamicStackSlot, DynamicStackSlotData>;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ir::Function;
     use crate::ir::types::*;
-    use crate::ir::{DynamicTypeData, Function, GlobalValueData};
+    use crate::ir::{DynamicTypeData, GlobalValueData};
     use alloc::string::ToString;
 
     #[test]

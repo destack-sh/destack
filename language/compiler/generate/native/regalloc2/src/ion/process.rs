@@ -17,12 +17,12 @@ use super::{
     LiveRangeIndex, LiveRangeKey, LiveRangeList, LiveRangeListEntry, PRegIndex, RegTraversalIter,
     Requirement, SpillWeight, UseList, VRegIndex,
 };
-use crate::ion::data_structures::{
-    CodeRange, Use, BUNDLE_MAX_NORMAL_SPILL_WEIGHT, MAX_SPLITS_PER_SPILLSET,
-    MINIMAL_BUNDLE_SPILL_WEIGHT, MINIMAL_FIXED_BUNDLE_SPILL_WEIGHT,
-    MINIMAL_LIMITED_BUNDLE_SPILL_WEIGHT,
-};
 use crate::{
+    ion::data_structures::{
+        CodeRange, Use, BUNDLE_MAX_NORMAL_SPILL_WEIGHT, MAX_SPLITS_PER_SPILLSET,
+        MINIMAL_BUNDLE_SPILL_WEIGHT, MINIMAL_FIXED_BUNDLE_SPILL_WEIGHT,
+        MINIMAL_LIMITED_BUNDLE_SPILL_WEIGHT,
+    },
     Allocation, Function, Inst, InstPosition, OperandConstraint, OperandKind, PReg, ProgPoint,
     RegAllocError,
 };

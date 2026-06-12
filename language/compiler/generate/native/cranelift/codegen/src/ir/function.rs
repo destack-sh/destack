@@ -5,11 +5,12 @@
 
 use crate::HashMap;
 use crate::entity::{PrimaryMap, SecondaryMap};
+use crate::ir::DebugTags;
 use crate::ir::{
-    self, Block, DataFlowGraph, DebugTags, DynamicStackSlot, DynamicStackSlotData,
-    DynamicStackSlots, DynamicType, ExtFuncData, FuncRef, GlobalValue, GlobalValueData, Inst,
-    JumpTable, JumpTableData, Layout, SigRef, Signature, SourceLocs, StackSlot, StackSlotData,
-    StackSlots, Type,
+    self, Block, DataFlowGraph, DynamicStackSlot, DynamicStackSlotData, DynamicStackSlots,
+    DynamicType, ExtFuncData, FuncRef, GlobalValue, GlobalValueData, Inst, JumpTable,
+    JumpTableData, Layout, SigRef, Signature, SourceLocs, StackSlot, StackSlotData, StackSlots,
+    Type,
 };
 use crate::isa::CallConv;
 use crate::write::{write_function, write_function_spec};

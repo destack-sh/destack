@@ -529,7 +529,7 @@ dependencies = [
 
 [[package]]
 name = "cranelift-assembler-x64"
-version = "0.131.1"
+version = "0.132.1"
 dependencies = [
  "arbitrary",
  "arbtest",
@@ -539,14 +539,14 @@ dependencies = [
 
 [[package]]
 name = "cranelift-assembler-x64-meta"
-version = "0.131.1"
+version = "0.132.1"
 dependencies = [
  "cranelift-srcgen",
 ]
 
 [[package]]
 name = "cranelift-bforest"
-version = "0.131.1"
+version = "0.132.1"
 dependencies = [
  "cranelift-entity",
  "wasmtime-internal-core",
@@ -554,7 +554,7 @@ dependencies = [
 
 [[package]]
 name = "cranelift-bitset"
-version = "0.131.1"
+version = "0.132.1"
 dependencies = [
  "arbitrary",
  "serde",
@@ -564,7 +564,7 @@ dependencies = [
 
 [[package]]
 name = "cranelift-codegen"
-version = "0.131.1"
+version = "0.132.1"
 dependencies = [
  "anyhow",
  "bumpalo",
@@ -580,7 +580,7 @@ dependencies = [
  "criterion",
  "env_logger",
  "gimli 0.33.0",
- "hashbrown 0.16.1",
+ "hashbrown 0.17.1",
  "libm",
  "log",
  "postcard",
@@ -600,7 +600,7 @@ dependencies = [
 
 [[package]]
 name = "cranelift-codegen-meta"
-version = "0.131.1"
+version = "0.132.1"
 dependencies = [
  "cranelift-assembler-x64-meta",
  "cranelift-codegen-shared",
@@ -611,18 +611,18 @@ dependencies = [
 
 [[package]]
 name = "cranelift-codegen-shared"
-version = "0.131.1"
+version = "0.132.1"
 
 [[package]]
 name = "cranelift-control"
-version = "0.131.1"
+version = "0.132.1"
 dependencies = [
  "arbitrary",
 ]
 
 [[package]]
 name = "cranelift-entity"
-version = "0.131.1"
+version = "0.132.1"
 dependencies = [
  "cranelift-bitset",
  "serde",
@@ -632,11 +632,11 @@ dependencies = [
 
 [[package]]
 name = "cranelift-frontend"
-version = "0.131.1"
+version = "0.132.1"
 dependencies = [
  "cranelift-codegen",
  "env_logger",
- "hashbrown 0.16.1",
+ "hashbrown 0.17.1",
  "log",
  "similar",
  "smallvec",
@@ -645,7 +645,7 @@ dependencies = [
 
 [[package]]
 name = "cranelift-isle"
-version = "0.131.1"
+version = "0.132.1"
 dependencies = [
  "codespan-reporting",
  "log",
@@ -654,19 +654,19 @@ dependencies = [
 
 [[package]]
 name = "cranelift-module"
-version = "0.131.1"
+version = "0.132.1"
 dependencies = [
  "anyhow",
  "cranelift-codegen",
  "cranelift-control",
- "hashbrown 0.16.1",
+ "hashbrown 0.17.1",
  "serde",
  "serde_derive",
 ]
 
 [[package]]
 name = "cranelift-native"
-version = "0.131.1"
+version = "0.132.1"
 dependencies = [
  "cranelift-codegen",
  "libc",
@@ -675,7 +675,7 @@ dependencies = [
 
 [[package]]
 name = "cranelift-object"
-version = "0.131.1"
+version = "0.132.1"
 dependencies = [
  "anyhow",
  "cranelift-codegen",
@@ -690,7 +690,7 @@ dependencies = [
 
 [[package]]
 name = "cranelift-reader"
-version = "0.131.1"
+version = "0.132.1"
 dependencies = [
  "anyhow",
  "cranelift-codegen",
@@ -700,7 +700,7 @@ dependencies = [
 
 [[package]]
 name = "cranelift-serde"
-version = "0.131.1"
+version = "0.132.1"
 dependencies = [
  "clap",
  "cranelift-codegen",
@@ -710,7 +710,7 @@ dependencies = [
 
 [[package]]
 name = "cranelift-srcgen"
-version = "0.131.1"
+version = "0.132.1"
 
 [[package]]
 name = "crc32fast"
@@ -2030,9 +2030,6 @@ name = "hashbrown"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
-dependencies = [
- "foldhash 0.2.0",
-]
 
 [[package]]
 name = "hashbrown"
@@ -2921,7 +2918,7 @@ checksum = "007d8adb5ddab6f8e3f491ac63566a7d5002cc7ed73901f72057943fa71ae1ae"
 
 [[package]]
 name = "pulley-interpreter"
-version = "44.0.1"
+version = "45.0.1"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -2936,7 +2933,7 @@ dependencies = [
 
 [[package]]
 name = "pulley-macros"
-version = "44.0.1"
+version = "45.0.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3156,13 +3153,13 @@ dependencies = [
 
 [[package]]
 name = "regalloc2"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "allocator-api2",
  "arbitrary",
  "arbtest",
  "bumpalo",
- "hashbrown 0.15.5",
+ "hashbrown 0.17.1",
  "log",
  "rustc-hash 2.1.2",
  "serde",
@@ -4132,10 +4129,10 @@ dependencies = [
 
 [[package]]
 name = "wasmtime-internal-core"
-version = "44.0.1"
+version = "45.0.1"
 dependencies = [
  "anyhow",
- "hashbrown 0.16.1",
+ "hashbrown 0.17.1",
  "libm",
  "serde",
 ]

@@ -1,6 +1,7 @@
 //! Support for egraphs represented in the DataFlowGraph.
 
-use crate::alias_analysis::{AliasAnalysis, LastStores};
+use crate::FxHashSet;
+use crate::alias_analysis::{AliasAnalysis, LastStores, OptResult};
 use crate::ctxhash::{CtxEq, CtxHash, NullCtx};
 use crate::cursor::{Cursor, CursorPosition, FuncCursor};
 use crate::dominator_tree::DominatorTree;
@@ -14,7 +15,7 @@ use crate::opts::IsleContext;
 use crate::opts::generated_code::SkeletonInstSimplification;
 use crate::scoped_hash_map::{Entry as ScopedEntry, ScopedHashMap};
 use crate::take_and_replace::TakeAndReplace;
-use crate::{FxHashSet, trace};
+use crate::trace;
 use alloc::vec::Vec;
 use core::cmp::Ordering;
 use core::hash::Hasher;
@@ -301,7 +302,7 @@ where
         // infinite or problematic recursion, we bound the rewrite
         // depth to a small constant here.
         const REWRITE_LIMIT: usize = 5;
-        if ctx.rewrite_depth > REWRITE_LIMIT {
+        if ctx.rewrite_depth >= REWRITE_LIMIT {
             ctx.stats.rewrite_depth_limit += 1;
             return orig_value;
         }
@@ -479,31 +480,37 @@ where
         }
         // Otherwise, if a load or store, process it with the alias
         // analysis to see if we can optimize it (rewrite in terms of
-        // an earlier load or stored value).
-        else if let Some(new_result) =
-            self.alias_analysis
-                .process_inst(self.func, self.alias_analysis_state, inst)
-        {
-            self.stats.alias_analysis_removed += 1;
-            let result = self.func.dfg.first_result(inst);
-            trace!(
-                " -> inst {} has result {} replaced with {}",
-                inst, result, new_result
-            );
-            self.value_to_opt_value[result] = new_result;
-            self.available_block[result] = self.available_block[new_result];
-            Some(SkeletonInstSimplification::Remove)
-        }
-        // Otherwise, generic side-effecting op -- always keep it, and
-        // set its results to identity-map to original values.
+        // an earlier load or stored value, or remove an idempotent store).
         else {
-            // Set all results to identity-map to themselves
-            // in the value-to-opt-value map.
-            for &result in self.func.dfg.inst_results(inst) {
-                self.value_to_opt_value[result] = result;
-                self.available_block[result] = block;
+            match self
+                .alias_analysis
+                .process_inst(self.func, self.alias_analysis_state, inst)
+            {
+                OptResult::AliasedLoad(new_result) => {
+                    self.stats.alias_analysis_removed_load += 1;
+                    let result = self.func.dfg.first_result(inst);
+                    trace!(
+                        " -> inst {} has result {} replaced with {}",
+                        inst, result, new_result
+                    );
+                    self.value_to_opt_value[result] = new_result;
+                    self.available_block[result] = self.available_block[new_result];
+                    Some(SkeletonInstSimplification::Remove)
+                }
+                OptResult::IdempotentStore => {
+                    self.stats.alias_analysis_removed_store += 1;
+                    Some(SkeletonInstSimplification::Remove)
+                }
+                OptResult::None => {
+                    // Generic side-effecting op -- always keep it, and
+                    // set its results to identity-map to original values.
+                    for &result in self.func.dfg.inst_results(inst) {
+                        self.value_to_opt_value[result] = result;
+                        self.available_block[result] = block;
+                    }
+                    None
+                }
             }
-            None
         }
     }
 
@@ -1060,7 +1067,8 @@ pub(crate) struct Stats {
     pub(crate) skeleton_inst: u64,
     pub(crate) skeleton_inst_simplified: u64,
     pub(crate) skeleton_inst_gvn: u64,
-    pub(crate) alias_analysis_removed: u64,
+    pub(crate) alias_analysis_removed_load: u64,
+    pub(crate) alias_analysis_removed_store: u64,
     pub(crate) new_inst: u64,
     pub(crate) union: u64,
     pub(crate) subsume: u64,

@@ -73,7 +73,7 @@ version = "0.55.4"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "MIT"
-rust-version = "1.92.0"
+rust-version = "1.93.0"
 
 [workspace.dependencies]
 # language
@@ -153,7 +153,7 @@ bumpalo = "3"
 capstone = "0.13.0"
 env_logger = "0.11"
 gimli = { version = "0.33.0", default-features = false }
-hashbrown = { version = "0.16", default-features = false }
+hashbrown = { version = "0.17", default-features = false }
 libc = "0.2"
 libm = "0.2.16"
 log = "0.4.28"
@@ -197,6 +197,7 @@ rustls-pemfile = "2.2.0"
 security-framework-sys = "2.17.0"
 serde_repr = "0.1.20"
 stacker = "0.1.22"
+sha2 = { version = "0.10.9", default-features = false }
 crossbeam-channel = "0.5.15"
 crossbeam-deque = "0.8.6"
 dashmap = "6.1.0"

@@ -4,14 +4,7 @@
 pub mod generated_code;
 
 // Types that the generated ISLE code uses via `use super::*`.
-use crate::ir::condcodes::*;
-use crate::ir::immediates::*;
-use crate::ir::types::*;
-use crate::ir::{
-    AtomicRmwOp, BlockCall, Endianness, ExternalName, Inst, InstructionData, KnownSymbol, MemFlags,
-    Opcode, TrapCode, Value, ValueList,
-};
-use crate::isa::CallConv;
+use crate::ir::ExternalName;
 use crate::isa::s390x::S390xBackend;
 use crate::isa::s390x::abi::REG_SAVE_AREA_SIZE;
 use crate::isa::s390x::inst::{
@@ -20,9 +13,16 @@ use crate::isa::s390x::inst::{
     writable_gpr, zero_reg,
 };
 use crate::machinst::isle::*;
-use crate::machinst::{
-    ArgPair, CallArgList, CallInfo, CallRetList, InstOutput, MachInst, MachLabel, Reg, TryCallInfo,
-    VCodeConstant, VCodeConstantData, non_writable_value_regs,
+use crate::machinst::{CallInfo, MachLabel, Reg, TryCallInfo, non_writable_value_regs};
+use crate::{
+    ir::{
+        AtomicRmwOp, BlockCall, Endianness, Inst, InstructionData, KnownSymbol, MemFlags, Opcode,
+        TrapCode, Value, ValueList, condcodes::*, immediates::*, types::*,
+    },
+    isa::CallConv,
+    machinst::{
+        ArgPair, CallArgList, CallRetList, InstOutput, MachInst, VCodeConstant, VCodeConstantData,
+    },
 };
 use alloc::boxed::Box;
 use alloc::vec::Vec;
@@ -213,75 +213,23 @@ impl generated_code::Context for IsleContext<'_, '_, MInst, S390xBackend> {
     }
 
     #[inline]
-    fn mie3_enabled(&mut self, _: Type) -> Option<()> {
-        if self.backend.isa_flags.has_mie3() {
-            Some(())
-        } else {
-            None
-        }
+    fn has_mie3(&mut self) -> bool {
+        self.backend.isa_flags.has_mie3()
     }
 
     #[inline]
-    fn mie3_disabled(&mut self, _: Type) -> Option<()> {
-        if !self.backend.isa_flags.has_mie3() {
-            Some(())
-        } else {
-            None
-        }
+    fn has_mie4(&mut self) -> bool {
+        self.backend.isa_flags.has_mie4()
     }
 
     #[inline]
-    fn mie4_enabled(&mut self, _: Type) -> Option<()> {
-        if self.backend.isa_flags.has_mie4() {
-            Some(())
-        } else {
-            None
-        }
+    fn has_vxrs_ext2(&mut self) -> bool {
+        self.backend.isa_flags.has_vxrs_ext2()
     }
 
     #[inline]
-    fn mie4_disabled(&mut self, _: Type) -> Option<()> {
-        if !self.backend.isa_flags.has_mie4() {
-            Some(())
-        } else {
-            None
-        }
-    }
-
-    #[inline]
-    fn vxrs_ext2_enabled(&mut self, _: Type) -> Option<()> {
-        if self.backend.isa_flags.has_vxrs_ext2() {
-            Some(())
-        } else {
-            None
-        }
-    }
-
-    #[inline]
-    fn vxrs_ext2_disabled(&mut self, _: Type) -> Option<()> {
-        if !self.backend.isa_flags.has_vxrs_ext2() {
-            Some(())
-        } else {
-            None
-        }
-    }
-
-    #[inline]
-    fn vxrs_ext3_enabled(&mut self, _: Type) -> Option<()> {
-        if self.backend.isa_flags.has_vxrs_ext3() {
-            Some(())
-        } else {
-            None
-        }
-    }
-
-    #[inline]
-    fn vxrs_ext3_disabled(&mut self, _: Type) -> Option<()> {
-        if !self.backend.isa_flags.has_vxrs_ext3() {
-            Some(())
-        } else {
-            None
-        }
+    fn has_vxrs_ext3(&mut self) -> bool {
+        self.backend.isa_flags.has_vxrs_ext3()
     }
 
     #[inline]
@@ -545,6 +493,12 @@ impl generated_code::Context for IsleContext<'_, '_, MInst, S390xBackend> {
     fn uimm16shifted_from_value(&mut self, val: Value) -> Option<UImm16Shifted> {
         let constant = self.u64_from_value(val)?;
         UImm16Shifted::maybe_from_u64(constant)
+    }
+
+    #[inline]
+    fn simm20_from_value(&mut self, val: Value) -> Option<SImm20> {
+        let constant = self.u64_from_signed_value(val)? as i64;
+        SImm20::maybe_from_i64(constant)
     }
 
     #[inline]

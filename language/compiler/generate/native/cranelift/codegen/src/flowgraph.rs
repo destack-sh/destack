@@ -20,9 +20,11 @@
 //! Here `Block1` and `Block2` would each have a single predecessor denoted as `(Block0, brif)`,
 //! while `Block3` would have a single predecessor denoted as `(Block1, jump block3)`.
 
+use crate::bforest;
 use crate::entity::SecondaryMap;
+use crate::inst_predicates;
 use crate::ir::{Block, Function, Inst};
-use crate::{bforest, inst_predicates, timing};
+use crate::timing;
 use core::mem;
 
 /// A basic block denoted by its enclosing Block and last instruction.

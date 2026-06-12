@@ -1,7 +1,7 @@
+use crate::isa::riscv64::lower::isle::generated_code::VecAluOpRRRR;
 use crate::isa::riscv64::lower::isle::generated_code::{
-    VecAMode, VecAluOpRImm5, VecAluOpRR, VecAluOpRRImm5, VecAluOpRRR, VecAluOpRRRImm5,
-    VecAluOpRRRR, VecAvl, VecElementWidth, VecLmul, VecMaskMode, VecOpCategory, VecOpMasking,
-    VecTailMode,
+    VecAMode, VecAluOpRImm5, VecAluOpRR, VecAluOpRRImm5, VecAluOpRRR, VecAluOpRRRImm5, VecAvl,
+    VecElementWidth, VecLmul, VecMaskMode, VecOpCategory, VecOpMasking, VecTailMode,
 };
 use crate::machinst::{OperandVisitor, RegClass};
 use core::fmt;

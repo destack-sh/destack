@@ -64,8 +64,8 @@ use crate::dominator_tree::DominatorTree;
 use crate::entity::SecondaryMap;
 use crate::inst_predicates::visit_block_succs;
 use crate::ir::{Block, Function, Inst, Opcode};
-use crate::machinst::*;
-use crate::{FxHashMap, FxHashSet, trace};
+use crate::{FxHashMap, FxHashSet};
+use crate::{machinst::*, trace};
 
 /// Mapping from CLIF BBs to VCode BBs.
 #[derive(Debug)]
@@ -347,8 +347,9 @@ mod test {
     use super::*;
     use crate::cursor::{Cursor, FuncCursor};
     use crate::flowgraph::ControlFlowGraph;
+    use crate::ir::UserFuncName;
     use crate::ir::types::*;
-    use crate::ir::{AbiParam, InstBuilder, Signature, UserFuncName};
+    use crate::ir::{AbiParam, InstBuilder, Signature};
     use crate::isa::CallConv;
 
     fn build_test_func(n_blocks: usize, edges: &[(usize, usize)]) -> BlockLoweringOrder {

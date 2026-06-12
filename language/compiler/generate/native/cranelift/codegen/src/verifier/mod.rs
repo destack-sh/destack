@@ -69,11 +69,12 @@ use crate::entity::SparseSet;
 use crate::flowgraph::{BlockPredecessor, ControlFlowGraph};
 use crate::ir::entities::AnyEntity;
 use crate::ir::instructions::{CallInfo, InstructionFormat, ResolvedConstraint};
+use crate::ir::{self, ArgumentExtension, BlockArg, ExceptionTable};
 use crate::ir::{
-    self, ArgumentExtension, ArgumentPurpose, Block, BlockArg, Constant, DynamicStackSlot,
-    ExceptionTable, ExceptionTableItem, FuncRef, Function, GlobalValue, Inst, JumpTable, MemFlags,
-    Opcode, SigRef, Signature, StackSlot, Type, Value, ValueDef, ValueList, types,
+    ArgumentPurpose, Block, Constant, DynamicStackSlot, FuncRef, Function, GlobalValue, Inst,
+    JumpTable, MemFlags, Opcode, SigRef, StackSlot, Type, Value, ValueDef, ValueList, types,
 };
+use crate::ir::{ExceptionTableItem, Signature};
 use crate::isa::{CallConv, TargetIsa};
 use crate::print_errors::pretty_verifier_error;
 use crate::settings::FlagsOrIsa;

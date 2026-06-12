@@ -7,8 +7,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Write};
 use std::sync::Arc;
-use std::sync::atomic::Ordering::Relaxed;
-use std::sync::atomic::{AtomicBool, AtomicUsize};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering::Relaxed};
 use std::vec::Vec;
 
 // Header markers for sections in the binary `*.data` file.

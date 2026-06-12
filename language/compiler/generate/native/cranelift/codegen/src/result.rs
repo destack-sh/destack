@@ -1,7 +1,6 @@
 //! Result and error types representing the outcome of compiling a function.
 
-use crate::ir::Function;
-use crate::verifier::VerifierErrors;
+use crate::{ir::Function, verifier::VerifierErrors};
 use alloc::string::String;
 use regalloc2::checker::CheckerErrors;
 

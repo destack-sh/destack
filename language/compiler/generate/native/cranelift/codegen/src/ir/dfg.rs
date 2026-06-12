@@ -13,8 +13,11 @@ use crate::ir::{
 };
 use crate::packed_option::ReservedValue;
 use crate::write::write_operands;
+use core::fmt;
+use core::iter;
+use core::mem;
 use core::ops::{Index, IndexMut};
-use core::{fmt, iter, mem, u16};
+use core::u16;
 
 use alloc::collections::BTreeMap;
 #[cfg(feature = "enable-serde")]
@@ -367,6 +370,14 @@ impl DataFlowGraph {
         // Deleted or unused values are also stored as aliases so this excludes
         // those as well.
         self.value_is_valid(value) && !matches!(self.values[value].into(), ValueData::Alias { .. })
+    }
+
+    /// Is the given value an alias?
+    pub fn value_is_alias(&self, v: Value) -> bool {
+        match ValueData::from(self.values[v]) {
+            ValueData::Alias { .. } => true,
+            ValueData::Inst { .. } | ValueData::Param { .. } | ValueData::Union { .. } => false,
+        }
     }
 
     /// Get the type of a value.

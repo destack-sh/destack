@@ -9,10 +9,12 @@ use crate::isa::CallConv;
 use crate::isa::riscv64::inst::*;
 use crate::machinst::*;
 
-use crate::ir::{LibCall, Signature};
+use crate::CodegenResult;
+use crate::ir::LibCall;
+use crate::ir::Signature;
 use crate::isa::riscv64::settings::Flags as RiscvFlags;
 use crate::isa::unwind::UnwindInst;
-use crate::{CodegenResult, settings};
+use crate::settings;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use regalloc2::{MachineEnv, PRegSet};

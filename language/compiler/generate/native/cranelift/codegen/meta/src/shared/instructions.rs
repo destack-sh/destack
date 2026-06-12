@@ -6,10 +6,9 @@ use crate::cdsl::instructions::{
 use crate::cdsl::operands::Operand;
 use crate::cdsl::types::{LaneType, ValueType};
 use crate::cdsl::typevar::{Interval, TypeSetBuilder, TypeVar};
-use crate::shared::entities::EntityRefs;
 use crate::shared::formats::Formats;
-use crate::shared::immediates::Immediates;
 use crate::shared::types;
+use crate::shared::{entities::EntityRefs, immediates::Immediates};
 
 #[inline(never)]
 fn define_control_flow(

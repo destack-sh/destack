@@ -237,9 +237,9 @@ impl FromStr for ExternalName {
 #[cfg(test)]
 mod tests {
     use super::ExternalName;
-    use crate::ir::entities::UserExternalNameRef;
-    use crate::ir::function::FunctionParameters;
-    use crate::ir::{LibCall, UserExternalName};
+    use crate::ir::{
+        LibCall, UserExternalName, entities::UserExternalNameRef, function::FunctionParameters,
+    };
     use alloc::string::ToString;
     use core::u32;
     use cranelift_entity::EntityRef as _;

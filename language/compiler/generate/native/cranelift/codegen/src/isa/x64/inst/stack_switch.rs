@@ -1,5 +1,4 @@
-use crate::isa::x64::inst::regs;
-use crate::machinst::Reg;
+use crate::{isa::x64::inst::regs, machinst::Reg};
 
 /// The `stack_switch` instruction loads information about the stack to switch
 /// to and stores information about the current stack by receiving pointers to

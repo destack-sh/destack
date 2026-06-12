@@ -7,8 +7,7 @@ use alloc::string::String;
 #[cfg(test)]
 use core::fmt;
 use core::marker::PhantomData;
-use wasmtime_core::alloc::PanicOnOom;
-use wasmtime_core::error::OutOfMemory;
+use wasmtime_core::{alloc::PanicOnOom, error::OutOfMemory};
 
 /// Tag type defining forest types for a set.
 struct SetTypes<K>(PhantomData<K>);

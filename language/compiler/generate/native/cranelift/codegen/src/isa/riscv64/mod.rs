@@ -13,9 +13,8 @@ use crate::machinst::{
 use crate::result::CodegenResult;
 use crate::settings::{self as shared_settings, Flags};
 use crate::{CodegenError, ir};
-use alloc::boxed::Box;
 use alloc::string::String;
-use alloc::vec::Vec;
+use alloc::{boxed::Box, vec::Vec};
 use core::fmt;
 use cranelift_control::ControlPlane;
 use target_lexicon::{Architecture, Triple};
@@ -121,7 +120,8 @@ impl TargetIsa for Riscv64Backend {
         result: &CompiledCode,
         kind: crate::isa::unwind::UnwindInfoKind,
     ) -> CodegenResult<Option<crate::isa::unwind::UnwindInfo>> {
-        use crate::isa::unwind::{UnwindInfo, UnwindInfoKind};
+        use crate::isa::unwind::UnwindInfo;
+        use crate::isa::unwind::UnwindInfoKind;
         Ok(match kind {
             UnwindInfoKind::SystemV => {
                 let mapper = self::inst::unwind::systemv::RegisterMapper;

@@ -1,13 +1,17 @@
 //! Implementation of a standard AArch64 ABI.
 
+use crate::CodegenResult;
+use crate::ir;
+use crate::ir::MemFlags;
+use crate::ir::types;
 use crate::ir::types::*;
-use crate::ir::{ExternalName, LibCall, MemFlags, Signature, dynamic_to_fixed, types};
-use crate::isa::aarch64::inst::*;
-use crate::isa::aarch64::settings as aarch64_settings;
+use crate::ir::{ExternalName, LibCall, Signature, dynamic_to_fixed};
+use crate::isa;
+use crate::isa::aarch64::{inst::*, settings as aarch64_settings};
 use crate::isa::unwind::UnwindInst;
 use crate::isa::winch;
 use crate::machinst::*;
-use crate::{CodegenResult, ir, isa, settings};
+use crate::settings;
 use alloc::borrow::ToOwned;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
@@ -343,15 +347,21 @@ impl ABIMachineSpec for AArch64MachineDeps {
             // Compute the stack slot's size.
             let size = (ty_bits(param.value_type) / 8) as u32;
 
-            let size = if is_apple_cc || is_winch_return {
-                // MacOS and Winch aarch64 allows stack slots with
-                // sizes less than 8 bytes. They still need to be
-                // properly aligned on their natural data alignment,
-                // though.
+            // MacOS and Winch aarch64 allows stack slots with sizes less than 8
+            // bytes. They still need to be properly aligned on their natural
+            // data alignment, though, and this additionally is only applicable
+            // for arguments or when there's no argument extension in play.
+            // Stack slots for return values with argument extension get their
+            // full machine-word-width loaded or stored.
+            //
+            // Otherwise every arg takes a minimum slot of 8 bytes. (16-byte
+            // stack alignment happens separately after all args.)
+            let size = if (is_apple_cc || is_winch_return)
+                && (args_or_rets == ArgsOrRets::Args
+                    || param.extension == ir::ArgumentExtension::None)
+            {
                 size
             } else {
-                // Every arg takes a minimum slot of 8 bytes. (16-byte stack
-                // alignment happens separately after all args.)
                 core::cmp::max(size, 8)
             };
 
@@ -1189,15 +1199,17 @@ impl ABIMachineSpec for AArch64MachineDeps {
         // Compute clobber size.
         let clobber_size = compute_clobber_size(call_conv, &regs);
 
+        let needs_linkage_frame = flags.preserve_frame_pointers()
+                // The function arguments that are passed on the stack are addressed
+                // relative to the Frame Pointer.
+                || incoming_args_size > 0
+                || tail_args_size > incoming_args_size
+                || clobber_size > 0
+                || fixed_frame_storage_size > 0
+                || outgoing_args_size > 0;
+
         // Compute linkage frame size.
-        let setup_area_size = if flags.preserve_frame_pointers()
-            || function_calls != FunctionCalls::None
-            // The function arguments that are passed on the stack are addressed
-            // relative to the Frame Pointer.
-            || incoming_args_size > 0
-            || clobber_size > 0
-            || fixed_frame_storage_size > 0
-        {
+        let setup_area_size = if needs_linkage_frame || function_calls == FunctionCalls::Regular {
             16 // FP, LR
         } else {
             0

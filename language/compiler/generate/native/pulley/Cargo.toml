@@ -2,13 +2,12 @@
 authors = ["The Pulley Project Developers"]
 description = "The Pulley interpreter, its bytecode definition, encoder, decoder, and etc..."
 edition = "2024"
-rust-version = "1.92.0"
+rust-version = "1.93.0"
 license = "Apache-2.0 WITH LLVM-exception"
 name = "pulley-interpreter"
 readme = "./README.md"
 repository = "https://github.com/bytecodealliance/wasmtime/tree/main/pulley"
-version = "44.0.1"
-
+version = "45.0.1"
 
 [dependencies]
 arbitrary = { workspace = true, optional = true }
@@ -36,14 +35,6 @@ profile = ['std', 'dep:anyhow']
 [package.metadata.docs.rs]
 all-features = true
 
-[lints.rust.unexpected_cfgs]
-level = "warn"
-check-cfg = [
-    'cfg(pulley_tail_calls)',
-    'cfg(pulley_assume_llvm_makes_tail_calls)',
-    'cfg(pulley_disable_interp_simd)',
-]
-
 [[example]]
 name = "profiler-html"
 required-features = ["disas", "interp", "profile"]
@@ -52,3 +43,6 @@ required-features = ["disas", "interp", "profile"]
 name = "all"
 path = "tests/all/main.rs"
 required-features = ["encode"]
+
+[lints.clippy]
+all = { level = "allow", priority = -1 }

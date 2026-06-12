@@ -3,9 +3,10 @@
 //! This crate contains generic helper routines and classes for generating
 //! source code.
 
+use std::cmp;
 use std::collections::{BTreeMap, BTreeSet};
+use std::fs;
 use std::io::Write;
-use std::{cmp, fs};
 
 pub mod error;
 
@@ -380,7 +381,10 @@ impl Match {
 
 #[cfg(test)]
 mod srcgen_tests {
-    use super::{Formatter, Language, Match, parse_multiline};
+    use super::Formatter;
+    use super::Language;
+    use super::Match;
+    use super::parse_multiline;
 
     fn from_raw_string<S: Into<String>>(s: S) -> Vec<String> {
         s.into()

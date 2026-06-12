@@ -627,9 +627,11 @@ mod tests {
     use crate::ssa::SSABuilder;
     use cranelift_codegen::cursor::{Cursor, FuncCursor};
     use cranelift_codegen::entity::EntityRef;
+    use cranelift_codegen::ir;
     use cranelift_codegen::ir::types::*;
     use cranelift_codegen::ir::{Function, Inst, InstBuilder, JumpTableData, Opcode};
-    use cranelift_codegen::{ir, settings, verify_function};
+    use cranelift_codegen::settings;
+    use cranelift_codegen::verify_function;
 
     #[test]
     fn simple_block() {

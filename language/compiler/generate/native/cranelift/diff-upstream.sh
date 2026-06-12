@@ -3,7 +3,7 @@
 # diff vendored cranelift against upstream wasmtime
 #
 # examples:
-#   ./diff-upstream.sh                    # diff code changes against v44.0.1
+#   ./diff-upstream.sh                    # diff code changes against v45.0.1
 #   ./diff-upstream.sh --stat             # summary of code changes
 #   ./diff-upstream.sh --list             # list changed code files
 #   ./diff-upstream.sh --all              # include Cargo.toml changes
@@ -14,7 +14,7 @@
 set -e
 
 # defaults
-UPSTREAM_TAG="v44.0.1"
+UPSTREAM_TAG="v45.0.1"
 MODE="diff"
 INCLUDE_BUILD_FILES=false
 CRATE_FILTER=""

@@ -171,8 +171,7 @@ impl dsl::Inst {
 
     /// `fn visit(&self, ...) { ... }`
     fn generate_visit_function(&self, f: &mut Formatter) {
-        use dsl::Customization::*;
-        use dsl::OperandKind::*;
+        use dsl::{Customization::*, OperandKind::*};
         let extra_generic_bound = if self.requires_generic() {
             ""
         } else {

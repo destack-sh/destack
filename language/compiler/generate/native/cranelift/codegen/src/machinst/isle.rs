@@ -5,10 +5,8 @@ use smallvec::SmallVec;
 
 pub use super::MachLabel;
 use super::RetPair;
-pub use crate::ir::condcodes::CondCode;
-pub use crate::ir::*;
-pub use crate::isa::TargetIsa;
-pub use crate::isa::unwind::UnwindInst;
+pub use crate::ir::{condcodes::CondCode, *};
+pub use crate::isa::{TargetIsa, unwind::UnwindInst};
 pub use crate::machinst::{
     ABIArg, ABIArgSlot, ABIMachineSpec, InputSourceInst, Lower, LowerBackend, RealReg, Reg,
     RelocDistance, Sig, TryCallInfo, VCodeInst, Writable,
