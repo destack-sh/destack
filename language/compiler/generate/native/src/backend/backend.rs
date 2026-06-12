@@ -4,7 +4,6 @@ use std::sync::Arc;
 use cranelift_codegen::isa::TargetIsa;
 use cranelift_codegen::settings::{self, Configurable};
 use destack_artifact::EmitFormat;
-use destack_codegen_lib::CodegenBackend;
 use destack_core::StringPool;
 use destack_mir as mir;
 use destack_repository::{Mode, OptimizeLevel, Target};
@@ -26,7 +25,7 @@ pub struct CodegenCraneliftBackend {
 
 impl std::fmt::Debug for CodegenCraneliftBackend {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CraneliftCodegenBackend")
+        f.debug_struct("CodegenCraneliftBackend")
             .field("isa", &self.isa.name())
             .field("debug", &self.debug)
             .finish()
@@ -155,15 +154,5 @@ impl CodegenCraneliftBackend {
         let mut lowerer = ModuleLowerer::new(self.isa.clone(), strings, name);
         lowerer.lower_module(tree)?;
         lowerer.as_clif_string()
-    }
-}
-
-impl CodegenBackend for CodegenCraneliftBackend {
-    fn name(&self) -> &'static str {
-        "cranelift"
-    }
-
-    fn supports_target(&self, target: &Target) -> bool {
-        target.uses_native_generate_pipeline()
     }
 }

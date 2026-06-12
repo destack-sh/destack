@@ -21,7 +21,6 @@ Run these from the repository root.
 
 ```sh
 cargo test -p destack_codegen_js
-cargo test -p destack_codegen_lib
 cargo test -p destack_codegen_native
 just language/check-quick
 just language/check-full
