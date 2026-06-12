@@ -4,36 +4,36 @@ use destack_fir as fir;
 use destack_js as js;
 use destack_source::{File, NodeSpanType, Span};
 
-/// One printed script module payload.
+/// One printed JS module payload.
 #[derive(Debug, Clone)]
-pub struct PrintedScriptModule {
+pub struct PrintedJsModule {
     /// The printed JS or TS text.
     pub code: String,
     /// The output to source markers.
     pub markers: Vec<fir::format::FileMarker>,
 }
 
-/// Print one generated script module with the target output policy.
-pub fn print_script_module(
+/// Print one generated JS module with the target output policy.
+pub fn print_js_module(
     options: js::JsFormatOptions,
     parsed: &DirParsed,
     source_file: &File,
     module: &js::Module,
-) -> CodegenJsResult<PrintedScriptModule> {
+) -> CodegenJsResult<PrintedJsModule> {
     if options.mode == js::FormatMode::Minimal {
-        return print_script_module_minified(options, parsed, source_file, module);
+        return print_js_module_minified(options, parsed, source_file, module);
     }
 
-    print_script_module_pretty(options, parsed, source_file, module)
+    print_js_module_pretty(options, parsed, source_file, module)
 }
 
-/// Print one generated script module through the direct minified printer.
-pub fn print_script_module_minified(
+/// Print one generated JS module through the direct minified printer.
+pub fn print_js_module_minified(
     options: js::JsFormatOptions,
     parsed: &DirParsed,
     source_file: &File,
     module: &js::Module,
-) -> CodegenJsResult<PrintedScriptModule> {
+) -> CodegenJsResult<PrintedJsModule> {
     let source_map = CodegenJsSourceMap { parsed };
     let printed = js::print_roots_minified_with_source_map(
         options.file_type,
@@ -46,7 +46,7 @@ pub fn print_script_module_minified(
 
     let _ = source_file;
 
-    Ok(PrintedScriptModule::from_printed_script(printed))
+    Ok(PrintedJsModule::from_printed_script(printed))
 }
 
 /// One source span provider backed by source parts.
@@ -98,8 +98,8 @@ impl js::JsSourceMap for CodegenJsSourceMap<'_> {
     }
 }
 
-impl PrintedScriptModule {
-    /// Build one printed script module from one pure JS print result.
+impl PrintedJsModule {
+    /// Build one printed JS module from one pure JS print result.
     fn from_printed_script(printed: js::PrintedScript) -> Self {
         Self {
             code: printed.code,
@@ -108,13 +108,13 @@ impl PrintedScriptModule {
     }
 }
 
-/// Print one generated script module through the pure formatter.
-fn print_script_module_pretty(
+/// Print one generated JS module through the pure formatter.
+fn print_js_module_pretty(
     options: js::JsFormatOptions,
     parsed: &DirParsed,
     source_file: &File,
     module: &js::Module,
-) -> CodegenJsResult<PrintedScriptModule> {
+) -> CodegenJsResult<PrintedJsModule> {
     let source_map = CodegenJsSourceMap { parsed };
     let roots = module.roots.as_slice();
     let context = js::JsFormatContext {
@@ -132,7 +132,7 @@ fn print_script_module_pretty(
     {
         let mut formatter = fir::format::Formatter::new(&mut buffer);
         js::format_roots(&mut formatter, roots).map_err(|error| CodegenJsError::Internal {
-            message: format!("failed to format script module: {error}"),
+            message: format!("failed to format JS module: {error}"),
         })?;
     }
 
@@ -142,10 +142,10 @@ fn print_script_module_pretty(
     let printed = fir::print::Printer::new(source_file, state.context().options.as_print_options())
         .print(&document)
         .map_err(|error| CodegenJsError::Internal {
-            message: format!("failed to print script module: {error}"),
+            message: format!("failed to print JS module: {error}"),
         })?;
 
-    Ok(PrintedScriptModule {
+    Ok(PrintedJsModule {
         code: printed.as_str().to_string(),
         markers: printed.sourcemap().to_vec(),
     })

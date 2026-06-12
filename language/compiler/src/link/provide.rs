@@ -1,5 +1,5 @@
-use super::binary::BinaryLinker;
-use super::script::ScriptLinker;
+use super::js::JsLinker;
+use super::native::NativeLinker;
 use super::state::LinkState;
 use crate::{Compiler, CompilerError, CompilerResult, LinkError};
 use destack_artifact::{ArtifactPayload, EmitFormat, PackageOutput};
@@ -53,7 +53,7 @@ impl Compiler {
 
         // dispatch through the selected linker family
         let output = match target.emit {
-            EmitFormat::Js | EmitFormat::Ts => ScriptLinker::new(
+            EmitFormat::Js | EmitFormat::Ts => JsLinker::new(
                 self,
                 context,
                 artifacts,
@@ -64,7 +64,7 @@ impl Compiler {
                 package_id,
             )?
             .link_target(&modules)?,
-            EmitFormat::Wasm | EmitFormat::Native => BinaryLinker::new(
+            EmitFormat::Wasm | EmitFormat::Native => NativeLinker::new(
                 self,
                 context,
                 artifacts,

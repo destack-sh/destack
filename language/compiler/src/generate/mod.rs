@@ -1,8 +1,8 @@
-#[cfg(feature = "native")]
-mod binary;
 mod error;
+mod js;
+#[cfg(feature = "native")]
+mod native;
 mod provide;
-mod script;
 mod state;
 mod target;
 mod warning;

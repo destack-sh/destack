@@ -48,7 +48,7 @@ pub struct BuildManifestFile {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum BuildManifestFileType {
-    /// One emitted script chunk.
+    /// One emitted JS chunk.
     Chunk,
     /// One emitted asset sidecar.
     Asset,
