@@ -1,4 +1,7 @@
-use super::*;
+use super::{
+    LanguageType, Token, TokenLiteral, TokenType, assert_tokenize_eq_roundtrip, eof, lex_source,
+    lex_source_tokens, token, token_without_start,
+};
 
 /// Semantic tokens should record whether they begin after a line boundary.
 #[test]
@@ -6,16 +9,16 @@ fn test_lex_tracks_semantic_token_line_boundaries() {
     let (semantic_tokens, _, _) = lex_source("a b\nc", LanguageType::default());
     let semantic_tokens: Vec<Token> = semantic_tokens
         .into_iter()
-        .map(|token| token.token)
+        .map(|token| token_without_start(token.token))
         .collect();
 
     assert_eq!(
         semantic_tokens,
         vec![
-            Token::new(TokenType::Identifier, 1, None).with_on_new_line(true),
-            Token::new(TokenType::Identifier, 1, None),
-            Token::new(TokenType::Identifier, 1, None).with_on_new_line(true),
-            Token::end(),
+            token(TokenType::Identifier, 1, None).with_on_new_line(true),
+            token(TokenType::Identifier, 1, None),
+            token(TokenType::Identifier, 1, None).with_on_new_line(true),
+            eof(),
         ],
     );
 }
@@ -25,8 +28,8 @@ fn test_lex_tracks_semantic_token_line_boundaries() {
 fn test_lex_unknown_control_character_before_newline() {
     assert_tokenize_eq_roundtrip!(
         "\u{3}\n",
-        Token::new(TokenType::Unknown, 1, None),
-        Token::new(TokenType::Newline, 1, None),
+        token(TokenType::Unknown, 1, None),
+        token(TokenType::Newline, 1, None),
     );
 }
 
@@ -35,10 +38,10 @@ fn test_lex_unknown_control_character_before_newline() {
 fn test_lex_hashbang_as_line_comment() {
     let source = "#!/usr/bin/env node\nimport value from 'pkg';\n";
     let expected_semantic_tokens = vec![
-        Token::new(TokenType::Identifier, 6, None),
-        Token::new(TokenType::Identifier, 5, None),
-        Token::new(TokenType::Identifier, 4, None),
-        Token::new(
+        token(TokenType::Identifier, 6, None),
+        token(TokenType::Identifier, 5, None),
+        token(TokenType::Identifier, 4, None),
+        token(
             TokenType::Literal,
             5,
             Some(TokenLiteral::String {
@@ -46,16 +49,16 @@ fn test_lex_hashbang_as_line_comment() {
                 has_invalid_escape: false,
             }),
         ),
-        Token::new(TokenType::Semicolon, 1, None),
-        Token::end(),
+        token(TokenType::Semicolon, 1, None),
+        eof(),
     ];
     let expected_side_tokens = vec![
-        Token::new(TokenType::LineComment, 19, None),
-        Token::new(TokenType::Newline, 1, None),
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(TokenType::Newline, 1, None),
+        token(TokenType::LineComment, 19, None),
+        token(TokenType::Newline, 1, None),
+        token(TokenType::Whitespace, 1, None),
+        token(TokenType::Whitespace, 1, None),
+        token(TokenType::Whitespace, 1, None),
+        token(TokenType::Newline, 1, None),
     ];
 
     // typed source
@@ -74,18 +77,18 @@ fn test_lex_hashbang_as_line_comment() {
 fn test_lex_punctuated_call_like_source() {
     assert_tokenize_eq_roundtrip!(
         "fn main() { println!(\"zebra\"); }\n",
-        Token::new(TokenType::Identifier, 2, None),
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(TokenType::Identifier, 4, None),
-        Token::new(TokenType::OpenParenthesis, 1, None),
-        Token::new(TokenType::CloseParenthesis, 1, None),
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(TokenType::OpenBrace, 1, None),
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(TokenType::Identifier, 7, None),
-        Token::new(TokenType::Not, 1, None),
-        Token::new(TokenType::OpenParenthesis, 1, None),
-        Token::new(
+        token(TokenType::Identifier, 2, None),
+        token(TokenType::Whitespace, 1, None),
+        token(TokenType::Identifier, 4, None),
+        token(TokenType::OpenParenthesis, 1, None),
+        token(TokenType::CloseParenthesis, 1, None),
+        token(TokenType::Whitespace, 1, None),
+        token(TokenType::OpenBrace, 1, None),
+        token(TokenType::Whitespace, 1, None),
+        token(TokenType::Identifier, 7, None),
+        token(TokenType::Not, 1, None),
+        token(TokenType::OpenParenthesis, 1, None),
+        token(
             TokenType::Literal,
             7,
             Some(TokenLiteral::String {
@@ -93,10 +96,10 @@ fn test_lex_punctuated_call_like_source() {
                 has_invalid_escape: false,
             })
         ),
-        Token::new(TokenType::CloseParenthesis, 1, None),
-        Token::new(TokenType::Semicolon, 1, None),
-        Token::new(TokenType::Whitespace, 1, None),
-        Token::new(TokenType::CloseBrace, 1, None),
-        Token::new(TokenType::Newline, 1, None),
+        token(TokenType::CloseParenthesis, 1, None),
+        token(TokenType::Semicolon, 1, None),
+        token(TokenType::Whitespace, 1, None),
+        token(TokenType::CloseBrace, 1, None),
+        token(TokenType::Newline, 1, None),
     );
 }
