@@ -57,6 +57,7 @@ impl<'a> CommandContext<'a> {
         common: &'a CommonCommandOptions,
         revision: CommandRevision,
         output: &'a mut CommandOutputBuffer,
+        event_handler: Option<destack_session::SessionEventHandler>,
     ) -> CommandResult<Self> {
         // root revision
         let revision = Self::resolve_command_revision(repository.as_ref(), &root, revision)?;
@@ -76,7 +77,7 @@ impl<'a> CommandContext<'a> {
             linter,
             query,
             daemon.worker_limit,
-            None,
+            event_handler,
         )
         .map_err(|error| {
             DaemonCommandError::internal(format!("failed to initialize command session: {error}"))
@@ -91,6 +92,45 @@ impl<'a> CommandContext<'a> {
             common,
             output,
         })
+    }
+
+    /// Build the timing report of the latest session run.
+    /// Detailed reports carry every artifact, labeled with module and
+    /// target display names.
+    pub(super) fn command_timings(
+        &self,
+        revision: destack_repository::Revision,
+        detailed: bool,
+    ) -> Option<serde_json::Value> {
+        let trace = self.session.last_trace()?;
+        let report = trace.report(
+            detailed,
+            |key| {
+                let display = key.module_id().and_then(|module| {
+                    self.repository
+                        .module_display(revision, module)
+                        .ok()
+                        .flatten()
+                })?;
+
+                // workspace paths render relative to the command root
+                let relative = std::path::Path::new(&display)
+                    .strip_prefix(&self.root)
+                    .ok()
+                    .and_then(|path| path.to_str())
+                    .map(str::to_string);
+
+                Some(relative.unwrap_or(display))
+            },
+            |target| {
+                self.repository
+                    .target_display(revision, target)
+                    .ok()
+                    .flatten()
+            },
+        );
+
+        serde_json::to_value(&report).ok()
     }
 
     /// Resolve the revision used to fork the command session.

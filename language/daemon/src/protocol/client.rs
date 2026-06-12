@@ -5,16 +5,17 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use parking_lot::Mutex;
 
 use super::{
-    ClientDescriptor, ClientError, CloseRootRequest, DaemonQuery, DaemonQueryResponse,
-    DaemonRequest, DaemonResponse, DiagnosticBatch, DiagnosticSnapshot, FileImagesRequest,
-    FileOperation, FileOperationRequest, FileOperationResponse, FileSnapshot, FileSnapshotRequest,
-    FileUpdateImage, HandshakeRequest, HandshakeResponse, OpenRootRequest, PayloadReceiver,
-    ProtocolCodec, ProtocolLimits, ProtocolMessage, ProtocolRange, ProtocolRequest,
-    QueryRequestBody, QueryRequestPayload, QueryResponseBody, ReloadReason, ReloadRootRequest,
-    RepositoryId, RequestId, RequestOptions, RootClosedResponse, RootHandleId, RootOpenOptions,
-    RootOpenedResponse, RootReloadResponse, RootSnapshot, SourceUpdate, SourceUpdateRequest,
-    SourceUpdateResponse, Transport, WatchBatchResponse, WatchNextRequest, WatchStartOptions,
-    WatchStartRequest, WatchStartedResponse, WatchStopRequest, WatchStoppedResponse,
+    ClientDescriptor, ClientError, CloseRootRequest, DaemonNotification, DaemonQuery,
+    DaemonQueryResponse, DaemonRequest, DaemonResponse, DiagnosticBatch, DiagnosticSnapshot,
+    FileImagesRequest, FileOperation, FileOperationRequest, FileOperationResponse, FileSnapshot,
+    FileSnapshotRequest, FileUpdateImage, HandshakeRequest, HandshakeResponse, OpenRootRequest,
+    PayloadReceiver, ProgressEvent, ProtocolCodec, ProtocolLimits, ProtocolMessage,
+    ProtocolNotification, ProtocolRange, ProtocolRequest, QueryRequestBody, QueryRequestPayload,
+    QueryResponseBody, ReloadReason, ReloadRootRequest, RepositoryId, RequestId, RequestOptions,
+    RootClosedResponse, RootHandleId, RootOpenOptions, RootOpenedResponse, RootReloadResponse,
+    RootSnapshot, SourceUpdate, SourceUpdateRequest, SourceUpdateResponse, Transport,
+    WatchBatchResponse, WatchNextRequest, WatchStartOptions, WatchStartRequest,
+    WatchStartedResponse, WatchStopRequest, WatchStoppedResponse,
 };
 use destack_repository::Revision;
 
@@ -132,6 +133,16 @@ impl Client {
         payload: DaemonRequest,
         options: RequestOptions,
     ) -> Result<DaemonResponse, ClientError> {
+        self.send_request_with_progress(payload, options, &mut |_| {})
+    }
+
+    /// Send a protocol request, forwarding interim progress events.
+    pub fn send_request_with_progress(
+        &self,
+        payload: DaemonRequest,
+        options: RequestOptions,
+        on_progress: &mut dyn FnMut(ProgressEvent),
+    ) -> Result<DaemonResponse, ClientError> {
         // serialize the current non-multiplexed protocol client
         let _request = self.requests.lock();
 
@@ -160,7 +171,13 @@ impl Client {
                     }
                 }
                 ProtocolMessage::Notification(notification) => {
-                    payloads.ingest_notification(*notification)?;
+                    let notification = *notification;
+                    match notification.payload {
+                        DaemonNotification::Progress(progress) => on_progress(progress.event),
+                        payload => {
+                            payloads.ingest_notification(ProtocolNotification { payload })?
+                        }
+                    }
                 }
                 ProtocolMessage::Request(_) => {
                     return Err(ClientError::UnexpectedResponse(

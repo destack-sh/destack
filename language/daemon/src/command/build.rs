@@ -10,13 +10,17 @@ use super::dispatch::CommandOutcome;
 
 /// Options for the build command.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct CommandBuildOptions {}
+pub struct CommandBuildOptions {
+    /// Whether the response carries a detailed attempt timeline.
+    #[serde(default)]
+    pub timings: bool,
+}
 
 impl CommandContext<'_> {
     /// Execute a build command.
     pub(super) fn run_build_command(
         &mut self,
-        _options: &CommandBuildOptions,
+        options: &CommandBuildOptions,
     ) -> CommandResult<CommandOutcome> {
         // resolve inputs for the command
         let inputs = self.resolve_command_inputs()?;
@@ -43,6 +47,9 @@ impl CommandContext<'_> {
         self.session
             .provide(revision, &artifact_keys)
             .map_err(|error| error.to_string())?;
+
+        // report where the build spent its time
+        let timings = self.command_timings(revision, options.timings);
         let diagnostics = self
             .repository
             .diagnostics(revision, None)
@@ -54,13 +61,18 @@ impl CommandContext<'_> {
             .collect::<Result<HashSet<_>, _>>()?
             .len();
 
-        Ok(CommandOutcome::new(
+        let mut outcome = CommandOutcome::new(
             diagnostics,
             exit_code,
             modules.len(),
             profile_count,
             target_ids.len(),
-        ))
+        );
+        if let Some(timings) = timings {
+            outcome = outcome.with_data(serde_json::json!({ "timings": timings }));
+        }
+
+        Ok(outcome)
     }
 }
 
