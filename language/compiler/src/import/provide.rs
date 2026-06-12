@@ -1,5 +1,4 @@
 use std::iter;
-use std::path::Path;
 
 use destack_artifact::{ArtifactKey, ArtifactPayload, ArtifactSidecar, GlobalEnvironment};
 use destack_dir as dir;
@@ -34,9 +33,14 @@ impl Compiler {
             .require_all(requirements.as_slice())
             .map_err(CompilerError::from)?;
 
-        // build independent environment sections
+        // build language environment for profile
         let language = self.build_language_environment(profile, &artifacts, &language_modules)?;
-        let environment = GlobalEnvironment { language, globals };
+        let global_targets = self.build_global_targets(profile, &artifacts, &globals)?;
+        let environment = GlobalEnvironment {
+            language,
+            globals,
+            global_targets_by_key: global_targets,
+        };
 
         Ok(ArtifactPayload::GlobalEnvironment(environment))
     }
@@ -53,30 +57,6 @@ impl Compiler {
             self.build_dependency_index(context.revision(), profile_id, profile.conditions())?;
 
         Ok(ArtifactPayload::DependencyIndex(index))
-    }
-
-    /// Load the global modules selected by one profile.
-    pub(crate) fn load_global_module_ids(
-        &self,
-        profile: ProfileId,
-        context: &dyn ProviderContext,
-    ) -> CompilerResult<Vec<ModuleId>> {
-        let profile = self.profile(context.revision(), profile)?;
-        let mut globals = Vec::new();
-
-        // resolve configured global modules inside the sealed revision
-        for path in &profile.key.globals {
-            let path = Path::new(path);
-            let module_id = self
-                .module_id_for_path(context.revision(), path)?
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("global module is not loaded: '{}'", path.display()),
-                })?;
-
-            globals.push(module_id);
-        }
-
-        Ok(globals)
     }
 
     /// Build imported DIR for one module.

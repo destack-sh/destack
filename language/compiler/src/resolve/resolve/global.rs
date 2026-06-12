@@ -1,8 +1,6 @@
-use destack_artifact::LanguageEnvironment;
+use destack_artifact::{GlobalEnvironment, LanguageEnvironment};
 use destack_dir as dir;
-use destack_source::ModuleId;
 
-use crate::resolve::resolve::{ExportLookup, ExportTarget};
 use crate::resolve::state::ResolveState;
 use crate::{CompilerError, CompilerResult};
 
@@ -103,107 +101,29 @@ impl ResolveState<'_> {
     /// Example:
     /// ```ds
     /// console.log(value);
-    /// // console can be selected from the active profile globals
+    /// // console resolves through the profile's global table
     /// ```
     pub(in crate::resolve) fn resolve_profile_globals(
         &mut self,
-        modules: &[ModuleId],
+        environment: &GlobalEnvironment,
     ) -> CompilerResult<()> {
         let keys = self.global_keys.iter().copied().collect::<Vec<_>>();
-        if keys.is_empty() {
-            return Ok(());
-        }
 
-        for module in modules {
-            self.resolve_global_module_symbols(*module, &keys)?;
-        }
-
-        Ok(())
-    }
-
-    /// Resolve referenced globals selected from one profile root module.
-    ///
-    /// Example:
-    /// ```ds
-    /// document.body;
-    /// // document can come from one profile root module
-    /// ```
-    fn resolve_global_module_symbols(
-        &mut self,
-        module: ModuleId,
-        keys: &[dir::StaticKey],
-    ) -> CompilerResult<()> {
-        let exported = self
-            .artifacts
-            .dir_exported(module, self.profile)
-            .map_err(CompilerError::from)?;
-        self.stats.global_modules += 1;
-
+        // read each required key from the precomputed table
         for key in keys {
-            let Some(entries) = exported.globals.entries_by_key.get(key) else {
+            let Some(targets) = environment.global_targets_by_key.get(&key) else {
                 continue;
             };
 
-            for entry in entries {
-                match entry {
-                    dir::GlobalEntry::Local(entry) => {
-                        self.imports.push_module(module);
-                        self.imports.push_global_target(
-                            *key,
-                            dir::ImportTarget::Symbol(entry.source.into_global(module)),
-                        );
-                    }
+            for target in targets {
+                let module = match target {
+                    dir::ImportTarget::Symbol(symbol) => symbol.module_id,
+                    dir::ImportTarget::Namespace(module) => *module,
+                };
 
-                    dir::GlobalEntry::Indirect(entry) => {
-                        self.resolve_indirect_global_symbol(*key, entry)?;
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Resolve one global re-export through the target module export table.
-    ///
-    /// Example:
-    /// ```ds
-    /// export { console } from "./console.ds";
-    /// // a profile root can re-export the global through another module
-    /// ```
-    fn resolve_indirect_global_symbol(
-        &mut self,
-        key: dir::StaticKey,
-        entry: &dir::IndirectGlobalEntry,
-    ) -> CompilerResult<()> {
-        let Some(target) = entry.target else {
-            return Ok(());
-        };
-
-        if entry.imported == dir::ExportSelector::Namespace {
-            self.imports.push_module(target);
-            self.imports
-                .push_global_target(key, dir::ImportTarget::Namespace(target));
-
-            return Ok(());
-        }
-
-        let Some(export_key) = entry.imported.selected_export_key() else {
-            return Ok(());
-        };
-
-        match self.resolve_export_target(target, export_key)? {
-            ExportLookup::Found(ExportTarget::Symbol(symbol)) => {
-                self.imports.push_module(symbol.module_id);
-                self.imports
-                    .push_global_target(key, dir::ImportTarget::Symbol(symbol));
-            }
-            ExportLookup::Found(ExportTarget::Namespace(module)) => {
                 self.imports.push_module(module);
-                self.imports
-                    .push_global_target(key, dir::ImportTarget::Namespace(module));
+                self.imports.push_global_target(key, *target);
             }
-            ExportLookup::Ambiguous(_) | ExportLookup::Missing => {}
         }
 
         Ok(())

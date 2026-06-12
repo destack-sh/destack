@@ -13,8 +13,6 @@ pub(in crate::resolve) struct ResolveStats {
     pub(in crate::resolve) reexport_clauses: usize,
     /// The number of required global keys.
     pub(in crate::resolve) required_globals: usize,
-    /// The number of profile global modules read.
-    pub(in crate::resolve) global_modules: usize,
     /// The number of syntax-required language items.
     pub(in crate::resolve) required_language_items: usize,
     /// The number of export lookup cache misses.
@@ -35,6 +33,14 @@ pub(in crate::resolve) struct ResolveStats {
 
 impl ResolveStats {
     /// Render these stats as stable metadata lines.
+    /// Fold observed export lookup counters into this record.
+    pub(in crate::resolve) fn record_exports(&mut self, exports: crate::export::ExportLookupStats) {
+        self.export_cache_hits = exports.cache_hits;
+        self.export_cache_misses = exports.cache_misses;
+        self.export_cycle_hits = exports.cycle_hits;
+        self.export_table_loads = exports.table_loads;
+    }
+
     pub(in crate::resolve) fn render_metadata(self) -> String {
         let mut lines = vec![
             format!("resolve.stats.roots={}", self.roots),
@@ -51,10 +57,10 @@ impl ResolveStats {
         }
 
         // include only required global work
-        if self.required_globals != 0 || self.global_modules != 0 {
+        if self.required_globals != 0 {
             lines.push(format!(
-                "resolve.stats.globals=required:{},modules:{}",
-                self.required_globals, self.global_modules
+                "resolve.stats.globals=required:{}",
+                self.required_globals
             ));
         }
 
@@ -94,14 +100,10 @@ impl ResolveStats {
         }
 
         // include artifact load work when present
-        if self.export_table_loads != 0 || self.global_modules != 0 {
+        if self.export_table_loads != 0 {
             lines.push(format!(
                 "resolve.stats.loads.exports={}",
                 self.export_table_loads
-            ));
-            lines.push(format!(
-                "resolve.stats.loads.globals={}",
-                self.global_modules
             ));
         }
 
