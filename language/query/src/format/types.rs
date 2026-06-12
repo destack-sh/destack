@@ -47,6 +47,9 @@ pub fn format_type(ty: &dir::Type, ctx: &ModuleQueryContext<'_>) -> String {
         dir::Type::Reference(reference) => {
             format_type_reference(reference.symbol, &reference.arguments, ctx)
         }
+        dir::Type::Variable(variable) => format!("?{}", variable.index),
+        dir::Type::Memory(memory) => format_memory_literal(memory, ctx),
+        dir::Type::Static(static_id) => format_global_static(*static_id, ctx),
         dir::Type::Member(member) => {
             let owner = format_global_type(member.owner, ctx);
             let key = format_static_key(&member.key, strings);
@@ -56,7 +59,7 @@ pub fn format_type(ty: &dir::Type, ctx: &ModuleQueryContext<'_>) -> String {
                 let arguments = member
                     .arguments
                     .iter()
-                    .map(|argument| format_static_argument(argument, ctx))
+                    .map(|argument| format_global_type(*argument, ctx))
                     .collect::<Vec<_>>();
 
                 format!("{owner}.{key}<{}>", arguments.join(", "))
@@ -69,7 +72,7 @@ pub fn format_type(ty: &dir::Type, ctx: &ModuleQueryContext<'_>) -> String {
         }
         dir::Type::FixedArray(array) => {
             let element = format_global_type(array.element, ctx);
-            let count = format_global_static(array.count, ctx);
+            let count = format_global_type(array.count, ctx);
 
             format!("[{element}; {count}]")
         }
@@ -277,6 +280,52 @@ pub fn format_type_operation(
             let target_type = format_global_type(unary.target, ctx);
             format!("keyof {target_type}")
         }
+        dir::TypeOperation::TryOutput { value } => {
+            let value = format_global_type(*value, ctx);
+            format!("TryOutput<{value}>")
+        }
+        dir::TypeOperation::TryResidual { value } => {
+            let value = format_global_type(*value, ctx);
+            format!("TryResidual<{value}>")
+        }
+        dir::TypeOperation::StaticBinary(binary) => {
+            let left = format_global_type(binary.left, ctx);
+            let right = format_global_type(binary.right, ctx);
+            let operator = match binary.operator {
+                dir::StaticBinaryOperator::Add => "+",
+                dir::StaticBinaryOperator::Subtract => "-",
+                dir::StaticBinaryOperator::Multiply => "*",
+                dir::StaticBinaryOperator::Divide => "/",
+                dir::StaticBinaryOperator::Remainder => "%",
+                dir::StaticBinaryOperator::Exponent => "**",
+                dir::StaticBinaryOperator::ShiftLeft => "<<",
+                dir::StaticBinaryOperator::ShiftRight => ">>",
+                dir::StaticBinaryOperator::UnsignedShiftRight => ">>>",
+                dir::StaticBinaryOperator::BitwiseAnd => "&",
+                dir::StaticBinaryOperator::BitwiseXor => "^",
+                dir::StaticBinaryOperator::BitwiseOr => "|",
+                dir::StaticBinaryOperator::Equal => "==",
+                dir::StaticBinaryOperator::EqualStrict => "===",
+                dir::StaticBinaryOperator::NotEqual => "!=",
+                dir::StaticBinaryOperator::NotEqualStrict => "!==",
+                dir::StaticBinaryOperator::LessThan => "<",
+                dir::StaticBinaryOperator::LessThanOrEqual => "<=",
+                dir::StaticBinaryOperator::GreaterThan => ">",
+                dir::StaticBinaryOperator::GreaterThanOrEqual => ">=",
+                dir::StaticBinaryOperator::And => "&&",
+                dir::StaticBinaryOperator::Or => "||",
+            };
+            format!("{left} {operator} {right}")
+        }
+        dir::TypeOperation::StaticUnary(unary) => {
+            let target = format_global_type(unary.target, ctx);
+            let operator = match unary.operator {
+                dir::StaticUnaryOperator::Not => "!",
+                dir::StaticUnaryOperator::Negate => "-",
+                dir::StaticUnaryOperator::BitwiseNot => "~",
+            };
+            format!("{operator}{target}")
+        }
     }
 }
 
@@ -321,12 +370,12 @@ pub fn format_form_type(form: &dir::FormType, ctx: &ModuleQueryContext<'_>) -> S
         dir::Form::Raw => format!("Raw<{value}>"),
         dir::Form::Readonly => format!("Readonly<{value}>"),
         dir::Form::Placed { place } => {
-            let place = format_global_static(*place, ctx);
+            let place = format_global_type(*place, ctx);
             format!("Placed<{value}, {place}>")
         }
         dir::Form::Borrowed { lifetime, access } => {
-            let lifetime = format_global_static(*lifetime, ctx);
-            let access = format_global_static(*access, ctx);
+            let lifetime = format_global_type(*lifetime, ctx);
+            let access = format_global_type(*access, ctx);
             format!("Borrowed<{value}, {lifetime}, {access}>")
         }
     }
@@ -394,10 +443,10 @@ pub fn widened_scalar_literal_name(value: &dir::ScalarLiteral) -> &'static str {
     }
 }
 
-/// Format a type reference (symbol with optional static arguments).
+/// Format a type reference (symbol with optional generic arguments).
 pub fn format_type_reference(
     symbol: dir::GlobalSymbolId,
-    generic_arguments: &[dir::StaticArgument],
+    generic_arguments: &[dir::GlobalTypeId],
     ctx: &ModuleQueryContext<'_>,
 ) -> String {
     let name = format_symbol_name(symbol, ctx);
@@ -406,7 +455,7 @@ pub fn format_type_reference(
     } else {
         let argument_strs: Vec<_> = generic_arguments
             .iter()
-            .map(|argument| format_static_argument(argument, ctx))
+            .map(|argument| format_global_type(*argument, ctx))
             .collect();
         format!("{name}<{}>", argument_strs.join(", "))
     }
@@ -423,7 +472,7 @@ pub fn format_parameter_type(
     let dir = ctx.dir();
     let generic = dir.generics().get_parameter(parameter.local_id);
 
-    match generic.key() {
+    match generic.key {
         dir::GenericParameterKey::Symbol(symbol) => format_symbol_name(symbol, &ctx),
         dir::GenericParameterKey::Generated(name) => ctx.dir().strings().get(name).to_string(),
     }
@@ -600,22 +649,6 @@ pub fn format_symbol_key(key: &dir::SymbolKey, strings: &StringPool) -> String {
     }
 }
 
-/// Format a StaticArgument.
-pub fn format_static_argument(
-    argument: &dir::StaticArgument,
-    ctx: &ModuleQueryContext<'_>,
-) -> String {
-    let strings = ctx.dir().strings();
-
-    let value = format_global_static(argument.value, ctx);
-    if let Some(name_id) = argument.name {
-        let name = strings.get(name_id);
-        format!("{name}: {value}")
-    } else {
-        value
-    }
-}
-
 /// Format a global static value by its id.
 pub fn format_global_static(
     static_id: dir::GlobalStaticId,
@@ -630,20 +663,7 @@ pub fn format_static_term(term: &dir::StaticTerm, ctx: &ModuleQueryContext<'_>) 
     let strings = ctx.dir().strings();
 
     match term {
-        dir::StaticTerm::Parameter(parameter) => format_parameter_type(parameter, ctx),
         dir::StaticTerm::ScalarLiteral { value } => format_scalar_literal(value, strings),
-        dir::StaticTerm::Symbol { symbol } => format_symbol_name(*symbol, ctx),
-        dir::StaticTerm::Access { access } => format!("{access:?}").to_lowercase(),
-        dir::StaticTerm::Space { space } => format!("{space:?}").to_lowercase(),
-        dir::StaticTerm::Place { place } => format_place(place),
-        dir::StaticTerm::Lifetime { lifetime } => format_lifetime(lifetime, ctx),
-        dir::StaticTerm::Union { elements } => elements
-            .iter()
-            .map(|element| format_global_static(*element, ctx))
-            .collect::<Vec<_>>()
-            .join(" | "),
-        dir::StaticTerm::TypeLiteral { value } => format_source_type_literal(value, strings),
-        dir::StaticTerm::Declaration { .. } => "<declaration>".to_string(),
         dir::StaticTerm::Type { ty } => format_global_type(*ty, ctx),
         dir::StaticTerm::Array { elements } => {
             let elements: Vec<_> = elements
@@ -654,7 +674,6 @@ pub fn format_static_term(term: &dir::StaticTerm, ctx: &ModuleQueryContext<'_>) 
         }
         dir::StaticTerm::FixedArray { value, length } => {
             let value = format_static_term(value, ctx);
-            let length = format_static_term(length, ctx);
             format!("[{value}; {length}]")
         }
         dir::StaticTerm::Tuple { elements } => {
@@ -676,11 +695,14 @@ pub fn format_static_term(term: &dir::StaticTerm, ctx: &ModuleQueryContext<'_>) 
     }
 }
 
-/// Format a normalized place value.
-fn format_place(place: &dir::Place) -> String {
-    match place {
-        dir::Place::Ambient => "ambient".to_string(),
-        dir::Place::Space(space) => format!("{space:?}").to_lowercase(),
+/// Format a memory singleton type.
+fn format_memory_literal(memory: &dir::MemoryLiteral, ctx: &ModuleQueryContext<'_>) -> String {
+    match memory {
+        dir::MemoryLiteral::Access(access) => format!("{access:?}").to_lowercase(),
+        dir::MemoryLiteral::Space(space) => format!("{space:?}").to_lowercase(),
+        dir::MemoryLiteral::Place(dir::Place::Ambient) => "ambient".to_string(),
+        dir::MemoryLiteral::Place(dir::Place::Space(space)) => format!("{space:?}").to_lowercase(),
+        dir::MemoryLiteral::Lifetime(lifetime) => format_lifetime(lifetime, ctx),
     }
 }
 
@@ -689,6 +711,7 @@ fn format_lifetime(lifetime: &dir::Lifetime, ctx: &ModuleQueryContext<'_>) -> St
     match lifetime {
         dir::Lifetime::Static => "static".to_string(),
         dir::Lifetime::Symbol(symbol) => format_symbol_name(*symbol, ctx),
+        dir::Lifetime::Frame => "frame".to_string(),
     }
 }
 
@@ -751,28 +774,6 @@ fn format_type_mapped_modifier_suffix(modifier: dir::MappedTypeModifier) -> &'st
         dir::MappedTypeModifier::Add => "+?",
         dir::MappedTypeModifier::Remove => "-?",
         dir::MappedTypeModifier::None => "",
-    }
-}
-
-/// Format a parsed type literal.
-fn format_source_type_literal(lit: &dir::TypeLiteral, _strings: &StringPool) -> String {
-    match lit {
-        dir::TypeLiteral::Never => "never".to_string(),
-        dir::TypeLiteral::Any => "any".to_string(),
-        dir::TypeLiteral::Undefined => "undefined".to_string(),
-        dir::TypeLiteral::Unknown => "unknown".to_string(),
-        dir::TypeLiteral::Object => "object".to_string(),
-        dir::TypeLiteral::Void => "void".to_string(),
-        dir::TypeLiteral::Null => "null".to_string(),
-        dir::TypeLiteral::Boolean => DEFAULT_BOOLEAN_DISPLAY.to_string(),
-        dir::TypeLiteral::Character => DEFAULT_CHARACTER_DISPLAY.to_string(),
-        dir::TypeLiteral::String => DEFAULT_STRING_DISPLAY.to_string(),
-        dir::TypeLiteral::Bigint => DEFAULT_BIGINT_DISPLAY.to_string(),
-        dir::TypeLiteral::Number => "number".to_string(),
-        dir::TypeLiteral::Integer(integer) => integer.as_str(),
-        dir::TypeLiteral::Float(float) => float.as_str().to_string(),
-        dir::TypeLiteral::Symbol => "symbol".to_string(),
-        dir::TypeLiteral::UniqueSymbol => "unique symbol".to_string(),
     }
 }
 
