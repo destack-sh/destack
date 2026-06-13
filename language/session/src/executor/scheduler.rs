@@ -247,11 +247,27 @@ impl SchedulerState {
         }
 
         // requeue tasks that were unblocked by run cleanup
-        for (task, entry) in &self.tasks {
-            if entry.state == TaskState::Ready && !self.ready.contains(task) {
-                self.ready.push_back(*task);
-            }
+        let unblocked = self
+            .tasks
+            .iter()
+            .filter(|(task, entry)| entry.state == TaskState::Ready && !self.ready.contains(task))
+            .map(|(task, _)| *task)
+            .collect::<Vec<_>>();
+        for task in unblocked {
+            self.push_ready(task);
         }
+    }
+
+    /// Enqueue one ready task, ordering foundational stages ahead.
+    fn push_ready(&mut self, task: Task) {
+        let stage = task.key.stage();
+        let position = self
+            .ready
+            .iter()
+            .position(|queued| queued.key.stage() > stage)
+            .unwrap_or(self.ready.len());
+
+        self.ready.insert(position, task);
     }
 
     /// Enqueue one task when it is not already tracked.
@@ -273,7 +289,7 @@ impl SchedulerState {
                 dependents: Vec::new(),
             },
         );
-        self.ready.push_back(task);
+        self.push_ready(task);
     }
 
     /// Put one running task into dependency wait state.
@@ -298,7 +314,7 @@ impl SchedulerState {
             entry.waiting_on.clear();
 
             if !self.ready.contains(&task) {
-                self.ready.push_back(task);
+                self.push_ready(task);
             }
 
             return Ok(());
@@ -365,7 +381,7 @@ impl SchedulerState {
             if dependent_entry.state == TaskState::Waiting && dependent_entry.waiting_on.is_empty()
             {
                 dependent_entry.state = TaskState::Ready;
-                self.ready.push_back(dependent);
+                self.push_ready(dependent);
             }
         }
     }
