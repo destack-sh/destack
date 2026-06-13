@@ -3,15 +3,24 @@ use std::sync::Arc;
 use destack_artifact::GlobalEnvironment;
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProviderContext};
-use destack_source::{ModuleId, ProfileId};
+use destack_source::{ComponentId, ModuleId, ProfileId};
 use indexmap::IndexMap;
 
 use crate::check::{
-    Assumption, CheckComponentKey, CheckEvent, CheckExternalModuleState, CheckModuleState,
-    ConstraintTable, DecisionTable, GenericIndex, InputTable, Journal, Mutation, ObligationTable,
-    Queue, RelationCache, VariableTable, VarianceEntry,
+    Assumption, CheckEvent, CheckExternalModuleState, CheckModuleState, ConstraintTable,
+    DecisionTable, GenericIndex, InputTable, Journal, Mutation, ObligationTable, Queue,
+    RelationCache, VariableTable, VarianceEntry,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
+
+/// Artifact coordinates for one checked component.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::check) struct CheckComponentKey {
+    /// The checked component entry module.
+    pub entry: ModuleId,
+    /// The checked component id.
+    pub component: ComponentId,
+}
 
 /// State for checking one resolved component.
 ///
