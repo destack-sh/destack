@@ -5,7 +5,7 @@ use crate::generate::js::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, M
 
 impl ModuleLowerer<'_> {
     /// Lower one assign pattern from DIR into JS AST.
-    pub fn lower_assign_pattern(
+    pub(crate) fn lower_assign_pattern(
         &mut self,
         assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
     ) -> CodegenJsResult<js::LocalNodeId<js::AssignPattern>> {
@@ -52,7 +52,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower one assign pattern field from DIR into JS AST.
-    pub fn lower_assign_pattern_field(
+    pub(crate) fn lower_assign_pattern_field(
         &mut self,
         assign_pattern_field_id: dir::LocalNodeId<dir::AssignPatternField>,
     ) -> CodegenJsResult<js::LocalNodeId<js::AssignPatternField>> {
@@ -124,7 +124,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower a pattern from DIR into JS AST.
-    pub fn lower_pattern(
+    pub(crate) fn lower_pattern(
         &mut self,
         pattern_id: dir::LocalNodeId<dir::Pattern>,
     ) -> CodegenJsResult<js::LocalNodeId<js::Pattern>> {
@@ -183,7 +183,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower a declaration-shaped pattern from DIR into JS AST.
-    pub fn lower_declaration_pattern(
+    pub(crate) fn lower_declaration_pattern(
         &mut self,
         pattern_id: dir::LocalNodeId<dir::Pattern>,
     ) -> CodegenJsResult<js::LocalNodeId<js::Pattern>> {
@@ -191,7 +191,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower one array or tuple pattern field into JS pattern syntax.
-    pub fn lower_array_pattern_field(
+    pub(crate) fn lower_array_pattern_field(
         &mut self,
         pattern_field_id: dir::LocalNodeId<dir::PatternField>,
     ) -> CodegenJsResult<js::LocalNodeId<js::PatternField>> {
@@ -237,7 +237,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower a pattern field from DIR into JS AST.
-    pub fn lower_pattern_field(
+    pub(crate) fn lower_pattern_field(
         &mut self,
         pattern_field_id: dir::LocalNodeId<dir::PatternField>,
     ) -> CodegenJsResult<js::LocalNodeId<js::PatternField>> {

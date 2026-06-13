@@ -5,7 +5,10 @@ use crate::generate::js::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
     /// Lower a scalar literal from DIR into JS AST.
-    pub fn lower_scalar_literal(&mut self, literal: &dir::ScalarLiteral) -> js::ScalarLiteral {
+    pub(crate) fn lower_scalar_literal(
+        &mut self,
+        literal: &dir::ScalarLiteral,
+    ) -> js::ScalarLiteral {
         match literal {
             dir::ScalarLiteral::Null => js::ScalarLiteral::Null,
             dir::ScalarLiteral::Undefined => js::ScalarLiteral::Undefined,

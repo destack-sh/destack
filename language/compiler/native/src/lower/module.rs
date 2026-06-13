@@ -12,15 +12,13 @@ use destack_mir as mir;
 use super::FunctionLowerer;
 use super::r#static::lower_static_data;
 use super::r#type::lower_type;
-use crate::{CodegenCraneliftError, CodegenCraneliftResult, CodegenCraneliftWarning};
+use crate::{CodegenCraneliftError, CodegenCraneliftResult};
 
-/// Internal output from module lowering (bytes + warnings).
+/// Internal output from module lowering.
 #[derive(Debug)]
 pub(crate) struct ModuleLowerOutput {
     /// Generated native output (object file or wasm).
     pub bytes: Vec<u8>,
-    /// Warnings encountered during generation.
-    pub warnings: Vec<CodegenCraneliftWarning>,
     /// Non-fatal errors encountered during generation.
     pub errors: Vec<CodegenCraneliftError>,
 }
@@ -39,9 +37,7 @@ pub(crate) struct ModuleLowerer<'a> {
     cl_global_data_ids: HashMap<mir::LocalNodeId<mir::Global>, DataId>,
     /// Compiled Cranelift functions (for CLIF output).
     cl_functions: Vec<(String, cir::Function)>,
-    /// Collected warnings.
-    warnings: Vec<CodegenCraneliftWarning>,
-    /// Collected non-fatal errors (treated as warnings for continued processing).
+    /// Collected non-fatal errors.
     errors: Vec<CodegenCraneliftError>,
 }
 
@@ -59,15 +55,8 @@ impl<'a> ModuleLowerer<'a> {
             cl_function_ids: HashMap::new(),
             cl_global_data_ids: HashMap::new(),
             cl_functions: Vec::new(),
-            warnings: Vec::new(),
             errors: Vec::new(),
         }
-    }
-
-    /// Record a warning.
-    #[allow(dead_code)]
-    pub(crate) fn warning(&mut self, warning: CodegenCraneliftWarning) {
-        self.warnings.push(warning);
     }
 
     /// Lower an entire MIR module.
@@ -179,7 +168,6 @@ impl<'a> ModuleLowerer<'a> {
             // lower the function body
             let function_lowerer = FunctionLowerer::new(
                 tree,
-                self.strings,
                 function,
                 &self.isa,
                 &mut self.cl_module,
@@ -269,7 +257,6 @@ impl<'a> ModuleLowerer<'a> {
 
         Ok(ModuleLowerOutput {
             bytes,
-            warnings: self.warnings,
             errors: self.errors,
         })
     }

@@ -33,7 +33,6 @@ impl ModuleLowerer<'_> {
         source_id: dir::LocalNodeIdAny,
         value: StringId,
     ) -> js::LocalNodeId<js::Expression> {
-        let value = value;
         let expression = js::Expression::ScalarLiteral {
             value: js::ScalarLiteral::String(value),
         };
@@ -107,11 +106,11 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower a string to a name.
-    pub fn lower_string_to_name(&mut self, string_id: StringId) -> js::Name {
+    pub(crate) fn lower_string_to_name(&mut self, string_id: StringId) -> js::Name {
         let string = self.source_strings.get(string_id);
-        let string_id = self.strings.intern(&string);
+        let string_id = self.strings.intern(string);
 
-        if is_identifier(string.as_ref()) {
+        if is_identifier(string) {
             js::Name::Identifier(string_id)
         } else {
             js::Name::String(string_id)
@@ -119,7 +118,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower a name from DIR into JS AST.
-    pub fn lower_name(&mut self, name: dir::Name) -> js::Name {
+    pub(crate) fn lower_name(&mut self, name: dir::Name) -> js::Name {
         match name {
             dir::Name::Identifier(name) => js::Name::Identifier(name),
             dir::Name::String(name) => js::Name::String(name),
@@ -131,16 +130,13 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower a key from DIR into JS AST.
-    pub fn lower_key(&mut self, key: dir::Key) -> CodegenJsResult<js::Key> {
+    pub(crate) fn lower_key(&mut self, key: dir::Key) -> CodegenJsResult<js::Key> {
         let key = match key {
             dir::Key::Name(name) => {
                 let name = self.lower_name(name);
                 js::Key::Name(name)
             }
-            dir::Key::Private(name) => {
-                let name = name;
-                js::Key::Private(name)
-            }
+            dir::Key::Private(name) => js::Key::Private(name),
             dir::Key::Expression(expression_id) => {
                 let expression_id = self
                     .lower_expression(expression_id)
@@ -156,7 +152,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower a static key from DIR into JS AST.
-    pub fn lower_static_key(
+    pub(crate) fn lower_static_key(
         &mut self,
         source_id: dir::LocalNodeIdAny,
         key: dir::StaticKey,

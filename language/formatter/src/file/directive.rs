@@ -517,12 +517,9 @@ fn dedent_common_leading_whitespace(raw: &str) -> String {
             None => common_prefix = Some(prefix),
             Some(current_prefix) => {
                 let mut shared_len = 0usize;
-                let mut current_iter = current_prefix.chars();
+                let current_iter = current_prefix.chars();
                 let mut next_iter = prefix.chars();
-                loop {
-                    let Some(current_character) = current_iter.next() else {
-                        break;
-                    };
+                for current_character in current_iter {
                     let Some(next_character) = next_iter.next() else {
                         break;
                     };
@@ -579,12 +576,9 @@ fn dedent_common_leading_whitespace_after_first_line(raw: &str) -> String {
             None => common_prefix = Some(prefix),
             Some(current_prefix) => {
                 let mut shared_len = 0usize;
-                let mut current_iter = current_prefix.chars();
+                let current_iter = current_prefix.chars();
                 let mut next_iter = prefix.chars();
-                loop {
-                    let Some(current_character) = current_iter.next() else {
-                        break;
-                    };
+                for current_character in current_iter {
                     let Some(next_character) = next_iter.next() else {
                         break;
                     };

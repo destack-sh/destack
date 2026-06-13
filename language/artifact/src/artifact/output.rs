@@ -21,8 +21,9 @@ pub enum TargetOutputName {
     Manifest,
     /// Source maps or debug maps.
     Maps,
-    /// Binary or wasm payload.
-    Binary,
+    /// Native object or wasm payload.
+    #[serde(alias = "binary")]
+    Native,
 }
 
 impl TargetOutputName {
@@ -35,7 +36,7 @@ impl TargetOutputName {
             Self::Assets => "assets",
             Self::Manifest => "manifest",
             Self::Maps => "maps",
-            Self::Binary => "binary",
+            Self::Native => "native",
         }
     }
 }

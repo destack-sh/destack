@@ -1,12 +1,10 @@
 mod diagnostic;
-mod dumper;
 mod lower;
 mod output;
 mod print;
 
 pub(crate) use destack_js::*;
 pub(crate) use diagnostic::*;
-pub(crate) use dumper::*;
 pub(crate) use lower::*;
 pub(crate) use output::*;
 pub(crate) use print::*;
@@ -14,7 +12,7 @@ pub(crate) use print::*;
 #[cfg(test)]
 pub(crate) mod tests;
 
-use crate::{Compiler, CompilerError, CompilerResult, GenerateError, GenerateWarning};
+use crate::{Compiler, CompilerError, CompilerResult, GenerateError};
 use destack_artifact::ModuleOutput;
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProfileId, ProviderContext, Target};
@@ -52,7 +50,7 @@ impl Compiler {
 
         // generate one JS output
         let state = GenerateState::new(module_id, &parsed.tree);
-        let (artifact, warnings, errors) = JsOutputGenerator::new(
+        let (artifact, errors) = JsOutputGenerator::new(
             module.clone(),
             parsed.clone(),
             bound.clone(),
@@ -65,10 +63,6 @@ impl Compiler {
         .generate()
         .map_err(|error| Self::map_js_generate_error(&state, error))?;
         // map JS diagnostics into compiler diagnostics
-        for warning in warnings {
-            let warning = Self::map_js_generate_warning(&state, warning);
-            self.emit_diagnostic(context, warning)?;
-        }
         for error in errors {
             let error = Self::map_js_generate_error(&state, error);
             self.emit_diagnostic(context, error)?;
@@ -116,32 +110,7 @@ impl Compiler {
                     )
                 }),
             },
-            CodegenJsError::UnresolvedNode { node, .. } => GenerateError::UnresolvedConstruct {
-                anchor: state.anchor(node),
-                module: state.module_id,
-            },
             CodegenJsError::MissingType { node, .. } => GenerateError::MissingType {
-                anchor: state.anchor(node),
-                module: state.module_id,
-            },
-        }
-    }
-
-    /// Map one JS generation warning to a compiler warning.
-    fn map_js_generate_warning(
-        state: &GenerateState<'_, dir::Tree>,
-        warning: CodegenJsWarning,
-    ) -> GenerateWarning {
-        match warning {
-            CodegenJsWarning::ImpreciseType { node } => GenerateWarning::ImpreciseType {
-                anchor: state.anchor(node),
-                module: state.module_id,
-            },
-            CodegenJsWarning::UnexpectedNode { node, .. } => GenerateWarning::UnexpectedConstruct {
-                anchor: state.anchor(node),
-                module: state.module_id,
-            },
-            CodegenJsWarning::ExpectedStatement { node } => GenerateWarning::UnexpectedConstruct {
                 anchor: state.anchor(node),
                 module: state.module_id,
             },

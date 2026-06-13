@@ -19,7 +19,6 @@ pub struct CodegenCraneliftBackend {
     /// The target ISA configuration.
     isa: Arc<dyn TargetIsa>,
     /// Whether to include debug info.
-    #[allow(dead_code)]
     debug: bool,
 }
 
@@ -129,7 +128,7 @@ impl CodegenCraneliftBackend {
         self.isa.pointer_bytes()
     }
 
-    /// Compile a MIR module to bytes and warnings.
+    /// Compile a MIR module to bytes.
     ///
     /// For WASM targets, returns a `.wasm` module.
     /// For native targets, returns an object file.

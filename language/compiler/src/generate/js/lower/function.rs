@@ -6,7 +6,7 @@ use crate::generate::js::{CodegenJsError, CodegenJsResult, ModuleLowerer};
 #[allow(clippy::too_many_arguments)]
 impl ModuleLowerer<'_> {
     /// Lower asynchrony from DIR into JS AST.
-    pub fn lower_asynchrony(&self, asynchrony: dir::Asynchrony) -> js::Asynchrony {
+    pub(crate) fn lower_asynchrony(&self, asynchrony: dir::Asynchrony) -> js::Asynchrony {
         match asynchrony {
             dir::Asynchrony::Sync => js::Asynchrony::Sync,
             dir::Asynchrony::Async => js::Asynchrony::Async,
@@ -14,7 +14,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower function role from DIR into JS AST.
-    pub fn lower_function_role(&self, role: dir::FunctionRole) -> js::FunctionRole {
+    pub(crate) fn lower_function_role(&self, role: dir::FunctionRole) -> js::FunctionRole {
         match role {
             dir::FunctionRole::Getter => js::FunctionRole::Getter,
             dir::FunctionRole::Setter => js::FunctionRole::Setter,
@@ -26,7 +26,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower function form from DIR into JS AST.
-    pub fn lower_function_form(&self, form: dir::FunctionForm) -> js::FunctionForm {
+    pub(crate) fn lower_function_form(&self, form: dir::FunctionForm) -> js::FunctionForm {
         match form {
             dir::FunctionForm::Function => js::FunctionForm::Function,
             dir::FunctionForm::Lambda => js::FunctionForm::Lambda,
@@ -34,7 +34,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower a function signature from DIR into JS AST.
-    pub fn lower_function_signature(
+    pub(crate) fn lower_function_signature(
         &mut self,
         function_signature: &dir::FunctionSignature,
     ) -> CodegenJsResult<js::FunctionSignature> {

@@ -1,9 +1,9 @@
 use destack_artifact::{DirBound, DirCheckedModule, DirExpanded, DirImported, DirParsed};
 use destack_core::StringPool;
 use destack_js as js;
-use destack_repository::{Module, Target};
+use destack_repository::Module;
 
-use crate::generate::js::{CodegenJsError, CodegenJsResult, CodegenJsWarning};
+use crate::generate::js::{CodegenJsError, CodegenJsResult};
 
 use super::ModuleLowerer;
 
@@ -12,8 +12,6 @@ use super::ModuleLowerer;
 pub(in crate::generate::js) struct ModuleLowerOutput {
     /// The lowered JS module.
     pub(in crate::generate::js) module: js::Module,
-    /// Warnings encountered during emission.
-    pub(in crate::generate::js) warnings: Vec<CodegenJsWarning>,
     /// Non fatal errors encountered during emission.
     pub(in crate::generate::js) errors: Vec<CodegenJsError>,
 }
@@ -27,7 +25,6 @@ pub(in crate::generate::js) fn lower_module(
     imported: &DirImported,
     expanded: &DirExpanded,
     checked: &DirCheckedModule,
-    target: &Target,
 ) -> CodegenJsResult<ModuleLowerOutput> {
     let bindings = expanded.binding_table(bound);
     let modules = expanded.module_table(imported);
@@ -46,7 +43,6 @@ pub(in crate::generate::js) fn lower_module(
         &generics,
         &resolutions,
         modules,
-        target,
     );
     lowerer.lower_module()?;
 
@@ -56,7 +52,6 @@ pub(in crate::generate::js) fn lower_module(
             roots: lowerer.roots,
             strings: lowerer.strings,
         },
-        warnings: lowerer.warnings,
         errors: lowerer.errors,
     })
 }
