@@ -96,7 +96,7 @@ impl ArtifactKey {
                 let profile = value.into_bridge()?;
                 Ok(bridge::ArtifactKey::GlobalEnvironment { profile })
             }
-            "dependencyIndex" => {
+            "packageIndex" => {
                 if self.module.is_some() {
                     return Err(unexpected_payload("module"));
                 }
@@ -116,7 +116,51 @@ impl ArtifactKey {
                     return Err(missing_payload("profile"));
                 };
                 let profile = value.into_bridge()?;
-                Ok(bridge::ArtifactKey::DependencyIndex { profile })
+                Ok(bridge::ArtifactKey::PackageIndex { profile })
+            }
+            "moduleIndex" => {
+                if self.module.is_some() {
+                    return Err(unexpected_payload("module"));
+                }
+                if self.entry.is_some() {
+                    return Err(unexpected_payload("entry"));
+                }
+                if self.component.is_some() {
+                    return Err(unexpected_payload("component"));
+                }
+                if self.target.is_some() {
+                    return Err(unexpected_payload("target"));
+                }
+                if self.package.is_some() {
+                    return Err(unexpected_payload("package"));
+                }
+                let Some(value) = self.profile else {
+                    return Err(missing_payload("profile"));
+                };
+                let profile = value.into_bridge()?;
+                Ok(bridge::ArtifactKey::ModuleIndex { profile })
+            }
+            "componentGraph" => {
+                if self.module.is_some() {
+                    return Err(unexpected_payload("module"));
+                }
+                if self.entry.is_some() {
+                    return Err(unexpected_payload("entry"));
+                }
+                if self.component.is_some() {
+                    return Err(unexpected_payload("component"));
+                }
+                if self.target.is_some() {
+                    return Err(unexpected_payload("target"));
+                }
+                if self.package.is_some() {
+                    return Err(unexpected_payload("package"));
+                }
+                let Some(value) = self.profile else {
+                    return Err(missing_payload("profile"));
+                };
+                let profile = value.into_bridge()?;
+                Ok(bridge::ArtifactKey::ComponentGraph { profile })
             }
             "dirBound" => {
                 if self.entry.is_some() {
@@ -621,8 +665,26 @@ impl ArtifactKey {
                 target: None,
                 package: None,
             },
-            bridge::ArtifactKey::DependencyIndex { profile } => Self {
-                kind: "dependencyIndex".to_string(),
+            bridge::ArtifactKey::PackageIndex { profile } => Self {
+                kind: "packageIndex".to_string(),
+                profile: Some(ProfileId::from_bridge(profile)),
+                module: None,
+                entry: None,
+                component: None,
+                target: None,
+                package: None,
+            },
+            bridge::ArtifactKey::ModuleIndex { profile } => Self {
+                kind: "moduleIndex".to_string(),
+                profile: Some(ProfileId::from_bridge(profile)),
+                module: None,
+                entry: None,
+                component: None,
+                target: None,
+                package: None,
+            },
+            bridge::ArtifactKey::ComponentGraph { profile } => Self {
+                kind: "componentGraph".to_string(),
                 profile: Some(ProfileId::from_bridge(profile)),
                 module: None,
                 entry: None,

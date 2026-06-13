@@ -47,9 +47,29 @@ impl ArtifactKey {
 
     /// Active dependency index for one profile.
     #[staticmethod]
-    pub fn dependency_index(profile: ProfileId) -> Self {
+    pub fn package_index(profile: ProfileId) -> Self {
         Self {
-            value: bridge::ArtifactKey::DependencyIndex {
+            value: bridge::ArtifactKey::PackageIndex {
+                profile: profile.into_bridge(),
+            },
+        }
+    }
+
+    /// Module import edge index for one profile.
+    #[staticmethod]
+    pub fn module_index(profile: ProfileId) -> Self {
+        Self {
+            value: bridge::ArtifactKey::ModuleIndex {
+                profile: profile.into_bridge(),
+            },
+        }
+    }
+
+    /// Component partition for one profile.
+    #[staticmethod]
+    pub fn component_graph(profile: ProfileId) -> Self {
+        Self {
+            value: bridge::ArtifactKey::ComponentGraph {
                 profile: profile.into_bridge(),
             },
         }
@@ -274,7 +294,9 @@ impl ArtifactKey {
             bridge::ArtifactKey::DirParsed { .. } => "dirParsed",
             bridge::ArtifactKey::Data { .. } => "data",
             bridge::ArtifactKey::GlobalEnvironment { .. } => "globalEnvironment",
-            bridge::ArtifactKey::DependencyIndex { .. } => "dependencyIndex",
+            bridge::ArtifactKey::PackageIndex { .. } => "packageIndex",
+            bridge::ArtifactKey::ModuleIndex { .. } => "moduleIndex",
+            bridge::ArtifactKey::ComponentGraph { .. } => "componentGraph",
             bridge::ArtifactKey::DirBound { .. } => "dirBound",
             bridge::ArtifactKey::DirImported { .. } => "dirImported",
             bridge::ArtifactKey::DirExpanded { .. } => "dirExpanded",
@@ -394,7 +416,13 @@ impl ArtifactKey {
             bridge::ArtifactKey::GlobalEnvironment { profile, .. } => {
                 Some(ProfileId::from_bridge(profile.clone()))
             }
-            bridge::ArtifactKey::DependencyIndex { profile, .. } => {
+            bridge::ArtifactKey::PackageIndex { profile, .. } => {
+                Some(ProfileId::from_bridge(profile.clone()))
+            }
+            bridge::ArtifactKey::ModuleIndex { profile, .. } => {
+                Some(ProfileId::from_bridge(profile.clone()))
+            }
+            bridge::ArtifactKey::ComponentGraph { profile, .. } => {
                 Some(ProfileId::from_bridge(profile.clone()))
             }
             bridge::ArtifactKey::DirBound { profile, .. } => {

@@ -5735,14 +5735,44 @@ pub unsafe extern "C" fn destack_artifact_key_global_environment(
 
 /// Create one artifact key handle.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_artifact_key_dependency_index(
+pub unsafe extern "C" fn destack_artifact_key_package_index(
     profile: DestackProfileId,
     out: *mut *mut DestackArtifactKey,
     error: *mut *mut DestackError,
 ) -> DestackStatus {
     return_status(error, || {
         let profile = profile.to_bridge()?;
-        let value = rust::ArtifactKey::DependencyIndex { profile };
+        let value = rust::ArtifactKey::PackageIndex { profile };
+        let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
+        write_out(out, key, "artifact key output is null")
+    })
+}
+
+/// Create one artifact key handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_artifact_key_module_index(
+    profile: DestackProfileId,
+    out: *mut *mut DestackArtifactKey,
+    error: *mut *mut DestackError,
+) -> DestackStatus {
+    return_status(error, || {
+        let profile = profile.to_bridge()?;
+        let value = rust::ArtifactKey::ModuleIndex { profile };
+        let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
+        write_out(out, key, "artifact key output is null")
+    })
+}
+
+/// Create one artifact key handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_artifact_key_component_graph(
+    profile: DestackProfileId,
+    out: *mut *mut DestackArtifactKey,
+    error: *mut *mut DestackError,
+) -> DestackStatus {
+    return_status(error, || {
+        let profile = profile.to_bridge()?;
+        let value = rust::ArtifactKey::ComponentGraph { profile };
         let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
         write_out(out, key, "artifact key output is null")
     })

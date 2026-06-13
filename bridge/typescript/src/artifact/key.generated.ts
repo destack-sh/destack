@@ -28,7 +28,19 @@ export type ArtifactKey =
       }
     /** Active dependency index for one profile. */
     | {
-          readonly kind: "dependencyIndex";
+          readonly kind: "packageIndex";
+          /** Semantic profile. */
+          readonly profile: ProfileId;
+      }
+    /** Module import edge index for one profile. */
+    | {
+          readonly kind: "moduleIndex";
+          /** Semantic profile. */
+          readonly profile: ProfileId;
+      }
+    /** Component partition for one profile. */
+    | {
+          readonly kind: "componentGraph";
           /** Semantic profile. */
           readonly profile: ProfileId;
       }
@@ -203,8 +215,18 @@ export const ArtifactKey = {
     },
 
     /** Active dependency index for one profile. */
-    dependencyIndex(profile: ProfileId): ArtifactKey {
-        return { kind: "dependencyIndex", profile };
+    packageIndex(profile: ProfileId): ArtifactKey {
+        return { kind: "packageIndex", profile };
+    },
+
+    /** Module import edge index for one profile. */
+    moduleIndex(profile: ProfileId): ArtifactKey {
+        return { kind: "moduleIndex", profile };
+    },
+
+    /** Component partition for one profile. */
+    componentGraph(profile: ProfileId): ArtifactKey {
+        return { kind: "componentGraph", profile };
     },
 
     /** Bound DIR. */
