@@ -577,7 +577,7 @@ impl ArtifactStore {
     fn insert_payload<T>(
         map: &ArtifactMap<T>,
         version: ArtifactVersion,
-        payload: T,
+        payload: Arc<T>,
         is_expected_key: bool,
         payload_name: &'static str,
     ) {
@@ -587,7 +587,7 @@ impl ArtifactStore {
             version.key
         );
 
-        map.insert(version, Arc::new(payload));
+        map.insert(version, payload);
     }
 
     /// Publish one ready artifact.

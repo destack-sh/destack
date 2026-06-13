@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{
     ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirElaborated, DirExpanded,
     DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment,
@@ -11,55 +13,55 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ArtifactPayload {
     /// Parsed module DIR.
-    DirParsed(DirParsed),
+    DirParsed(Arc<DirParsed>),
     /// Parsed non-code module data.
-    Data(Data),
+    Data(Arc<Data>),
     /// Explicit global environment for one profile.
-    GlobalEnvironment(GlobalEnvironment),
+    GlobalEnvironment(Arc<GlobalEnvironment>),
     /// Active dependency index for one profile.
-    PackageIndex(PackageIndex),
+    PackageIndex(Arc<PackageIndex>),
     /// Module import edges for one profile.
-    ModuleIndex(ModuleIndex),
+    ModuleIndex(Arc<ModuleIndex>),
     /// Component partition for one profile.
-    ComponentGraph(ComponentGraph),
+    ComponentGraph(Arc<ComponentGraph>),
     /// Bound DIR.
-    DirBound(DirBound),
+    DirBound(Arc<DirBound>),
     /// Imported DIR.
-    DirImported(DirImported),
+    DirImported(Arc<DirImported>),
     /// Expanded DIR.
-    DirExpanded(DirExpanded),
+    DirExpanded(Arc<DirExpanded>),
     /// Exported DIR.
-    DirExported(DirExported),
+    DirExported(Arc<DirExported>),
     /// Resolved DIR imports.
-    DirResolved(DirResolved),
+    DirResolved(Arc<DirResolved>),
     /// Checked DIR component.
-    DirCheckedComponent(DirCheckedComponent),
+    DirCheckedComponent(Arc<DirCheckedComponent>),
     /// Checked DIR facade.
-    DirChecked(DirChecked),
+    DirChecked(Arc<DirChecked>),
     /// Materialized DIR.
-    DirMaterialized(DirMaterialized),
+    DirMaterialized(Arc<DirMaterialized>),
     /// Elaborated DIR.
-    DirElaborated(DirElaborated),
+    DirElaborated(Arc<DirElaborated>),
     /// Lowered MIR before optimization.
-    MirLowered(MirLowered),
+    MirLowered(Arc<MirLowered>),
     /// Verified MIR marker after required semantic verification.
-    MirVerified(MirVerified),
+    MirVerified(Arc<MirVerified>),
     /// Optimized MIR.
-    MirOptimized(MirOptimized),
+    MirOptimized(Arc<MirOptimized>),
     /// Query index for one module profile.
-    ModuleQueryIndex(ModuleQueryIndex),
+    ModuleQueryIndex(Arc<ModuleQueryIndex>),
     /// Query index for one workspace profile.
-    WorkspaceQueryIndex(WorkspaceQueryIndex),
+    WorkspaceQueryIndex(Arc<WorkspaceQueryIndex>),
     /// One generated module output for one target.
-    ModuleOutput(ModuleOutput),
+    ModuleOutput(Arc<ModuleOutput>),
     /// Output entries for one package target.
-    PackageOutput(PackageOutput),
+    PackageOutput(Arc<PackageOutput>),
     /// Realized lint diagnostics for one module profile.
-    ModuleLinted(ModuleLinted),
+    ModuleLinted(Arc<ModuleLinted>),
     /// Realized lint diagnostics for one package.
-    PackageLinted(PackageLinted),
+    PackageLinted(Arc<PackageLinted>),
     /// Realized lint diagnostics for the workspace.
-    WorkspaceLinted(WorkspaceLinted),
+    WorkspaceLinted(Arc<WorkspaceLinted>),
 }
 
 /// Borrowed artifact payload used for transport serialization.
@@ -153,174 +155,174 @@ impl ArtifactPayload {
 impl From<DirParsed> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: DirParsed) -> Self {
-        Self::DirParsed(payload)
+        Self::DirParsed(Arc::new(payload))
     }
 }
 
 impl From<Data> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: Data) -> Self {
-        Self::Data(payload)
+        Self::Data(Arc::new(payload))
     }
 }
 
 impl From<GlobalEnvironment> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: GlobalEnvironment) -> Self {
-        Self::GlobalEnvironment(payload)
+        Self::GlobalEnvironment(Arc::new(payload))
     }
 }
 
 impl From<PackageIndex> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: PackageIndex) -> Self {
-        Self::PackageIndex(payload)
+        Self::PackageIndex(Arc::new(payload))
     }
 }
 
 impl From<ModuleIndex> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: ModuleIndex) -> Self {
-        Self::ModuleIndex(payload)
+        Self::ModuleIndex(Arc::new(payload))
     }
 }
 
 impl From<ComponentGraph> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: ComponentGraph) -> Self {
-        Self::ComponentGraph(payload)
+        Self::ComponentGraph(Arc::new(payload))
     }
 }
 
 impl From<DirBound> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: DirBound) -> Self {
-        Self::DirBound(payload)
+        Self::DirBound(Arc::new(payload))
     }
 }
 
 impl From<DirImported> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: DirImported) -> Self {
-        Self::DirImported(payload)
+        Self::DirImported(Arc::new(payload))
     }
 }
 
 impl From<DirExpanded> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: DirExpanded) -> Self {
-        Self::DirExpanded(payload)
+        Self::DirExpanded(Arc::new(payload))
     }
 }
 
 impl From<DirExported> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: DirExported) -> Self {
-        Self::DirExported(payload)
+        Self::DirExported(Arc::new(payload))
     }
 }
 
 impl From<DirResolved> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: DirResolved) -> Self {
-        Self::DirResolved(payload)
+        Self::DirResolved(Arc::new(payload))
     }
 }
 
 impl From<DirCheckedComponent> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: DirCheckedComponent) -> Self {
-        Self::DirCheckedComponent(payload)
+        Self::DirCheckedComponent(Arc::new(payload))
     }
 }
 
 impl From<DirChecked> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: DirChecked) -> Self {
-        Self::DirChecked(payload)
+        Self::DirChecked(Arc::new(payload))
     }
 }
 
 impl From<DirMaterialized> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: DirMaterialized) -> Self {
-        Self::DirMaterialized(payload)
+        Self::DirMaterialized(Arc::new(payload))
     }
 }
 
 impl From<DirElaborated> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: DirElaborated) -> Self {
-        Self::DirElaborated(payload)
+        Self::DirElaborated(Arc::new(payload))
     }
 }
 
 impl From<MirLowered> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: MirLowered) -> Self {
-        Self::MirLowered(payload)
+        Self::MirLowered(Arc::new(payload))
     }
 }
 
 impl From<MirVerified> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: MirVerified) -> Self {
-        Self::MirVerified(payload)
+        Self::MirVerified(Arc::new(payload))
     }
 }
 
 impl From<MirOptimized> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: MirOptimized) -> Self {
-        Self::MirOptimized(payload)
+        Self::MirOptimized(Arc::new(payload))
     }
 }
 
 impl From<ModuleQueryIndex> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: ModuleQueryIndex) -> Self {
-        Self::ModuleQueryIndex(payload)
+        Self::ModuleQueryIndex(Arc::new(payload))
     }
 }
 
 impl From<WorkspaceQueryIndex> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: WorkspaceQueryIndex) -> Self {
-        Self::WorkspaceQueryIndex(payload)
+        Self::WorkspaceQueryIndex(Arc::new(payload))
     }
 }
 
 impl From<ModuleOutput> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: ModuleOutput) -> Self {
-        Self::ModuleOutput(payload)
+        Self::ModuleOutput(Arc::new(payload))
     }
 }
 
 impl From<PackageOutput> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: PackageOutput) -> Self {
-        Self::PackageOutput(payload)
+        Self::PackageOutput(Arc::new(payload))
     }
 }
 
 impl From<ModuleLinted> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: ModuleLinted) -> Self {
-        Self::ModuleLinted(payload)
+        Self::ModuleLinted(Arc::new(payload))
     }
 }
 
 impl From<PackageLinted> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: PackageLinted) -> Self {
-        Self::PackageLinted(payload)
+        Self::PackageLinted(Arc::new(payload))
     }
 }
 
 impl From<WorkspaceLinted> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: WorkspaceLinted) -> Self {
-        Self::WorkspaceLinted(payload)
+        Self::WorkspaceLinted(Arc::new(payload))
     }
 }
