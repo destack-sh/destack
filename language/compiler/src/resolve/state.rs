@@ -1,5 +1,5 @@
 use destack_artifact::{DiagnosticAnchor, DirResolved};
-use destack_core::StringPool;
+use destack_core::{StringPool, closest_string};
 use destack_dir as dir;
 use destack_repository::ArtifactReader;
 use destack_source::{ModuleId, ProfileId};
@@ -7,7 +7,7 @@ use indexmap::IndexSet;
 
 use crate::export::{ExportLookup, ExportResolver};
 use crate::resolve::stats::ResolveStats;
-use crate::{CompilerResult, ResolveError};
+use crate::{CompilerResult, ResolveError, diagnostic_suggestion_distance};
 
 /// Resolve phase state for one module.
 pub(in crate::resolve) struct ResolveState<'a> {
@@ -203,6 +203,7 @@ impl<'a> ResolveState<'a> {
     /// Report one missing export diagnostic.
     pub(in crate::resolve) fn report_missing_export(
         &mut self,
+        target_module: ModuleId,
         item_id: dir::LocalNodeId<dir::DependencyItem>,
         key: dir::ExportKey,
         specifier: dir::StringId,
@@ -211,10 +212,12 @@ impl<'a> ResolveState<'a> {
         let anchor = self.anchor_node(item_id.id)?;
         let name = self.export_key_text(key);
         let target = self.strings.get(specifier).to_string();
+        let suggestion = self.closest_export_key(target_module, &name)?;
         let diagnostic = ResolveError::MissingExport {
             anchor,
             name,
             target,
+            suggestion,
         };
 
         // record recoverable error
@@ -273,5 +276,26 @@ impl<'a> ResolveState<'a> {
             dir::StaticKey::Index(index) => index.to_string(),
             dir::StaticKey::Symbol(symbol) => symbol.debug_string(self.strings),
         }
+    }
+
+    /// Return the closest exact export key visible from one target module.
+    fn closest_export_key(
+        &mut self,
+        target_module: ModuleId,
+        key: &str,
+    ) -> CompilerResult<Option<String>> {
+        let exported = self
+            .exports
+            .exported_module(&self.artifacts, target_module)?;
+        let candidates = exported
+            .exports
+            .exports()
+            .map(|(key, _)| self.export_key_text(*key));
+
+        Ok(closest_string(
+            key,
+            candidates,
+            diagnostic_suggestion_distance(key),
+        ))
     }
 }
