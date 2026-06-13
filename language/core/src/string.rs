@@ -488,9 +488,97 @@ impl StringPool {
     }
 }
 
+/// Return the closest candidate within a maximum edit distance.
+pub fn closest_string<C>(
+    value: &str,
+    candidates: impl IntoIterator<Item = C>,
+    max_distance: usize,
+) -> Option<C>
+where
+    C: AsRef<str>,
+{
+    let value = value.chars().collect::<Vec<_>>();
+    let mut closest: Option<(usize, C)> = None;
+
+    // keep only close non-identical candidates
+    for candidate in candidates {
+        let distance =
+            edit_distance_chars_at_most(value.as_slice(), candidate.as_ref(), max_distance);
+        let Some(distance) = distance else {
+            continue;
+        };
+        if distance == 0 {
+            continue;
+        }
+
+        if closest.as_ref().is_none_or(|(best, _)| distance < *best) {
+            closest = Some((distance, candidate));
+        }
+    }
+
+    closest.map(|(_, candidate)| candidate)
+}
+
+/// Return the bounded edit distance from pre-collected left characters.
+fn edit_distance_chars_at_most(left: &[char], right: &str, max_distance: usize) -> Option<usize> {
+    let right = right.chars().collect::<Vec<_>>();
+    let length_difference = left.len().abs_diff(right.len());
+    if length_difference > max_distance {
+        return None;
+    }
+
+    // compute classic two-row levenshtein distance
+    let mut previous = (0..=right.len()).collect::<Vec<_>>();
+    let mut current = vec![0; right.len() + 1];
+    for (row, left) in left.iter().enumerate() {
+        current[0] = row + 1;
+        let mut row_minimum = current[0];
+
+        for (column, right) in right.iter().enumerate() {
+            let substitution = previous[column] + usize::from(left != right);
+            current[column + 1] = substitution
+                .min(previous[column + 1] + 1)
+                .min(current[column] + 1);
+            row_minimum = row_minimum.min(current[column + 1]);
+        }
+
+        if row_minimum > max_distance {
+            return None;
+        }
+
+        std::mem::swap(&mut previous, &mut current);
+    }
+
+    let distance = previous[right.len()];
+    (distance <= max_distance).then_some(distance)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_closest_string_ignores_identical_candidates() {
+        let candidates = ["value", "valu", "other"];
+
+        assert_eq!(closest_string("value", candidates, 1), Some("valu"));
+    }
+
+    #[test]
+    fn test_closest_string_respects_distance() {
+        let candidates = ["kitten", "sitting", "distance"];
+
+        assert_eq!(closest_string("kitten", candidates, 2), None);
+        assert_eq!(closest_string("kitten", candidates, 3), Some("sitting"));
+    }
+
+    #[test]
+    fn test_closest_string_returns_borrowed_candidate() {
+        let candidates = ["alpha", "alhpa", "omega"];
+
+        assert_eq!(closest_string("alpha", candidates, 2), Some("alhpa"));
+        assert_eq!(closest_string("alpha", candidates, 1), None);
+    }
 
     #[test]
     fn test_pool_intern_same_string_yields_same_id() {
