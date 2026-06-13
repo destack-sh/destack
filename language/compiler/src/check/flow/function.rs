@@ -139,7 +139,7 @@ impl WalkState<'_, '_> {
             )?;
 
             // require delegated value to implement the protocol
-            self.relate_types(origin, Relation::Assignable, value, expected);
+            self.relate_type(origin, Relation::Assignable, value, expected);
         }
         // reject malformed delegation
         else {
