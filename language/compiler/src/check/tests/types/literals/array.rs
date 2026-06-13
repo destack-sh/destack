@@ -32,7 +32,7 @@ const first = values[0];
 /// @resolution.call source=values[0] parameters=(usize) return=float64 kind=symbol target=collections.array.index#9 receiver=Array<float64>
 /// @type.node source=0 type=0
 
-/// @check.stats.solve variables=8 types=39 constraints=7 obligations=0 solutions=8 bounds=7 decisions=2
+/// @check.stats.solve variables=8 types=39 constraints=7 obligations=0 solutions=8 bounds=10 decisions=2
 "#,
     );
 }
@@ -69,7 +69,7 @@ const first = values[0];
 /// @resolution.call source=values[0] parameters=(usize) return=1 | 2 kind=symbol target=collections.array.index#9 receiver=Array<1 | 2>
 /// @type.node source=0 type=0
 
-/// @check.stats.solve variables=7 types=38 constraints=7 obligations=0 solutions=7 bounds=8 decisions=2
+/// @check.stats.solve variables=7 types=38 constraints=7 obligations=0 solutions=7 bounds=11 decisions=2
 "#,
     );
 }

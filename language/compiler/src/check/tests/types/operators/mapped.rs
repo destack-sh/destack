@@ -23,7 +23,7 @@ declare const value: Actual;
 
 === checked ===
 type Flags<T> = { [K in keyof T]: boolean };
-/// @generic.template source=declaration parameters=[T]
+/// @generic.template symbol=Flags parameters=[T]
 /// @type.symbol symbol=Flags source="type Flags<T> = { [K in keyof T]: boolean }" type={ [K in keyof T]: boolean }
 /// @definition.type symbol=Flags source="type Flags<T> = { [K in keyof T]: boolean }" template=LocalGenericTemplateId(0) value={ [K in keyof T]: boolean }
 /// @type.symbol symbol=Flags.T source=T type=T
@@ -62,7 +62,7 @@ type Actual = Clone<type { readonly name: string; age?: int32 }>;
 
 === checked ===
 type Clone<T> = { [K in keyof T]: T[K] };
-/// @generic.template source=declaration parameters=[T]
+/// @generic.template symbol=Clone parameters=[T]
 /// @type.symbol symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" type={ [K in keyof T]: T[K] }
 /// @definition.type symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" template=LocalGenericTemplateId(0) value={ [K in keyof T]: T[K] }
 /// @type.symbol symbol=Clone.T source=T type=T
@@ -99,7 +99,7 @@ type Actual = Loose<type { name: string; age: int32 }>;
 
 === checked ===
 type Loose<T> = { [K in keyof T]?: T[K] };
-/// @generic.template source=declaration parameters=[T]
+/// @generic.template symbol=Loose parameters=[T]
 /// @type.symbol symbol=Loose source="type Loose<T> = { [K in keyof T]?: T[K] }" type={ [K in keyof T]?: T[K] }
 /// @definition.type symbol=Loose source="type Loose<T> = { [K in keyof T]?: T[K] }" template=LocalGenericTemplateId(0) value={ [K in keyof T]?: T[K] }
 /// @type.symbol symbol=Loose.T source=T type=T
@@ -136,7 +136,7 @@ type Actual = Strict<type { readonly name?: string }>;
 
 === checked ===
 type Strict<T> = { -readonly [K in keyof T]-?: T[K] };
-/// @generic.template source=declaration parameters=[T]
+/// @generic.template symbol=Strict parameters=[T]
 /// @type.symbol symbol=Strict source="type Strict<T> = { -readonly [K in keyof T]-?: T[K] }" type={ -readonly[K in keyof T]-?: T[K] }
 /// @definition.type symbol=Strict source="type Strict<T> = { -readonly [K in keyof T]-?: T[K] }" template=LocalGenericTemplateId(0) value={ -readonly[K in keyof T]-?: T[K] }
 /// @type.symbol symbol=Strict.T source=T type=T
@@ -200,7 +200,7 @@ type Actual = WithoutSecret<type { name: string; secret: string }>;
 
 === checked ===
 type WithoutSecret<T> = { [K in keyof T as K extends "secret" ? never : K]: T[K] };
-/// @generic.template source=declaration parameters=[T]
+/// @generic.template symbol=WithoutSecret parameters=[T]
 /// @type.symbol symbol=WithoutSecret type={ [K in keyof T as K extends "secret" ? never : K]: T[K] }
 /// @definition.type symbol=WithoutSecret template=LocalGenericTemplateId(0) value={ [K in keyof T as K extends "secret" ? never : K]: T[K] }
 /// @type.symbol symbol=WithoutSecret.T source=T type=T

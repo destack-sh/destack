@@ -68,3 +68,38 @@ bytes[index] = 255;
 "#,
     );
 }
+
+#[test]
+fn test_dynamic_array_subscript_compound_pairs_index_and_index_set() {
+    let session = TestSession::single(
+        r#"
+declare const bytes: uint8[];
+declare const index: usize;
+bytes[index] += 1;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare const bytes: uint8[];
+declare const index: usize;
+bytes[index] += 1;
+
+=== checked ===
+declare const bytes: uint8[];
+/// @type.symbol symbol=bytes source=bytes type=Array<uint8>
+
+declare const index: usize;
+/// @type.symbol symbol=index source=index type=usize
+
+bytes[index] += 1;
+/// @resolution.name source=bytes target=bytes
+/// @resolution.call source="bytes[index] += 1" parameters=() return=uint8 kind=builtin builtin=binary.add
+/// @resolution.readwrite source=bytes[index] element=uint8 read=collections.array.index#9 write=collections.array.indexSet#4
+/// @resolution.name source=index target=index
+"#,
+    );
+}

@@ -17,9 +17,9 @@ const value: RegExp = /abc/;
 
 === checked ===
 const value: RegExp = /abc/;
-/// @type.symbol symbol=value source=value type=regexp.regexp.RegExp
+/// @type.symbol symbol=value source=value type=RegExp
 /// @resolution.name source=RegExp target=regexp.regexp.RegExp
-/// @type.node source=/abc/ type=regexp.regexp.RegExp
+/// @type.node source=/abc/ type=RegExp
 
 /// @check.stats.solve variables=0 types=2 constraints=1 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
@@ -44,7 +44,7 @@ const value: string = /abc/;
 === checked ===
 const value: string = /abc/;
 /// @type.symbol symbol=value source=value type=string
-/// @type.node source=/abc/ type=regexp.regexp.RegExp
+/// @type.node source=/abc/ type=RegExp
 
 /// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 
@@ -73,9 +73,9 @@ const value: RegExp | int32 = /abc/;
 
 === checked ===
 const value: RegExp | int32 = /abc/;
-/// @type.symbol symbol=value source=value type=regexp.regexp.RegExp | int32
+/// @type.symbol symbol=value source=value type=RegExp | int32
 /// @resolution.name source=RegExp target=regexp.regexp.RegExp
-/// @type.node source=/abc/ type=regexp.regexp.RegExp
+/// @type.node source=/abc/ type=RegExp
 
 /// @check.stats.solve variables=0 types=4 constraints=1 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
@@ -100,7 +100,7 @@ const value: boolean = /abc/;
 === checked ===
 const value: boolean = /abc/;
 /// @type.symbol symbol=value source=value type=boolean
-/// @type.node source=/abc/ type=regexp.regexp.RegExp
+/// @type.node source=/abc/ type=RegExp
 
 /// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 
