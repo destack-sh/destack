@@ -443,7 +443,7 @@ impl WalkState<'_, '_> {
         });
         self.check.insert_definition(symbol, source, definition)?;
 
-        // heritage rules check once the inherited surfaces close
+        // heritage rules check once the inherited members close
         self.oblige_class_heritage(source, symbol);
 
         // concrete classes need one fixed representation
@@ -607,7 +607,12 @@ impl WalkState<'_, '_> {
         // walk generic header
         let source = id.into_global_any(self.module);
         let induction = GenericInductionDeclaration::new(source, None, Some(symbol));
-        self.walk_generic_template(source, None, Some(symbol), &declaration.generic_parameters)?;
+        let template = self.walk_generic_template(
+            source,
+            None,
+            Some(symbol),
+            &declaration.generic_parameters,
+        )?;
         let mut where_clauses = Vec::new();
         for where_clause in &declaration.where_clauses {
             where_clauses.extend(self.walk_extension_where_clause(*where_clause)?);
@@ -654,6 +659,7 @@ impl WalkState<'_, '_> {
         let definition = dir::Definition::Extension(dir::Extension {
             symbol,
             form,
+            template: template.map(|template| template.local_id),
             target,
             implements,
             where_clauses,
@@ -791,8 +797,8 @@ impl WalkState<'_, '_> {
                 .module(self.module)
                 .declaration_symbol(id.into_any())
             {
-                let spelled = self.lower_static_predicate(value)?;
-                self.declare_symbol_value(symbol, spelled)?;
+                let written = self.lower_static_predicate(value)?;
+                self.declare_symbol_value(symbol, written)?;
             }
         }
 
@@ -1014,7 +1020,10 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // use explicit return annotations
         if let Some(return_type) = signature.return_type {
-            return Ok(Some(self.walk_type_expression(return_type)?));
+            let lowered = self.walk_type_expression(return_type)?;
+            self.bind_result_lifetimes(source, lowered, body.is_some())?;
+
+            return Ok(Some(lowered));
         }
 
         // skip ambient signatures
@@ -1024,6 +1033,36 @@ impl WalkState<'_, '_> {
 
         // open the inferred result
         Ok(Some(self.open_type(source)?))
+    }
+
+    /// Bind elided result lifetimes by the declaration's body.
+    /// NOTE #Suspicious: not entirely sure if bind_result_lifetimes is where we should be inducing?
+    fn bind_result_lifetimes(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        lowered: dir::GlobalTypeId,
+        has_body: bool,
+    ) -> CompilerResult<()> {
+        let mut reported = false;
+        for variable in self.check.type_variables(lowered)? {
+            let representative = self.check.variables.representative(variable)?;
+            let Some(recipe) = self.check.generics.induction(representative) else {
+                continue;
+            };
+            if recipe.induction != dir::GenericParameterInduction::Form {
+                continue;
+            }
+
+            if has_body {
+                self.check.generics.remove_induction(representative);
+            } else if !reported {
+                self.check
+                    .report_ambient_lifetime_elided(self.module, source);
+                reported = true;
+            }
+        }
+
+        Ok(())
     }
 
     /// Return one nominal declaration receiver scope.

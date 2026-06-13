@@ -49,14 +49,14 @@ impl WalkState<'_, '_> {
             self.walk_expression(value, self.tree.get(value))?;
         }
 
-        // bind annotated declarators to their spelled types directly
+        // bind annotated declarators to their written types directly
         if let Some(ty) = declarator.ty {
-            let spelled = self.walk_type_expression(ty)?;
-            self.declare_symbol_type(symbol, spelled)?;
+            let written = self.walk_type_expression(ty)?;
+            self.declare_symbol_type(symbol, written)?;
 
             // check initializers against explicit annotations
             if let Some(value) = declarator.value {
-                self.expect_assignable(value, spelled)?;
+                self.expect_assignable(value, written)?;
             }
 
             return Ok(());

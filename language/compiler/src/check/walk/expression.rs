@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{
     ConditionBranch, ConstraintCause, Decision, FlowBranch, FlowCheckpoint, GuardOutcome,
-    MatchCase, MatchObligation, Obligation, Origin, Place, PlaceObligation, PlaceTarget, Relation,
-    WalkState,
+    MatchCase, MatchObligation, Obligation, Origin, Place, PlaceAccess, PlaceObligation,
+    PlaceTarget, Relation, WalkState,
 };
 
 impl WalkState<'_, '_> {
@@ -408,7 +408,7 @@ impl WalkState<'_, '_> {
                 let properties = properties.iter().copied().collect::<SmallVec<[_; 4]>>();
                 let (fields, has_spread) = self.walk_literal_properties(&properties)?;
 
-                // spread surfaces merge at selection once they close
+                // spread sources merge at selection once they close
                 if has_spread {
                     self.node_type(id)?;
                     self.queue_select(id.into_global_any(self.module));
@@ -442,11 +442,11 @@ impl WalkState<'_, '_> {
                 let (fields, has_spread) = self.walk_literal_properties(&properties)?;
                 self.declare_node_type(id, target)?;
 
-                // spread surfaces merge at selection once they close
+                // spread sources merge at selection once they close
                 if has_spread {
                     self.queue_select(id.into_global_any(self.module));
                 }
-                // the written fields must fill the struct surface
+                // the written fields must fill the declared struct fields
                 else {
                     let shape = self.push_type(
                         dir::Type::Shape(dir::ShapeType {
@@ -569,6 +569,35 @@ impl WalkState<'_, '_> {
                     id.into_any(),
                 )?;
                 self.declare_node_type(id, boolean)?;
+            }
+            // value++, --value
+            dir::Expression::Unary {
+                operator:
+                    dir::UnaryOperator::PostIncrement
+                    | dir::UnaryOperator::PostDecrement
+                    | dir::UnaryOperator::PreIncrement
+                    | dir::UnaryOperator::PreDecrement,
+                right,
+            } => {
+                let right = *right;
+
+                // increments rewrite their place by one
+                self.walk_assignment_target(right, PlaceAccess::ReadWrite)?;
+                if let Some(place) = self.assignment_place(right, PlaceAccess::ReadWrite)? {
+                    // the place must accept writes
+                    let condition = self.active_static_guard();
+                    self.check
+                        .push_obligation(Obligation::Place(PlaceObligation { condition, place }));
+
+                    self.mark_place_assigned(place);
+                }
+
+                // increments invalidate narrowings under the target
+                self.clear_mutated_expression_narrowings(right);
+
+                // operator meaning resolves at selection
+                self.node_type(id)?;
+                self.queue_select(id.into_global_any(self.module));
             }
             // !value, -value
             dir::Expression::Unary { right, .. } => {
@@ -753,9 +782,13 @@ impl WalkState<'_, '_> {
                 self.walk_binary_expression(id, left, operator, right)?;
             }
             // target = value
-            dir::Expression::Assign { left, right, .. } => {
-                let (left, right) = (*left, *right);
-                self.walk_assign_expression(id, left, right)?;
+            dir::Expression::Assign {
+                left,
+                operator,
+                right,
+            } => {
+                let (left, operator, right) = (*left, *operator, *right);
+                self.walk_assign_expression(id, left, operator, right)?;
             }
         }
 
@@ -1721,18 +1754,77 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::AssignPattern>,
+        operator: dir::AssignOperator,
         right: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
         // walk the assigned value first
         self.walk_expression(right, self.tree.get(right))?;
         let value = self.node_type(right)?;
 
-        // flow the value into the assignment target
+        // compound assignments read their place before writing it
+        let access = match operator {
+            dir::AssignOperator::Assign => PlaceAccess::Write,
+            _ => PlaceAccess::ReadWrite,
+        };
         let value_node = right.into_global_any(self.module);
-        self.walk_assign_pattern(left, value, value_node)?;
+
+        // arithmetic compound assignments resolve their operator at
+        // selection and write its result back through the place
+        if operator.binary_operator().is_some()
+            && let dir::AssignPattern::Expression { value: target } = self.tree.get(left)
+        {
+            let target = *target;
+
+            return self.walk_compound_assignment(id, target, value_node, access);
+        }
+
+        // flow the value into the assignment target
+        self.walk_assign_pattern(left, value, value_node, access)?;
 
         // assignments evaluate to their written value
         self.declare_node_type(id, value)?;
+
+        Ok(())
+    }
+
+    /// Walk one arithmetic compound assignment target.
+    /// The assignment node carries the operator result, which must
+    /// write back into the place.
+    ///
+    /// Example:
+    /// ```ds
+    /// total += value
+    /// ```
+    fn walk_compound_assignment(
+        &mut self,
+        id: dir::LocalNodeId<dir::Expression>,
+        target: dir::LocalNodeId<dir::Expression>,
+        value_node: dir::GlobalNodeIdAny,
+        access: PlaceAccess,
+    ) -> CompilerResult<()> {
+        self.walk_assignment_target(target, access)?;
+
+        if let Some(place) = self.assignment_place(target, access)? {
+            // the operator result writes back through the place
+            let result = self.node_type(id)?;
+            self.queue_select(id.into_global_any(self.module));
+            self.relate_type(
+                Origin::Node(value_node),
+                Relation::Writable,
+                result,
+                place.ty,
+            );
+
+            // the place must accept writes
+            let condition = self.active_static_guard();
+            self.check
+                .push_obligation(Obligation::Place(PlaceObligation { condition, place }));
+
+            self.mark_place_assigned(place);
+        }
+
+        // assignments invalidate narrowings under the target
+        self.clear_mutated_expression_narrowings(target);
 
         Ok(())
     }
@@ -1846,14 +1938,15 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::AssignPattern>,
         value: dir::GlobalTypeId,
         value_node: dir::GlobalNodeIdAny,
+        access: PlaceAccess,
     ) -> CompilerResult<()> {
         match self.tree.get(id) {
             // x = value, obj.x = value
             dir::AssignPattern::Expression { value: target } => {
                 let target = *target;
-                self.walk_assignment_target(target)?;
+                self.walk_assignment_target(target, access)?;
 
-                if let Some(place) = self.assignment_place(target)? {
+                if let Some(place) = self.assignment_place(target, access)? {
                     // writes check against settled places; only bindings
                     // with no declared or initialized type infer from them
                     let relation = if self.place_infers_from_writes(&place) {
@@ -1882,7 +1975,7 @@ impl WalkState<'_, '_> {
             } => {
                 let (pattern, default) = (*pattern, *default);
                 self.walk_expression(default, self.tree.get(default))?;
-                self.walk_assign_pattern(pattern, value, value_node)?;
+                self.walk_assign_pattern(pattern, value, value_node, access)?;
             }
             // [a, , ...rest] = values, { x, y: z } = point
             dir::AssignPattern::Sequence { fields } | dir::AssignPattern::Object { fields } => {
@@ -1890,7 +1983,7 @@ impl WalkState<'_, '_> {
                 // TODO(check): project sequence and object components onto
                 // their assignment fields once assign selection lands.
                 for field in fields.clone() {
-                    self.walk_assign_pattern_field(field, value, value_node)?;
+                    self.walk_assign_pattern_field(field, value, value_node, access)?;
                 }
             }
         }
@@ -1904,6 +1997,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::AssignPatternField>,
         value: dir::GlobalTypeId,
         value_node: dir::GlobalNodeIdAny,
+        access: PlaceAccess,
     ) -> CompilerResult<()> {
         match self.tree.get(id) {
             dir::AssignPatternField::Named {
@@ -1911,18 +2005,18 @@ impl WalkState<'_, '_> {
                 ..
             } => {
                 let pattern = *pattern;
-                self.walk_assign_pattern(pattern, value, value_node)?;
+                self.walk_assign_pattern(pattern, value, value_node, access)?;
             }
             dir::AssignPatternField::Computed { pattern, .. }
             | dir::AssignPatternField::Positional { pattern } => {
                 let pattern = *pattern;
-                self.walk_assign_pattern(pattern, value, value_node)?;
+                self.walk_assign_pattern(pattern, value, value_node, access)?;
             }
             dir::AssignPatternField::Spread {
                 pattern: Some(pattern),
             } => {
                 let pattern = *pattern;
-                self.walk_assign_pattern(pattern, value, value_node)?;
+                self.walk_assign_pattern(pattern, value, value_node, access)?;
             }
             dir::AssignPatternField::Named { pattern: None, .. }
             | dir::AssignPatternField::Spread { pattern: None }

@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Decision, NameLookup, WalkState};
+use crate::check::{Decision, GenericInductionParameter, NameLookup, Origin, WalkState, Widening};
 
 impl WalkState<'_, '_> {
     /// Lower one annotation node to its working type.
@@ -44,21 +44,15 @@ impl WalkState<'_, '_> {
         match self.tree.get(id) {
             // (T)
             dir::TypeExpression::Parenthesized { expression } => {
-                let expression = *expression;
-
-                self.walk_type_expression(expression)
+                self.walk_type_expression(*expression)
             }
             // "ok", 42, true
             dir::TypeExpression::ScalarLiteral { value } => {
-                let value = *value;
-
-                self.push_type(dir::Type::Literal(value), source)
+                self.push_type(dir::Type::Literal(*value), source)
             }
             // never, any, null, number, ...
             dir::TypeExpression::Literal { value } => {
-                let value = value.clone();
-
-                self.push_type(dir::Type::from(value), source)
+                self.push_type(dir::Type::from(value.clone()), source)
             }
             // intrinsic markers validate at their declarations
             dir::TypeExpression::Intrinsic => self.push_type(dir::Type::Error, source),
@@ -85,23 +79,19 @@ impl WalkState<'_, '_> {
             }
             // T[]
             dir::TypeExpression::Array { element } => {
-                let element = *element;
-                let element = self.walk_type_expression(element)?;
-
+                let element = self.walk_type_expression(*element)?;
                 self.push_type(dir::Type::Array(dir::ArrayType { element }), source)
             }
             // [T]
             dir::TypeExpression::Slice { element } => {
-                let element = *element;
-                let element = self.walk_type_expression(element)?;
+                let element = self.walk_type_expression(*element)?;
 
                 self.push_type(dir::Type::Slice(dir::SliceType { element }), source)
             }
             // [T; N]
             dir::TypeExpression::FixedArray { element, length } => {
-                let (element, length) = (*element, *length);
-                let element = self.walk_type_expression(element)?;
-                let count = self.lower_static_predicate(length)?;
+                let element = self.walk_type_expression(*element)?;
+                let count = self.lower_static_predicate(*length)?;
 
                 self.push_type(
                     dir::Type::FixedArray(dir::FixedArrayType { element, count }),
@@ -145,12 +135,12 @@ impl WalkState<'_, '_> {
                 name,
                 generic_arguments,
             } => {
-                let (left, name) = (*left, *name);
+                let name = *name;
                 let generic_arguments = generic_arguments
                     .iter()
                     .copied()
                     .collect::<SmallVec<[_; 4]>>();
-                let owner = self.walk_type_expression(left)?;
+                let owner = self.walk_type_expression(*left)?;
                 let arguments = self.walk_generic_arguments(&generic_arguments)?;
                 let arguments = arguments.into_iter().map(|(_, ty)| ty).collect();
 
@@ -168,11 +158,7 @@ impl WalkState<'_, '_> {
                 start,
                 end,
                 end_kind,
-            } => {
-                let (start, end, end_kind) = (*start, *end, *end_kind);
-
-                self.lower_range_type(id, start, end, end_kind)
-            }
+            } => self.lower_range_type(id, *start, *end, *end_kind),
             // const outside `as const` positions
             dir::TypeExpression::Const => {
                 self.check.report_invalid_const_type(self.module, source);
@@ -183,8 +169,7 @@ impl WalkState<'_, '_> {
             dir::TypeExpression::This => self.push_type(dir::Type::This, source),
             // readonly T
             dir::TypeExpression::Readonly { target_type } => {
-                let target_type = *target_type;
-                let value = self.walk_type_expression(target_type)?;
+                let value = self.walk_type_expression(*target_type)?;
 
                 self.push_type(
                     dir::Type::Form(dir::FormType {
@@ -196,19 +181,14 @@ impl WalkState<'_, '_> {
             }
             // local T, shared T
             dir::TypeExpression::Local { target_type } => {
-                let target_type = *target_type;
-
-                self.lower_placed_type(id, target_type, dir::Space::Local)
+                self.lower_placed_type(id, *target_type, dir::Space::Local)
             }
             dir::TypeExpression::Shared { target_type } => {
-                let target_type = *target_type;
-
-                self.lower_placed_type(id, target_type, dir::Space::Shared)
+                self.lower_placed_type(id, *target_type, dir::Space::Shared)
             }
             // keyof T
             dir::TypeExpression::KeyOf { target_type } => {
-                let target_type = *target_type;
-                let target = self.walk_type_expression(target_type)?;
+                let target = self.walk_type_expression(*target_type)?;
 
                 self.push_type(
                     dir::Type::Operation(dir::TypeOperation::KeyOf(dir::UnaryType { target })),
@@ -216,9 +196,9 @@ impl WalkState<'_, '_> {
                 )
             }
             // typeof value
-            dir::TypeExpression::TypeOfValue { value } => {
-                let value = *value;
+            dir::TypeExpression::TypeOf { value } => {
                 // check the queried expression in declaration context
+                let value = *value;
                 let before_value = self.fork_flow();
                 self.walk_expression(value, self.tree.get(value))?;
                 self.restore_flow(before_value);
@@ -227,8 +207,7 @@ impl WalkState<'_, '_> {
             }
             // T! strips nullish members distributively
             dir::TypeExpression::Must { target_type } => {
-                let target_type = *target_type;
-                let target = self.walk_type_expression(target_type)?;
+                let target = self.walk_type_expression(*target_type)?;
                 let null = self.push_type(dir::Type::Null, source)?;
                 let undefined = self.push_type(dir::Type::Undefined, source)?;
                 let nullish = self.push_type(
@@ -252,8 +231,7 @@ impl WalkState<'_, '_> {
             }
             // !T
             dir::TypeExpression::Not { target_type } => {
-                let target_type = *target_type;
-                let target = self.walk_type_expression(target_type)?;
+                let target = self.walk_type_expression(*target_type)?;
 
                 self.push_type(
                     dir::Type::Operation(dir::TypeOperation::StaticUnary(dir::StaticUnaryType {
@@ -265,8 +243,7 @@ impl WalkState<'_, '_> {
             }
             // ^T
             dir::TypeExpression::OwnedOf { target_type, .. } => {
-                let target_type = *target_type;
-                let value = self.walk_type_expression(target_type)?;
+                let value = self.walk_type_expression(*target_type)?;
 
                 self.push_type(
                     dir::Type::Form(dir::FormType {
@@ -282,8 +259,7 @@ impl WalkState<'_, '_> {
                 target_type,
                 ..
             } => {
-                let (mutability, target_type) = (*mutability, *target_type);
-                let value = self.walk_type_expression(target_type)?;
+                let value = self.walk_type_expression(*target_type)?;
                 let access = mutability
                     .map(dir::Mutability::access)
                     .unwrap_or(dir::Access::Mutable);
@@ -292,8 +268,33 @@ impl WalkState<'_, '_> {
                     source,
                 )?;
                 // the open lifetime induces a hidden comptime parameter
-                // through the surrounding declaration's induction sites
+                //  through the surrounding declaration's induction sites
                 let lifetime = self.open_type(source)?;
+                if let Some(variable) = self.check.root_variable(lifetime)? {
+                    // constrain the induced parameter to the lifetime kind
+                    let constraint = match self
+                        .check
+                        .environment
+                        .language
+                        .symbol(dir::LanguageItem::Lifetime)
+                    {
+                        Some(symbol) => Some(self.push_type(
+                            dir::Type::Reference(dir::GenericInstance {
+                                symbol,
+                                arguments: Vec::new(),
+                            }),
+                            source,
+                        )?),
+                        None => None,
+                    };
+                    let recipe = GenericInductionParameter {
+                        prefix: "L",
+                        constraint,
+                        is_comptime: true,
+                        induction: dir::GenericParameterInduction::Form,
+                    };
+                    self.check.generics.insert_induction(variable, recipe)?;
+                }
 
                 self.push_type(
                     dir::Type::Form(dir::FormType {
@@ -305,8 +306,7 @@ impl WalkState<'_, '_> {
             }
             // *T
             dir::TypeExpression::PointerOf { target_type, .. } => {
-                let target_type = *target_type;
-                let value = self.walk_type_expression(target_type)?;
+                let value = self.walk_type_expression(*target_type)?;
 
                 self.push_type(
                     dir::Type::Form(dir::FormType {
@@ -349,9 +349,8 @@ impl WalkState<'_, '_> {
                 then_type,
                 else_type,
             } => {
-                let (left, extends_type, then_type, else_type) =
-                    (*left, *extends_type, *then_type, *else_type);
-                let left = self.walk_type_expression(left)?;
+                let (extends_type, then_type, else_type) = (*extends_type, *then_type, *else_type);
+                let left = self.walk_type_expression(*left)?;
                 // only naked parameter scrutinees distribute over unions
                 let is_distributive = match self.check.ty(left)? {
                     dir::Type::Parameter(_) => true,
@@ -383,9 +382,8 @@ impl WalkState<'_, '_> {
             // T extends U, T implements U
             dir::TypeExpression::Extends { left, right }
             | dir::TypeExpression::Implements { left, right } => {
-                let (left, right) = (*left, *right);
-                let left = self.walk_type_expression(left)?;
-                let right = self.walk_type_expression(right)?;
+                let left = self.walk_type_expression(*left)?;
+                let right = self.walk_type_expression(*right)?;
                 let then_type = self.push_type(
                     dir::Type::Literal(dir::ScalarLiteral::Boolean(true)),
                     source,
@@ -412,17 +410,11 @@ impl WalkState<'_, '_> {
                 readonly,
                 optional,
                 value,
-            } => {
-                let (parameter, readonly, optional, value) =
-                    (*parameter, *readonly, *optional, *value);
-
-                self.lower_mapped_type(id, parameter, readonly, optional, value)
-            }
+            } => self.lower_mapped_type(id, *parameter, *readonly, *optional, *value),
             // T[K]
             dir::TypeExpression::Index { left, index } => {
-                let (left, index) = (*left, *index);
-                let left = self.walk_type_expression(left)?;
-                let index = self.walk_type_expression(index)?;
+                let left = self.walk_type_expression(*left)?;
+                let index = self.walk_type_expression(*index)?;
 
                 self.push_type(
                     dir::Type::Operation(dir::TypeOperation::Index(dir::IndexType { left, index })),
@@ -457,8 +449,22 @@ impl WalkState<'_, '_> {
                 let (form, name, constraint) = (*form, *name, *constraint);
 
                 match form {
-                    // anonymous holes open fresh variables
-                    dir::InferForm::Hole => self.node_type_any(id.into_global_any(self.module)),
+                    // anonymous holes open fresh variables that widen
+                    dir::InferForm::Hole => {
+                        let node = id.into_global_any(self.module);
+                        if let Some(ty) = self.check.inputs.node_type(node) {
+                            return Ok(ty);
+                        }
+                        let variable = self.check.allocate_variable(
+                            self.module,
+                            Origin::Node(node),
+                            Widening::Widen,
+                        );
+                        let ty = self.check.push_variable_type(variable, source)?;
+                        self.check.inputs.set_node_type(node, ty)?;
+
+                        Ok(ty)
+                    }
                     // infer bindings stay symbolic for conditional probes
                     dir::InferForm::Infer => {
                         let constraint = match constraint {
@@ -579,8 +585,8 @@ impl WalkState<'_, '_> {
                     is_readonly,
                     ..
                 } => {
-                    let (key, declared_type, is_optional, is_readonly) =
-                        (*key, *declared_type, *is_optional, *is_readonly);
+                    let (declared_type, is_optional, is_readonly) =
+                        (*declared_type, *is_optional, *is_readonly);
                     let Some(key) = key.direct_static_key() else {
                         continue;
                     };
@@ -602,7 +608,7 @@ impl WalkState<'_, '_> {
                     is_optional,
                     ..
                 } => {
-                    let (key, signature, is_optional) = (*key, signature.clone(), *is_optional);
+                    let (signature, is_optional) = (signature.clone(), *is_optional);
                     let Some(key) = key.direct_static_key() else {
                         continue;
                     };
@@ -639,10 +645,9 @@ impl WalkState<'_, '_> {
                     is_optional,
                     is_readonly,
                 } => {
-                    let (name, key_type, value_type, is_optional, is_readonly) =
-                        (*name, *key_type, *value_type, *is_optional, *is_readonly);
-                    let key_type = self.walk_type_expression(key_type)?;
-                    let value_type = self.walk_type_expression(value_type)?;
+                    let (name, is_optional, is_readonly) = (*name, *is_optional, *is_readonly);
+                    let key_type = self.walk_type_expression(*key_type)?;
+                    let value_type = self.walk_type_expression(*value_type)?;
 
                     index_signatures.push(dir::TypeIndexSignature {
                         name,
@@ -680,9 +685,8 @@ impl WalkState<'_, '_> {
                 is_optional,
                 is_readonly,
             } => {
-                let (label, value, is_optional, is_readonly) =
-                    (*label, *value, *is_optional, *is_readonly);
-                let ty = self.walk_type_expression(value)?;
+                let (label, is_optional, is_readonly) = (*label, *is_optional, *is_readonly);
+                let ty = self.walk_type_expression(*value)?;
 
                 Ok(dir::TypeElement {
                     label,
@@ -704,8 +708,8 @@ impl WalkState<'_, '_> {
                 })
             }
             dir::TupleElement::Spread { label, value } => {
-                let (label, value) = (*label, *value);
-                let ty = self.walk_type_expression(value)?;
+                let label = *label;
+                let ty = self.walk_type_expression(*value)?;
 
                 Ok(dir::TypeElement {
                     label,

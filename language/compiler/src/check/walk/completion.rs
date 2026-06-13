@@ -36,6 +36,12 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
         match self.tree.get(id) {
+            // recovered targetless jumps complete as plain statements
+            dir::Expression::Break { .. } | dir::Expression::Continue { .. }
+                if self.flow().is_unbound_jump(id.into_any()) =>
+            {
+                true
+            }
             // return, break, continue, throw
             dir::Expression::Return { .. }
             | dir::Expression::Break { .. }
