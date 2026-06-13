@@ -1,17 +1,14 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactPayload,
-    ArtifactSidecar, ArtifactVersion, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
+    ArtifactKey, ArtifactSidecar, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
     DiagnosticError, DiagnosticLike,
 };
-use destack_repository::{ArtifactTracer, ProviderContext, ProviderError, Repository, Revision};
+use destack_repository::{ArtifactTracer, ProviderContext, Repository, Revision};
 use destack_source::{
     DiagnosticCollection, DiagnosticLabel, FileContentId, FileId, ModuleId, PackageId, Span,
 };
 use parking_lot::Mutex;
-
-use crate::SessionError;
 
 /// One artifact provider attempt owned by a session worker.
 #[derive(Debug)]
@@ -22,8 +19,6 @@ pub(crate) struct ProviderAttempt {
     pub(super) revision: Revision,
     /// The artifact key being built.
     key: ArtifactKey,
-    /// The exact dependencies read by this attempt.
-    dependencies: Mutex<Vec<ArtifactDependency>>,
     /// The diagnostics produced by this attempt.
     diagnostics: Mutex<DiagnosticCollection>,
     /// The sidecars produced by this attempt.
@@ -39,7 +34,6 @@ impl ProviderAttempt {
             repository,
             revision,
             key,
-            dependencies: Mutex::new(Vec::new()),
             diagnostics: Mutex::new(DiagnosticCollection::new()),
             sidecars: Mutex::new(Vec::new()),
             tracer: None,
@@ -63,71 +57,14 @@ impl ProviderAttempt {
         self.key
     }
 
-    /// Complete this attempt with its ready payload.
-    pub(crate) fn complete_ready(
-        &self,
-        payload: ArtifactPayload,
-    ) -> Result<ArtifactVersion, SessionError> {
-        let dependencies = self.dependencies();
-        let diagnostics = self.diagnostics();
-        let sidecars = self.sidecars();
-        let version = ArtifactVersion::new(self.key, dependencies.iter().cloned());
-
-        self.repository.complete_artifact(
-            self.revision,
-            version,
-            payload,
-            dependencies,
-            diagnostics,
-            sidecars,
-        )?;
-
-        Ok(version)
-    }
-
-    /// Complete this attempt with a provider failure.
-    pub(crate) fn complete_failed(
-        &self,
-        failure: ArtifactFailure,
-    ) -> Result<ArtifactVersion, SessionError> {
-        let dependencies = self.dependencies();
-        let diagnostics = self.diagnostics();
-        let sidecars = self.sidecars();
-        let version = ArtifactVersion::new(self.key, dependencies.iter().cloned());
-
-        self.repository.fail_artifact(
-            self.revision,
-            version,
-            dependencies,
-            diagnostics,
-            sidecars,
-            failure,
-        )?;
-
-        Ok(version)
-    }
-
-    /// Return the exact dependencies read by this attempt.
-    fn dependencies(&self) -> Vec<ArtifactDependency> {
-        self.dependencies.lock().clone()
-    }
-
     /// Return diagnostics produced by this attempt.
-    fn diagnostics(&self) -> DiagnosticCollection {
+    pub(super) fn diagnostics(&self) -> DiagnosticCollection {
         self.diagnostics.lock().clone()
     }
 
     /// Return sidecars produced by this attempt.
-    fn sidecars(&self) -> Vec<ArtifactSidecar> {
+    pub(super) fn sidecars(&self) -> Vec<ArtifactSidecar> {
         self.sidecars.lock().clone()
-    }
-
-    /// Add one dependency if it has not already been added.
-    fn add_dependency(&self, dependency: ArtifactDependency) {
-        let mut dependencies = self.dependencies.lock();
-        if !dependencies.contains(&dependency) {
-            dependencies.push(dependency);
-        }
     }
 
     /// Build one invalid diagnostic anchor error.
@@ -304,96 +241,6 @@ impl ProviderContext for ProviderAttempt {
     /// Return the artifact key being built.
     fn artifact_key(&self) -> ArtifactKey {
         self.key
-    }
-
-    /// Require one artifact and return its exact version when ready.
-    fn require(&self, key: ArtifactKey) -> Result<ArtifactVersion, ProviderError> {
-        if key == self.key {
-            return Err(ProviderError::RequirementFailed { key });
-        }
-
-        let version = self
-            .repository
-            .artifact_version(self.revision, &key)
-            .map_err(|error| ProviderError::Internal {
-                message: format!("failed to read required artifact version: {error}"),
-            })?;
-        let Some(version) = version else {
-            return Err(ProviderError::blocked(key));
-        };
-
-        match self.repository.artifact_store().outcome(&version) {
-            Some(ArtifactOutcome::Ok) => {}
-            Some(ArtifactOutcome::Failed(_)) => {
-                self.add_dependency(ArtifactDependency::artifact(version));
-
-                return Err(ProviderError::RequirementFailed { key });
-            }
-            None => return Err(ProviderError::blocked(key)),
-        }
-
-        self.add_dependency(ArtifactDependency::artifact(version));
-
-        Ok(version)
-    }
-
-    /// Require many artifacts and return their exact versions when ready.
-    fn require_all(&self, keys: &[ArtifactKey]) -> Result<Vec<ArtifactVersion>, ProviderError> {
-        let mut blocked = Vec::new();
-        let mut versions = Vec::with_capacity(keys.len());
-
-        // scan the full dependency batch
-        for key in keys {
-            // reject direct cycles
-            if *key == self.key {
-                return Err(ProviderError::RequirementFailed { key: *key });
-            }
-
-            // read the version bound to this revision
-            let version = self
-                .repository
-                .artifact_version(self.revision, key)
-                .map_err(|error| ProviderError::Internal {
-                    message: format!("failed to read required artifact version: {error}"),
-                })?;
-
-            // queue unresolved artifacts
-            let Some(version) = version else {
-                blocked.push(*key);
-                continue;
-            };
-
-            // inspect the required artifact outcome
-            match self.repository.artifact_store().outcome(&version) {
-                Some(ArtifactOutcome::Ok) => {
-                    self.add_dependency(ArtifactDependency::artifact(version));
-                    versions.push(version);
-                }
-                Some(ArtifactOutcome::Failed(_)) => {
-                    self.add_dependency(ArtifactDependency::artifact(version));
-
-                    return Err(ProviderError::RequirementFailed { key: *key });
-                }
-                None => {
-                    blocked.push(*key);
-                }
-            }
-        }
-
-        // return the full blocked set together
-        if !blocked.is_empty() {
-            blocked.sort();
-            blocked.dedup();
-
-            return Err(ProviderError::blocked_many(blocked));
-        }
-
-        Ok(versions)
-    }
-
-    /// Add one exact dependency read by this attempt.
-    fn track(&self, dependency: ArtifactDependency) {
-        self.add_dependency(dependency);
     }
 
     /// Add an already-final diagnostic collection produced by this attempt.

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactPayload, DirParsed, DirParsedFile};
+use destack_artifact::{ArtifactDependencySet, ArtifactPayload, DirParsed, DirParsedFile};
 use destack_dir as dir;
 use destack_parser::{Parser, ParserOptions};
 use destack_repository::{Module, ModuleFile, ProviderContext};
@@ -9,6 +9,31 @@ use destack_source::{File, LanguageType, ModuleId, Span};
 use crate::{ProviderAttempt, SessionError, SessionState};
 
 impl SessionState {
+    /// Collect the source closure for one parsed DIR artifact.
+    pub(crate) fn collect_dir_parsed(
+        &self,
+        module_id: ModuleId,
+        attempt: &ProviderAttempt,
+    ) -> Result<ArtifactDependencySet, SessionError> {
+        let revision = attempt.revision();
+        let module = self
+            .repository()
+            .module(revision, module_id)?
+            .ok_or(SessionError::ModuleNotTracked { module_id })?;
+        let mut dependencies = ArtifactDependencySet::default();
+
+        // code modules observe every contributing source file
+        if module.loader.is_code() {
+            for module_file in &module.files {
+                self.observe_source(revision, module_file.file_id, &mut dependencies)?;
+            }
+        } else {
+            self.observe_source(revision, module.file_id, &mut dependencies)?;
+        }
+
+        Ok(dependencies)
+    }
+
     /// Provide one parsed DIR artifact through the selected loader.
     pub(crate) fn provide_dir_parsed(
         &self,
@@ -25,12 +50,12 @@ impl SessionState {
         let dir = if module.loader.is_code() {
             self.parse_code_dir(module.as_ref(), module_id, attempt)?
         } else {
-            let file = self.source_file(revision, module.file_id, attempt)?;
+            let file = self.source_file(revision, module.file_id)?;
 
             Self::make_empty_dir(file.as_ref(), module_id)
         };
 
-        Ok(ArtifactPayload::DirParsed(dir))
+        Ok(ArtifactPayload::DirParsed(Arc::new(dir)))
     }
 
     /// Build one empty parsed DIR for non-code source.
@@ -66,7 +91,7 @@ impl SessionState {
 
         // parse contributing source files into one module tree
         for module_file in &module.files {
-            let file = self.source_file(attempt.revision(), module_file.file_id, attempt)?;
+            let file = self.source_file(attempt.revision(), module_file.file_id)?;
             let parsed_file = self.parse_code_file(file, module_file, &mut tree, attempt)?;
 
             files.push(parsed_file);
