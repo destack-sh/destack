@@ -1,7 +1,7 @@
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependency, ArtifactPathState};
+use destack_artifact::{ArtifactDependencySet, ArtifactPathState, SourceDependency};
 use destack_repository::{
     CompilerOptions, DestackFile, Module, Package, Profile, ProviderContext, Revision, Target,
 };
@@ -45,26 +45,22 @@ impl Compiler {
             })
     }
 
-    /// Return one file from one provider attempt revision and record its content dependency.
+    /// Return one file from one provider attempt revision.
     pub(crate) fn file(
         &self,
         context: &dyn ProviderContext,
         file_id: FileId,
     ) -> CompilerResult<Arc<File>> {
         let revision = context.revision();
-        let file = self
-            .repository
+
+        self.repository
             .file(revision, file_id)
             .map_err(|error| CompilerError::Internal {
                 message: format!("failed to load file {file_id:?}: {error}"),
             })?
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("missing file for {file_id:?}"),
-            })?;
-
-        self.track_file_content(context, file_id)?;
-
-        Ok(file)
+            })
     }
 
     /// Return one package from one repository revision.
@@ -97,14 +93,42 @@ impl Compiler {
                 message: format!("failed to load package config {package_id:?}: {error}"),
             })?;
 
-        // track every declaration that built the effective config
-        if let Some(config) = config.as_ref() {
-            for file_id in &config.file_ids {
-                self.track_file_content(context, *file_id)?;
-            }
+        Ok(config)
+    }
+
+    /// Observe one package's config declaration files as source dependencies.
+    pub(crate) fn observe_package_config(
+        &self,
+        context: &dyn ProviderContext,
+        package_id: PackageId,
+        dependencies: &mut ArtifactDependencySet,
+    ) -> CompilerResult<()> {
+        let Some(config) = self.destack_for_package(context, package_id)? else {
+            return Ok(());
+        };
+
+        // every declaration that built the effective config feeds the fingerprint
+        for file_id in &config.file_ids {
+            let content = self
+                .repository
+                .file_content_id(context.revision(), *file_id)
+                .map_err(|error| CompilerError::Internal {
+                    message: format!(
+                        "failed to load config file content id for {file_id:?}: {error}"
+                    ),
+                })?
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("missing config file content id for {file_id:?}"),
+                })?;
+
+            dependencies.observe(SourceDependency::path_state(
+                *file_id,
+                ArtifactPathState::File,
+            ));
+            dependencies.observe(SourceDependency::file_content(*file_id, content));
         }
 
-        Ok(config)
+        Ok(())
     }
 
     /// Return workspace compiler options for one module.
@@ -122,47 +146,20 @@ impl Compiler {
         Ok(options)
     }
 
-    /// Record one source file content dependency.
-    pub(crate) fn track_file_content(
-        &self,
-        context: &dyn ProviderContext,
-        file_id: FileId,
-    ) -> CompilerResult<()> {
-        let revision = context.revision();
-        let content_id = self
-            .repository
-            .file_content_id(revision, file_id)
-            .map_err(|error| CompilerError::Internal {
-                message: format!("failed to load file content id for {file_id:?}: {error}"),
-            })?
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("missing file content id for {file_id:?}"),
-            })?;
-
-        context.track(ArtifactDependency::path_state(
-            file_id,
-            ArtifactPathState::File,
-        ));
-        context.track(ArtifactDependency::file_content(file_id, content_id));
-
-        Ok(())
-    }
-
-    /// Return one target or built-in and record its source config dependencies.
+    /// Return one target or built-in.
+    ///
+    /// Callers that resolve a target declare its package config separately
+    /// through [`Self::observe_package_config`], so this only reads the target.
     pub(crate) fn target_or_builtin(
         &self,
         context: &dyn ProviderContext,
         target_id: TargetId,
     ) -> CompilerResult<Option<Target>> {
-        let _config = self.destack_for_package(context, target_id.package_id())?;
-        let target = self
-            .repository
+        self.repository
             .target_or_builtin(context.revision(), target_id)
             .map_err(|error| CompilerError::Internal {
                 message: format!("failed to load target {target_id:?}: {error}"),
-            })?;
-
-        Ok(target)
+            })
     }
 
     /// Return one target name from the repository model.

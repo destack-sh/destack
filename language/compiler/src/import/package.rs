@@ -1,5 +1,5 @@
 use destack_artifact::{
-    ConditionSet, DependencyIndex, ExportIndex, ExportPattern, ExportTarget, PackageImportIndex,
+    ConditionSet, ExportIndex, ExportPattern, ExportTarget, PackageImportIndex, PackageIndex,
 };
 use destack_repository::{ExportKind, Package, Revision};
 use destack_source::{PackageId, ProfileId};
@@ -8,19 +8,19 @@ use crate::{Compiler, CompilerError, CompilerResult};
 
 impl Compiler {
     /// Build the active dependency index for one profile.
-    pub(in crate::import) fn build_dependency_index(
+    pub(in crate::import) fn build_package_index(
         &self,
         revision: Revision,
         profile: ProfileId,
         conditions: &ConditionSet,
-    ) -> CompilerResult<DependencyIndex> {
+    ) -> CompilerResult<PackageIndex> {
         let package_ids =
             self.repository
                 .package_ids(revision)
                 .map_err(|error| CompilerError::Internal {
                     message: format!("failed to load package ids: {error}"),
                 })?;
-        let mut index = DependencyIndex {
+        let mut index = PackageIndex {
             profile,
             packages: indexmap::IndexMap::new(),
         };

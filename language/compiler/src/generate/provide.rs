@@ -1,11 +1,37 @@
-use crate::{Compiler, CompilerError, CompilerResult, GenerateError};
-use destack_artifact::ArtifactPayload;
+use crate::{Compiler, CompilerResult, GenerateError};
+use destack_artifact::{ArtifactDependencySet, ArtifactPayload};
 use destack_repository::ProviderContext;
+use std::sync::Arc;
 
 use destack_repository::ProfileId;
 use destack_source::{ModuleId, TargetId};
 
 impl Compiler {
+    /// Collect inputs for one module output.
+    pub(crate) fn collect_module_output(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+        target: TargetId,
+        context: &dyn ProviderContext,
+    ) -> CompilerResult<ArtifactDependencySet> {
+        // the generation input depends on the resolved target pipeline
+        let target_config =
+            self.target_or_builtin(context, target)?
+                .ok_or_else(|| GenerateError::Internal {
+                    anchor: module.into(),
+                    module,
+                    message: format!("target '{target}' not found"),
+                })?;
+        let input = self.module_output_input(module, profile, &target, &target_config)?;
+
+        let mut dependencies = ArtifactDependencySet::default();
+        dependencies.require(input);
+        self.observe_package_config(context, target.package_id(), &mut dependencies)?;
+
+        Ok(dependencies)
+    }
+
     /// Build one module output.
     pub(crate) fn provide_module_output(
         &self,
@@ -35,12 +61,8 @@ impl Compiler {
             .into());
         }
 
-        // require selected generation input
-        let artifacts = self.artifact_reader(context);
-        let input = self.module_output_input(module, profile, &target, &target_config)?;
-        artifacts.require(input).map_err(CompilerError::from)?;
-
-        // generate output from the required input
+        // generate output from the declared input
+        let artifacts = self.artifact_reader(context.revision());
         let output = self.generate_target_module_output(
             module,
             profile,
@@ -51,6 +73,6 @@ impl Compiler {
             &artifacts,
         )?;
 
-        Ok(ArtifactPayload::ModuleOutput(output))
+        Ok(ArtifactPayload::ModuleOutput(Arc::new(output)))
     }
 }

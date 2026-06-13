@@ -1,7 +1,7 @@
 use std::collections::{HashSet, VecDeque};
 
 use crate::generate::js::DependencyForm;
-use destack_artifact::{ArtifactKey, ModuleOutput};
+use destack_artifact::{ArtifactDependencySet, ArtifactKey, ModuleOutput};
 use destack_repository::ProviderError;
 use destack_source::ModuleId;
 use indexmap::IndexSet;
@@ -175,17 +175,31 @@ impl<'a> JsLinker<'a> {
         Ok(())
     }
 
-    /// Require all generated JS outputs needed to link one target.
-    pub(crate) fn require_module_artifacts(
+    /// Declare every artifact needed to link one target's JS closure.
+    ///
+    /// The bundled traversal only widens through modules whose generated
+    /// output is ready, so re-collecting reaches deeper bundles in turn.
+    pub(crate) fn collect_modules(
         &self,
         root_modules: &[ModuleId],
+        dependencies: &mut ArtifactDependencySet,
+    ) -> CompilerResult<()> {
+        self.plan_modules(root_modules, dependencies)?;
+
+        Ok(())
+    }
+
+    /// Return the linked module closure, declaring each artifact it reads.
+    fn plan_modules(
+        &self,
+        root_modules: &[ModuleId],
+        dependencies: &mut ArtifactDependencySet,
     ) -> CompilerResult<Vec<ModuleId>> {
-        let mut blocked = Vec::new();
         let mut required_modules = Vec::new();
         let mut queued_modules = HashSet::new();
         let mut pending_modules = root_modules.iter().copied().collect::<VecDeque<_>>();
 
-        // require root modules and their bundled reachable closure
+        // walk root modules and their bundled reachable closure
         while let Some(module_id) = pending_modules.pop_front() {
             if !queued_modules.insert(module_id) {
                 continue;
@@ -195,60 +209,29 @@ impl<'a> JsLinker<'a> {
             let module = self.module(module_id)?;
             let profile_id = self.profile_id_for_module(module_id)?;
 
-            // resource modules are linked directly from patched module state
+            // resource modules link directly from patched module state
             if !module.is_code() {
-                match self
-                    .artifacts
-                    .require(ArtifactKey::dir_checked(module_id, profile_id))
-                {
-                    Ok(_) => {}
-                    Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
-                    Err(error) => return Err(CompilerError::from(error)),
-                }
+                dependencies.require(ArtifactKey::dir_checked(module_id, profile_id));
                 required_modules.push(module_id);
                 continue;
             }
 
-            let is_output_ready = match self
-                .artifacts
-                .require(ArtifactKey::module_output(module_id, *self.target_id))
-            {
-                Ok(_) => true,
-                Err(ProviderError::Blocked { keys }) => {
-                    blocked.extend(keys);
-
-                    false
-                }
-                Err(error) => return Err(CompilerError::from(error)),
-            };
-
-            // linked output rewriting and identifier minification still consult
-            // the patched dir for source backed code modules
-            match self
-                .artifacts
-                .require(ArtifactKey::dir_checked(module_id, profile_id))
-            {
-                Ok(_) => {}
-                Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
-                Err(error) => return Err(CompilerError::from(error)),
-            }
-
+            // code modules link from generated output and the checked dir
+            let output_key = ArtifactKey::module_output(module_id, *self.target_id);
+            dependencies.require(output_key);
+            dependencies.require(ArtifactKey::dir_checked(module_id, profile_id));
             required_modules.push(module_id);
 
-            // only traverse bundled dependencies after the generated output exists
-            if !is_output_ready {
-                continue;
+            // the bundle closure is revealed once the generated output is built
+            match self.artifacts.module_output(module_id, *self.target_id) {
+                Ok(_) => {}
+                Err(ProviderError::Blocked { .. }) => continue,
+                Err(error) => return Err(CompilerError::from(error)),
             }
 
-            let requirements = self.bundled_static_dependency_exports(module_id)?;
-            if !requirements.is_empty() {
-                match self.artifacts.require_all(&requirements) {
-                    Ok(_) => {}
-                    Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
-                    Err(error) => return Err(CompilerError::from(error)),
-                }
+            for key in self.bundled_static_dependency_exports(module_id)? {
+                dependencies.require(key);
             }
-
             for dependency_id in self
                 .bundled_script_dependency_modules(module_id)
                 .map_err(CompilerError::from)?
@@ -257,11 +240,6 @@ impl<'a> JsLinker<'a> {
                     pending_modules.push_back(dependency_id);
                 }
             }
-        }
-
-        // block while required generated outputs are still pending
-        if !blocked.is_empty() {
-            return Err(CompilerError::Blocked { keys: blocked });
         }
 
         Ok(required_modules)
@@ -349,7 +327,8 @@ impl<'a> JsLinker<'a> {
         let script_module_id_set = if script_root_modules.is_empty() {
             Vec::new()
         } else {
-            self.require_module_artifacts(&script_root_modules)?
+            let mut declared = ArtifactDependencySet::default();
+            self.plan_modules(&script_root_modules, &mut declared)?
         };
         let module_set = if script_module_id_set.is_empty() {
             super::ModuleSet::default()

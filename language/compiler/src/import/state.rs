@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{ConditionSet, DependencyIndex, DiagnosticAnchor, DirImported, ProfileKey};
+use destack_artifact::{ConditionSet, DiagnosticAnchor, DirImported, PackageIndex, ProfileKey};
 use destack_core::{StringPool, closest_string};
 use destack_dir as dir;
 use destack_repository::{Module, Revision};
@@ -19,7 +19,7 @@ pub(crate) struct ImportState<'a> {
     /// The current module.
     pub(in crate::import) module: &'a Module,
     /// The active package dependency index.
-    pub(in crate::import) index: &'a DependencyIndex,
+    pub(in crate::import) index: &'a PackageIndex,
     /// The active profile key.
     pub(in crate::import) profile: &'a ProfileKey,
     /// The active profile conditions.
@@ -41,7 +41,7 @@ impl<'a> ImportState<'a> {
     pub(crate) fn new(
         revision: Revision,
         module: &'a Module,
-        index: &'a DependencyIndex,
+        index: &'a PackageIndex,
         profile: &'a ProfileKey,
         conditions: &'a ConditionSet,
         strings: &'a StringPool,
