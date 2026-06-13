@@ -102,7 +102,7 @@ match extracted {
 - As a corollary, failing tests do not _always_ mean that the new code is wrong, the tests might also be wrong. That said, tests and expectations should never be silently changed without explicit prior discussion and agreement.
 - Every noun, verb, type, variant, field, line, .. must be earned. The final model should capture the essential complexity of the problem in its most pristine form, nothing more, nothing less.
 - Bloat is deadly, and often we only realise something was bloated as we get further along and the true shape of the problem reveals itself (hence, refactor as we go)
-- Almost never introduce "transitional" or "for now" logic, we always want the final ideal shape, nothing in between.
+- Never introduce "transitional" or "for now" logic, we always want the final ideal shape, nothing in between (unless explicitly requested).
 - In general, it is quite often better to break / change the source directly and then let the compiler guide us to all usage sites.
 
 ### Comments
