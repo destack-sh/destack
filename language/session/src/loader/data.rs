@@ -1,9 +1,27 @@
-use destack_artifact::{ArtifactPayload, Data};
+use destack_artifact::{ArtifactDependencySet, ArtifactPayload, Data};
 use destack_source::{File, FileId, FileType, ModuleId, Span};
+use std::sync::Arc;
 
 use crate::{ProviderAttempt, SessionError, SessionState};
 
 impl SessionState {
+    /// Collect the source closure for one data artifact.
+    pub(crate) fn collect_data(
+        &self,
+        module_id: ModuleId,
+        attempt: &ProviderAttempt,
+    ) -> Result<ArtifactDependencySet, SessionError> {
+        let revision = attempt.revision();
+        let module = self
+            .repository()
+            .module(revision, module_id)?
+            .ok_or(SessionError::ModuleNotTracked { module_id })?;
+        let mut dependencies = ArtifactDependencySet::default();
+        self.observe_source(revision, module.file_id, &mut dependencies)?;
+
+        Ok(dependencies)
+    }
+
     /// Provide one data artifact through the selected loader.
     pub(crate) fn provide_data(
         &self,
@@ -15,7 +33,7 @@ impl SessionState {
             .repository()
             .module(revision, module_id)?
             .ok_or(SessionError::ModuleNotTracked { module_id })?;
-        let file = self.source_file(revision, module.file_id, attempt)?;
+        let file = self.source_file(revision, module.file_id)?;
         let data = match file.ty {
             FileType::Json => {
                 let value = Self::parse_json_value(file.as_ref())?;
@@ -36,7 +54,7 @@ impl SessionState {
             }
         };
 
-        Ok(ArtifactPayload::Data(data))
+        Ok(ArtifactPayload::Data(Arc::new(data)))
     }
 
     /// Parse JSON content into a JSON value.

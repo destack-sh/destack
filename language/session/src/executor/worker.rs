@@ -1,7 +1,13 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactProvider};
-use destack_repository::{ProviderError, ProviderResult, TraceOutcome};
+use destack_artifact::{
+    ArtifactDependency, ArtifactDependencySet, ArtifactFailure, ArtifactPayload, ArtifactProvider,
+    ArtifactVersion,
+};
+use destack_repository::{
+    Collected, Collector, ProviderError, ProviderResult, Revision, TraceOutcome,
+};
+use destack_source::DiagnosticCollection;
 
 use super::attempt::ProviderAttempt;
 use super::run::{Run, RunId};
@@ -20,6 +26,27 @@ pub(super) struct Worker {
     pub(super) scheduler: Arc<Scheduler>,
 }
 
+impl Collector for SessionState {
+    /// Collect the dependency closure for the system that owns one key.
+    fn collect(
+        &self,
+        revision: Revision,
+        key: destack_artifact::ArtifactKey,
+    ) -> ProviderResult<ArtifactDependencySet> {
+        let attempt = ProviderAttempt::new(self.repository(), revision, key);
+
+        match key.provider() {
+            ArtifactProvider::Loader => self
+                .collect_loader(&attempt)
+                .map_err(|error| ProviderError::internal(error.to_string()).into()),
+            ArtifactProvider::Compiler => self.compiler().collect(&attempt),
+            ArtifactProvider::Linter => self.linter().collect(&attempt),
+            ArtifactProvider::Query => self.query().collect(&attempt),
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 impl Worker {
     /// Drive the shared scheduler until the executor shuts down.
     pub(super) fn run(&self) {
@@ -60,104 +87,85 @@ impl Worker {
             artifact_key: task.key,
         });
 
-        // call the provider with one concrete, traced attempt
+        let repository = self.session.repository();
+
+        // freeze the dependency closure through the shared engine
+        let collected = repository
+            .collect_closure(self.session.as_ref(), task.revision, task.key)
+            .map_err(|error| SessionError::Internal {
+                detail: format!("failed to collect artifact {:?}: {error}", task.key),
+            })?;
+        let (dependencies, failed) = match collected {
+            Collected::Waiting { frontier, .. } => {
+                let frontier = frontier
+                    .into_iter()
+                    .map(|key| Task::new(task.revision, key))
+                    .collect();
+
+                return self.wait_on(run.id(), task, frontier);
+            }
+            Collected::Frozen {
+                dependencies,
+                failed,
+            } => (dependencies, failed),
+        };
+
+        // the version is fixed by the frozen closure before any provider runs
+        let version = ArtifactVersion::new(task.key, dependencies.iter().cloned());
+
+        // fails this artifact immediately on a poisoned dependency
+        if let Some(failed_dependency) = failed {
+            return self.fail(
+                run.id(),
+                task,
+                version,
+                dependencies,
+                DiagnosticCollection::new(),
+                Vec::new(),
+                ArtifactFailure::requirement(failed_dependency),
+            );
+        }
+
+        // reuse a committed payload when the closure already produced this version
+        if repository.artifact_store().outcome(&version).is_some() {
+            repository
+                .bind_artifact(task.revision, version)
+                .map_err(|error| SessionError::Internal {
+                    detail: format!("failed to bind reused artifact {:?}: {error}", task.key),
+                })?;
+
+            return self.finish_ready(run.id(), task);
+        }
+
+        // run the provider exactly once over the frozen closure
         let tracer = Arc::new(run.trace().begin(task.key, self.index));
-        let attempt = ProviderAttempt::new(self.session.repository(), task.revision, task.key)
+        let attempt = ProviderAttempt::new(repository, task.revision, task.key)
             .with_tracer(Arc::clone(&tracer));
         let result = self.call_provider(&attempt);
         let outcome = match &result {
             Ok(_) => TraceOutcome::Ready,
-            Err(error) if matches!(**error, ProviderError::Blocked { .. }) => TraceOutcome::Blocked,
             Err(_) => TraceOutcome::Failed,
         };
         tracer.finish(outcome);
 
-        self.handle_provider_result(&attempt, run.id(), task, result)
+        self.complete(&attempt, run.id(), task, version, dependencies, result)
     }
 
-    /// Route one provider result back into the scheduler.
-    fn handle_provider_result(
-        &self,
-        attempt: &ProviderAttempt,
-        run: RunId,
-        task: Task,
-        result: ProviderResult<ArtifactPayload>,
-    ) -> Result<(), SessionError> {
-        match result {
-            Ok(payload) => self.complete_ready(attempt, run, task, payload),
-            Err(error) => match *error {
-                ProviderError::Blocked { keys } => {
-                    self.wait_on_dependencies(attempt, run, task, keys)
-                }
-                ProviderError::RequirementFailed { key } => {
-                    self.fail_task(attempt, run, task, ArtifactFailure::requirement(key))
-                }
-                ProviderError::Corrupt { version } => {
-                    self.fail_task(attempt, run, task, ArtifactFailure::corrupt(version))?;
+    /// Park one task until its unready dependency frontier becomes terminal.
+    fn wait_on(&self, run: RunId, task: Task, frontier: Vec<Task>) -> Result<(), SessionError> {
+        let result = self.scheduler.wait_on(task, run, frontier);
 
-                    Err(SessionError::Internal {
-                        detail: format!(
-                            "failed to provide artifact {:?}: corrupt required artifact: {version:?}",
-                            task.key
-                        ),
-                    })
-                }
-                ProviderError::Failed { failure } => self.fail_task(attempt, run, task, failure),
-                ProviderError::Internal { message } => {
-                    let detail = format!("failed to provide artifact {:?}: {message}", task.key);
-
-                    self.fail_task(attempt, run, task, ArtifactFailure::internal(message))?;
-
-                    Err(SessionError::Internal { detail })
-                }
-            },
-        }
-    }
-
-    /// Put one task to sleep until its dependency artifacts become terminal.
-    fn wait_on_dependencies(
-        &self,
-        attempt: &ProviderAttempt,
-        run: RunId,
-        task: Task,
-        keys: Vec<ArtifactKey>,
-    ) -> Result<(), SessionError> {
-        if keys.is_empty() {
-            let error = SessionError::Internal {
-                detail: format!(
-                    "artifact provider blocked without dependencies: {:?}",
-                    task.key
-                ),
-            };
-
-            self.fail_task(
-                attempt,
-                run,
-                task,
-                ArtifactFailure::internal(error.to_string()),
-            )?;
-
-            return Err(error);
-        }
-
-        let mut dependencies = Vec::new();
-
-        // filter already terminal dependencies
-        for key in keys {
-            let dependency = Task::new(task.revision, key);
-            if self.session.artifact_outcome(dependency)?.is_none() {
-                dependencies.push(dependency);
-            }
-        }
-
-        let result = self.scheduler.wait_on(task, run, dependencies);
-
-        // record scheduler rejected waits as artifact failures
+        // a rejected wait records the artifact as failed so waiters cannot stall
         if let Err(error) = result {
-            self.fail_task(
-                attempt,
+            let version = ArtifactVersion::new(task.key, Vec::new());
+
+            self.fail(
                 run,
                 task,
+                version,
+                Vec::new(),
+                DiagnosticCollection::new(),
+                Vec::new(),
                 ArtifactFailure::internal(error.to_string()),
             )?;
 
@@ -167,46 +175,149 @@ impl Worker {
         Ok(())
     }
 
-    /// Complete one ready task and make its terminal state visible.
-    fn complete_ready(
+    /// Complete one task from its provider result.
+    fn complete(
         &self,
         attempt: &ProviderAttempt,
         run: RunId,
         task: Task,
-        payload: ArtifactPayload,
+        version: ArtifactVersion,
+        dependencies: Vec<ArtifactDependency>,
+        result: ProviderResult<ArtifactPayload>,
     ) -> Result<(), SessionError> {
-        let result = attempt.complete_ready(payload);
-
-        match result {
-            // store ready outcome
-            Ok(_) => {
-                self.scheduler.mark_done(task);
-
-                self.session.emit_event(SessionEvent::TaskFinished {
-                    run_id: run,
-                    artifact_key: task.key,
-                });
-
-                Ok(())
-            }
-
-            // store failure outcome so waiters cannot stall
+        let payload = match result {
+            Ok(payload) => payload,
             Err(error) => {
-                let failure = ArtifactFailure::internal(error.to_string());
-                let failure_result = attempt.complete_failed(failure);
-
-                self.scheduler.mark_done(task);
-
-                self.session.emit_event(SessionEvent::TaskFailed {
-                    run_id: run,
-                    artifact_key: task.key,
-                });
-
-                failure_result?;
-
-                Err(error)
+                return self.fail_provider(attempt, run, task, version, dependencies, *error);
             }
+        };
+
+        // record the ready payload and make its terminal state visible
+        self.session.repository().complete_artifact(
+            task.revision,
+            version,
+            payload,
+            dependencies,
+            attempt.diagnostics(),
+            attempt.sidecars(),
+        )?;
+
+        self.finish_ready(run, task)
+    }
+
+    /// Route one provider failure into a recorded artifact failure.
+    fn fail_provider(
+        &self,
+        attempt: &ProviderAttempt,
+        run: RunId,
+        task: Task,
+        version: ArtifactVersion,
+        dependencies: Vec<ArtifactDependency>,
+        error: ProviderError,
+    ) -> Result<(), SessionError> {
+        let diagnostics = attempt.diagnostics();
+        let sidecars = attempt.sidecars();
+
+        match error {
+            ProviderError::RequirementFailed { key } => self.fail(
+                run,
+                task,
+                version,
+                dependencies,
+                diagnostics,
+                sidecars,
+                ArtifactFailure::requirement(key),
+            ),
+            ProviderError::Failed { failure } => self.fail(
+                run,
+                task,
+                version,
+                dependencies,
+                diagnostics,
+                sidecars,
+                failure,
+            ),
+            ProviderError::Corrupt { version: corrupt } => {
+                self.fail(
+                    run,
+                    task,
+                    version,
+                    dependencies,
+                    diagnostics,
+                    sidecars,
+                    ArtifactFailure::corrupt(corrupt),
+                )?;
+
+                Err(SessionError::Internal {
+                    detail: format!(
+                        "failed to provide artifact {:?}: corrupt required artifact: {corrupt:?}",
+                        task.key
+                    ),
+                })
+            }
+            ProviderError::Internal { message } => {
+                let detail = format!("failed to provide artifact {:?}: {message}", task.key);
+
+                self.fail(
+                    run,
+                    task,
+                    version,
+                    dependencies,
+                    diagnostics,
+                    sidecars,
+                    ArtifactFailure::internal(message),
+                )?;
+
+                Err(SessionError::Internal { detail })
+            }
+            ProviderError::Blocked { .. } => Err(SessionError::Internal {
+                detail: format!(
+                    "provider blocked after its dependency closure was frozen: {:?}",
+                    task.key
+                ),
+            }),
         }
+    }
+
+    /// Mark one ready task terminal and emit its finished event.
+    fn finish_ready(&self, run: RunId, task: Task) -> Result<(), SessionError> {
+        self.scheduler.mark_done(task);
+
+        self.session.emit_event(SessionEvent::TaskFinished {
+            run_id: run,
+            artifact_key: task.key,
+        });
+
+        Ok(())
+    }
+
+    /// Record one artifact failure and emit its failed event.
+    fn fail(
+        &self,
+        run: RunId,
+        task: Task,
+        version: ArtifactVersion,
+        dependencies: Vec<ArtifactDependency>,
+        diagnostics: DiagnosticCollection,
+        sidecars: Vec<destack_artifact::ArtifactSidecar>,
+        failure: ArtifactFailure,
+    ) -> Result<(), SessionError> {
+        self.session.repository().fail_artifact(
+            task.revision,
+            version,
+            dependencies,
+            diagnostics,
+            sidecars,
+            failure,
+        )?;
+        self.scheduler.mark_done(task);
+
+        self.session.emit_event(SessionEvent::TaskFailed {
+            run_id: run,
+            artifact_key: task.key,
+        });
+
+        Ok(())
     }
 
     /// Call the provider that owns one artifact key.
@@ -220,25 +331,5 @@ impl Worker {
             ArtifactProvider::Linter => self.session.linter().provide(attempt),
             ArtifactProvider::Query => self.session.query().provide(attempt),
         }
-    }
-
-    /// Fail one task and emit its failure event.
-    fn fail_task(
-        &self,
-        attempt: &ProviderAttempt,
-        run: RunId,
-        task: Task,
-        failure: ArtifactFailure,
-    ) -> Result<(), SessionError> {
-        let result = attempt.complete_failed(failure);
-
-        self.scheduler.mark_done(task);
-
-        self.session.emit_event(SessionEvent::TaskFailed {
-            run_id: run,
-            artifact_key: task.key,
-        });
-
-        result.map(|_| ())
     }
 }
