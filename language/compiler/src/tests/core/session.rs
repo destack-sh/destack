@@ -3,8 +3,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactKey, ArtifactPayload, ArtifactStore, ArtifactVersion, DirBound, DirCheckedModule,
-    DirExpanded, DirExported, DirImported, DirParsed, DirResolved, MemoryCacheStore,
+    ArtifactKey, ArtifactPayload, ArtifactStore, ArtifactVersion, ComponentGraph, DirBound,
+    DirCheckedModule, DirExpanded, DirExported, DirImported, DirParsed, DirResolved,
+    MemoryCacheStore,
 };
 use destack_dir as dir;
 use destack_repository::{
@@ -457,7 +458,7 @@ impl TestSession {
                 .complete_artifact(
                     revision,
                     version,
-                    ArtifactPayload::DirParsed(entry.dir_parsed.clone()),
+                    ArtifactPayload::DirParsed(Arc::new(entry.dir_parsed.clone())),
                     dependencies,
                     DiagnosticCollection::new(),
                     Vec::new(),
@@ -910,50 +911,62 @@ impl TestSession {
         dir::TypeTable<'static>,
         dir::StaticTable<'static>,
     )> {
-        let mut tables = self
-            .modules_by_path
-            .values()
-            .filter(|foreign| foreign.module.id != entry.module.id)
-            .map(|foreign| {
-                let bound = self.dir_bound(foreign);
-                let expanded = self.dir_expanded(foreign);
-                let checked = self.dir_checked(foreign);
+        // load checked tables for exactly the entry component's externals
+        let externals = self.entry_external_modules(entry);
+
+        externals
+            .into_iter()
+            .map(|module_id| {
+                let bound_version =
+                    self.require_artifact(ArtifactKey::dir_bound(module_id, entry.profile));
+                let bound = self
+                    .artifacts()
+                    .dir_bound(&bound_version)
+                    .expect("test external bound artifact should exist");
+                let expanded_version =
+                    self.require_artifact(ArtifactKey::dir_expanded(module_id, entry.profile));
+                let expanded = self
+                    .artifacts()
+                    .dir_expanded(&expanded_version)
+                    .expect("test external expanded artifact should exist");
+                let checked = self.dir_checked_module(module_id, entry.profile);
                 let generics = checked.generic_table();
                 let types = checked.type_table(&bound, &expanded);
                 let statics = checked.static_table(&bound, &expanded);
 
                 (Some(generics), types, statics)
             })
-            .collect::<Vec<_>>();
+            .collect()
+    }
 
-        // include builtin labels for language item references
-        for module_id in self.repository.builtin_package().module_ids() {
-            if module_id == entry.module.id {
+    /// Return the transitive external modules of one entry's component.
+    fn entry_external_modules(&self, entry: &TestModule) -> Vec<ModuleId> {
+        let graph = self.component_graph(entry.profile);
+        let Some(component) = graph.component(entry.module.id) else {
+            return Vec::new();
+        };
+
+        // walk the condensation forward, collecting external members
+        let mut externals = Vec::new();
+        let mut seen = BTreeSet::new();
+        let mut pending = graph.dependencies(component).to_vec();
+        while let Some(dependency) = pending.pop() {
+            if !seen.insert(dependency) {
                 continue;
             }
-
-            let key = ArtifactKey::dir_bound(module_id, entry.profile);
-            let bound_version = self.require_artifact(key);
-            let bound = self
-                .artifacts()
-                .dir_bound(&bound_version)
-                .expect("test builtin bound artifact should exist");
-            let key = ArtifactKey::dir_expanded(module_id, entry.profile);
-            let expanded_version = self.require_artifact(key);
-            let expanded = self
-                .artifacts()
-                .dir_expanded(&expanded_version)
-                .expect("test builtin expanded artifact should exist");
-            // builtin modules carry checked layers like any other module
-            let checked = self.dir_checked_module(module_id, entry.profile);
-            let generics = checked.generic_table();
-            let types = checked.type_table(&bound, &expanded);
-            let statics = checked.static_table(&bound, &expanded);
-
-            tables.push((Some(generics), types, statics));
+            externals.extend(graph.members(dependency).iter().copied());
+            pending.extend(graph.dependencies(dependency).iter().copied());
         }
 
-        tables
+        externals
+    }
+
+    /// Read the component graph for one profile.
+    fn component_graph(&self, profile: ProfileId) -> Arc<ComponentGraph> {
+        let version = self.require_artifact(ArtifactKey::component_graph(profile));
+        self.artifacts()
+            .component_graph(&version)
+            .expect("test component graph should exist")
     }
 
     /// Return one module entry by path.

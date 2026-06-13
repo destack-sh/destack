@@ -1,10 +1,10 @@
 use destack_artifact::{
-    ArtifactDependency, ArtifactKey, ArtifactSidecar, ArtifactVersion, DiagnosticAnchor,
-    DiagnosticContext, DiagnosticDisplay, DiagnosticError, DiagnosticLike,
+    ArtifactKey, ArtifactSidecar, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
+    DiagnosticError, DiagnosticLike,
 };
 use destack_core::StringPool;
 use destack_mir as mir;
-use destack_repository::{ProviderContext, ProviderError, Revision};
+use destack_repository::{ProviderContext, Revision};
 use destack_source::{
     DiagnosticCollection, DiagnosticLabel, FileContentId, FileId, ModuleId, PackageId, ProfileId,
     Span, TargetId,
@@ -91,21 +91,6 @@ impl ProviderContext for TestMirProvider {
     fn artifact_key(&self) -> ArtifactKey {
         ArtifactKey::mir_verified(test_module_id(), test_profile_id(), test_target_id())
     }
-
-    /// Reject artifact requirements in raw MIR tests.
-    fn require(&self, key: ArtifactKey) -> Result<ArtifactVersion, ProviderError> {
-        Err(ProviderError::Blocked { keys: vec![key] })
-    }
-
-    /// Reject artifact requirements in raw MIR tests.
-    fn require_all(&self, keys: &[ArtifactKey]) -> Result<Vec<ArtifactVersion>, ProviderError> {
-        Err(ProviderError::Blocked {
-            keys: keys.to_vec(),
-        })
-    }
-
-    /// Track one dependency.
-    fn track(&self, _dependency: ArtifactDependency) {}
 
     /// Emit one diagnostic collection.
     fn emit_diagnostics(&self, _diagnostics: DiagnosticCollection) {}
