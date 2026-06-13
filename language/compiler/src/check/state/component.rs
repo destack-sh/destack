@@ -8,8 +8,8 @@ use indexmap::IndexMap;
 
 use crate::check::{
     Assumption, CheckEvent, CheckExternalModuleState, CheckModuleState, ConstraintTable,
-    DecisionTable, GenericIndex, InputTable, Journal, Mutation, ObligationTable, Queue,
-    RelationCache, VariableTable, VarianceEntry,
+    DecisionTable, GenericIndex, Journal, Mutation, ObligationTable, Queue, RelationCache,
+    VariableTable, VarianceEntry,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -48,10 +48,6 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) external_modules: IndexMap<ModuleId, CheckExternalModuleState>,
     /// Checked component artifact containing each external module.
     pub(in crate::check) external_components: IndexMap<ModuleId, CheckComponentKey>,
-
-    // walk-recorded facts, fixed once solving starts
-    /// Inferred types and values keyed by source identity.
-    pub(in crate::check) inputs: InputTable,
 
     // speculative solver state, journaled for probe rollback
     /// Open inference variables.
@@ -110,7 +106,6 @@ impl<'a> CheckState<'a> {
             modules: IndexMap::new(),
             external_modules: IndexMap::new(),
             external_components,
-            inputs: InputTable::new(),
             variables: VariableTable::new(),
             constraints: ConstraintTable::new(),
             decisions: DecisionTable::new(),

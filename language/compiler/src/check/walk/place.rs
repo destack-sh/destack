@@ -75,7 +75,7 @@ impl WalkState<'_, '_> {
         let source = id.into_global_any(module);
 
         // selection projects protocol direction from the recorded access
-        self.check.inputs.set_place_access(source, access);
+        self.check.set_place_access(source, access);
 
         match self.tree.get(id) {
             // x

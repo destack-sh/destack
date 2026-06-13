@@ -6,8 +6,9 @@ use destack_dir as dir;
 use destack_repository::Module;
 use destack_source::{ModuleId, Span};
 use indexmap::{IndexMap, IndexSet};
+use smallvec::SmallVec;
 
-use crate::check::{Capture, CheckError, CheckState, CheckWarning, Condition};
+use crate::check::{Capture, CheckError, CheckState, CheckWarning, Condition, PlaceAccess};
 use crate::{CompilerError, CompilerResult};
 
 /// State owned by one module inside a checked component.
@@ -35,6 +36,13 @@ pub(in crate::check) struct CheckModuleState {
     pub(in crate::check) types: dir::TypeTable<'static>,
     /// Open check output accumulating for this module.
     pub(in crate::check) working: WorkingSegments,
+    /// Inferred static symbol values, materialized to statics at commit.
+    pub(in crate::check) symbol_values: IndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
+    /// Active static guard predicates keyed by guarded node.
+    pub(in crate::check) node_conditions:
+        IndexMap<dir::GlobalNodeIdAny, SmallVec<[dir::GlobalTypeId; 2]>>,
+    /// Place accesses keyed by written place node.
+    pub(in crate::check) place_accesses: IndexMap<dir::GlobalNodeIdAny, PlaceAccess>,
     /// Captures discovered while walking this module.
     pub(in crate::check) captures: Vec<Capture>,
     /// Static availability of declarations in this module.
@@ -74,6 +82,9 @@ impl CheckModuleState {
             bindings,
             types,
             working,
+            symbol_values: IndexMap::new(),
+            node_conditions: IndexMap::new(),
+            place_accesses: IndexMap::new(),
             external_modules: IndexSet::new(),
             captures: Vec::new(),
             availability: IndexMap::new(),
@@ -212,6 +223,136 @@ impl CheckState<'_> {
             Some(state) => state,
             None => unreachable!("check module {module:?} was not loaded"),
         }
+    }
+
+    /// Return the inferred type of one source node.
+    pub(in crate::check) fn node_type(
+        &self,
+        node: dir::GlobalNodeIdAny,
+    ) -> Option<dir::GlobalTypeId> {
+        self.modules
+            .get(&node.module_id)
+            .and_then(|module| module.working.types.get_node_type_id(node))
+    }
+
+    /// Record the inferred type of one source node.
+    pub(in crate::check) fn set_node_type(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let types = &mut self.module_mut(node.module_id).working.types;
+        if types
+            .get_node_type_id(node)
+            .is_some_and(|previous| previous != ty)
+        {
+            return Err(CompilerError::Internal {
+                message: format!("check node {node:?} received two types"),
+            });
+        }
+        types.set_node_type(node, ty);
+
+        Ok(())
+    }
+
+    /// Return the inferred type of one source symbol.
+    pub(in crate::check) fn symbol_type(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<dir::GlobalTypeId> {
+        self.modules
+            .get(&symbol.module_id)
+            .and_then(|module| module.working.types.get_symbol_type_id(symbol))
+    }
+
+    /// Record the inferred type of one source symbol.
+    pub(in crate::check) fn set_symbol_type(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let types = &mut self.module_mut(symbol.module_id).working.types;
+        if types
+            .get_symbol_type_id(symbol)
+            .is_some_and(|previous| previous != ty)
+        {
+            return Err(CompilerError::Internal {
+                message: format!("check symbol {symbol:?} received two types"),
+            });
+        }
+        types.set_symbol_type(symbol, ty);
+
+        Ok(())
+    }
+
+    /// Return the inferred static value of one source symbol.
+    pub(in crate::check) fn symbol_value(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<dir::GlobalTypeId> {
+        self.modules
+            .get(&symbol.module_id)
+            .and_then(|module| module.symbol_values.get(&symbol).copied())
+    }
+
+    /// Record the inferred static value of one source symbol as a singleton type.
+    pub(in crate::check) fn set_symbol_value(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        value: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let values = &mut self.module_mut(symbol.module_id).symbol_values;
+        if values
+            .insert(symbol, value)
+            .is_some_and(|previous| previous != value)
+        {
+            return Err(CompilerError::Internal {
+                message: format!("check symbol {symbol:?} received two static values"),
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Return the active static guard predicates of one source node.
+    pub(in crate::check) fn node_condition(
+        &self,
+        node: dir::GlobalNodeIdAny,
+    ) -> &[dir::GlobalTypeId] {
+        self.modules
+            .get(&node.module_id)
+            .and_then(|module| module.node_conditions.get(&node))
+            .map_or(&[], |predicates| predicates.as_slice())
+    }
+
+    /// Record the active static guard predicates of one source node.
+    pub(in crate::check) fn set_node_condition(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        predicates: SmallVec<[dir::GlobalTypeId; 2]>,
+    ) {
+        self.module_mut(node.module_id)
+            .node_conditions
+            .insert(node, predicates);
+    }
+
+    /// Return how syntax accesses one place expression.
+    pub(in crate::check) fn place_access(&self, node: dir::GlobalNodeIdAny) -> PlaceAccess {
+        self.modules
+            .get(&node.module_id)
+            .and_then(|module| module.place_accesses.get(&node).copied())
+            .unwrap_or(PlaceAccess::Read)
+    }
+
+    /// Record how syntax accesses one place expression.
+    pub(in crate::check) fn set_place_access(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        access: PlaceAccess,
+    ) {
+        self.module_mut(node.module_id)
+            .place_accesses
+            .insert(node, access);
     }
 
     /// Return one binding table by module.

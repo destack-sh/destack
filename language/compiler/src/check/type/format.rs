@@ -21,7 +21,7 @@ impl CheckState<'_> {
         if depth == 0 {
             return Ok("…".to_string());
         }
-        let id = self.resolve_root(id)?;
+        let id = self.shallow_resolve(id)?;
         let next = depth - 1;
 
         let rendered = match self.ty(id)? {
@@ -176,7 +176,7 @@ impl CheckState<'_> {
             dir::Form::Raw => format!("*{value}"),
             dir::Form::Readonly => format!("readonly {value}"),
             dir::Form::Borrowed { access, .. } => {
-                let access = match self.ty(self.resolve_root(*access)?)? {
+                let access = match self.ty(self.shallow_resolve(*access)?)? {
                     dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly)) => {
                         "&readonly "
                     }
@@ -189,7 +189,7 @@ impl CheckState<'_> {
                 format!("{access}{value}")
             }
             dir::Form::Placed { place } => {
-                let place = match self.ty(self.resolve_root(*place)?)? {
+                let place = match self.ty(self.shallow_resolve(*place)?)? {
                     dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(space))) => {
                         match space {
                             dir::Space::Local => "local ",

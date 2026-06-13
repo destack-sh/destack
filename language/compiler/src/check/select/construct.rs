@@ -20,7 +20,7 @@ impl CheckState<'_> {
         let mut arguments = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         for argument in argument_nodes {
             let argument = argument.into_global_any(module);
-            let Some(ty) = self.inputs.node_type(argument) else {
+            let Some(ty) = self.node_type(argument) else {
                 return Err(CompilerError::Internal {
                     message: format!("construct argument {argument:?} has no input type"),
                 });
@@ -30,7 +30,7 @@ impl CheckState<'_> {
 
         // close the constructed annotation
         let annotation = ty.into_global_any(module);
-        let Some(target) = self.inputs.node_type(annotation) else {
+        let Some(target) = self.node_type(annotation) else {
             return Err(CompilerError::Internal {
                 message: format!("construct annotation {annotation:?} has no input type"),
             });

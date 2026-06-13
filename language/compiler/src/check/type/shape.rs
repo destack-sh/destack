@@ -39,7 +39,7 @@ impl CheckState<'_> {
             module_id: id.module_id,
             local_id: source,
         };
-        let Some(node_type) = self.inputs.node_type(node) else {
+        let Some(node_type) = self.node_type(node) else {
             return Ok(false);
         };
         // peel the managed wrapper the walk added around the shape
@@ -87,7 +87,7 @@ impl CheckState<'_> {
             module_id: id.module_id,
             local_id: source,
         };
-        let Some(node_type) = self.inputs.node_type(node) else {
+        let Some(node_type) = self.node_type(node) else {
             return Ok(None);
         };
         let node_type = match self.ty(node_type)? {

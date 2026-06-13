@@ -28,7 +28,7 @@ impl CheckState<'_> {
 
         // wait for the receiver node type
         let receiver_node = left.into_global_any(module);
-        let Some(receiver) = self.inputs.node_type(receiver_node) else {
+        let Some(receiver) = self.node_type(receiver_node) else {
             return Err(CompilerError::Internal {
                 message: format!("member receiver {receiver_node:?} has no input type"),
             });
@@ -164,7 +164,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeIdAny,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        if let Some(variable) = self.inputs.node_type(node).and_then(|input| {
+        if let Some(variable) = self.node_type(node).and_then(|input| {
             self.ty(input).ok().and_then(|input| match input {
                 dir::Type::Variable(variable) => Some(*variable),
                 _ => None,
@@ -294,9 +294,9 @@ impl CheckState<'_> {
     /// Collect the member keys visible on one receiver.
     fn visible_member_keys(&mut self, receiver: dir::GlobalTypeId) -> CompilerResult<Vec<String>> {
         // look through memory forms to the carried value
-        let mut current = self.resolve_root(receiver)?;
+        let mut current = self.shallow_resolve(receiver)?;
         while let dir::Type::Form(form) = self.ty(current)? {
-            current = self.resolve_root(form.value)?;
+            current = self.shallow_resolve(form.value)?;
         }
 
         let mut keys = Vec::new();

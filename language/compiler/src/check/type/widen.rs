@@ -16,7 +16,7 @@ impl CheckState<'_> {
         // resolve bounds through solved variables
         let mut resolved = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         for bound in bounds {
-            let bound = self.resolve_root(*bound).map_err(|error| {
+            let bound = self.shallow_resolve(*bound).map_err(|error| {
                 CompilerError::Internal {
                     message: format!(
                         "best_common bound resolution failed for {variable:?} bounds={bounds:?}: {error:?}"
@@ -302,7 +302,7 @@ impl CheckState<'_> {
         if depth > 16 {
             return Ok(None);
         }
-        let id = self.resolve_root(id)?;
+        let id = self.shallow_resolve(id)?;
 
         match self.ty(id)? {
             // literal leaves widen to their base types
@@ -354,7 +354,7 @@ impl CheckState<'_> {
                 let mut tuple = tuple.clone();
                 let mut changed = false;
                 for element in &mut tuple.elements {
-                    let ty = self.resolve_root(element.ty)?;
+                    let ty = self.shallow_resolve(element.ty)?;
                     if let Some(widened) = self.widen_tree(module, source, ty, depth + 1)? {
                         element.ty = widened;
                         changed = true;
@@ -378,7 +378,7 @@ impl CheckState<'_> {
                 let mut widened = Vec::with_capacity(elements.len());
                 let mut changed = false;
                 for element in elements {
-                    let element = self.resolve_root(element)?;
+                    let element = self.shallow_resolve(element)?;
                     match self.widen_tree(module, source, element, depth + 1)? {
                         Some(wide) => {
                             widened.push(wide);
@@ -426,7 +426,7 @@ impl CheckState<'_> {
                 }
                 let mut shape = shape.clone();
                 for field in &mut shape.fields {
-                    let ty = self.resolve_root(field.ty)?;
+                    let ty = self.shallow_resolve(field.ty)?;
                     match self.widen_tree(module, source, ty, depth + 1)? {
                         Some(widened) => field.ty = widened,
                         None => field.ty = ty,

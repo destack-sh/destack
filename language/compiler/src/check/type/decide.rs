@@ -90,7 +90,7 @@ impl CheckState<'_> {
         count: dir::GlobalTypeId,
         length: usize,
     ) -> CompilerResult<bool> {
-        let count = self.resolve_root(count)?;
+        let count = self.shallow_resolve(count)?;
         let dir::Type::Literal(dir::ScalarLiteral::Integer(count)) = self.ty(count)? else {
             return Ok(false);
         };
@@ -669,7 +669,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        let target = self.resolve_root(target)?;
+        let target = self.shallow_resolve(target)?;
         if let Some(variable) = self.root_variable(target)? {
             self.push_lower_bound(variable, source)?;
         }

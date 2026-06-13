@@ -180,7 +180,7 @@ impl CheckState<'_> {
                     .copied()
                     .collect::<SmallVec<[_; 4]>>();
                 for element in elements {
-                    let element = self.resolve_root(element)?;
+                    let element = self.shallow_resolve(element)?;
                     match self.lookup_member(origin, module, element, space, key)? {
                         MemberLookup::Missing => continue,
                         lookup => return Ok(lookup),
@@ -417,7 +417,7 @@ impl CheckState<'_> {
             };
 
             // carry substituted static value types for projections
-            let written = match symbol.and_then(|symbol| self.inputs.symbol_value(symbol)) {
+            let written = match symbol.and_then(|symbol| self.symbol_value(symbol)) {
                 Some(written) if !substitution.is_empty() => {
                     Some(self.fold_type(module, source, written, substitution.rewrite())?)
                 }
@@ -871,7 +871,7 @@ impl CheckState<'_> {
             };
 
             // carry substituted static value types for projections
-            let written = match symbol.and_then(|symbol| self.inputs.symbol_value(symbol)) {
+            let written = match symbol.and_then(|symbol| self.symbol_value(symbol)) {
                 Some(written) if !substitution.is_empty() => {
                     let folded = self.fold_type(module, source, written, substitution.rewrite())?;
 

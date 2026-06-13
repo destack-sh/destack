@@ -200,7 +200,7 @@ impl CheckState<'_> {
         // dereferences demand access by their place position: whole
         // value replacement may invalidate interior borrows, so writes
         // require exclusive access
-        let access = match self.inputs.place_access(node) {
+        let access = match self.place_access(node) {
             PlaceAccess::Read => dir::Access::Readonly,
             PlaceAccess::Write | PlaceAccess::ReadWrite => dir::Access::Exclusive,
         };
@@ -254,7 +254,7 @@ impl CheckState<'_> {
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<ComparableKind>> {
-        let root = self.resolve_root(ty)?;
+        let root = self.shallow_resolve(ty)?;
         let kind = match self.ty(root)? {
             dir::Type::Literal(literal) => comparable_literal_kind(literal),
             dir::Type::Primitive(primitive) => comparable_primitive_kind(primitive),
@@ -483,7 +483,7 @@ impl CheckState<'_> {
         origin: Origin,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let Some(ty) = self.inputs.node_type(node) else {
+        let Some(ty) = self.node_type(node) else {
             return Err(CompilerError::Internal {
                 message: format!("operator operand {node:?} has no input type"),
             });

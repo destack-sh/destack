@@ -87,7 +87,7 @@ impl CheckState<'_> {
                 }
                 // spread sources contribute every visible field
                 MergeEntry::Spread { source } => {
-                    let Some(spread) = self.inputs.node_type(source) else {
+                    let Some(spread) = self.node_type(source) else {
                         return Err(crate::CompilerError::Internal {
                             message: format!("spread source {source:?} has no input type"),
                         });
@@ -156,12 +156,12 @@ impl CheckState<'_> {
             && let Some(symbol) = self
                 .module(source.module_id)
                 .declaration_symbol(source.local_id)
-            && let Some(ty) = self.inputs.symbol_type(symbol)
+            && let Some(ty) = self.symbol_type(symbol)
         {
             return Ok(ty);
         }
 
-        match self.inputs.node_type(source) {
+        match self.node_type(source) {
             Some(ty) => Ok(ty),
             None => Err(crate::CompilerError::Internal {
                 message: format!("merged property {source:?} has no input type"),
@@ -191,7 +191,7 @@ impl CheckState<'_> {
             if form.form != dir::Form::Managed {
                 break;
             }
-            current = self.resolve_root(form.value)?;
+            current = self.shallow_resolve(form.value)?;
         }
 
         match self.ty(current)?.clone() {
@@ -270,7 +270,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeIdAny,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        let variable = self.inputs.node_type(node).and_then(|input| {
+        let variable = self.node_type(node).and_then(|input| {
             self.ty(input).ok().and_then(|input| match input {
                 dir::Type::Variable(variable) => Some(*variable),
                 _ => None,
