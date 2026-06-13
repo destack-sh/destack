@@ -1,13 +1,16 @@
 use std::sync::Arc;
 
 use destack_artifact::{ConditionSet, DependencyIndex, DiagnosticAnchor, DirImported, ProfileKey};
-use destack_core::StringPool;
+use destack_core::{StringPool, closest_string};
 use destack_dir as dir;
 use destack_repository::{Module, Revision};
 use destack_source::Loader;
 
 use crate::import::stats::ImportStats;
-use crate::{ImportError, ImportResult};
+use crate::{ImportError, ImportResult, diagnostic_suggestion_distance};
+
+const IMPORT_ATTRIBUTE_TYPES: &[&str] =
+    &["json", "toml", "yaml", "text", "binary", "file", "base64"];
 
 /// Import phase state for one module.
 pub(crate) struct ImportState<'a> {
@@ -100,6 +103,7 @@ impl<'a> ImportState<'a> {
                     self.report_diagnostic(ImportError::InvalidImportAttributeType {
                         anchor: anchor.clone(),
                         value: value.to_string(),
+                        suggestion: closest_import_attribute_type(value),
                     });
 
                     None
@@ -111,6 +115,7 @@ impl<'a> ImportState<'a> {
                 self.report_diagnostic(ImportError::InvalidImportAttributeType {
                     anchor: anchor.clone(),
                     value: "<non-string>".to_string(),
+                    suggestion: None,
                 });
 
                 None
@@ -136,4 +141,13 @@ impl<'a> ImportState<'a> {
     pub(in crate::import) fn strings(&self) -> &dir::StringPool {
         self.strings
     }
+}
+
+/// Return the closest supported import attribute type.
+fn closest_import_attribute_type(value: &str) -> Option<String> {
+    let candidates = IMPORT_ATTRIBUTE_TYPES
+        .iter()
+        .map(|candidate| (*candidate).to_string());
+
+    closest_string(value, candidates, diagnostic_suggestion_distance(value))
 }
