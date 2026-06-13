@@ -164,7 +164,7 @@ impl<'a> JsLinker<'a> {
                     .iter()
                     .map(|(_, printed)| printed.code.clone())
                     .collect(),
-                self.target.should_minify_bundle_js_output(),
+                self.target.should_minify_bundle_script_output(),
             );
             let source_map_path = self
                 .target
@@ -179,7 +179,7 @@ impl<'a> JsLinker<'a> {
                     self.package_dir,
                     emitted_source_map_path,
                     &parts,
-                    self.target.should_minify_bundle_js_output(),
+                    self.target.should_minify_bundle_script_output(),
                     self.context,
                 )
                 .map_err(|error| Compiler::link_error(self.package_id, error))?;
