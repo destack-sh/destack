@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_source::{FileContentId, FileId};
 
-use crate::ArtifactVersion;
+use crate::{ArtifactKey, ArtifactVersion};
 
 /// Exact source path state observed by one artifact computation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -82,6 +82,30 @@ impl SourceDependency {
     /// Build one file content dependency.
     pub fn file_content(file: FileId, content: FileContentId) -> Self {
         Self::FileContent { file, content }
+    }
+}
+
+/// Every dependency one artifact declares before it is built.
+///
+/// A provider collects this up front, so the closure is frozen before
+/// the payload runs and the version can be fingerprinted without it.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ArtifactDependencySet {
+    /// Lower artifacts that must be resolved into versions first.
+    pub artifacts: Vec<ArtifactKey>,
+    /// Primitive source observations that feed the fingerprint.
+    pub sources: Vec<SourceDependency>,
+}
+
+impl ArtifactDependencySet {
+    /// Declare one required lower artifact.
+    pub fn require(&mut self, key: ArtifactKey) {
+        self.artifacts.push(key);
+    }
+
+    /// Declare one primitive source observation.
+    pub fn observe(&mut self, source: SourceDependency) {
+        self.sources.push(source);
     }
 }
 
