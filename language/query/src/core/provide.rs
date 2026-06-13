@@ -1,9 +1,12 @@
-use destack_artifact::{ArtifactKey, ArtifactPayload, ModuleQueryIndex, WorkspaceQueryIndex};
+use destack_artifact::{
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ModuleQueryIndex, WorkspaceQueryIndex,
+};
 use destack_qir::QueryIndex;
 use destack_repository::{
     ArtifactReader, ProviderContext, ProviderError, ProviderResult, Revision,
 };
 use destack_source::{ModuleId, ProfileId};
+use std::sync::Arc;
 
 use super::{
     AnnotationIndex, CallIndex, DefinitionIndex, ImportIndex, MemberIndex, ModuleQueryContext,
@@ -12,6 +15,65 @@ use super::{
 };
 
 impl Query {
+    /// Collect the dependency closure for one query artifact.
+    pub fn collect(&self, context: &dyn ProviderContext) -> ProviderResult<ArtifactDependencySet> {
+        match context.artifact_key() {
+            ArtifactKey::ModuleQueryIndex { module, profile } => {
+                Ok(self.collect_module_query_index(module, profile))
+            }
+            ArtifactKey::WorkspaceQueryIndex { profile } => {
+                self.collect_workspace_query_index(context, profile)
+            }
+            artifact_key => Err(ProviderError::internal(format!(
+                "non query artifact key reached query provider: {artifact_key:?}"
+            ))
+            .into()),
+        }
+    }
+
+    /// Collect inputs for one module query index artifact.
+    fn collect_module_query_index(
+        &self,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+    ) -> ArtifactDependencySet {
+        let mut dependencies = ArtifactDependencySet::default();
+        dependencies.require(ArtifactKey::dir_parsed(module_id));
+        dependencies.require(ArtifactKey::dir_bound(module_id, profile_id));
+        dependencies.require(ArtifactKey::dir_imported(module_id, profile_id));
+        dependencies.require(ArtifactKey::dir_expanded(module_id, profile_id));
+        dependencies.require(ArtifactKey::dir_exported(module_id, profile_id));
+        dependencies.require(ArtifactKey::dir_checked(module_id, profile_id));
+        dependencies.require(ArtifactKey::global_environment(profile_id));
+
+        dependencies
+    }
+
+    /// Collect inputs for one workspace query index artifact.
+    fn collect_workspace_query_index(
+        &self,
+        context: &dyn ProviderContext,
+        profile_id: ProfileId,
+    ) -> ProviderResult<ArtifactDependencySet> {
+        let revision = context.revision();
+        let module_ids = self
+            .repository()
+            .module_ids(revision)
+            .map_err(|error| ProviderError::internal(error.to_string()))?;
+
+        // one module query index per module carrying the profile
+        let mut dependencies = ArtifactDependencySet::default();
+        for module_id in module_ids {
+            if !self.has_profile(revision, module_id, profile_id)? {
+                continue;
+            }
+
+            dependencies.require(ArtifactKey::module_query_index(module_id, profile_id));
+        }
+
+        Ok(dependencies)
+    }
+
     /// Provide one query artifact.
     pub fn provide(&self, context: &dyn ProviderContext) -> ProviderResult<ArtifactPayload> {
         // dispatch by query artifact shape
@@ -37,7 +99,11 @@ impl Query {
         profile_id: ProfileId,
     ) -> ProviderResult<ArtifactPayload> {
         let revision = context.revision();
-        let artifacts = ArtifactReader::new(context, self.repository().artifact_store().clone());
+        let artifacts = ArtifactReader::new(
+            self.repository(),
+            revision,
+            self.repository().artifact_store().clone(),
+        );
 
         // build the module index from one checked query context
         let context = require_module_query_context(
@@ -50,7 +116,7 @@ impl Query {
         let index = self.build_module_query_index(&context);
         let payload = ModuleQueryIndex { index };
 
-        Ok(ArtifactPayload::ModuleQueryIndex(payload))
+        Ok(ArtifactPayload::ModuleQueryIndex(Arc::new(payload)))
     }
 
     /// Provide one workspace query index artifact.
@@ -61,29 +127,34 @@ impl Query {
     ) -> ProviderResult<ArtifactPayload> {
         let repository = self.repository();
         let revision = context.revision();
-        let artifacts = ArtifactReader::new(context, repository.artifact_store().clone());
 
         // collect modules in the requested profile
         let module_ids = repository
             .module_ids(revision)
             .map_err(|error| ProviderError::internal(error.to_string()))?;
-        let mut keys = Vec::new();
 
-        // collect module index dependencies
+        // resolve each module index version bound to this revision
+        let mut versions = Vec::new();
         for module_id in module_ids {
             if !self.has_profile(revision, module_id, profile_id)? {
                 continue;
             }
 
-            keys.push(ArtifactKey::module_query_index(module_id, profile_id));
+            let key = ArtifactKey::module_query_index(module_id, profile_id);
+            let version = repository
+                .artifact_version(revision, &key)
+                .map_err(|error| ProviderError::internal(error.to_string()))?
+                .ok_or_else(|| {
+                    ProviderError::internal(format!(
+                        "workspace query dependency not built: {key:?}"
+                    ))
+                })?;
+            versions.push(version);
         }
 
-        // require module indexes together so the executor can fan them out
-        let versions = artifacts.require_all(&keys)?;
-        // retain exact module index versions without duplicating index payloads
         let payload = WorkspaceQueryIndex { modules: versions };
 
-        Ok(ArtifactPayload::WorkspaceQueryIndex(payload))
+        Ok(ArtifactPayload::WorkspaceQueryIndex(Arc::new(payload)))
     }
 
     /// Return whether one module has the requested profile in this revision.
