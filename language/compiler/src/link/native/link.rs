@@ -1,8 +1,7 @@
 use destack_artifact::{
-    ArtifactKey, BuildManifest, BuildManifestFile, ModuleOutput, OutputFile, PackageOutput,
-    TargetOutputName,
+    ArtifactDependencySet, ArtifactKey, BuildManifest, BuildManifestFile, ModuleOutput, OutputFile,
+    PackageOutput, TargetOutputName,
 };
-use destack_repository::ProviderError;
 use destack_source::{FileType, ModuleId};
 use indexmap::IndexMap;
 
@@ -13,12 +12,25 @@ use super::NativeLinker;
 use super::output::link_native_output_files;
 
 impl<'a> NativeLinker<'a> {
+    /// Declare the generated outputs needed to link one native target.
+    pub(crate) fn collect_modules(
+        &self,
+        discovered_modules: &[ModuleId],
+        dependencies: &mut ArtifactDependencySet,
+    ) {
+        for module_id in discovered_modules {
+            dependencies.require(ArtifactKey::module_output(*module_id, *self.target_id));
+        }
+    }
+
     /// Link one discovered native target.
     pub(crate) fn link_target(
         &self,
         discovered_modules: &[ModuleId],
     ) -> CompilerResult<PackageOutput> {
-        let module_ids = self.require_module_outputs(discovered_modules)?;
+        let mut module_ids = discovered_modules.to_vec();
+        module_ids.sort_unstable();
+        module_ids.dedup();
 
         self.link(&module_ids).map_err(CompilerError::from)
     }
@@ -43,38 +55,6 @@ impl<'a> NativeLinker<'a> {
         }
 
         Ok(output)
-    }
-
-    /// Require all generated native outputs needed for this target.
-    fn require_module_outputs(
-        &self,
-        discovered_modules: &[ModuleId],
-    ) -> CompilerResult<Vec<ModuleId>> {
-        let mut blocked = Vec::new();
-        let mut required_modules = Vec::new();
-
-        // require one generated output per discovered module
-        for module_id in discovered_modules.iter().copied() {
-            match self
-                .artifacts
-                .require(ArtifactKey::module_output(module_id, *self.target_id))
-            {
-                Ok(_) => {}
-                Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
-                Err(error) => return Err(CompilerError::from(error)),
-            }
-            required_modules.push(module_id);
-        }
-
-        // yield while generated outputs are still pending
-        if !blocked.is_empty() {
-            return Err(CompilerError::Blocked { keys: blocked });
-        }
-
-        required_modules.sort_unstable();
-        required_modules.dedup();
-
-        Ok(required_modules)
     }
 
     /// Render final output files from generated native outputs.

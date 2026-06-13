@@ -48,9 +48,7 @@ impl Compiler {
         artifacts: &ArtifactReader<'_>,
         globals: &[ModuleId],
     ) -> CompilerResult<IndexMap<dir::StaticKey, Vec<dir::ImportTarget>>> {
-        // require the global export surfaces and their re-export webs
-        self.require_exported_modules(globals.iter().copied(), profile, artifacts)?;
-
+        // global export surfaces and their re-export webs are declared up front
         let mut resolver = ExportResolver::new(profile);
         let mut targets = IndexMap::<dir::StaticKey, Vec<dir::ImportTarget>>::new();
         for module in globals {

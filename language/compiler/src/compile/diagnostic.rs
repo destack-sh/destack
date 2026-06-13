@@ -176,3 +176,8 @@ impl DiagnosticRegistry {
             .collect()
     }
 }
+
+/// Return the maximum edit distance for one diagnostic suggestion.
+pub(crate) fn diagnostic_suggestion_distance(value: &str) -> usize {
+    (value.chars().count() / 3).max(1)
+}

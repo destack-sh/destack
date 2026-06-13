@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactKey, ArtifactPayload, DirElaborated};
+use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirElaborated};
 use destack_dir as dir;
 use destack_repository::{ProfileId, ProviderContext};
 use destack_source::ModuleId;
@@ -8,6 +8,19 @@ use destack_source::ModuleId;
 use crate::{Compiler, CompilerError, CompilerResult};
 
 impl Compiler {
+    /// Collect inputs for elaborated DIR of one checked module.
+    pub(crate) fn collect_dir_elaborated(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+        _context: &dyn ProviderContext,
+    ) -> CompilerResult<ArtifactDependencySet> {
+        let mut dependencies = ArtifactDependencySet::default();
+        dependencies.require(ArtifactKey::dir_materialized(module, profile));
+
+        Ok(dependencies)
+    }
+
     /// Build elaborated DIR for one checked module.
     pub(crate) fn provide_dir_elaborated(
         &self,
@@ -15,13 +28,8 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        // require provider inputs
-        let artifacts = self.artifact_reader(context);
-        artifacts
-            .require(ArtifactKey::dir_materialized(module, profile))
-            .map_err(CompilerError::from)?;
-
         // load provider inputs
+        let artifacts = self.artifact_reader(context.revision());
         let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
         let materialized = artifacts
             .dir_materialized(module, profile)
@@ -43,6 +51,6 @@ impl Compiler {
             guards: dir::GuardTable::new(module),
         };
 
-        Ok(ArtifactPayload::DirElaborated(elaborated))
+        Ok(ArtifactPayload::DirElaborated(Arc::new(elaborated)))
     }
 }

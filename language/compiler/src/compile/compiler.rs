@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{ArtifactStore, DiagnosticBuilder, DiagnosticLike};
 use destack_core::StringPool;
-use destack_repository::{ArtifactReader, ProviderContext, Repository, Target};
+use destack_repository::{ArtifactReader, ProviderContext, Repository, Revision, Target};
 
 use crate::CompilerResult;
 
@@ -26,8 +26,6 @@ impl std::fmt::Debug for Compiler {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-#[allow(dead_code)]
 impl Compiler {
     /// Create a new compiler.
     pub fn new(repository: Arc<Repository>) -> Self {
@@ -46,12 +44,13 @@ impl Compiler {
         self.repository.string_pool().as_ref()
     }
 
-    /// Return a provider-scoped artifact reader.
-    pub(crate) fn artifact_reader<'a>(
-        &'a self,
-        context: &'a dyn ProviderContext,
-    ) -> ArtifactReader<'a> {
-        ArtifactReader::new(context, Arc::clone(&self.artifacts))
+    /// Return a read-only artifact reader for one pinned revision.
+    pub(crate) fn artifact_reader(&self, revision: Revision) -> ArtifactReader<'_> {
+        ArtifactReader::new(
+            self.repository.as_ref(),
+            revision,
+            Arc::clone(&self.artifacts),
+        )
     }
 
     /// Add one diagnostic produced during a provider attempt.

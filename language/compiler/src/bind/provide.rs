@@ -1,6 +1,9 @@
 use std::iter;
+use std::sync::Arc;
 
-use destack_artifact::{ArtifactKey, ArtifactPayload, ArtifactSidecar, DirParsed};
+use destack_artifact::{
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactSidecar, DirParsed,
+};
 use destack_dir as dir;
 use destack_repository::{ConditionSet, Module, ProviderContext};
 use destack_source::{FileContent, ModuleId, ProfileId};
@@ -11,6 +14,19 @@ use super::state::BindState;
 use crate::{Compiler, CompilerError, CompilerResult};
 
 impl Compiler {
+    /// Collect inputs for bound DIR of one module profile.
+    pub(crate) fn collect_dir_bound(
+        &self,
+        module: ModuleId,
+        _profile: ProfileId,
+        _context: &dyn ProviderContext,
+    ) -> CompilerResult<ArtifactDependencySet> {
+        let mut dependencies = ArtifactDependencySet::default();
+        dependencies.require(ArtifactKey::dir_parsed(module));
+
+        Ok(dependencies)
+    }
+
     /// Build bound DIR for one parsed module profile.
     pub(crate) fn provide_dir_bound(
         &self,
@@ -18,13 +34,8 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        // require provider inputs
-        let artifacts = self.artifact_reader(context);
-        artifacts
-            .require(ArtifactKey::dir_parsed(module))
-            .map_err(CompilerError::from)?;
-
         // load provider inputs
+        let artifacts = self.artifact_reader(context.revision());
         let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
         let module = self.module(context.revision(), module)?;
         let profile = self.profile(context.revision(), profile)?;
@@ -47,7 +58,7 @@ impl Compiler {
             },
         ));
 
-        Ok(ArtifactPayload::DirBound(dir_bound))
+        Ok(ArtifactPayload::DirBound(Arc::new(dir_bound)))
     }
 
     /// Bind active parsed roots into a state.

@@ -1,8 +1,8 @@
-mod dependency;
 mod error;
 mod global;
 mod import;
 mod language;
+mod package;
 mod provide;
 mod state;
 mod r#static;

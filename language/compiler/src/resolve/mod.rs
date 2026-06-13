@@ -1,3 +1,4 @@
+mod component;
 mod error;
 mod provide;
 mod resolve;

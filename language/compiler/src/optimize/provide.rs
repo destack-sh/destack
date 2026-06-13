@@ -2,8 +2,11 @@ use crate::{Compiler, CompilerResult, OptimizeError, OptimizeResult, OptimizeWar
 use destack_repository::ProviderContext;
 use std::mem;
 use std::str::FromStr;
+use std::sync::Arc;
 
-use destack_artifact::{ArtifactKey, ArtifactPayload, EmitFormat, MirOptimized, TargetArch};
+use destack_artifact::{
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, EmitFormat, MirOptimized, TargetArch,
+};
 use destack_mir as mir;
 use destack_repository::{Module, OptimizeLevel as WorkspaceOptimizeLevel, ProfileId, Target};
 use destack_source::{ModuleId, TargetId};
@@ -16,6 +19,21 @@ use crate::CompilerError;
 use crate::optimize::OptimizeState;
 
 impl Compiler {
+    /// Collect inputs for optimized MIR of one module and target.
+    pub(crate) fn collect_mir_optimized(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+        target: TargetId,
+        context: &dyn ProviderContext,
+    ) -> CompilerResult<ArtifactDependencySet> {
+        let mut dependencies = ArtifactDependencySet::default();
+        dependencies.require(ArtifactKey::mir_verified(module, profile, target));
+        self.observe_package_config(context, target.package_id(), &mut dependencies)?;
+
+        Ok(dependencies)
+    }
+
     /// Build optimized MIR for one module and target.
     pub(crate) fn provide_mir_optimized(
         &self,
@@ -30,7 +48,7 @@ impl Compiler {
         let payload =
             self.optimize_module(state.module, state.profile, &state.target, state.context)?;
 
-        Ok(ArtifactPayload::MirOptimized(payload))
+        Ok(ArtifactPayload::MirOptimized(Arc::new(payload)))
     }
 
     /// Optimize a module's MIR.
@@ -59,13 +77,8 @@ impl Compiler {
         let level = self.optimization_level_for_target_config(&target_config);
         let pipeline = default_pipeline(level, target_config.uses_native_generate_pipeline());
 
-        // require provider inputs
-        let artifacts = self.artifact_reader(context);
-        artifacts
-            .require(ArtifactKey::mir_verified(module, profile, *target))
-            .map_err(CompilerError::from)?;
-
         // load provider inputs
+        let artifacts = self.artifact_reader(context.revision());
         let verified = artifacts
             .mir_verified(module, profile, *target)
             .map_err(CompilerError::from)?;

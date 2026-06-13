@@ -189,14 +189,9 @@ impl<'a> ResolveState<'a> {
 
     /// Finish resolved DIR.
     pub(in crate::resolve) fn finish(self) -> DirResolved {
-        // precompute the import edges component discovery walks
-        let mut import_modules = self.imports.modules().collect::<IndexSet<_>>();
-        import_modules.shift_remove(&self.module);
-
         DirResolved {
             imports: self.imports,
             paths: self.paths,
-            import_modules: import_modules.into_iter().collect(),
         }
     }
 
