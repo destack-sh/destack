@@ -43,6 +43,18 @@ impl DiagnosticField {
 
         segment.ident == "DiagnosticAnchor"
     }
+
+    /// Return whether this field has type Option<T>.
+    fn is_option(&self) -> bool {
+        let Type::Path(ty) = &self.ty else {
+            return false;
+        };
+        let Some(segment) = ty.path.segments.last() else {
+            return false;
+        };
+
+        segment.ident == "Option"
+    }
 }
 
 /// Validated diagnostic variant data.
@@ -57,6 +69,8 @@ struct DiagnosticVariant {
     sub_code: u16,
     /// The diagnostic message template.
     message: Option<String>,
+    /// The optional diagnostic message template.
+    optional_message: Option<String>,
     /// The named fields carried by the variant.
     fields: Vec<DiagnosticField>,
 }
@@ -187,13 +201,25 @@ struct MessageTemplate {
     /// The Rust format string.
     format: String,
     /// The referenced diagnostic fields.
-    fields: Vec<Ident>,
+    fields: Vec<MessageField>,
+}
+
+/// One diagnostic message template field.
+#[derive(Clone)]
+struct MessageField {
+    /// The referenced diagnostic field.
+    name: Ident,
+    /// Whether the referenced field is optional.
+    is_optional: bool,
 }
 
 /// Push a unique field name into a generated binding list.
-fn push_unique_field(fields: &mut Vec<Ident>, field: &Ident) {
-    if !fields.iter().any(|existing| existing == field) {
-        fields.push(field.clone());
+fn push_unique_field(fields: &mut Vec<MessageField>, field: &DiagnosticField) {
+    if !fields.iter().any(|existing| existing.name == field.name) {
+        fields.push(MessageField {
+            name: field.name.clone(),
+            is_optional: field.is_option(),
+        });
     }
 }
 
@@ -246,7 +272,7 @@ fn parse_message_template(
             };
 
             format.push_str("{}");
-            push_unique_field(&mut used_fields, &field.name);
+            push_unique_field(&mut used_fields, field);
         }
         // escape a literal closing brace
         else if character == '}' && chars.peek() == Some(&'}') {
@@ -271,10 +297,65 @@ fn message_format_expr(template: &MessageTemplate, formatter_name: &Ident) -> To
     let format_args: Vec<TokenStream2> = template
         .fields
         .iter()
-        .map(|field| format_field_expr(field, formatter_name))
+        .map(|field| format_field_expr(&field.name, formatter_name))
         .collect();
 
     quote! { format!(#format, #(#format_args),*) }
+}
+
+/// Generate the formatting expression for one optional message template.
+fn optional_message_format_expr(
+    template: &MessageTemplate,
+    formatter_name: &Ident,
+    span: Span,
+) -> Result<TokenStream2> {
+    let format = &template.format;
+    let option_fields = template
+        .fields
+        .iter()
+        .filter(|field| field.is_optional)
+        .collect::<Vec<_>>();
+    if option_fields.is_empty() {
+        return Err(Error::new(
+            span,
+            "optional diagnostic message must reference at least one Option field",
+        ));
+    }
+
+    let option_names = option_fields
+        .iter()
+        .map(|field| &field.name)
+        .collect::<Vec<_>>();
+    let option_bindings = option_names
+        .iter()
+        .map(|field| format_ident!("__diagnostic_optional_{field}"))
+        .collect::<Vec<_>>();
+    let option_refs = option_names
+        .iter()
+        .map(|field| quote! { #field.as_ref() })
+        .collect::<Vec<_>>();
+    let format_args = template
+        .fields
+        .iter()
+        .map(|field| {
+            let field_name = &field.name;
+            if field.is_optional {
+                let binding = format_ident!("__diagnostic_optional_{field_name}");
+
+                quote! { #binding.format_diagnostic(#formatter_name)? }
+            } else {
+                format_field_expr(field_name, formatter_name)
+            }
+        })
+        .collect::<Vec<_>>();
+
+    Ok(quote! {
+        if let (#(Some(#option_bindings),)*) = (#(#option_refs,)*) {
+            Some(format!(#format, #(#format_args),*))
+        } else {
+            None
+        }
+    })
 }
 
 /// Extract the doc comment from attributes.
@@ -350,6 +431,7 @@ fn parse_variant(variant: &syn::Variant, severity: char, phase: char) -> Result<
 
     let mut code = None;
     let mut message = None;
+    let mut optional_message = None;
     // parse code and message
     attribute.parse_nested_meta(|meta| {
         if meta.path.is_ident("code") {
@@ -357,6 +439,9 @@ fn parse_variant(variant: &syn::Variant, severity: char, phase: char) -> Result<
         } else if meta.path.is_ident("message") {
             let value: LitStr = meta.value()?.parse()?;
             message = Some(value.value());
+        } else if meta.path.is_ident("optional_message") {
+            let value: LitStr = meta.value()?.parse()?;
+            optional_message = Some(value.value());
         } else {
             return Err(meta.error("unknown diagnostic variant option"));
         }
@@ -390,6 +475,7 @@ fn parse_variant(variant: &syn::Variant, severity: char, phase: char) -> Result<
         description,
         sub_code,
         message,
+        optional_message,
         fields,
     })
 }
@@ -436,14 +522,43 @@ fn message_arm(variant: &DiagnosticVariant, formatter_name: &Ident) -> Result<To
     if let Some(message) = &variant.message {
         let template = parse_message_template(message, &variant.fields, variant.code.span())?;
         let format_expr = message_format_expr(&template, formatter_name);
+        let mut used_fields = template
+            .fields
+            .iter()
+            .map(|field| field.name.clone())
+            .collect::<Vec<_>>();
+        let optional_format_expr = match &variant.optional_message {
+            Some(optional_message) => {
+                let optional_template =
+                    parse_message_template(optional_message, &variant.fields, variant.code.span())?;
+                for field in &optional_template.fields {
+                    if !used_fields.iter().any(|existing| existing == &field.name) {
+                        used_fields.push(field.name.clone());
+                    }
+                }
+                let optional_format_expr = optional_message_format_expr(
+                    &optional_template,
+                    formatter_name,
+                    variant.code.span(),
+                )?;
 
-        if template.fields.is_empty() {
+                quote! {
+                    let mut message = #format_expr;
+                    if let Some(optional_message) = #optional_format_expr {
+                        message.push_str(&optional_message);
+                    }
+
+                    message
+                }
+            }
+            None => format_expr,
+        };
+
+        if used_fields.is_empty() {
             let pattern = variant_pattern(variant);
-            Ok(quote! { #pattern => #format_expr })
+            Ok(quote! { #pattern => { #optional_format_expr } })
         } else {
-            let used_fields = &template.fields;
-
-            Ok(quote! { Self::#name { #(#used_fields,)* .. } => #format_expr })
+            Ok(quote! { Self::#name { #(#used_fields,)* .. } => { #optional_format_expr } })
         }
     } else {
         Err(Error::new(
