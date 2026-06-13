@@ -360,7 +360,6 @@ fn guard_from_header(
     let mir::Terminator::Branch {
         condition,
         then_target,
-        else_target: _,
         ..
     } = header_terminator
     else {
@@ -568,7 +567,7 @@ fn preheader_guard_bound(
     };
 
     // require an unsigned range with a matching width
-    if *is_signed || *range_width as u16 != width {
+    if *is_signed || *range_width != width {
         return None;
     }
 
@@ -617,7 +616,6 @@ fn strip_bounds_checks(
         let mir::Terminator::Check {
             constraint,
             success,
-            failure: _,
             ..
         } = &terminator
         else {

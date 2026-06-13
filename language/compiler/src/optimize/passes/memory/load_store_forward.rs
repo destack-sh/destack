@@ -434,7 +434,7 @@ fn process_block(
                 }
 
                 // compute the clobbering access for this read
-                let clobber = memory_ssa.clobbering_access_for_use(use_access_id, aa, tree);
+                let clobber = memory_ssa.clobbering_access_for_use(use_access_id, aa);
                 let Some(clobber) = resolve_trivial_clobber(memory_ssa, clobber) else {
                     continue;
                 };
@@ -476,7 +476,7 @@ fn process_block(
                 }
 
                 // compute the clobbering access for this read
-                let clobber = memory_ssa.clobbering_access_for_use(use_access_id, aa, tree);
+                let clobber = memory_ssa.clobbering_access_for_use(use_access_id, aa);
                 let Some(clobber) = resolve_trivial_clobber(memory_ssa, clobber) else {
                     continue;
                 };

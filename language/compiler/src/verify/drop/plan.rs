@@ -343,13 +343,14 @@ impl<'a> DropPlan<'a> {
             index,
             ..
         } = instruction
+            && self.is_owned_reference(*destination)
         {
-            if self.is_owned_reference(*destination) {
-                return vec![self.place_moved_by_projection(
+            return vec![
+                self.place_moved_by_projection(
                     *aggregate,
                     mir::Projection::Field { index: *index },
-                )];
-            }
+                ),
+            ];
         }
 
         // move known elements when extracting move-only values
@@ -359,13 +360,11 @@ impl<'a> DropPlan<'a> {
             index,
             ..
         } = instruction
+            && self.is_owned_reference(*destination)
         {
-            if self.is_owned_reference(*destination) {
-                return vec![self.place_moved_by_projection(
-                    *array,
-                    mir::Projection::Element { index: *index },
-                )];
-            }
+            return vec![
+                self.place_moved_by_projection(*array, mir::Projection::Element { index: *index }),
+            ];
         }
 
         Vec::new()

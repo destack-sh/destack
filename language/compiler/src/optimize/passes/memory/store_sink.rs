@@ -395,7 +395,7 @@ fn collect_use_blocks_by_def(
                     continue;
                 };
 
-                let clobber = memory_ssa.clobbering_access_for_use(access_id, alias, tree);
+                let clobber = memory_ssa.clobbering_access_for_use(access_id, alias);
                 blocks_by_def.entry(clobber).or_default().insert(block_id);
             }
         }

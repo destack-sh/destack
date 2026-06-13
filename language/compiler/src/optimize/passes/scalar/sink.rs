@@ -281,7 +281,7 @@ fn run_sink(
     }
 
     // sort by instruction index descending so we can remove without invalidating indices
-    work.sort_by(|a, b| b.instruction_idx.cmp(&a.instruction_idx));
+    work.sort_by_key(|item| std::cmp::Reverse(item.instruction_idx));
 
     // group by source block
     let mut by_block: HashMap<mir::LocalNodeId<mir::Block>, Vec<SinkWork>> = HashMap::new();

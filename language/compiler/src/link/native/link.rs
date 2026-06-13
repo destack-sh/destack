@@ -105,8 +105,7 @@ impl<'a> NativeLinker<'a> {
                         module_id,
                         self.target_name()
                     ),
-                }
-                .into());
+                });
             };
 
             let module = self

@@ -218,14 +218,14 @@ impl WalkState<'_, '_> {
         let expression = self
             .tree
             .get(dir::LocalNodeId::<dir::Expression>::new(parent.id));
-        match expression {
+        !matches!(
+            expression,
             dir::Expression::LetElse { declarator, .. }
             | dir::Expression::If {
                 condition: dir::IfCondition::Let { declarator, .. },
                 ..
-            } if declarator == &id => false,
-            _ => true,
-        }
+            } if declarator == &id
+        )
     }
 
     /// Narrow flow from one matched declarator pattern.

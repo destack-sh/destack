@@ -95,8 +95,8 @@ impl ValueRange {
                 width,
                 is_signed,
             } => Some(ValueRange::Integer {
-                min: *value as i128,
-                max: *value as i128,
+                min: *value,
+                max: *value,
                 width: *width,
                 is_signed: *is_signed,
             }),
@@ -593,7 +593,7 @@ fn resolve_block_param_ranges(
 
     // collect ranges for parameters
     let mut ranges = HashMap::new();
-    for (param, state) in block.parameters.iter().zip(states.into_iter()) {
+    for (param, state) in block.parameters.iter().zip(states) {
         let Some(param_value) = param.value.value() else {
             continue;
         };
@@ -1867,13 +1867,10 @@ fn float_range_negate(range: &ValueRange) -> Option<ValueRange> {
     // extract operand range
     let (bounds, format, can_be_nan, can_be_pos_inf, can_be_neg_inf) = float_range_fields(range)?;
 
-    let bounds = match bounds {
-        Some(bounds) => Some(FloatBounds {
-            min: float_neg_value(format, bounds.max),
-            max: float_neg_value(format, bounds.min),
-        }),
-        None => None,
-    };
+    let bounds = bounds.map(|bounds| FloatBounds {
+        min: float_neg_value(format, bounds.max),
+        max: float_neg_value(format, bounds.min),
+    });
 
     Some(ValueRange::Float {
         bounds,

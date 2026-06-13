@@ -498,12 +498,8 @@ fn guard_comparison(
         ..
     } = instruction
     {
-        let Some(left) = left.value() else {
-            return None;
-        };
-        let Some(right) = right.value() else {
-            return None;
-        };
+        let left = left.value()?;
+        let right = right.value()?;
 
         return Some((*operator, left, right, guard_is_true));
     }
@@ -531,12 +527,8 @@ fn guard_comparison(
             return None;
         };
 
-        let Some(left) = left.value() else {
-            return None;
-        };
-        let Some(right) = right.value() else {
-            return None;
-        };
+        let left = left.value()?;
+        let right = right.value()?;
 
         return Some((*operator, left, right, !guard_is_true));
     }
@@ -565,15 +557,9 @@ fn guard_condition(terminator: mir::Terminator, lp: &Loop) -> Option<(mir::Value
             else_target,
             ..
         } => {
-            let Some(condition) = condition.value() else {
-                return None;
-            };
-            let Some(then_target) = then_target.block.block() else {
-                return None;
-            };
-            let Some(else_target) = else_target.block.block() else {
-                return None;
-            };
+            let condition = condition.value()?;
+            let then_target = then_target.block.block()?;
+            let else_target = else_target.block.block()?;
 
             // determine which branch stays inside the loop
             let then_in_loop = lp.blocks.contains(&then_target);

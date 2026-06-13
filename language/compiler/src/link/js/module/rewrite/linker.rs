@@ -249,7 +249,7 @@ impl<'module, 'a> Rewriter<'module, 'a> {
                     };
                     let name = *name;
 
-                    if !self.can_use_identifier_property_name(&self.module.strings.get(name)) {
+                    if !self.can_use_identifier_property_name(self.module.strings.get(name)) {
                         continue;
                     }
 
@@ -258,7 +258,7 @@ impl<'module, 'a> Rewriter<'module, 'a> {
                 }
 
                 js::Expression::Member { left, name } => {
-                    if self.can_use_identifier_property_name(&self.module.strings.get(name)) {
+                    if self.can_use_identifier_property_name(self.module.strings.get(name)) {
                         continue;
                     }
 

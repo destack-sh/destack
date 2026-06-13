@@ -123,18 +123,9 @@ impl TypeBasedAA {
             | (TypeKey::Tuple { .. }, TypeKey::Array { .. }) => true,
 
             // arrays with different element types
-            (
-                TypeKey::Array {
-                    element: e1,
-                    copy: _,
-                    ..
-                },
-                TypeKey::Array {
-                    element: e2,
-                    copy: _,
-                    ..
-                },
-            ) => self.types_cannot_alias(e1, e2),
+            (TypeKey::Array { element: e1, .. }, TypeKey::Array { element: e2, .. }) => {
+                self.types_cannot_alias(e1, e2)
+            }
 
             // references with different spaces or pointee types
             (

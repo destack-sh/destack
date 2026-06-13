@@ -56,8 +56,7 @@ impl<'a> JsLinker<'a> {
                     "bundleOutput.format '{}' is not implemented yet",
                     Self::bundle_format_name(format)
                 ),
-            }
-            .into());
+            });
         }
 
         Ok(())

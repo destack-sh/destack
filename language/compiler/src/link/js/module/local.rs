@@ -76,7 +76,7 @@ impl JsLinker<'_> {
                         return Err(LinkError::InvalidTarget {
                             anchor: module_id.into(),
                             package: package_id,
-                            target: target_id.clone(),
+                            target: *target_id,
                             message: "resource imports only support default and namespace bindings"
                                 .to_string(),
                         });
@@ -85,17 +85,15 @@ impl JsLinker<'_> {
             };
 
             // default-style resource imports can retarget directly to the shared wrapper binding
-            if !is_namespace {
-                if let Some(local_symbol) = module.tree.symbol(item_id) {
-                    self.retarget_resource_import_symbol_references(
-                        module,
-                        local_symbol,
-                        binding_name,
-                        target_module,
-                        synthetic_default_name,
-                    );
-                    continue;
-                }
+            if !is_namespace && let Some(local_symbol) = module.tree.symbol(item_id) {
+                self.retarget_resource_import_symbol_references(
+                    module,
+                    local_symbol,
+                    binding_name,
+                    target_module,
+                    synthetic_default_name,
+                );
+                continue;
             }
 
             let pattern = module.tree.insert_from(
@@ -316,8 +314,7 @@ impl JsLinker<'_> {
                 anchor: (package_id).into(),
                 package: package_id,
                 message: format!(
-                    "missing bound DIR for same-output import rewrite module {:?}: {error:?}",
-                    module_id,
+                    "missing bound DIR for same-output import rewrite module {module_id:?}: {error:?}",
                 ),
             })?;
         let source_expanded = self.artifacts.dir_expanded(module_id, profile_id).map_err(
@@ -325,8 +322,7 @@ impl JsLinker<'_> {
                 anchor: (package_id).into(),
                 package: package_id,
                 message: format!(
-                    "missing expanded DIR for same-output import rewrite module {:?}: {error:?}",
-                    module_id,
+                    "missing expanded DIR for same-output import rewrite module {module_id:?}: {error:?}",
                 ),
             },
         )?;
@@ -351,8 +347,7 @@ impl JsLinker<'_> {
                     anchor: (package_id).into(),
                     package: package_id,
                     message: format!(
-                        "missing local symbol for same-output import rewrite item {:?} in module {:?}",
-                        item_id, module_id
+                        "missing local symbol for same-output import rewrite item {item_id:?} in module {module_id:?}"
                     ),
                 });
             }
@@ -376,8 +371,7 @@ impl JsLinker<'_> {
                 anchor: (package_id).into(),
                 package: package_id,
                 message: format!(
-                    "missing bound DIR for same-output import target symbol {:?}: {error:?}",
-                    symbol_id
+                    "missing bound DIR for same-output import target symbol {symbol_id:?}: {error:?}"
                 ),
             })?;
         let source_expanded = self
@@ -387,8 +381,7 @@ impl JsLinker<'_> {
                 anchor: (package_id).into(),
                 package: package_id,
                 message: format!(
-                    "missing expanded DIR for same-output import target symbol {:?}: {error:?}",
-                    symbol_id
+                    "missing expanded DIR for same-output import target symbol {symbol_id:?}: {error:?}"
                 ),
             })?;
         let symbols = source_expanded.binding_table(&source_bound);
@@ -568,8 +561,7 @@ impl JsLinker<'_> {
                 anchor: (package_id).into(),
                 package: package_id,
                 message: format!(
-                    "missing resolved dir for same-output namespace import target {:?}: {error:?}",
-                    target_module,
+                    "missing resolved dir for same-output namespace import target {target_module:?}: {error:?}",
                 ),
             })?;
         let mut seen_keys = HashSet::new();
@@ -655,9 +647,9 @@ impl JsLinker<'_> {
         let name = match key {
             dir::StaticKey::Name(name) => {
                 let content = target_strings.get(name);
-                let name = module.strings.intern(&content);
+                let name = module.strings.intern(content);
 
-                if dir::is_identifier(&content) {
+                if dir::is_identifier(content) {
                     js::Name::Identifier(name)
                 } else {
                     js::Name::String(name)
@@ -671,10 +663,9 @@ impl JsLinker<'_> {
                 return Err(LinkError::InvalidTarget {
                     anchor: module_id.into(),
                     package: package_id,
-                    target: target_id.clone(),
+                    target: *target_id,
                     message: format!(
-                        "bundled same-output namespace imports do not support symbol-keyed exports in '{}'",
-                        target_id
+                        "bundled same-output namespace imports do not support symbol-keyed exports in '{target_id}'"
                     ),
                 });
             }

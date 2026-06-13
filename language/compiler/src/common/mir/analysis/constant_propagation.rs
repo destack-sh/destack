@@ -402,7 +402,7 @@ fn resolve_block_param_constants(
 
     // collect constants for parameters
     let mut constants = HashMap::new();
-    for (param, state) in block.parameters.iter().zip(states.into_iter()) {
+    for (param, state) in block.parameters.iter().zip(states) {
         let Some(param_value) = param.value.value() else {
             continue;
         };

@@ -88,10 +88,10 @@ fn run_dead_code_elimination(
         for &instruction_id in &block.instructions {
             // record the defining instruction
             let instruction = tree.get(instruction_id);
-            if let Some(dest) = instruction.destination() {
-                if let Some(dest) = dest.value() {
-                    value_to_instruction.insert(dest, instruction_id);
-                }
+            if let Some(dest) = instruction.destination()
+                && let Some(dest) = dest.value()
+            {
+                value_to_instruction.insert(dest, instruction_id);
             }
         }
     }

@@ -1334,9 +1334,7 @@ fn lower_single_case_switch(
     // materialize the case constant
     let type_id = tree.int_type(*width, *is_signed);
     let constant_value = function.next_typed_value(type_id);
-    let Some(case_value) = case.value.integer() else {
-        return None;
-    };
+    let case_value = case.value.integer()?;
 
     let constant = if *is_signed {
         mir::Constant::Int {
@@ -2587,9 +2585,7 @@ fn split_critical_edge_target(
     let mut new_parameters = Vec::with_capacity(target_block.parameters.len());
     let mut new_arguments = Vec::with_capacity(target_block.parameters.len());
     for param in &target_block.parameters {
-        let Some(ty) = param.ty.ty() else {
-            return None;
-        };
+        let ty = param.ty.ty()?;
 
         let value = function.next_typed_value(ty);
         new_parameters.push(mir::Parameter {

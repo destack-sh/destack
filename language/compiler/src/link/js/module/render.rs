@@ -86,7 +86,7 @@ impl<'a> JsLinker<'a> {
                 .ok_or_else(|| LinkError::Internal {
                     anchor: (self.package_id).into(),
                     package: self.package_id,
-                    message: format!("missing output id for JS module {:?}", module_id),
+                    message: format!("missing output id for JS module {module_id:?}"),
                 })?;
             let script = self.js_output_for_output(output_id, *module_id, plan)?;
             let module = self.module(*module_id)?;

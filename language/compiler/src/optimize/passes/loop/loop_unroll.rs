@@ -2064,11 +2064,7 @@ fn unroll_limits_for_loop(
     }
 
     // estimate average iterations from header and entry counts
-    let avg_iterations = if entry_count > 0 {
-        (header_count / entry_count).max(1)
-    } else {
-        1
-    };
+    let avg_iterations = header_count.checked_div(entry_count).unwrap_or(1).max(1);
 
     let iteration_boost: u64 = match avg_iterations {
         0..=3 => 1,
@@ -2817,10 +2813,10 @@ impl ValueDefinitions {
             let block = tree.get(block_id);
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
-                if let Some(destination) = instruction.destination() {
-                    if let Some(destination) = destination.value() {
-                        definitions.insert(destination, instruction_id);
-                    }
+                if let Some(destination) = instruction.destination()
+                    && let Some(destination) = destination.value()
+                {
+                    definitions.insert(destination, instruction_id);
                 }
             }
         }

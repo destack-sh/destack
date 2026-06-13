@@ -267,7 +267,7 @@ impl<'a> JsLinker<'a> {
                 return Err(LinkError::InvalidTarget {
                     anchor: module.id.into(),
                     package: self.package_id,
-                    target: self.target_id.clone(),
+                    target: *self.target_id,
                     message:
                         "assets.binding = \"reference\" is not supported for code file imports"
                             .to_string(),
@@ -395,9 +395,7 @@ impl<'a> JsLinker<'a> {
             let value = self.data(module.id)?;
             let Data::Json(value) = value.as_ref();
 
-            return Ok(insert_json_expression(
-                tree, strings, module.id, anchor, value,
-            )?);
+            return insert_json_expression(tree, strings, module.id, anchor, value);
         }
 
         if module.loader == Loader::Base64 {

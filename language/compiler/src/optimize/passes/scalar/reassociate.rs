@@ -227,7 +227,7 @@ fn run_reassociate(
                         .destination()
                         .and_then(|destination| destination.value())
                     {
-                        block_constants.remove(&destination);
+                        block_constants.remove(destination);
                     }
                 }
             }

@@ -98,10 +98,9 @@ impl JsLinker<'_> {
             return Err(LinkError::InvalidTarget {
                 anchor: module_id.into(),
                 package: package_id,
-                target: target_id.clone(),
+                target: *target_id,
                 message: format!(
-                    "bundled internal import attributes are not supported yet in '{}'",
-                    target_id
+                    "bundled internal import attributes are not supported yet in '{target_id}'"
                 ),
             });
         }
@@ -177,10 +176,9 @@ impl JsLinker<'_> {
             return Err(LinkError::InvalidTarget {
                 anchor: module_id.into(),
                 package: package_id,
-                target: target_id.clone(),
+                target: *target_id,
                 message: format!(
-                    "bundled internal re-export rewriting is only implemented for plain named exports in '{}'",
-                    target_id
+                    "bundled internal re-export rewriting is only implemented for plain named exports in '{target_id}'"
                 ),
             });
         }

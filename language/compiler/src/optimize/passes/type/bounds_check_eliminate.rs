@@ -474,9 +474,7 @@ fn bounds_check_candidate(
             }
 
             // assign in bounds and out of bounds edges
-            let Some(condition) = condition.value() else {
-                return None;
-            };
+            let condition = condition.value()?;
             let (in_bounds_target, out_target, in_bounds_truth) = if then_trap {
                 (else_target, then_target, false)
             } else {
@@ -694,7 +692,8 @@ fn constraints_for_edge(
 
             // select the path that reaches the child
             let truth_value = success_reaches;
-            let constraints = constraints_for_check_kind(
+
+            constraints_for_check_kind(
                 constraint,
                 truth_value,
                 block_id,
@@ -703,8 +702,7 @@ fn constraints_for_edge(
                 constants,
                 ranges,
             )
-            .unwrap_or_default();
-            constraints
+            .unwrap_or_default()
         }
         _ => Vec::new(),
     }

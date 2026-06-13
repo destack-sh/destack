@@ -290,12 +290,8 @@ impl Compiler {
         type_member: &dir::TypeMember,
     ) -> Option<dir::LocalScopeId> {
         // ignore non symbolic type members
-        let Some(key) = type_member.symbol_key() else {
-            return None;
-        };
-        let Some(kind) = type_member.symbol_kind() else {
-            return None;
-        };
+        let key = type_member.symbol_key()?;
+        let kind = type_member.symbol_kind()?;
 
         // declare scoped or plain type member symbol
         let (symbol_id, scope_id) = if let Some(scope_kind) = type_member.symbol_scope_kind() {
@@ -361,7 +357,6 @@ impl Compiler {
                 key,
                 signature,
                 body,
-                is_static: _,
                 ..
             } => {
                 // visit method key

@@ -50,7 +50,7 @@ impl CheckState<'_> {
                 })
             }
             dir::Expression::ObjectExpression { properties } => {
-                self.capture_directive_from_properties(module, &properties)
+                self.capture_directive_from_properties(module, properties)
             }
             _ => None,
         }

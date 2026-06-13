@@ -244,7 +244,7 @@ impl<'a> JsLinker<'a> {
         let name = name_token(source_path).ok_or_else(|| LinkError::InvalidOutputPath {
             anchor: module.id.into(),
             package: self.package_id,
-            target: self.target_id.clone(),
+            target: *self.target_id,
             subject: "asset module".to_string(),
             value: source_path.display().to_string(),
         })?;

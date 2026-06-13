@@ -1347,10 +1347,10 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         let mut values = Vec::new();
 
         // check the yielded value itself
-        if let Some(value) = yielded.value() {
-            if self.value_can_carry_sources(value) {
-                values.push(value);
-            }
+        if let Some(value) = yielded.value()
+            && self.value_can_carry_sources(value)
+        {
+            values.push(value);
         }
 
         // check parameters carried into the continuation

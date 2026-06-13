@@ -752,12 +752,8 @@ impl<'a> LoopScevBuilder<'a> {
         // derive the step for supported additive chains
         match operator {
             mir::BinaryOperator::Add => {
-                let Some(left) = left.value() else {
-                    return None;
-                };
-                let Some(right) = right.value() else {
-                    return None;
-                };
+                let left = left.value()?;
+                let right = right.value()?;
 
                 if self.is_invariant_value(right)
                     && let Some(step) = self.step_from_expression(param_value, left, step_zero)
@@ -776,12 +772,8 @@ impl<'a> LoopScevBuilder<'a> {
                 None
             }
             mir::BinaryOperator::Subtract => {
-                let Some(left) = left.value() else {
-                    return None;
-                };
-                let Some(right) = right.value() else {
-                    return None;
-                };
+                let left = left.value()?;
+                let right = right.value()?;
 
                 if self.is_invariant_value(right)
                     && let Some(step) = self.step_from_expression(param_value, left, step_zero)

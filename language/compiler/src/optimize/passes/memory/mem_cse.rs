@@ -332,7 +332,7 @@ fn candidate_is_redundant(
     }
 
     // resolve the clobbering access for this definition
-    let clobber = memory_ssa.clobbering_access_for_def(candidate.access, alias, tree);
+    let clobber = memory_ssa.clobbering_access_for_def(candidate.access, alias);
     let Some(clobber_defs) = clobber_def_accesses(memory_ssa, clobber) else {
         return false;
     };
@@ -362,7 +362,6 @@ fn candidate_is_redundant(
             clobber_def,
             memory_ssa,
             alias,
-            tree,
             equivalence,
         ) {
             return false;
@@ -405,7 +404,6 @@ fn def_kinds_equivalent(
     clobber_def: &MemoryDef,
     memory_ssa: &MemorySSA,
     alias: &AliasAnalysis,
-    tree: &mir::Tree,
     equivalence: &mut ValueEquivalence<'_>,
 ) -> bool {
     // compare candidate and clobber kinds
@@ -468,8 +466,7 @@ fn def_kinds_equivalent(
             }
 
             // require the source memory to be stable
-            if !memop_source_is_stable(&candidate_source, &clobber_source, memory_ssa, alias, tree)
-            {
+            if !memop_source_is_stable(&candidate_source, &clobber_source, memory_ssa, alias) {
                 return false;
             }
 
@@ -517,11 +514,10 @@ fn memop_source_is_stable(
     clobber: &SourceAccess,
     memory_ssa: &MemorySSA,
     alias: &AliasAnalysis,
-    tree: &mir::Tree,
 ) -> bool {
     // compare clobbering accesses for the source
-    let candidate_clobber = memory_ssa.clobbering_access_for_use(candidate.access, alias, tree);
-    let clobber_clobber = memory_ssa.clobbering_access_for_use(clobber.access, alias, tree);
+    let candidate_clobber = memory_ssa.clobbering_access_for_use(candidate.access, alias);
+    let clobber_clobber = memory_ssa.clobbering_access_for_use(clobber.access, alias);
 
     candidate_clobber == clobber_clobber
 }

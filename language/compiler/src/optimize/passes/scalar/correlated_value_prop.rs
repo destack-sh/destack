@@ -274,12 +274,8 @@ fn equality_condition(
     } = instruction
     {
         // map equality operators to the condition
-        let Some(left) = left.value() else {
-            return None;
-        };
-        let Some(right) = right.value() else {
-            return None;
-        };
+        let left = left.value()?;
+        let right = right.value()?;
 
         return match operator {
             mir::BinaryOperator::Equal => Some(EqualityCondition {
@@ -312,12 +308,8 @@ fn equality_condition(
         } = nested
     {
         // invert equality operators for the negated condition
-        let Some(left) = left.value() else {
-            return None;
-        };
-        let Some(right) = right.value() else {
-            return None;
-        };
+        let left = left.value()?;
+        let right = right.value()?;
 
         return match operator {
             mir::BinaryOperator::Equal => Some(EqualityCondition {

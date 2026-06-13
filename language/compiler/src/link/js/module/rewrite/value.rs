@@ -15,10 +15,9 @@ impl Rewriter<'_, '_> {
 
         if let (Some(left_symbol), Some(right_symbol)) =
             (module.tree.symbol(left), module.tree.symbol(right))
+            && left_symbol == right_symbol
         {
-            if left_symbol == right_symbol {
-                return true;
-            }
+            return true;
         }
 
         match (module.tree.get(left), module.tree.get(right)) {

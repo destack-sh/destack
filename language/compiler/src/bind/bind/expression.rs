@@ -47,7 +47,6 @@ impl Compiler {
                 export,
                 mutability,
                 declarators,
-                is_ambient: _,
                 ..
             } => {
                 // bind let declarators
@@ -76,7 +75,6 @@ impl Compiler {
             dir::Expression::Using {
                 export,
                 declarators,
-                is_ambient: _,
                 ..
             } => {
                 // bind resource declarators
