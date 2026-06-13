@@ -3,17 +3,15 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{
-    AliasAnalysis, ConstantPropagation, ControlFlowGraph, DominatorTree, MemoryAccess,
-    MemoryAccessEffect, MemoryAccessId, MemoryAccessLocation, MemorySSA,
-};
-use crate::common::mir::{
-    EdgeSplitPolicy, ValueEquivalence, build_instruction_block_map, build_use_def_maps,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AliasAnalysis, AnalysisPreservation, ConstantPropagation, ControlFlowGraph, DominatorTree,
+    EdgeSplitPolicy, MemoryAccess, MemoryAccessEffect, MemoryAccessId, MemoryAccessLocation,
+    MemorySSA, ValueEquivalence, build_instruction_block_map, build_use_def_maps,
     build_value_definition_map, effect_is_trackable, effects_match_location, ensure_edge_block,
     instruction_has_atomic_ordering, instruction_is_read_only_access, instruction_is_speculatable,
     resolve_edge_value, value_available_in_block,
 };
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_mir_pass! {
     /// Eliminate partially redundant stores by sinking them to predecessor edges.
@@ -64,6 +62,7 @@ impl FunctionPass for StorePre {
         function: &mut mir::Function,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
@@ -71,7 +70,7 @@ impl FunctionPass for StorePre {
         }
 
         // run store PRE
-        let changed = run_store_pre(function, tree, ctx);
+        let changed = run_store_pre(function, tree, ctx, analyses);
 
         if changed {
             AnalysisPreservation::none()
@@ -138,15 +137,15 @@ struct EdgeStorePlan {
 fn run_store_pre(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    ctx: &PipelineContext<'_>,
+    _ctx: &PipelineContext<'_>,
+    analyses: &mir::FunctionAnalyses,
 ) -> bool {
     // gather analyses
-    let analyses = ctx.function_analyses(function, tree);
-    let cfg = analyses.get::<ControlFlowGraph>().clone();
-    let domtree = analyses.get::<DominatorTree>().clone();
-    let memory_ssa = analyses.get::<MemorySSA>();
-    let alias = analyses.get::<AliasAnalysis>().clone();
-    let constants = analyses.get::<ConstantPropagation>();
+    let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
+    let domtree = analyses.get::<DominatorTree>(function, tree).clone();
+    let memory_ssa = analyses.get::<MemorySSA>(function, tree);
+    let alias = analyses.get::<AliasAnalysis>(function, tree).clone();
+    let constants = analyses.get::<ConstantPropagation>(function, tree);
 
     // build value definition info
     let use_def = build_use_def_maps(function, tree);

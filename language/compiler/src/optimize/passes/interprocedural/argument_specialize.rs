@@ -3,19 +3,16 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{
-    CallGraphScc, ConstantPropagation, constant_propagation_with_params,
-};
-use crate::common::mir::{
-    CallsiteHotness, ParameterRemap, SignatureKey, apply_constant_parameters, build_signature_type,
-    callsite_hotness, clone_instruction_metadata, constant_arguments_for_parameters,
-    instruction_map_with_locals, required_parameter_indices, terminator_remap,
-};
 use crate::optimize::passes::scalar::{
     DeadCodeEliminate, SimplifyCfg, SparseConditionalConstantPropagation,
 };
-use crate::optimize::{
-    AnalysisPreservation, ModulePass, PipelineContext, run_function_passes_always,
+use crate::optimize::{ModulePass, PipelineContext, run_function_passes_always};
+use destack_mir::{
+    AnalysisPreservation, CallGraphScc, CallsiteHotness, ConstantPropagation, ParameterRemap,
+    SignatureKey, apply_constant_parameters, build_signature_type, callsite_hotness,
+    clone_instruction_metadata, constant_arguments_for_parameters,
+    constant_propagation_with_params, instruction_map_with_locals, required_parameter_indices,
+    terminator_remap,
 };
 
 /// Maximum specializations per function.
@@ -73,9 +70,14 @@ declare_mir_pass! {
 
 impl ModulePass for ArgumentSpecialize {
     /// Run argument specialization for the module.
-    fn run(&self, tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
+    fn run(
+        &self,
+        tree: &mut mir::Tree,
+        ctx: &PipelineContext<'_>,
+        analyses: &mir::ModuleAnalyses,
+    ) -> AnalysisPreservation {
         // run the specialization pass
-        let changed = run_argument_specialize(tree, ctx);
+        let changed = run_argument_specialize(tree, ctx, analyses);
 
         // report analysis preservation based on whether changes occurred
         if changed {
@@ -152,13 +154,16 @@ enum ConstantKey {
 }
 
 /// Run argument specialization over the module.
-fn run_argument_specialize(tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> bool {
+fn run_argument_specialize(
+    tree: &mut mir::Tree,
+    ctx: &PipelineContext<'_>,
+    analyses: &mir::ModuleAnalyses,
+) -> bool {
     // collect callsite information
     let call_data = collect_call_data(tree);
 
     // collect call graph sccs for recursion checks
-    let analyses = ctx.module_analyses(tree);
-    let scc_map = analyses.get::<CallGraphScc>();
+    let scc_map = analyses.get::<CallGraphScc>(tree);
 
     // build constant propagation maps for callers
     let constants_by_function = build_constant_maps(tree, ctx.type_context());
@@ -303,7 +308,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
 /// Build constant propagation data for each defined function.
 fn build_constant_maps(
     tree: &mir::Tree,
-    type_context: crate::common::mir::TypeContext,
+    type_context: mir::TypeContext,
 ) -> HashMap<mir::LocalNodeId<mir::Function>, ConstantPropagation> {
     // prepare the constants map
     let mut maps = HashMap::new();

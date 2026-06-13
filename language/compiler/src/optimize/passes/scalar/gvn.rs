@@ -3,17 +3,13 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{
-    AliasAnalysis, ConstantPropagation, DominatorTree, MemoryAccess, MemoryAccessEffect,
-    MemoryAccessId, MemoryAccessLocation, MemorySSA,
-};
-use crate::common::mir::{
-    ValueTypeMap, can_substitute_value, memory_locations_compatible, spaces_may_alias,
-};
-use crate::optimize::{
-    AnalysisPreservation, ExpressionKey, FunctionPass, PipelineContext, TypeContext,
-    apply_substitutions_in_function, expression_key_from_instruction, expression_key_substitute,
-    instruction_has_side_effects, resolve_substitution_chains,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AliasAnalysis, AnalysisPreservation, ConstantPropagation, DominatorTree, ExpressionKey,
+    MemoryAccess, MemoryAccessEffect, MemoryAccessId, MemoryAccessLocation, MemorySSA, TypeContext,
+    ValueTypeMap, apply_substitutions_in_function, can_substitute_value,
+    expression_key_from_instruction, expression_key_substitute, instruction_has_side_effects,
+    memory_locations_compatible, resolve_substitution_chains, spaces_may_alias,
 };
 
 declare_mir_pass! {
@@ -64,6 +60,7 @@ impl FunctionPass for GlobalValueNumbering {
         function: &mut mir::Function,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip empty functions
         let entry = match function.entry {
@@ -72,11 +69,10 @@ impl FunctionPass for GlobalValueNumbering {
         };
 
         // get dominator tree children map for analysis
-        let analyses = ctx.function_analyses(function, tree);
-        let domtree = analyses.get::<DominatorTree>();
-        let alias = analyses.get::<AliasAnalysis>();
-        let memory_ssa = analyses.get::<MemorySSA>();
-        let constants = analyses.get::<ConstantPropagation>();
+        let domtree = analyses.get::<DominatorTree>(function, tree);
+        let alias = analyses.get::<AliasAnalysis>(function, tree);
+        let memory_ssa = analyses.get::<MemorySSA>(function, tree);
+        let constants = analyses.get::<ConstantPropagation>(function, tree);
         let dom_children = build_dominator_children(function, domtree.as_ref());
         let value_types = ValueTypeMap::new(function, tree);
 

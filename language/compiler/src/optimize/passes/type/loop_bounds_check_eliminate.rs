@@ -3,12 +3,11 @@ use std::collections::HashMap;
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{
-    ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, RangeAnalysis, RangeMap, ScalarEvolution,
-    Scev, ValueRange,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, BlockParamForwarding, ControlFlowGraph, DominatorTree, Loop,
+    LoopAnalysis, RangeAnalysis, RangeMap, ScalarEvolution, Scev, ValueRange, constant_zero_like,
 };
-use crate::common::mir::{BlockParamForwarding, constant_zero_like};
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_mir_pass! {
     /// Eliminate bounds checks dominated by loop guards.
@@ -72,7 +71,8 @@ impl FunctionPass for LoopBoundsCheckEliminate {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
-        ctx: &PipelineContext<'_>,
+        _ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
@@ -80,12 +80,11 @@ impl FunctionPass for LoopBoundsCheckEliminate {
         }
 
         // gather analyses
-        let analyses = ctx.function_analyses(function, tree);
-        let loops = analyses.get::<LoopAnalysis>().clone();
-        let cfg = analyses.get::<ControlFlowGraph>().clone();
-        let domtree = analyses.get::<DominatorTree>().clone();
-        let ranges = analyses.get::<RangeAnalysis>().clone();
-        let scev = analyses.get::<ScalarEvolution>().clone();
+        let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
+        let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
+        let domtree = analyses.get::<DominatorTree>(function, tree).clone();
+        let ranges = analyses.get::<RangeAnalysis>(function, tree).clone();
+        let scev = analyses.get::<ScalarEvolution>(function, tree).clone();
 
         // skip when no loops are present
         if loops.num_loops() == 0 {

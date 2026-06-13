@@ -4,9 +4,9 @@ use destack_core::StringPool;
 use destack_mir as mir;
 use destack_source::{DiffOptions, FileId, ModuleId, PackageId, ProfileId, TargetId, print_diff};
 
-use crate::common::mir::{FunctionAnalyses, ModuleAnalyses};
 use crate::optimize::{FunctionPass, ModulePass, PipelineContext, PipelineOptions};
 use crate::{OptimizeError, OptimizeWarning};
+use destack_mir::{FunctionAnalyses, ModuleAnalyses};
 
 /// Placeholder module id for tests.
 fn test_module_id() -> ModuleId {
@@ -459,7 +459,8 @@ impl TestProgram {
 
             // recompute next_value_id so passes can allocate fresh values
             function.recompute_next_value_id(&self.tree);
-            pass.run(&mut function, &mut self.tree, &context);
+            let analyses = context.new_function_analyses();
+            pass.run(&mut function, &mut self.tree, &context, &analyses);
             *self.tree.get_mut(function_id) = function;
         }
 
@@ -619,7 +620,8 @@ impl TestProgram {
 
         // enforce pass requirements
         if context.enforce_module_requirements(pass.metadata(), &self.tree) {
-            pass.run(&mut self.tree, &context);
+            let analyses = ModuleAnalyses::new();
+            pass.run(&mut self.tree, &context, &analyses);
         }
 
         // collect diagnostics after pass completes
@@ -652,7 +654,8 @@ impl TestProgram {
 
         // enforce pass requirements
         if context.enforce_module_requirements(pass.metadata(), &self.tree) {
-            pass.run(&mut self.tree, &context);
+            let analyses = ModuleAnalyses::new();
+            pass.run(&mut self.tree, &context, &analyses);
         }
 
         // collect diagnostics after pass completes
@@ -685,7 +688,8 @@ impl TestProgram {
 
         // enforce pass requirements
         if context.enforce_module_requirements(pass.metadata(), &self.tree) {
-            pass.run(&mut self.tree, &context);
+            let analyses = ModuleAnalyses::new();
+            pass.run(&mut self.tree, &context, &analyses);
         }
 
         // collect diagnostics after pass completes
@@ -813,17 +817,14 @@ impl TestProgram {
         self.errors.clone()
     }
 
-    /// Create function analyses for this test program.
-    pub(crate) fn function_analyses<'a>(
-        &'a self,
-        function: &'a mir::Function,
-    ) -> FunctionAnalyses<'a> {
-        FunctionAnalyses::new(function, &self.tree)
+    /// Create a function analysis cache for this test program.
+    pub(crate) fn function_analyses(&self) -> FunctionAnalyses {
+        FunctionAnalyses::new()
     }
 
     /// Create module analyses for this test program.
-    pub(crate) fn module_analyses(&self) -> ModuleAnalyses<'_> {
-        ModuleAnalyses::new(&self.tree)
+    pub(crate) fn module_analyses(&self) -> ModuleAnalyses {
+        ModuleAnalyses::new()
     }
 }
 
@@ -834,15 +835,13 @@ mod tests {
     use crate::declare_mir_pass;
     use destack_core::StringPool;
     use destack_mir as mir;
-
-    use super::TestProgram;
-    use crate::OptimizeError;
-    use crate::common::mir::instruction_is_speculatable;
-    use crate::optimize::passes::{InterproceduralSccp, LoadPre};
-    use crate::optimize::{
-        Analysis, AnalysisId, AnalysisPreservation, FunctionAnalyses, FunctionAnalysis, ModulePass,
-        PipelineContext, PipelineOptions,
+    use destack_mir::{
+        Analysis, AnalysisId, AnalysisPreservation, FunctionAnalysis, instruction_is_speculatable,
     };
+
+    use super::*;
+    use crate::OptimizeError;
+    use crate::optimize::passes::{InterproceduralSccp, LoadPre};
 
     /// Simple test analysis with no dependencies.
     struct TestAnalysisA {
@@ -858,7 +857,7 @@ mod tests {
         fn compute(
             _function: &mir::Function,
             _tree: &mir::Tree,
-            _analyses: &FunctionAnalyses<'_>,
+            _analyses: &FunctionAnalyses,
         ) -> Self {
             Self { computed: true }
         }
@@ -876,11 +875,11 @@ mod tests {
 
     impl FunctionAnalysis for TestAnalysisB {
         fn compute(
-            _function: &mir::Function,
-            _tree: &mir::Tree,
-            analyses: &FunctionAnalyses<'_>,
+            function: &mir::Function,
+            tree: &mir::Tree,
+            analyses: &FunctionAnalyses,
         ) -> Self {
-            let a = analyses.get::<TestAnalysisA>();
+            let a = analyses.get::<TestAnalysisA>(function, tree);
             Self {
                 a_computed: a.computed,
             }
@@ -899,11 +898,11 @@ mod tests {
 
     impl FunctionAnalysis for TestAnalysisC {
         fn compute(
-            _function: &mir::Function,
-            _tree: &mir::Tree,
-            analyses: &FunctionAnalyses<'_>,
+            function: &mir::Function,
+            tree: &mir::Tree,
+            analyses: &FunctionAnalyses,
         ) -> Self {
-            let b = analyses.get::<TestAnalysisB>();
+            let b = analyses.get::<TestAnalysisB>(function, tree);
             Self {
                 b_a_computed: b.a_computed,
             }
@@ -922,18 +921,18 @@ b0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let analyses = program.function_analyses();
 
         // initially not cached
         assert!(!analyses.is_cached::<TestAnalysisA>());
 
         // get computes and caches
-        let a = analyses.get::<TestAnalysisA>();
+        let a = analyses.get::<TestAnalysisA>(function, &program.tree);
         assert!(a.computed);
         assert!(analyses.is_cached::<TestAnalysisA>());
 
         // second get returns cached
-        let a2 = analyses.get::<TestAnalysisA>();
+        let a2 = analyses.get::<TestAnalysisA>(function, &program.tree);
         assert!(Arc::ptr_eq(&a, &a2));
     }
 
@@ -971,10 +970,10 @@ b0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let analyses = program.function_analyses();
 
         // get B, which depends on A
-        let b = analyses.get::<TestAnalysisB>();
+        let b = analyses.get::<TestAnalysisB>(function, &program.tree);
         assert!(b.a_computed);
 
         // A should now be cached (computed as dependency)
@@ -993,10 +992,10 @@ b0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let analyses = program.function_analyses();
 
         // get C, which depends on B, which depends on A
-        let c = analyses.get::<TestAnalysisC>();
+        let c = analyses.get::<TestAnalysisC>(function, &program.tree);
         assert!(c.b_a_computed);
 
         // all should be cached
@@ -1017,10 +1016,10 @@ b0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let analyses = program.function_analyses();
 
         // compute A
-        let _ = analyses.get::<TestAnalysisA>();
+        let _ = analyses.get::<TestAnalysisA>(function, &program.tree);
         assert!(analyses.is_cached::<TestAnalysisA>());
 
         // invalidate A
@@ -1040,16 +1039,16 @@ b0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let analyses = program.function_analyses();
 
         // compute all
-        let _ = analyses.get::<TestAnalysisC>();
+        let _ = analyses.get::<TestAnalysisC>(function, &program.tree);
         assert!(analyses.is_cached::<TestAnalysisA>());
         assert!(analyses.is_cached::<TestAnalysisB>());
         assert!(analyses.is_cached::<TestAnalysisC>());
 
         // invalidate all
-        analyses.invalidate_all();
+        analyses.clear();
         assert!(!analyses.is_cached::<TestAnalysisA>());
         assert!(!analyses.is_cached::<TestAnalysisB>());
         assert!(!analyses.is_cached::<TestAnalysisC>());
@@ -1067,10 +1066,10 @@ b0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let analyses = program.function_analyses();
 
         // compute all
-        let _ = analyses.get::<TestAnalysisC>();
+        let _ = analyses.get::<TestAnalysisC>(function, &program.tree);
 
         // preserve all
         analyses.apply_preservation(&AnalysisPreservation::all());
@@ -1093,10 +1092,10 @@ b0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let analyses = program.function_analyses();
 
         // compute all
-        let _ = analyses.get::<TestAnalysisC>();
+        let _ = analyses.get::<TestAnalysisC>(function, &program.tree);
 
         // preserve none
         analyses.apply_preservation(&AnalysisPreservation::none());
@@ -1119,10 +1118,10 @@ b0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let analyses = program.function_analyses();
 
         // compute all
-        let _ = analyses.get::<TestAnalysisC>();
+        let _ = analyses.get::<TestAnalysisC>(function, &program.tree);
 
         // preserve only A
         analyses.apply_preservation(&AnalysisPreservation::preserving(&[TestAnalysisA::ID]));
@@ -1167,7 +1166,12 @@ b0:
     }
 
     impl ModulePass for TestProfilePass {
-        fn run(&self, _tree: &mut mir::Tree, _ctx: &PipelineContext<'_>) -> AnalysisPreservation {
+        fn run(
+            &self,
+            _tree: &mut mir::Tree,
+            _ctx: &PipelineContext<'_>,
+            _analyses: &ModuleAnalyses,
+        ) -> AnalysisPreservation {
             AnalysisPreservation::all()
         }
 
@@ -1177,7 +1181,12 @@ b0:
     }
 
     impl ModulePass for TestLayoutPass {
-        fn run(&self, _tree: &mut mir::Tree, _ctx: &PipelineContext<'_>) -> AnalysisPreservation {
+        fn run(
+            &self,
+            _tree: &mut mir::Tree,
+            _ctx: &PipelineContext<'_>,
+            _analyses: &ModuleAnalyses,
+        ) -> AnalysisPreservation {
             AnalysisPreservation::all()
         }
 

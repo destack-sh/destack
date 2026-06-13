@@ -1,8 +1,8 @@
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{ControlFlowGraph, LoopAnalysis};
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{AnalysisPreservation, ControlFlowGraph, LoopAnalysis};
 
 declare_mir_pass! {
     /// Canonicalize loops into a simplified form.
@@ -33,7 +33,8 @@ impl FunctionPass for LoopSimplify {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
-        ctx: &PipelineContext<'_>,
+        _ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         let entry = match function.entry {
             Some(entry) => entry,
@@ -42,10 +43,9 @@ impl FunctionPass for LoopSimplify {
 
         // get analyses
         let (loops, cfg) = {
-            let analyses = ctx.function_analyses(function, tree);
             (
-                analyses.get::<LoopAnalysis>().clone(),
-                analyses.get::<ControlFlowGraph>().clone(),
+                analyses.get::<LoopAnalysis>(function, tree).clone(),
+                analyses.get::<ControlFlowGraph>(function, tree).clone(),
             )
         };
         if loops.num_loops() == 0 {
@@ -227,7 +227,7 @@ fn fresh_parameters_like(
 /// - Multiple blocks outside the loop jump to the header
 /// - A single outside predecessor also branches elsewhere
 fn needs_preheader(
-    lp: &crate::common::mir::analysis::Loop,
+    lp: &mir::Loop,
     cfg: &ControlFlowGraph,
     tree: &mir::Tree,
     entry: mir::LocalNodeId<mir::Block>,
@@ -265,7 +265,7 @@ fn needs_preheader(
 /// Check if an exit block needs to be dedicated (only reachable from the loop).
 fn needs_dedicated_exit(
     exit_block: mir::LocalNodeId<mir::Block>,
-    lp: &crate::common::mir::analysis::Loop,
+    lp: &mir::Loop,
     cfg: &ControlFlowGraph,
 ) -> bool {
     // check if any predecessor is from outside the loop

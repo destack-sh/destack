@@ -3,9 +3,10 @@ use std::collections::HashMap;
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{RangeAnalysis, RangeMap, ValueRange};
-use crate::common::mir::{ValueTypeMap, is_comparison_operator};
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, RangeAnalysis, RangeMap, ValueRange, ValueTypeMap, is_comparison_operator,
+};
 
 declare_mir_pass! {
     /// Narrow integer operands for comparisons and bounds checks.
@@ -41,7 +42,8 @@ impl FunctionPass for Narrow {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
-        ctx: &PipelineContext<'_>,
+        _ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
@@ -49,8 +51,7 @@ impl FunctionPass for Narrow {
         }
 
         // gather analyses
-        let analyses = ctx.function_analyses(function, tree);
-        let ranges = analyses.get::<RangeAnalysis>().clone();
+        let ranges = analyses.get::<RangeAnalysis>(function, tree).clone();
         let value_types = ValueTypeMap::new(function, tree);
 
         // apply narrowing

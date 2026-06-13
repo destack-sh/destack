@@ -3,15 +3,13 @@ use std::collections::HashSet;
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{
-    AliasAnalysis, AliasResult, ConstantPropagation, MemoryAccess, MemoryAccessEffect,
-    MemoryAccessId, MemoryAccessLocation, MemoryDef, MemorySSA,
-};
-use crate::common::mir::{
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AliasAnalysis, AliasResult, AnalysisPreservation, ConstantPropagation, MemoryAccess,
+    MemoryAccessEffect, MemoryAccessId, MemoryAccessLocation, MemoryDef, MemorySSA,
     ValueEquivalence, build_instruction_block_map, build_value_definition_map, effect_is_trackable,
     effects_match_location, instruction_has_atomic_ordering, spaces_may_alias,
 };
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_mir_pass! {
     /// Remove redundant memory stores.
@@ -53,7 +51,8 @@ impl FunctionPass for MemCse {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
-        ctx: &PipelineContext<'_>,
+        _ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip empty functions
         let _entry = match function.entry {
@@ -63,11 +62,10 @@ impl FunctionPass for MemCse {
 
         // get analyses
         let (alias, memory_ssa, constants) = {
-            let analyses = ctx.function_analyses(function, tree);
             (
-                analyses.get::<AliasAnalysis>().clone(),
-                analyses.get::<MemorySSA>(),
-                analyses.get::<ConstantPropagation>(),
+                analyses.get::<AliasAnalysis>(function, tree).clone(),
+                analyses.get::<MemorySSA>(function, tree),
+                analyses.get::<ConstantPropagation>(function, tree),
             )
         };
 

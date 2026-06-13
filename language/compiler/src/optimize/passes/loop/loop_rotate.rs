@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{ControlFlowGraph, DominatorTree, Loop, LoopAnalysis};
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{AnalysisPreservation, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis};
 
 declare_mir_pass! {
     /// Rotate loops to expose optimization opportunities.
@@ -38,7 +38,8 @@ impl FunctionPass for LoopRotate {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
-        ctx: &PipelineContext<'_>,
+        _ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         let entry = match function.entry {
             Some(entry) => entry,
@@ -47,11 +48,10 @@ impl FunctionPass for LoopRotate {
 
         // get analyses
         let (loops, cfg, domtree) = {
-            let analyses = ctx.function_analyses(function, tree);
             (
-                analyses.get::<LoopAnalysis>().clone(),
-                analyses.get::<ControlFlowGraph>().clone(),
-                analyses.get::<DominatorTree>().clone(),
+                analyses.get::<LoopAnalysis>(function, tree).clone(),
+                analyses.get::<ControlFlowGraph>(function, tree).clone(),
+                analyses.get::<DominatorTree>(function, tree).clone(),
             )
         };
         if loops.num_loops() == 0 {

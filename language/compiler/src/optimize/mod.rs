@@ -6,7 +6,6 @@ mod provide;
 mod state;
 mod warning;
 
-pub use crate::common::mir::*;
 pub use common::*;
 pub use error::*;
 pub use pipeline::*;

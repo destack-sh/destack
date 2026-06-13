@@ -3,8 +3,8 @@ use std::collections::{HashMap, VecDeque};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::CallGraph;
-use crate::optimize::{AnalysisPreservation, ModuleAnalyses, ModulePass, PipelineContext};
+use crate::optimize::{ModulePass, PipelineContext};
+use destack_mir::{AnalysisPreservation, CallGraph};
 
 declare_mir_pass! {
     /// Infer memory and behavior attributes for functions and callsites.
@@ -30,8 +30,13 @@ declare_mir_pass! {
 
 impl ModulePass for FunctionAttrs {
     /// Run the function attribute inference pass.
-    fn run(&self, tree: &mut mir::Tree, _ctx: &PipelineContext<'_>) -> AnalysisPreservation {
-        let changed = run_function_attrs(tree);
+    fn run(
+        &self,
+        tree: &mut mir::Tree,
+        _ctx: &PipelineContext<'_>,
+        analyses: &mir::ModuleAnalyses,
+    ) -> AnalysisPreservation {
+        let changed = run_function_attrs(tree, analyses);
 
         // report analysis preservation based on whether changes occurred
         if changed {
@@ -190,10 +195,9 @@ impl FunctionBehaviorBuilder {
 }
 
 /// Run function attribute inference over the module.
-fn run_function_attrs(tree: &mut mir::Tree) -> bool {
+fn run_function_attrs(tree: &mut mir::Tree, analyses: &mir::ModuleAnalyses) -> bool {
     // build the call graph for direct caller tracking
-    let analyses = ModuleAnalyses::new(tree);
-    let callgraph = analyses.get::<CallGraph>();
+    let callgraph = analyses.get::<CallGraph>(tree);
 
     // collect functions that have bodies
     let function_ids: Vec<_> = tree

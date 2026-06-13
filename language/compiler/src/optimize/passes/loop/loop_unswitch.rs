@@ -3,16 +3,14 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{
-    ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, RangeAnalysis,
-};
-use crate::common::mir::{
-    CallsiteHotness, SuccessorArguments, block_execution_counts, block_hotness_from_counts,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, CallsiteHotness, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis,
+    RangeAnalysis, SuccessorArguments, block_execution_counts, block_hotness_from_counts,
     bool_from_range, build_value_definition_map, clone_instruction_metadata, clone_loop_blocks,
     instruction_is_speculatable, instruction_map_with_locals,
     terminator_arguments_for_successor_checked, terminator_remap,
 };
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_mir_pass! {
     /// Move loop invariant conditionals outside of loops by duplicating the loop.
@@ -79,6 +77,7 @@ impl FunctionPass for LoopUnswitch {
         function: &mut mir::Function,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip empty functions
         if function.entry.is_none() {
@@ -86,7 +85,7 @@ impl FunctionPass for LoopUnswitch {
         }
 
         // run loop unswitching
-        let changed = run_loop_unswitch(function, tree, ctx);
+        let changed = run_loop_unswitch(function, tree, ctx, analyses);
 
         // select preservation based on unswitch changes
         if changed {
@@ -112,6 +111,7 @@ fn run_loop_unswitch(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
+    analyses: &mir::FunctionAnalyses,
 ) -> bool {
     // track progress and exclusions
     let mut changed = false;
@@ -123,12 +123,11 @@ fn run_loop_unswitch(
     while unswitched < MAX_UNSWITCHES_PER_FUNCTION {
         // refresh analyses after each transform
         let (loops, domtree, cfg, ranges) = {
-            let analyses = ctx.function_analyses(function, tree);
             (
-                analyses.get::<LoopAnalysis>().clone(),
-                analyses.get::<DominatorTree>().clone(),
-                analyses.get::<ControlFlowGraph>().clone(),
-                analyses.get::<RangeAnalysis>().clone(),
+                analyses.get::<LoopAnalysis>(function, tree).clone(),
+                analyses.get::<DominatorTree>(function, tree).clone(),
+                analyses.get::<ControlFlowGraph>(function, tree).clone(),
+                analyses.get::<RangeAnalysis>(function, tree).clone(),
             )
         };
 

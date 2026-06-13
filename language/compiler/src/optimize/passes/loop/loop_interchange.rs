@@ -3,12 +3,12 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{ControlFlowGraph, DominatorTree, LoopAnalysis, MemorySSA};
-use crate::common::mir::{
-    LoopEffectPolicy, build_value_definition_blocks, collect_loop_effects, loop_guard_branch,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, ControlFlowGraph, DominatorTree, LoopAnalysis, LoopEffectPolicy,
+    MemorySSA, build_value_definition_blocks, collect_loop_effects, loop_guard_branch,
     loop_preheader, value_available_in_block,
 };
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_mir_pass! {
     /// Interchange perfectly nested read-only loops.
@@ -78,14 +78,14 @@ impl FunctionPass for LoopInterchange {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
-        ctx: &PipelineContext<'_>,
+        _ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // gather analyses
-        let analyses = ctx.function_analyses(function, tree);
-        let loops = analyses.get::<LoopAnalysis>().clone();
-        let cfg = analyses.get::<ControlFlowGraph>().clone();
-        let domtree = analyses.get::<DominatorTree>().clone();
-        let memory_ssa = analyses.get::<MemorySSA>();
+        let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
+        let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
+        let domtree = analyses.get::<DominatorTree>(function, tree).clone();
+        let memory_ssa = analyses.get::<MemorySSA>(function, tree);
         // run loop interchange
         let changed =
             run_loop_interchange(function, tree, &loops, &cfg, &domtree, memory_ssa.as_ref());
@@ -172,8 +172,8 @@ fn run_loop_interchange(
 /// Build a loop interchange candidate.
 #[allow(clippy::too_many_arguments)]
 fn build_interchange_candidate(
-    outer: &crate::common::mir::analysis::Loop,
-    inner: &crate::common::mir::analysis::Loop,
+    outer: &mir::Loop,
+    inner: &mir::Loop,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
     tree: &mir::Tree,
@@ -301,11 +301,7 @@ fn build_interchange_candidate(
 }
 
 /// Check whether the inner loop is perfectly nested.
-fn is_perfectly_nested(
-    outer: &crate::common::mir::analysis::Loop,
-    inner: &crate::common::mir::analysis::Loop,
-    cfg: &ControlFlowGraph,
-) -> bool {
+fn is_perfectly_nested(outer: &mir::Loop, inner: &mir::Loop, cfg: &ControlFlowGraph) -> bool {
     // locate the inner preheader
     let mut inner_preheader = None;
     for &pred in cfg.predecessors(inner.header) {
@@ -338,8 +334,8 @@ fn is_perfectly_nested(
 
 /// Check whether loops are read only.
 fn loops_are_read_only(
-    outer: &crate::common::mir::analysis::Loop,
-    inner: &crate::common::mir::analysis::Loop,
+    outer: &mir::Loop,
+    inner: &mir::Loop,
     tree: &mir::Tree,
     memory_ssa: &MemorySSA,
 ) -> bool {

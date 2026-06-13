@@ -3,9 +3,10 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::optimize::{
-    AnalysisPreservation, FunctionPass, PipelineContext, instruction_substitute_uses_in_tree,
-    remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
+    resolve_substitution_chains, terminator_substitute_uses,
 };
 
 declare_mir_pass! {
@@ -46,6 +47,7 @@ impl FunctionPass for CopyPropagate {
         function: &mut mir::Function,
         tree: &mut mir::Tree,
         _ctx: &PipelineContext<'_>,
+        _analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // run copy propagation
         let changed = run_copy_propagate(function, tree);

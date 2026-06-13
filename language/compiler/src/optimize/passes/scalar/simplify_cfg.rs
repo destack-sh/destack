@@ -3,19 +3,15 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{
-    ConstantPropagation, DominatorTree, LoopAnalysis, RangeAnalysis, RangeMap, ValueRange,
-};
-use crate::common::mir::{
-    block_parameters_used_outside_block, block_uses_available_in_predecessor,
-    clone_instruction_metadata,
-};
-use crate::optimize::{
-    AnalysisPreservation, FunctionPass, PipelineContext, apply_substitutions_in_dominated_blocks,
-    bool_from_range, build_use_def_maps, build_value_instruction_map, build_value_use_counts,
-    constraint_truth_value, evaluate_integer_range_comparison, function_thread_jumps,
-    instruction_is_speculatable, instruction_map, is_comparison_operator, substitute_values,
-    swap_comparison_operator, terminator_remap, terminator_substitute_uses,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, ConstantPropagation, DominatorTree, LoopAnalysis, RangeAnalysis,
+    RangeMap, ValueRange, apply_substitutions_in_dominated_blocks,
+    block_parameters_used_outside_block, block_uses_available_in_predecessor, bool_from_range,
+    build_use_def_maps, build_value_instruction_map, build_value_use_counts,
+    clone_instruction_metadata, constraint_truth_value, evaluate_integer_range_comparison,
+    function_thread_jumps, instruction_is_speculatable, instruction_map, is_comparison_operator,
+    substitute_values, swap_comparison_operator, terminator_remap, terminator_substitute_uses,
 };
 
 /// Return block metadata for canonicalization.
@@ -102,9 +98,10 @@ impl FunctionPass for SimplifyCfg {
         function: &mut mir::Function,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // run simplify cfg with bounded fixed point
-        let changed = run_simplify_cfg(function, tree, ctx.profile(), ctx);
+        let changed = run_simplify_cfg(function, tree, ctx.profile(), ctx, analyses);
 
         // select preservation based on CFG changes
         if changed {
@@ -130,7 +127,8 @@ fn run_simplify_cfg(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     profile: Option<&mir::Profile>,
-    ctx: &PipelineContext<'_>,
+    _ctx: &PipelineContext<'_>,
+    analyses: &mir::FunctionAnalyses,
 ) -> bool {
     // track whether any changes were made
     let mut changed = false;
@@ -143,13 +141,12 @@ fn run_simplify_cfg(
     loop {
         // refresh analyses for this iteration
         let (constants, ranges, domtree, loop_blocks) = {
-            let analyses = ctx.function_analyses(function, tree);
             (
-                analyses.get::<ConstantPropagation>().clone(),
-                analyses.get::<RangeAnalysis>().clone(),
-                analyses.get::<DominatorTree>().clone(),
+                analyses.get::<ConstantPropagation>(function, tree).clone(),
+                analyses.get::<RangeAnalysis>(function, tree).clone(),
+                analyses.get::<DominatorTree>(function, tree).clone(),
                 analyses
-                    .get::<LoopAnalysis>()
+                    .get::<LoopAnalysis>(function, tree)
                     .loops()
                     .iter()
                     .flat_map(|loop_info| loop_info.blocks.iter().copied())
@@ -3689,8 +3686,8 @@ b4(v6: int32):
         let tail_block = test.jump_target(hot_pred);
 
         // build dominance data for tail duplication
-        let analyses = test.function_analyses(&function);
-        let domtree = analyses.get::<DominatorTree>().clone();
+        let analyses = test.function_analyses();
+        let domtree = analyses.get::<DominatorTree>(&function, &test.tree).clone();
 
         // build the profile table for jump edges
         let mut profile = mir::Profile::new();

@@ -3,13 +3,11 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::ConstantPropagation;
-use crate::common::mir::{
-    fold_binary, fold_cast, fold_intrinsic, fold_unary, instruction_substitute_uses_in_tree,
-    remap_instruction_memory_accesses, terminator_substitute_uses,
-};
-use crate::optimize::{
-    AnalysisPreservation, FunctionPass, PipelineContext, TypeContext, resolve_substitution_chains,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, ConstantPropagation, TypeContext, fold_binary, fold_cast, fold_intrinsic,
+    fold_unary, instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
+    resolve_substitution_chains, terminator_substitute_uses,
 };
 
 declare_mir_pass! {
@@ -47,12 +45,10 @@ impl FunctionPass for ConstantFold {
         function: &mut mir::Function,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // get constant propagation analysis
-        let constants = {
-            let analyses = ctx.function_analyses(function, tree);
-            analyses.get::<ConstantPropagation>().clone()
-        };
+        let constants = { analyses.get::<ConstantPropagation>(function, tree).clone() };
 
         // run constant folding
         let changed = run_constant_fold(function, tree, &constants, ctx.type_context());
@@ -448,7 +444,8 @@ fn fold_terminators(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::mir::{fold_binary_signed, fold_unary};
+    use destack_mir::fold_binary_signed;
+
     use crate::optimize::common::tests::TestProgram;
 
     /// Signed integer addition folds to result, division by zero returns None.

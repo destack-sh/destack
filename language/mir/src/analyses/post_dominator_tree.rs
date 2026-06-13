@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use super::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis};
 use crate::{Block, ControlFlowGraph, Function, LocalNodeId, Tree};
 
 /// Postdominator tree for one function.
@@ -218,6 +219,19 @@ impl PostDominatorTree {
         }
 
         preorder_max.insert(block, max);
+    }
+}
+
+impl Analysis for PostDominatorTree {
+    const ID: AnalysisId = AnalysisId("postdomtree");
+    const DEPENDENCIES: &'static [AnalysisId] = &[ControlFlowGraph::ID];
+}
+
+impl FunctionAnalysis for PostDominatorTree {
+    fn compute(function: &Function, tree: &Tree, analyses: &FunctionAnalyses) -> Self {
+        let cfg = analyses.get::<ControlFlowGraph>(function, tree);
+
+        Self::build(function, tree, &cfg)
     }
 }
 

@@ -3,15 +3,13 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{
-    AliasAnalysis, DominatorTree, MemoryAccess, MemoryAccessEffect, MemoryAccessId,
-    MemoryAccessLocation, MemorySSA,
-};
-use crate::common::mir::{
-    ValueTypeMap, apply_substitutions_in_function, can_substitute_value, effect_is_trackable,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AliasAnalysis, AnalysisPreservation, DominatorTree, MemoryAccess, MemoryAccessEffect,
+    MemoryAccessId, MemoryAccessLocation, MemorySSA, TypeContext, ValueTypeMap,
+    apply_substitutions_in_function, can_substitute_value, effect_is_trackable,
     memory_locations_compatible, resolve_substitution_chains, spaces_may_alias,
 };
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext, TypeContext};
 
 declare_mir_pass! {
     /// Forward stored values to subsequent loads.
@@ -76,6 +74,7 @@ impl FunctionPass for LoadStoreForward {
         function: &mut mir::Function,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip empty functions
         let entry = match function.entry {
@@ -85,10 +84,9 @@ impl FunctionPass for LoadStoreForward {
 
         // get analyses
         let (aa, memory_ssa, dom_children) = {
-            let analyses = ctx.function_analyses(function, tree);
-            let domtree = analyses.get::<DominatorTree>();
-            let aa = analyses.get::<AliasAnalysis>().clone();
-            let memory_ssa = analyses.get::<MemorySSA>();
+            let domtree = analyses.get::<DominatorTree>(function, tree);
+            let aa = analyses.get::<AliasAnalysis>(function, tree).clone();
+            let memory_ssa = analyses.get::<MemorySSA>(function, tree);
             let dom_children = build_dominator_children(function, &domtree);
             (aa, memory_ssa, dom_children)
         };

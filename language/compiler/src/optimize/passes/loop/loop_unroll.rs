@@ -3,16 +3,14 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{
-    ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, ScalarEvolution, Scev,
-};
-use crate::common::mir::{
-    BlockParamForwarding, CallsiteHotness, ValueTypeMap, block_execution_counts,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, BlockParamForwarding, CallsiteHotness, ControlFlowGraph, DominatorTree,
+    Loop, LoopAnalysis, ScalarEvolution, Scev, ValueTypeMap, block_execution_counts,
     block_hotness_from_counts, build_use_def_maps, build_value_definition_map,
     clone_instruction_metadata, clone_loop_blocks, instruction_is_speculatable, instruction_map,
     terminator_arguments_for_successor, terminator_remap,
 };
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_mir_pass! {
     /// Unroll loops with a constant trip count.
@@ -163,6 +161,7 @@ impl FunctionPass for LoopUnroll {
         function: &mut mir::Function,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
@@ -170,7 +169,7 @@ impl FunctionPass for LoopUnroll {
         }
 
         // run loop unrolling
-        let changed = run_loop_unroll(function, tree, ctx);
+        let changed = run_loop_unroll(function, tree, ctx, analyses);
 
         // invalidate analyses on change
         if changed {
@@ -198,6 +197,7 @@ impl FunctionPass for LoopUnrollAndJam {
         function: &mut mir::Function,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
@@ -205,7 +205,7 @@ impl FunctionPass for LoopUnrollAndJam {
         }
 
         // run loop unroll and jam
-        let changed = run_loop_unroll_and_jam(function, tree, ctx);
+        let changed = run_loop_unroll_and_jam(function, tree, ctx, analyses);
 
         // invalidate analyses on change
         if changed {
@@ -353,6 +353,7 @@ fn run_loop_unroll(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
+    analyses: &mir::FunctionAnalyses,
 ) -> bool {
     // read the unroll threshold from the pipeline options
     let unroll_threshold = ctx.unroll_threshold();
@@ -378,11 +379,10 @@ fn run_loop_unroll(
 
     loop {
         // gather analyses
-        let analyses = ctx.function_analyses(function, tree);
-        let loops = analyses.get::<LoopAnalysis>().clone();
-        let cfg = analyses.get::<ControlFlowGraph>().clone();
-        let scev = analyses.get::<ScalarEvolution>().clone();
-        let domtree = analyses.get::<DominatorTree>().clone();
+        let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
+        let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
+        let scev = analyses.get::<ScalarEvolution>(function, tree).clone();
+        let domtree = analyses.get::<DominatorTree>(function, tree).clone();
 
         // bail out when no loops exist
         if loops.num_loops() == 0 {
@@ -461,6 +461,7 @@ fn run_loop_unroll_and_jam(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
+    analyses: &mir::FunctionAnalyses,
 ) -> bool {
     // read the unroll threshold from the pipeline options
     let unroll_threshold = ctx.unroll_threshold();
@@ -486,11 +487,10 @@ fn run_loop_unroll_and_jam(
 
     loop {
         // gather analyses
-        let analyses = ctx.function_analyses(function, tree);
-        let loops = analyses.get::<LoopAnalysis>().clone();
-        let cfg = analyses.get::<ControlFlowGraph>().clone();
-        let scev = analyses.get::<ScalarEvolution>().clone();
-        let domtree = analyses.get::<DominatorTree>().clone();
+        let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
+        let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
+        let scev = analyses.get::<ScalarEvolution>(function, tree).clone();
+        let domtree = analyses.get::<DominatorTree>(function, tree).clone();
         let value_types = ValueTypeMap::new(function, tree);
 
         // bail out when no loops exist
