@@ -245,7 +245,7 @@ impl CheckState<'_> {
             let template = self.declare_generic_template(declaration, parent, symbol)?;
             let parameter = self.declare_induced_generic_parameter(template, recipe)?;
             let source = self.origin_source_node(Origin::Node(declaration))?;
-            let solution = self.push_working_type(
+            let solution = self.push_type(
                 declaration.module_id,
                 dir::Type::Parameter(parameter),
                 source,
@@ -294,13 +294,13 @@ impl CheckState<'_> {
             .unwrap_or_default();
         let mut arguments = Vec::with_capacity(parameters.len());
         for parameter in parameters {
-            arguments.push(self.push_working_type(
+            arguments.push(self.push_type(
                 symbol.module_id,
                 dir::Type::Parameter(parameter),
                 source,
             )?);
         }
-        let reference = self.push_working_type(
+        let reference = self.push_type(
             symbol.module_id,
             dir::Type::Reference(dir::GenericInstance { symbol, arguments }),
             source,

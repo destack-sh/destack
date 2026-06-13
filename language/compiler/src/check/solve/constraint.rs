@@ -118,6 +118,14 @@ impl ConstraintTable {
             })
     }
 
+    /// Iterate over the collected constraints with their ids.
+    pub(in crate::check) fn iter(&self) -> impl Iterator<Item = (ConstraintId, &Constraint)> {
+        self.constraints
+            .iter()
+            .enumerate()
+            .map(|(index, constraint)| (ConstraintId::at(index), constraint))
+    }
+
     /// Mark one constraint as finished.
     pub(in crate::check) fn complete(&mut self, id: ConstraintId) {
         self.completed[id.index()] = true;

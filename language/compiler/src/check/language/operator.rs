@@ -8,6 +8,9 @@ use smallvec::{SmallVec, smallvec};
 pub(in crate::check) enum OperatorExpressionResult {
     /// Use the selected method return.
     MethodReturn,
+    // TODO #Suspicious: why do we need OperatorExpressionResult? .Pointee..? why .Boolean?
+    /// Use the place behind the returned borrow.
+    Pointee,
     /// Use the builtin boolean result.
     Boolean,
 }
@@ -131,8 +134,10 @@ impl OperatorProtocol {
 }
 
 /// Return the ordered protocol candidates for one unary operator.
+/// Dereferences demand the access their place position requires.
 pub(in crate::check) fn unary_operator_protocols(
     operator: dir::UnaryOperator,
+    access: dir::Access,
 ) -> SmallVec<[OperatorProtocol; 2]> {
     let protocol = match operator {
         dir::UnaryOperator::Negate => OperatorProtocol::new(
@@ -153,11 +158,9 @@ pub(in crate::check) fn unary_operator_protocols(
         dir::UnaryOperator::Dereference => OperatorProtocol::new(
             dir::LanguageItem::Dereference,
             OperatorMethod::Dereference,
-            OperatorExpressionResult::MethodReturn,
+            OperatorExpressionResult::Pointee,
         )
-        .with_arguments(smallvec![OperatorProtocolArgument::Access(
-            dir::Access::Readonly
-        )]),
+        .with_arguments(smallvec![OperatorProtocolArgument::Access(access)]),
         dir::UnaryOperator::PostIncrement
         | dir::UnaryOperator::PostDecrement
         | dir::UnaryOperator::PreIncrement

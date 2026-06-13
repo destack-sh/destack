@@ -289,7 +289,7 @@ pub enum CheckError {
         target: String,
     },
 
-    /// Spread source has no property surface to merge.
+    /// Spread source has no fields to merge.
     ///
     /// ```ds
     /// const merged = { ...1 };
@@ -317,7 +317,8 @@ pub enum CheckError {
     /// ```
     #[diagnostic(
         code = "EC300",
-        message = "member '{key}' does not exist on type '{receiver}'"
+        message = "member '{key}' does not exist on type '{receiver}'",
+        optional_message = "; did you mean '{suggestion}'?"
     )]
     MissingMember {
         /// Report the member access.
@@ -328,6 +329,8 @@ pub enum CheckError {
         key: String,
         /// The receiver type.
         receiver: String,
+        /// The closest visible member key.
+        suggestion: Option<String>,
     },
 
     /// Value is not callable.
@@ -454,7 +457,11 @@ pub enum CheckError {
     /// ```ds
     /// missing;
     /// ```
-    #[diagnostic(code = "EC308", message = "cannot find '{name}'")]
+    #[diagnostic(
+        code = "EC308",
+        message = "cannot find '{name}'",
+        optional_message = "; did you mean '{suggestion}'?"
+    )]
     UnresolvedReference {
         /// Report the reference expression.
         anchor: DiagnosticAnchor,
@@ -462,6 +469,8 @@ pub enum CheckError {
         module: ModuleId,
         /// The unresolved reference text.
         name: String,
+        /// The closest visible reference name.
+        suggestion: Option<String>,
     },
 
     /// Reference resolves to more than one visible symbol.
@@ -477,48 +486,6 @@ pub enum CheckError {
         module: ModuleId,
         /// The ambiguous reference text.
         name: String,
-    },
-
-    /// Receiver type does not contain a member close to a visible one.
-    ///
-    /// ```ds
-    /// user.nmae;
-    /// ```
-    #[diagnostic(
-        code = "EC310",
-        message = "member '{key}' does not exist on type '{receiver}', did you mean '{suggestion}'?"
-    )]
-    MissingMemberSuggestion {
-        /// Report the member access.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-        /// The selected member key.
-        key: String,
-        /// The receiver type.
-        receiver: String,
-        /// The closest visible member key.
-        suggestion: String,
-    },
-
-    /// Reference does not resolve but a close name is visible.
-    ///
-    /// ```ds
-    /// cosnt;
-    /// ```
-    #[diagnostic(
-        code = "EC311",
-        message = "cannot find '{name}', did you mean '{suggestion}'?"
-    )]
-    UnresolvedReferenceSuggestion {
-        /// Report the reference expression.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-        /// The unresolved reference text.
-        name: String,
-        /// The closest visible name.
-        suggestion: String,
     },
 
     /// Member access reads through a possibly nullish value.
@@ -1011,26 +978,19 @@ pub enum CheckError {
         target: String,
     },
 
-    /// Function signature carries a borrow of frame-local data.
+    /// Ambient signature elides a result lifetime.
     ///
     /// ```ds
-    /// function broken(): &string {
-    ///     const name = "local";
-    ///     return &name;
-    /// }
+    /// declare function only(value: &Node): &Node;
     /// ```
     #[diagnostic(
-        code = "EC611",
-        message = "'{name}' returns a borrow that does not outlive the call"
+        code = "EC612",
+        message = "ambient signatures must spell result lifetimes explicitly"
     )]
-    BorrowEscapesFrame {
-        /// Report the function declaration.
+    AmbientLifetimeElided {
+        /// Report the ambient declaration.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
-        /// The function name.
-        name: String,
-        /// The frame-local source the borrow derives from.
-        lifetime: String,
     },
 }

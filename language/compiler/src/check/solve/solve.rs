@@ -1,8 +1,7 @@
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, CheckEvent, CheckState, Condition, Constraint, ConstraintId, Dependency, Mutation,
-    Task, TaskTiming,
+    Answer, CheckEvent, CheckState, Condition, Constraint, ConstraintId, Dependency, Mutation, Task,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -23,7 +22,6 @@ impl CheckState<'_> {
             variables: self.variables.count(),
         });
 
-        let mut timing = TaskTiming::new();
         let mut steps = 0usize;
         while let Some(task) = self.pop_task() {
             // a diverging queue is a solver bug; fail loudly with the task
@@ -36,9 +34,7 @@ impl CheckState<'_> {
                 });
             }
 
-            let started = timing.observe();
             let answer = self.run_task(task)?;
-            timing.finish(task, started);
 
             // park pending tasks on their blockers
             if let Answer::Pending(blockers) = answer {
@@ -48,7 +44,6 @@ impl CheckState<'_> {
             self.record_event(CheckEvent::SolveStep { step: steps, task });
             steps += 1;
         }
-        timing.report(steps);
 
         self.record_event(CheckEvent::SolveFinish {
             iterations: steps,
