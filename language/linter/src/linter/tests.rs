@@ -5,10 +5,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Once};
 
 use destack_artifact::{
-    ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactPathState,
-    ArtifactPayload, ArtifactProvider, ArtifactSidecar, ArtifactVersion, DiagnosticAnchor,
-    DiagnosticContext, DiagnosticDisplay, DiagnosticError, DirParsed, DirParsedFile,
-    MemoryCacheStore, ToDiagnostic,
+    ArtifactDependencySet, ArtifactFailure, ArtifactKey, ArtifactPathState, ArtifactPayload,
+    ArtifactProvider, ArtifactSidecar, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
+    DiagnosticError, DirParsed, DirParsedFile, MemoryCacheStore, SourceDependency, ToDiagnostic,
 };
 use destack_compiler::Compiler;
 use destack_core::StringPool;
@@ -18,9 +17,9 @@ use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::{Parser, ParserOptions};
 use destack_repository::{
-    DestackLayoutOverride, Edit as RepositoryEdit, Environment, LintCategory, LintSeverity,
-    LinterOptions, Module, Profile, ProviderContext, ProviderError, Ref, Repository, Revision,
-    Settings,
+    ArtifactProduct, Collector, DestackLayoutOverride, Edit as RepositoryEdit, Environment,
+    LintCategory, LintSeverity, LinterOptions, Module, Profile, Provider, ProviderContext,
+    ProviderError, ProviderOutput, ProviderResult, Ref, Repository, Revision, Settings,
 };
 use destack_session::open_repository_from_fs;
 use destack_source::{
@@ -53,8 +52,6 @@ struct TestProviderContext {
     revision: Revision,
     /// The artifact key being built.
     artifact_key: ArtifactKey,
-    /// The exact dependencies read by this attempt.
-    dependencies: Mutex<Vec<ArtifactDependency>>,
     /// The diagnostics produced by this attempt.
     diagnostics: Mutex<DiagnosticCollection>,
     /// The sidecars produced by this attempt.
@@ -68,48 +65,19 @@ impl TestProviderContext {
             repository,
             revision,
             artifact_key,
-            dependencies: Mutex::new(Vec::new()),
             diagnostics: Mutex::new(DiagnosticCollection::new()),
             sidecars: Mutex::new(Vec::new()),
         }
     }
 
-    /// Publish the recorded payload as one exact artifact record.
-    fn publish(&self, payload: ArtifactPayload) {
-        let dependencies = self.dependencies.lock().clone();
-        let diagnostics = self.diagnostics.lock().clone();
-        let sidecars = self.sidecars.lock().clone();
-        let version = ArtifactVersion::new(self.artifact_key, dependencies.iter().cloned());
-
-        self.repository
-            .complete_artifact(
-                self.revision,
-                version,
-                payload,
-                dependencies,
-                diagnostics,
-                sidecars,
-            )
-            .expect("linter test provider should record artifact version");
+    /// Return diagnostics produced by this attempt.
+    fn diagnostics(&self) -> DiagnosticCollection {
+        self.diagnostics.lock().clone()
     }
 
-    /// Fail the test attempt.
-    fn fail(&self, failure: ArtifactFailure) {
-        let dependencies = self.dependencies.lock().clone();
-        let diagnostics = self.diagnostics.lock().clone();
-        let sidecars = self.sidecars.lock().clone();
-        let version = ArtifactVersion::new(self.artifact_key, dependencies.iter().cloned());
-
-        self.repository
-            .fail_artifact(
-                self.revision,
-                version,
-                dependencies,
-                diagnostics,
-                sidecars,
-                failure,
-            )
-            .expect("linter test provider should record failed artifact version");
+    /// Return sidecars produced by this attempt.
+    fn sidecars(&self) -> Vec<ArtifactSidecar> {
+        self.sidecars.lock().clone()
     }
 
     /// Build one invalid diagnostic anchor error.
@@ -139,6 +107,119 @@ impl TestProviderContext {
     }
 }
 
+impl Collector for TestProgram {
+    /// Collect the dependency closure for one compiler artifact key.
+    fn collect(
+        &self,
+        revision: Revision,
+        key: ArtifactKey,
+    ) -> ProviderResult<ArtifactDependencySet> {
+        match key.provider() {
+            ArtifactProvider::Loader => collect_loader(self.compiler.as_ref(), revision, key),
+            ArtifactProvider::Compiler => {
+                let context = TestProviderContext::new(self.repository.clone(), revision, key);
+
+                self.compiler.collect(&context)
+            }
+            ArtifactProvider::Linter | ArtifactProvider::Query => Err(ProviderError::internal(
+                format!("unsupported linter test artifact key: {key:?}"),
+            )
+            .into()),
+        }
+    }
+}
+
+impl Provider for TestProgram {
+    /// Build one compiler artifact over its frozen dependency closure.
+    fn provide(&self, revision: Revision, key: ArtifactKey) -> ProviderResult<ProviderOutput> {
+        let context = TestProviderContext::new(self.repository.clone(), revision, key);
+        let result = match key.provider() {
+            ArtifactProvider::Loader => {
+                Ok(provide_loader_artifact(self.compiler.as_ref(), &context))
+            }
+            ArtifactProvider::Compiler => self.compiler.provide(&context),
+            ArtifactProvider::Linter | ArtifactProvider::Query => Err(ProviderError::internal(
+                format!("unsupported linter test artifact key: {key:?}"),
+            )
+            .into()),
+        };
+
+        harvest(&context, result)
+    }
+}
+
+/// Collect the source closure for one loader-owned artifact.
+fn collect_loader(
+    compiler: &Compiler,
+    revision: Revision,
+    key: ArtifactKey,
+) -> ProviderResult<ArtifactDependencySet> {
+    let ArtifactKey::DirParsed { module } = key else {
+        return Err(ProviderError::internal(format!(
+            "unsupported linter test loader artifact key: {key:?}"
+        ))
+        .into());
+    };
+
+    let module = compiler
+        .repository
+        .module(revision, module)
+        .map_err(|error| ProviderError::internal(error.to_string()))?
+        .ok_or_else(|| ProviderError::internal(format!("missing module: {module:?}")))?;
+
+    // observe every contributing source file
+    let mut dependencies = ArtifactDependencySet::default();
+    let file_ids = if module.is_code() {
+        module
+            .files
+            .iter()
+            .map(|file| file.file_id)
+            .collect::<Vec<_>>()
+    } else {
+        vec![module.file_id]
+    };
+    for file_id in file_ids {
+        let content = compiler
+            .repository
+            .file_content_id(revision, file_id)
+            .map_err(|error| ProviderError::internal(error.to_string()))?
+            .ok_or_else(|| {
+                ProviderError::internal(format!("missing source content id: {file_id:?}"))
+            })?;
+
+        dependencies.observe(SourceDependency::path_state(
+            file_id,
+            ArtifactPathState::File,
+        ));
+        dependencies.observe(SourceDependency::file_content(file_id, content));
+    }
+
+    Ok(dependencies)
+}
+
+/// Harvest one provider attempt into its terminal output.
+fn harvest(
+    context: &TestProviderContext,
+    result: ProviderResult<ArtifactPayload>,
+) -> ProviderResult<ProviderOutput> {
+    let product = match result {
+        Ok(payload) => ArtifactProduct::Ready(payload),
+        Err(error) => match *error {
+            ProviderError::Failed { failure } => ArtifactProduct::Failed(failure),
+            ProviderError::RequirementFailed { key } => {
+                ArtifactProduct::Failed(ArtifactFailure::requirement(key))
+            }
+            error => return Err(error.into()),
+        },
+    };
+
+    Ok(ProviderOutput {
+        product,
+        diagnostics: context.diagnostics(),
+        sidecars: context.sidecars(),
+    })
+}
+
 /// Seed one loader-owned artifact for linter compiler tests.
 fn provide_loader_artifact(compiler: &Compiler, context: &TestProviderContext) -> ArtifactPayload {
     match context.artifact_key() {
@@ -163,7 +244,7 @@ fn provide_dir_parsed(
         .module(context.revision(), module_id)
         .unwrap_or_else(|error| panic!("failed to load source module: {error}"))
         .unwrap_or_else(|| panic!("missing source module for {module_id:?}"));
-    let file = source_file(compiler, context.revision(), module.file_id, context);
+    let file = source_file(compiler, context.revision(), module.file_id);
     let dir = match module.loader {
         Loader::Destack | Loader::TypeScript | Loader::JavaScript => {
             if matches!(file.ty, FileType::Html | FileType::Css) {
@@ -181,34 +262,16 @@ fn provide_dir_parsed(
         | Loader::File => anchor_dir_parsed(module_id, file.as_ref()),
     };
 
-    ArtifactPayload::DirParsed(dir)
+    ArtifactPayload::DirParsed(Arc::new(dir))
 }
 
-/// Load one source file and record its exact content dependency.
-fn source_file(
-    compiler: &Compiler,
-    revision: Revision,
-    file_id: FileId,
-    context: &TestProviderContext,
-) -> Arc<File> {
-    let content_id = compiler
-        .repository
-        .file_content_id(revision, file_id)
-        .unwrap_or_else(|error| panic!("failed to load source content id: {error}"))
-        .unwrap_or_else(|| panic!("missing source content id for {file_id:?}"));
-    let file = compiler
+/// Load one tracked source file for a fixed revision.
+fn source_file(compiler: &Compiler, revision: Revision, file_id: FileId) -> Arc<File> {
+    compiler
         .repository
         .file(revision, file_id)
         .unwrap_or_else(|error| panic!("failed to load source file: {error}"))
-        .unwrap_or_else(|| panic!("missing source file for {file_id:?}"));
-
-    context.track(ArtifactDependency::path_state(
-        file_id,
-        ArtifactPathState::File,
-    ));
-    context.track(ArtifactDependency::file_content(file_id, content_id));
-
-    file
+        .unwrap_or_else(|| panic!("missing source file for {file_id:?}"))
 }
 
 /// Build one stable parsed DIR for non-code source.
@@ -297,18 +360,7 @@ fn language_type_for_code_file(
     else {
         return LanguageType::JavaScript;
     };
-    if let Some(file_id) = package.destack_file_id {
-        let content_id = compiler
-            .repository
-            .file_content_id(context.revision(), file_id)
-            .unwrap_or_else(|error| panic!("failed to load source content id: {error}"))
-            .unwrap_or_else(|| panic!("missing source content id for {file_id:?}"));
-        context.track(ArtifactDependency::path_state(
-            file_id,
-            ArtifactPathState::File,
-        ));
-        context.track(ArtifactDependency::file_content(file_id, content_id));
-    }
+    let _ = package.destack_file_id;
 
     LanguageType::JavaScript
 }
@@ -441,110 +493,6 @@ impl ProviderContext for TestProviderContext {
     /// Return the artifact key being built.
     fn artifact_key(&self) -> ArtifactKey {
         self.artifact_key
-    }
-
-    /// Require one artifact and return its exact version when ready.
-    fn require(&self, key: ArtifactKey) -> Result<ArtifactVersion, ProviderError> {
-        if key == self.artifact_key {
-            return Err(ProviderError::RequirementFailed { key });
-        }
-
-        let Some(version) = self
-            .repository
-            .artifact_version(self.revision, &key)
-            .expect("linter test provider should read artifact version")
-        else {
-            return Err(ProviderError::blocked(key));
-        };
-
-        match self.repository.artifact_store().outcome(&version) {
-            Some(ArtifactOutcome::Ok) => {}
-            Some(ArtifactOutcome::Failed(_)) => {
-                let mut dependencies = self.dependencies.lock();
-                let dependency = ArtifactDependency::artifact(version);
-                if !dependencies.iter().any(|existing| *existing == dependency) {
-                    dependencies.push(dependency);
-                }
-
-                return Err(ProviderError::RequirementFailed { key });
-            }
-            None => return Err(ProviderError::blocked(key)),
-        }
-
-        let mut dependencies = self.dependencies.lock();
-        let dependency = ArtifactDependency::artifact(version);
-        if !dependencies.iter().any(|existing| *existing == dependency) {
-            dependencies.push(dependency);
-        }
-
-        Ok(version)
-    }
-
-    /// Require many artifacts and return their exact versions when ready.
-    fn require_all(&self, keys: &[ArtifactKey]) -> Result<Vec<ArtifactVersion>, ProviderError> {
-        let mut blocked = Vec::new();
-        let mut versions = Vec::with_capacity(keys.len());
-
-        // scan the full dependency batch
-        for key in keys {
-            // reject direct cycles
-            if *key == self.artifact_key {
-                return Err(ProviderError::RequirementFailed { key: *key });
-            }
-
-            // read the version bound to this revision
-            let Some(version) = self
-                .repository
-                .artifact_version(self.revision, key)
-                .expect("linter test provider should read artifact version")
-            else {
-                blocked.push(*key);
-                continue;
-            };
-
-            // inspect the required artifact outcome
-            match self.repository.artifact_store().outcome(&version) {
-                Some(ArtifactOutcome::Ok) => {
-                    let mut dependencies = self.dependencies.lock();
-                    let dependency = ArtifactDependency::artifact(version);
-                    if !dependencies.iter().any(|existing| *existing == dependency) {
-                        dependencies.push(dependency);
-                    }
-
-                    versions.push(version);
-                }
-                Some(ArtifactOutcome::Failed(_)) => {
-                    let mut dependencies = self.dependencies.lock();
-                    let dependency = ArtifactDependency::artifact(version);
-                    if !dependencies.iter().any(|existing| *existing == dependency) {
-                        dependencies.push(dependency);
-                    }
-
-                    return Err(ProviderError::RequirementFailed { key: *key });
-                }
-                None => {
-                    blocked.push(*key);
-                }
-            }
-        }
-
-        // return the full blocked set together
-        if !blocked.is_empty() {
-            blocked.sort();
-            blocked.dedup();
-
-            return Err(ProviderError::blocked_many(blocked));
-        }
-
-        Ok(versions)
-    }
-
-    /// Record one exact dependency read by this attempt.
-    fn track(&self, dependency: ArtifactDependency) {
-        let mut dependencies = self.dependencies.lock();
-        if !dependencies.iter().any(|existing| existing == &dependency) {
-            dependencies.push(dependency);
-        }
     }
 
     /// Record an already-final diagnostic collection produced by this attempt.
@@ -948,61 +896,16 @@ impl TestProgram {
         self.replace_latest_diagnostics(self.current_workspace_diagnostics());
     }
 
-    /// Provide compiler artifacts through the session scheduler.
+    /// Build compiler artifacts through the shared resolution engine.
     fn provide_compiler_artifacts(&self, artifact_keys: &[ArtifactKey]) {
         let revision = self.current_revision();
-        let mut pending_artifact_keys = artifact_keys.to_vec();
 
-        while let Some(artifact_key) = pending_artifact_keys.pop() {
-            if let Some(version) = self
-                .repository
-                .artifact_version(revision, &artifact_key)
-                .expect("linter test provider should read artifact version")
-                && self.repository.artifact_store().outcome(&version).is_some()
-            {
-                continue;
-            }
-
-            let context = Arc::new(TestProviderContext::new(
-                self.repository.clone(),
-                revision,
-                artifact_key,
-            ));
-
-            match artifact_key.provider() {
-                ArtifactProvider::Loader => {
-                    let payload = provide_loader_artifact(self.compiler.as_ref(), context.as_ref());
-                    context.publish(payload);
-
-                    continue;
-                }
-                ArtifactProvider::Compiler | ArtifactProvider::Linter | ArtifactProvider::Query => {
-                }
-            }
-
-            match self.compiler.provide(context.as_ref()) {
-                Ok(payload) => context.publish(payload),
-                Err(error) => match *error {
-                    ProviderError::Blocked { keys } => {
-                        pending_artifact_keys.push(artifact_key);
-                        pending_artifact_keys.extend(keys);
-                    }
-                    ProviderError::RequirementFailed { key } => {
-                        context.fail(ArtifactFailure::requirement(key));
-                    }
-                    ProviderError::Corrupt { version } => {
-                        panic!(
-                            "failed to provide linter test artifact {artifact_key:?}: corrupt artifact {version:?}"
-                        );
-                    }
-                    ProviderError::Failed { failure } => context.fail(failure),
-                    ProviderError::Internal { message } => {
-                        panic!(
-                            "failed to provide linter test artifact {artifact_key:?}: {message}"
-                        );
-                    }
-                },
-            }
+        for artifact_key in artifact_keys {
+            self.repository
+                .resolve(self, revision, *artifact_key)
+                .unwrap_or_else(|error| {
+                    panic!("failed to build linter test artifact {artifact_key:?}: {error}")
+                });
         }
     }
 

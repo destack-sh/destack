@@ -3,11 +3,12 @@ use std::fmt;
 use std::sync::{Arc, LazyLock};
 
 use destack_artifact::{
-    ArtifactKey, ArtifactPayload, ModuleLinted, PackageLinted, WorkspaceLinted,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ModuleLinted, PackageLinted,
+    WorkspaceLinted,
 };
 use destack_repository::{
-    ArtifactReader, LintPreset, LinterOptions, Module, Profile, ProfileId, ProviderContext,
-    ProviderError, ProviderResult, Repository, Revision,
+    LintPreset, LinterOptions, Module, Profile, ProfileId, ProviderContext, ProviderError,
+    ProviderResult, Repository, Revision,
 };
 use destack_source::{FileId, ModuleId, PackageId};
 
@@ -285,6 +286,77 @@ impl Linter {
         Ok(())
     }
 
+    /// Collect the dependency closure for one lint artifact key.
+    pub fn collect(&self, context: &dyn ProviderContext) -> ProviderResult<ArtifactDependencySet> {
+        match context.artifact_key() {
+            ArtifactKey::ModuleLinted { module, profile } => {
+                self.collect_module(context, module, profile)
+            }
+            ArtifactKey::PackageLinted { package } => self.collect_package(context, package),
+            ArtifactKey::WorkspaceLinted => self.collect_workspace(context),
+            artifact_key => Err(ProviderError::internal(
+                LinterError::UnsupportedArtifact { artifact_key }.to_string(),
+            )
+            .into()),
+        }
+    }
+
+    /// Collect inputs for one module lint artifact.
+    fn collect_module(
+        &self,
+        context: &dyn ProviderContext,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+    ) -> ProviderResult<ArtifactDependencySet> {
+        let revision = context.revision();
+        let mut dependencies = ArtifactDependencySet::default();
+
+        // checked source products back lint rules for code modules
+        if self
+            .repository_module(revision, module_id)
+            .is_some_and(|module| module.is_code())
+        {
+            dependencies.require(ArtifactKey::dir_checked(module_id, profile_id));
+        }
+
+        Ok(dependencies)
+    }
+
+    /// Collect inputs for one package lint artifact.
+    fn collect_package(
+        &self,
+        context: &dyn ProviderContext,
+        package_id: PackageId,
+    ) -> ProviderResult<ArtifactDependencySet> {
+        let dependency_keys = self
+            .package_lint_dependency_keys(context.revision(), package_id)
+            .map_err(|error| ProviderError::internal(error.to_string()))?;
+
+        let mut dependencies = ArtifactDependencySet::default();
+        for key in dependency_keys {
+            dependencies.require(key);
+        }
+
+        Ok(dependencies)
+    }
+
+    /// Collect inputs for the workspace lint artifact.
+    fn collect_workspace(
+        &self,
+        context: &dyn ProviderContext,
+    ) -> ProviderResult<ArtifactDependencySet> {
+        let dependency_keys = self
+            .workspace_lint_dependency_keys(context.revision())
+            .map_err(|error| ProviderError::internal(error.to_string()))?;
+
+        let mut dependencies = ArtifactDependencySet::default();
+        for key in dependency_keys {
+            dependencies.require(key);
+        }
+
+        Ok(dependencies)
+    }
+
     /// Provide one lint artifact key.
     pub fn provide(&self, context: &dyn ProviderContext) -> ProviderResult<ArtifactPayload> {
         match context.artifact_key() {
@@ -308,15 +380,6 @@ impl Linter {
         profile_id: ProfileId,
     ) -> ProviderResult<ArtifactPayload> {
         let revision = context.revision();
-        let artifacts = ArtifactReader::new(context, self.repository.artifact_store().clone());
-
-        // require checked source products for code modules
-        if self
-            .repository_module(revision, module_id)
-            .is_some_and(|module| module.is_code())
-        {
-            artifacts.require(ArtifactKey::dir_checked(module_id, profile_id))?;
-        }
 
         let profile = self
             .repository
@@ -334,7 +397,7 @@ impl Linter {
         self.lint_module(context, revision, module_id, profile.as_ref().clone())
             .map_err(|error| ProviderError::internal(error.to_string()))?;
 
-        Ok(ArtifactPayload::ModuleLinted(ModuleLinted))
+        Ok(ArtifactPayload::ModuleLinted(Arc::new(ModuleLinted)))
     }
 
     /// Provide one package lint artifact.
@@ -344,35 +407,21 @@ impl Linter {
         package_id: PackageId,
     ) -> ProviderResult<ArtifactPayload> {
         let revision = context.revision();
-        let dependency_keys = self
-            .package_lint_dependency_keys(revision, package_id)
-            .map_err(|error| ProviderError::internal(error.to_string()))?;
-        let artifacts = ArtifactReader::new(context, self.repository.artifact_store().clone());
-
-        // require module lint products together
-        artifacts.require_all(&dependency_keys)?;
 
         self.lint_package(context, revision, package_id)
             .map_err(|error| ProviderError::internal(error.to_string()))?;
 
-        Ok(ArtifactPayload::PackageLinted(PackageLinted))
+        Ok(ArtifactPayload::PackageLinted(Arc::new(PackageLinted)))
     }
 
     /// Provide one workspace lint artifact.
     fn provide_workspace(&self, context: &dyn ProviderContext) -> ProviderResult<ArtifactPayload> {
         let revision = context.revision();
-        let dependency_keys = self
-            .workspace_lint_dependency_keys(revision)
-            .map_err(|error| ProviderError::internal(error.to_string()))?;
-        let artifacts = ArtifactReader::new(context, self.repository.artifact_store().clone());
-
-        // require package lint products together
-        artifacts.require_all(&dependency_keys)?;
 
         self.lint_workspace(context, revision)
             .map_err(|error| ProviderError::internal(error.to_string()))?;
 
-        Ok(ArtifactPayload::WorkspaceLinted(WorkspaceLinted))
+        Ok(ArtifactPayload::WorkspaceLinted(Arc::new(WorkspaceLinted)))
     }
 
     /// Return the dependency keys for one package lint artifact.
