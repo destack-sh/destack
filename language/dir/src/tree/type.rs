@@ -528,7 +528,7 @@ pub enum TypeExpression {
     /// typeof value
     /// typeof namespace.Member
     /// ```
-    TypeOfValue { value: LocalNodeId<Expression> },
+    TypeOf { value: LocalNodeId<Expression> },
 
     /// `T!`.
     ///

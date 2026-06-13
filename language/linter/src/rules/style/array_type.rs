@@ -305,7 +305,7 @@ fn type_argument_needs_parentheses(expression: &dir::TypeExpression) -> bool {
             | dir::TypeExpression::Local { .. }
             | dir::TypeExpression::Shared { .. }
             | dir::TypeExpression::KeyOf { .. }
-            | dir::TypeExpression::TypeOfValue { .. }
+            | dir::TypeExpression::TypeOf { .. }
             | dir::TypeExpression::Must { .. }
             | dir::TypeExpression::Not { .. }
             | dir::TypeExpression::OwnedOf { .. }

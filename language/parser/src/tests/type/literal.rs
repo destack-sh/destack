@@ -394,7 +394,7 @@ fn test_parse_type_literal_generic_call_overloads() {
                             assert_path!(parser, *path, "N");
                         });
                     });
-                    assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::TypeOfValue { value } => {
+                    assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::TypeOf { value } => {
                         assert_expression_path!(parser, parser.tree.get(*value), "num");
                     });
                 });
@@ -428,7 +428,7 @@ fn test_parse_type_literal_generic_call_overloads() {
                             assert_path!(parser, *path, "S");
                         });
                     });
-                    assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::TypeOfValue { value } => {
+                    assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::TypeOf { value } => {
                         assert_expression_path!(parser, parser.tree.get(*value), "str");
                     });
                 });
@@ -570,7 +570,7 @@ fn test_parse_typeof_query_with_readonly_identifier() {
     // type T = typeof readonly
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::TypeOfValue { value } => {
+            assert_node!(parser.tree, *value, TypeExpression::TypeOf { value } => {
                 assert_expression_path!(parser, parser.tree.get(*value), "readonly");
             });
         });
@@ -587,7 +587,7 @@ fn test_parse_typeof_query_with_type_identifier() {
     // type T = typeof type
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::TypeOfValue { value } => {
+            assert_node!(parser.tree, *value, TypeExpression::TypeOf { value } => {
                 assert_expression_path!(parser, parser.tree.get(*value), "type");
             });
         });
@@ -607,7 +607,7 @@ fn test_parse_typeof_query_missing_operand() {
     // type T = typeof
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::TypeOfValue { value } => {
+            assert_node!(parser.tree, *value, TypeExpression::TypeOf { value } => {
                 assert_node!(parser.tree, *value, Expression::Missing);
             });
         });

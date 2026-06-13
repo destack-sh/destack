@@ -293,7 +293,7 @@ impl Parser {
         let value = self.eat_typeof_query_value()?;
 
         Ok(self.insert_node(
-            TypeExpression::TypeOfValue { value },
+            TypeExpression::TypeOf { value },
             self.get_span_from(start),
         ))
     }

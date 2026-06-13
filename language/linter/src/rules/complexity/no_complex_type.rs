@@ -113,7 +113,7 @@ fn type_expression_complexity_inner(
             | TypeExpression::Local { .. }
             | TypeExpression::Shared { .. }
             | TypeExpression::KeyOf { .. }
-            | TypeExpression::TypeOfValue { .. }
+            | TypeExpression::TypeOf { .. }
             | TypeExpression::Must { .. }
             | TypeExpression::Not { .. }
             | TypeExpression::OwnedOf { .. }
@@ -401,7 +401,7 @@ fn type_expression_complexity_inner(
         | TypeExpression::Reference { .. }
         | TypeExpression::Const
         | TypeExpression::This
-        | TypeExpression::TypeOfValue { .. }
+        | TypeExpression::TypeOf { .. }
         | TypeExpression::Missing
         | TypeExpression::Error => {}
     }

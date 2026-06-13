@@ -215,7 +215,7 @@ fn test_parse_type_unary_prefix_expression() {
     // keyof typeof infer Value
     assert_node!(parser.tree, expr_id, Expression::Type { value } => {
         assert_node!(parser.tree, *value, TypeExpression::KeyOf { target_type } => {
-            assert_node!(parser.tree, *target_type, TypeExpression::TypeOfValue { value } => {
+            assert_node!(parser.tree, *target_type, TypeExpression::TypeOf { value } => {
                 assert_node!(parser.tree, *value, Expression::Type { value } => {
                     assert_node!(parser.tree, *value, TypeExpression::Infer { name, constraint, .. } => {
                         assert_string!(parser, name.expect("expected infer name"), "Value");
@@ -747,7 +747,7 @@ fn test_parse_cast_with_keyof_typeof_type_argument() {
             assert_eq!(generic_arguments.len(), 1);
             assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value, .. } => {
                     assert_node!(parser.tree, *value, TypeExpression::KeyOf { target_type } => {
-                        assert_node!(parser.tree, *target_type, TypeExpression::TypeOfValue { value } => {
+                        assert_node!(parser.tree, *target_type, TypeExpression::TypeOf { value } => {
                             assert_expression_path!(parser, parser.tree.get(*value), "touchedFields");
                         });
                     });

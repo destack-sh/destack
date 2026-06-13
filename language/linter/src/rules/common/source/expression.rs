@@ -1768,8 +1768,8 @@ pub fn type_expression_is_equal(
                 && type_expression_is_equal(ctx, *left_target, *right_target)
         }
         (
-            dir::TypeExpression::TypeOfValue { value: left_value },
-            dir::TypeExpression::TypeOfValue { value: right_value },
+            dir::TypeExpression::TypeOf { value: left_value },
+            dir::TypeExpression::TypeOf { value: right_value },
         ) => expression_is_equal(ctx, *left_value, *right_value),
         (
             dir::TypeExpression::Index {
@@ -2234,7 +2234,7 @@ pub fn type_expression_has_side_effects(
         | dir::TypeExpression::Infer { .. } => false,
 
         // type expressions that contain runtime expressions
-        dir::TypeExpression::TypeOfValue { value } => expression_has_side_effects(ctx, *value),
+        dir::TypeExpression::TypeOf { value } => expression_has_side_effects(ctx, *value),
 
         // composite type expressions
         dir::TypeExpression::Member {

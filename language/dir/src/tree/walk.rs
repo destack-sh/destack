@@ -408,7 +408,7 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
             let target_type_node = tree.get(*target_type);
             visitor.visit_type_expression(tree, *target_type, target_type_node);
         }
-        TypeExpression::TypeOfValue { value } => {
+        TypeExpression::TypeOf { value } => {
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }

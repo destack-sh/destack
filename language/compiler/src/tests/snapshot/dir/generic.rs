@@ -9,7 +9,19 @@ impl SnapshotTable for dir::GenericSegment {
         for (_, template) in self.iter_templates() {
             let anchor = builder.anchor_node(template.source);
             let row = SnapshotRow::new(anchor, "generic", "template")
-                .field("source", builder.node_label(template.source))
+                .optional_field(
+                    "symbol",
+                    template
+                        .symbol
+                        .map(|symbol| builder.symbol_path_label(symbol)),
+                )
+                .optional_field(
+                    "source",
+                    template
+                        .symbol
+                        .is_none()
+                        .then(|| builder.node_label(template.source)),
+                )
                 .optional_field(
                     "parent",
                     template

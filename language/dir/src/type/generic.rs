@@ -149,6 +149,8 @@ pub enum GenericParameterKey {
 pub struct GenericTemplate {
     /// The source node that declares this template.
     pub source: GlobalNodeIdAny,
+    /// The declaration symbol this template belongs to.
+    pub symbol: Option<GlobalSymbolId>,
     /// The immediately enclosing generic template.
     pub parent: Option<LocalGenericTemplateId>,
     /// The generic parameters in declaration order.
@@ -157,9 +159,14 @@ pub struct GenericTemplate {
 
 impl GenericTemplate {
     /// Create an empty generic template for one source node.
-    pub fn new(source: GlobalNodeIdAny, parent: Option<LocalGenericTemplateId>) -> Self {
+    pub fn new(
+        source: GlobalNodeIdAny,
+        symbol: Option<GlobalSymbolId>,
+        parent: Option<LocalGenericTemplateId>,
+    ) -> Self {
         Self {
             source,
+            symbol,
             parent,
             parameters: Vec::new(),
         }

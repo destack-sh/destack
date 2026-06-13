@@ -69,7 +69,7 @@ fn type_needs_postfix_parentheses(
         | TypeExpression::Local { .. }
         | TypeExpression::Shared { .. }
         | TypeExpression::KeyOf { .. }
-        | TypeExpression::TypeOfValue { .. }
+        | TypeExpression::TypeOf { .. }
         | TypeExpression::Must { .. }
         | TypeExpression::Range { .. }
         | TypeExpression::Not { .. }
@@ -99,7 +99,7 @@ fn type_needs_index_object_parentheses(
         | TypeExpression::Local { .. }
         | TypeExpression::Shared { .. }
         | TypeExpression::KeyOf { .. }
-        | TypeExpression::TypeOfValue { .. }
+        | TypeExpression::TypeOf { .. }
         | TypeExpression::Must { .. }
         | TypeExpression::Not { .. }
         | TypeExpression::OwnedOf { .. }
@@ -1551,7 +1551,7 @@ fn type_parent_requires_parentheses(
         TypeExpression::Must { target_type } => *target_type == child_id,
 
         // value space typeof keeps its own precedence
-        TypeExpression::TypeOfValue { .. } => false,
+        TypeExpression::TypeOf { .. } => false,
 
         // relations keep composite operands grouped
         TypeExpression::Extends { left, right } | TypeExpression::Implements { left, right } => {
@@ -1756,7 +1756,7 @@ pub(crate) fn type_expression_needs_parentheses_in_parent(
         | TypeExpression::Local { .. }
         | TypeExpression::Shared { .. }
         | TypeExpression::KeyOf { .. }
-        | TypeExpression::TypeOfValue { .. }
+        | TypeExpression::TypeOf { .. }
         | TypeExpression::Must { .. }
         | TypeExpression::Not { .. }
         | TypeExpression::OwnedOf { .. }
@@ -2628,7 +2628,7 @@ pub(crate) fn write_type_expression_body<'ast>(
         TypeExpression::KeyOf { target_type } => {
             write!(f, [Keyword::Keyof, space(), target_type])?;
         }
-        TypeExpression::TypeOfValue { value } => {
+        TypeExpression::TypeOf { value } => {
             write!(f, [Keyword::Typeof, space(), value])?;
         }
         TypeExpression::Must { target_type } => {
