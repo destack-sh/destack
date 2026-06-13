@@ -23,6 +23,8 @@ pub(in crate::check) struct FlowState {
     pub(in crate::check::flow) assigned: IndexSet<dir::GlobalSymbolId>,
     /// Narrowed type operands keyed by flow path.
     pub(in crate::check::flow) narrowings: IndexMap<FlowPath, dir::GlobalTypeId>,
+    /// Jumps that bound no target and recovered as completing statements.
+    unbound_jumps: IndexSet<dir::LocalNodeIdAny>,
 
     /// Flow mutations made since walking started.
     mutations: Vec<FlowMutation>,
@@ -39,6 +41,7 @@ impl Default for FlowState {
             tries: Vec::new(),
             assigned: IndexSet::new(),
             narrowings: IndexMap::new(),
+            unbound_jumps: IndexSet::new(),
             mutations: Vec::new(),
         }
     }
@@ -80,6 +83,16 @@ enum FlowMutation {
 }
 
 impl FlowState {
+    /// Record one jump that bound no target.
+    pub(in crate::check) fn record_unbound_jump(&mut self, source: dir::LocalNodeIdAny) {
+        self.unbound_jumps.insert(source);
+    }
+
+    /// Return whether one jump bound no target.
+    pub(in crate::check) fn is_unbound_jump(&self, source: dir::LocalNodeIdAny) -> bool {
+        self.unbound_jumps.contains(&source)
+    }
+
     /// Push one static guard while walking.
     pub(in crate::check) fn push_static_guard(&mut self, condition: Condition) {
         // combine nested guards eagerly

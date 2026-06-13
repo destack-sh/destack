@@ -44,17 +44,17 @@ impl WalkState<'_, '_> {
         match (target.break_values.as_slice(), fallthrough) {
             // fall through without break
             ([], Some(fallthrough)) => {
-                self.relate_types(origin, Relation::Equal, target.result, fallthrough);
+                self.relate_type(origin, Relation::Equal, target.result, fallthrough);
             }
             // loop expression with no exit
             ([], None) => {
                 let never = self.push_type(dir::Type::Never, target.source.local_id)?;
 
-                self.relate_types(origin, Relation::Equal, target.result, never);
+                self.relate_type(origin, Relation::Equal, target.result, never);
             }
             // break exits already bound the result, add the fallthrough exit
             (_, Some(fallthrough)) => {
-                self.relate_types(origin, Relation::Assignable, fallthrough, target.result);
+                self.relate_type(origin, Relation::Assignable, fallthrough, target.result);
             }
             // break exits already bound the result
             (_, None) => {}
@@ -96,7 +96,7 @@ impl WalkState<'_, '_> {
             let origin = Origin::Node(source.into_global(self.module));
             let never = self.push_type(dir::Type::Never, source)?;
 
-            self.relate_types(origin, Relation::Equal, target.failure, never);
+            self.relate_type(origin, Relation::Equal, target.failure, never);
         }
 
         Ok(target.failure)
@@ -120,6 +120,8 @@ impl WalkState<'_, '_> {
         let Some(index) = self.flow().break_target_index(label) else {
             self.check
                 .report_invalid_control_flow(self.module, source, "break has no target");
+            // recovered jumps complete normally instead of diverging
+            self.flow_mut().record_unbound_jump(source);
 
             return Ok(());
         };
@@ -132,7 +134,7 @@ impl WalkState<'_, '_> {
         self.flow_mut().push_break_branch(index, value, branch);
 
         // require the break value to match the target result
-        self.relate_types(origin, Relation::Assignable, value, result);
+        self.relate_type(origin, Relation::Assignable, value, result);
 
         Ok(())
     }
@@ -147,6 +149,9 @@ impl WalkState<'_, '_> {
         let Some(index) = self.flow().continue_target_index(label) else {
             self.check
                 .report_invalid_control_flow(self.module, source, "continue has no target");
+
+            // recovered jumps complete normally instead of diverging
+            self.flow_mut().record_unbound_jump(source);
 
             return;
         };
@@ -181,7 +186,7 @@ impl WalkState<'_, '_> {
                 result = Some(target.failure);
             }
             if let Some(result) = result {
-                self.relate_types(origin, Relation::Assignable, failure, result);
+                self.relate_type(origin, Relation::Assignable, failure, result);
             }
 
             return Ok(());
