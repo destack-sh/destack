@@ -8,13 +8,13 @@ use destack_core::StringPool;
 use destack_js as js;
 use destack_repository::{Module, Target};
 
-use crate::generate::js::{CodegenJsError, CodegenJsResult, CodegenJsWarning};
+use crate::generate::js::{CodegenJsError, CodegenJsResult};
 
 use super::lower::lower_module;
 
 /// One generator for JS module outputs.
 #[derive(Debug)]
-pub struct JsOutputGenerator<'a> {
+pub(crate) struct JsOutputGenerator<'a> {
     /// The current module snapshot.
     module: Arc<Module>,
     /// The current parsed DIR.
@@ -35,7 +35,7 @@ pub struct JsOutputGenerator<'a> {
 
 impl<'a> JsOutputGenerator<'a> {
     /// Create one JS output generator.
-    pub fn new(
+    pub(crate) fn new(
         module: Arc<Module>,
         parsed: Arc<DirParsed>,
         bound: Arc<DirBound>,
@@ -58,9 +58,7 @@ impl<'a> JsOutputGenerator<'a> {
     }
 
     /// Generate one JS output.
-    pub fn generate(
-        self,
-    ) -> CodegenJsResult<(JsOutput, Vec<CodegenJsWarning>, Vec<CodegenJsError>)> {
+    pub(crate) fn generate(self) -> CodegenJsResult<(JsOutput, Vec<CodegenJsError>)> {
         // validate target
         if !self.target.uses_js_generate_pipeline() {
             return Err(CodegenJsError::UnsupportedTarget {
@@ -96,13 +94,11 @@ impl<'a> JsOutputGenerator<'a> {
             imported,
             expanded,
             checked,
-            self.target,
         )?;
-        let warnings = lower.warnings;
         let errors = lower.errors;
         let artifact = self.build_js_artifact(lower.module, true)?;
 
-        Ok((artifact, warnings, errors))
+        Ok((artifact, errors))
     }
 
     /// Build one JS output from one lowered module tree.

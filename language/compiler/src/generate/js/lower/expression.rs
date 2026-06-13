@@ -402,7 +402,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower an expression from DIR into JS AST.
-    pub fn lower_expression(
+    pub(crate) fn lower_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> CodegenJsResult<js::LocalNodeIdAny> {
@@ -795,7 +795,7 @@ impl ModuleLowerer<'_> {
                         js::TemplateLiteral::String { template: *string }
                     }
                     dir::TemplateLiteral::InterpolatedString { strings, arguments } => {
-                        let template = strings.iter().map(|string| *string).collect();
+                        let template = strings.to_vec();
                         let expressions = arguments
                             .iter()
                             .map(|argument_id| {
@@ -951,7 +951,6 @@ impl ModuleLowerer<'_> {
                         message: Some("missing member name".to_string()),
                     });
                 };
-                let name = name;
                 let expression = js::Expression::Member {
                     left: left_id,
                     name,
@@ -970,7 +969,6 @@ impl ModuleLowerer<'_> {
                         message: Some("missing private member name".to_string()),
                     });
                 };
-                let name = name;
                 let expression = js::Expression::PrivateMember {
                     left: left_id,
                     name,
@@ -1522,7 +1520,7 @@ impl ModuleLowerer<'_> {
 
                 js::ArrayElement::Spread { value }
             }
-            dir::Argument::Error { .. } => {
+            dir::Argument::Error => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: expression_id.into_global_any(self.module.id),
                     message: Some("array literal errors are not lowered to JS".to_string()),

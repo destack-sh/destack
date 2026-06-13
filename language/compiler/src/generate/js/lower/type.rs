@@ -4,7 +4,7 @@ use destack_js as js;
 
 impl ModuleLowerer<'_> {
     /// Lower one type annotation expression into a JS type.
-    pub fn lower_type_annotation_expression(
+    pub(crate) fn lower_type_annotation_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
@@ -22,7 +22,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower a mutability from DIR into JS AST.
-    pub fn lower_mutability(&self, mutability: dir::Mutability) -> js::Mutability {
+    pub(crate) fn lower_mutability(&self, mutability: dir::Mutability) -> js::Mutability {
         match mutability {
             dir::Mutability::Immutable => js::Mutability::Immutable,
             dir::Mutability::Mutable | dir::Mutability::Exclusive => js::Mutability::Mutable,
@@ -30,7 +30,10 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower one for each declaration kind from DIR into JS AST.
-    pub fn lower_for_each_keyword(&self, keyword: dir::BindingKeyword) -> js::BindingKeyword {
+    pub(crate) fn lower_for_each_keyword(
+        &self,
+        keyword: dir::BindingKeyword,
+    ) -> js::BindingKeyword {
         match keyword {
             dir::BindingKeyword::Let => js::BindingKeyword::Let,
             dir::BindingKeyword::Const => js::BindingKeyword::Const,
@@ -38,12 +41,12 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower one tuple element from DIR into JS AST.
-    pub fn lower_tuple_element(
+    pub(crate) fn lower_tuple_element(
         &mut self,
         source_id: dir::LocalNodeIdAny,
         element: &dir::TypeElement,
     ) -> CodegenJsResult<js::LocalNodeId<js::TupleElement>> {
-        let label = element.label.map(|label| label);
+        let label = element.label;
         let ty = self.lower_type(element.ty)?;
         let tuple_element = js::TupleElement {
             label,
@@ -59,7 +62,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower generic parameters from DIR into JS generic parameters.
-    pub fn lower_generic_parameters(
+    pub(crate) fn lower_generic_parameters(
         &mut self,
         parameters: &[dir::LocalNodeId<dir::GenericParameter>],
     ) -> CodegenJsResult<Vec<js::LocalNodeId<js::GenericParameter>>> {
@@ -83,7 +86,6 @@ impl ModuleLowerer<'_> {
                 name,
                 variance,
                 constraint,
-                default: _,
                 ..
             } => {
                 let modifiers = variance.map(|variance| js::BindingModifier {
@@ -140,7 +142,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower type annotation expressions from DIR into JS types.
-    pub fn lower_type_annotation_expressions(
+    pub(crate) fn lower_type_annotation_expressions(
         &mut self,
         expressions: &[dir::LocalNodeId<dir::TypeExpression>],
     ) -> CodegenJsResult<Vec<js::LocalNodeId<js::TypeExpression>>> {
@@ -151,7 +153,10 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower a primitive type from DIR into JS AST.
-    pub fn lower_primitive_type_value(&self, primitive: dir::PrimitiveType) -> js::PrimitiveType {
+    pub(crate) fn lower_primitive_type_value(
+        &self,
+        primitive: dir::PrimitiveType,
+    ) -> js::PrimitiveType {
         match primitive {
             dir::PrimitiveType::Boolean => js::PrimitiveType::Boolean,
             dir::PrimitiveType::Character => js::PrimitiveType::String,
@@ -164,17 +169,8 @@ impl ModuleLowerer<'_> {
         }
     }
 
-    /// Lower a primitive type from DIR into JS AST.
-    pub fn lower_primitive_type(
-        &mut self,
-        _ty_id: dir::LocalTypeId,
-        primitive: dir::PrimitiveType,
-    ) -> CodegenJsResult<js::PrimitiveType> {
-        Ok(self.lower_primitive_type_value(primitive))
-    }
-
     /// Lower one parsed type literal value from DIR into JS AST.
-    pub fn lower_type_literal_value(
+    pub(crate) fn lower_type_literal_value(
         &mut self,
         literal: &dir::TypeLiteral,
     ) -> Option<js::TypeLiteral> {
@@ -203,7 +199,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower a parsed type literal from DIR into JS AST.
-    pub fn lower_type_literal(
+    pub(crate) fn lower_type_literal(
         &mut self,
         source_id: dir::LocalNodeIdAny,
         literal: &dir::TypeLiteral,
@@ -699,7 +695,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower a type from DIR into JS AST.
-    pub fn lower_type(
+    pub(crate) fn lower_type(
         &mut self,
         ty_id: dir::GlobalTypeId,
     ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
@@ -803,11 +799,7 @@ impl ModuleLowerer<'_> {
                         .insert_from_source_any(ty, self.module.id, source_id)
                 }
                 dir::TypeOperation::TemplateLiteral(template) => {
-                    let strings = template
-                        .strings
-                        .iter()
-                        .map(|string| *string)
-                        .collect::<Vec<_>>();
+                    let strings = template.strings.to_vec();
                     let spans = template
                         .spans
                         .iter()

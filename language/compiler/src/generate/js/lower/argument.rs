@@ -34,7 +34,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower a parameter from DIR into JS AST.
-    pub fn lower_parameter(
+    pub(crate) fn lower_parameter(
         &mut self,
         parameter_id: dir::LocalNodeId<dir::Parameter>,
     ) -> CodegenJsResult<js::LocalNodeId<js::Parameter>> {
@@ -135,11 +135,7 @@ impl ModuleLowerer<'_> {
                 self.copy_source_node_symbol(parameter_id, source_parameter_id);
                 Ok(parameter_id)
             }
-            dir::Parameter::VariadicNamed {
-                name,
-                declared_type: _,
-                ..
-            } => {
+            dir::Parameter::VariadicNamed { name, .. } => {
                 let modifiers =
                     self.build_binding_modifier(None, None, None, None, None, None, None);
                 let name = *name;
@@ -159,11 +155,7 @@ impl ModuleLowerer<'_> {
                 self.copy_source_node_symbol(parameter_id, source_parameter_id);
                 Ok(parameter_id)
             }
-            dir::Parameter::VariadicPattern {
-                pattern,
-                declared_type: _,
-                ..
-            } => {
+            dir::Parameter::VariadicPattern { pattern, .. } => {
                 let modifiers = None;
                 let pattern = self.lower_pattern(*pattern)?;
                 let ty = self
@@ -190,7 +182,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower an argument from DIR into JS AST.
-    pub fn lower_argument(
+    pub(crate) fn lower_argument(
         &mut self,
         argument_id: dir::LocalNodeId<dir::Argument>,
     ) -> CodegenJsResult<js::LocalNodeId<js::Argument>> {

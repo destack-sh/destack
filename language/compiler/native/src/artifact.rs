@@ -4,7 +4,7 @@ use destack_artifact::{EmitFormat, MirLowered, MirOptimized, NativeOutput};
 use destack_core::StringPool;
 use destack_repository::{Module, Target};
 
-use crate::{CodegenCraneliftError, CodegenCraneliftResult, CodegenCraneliftWarning};
+use crate::{CodegenCraneliftError, CodegenCraneliftResult};
 
 /// One generator for native module outputs.
 #[derive(Debug)]
@@ -40,13 +40,7 @@ impl<'a> NativeOutputGenerator<'a> {
     }
 
     /// Generate one native output.
-    pub fn generate(
-        self,
-    ) -> CodegenCraneliftResult<(
-        NativeOutput,
-        Vec<CodegenCraneliftWarning>,
-        Vec<CodegenCraneliftError>,
-    )> {
+    pub fn generate(self) -> CodegenCraneliftResult<(NativeOutput, Vec<CodegenCraneliftError>)> {
         // validate target
         match self.target.emit {
             EmitFormat::Wasm | EmitFormat::Native => {}
@@ -82,6 +76,6 @@ impl<'a> NativeOutputGenerator<'a> {
             _ => unreachable!(),
         };
 
-        Ok((artifact, compile_output.warnings, compile_output.errors))
+        Ok((artifact, compile_output.errors))
     }
 }

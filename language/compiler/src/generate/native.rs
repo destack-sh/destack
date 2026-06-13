@@ -1,6 +1,6 @@
-use crate::{Compiler, CompilerError, CompilerResult, GenerateError, GenerateWarning};
+use crate::{Compiler, CompilerError, CompilerResult, GenerateError};
 use destack_artifact::ModuleOutput;
-use destack_codegen_native::{CodegenCraneliftError, CodegenCraneliftWarning};
+use destack_codegen_native::CodegenCraneliftError;
 use destack_mir as mir;
 use destack_repository::{ArtifactReader, ProfileId, ProviderContext, Target};
 use destack_source::{ModuleId, TargetId};
@@ -36,7 +36,7 @@ impl Compiler {
         );
 
         // generate one native output through the current backend
-        let (artifact, warnings, errors) = destack_codegen_native::NativeOutputGenerator::new(
+        let (artifact, errors) = destack_codegen_native::NativeOutputGenerator::new(
             module.clone(),
             self.repository.string_pool().clone(),
             Some(mir_optimized.clone()),
@@ -45,11 +45,8 @@ impl Compiler {
         )
         .generate()
         .map_err(|error| Self::map_native_generate_error(&state, error))?;
+
         // map backend diagnostics into compiler diagnostics
-        for warning in warnings {
-            let warning = Self::map_native_generate_warning(&state, warning);
-            self.emit_diagnostic(context, warning)?;
-        }
         for error in errors {
             let error = Self::map_native_generate_error(&state, error);
             self.emit_diagnostic(context, error)?;
@@ -104,21 +101,6 @@ impl Compiler {
                 index,
                 len,
             },
-        }
-    }
-
-    /// Map one native backend warning to a compiler warning.
-    fn map_native_generate_warning(
-        state: &GenerateState<'_, mir::Tree>,
-        warning: CodegenCraneliftWarning,
-    ) -> GenerateWarning {
-        match warning {
-            CodegenCraneliftWarning::UnexpectedNode { node, .. } => {
-                GenerateWarning::UnexpectedConstruct {
-                    anchor: state.anchor(node),
-                    module: state.module_id,
-                }
-            }
         }
     }
 }

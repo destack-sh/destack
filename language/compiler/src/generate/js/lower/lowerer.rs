@@ -2,18 +2,15 @@ use destack_artifact::{DirBound, DirParsed};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_js as js;
-use destack_repository::{Module, Target};
+use destack_repository::Module;
 
-use crate::generate::js::{CodegenJsError, CodegenJsResult, CodegenJsWarning, ScriptSymbolId};
+use crate::generate::js::{CodegenJsError, CodegenJsResult, ScriptSymbolId};
 
 /// Context for lowering a DIR module to JS AST.
 #[derive(Debug)]
-#[allow(dead_code)]
-pub struct ModuleLowerer<'a> {
+pub(crate) struct ModuleLowerer<'a> {
     /// The source module.
     pub(crate) module: &'a Module,
-    /// The parsed DIR artifact.
-    pub(crate) parsed: &'a DirParsed,
     /// The source string pool for bound DIR nodes.
     pub(crate) source_strings: &'a StringPool,
 
@@ -33,8 +30,6 @@ pub struct ModuleLowerer<'a> {
     pub(crate) resolutions: &'a dir::ResolutionTable<'static>,
     /// The module table.
     pub(crate) modules: dir::ModuleTable<'static>,
-    /// The target configuration.
-    pub(crate) target: &'a Target,
 
     /// The output JS AST tree.
     pub(crate) tree: js::Tree,
@@ -42,9 +37,7 @@ pub struct ModuleLowerer<'a> {
     pub(crate) roots: Vec<js::LocalNodeIdAny>,
     /// String pool for the output.
     pub(crate) strings: StringPool,
-    /// Collected warnings.
-    pub(crate) warnings: Vec<CodegenJsWarning>,
-    /// Collected non-fatal errors (treated as warnings for continued processing).
+    /// Collected non-fatal errors.
     pub(crate) errors: Vec<CodegenJsError>,
 }
 
@@ -160,7 +153,7 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Create a new module lowerer.
-    pub fn new(
+    pub(crate) fn new(
         module: &'a Module,
         parsed: &'a DirParsed,
         source_strings: &'a StringPool,
@@ -171,14 +164,12 @@ impl<'a> ModuleLowerer<'a> {
         generics: &'a dir::GenericTable<'static>,
         resolutions: &'a dir::ResolutionTable<'static>,
         modules: dir::ModuleTable<'static>,
-        target: &'a Target,
     ) -> Self {
         let strings = StringPool::new();
         strings.ensure_all_from(source_strings);
 
         Self {
             module,
-            parsed,
             source_strings,
             dir_tree: &parsed.tree,
             dir_roots: bound.roots.as_ref(),
@@ -188,11 +179,9 @@ impl<'a> ModuleLowerer<'a> {
             generics,
             resolutions,
             modules,
-            target,
             tree: js::Tree::new(),
             roots: Vec::new(),
             strings,
-            warnings: Vec::new(),
             errors: Vec::new(),
         }
     }
@@ -202,13 +191,8 @@ impl<'a> ModuleLowerer<'a> {
         self.errors.push(error);
     }
 
-    /// Record a warning.
-    pub(crate) fn warning(&mut self, warning: CodegenJsWarning) {
-        self.warnings.push(warning);
-    }
-
     /// Lower the module to JS AST.
-    pub fn lower_module(&mut self) -> CodegenJsResult<()> {
+    pub(crate) fn lower_module(&mut self) -> CodegenJsResult<()> {
         for expression_id in self.dir_roots.iter() {
             match self.lower_expression(*expression_id) {
                 Ok(root_id) => self.roots.push(root_id),

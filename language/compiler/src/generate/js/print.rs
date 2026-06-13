@@ -6,7 +6,7 @@ use destack_source::{File, NodeSpanType, Span};
 
 /// One printed JS module payload.
 #[derive(Debug, Clone)]
-pub struct PrintedJsModule {
+pub(crate) struct PrintedJsModule {
     /// The printed JS or TS text.
     pub code: String,
     /// The output to source markers.
@@ -14,7 +14,7 @@ pub struct PrintedJsModule {
 }
 
 /// Print one generated JS module with the target output policy.
-pub fn print_js_module(
+pub(crate) fn print_js_module(
     options: js::JsFormatOptions,
     parsed: &DirParsed,
     source_file: &File,
@@ -28,7 +28,7 @@ pub fn print_js_module(
 }
 
 /// Print one generated JS module through the direct minified printer.
-pub fn print_js_module_minified(
+pub(crate) fn print_js_module_minified(
     options: js::JsFormatOptions,
     parsed: &DirParsed,
     source_file: &File,

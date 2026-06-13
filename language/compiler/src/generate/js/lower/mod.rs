@@ -1,4 +1,3 @@
-mod annotation;
 mod argument;
 mod block;
 mod declaration;
@@ -15,5 +14,5 @@ mod pattern;
 mod property;
 mod r#type;
 
-pub use lowerer::*;
+pub(crate) use lowerer::*;
 pub(in crate::generate::js) use module::*;

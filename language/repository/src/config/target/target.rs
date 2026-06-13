@@ -484,8 +484,8 @@ impl Target {
         self.source_map_mode().is_some_and(SourceMapMode::is_inline)
     }
 
-    /// Return whether this target publishes one binary payload.
-    pub fn publishes_binary_output(&self) -> bool {
+    /// Return whether this target publishes one native payload.
+    pub fn publishes_native_output(&self) -> bool {
         self.emit.is_native_family()
     }
 

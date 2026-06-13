@@ -178,7 +178,7 @@ impl<'a> NativeLinker<'a> {
     fn target_output_name_for_file(&self, file_type: FileType) -> TargetOutputName {
         match file_type {
             FileType::SourceMap => TargetOutputName::Maps,
-            FileType::Object | FileType::Wasm => TargetOutputName::Binary,
+            FileType::Object | FileType::Wasm => TargetOutputName::Native,
             _ => TargetOutputName::Assets,
         }
     }

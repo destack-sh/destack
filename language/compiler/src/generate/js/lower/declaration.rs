@@ -5,7 +5,7 @@ use crate::generate::js::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, M
 
 impl ModuleLowerer<'_> {
     /// Lower visibility from DIR into JS AST.
-    pub fn lower_visibility(&self, visibility: dir::Visibility) -> js::Visibility {
+    pub(crate) fn lower_visibility(&self, visibility: dir::Visibility) -> js::Visibility {
         match visibility {
             dir::Visibility::Public => js::Visibility::Public,
             dir::Visibility::Protected => js::Visibility::Protected,
@@ -14,7 +14,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower an export kind from DIR into JS AST.
-    pub fn lower_export_kind(&self, export: dir::ExportKind) -> js::DependencyBinding {
+    pub(crate) fn lower_export_kind(&self, export: dir::ExportKind) -> js::DependencyBinding {
         match export {
             dir::ExportKind::Named => js::DependencyBinding::Named,
             dir::ExportKind::Default => js::DependencyBinding::Default,
@@ -35,7 +35,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower a declaration from DIR into JS AST.
-    pub fn lower_declaration(
+    pub(crate) fn lower_declaration(
         &mut self,
         declaration_id: dir::LocalNodeId<dir::Declaration>,
     ) -> CodegenJsResult<js::LocalNodeId<js::Declaration>> {
@@ -262,7 +262,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower an enum field from DIR into JS AST.
-    pub fn lower_enum_field(
+    pub(crate) fn lower_enum_field(
         &mut self,
         field_id: dir::LocalNodeId<dir::EnumField>,
     ) -> CodegenJsResult<js::LocalNodeId<js::EnumField>> {

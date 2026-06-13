@@ -22,7 +22,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower a dependency form from DIR into JS AST.
-    pub fn lower_dependency_form(&self, form: dir::DependencyForm) -> DependencyForm {
+    pub(crate) fn lower_dependency_form(&self, form: dir::DependencyForm) -> DependencyForm {
         match form {
             dir::DependencyForm::Type => DependencyForm::Type,
             dir::DependencyForm::Plain => DependencyForm::Plain,
@@ -30,7 +30,10 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower a dependency binding from DIR into JS AST.
-    pub fn lower_dependency_binding(&self, binding: dir::DependencyBinding) -> DependencyBinding {
+    pub(crate) fn lower_dependency_binding(
+        &self,
+        binding: dir::DependencyBinding,
+    ) -> DependencyBinding {
         match binding {
             dir::DependencyBinding::Named => DependencyBinding::Named,
             dir::DependencyBinding::Default => DependencyBinding::Default,
@@ -39,7 +42,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower dependency items from DIR into JS AST.
-    pub fn lower_dependency_items(
+    pub(crate) fn lower_dependency_items(
         &mut self,
         form: dir::DependencyForm,
         item_ids: &[dir::LocalNodeId<dir::DependencyItem>],

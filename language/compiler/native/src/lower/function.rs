@@ -7,7 +7,6 @@ use cranelift_codegen::isa::TargetIsa;
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Switch};
 use cranelift_module::{DataId, FuncId, Module};
 use cranelift_object::ObjectModule;
-use destack_core::StringPool;
 use destack_mir as mir;
 
 use super::layout::{compute_tuple_element_offset, compute_type_layout};
@@ -15,12 +14,9 @@ use super::r#type::lower_type;
 use crate::{CodegenCraneliftError, CodegenCraneliftResult, trap};
 
 /// Context for lowering a single MIR function to Cranelift IR.
-#[allow(dead_code)]
 pub(crate) struct FunctionLowerer<'a> {
     /// The MIR tree.
     tree: &'a mir::Tree,
-    /// String pool for resolving names.
-    strings: &'a StringPool,
     /// The MIR function being lowered.
     function: &'a mir::Function,
     /// The target ISA.
@@ -48,7 +44,6 @@ impl<'a> FunctionLowerer<'a> {
     /// Create a new function lowerer.
     pub(crate) fn new(
         tree: &'a mir::Tree,
-        strings: &'a StringPool,
         function: &'a mir::Function,
         isa: &'a Arc<dyn TargetIsa>,
         cl_module: &'a mut ObjectModule,
@@ -58,7 +53,6 @@ impl<'a> FunctionLowerer<'a> {
     ) -> Self {
         Self {
             tree,
-            strings,
             function,
             isa,
             cl_module,

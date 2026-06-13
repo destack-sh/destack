@@ -5,7 +5,7 @@ use crate::generate::js::{CodegenJsError, CodegenJsResult, ModuleLowerer};
 
 impl ModuleLowerer<'_> {
     /// Lower one expression into a JS statement.
-    pub fn lower_expression_as_statement(
+    pub(crate) fn lower_expression_as_statement(
         &mut self,
         source_expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> CodegenJsResult<js::LocalNodeId<js::Statement>> {
@@ -43,7 +43,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower one expression into a JS block.
-    pub fn lower_expression_as_block(
+    pub(crate) fn lower_expression_as_block(
         &mut self,
         source_expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> CodegenJsResult<js::LocalNodeId<js::Block>> {
@@ -89,7 +89,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower a block from DIR into JS AST.
-    pub fn lower_block(
+    pub(crate) fn lower_block(
         &mut self,
         block_id: dir::LocalNodeId<dir::Block>,
     ) -> CodegenJsResult<js::LocalNodeId<js::Block>> {

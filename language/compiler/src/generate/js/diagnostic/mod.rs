@@ -1,5 +1,3 @@
 mod error;
-mod warning;
 
-pub use error::*;
-pub use warning::*;
+pub(crate) use error::*;

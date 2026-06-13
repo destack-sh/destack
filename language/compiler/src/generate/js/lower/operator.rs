@@ -5,7 +5,7 @@ use crate::generate::js::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, M
 
 impl ModuleLowerer<'_> {
     /// Lower a DIR unary expression to a JS unary expression.
-    pub fn lower_unary_expression(
+    pub(crate) fn lower_unary_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::UnaryOperator,
@@ -49,7 +49,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower a DIR binary expression to a JS binary expression.
-    pub fn lower_binary_expression(
+    pub(crate) fn lower_binary_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         left_id: dir::LocalNodeId<dir::Expression>,
@@ -108,7 +108,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower a DIR assign binary expression to a JS assign binary expression.
-    pub fn lower_assign_binary_expression(
+    pub(crate) fn lower_assign_binary_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         left_id: dir::LocalNodeId<dir::Expression>,

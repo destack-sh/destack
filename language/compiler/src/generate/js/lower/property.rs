@@ -33,7 +33,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower a property from DIR into JS AST.
-    pub fn lower_property(
+    pub(crate) fn lower_property(
         &mut self,
         property_id: dir::LocalNodeId<dir::Property>,
     ) -> CodegenJsResult<js::LocalNodeId<js::Property>> {
@@ -84,7 +84,7 @@ impl ModuleLowerer<'_> {
 
                 js::Property::Spread { modifiers, value }
             }
-            dir::Property::Error { .. } => {
+            dir::Property::Error => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: property_id.into_global_any(self.module.id),
                     message: Some("property error slots are not lowered to JS".to_string()),
@@ -100,7 +100,7 @@ impl ModuleLowerer<'_> {
 
     /// Lower a member from DIR into JS AST.
     /// Lower a type member from DIR into JS AST.
-    pub fn lower_type_member(
+    pub(crate) fn lower_type_member(
         &mut self,
         member_id: dir::LocalNodeId<dir::TypeMember>,
     ) -> CodegenJsResult<js::LocalNodeId<js::TypeMember>> {
@@ -280,7 +280,7 @@ impl ModuleLowerer<'_> {
                     value_type,
                 }
             }
-            dir::TypeMember::Error { .. } => {
+            dir::TypeMember::Error => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: member_id.into_global_any(self.module.id),
                     message: Some("type member error slots are not lowered to JS".to_string()),
@@ -296,7 +296,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower a member from DIR into JS AST.
-    pub fn lower_member(
+    pub(crate) fn lower_member(
         &mut self,
         member_id: dir::LocalNodeId<dir::Member>,
     ) -> CodegenJsResult<js::LocalNodeId<js::Member>> {
@@ -422,7 +422,7 @@ impl ModuleLowerer<'_> {
                     message: Some("comptime blocks are compile-time only".to_string()),
                 });
             }
-            dir::Member::Error { .. } => {
+            dir::Member::Error => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: member_id.into_global_any(self.module.id),
                     message: Some("member error slots are not lowered to JS".to_string()),

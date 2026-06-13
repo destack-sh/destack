@@ -2912,7 +2912,6 @@ impl<'ast> FormatNode<'ast, TypeMember> for TypeMember {
                 is_optional,
                 key,
                 signature,
-                body: _,
                 ..
             } => {
                 if *is_static {
