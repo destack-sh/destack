@@ -250,7 +250,7 @@ pub fn type_expression_contains_reference_segment(
             mutability: _,
         } => type_expression_contains_reference_segment(tree, *target_type, target_segment),
 
-        dir::TypeExpression::TypeOfValue { value } => {
+        dir::TypeExpression::TypeOf { value } => {
             expression_contains_reference_segment(tree, *value, target_segment)
         }
 

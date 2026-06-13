@@ -50,7 +50,7 @@ impl DirSnapshotBuilder<'_> {
             dir::Type::Closure(closure) => self.closure_type_label(types, closure),
             dir::Type::Union(union) => self.type_id_list_label(types, &union.elements, " | "),
             dir::Type::Variable(variable) => format!("?{}", variable.index),
-            dir::Type::Memory(literal) => Self::memory_literal_type_label(literal),
+            dir::Type::Memory(literal) => self.memory_literal_type_label(literal),
             dir::Type::Static(static_id) => self.global_static_label(*static_id),
             dir::Type::Intersection(intersection) => {
                 self.type_id_list_label(types, &intersection.elements, " & ")
@@ -96,7 +96,7 @@ impl DirSnapshotBuilder<'_> {
         reference: &dir::GenericInstance,
     ) -> String {
         if reference.arguments.is_empty() {
-            return self.symbol_path_label(reference.symbol);
+            return self.reference_symbol_label(reference.symbol);
         }
 
         if let Some(label) =
@@ -106,9 +106,23 @@ impl DirSnapshotBuilder<'_> {
         }
 
         let arguments = self.type_id_list_label(types, &reference.arguments, ", ");
-        let symbol = self.symbol_path_label(reference.symbol);
+        let symbol = self.reference_symbol_label(reference.symbol);
 
         format!("{symbol}<{arguments}>")
+    }
+
+    /// Return one reference symbol label.
+    fn reference_symbol_label(&self, symbol: dir::GlobalSymbolId) -> String {
+        if let Some(item) = self.language_item_by_symbol.get(&symbol) {
+            let key = item.to_string();
+            if let Some((_, name)) = key.rsplit_once('.') {
+                return name.to_string();
+            }
+
+            return key;
+        }
+
+        self.symbol_path_label(symbol)
     }
 
     /// Return one member type label.
@@ -245,7 +259,7 @@ impl DirSnapshotBuilder<'_> {
     }
 
     /// Return one memory literal type label.
-    fn memory_literal_type_label(literal: &dir::MemoryLiteral) -> String {
+    fn memory_literal_type_label(&self, literal: &dir::MemoryLiteral) -> String {
         let value = match literal {
             dir::MemoryLiteral::Access(access) => DirSnapshotBuilder::variant_label(access),
             dir::MemoryLiteral::Space(space) => DirSnapshotBuilder::variant_label(space),
@@ -256,7 +270,7 @@ impl DirSnapshotBuilder<'_> {
             dir::MemoryLiteral::Lifetime(dir::Lifetime::Static) => "static".to_string(),
             dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame) => "frame".to_string(),
             dir::MemoryLiteral::Lifetime(dir::Lifetime::Symbol(symbol)) => {
-                return format!("lifetime#{:?}", symbol.local_id);
+                return format!("lifetime#{}", self.symbol_path_label(*symbol));
             }
         };
 
@@ -666,7 +680,10 @@ impl DirSnapshotBuilder<'_> {
                 }
             }
             dir::GenericParameterKey::Generated(name) => {
-                let owner = self.node_label(template.source);
+                let owner = match template.symbol {
+                    Some(symbol) => self.symbol_label(symbol),
+                    None => self.node_label(template.source),
+                };
                 let name = self.strings.get(name);
 
                 format!("{owner}.{name}")

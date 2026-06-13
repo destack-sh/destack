@@ -269,7 +269,7 @@ fn test_parse_parameter_variadic_array_pattern_with_type() {
             assert_eq!(generic_arguments.len(), 1);
 
             assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                    assert_node!(parser.tree, *value, TypeExpression::TypeOfValue { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::TypeOf { value } => {
                         assert_expression_path!(parser, parser.tree.get(*value), "Response");
                     });
             });
