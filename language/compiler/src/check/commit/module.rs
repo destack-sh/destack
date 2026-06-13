@@ -107,9 +107,6 @@ impl CheckState<'_> {
         // drain decided node meanings into resolutions
         self.drain_decisions(module, &mut output);
 
-        // record nominal heritage relations for queries
-        self.drain_relations(&mut output);
-
         // TODO #Incomplete: synthesize capture frames from collected captures
 
         Ok(output)
@@ -333,59 +330,4 @@ impl CheckState<'_> {
         }
     }
 
-    /// Record nominal heritage relations from committed definitions.
-    fn drain_relations(&mut self, output: &mut CheckModuleOutput) {
-        let mut relations = Vec::new();
-
-        // collect heritage edges from this module's definitions
-        for (symbol, definition) in output.definitions.iter_definitions() {
-            match definition {
-                dir::Definition::Class(definition) => {
-                    if let Some(extends) = &definition.extends {
-                        relations.push((symbol, extends.clone(), true));
-                    }
-                    for heritage in &definition.implements {
-                        relations.push((symbol, heritage.clone(), false));
-                    }
-                }
-                dir::Definition::Struct(definition) => {
-                    for heritage in &definition.implements {
-                        relations.push((symbol, heritage.clone(), false));
-                    }
-                }
-                dir::Definition::Enum(definition) => {
-                    for heritage in &definition.implements {
-                        relations.push((symbol, heritage.clone(), false));
-                    }
-                }
-                dir::Definition::Interface(definition) => {
-                    for heritage in &definition.extends {
-                        relations.push((symbol, heritage.clone(), true));
-                    }
-                }
-                dir::Definition::Extension(definition) => {
-                    for heritage in &definition.implements {
-                        relations.push((symbol, heritage.clone(), false));
-                    }
-                }
-                dir::Definition::TypeAlias(_) | dir::Definition::Newtype(_) => {}
-            }
-        }
-
-        for (symbol, heritage, is_extends) in relations {
-            // the walked heritage annotation carries the applied type
-            let Some(ty) = self.inputs.node_type(heritage.source) else {
-                continue;
-            };
-            if is_extends {
-                output
-                    .relations
-                    .push_extends(symbol, dir::Relation::extends(ty));
-            } else {
-                output
-                    .relations
-                    .push_implements(symbol, dir::Relation::implements(ty));
-            }
-        }
-    }
 }

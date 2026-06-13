@@ -280,10 +280,6 @@ impl<'a> DirSnapshotBuilder<'a> {
             self.add_table(checked.definitions.as_ref());
         }
 
-        if selection.relation {
-            self.add_table(checked.relations.as_ref());
-        }
-
         if selection.coercion {
             self.add_table(checked.coercions.as_ref());
         }

@@ -20,8 +20,6 @@ pub(in crate::check) struct CheckModuleOutput {
     pub(super) generics: dir::GenericSegment,
     /// Output definition segment.
     pub(super) definitions: dir::DefinitionSegment,
-    /// Output relation segment.
-    pub(super) relations: dir::RelationSegment,
     /// Output coercion segment.
     pub(super) coercions: dir::CoercionSegment,
     /// Output layout segment.
@@ -40,7 +38,6 @@ impl CheckModuleOutput {
             resolutions: dir::ResolutionSegment::new(module),
             generics: dir::GenericSegment::new(module),
             definitions: dir::DefinitionSegment::new(module),
-            relations: dir::RelationSegment::new(module),
             coercions: dir::CoercionSegment::new(module),
             layouts: dir::LayoutSegment::new(module),
             captures: dir::CaptureSegment::new(module),
@@ -56,7 +53,6 @@ impl CheckModuleOutput {
             resolutions: Arc::new(self.resolutions),
             generics: Arc::new(self.generics),
             definitions: Arc::new(self.definitions),
-            relations: Arc::new(self.relations),
             coercions: Arc::new(self.coercions),
             layouts: Arc::new(self.layouts),
             captures: Arc::new(self.captures),

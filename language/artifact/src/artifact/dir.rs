@@ -261,8 +261,6 @@ pub struct DirCheckedModule {
     pub generics: Arc<dir::GenericSegment>,
     /// New declaration definitions.
     pub definitions: Arc<dir::DefinitionSegment>,
-    /// New type relations.
-    pub relations: Arc<dir::RelationSegment>,
     /// New implicit coercions.
     pub coercions: Arc<dir::CoercionSegment>,
     /// New layouts.
@@ -323,11 +321,6 @@ impl DirCheckedModule {
         dir::DefinitionTable::from_segment(self.definitions.clone())
     }
 
-    /// Return the cumulative relation table for checked DIR.
-    pub fn relation_table(&self) -> dir::RelationTable<'static> {
-        dir::RelationTable::from_segment(self.relations.clone())
-    }
-
     /// Return the cumulative coercion table for checked DIR.
     pub fn coercion_table(&self) -> dir::CoercionTable<'static> {
         dir::CoercionTable::from_segment(self.coercions.clone())
@@ -359,8 +352,6 @@ pub struct DirMaterialized {
     pub resolutions: Arc<dir::ResolutionSegment>,
     /// New generic slots and instances.
     pub generics: Arc<dir::GenericSegment>,
-    /// New type relations.
-    pub relations: Arc<dir::RelationSegment>,
     /// New implicit coercions.
     pub coercions: Arc<dir::CoercionSegment>,
     /// New captures.
@@ -433,11 +424,6 @@ impl DirMaterialized {
         dir::DefinitionTable::from_segment(checked.definitions.clone())
     }
 
-    /// Return the cumulative relation table for materialized DIR.
-    pub fn relation_table(&self, checked: &DirCheckedModule) -> dir::RelationTable<'static> {
-        dir::RelationTable::from_segments(vec![checked.relations.clone(), self.relations.clone()])
-    }
-
     /// Return the cumulative coercion table for materialized DIR.
     pub fn coercion_table(&self, checked: &DirCheckedModule) -> dir::CoercionTable<'static> {
         dir::CoercionTable::from_segments(vec![checked.coercions.clone(), self.coercions.clone()])
@@ -469,8 +455,6 @@ pub struct DirElaborated {
     pub resolutions: Arc<dir::ResolutionSegment>,
     /// New generic slots and instances.
     pub generics: Arc<dir::GenericSegment>,
-    /// New type relations.
-    pub relations: Arc<dir::RelationSegment>,
     /// New implicit coercions.
     pub coercions: Arc<dir::CoercionSegment>,
     /// New captures.
@@ -562,19 +546,6 @@ impl DirElaborated {
     /// Return the cumulative definition table for elaborated DIR.
     pub fn definition_table(&self, checked: &DirCheckedModule) -> dir::DefinitionTable<'static> {
         dir::DefinitionTable::from_segment(checked.definitions.clone())
-    }
-
-    /// Return the cumulative relation table for elaborated DIR.
-    pub fn relation_table(
-        &self,
-        checked: &DirCheckedModule,
-        materialized: &DirMaterialized,
-    ) -> dir::RelationTable<'static> {
-        dir::RelationTable::from_segments(vec![
-            checked.relations.clone(),
-            materialized.relations.clone(),
-            self.relations.clone(),
-        ])
     }
 
     /// Return the cumulative coercion table for elaborated DIR.
