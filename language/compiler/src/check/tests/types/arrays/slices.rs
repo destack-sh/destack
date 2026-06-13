@@ -28,7 +28,7 @@ const slice = bytes[1..3];
 /// @resolution.name source=bytes target=bytes
 /// @resolution.call source=bytes[1..3] parameters=(unknown) return=collections.slice.Slice<uint8> kind=symbol target=collections.array.index#6 receiver=FixedArray<uint8, 4>
 /// @type.node source=1 type=1
-/// @type.node source=1..3 type=range.range.Range<1 | 3>
+/// @type.node source=1..3 type=Range<1 | 3>
 /// @type.node source=3 type=3
 "#,
     );

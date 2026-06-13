@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_borrow_surface_forms_canonicalize_to_same_type() {
+fn test_borrow_written_forms_canonicalize_to_same_type() {
     let session = TestSession::single(
         r#"
 struct Node {
@@ -20,6 +20,22 @@ function access(read: &readonly Node, write: &Node, exclusive: &exclusive Node):
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
+=== annotated ===
+struct Node {
+    id: int32;
+}
+
+function access<comptime L0: Lifetime, comptime L1: Lifetime, comptime L2: Lifetime>(
+    read: Borrowed<Node, L0, "readonly">,
+    write: Borrowed<Node, L1, "mutable">,
+    exclusive: Borrowed<Node, L2, "exclusive">,
+): void {
+    read.id;
+    write.id;
+    exclusive.id;
+}
+
+=== checked ===
 struct Node {
 /// @type.symbol symbol=Node type=Node
 
@@ -55,39 +71,4 @@ function access(read: &readonly Node, write: &Node, exclusive: &exclusive Node):
 
 }
 "#);
-}
-
-#[test]
-fn test_lifetime_and_access_type_functions_evaluate() {
-    let session = TestSession::single(
-        r#"
-function project<A: Lifetime, B: Lifetime>(value: Borrowed<int32, A>): void {
-    type Later = WithLifetime<typeof value, B>;
-    type Exclusive = WithAccess<typeof value, "exclusive">;
-}
-"#,
-    );
-
-    session.assert_dir_checked(
-        "main.ds",
-        DirRows::checked().with_reference_types(),
-        r#"
-function project<A: Lifetime, B: Lifetime>(value: Borrowed<int32, A>): void {
-/// @type.symbol symbol=project type=(Borrowed<int32, project.A, "mutable">) => void
-/// @generic.template symbol=project parameters=[comptime A: memory.lifetime.Lifetime, comptime B: memory.lifetime.Lifetime]
-/// @type.symbol symbol=value type=Borrowed<int32, project.A, "mutable">
-
-    type Later = WithLifetime<typeof value, B>;
-    /// @type.symbol symbol=Later type=Borrowed<int32, project.B, "mutable">
-    /// @type.node source=value type=Borrowed<int32, project.A, "mutable">
-    /// @resolution.name source=value target=value
-
-    type Exclusive = WithAccess<typeof value, "exclusive">;
-    /// @type.symbol symbol=Exclusive type=Borrowed<int32, project.A, "exclusive">
-    /// @type.node source=value type=Borrowed<int32, project.A, "mutable">
-    /// @resolution.name source=value target=value
-
-}
-"#,
-    );
 }

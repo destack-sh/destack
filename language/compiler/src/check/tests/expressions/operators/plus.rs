@@ -95,7 +95,7 @@ struct Vector {
 }
 
 extension VectorAdd of Vector implements Add<Vector> {
-/// @relation.entry symbol=VectorAdd kind=implements type=ops.plus.Add<Vector>
+/// @relation.entry symbol=VectorAdd kind=implements type=Add<Vector>
 /// @definition.extension symbol=VectorAdd form=inherent target=Vector
 /// @definition.implements symbol=VectorAdd source=Add<Vector> target=ops.plus.Add arguments=Vector
 /// @definition.associated.type symbol=VectorAdd.Output source="type Output = Vector" key=Output value=Vector

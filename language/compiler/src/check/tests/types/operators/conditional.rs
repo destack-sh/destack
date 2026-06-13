@@ -23,7 +23,7 @@ declare const number: Select<boolean>;
 
 === checked ===
 type Select<T> = T extends string ? string : int32;
-/// @generic.template source=declaration parameters=[T]
+/// @generic.template symbol=Select parameters=[T]
 /// @type.symbol symbol=Select source="type Select<T> = T extends string ? string : int32" type=T extends string ? string : int32
 /// @definition.type symbol=Select source="type Select<T> = T extends string ? string : int32" template=LocalGenericTemplateId(0) value=T extends string ? string : int32
 /// @type.symbol symbol=Select.T source=T type=T

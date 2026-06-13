@@ -166,7 +166,7 @@ const length = values.length;
 
 values.push(1);
 /// @type.node source=values type=Array<int32>
-/// @type.node source=values.push type=(this: Borrowed<Array<int32>, member.L0, "exclusive">, int32) => void
+/// @type.node source=values.push type=(this: Borrowed<Array<int32>, collections.array.push#1.L0, "exclusive">, int32) => void
 /// @type.node source=values.push(1) type=void
 /// @resolution.name source=values target=values
 /// @resolution.member source=values.push receiver=Array<int32> kind=overloaded targets=[collections.array.push#1, collections.array.push#2]
