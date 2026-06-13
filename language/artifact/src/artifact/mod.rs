@@ -1,5 +1,5 @@
+mod component;
 mod data;
-mod dependency;
 mod dir;
 mod emit;
 mod environment;
@@ -11,11 +11,12 @@ mod map;
 mod mir;
 mod native;
 mod output;
+mod package;
 mod payload;
 mod query;
 
+pub use component::*;
 pub use data::*;
-pub use dependency::*;
 pub use dir::*;
 pub use emit::*;
 pub use environment::*;
@@ -27,5 +28,6 @@ pub use map::*;
 pub use mir::*;
 pub use native::*;
 pub use output::*;
+pub use package::*;
 pub use payload::*;
 pub use query::*;

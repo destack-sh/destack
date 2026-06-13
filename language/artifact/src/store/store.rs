@@ -10,10 +10,11 @@ use super::pin::ArtifactPin;
 use super::record::ArtifactRecord;
 use crate::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactPayloadRef,
-    ArtifactVersion, Data, DependencyIndex, DirBound, DirChecked, DirCheckedComponent,
+    ArtifactVersion, ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent,
     DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
-    GlobalEnvironment, MirLowered, MirOptimized, MirVerified, ModuleLinted, ModuleOutput,
-    ModuleQueryIndex, PackageLinted, PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
+    GlobalEnvironment, MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted,
+    ModuleOutput, ModuleQueryIndex, PackageIndex, PackageLinted, PackageOutput, WorkspaceLinted,
+    WorkspaceQueryIndex,
 };
 
 /// One versioned artifact family map.
@@ -35,7 +36,11 @@ pub struct ArtifactStore {
     /// Global environment by profile.
     global_environment: ArtifactMap<GlobalEnvironment>,
     /// Dependency indexes by profile.
-    dependency_index: ArtifactMap<DependencyIndex>,
+    package_index: ArtifactMap<PackageIndex>,
+    /// Module import edges by profile.
+    module_index: ArtifactMap<ModuleIndex>,
+    /// Component partitions by profile.
+    component_graph: ArtifactMap<ComponentGraph>,
 
     /// Bound DIR artifacts by module and profile.
     dir_bound: ArtifactMap<DirBound>,
@@ -165,7 +170,9 @@ impl ArtifactStore {
     pub fn has(&self, version: &ArtifactVersion) -> bool {
         match &version.key {
             ArtifactKey::GlobalEnvironment { .. } => self.global_environment.contains_key(version),
-            ArtifactKey::DependencyIndex { .. } => self.dependency_index.contains_key(version),
+            ArtifactKey::PackageIndex { .. } => self.package_index.contains_key(version),
+            ArtifactKey::ModuleIndex { .. } => self.module_index.contains_key(version),
+            ArtifactKey::ComponentGraph { .. } => self.component_graph.contains_key(version),
             ArtifactKey::DirParsed { .. } => self.dir_parsed.contains_key(version),
             ArtifactKey::Data { .. } => self.data.contains_key(version),
             ArtifactKey::DirBound { .. } => self.dir_bound.contains_key(version),
@@ -224,12 +231,38 @@ impl ArtifactStore {
                     )
                 })
                 .transpose(),
-            ArtifactKey::DependencyIndex { .. } => self
-                .dependency_index(version)
+            ArtifactKey::PackageIndex { .. } => self
+                .package_index(version)
                 .map(|payload| {
                     Self::record_from_payload(
                         version,
-                        ArtifactPayloadRef::DependencyIndex(payload.as_ref()),
+                        ArtifactPayloadRef::PackageIndex(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::ModuleIndex { .. } => self
+                .module_index(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::ModuleIndex(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::ComponentGraph { .. } => self
+                .component_graph(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::ComponentGraph(payload.as_ref()),
                         strings,
                         &dependencies,
                         &diagnostics,
@@ -574,12 +607,26 @@ impl ArtifactStore {
                 matches!(&version.key, ArtifactKey::GlobalEnvironment { .. }),
                 "GlobalEnvironment",
             ),
-            ArtifactPayload::DependencyIndex(payload) => Self::insert_payload(
-                &self.dependency_index,
+            ArtifactPayload::PackageIndex(payload) => Self::insert_payload(
+                &self.package_index,
                 version,
                 payload,
-                matches!(&version.key, ArtifactKey::DependencyIndex { .. }),
-                "DependencyIndex",
+                matches!(&version.key, ArtifactKey::PackageIndex { .. }),
+                "PackageIndex",
+            ),
+            ArtifactPayload::ModuleIndex(payload) => Self::insert_payload(
+                &self.module_index,
+                version,
+                payload,
+                matches!(&version.key, ArtifactKey::ModuleIndex { .. }),
+                "ModuleIndex",
+            ),
+            ArtifactPayload::ComponentGraph(payload) => Self::insert_payload(
+                &self.component_graph,
+                version,
+                payload,
+                matches!(&version.key, ArtifactKey::ComponentGraph { .. }),
+                "ComponentGraph",
             ),
             ArtifactPayload::DirParsed(payload) => Self::insert_payload(
                 &self.dir_parsed,
@@ -761,8 +808,22 @@ impl ArtifactStore {
     }
 
     /// Get one dependency index artifact.
-    pub fn dependency_index(&self, version: &ArtifactVersion) -> Option<Arc<DependencyIndex>> {
-        self.dependency_index
+    pub fn package_index(&self, version: &ArtifactVersion) -> Option<Arc<PackageIndex>> {
+        self.package_index
+            .get(version)
+            .map(|entry| entry.value().clone())
+    }
+
+    /// Get one module index artifact.
+    pub fn module_index(&self, version: &ArtifactVersion) -> Option<Arc<ModuleIndex>> {
+        self.module_index
+            .get(version)
+            .map(|entry| entry.value().clone())
+    }
+
+    /// Get one component graph artifact.
+    pub fn component_graph(&self, version: &ArtifactVersion) -> Option<Arc<ComponentGraph>> {
+        self.component_graph
             .get(version)
             .map(|entry| entry.value().clone())
     }

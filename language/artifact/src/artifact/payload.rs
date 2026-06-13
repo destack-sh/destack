@@ -1,8 +1,9 @@
 use crate::{
-    Data, DependencyIndex, DirBound, DirChecked, DirCheckedComponent, DirElaborated, DirExpanded,
+    ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirElaborated, DirExpanded,
     DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment,
-    MirLowered, MirOptimized, MirVerified, ModuleLinted, ModuleOutput, ModuleQueryIndex,
-    PackageLinted, PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
+    MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted, ModuleOutput,
+    ModuleQueryIndex, PackageIndex, PackageLinted, PackageOutput, WorkspaceLinted,
+    WorkspaceQueryIndex,
 };
 use serde::{Deserialize, Serialize};
 
@@ -16,7 +17,11 @@ pub enum ArtifactPayload {
     /// Explicit global environment for one profile.
     GlobalEnvironment(GlobalEnvironment),
     /// Active dependency index for one profile.
-    DependencyIndex(DependencyIndex),
+    PackageIndex(PackageIndex),
+    /// Module import edges for one profile.
+    ModuleIndex(ModuleIndex),
+    /// Component partition for one profile.
+    ComponentGraph(ComponentGraph),
     /// Bound DIR.
     DirBound(DirBound),
     /// Imported DIR.
@@ -67,7 +72,11 @@ pub enum ArtifactPayloadRef<'a> {
     /// Explicit global environment for one profile.
     GlobalEnvironment(&'a GlobalEnvironment),
     /// Active dependency index for one profile.
-    DependencyIndex(&'a DependencyIndex),
+    PackageIndex(&'a PackageIndex),
+    /// Module import edges for one profile.
+    ModuleIndex(&'a ModuleIndex),
+    /// Component partition for one profile.
+    ComponentGraph(&'a ComponentGraph),
     /// Bound DIR.
     DirBound(&'a DirBound),
     /// Imported DIR.
@@ -113,7 +122,9 @@ impl ArtifactPayload {
     pub fn name(&self) -> &'static str {
         match self {
             Self::GlobalEnvironment(_) => "global_environment",
-            Self::DependencyIndex(_) => "dependency_index",
+            Self::PackageIndex(_) => "package_index",
+            Self::ModuleIndex(_) => "module_index",
+            Self::ComponentGraph(_) => "component_graph",
             Self::DirParsed(_) => "dir_parsed",
             Self::Data(_) => "data",
             Self::DirBound(_) => "dir_bound",
@@ -160,10 +171,24 @@ impl From<GlobalEnvironment> for ArtifactPayload {
     }
 }
 
-impl From<DependencyIndex> for ArtifactPayload {
+impl From<PackageIndex> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
-    fn from(payload: DependencyIndex) -> Self {
-        Self::DependencyIndex(payload)
+    fn from(payload: PackageIndex) -> Self {
+        Self::PackageIndex(payload)
+    }
+}
+
+impl From<ModuleIndex> for ArtifactPayload {
+    /// Convert a typed artifact into an artifact payload.
+    fn from(payload: ModuleIndex) -> Self {
+        Self::ModuleIndex(payload)
+    }
+}
+
+impl From<ComponentGraph> for ArtifactPayload {
+    /// Convert a typed artifact into an artifact payload.
+    fn from(payload: ComponentGraph) -> Self {
+        Self::ComponentGraph(payload)
     }
 }
 

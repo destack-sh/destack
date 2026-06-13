@@ -26,7 +26,11 @@ pub enum ArtifactKey {
     /// Explicit global environment for one profile.
     GlobalEnvironment { profile: ProfileId },
     /// Active dependency index for one profile.
-    DependencyIndex { profile: ProfileId },
+    PackageIndex { profile: ProfileId },
+    /// Module import edges for one profile.
+    ModuleIndex { profile: ProfileId },
+    /// Strongly connected component partition for one profile.
+    ComponentGraph { profile: ProfileId },
 
     /// Bound DIR.
     DirBound {
@@ -53,6 +57,7 @@ pub enum ArtifactKey {
         module: ModuleId,
         profile: ProfileId,
     },
+
     /// Checked DIR component.
     DirCheckedComponent {
         entry: ModuleId,
@@ -170,7 +175,9 @@ impl ArtifactKey {
         match self {
             Self::DirParsed { .. } | Self::Data { .. } => ArtifactProvider::Loader,
             Self::GlobalEnvironment { .. }
-            | Self::DependencyIndex { .. }
+            | Self::PackageIndex { .. }
+            | Self::ModuleIndex { .. }
+            | Self::ComponentGraph { .. }
             | Self::DirBound { .. }
             | Self::DirImported { .. }
             | Self::DirExpanded { .. }
@@ -208,8 +215,18 @@ impl ArtifactKey {
     }
 
     /// Build one dependency index artifact key.
-    pub fn dependency_index(profile: ProfileId) -> Self {
-        Self::DependencyIndex { profile }
+    pub fn package_index(profile: ProfileId) -> Self {
+        Self::PackageIndex { profile }
+    }
+
+    /// Build one module index artifact key.
+    pub fn module_index(profile: ProfileId) -> Self {
+        Self::ModuleIndex { profile }
+    }
+
+    /// Build one component graph artifact key.
+    pub fn component_graph(profile: ProfileId) -> Self {
+        Self::ComponentGraph { profile }
     }
 
     /// Build one DIR artifact key.
@@ -344,7 +361,9 @@ impl ArtifactKey {
             Self::DirBound { .. }
             | Self::DirImported { .. }
             | Self::DirExported { .. }
-            | Self::DirResolved { .. } => ArtifactStage::Bind,
+            | Self::DirResolved { .. }
+            | Self::ModuleIndex { .. }
+            | Self::ComponentGraph { .. } => ArtifactStage::Bind,
             Self::DirExpanded { .. } | Self::DirMaterialized { .. } => ArtifactStage::Macro,
             Self::DirCheckedComponent { .. } | Self::DirChecked { .. } => ArtifactStage::Check,
             Self::DirElaborated { .. }
@@ -359,7 +378,7 @@ impl ArtifactKey {
             Self::ModuleQueryIndex { .. } | Self::WorkspaceQueryIndex { .. } => {
                 ArtifactStage::Query
             }
-            Self::GlobalEnvironment { .. } | Self::DependencyIndex { .. } => ArtifactStage::Init,
+            Self::GlobalEnvironment { .. } | Self::PackageIndex { .. } => ArtifactStage::Init,
         }
     }
 
@@ -367,7 +386,7 @@ impl ArtifactKey {
     pub fn display_name(&self) -> &'static str {
         match self {
             Self::GlobalEnvironment { .. } => "environment",
-            Self::DependencyIndex { .. } => "dependency.index",
+            Self::PackageIndex { .. } => "package.index",
             Self::DirParsed { .. } => "dir.parse",
             Self::Data { .. } => "data",
             Self::DirBound { .. } => "dir.bind",
@@ -375,6 +394,8 @@ impl ArtifactKey {
             Self::DirExpanded { .. } => "dir.expand",
             Self::DirExported { .. } => "dir.export",
             Self::DirResolved { .. } => "dir.resolve",
+            Self::ModuleIndex { .. } => "module.index",
+            Self::ComponentGraph { .. } => "component.graph",
             Self::DirCheckedComponent { .. } => "dir.check.component",
             Self::DirChecked { .. } => "dir.check",
             Self::DirMaterialized { .. } => "dir.materialize",
@@ -396,7 +417,7 @@ impl ArtifactKey {
     pub fn name(&self) -> &'static str {
         match self {
             Self::GlobalEnvironment { .. } => "global_environment",
-            Self::DependencyIndex { .. } => "dependency_index",
+            Self::PackageIndex { .. } => "package_index",
             Self::DirParsed { .. } => "dir_parsed",
             Self::Data { .. } => "data",
             Self::DirBound { .. } => "dir_bound",
@@ -404,6 +425,8 @@ impl ArtifactKey {
             Self::DirExpanded { .. } => "dir_expanded",
             Self::DirExported { .. } => "dir_exported",
             Self::DirResolved { .. } => "dir_resolved",
+            Self::ModuleIndex { .. } => "module_index",
+            Self::ComponentGraph { .. } => "component_graph",
             Self::DirCheckedComponent { .. } => "dir_checked_component",
             Self::DirChecked { .. } => "dir_checked",
             Self::DirMaterialized { .. } => "dir_materialized",
@@ -442,7 +465,9 @@ impl ArtifactKey {
             | Self::ModuleOutput { module, .. }
             | Self::ModuleLinted { module, .. } => Some(*module),
             Self::GlobalEnvironment { .. }
-            | Self::DependencyIndex { .. }
+            | Self::PackageIndex { .. }
+            | Self::ModuleIndex { .. }
+            | Self::ComponentGraph { .. }
             | Self::WorkspaceQueryIndex { .. }
             | Self::PackageOutput { .. }
             | Self::PackageLinted { .. }
@@ -464,7 +489,9 @@ impl ArtifactKey {
     pub fn profile_id(&self) -> Option<ProfileId> {
         match self {
             Self::GlobalEnvironment { profile }
-            | Self::DependencyIndex { profile }
+            | Self::PackageIndex { profile }
+            | Self::ModuleIndex { profile }
+            | Self::ComponentGraph { profile }
             | Self::DirBound { profile, .. }
             | Self::DirImported { profile, .. }
             | Self::DirExpanded { profile, .. }

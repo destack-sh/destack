@@ -7,14 +7,14 @@ use serde::{Deserialize, Serialize};
 
 /// Active package dependency and export index for one profile.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DependencyIndex {
+pub struct PackageIndex {
     /// The profile this index belongs to.
     pub profile: ProfileId,
     /// Indexed packages keyed by package id.
     pub packages: IndexMap<PackageId, PackageImportIndex>,
 }
 
-impl DependencyIndex {
+impl PackageIndex {
     /// Return one indexed package.
     pub fn package(&self, package: PackageId) -> Option<&PackageImportIndex> {
         self.packages.get(&package)
