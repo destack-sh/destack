@@ -32,8 +32,6 @@ interface Printable {
 
 class Document extends Base implements Printable {
 /// @type.symbol symbol=Document type=Document
-/// @relation.entry symbol=Document kind=extends type=Base
-/// @relation.entry symbol=Document kind=implements type=Printable
 
     print(): void {}
     /// @type.symbol symbol=Document.print type=(this: Document) => void

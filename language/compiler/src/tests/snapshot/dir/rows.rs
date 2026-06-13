@@ -28,8 +28,6 @@ pub(crate) struct DirRows {
     pub(super) generics: bool,
     /// Whether to render definition table rows.
     pub(super) definitions: bool,
-    /// Whether to render relation table rows.
-    pub(super) relation: bool,
     /// Whether to render coercion table rows.
     pub(super) coercion: bool,
     /// Whether to render module table rows.
@@ -67,7 +65,6 @@ impl DirRows {
             resolution: false,
             generics: false,
             definitions: false,
-            relation: false,
             coercion: false,
             module: false,
             import: false,
@@ -130,7 +127,6 @@ impl DirRows {
             resolution: true,
             generics: true,
             definitions: true,
-            relation: true,
             ..Self::none()
         }
     }
@@ -300,7 +296,6 @@ impl DirRows {
             || self.resolution
             || self.generics
             || self.definitions
-            || self.relation
             || self.coercion
             || self.capture
             || self.layout

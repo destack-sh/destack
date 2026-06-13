@@ -46,7 +46,6 @@ impl Compiler {
             statics: Arc::new(dir::StaticSegment::from_base(&checked.statics)),
             resolutions: Arc::new(dir::ResolutionSegment::new(module)),
             generics: Arc::new(dir::GenericSegment::from_base(&checked.generics)),
-            relations: Arc::new(dir::RelationSegment::new(module)),
             coercions: Arc::new(dir::CoercionSegment::new(module)),
             captures: Arc::new(dir::CaptureSegment::new(module)),
             layouts: Arc::new(dir::LayoutSegment::from_base(&checked.layouts)),
