@@ -97,14 +97,22 @@ impl VariableTable {
             })
     }
 
-    /// Chase alias links to the representative variable.
+    /// Return the canonical variable of one variable's equality class.
+    ///
+    /// Variables proven equal are merged into one union-find class through
+    /// `alias` links; this returns the class root, which carries the shared
+    /// bounds and the solution. Unions always attach to the current root, so
+    /// chains stay shallow.
+    //
+    // NOTE #Performance: the chain is read, not path compressed, since this
+    // takes &self; a former root that is re-aliased can deepen it by one.
     pub(in crate::check) fn representative(
         &self,
         id: dir::TypeVariableId,
     ) -> CompilerResult<dir::TypeVariableId> {
         let mut current = id;
 
-        // follow alias links to the root
+        // follow alias links to the class root
         while let Some(alias) = self.get(current)?.alias {
             current = alias;
         }

@@ -57,7 +57,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if let Some(ty) = self.check.inputs.node_type(node) {
+        if let Some(ty) = self.check.node_type(node) {
             return Ok(ty);
         }
 
@@ -68,7 +68,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             .check
             .allocate_variable(self.module, origin, Widening::Preserve);
         let ty = self.check.push_variable_type(variable, node.local_id)?;
-        self.check.inputs.set_node_type(node, ty)?;
+        self.check.set_node_type(node, ty)?;
 
         Ok(ty)
     }
@@ -106,8 +106,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let node = id.into_global_any(self.module);
-        let Some(target) = self.check.inputs.node_type(node) else {
-            self.check.inputs.set_node_type(node, ty)?;
+        let Some(target) = self.check.node_type(node) else {
+            self.check.set_node_type(node, ty)?;
 
             return Ok(ty);
         };
@@ -165,7 +165,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
     pub(in crate::check) fn queue_select(&mut self, node: dir::GlobalNodeIdAny) {
         // record the guard context the selection must run under
         if let Condition::When(predicates) = self.flow.active_static_guard() {
-            self.check.inputs.set_node_condition(node, predicates);
+            self.check.set_node_condition(node, predicates);
         }
 
         self.check.queue_task(Task::Select(node));
@@ -176,11 +176,11 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if let Some(ty) = self.check.inputs.symbol_type(symbol) {
+        if let Some(ty) = self.check.symbol_type(symbol) {
             return Ok(ty);
         }
 
-        // external symbols chase aliases, then read committed types
+        // external symbols follow their re-export to the origin, then read committed types
         if !self.check.is_component_module(symbol.module_id) {
             let symbol = self.check.resolve_external_alias(symbol)?;
             self.check.import_external_module(symbol.module_id)?;
@@ -194,7 +194,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
                     message: format!("external symbol {symbol:?} has no imported type"),
                 });
             };
-            self.check.inputs.set_symbol_type(symbol, ty)?;
 
             return Ok(ty);
         }
@@ -218,7 +217,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             .check
             .allocate_variable(symbol.module_id, origin, Widening::Preserve);
         let ty = self.check.push_variable_type(variable, source)?;
-        self.check.inputs.set_symbol_type(symbol, ty)?;
+        self.check.set_symbol_type(symbol, ty)?;
 
         Ok(ty)
     }
@@ -230,7 +229,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         symbol: dir::GlobalSymbolId,
         widening: Widening,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if let Some(ty) = self.check.inputs.symbol_type(symbol) {
+        if let Some(ty) = self.check.symbol_type(symbol) {
             return Ok(ty);
         }
 
@@ -243,7 +242,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             .check
             .allocate_variable(symbol.module_id, origin, widening);
         let ty = self.check.push_variable_type(variable, source)?;
-        self.check.inputs.set_symbol_type(symbol, ty)?;
+        self.check.set_symbol_type(symbol, ty)?;
 
         Ok(ty)
     }
@@ -254,13 +253,13 @@ impl<'check, 'state> WalkState<'check, 'state> {
         symbol: dir::GlobalSymbolId,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if let Some(existing) = self.check.inputs.symbol_type(symbol) {
+        if let Some(existing) = self.check.symbol_type(symbol) {
             self.relate_type(Origin::Symbol(symbol), Relation::Equal, existing, ty);
 
             return Ok(existing);
         }
 
-        self.check.inputs.set_symbol_type(symbol, ty)?;
+        self.check.set_symbol_type(symbol, ty)?;
 
         Ok(ty)
     }
@@ -271,7 +270,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         symbol: dir::GlobalSymbolId,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        self.check.inputs.set_symbol_value(symbol, value)
+        self.check.set_symbol_value(symbol, value)
     }
 
     /// Push one working type at a source node.
