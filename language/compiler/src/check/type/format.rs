@@ -345,7 +345,11 @@ impl CheckState<'_> {
         match key {
             dir::StaticKey::Name(name) => self.text(*name),
             dir::StaticKey::Index(index) => index.to_string(),
-            dir::StaticKey::Symbol(_) => "[symbol]".to_string(), // NOTE #Suspicious: format_static_key?
+            // a unique symbol shows its declaring binding's name
+            dir::StaticKey::Symbol(dir::SymbolKey::Unique(symbol)) => self.format_symbol(*symbol),
+            dir::StaticKey::Symbol(dir::SymbolKey::Registry(name)) => {
+                format!("Symbol.for(\"{}\")", self.text(*name))
+            }
         }
     }
 
