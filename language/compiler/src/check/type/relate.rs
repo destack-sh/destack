@@ -59,8 +59,8 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        let source = self.resolve_root(left)?;
-        let target = self.resolve_root(right)?;
+        let source = self.shallow_resolve(left)?;
+        let target = self.shallow_resolve(right)?;
         if self.root_variable(source)?.is_some() {
             return Ok(());
         }
@@ -140,9 +140,9 @@ impl CheckState<'_> {
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        // chase variable roots through aliases and solutions
-        let left = self.resolve_root(left)?;
-        let right = self.resolve_root(right)?;
+        // substitute solved variables before comparing
+        let left = self.shallow_resolve(left)?;
+        let right = self.shallow_resolve(right)?;
         let left_variable = self.root_variable(left)?;
         let right_variable = self.root_variable(right)?;
 
@@ -251,7 +251,7 @@ impl CheckState<'_> {
             _ => None,
         };
         if let Some((source_element, target_element, count)) = fixed_fill {
-            let count = self.resolve_root(count)?;
+            let count = self.shallow_resolve(count)?;
             let fillable = match self.fresh_array_literal_length(left)? {
                 // open counts solve to the literal length
                 Some(length) => match self.root_variable(count)? {
@@ -464,14 +464,20 @@ impl CheckState<'_> {
         Ok(Answer::pending(blockers))
     }
 
-    /// Resolve one type root through variable aliases and solutions.
-    pub(in crate::check) fn resolve_root(
+    /// Substitute the outermost solved inference variable for its solution.
+    ///
+    /// Returns the type unchanged unless its top is a solved variable, in which
+    /// case it returns that variable's solution. Solutions are stored already
+    /// substituted (see `set_solution`), so the loop settles in one step; it
+    /// stays a loop only to stay correct if that ever changes. Nested variables
+    /// are left intact: this resolves the top, not the whole tree.
+    pub(in crate::check) fn shallow_resolve(
         &self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let mut current = id;
 
-        // chase solved variables to their solutions
+        // substitute a solved top variable for its solution
         while let dir::Type::Variable(variable) = self.ty(current)? {
             let Some(solution) = self.variables.solution(*variable)? else {
                 return Ok(current);
@@ -608,7 +614,7 @@ impl CheckState<'_> {
         &self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Option<DiagnosticAnchor>> {
-        let id = self.resolve_root(id)?;
+        let id = self.shallow_resolve(id)?;
 
         // only component modules carry anchorable source
         let Some(module) = self.modules.get(&id.module_id) else {
@@ -632,10 +638,10 @@ impl CheckState<'_> {
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Option<String>> {
         // peel the literal's managed wrapper
-        let left = self.resolve_root(left)?;
+        let left = self.shallow_resolve(left)?;
         let left = match self.ty(left)? {
             dir::Type::Form(form) if form.form == dir::Form::Managed => {
-                self.resolve_root(form.value)?
+                self.shallow_resolve(form.value)?
             }
             _ => left,
         };
@@ -708,7 +714,7 @@ impl CheckState<'_> {
             }
             // form wrappers accept what their payloads accept
             dir::Type::Form(form) => {
-                let value = self.resolve_root(form.value)?;
+                let value = self.shallow_resolve(form.value)?;
 
                 self.accepted_property_keys(origin, value)
             }
