@@ -25,7 +25,17 @@ DestackStatus destack_artifact_key_global_environment(
     DestackArtifactKey **out,
     DestackError **error
 );
-DestackStatus destack_artifact_key_dependency_index(
+DestackStatus destack_artifact_key_package_index(
+    DestackProfileId profile,
+    DestackArtifactKey **out,
+    DestackError **error
+);
+DestackStatus destack_artifact_key_module_index(
+    DestackProfileId profile,
+    DestackArtifactKey **out,
+    DestackError **error
+);
+DestackStatus destack_artifact_key_component_graph(
     DestackProfileId profile,
     DestackArtifactKey **out,
     DestackError **error

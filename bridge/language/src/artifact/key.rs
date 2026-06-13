@@ -24,7 +24,17 @@ pub enum ArtifactKey {
         profile: ProfileId,
     },
     /// Active dependency index for one profile.
-    DependencyIndex {
+    PackageIndex {
+        /// Semantic profile.
+        profile: ProfileId,
+    },
+    /// Module import edge index for one profile.
+    ModuleIndex {
+        /// Semantic profile.
+        profile: ProfileId,
+    },
+    /// Component partition for one profile.
+    ComponentGraph {
         /// Semantic profile.
         profile: ProfileId,
     },
@@ -175,7 +185,13 @@ impl ArtifactKey {
             artifact::ArtifactKey::GlobalEnvironment { profile } => Self::GlobalEnvironment {
                 profile: profile.into(),
             },
-            artifact::ArtifactKey::DependencyIndex { profile } => Self::DependencyIndex {
+            artifact::ArtifactKey::PackageIndex { profile } => Self::PackageIndex {
+                profile: profile.into(),
+            },
+            artifact::ArtifactKey::ModuleIndex { profile } => Self::ModuleIndex {
+                profile: profile.into(),
+            },
+            artifact::ArtifactKey::ComponentGraph { profile } => Self::ComponentGraph {
                 profile: profile.into(),
             },
             artifact::ArtifactKey::DirBound { module, profile } => Self::DirBound {
@@ -284,7 +300,13 @@ impl ArtifactKey {
             Self::GlobalEnvironment { profile } => Ok(artifact::ArtifactKey::GlobalEnvironment {
                 profile: profile.into_source()?,
             }),
-            Self::DependencyIndex { profile } => Ok(artifact::ArtifactKey::DependencyIndex {
+            Self::PackageIndex { profile } => Ok(artifact::ArtifactKey::PackageIndex {
+                profile: profile.into_source()?,
+            }),
+            Self::ModuleIndex { profile } => Ok(artifact::ArtifactKey::ModuleIndex {
+                profile: profile.into_source()?,
+            }),
+            Self::ComponentGraph { profile } => Ok(artifact::ArtifactKey::ComponentGraph {
                 profile: profile.into_source()?,
             }),
             Self::DirBound { module, profile } => Ok(artifact::ArtifactKey::DirBound {

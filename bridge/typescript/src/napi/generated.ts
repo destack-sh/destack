@@ -193,9 +193,23 @@ export function toNapiArtifactKey(value: ArtifactKey): Napi.ArtifactKey {
         };
     }
 
-    if (value.kind === "dependencyIndex") {
+    if (value.kind === "packageIndex") {
         return {
-            kind: "dependencyIndex",
+            kind: "packageIndex",
+            profile: toNapiProfileId(value.profile),
+        };
+    }
+
+    if (value.kind === "moduleIndex") {
+        return {
+            kind: "moduleIndex",
+            profile: toNapiProfileId(value.profile),
+        };
+    }
+
+    if (value.kind === "componentGraph") {
+        return {
+            kind: "componentGraph",
             profile: toNapiProfileId(value.profile),
         };
     }
@@ -393,14 +407,38 @@ export function fromNapiArtifactKey(value: Napi.ArtifactKey): ArtifactKey {
         };
     }
 
-    if (value.kind === "dependencyIndex") {
+    if (value.kind === "packageIndex") {
         const payload_profile = value.profile;
         if (payload_profile == null) {
             throw new Error("profile payload is missing");
         }
 
         return {
-            kind: "dependencyIndex",
+            kind: "packageIndex",
+            profile: fromNapiProfileId(payload_profile),
+        };
+    }
+
+    if (value.kind === "moduleIndex") {
+        const payload_profile = value.profile;
+        if (payload_profile == null) {
+            throw new Error("profile payload is missing");
+        }
+
+        return {
+            kind: "moduleIndex",
+            profile: fromNapiProfileId(payload_profile),
+        };
+    }
+
+    if (value.kind === "componentGraph") {
+        const payload_profile = value.profile;
+        if (payload_profile == null) {
+            throw new Error("profile payload is missing");
+        }
+
+        return {
+            kind: "componentGraph",
             profile: fromNapiProfileId(payload_profile),
         };
     }

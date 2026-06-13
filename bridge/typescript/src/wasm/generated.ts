@@ -189,8 +189,16 @@ export function toWasmArtifactKey(
         return wasm.ArtifactKey.globalEnvironment(toWasmProfileId(wasm, value.profile));
     }
 
-    if (value.kind === "dependencyIndex") {
-        return wasm.ArtifactKey.dependencyIndex(toWasmProfileId(wasm, value.profile));
+    if (value.kind === "packageIndex") {
+        return wasm.ArtifactKey.packageIndex(toWasmProfileId(wasm, value.profile));
+    }
+
+    if (value.kind === "moduleIndex") {
+        return wasm.ArtifactKey.moduleIndex(toWasmProfileId(wasm, value.profile));
+    }
+
+    if (value.kind === "componentGraph") {
+        return wasm.ArtifactKey.componentGraph(toWasmProfileId(wasm, value.profile));
     }
 
     if (value.kind === "dirBound") {
@@ -362,14 +370,38 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
         };
     }
 
-    if (value.kind === "dependencyIndex") {
+    if (value.kind === "packageIndex") {
         const payload_profile = value.profile;
         if (payload_profile == null) {
             throw new Error("profile payload is missing");
         }
 
         return {
-            kind: "dependencyIndex",
+            kind: "packageIndex",
+            profile: fromWasmProfileId(payload_profile),
+        };
+    }
+
+    if (value.kind === "moduleIndex") {
+        const payload_profile = value.profile;
+        if (payload_profile == null) {
+            throw new Error("profile payload is missing");
+        }
+
+        return {
+            kind: "moduleIndex",
+            profile: fromWasmProfileId(payload_profile),
+        };
+    }
+
+    if (value.kind === "componentGraph") {
+        const payload_profile = value.profile;
+        if (payload_profile == null) {
+            throw new Error("profile payload is missing");
+        }
+
+        return {
+            kind: "componentGraph",
             profile: fromWasmProfileId(payload_profile),
         };
     }

@@ -32,7 +32,17 @@ enum ArtifactKeyContent {
         profile: ProfileId,
     },
     /// Active dependency index for one profile.
-    DependencyIndex {
+    PackageIndex {
+        /// Semantic profile.
+        profile: ProfileId,
+    },
+    /// Module import edge index for one profile.
+    ModuleIndex {
+        /// Semantic profile.
+        profile: ProfileId,
+    },
+    /// Component partition for one profile.
+    ComponentGraph {
         /// Semantic profile.
         profile: ProfileId,
     },
@@ -197,10 +207,26 @@ impl ArtifactKey {
     }
 
     /// Create one payload variant.
-    #[wasm_bindgen(js_name = "dependencyIndex")]
-    pub fn dependency_index(profile: ProfileId) -> Self {
+    #[wasm_bindgen(js_name = "packageIndex")]
+    pub fn package_index(profile: ProfileId) -> Self {
         Self {
-            content: ArtifactKeyContent::DependencyIndex { profile },
+            content: ArtifactKeyContent::PackageIndex { profile },
+        }
+    }
+
+    /// Create one payload variant.
+    #[wasm_bindgen(js_name = "moduleIndex")]
+    pub fn module_index(profile: ProfileId) -> Self {
+        Self {
+            content: ArtifactKeyContent::ModuleIndex { profile },
+        }
+    }
+
+    /// Create one payload variant.
+    #[wasm_bindgen(js_name = "componentGraph")]
+    pub fn component_graph(profile: ProfileId) -> Self {
+        Self {
+            content: ArtifactKeyContent::ComponentGraph { profile },
         }
     }
 
@@ -383,7 +409,9 @@ impl ArtifactKey {
             ArtifactKeyContent::DirParsed { .. } => "dirParsed",
             ArtifactKeyContent::Data { .. } => "data",
             ArtifactKeyContent::GlobalEnvironment { .. } => "globalEnvironment",
-            ArtifactKeyContent::DependencyIndex { .. } => "dependencyIndex",
+            ArtifactKeyContent::PackageIndex { .. } => "packageIndex",
+            ArtifactKeyContent::ModuleIndex { .. } => "moduleIndex",
+            ArtifactKeyContent::ComponentGraph { .. } => "componentGraph",
             ArtifactKeyContent::DirBound { .. } => "dirBound",
             ArtifactKeyContent::DirImported { .. } => "dirImported",
             ArtifactKeyContent::DirExpanded { .. } => "dirExpanded",
@@ -436,7 +464,9 @@ impl ArtifactKey {
     pub fn profile(&self) -> Option<ProfileId> {
         match &self.content {
             ArtifactKeyContent::GlobalEnvironment { profile: value, .. } => Some(value.clone()),
-            ArtifactKeyContent::DependencyIndex { profile: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::PackageIndex { profile: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::ModuleIndex { profile: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::ComponentGraph { profile: value, .. } => Some(value.clone()),
             ArtifactKeyContent::DirBound { profile: value, .. } => Some(value.clone()),
             ArtifactKeyContent::DirImported { profile: value, .. } => Some(value.clone()),
             ArtifactKeyContent::DirExpanded { profile: value, .. } => Some(value.clone()),
@@ -515,11 +545,15 @@ impl ArtifactKey {
                     profile: profile.into_bridge(),
                 }
             }
-            ArtifactKeyContent::DependencyIndex { profile } => {
-                bridge::ArtifactKey::DependencyIndex {
-                    profile: profile.into_bridge(),
-                }
-            }
+            ArtifactKeyContent::PackageIndex { profile } => bridge::ArtifactKey::PackageIndex {
+                profile: profile.into_bridge(),
+            },
+            ArtifactKeyContent::ModuleIndex { profile } => bridge::ArtifactKey::ModuleIndex {
+                profile: profile.into_bridge(),
+            },
+            ArtifactKeyContent::ComponentGraph { profile } => bridge::ArtifactKey::ComponentGraph {
+                profile: profile.into_bridge(),
+            },
             ArtifactKeyContent::DirBound { module, profile } => bridge::ArtifactKey::DirBound {
                 module: module.into_bridge(),
                 profile: profile.into_bridge(),
@@ -656,8 +690,18 @@ impl ArtifactKey {
                     profile: ProfileId::from_bridge(profile),
                 },
             },
-            bridge::ArtifactKey::DependencyIndex { profile } => Self {
-                content: ArtifactKeyContent::DependencyIndex {
+            bridge::ArtifactKey::PackageIndex { profile } => Self {
+                content: ArtifactKeyContent::PackageIndex {
+                    profile: ProfileId::from_bridge(profile),
+                },
+            },
+            bridge::ArtifactKey::ModuleIndex { profile } => Self {
+                content: ArtifactKeyContent::ModuleIndex {
+                    profile: ProfileId::from_bridge(profile),
+                },
+            },
+            bridge::ArtifactKey::ComponentGraph { profile } => Self {
+                content: ArtifactKeyContent::ComponentGraph {
                     profile: ProfileId::from_bridge(profile),
                 },
             },
