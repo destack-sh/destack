@@ -1484,17 +1484,18 @@ Comparison operators `<` / `>` follow the same pattern and support `PartialCompa
 Strict identity `===` still keeps its TypeScript meaning: by value for primitives (including `string` and `char` contents, and `NaN === NaN` is still `false`), and by reference identity for managed objects.
 
 Dereference operators are a little different from the main "value-shaped" operators, because `Dereference<A>` transparently _dereferences_ (projects) access forms on use.
+The `*` operator projects the place behind the borrow returned from `Dereference.dereference()`, so the dereference expression has the pointee type while writes back via the returned indirection.
 
 ```ds
 struct Box<T> {
     ptr: ^T;
 }
 
-extension<T> of Box<T> implements Dereference<"readonly"> {
-    type Output = &T;
+extension<T, comptime A: Access = "readonly"> of Box<T> implements Dereference<A> {
+    type Output = T;
 
-    dereference(): this.Output {
-        &*this.ptr
+    dereference(): WithAccess<&T, A> {
+        &this.ptr
     }
 }
 ```
