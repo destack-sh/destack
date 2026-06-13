@@ -1,8 +1,8 @@
 use std::collections::{HashMap, VecDeque};
 
-use crate::common::mir::terminator_arguments_for_successor;
 use crate::verify::value::{instruction_consumes, instruction_uses, terminator_consumes};
 use destack_mir as mir;
+use destack_mir::terminator_arguments_for_successor;
 
 use super::owned::OwnedValues;
 use super::state::DropState;

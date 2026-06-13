@@ -3,15 +3,13 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{
-    AliasAnalysis, ConstantPropagation, DominatorTree, Loop, LoopAnalysis, MemoryAccess,
-    MemoryAccessId, MemoryAccessLocation, MemorySSA, RangeAnalysis, ValueRange,
-};
-use crate::common::mir::{
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AliasAnalysis, AnalysisPreservation, ConstantPropagation, DominatorTree, Loop, LoopAnalysis,
+    MemoryAccess, MemoryAccessId, MemoryAccessLocation, MemorySSA, RangeAnalysis, ValueRange,
     build_instruction_block_map, instruction_allows_read_only_motion,
     instruction_is_read_only_access, instruction_is_speculatable,
 };
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_mir_pass! {
     /// Move loop invariant computations outside of loops.
@@ -65,7 +63,8 @@ impl FunctionPass for Licm {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
-        ctx: &PipelineContext<'_>,
+        _ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         let entry = match function.entry {
             Some(entry) => entry,
@@ -74,14 +73,13 @@ impl FunctionPass for Licm {
 
         // get analyses
         let (loops, domtree, ranges, constants, alias, memory_ssa) = {
-            let analyses = ctx.function_analyses(function, tree);
             (
-                analyses.get::<LoopAnalysis>().clone(),
-                analyses.get::<DominatorTree>().clone(),
-                analyses.get::<RangeAnalysis>().clone(),
-                analyses.get::<ConstantPropagation>().clone(),
-                analyses.get::<AliasAnalysis>().clone(),
-                analyses.get::<MemorySSA>(),
+                analyses.get::<LoopAnalysis>(function, tree).clone(),
+                analyses.get::<DominatorTree>(function, tree).clone(),
+                analyses.get::<RangeAnalysis>(function, tree).clone(),
+                analyses.get::<ConstantPropagation>(function, tree).clone(),
+                analyses.get::<AliasAnalysis>(function, tree).clone(),
+                analyses.get::<MemorySSA>(function, tree),
             )
         };
         if loops.num_loops() == 0 {

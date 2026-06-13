@@ -3,15 +3,13 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{AvailableExpressions, ControlFlowGraph, DominatorTree};
-use crate::common::mir::{
-    EdgeSplitPolicy, UseDefMaps, ValueTypeMap, append_successor_arguments, build_use_def_maps,
-    collect_reachable_blocks, compute_dominance_frontiers, ensure_edge_block,
-    instruction_has_side_effects, instruction_is_speculatable,
-};
-use crate::optimize::{
-    AnalysisPreservation, ExpressionKey, FunctionPass, PipelineContext,
-    apply_substitutions_in_function, expression_key_from_instruction, expression_key_substitute,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, AvailableExpressions, ControlFlowGraph, DominatorTree, EdgeSplitPolicy,
+    ExpressionKey, UseDefMaps, ValueTypeMap, append_successor_arguments,
+    apply_substitutions_in_function, build_use_def_maps, collect_reachable_blocks,
+    compute_dominance_frontiers, ensure_edge_block, expression_key_from_instruction,
+    expression_key_substitute, instruction_has_side_effects, instruction_is_speculatable,
 };
 
 declare_mir_pass! {
@@ -61,7 +59,8 @@ impl FunctionPass for PartialRedundancyElim {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
-        ctx: &PipelineContext<'_>,
+        _ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip imported functions
         let Some(entry) = function.entry else {
@@ -69,10 +68,9 @@ impl FunctionPass for PartialRedundancyElim {
         };
 
         // gather analyses
-        let analyses = ctx.function_analyses(function, tree);
-        let cfg = analyses.get::<ControlFlowGraph>().clone();
-        let domtree = analyses.get::<DominatorTree>().clone();
-        let available = analyses.get::<AvailableExpressions>().clone();
+        let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
+        let domtree = analyses.get::<DominatorTree>(function, tree).clone();
+        let available = analyses.get::<AvailableExpressions>(function, tree).clone();
         let value_types = ValueTypeMap::new(function, tree);
 
         // run PRE

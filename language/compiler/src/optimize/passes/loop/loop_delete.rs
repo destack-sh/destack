@@ -3,9 +3,11 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{ConstantPropagation, DominatorTree, Loop, LoopAnalysis};
-use crate::common::mir::instruction_has_side_effects;
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, ConstantPropagation, DominatorTree, Loop, LoopAnalysis,
+    instruction_has_side_effects,
+};
 
 declare_mir_pass! {
     /// Delete loops that are proven to be skipped.
@@ -52,7 +54,8 @@ impl FunctionPass for LoopDelete {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
-        ctx: &PipelineContext<'_>,
+        _ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         if function.entry.is_none() {
             return AnalysisPreservation::all();
@@ -60,11 +63,10 @@ impl FunctionPass for LoopDelete {
 
         // get analyses
         let (loops, domtree, constants) = {
-            let analyses = ctx.function_analyses(function, tree);
             (
-                analyses.get::<LoopAnalysis>().clone(),
-                analyses.get::<DominatorTree>().clone(),
-                analyses.get::<ConstantPropagation>().clone(),
+                analyses.get::<LoopAnalysis>(function, tree).clone(),
+                analyses.get::<DominatorTree>(function, tree).clone(),
+                analyses.get::<ConstantPropagation>(function, tree).clone(),
             )
         };
         if loops.num_loops() == 0 {

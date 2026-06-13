@@ -3,11 +3,11 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::{
-    ParameterRemap, SignatureKey, build_signature_type, build_use_def_maps,
+use crate::optimize::{ModulePass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, ParameterRemap, SignatureKey, build_signature_type, build_use_def_maps,
     required_parameter_indices,
 };
-use crate::optimize::{AnalysisPreservation, ModulePass, PipelineContext};
 
 declare_mir_pass! {
     /// Remove unused parameters from local functions and their callsites.
@@ -46,7 +46,12 @@ declare_mir_pass! {
 
 impl ModulePass for DeadArgEliminate {
     /// Run dead argument elimination for the module.
-    fn run(&self, tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
+    fn run(
+        &self,
+        tree: &mut mir::Tree,
+        ctx: &PipelineContext<'_>,
+        _analyses: &mir::ModuleAnalyses,
+    ) -> AnalysisPreservation {
         let changed = run_dead_arg_eliminate(tree);
 
         // report analysis preservation based on whether changes occurred

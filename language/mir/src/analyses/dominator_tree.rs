@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use super::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis};
 use crate::{Block, BlockReference, ControlFlowGraph, Function, LocalNodeId, Tree};
 
 /// Dense control flow graph used by dominance computation.
@@ -422,6 +423,19 @@ impl DominatorComputation {
         DominatorResult {
             immediate_dominators,
         }
+    }
+}
+
+impl Analysis for DominatorTree {
+    const ID: AnalysisId = AnalysisId("domtree");
+    const DEPENDENCIES: &'static [AnalysisId] = &[ControlFlowGraph::ID];
+}
+
+impl FunctionAnalysis for DominatorTree {
+    fn compute(function: &Function, tree: &Tree, analyses: &FunctionAnalyses) -> Self {
+        let cfg = analyses.get::<ControlFlowGraph>(function, tree);
+
+        Self::build(function, tree, &cfg)
     }
 }
 

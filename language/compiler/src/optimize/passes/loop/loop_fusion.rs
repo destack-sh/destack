@@ -3,17 +3,15 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{
-    AliasAnalysis, ConstantPropagation, ControlFlowGraph, DominatorTree, LoopAnalysis,
-    MemoryAccessEffect, MemorySSA,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AliasAnalysis, AnalysisPreservation, BlockParamForwarding, ConstantPropagation,
+    ControlFlowGraph, DominatorTree, LoopAnalysis, LoopEffectPolicy, MemoryAccessEffect, MemorySSA,
+    ValueEquivalence, block_is_speculatable_no_reads, build_instruction_block_map,
+    build_value_definition_map, clone_instruction_metadata, collect_loop_effects,
+    control_instructions_for_latch, effects_may_alias, instruction_is_speculatable,
+    instruction_map, loop_guard_branch, loop_preheader,
 };
-use crate::common::mir::{
-    BlockParamForwarding, LoopEffectPolicy, ValueEquivalence, block_is_speculatable_no_reads,
-    build_instruction_block_map, build_value_definition_map, clone_instruction_metadata,
-    collect_loop_effects, control_instructions_for_latch, effects_may_alias,
-    instruction_is_speculatable, instruction_map, loop_guard_branch, loop_preheader,
-};
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_mir_pass! {
     /// Fuse adjacent loops with identical bounds and independent bodies.
@@ -89,16 +87,16 @@ impl FunctionPass for LoopFusion {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
-        ctx: &PipelineContext<'_>,
+        _ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // gather analyses
-        let analyses = ctx.function_analyses(function, tree);
-        let loops = analyses.get::<LoopAnalysis>().clone();
-        let cfg = analyses.get::<ControlFlowGraph>().clone();
-        let domtree = analyses.get::<DominatorTree>().clone();
-        let memory_ssa = analyses.get::<MemorySSA>();
-        let alias = analyses.get::<AliasAnalysis>().clone();
-        let constants = analyses.get::<ConstantPropagation>();
+        let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
+        let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
+        let domtree = analyses.get::<DominatorTree>(function, tree).clone();
+        let memory_ssa = analyses.get::<MemorySSA>(function, tree);
+        let alias = analyses.get::<AliasAnalysis>(function, tree).clone();
+        let constants = analyses.get::<ConstantPropagation>(function, tree);
 
         // run loop fusion
         let changed = run_loop_fusion(
@@ -229,7 +227,7 @@ fn run_loop_fusion(
 #[allow(clippy::too_many_arguments)]
 fn build_fusion_candidate(
     loop_index: usize,
-    lp: &crate::common::mir::analysis::Loop,
+    lp: &mir::Loop,
     loops: &LoopAnalysis,
     tree: &mir::Tree,
     cfg: &ControlFlowGraph,

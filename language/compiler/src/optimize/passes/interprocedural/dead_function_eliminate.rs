@@ -3,9 +3,8 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::SignatureKey;
-use crate::common::mir::analysis::CallGraph;
-use crate::optimize::{AnalysisPreservation, ModuleAnalyses, ModulePass, PipelineContext};
+use crate::optimize::{ModulePass, PipelineContext};
+use destack_mir::{AnalysisPreservation, CallGraph, SignatureKey};
 
 declare_mir_pass! {
     /// Remove functions that are not reachable from exported roots.
@@ -47,8 +46,13 @@ declare_mir_pass! {
 
 impl ModulePass for DeadFunctionEliminate {
     /// Run dead function elimination for the module.
-    fn run(&self, tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
-        let changed = run_dead_function_eliminate(tree);
+    fn run(
+        &self,
+        tree: &mut mir::Tree,
+        ctx: &PipelineContext<'_>,
+        analyses: &mir::ModuleAnalyses,
+    ) -> AnalysisPreservation {
+        let changed = run_dead_function_eliminate(tree, analyses);
 
         // report analysis preservation based on whether changes occurred
         if changed {
@@ -80,10 +84,12 @@ enum CallConstraint {
 }
 
 /// Run dead function elimination over the module.
-pub(crate) fn run_dead_function_eliminate(tree: &mut mir::Tree) -> bool {
+pub(crate) fn run_dead_function_eliminate(
+    tree: &mut mir::Tree,
+    analyses: &mir::ModuleAnalyses,
+) -> bool {
     // build the module call graph
-    let analyses = ModuleAnalyses::new(tree);
-    let callgraph = analyses.get::<CallGraph>();
+    let callgraph = analyses.get::<CallGraph>(tree);
 
     // collect functions that have bodies
     let defined_functions: Vec<_> = tree

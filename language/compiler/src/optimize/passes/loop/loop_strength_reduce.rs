@@ -3,16 +3,14 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{
-    ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, RangeAnalysis, ScalarEvolution, Scev,
-    ValueRange,
-};
-use crate::common::mir::{
-    ValueTypeMap, clone_instruction_metadata, constant_is_zero, instruction_is_speculatable,
-    instruction_map, instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, RangeAnalysis,
+    ScalarEvolution, Scev, TypeContext, ValueRange, ValueTypeMap, clone_instruction_metadata,
+    constant_is_zero, instruction_is_speculatable, instruction_map,
+    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
     resolve_substitution_chains, terminator_substitute_uses,
 };
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext, TypeContext};
 
 declare_mir_pass! {
     /// Reduce strength of loop expressions derived from induction variables.
@@ -72,6 +70,7 @@ impl FunctionPass for LoopStrengthReduce {
         function: &mut mir::Function,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
@@ -79,12 +78,11 @@ impl FunctionPass for LoopStrengthReduce {
         }
 
         // gather analyses
-        let analyses = ctx.function_analyses(function, tree);
-        let loops = analyses.get::<LoopAnalysis>().clone();
-        let cfg = analyses.get::<ControlFlowGraph>().clone();
-        let domtree = analyses.get::<DominatorTree>().clone();
-        let scev = analyses.get::<ScalarEvolution>().clone();
-        let ranges = analyses.get::<RangeAnalysis>().clone();
+        let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
+        let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
+        let domtree = analyses.get::<DominatorTree>(function, tree).clone();
+        let scev = analyses.get::<ScalarEvolution>(function, tree).clone();
+        let ranges = analyses.get::<RangeAnalysis>(function, tree).clone();
         let value_types = ValueTypeMap::new(function, tree);
 
         // skip when no loops are present

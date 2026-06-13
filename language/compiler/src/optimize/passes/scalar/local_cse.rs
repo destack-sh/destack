@@ -3,13 +3,11 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::AliasAnalysis;
-use crate::common::mir::{
-    MemoryLocation, instruction_may_affect_memory, instruction_requires_exact_access,
-};
-use crate::optimize::{
-    AnalysisPreservation, ExpressionKey, FunctionPass, PipelineContext,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AliasAnalysis, AnalysisPreservation, ExpressionKey, MemoryLocation,
     expression_key_from_instruction, expression_key_substitute, instruction_has_side_effects,
+    instruction_may_affect_memory, instruction_requires_exact_access,
     instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
     resolve_substitution_chains, terminator_substitute_uses,
 };
@@ -51,11 +49,11 @@ impl FunctionPass for LocalCse {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
-        ctx: &PipelineContext<'_>,
+        _ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // build alias analysis
-        let analyses = ctx.function_analyses(function, tree);
-        let alias = analyses.get::<AliasAnalysis>();
+        let alias = analyses.get::<AliasAnalysis>(function, tree);
 
         // run local CSE
         let changed = run_local_cse(function, tree, &alias);

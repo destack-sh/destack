@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use destack_core::StringPool;
 
-use crate::common::mir::{build_signature_type, clone_instruction_metadata};
-use crate::optimize::{AnalysisPreservation, ModulePass, PipelineContext};
+use crate::optimize::{ModulePass, PipelineContext};
+use destack_mir::{AnalysisPreservation, build_signature_type, clone_instruction_metadata};
 
 declare_mir_pass! {
     /// Eliminates tail-recursive calls by converting them to jumps.
@@ -26,7 +26,12 @@ declare_mir_pass! {
 }
 
 impl ModulePass for TailCallElim {
-    fn run(&self, tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
+    fn run(
+        &self,
+        tree: &mut mir::Tree,
+        ctx: &PipelineContext<'_>,
+        _analyses: &mir::ModuleAnalyses,
+    ) -> AnalysisPreservation {
         // run tail call elimination
         let changed = run_tail_call_elimination(tree, ctx.strings);
         if changed {

@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::build_value_definition_map;
-use crate::optimize::{AnalysisPreservation, ModulePass, PipelineContext};
+use crate::optimize::{ModulePass, PipelineContext};
+use destack_mir::{AnalysisPreservation, build_value_definition_map};
 
 declare_mir_pass! {
     /// Mark private globals readonly when no write can reach them.
@@ -37,7 +37,12 @@ declare_mir_pass! {
 
 impl ModulePass for GlobalOpt {
     /// Run global optimization for the module.
-    fn run(&self, tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
+    fn run(
+        &self,
+        tree: &mut mir::Tree,
+        ctx: &PipelineContext<'_>,
+        _analyses: &mir::ModuleAnalyses,
+    ) -> AnalysisPreservation {
         let changed = run_global_opt(tree);
 
         // report analysis preservation based on whether changes occurred

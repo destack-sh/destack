@@ -3,12 +3,12 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{ControlFlowGraph, DominatorTree};
-use crate::common::mir::{
-    compute_dominance_frontiers, instruction_substitute_uses_in_tree,
-    remap_instruction_memory_accesses, terminator_substitute_uses,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, ControlFlowGraph, DominatorTree, compute_dominance_frontiers,
+    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
+    terminator_substitute_uses,
 };
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_mir_pass! {
     /// Memory to register promotion pass.
@@ -51,7 +51,8 @@ impl FunctionPass for Mem2Reg {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
-        ctx: &PipelineContext<'_>,
+        _ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip functions without locals
         if function.locals.is_empty() {
@@ -60,10 +61,9 @@ impl FunctionPass for Mem2Reg {
 
         // get analyses
         let (cfg, domtree) = {
-            let analyses = ctx.function_analyses(function, tree);
             (
-                analyses.get::<ControlFlowGraph>().clone(),
-                analyses.get::<DominatorTree>().clone(),
+                analyses.get::<ControlFlowGraph>(function, tree).clone(),
+                analyses.get::<DominatorTree>(function, tree).clone(),
             )
         };
 

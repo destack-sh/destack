@@ -3,14 +3,12 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{
-    ControlFlowGraph, LoopAnalysis, RangeAnalysis, ScalarEvolution, Scev, ValueRange,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, BlockParamForwarding, ControlFlowGraph, LoopAnalysis, RangeAnalysis,
+    ScalarEvolution, Scev, UseDefMaps, ValueRange, ValueTypeMap, build_use_def_maps,
+    clone_loop_blocks, terminator_remap, unsigned_int_width_for_value,
 };
-use crate::common::mir::{
-    BlockParamForwarding, UseDefMaps, ValueTypeMap, build_use_def_maps, clone_loop_blocks,
-    terminator_remap, unsigned_int_width_for_value,
-};
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_mir_pass! {
     /// Version loops to specialize bounds checks with a preheader guard.
@@ -90,13 +88,14 @@ impl FunctionPass for LoopVersioning {
         function: &mut mir::Function,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
             return AnalysisPreservation::all();
         }
 
-        let changed = run_loop_versioning(function, tree, ctx);
+        let changed = run_loop_versioning(function, tree, ctx, analyses);
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -131,13 +130,13 @@ fn run_loop_versioning(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
+    analyses: &mir::FunctionAnalyses,
 ) -> bool {
     // gather analyses
-    let analyses = ctx.function_analyses(function, tree);
-    let loops = analyses.get::<LoopAnalysis>().clone();
-    let cfg = analyses.get::<ControlFlowGraph>().clone();
-    let scev = analyses.get::<ScalarEvolution>().clone();
-    let ranges = analyses.get::<RangeAnalysis>().clone();
+    let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
+    let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
+    let scev = analyses.get::<ScalarEvolution>(function, tree).clone();
+    let ranges = analyses.get::<RangeAnalysis>(function, tree).clone();
     let forwarding = BlockParamForwarding::build(function, tree, &cfg);
 
     // bail out when no loops are present
@@ -440,7 +439,7 @@ fn guard_is_simple(guard: &GuardInfo, loop_index: usize, scev: &ScalarEvolution)
 
 /// Find a matching bounds check for the induction variable.
 fn bounds_check_in_loop(
-    lp: &crate::common::mir::analysis::Loop,
+    lp: &mir::Loop,
     induction: mir::Value,
     tree: &mir::Tree,
 ) -> Option<(mir::Value, mir::Value)> {
@@ -481,7 +480,7 @@ fn bounds_check_in_loop(
 /// Check whether a value is loop invariant.
 fn value_is_loop_invariant(
     value: mir::Value,
-    lp: &crate::common::mir::analysis::Loop,
+    lp: &mir::Loop,
     use_def: &UseDefMaps,
     forwarding: &BlockParamForwarding,
 ) -> bool {

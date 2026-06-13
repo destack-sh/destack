@@ -3,17 +3,15 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{
-    AliasAnalysis, ControlFlowGraph, DominatorTree, LoopAnalysis, RangeAnalysis, ScalarEvolution,
-    Scev, ValueRange,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AliasAnalysis, AnalysisPreservation, BlockParamForwarding, ControlFlowGraph, DominatorTree,
+    LoopAnalysis, RangeAnalysis, ScalarEvolution, Scev, TypeKey, UseDefMaps, ValueRange,
+    ValueTypeMap, build_use_def_maps, build_value_definition_map, build_value_use_counts,
+    constant_for_value, constant_is_zero, instruction_has_side_effects,
+    instruction_is_borrow_address, instruction_is_speculatable, instruction_requires_exact_access,
+    unsigned_int_width_for_value,
 };
-use crate::common::mir::{
-    BlockParamForwarding, TypeKey, UseDefMaps, ValueTypeMap, build_use_def_maps,
-    build_value_definition_map, build_value_use_counts, constant_for_value, constant_is_zero,
-    instruction_has_side_effects, instruction_is_borrow_address, instruction_is_speculatable,
-    instruction_requires_exact_access, unsigned_int_width_for_value,
-};
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_mir_pass! {
     /// Recognize loop idioms and replace them with memory intrinsics.
@@ -77,13 +75,14 @@ impl FunctionPass for LoopIdiomRecognize {
         function: &mut mir::Function,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
             return AnalysisPreservation::all();
         }
 
-        let changed = run_loop_idiom(function, tree, ctx);
+        let changed = run_loop_idiom(function, tree, ctx, analyses);
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -116,17 +115,17 @@ fn run_loop_idiom(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
+    analyses: &mir::FunctionAnalyses,
 ) -> bool {
     let mut changed = false;
     loop {
         // gather analyses
-        let analyses = ctx.function_analyses(function, tree);
-        let loops = analyses.get::<LoopAnalysis>().clone();
-        let cfg = analyses.get::<ControlFlowGraph>().clone();
-        let domtree = analyses.get::<DominatorTree>().clone();
-        let scev = analyses.get::<ScalarEvolution>().clone();
-        let ranges = analyses.get::<RangeAnalysis>().clone();
-        let aa = analyses.get::<AliasAnalysis>().clone();
+        let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
+        let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
+        let domtree = analyses.get::<DominatorTree>(function, tree).clone();
+        let scev = analyses.get::<ScalarEvolution>(function, tree).clone();
+        let ranges = analyses.get::<RangeAnalysis>(function, tree).clone();
+        let aa = analyses.get::<AliasAnalysis>(function, tree).clone();
         let forwarding = BlockParamForwarding::build(function, tree, &cfg);
 
         // bail out when no loops are present
@@ -572,7 +571,7 @@ struct MemcpyPattern {
 
 /// Match a loop body against a memset idiom.
 fn match_memset_pattern(
-    lp: &crate::common::mir::analysis::Loop,
+    lp: &mir::Loop,
     induction: mir::Value,
     tree: &mir::Tree,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
@@ -641,7 +640,7 @@ fn match_memset_pattern(
 
 /// Match a loop body against a memcpy or memmove idiom.
 fn match_memcpy_pattern(
-    lp: &crate::common::mir::analysis::Loop,
+    lp: &mir::Loop,
     induction: mir::Value,
     tree: &mir::Tree,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
@@ -1184,7 +1183,7 @@ fn emit_copy_length(
 /// Check whether a value is loop invariant.
 fn value_is_loop_invariant(
     value: mir::Value,
-    lp: &crate::common::mir::analysis::Loop,
+    lp: &mir::Loop,
     use_def: &UseDefMaps,
     forwarding: &BlockParamForwarding,
 ) -> bool {

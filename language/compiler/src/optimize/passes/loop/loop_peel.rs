@@ -3,9 +3,11 @@ use std::collections::HashSet;
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{ControlFlowGraph, DominatorTree, LoopAnalysis};
-use crate::common::mir::{clone_loop_blocks, terminator_remap};
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, ControlFlowGraph, DominatorTree, LoopAnalysis, clone_loop_blocks,
+    terminator_remap,
+};
 
 declare_mir_pass! {
     /// Peel a single iteration from loops guarded at the latch.
@@ -63,13 +65,14 @@ impl FunctionPass for LoopPeel {
         function: &mut mir::Function,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
             return AnalysisPreservation::all();
         }
 
-        let changed = run_loop_peel(function, tree, ctx);
+        let changed = run_loop_peel(function, tree, ctx, analyses);
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -92,13 +95,13 @@ impl FunctionPass for LoopPeel {
 fn run_loop_peel(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    ctx: &PipelineContext<'_>,
+    _ctx: &PipelineContext<'_>,
+    analyses: &mir::FunctionAnalyses,
 ) -> bool {
     // gather analyses
-    let analyses = ctx.function_analyses(function, tree);
-    let loops = analyses.get::<LoopAnalysis>().clone();
-    let cfg = analyses.get::<ControlFlowGraph>().clone();
-    let domtree = analyses.get::<DominatorTree>().clone();
+    let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
+    let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
+    let domtree = analyses.get::<DominatorTree>(function, tree).clone();
 
     // bail out when no loops are present
     if loops.num_loops() == 0 {

@@ -3,10 +3,10 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::AliasAnalysis;
-use crate::common::mir::{MemoryLocation, instruction_requires_exact_access};
-use crate::optimize::{
-    AnalysisPreservation, FunctionPass, PipelineContext, instruction_has_side_effects,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AliasAnalysis, AnalysisPreservation, MemoryLocation, instruction_has_side_effects,
+    instruction_requires_exact_access,
 };
 
 declare_mir_pass! {
@@ -44,11 +44,11 @@ impl FunctionPass for DeadCodeEliminate {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
-        ctx: &PipelineContext<'_>,
+        _ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // build alias analysis for local dead store elimination
-        let analyses = ctx.function_analyses(function, tree);
-        let alias = analyses.get::<AliasAnalysis>();
+        let alias = analyses.get::<AliasAnalysis>(function, tree);
 
         // run dead code elimination
         let changed = run_dead_code_elimination(function, tree, &alias);

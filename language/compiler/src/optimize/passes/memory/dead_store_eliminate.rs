@@ -3,15 +3,14 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{
-    AliasAnalysis, MemoryAccess, MemoryAccessId, MemoryAccessLocation, MemorySSA, PostDominatorTree,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AliasAnalysis, AnalysisPreservation, DecomposedPointer, MemoryAccess, MemoryAccessId,
+    MemoryAccessLocation, MemorySSA, PointerDecomposer, PostDominatorTree, RangeRelation,
+    TypeContext, ValueTypeMap, build_value_definition_map, collect_block_param_defs,
+    collect_frame_alloc_bases_for_value, collect_local_defs, collect_non_escaping_frame_allocs,
+    frame_alloc_base, range_relation,
 };
-use crate::common::mir::{
-    DecomposedPointer, PointerDecomposer, RangeRelation, ValueTypeMap, build_value_definition_map,
-    collect_block_param_defs, collect_frame_alloc_bases_for_value, collect_local_defs,
-    collect_non_escaping_frame_allocs, frame_alloc_base, range_relation,
-};
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext, TypeContext};
 
 declare_mir_pass! {
     /// Dead Store Elimination.
@@ -62,6 +61,7 @@ impl FunctionPass for DeadStoreEliminate {
         function: &mut mir::Function,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip empty functions
         let _entry = match function.entry {
@@ -71,11 +71,10 @@ impl FunctionPass for DeadStoreEliminate {
 
         // get analyses
         let (aa, memory_ssa, postdom) = {
-            let analyses = ctx.function_analyses(function, tree);
             (
-                analyses.get::<AliasAnalysis>().clone(),
-                analyses.get::<MemorySSA>(),
-                analyses.get::<PostDominatorTree>(),
+                analyses.get::<AliasAnalysis>(function, tree).clone(),
+                analyses.get::<MemorySSA>(function, tree),
+                analyses.get::<PostDominatorTree>(function, tree),
             )
         };
 

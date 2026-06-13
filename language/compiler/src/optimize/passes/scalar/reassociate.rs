@@ -4,9 +4,11 @@ use crate::declare_mir_pass;
 use destack_mir as mir;
 use destack_repository::FloatMathPolicy;
 
-use crate::common::mir::analysis::{ConstantMap, ConstantPropagation};
-use crate::common::mir::{InstructionRef, ValueTypeMap, build_value_instruction_refs, fold_binary};
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, ConstantMap, ConstantPropagation, InstructionRef, ValueTypeMap,
+    build_value_instruction_refs, fold_binary,
+};
 
 declare_mir_pass! {
     /// Reassociate associative expressions to expose constant folding.
@@ -51,12 +53,10 @@ impl FunctionPass for Reassociate {
         function: &mut mir::Function,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // collect constant propagation state
-        let constants = {
-            let analyses = ctx.function_analyses(function, tree);
-            analyses.get::<ConstantPropagation>().clone()
-        };
+        let constants = { analyses.get::<ConstantPropagation>(function, tree).clone() };
 
         // run reassociation
         let changed = run_reassociate(function, tree, &constants, ctx.options.float_math);

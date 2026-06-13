@@ -3,14 +3,12 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{
-    AliasAnalysis, ControlFlowGraph, MemoryAccess, MemoryAccessId, MemorySSA,
-};
-use crate::common::mir::{
-    EdgeSplitPolicy, build_value_definition_map, collect_non_escaping_frame_allocs,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AliasAnalysis, AnalysisPreservation, ControlFlowGraph, EdgeSplitPolicy, MemoryAccess,
+    MemoryAccessId, MemorySSA, build_value_definition_map, collect_non_escaping_frame_allocs,
     effect_is_trackable, ensure_edge_block, frame_alloc_base, instruction_has_atomic_ordering,
 };
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_mir_pass! {
     /// Sink stores down to the successors that use them.
@@ -59,6 +57,7 @@ impl FunctionPass for StoreSink {
         function: &mut mir::Function,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
@@ -66,7 +65,7 @@ impl FunctionPass for StoreSink {
         }
 
         // run store sinking
-        let changed = run_store_sink(function, tree, ctx);
+        let changed = run_store_sink(function, tree, ctx, analyses);
 
         if changed {
             AnalysisPreservation::none()
@@ -118,13 +117,13 @@ struct StoreCandidate {
 fn run_store_sink(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    ctx: &PipelineContext<'_>,
+    _ctx: &PipelineContext<'_>,
+    analyses: &mir::FunctionAnalyses,
 ) -> bool {
     // gather analyses
-    let analyses = ctx.function_analyses(function, tree);
-    let cfg = analyses.get::<ControlFlowGraph>().clone();
-    let memory_ssa = analyses.get::<MemorySSA>();
-    let alias = analyses.get::<AliasAnalysis>().clone();
+    let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
+    let memory_ssa = analyses.get::<MemorySSA>(function, tree);
+    let alias = analyses.get::<AliasAnalysis>(function, tree).clone();
 
     // build pointer definition info
     let definitions = build_value_definition_map(function, tree);

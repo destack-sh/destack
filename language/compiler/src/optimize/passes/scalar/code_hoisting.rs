@@ -3,13 +3,13 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{ControlFlowGraph, DominatorTree};
-use crate::common::mir::{
-    ExpressionKey, apply_substitutions_in_dominated_blocks, build_use_def_maps,
-    clone_instruction_metadata, expression_key_from_instruction, instruction_is_speculatable,
-    instruction_map, instruction_substitute_uses_in_tree,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, ControlFlowGraph, DominatorTree, ExpressionKey,
+    apply_substitutions_in_dominated_blocks, build_use_def_maps, clone_instruction_metadata,
+    expression_key_from_instruction, instruction_is_speculatable, instruction_map,
+    instruction_substitute_uses_in_tree,
 };
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_mir_pass! {
     /// Hoist common instructions out of diamonds.
@@ -64,7 +64,8 @@ impl FunctionPass for CodeHoisting {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
-        ctx: &PipelineContext<'_>,
+        _ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
@@ -75,9 +76,8 @@ impl FunctionPass for CodeHoisting {
         function.recompute_next_value_id(tree);
 
         // gather analyses
-        let analyses = ctx.function_analyses(function, tree);
-        let cfg = analyses.get::<ControlFlowGraph>().clone();
-        let domtree = analyses.get::<DominatorTree>().clone();
+        let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
+        let domtree = analyses.get::<DominatorTree>(function, tree).clone();
 
         // run the hoisting pass
         let changed = run_code_hoisting(function, tree, &cfg, &domtree);

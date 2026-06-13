@@ -3,13 +3,12 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{
-    ConstantPropagation, ControlFlowGraph, DominatorTree, RangeAnalysis, RangeMap, ValueRange,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, BlockParamForwarding, ConstantPropagation, ControlFlowGraph,
+    DominatorTree, RangeAnalysis, RangeMap, ValueRange, constraint_truth_value,
+    evaluate_integer_range_comparison, fold_binary,
 };
-use crate::common::mir::{
-    BlockParamForwarding, constraint_truth_value, evaluate_integer_range_comparison, fold_binary,
-};
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_mir_pass! {
     /// Eliminate bounds checks that are proven redundant.
@@ -61,7 +60,8 @@ impl FunctionPass for BoundsCheckEliminate {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
-        ctx: &PipelineContext<'_>,
+        _ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip imported functions
         let Some(entry) = function.entry else {
@@ -69,11 +69,10 @@ impl FunctionPass for BoundsCheckEliminate {
         };
 
         // gather analyses
-        let analyses = ctx.function_analyses(function, tree);
-        let constants = analyses.get::<ConstantPropagation>();
-        let cfg = analyses.get::<ControlFlowGraph>();
-        let ranges = analyses.get::<RangeAnalysis>();
-        let domtree = analyses.get::<DominatorTree>();
+        let constants = analyses.get::<ConstantPropagation>(function, tree);
+        let cfg = analyses.get::<ControlFlowGraph>(function, tree);
+        let ranges = analyses.get::<RangeAnalysis>(function, tree);
+        let domtree = analyses.get::<DominatorTree>(function, tree);
 
         // build value definition metadata
         let definitions = ValueDefinitions::build(function, tree);

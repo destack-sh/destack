@@ -3,11 +3,11 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::ConstantPropagation;
-use crate::common::mir::instruction_requires_exact_access;
-use crate::optimize::{
-    AnalysisPreservation, FunctionPass, PipelineContext, instruction_substitute_uses_in_tree,
-    remap_instruction_memory_accesses, terminator_substitute_uses, terminator_uses,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, ConstantPropagation, instruction_requires_exact_access,
+    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
+    terminator_substitute_uses, terminator_uses,
 };
 
 declare_mir_pass! {
@@ -59,6 +59,7 @@ impl FunctionPass for Sroa {
         function: &mut mir::Function,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip empty functions
         let entry = match function.entry {
@@ -67,10 +68,7 @@ impl FunctionPass for Sroa {
         };
 
         // get constant propagation analysis
-        let constants = {
-            let analyses = ctx.function_analyses(function, tree);
-            analyses.get::<ConstantPropagation>().clone()
-        };
+        let constants = { analyses.get::<ConstantPropagation>(function, tree).clone() };
 
         // run SROA
         let changed = run_sroa(

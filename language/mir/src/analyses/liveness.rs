@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use super::{Analysis, AnalysisId, ControlFlowGraph, FunctionAnalyses, FunctionAnalysis};
 use crate::{
     Block, BlockReference, Function, Instruction, Local, LocalNodeId, LocalReference, Tree, Value,
     ValueReference,
@@ -492,6 +493,17 @@ fn concrete_local(local: LocalReference) -> Option<LocalNodeId<Local>> {
     match local {
         LocalReference::Local(local) => Some(local),
         LocalReference::Missing | LocalReference::Error => None,
+    }
+}
+
+impl Analysis for FunctionLiveness {
+    const ID: AnalysisId = AnalysisId("liveness");
+    const DEPENDENCIES: &'static [AnalysisId] = &[ControlFlowGraph::ID];
+}
+
+impl FunctionAnalysis for FunctionLiveness {
+    fn compute(function: &Function, tree: &Tree, _analyses: &FunctionAnalyses) -> Self {
+        Self::build(function, tree)
     }
 }
 

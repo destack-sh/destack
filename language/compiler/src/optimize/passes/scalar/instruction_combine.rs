@@ -5,15 +5,13 @@ use destack_mir as mir;
 
 use destack_repository::FloatMathPolicy;
 
-use crate::ConstantMap;
-use crate::common::mir::analysis::{ConstantPropagation, RangeAnalysis, RangeMap};
-use crate::common::mir::{fold_binary, fold_cast, fold_unary};
-use crate::optimize::{
-    AnalysisPreservation, FunctionPass, PipelineContext, TypeContext, constant_all_ones_like,
-    constant_is_all_ones, constant_is_float_one, constant_is_float_zero, constant_is_one,
-    constant_is_zero, constant_zero_like, evaluate_integer_range_comparison,
-    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
-    resolve_substitution_chains, terminator_substitute_uses,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, ConstantMap, ConstantPropagation, RangeAnalysis, RangeMap, TypeContext,
+    constant_all_ones_like, constant_is_all_ones, constant_is_float_one, constant_is_float_zero,
+    constant_is_one, constant_is_zero, constant_zero_like, evaluate_integer_range_comparison,
+    fold_binary, fold_cast, fold_unary, instruction_substitute_uses_in_tree,
+    remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
 };
 
 /// Maximum recursion depth for chained field.set/element.set simplification.
@@ -68,11 +66,11 @@ impl FunctionPass for InstructionCombine {
         function: &mut mir::Function,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // collect analyses and options
-        let analyses = ctx.function_analyses(function, tree);
-        let constants = analyses.get::<ConstantPropagation>().clone();
-        let ranges = analyses.get::<RangeAnalysis>().clone();
+        let constants = analyses.get::<ConstantPropagation>(function, tree).clone();
+        let ranges = analyses.get::<RangeAnalysis>(function, tree).clone();
         let float_math = ctx.options.float_math;
 
         let changed = run_instruction_combine(
@@ -750,17 +748,14 @@ fn simplify_same_binary_operand(
 /// Lookup for constants from propagation and range analysis.
 struct ConstantLookup<'a> {
     /// Constants derived from propagation.
-    block_constants: &'a crate::common::mir::analysis::ConstantMap,
+    block_constants: &'a mir::ConstantMap,
     /// Ranges for the block.
     ranges: &'a RangeMap,
 }
 
 impl<'a> ConstantLookup<'a> {
     /// Create a new lookup for a block.
-    fn new(
-        block_constants: &'a crate::common::mir::analysis::ConstantMap,
-        ranges: &'a RangeMap,
-    ) -> Self {
+    fn new(block_constants: &'a mir::ConstantMap, ranges: &'a RangeMap) -> Self {
         Self {
             block_constants,
             ranges,

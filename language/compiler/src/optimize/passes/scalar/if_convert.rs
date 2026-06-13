@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::ControlFlowGraph;
-use crate::common::mir::{
-    clone_instruction_metadata, instruction_is_speculatable, instruction_map,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, ControlFlowGraph, clone_instruction_metadata,
+    instruction_is_speculatable, instruction_map,
 };
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_mir_pass! {
     /// Convert simple diamonds into select instructions.
@@ -71,6 +71,7 @@ impl FunctionPass for IfConvert {
         function: &mut mir::Function,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
@@ -78,7 +79,7 @@ impl FunctionPass for IfConvert {
         }
 
         // run if conversion
-        let changed = run_if_convert(function, tree, ctx);
+        let changed = run_if_convert(function, tree, ctx, analyses);
 
         // preserve analyses when nothing changed
         if changed {
@@ -123,10 +124,10 @@ fn run_if_convert(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     ctx: &PipelineContext<'_>,
+    analyses: &mir::FunctionAnalyses,
 ) -> bool {
     // build control flow graph
-    let analyses = ctx.function_analyses(function, tree);
-    let cfg = analyses.get::<ControlFlowGraph>().clone();
+    let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
 
     // collect candidates before mutation
     let mut candidates = Vec::new();

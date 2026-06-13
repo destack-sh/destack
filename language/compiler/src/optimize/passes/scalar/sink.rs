@@ -3,13 +3,13 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{AliasAnalysis, ControlFlowGraph, DominatorTree, LoopAnalysis};
-use crate::common::mir::{
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AliasAnalysis, AnalysisPreservation, ControlFlowGraph, DominatorTree, LoopAnalysis,
     MemoryLocation, build_instruction_block_map, build_use_def_maps, build_value_definition_map,
     instruction_is_memory_read, instruction_is_speculatable, instruction_may_affect_memory,
     instruction_requires_exact_access,
 };
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_mir_pass! {
     /// Sink instructions closer to their uses.
@@ -64,7 +64,8 @@ impl FunctionPass for Sink {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
-        ctx: &PipelineContext<'_>,
+        _ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip empty functions
         let entry = match function.entry {
@@ -73,11 +74,10 @@ impl FunctionPass for Sink {
         };
 
         // get analyses
-        let analyses = ctx.function_analyses(function, tree);
-        let cfg = analyses.get::<ControlFlowGraph>().clone();
-        let domtree = analyses.get::<DominatorTree>().clone();
-        let loops = analyses.get::<LoopAnalysis>().clone();
-        let alias = analyses.get::<AliasAnalysis>();
+        let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
+        let domtree = analyses.get::<DominatorTree>(function, tree).clone();
+        let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
+        let alias = analyses.get::<AliasAnalysis>(function, tree);
 
         // run sink
         let changed = run_sink(entry, function, tree, &cfg, &domtree, &loops, &alias);

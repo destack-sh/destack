@@ -1,6 +1,7 @@
 use std::fmt;
 
 use destack_mir as mir;
+use destack_mir::ModuleAnalyses;
 
 use crate::optimize::{FunctionPass, ModulePass, PipelineContext};
 
@@ -69,6 +70,12 @@ impl Pipeline for FunctionPipeline {
                 continue;
             }
 
+            // one analysis cache lives across this function's whole pass sequence
+            let analyses = ctx.new_function_analyses();
+
+            // seal the value counter once on entry; passes maintain it via next_value
+            function.recompute_next_value_id(tree);
+
             for pass in &self.passes {
                 // enforce pass requirements
                 if !ctx.enforce_function_requirements(pass.metadata(), function_id, &function, tree)
@@ -76,9 +83,10 @@ impl Pipeline for FunctionPipeline {
                     continue;
                 }
 
-                // recompute next_value_id so passes can allocate fresh values
-                function.recompute_next_value_id(tree);
-                let preserved = pass.run(&mut function, tree, ctx);
+                let preserved = pass.run(&mut function, tree, ctx, &analyses);
+
+                // invalidate whatever this pass did not preserve
+                analyses.apply_preservation(&preserved);
                 if !preserved.preserves_all() {
                     any_changed = true;
                 }
@@ -139,14 +147,19 @@ impl Pipeline for ModulePipeline {
     fn run(&self, tree: &mut mir::Tree, ctx: &mut PipelineContext<'_>) -> bool {
         let mut any_changed = false;
 
+        // one analysis cache lives across the module's whole pass sequence
+        let analyses = ModuleAnalyses::new();
+
         for pass in &self.passes {
             // enforce pass requirements
             if !ctx.enforce_module_requirements(pass.metadata(), tree) {
                 continue;
             }
 
-            let preserved = pass.run(tree, ctx);
+            let preserved = pass.run(tree, ctx, &analyses);
 
+            // invalidate whatever this pass did not preserve
+            analyses.apply_preservation(&preserved);
             if !preserved.preserves_all() {
                 any_changed = true;
             }
@@ -312,10 +325,10 @@ impl Pipeline for CompositePipeline {
 
 #[cfg(test)]
 mod tests {
+    use destack_mir::AnalysisPreservation;
+
     use super::*;
-    use crate::optimize::{
-        AnalysisPreservation, Pass, PassMetadata, PassRequirements, PipelineBuilder,
-    };
+    use crate::optimize::{Pass, PassMetadata, PassRequirements, PipelineBuilder};
 
     /// Return a no op function pass.
     struct NoOpFunctionPass;
@@ -340,6 +353,7 @@ mod tests {
             _func: &mut mir::Function,
             _tree: &mut mir::Tree,
             _ctx: &PipelineContext<'_>,
+            _analyses: &mir::FunctionAnalyses,
         ) -> AnalysisPreservation {
             AnalysisPreservation::all()
         }
@@ -374,6 +388,7 @@ mod tests {
             _func: &mut mir::Function,
             _tree: &mut mir::Tree,
             _ctx: &PipelineContext<'_>,
+            _analyses: &mir::FunctionAnalyses,
         ) -> AnalysisPreservation {
             AnalysisPreservation::none()
         }

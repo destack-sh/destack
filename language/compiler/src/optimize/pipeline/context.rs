@@ -8,12 +8,9 @@ use destack_repository::FloatMathPolicy;
 use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
 use parking_lot::Mutex;
 
-use crate::common::mir::{MirAnalysisOptions, TypeContext};
-use crate::optimize::{
-    DiagnosticEmitter, FunctionAnalyses, ModuleAnalyses, ModuleWorkItem, PackageAnalyses,
-    PackageWorkset, PassMetadata, ProgramAnalyses, ProgramWorkset,
-};
+use crate::optimize::{DiagnosticEmitter, ModuleWorkItem, PackageWorkset, PassMetadata};
 use crate::{DiagnosticAnchor, OptimizeError, OptimizeWarning};
+use destack_mir::{FunctionAnalyses, MirAnalysisOptions, TypeContext};
 
 /// Shared diagnostics state for pipeline contexts.
 #[derive(Debug)]
@@ -299,21 +296,14 @@ impl<'a> PipelineContext<'a> {
 
     /// Create module level analyses for a tree.
     ///
-    /// Module analyses are created on demand since the context doesn't hold
-    /// a reference to the tree (to allow mutation during pipeline execution).
-    pub fn module_analyses<'b>(&self, tree: &'b mir::Tree) -> ModuleAnalyses<'b> {
-        ModuleAnalyses::new(tree)
-    }
-
-    /// Create function analyses for a specific function.
-    pub fn function_analyses<'b>(
-        &self,
-        function: &'b mir::Function,
-        tree: &'b mir::Tree,
-    ) -> FunctionAnalyses<'b> {
+    /// Create an empty function analysis cache configured for this run.
+    ///
+    /// The pipeline holds one cache per function across that function's pass
+    /// sequence and queries it with the function and tree at each access.
+    pub fn new_function_analyses(&self) -> FunctionAnalyses {
         let options =
             MirAnalysisOptions::new(self.options.strict_borrow_mode, self.options.type_context);
-        FunctionAnalyses::with_options(function, tree, options)
+        FunctionAnalyses::with_options(options)
     }
 
     /// Return the type context for this pipeline run.
@@ -500,11 +490,6 @@ impl PackagePipelineContext {
     pub fn diagnostics(&self) -> Arc<PipelineDiagnostics> {
         self.diagnostics.clone()
     }
-
-    /// Create package analyses for a workset.
-    pub fn package_analyses<'a>(&self, workset: &'a PackageWorkset) -> PackageAnalyses<'a> {
-        PackageAnalyses::new(workset)
-    }
 }
 
 impl DiagnosticEmitter for PackagePipelineContext {
@@ -608,11 +593,6 @@ impl ProgramPipelineContext {
     /// Get the shared diagnostics state.
     pub fn diagnostics(&self) -> Arc<PipelineDiagnostics> {
         self.diagnostics.clone()
-    }
-
-    /// Create program analyses for a workset.
-    pub fn program_analyses<'a>(&self, workset: &'a ProgramWorkset) -> ProgramAnalyses<'a> {
-        ProgramAnalyses::new(workset)
     }
 }
 

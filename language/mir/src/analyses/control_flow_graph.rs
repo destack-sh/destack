@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use super::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis};
 use crate::{Block, BlockReference, Function, LocalNodeId, Tree};
 
 /// Control flow graph for one function.
@@ -72,6 +73,16 @@ impl ControlFlowGraph {
         }
 
         false
+    }
+}
+
+impl Analysis for ControlFlowGraph {
+    const ID: AnalysisId = AnalysisId("cfg");
+}
+
+impl FunctionAnalysis for ControlFlowGraph {
+    fn compute(function: &Function, tree: &Tree, _analyses: &FunctionAnalyses) -> Self {
+        Self::build(function, tree)
     }
 }
 

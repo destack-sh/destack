@@ -3,14 +3,14 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{ControlFlowGraph, DominatorTree};
-use crate::common::mir::{
-    CallsiteHotness, EdgeSplitPolicy, block_execution_counts, block_hotness_from_counts,
-    block_parameters_used_outside_block, block_uses_available_in_predecessor, build_use_def_maps,
-    clone_instruction_metadata, collect_reachable_blocks, ensure_edge_block,
-    instruction_is_speculatable, instruction_map, terminator_edges, terminator_substitute_uses,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, CallsiteHotness, ControlFlowGraph, DominatorTree, EdgeSplitPolicy,
+    block_execution_counts, block_hotness_from_counts, block_parameters_used_outside_block,
+    block_uses_available_in_predecessor, build_use_def_maps, clone_instruction_metadata,
+    collect_reachable_blocks, ensure_edge_block, instruction_is_speculatable, instruction_map,
+    terminator_edges, terminator_substitute_uses,
 };
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_mir_pass! {
     /// Reorder blocks based on profile hotness.
@@ -53,6 +53,7 @@ impl FunctionPass for CfgLayout {
         function: &mut mir::Function,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip imported functions
         let Some(entry) = function.entry else {
@@ -68,7 +69,7 @@ impl FunctionPass for CfgLayout {
         }
 
         // compute a new layout
-        let changed = run_cfg_layout(function, tree, entry, profile, ctx);
+        let changed = run_cfg_layout(function, tree, entry, profile, ctx, analyses);
 
         if changed {
             AnalysisPreservation::none()
@@ -114,7 +115,8 @@ fn run_cfg_layout(
     tree: &mut mir::Tree,
     entry: mir::LocalNodeId<mir::Block>,
     profile: &mir::Profile,
-    ctx: &PipelineContext<'_>,
+    _ctx: &PipelineContext<'_>,
+    analyses: &mir::FunctionAnalyses,
 ) -> bool {
     // derive block counts and hotness
     let mut block_counts = block_execution_counts(function, tree, Some(profile));
@@ -127,8 +129,7 @@ fn run_cfg_layout(
     cold_blocks.remove(&entry);
 
     // fetch required analyses
-    let analyses = ctx.function_analyses(function, tree);
-    let domtree = analyses.get::<DominatorTree>().clone();
+    let domtree = analyses.get::<DominatorTree>(function, tree).clone();
 
     // duplicate hot edges into small blocks
     let duplicated = duplicate_hot_edges(function, tree, &domtree, profile, &mut block_counts);

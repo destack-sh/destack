@@ -3,13 +3,13 @@ use std::collections::HashMap;
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{ControlFlowGraph, LoopAnalysis, ScalarEvolution, Scev};
-use crate::common::mir::{
-    BlockParamForwarding, TypeKey, constant_is_zero, fold_binary,
-    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
-    resolve_substitution_chains, terminator_arguments_for_successor, terminator_substitute_uses,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, BlockParamForwarding, ControlFlowGraph, LoopAnalysis, ScalarEvolution,
+    Scev, TypeKey, constant_is_zero, fold_binary, instruction_substitute_uses_in_tree,
+    remap_instruction_memory_accesses, resolve_substitution_chains,
+    terminator_arguments_for_successor, terminator_substitute_uses,
 };
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_mir_pass! {
     /// Simplify redundant induction variables in loop headers.
@@ -59,7 +59,8 @@ impl FunctionPass for InductionVariableSimplify {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
-        ctx: &PipelineContext<'_>,
+        _ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
@@ -67,10 +68,9 @@ impl FunctionPass for InductionVariableSimplify {
         }
 
         // gather analyses
-        let analyses = ctx.function_analyses(function, tree);
-        let loops = analyses.get::<LoopAnalysis>().clone();
-        let scev = analyses.get::<ScalarEvolution>().clone();
-        let cfg = analyses.get::<ControlFlowGraph>().clone();
+        let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
+        let scev = analyses.get::<ScalarEvolution>(function, tree).clone();
+        let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
 
         // skip when no loops are present
         if loops.num_loops() == 0 {
@@ -1113,9 +1113,9 @@ b2(v8: int32):
         let test = TestProgram::new(input);
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = test.tree.get(function_id);
-        let analyses = test.function_analyses(function);
-        let cfg = analyses.get::<ControlFlowGraph>();
-        let loops = analyses.get::<LoopAnalysis>();
+        let analyses = test.function_analyses();
+        let cfg = analyses.get::<ControlFlowGraph>(function, &test.tree);
+        let loops = analyses.get::<LoopAnalysis>(function, &test.tree);
         let forwarding = BlockParamForwarding::build(function, &test.tree, &cfg);
         let header = function.blocks[1];
         let header_block = test.tree.get(header);

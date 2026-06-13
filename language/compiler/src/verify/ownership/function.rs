@@ -1,10 +1,10 @@
 use std::collections::{HashMap, VecDeque};
 
-use crate::common::mir::terminator_arguments_for_successor;
 use crate::verify::value::{instruction_consumes, instruction_uses, terminator_consumes};
 use crate::verify::{BorrowObligationRecord, VerifyError, VerifyState};
 use destack_artifact::DiagnosticBuilder;
 use destack_mir as mir;
+use destack_mir::terminator_arguments_for_successor;
 
 use super::alias::PlaceAlias;
 use super::borrow::{BorrowSource, BorrowSources, BorrowSuspension};

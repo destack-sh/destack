@@ -3,14 +3,14 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::CallGraphScc;
-use crate::common::mir::{
-    CallsiteHotness, ValueTypeMap, block_execution_counts, block_hotness_from_counts,
-    build_value_definition_map, callsite_hotness, clone_instruction_metadata, constant_for_value,
-    instruction_map_with_locals, instruction_substitute_uses_in_tree,
-    remap_instruction_memory_accesses, terminator_remap, terminator_substitute_uses,
+use crate::optimize::{ModulePass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, CallGraphScc, CallsiteHotness, ValueTypeMap, block_execution_counts,
+    block_hotness_from_counts, build_value_definition_map, callsite_hotness,
+    clone_instruction_metadata, constant_for_value, instruction_map_with_locals,
+    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses, terminator_remap,
+    terminator_substitute_uses,
 };
-use crate::optimize::{AnalysisPreservation, ModuleAnalyses, ModulePass, PipelineContext};
 
 declare_mir_pass! {
     /// Inline direct calls into their callers when the callee is small.
@@ -50,8 +50,13 @@ declare_mir_pass! {
 
 impl ModulePass for Inline {
     /// Run the inline pass over a module.
-    fn run(&self, tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
-        let changed = run_inline(tree, ctx);
+    fn run(
+        &self,
+        tree: &mut mir::Tree,
+        ctx: &PipelineContext<'_>,
+        analyses: &mir::ModuleAnalyses,
+    ) -> AnalysisPreservation {
+        let changed = run_inline(tree, ctx, analyses);
 
         // report analysis preservation based on whether changes occurred
         if changed {
@@ -143,10 +148,13 @@ const INLINE_COST_BLOCK: u64 = 3;
 const INLINE_ALWAYS_INLINE_COST: u64 = 40;
 
 /// Inline pass main entry.
-fn run_inline(tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> bool {
+fn run_inline(
+    tree: &mut mir::Tree,
+    ctx: &PipelineContext<'_>,
+    analyses: &mir::ModuleAnalyses,
+) -> bool {
     // build analysis summaries for inlining
-    let analyses = ModuleAnalyses::new(tree);
-    let scc_map = analyses.get::<CallGraphScc>();
+    let scc_map = analyses.get::<CallGraphScc>(tree);
     let inline_budget_scale_percent = ctx.inline_budget_scale_percent();
     let mut module_budget =
         inline_budget_for_module(tree, ctx.profile(), inline_budget_scale_percent);

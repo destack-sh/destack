@@ -3,11 +3,11 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::{
-    SignatureKey, apply_constant_parameters, build_value_definition_map, constant_for_value,
-    constant_matches_type, constant_type_of,
+use crate::optimize::{ModulePass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, SignatureKey, apply_constant_parameters, build_value_definition_map,
+    constant_for_value, constant_matches_type, constant_type_of,
 };
-use crate::optimize::{AnalysisPreservation, ModulePass, PipelineContext};
 
 declare_mir_pass! {
     /// Propagate constants across direct callsites.
@@ -53,7 +53,12 @@ declare_mir_pass! {
 
 impl ModulePass for InterproceduralConstantPropagation {
     /// Run interprocedural constant propagation for the module.
-    fn run(&self, tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
+    fn run(
+        &self,
+        tree: &mut mir::Tree,
+        ctx: &PipelineContext<'_>,
+        _analyses: &mir::ModuleAnalyses,
+    ) -> AnalysisPreservation {
         let pointer_width_bits = ctx.options.type_context().pointer_width_bits;
         let changed = run_interprocedural_constant_prop(tree, pointer_width_bits);
 

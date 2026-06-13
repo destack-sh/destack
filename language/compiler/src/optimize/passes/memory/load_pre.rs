@@ -3,17 +3,14 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{
-    AliasAnalysis, ControlFlowGraph, DominatorTree, MemoryAccess, MemoryAccessId, MemorySSA,
-};
-use crate::common::mir::{
-    EdgeSplitPolicy, append_successor_arguments, build_use_def_maps, effect_is_trackable,
-    ensure_edge_block, instruction_allows_read_only_motion, instruction_has_side_effects,
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AliasAnalysis, AnalysisPreservation, ControlFlowGraph, DominatorTree, EdgeSplitPolicy,
+    MemoryAccess, MemoryAccessId, MemorySSA, append_successor_arguments,
+    apply_substitutions_in_function, build_use_def_maps, effect_is_trackable, ensure_edge_block,
+    instruction_allows_read_only_motion, instruction_has_side_effects,
     instruction_is_read_only_access, instruction_is_speculatable, resolve_edge_value,
     value_available_in_block,
-};
-use crate::optimize::{
-    AnalysisPreservation, FunctionPass, PipelineContext, apply_substitutions_in_function,
 };
 
 declare_mir_pass! {
@@ -63,6 +60,7 @@ impl FunctionPass for LoadPre {
         function: &mut mir::Function,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
@@ -70,7 +68,7 @@ impl FunctionPass for LoadPre {
         }
 
         // run load PRE
-        let changed = run_load_pre(function, tree, ctx);
+        let changed = run_load_pre(function, tree, ctx, analyses);
 
         if changed {
             AnalysisPreservation::none()
@@ -125,14 +123,14 @@ struct EdgeInsertion {
 fn run_load_pre(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    ctx: &PipelineContext<'_>,
+    _ctx: &PipelineContext<'_>,
+    analyses: &mir::FunctionAnalyses,
 ) -> bool {
     // gather analyses
-    let analyses = ctx.function_analyses(function, tree);
-    let cfg = analyses.get::<ControlFlowGraph>().clone();
-    let domtree = analyses.get::<DominatorTree>().clone();
-    let memory_ssa = analyses.get::<MemorySSA>();
-    let alias = analyses.get::<AliasAnalysis>();
+    let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
+    let domtree = analyses.get::<DominatorTree>(function, tree).clone();
+    let memory_ssa = analyses.get::<MemorySSA>(function, tree);
+    let alias = analyses.get::<AliasAnalysis>(function, tree);
 
     // build value definition info
     let use_def = build_use_def_maps(function, tree);

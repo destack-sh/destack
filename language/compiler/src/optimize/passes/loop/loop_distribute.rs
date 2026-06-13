@@ -3,18 +3,15 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::Loop;
-use crate::common::mir::analysis::{
-    AliasAnalysis, ControlFlowGraph, DominatorTree, LoopAnalysis, MemoryAccess, MemoryAccessEffect,
-    MemoryAccessLocation, MemorySSA,
-};
-use crate::common::mir::{
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AliasAnalysis, AnalysisPreservation, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis,
+    MemoryAccess, MemoryAccessEffect, MemoryAccessLocation, MemorySSA,
     block_is_speculatable_no_reads, build_instruction_block_map, build_value_definition_map,
     clone_loop_blocks_with_instructions, control_instructions_for_latch, effects_may_alias,
     instruction_has_atomic_ordering, instruction_is_speculatable, loop_guard_branch,
     loop_preheader, terminator_remap,
 };
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_mir_pass! {
     /// Split independent store groups into separate loops.
@@ -88,15 +85,15 @@ impl FunctionPass for LoopDistribute {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
-        ctx: &PipelineContext<'_>,
+        _ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // gather analyses
-        let analyses = ctx.function_analyses(function, tree);
-        let loops = analyses.get::<LoopAnalysis>().clone();
-        let cfg = analyses.get::<ControlFlowGraph>().clone();
-        let domtree = analyses.get::<DominatorTree>().clone();
-        let memory_ssa = analyses.get::<MemorySSA>();
-        let alias = analyses.get::<AliasAnalysis>().clone();
+        let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
+        let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
+        let domtree = analyses.get::<DominatorTree>(function, tree).clone();
+        let memory_ssa = analyses.get::<MemorySSA>(function, tree);
+        let alias = analyses.get::<AliasAnalysis>(function, tree).clone();
 
         // run loop distribution
         let changed = run_loop_distribute(

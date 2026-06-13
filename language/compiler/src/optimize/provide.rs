@@ -13,10 +13,10 @@ use destack_source::{ModuleId, TargetId};
 use target_lexicon::Triple;
 
 use super::{
-    OptimizationLevel, Pipeline, PipelineContext, PipelineOptions, TypeContext, default_pipeline,
+    OptimizationLevel, OptimizeState, Pipeline, PipelineContext, PipelineOptions, default_pipeline,
 };
 use crate::CompilerError;
-use crate::optimize::OptimizeState;
+use destack_mir::TypeContext;
 
 impl Compiler {
     /// Collect inputs for optimized MIR of one module and target.

@@ -3,14 +3,12 @@ use std::collections::HashMap;
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use crate::common::mir::analysis::{
-    ConstantPropagation, ControlFlowGraph, DominatorTree, ValueRange,
-};
-use crate::common::mir::{
+use crate::optimize::{FunctionPass, PipelineContext};
+use destack_mir::{
+    AnalysisPreservation, ConstantPropagation, ControlFlowGraph, DominatorTree, ValueRange,
     apply_substitutions_in_dominated_blocks, build_use_def_maps, build_value_instruction_map,
     swap_comparison_operator,
 };
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_mir_pass! {
     /// Propagate equalities implied by dominating conditions.
@@ -64,7 +62,8 @@ impl FunctionPass for CorrelatedValueProp {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
-        ctx: &PipelineContext<'_>,
+        _ctx: &PipelineContext<'_>,
+        analyses: &mir::FunctionAnalyses,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
@@ -72,10 +71,9 @@ impl FunctionPass for CorrelatedValueProp {
         }
 
         // gather analyses
-        let analyses = ctx.function_analyses(function, tree);
-        let domtree = analyses.get::<DominatorTree>().clone();
-        let cfg = analyses.get::<ControlFlowGraph>().clone();
-        let constants = analyses.get::<ConstantPropagation>().clone();
+        let domtree = analyses.get::<DominatorTree>(function, tree).clone();
+        let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
+        let constants = analyses.get::<ConstantPropagation>(function, tree).clone();
 
         // run correlated propagation
         let changed = run_correlated_value_prop(function, tree, &domtree, &cfg, &constants);
