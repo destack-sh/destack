@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use destack_core::closest_string;
 use destack_repository::{DestackFile, Repository, Revision, Root};
 use destack_source::DiagnosticCollection;
 use serde::{Deserialize, Serialize};
@@ -570,72 +571,36 @@ fn unknown_group_error(group_name: &str, root_options: &DestackFile) -> String {
 
 /// Return the closest project name or path selector.
 fn closest_project_name<'a>(selector: &str, projects: &'a [TaskProject]) -> Option<&'a str> {
-    let mut best_name = None;
-    let mut best_distance = usize::MAX;
-
-    for project in projects {
+    let candidates = projects.iter().flat_map(|project| {
         let package_name = project.package_name.as_deref().unwrap_or_default();
-        for candidate in [project.project.as_str(), package_name] {
-            if candidate.is_empty() {
-                continue;
-            }
-            let distance = edit_distance(selector, candidate);
-            if distance < best_distance {
-                best_distance = distance;
-                best_name = Some(candidate);
-            }
-        }
-    }
 
-    let threshold = if selector.len() <= 4 { 1 } else { 2 };
-    if best_distance <= threshold {
-        return best_name;
-    }
+        [project.project.as_str(), package_name]
+            .into_iter()
+            .filter(|candidate| !candidate.is_empty())
+    });
 
-    None
+    closest_string(selector, candidates, closest_task_distance(selector))
 }
 
 /// Return the closest workspace group name.
 fn closest_group_name<'a>(group_name: &str, groups: &'a [&str]) -> Option<&'a str> {
-    let mut best_name = None;
-    let mut best_distance = usize::MAX;
-
-    for candidate in groups {
-        let distance = edit_distance(group_name, candidate);
-        if distance < best_distance {
-            best_distance = distance;
-            best_name = Some(*candidate);
-        }
-    }
-
-    let threshold = if group_name.len() <= 4 { 1 } else { 2 };
-    if best_distance <= threshold {
-        return best_name;
-    }
-
-    None
+    closest_string(
+        group_name,
+        groups.iter().copied(),
+        closest_task_distance(group_name),
+    )
 }
 
 /// Return the closest task name when the input is near one known command.
 fn closest_task_name<'a>(name: &str, tasks: &'a [String]) -> Option<&'a str> {
-    let mut best_name = None;
-    let mut best_distance = usize::MAX;
+    let candidates = tasks.iter().map(String::as_str);
 
-    // choose one bounded edit distance suggestion
-    for task in tasks {
-        let distance = edit_distance(name, task);
-        if distance < best_distance {
-            best_distance = distance;
-            best_name = Some(task.as_str());
-        }
-    }
+    closest_string(name, candidates, closest_task_distance(name))
+}
 
-    let threshold = if name.len() <= 4 { 1 } else { 2 };
-    if best_distance <= threshold {
-        return best_name;
-    }
-
-    None
+/// Return the maximum typo distance allowed for task selectors.
+fn closest_task_distance(value: &str) -> usize {
+    if value.len() <= 4 { 1 } else { 2 }
 }
 
 /// Build one shell command for one task and extra args.
@@ -711,33 +676,6 @@ fn exact_destack_config_path(
     }
 
     None
-}
-
-/// Compute the edit distance between two short names.
-fn edit_distance(left: &str, right: &str) -> usize {
-    let left: Vec<char> = left.chars().collect();
-    let right: Vec<char> = right.chars().collect();
-
-    let mut previous: Vec<usize> = (0..=right.len()).collect();
-    let mut current = vec![0; right.len() + 1];
-
-    // dynamic programming rows
-    for (left_index, left_char) in left.iter().enumerate() {
-        current[0] = left_index + 1;
-
-        for (right_index, right_char) in right.iter().enumerate() {
-            let substitution_cost = if left_char == right_char { 0 } else { 1 };
-            let deletion = previous[right_index + 1] + 1;
-            let insertion = current[right_index] + 1;
-            let substitution = previous[right_index] + substitution_cost;
-
-            current[right_index + 1] = deletion.min(insertion).min(substitution);
-        }
-
-        std::mem::swap(&mut previous, &mut current);
-    }
-
-    previous[right.len()]
 }
 
 /// Build a shell command for script execution.
