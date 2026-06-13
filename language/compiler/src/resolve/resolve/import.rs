@@ -211,7 +211,7 @@ impl ResolveState<'_> {
             ExportLookup::Ambiguous(_) => {
                 self.report_ambiguous_export(item_id, key, specifier)?;
             }
-            ExportLookup::Missing => self.report_missing_export(item_id, key, specifier)?,
+            ExportLookup::Missing => self.report_missing_export(target, item_id, key, specifier)?,
         }
 
         Ok(())
@@ -262,7 +262,7 @@ impl ResolveState<'_> {
                     self.report_ambiguous_export(*item_id, key, specifier)?;
                 }
                 ExportLookup::Missing => {
-                    self.report_missing_export(*item_id, key, specifier)?;
+                    self.report_missing_export(target, *item_id, key, specifier)?;
                 }
             }
         }

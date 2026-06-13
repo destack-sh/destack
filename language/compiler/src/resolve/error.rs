@@ -12,7 +12,11 @@ pub enum ResolveError {
     /// import { missing } from "./library.ds";
     /// export { missing } from "./library.ds";
     /// ```
-    #[diagnostic(code = "ER200", message = "missing export '{name}' from '{target}'")]
+    #[diagnostic(
+        code = "ER200",
+        message = "missing export '{name}' from '{target}'",
+        optional_message = "; did you mean '{suggestion}'?"
+    )]
     MissingExport {
         /// The import or re-export clause.
         anchor: DiagnosticAnchor,
@@ -20,6 +24,8 @@ pub enum ResolveError {
         name: String,
         /// The resolved target module.
         target: String,
+        /// The closest exported key.
+        suggestion: Option<String>,
     },
 
     /// Import or re-export selects a name that is re-exported by multiple star exports.
