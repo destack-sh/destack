@@ -1,29 +1,29 @@
 use std::collections::BTreeMap;
 use std::hash::Hash;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use dashmap::DashMap;
 use destack_artifact::{
-    ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactSidecar,
-    ArtifactStore, ArtifactVersion, Data, DependencyIndex, DirBound, DirCheckedComponent,
-    DirCheckedModule, DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized,
-    DirParsed, DirResolved, GlobalEnvironment, MirLowered, MirOptimized, MirVerified, ModuleLinted,
-    ModuleOutput, ModuleQueryIndex, PackageLinted, PackageOutput, WorkspaceLinted,
-    WorkspaceQueryIndex,
+    ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactPayload,
+    ArtifactSidecar, ArtifactStore, ArtifactVersion, ComponentGraph, Data, DirBound,
+    DirCheckedComponent, DirCheckedModule, DirElaborated, DirExpanded, DirExported, DirImported,
+    DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirLowered, MirOptimized,
+    MirVerified, ModuleIndex, ModuleLinted, ModuleOutput, ModuleQueryIndex, PackageIndex,
+    PackageLinted, PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
 };
 use destack_source::{ComponentId, DiagnosticCollection, ModuleId, PackageId, ProfileId, TargetId};
 
-use crate::provider::{ProviderContext, ProviderError};
+use crate::provider::ProviderError;
 use crate::repository::{Repository, RepositoryError, Revision};
 
-/// Provider-scoped reader for required artifacts.
+/// Provider-scoped read-only view over a ready artifact closure.
 pub struct ArtifactReader<'a> {
-    /// The provider attempt that owns dependency tracking.
-    context: &'a dyn ProviderContext,
+    /// The repository that binds artifact versions to the revision.
+    repository: &'a Repository,
+    /// The pinned revision the reader resolves against.
+    revision: Revision,
     /// The artifact store that owns typed payloads.
     store: Arc<ArtifactStore>,
-    /// Exact versions already required by this reader.
-    versions: Mutex<BTreeMap<ArtifactKey, ArtifactVersion>>,
 }
 
 impl std::fmt::Debug for ArtifactReader<'_> {
@@ -35,88 +35,31 @@ impl std::fmt::Debug for ArtifactReader<'_> {
 }
 
 impl<'a> ArtifactReader<'a> {
-    /// Create a provider-scoped reader.
-    pub fn new(context: &'a dyn ProviderContext, store: Arc<ArtifactStore>) -> Self {
+    /// Create a read-only reader for one pinned revision.
+    pub fn new(repository: &'a Repository, revision: Revision, store: Arc<ArtifactStore>) -> Self {
         Self {
-            context,
+            repository,
+            revision,
             store,
-            versions: Mutex::new(BTreeMap::new()),
         }
     }
 
-    /// Require one artifact without reading its payload.
-    pub fn require(&self, artifact_key: ArtifactKey) -> Result<ArtifactVersion, ProviderError> {
-        let version = self.context.require(artifact_key)?;
-
-        // retain exact artifact closure for later typed reads
-        self.retain_version(version)?;
-
-        Ok(version)
-    }
-
-    /// Require several artifacts without reading their payloads.
-    pub fn require_all(
-        &self,
-        artifact_keys: &[ArtifactKey],
-    ) -> Result<Vec<ArtifactVersion>, ProviderError> {
-        let versions = self.context.require_all(artifact_keys)?;
-
-        // retain exact artifact closures for later typed reads
-        for version in versions.iter().copied() {
-            self.retain_version(version)?;
-        }
-
-        Ok(versions)
-    }
-
-    /// Retain one exact artifact version and its exact artifact dependencies.
-    fn retain_version(&self, version: ArtifactVersion) -> Result<(), ProviderError> {
-        let mut pending = vec![version];
-        let mut versions = self
-            .versions
-            .lock()
-            .map_err(|_| ProviderError::internal("artifact reader version cache was poisoned"))?;
-
-        // walk exact artifact dependencies
-        while let Some(version) = pending.pop() {
-            if versions.contains_key(&version.key) {
-                continue;
-            }
-            versions.insert(version.key, version);
-
-            let dependencies = self
-                .store
-                .dependencies(&version)
-                .ok_or(ProviderError::Corrupt { version })?;
-
-            for dependency in dependencies.iter() {
-                if let ArtifactDependency::Artifact(version) = dependency {
-                    pending.push(*version);
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Return one previously required artifact version.
+    /// Resolve one artifact to its exact ready version.
     fn version(&self, artifact_key: ArtifactKey) -> Result<ArtifactVersion, ProviderError> {
         let version = self
-            .versions
-            .lock()
-            .map_err(|_| ProviderError::internal("artifact reader version cache was poisoned"))?
-            .get(&artifact_key)
-            .copied()
-            .ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "artifact {artifact_key:?} was read before it was required"
-                ))
+            .repository
+            .artifact_version(self.revision, &artifact_key)
+            .map_err(|error| {
+                ProviderError::internal(format!("failed to resolve artifact version: {error}"))
             })?;
 
-        Ok(version)
+        // a not yet built dependency reads as blocked
+        version
+            .filter(|version| matches!(self.store.outcome(version), Some(ArtifactOutcome::Ok)))
+            .ok_or_else(|| ProviderError::blocked(artifact_key))
     }
 
-    /// Read one previously required typed artifact payload.
+    /// Read one collected typed artifact payload.
     fn read<T>(
         &self,
         artifact_key: ArtifactKey,
@@ -150,13 +93,29 @@ impl<'a> ArtifactReader<'a> {
     }
 
     /// Read one dependency index artifact.
-    pub fn dependency_index(
+    pub fn package_index(&self, profile: ProfileId) -> Result<Arc<PackageIndex>, ProviderError> {
+        self.read(
+            ArtifactKey::package_index(profile),
+            ArtifactStore::package_index,
+        )
+    }
+
+    /// Read one module index artifact.
+    pub fn module_index(&self, profile: ProfileId) -> Result<Arc<ModuleIndex>, ProviderError> {
+        self.read(
+            ArtifactKey::module_index(profile),
+            ArtifactStore::module_index,
+        )
+    }
+
+    /// Read one component graph artifact.
+    pub fn component_graph(
         &self,
         profile: ProfileId,
-    ) -> Result<Arc<DependencyIndex>, ProviderError> {
+    ) -> Result<Arc<ComponentGraph>, ProviderError> {
         self.read(
-            ArtifactKey::dependency_index(profile),
-            ArtifactStore::dependency_index,
+            ArtifactKey::component_graph(profile),
+            ArtifactStore::component_graph,
         )
     }
 
@@ -829,11 +788,30 @@ impl Repository {
     ) -> Result<Option<ArtifactVersion>, RepositoryError> {
         let _revision = self.revision(revision)?;
 
-        // FUGU #Performance: this only checks the revision binding, not reusable exact artifact versions
         Ok(self
             .artifact_versions
             .get(&(revision, *artifact_key))
             .map(|version| *version.value()))
+    }
+
+    /// Bind one already-stored artifact version to one revision.
+    /// provider never runs for an unchanged input closure.
+    pub fn bind_artifact(
+        &self,
+        revision: Revision,
+        version: ArtifactVersion,
+    ) -> Result<(), RepositoryError> {
+        let _revision = self.revision(revision)?;
+
+        // the version must already carry a terminal outcome to be reusable
+        if self.artifact_store().outcome(&version).is_none() {
+            return Err(RepositoryError::MissingArtifact { version });
+        }
+
+        self.artifact_versions
+            .insert((revision, version.key), version);
+
+        Ok(())
     }
 
     /// Publish one ready artifact and bind its exact version to one revision.
