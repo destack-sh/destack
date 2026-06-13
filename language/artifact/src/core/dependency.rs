@@ -86,15 +86,14 @@ impl SourceDependency {
 }
 
 /// Every dependency one artifact declares before it is built.
-///
-/// A provider collects this up front, so the closure is frozen before
-/// the payload runs and the version can be fingerprinted without it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ArtifactDependencySet {
     /// Lower artifacts that must be resolved into versions first.
     pub artifacts: Vec<ArtifactKey>,
     /// Primitive source observations that feed the fingerprint.
     pub sources: Vec<SourceDependency>,
+    /// Whether the collect pass stopped before naming the full closure.
+    pub is_partial: bool,
 }
 
 impl ArtifactDependencySet {
@@ -106,6 +105,11 @@ impl ArtifactDependencySet {
     /// Declare one primitive source observation.
     pub fn observe(&mut self, source: SourceDependency) {
         self.sources.push(source);
+    }
+
+    /// Mark the closure incomplete so the engine runs the collect pass again.
+    pub fn mark_partial(&mut self) {
+        self.is_partial = true;
     }
 }
 
