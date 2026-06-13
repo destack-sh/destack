@@ -10,12 +10,18 @@ pub enum ImportError {
     /// ```ds
     /// import { User } from "./missing.ds";
     /// ```
-    #[diagnostic(code = "EI200", message = "unresolved module '{target}'")]
+    #[diagnostic(
+        code = "EI200",
+        message = "unresolved module '{target}'",
+        optional_message = "; did you mean '{suggestion}'?"
+    )]
     UnresolvedModule {
         /// The import or export specifier.
         anchor: DiagnosticAnchor,
         /// The unresolved module specifier.
         target: String,
+        /// The closest visible module specifier.
+        suggestion: Option<String>,
     },
 
     /// Import attribute value is not a supported loader name.
@@ -23,12 +29,18 @@ pub enum ImportError {
     /// ```ds
     /// import data from "./data.json" with { type: "binary" };
     /// ```
-    #[diagnostic(code = "EI203", message = "invalid import attribute type '{value}'")]
+    #[diagnostic(
+        code = "EI203",
+        message = "invalid import attribute type '{value}'",
+        optional_message = "; did you mean '{suggestion}'?"
+    )]
     InvalidImportAttributeType {
         /// The invalid import attribute.
         anchor: DiagnosticAnchor,
         /// The unsupported attribute value.
         value: String,
+        /// The closest supported import attribute type.
+        suggestion: Option<String>,
     },
 
     /// Module specifier is outside the supported Destack import model.
@@ -117,7 +129,8 @@ pub enum ImportError {
     /// ```
     #[diagnostic(
         code = "EI209",
-        message = "package '{package}' has no active export '{export}'"
+        message = "package '{package}' has no active export '{export}'",
+        optional_message = "; did you mean '{suggestion}'?"
     )]
     MissingPackageExport {
         /// The package specifier.
@@ -126,6 +139,8 @@ pub enum ImportError {
         package: String,
         /// The missing export key.
         export: String,
+        /// The closest active package export.
+        suggestion: Option<String>,
     },
 
     /// Package export exists but does not point to a source module.

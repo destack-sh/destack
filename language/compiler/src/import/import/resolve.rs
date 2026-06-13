@@ -1,12 +1,15 @@
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
+use destack_core::closest_string;
 use destack_dir as dir;
 use destack_source::{
     CODE_FILE_TYPES, FileType, Loader, ModuleId, ModuleSpecifier, PackageId, Uri,
 };
 
 use crate::import::state::ImportState;
-use crate::{Compiler, CompilerResult, DiagnosticAnchor, ImportError};
+use crate::{
+    Compiler, CompilerResult, DiagnosticAnchor, ImportError, diagnostic_suggestion_distance,
+};
 
 use super::specifier::{ImportSpecifier, PackageSpecifier};
 
@@ -213,10 +216,20 @@ impl Compiler {
 
         // select matching export
         let Some(export) = package.exports.get(&specifier.export) else {
+            let suggestion = closest_string(
+                &specifier.export,
+                package
+                    .exports
+                    .exact
+                    .keys()
+                    .map(|export| export.to_string()),
+                diagnostic_suggestion_distance(&specifier.export),
+            );
             state.report_diagnostic(ImportError::MissingPackageExport {
                 anchor: anchor.clone(),
                 package: specifier.package.clone(),
                 export: specifier.export.clone(),
+                suggestion,
             });
 
             return Ok(None);
@@ -306,6 +319,7 @@ impl Compiler {
                 state.report_diagnostic(ImportError::UnresolvedModule {
                     anchor: anchor.clone(),
                     target: specifier.to_string(),
+                    suggestion: None,
                 });
 
                 Ok(None)
@@ -395,6 +409,7 @@ impl Compiler {
             state.report_diagnostic(ImportError::UnresolvedModule {
                 anchor: anchor.clone(),
                 target: specifier.to_string(),
+                suggestion: None,
             });
 
             return Ok(None);
@@ -419,9 +434,11 @@ impl Compiler {
         match matches.as_slice() {
             // no module matched
             [] => {
+                let suggestion = self.closest_relative_module_specifier(state, specifier)?;
                 state.report_diagnostic(ImportError::UnresolvedModule {
                     anchor: anchor.clone(),
                     target: specifier.to_string(),
+                    suggestion,
                 });
 
                 Ok(None)
@@ -607,4 +624,98 @@ impl Compiler {
                 .collect()
         }
     }
+
+    /// Return the closest same-package module specifier visible from this import.
+    fn closest_relative_module_specifier(
+        &self,
+        state: &ImportState<'_>,
+        specifier: &str,
+    ) -> CompilerResult<Option<String>> {
+        let Some(current_path) = state.module.path.as_deref() else {
+            return Ok(None);
+        };
+        let Some(current_directory) = current_path.parent() else {
+            return Ok(None);
+        };
+
+        let module_ids = self
+            .repository
+            .package_module_ids(state.revision, state.module.package_id)
+            .map_err(|error| ImportError::Internal {
+                anchor: DiagnosticAnchor::from(state.module.id),
+                message: format!(
+                    "failed to list package modules for {:?}: {error}",
+                    state.module.package_id
+                ),
+            })?;
+        let mut candidates = Vec::new();
+
+        // collect concrete paths for sibling package modules
+        for module_id in module_ids {
+            if module_id == state.module.id {
+                continue;
+            }
+
+            let module = self.module(state.revision, module_id)?;
+            let Some(path) = module.path.as_deref() else {
+                continue;
+            };
+            let Some(candidate) = relative_module_specifier(current_directory, path) else {
+                continue;
+            };
+
+            candidates.push(candidate);
+        }
+
+        Ok(closest_string(
+            specifier,
+            candidates,
+            diagnostic_suggestion_distance(specifier),
+        ))
+    }
+}
+
+/// Return a relative module specifier from one source directory to one target path.
+fn relative_module_specifier(source_directory: &Path, target: &Path) -> Option<String> {
+    let source = source_directory.components().collect::<Vec<_>>();
+    let target = target.components().collect::<Vec<_>>();
+    let mut shared = 0;
+
+    // find the common lexical path prefix
+    while shared < source.len() && shared < target.len() && source[shared] == target[shared] {
+        shared += 1;
+    }
+
+    let mut path = PathBuf::new();
+
+    // walk up to the shared prefix
+    for component in &source[shared..] {
+        if !matches!(component, Component::Normal(_)) {
+            return None;
+        }
+
+        path.push("..");
+    }
+
+    // walk down to the target file
+    for component in &target[shared..] {
+        let Component::Normal(segment) = component else {
+            return None;
+        };
+
+        path.push(segment);
+    }
+
+    let mut specifier = path
+        .to_string_lossy()
+        .replace(std::path::MAIN_SEPARATOR, "/");
+    if specifier.is_empty() {
+        return None;
+    }
+
+    if !specifier.starts_with('.') {
+        specifier.insert_str(0, "./");
+    }
+
+    Some(specifier)
 }
