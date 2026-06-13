@@ -1,27 +1,26 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 use indexmap::IndexMap;
+use smallvec::SmallVec;
 
-use crate::check::{CheckState, StaticOperand, TypeOperand};
+use crate::check::PlaceAccess;
 use crate::{CompilerError, CompilerResult};
 
-/// Input identity to check operand index.
+/// Inferred types and values keyed by source identity.
 #[derive(Debug)]
 pub(in crate::check) struct InputTable {
-    /// Type operands keyed by source node.
-    node_types: IndexMap<dir::GlobalNodeIdAny, TypeOperand>,
-    /// Type operands keyed by source symbol.
-    symbol_types: IndexMap<dir::GlobalSymbolId, TypeOperand>,
-
-    /// Static operands keyed by source node.
-    node_statics: IndexMap<dir::GlobalNodeIdAny, StaticOperand>,
-    /// Static operands keyed by source symbol.
-    symbol_statics: IndexMap<dir::GlobalSymbolId, StaticOperand>,
-
-    /// Type operands cached by committed type id.
-    types: IndexMap<dir::GlobalTypeId, TypeOperand>,
-    /// Static operands cached by committed static id.
-    statics: IndexMap<dir::GlobalStaticId, StaticOperand>,
+    /// Node types keyed by source node.
+    node_types: IndexMap<dir::GlobalNodeIdAny, dir::GlobalTypeId>,
+    /// Symbol types keyed by source symbol.
+    symbol_types: IndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
+    /// Symbol static values keyed by source symbol.
+    symbol_values: IndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
+    /// Active static guard predicates keyed by guarded source node.
+    /// Only nodes walked under one or more @if guards have entries.
+    node_conditions: IndexMap<dir::GlobalNodeIdAny, SmallVec<[dir::GlobalTypeId; 2]>>,
+    /// Place accesses keyed by written place expression node.
+    /// Only assignment targets have entries; everything else reads.
+    place_accesses: IndexMap<dir::GlobalNodeIdAny, PlaceAccess>,
 }
 
 impl InputTable {
@@ -30,268 +29,152 @@ impl InputTable {
         Self {
             node_types: IndexMap::new(),
             symbol_types: IndexMap::new(),
-            node_statics: IndexMap::new(),
-            symbol_statics: IndexMap::new(),
-            types: IndexMap::new(),
-            statics: IndexMap::new(),
+            symbol_values: IndexMap::new(),
+            node_conditions: IndexMap::new(),
+            place_accesses: IndexMap::new(),
         }
     }
 
-    /// Iterate source node type operands declared in one module.
-    pub(in crate::check) fn node_types_in(
-        &self,
-        module: ModuleId,
-    ) -> impl Iterator<Item = (dir::GlobalNodeIdAny, TypeOperand)> + '_ {
-        self.node_types.iter().filter_map(move |(node, operand)| {
-            (node.module_id == module).then_some((*node, *operand))
-        })
+    /// Record how syntax accesses one place expression.
+    pub(in crate::check) fn set_place_access(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        access: PlaceAccess,
+    ) {
+        self.place_accesses.insert(node, access);
     }
 
-    /// Iterate source symbol type operands declared in one module.
-    pub(in crate::check) fn symbol_types_in(
-        &self,
-        module: ModuleId,
-    ) -> impl Iterator<Item = (dir::GlobalSymbolId, TypeOperand)> + '_ {
-        self.symbol_types
-            .iter()
-            .filter_map(move |(symbol, operand)| {
-                (symbol.module_id == module).then_some((*symbol, *operand))
-            })
+    /// Return how syntax accesses one expression.
+    pub(in crate::check) fn place_access(&self, node: dir::GlobalNodeIdAny) -> PlaceAccess {
+        self.place_accesses
+            .get(&node)
+            .copied()
+            .unwrap_or(PlaceAccess::Read)
     }
 
-    /// Iterate source symbol static operands declared in one module.
-    pub(in crate::check) fn symbol_statics_in(
-        &self,
-        module: ModuleId,
-    ) -> impl Iterator<Item = (dir::GlobalSymbolId, StaticOperand)> + '_ {
-        self.symbol_statics
-            .iter()
-            .filter_map(move |(symbol, operand)| {
-                (symbol.module_id == module).then_some((*symbol, *operand))
-            })
+    /// Record the active static guard predicates of one source node.
+    pub(in crate::check) fn set_node_condition(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        predicates: SmallVec<[dir::GlobalTypeId; 2]>,
+    ) {
+        self.node_conditions.insert(node, predicates);
     }
 
-    /// Return one source node type operand.
-    pub(in crate::check) fn node_type(&self, node: dir::GlobalNodeIdAny) -> Option<TypeOperand> {
+    /// Return the active static guard predicates of one source node.
+    pub(in crate::check) fn node_condition(
+        &self,
+        node: dir::GlobalNodeIdAny,
+    ) -> &[dir::GlobalTypeId] {
+        self.node_conditions
+            .get(&node)
+            .map_or(&[], |predicates| predicates.as_slice())
+    }
+
+    /// Record the type of one source node.
+    pub(in crate::check) fn set_node_type(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let previous = self.node_types.insert(node, ty);
+
+        if previous.is_some_and(|previous| previous != ty) {
+            return Err(CompilerError::Internal {
+                message: format!("check node {node:?} received two types"),
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Record the type of one source symbol.
+    pub(in crate::check) fn set_symbol_type(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let previous = self.symbol_types.insert(symbol, ty);
+
+        if previous.is_some_and(|previous| previous != ty) {
+            return Err(CompilerError::Internal {
+                message: format!("check symbol {symbol:?} received two types"),
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Record the static value of one source symbol as a singleton type.
+    pub(in crate::check) fn set_symbol_value(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        value: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let previous = self.symbol_values.insert(symbol, value);
+
+        if previous.is_some_and(|previous| previous != value) {
+            return Err(CompilerError::Internal {
+                message: format!("check symbol {symbol:?} received two static values"),
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Return the type of one source node.
+    pub(in crate::check) fn node_type(
+        &self,
+        node: dir::GlobalNodeIdAny,
+    ) -> Option<dir::GlobalTypeId> {
         self.node_types.get(&node).copied()
     }
 
-    /// Return one source symbol type operand.
-    pub(in crate::check) fn symbol_type(&self, symbol: dir::GlobalSymbolId) -> Option<TypeOperand> {
+    /// Return the type of one source symbol.
+    pub(in crate::check) fn symbol_type(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<dir::GlobalTypeId> {
         self.symbol_types.get(&symbol).copied()
     }
 
-    /// Return one source node static operand.
-    pub(in crate::check) fn node_static(
-        &self,
-        node: dir::GlobalNodeIdAny,
-    ) -> Option<StaticOperand> {
-        self.node_statics.get(&node).copied()
-    }
-
-    /// Return one source symbol static operand.
-    pub(in crate::check) fn symbol_static(
+    /// Return the static value of one source symbol.
+    pub(in crate::check) fn symbol_value(
         &self,
         symbol: dir::GlobalSymbolId,
-    ) -> Option<StaticOperand> {
-        self.symbol_statics.get(&symbol).copied()
+    ) -> Option<dir::GlobalTypeId> {
+        self.symbol_values.get(&symbol).copied()
     }
 
-    /// Return one operand keyed by committed type id.
-    pub(in crate::check) fn r#type(&self, id: dir::GlobalTypeId) -> Option<TypeOperand> {
-        self.types.get(&id).copied()
-    }
-
-    /// Upsert one operand keyed by committed type id.
-    pub(in crate::check) fn upsert_type(
-        &mut self,
-        id: dir::GlobalTypeId,
-        operand: TypeOperand,
-    ) -> CompilerResult<()> {
-        if let Some(previous) = self.types.get(&id) {
-            if *previous != operand {
-                return Err(CompilerError::Internal {
-                    message: format!("check type id {id:?} already has a different operand"),
-                });
-            }
-
-            return Ok(());
-        }
-
-        self.types.insert(id, operand);
-
-        Ok(())
-    }
-
-    /// Return one operand keyed by committed static id.
-    pub(in crate::check) fn r#static(&self, id: dir::GlobalStaticId) -> Option<StaticOperand> {
-        self.statics.get(&id).copied()
-    }
-
-    /// Upsert one operand keyed by committed static id.
-    pub(in crate::check) fn upsert_static(
-        &mut self,
-        id: dir::GlobalStaticId,
-        operand: StaticOperand,
-    ) -> CompilerResult<()> {
-        if let Some(previous) = self.statics.get(&id) {
-            if *previous != operand {
-                return Err(CompilerError::Internal {
-                    message: format!("check static id {id:?} already has a different operand"),
-                });
-            }
-
-            return Ok(());
-        }
-
-        self.statics.insert(id, operand);
-
-        Ok(())
-    }
-
-    /// Insert one source node type operand.
-    pub(in crate::check) fn insert_node_type(
-        &mut self,
-        node: dir::GlobalNodeIdAny,
-        operand: TypeOperand,
-    ) -> CompilerResult<TypeOperand> {
-        if self.node_types.contains_key(&node) {
-            return Err(CompilerError::Internal {
-                message: format!("check node {node:?} already has a type operand"),
-            });
-        }
-
-        self.node_types.insert(node, operand);
-
-        Ok(operand)
-    }
-
-    /// Insert one source node static operand.
-    pub(in crate::check) fn insert_node_static(
-        &mut self,
-        node: dir::GlobalNodeIdAny,
-        operand: StaticOperand,
-    ) -> CompilerResult<StaticOperand> {
-        if self.node_statics.contains_key(&node) {
-            return Err(CompilerError::Internal {
-                message: format!("check node {node:?} already has a static operand"),
-            });
-        }
-
-        self.node_statics.insert(node, operand);
-
-        Ok(operand)
-    }
-
-    /// Insert one source symbol type operand.
-    pub(in crate::check) fn insert_symbol_type(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        operand: TypeOperand,
-    ) -> CompilerResult<TypeOperand> {
-        if self.symbol_types.contains_key(&symbol) {
-            return Err(CompilerError::Internal {
-                message: format!("check symbol {symbol:?} already has a type operand"),
-            });
-        }
-
-        self.symbol_types.insert(symbol, operand);
-
-        Ok(operand)
-    }
-
-    /// Insert one source symbol static operand.
-    pub(in crate::check) fn insert_symbol_static(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        operand: StaticOperand,
-    ) -> CompilerResult<StaticOperand> {
-        if self.symbol_statics.contains_key(&symbol) {
-            return Err(CompilerError::Internal {
-                message: format!("check symbol {symbol:?} already has a static operand"),
-            });
-        }
-
-        self.symbol_statics.insert(symbol, operand);
-
-        Ok(operand)
-    }
-}
-
-impl CheckState<'_> {
-    /// Return one required node type operand.
-    pub(in crate::check) fn node_type_operand(
-        &self,
-        node: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<TypeOperand> {
-        if let Some(operand) = self.inputs.node_type(node) {
-            return Ok(operand);
-        }
-
-        // include the source location for missing walked node types
-        let module = self.module(node.module_id);
-        let span = module.view().get_span_by_id(node.local_id.id);
-
-        Err(CompilerError::Internal {
-            message: format!(
-                "check node {node:?} in {:?} at {span:?} has no type operand",
-                module.module.uri
-            ),
-        })
-    }
-
-    /// Return one required node static operand.
-    pub(in crate::check) fn node_static_operand(
-        &self,
-        node: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<StaticOperand> {
-        if let Some(operand) = self.inputs.node_static(node) {
-            return Ok(operand);
-        }
-
-        // include the source location for missing walked node statics
-        let module = self.module(node.module_id);
-        let span = module.view().get_span_by_id(node.local_id.id);
-
-        Err(CompilerError::Internal {
-            message: format!(
-                "check node {node:?} in {:?} at {span:?} has no static operand",
-                module.module.uri
-            ),
-        })
-    }
-
-    /// Return one required source symbol type operand.
-    pub(in crate::check) fn symbol_type_operand(
+    /// Iterate node types declared in one module.
+    pub(in crate::check) fn node_types_in(
         &self,
         module: ModuleId,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<TypeOperand> {
-        if let Some(operand) = self.inputs.symbol_type(symbol) {
-            return Ok(operand);
-        }
-
-        let symbol = self.dump_in_module(module, &symbol);
-
-        Err(CompilerError::Internal {
-            message: format!("check symbol {symbol} has no type operand"),
-        })
+    ) -> impl Iterator<Item = (dir::GlobalNodeIdAny, dir::GlobalTypeId)> + '_ {
+        self.node_types
+            .iter()
+            .filter_map(move |(node, ty)| (node.module_id == module).then_some((*node, *ty)))
     }
 
-    /// Return one required source symbol static operand.
-    pub(in crate::check) fn symbol_static_operand(
+    /// Iterate symbol types declared in one module.
+    pub(in crate::check) fn symbol_types_in(
         &self,
         module: ModuleId,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<StaticOperand> {
-        if let Some(operand) = self.inputs.symbol_static(symbol) {
-            return Ok(operand);
-        }
+    ) -> impl Iterator<Item = (dir::GlobalSymbolId, dir::GlobalTypeId)> + '_ {
+        self.symbol_types
+            .iter()
+            .filter_map(move |(symbol, ty)| (symbol.module_id == module).then_some((*symbol, *ty)))
+    }
 
-        let symbol = self.dump_in_module(module, &symbol);
-
-        Err(CompilerError::Internal {
-            message: format!("check symbol {symbol} has no static operand"),
-        })
+    /// Iterate symbol static values declared in one module.
+    pub(in crate::check) fn symbol_values_in(
+        &self,
+        module: ModuleId,
+    ) -> impl Iterator<Item = (dir::GlobalSymbolId, dir::GlobalTypeId)> + '_ {
+        self.symbol_values
+            .iter()
+            .filter_map(move |(symbol, value)| {
+                (symbol.module_id == module).then_some((*symbol, *value))
+            })
     }
 }

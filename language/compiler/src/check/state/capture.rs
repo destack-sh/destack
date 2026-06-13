@@ -1,7 +1,5 @@
 use destack_dir as dir;
 
-use crate::check::TypeOperand;
-
 /// Captures discovered for one walked function body.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(in crate::check) struct Capture {
@@ -21,7 +19,9 @@ pub(in crate::check) struct Receiver {
     /// The nominal owner that supplies contextual `this`, when any.
     pub(in crate::check) owner: Option<dir::GlobalSymbolId>,
     /// The receiver type.
-    pub(in crate::check) ty: TypeOperand,
+    pub(in crate::check) ty: dir::GlobalTypeId,
+    /// The superclass receiver type, when the owner extends one.
+    pub(in crate::check) super_ty: Option<dir::GlobalTypeId>,
 }
 
 /// Receiver binding visible in one lexical context.

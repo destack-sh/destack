@@ -4,16 +4,18 @@ use destack_artifact::{DirBound, DirExpanded, DirParsed, DirResolved, ProfileKey
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_repository::Module;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, Span};
 use indexmap::{IndexMap, IndexSet};
 
-use crate::check::{Capture, CheckError, CheckState, Condition};
+use crate::check::{Capture, CheckError, CheckState, CheckWarning, Condition};
 use crate::{CompilerError, CompilerResult};
 
 /// State owned by one module inside a checked component.
 pub(in crate::check) struct CheckModuleState {
     /// The requested source module.
     pub(in crate::check) module: Arc<Module>,
+    /// Out-of-component modules visible from this module.
+    pub(in crate::check) external_modules: IndexSet<ModuleId>,
     /// The active semantic profile.
     pub(in crate::check) profile: ProfileKey,
     /// The shared string pool.
@@ -27,19 +29,22 @@ pub(in crate::check) struct CheckModuleState {
     /// The expanded DIR input.
     pub(in crate::check) expanded: Arc<DirExpanded>,
 
-    /// Out-of-component modules visible from this module.
-    pub(in crate::check) external_modules: IndexSet<ModuleId>,
+    /// The cumulative binding table built once at load.
+    pub(in crate::check) bindings: dir::BindingTable<'static>,
+    /// The cumulative bound type table built once at load.
+    pub(in crate::check) types: dir::TypeTable<'static>,
+    /// Open check output accumulating for this module.
+    pub(in crate::check) working: WorkingSegments,
     /// Captures discovered while walking this module.
     pub(in crate::check) captures: Vec<Capture>,
     /// Static availability of declarations in this module.
     pub(in crate::check) availability: IndexMap<dir::GlobalSymbolId, Condition>,
+    /// Declarations whose guards decided statically false.
+    pub(in crate::check) unavailable: IndexSet<dir::GlobalSymbolId>,
     /// Diagnostics reported while walking this module.
-    pub(in crate::check) diagnostics: Vec<CheckError>,
-
-    /// Next check-owned generic template id.
-    next_generic_template_id: u32,
-    /// Next check-owned generic parameter id.
-    next_generic_parameter_id: u32,
+    pub(in crate::check) diagnostics: Vec<destack_artifact::DiagnosticBuilder<CheckError>>,
+    /// Warnings reported while walking this module.
+    pub(in crate::check) warnings: Vec<destack_artifact::DiagnosticBuilder<CheckWarning>>,
 }
 
 impl CheckModuleState {
@@ -53,6 +58,11 @@ impl CheckModuleState {
         resolved: Arc<DirResolved>,
         expanded: Arc<DirExpanded>,
     ) -> Self {
+        // build the layered tables once, every lookup reuses them
+        let bindings = expanded.binding_table(&bound);
+        let types = expanded.type_table(&bound);
+        let working = WorkingSegments::new(module.id, &expanded);
+
         Self {
             module,
             profile,
@@ -61,13 +71,25 @@ impl CheckModuleState {
             bound,
             resolved,
             expanded,
+            bindings,
+            types,
+            working,
             external_modules: IndexSet::new(),
             captures: Vec::new(),
             availability: IndexMap::new(),
+            unavailable: IndexSet::new(),
             diagnostics: Vec::new(),
-            next_generic_template_id: 0,
-            next_generic_parameter_id: 0,
+            warnings: Vec::new(),
         }
+    }
+
+    /// Move this module's working segments out for commit.
+    /// No read may follow the move; fresh empty segments replace them.
+    pub(in crate::check) fn take_working(&mut self) -> WorkingSegments {
+        std::mem::replace(
+            &mut self.working,
+            WorkingSegments::new(self.module.id, &self.expanded),
+        )
     }
 
     /// Return the post-expansion DIR tree view visible to check.
@@ -78,9 +100,24 @@ impl CheckModuleState {
         )
     }
 
+    /// Return the authored parse tree that source renders print.
+    pub(in crate::check) fn parsed_tree(&self) -> &dir::Tree {
+        &self.parsed.tree
+    }
+
+    /// Return whether one checked node was authored in source.
+    pub(in crate::check) fn is_authored(&self, node: dir::LocalNodeIdAny) -> bool {
+        self.parsed.tree.has_node_id(node.id)
+    }
+
+    /// Return the authored source span of one node.
+    pub(in crate::check) fn authored_span(&self, node: dir::LocalNodeIdAny) -> Span {
+        self.parsed.tree.source_index.get_main_or_enclosing(node.id)
+    }
+
     /// Return the cumulative binding table visible to check.
-    pub(in crate::check) fn binding_table(&self) -> dir::BindingTable<'static> {
-        self.expanded.binding_table(&self.bound)
+    pub(in crate::check) fn binding_table(&self) -> &dir::BindingTable<'static> {
+        &self.bindings
     }
 
     /// Return the symbol introduced by a source declaration node.
@@ -131,34 +168,13 @@ impl CheckModuleState {
     }
 
     /// Return the cumulative type table visible to check inputs.
-    pub(in crate::check) fn type_table(&self) -> dir::TypeTable<'static> {
-        self.expanded.type_table(&self.bound)
+    pub(in crate::check) fn type_table(&self) -> &dir::TypeTable<'static> {
+        &self.types
     }
 
-    /// Return the cumulative static table visible to check inputs.
-    pub(in crate::check) fn static_table(&self) -> dir::StaticTable<'static> {
-        self.expanded.static_table(&self.bound)
-    }
-
-    /// Return whether this module can read another module.
-    pub(in crate::check) fn imports_module(&self, module: ModuleId) -> bool {
-        self.external_modules.contains(&module)
-    }
-
-    /// Return one fresh generic template id owned by this module.
-    pub(in crate::check) fn fresh_generic_template_id(&mut self) -> dir::GlobalGenericTemplateId {
-        let local_id = dir::LocalGenericTemplateId::new(self.next_generic_template_id);
-        self.next_generic_template_id += 1;
-        local_id.into_global(self.module.id)
-    }
-
-    /// Return one local input type visible to check.
-    pub(in crate::check) fn r#type(&self, type_id: dir::LocalTypeId) -> &dir::Type {
-        if let Some(ty) = self.expanded.types.get_type_maybe(type_id) {
-            return ty;
-        }
-
-        self.bound.types.get_type(type_id)
+    /// Return one committed type when any bound segment carries it.
+    pub(in crate::check) fn type_maybe(&self, type_id: dir::LocalTypeId) -> Option<&dir::Type> {
+        self.types.get_type_maybe(type_id)
     }
 
     /// Return one local input static visible to check.
@@ -173,15 +189,6 @@ impl CheckModuleState {
     /// Return whether one local symbol is an imported alias.
     pub(in crate::check) fn is_import_alias(&self, symbol: dir::LocalSymbolId) -> bool {
         self.resolved.imports.symbol_target(symbol).is_some()
-    }
-
-    /// Return one fresh generic parameter id owned by this module.
-    pub(in crate::check) fn fresh_generic_parameter_id(&mut self) -> dir::GlobalGenericParameterId {
-        let local_id = dir::LocalGenericParameterId::new(self.next_generic_parameter_id);
-
-        self.next_generic_parameter_id += 1;
-
-        local_id.into_global(self.module.id)
     }
 }
 
@@ -208,22 +215,11 @@ impl CheckState<'_> {
     }
 
     /// Return one binding table by module.
-    pub(in crate::check) fn binding_table(&self, module: ModuleId) -> dir::BindingTable<'_> {
+    pub(in crate::check) fn binding_table(&self, module: ModuleId) -> &dir::BindingTable<'static> {
         if let Some(module) = self.modules.get(&module) {
             module.binding_table()
         } else {
-            self.external_module(module).bindings.clone()
-        }
-    }
-
-    /// Return one component or external type.
-    pub(in crate::check) fn r#type(&self, ty: dir::GlobalTypeId) -> &dir::Type {
-        if let Some(module) = self.modules.get(&ty.module_id) {
-            module.r#type(ty.local_id)
-        } else {
-            self.external_module(ty.module_id)
-                .types
-                .get_type(ty.local_id)
+            &self.external_module(module).bindings
         }
     }
 
@@ -244,5 +240,27 @@ impl CheckState<'_> {
         let symbol = binding_table.get_symbol(symbol.local_id);
 
         symbol.kind
+    }
+}
+
+/// Working segments accumulating open check output for one module.
+/// TODO #Cleanup: inline WorkingSegments
+pub(in crate::check) struct WorkingSegments {
+    /// Open types layered over the expanded table.
+    pub(in crate::check) types: dir::TypeSegment,
+    /// Checked declaration definitions.
+    pub(in crate::check) definitions: dir::DefinitionSegment,
+    /// Induced generic templates and parameters.
+    pub(in crate::check) generics: dir::GenericSegment,
+}
+
+impl WorkingSegments {
+    /// Create empty working segments over one expanded module.
+    fn new(module: ModuleId, expanded: &DirExpanded) -> Self {
+        Self {
+            types: dir::TypeSegment::from_base(&expanded.types),
+            definitions: dir::DefinitionSegment::new(module),
+            generics: dir::GenericSegment::new(module),
+        }
     }
 }

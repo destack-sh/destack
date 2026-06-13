@@ -280,7 +280,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         ty: dir::Type,
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.check.push_working_type(self.module, ty, source)
+        self.check.push_type(self.module, ty, source)
     }
 
     /// Return a reference type for one well-known library declaration.
