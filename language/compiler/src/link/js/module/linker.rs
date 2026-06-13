@@ -147,7 +147,7 @@ impl<'a> JsLinker<'a> {
                         return Err(LinkError::InvalidTarget {
                             anchor: (*module_id).into(),
                             package: self.package_id,
-                            target: self.target_id.clone(),
+                            target: *self.target_id,
                             message: format!(
                                 "linked output import binding collision for local name '{local_binding}'"
                             ),
@@ -226,8 +226,8 @@ impl<'a> JsLinker<'a> {
             return Err(LinkError::InvalidTarget {
                 anchor: self.package_id.into(),
                 package: self.package_id,
-                target: self.target_id.clone(),
-                message: format!("output.format '{}' is not implemented yet", format),
+                target: *self.target_id,
+                message: format!("output.format '{format}' is not implemented yet"),
             });
         }
 

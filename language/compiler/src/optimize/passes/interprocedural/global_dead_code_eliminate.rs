@@ -104,13 +104,10 @@ fn collect_used_globals(tree: &mir::Tree) -> HashSet<mir::LocalNodeId<mir::Globa
 
             for &instruction_id in &block.instructions {
                 // record direct global references
-                match tree.get(instruction_id) {
-                    mir::Instruction::GlobalAddr { global, .. } => {
-                        if let Some(global) = global.global() {
-                            used.insert(global);
-                        }
-                    }
-                    _ => {}
+                if let mir::Instruction::GlobalAddr { global, .. } = tree.get(instruction_id)
+                    && let Some(global) = global.global()
+                {
+                    used.insert(global);
                 }
             }
         }

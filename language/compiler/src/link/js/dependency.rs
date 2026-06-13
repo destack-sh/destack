@@ -115,7 +115,7 @@ fn collect_static_statement_dependency(
             ..
         } => {
             let specifier = module.strings.get(*target);
-            let target = js_dependency_target(&specifier, *target_module);
+            let target = js_dependency_target(specifier, *target_module);
 
             dependencies.push(StaticJsDependency {
                 form: *form,
@@ -129,7 +129,7 @@ fn collect_static_statement_dependency(
             ..
         } => {
             let specifier = module.strings.get(*target);
-            let target = js_dependency_target(&specifier, *target_module);
+            let target = js_dependency_target(specifier, *target_module);
 
             dependencies.push(StaticJsDependency {
                 form: *form,
@@ -181,7 +181,7 @@ impl<'a> DynamicDependencyCollector<'a> {
 
         let specifier = self.module.strings.get(*specifier);
 
-        Some(js_dependency_target(&specifier, target_module))
+        Some(js_dependency_target(specifier, target_module))
     }
 }
 

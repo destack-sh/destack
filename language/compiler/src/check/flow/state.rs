@@ -76,7 +76,7 @@ enum FlowMutation {
     /// One narrowing change.
     Narrow {
         /// The narrowed path.
-        path: FlowPath,
+        path: Box<FlowPath>,
         /// The previous narrowing at the same path.
         previous: Option<dir::GlobalTypeId>,
     },
@@ -370,7 +370,7 @@ impl FlowState {
         let previous = self.narrowings.get(&path).copied();
 
         self.mutations.push(FlowMutation::Narrow {
-            path: path.clone(),
+            path: Box::new(path.clone()),
             previous,
         });
         self.narrowings.insert(path, ty);
@@ -397,7 +397,7 @@ impl FlowState {
                     }
                 }
                 FlowMutation::Narrow { path, .. } => {
-                    narrowing_paths.insert(path.clone());
+                    narrowing_paths.insert(path.as_ref().clone());
                 }
             }
         }
@@ -442,9 +442,9 @@ impl FlowState {
                 FlowMutation::Narrow { path, previous } => {
                     // restore previous narrowing state
                     if let Some(previous) = previous {
-                        self.narrowings.insert(path, previous);
+                        self.narrowings.insert(*path, previous);
                     } else {
-                        self.narrowings.shift_remove(&path);
+                        self.narrowings.shift_remove(path.as_ref());
                     }
                 }
             }
@@ -533,7 +533,7 @@ impl FlowState {
         let previous = self.narrowings.get(&path).copied();
 
         self.mutations.push(FlowMutation::Narrow {
-            path: path.clone(),
+            path: Box::new(path.clone()),
             previous,
         });
         self.narrowings.shift_remove(&path);

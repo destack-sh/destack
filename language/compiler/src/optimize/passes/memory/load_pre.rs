@@ -507,7 +507,7 @@ fn reusable_predecessor_load(
         }
 
         // require the same incoming memory state
-        let load_clobber = memory_ssa.clobbering_access_for_use(use_access_id, alias, tree);
+        let load_clobber = memory_ssa.clobbering_access_for_use(use_access_id, alias);
         if load_clobber == incoming_access {
             reusable = destination.value();
         }

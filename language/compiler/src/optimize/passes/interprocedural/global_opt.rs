@@ -346,16 +346,15 @@ fn collect_written_globals(
 
                 if let mir::Instruction::CallIndirect { call, .. } = instruction
                     && call_writes_memory(tree, instruction_id, instruction)
+                    && any_argument_global(&call.arguments, &definitions, addr_info, tree)
                 {
-                    if any_argument_global(&call.arguments, &definitions, addr_info, tree) {
-                        written.extend(globals_from_arguments(
-                            &call.arguments,
-                            &definitions,
-                            addr_info,
-                            tree,
-                        ));
-                        continue;
-                    }
+                    written.extend(globals_from_arguments(
+                        &call.arguments,
+                        &definitions,
+                        addr_info,
+                        tree,
+                    ));
+                    continue;
                 }
             }
 

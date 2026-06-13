@@ -1026,7 +1026,7 @@ fn unsigned_bounds_for_value(
         is_signed,
     }) = ranges.exit(preheader).get(value)
     {
-        if !*is_signed && *width as u16 == bound_width && *min >= 0 {
+        if !*is_signed && *width == bound_width && *min >= 0 {
             return Some((*min, *max));
         }
 
@@ -1037,7 +1037,7 @@ fn unsigned_bounds_for_value(
     let constant = constant_for_value(value, value_definitions, tree)?;
     match constant {
         mir::Constant::UInt { value, width } => {
-            if width as u16 == bound_width {
+            if width == bound_width {
                 let value = value as i128;
                 Some((value, value))
             } else {
@@ -1049,11 +1049,10 @@ fn unsigned_bounds_for_value(
             width,
             is_signed: _,
         } => {
-            if width as u16 != bound_width || value < 0 {
+            if width != bound_width || value < 0 {
                 return None;
             }
 
-            let value = value as i128;
             Some((value, value))
         }
         _ => None,
@@ -1179,7 +1178,7 @@ fn emit_copy_length(
     });
     block.instructions.push(length_inst);
 
-    Some(tree.get(length_inst).destination().unwrap().value()?)
+    tree.get(length_inst).destination().unwrap().value()
 }
 
 /// Check whether a value is loop invariant.

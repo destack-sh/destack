@@ -115,8 +115,7 @@ impl JsLinker<'_> {
                 anchor: (self.package_id).into(),
                 package: self.package_id,
                 message: format!(
-                    "missing bound source context for minify module {:?} profile {:?}: {error:?}",
-                    module_id, profile_id
+                    "missing bound source context for minify module {module_id:?} profile {profile_id:?}: {error:?}"
                 ),
             })?;
 
@@ -276,8 +275,7 @@ impl JsLinker<'_> {
                         anchor: (self.package_id).into(),
                         package: self.package_id,
                         message: format!(
-                            "missing source context for scope module {:?} profile {:?}",
-                            module_id, profile_id
+                            "missing source context for scope module {module_id:?} profile {profile_id:?}"
                         ),
                     })?;
                 let scope = source_context.symbols.get_scope_by_id(scope_id);

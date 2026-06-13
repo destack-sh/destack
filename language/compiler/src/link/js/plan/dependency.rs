@@ -27,8 +27,7 @@ impl JsLinker<'_> {
                 anchor: (package_id).into(),
                 package: package_id,
                 message: format!(
-                    "missing module output for module {:?} target '{}': {error:?}",
-                    module_id, target_id
+                    "missing module output for module {module_id:?} target '{target_id}': {error:?}"
                 ),
             })?;
         let ModuleOutput::Js(script) = artifact.as_ref() else {
@@ -36,8 +35,7 @@ impl JsLinker<'_> {
                 anchor: (package_id).into(),
                 package: package_id,
                 message: format!(
-                    "expected JS output for module {:?} target '{}'",
-                    module_id, target_id
+                    "expected JS output for module {module_id:?} target '{target_id}'"
                 ),
             });
         };
@@ -116,7 +114,7 @@ impl JsLinker<'_> {
             return Err(LinkError::InvalidTarget {
                 anchor: span.into(),
                 package: package_id,
-                target: target_id.clone(),
+                target: *target_id,
                 message: format!(
                     "dependencies.onlyBundle does not allow bundled dependency '{specifier}'"
                 ),

@@ -79,7 +79,7 @@ impl<'a> JsLinker<'a> {
             let output_name = manual_output_names.get(module_id).map(String::as_str);
             let group = self.output_group(
                 *module_id,
-                &dynamic_target_modules,
+                dynamic_target_modules,
                 static_entry_sets,
                 dynamic_target_sets,
             );
@@ -160,7 +160,7 @@ impl<'a> JsLinker<'a> {
             return Err(LinkError::InvalidTarget {
                 anchor: self.package_id.into(),
                 package: self.package_id,
-                target: self.target_id.clone(),
+                target: *self.target_id,
                 message: format!(
                     "bundled opaque dynamic imports are not supported yet in '{}'",
                     self.target_name()
@@ -234,7 +234,7 @@ impl<'a> JsLinker<'a> {
                     return Err(LinkError::InvalidTarget {
                         anchor: self.package_id.into(),
                         package: self.package_id,
-                        target: self.target_id.clone(),
+                        target: *self.target_id,
                         message: format!(
                             "manualChunks['{output_name}'] references unknown linked module '{module_path}'"
                         ),
@@ -247,7 +247,7 @@ impl<'a> JsLinker<'a> {
                     return Err(LinkError::InvalidTarget {
                         anchor: self.package_id.into(),
                         package: self.package_id,
-                        target: self.target_id.clone(),
+                        target: *self.target_id,
                         message: format!(
                             "linked module '{module_path}' is assigned to both manual chunks '{previous_name}' and '{output_name}'"
                         ),
@@ -322,13 +322,13 @@ impl<'a> JsLinker<'a> {
     ) -> Option<(OutputKind, Vec<ModuleId>)> {
         // direct import() targets need their own lazy grouping even when
         // one eager entry also reaches the same module statically
-        if dynamic_target_modules.contains(&module_id) {
-            if let Some(entry_set) = dynamic_target_sets.get(&module_id) {
-                return Some((
-                    OutputKind::DynamicEntry,
-                    entry_set.iter().copied().collect(),
-                ));
-            }
+        if dynamic_target_modules.contains(&module_id)
+            && let Some(entry_set) = dynamic_target_sets.get(&module_id)
+        {
+            return Some((
+                OutputKind::DynamicEntry,
+                entry_set.iter().copied().collect(),
+            ));
         }
 
         // keep eagerly reachable modules in eager groups even when lazy subgraphs also use them

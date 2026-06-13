@@ -995,7 +995,7 @@ fn rewrite_inlined_returns(
         let new_terminator = mir::Terminator::Jump {
             target: mir::BlockTarget {
                 block: continuation.into(),
-                arguments: arguments.into_iter().map(Into::into).collect(),
+                arguments: arguments.into_iter().collect(),
             },
         };
         tree.set(block.terminator, new_terminator);

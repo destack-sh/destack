@@ -158,13 +158,12 @@ impl<'a> JsLinker<'a> {
                     return Err(LinkError::InvalidTarget {
                         anchor: (*module_id).into(),
                         package: self.package_id,
-                        target: self.target_id.clone(),
+                        target: *self.target_id,
                         message: format!(
                             "bundled dynamic import '{}' is not implemented yet",
                             dependency_target.specifier()
                         ),
-                    }
-                    .into());
+                    });
                 }
 
                 module_set
@@ -370,7 +369,7 @@ impl<'a> JsLinker<'a> {
             .build_output_layout(&output_graph)
             .map_err(CompilerError::from)?;
         let asset_reference_map = self
-            .plan_asset_references(asset_module_id_set.into_iter())
+            .plan_asset_references(asset_module_id_set)
             .map_err(CompilerError::from)?;
 
         Ok(Plan::new(

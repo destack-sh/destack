@@ -130,7 +130,7 @@ pub(super) fn instruction_consumes(
                     continue;
                 };
 
-                values.push(value.into());
+                values.push(value);
             }
         }
         _ => {}

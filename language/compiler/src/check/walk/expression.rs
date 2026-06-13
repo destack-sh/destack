@@ -1427,9 +1427,6 @@ impl WalkState<'_, '_> {
                     let body = *body;
                     elements.push(self.node_type(body)?);
 
-                    // block bodies carry their own node types
-                    let case_flow_done = ();
-                    let _ = case_flow_done;
                     if self.match_case_can_complete_normally(self.tree.get(*case)) {
                         let case_flow = self.collect_flow_branch(before);
                         merged = match merged.take() {

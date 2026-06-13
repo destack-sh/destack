@@ -29,8 +29,7 @@ impl Compiler {
                 anchor: module.into(),
                 module,
                 message: format!(
-                    "target '{}' resolved to profile '{resolved_profile:?}', not '{profile:?}'",
-                    target_name
+                    "target '{target_name}' resolved to profile '{resolved_profile:?}', not '{profile:?}'"
                 ),
             }
             .into());

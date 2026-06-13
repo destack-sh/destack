@@ -981,7 +981,7 @@ fn signed_min_from_range(range: &IntegerRange) -> Option<i128> {
         return None;
     }
 
-    signed_min_for_width(range.width as u16)
+    signed_min_for_width(range.width)
 }
 
 /// Compute the signed minimum value for a bit width.
@@ -1533,8 +1533,8 @@ impl<'a> ScevMaterializer<'a> {
             mir::Constant::Boolean { .. } => self.tree.boolean_type(),
             mir::Constant::Int {
                 width, is_signed, ..
-            } => self.int_type(*width as u16, *is_signed)?,
-            mir::Constant::UInt { width, .. } => self.int_type(*width as u16, false)?,
+            } => self.int_type(*width, *is_signed)?,
+            mir::Constant::UInt { width, .. } => self.int_type(*width, false)?,
             mir::Constant::Float { format, .. } => self.tree.float_type(*format),
             mir::Constant::Char { .. } => self.int_type(32, false)?,
         };
@@ -1641,9 +1641,7 @@ impl<'a> ScevMaterializer<'a> {
 
         // materialize inline operands
         for operand in instruction.uses() {
-            let Some(operand) = operand.value() else {
-                return None;
-            };
+            let operand = operand.value()?;
 
             let mapped = self.materialize_value(function, operand)?;
             value_map.insert(operand, mapped);
@@ -1653,9 +1651,7 @@ impl<'a> ScevMaterializer<'a> {
         if let Some(args_slice) = instruction.argument_slice() {
             let arguments = self.tree.get_arguments(args_slice).to_vec();
             for operand in arguments {
-                let Some(operand) = operand.value() else {
-                    return None;
-                };
+                let operand = operand.value()?;
 
                 let mapped = self.materialize_value(function, operand)?;
                 value_map.insert(operand, mapped);
@@ -1832,7 +1828,7 @@ impl<'a> ScevMaterializer<'a> {
                         return true;
                     }
 
-                    *value as i128 != signed_min_value(*width)
+                    *value != signed_min_value(*width)
                 }
                 mir::Constant::UInt { .. } => true,
                 _ => false,

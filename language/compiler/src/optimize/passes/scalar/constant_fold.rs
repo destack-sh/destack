@@ -117,16 +117,16 @@ fn run_constant_fold(
                         continue;
                     };
                     let Some(left) = left.value() else {
-                        block_constants.remove(&destination);
+                        block_constants.remove(destination);
                         continue;
                     };
                     let Some(right) = right.value() else {
-                        block_constants.remove(&destination);
+                        block_constants.remove(destination);
                         continue;
                     };
 
-                    let left_const = block_constants.get(&left);
-                    let right_const = block_constants.get(&right);
+                    let left_const = block_constants.get(left);
+                    let right_const = block_constants.get(right);
 
                     if let (Some(left_val), Some(right_val)) = (left_const, right_const)
                         && let Some(result) =
@@ -140,7 +140,7 @@ fn run_constant_fold(
                         block_constants.insert(destination, result);
                         changed = true;
                     } else {
-                        block_constants.remove(&destination);
+                        block_constants.remove(destination);
                     }
                 }
 
@@ -154,11 +154,11 @@ fn run_constant_fold(
                         continue;
                     };
                     let Some(argument) = argument.value() else {
-                        block_constants.remove(&destination);
+                        block_constants.remove(destination);
                         continue;
                     };
 
-                    if let Some(arg_const) = block_constants.get(&argument)
+                    if let Some(arg_const) = block_constants.get(argument)
                         && let Some(result) = fold_unary(*operator, arg_const.clone())
                     {
                         let new_instruction = mir::Instruction::Const {
@@ -169,7 +169,7 @@ fn run_constant_fold(
                         block_constants.insert(destination, result);
                         changed = true;
                     } else {
-                        block_constants.remove(&destination);
+                        block_constants.remove(destination);
                     }
                 }
 
@@ -184,20 +184,20 @@ fn run_constant_fold(
                         continue;
                     };
                     let Some(condition) = condition.value() else {
-                        block_constants.remove(&destination);
+                        block_constants.remove(destination);
                         continue;
                     };
                     let Some(then_value) = then_value.value() else {
-                        block_constants.remove(&destination);
+                        block_constants.remove(destination);
                         continue;
                     };
                     let Some(else_value) = else_value.value() else {
-                        block_constants.remove(&destination);
+                        block_constants.remove(destination);
                         continue;
                     };
 
                     if let Some(mir::Constant::Boolean { value: cond_val }) =
-                        block_constants.get(&condition)
+                        block_constants.get(condition)
                     {
                         let selected = if *cond_val { then_value } else { else_value };
 
@@ -214,11 +214,11 @@ fn run_constant_fold(
                             // condition is constant but selected value isn't
                             substitutions.insert(destination, selected);
                             to_remove.insert(instruction_id);
-                            block_constants.remove(&destination);
+                            block_constants.remove(destination);
                             changed = true;
                         }
                     } else {
-                        block_constants.remove(&destination);
+                        block_constants.remove(destination);
                     }
                 }
                 mir::Instruction::Cast {
@@ -232,15 +232,15 @@ fn run_constant_fold(
                         continue;
                     };
                     let Some(argument) = argument.value() else {
-                        block_constants.remove(&destination);
+                        block_constants.remove(destination);
                         continue;
                     };
                     let Some(to_type) = to_type.ty() else {
-                        block_constants.remove(&destination);
+                        block_constants.remove(destination);
                         continue;
                     };
 
-                    if let Some(arg_const) = block_constants.get(&argument)
+                    if let Some(arg_const) = block_constants.get(argument)
                         && let Some(result) = fold_cast(
                             *operator,
                             arg_const.clone(),
@@ -257,7 +257,7 @@ fn run_constant_fold(
                         block_constants.insert(destination, result);
                         changed = true;
                     } else {
-                        block_constants.remove(&destination);
+                        block_constants.remove(destination);
                     }
                 }
                 mir::Instruction::Intrinsic {
@@ -277,7 +277,7 @@ fn run_constant_fold(
                             constant_arguments.clear();
                             break;
                         };
-                        let Some(constant) = block_constants.get(&argument) else {
+                        let Some(constant) = block_constants.get(argument) else {
                             constant_arguments.clear();
                             break;
                         };
@@ -294,18 +294,18 @@ fn run_constant_fold(
                             block_constants.insert(destination, result);
                             changed = true;
                         } else {
-                            block_constants.remove(&destination);
+                            block_constants.remove(destination);
                         }
                     } else {
-                        block_constants.remove(&destination);
+                        block_constants.remove(destination);
                     }
                 }
                 _ => {
                     // clear destinations for unknown instructions
-                    if let Some(dest) = destination {
-                        if let Some(dest) = dest.value() {
-                            block_constants.remove(&dest);
-                        }
+                    if let Some(dest) = destination
+                        && let Some(dest) = dest.value()
+                    {
+                        block_constants.remove(dest);
                     }
                 }
             }
@@ -390,7 +390,7 @@ fn fold_terminators(
                 let Some(condition) = condition.value() else {
                     continue;
                 };
-                let condition_constant = exit_constants.get(&condition);
+                let condition_constant = exit_constants.get(condition);
                 let condition_value = match condition_constant {
                     Some(mir::Constant::Boolean { value }) => Some(*value),
                     _ => None,
@@ -413,7 +413,7 @@ fn fold_terminators(
                 let Some(value) = value.value() else {
                     continue;
                 };
-                let constant_value = exit_constants.get(&value);
+                let constant_value = exit_constants.get(value);
                 let selected = match constant_value {
                     Some(mir::Constant::Int { value, .. }) => Some(*value),
                     Some(mir::Constant::UInt { value, .. }) => i128::try_from(*value).ok(),

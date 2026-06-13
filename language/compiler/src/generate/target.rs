@@ -1,4 +1,4 @@
-use crate::{Compiler, CompilerError, CompilerResult, GenerateError};
+use crate::{Compiler, CompilerResult, GenerateError};
 use destack_artifact::{ArtifactKey, ModuleOutput};
 use destack_repository::{ArtifactReader, ProviderContext, Target};
 
@@ -67,20 +67,16 @@ impl Compiler {
     ) -> CompilerResult<ModuleOutput> {
         // dispatch through the selected code generation family
         if target.uses_js_generate_pipeline() {
-            return self
-                .generate_js_module_output(module_id, &target, profile, context, artifacts)
-                .map_err(CompilerError::from);
+            return self.generate_js_module_output(module_id, target, profile, context, artifacts);
         }
 
         // native code generation
         #[cfg(feature = "native")]
         {
             if target.uses_native_generate_pipeline() {
-                return self
-                    .generate_native_module_output(
-                        module_id, &target, target_id, profile, context, artifacts,
-                    )
-                    .map_err(CompilerError::from);
+                return self.generate_native_module_output(
+                    module_id, target, target_id, profile, context, artifacts,
+                );
             }
         }
 

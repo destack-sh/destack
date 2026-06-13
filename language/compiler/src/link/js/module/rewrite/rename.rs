@@ -873,7 +873,7 @@ impl JsLinker<'_> {
                 .ok_or_else(|| LinkError::Internal {
                     anchor: (self.package_id).into(),
                     package: self.package_id,
-                    message: format!("missing minify binding entry for symbol {:?}", symbol_id),
+                    message: format!("missing minify binding entry for symbol {symbol_id:?}"),
                 })?;
 
             symbols.push((symbol_id, entry));

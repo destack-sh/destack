@@ -82,7 +82,7 @@ impl<'a> StaticContext<'a> {
             dir::ScalarLiteral::String(value) => {
                 Ok(StaticValue::String(self.strings.get(*value).to_string()))
             }
-            _ => Ok(StaticValue::Scalar(value.clone())),
+            _ => Ok(StaticValue::Scalar(*value)),
         }
     }
 

@@ -614,7 +614,7 @@ fn process_block(
             }
 
             // compute the clobbering access for the load
-            let clobber = memory_ssa.clobbering_access_for_use(use_access_id, alias, tree);
+            let clobber = memory_ssa.clobbering_access_for_use(use_access_id, alias);
             if matches!(memory_ssa.access(clobber), MemoryAccess::Phi(_)) {
                 continue;
             }

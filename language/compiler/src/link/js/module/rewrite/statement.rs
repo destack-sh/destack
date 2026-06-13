@@ -39,7 +39,7 @@ impl Rewriter<'_, '_> {
             }
         };
 
-        let minified_name = if self.can_use_identifier_property_name(&content) {
+        let minified_name = if self.can_use_identifier_property_name(content) {
             js::Name::Identifier(string_id)
         } else {
             js::Name::String(string_id)

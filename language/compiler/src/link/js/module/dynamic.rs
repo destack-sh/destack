@@ -94,7 +94,7 @@ impl JsLinker<'_> {
             return Err(LinkError::InvalidTarget {
                 anchor: module_id.into(),
                 package: self.package_id,
-                target: self.target_id.clone(),
+                target: *self.target_id,
                 message: format!(
                     "bundled same-output dynamic imports are not supported yet in '{}'",
                     self.target_name()

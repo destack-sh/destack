@@ -382,7 +382,7 @@ fn collect_live_defs(
                 match memory_ssa.access(access_id) {
                     MemoryAccess::Use(_use_access) => {
                         // record the def that feeds this use
-                        let clobber = memory_ssa.clobbering_access_for_use(access_id, aa, tree);
+                        let clobber = memory_ssa.clobbering_access_for_use(access_id, aa);
                         record_live_clobber(clobber, memory_ssa, &mut live_defs);
                     }
                     MemoryAccess::Def(def_access) => {
@@ -396,7 +396,6 @@ fn collect_live_defs(
                             access_id,
                             &def_access.effect.location,
                             aa,
-                            tree,
                         );
                         record_live_clobber(clobber, memory_ssa, &mut live_defs);
                     }

@@ -109,12 +109,11 @@ impl Rewriter<'_, '_> {
         then_expression: js::LocalNodeId<js::Expression>,
         else_expression: js::LocalNodeId<js::Expression>,
     ) -> Option<(js::Expression, Option<js::ScriptSymbolId>)> {
-        if self.output_uses_es2020_syntax() {
-            if let Some(expression) =
+        if self.output_uses_es2020_syntax()
+            && let Some(expression) =
                 self.fold_es2020_ternary(condition, then_expression, else_expression)
-            {
-                return Some((expression, None));
-            }
+        {
+            return Some((expression, None));
         }
 
         if let Some(rewritten) = self.fold_literal_ternary_with_symbol(
@@ -236,9 +235,7 @@ impl Rewriter<'_, '_> {
         operator: js::BinaryOperator,
         right: js::LocalNodeId<js::Expression>,
     ) -> Option<js::Expression> {
-        let Some(left_truthiness) = self.literal_truthiness(module, left) else {
-            return None;
-        };
+        let left_truthiness = self.literal_truthiness(module, left)?;
 
         match operator {
             js::BinaryOperator::And => {
@@ -366,9 +363,7 @@ impl Rewriter<'_, '_> {
         then_expression: js::LocalNodeId<js::Expression>,
         else_expression: js::LocalNodeId<js::Expression>,
     ) -> Option<js::Expression> {
-        let Some(condition_truthiness) = self.literal_truthiness(module, condition) else {
-            return None;
-        };
+        let condition_truthiness = self.literal_truthiness(module, condition)?;
 
         if condition_truthiness {
             Some(module.tree.get(then_expression).clone())

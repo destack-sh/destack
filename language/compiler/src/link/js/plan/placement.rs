@@ -246,7 +246,7 @@ impl<'a> JsLinker<'a> {
                 return Err(LinkError::InvalidTarget {
                     anchor: self.package_id.into(),
                     package: self.package_id,
-                    target: self.target_id.clone(),
+                    target: *self.target_id,
                     message: format!(
                         "multiple JS outputs resolve to the same emitted path '{}'",
                         output_location.path().display()

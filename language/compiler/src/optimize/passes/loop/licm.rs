@@ -600,7 +600,7 @@ fn load_is_hoistable(
     }
 
     // resolve the clobbering access before the load
-    let clobber = memory_ssa.clobbering_access_for_use(load_access, alias, tree);
+    let clobber = memory_ssa.clobbering_access_for_use(load_access, alias);
     match memory_ssa.access(clobber) {
         MemoryAccess::LiveOnEntry => true,
         MemoryAccess::Def(def_access) => {
@@ -696,7 +696,7 @@ fn read_only_access_is_hoistable(
             return false;
         }
 
-        let clobber = memory_ssa.clobbering_access_for_use(*use_access, alias, tree);
+        let clobber = memory_ssa.clobbering_access_for_use(*use_access, alias);
         match memory_ssa.access(clobber) {
             MemoryAccess::LiveOnEntry => {}
             MemoryAccess::Def(def_access) => {
@@ -859,8 +859,8 @@ fn integer_range_from_constant(constant: &mir::Constant) -> Option<IntegerRange>
             width,
             is_signed,
         } => Some(IntegerRange {
-            min: *value as i128,
-            max: *value as i128,
+            min: *value,
+            max: *value,
             width: *width,
             is_signed: *is_signed,
         }),

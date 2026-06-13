@@ -437,7 +437,6 @@ impl MemorySSA {
         &self,
         use_access: MemoryAccessId,
         alias: &crate::common::mir::analysis::AliasAnalysis,
-        tree: &mir::Tree,
     ) -> MemoryAccessId {
         // read the memory use location
         let MemoryAccess::Use(use_access_data) = self.access(use_access) else {
@@ -455,14 +454,7 @@ impl MemorySSA {
         // compute the clobbering access
         let mut cache = HashMap::new();
         let mut visiting = HashSet::new();
-        self.clobbering_access(
-            defining_access,
-            &query,
-            alias,
-            tree,
-            &mut cache,
-            &mut visiting,
-        )
+        self.clobbering_access(defining_access, &query, alias, &mut cache, &mut visiting)
     }
 
     /// Compute the clobbering access for a memory def.
@@ -470,7 +462,6 @@ impl MemorySSA {
         &self,
         def_access: MemoryAccessId,
         alias: &crate::common::mir::analysis::AliasAnalysis,
-        tree: &mir::Tree,
     ) -> MemoryAccessId {
         // read the memory def location
         let MemoryAccess::Def(def_access_data) = self.access(def_access) else {
@@ -488,14 +479,7 @@ impl MemorySSA {
         // compute the clobbering access
         let mut cache = HashMap::new();
         let mut visiting = HashSet::new();
-        self.clobbering_access(
-            defining_access,
-            &query,
-            alias,
-            tree,
-            &mut cache,
-            &mut visiting,
-        )
+        self.clobbering_access(defining_access, &query, alias, &mut cache, &mut visiting)
     }
 
     /// Compute the clobbering access for a read at the given location.
@@ -504,7 +488,6 @@ impl MemorySSA {
         access_id: MemoryAccessId,
         location: &MemoryAccessLocation,
         alias: &crate::common::mir::analysis::AliasAnalysis,
-        tree: &mir::Tree,
     ) -> MemoryAccessId {
         // resolve the defining access for this read
         let defining_access = self
@@ -517,14 +500,7 @@ impl MemorySSA {
         // compute the clobbering access
         let mut cache = HashMap::new();
         let mut visiting = HashSet::new();
-        self.clobbering_access(
-            defining_access,
-            &query,
-            alias,
-            tree,
-            &mut cache,
-            &mut visiting,
-        )
+        self.clobbering_access(defining_access, &query, alias, &mut cache, &mut visiting)
     }
 
     /// Check if a def access clobbers the given location.
@@ -573,7 +549,6 @@ impl MemorySSA {
         access_id: MemoryAccessId,
         query: &MemoryAccessQuery,
         alias: &crate::common::mir::analysis::AliasAnalysis,
-        tree: &mir::Tree,
         cache: &mut HashMap<(MemoryAccessId, MemoryAccessQuery), MemoryAccessId>,
         visiting: &mut HashSet<MemoryAccessId>,
     ) -> MemoryAccessId {
@@ -597,7 +572,7 @@ impl MemorySSA {
                 let defining_access = use_access
                     .defining_access
                     .expect("memory use missing defining access");
-                self.clobbering_access(defining_access, query, alias, tree, cache, visiting)
+                self.clobbering_access(defining_access, query, alias, cache, visiting)
             }
 
             MemoryAccess::Def(def_access) => {
@@ -607,7 +582,7 @@ impl MemorySSA {
                     let defining_access = def_access
                         .defining_access
                         .expect("memory def missing defining access");
-                    self.clobbering_access(defining_access, query, alias, tree, cache, visiting)
+                    self.clobbering_access(defining_access, query, alias, cache, visiting)
                 }
             }
 
@@ -615,8 +590,7 @@ impl MemorySSA {
                 let mut incoming_clobber: Option<MemoryAccessId> = None;
 
                 for (_, incoming) in &phi.incoming {
-                    let clobber =
-                        self.clobbering_access(*incoming, query, alias, tree, cache, visiting);
+                    let clobber = self.clobbering_access(*incoming, query, alias, cache, visiting);
                     match incoming_clobber {
                         Some(existing) if existing != clobber => {
                             incoming_clobber = Some(access_id);
@@ -2102,7 +2076,7 @@ b0:
             .expect("missing load access");
 
         // clobbering access should be the store to v0
-        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &test.tree);
+        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias);
         assert_eq!(clobber, store_access);
     }
 
@@ -2209,7 +2183,7 @@ b0(v0: ref<int32, raw>):
             .access_for_instruction(load_inst)
             .expect("missing load access");
 
-        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &test.tree);
+        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias);
         assert_eq!(clobber, memory_ssa.live_on_entry());
     }
 
@@ -2261,7 +2235,7 @@ b0:
             .expect("missing store access");
 
         // clobber should follow the metadata target
-        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &test.tree);
+        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias);
         assert_eq!(clobber, store_access);
     }
 
