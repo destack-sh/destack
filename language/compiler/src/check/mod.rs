@@ -2,7 +2,6 @@ mod commit;
 mod decorator;
 mod error;
 mod flow;
-mod graph;
 mod language;
 mod obligation;
 mod provide;
@@ -19,7 +18,6 @@ pub use warning::*;
 
 pub(in crate::check) use decorator::*;
 pub(in crate::check) use flow::*;
-pub(in crate::check) use graph::*;
 pub(in crate::check) use language::*;
 pub(in crate::check) use obligation::*;
 pub(in crate::check) use reify::*;
