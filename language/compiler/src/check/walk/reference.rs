@@ -278,9 +278,9 @@ impl WalkState<'_, '_> {
         // TODO(check): match named associated arguments onto their
         // declared parameter names instead of written order.
         let mut arguments = Vec::with_capacity(parameters.len());
-        let mut spelled = applied.iter().map(|(_, argument)| *argument);
+        let mut written = applied.iter().map(|(_, argument)| *argument);
         for _parameter in parameters {
-            let argument = match spelled.next() {
+            let argument = match written.next() {
                 Some(argument) => argument,
                 // missing positions stay open for inference
                 None => self.open_type(source)?,

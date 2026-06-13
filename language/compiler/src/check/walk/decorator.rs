@@ -54,13 +54,13 @@ impl WalkState<'_, '_> {
             name,
             dir::SymbolSpace::Value,
         );
-        if let NameLookup::Found(candidate) = lookup {
-            if let Some(symbol) = candidate.symbol() {
-                let resolution = dir::NameResolution::new(symbol);
+        if let NameLookup::Found(candidate) = lookup
+            && let Some(symbol) = candidate.symbol()
+        {
+            let resolution = dir::NameResolution::new(symbol);
 
-                self.check
-                    .record_decision(source, Decision::Name(resolution))?;
-            }
+            self.check
+                .record_decision(source, Decision::Name(resolution))?;
         }
 
         Ok(())

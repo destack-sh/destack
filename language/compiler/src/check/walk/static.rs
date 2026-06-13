@@ -119,13 +119,13 @@ impl WalkState<'_, '_> {
             GuardOutcome::Present(condition) => {
                 // store availability after combining enclosing guards
                 let combined = self.active_static_guard().and(condition.clone());
-                if let Some(symbol) = symbol {
-                    if combined != Condition::Always {
-                        self.check
-                            .module_mut(self.module)
-                            .availability
-                            .insert(symbol, combined);
-                    }
+                if let Some(symbol) = symbol
+                    && combined != Condition::Always
+                {
+                    self.check
+                        .module_mut(self.module)
+                        .availability
+                        .insert(symbol, combined);
                 }
 
                 self.flow_mut().push_static_guard(condition);
@@ -240,10 +240,10 @@ impl WalkState<'_, '_> {
 
             context.evaluate_expression(expression).ok()
         };
-        if let Some(value) = evaluated {
-            if let Some(literal) = self.static_value_literal(value) {
-                return self.push_type(dir::Type::Literal(literal), source);
-            }
+        if let Some(value) = evaluated
+            && let Some(literal) = self.static_value_literal(value)
+        {
+            return self.push_type(dir::Type::Literal(literal), source);
         }
 
         match self.tree.get(expression) {
@@ -253,13 +253,26 @@ impl WalkState<'_, '_> {
 
                 self.lower_static_predicate(expression)
             }
+            // type
+            dir::Expression::Type { value } => {
+                let value = *value;
+                if let dir::TypeExpression::Infer {
+                    form: dir::InferForm::Hole,
+                    ..
+                } = self.tree.get(value)
+                {
+                    return self.node_type_any(value.into_global_any(self.module));
+                }
+
+                self.walk_type_expression(value)
+            }
             // 1
             dir::Expression::ScalarLiteral(value) => {
                 let value = *value;
 
                 self.push_type(dir::Type::Literal(value), source)
             }
-            // this carries the instantiated receiver form
+            // this
             dir::Expression::This => self.push_type(dir::Type::This, source),
             // names reference comptime parameters and static constants
             dir::Expression::Identifier { name } => {

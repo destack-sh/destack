@@ -130,7 +130,7 @@ impl WalkState<'_, '_> {
 
                 // walk signature before reading its inputs
                 let source = id.into_global_any(self.module);
-                let template = self.signature_template(source, None, symbol, &signature)?;
+                let template = self.signature_template(source, None, symbol, signature)?;
                 self.walk_function_signature(template, signature)?;
                 let result = self.function_result_type(id.into_any(), signature, body)?;
 
@@ -275,7 +275,7 @@ impl WalkState<'_, '_> {
                     .transpose()?;
 
                 // the value is a static written form checked against the type
-                let spelled = value
+                let written = value
                     .map(|value| self.lower_static_predicate(value))
                     .transpose()?;
 
@@ -290,11 +290,11 @@ impl WalkState<'_, '_> {
                     };
                     self.declare_symbol_type(symbol, ty)?;
 
-                    if let Some(spelled) = spelled {
+                    if let Some(written) = written {
                         // the written value flows into the declared type
                         let origin = Origin::Node(id.into_global_any(self.module));
-                        self.relate_type(origin, Relation::Assignable, spelled, ty);
-                        self.declare_symbol_value(symbol, spelled)?;
+                        self.relate_type(origin, Relation::Assignable, written, ty);
+                        self.declare_symbol_value(symbol, written)?;
                     }
                 }
 
@@ -349,19 +349,19 @@ impl WalkState<'_, '_> {
                 // derive the declared field type
                 let field_type = match declared_type {
                     Some(declared_type) => {
-                        let spelled = self.walk_type_expression(declared_type)?;
-                        let spelled = self.induce_constraint_type(
+                        let written = self.walk_type_expression(declared_type)?;
+                        let written = self.induce_constraint_type(
                             id.into_any(),
-                            spelled,
+                            written,
                             GenericInductionPosition::Storage,
                         )?;
-                        let spelled = if is_optional {
-                            self.optional_value_type(spelled, id.into_any())?
+                        let written = if is_optional {
+                            self.optional_value_type(written, id.into_any())?
                         } else {
-                            spelled
+                            written
                         };
 
-                        Some(spelled)
+                        Some(written)
                     }
                     None => None,
                 };
@@ -431,7 +431,7 @@ impl WalkState<'_, '_> {
                 let receiver_owner = member_receiver.and_then(|scope| scope.owner);
                 let parent = self.enclosing_generic_template(receiver_scope, induction_declaration);
                 let source = id.into_global_any(self.module);
-                let template = self.signature_template(source, parent, symbol, &signature)?;
+                let template = self.signature_template(source, parent, symbol, signature)?;
                 let captured_template = template.or(parent);
 
                 // walk signature before reading its inputs
@@ -551,11 +551,11 @@ impl WalkState<'_, '_> {
                 let Some(declared_type) = declared_type else {
                     return Ok(None);
                 };
-                let spelled = self.walk_type_expression(declared_type)?;
-                let spelled = if is_optional {
-                    self.optional_value_type(spelled, id.into_any())?
+                let declared_ty = self.walk_type_expression(declared_type)?;
+                let written = if is_optional {
+                    self.optional_value_type(declared_ty, id.into_any())?
                 } else {
-                    spelled
+                    declared_ty
                 };
 
                 // tie the field symbol to its type
@@ -564,7 +564,7 @@ impl WalkState<'_, '_> {
                     .module(self.module)
                     .declaration_symbol(id.into_any());
                 if let Some(symbol) = symbol {
-                    self.declare_symbol_type(symbol, spelled)?;
+                    self.declare_symbol_type(symbol, written)?;
                 }
 
                 let (Some(symbol), Some(key)) = (symbol, key.direct_static_key()) else {
@@ -580,7 +580,7 @@ impl WalkState<'_, '_> {
                     symbol,
                     source,
                     key,
-                    ty: spelled,
+                    ty: written,
                     is_abstract: false,
                     is_override: false,
                     condition,
@@ -766,7 +766,7 @@ impl WalkState<'_, '_> {
                 let declared = declared_type
                     .map(|declared_type| self.walk_type_expression(declared_type))
                     .transpose()?;
-                let spelled = value
+                let written = value
                     .map(|value| self.lower_static_predicate(value))
                     .transpose()?;
 
@@ -778,12 +778,12 @@ impl WalkState<'_, '_> {
                     if let Some(declared) = declared {
                         self.declare_symbol_type(symbol, declared)?;
                     }
-                    if let Some(spelled) = spelled {
+                    if let Some(written) = written {
                         if let Some(declared) = declared {
                             let origin = Origin::Node(source);
-                            self.relate_type(origin, Relation::Assignable, spelled, declared);
+                            self.relate_type(origin, Relation::Assignable, written, declared);
                         }
-                        self.declare_symbol_value(symbol, spelled)?;
+                        self.declare_symbol_value(symbol, written)?;
                     }
                 }
 

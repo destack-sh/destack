@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Decision, NameLookup, Place, PlaceTarget, WalkState};
+use crate::check::{Decision, NameLookup, Place, PlaceAccess, PlaceTarget, WalkState};
 
 impl WalkState<'_, '_> {
     /// Walk one assignment target as a place.
@@ -13,6 +13,7 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn walk_assignment_target(
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
+        access: PlaceAccess,
     ) -> CompilerResult<()> {
         match self.tree.get(id) {
             // x
@@ -52,7 +53,7 @@ impl WalkState<'_, '_> {
         }
 
         // tie the target node to its place type
-        if let Some(place) = self.assignment_place(id)? {
+        if let Some(place) = self.assignment_place(id, access)? {
             self.declare_node_type(id, place.ty)?;
         }
 
@@ -68,9 +69,13 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn assignment_place(
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
+        access: PlaceAccess,
     ) -> CompilerResult<Option<Place>> {
         let module = self.module;
         let source = id.into_global_any(module);
+
+        // selection projects protocol direction from the recorded access
+        self.check.inputs.set_place_access(source, access);
 
         match self.tree.get(id) {
             // x
@@ -131,7 +136,6 @@ impl WalkState<'_, '_> {
                 let receiver = self.node_type(left)?;
                 let index = self.node_type(index)?;
 
-                // index selection binds the target node type
                 let ty = self.node_type(id)?;
                 self.queue_select(source);
 
@@ -144,10 +148,12 @@ impl WalkState<'_, '_> {
             // *value
             dir::Expression::Unary {
                 operator: dir::UnaryOperator::Dereference,
-                right,
+                ..
             } => {
-                let right = *right;
-                let ty = self.node_type(right)?;
+                // dereference selection projects the pointee under the
+                // demanded access
+                let ty = self.node_type(id)?;
+                self.queue_select(source);
 
                 Ok(Some(Place::new(ty, PlaceTarget::Dereference, source)))
             }

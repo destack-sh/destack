@@ -298,18 +298,18 @@ impl<'check, 'state> WalkState<'check, 'state> {
         };
 
         let is_optional = self.tree.get(id).is_optional();
-        let spelled = self.walk_type_expression(declared_type)?;
-        let spelled = self.induce_constraint_type(
+        let written = self.walk_type_expression(declared_type)?;
+        let written = self.induce_constraint_type(
             id.into_any(),
-            spelled,
+            written,
             GenericInductionPosition::Parameter,
         )?;
-        let spelled = if is_optional {
-            self.optional_value_type(spelled, id.into_any())?
+        let written = if is_optional {
+            self.optional_value_type(written, id.into_any())?
         } else {
-            spelled
+            written
         };
 
-        Ok(Some(spelled))
+        Ok(Some(written))
     }
 }

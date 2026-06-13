@@ -217,23 +217,31 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         let sites = self.generics.induction_sites().cloned().collect::<Vec<_>>();
 
-        // collect all generated parameters before mutating generic tables
+        // collect all generated parameters before mutating generic tables;
+        // each hole generalizes once, on its first recorded declaration
         let mut induced = IndexMap::new();
         for site in sites {
             for variable in self.type_variables(site.ty)? {
                 let representative = self.variables.representative(variable)?;
-                let Some(recipe) = self.generics.induction(representative) else {
+                let Some(parameter) = self.generics.induction(representative) else {
                     continue;
                 };
 
-                induced
-                    .entry((site.declaration, representative))
-                    .or_insert((site.parent, site.symbol, recipe));
+                induced.entry(representative).or_insert((
+                    site.declaration,
+                    site.parent,
+                    site.symbol,
+                    parameter,
+                ));
             }
         }
 
-        // insert generated parameters and solve their variables
-        for ((declaration, variable), (parent, symbol, recipe)) in induced {
+        // insert generated parameters in variable allocation order,
+        // so hidden lifetimes number by their source positions
+        let mut induced = induced.into_iter().collect::<Vec<_>>();
+        induced.sort_by_key(|(variable, _)| (variable.module_id, variable.index));
+
+        for (variable, (declaration, parent, symbol, recipe)) in induced {
             let template = self.declare_generic_template(declaration, parent, symbol)?;
             let parameter = self.declare_induced_generic_parameter(template, recipe)?;
             let source = self.origin_source_node(Origin::Node(declaration))?;
