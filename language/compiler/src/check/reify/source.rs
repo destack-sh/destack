@@ -113,7 +113,7 @@ impl CheckState<'_> {
             }
 
             // the hole's node type carries its solved variable
-            let Some(ty) = self.inputs.node_type(hole_id.into_global_any(module_id)) else {
+            let Some(ty) = self.node_type(hole_id.into_global_any(module_id)) else {
                 continue;
             };
             reifier.anchor(self.site_anchor(state, hole_id.into_any()));
@@ -287,11 +287,11 @@ impl CheckState<'_> {
         };
 
         // look through the closure environment to the function contract
-        let mut contract = self.resolve_root(ty)?;
+        let mut contract = self.shallow_resolve(ty)?;
         loop {
             match self.ty(contract)? {
                 dir::Type::Closure(closure) => {
-                    contract = self.resolve_root(closure.function)?;
+                    contract = self.shallow_resolve(closure.function)?;
                 }
                 dir::Type::Function(_) => break,
                 _ => return Ok(None),
@@ -320,7 +320,7 @@ impl CheckState<'_> {
             .bindings
             .declaration_symbol(site.into_global(module_id))?;
 
-        self.inputs.symbol_type(symbol.into_global(module_id))
+        self.symbol_type(symbol.into_global(module_id))
     }
 
     /// Return the source anchor span of one annotated site.

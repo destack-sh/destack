@@ -17,7 +17,6 @@ impl CheckState<'_> {
 
         // select under the node's recorded @if guard assumptions
         let predicates = self
-            .inputs
             .node_condition(node)
             .iter()
             .copied()
@@ -59,7 +58,7 @@ impl CheckState<'_> {
             }
             dir::Expression::StructExpression { properties, .. } => {
                 let properties = properties.iter().copied().collect::<SmallVec<[_; 4]>>();
-                let Some(target) = self.inputs.node_type(node.into_any()) else {
+                let Some(target) = self.node_type(node.into_any()) else {
                     return Err(CompilerError::Internal {
                         message: format!("struct literal {node:?} has no declared target"),
                     });
@@ -188,7 +187,7 @@ impl CheckState<'_> {
         let mut applied = SmallVec::<[dir::GlobalTypeId; 2]>::new();
         for argument in arguments {
             let argument = argument.into_global_any(module);
-            let Some(ty) = self.inputs.node_type(argument) else {
+            let Some(ty) = self.node_type(argument) else {
                 return Err(CompilerError::Internal {
                     message: format!("generic argument {argument:?} has no input type"),
                 });
@@ -263,7 +262,7 @@ impl CheckState<'_> {
 
         // close the tag's callable shape
         let tag_node = tag.into_global_any(module);
-        let Some(tag_type) = self.inputs.node_type(tag_node) else {
+        let Some(tag_type) = self.node_type(tag_node) else {
             return Err(CompilerError::Internal {
                 message: format!("template tag {tag_node:?} has no input type"),
             });

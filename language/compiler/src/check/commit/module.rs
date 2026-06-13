@@ -138,7 +138,7 @@ impl CheckState<'_> {
             let solution = self.variables.solution(representative)?;
             let patched = match solution {
                 Some(solution) => {
-                    let solved = self.resolve_root(solution)?;
+                    let solved = self.shallow_resolve(solution)?;
 
                     self.ty(solved)?.clone()
                 }
@@ -167,10 +167,15 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<Vec<(dir::GlobalNodeIdAny, dir::GlobalTypeId)>> {
-        let node_types = self.inputs.node_types_in(module).collect::<Vec<_>>();
+        let node_types = self
+            .module(module)
+            .working
+            .types
+            .node_types()
+            .collect::<Vec<_>>();
         let mut resolved = Vec::with_capacity(node_types.len());
         for (node, ty) in node_types {
-            resolved.push((node, self.resolve_root(ty)?));
+            resolved.push((node, self.shallow_resolve(ty)?));
         }
 
         Ok(resolved)
@@ -184,7 +189,7 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let ty = self.resolve_root(ty)?;
+        let ty = self.shallow_resolve(ty)?;
         match self.evaluate_root(origin, ty)? {
             Answer::Ready(evaluated) => Ok(evaluated),
             // unevaluable forms keep their resolved spelling
@@ -208,8 +213,8 @@ impl CheckState<'_> {
             resolved.push((
                 node,
                 dir::Coercion::new(
-                    self.resolve_root(coercion.source)?,
-                    self.resolve_root(coercion.target)?,
+                    self.shallow_resolve(coercion.source)?,
+                    self.shallow_resolve(coercion.target)?,
                     coercion.origin,
                 ),
             ));
@@ -223,7 +228,12 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<Vec<(dir::GlobalSymbolId, dir::GlobalTypeId)>> {
-        let symbol_types = self.inputs.symbol_types_in(module).collect::<Vec<_>>();
+        let symbol_types = self
+            .module(module)
+            .working
+            .types
+            .symbol_types()
+            .collect::<Vec<_>>();
         let mut resolved = Vec::with_capacity(symbol_types.len());
         for (symbol, ty) in symbol_types {
             // alias values commit their evaluated answer; every other
@@ -231,7 +241,7 @@ impl CheckState<'_> {
             let ty = if self.symbol_kind(symbol) == dir::SymbolKind::TypeAlias {
                 self.commit_type(Origin::Symbol(symbol), ty)?
             } else {
-                self.resolve_root(ty)?
+                self.shallow_resolve(ty)?
             };
             resolved.push((symbol, ty));
         }
@@ -269,10 +279,15 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<Vec<(dir::GlobalSymbolId, dir::ScalarLiteral)>> {
-        let symbol_values = self.inputs.symbol_values_in(module).collect::<Vec<_>>();
+        let symbol_values = self
+            .module(module)
+            .symbol_values
+            .iter()
+            .map(|(symbol, value)| (*symbol, *value))
+            .collect::<Vec<_>>();
         let mut literals = Vec::new();
         for (symbol, value) in symbol_values {
-            let value = self.resolve_root(value)?;
+            let value = self.shallow_resolve(value)?;
             if let dir::Type::Literal(literal) = self.ty(value)? {
                 literals.push((symbol, *literal));
             }
@@ -329,5 +344,4 @@ impl CheckState<'_> {
             }
         }
     }
-
 }

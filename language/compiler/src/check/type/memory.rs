@@ -953,13 +953,13 @@ impl CheckState<'_> {
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let mut current = self.resolve_root(ty)?;
+        let mut current = self.shallow_resolve(ty)?;
         while let dir::Type::Form(form) = self.ty(current)? {
             // only alias-transparent forms peel for reads
             if !matches!(form.form, dir::Form::Managed | dir::Form::Readonly) {
                 break;
             }
-            current = self.resolve_root(form.value)?;
+            current = self.shallow_resolve(form.value)?;
         }
 
         Ok(current)

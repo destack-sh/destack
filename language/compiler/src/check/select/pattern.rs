@@ -176,7 +176,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<()>> {
         let module = node.module_id;
         let value_node = value.into_global_any(module);
-        let Some(ty) = self.inputs.node_type(value_node) else {
+        let Some(ty) = self.node_type(value_node) else {
             return Err(CompilerError::Internal {
                 message: format!("pattern expression {value_node:?} has no input type"),
             });
@@ -230,7 +230,7 @@ impl CheckState<'_> {
                 continue;
             };
             let bound_node = bound.into_global_any(module);
-            let Some(ty) = self.inputs.node_type(bound_node) else {
+            let Some(ty) = self.node_type(bound_node) else {
                 return Err(CompilerError::Internal {
                     message: format!("range bound {bound_node:?} has no input type"),
                 });
@@ -252,7 +252,7 @@ impl CheckState<'_> {
         }
 
         // the matched scalar domain is the pattern's own component
-        let Some(domain) = self.inputs.node_type(node.into_any()) else {
+        let Some(domain) = self.node_type(node.into_any()) else {
             return Err(CompilerError::Internal {
                 message: format!("range pattern {node:?} has no input type"),
             });
@@ -464,7 +464,7 @@ impl CheckState<'_> {
 
         // close the written nominal tag
         let tag_node = ty.into_global_any(module);
-        let Some(tag) = self.inputs.node_type(tag_node) else {
+        let Some(tag) = self.node_type(tag_node) else {
             return Err(CompilerError::Internal {
                 message: format!("newtype pattern tag {tag_node:?} has no input type"),
             });
@@ -524,7 +524,7 @@ impl CheckState<'_> {
 
         // close the written nominal tag
         let tag_node = ty.into_global_any(module);
-        let Some(tag) = self.inputs.node_type(tag_node) else {
+        let Some(tag) = self.node_type(tag_node) else {
             return Err(CompilerError::Internal {
                 message: format!("nominal pattern tag {tag_node:?} has no input type"),
             });
@@ -562,7 +562,7 @@ impl CheckState<'_> {
         patterns: &[dir::LocalNodeId<dir::Pattern>],
     ) -> CompilerResult<Answer<()>> {
         let module = node.module_id;
-        let Some(component) = self.inputs.node_type(node.into_any()) else {
+        let Some(component) = self.node_type(node.into_any()) else {
             return Err(CompilerError::Internal {
                 message: format!("union pattern {node:?} has no input type"),
             });
@@ -627,7 +627,7 @@ impl CheckState<'_> {
                 // shorthand fields bind through their own field node
                 None => {
                     let field_node = field.into_global_any(module);
-                    if let Some(hole) = self.inputs.node_type(field_node) {
+                    if let Some(hole) = self.node_type(field_node) {
                         self.push_constraint(Constraint {
                             relation: Relation::Assignable,
                             left: component,
@@ -655,7 +655,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeId<dir::Pattern>,
         origin: Origin,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let Some(ty) = self.inputs.node_type(node.into_any()) else {
+        let Some(ty) = self.node_type(node.into_any()) else {
             return Err(CompilerError::Internal {
                 message: format!("pattern {node:?} has no input type"),
             });
@@ -673,7 +673,7 @@ impl CheckState<'_> {
         pattern: dir::LocalNodeId<dir::Pattern>,
     ) -> CompilerResult<()> {
         let pattern_node = pattern.into_global_any(module);
-        let Some(hole) = self.inputs.node_type(pattern_node) else {
+        let Some(hole) = self.node_type(pattern_node) else {
             return Err(CompilerError::Internal {
                 message: format!("pattern hole {pattern_node:?} has no input type"),
             });

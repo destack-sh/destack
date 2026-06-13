@@ -31,7 +31,7 @@ impl CheckState<'_> {
 
         // collect the receiver and index types from walked inputs
         let receiver_node = left.into_global_any(module);
-        let Some(receiver) = self.inputs.node_type(receiver_node) else {
+        let Some(receiver) = self.node_type(receiver_node) else {
             return Err(CompilerError::Internal {
                 message: format!("index receiver {receiver_node:?} has no input type"),
             });
@@ -42,7 +42,7 @@ impl CheckState<'_> {
             return self.reject_index(node, origin, operands);
         };
         let index_node = index.into_global_any(module);
-        let Some(index) = self.inputs.node_type(index_node) else {
+        let Some(index) = self.node_type(index_node) else {
             return Err(CompilerError::Internal {
                 message: format!("index key {index_node:?} has no input type"),
             });
@@ -147,7 +147,7 @@ impl CheckState<'_> {
             | dir::Type::Primitive(_)
             | dir::Type::Literal(_) => {
                 // the walked place access picks the protocol direction
-                match self.inputs.place_access(node) {
+                match self.place_access(node) {
                     PlaceAccess::Read => self.select_index_protocol(
                         node,
                         origin,

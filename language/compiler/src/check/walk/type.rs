@@ -24,12 +24,12 @@ impl WalkState<'_, '_> {
         let node = id.into_global_any(self.module);
 
         // reuse already-lowered annotation inputs
-        if let Some(ty) = self.check.inputs.node_type(node) {
+        if let Some(ty) = self.check.node_type(node) {
             return Ok(ty);
         }
 
         let ty = self.lower_type_expression(id)?;
-        self.check.inputs.set_node_type(node, ty)?;
+        self.check.set_node_type(node, ty)?;
 
         Ok(ty)
     }
@@ -452,7 +452,7 @@ impl WalkState<'_, '_> {
                     // anonymous holes open fresh variables that widen
                     dir::InferForm::Hole => {
                         let node = id.into_global_any(self.module);
-                        if let Some(ty) = self.check.inputs.node_type(node) {
+                        if let Some(ty) = self.check.node_type(node) {
                             return Ok(ty);
                         }
                         let variable = self.check.allocate_variable(
@@ -461,7 +461,7 @@ impl WalkState<'_, '_> {
                             Widening::Widen,
                         );
                         let ty = self.check.push_variable_type(variable, source)?;
-                        self.check.inputs.set_node_type(node, ty)?;
+                        self.check.set_node_type(node, ty)?;
 
                         Ok(ty)
                     }

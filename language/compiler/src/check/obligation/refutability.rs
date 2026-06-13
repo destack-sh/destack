@@ -174,8 +174,7 @@ impl CheckState<'_> {
             // expression patterns cover values their type absorbs
             dir::Pattern::Expression { value: expression } => {
                 let expression = *expression;
-                let Some(expected) = self.inputs.node_type(expression.into_global_any(module))
-                else {
+                let Some(expected) = self.node_type(expression.into_global_any(module)) else {
                     return Ok(Answer::Ready(false));
                 };
 
@@ -194,7 +193,7 @@ impl CheckState<'_> {
             // type patterns cover values assignable to their target
             dir::Pattern::TypeExpression { value: target } => {
                 let target = *target;
-                let Some(target) = self.inputs.node_type(target.into_global_any(module)) else {
+                let Some(target) = self.node_type(target.into_global_any(module)) else {
                     return Ok(Answer::Ready(false));
                 };
 
@@ -212,7 +211,7 @@ impl CheckState<'_> {
             dir::Pattern::Newtype { ty, fields } | dir::Pattern::NominalObject { ty, fields } => {
                 let ty = *ty;
                 let fields = fields.iter().copied().collect::<SmallVec<[_; 4]>>();
-                let Some(tag) = self.inputs.node_type(ty.into_global_any(module)) else {
+                let Some(tag) = self.node_type(ty.into_global_any(module)) else {
                     return Ok(Answer::Ready(false));
                 };
                 let tag_decision =
@@ -348,7 +347,7 @@ impl CheckState<'_> {
         let Some(bound) = bound else {
             return Ok(Answer::Ready(None));
         };
-        let Some(ty) = self.inputs.node_type(bound.into_global_any(module)) else {
+        let Some(ty) = self.node_type(bound.into_global_any(module)) else {
             return Ok(Answer::Ready(None));
         };
 

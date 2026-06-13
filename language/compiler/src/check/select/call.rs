@@ -62,7 +62,7 @@ impl CheckState<'_> {
         let mut arguments = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         for argument in argument_nodes {
             let argument = argument.into_global_any(module);
-            let Some(ty) = self.inputs.node_type(argument) else {
+            let Some(ty) = self.node_type(argument) else {
                 return Err(CompilerError::Internal {
                     message: format!("call argument {argument:?} has no input type"),
                 });
@@ -84,7 +84,6 @@ impl CheckState<'_> {
         let candidates = callees.candidates;
         if candidates.is_empty() {
             let callee_type = self
-                .inputs
                 .node_type(callee.into_global_any(module))
                 .map(|ty| self.format_type(ty))
                 .unwrap_or_else(|| "unknown".to_string());
@@ -299,7 +298,7 @@ impl CheckState<'_> {
                         Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
                     }
 
-                    if let Some(ty) = self.symbol_type(symbol) {
+                    if let Some(ty) = self.known_symbol_type(symbol) {
                         candidates.push(CalleeCandidate {
                             symbol: Some(symbol),
                             receiver: None,
@@ -360,7 +359,7 @@ impl CheckState<'_> {
         origin: Origin,
         callee: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Answer<Option<Callees>>> {
-        let Some(ty) = self.inputs.node_type(callee) else {
+        let Some(ty) = self.node_type(callee) else {
             return Err(CompilerError::Internal {
                 message: format!("call callee {callee:?} has no input type"),
             });
@@ -555,7 +554,7 @@ impl CheckState<'_> {
                 arguments: Vec::new(),
             });
             // join by content: variant returns allocate distinct ids
-            let return_type = self.resolve_root(return_type)?;
+            let return_type = self.shallow_resolve(return_type)?;
             let mut duplicate = false;
             for seen in returns.iter().copied() {
                 if self.ty(seen)? == self.ty(return_type)? {
@@ -794,17 +793,17 @@ impl CheckState<'_> {
         &self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Option<dir::TypeVariableId>> {
-        let Some(input) = self.inputs.node_type(node) else {
+        let Some(input) = self.node_type(node) else {
             return Ok(None);
         };
 
         self.root_variable(input)
     }
 
-    /// Return one symbol's walked or committed type.
-    fn symbol_type(&self, symbol: dir::GlobalSymbolId) -> Option<dir::GlobalTypeId> {
-        // prefer component inputs over committed tables
-        if let Some(ty) = self.inputs.symbol_type(symbol) {
+    /// Return one symbol's type if known, from this component or external tables.
+    fn known_symbol_type(&self, symbol: dir::GlobalSymbolId) -> Option<dir::GlobalTypeId> {
+        // prefer the component's working type over committed tables
+        if let Some(ty) = self.symbol_type(symbol) {
             return Some(ty);
         }
 

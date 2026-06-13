@@ -307,7 +307,7 @@ impl CheckState<'_> {
         )?;
 
         // bind or equate the declaration's recorded type
-        if let Some(existing) = self.inputs.symbol_type(symbol) {
+        if let Some(existing) = self.symbol_type(symbol) {
             self.push_constraint(Constraint {
                 relation: Relation::Equal,
                 left: existing,
@@ -317,7 +317,7 @@ impl CheckState<'_> {
                 cause: ConstraintCause::General,
             });
         } else {
-            self.inputs.set_symbol_type(symbol, reference)?;
+            self.set_symbol_type(symbol, reference)?;
         }
 
         Ok(())
