@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_core::StringPool;
-use destack_dir::NodeParentIndex;
+use destack_dir::{NodeParentIndex, TokenSpan};
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_json::{JsonFormatOptions, format_json};
 use destack_parser::{Parser, colorize_source, source_colorizer};
@@ -331,11 +331,11 @@ fn format_file(
     let (tokens, side_tokens) = parser.take_tokens();
     let tokens = tokens
         .into_iter()
-        .map(|token| token.with_file(file.id))
+        .map(|token| TokenSpan::new(token, file.id))
         .collect::<Vec<_>>();
     let side_tokens = side_tokens
         .into_iter()
-        .map(|token| token.with_file(file.id))
+        .map(|token| TokenSpan::new(token, file.id))
         .collect::<Vec<_>>();
     let parents = NodeParentIndex::from_tree(&parser.tree);
     let format_options = DestackFormatOptions {
