@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use crate::{
     Parser, ParserOptions, ParserTriviaMode, assert_expression_path, assert_node, assert_path,
-    assert_qualified_reference_path, assert_string, assert_value_expression_path,
+    assert_string, assert_value_expression_path,
 };
 use destack_core::StringPool;
 use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
@@ -25,13 +25,13 @@ fn test_parse_import_meta_expression() {
     });
 }
 
-/// Disambiguate import source phase access as a path.
+/// Parse import source phase access as the import source intrinsic.
 #[test]
-fn test_parse_import_source_as_path() {
+fn test_parse_import_source_as_intrinsic() {
     let mut test = TestParser::new_with_language("import.source", LanguageType::JavaScript);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
-    assert_qualified_reference_path!(parser, parser.tree.get(expression_id), "import.source");
+    assert_node!(parser.tree, expression_id, Expression::ImportSource);
 }
 
 /// Parse import source phase calls as member calls.
@@ -46,7 +46,7 @@ fn test_parse_import_source_call_expression() {
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_eq!(arguments.len(), 1);
-        assert_qualified_reference_path!(parser, parser.tree.get(*left), "import.source");
+        assert_node!(parser.tree, *left, Expression::ImportSource);
     });
 }
 
@@ -62,7 +62,7 @@ fn test_parse_import_source_call_expression_with_template_argument() {
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_eq!(arguments.len(), 1);
-        assert_qualified_reference_path!(parser, parser.tree.get(*left), "import.source");
+        assert_node!(parser.tree, *left, Expression::ImportSource);
         assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::TaggedTemplateExpression { .. });
         });
@@ -117,7 +117,7 @@ fn test_parse_type_unary_qualified_reference_as_qualified_reference() {
         assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
             assert!(generic_arguments.is_empty());
             assert_path!(parser, *path, "Foo.Bar");
-            assert_qualified_reference_path!(parser, parser.tree.get(*value), "Foo.Bar");
+            assert_expression_path!(parser, parser.tree.get(*value), "Foo.Bar");
 
             let head_span = parser
                 .tree

@@ -929,9 +929,8 @@ fn test_parse_tree_with_generic_arguments() {
     let mut parser = test.prepare();
     let expression = parser.eat_tree_literal().unwrap();
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), generic_arguments, arguments, elements, .. } => {
-        assert_node!(parser.tree, *left, Expression::QualifiedReference { path, generic_arguments: left_generic_arguments } => {
-            assert_path!(parser, *path, "Component");
-            assert!(left_generic_arguments.is_empty());
+        assert_node!(parser.tree, *left, Expression::Identifier { name } => {
+            assert_string!(parser, *name, "Component");
             assert_eq!(generic_arguments.len(), 1);
             assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                     assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
@@ -991,9 +990,8 @@ fn test_parse_tree_with_shift_left_generic_arguments() {
     // parse the tree literal
     let expression = parser.eat_tree_literal().unwrap();
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), generic_arguments, arguments, elements, .. } => {
-        assert_node!(parser.tree, *left, Expression::QualifiedReference { path, generic_arguments: left_generic_arguments } => {
-            assert_path!(parser, *path, "Component");
-            assert!(left_generic_arguments.is_empty());
+        assert_node!(parser.tree, *left, Expression::Identifier { name } => {
+            assert_string!(parser, *name, "Component");
             assert_eq!(generic_arguments.len(), 1);
             assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                     assert_node!(parser.tree, *value, TypeExpression::Function(function) => {
@@ -1019,9 +1017,8 @@ fn test_parse_tree_with_generic_arguments_and_multiline_attributes() {
     let expression_id = parser.eat_tree_literal().unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::TreeExpression { left: Some(left), generic_arguments, arguments, elements, .. } => {
-        assert_node!(parser.tree, *left, Expression::QualifiedReference { path, generic_arguments: left_generic_arguments } => {
-            assert_path!(parser, *path, "Tags");
-            assert!(left_generic_arguments.is_empty());
+        assert_node!(parser.tree, *left, Expression::Identifier { name } => {
+            assert_string!(parser, *name, "Tags");
             assert_eq!(generic_arguments.len(), 1);
             assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                     assert_node!(parser.tree, *value, TypeExpression::Reference { path, .. } => {

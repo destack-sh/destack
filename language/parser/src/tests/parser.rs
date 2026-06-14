@@ -226,10 +226,6 @@ impl ExpressionPathLike for Expression {
                 segments.push(*name);
                 Some(())
             }
-            Expression::QualifiedReference { path, .. } => {
-                segments.extend_from_slice(&path.segments);
-                Some(())
-            }
             Expression::Member {
                 left,
                 name: Some(name),
@@ -323,23 +319,6 @@ fn collect_value_expression_path_segments(
     }
 }
 
-/// Collect one qualified-reference path string from an expression.
-pub(crate) fn qualified_reference_path_string(
-    parser: &Parser,
-    expression: &impl ExpressionPathLike,
-) -> Option<String> {
-    let mut segments = Vec::new();
-    expression.collect_path_segments(parser, &mut segments)?;
-
-    Some(
-        segments
-            .into_iter()
-            .map(|segment| parser.strings.get(segment).to_string())
-            .collect::<Vec<_>>()
-            .join("."),
-    )
-}
-
 /// Normalize one comment payload for test assertions.
 pub(crate) fn normalized_comment_payload(source: &str) -> std::borrow::Cow<'_, str> {
     normalize_comment_payload(source)
@@ -369,18 +348,6 @@ macro_rules! assert_value_expression_path {
         match got {
             Some(got) => assert_eq!(got, $expected, "expected value path"),
             None => panic!("expected value path expression, got {:?}", $expr),
-        };
-    }};
-}
-
-/// Assert one qualified-reference expression directly against an expected path string.
-#[macro_export]
-macro_rules! assert_qualified_reference_path {
-    ($parser:expr, $expr:expr, $expected:expr) => {{
-        let got = $crate::tests::qualified_reference_path_string(&$parser, $expr);
-        match got {
-            Some(got) => assert_eq!(got, $expected, "expected qualified reference"),
-            None => panic!("expected qualified reference expression, got {:?}", $expr),
         };
     }};
 }
