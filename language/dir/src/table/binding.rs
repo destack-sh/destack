@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Arena, ExportKind, GlobalNodeIdAny, LocalNodeId, LocalNodeIdAny, LocalScope, LocalScopeId,
     LocalScopeMark, LocalSymbolId, Node, Scope, ScopeIndex, ScopeKind, SegmentView, StaticKey,
-    Symbol, SymbolKind, SymbolLookup, SymbolOrigin, SymbolRole, SymbolSpace,
+    Symbol, SymbolKind, SymbolLookup, SymbolOrigin, SymbolRole, SymbolSpace, View,
 };
 
 /// Cumulative lexical scopes and symbols for one DIR module.
@@ -132,6 +132,16 @@ impl<'a> BindingTable<'a> {
         self.get_scope_by_id(scope.id)
     }
 
+    /// Return the module's root namespace scope, with all bindings visible.
+    pub fn module_scope(&self) -> LocalScope {
+        let scope_id = self
+            .scope_ids()
+            .find(|scope_id| self.get_scope_by_id(*scope_id).is_root())
+            .unwrap_or_else(|| panic!("binding table has no root scope"));
+
+        LocalScope::new(scope_id, LocalScopeMark::end())
+    }
+
     /// Return the owned scope for one visible symbol.
     pub fn scope_for_owner(&self, owner: LocalSymbolId) -> Option<LocalScope> {
         for segment in self.segments.iter().rev() {
@@ -213,16 +223,37 @@ impl<'a> BindingTable<'a> {
     }
 
     /// Look up one symbol visible at a source node.
+    ///
+    /// Resolves through the scope in effect at the node, so it works even at
+    /// nodes that own no scope themselves, such as decorator targets.
     pub fn lookup_symbol_at(
         &self,
-        node_id: GlobalNodeIdAny,
+        view: &View<'_>,
+        node: LocalNodeIdAny,
         key: StaticKey,
         space: SymbolSpace,
     ) -> SymbolLookup {
-        match self.scope_for_node(node_id) {
-            Some(scope) => self.lookup_symbol_from_scope(scope, key, space),
-            None => SymbolLookup::Missing,
+        let scope = self.scope_at(view, node);
+
+        self.lookup_symbol_from_scope(scope, key, space)
+    }
+
+    /// Return the scope in effect at a source node.
+    ///
+    /// Walks to the nearest ancestor that owns a scope, falling back to the
+    /// module scope when none does. A node that owns no scope of its own —
+    /// a decorator target, for one — resolves through its enclosing
+    /// declaration this way.
+    pub fn scope_at(&self, view: &View<'_>, node: LocalNodeIdAny) -> LocalScope {
+        let mut current = Some(node);
+        while let Some(node) = current {
+            if let Some(scope) = self.scope_for_node(node.into_global(self.module_id)) {
+                return scope;
+            }
+            current = view.get_parent(node.id);
         }
+
+        self.module_scope()
     }
 
     /// Look up one symbol visible from a lexical scope cursor.
