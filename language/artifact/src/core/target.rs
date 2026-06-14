@@ -198,15 +198,10 @@ impl Platform {
 }
 
 /// Host environment that provides target imports and ambient effects.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum Host {
-    /// Unknown host environment.
-    #[default]
-    Unknown,
     /// Native host environment.
     Native,
     /// Browser host environment.
@@ -224,7 +219,6 @@ impl std::str::FromStr for Host {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "unknown" => Ok(Self::Unknown),
             "native" => Ok(Self::Native),
             "browser" | "web" => Ok(Self::Browser),
             "wasi" => Ok(Self::Wasi),
@@ -241,7 +235,6 @@ impl Host {
     /// Return the canonical lowercase tag for this host.
     pub fn canonical_tag(&self) -> &'static str {
         match self {
-            Self::Unknown => "unknown",
             Self::Native => "native",
             Self::Browser => "browser",
             Self::Wasi => "wasi",
@@ -266,7 +259,7 @@ impl Host {
             Self::Wasi => Some("wasi"),
             Self::Emscripten => Some("emscripten"),
             Self::Freestanding => Some("none"),
-            Self::Unknown | Self::Native | Self::Browser => None,
+            Self::Native | Self::Browser => None,
         }
     }
 }

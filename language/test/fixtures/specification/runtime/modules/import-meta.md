@@ -72,7 +72,7 @@ const stage = import.meta.stage;
 stage satisfies "experimental" | "alpha" | "beta" | "stable" | undefined;
 
 const host = import.meta.host;
-host satisfies "unknown" | "native" | "browser" | "wasi" | "emscripten" | "freestanding";
+host satisfies "native" | "browser" | "wasi" | "emscripten" | "freestanding";
 ```
 
 ### active conditions are typed

@@ -172,13 +172,18 @@ pub struct Target {
 
 impl Default for Target {
     fn default() -> Self {
-        Self::base()
+        Self::js()
     }
 }
 
 impl Target {
-    /// Create a target with neutral defaults.
-    fn base() -> Self {
+    /// Create a target with explicit output, runtime, and host axes.
+    fn new(emit: EmitFormat, runtime: Runtime, host: Host) -> Self {
+        let runtime_options = RuntimeOptions {
+            runtime,
+            ..RuntimeOptions::default()
+        };
+
         Self {
             entry: Vec::new(),
             globals: Vec::new(),
@@ -205,10 +210,10 @@ impl Target {
             bundle_output: BundleOutputOptions::default(),
             minify: BundleMinifyOptions::default(),
             policy: Policy::default(),
-            emit: EmitFormat::default(),
-            runtime: Runtime::default(),
+            emit,
+            runtime,
             platform: Platform::Unknown,
-            host: Host::Unknown,
+            host,
             target_arch: None,
             target_vendor: None,
             target_abi: None,
@@ -240,7 +245,7 @@ impl Target {
             lto_mode: LtoMode::default(),
             float_math: FloatMathPolicy::default(),
             debug_info: DebugInfoLevel::default(),
-            runtime_options: RuntimeOptions::default(),
+            runtime_options,
             panic: PanicPolicy::default(),
             strip: StripLevel::default(),
             checks: RuntimeChecks::default(),
@@ -272,12 +277,7 @@ impl Target {
 
     /// Create a target with default JavaScript output.
     pub fn js() -> Self {
-        let mut target = Self::base();
-        target.emit = EmitFormat::Js;
-        target.runtime = Runtime::Js;
-        target.runtime_options.runtime = Runtime::Js;
-        target.platform = Platform::Unknown;
-        target.host = Host::Unknown;
+        let mut target = Self::new(EmitFormat::Js, Runtime::Js, Host::Browser);
         target.declaration = true;
 
         target
@@ -285,24 +285,12 @@ impl Target {
 
     /// Create a target with TypeScript output.
     pub fn ts() -> Self {
-        let mut target = Self::base();
-        target.emit = EmitFormat::Ts;
-        target.runtime = Runtime::Js;
-        target.runtime_options.runtime = Runtime::Js;
-        target.platform = Platform::Unknown;
-        target.host = Host::Unknown;
-
-        target
+        Self::new(EmitFormat::Ts, Runtime::Js, Host::Browser)
     }
 
     /// Create a target with WASM output for JavaScript hosts.
     pub fn wasm_js() -> Self {
-        let mut target = Self::base();
-        target.emit = EmitFormat::Wasm;
-        target.runtime = Runtime::Destack;
-        target.runtime_options.runtime = Runtime::Destack;
-        target.platform = Platform::Unknown;
-        target.host = Host::Browser;
+        let mut target = Self::new(EmitFormat::Wasm, Runtime::Destack, Host::Browser);
         target.optimize_level = OptimizeLevel::O2;
 
         target
@@ -310,12 +298,7 @@ impl Target {
 
     /// Create a target with WASM output for WASI.
     pub fn wasm_wasi() -> Self {
-        let mut target = Self::base();
-        target.emit = EmitFormat::Wasm;
-        target.runtime = Runtime::Destack;
-        target.runtime_options.runtime = Runtime::Destack;
-        target.platform = Platform::Unknown;
-        target.host = Host::Wasi;
+        let mut target = Self::new(EmitFormat::Wasm, Runtime::Destack, Host::Wasi);
         target.optimize_level = OptimizeLevel::O2;
 
         target
@@ -323,12 +306,7 @@ impl Target {
 
     /// Create a target with native output.
     pub fn native() -> Self {
-        let mut target = Self::base();
-        target.emit = EmitFormat::Native;
-        target.runtime = Runtime::Destack;
-        target.runtime_options.runtime = Runtime::Destack;
-        target.platform = Platform::Unknown;
-        target.host = Host::Native;
+        let mut target = Self::new(EmitFormat::Native, Runtime::Destack, Host::Native);
         target.optimize_level = OptimizeLevel::O2;
 
         target

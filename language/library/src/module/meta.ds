@@ -25,7 +25,7 @@ export type Runtime = "destack" | "js";
 export type Stage = "experimental" | "alpha" | "beta" | "stable";
 
 /// The target host environment that provides imports and ambient effects.
-export type Host = "unknown" | "native" | "browser" | "wasi" | "emscripten" | "freestanding";
+export type Host = "native" | "browser" | "wasi" | "emscripten" | "freestanding";
 
 /// Coarse target family metadata.
 export type TargetFamily =

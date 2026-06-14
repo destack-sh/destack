@@ -2298,11 +2298,6 @@
       "description": "Host environment that provides target imports and ambient effects.",
       "oneOf": [
         {
-          "description": "Unknown host environment.",
-          "type": "string",
-          "const": "unknown"
-        },
-        {
           "description": "Native host environment.",
           "type": "string",
           "const": "native"
@@ -4799,7 +4794,7 @@
         "runtime": {
           "description": "Runtime execution contract.",
           "$ref": "#/$defs/Runtime",
-          "default": "destack"
+          "default": "js"
         },
         "platform": {
           "description": "Target operating system.",
@@ -4809,7 +4804,7 @@
         "host": {
           "description": "Target host environment.",
           "$ref": "#/$defs/Host",
-          "default": "unknown"
+          "default": "browser"
         },
         "targetArch": {
           "description": "Target architecture for native codegen (e.g., \"x86_64\", \"aarch64\").",
@@ -5011,7 +5006,7 @@
         "declaration": {
           "description": "Emit declaration files (e.g., `.d.ts` alongside `.js` output).",
           "type": "boolean",
-          "default": false
+          "default": true
         },
         "sourceMapMode": {
           "description": "Source map emission mode.",
@@ -5049,7 +5044,7 @@
           "description": "Runtime execution options.",
           "$ref": "#/$defs/RuntimeOptions",
           "default": {
-            "runtime": "destack",
+            "runtime": "js",
             "identity": {
               "name": null,
               "labels": {}
