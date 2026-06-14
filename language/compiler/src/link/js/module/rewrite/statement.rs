@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::generate::js;
+use crate::emit::js;
 use destack_core::StringId;
 use destack_dir as dir;
 

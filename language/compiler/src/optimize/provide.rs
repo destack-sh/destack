@@ -75,7 +75,7 @@ impl Compiler {
         // resolve pipeline for this target
         let target_config = self.target_for_module(module, target, context)?;
         let level = self.optimization_level_for_target_config(&target_config);
-        let pipeline = default_pipeline(level, target_config.uses_native_generate_pipeline());
+        let pipeline = default_pipeline(level, target_config.uses_native_emit_pipeline());
 
         // load provider inputs
         let artifacts = self.artifact_reader(context.revision());

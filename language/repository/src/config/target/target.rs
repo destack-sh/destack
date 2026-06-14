@@ -43,7 +43,7 @@ pub struct Target {
     /// Glob patterns for files to exclude.
     pub exclude: Vec<String>,
 
-    // output generation
+    // output emit
     /// JavaScript module format.
     pub module: JsModuleFormat,
     /// ECMAScript target version.
@@ -425,13 +425,13 @@ impl Target {
         compiler_options
     }
 
-    /// Return whether this target uses the JavaScript generation pipeline.
-    pub fn uses_js_generate_pipeline(&self) -> bool {
+    /// Return whether this target uses the JavaScript emit pipeline.
+    pub fn uses_js_emit_pipeline(&self) -> bool {
         self.emit.is_js_family()
     }
 
-    /// Return whether this target uses the native generation pipeline.
-    pub fn uses_native_generate_pipeline(&self) -> bool {
+    /// Return whether this target uses the native emit pipeline.
+    pub fn uses_native_emit_pipeline(&self) -> bool {
         self.emit.is_native_family()
     }
 

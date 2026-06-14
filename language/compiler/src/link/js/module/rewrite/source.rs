@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::generate::js;
+use crate::emit::js;
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::ModuleId;

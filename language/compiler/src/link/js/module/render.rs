@@ -1,4 +1,4 @@
-use crate::generate::js;
+use crate::emit::js;
 use crate::{Compiler, LinkError, LinkResult};
 use destack_artifact::OutputFile;
 use destack_repository::BundleMode;

@@ -1303,7 +1303,7 @@
           "default": null
         },
         "declarationMap": {
-          "description": "Generate declaration maps for `.d.ts` output.",
+          "description": "Emit declaration maps for `.d.ts` output.",
           "type": "boolean",
           "default": false
         },
@@ -1330,7 +1330,7 @@
       }
     },
     "JsModuleFormat": {
-      "description": "Module format for generated JavaScript output.",
+      "description": "Module format for emitted JavaScript output.",
       "oneOf": [
         {
           "description": "ES2015 modules.",
@@ -1355,7 +1355,7 @@
       ]
     },
     "EsTarget": {
-      "description": "ECMAScript target for generated JavaScript output.",
+      "description": "ECMAScript target for emitted JavaScript output.",
       "oneOf": [
         {
           "description": "ES5.",

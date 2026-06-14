@@ -1,4 +1,4 @@
-use crate::{Compiler, CompilerResult, GenerateError};
+use crate::{Compiler, CompilerResult, EmitError};
 use destack_artifact::{ArtifactDependencySet, ArtifactPayload};
 use destack_repository::ProviderContext;
 use std::sync::Arc;
@@ -15,10 +15,10 @@ impl Compiler {
         target: TargetId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
-        // the generation input depends on the resolved target pipeline
+        // the emit input depends on the resolved target pipeline
         let target_config =
             self.target_or_builtin(context, target)?
-                .ok_or_else(|| GenerateError::Internal {
+                .ok_or_else(|| EmitError::Internal {
                     anchor: module.into(),
                     module,
                     message: format!("target '{target}' not found"),
@@ -43,7 +43,7 @@ impl Compiler {
         // resolve target selection
         let target_config =
             self.target_or_builtin(context, target)?
-                .ok_or_else(|| GenerateError::Internal {
+                .ok_or_else(|| EmitError::Internal {
                     anchor: module.into(),
                     module,
                     message: format!("target '{target}' not found"),
@@ -51,7 +51,7 @@ impl Compiler {
         let target_name = self.target_name(context.revision(), target)?;
         let resolved_profile = self.profile_id_for_target(context.revision(), module, &target)?;
         if resolved_profile != profile {
-            return Err(GenerateError::Internal {
+            return Err(EmitError::Internal {
                 anchor: module.into(),
                 module,
                 message: format!(
@@ -61,9 +61,9 @@ impl Compiler {
             .into());
         }
 
-        // generate output from the declared input
+        // emit output from the declared input
         let artifacts = self.artifact_reader(context.revision());
-        let output = self.generate_target_module_output(
+        let output = self.emit_target_module_output(
             module,
             profile,
             &target,

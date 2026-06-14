@@ -5,8 +5,8 @@ use std::collections::BTreeMap;
 
 use destack_compiler::{
     BindError, BindWarning, CheckError, CheckWarning, DiagnosticDefinition, ElaborateError,
-    ElaborateWarning, ExpandError, ExpandWarning, ExportError, ExportWarning, GenerateError,
-    GenerateWarning, ImportError, ImportWarning, LinkError, LinkWarning, LowerError, LowerWarning,
+    ElaborateWarning, EmitError, EmitWarning, ExpandError, ExpandWarning, ExportError,
+    ExportWarning, ImportError, ImportWarning, LinkError, LinkWarning, LowerError, LowerWarning,
     MaterializeError, MaterializeWarning, OptimizeError, OptimizeWarning, VerifyError,
     VerifyWarning,
 };
@@ -130,8 +130,8 @@ enum CompilerPhase {
     Verify,
     /// Optimize MIR.
     Optimize,
-    /// Generate build products.
-    Generate,
+    /// Emit build products.
+    Emit,
     /// Link build products.
     Link,
 }
@@ -306,9 +306,9 @@ const COMPILER_DIAGNOSTIC_GROUPS: &[CompilerDiagnosticGroup] = &[
         definitions: OptimizeError::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: CompilerPhase::Generate,
+        phase: CompilerPhase::Emit,
         severity: CompilerSeverity::Error,
-        definitions: GenerateError::ALL,
+        definitions: EmitError::ALL,
     },
     CompilerDiagnosticGroup {
         phase: CompilerPhase::Link,
@@ -366,9 +366,9 @@ const COMPILER_DIAGNOSTIC_GROUPS: &[CompilerDiagnosticGroup] = &[
         definitions: OptimizeWarning::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: CompilerPhase::Generate,
+        phase: CompilerPhase::Emit,
         severity: CompilerSeverity::Warning,
-        definitions: GenerateWarning::ALL,
+        definitions: EmitWarning::ALL,
     },
     CompilerDiagnosticGroup {
         phase: CompilerPhase::Link,
@@ -781,7 +781,7 @@ fn phase_label(phase: CompilerPhase) -> &'static str {
         CompilerPhase::Lower => "lower",
         CompilerPhase::Verify => "verify",
         CompilerPhase::Optimize => "optimize",
-        CompilerPhase::Generate => "generate",
+        CompilerPhase::Emit => "emit",
         CompilerPhase::Link => "link",
     }
 }

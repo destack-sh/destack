@@ -48,7 +48,7 @@ pub struct CompilerOptions {
     pub out_dir: Option<PathBuf>,
     /// Output directory for declaration files. Defaults to out_dir.
     pub declaration_dir: Option<PathBuf>,
-    /// Generate declaration maps for `.d.ts` output.
+    /// Emit declaration maps for `.d.ts` output.
     pub declaration_map: bool,
     /// Do not emit output files.
     pub no_emit: bool,

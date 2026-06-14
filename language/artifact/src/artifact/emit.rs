@@ -39,12 +39,12 @@ impl EmitFormat {
         matches!(self, Self::Native)
     }
 
-    /// Whether this family uses the JavaScript generation pipeline.
+    /// Whether this family uses the JavaScript emit pipeline.
     pub fn is_js_family(&self) -> bool {
         matches!(self, Self::Js | Self::Ts)
     }
 
-    /// Whether this family uses the native generation pipeline.
+    /// Whether this family uses the native emit pipeline.
     pub fn is_native_family(&self) -> bool {
         matches!(self, Self::Wasm | Self::Native)
     }

@@ -4,7 +4,7 @@ use destack_artifact::{
 use destack_repository::ProviderError;
 
 use crate::{
-    BindError, CheckError, ElaborateError, ExpandError, ExportError, GenerateError, ImportError,
+    BindError, CheckError, ElaborateError, EmitError, ExpandError, ExportError, ImportError,
     LinkError, LowerError, MaterializeError, OptimizeError, ResolveError, VerifyError,
 };
 
@@ -65,7 +65,7 @@ impl_compiler_error_from_diagnostic!(ElaborateError);
 impl_compiler_error_from_diagnostic!(MaterializeError);
 impl_compiler_error_from_diagnostic!(ExpandError);
 impl_compiler_error_from_diagnostic!(ExportError);
-impl_compiler_error_from_diagnostic!(GenerateError);
+impl_compiler_error_from_diagnostic!(EmitError);
 impl_compiler_error_from_diagnostic!(ImportError);
 impl_compiler_error_from_diagnostic!(LinkError);
 impl_compiler_error_from_diagnostic!(LowerError);

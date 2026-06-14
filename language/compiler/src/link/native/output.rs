@@ -6,14 +6,14 @@ use destack_source::{FileType, Uri};
 
 use crate::link::module_source_path;
 
-/// One error while materializing generated native outputs.
+/// One error while materializing emitted native outputs.
 #[derive(Debug, Clone)]
 pub(crate) struct NativeOutputError {
     /// The related output file type.
     pub file_type: FileType,
 }
 
-/// Link one generated native output into output files.
+/// Link one emitted native output into output files.
 pub(crate) fn link_native_output_files(
     module: &Module,
     artifact: &NativeOutput,

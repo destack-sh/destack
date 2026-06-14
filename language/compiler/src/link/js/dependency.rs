@@ -1,4 +1,4 @@
-use crate::generate::js::{
+use crate::emit::js::{
     DependencyForm, Expression, LocalNodeId, Module, Node, NodeVisitor, NodeVisitorOptions,
     ScalarLiteral, Statement, Tree, walk_expression, walk_root, walk_statement,
 };

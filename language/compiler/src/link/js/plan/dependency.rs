@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::generate::js::DependencyForm;
+use crate::emit::js::DependencyForm;
 use destack_artifact::{JsOutput, ModuleOutput};
 use destack_repository::Target;
 use destack_source::{ModuleId, PackageId, Span, TargetId};

@@ -2,14 +2,14 @@ use crate::DiagnosticAnchor;
 use destack_artifact_macros::Diagnostic;
 use destack_source::ModuleId;
 
-/// Warnings during the generate phase.
+/// Warnings during the emit phase.
 #[derive(Debug, Clone, PartialEq, Diagnostic)]
-#[diagnostic(severity = Warning, phase = Generate)]
-pub enum GenerateWarning {
+#[diagnostic(severity = Warning, phase = Emit)]
+pub enum EmitWarning {
     // -------------------------------------------------------------------------
     // 1xx: Type warnings
     // -------------------------------------------------------------------------
-    /// Imprecise type (loss of precision in codegen).
+    /// Imprecise type.
     #[diagnostic(code = "WG100", message = "imprecise type")]
     ImpreciseType {
         anchor: DiagnosticAnchor,

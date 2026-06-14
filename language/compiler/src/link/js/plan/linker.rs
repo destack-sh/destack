@@ -1,6 +1,6 @@
 use std::collections::{HashSet, VecDeque};
 
-use crate::generate::js::DependencyForm;
+use crate::emit::js::DependencyForm;
 use destack_artifact::{ArtifactDependencySet, ArtifactKey, ModuleOutput};
 use destack_repository::ProviderError;
 use destack_source::ModuleId;
@@ -177,7 +177,7 @@ impl<'a> JsLinker<'a> {
 
     /// Declare every artifact needed to link one target's JS closure.
     ///
-    /// The bundled traversal only widens through modules whose generated
+    /// The bundled traversal only widens through modules whose emitted
     /// output is ready, so re-collecting reaches deeper bundles in turn.
     pub(crate) fn collect_modules(
         &self,
@@ -216,13 +216,13 @@ impl<'a> JsLinker<'a> {
                 continue;
             }
 
-            // code modules link from generated output and the checked dir
+            // code modules link from emitted output and the checked dir
             let output_key = ArtifactKey::module_output(module_id, *self.target_id);
             dependencies.require(output_key);
             dependencies.require(ArtifactKey::dir_checked(module_id, profile_id));
             required_modules.push(module_id);
 
-            // the bundle closure is revealed once the generated output is built
+            // the bundle closure is revealed once the emitted output is built
             match self.artifacts.module_output(module_id, *self.target_id) {
                 Ok(_) => {}
                 Err(ProviderError::Blocked { .. }) => continue,
@@ -291,7 +291,7 @@ impl<'a> JsLinker<'a> {
         Ok(requirements.into_iter().collect())
     }
 
-    /// Return the bundled internal JS dependencies for one generated module.
+    /// Return the bundled internal JS dependencies for one emitted module.
     fn bundled_script_dependency_modules(&self, module_id: ModuleId) -> LinkResult<Vec<ModuleId>> {
         let module = self.module(module_id)?;
 

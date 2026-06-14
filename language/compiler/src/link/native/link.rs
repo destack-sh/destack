@@ -12,7 +12,7 @@ use super::NativeLinker;
 use super::output::link_native_output_files;
 
 impl<'a> NativeLinker<'a> {
-    /// Declare the generated outputs needed to link one native target.
+    /// Declare the emitted outputs needed to link one native target.
     pub(crate) fn collect_modules(
         &self,
         discovered_modules: &[ModuleId],
@@ -35,7 +35,7 @@ impl<'a> NativeLinker<'a> {
         self.link(&module_ids).map_err(CompilerError::from)
     }
 
-    /// Link one native target from generated module outputs.
+    /// Link one native target from emitted module outputs.
     pub(crate) fn link(&self, module_ids: &[ModuleId]) -> LinkResult<PackageOutput> {
         // rendered files
         let files = self.render_files(module_ids)?;
@@ -57,11 +57,11 @@ impl<'a> NativeLinker<'a> {
         Ok(output)
     }
 
-    /// Render final output files from generated native outputs.
+    /// Render final output files from emitted native outputs.
     fn render_files(&self, module_ids: &[ModuleId]) -> LinkResult<Vec<OutputFile>> {
         let mut files = Vec::new();
 
-        // render each generated native output into final target files
+        // render each emitted native output into final target files
         for module_id in module_ids {
             let artifact = self
                 .artifacts
