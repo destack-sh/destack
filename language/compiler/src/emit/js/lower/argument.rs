@@ -1,43 +1,15 @@
+use crate::EmitError;
 use destack_dir as dir;
 use destack_js as js;
 
-use crate::generate::js::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
+use crate::emit::js::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
-    /// Build one JS binding modifier when any field is present.
-    fn build_binding_modifier(
-        &self,
-        kind: Option<js::BindingKind>,
-        variance: Option<js::VarianceModifier>,
-        anchor: Option<js::BindingAnchor>,
-        mutability: Option<js::Mutability>,
-        visibility: Option<js::Visibility>,
-        operator: Option<js::BindingOperator>,
-        accessor: Option<js::AccessorKind>,
-    ) -> Option<js::BindingModifier> {
-        let modifiers = js::BindingModifier {
-            kind,
-            variance,
-            anchor,
-            mutability,
-            visibility,
-            operator,
-            definite: false,
-            accessor,
-        };
-
-        if modifiers == js::BindingModifier::default() {
-            None
-        } else {
-            Some(modifiers)
-        }
-    }
-
     /// Lower a parameter from DIR into JS AST.
     pub(crate) fn lower_parameter(
         &mut self,
         parameter_id: dir::LocalNodeId<dir::Parameter>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::Parameter>> {
+    ) -> Result<js::LocalNodeId<js::Parameter>, EmitError> {
         let source_parameter_id = parameter_id;
         let parameter = self.dir_tree.get(parameter_id);
         match parameter {
@@ -48,19 +20,10 @@ impl ModuleLowerer<'_> {
                 default,
                 ..
             } => {
-                let modifiers = self.build_binding_modifier(
-                    if *is_optional {
-                        Some(js::BindingKind::Maybe)
-                    } else {
-                        None
-                    },
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                );
+                let modifiers = is_optional.then_some(js::BindingModifier {
+                    kind: Some(js::BindingKind::Maybe),
+                    ..js::BindingModifier::default()
+                });
                 let name = *name;
                 let ty = self
                     .types
@@ -68,13 +31,7 @@ impl ModuleLowerer<'_> {
                     .map(|ty| self.lower_type(ty))
                     .transpose()?;
                 let default = default
-                    .map(|default| {
-                        self.lower_expression(default)
-                            .expect_node::<js::Expression>(
-                                default.into_global_any(self.module.id),
-                                self,
-                            )
-                    })
+                    .map(|default| self.lower_expression_as::<js::Expression>(default))
                     .transpose()?;
                 let parameter = js::Parameter::Named {
                     modifiers,
@@ -95,19 +52,10 @@ impl ModuleLowerer<'_> {
                 default,
                 ..
             } => {
-                let modifiers = self.build_binding_modifier(
-                    if *is_optional {
-                        Some(js::BindingKind::Maybe)
-                    } else {
-                        None
-                    },
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                );
+                let modifiers = is_optional.then_some(js::BindingModifier {
+                    kind: Some(js::BindingKind::Maybe),
+                    ..js::BindingModifier::default()
+                });
                 let pattern = self.lower_pattern(*pattern)?;
                 let ty = self
                     .types
@@ -115,13 +63,7 @@ impl ModuleLowerer<'_> {
                     .map(|ty| self.lower_type(ty))
                     .transpose()?;
                 let default = default
-                    .map(|default| {
-                        self.lower_expression(default)
-                            .expect_node::<js::Expression>(
-                                default.into_global_any(self.module.id),
-                                self,
-                            )
-                    })
+                    .map(|default| self.lower_expression_as::<js::Expression>(default))
                     .transpose()?;
                 let parameter = js::Parameter::Pattern {
                     modifiers,
@@ -136,8 +78,7 @@ impl ModuleLowerer<'_> {
                 Ok(parameter_id)
             }
             dir::Parameter::VariadicNamed { name, .. } => {
-                let modifiers =
-                    self.build_binding_modifier(None, None, None, None, None, None, None);
+                let modifiers = None;
                 let name = *name;
                 let ty = self
                     .types
@@ -174,10 +115,10 @@ impl ModuleLowerer<'_> {
                 self.copy_source_node_symbol(parameter_id, source_parameter_id);
                 Ok(parameter_id)
             }
-            dir::Parameter::Error => Err(CodegenJsError::UnsupportedConstruct {
-                node: parameter_id.into_global_any(self.module.id),
-                message: Some("parameter error slots are not lowered to JS".to_string()),
-            }),
+            dir::Parameter::Error => Err(self.unsupported_construct(
+                parameter_id.into_global_any(self.module.id),
+                Some("parameter error slots are not lowered to JS".to_string()),
+            )),
         }
     }
 
@@ -185,7 +126,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_argument(
         &mut self,
         argument_id: dir::LocalNodeId<dir::Argument>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::Argument>> {
+    ) -> Result<js::LocalNodeId<js::Argument>, EmitError> {
         let argument = self.dir_tree.get(argument_id);
         let argument = match argument {
             dir::Argument::Named { name: _, value, .. }
@@ -193,24 +134,20 @@ impl ModuleLowerer<'_> {
                 label: _, value, ..
             }
             | dir::Argument::Positional { value, .. } => {
-                let value = self
-                    .lower_expression(*value)
-                    .expect_node::<js::Expression>(value.into_global_any(self.module.id), self)?;
+                let value = self.lower_expression_as::<js::Expression>(*value)?;
                 js::Argument::Positional { value }
             }
             dir::Argument::Spread {
                 label: _, value, ..
             } => {
-                let value = self
-                    .lower_expression(*value)
-                    .expect_node::<js::Expression>(value.into_global_any(self.module.id), self)?;
+                let value = self.lower_expression_as::<js::Expression>(*value)?;
                 js::Argument::Spread { value }
             }
             dir::Argument::Error => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: argument_id.into_global_any(self.module.id),
-                    message: Some("argument error slots are not lowered to JS".to_string()),
-                });
+                return Err(self.unsupported_construct(
+                    argument_id.into_global_any(self.module.id),
+                    Some("argument error slots are not lowered to JS".to_string()),
+                ));
             }
         };
         let argument_id = self

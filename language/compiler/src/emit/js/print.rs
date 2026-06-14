@@ -1,4 +1,4 @@
-use crate::generate::js::{CodegenJsError, CodegenJsResult};
+use crate::EmitError;
 use destack_artifact::DirParsed;
 use destack_fir as fir;
 use destack_js as js;
@@ -13,13 +13,13 @@ pub(crate) struct PrintedJsModule {
     pub markers: Vec<fir::format::FileMarker>,
 }
 
-/// Print one generated JS module with the target output policy.
+/// Print one emitted JS module with the target output policy.
 pub(crate) fn print_js_module(
     options: js::JsFormatOptions,
     parsed: &DirParsed,
     source_file: &File,
     module: &js::Module,
-) -> CodegenJsResult<PrintedJsModule> {
+) -> Result<PrintedJsModule, EmitError> {
     if options.mode == js::FormatMode::Minimal {
         return print_js_module_minified(options, parsed, source_file, module);
     }
@@ -27,14 +27,14 @@ pub(crate) fn print_js_module(
     print_js_module_pretty(options, parsed, source_file, module)
 }
 
-/// Print one generated JS module through the direct minified printer.
+/// Print one emitted JS module through the direct minified printer.
 pub(crate) fn print_js_module_minified(
     options: js::JsFormatOptions,
     parsed: &DirParsed,
     source_file: &File,
     module: &js::Module,
-) -> CodegenJsResult<PrintedJsModule> {
-    let source_map = CodegenJsSourceMap { parsed };
+) -> Result<PrintedJsModule, EmitError> {
+    let source_map = SourceMap { parsed };
     let printed = js::print_roots_minified_with_source_map(
         options.file_type,
         &module.tree,
@@ -51,12 +51,12 @@ pub(crate) fn print_js_module_minified(
 
 /// One source span provider backed by source parts.
 #[derive(Debug)]
-struct CodegenJsSourceMap<'a> {
+struct SourceMap<'a> {
     /// The original parsed DIR artifact.
     parsed: &'a DirParsed,
 }
 
-impl CodegenJsSourceMap<'_> {
+impl SourceMap<'_> {
     /// Return the source id for one lowered JS node when one exists.
     fn source_id(&self, tree: &js::Tree, node_id: u32) -> Option<u32> {
         let origin = tree.get_origin(node_id)?;
@@ -75,7 +75,7 @@ impl CodegenJsSourceMap<'_> {
     }
 }
 
-impl js::JsSourceMap for CodegenJsSourceMap<'_> {
+impl js::JsSourceMap for SourceMap<'_> {
     fn source_span(&self, tree: &js::Tree, node_id: u32) -> Option<Span> {
         let source_id = self.source_id(tree, node_id)?;
 
@@ -108,14 +108,14 @@ impl PrintedJsModule {
     }
 }
 
-/// Print one generated JS module through the pure formatter.
+/// Print one emitted JS module through the pure formatter.
 fn print_js_module_pretty(
     options: js::JsFormatOptions,
     parsed: &DirParsed,
     source_file: &File,
     module: &js::Module,
-) -> CodegenJsResult<PrintedJsModule> {
-    let source_map = CodegenJsSourceMap { parsed };
+) -> Result<PrintedJsModule, EmitError> {
+    let source_map = SourceMap { parsed };
     let roots = module.roots.as_slice();
     let context = js::JsFormatContext {
         options,
@@ -131,8 +131,8 @@ fn print_js_module_pretty(
     // format the root list through the pure JS formatter
     {
         let mut formatter = fir::format::Formatter::new(&mut buffer);
-        js::format_roots(&mut formatter, roots).map_err(|error| CodegenJsError::Internal {
-            message: format!("failed to format JS module: {error}"),
+        js::format_roots(&mut formatter, roots).map_err(|error| {
+            print_internal_error(parsed, format!("failed to format JS module: {error}"))
         })?;
     }
 
@@ -141,12 +141,21 @@ fn print_js_module_pretty(
 
     let printed = fir::print::Printer::new(source_file, state.context().options.as_print_options())
         .print(&document)
-        .map_err(|error| CodegenJsError::Internal {
-            message: format!("failed to print JS module: {error}"),
+        .map_err(|error| {
+            print_internal_error(parsed, format!("failed to print JS module: {error}"))
         })?;
 
     Ok(PrintedJsModule {
         code: printed.as_str().to_string(),
         markers: printed.sourcemap().to_vec(),
     })
+}
+
+/// Build one internal JS print error.
+fn print_internal_error(parsed: &DirParsed, message: String) -> EmitError {
+    EmitError::Internal {
+        anchor: parsed.tree.module_id.into(),
+        module: parsed.tree.module_id,
+        message,
+    }
 }

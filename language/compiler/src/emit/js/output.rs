@@ -5,10 +5,9 @@ use destack_artifact::{
     JsLanguage, JsOutput,
 };
 use destack_core::StringPool;
-use destack_js as js;
 use destack_repository::{Module, Target};
 
-use crate::generate::js::{CodegenJsError, CodegenJsResult};
+use crate::EmitError;
 
 use super::lower::lower_module;
 
@@ -57,14 +56,11 @@ impl<'a> JsOutputGenerator<'a> {
         }
     }
 
-    /// Generate one JS output.
-    pub(crate) fn generate(self) -> CodegenJsResult<(JsOutput, Vec<CodegenJsError>)> {
+    /// Emit one JS output.
+    pub(crate) fn emit(self) -> Result<(JsOutput, Vec<EmitError>), EmitError> {
         // validate target
-        if !self.target.uses_js_generate_pipeline() {
-            return Err(CodegenJsError::UnsupportedTarget {
-                format: format!("{:?}", self.target.emit),
-                message: Some("expected JS, TS, or HTML".to_string()),
-            });
+        if !self.target.uses_js_emit_pipeline() {
+            return Err(self.unsupported_target("expected JS, TS, or HTML".to_string()));
         }
 
         // current module inputs
@@ -77,12 +73,10 @@ impl<'a> JsOutputGenerator<'a> {
 
         // resource modules are linked directly in the JS linker
         if !module.is_code() {
-            return Err(CodegenJsError::Internal {
-                message: format!(
-                    "resource JS outputs are linked directly for module '{}'",
-                    module.uri
-                ),
-            });
+            return Err(self.internal_error(format!(
+                "resource JS outputs are linked directly for module '{}'",
+                module.uri
+            )));
         }
 
         // emit one lowered JavaScript module tree
@@ -96,18 +90,6 @@ impl<'a> JsOutputGenerator<'a> {
             checked,
         )?;
         let errors = lower.errors;
-        let artifact = self.build_js_artifact(lower.module, true)?;
-
-        Ok((artifact, errors))
-    }
-
-    /// Build one JS output from one lowered module tree.
-    fn build_js_artifact(
-        &self,
-        module: js::Module,
-        has_top_level_side_effects: bool,
-    ) -> CodegenJsResult<JsOutput> {
-        // declaration output
         let declaration = if self.target.declaration && matches!(self.target.emit, EmitFormat::Js) {
             Some(JsDeclaration::default())
         } else {
@@ -119,19 +101,36 @@ impl<'a> JsOutputGenerator<'a> {
             EmitFormat::Js => JsLanguage::JavaScript,
             EmitFormat::Ts => JsLanguage::TypeScript,
             _ => {
-                return Err(CodegenJsError::UnsupportedTarget {
-                    format: format!("{:?}", self.target.emit),
-                    message: Some("expected JS, TS, or HTML".to_string()),
-                });
+                return Err(self.unsupported_target("expected JS, TS, or HTML".to_string()));
             }
         };
 
-        Ok(JsOutput {
+        let artifact = JsOutput {
             language,
-            module,
+            module: lower.module,
             declaration,
             source_map: None,
-            has_top_level_side_effects,
-        })
+            has_top_level_side_effects: true,
+        };
+
+        Ok((artifact, errors))
+    }
+
+    /// Build one unsupported target error.
+    fn unsupported_target(&self, message: String) -> EmitError {
+        EmitError::UnsupportedTarget {
+            anchor: self.module.id.into(),
+            module: self.module.id,
+            target: format!("{:?}: {message}", self.target.emit),
+        }
+    }
+
+    /// Build one internal JS emit error.
+    fn internal_error(&self, message: String) -> EmitError {
+        EmitError::Internal {
+            anchor: self.module.id.into(),
+            module: self.module.id,
+            message,
+        }
     }
 }

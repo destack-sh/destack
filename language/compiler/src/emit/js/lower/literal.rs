@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_js as js;
 
-use crate::generate::js::ModuleLowerer;
+use crate::emit::js::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
     /// Lower a scalar literal from DIR into JS AST.

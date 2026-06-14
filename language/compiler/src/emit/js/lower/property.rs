@@ -1,42 +1,15 @@
+use crate::EmitError;
 use destack_dir as dir;
 use destack_js as js;
 
-use crate::generate::js::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
+use crate::emit::js::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
-    /// Build one JS binding modifier for properties and members.
-    fn build_member_modifier(
-        &self,
-        kind: Option<js::BindingKind>,
-        anchor: Option<js::BindingAnchor>,
-        mutability: Option<js::Mutability>,
-        visibility: Option<js::Visibility>,
-        operator: Option<js::BindingOperator>,
-        accessor: Option<js::AccessorKind>,
-    ) -> Option<js::BindingModifier> {
-        let modifiers = js::BindingModifier {
-            kind,
-            variance: None,
-            anchor,
-            mutability,
-            visibility,
-            operator,
-            definite: false,
-            accessor,
-        };
-
-        if modifiers == js::BindingModifier::default() {
-            None
-        } else {
-            Some(modifiers)
-        }
-    }
-
     /// Lower a property from DIR into JS AST.
     pub(crate) fn lower_property(
         &mut self,
         property_id: dir::LocalNodeId<dir::Property>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::Property>> {
+    ) -> Result<js::LocalNodeId<js::Property>, EmitError> {
         let property = self.dir_tree.get(property_id);
         let property = match property {
             dir::Property::Field {
@@ -46,9 +19,7 @@ impl ModuleLowerer<'_> {
             } => {
                 let modifiers = None;
                 let key = self.lower_key(*key)?;
-                let value = self
-                    .lower_expression(*value)
-                    .expect_node::<js::Expression>(value.into_global_any(self.module.id), self)?;
+                let value = self.lower_expression_as::<js::Expression>(*value)?;
 
                 js::Property::Field {
                     modifiers,
@@ -78,17 +49,15 @@ impl ModuleLowerer<'_> {
             }
             dir::Property::Spread { value } => {
                 let modifiers = None;
-                let value = self
-                    .lower_expression(*value)
-                    .expect_node::<js::Expression>(value.into_global_any(self.module.id), self)?;
+                let value = self.lower_expression_as::<js::Expression>(*value)?;
 
                 js::Property::Spread { modifiers, value }
             }
             dir::Property::Error => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: property_id.into_global_any(self.module.id),
-                    message: Some("property error slots are not lowered to JS".to_string()),
-                });
+                return Err(self.unsupported_construct(
+                    property_id.into_global_any(self.module.id),
+                    Some("property error slots are not lowered to JS".to_string()),
+                ));
             }
         };
         let property_id = self
@@ -98,12 +67,11 @@ impl ModuleLowerer<'_> {
         Ok(property_id)
     }
 
-    /// Lower a member from DIR into JS AST.
     /// Lower a type member from DIR into JS AST.
     pub(crate) fn lower_type_member(
         &mut self,
         member_id: dir::LocalNodeId<dir::TypeMember>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::TypeMember>> {
+    ) -> Result<js::LocalNodeId<js::TypeMember>, EmitError> {
         let member = self.dir_tree.get(member_id);
         let member = match member {
             dir::TypeMember::Field {
@@ -113,28 +81,14 @@ impl ModuleLowerer<'_> {
                 declared_type,
                 ..
             } => {
-                let modifiers = self.build_member_modifier(
-                    if *is_optional {
-                        Some(js::BindingKind::Maybe)
-                    } else {
-                        None
-                    },
-                    None,
-                    if *is_readonly {
-                        Some(js::Mutability::Immutable)
-                    } else {
-                        None
-                    },
-                    None,
-                    None,
-                    None,
-                );
+                let modifiers = (*is_optional || *is_readonly).then_some(js::BindingModifier {
+                    kind: (*is_optional).then_some(js::BindingKind::Maybe),
+                    mutability: (*is_readonly).then_some(js::Mutability::Immutable),
+                    ..js::BindingModifier::default()
+                });
                 let key = self.lower_key(*key)?;
                 let Some(declared_type) = declared_type else {
-                    return Err(CodegenJsError::MissingType {
-                        node: member_id.into_global_any(self.module.id),
-                        message: Some("type member field is missing its declared type".to_string()),
-                    });
+                    return Err(self.missing_type(member_id.into_global_any(self.module.id)));
                 };
                 let ty = self.lower_type_annotation_expression(*declared_type)?;
 
@@ -149,27 +103,19 @@ impl ModuleLowerer<'_> {
             } => {
                 // default methods on nominal interfaces still need explicit JS elaboration
                 if body.is_some() {
-                    return Err(CodegenJsError::UnsupportedConstruct {
-                        node: member_id.into_global_any(self.module.id),
-                        message: Some(
+                    return Err(self.unsupported_construct(
+                        member_id.into_global_any(self.module.id),
+                        Some(
                             "nominal interface default methods are not lowered to JS yet"
                                 .to_string(),
                         ),
-                    });
+                    ));
                 }
 
-                let modifiers = self.build_member_modifier(
-                    if *is_optional {
-                        Some(js::BindingKind::Maybe)
-                    } else {
-                        None
-                    },
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                );
+                let modifiers = (*is_optional).then_some(js::BindingModifier {
+                    kind: Some(js::BindingKind::Maybe),
+                    ..js::BindingModifier::default()
+                });
                 let key = self.lower_key(*key)?;
                 let signature = self.lower_function_signature(signature)?;
 
@@ -180,7 +126,7 @@ impl ModuleLowerer<'_> {
                 }
             }
             dir::TypeMember::CallSignature { signature, .. } => {
-                let modifiers = self.build_member_modifier(None, None, None, None, None, None);
+                let modifiers = None;
                 let generic_parameters =
                     self.lower_generic_parameters(&signature.generic_parameters)?;
                 let this_parameter = signature
@@ -191,7 +137,7 @@ impl ModuleLowerer<'_> {
                     .parameters
                     .iter()
                     .map(|parameter| self.lower_parameter(*parameter))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
                 let return_type = signature
                     .return_type
                     .map(|return_type| self.lower_type_annotation_expression(return_type))
@@ -208,14 +154,14 @@ impl ModuleLowerer<'_> {
                 }
             }
             dir::TypeMember::ConstructSignature { signature, .. } => {
-                let modifiers = self.build_member_modifier(None, None, None, None, None, None);
+                let modifiers = None;
                 let generic_parameters =
                     self.lower_generic_parameters(&signature.generic_parameters)?;
                 let parameters = signature
                     .parameters
                     .iter()
                     .map(|parameter| self.lower_parameter(*parameter))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
                 let return_type = signature
                     .return_type
                     .map(|return_type| self.lower_type_annotation_expression(return_type))
@@ -232,18 +178,16 @@ impl ModuleLowerer<'_> {
                 }
             }
             dir::TypeMember::AssociatedType { .. } => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: member_id.into_global_any(self.module.id),
-                    message: Some("associated type members are compile-time only".to_string()),
-                });
+                return Err(self.unsupported_construct(
+                    member_id.into_global_any(self.module.id),
+                    Some("associated type members are compile-time only".to_string()),
+                ));
             }
             dir::TypeMember::AssociatedConst { .. } => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: member_id.into_global_any(self.module.id),
-                    message: Some(
-                        "associated comptime constants are compile-time only".to_string(),
-                    ),
-                });
+                return Err(self.unsupported_construct(
+                    member_id.into_global_any(self.module.id),
+                    Some("associated comptime constants are compile-time only".to_string()),
+                ));
             }
             dir::TypeMember::IndexSignature {
                 is_optional,
@@ -253,22 +197,11 @@ impl ModuleLowerer<'_> {
                 value_type,
                 ..
             } => {
-                let modifiers = self.build_member_modifier(
-                    if *is_optional {
-                        Some(js::BindingKind::Maybe)
-                    } else {
-                        None
-                    },
-                    None,
-                    if *is_readonly {
-                        Some(js::Mutability::Immutable)
-                    } else {
-                        None
-                    },
-                    None,
-                    None,
-                    None,
-                );
+                let modifiers = (*is_optional || *is_readonly).then_some(js::BindingModifier {
+                    kind: (*is_optional).then_some(js::BindingKind::Maybe),
+                    mutability: (*is_readonly).then_some(js::Mutability::Immutable),
+                    ..js::BindingModifier::default()
+                });
                 let name = *name;
                 let key_type = self.lower_type_annotation_expression(*key_type)?;
                 let value_type = self.lower_type_annotation_expression(*value_type)?;
@@ -281,10 +214,10 @@ impl ModuleLowerer<'_> {
                 }
             }
             dir::TypeMember::Error => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: member_id.into_global_any(self.module.id),
-                    message: Some("type member error slots are not lowered to JS".to_string()),
-                });
+                return Err(self.unsupported_construct(
+                    member_id.into_global_any(self.module.id),
+                    Some("type member error slots are not lowered to JS".to_string()),
+                ));
             }
         };
 
@@ -299,22 +232,20 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_member(
         &mut self,
         member_id: dir::LocalNodeId<dir::Member>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::Member>> {
+    ) -> Result<js::LocalNodeId<js::Member>, EmitError> {
         let member = self.dir_tree.get(member_id);
         let member = match member {
             dir::Member::AssociatedType { .. } => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: member_id.into_global_any(self.module.id),
-                    message: Some("associated type members are compile-time only".to_string()),
-                });
+                return Err(self.unsupported_construct(
+                    member_id.into_global_any(self.module.id),
+                    Some("associated type members are compile-time only".to_string()),
+                ));
             }
             dir::Member::AssociatedConst { .. } => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: member_id.into_global_any(self.module.id),
-                    message: Some(
-                        "associated comptime constants are compile-time only".to_string(),
-                    ),
-                });
+                return Err(self.unsupported_construct(
+                    member_id.into_global_any(self.module.id),
+                    Some("associated comptime constants are compile-time only".to_string()),
+                ));
             }
             dir::Member::Field {
                 key,
@@ -328,42 +259,34 @@ impl ModuleLowerer<'_> {
                 is_accessor,
                 ..
             } => {
-                let modifiers = self.build_member_modifier(
-                    if *is_optional {
-                        Some(js::BindingKind::Maybe)
-                    } else {
-                        None
-                    },
-                    if *is_static {
-                        Some(js::BindingAnchor::Static)
-                    } else {
-                        None
-                    },
-                    if *is_readonly {
-                        Some(js::Mutability::Immutable)
-                    } else {
-                        mutability.map(|mutability| self.lower_mutability(mutability))
-                    },
-                    visibility.map(|visibility| self.lower_visibility(visibility)),
-                    None,
-                    if *is_accessor {
-                        Some(js::AccessorKind::Accessor)
-                    } else {
-                        None
-                    },
-                );
+                let kind = (*is_optional).then_some(js::BindingKind::Maybe);
+                let anchor = (*is_static).then_some(js::BindingAnchor::Static);
+                let mutability = if *is_readonly {
+                    Some(js::Mutability::Immutable)
+                } else {
+                    mutability.map(|mutability| self.lower_mutability(mutability))
+                };
+                let visibility = visibility.map(|visibility| self.lower_visibility(visibility));
+                let accessor = (*is_accessor).then_some(js::AccessorKind::Accessor);
+                let modifiers = (kind.is_some()
+                    || anchor.is_some()
+                    || mutability.is_some()
+                    || visibility.is_some()
+                    || accessor.is_some())
+                .then_some(js::BindingModifier {
+                    kind,
+                    anchor,
+                    mutability,
+                    visibility,
+                    accessor,
+                    ..js::BindingModifier::default()
+                });
                 let key = self.lower_key(*key)?;
                 let value = declared_type
                     .map(|value| self.lower_type_annotation_expression(value))
                     .transpose()?;
                 let default = default
-                    .map(|default| {
-                        self.lower_expression(default)
-                            .expect_node::<js::Expression>(
-                                default.into_global_any(self.module.id),
-                                self,
-                            )
-                    })
+                    .map(|default| self.lower_expression_as::<js::Expression>(default))
                     .transpose()?;
 
                 js::Member::Field {
@@ -382,22 +305,16 @@ impl ModuleLowerer<'_> {
                 is_accessor,
                 ..
             } => {
-                let modifiers = self.build_member_modifier(
-                    None,
-                    if *is_static {
-                        Some(js::BindingAnchor::Static)
-                    } else {
-                        None
-                    },
-                    None,
-                    visibility.map(|visibility| self.lower_visibility(visibility)),
-                    None,
-                    if *is_accessor {
-                        Some(js::AccessorKind::Accessor)
-                    } else {
-                        None
-                    },
-                );
+                let anchor = (*is_static).then_some(js::BindingAnchor::Static);
+                let visibility = visibility.map(|visibility| self.lower_visibility(visibility));
+                let accessor = (*is_accessor).then_some(js::AccessorKind::Accessor);
+                let modifiers = (anchor.is_some() || visibility.is_some() || accessor.is_some())
+                    .then_some(js::BindingModifier {
+                        anchor,
+                        visibility,
+                        accessor,
+                        ..js::BindingModifier::default()
+                    });
                 let key = key.map(|key| self.lower_key(key)).transpose()?;
                 let signature = self.lower_function_signature(signature)?;
                 let body = body
@@ -417,16 +334,16 @@ impl ModuleLowerer<'_> {
                 js::Member::StaticBlock { body }
             }
             dir::Member::ComptimeBlock { .. } => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: member_id.into_global_any(self.module.id),
-                    message: Some("comptime blocks are compile-time only".to_string()),
-                });
+                return Err(self.unsupported_construct(
+                    member_id.into_global_any(self.module.id),
+                    Some("comptime blocks are compile-time only".to_string()),
+                ));
             }
             dir::Member::Error => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: member_id.into_global_any(self.module.id),
-                    message: Some("member error slots are not lowered to JS".to_string()),
-                });
+                return Err(self.unsupported_construct(
+                    member_id.into_global_any(self.module.id),
+                    Some("member error slots are not lowered to JS".to_string()),
+                ));
             }
         };
         let member_id = self

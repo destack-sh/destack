@@ -1,7 +1,8 @@
+use crate::EmitError;
 use destack_dir as dir;
 use destack_js as js;
 
-use crate::generate::js::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
+use crate::emit::js::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
     /// Lower visibility from DIR into JS AST.
@@ -25,7 +26,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_interface_heritage(
         &mut self,
         extends_type: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> CodegenJsResult<js::InterfaceHeritage> {
+    ) -> Result<js::InterfaceHeritage, EmitError> {
         let (expression, type_arguments) = self.lower_type_callee(extends_type)?;
 
         Ok(js::InterfaceHeritage {
@@ -38,7 +39,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_declaration(
         &mut self,
         declaration_id: dir::LocalNodeId<dir::Declaration>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::Declaration>> {
+    ) -> Result<js::LocalNodeId<js::Declaration>, EmitError> {
         let source_declaration_id = declaration_id;
         let declaration = self.dir_tree.get(declaration_id);
         let declaration = match declaration {
@@ -47,14 +48,8 @@ impl ModuleLowerer<'_> {
                 let statements = declaration
                     .expressions
                     .iter()
-                    .map(|expression| {
-                        self.lower_expression(*expression)
-                            .expect_node::<js::Statement>(
-                                expression.into_global_any(self.module.id),
-                                self,
-                            )
-                    })
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .map(|expression| self.lower_expression_as::<js::Statement>(*expression))
+                    .collect::<Result<Vec<_>, EmitError>>()?;
 
                 let declaration = js::GlobalDeclaration {
                     is_ambient: declaration.is_ambient,
@@ -73,12 +68,12 @@ impl ModuleLowerer<'_> {
                     .types
                     .get_node_type_id(declaration_id.into_global_any(self.module.id))
                 else {
-                    return Err(CodegenJsError::UnsupportedConstruct {
-                        node: declaration_id.into_global_any(self.module.id),
-                        message: Some(
+                    return Err(self.unsupported_construct(
+                        declaration_id.into_global_any(self.module.id),
+                        Some(
                             "type declarations need semantic types before JS lowering".to_string(),
                         ),
-                    });
+                    ));
                 };
                 let value = self.lower_type(declared_type_id)?;
 
@@ -108,7 +103,7 @@ impl ModuleLowerer<'_> {
                     .members
                     .iter()
                     .map(|member| self.lower_member(*member))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
 
                 // struct declarations currently lower through class form
 
@@ -152,7 +147,7 @@ impl ModuleLowerer<'_> {
                     .members
                     .iter()
                     .map(|member| self.lower_member(*member))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
 
                 let declaration = js::ClassDeclaration {
                     name: declaration.name.map(|name| self.lower_name(name)),
@@ -181,14 +176,14 @@ impl ModuleLowerer<'_> {
                     .iter()
                     .copied()
                     .map(|extends_type| self.lower_interface_heritage(extends_type))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
 
                 // members
                 let members = declaration
                     .members
                     .iter()
                     .map(|member| self.lower_type_member(*member))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
 
                 let declaration = js::InterfaceDeclaration {
                     name: declaration.name.map(|name| self.lower_name(name)),
@@ -209,7 +204,7 @@ impl ModuleLowerer<'_> {
                     .fields
                     .iter()
                     .map(|field| self.lower_enum_field(*field))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
 
                 let declaration = js::EnumDeclaration {
                     name: declaration.name.map(|name| self.lower_name(name)),
@@ -246,10 +241,8 @@ impl ModuleLowerer<'_> {
                 js::Declaration::Function(declaration)
             }
             _ => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: declaration_id.into_global_any(self.module.id),
-                    message: None,
-                });
+                return Err(self
+                    .unsupported_construct(declaration_id.into_global_any(self.module.id), None));
             }
         };
         let declaration_id =
@@ -265,15 +258,12 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_enum_field(
         &mut self,
         field_id: dir::LocalNodeId<dir::EnumField>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::EnumField>> {
+    ) -> Result<js::LocalNodeId<js::EnumField>, EmitError> {
         let field = self.dir_tree.get(field_id);
         let name = field.name.string();
         let value = field
             .value
-            .map(|value_id| {
-                self.lower_expression(value_id)
-                    .expect_node::<js::Expression>(value_id.into_global_any(self.module.id), self)
-            })
+            .map(|value_id| self.lower_expression_as::<js::Expression>(value_id))
             .transpose()?;
         let field = js::EnumField { name, value };
         let field_id = self

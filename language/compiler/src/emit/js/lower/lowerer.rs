@@ -4,7 +4,8 @@ use destack_dir as dir;
 use destack_js as js;
 use destack_repository::Module;
 
-use crate::generate::js::{CodegenJsError, CodegenJsResult, ScriptSymbolId};
+use crate::emit::js::ScriptSymbolId;
+use crate::{DiagnosticAnchor, EmitError};
 
 /// Context for lowering a DIR module to JS AST.
 #[derive(Debug)]
@@ -38,18 +39,18 @@ pub(crate) struct ModuleLowerer<'a> {
     /// String pool for the output.
     pub(crate) strings: StringPool,
     /// Collected non-fatal errors.
-    pub(crate) errors: Vec<CodegenJsError>,
+    pub(crate) errors: Vec<EmitError>,
 }
 
 impl<'a> ModuleLowerer<'a> {
     // TODO #Cleanup: not entirely sure if guarding js::ModuleLowerer only to local operands is right?
 
     /// Return one checked type visible to this lowering context.
-    pub(crate) fn require_type(&self, type_id: dir::GlobalTypeId) -> CodegenJsResult<&dir::Type> {
+    pub(crate) fn require_type(&self, type_id: dir::GlobalTypeId) -> Result<&dir::Type, EmitError> {
         if type_id.module_id != self.module.id {
-            return Err(CodegenJsError::Internal {
-                message: format!("JS lowering cannot read foreign DIR type {type_id:?}"),
-            });
+            return Err(self.internal_error(format!(
+                "JS lowering cannot read foreign DIR type {type_id:?}"
+            )));
         }
 
         Ok(self.types.get_type(type_id.local_id))
@@ -59,11 +60,11 @@ impl<'a> ModuleLowerer<'a> {
     pub(crate) fn require_type_source(
         &self,
         type_id: dir::GlobalTypeId,
-    ) -> CodegenJsResult<dir::LocalNodeIdAny> {
+    ) -> Result<dir::LocalNodeIdAny, EmitError> {
         if type_id.module_id != self.module.id {
-            return Err(CodegenJsError::Internal {
-                message: format!("JS lowering cannot read foreign DIR type source {type_id:?}"),
-            });
+            return Err(self.internal_error(format!(
+                "JS lowering cannot read foreign DIR type source {type_id:?}"
+            )));
         }
 
         Ok(self.types.get_type_source(type_id.local_id))
@@ -73,11 +74,11 @@ impl<'a> ModuleLowerer<'a> {
     pub(crate) fn require_static(
         &self,
         static_id: dir::GlobalStaticId,
-    ) -> CodegenJsResult<&dir::StaticTerm> {
+    ) -> Result<&dir::StaticTerm, EmitError> {
         if static_id.module_id != self.module.id {
-            return Err(CodegenJsError::Internal {
-                message: format!("JS lowering cannot read foreign DIR static {static_id:?}"),
-            });
+            return Err(self.internal_error(format!(
+                "JS lowering cannot read foreign DIR static {static_id:?}"
+            )));
         }
 
         Ok(self.statics.get_static(static_id.local_id))
@@ -187,12 +188,135 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Record a non-fatal error (allows lowering to continue).
-    pub(crate) fn error(&mut self, error: CodegenJsError) {
+    pub(crate) fn error(&mut self, error: EmitError) {
         self.errors.push(error);
     }
 
+    /// Build one source span anchor from a DIR node.
+    pub(crate) fn anchor(&self, node: dir::GlobalNodeIdAny) -> DiagnosticAnchor {
+        assert_eq!(
+            self.module.id, node.module_id,
+            "JS diagnostic node belongs to a different module"
+        );
+
+        let span = self
+            .dir_tree
+            .get_span_by_id(node.local_id.id)
+            .expect("JS diagnostic node is missing a source span");
+
+        DiagnosticAnchor::Span(span)
+    }
+
+    /// Build one unsupported construct error.
+    pub(crate) fn unsupported_construct(
+        &self,
+        node: dir::GlobalNodeIdAny,
+        message: Option<String>,
+    ) -> EmitError {
+        EmitError::UnsupportedConstruct {
+            anchor: self.anchor(node),
+            module: self.module.id,
+            message: message.unwrap_or_else(|| format!("unsupported {}", node.local_id.ty.name())),
+        }
+    }
+
+    /// Build one unexpected lowered node error.
+    pub(crate) fn unexpected_node(
+        &self,
+        node: dir::GlobalNodeIdAny,
+        wanted: js::NodeType,
+        message: Option<String>,
+    ) -> EmitError {
+        EmitError::UnexpectedConstruct {
+            anchor: self.anchor(node),
+            module: self.module.id,
+            message: message.unwrap_or_else(|| {
+                format!(
+                    "unexpected {} (wanted {})",
+                    node.local_id.ty.name(),
+                    wanted.name()
+                )
+            }),
+        }
+    }
+
+    /// Return one lowered node as the expected JS node type.
+    pub(crate) fn expect_node<T>(
+        &self,
+        node_id: js::LocalNodeIdAny,
+        source_id: dir::GlobalNodeIdAny,
+    ) -> Result<js::LocalNodeId<T>, EmitError>
+    where
+        T: js::Node,
+    {
+        if node_id.ty == T::TYPE {
+            Ok(js::LocalNodeId::<T>::new(node_id.id))
+        } else {
+            let source_kind = if source_id.local_id.ty == dir::NodeType::Expression {
+                " for expression"
+            } else {
+                ""
+            };
+
+            Err(self.unexpected_node(
+                source_id,
+                T::TYPE,
+                Some(format!(
+                    "lowered to unexpected {} (wanted {}){source_kind}",
+                    node_id.ty.name(),
+                    T::TYPE.name()
+                )),
+            ))
+        }
+    }
+
+    /// Lower one DIR expression and anchor shape errors at the given source node.
+    pub(crate) fn lower_expression_as_anchored<T>(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        anchor: dir::GlobalNodeIdAny,
+    ) -> Result<js::LocalNodeId<T>, EmitError>
+    where
+        T: js::Node,
+    {
+        let node_id = self.lower_expression(expression_id)?;
+
+        self.expect_node::<T>(node_id, anchor)
+    }
+
+    /// Lower one DIR expression and return it as the expected JS node type.
+    pub(crate) fn lower_expression_as<T>(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<js::LocalNodeId<T>, EmitError>
+    where
+        T: js::Node,
+    {
+        self.lower_expression_as_anchored::<T>(
+            expression_id,
+            expression_id.into_global_any(self.module.id),
+        )
+    }
+
+    /// Build one missing type error.
+    pub(crate) fn missing_type(&self, node: dir::GlobalNodeIdAny) -> EmitError {
+        EmitError::MissingType {
+            anchor: self.anchor(node),
+            module: self.module.id,
+        }
+    }
+
+    /// Build one internal JS emit error.
+    pub(crate) fn internal_error(&self, message: String) -> EmitError {
+        EmitError::Internal {
+            anchor: self.module.id.into(),
+            module: self.module.id,
+            message,
+        }
+    }
+
     /// Lower the module to JS AST.
-    pub(crate) fn lower_module(&mut self) -> CodegenJsResult<()> {
+    pub(crate) fn lower_module(&mut self) -> Result<(), EmitError> {
         for expression_id in self.dir_roots.iter() {
             match self.lower_expression(*expression_id) {
                 Ok(root_id) => self.roots.push(root_id),

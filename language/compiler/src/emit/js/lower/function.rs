@@ -1,7 +1,8 @@
+use crate::EmitError;
 use destack_dir as dir;
 use destack_js as js;
 
-use crate::generate::js::{CodegenJsError, CodegenJsResult, ModuleLowerer};
+use crate::emit::js::ModuleLowerer;
 
 #[allow(clippy::too_many_arguments)]
 impl ModuleLowerer<'_> {
@@ -37,7 +38,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_function_signature(
         &mut self,
         function_signature: &dir::FunctionSignature,
-    ) -> CodegenJsResult<js::FunctionSignature> {
+    ) -> Result<js::FunctionSignature, EmitError> {
         let asynchrony = self.lower_asynchrony(function_signature.asynchrony);
         let role = function_signature
             .role
@@ -53,7 +54,7 @@ impl ModuleLowerer<'_> {
             .parameters
             .iter()
             .map(|parameter| self.lower_parameter(*parameter))
-            .collect::<Result<Vec<_>, CodegenJsError>>()?;
+            .collect::<Result<Vec<_>, EmitError>>()?;
         let return_type = function_signature
             .return_type
             .map(|return_type| self.lower_type_annotation_expression(return_type))

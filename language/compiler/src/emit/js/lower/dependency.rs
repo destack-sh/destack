@@ -1,6 +1,6 @@
-use crate::generate::js::{
-    CodegenJsError, CodegenJsResult, CodegenJsResultExt, DependencyBinding, DependencyForm,
-    DependencyItem, Expression, LocalNodeId, ModuleLowerer,
+use crate::EmitError;
+use crate::emit::js::{
+    DependencyBinding, DependencyForm, DependencyItem, Expression, LocalNodeId, ModuleLowerer,
 };
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -46,16 +46,16 @@ impl ModuleLowerer<'_> {
         &mut self,
         form: dir::DependencyForm,
         item_ids: &[dir::LocalNodeId<dir::DependencyItem>],
-    ) -> CodegenJsResult<Vec<LocalNodeId<DependencyItem>>> {
+    ) -> Result<Vec<LocalNodeId<DependencyItem>>, EmitError> {
         let mut lowered_item_ids: Vec<LocalNodeId<DependencyItem>> = Vec::new();
         for item_id in item_ids {
             let item = self.dir_tree.get(*item_id);
             match item {
                 dir::DependencyItem::Error => {
-                    return Err(CodegenJsError::UnsupportedConstruct {
-                        node: item_id.into_global_any(self.module.id),
-                        message: Some("dependency error slots are not lowered to JS".to_string()),
-                    });
+                    return Err(self.unsupported_construct(
+                        item_id.into_global_any(self.module.id),
+                        Some("dependency error slots are not lowered to JS".to_string()),
+                    ));
                 }
                 dir::DependencyItem::Binding {
                     binding,
@@ -69,12 +69,7 @@ impl ModuleLowerer<'_> {
                     let name = name.map(|name| self.lower_name(name));
                     let alias = *alias;
                     let value = value
-                        .map(|value| {
-                            self.lower_expression(value).expect_node::<Expression>(
-                                value.into_global_any(self.module.id),
-                                self,
-                            )
-                        })
+                        .map(|value| self.lower_expression_as::<Expression>(value))
                         .transpose()?;
                     let item_form = item_form.unwrap_or(form);
                     let item = DependencyItem {

@@ -1,7 +1,8 @@
+use crate::EmitError;
 use destack_dir as dir;
 use destack_js as js;
 
-use crate::generate::js::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
+use crate::emit::js::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
     /// Lower a DIR unary expression to a JS unary expression.
@@ -10,10 +11,8 @@ impl ModuleLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::UnaryOperator,
         right_id: dir::LocalNodeId<dir::Expression>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::Expression>> {
-        let right_id = self
-            .lower_expression(right_id)
-            .expect_node::<js::Expression>(right_id.into_global_any(self.module.id), self)?;
+    ) -> Result<js::LocalNodeId<js::Expression>, EmitError> {
+        let right_id = self.lower_expression_as::<js::Expression>(right_id)?;
 
         // lower a trivial unary expression to a JS unary expression
         let mut unary = |operator: js::UnaryOperator| -> js::LocalNodeId<js::Expression> {
@@ -38,10 +37,10 @@ impl ModuleLowerer<'_> {
             dir::UnaryOperator::Void => unary(js::UnaryOperator::Void),
             dir::UnaryOperator::Dereference => right_id,
             dir::UnaryOperator::Spread => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module.id),
-                    message: Some("spread unary expressions are not lowered to JS".to_string()),
-                });
+                return Err(self.unsupported_construct(
+                    expression_id.into_global_any(self.module.id),
+                    Some("spread unary expressions are not lowered to JS".to_string()),
+                ));
             }
         };
 
@@ -55,13 +54,9 @@ impl ModuleLowerer<'_> {
         left_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::BinaryOperator,
         right_id: dir::LocalNodeId<dir::Expression>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::Expression>> {
-        let left_id = self
-            .lower_expression(left_id)
-            .expect_node::<js::Expression>(left_id.into_global_any(self.module.id), self)?;
-        let right_id = self
-            .lower_expression(right_id)
-            .expect_node::<js::Expression>(right_id.into_global_any(self.module.id), self)?;
+    ) -> Result<js::LocalNodeId<js::Expression>, EmitError> {
+        let left_id = self.lower_expression_as::<js::Expression>(left_id)?;
+        let right_id = self.lower_expression_as::<js::Expression>(right_id)?;
 
         let mut binary = |operator: js::BinaryOperator| -> js::LocalNodeId<js::Expression> {
             let expression = js::Expression::Binary {
@@ -114,13 +109,9 @@ impl ModuleLowerer<'_> {
         left_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::AssignOperator,
         right_id: dir::LocalNodeId<dir::Expression>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::Expression>> {
-        let left_id = self
-            .lower_expression(left_id)
-            .expect_node::<js::Expression>(left_id.into_global_any(self.module.id), self)?;
-        let right_id = self
-            .lower_expression(right_id)
-            .expect_node::<js::Expression>(right_id.into_global_any(self.module.id), self)?;
+    ) -> Result<js::LocalNodeId<js::Expression>, EmitError> {
+        let left_id = self.lower_expression_as::<js::Expression>(left_id)?;
+        let right_id = self.lower_expression_as::<js::Expression>(right_id)?;
 
         // lower a trivial assign binary expression to a JS assign binary expression
         let mut assign_binary = |operator: js::AssignOperator| -> js::LocalNodeId<js::Expression> {
@@ -135,10 +126,10 @@ impl ModuleLowerer<'_> {
 
         let expression_id = match operator {
             dir::AssignOperator::Assign => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module.id),
-                    message: Some("plain assignment is not a compound assignment".to_string()),
-                });
+                return Err(self.unsupported_construct(
+                    expression_id.into_global_any(self.module.id),
+                    Some("plain assignment is not a compound assignment".to_string()),
+                ));
             }
             dir::AssignOperator::MultiplyAssign => {
                 assign_binary(js::AssignOperator::MultiplyAssign)

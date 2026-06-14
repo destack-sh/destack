@@ -1,10 +1,11 @@
+use crate::EmitError;
 use destack_core::StringId;
 use destack_dir as dir;
 use destack_dir::is_identifier;
 use destack_js as js;
 use smallvec::smallvec;
 
-use crate::generate::js::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
+use crate::emit::js::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
     /// Insert one path expression from string segments.
@@ -46,7 +47,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         source_id: dir::LocalNodeIdAny,
         key: dir::SymbolKey,
-    ) -> CodegenJsResult<js::LocalNodeId<js::Expression>> {
+    ) -> Result<js::LocalNodeId<js::Expression>, EmitError> {
         let expression_id = match key {
             dir::SymbolKey::Registry(name) => {
                 let callee = self.insert_path_expression(source_id, &["Symbol", "for"]);
@@ -66,24 +67,24 @@ impl ModuleLowerer<'_> {
             }
             dir::SymbolKey::Unique(symbol_id) => {
                 if symbol_id.module_id != self.module.id {
-                    return Err(CodegenJsError::UnsupportedConstruct {
-                        node: source_id.into_global(self.module.id),
-                        message: Some(
+                    return Err(self.unsupported_construct(
+                        source_id.into_global(self.module.id),
+                        Some(
                             "remote unique symbol keys need source-backed lowering in JS output"
                                 .to_string(),
                         ),
-                    });
+                    ));
                 }
 
                 let symbol = self.symbols.get_symbol(dir::LocalSymbolId::from(symbol_id));
                 let Some(dir::StaticKey::Name(name)) = symbol.key else {
-                    return Err(CodegenJsError::UnsupportedConstruct {
-                        node: source_id.into_global(self.module.id),
-                        message: Some(
+                    return Err(self.unsupported_construct(
+                        source_id.into_global(self.module.id),
+                        Some(
                             "unique symbol keys need identifier-backed symbols in JS output"
                                 .to_string(),
                         ),
-                    });
+                    ));
                 };
 
                 let segment = name;
@@ -130,7 +131,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower a key from DIR into JS AST.
-    pub(crate) fn lower_key(&mut self, key: dir::Key) -> CodegenJsResult<js::Key> {
+    pub(crate) fn lower_key(&mut self, key: dir::Key) -> Result<js::Key, EmitError> {
         let key = match key {
             dir::Key::Name(name) => {
                 let name = self.lower_name(name);
@@ -138,12 +139,7 @@ impl ModuleLowerer<'_> {
             }
             dir::Key::Private(name) => js::Key::Private(name),
             dir::Key::Expression(expression_id) => {
-                let expression_id = self
-                    .lower_expression(expression_id)
-                    .expect_node::<js::Expression>(
-                        expression_id.into_global_any(self.module.id),
-                        self,
-                    )?;
+                let expression_id = self.lower_expression_as::<js::Expression>(expression_id)?;
                 js::Key::Expression(expression_id)
             }
         };
@@ -156,7 +152,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         source_id: dir::LocalNodeIdAny,
         key: dir::StaticKey,
-    ) -> CodegenJsResult<js::Key> {
+    ) -> Result<js::Key, EmitError> {
         let key = match key {
             dir::StaticKey::Name(name) => {
                 let name = self.lower_string_to_name(name);

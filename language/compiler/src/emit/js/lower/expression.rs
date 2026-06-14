@@ -1,17 +1,22 @@
+use crate::EmitError;
+
 use destack_dir as dir;
 use destack_js as js;
 
-use crate::generate::js::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
+use crate::emit::js::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
     /// Lower one reference type into a JS callee.
     pub(crate) fn lower_type_callee(
         &mut self,
         type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> CodegenJsResult<(
-        js::LocalNodeId<js::Expression>,
-        Vec<js::LocalNodeId<js::TypeExpression>>,
-    )> {
+    ) -> Result<
+        (
+            js::LocalNodeId<js::Expression>,
+            Vec<js::LocalNodeId<js::TypeExpression>>,
+        ),
+        EmitError,
+    > {
         let source_id = type_expression_id.into_any();
         let type_expression = self.dir_tree.get(type_expression_id);
 
@@ -63,10 +68,10 @@ impl ModuleLowerer<'_> {
 
                 Ok((left_id, generic_arguments))
             }
-            _ => Err(CodegenJsError::UnsupportedConstruct {
-                node: type_expression_id.into_global_any(self.module.id),
-                message: Some("type callee must be a path or member expression".to_string()),
-            }),
+            _ => Err(self.unsupported_construct(
+                type_expression_id.into_global_any(self.module.id),
+                Some("type callee must be a path or member expression".to_string()),
+            )),
         }
     }
 
@@ -75,7 +80,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         source_id: dir::LocalNodeIdAny,
         value: &dir::ImportAttributeValue,
-    ) -> CodegenJsResult<js::LocalNodeId<js::Expression>> {
+    ) -> Result<js::LocalNodeId<js::Expression>, EmitError> {
         let expression = match value {
             dir::ImportAttributeValue::ScalarLiteral(value) => js::Expression::ScalarLiteral {
                 value: self.lower_scalar_literal(value),
@@ -91,7 +96,7 @@ impl ModuleLowerer<'_> {
                             .tree
                             .insert_from_source_any(element, self.module.id, source_id))
                     })
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
 
                 js::Expression::ArrayLiteral { elements }
             }
@@ -99,17 +104,15 @@ impl ModuleLowerer<'_> {
                 let properties = attributes
                     .iter()
                     .map(|attribute| self.lower_import_attribute_property(source_id, attribute))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
 
                 js::Expression::ObjectLiteral { properties }
             }
             dir::ImportAttributeValue::Error => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: source_id.into_global(self.module.id),
-                    message: Some(
-                        "import attribute error values are not lowered to JS".to_string(),
-                    ),
-                });
+                return Err(self.unsupported_construct(
+                    source_id.into_global(self.module.id),
+                    Some("import attribute error values are not lowered to JS".to_string()),
+                ));
             }
         };
 
@@ -123,7 +126,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         source_id: dir::LocalNodeIdAny,
         attribute: &dir::ImportAttribute,
-    ) -> CodegenJsResult<js::LocalNodeId<js::Property>> {
+    ) -> Result<js::LocalNodeId<js::Property>, EmitError> {
         let key = js::Key::Name(self.lower_name(attribute.key));
         let value = self.lower_import_attribute_value(source_id, &attribute.value)?;
         let property = js::Property::Field {
@@ -143,17 +146,17 @@ impl ModuleLowerer<'_> {
         &mut self,
         source_id: dir::LocalNodeIdAny,
         attributes: &dir::ImportAttributeClause,
-    ) -> CodegenJsResult<crate::generate::js::DependencyAttributeClause> {
+    ) -> Result<crate::emit::js::DependencyAttributeClause, EmitError> {
         let properties = attributes
             .attributes
             .iter()
             .map(|attribute| self.lower_import_attribute_property(source_id, attribute))
-            .collect::<Result<Vec<_>, CodegenJsError>>()?;
+            .collect::<Result<Vec<_>, EmitError>>()?;
 
-        Ok(crate::generate::js::DependencyAttributeClause {
+        Ok(crate::emit::js::DependencyAttributeClause {
             kind: match attributes.kind {
                 dir::ImportAttributeClauseKind::With => {
-                    crate::generate::js::DependencyAttributeClauseKind::With
+                    crate::emit::js::DependencyAttributeClauseKind::With
                 }
             },
             properties,
@@ -179,7 +182,7 @@ impl ModuleLowerer<'_> {
     fn lower_arrow_function_body(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> CodegenJsResult<js::ArrowFunctionBody> {
+    ) -> Result<js::ArrowFunctionBody, EmitError> {
         let lowered_id = self.lower_expression(expression_id)?;
 
         self.normalize_arrow_function_body(lowered_id, expression_id)
@@ -190,7 +193,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         lowered_id: js::LocalNodeIdAny,
         source_expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> CodegenJsResult<js::ArrowFunctionBody> {
+    ) -> Result<js::ArrowFunctionBody, EmitError> {
         match lowered_id.ty {
             // expression bodies
             js::NodeType::Expression => {
@@ -237,13 +240,13 @@ impl ModuleLowerer<'_> {
             }
 
             // invalid body shapes
-            _ => Err(CodegenJsError::UnsupportedConstruct {
-                node: source_expression_id.into_global_any(self.module.id),
-                message: Some(format!(
+            _ => Err(self.unsupported_construct(
+                source_expression_id.into_global_any(self.module.id),
+                Some(format!(
                     "lambda body lowered to unsupported {}",
                     lowered_id.ty.name()
                 )),
-            }),
+            )),
         }
     }
 
@@ -252,7 +255,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         block_id: js::LocalNodeId<js::Block>,
         source_expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> CodegenJsResult<js::ArrowFunctionBody> {
+    ) -> Result<js::ArrowFunctionBody, EmitError> {
         let block = self.tree.get(block_id);
 
         // one statement blocks can still collapse to concise arrows
@@ -285,7 +288,7 @@ impl ModuleLowerer<'_> {
     fn lower_for_initialization(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> CodegenJsResult<js::ForInitialization> {
+    ) -> Result<js::ForInitialization, EmitError> {
         let expression = self.dir_tree.get(expression_id);
 
         match expression {
@@ -313,12 +316,7 @@ impl ModuleLowerer<'_> {
                         .transpose()?;
                     let value = dir_declarator
                         .value
-                        .map(|value| {
-                            self.lower_expression(value).expect_node::<js::Expression>(
-                                value.into_global_any(self.module.id),
-                                self,
-                            )
-                        })
+                        .map(|value| self.lower_expression_as::<js::Expression>(value))
                         .transpose()?;
                     let declarator = js::Declarator { pattern, ty, value };
                     let declarator_id = self.tree.insert_from_source(
@@ -335,12 +333,7 @@ impl ModuleLowerer<'_> {
                 })
             }
             _ => {
-                let expression = self
-                    .lower_expression(expression_id)
-                    .expect_node::<js::Expression>(
-                        expression_id.into_global_any(self.module.id),
-                        self,
-                    )?;
+                let expression = self.lower_expression_as::<js::Expression>(expression_id)?;
 
                 Ok(js::ForInitialization::Expression(expression))
             }
@@ -351,7 +344,7 @@ impl ModuleLowerer<'_> {
     fn lower_switch_case(
         &mut self,
         case_id: dir::LocalNodeId<dir::MatchCase>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::SwitchCase>> {
+    ) -> Result<js::LocalNodeId<js::SwitchCase>, EmitError> {
         let switch_case = self.dir_tree.get(case_id);
         let (selector, body) = match switch_case {
             dir::MatchCase::Expression { selector, body } => (selector, Err(*body)),
@@ -362,31 +355,23 @@ impl ModuleLowerer<'_> {
             dir::MatchSelector::Default => None,
             dir::MatchSelector::Pattern { pattern, guard } => {
                 if guard.is_some() {
-                    return Err(CodegenJsError::UnsupportedConstruct {
-                        node: case_id.into_global_any(self.module.id),
-                        message: Some(
-                            "guarded switch cases should be rejected before JS codegen".to_string(),
-                        ),
-                    });
+                    return Err(self.unsupported_construct(
+                        case_id.into_global_any(self.module.id),
+                        Some("guarded switch cases should be rejected before JS emit".to_string()),
+                    ));
                 }
 
                 let dir::Pattern::Expression { value } = self.dir_tree.get(*pattern) else {
-                    return Err(CodegenJsError::UnsupportedConstruct {
-                        node: pattern.into_global_any(self.module.id),
-                        message: Some(
-                            "switch patterns should be expression selectors before JS codegen"
+                    return Err(self.unsupported_construct(
+                        pattern.into_global_any(self.module.id),
+                        Some(
+                            "switch patterns should be expression selectors before JS emit"
                                 .to_string(),
                         ),
-                    });
+                    ));
                 };
 
-                Some(
-                    self.lower_expression(*value)
-                        .expect_node::<js::Expression>(
-                            value.into_global_any(self.module.id),
-                            self,
-                        )?,
-                )
+                Some(self.lower_expression_as::<js::Expression>(*value)?)
             }
         };
 
@@ -405,7 +390,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> CodegenJsResult<js::LocalNodeIdAny> {
+    ) -> Result<js::LocalNodeIdAny, EmitError> {
         let expression = self.dir_tree.get(expression_id);
 
         let lowered_id = match expression {
@@ -421,12 +406,10 @@ impl ModuleLowerer<'_> {
                 {
                     let signature = self.lower_function_signature(&declaration.signature)?;
                     let Some(body) = declaration.body else {
-                        return Err(CodegenJsError::UnsupportedConstruct {
-                            node: expression_id.into_global_any(self.module.id),
-                            message: Some(
-                                "lambda declarations need a body in JS output".to_string(),
-                            ),
-                        });
+                        return Err(self.unsupported_construct(
+                            expression_id.into_global_any(self.module.id),
+                            Some("lambda declarations need a body in JS output".to_string()),
+                        ));
                     };
                     let body = self.lower_arrow_function_body(body)?;
 
@@ -524,12 +507,7 @@ impl ModuleLowerer<'_> {
                         .transpose()?;
                     let value: Option<js::LocalNodeId<js::Expression>> = dir_declarator
                         .value
-                        .map(|value| {
-                            self.lower_expression(value).expect_node::<js::Expression>(
-                                value.into_global_any(self.module.id),
-                                self,
-                            )
-                        })
+                        .map(|value| self.lower_expression_as::<js::Expression>(value))
                         .transpose()?;
 
                     let declarator = js::Declarator { pattern, ty, value };
@@ -569,12 +547,7 @@ impl ModuleLowerer<'_> {
                         .transpose()?;
                     let value: Option<js::LocalNodeId<js::Expression>> = dir_declarator
                         .value
-                        .map(|value| {
-                            self.lower_expression(value).expect_node::<js::Expression>(
-                                value.into_global_any(self.module.id),
-                                self,
-                            )
-                        })
+                        .map(|value| self.lower_expression_as::<js::Expression>(value))
                         .transpose()?;
 
                     let declarator = js::Declarator { pattern, ty, value };
@@ -671,7 +644,7 @@ impl ModuleLowerer<'_> {
                 let elements = elements
                     .iter()
                     .map(|element_id| self.lower_array_element(*element_id, expression_id))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
                 let expression = js::Expression::ArrayLiteral { elements };
                 self.tree
                     .insert_from_source(expression, self.module.id, expression_id)
@@ -680,14 +653,8 @@ impl ModuleLowerer<'_> {
             dir::Expression::SequenceExpression { expressions } => {
                 let expressions = expressions
                     .iter()
-                    .map(|expr_id| {
-                        self.lower_expression(*expr_id)
-                            .expect_node::<js::Expression>(
-                                expr_id.into_global_any(self.module.id),
-                                self,
-                            )
-                    })
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .map(|expr_id| self.lower_expression_as::<js::Expression>(*expr_id))
+                    .collect::<Result<Vec<_>, EmitError>>()?;
                 let expression = js::Expression::SequenceExpression { expressions };
                 self.tree
                     .insert_from_source(expression, self.module.id, expression_id)
@@ -697,7 +664,7 @@ impl ModuleLowerer<'_> {
                 let elements = elements
                     .iter()
                     .map(|element_id| self.lower_array_element(*element_id, expression_id))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
                 let expression = js::Expression::ArrayLiteral { elements };
                 self.tree
                     .insert_from_source(expression, self.module.id, expression_id)
@@ -708,7 +675,7 @@ impl ModuleLowerer<'_> {
                 let properties = properties
                     .iter()
                     .map(|property_id| self.lower_property(*property_id))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
                 let expression = js::Expression::ObjectLiteral { properties };
                 self.tree
                     .insert_from_source(expression, self.module.id, expression_id)
@@ -718,12 +685,7 @@ impl ModuleLowerer<'_> {
                 expression,
                 target_type,
             } => {
-                let expression = self
-                    .lower_expression(*expression)
-                    .expect_node::<js::Expression>(
-                        expression.into_global_any(self.module.id),
-                        self,
-                    )?;
+                let expression = self.lower_expression_as::<js::Expression>(*expression)?;
                 let target_type = self.lower_type_annotation_expression(*target_type)?;
                 let expression = js::Expression::As {
                     expression,
@@ -737,12 +699,7 @@ impl ModuleLowerer<'_> {
                 expression,
                 target_type,
             } => {
-                let expression = self
-                    .lower_expression(*expression)
-                    .expect_node::<js::Expression>(
-                        expression.into_global_any(self.module.id),
-                        self,
-                    )?;
+                let expression = self.lower_expression_as::<js::Expression>(*expression)?;
                 let target_type = self.lower_type_annotation_expression(*target_type)?;
                 let expression = js::Expression::Satisfies {
                     expression,
@@ -756,13 +713,13 @@ impl ModuleLowerer<'_> {
             dir::Expression::Type { value } => {
                 let type_expression = self.dir_tree.get(*value);
                 let dir::TypeExpression::Literal { value } = type_expression else {
-                    return Err(CodegenJsError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(self.module.id),
-                        message: Some(
+                    return Err(self.unsupported_construct(
+                        expression_id.into_global_any(self.module.id),
+                        Some(
                             "runtime type values should be elaborated before JS lowering"
                                 .to_string(),
                         ),
-                    });
+                    ));
                 };
 
                 if matches!(value, dir::TypeLiteral::Null | dir::TypeLiteral::Undefined) {
@@ -780,9 +737,11 @@ impl ModuleLowerer<'_> {
 
                 let type_literal = self
                     .lower_type_literal(expression_id.into_any(), value)
-                    .map_err(|_| CodegenJsError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(self.module.id),
-                        message: Some(format!("unsupported type literal value: {value:?}")),
+                    .map_err(|_| {
+                        self.unsupported_construct(
+                            expression_id.into_global_any(self.module.id),
+                            Some(format!("unsupported type literal value: {value:?}")),
+                        )
                     })?;
                 let ty = js::TypeExpression::Scalar(type_literal);
                 self.tree
@@ -801,20 +760,20 @@ impl ModuleLowerer<'_> {
                             .map(|argument_id| {
                                 let argument = self.dir_tree.get(*argument_id);
                                 let Some(value) = argument.value() else {
-                                    return Err(CodegenJsError::UnsupportedConstruct {
-                                        node: argument_id.into_global_any(self.module.id),
-                                        message: Some(
+                                    return Err(self.unsupported_construct(
+                                        argument_id.into_global_any(self.module.id),
+                                        Some(
                                             "template arguments need expression values".to_string(),
                                         ),
-                                    });
+                                    ));
                                 };
 
-                                self.lower_expression(value).expect_node::<js::Expression>(
+                                self.lower_expression_as_anchored::<js::Expression>(
+                                    value,
                                     argument_id.into_global_any(self.module.id),
-                                    self,
                                 )
                             })
-                            .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                            .collect::<Result<Vec<_>, EmitError>>()?;
                         js::TemplateLiteral::InterpolatedString {
                             template,
                             expressions,
@@ -831,20 +790,13 @@ impl ModuleLowerer<'_> {
                 generic_arguments: _,
                 value: _,
             } => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module.id),
-                    message: Some(
-                        "tagged template expressions need explicit JS IR support".to_string(),
-                    ),
-                });
+                return Err(self.unsupported_construct(
+                    expression_id.into_global_any(self.module.id),
+                    Some("tagged template expressions need explicit JS IR support".to_string()),
+                ));
             }
             dir::Expression::Parenthesized { expression } => {
-                let expression = self
-                    .lower_expression(*expression)
-                    .expect_node::<js::Expression>(
-                        expression.into_global_any(self.module.id),
-                        self,
-                    )?;
+                let expression = self.lower_expression_as::<js::Expression>(*expression)?;
                 let expression = js::Expression::Parenthesized { expression };
                 self.tree
                     .insert_from_source(expression, self.module.id, expression_id)
@@ -854,20 +806,14 @@ impl ModuleLowerer<'_> {
                 .lower_unary_expression(expression_id, *operator, *right)?
                 .into_any(),
             dir::Expression::Is { .. } => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module.id),
-                    message: Some(
-                        "`is` expressions must be elaborated before JS lowering".to_string(),
-                    ),
-                });
+                return Err(self.unsupported_construct(
+                    expression_id.into_global_any(self.module.id),
+                    Some("`is` expressions must be elaborated before JS lowering".to_string()),
+                ));
             }
             dir::Expression::InstanceOf { value, target } => {
-                let value = self
-                    .lower_expression(*value)
-                    .expect_node::<js::Expression>(value.into_global_any(self.module.id), self)?;
-                let target = self
-                    .lower_expression(*target)
-                    .expect_node::<js::Expression>(target.into_global_any(self.module.id), self)?;
+                let value = self.lower_expression_as::<js::Expression>(*value)?;
+                let target = self.lower_expression_as::<js::Expression>(*target)?;
 
                 let expression = js::Expression::InstanceOf { value, target };
                 self.tree
@@ -888,13 +834,10 @@ impl ModuleLowerer<'_> {
             } => {
                 if *operator != dir::AssignOperator::Assign {
                     let dir::AssignPattern::Expression { value } = self.dir_tree.get(*left) else {
-                        return Err(CodegenJsError::UnsupportedConstruct {
-                            node: expression_id.into_global_any(self.module.id),
-                            message: Some(
+                        return Err(self.unsupported_construct(expression_id.into_global_any(self.module.id), Some(
                                 "compound assignment targets must be expression targets for JS output"
                                     .to_string(),
-                            ),
-                        });
+                            )));
                     };
 
                     return Ok(self
@@ -903,9 +846,7 @@ impl ModuleLowerer<'_> {
                 }
 
                 let left_id = self.lower_assign_pattern(*left)?;
-                let right_id = self
-                    .lower_expression(*right)
-                    .expect_node::<js::Expression>(right.into_global_any(self.module.id), self)?;
+                let right_id = self.lower_expression_as::<js::Expression>(*right)?;
                 let expression = js::Expression::Assign {
                     left: left_id,
                     right: right_id,
@@ -915,9 +856,7 @@ impl ModuleLowerer<'_> {
                     .into_any()
             }
             dir::Expression::Maybe { left, position: _ } => {
-                let left_id = self
-                    .lower_expression(*left)
-                    .expect_node::<js::Expression>(left.into_global_any(self.module.id), self)?;
+                let left_id = self.lower_expression_as::<js::Expression>(*left)?;
                 let position = self.get_postfix_expression_position(left_id);
                 let expression = js::Expression::Maybe {
                     position,
@@ -928,9 +867,7 @@ impl ModuleLowerer<'_> {
                     .into_any()
             }
             dir::Expression::Must { left, position: _ } => {
-                let left_id = self
-                    .lower_expression(*left)
-                    .expect_node::<js::Expression>(left.into_global_any(self.module.id), self)?;
+                let left_id = self.lower_expression_as::<js::Expression>(*left)?;
                 let position = self.get_postfix_expression_position(left_id);
                 let expression = js::Expression::Must {
                     position,
@@ -942,14 +879,12 @@ impl ModuleLowerer<'_> {
             }
 
             dir::Expression::Member { left, name } => {
-                let left_id = self
-                    .lower_expression(*left)
-                    .expect_node::<js::Expression>(left.into_global_any(self.module.id), self)?;
+                let left_id = self.lower_expression_as::<js::Expression>(*left)?;
                 let Some(name) = *name else {
-                    return Err(CodegenJsError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(self.module.id),
-                        message: Some("missing member name".to_string()),
-                    });
+                    return Err(self.unsupported_construct(
+                        expression_id.into_global_any(self.module.id),
+                        Some("missing member name".to_string()),
+                    ));
                 };
                 let expression = js::Expression::Member {
                     left: left_id,
@@ -960,14 +895,12 @@ impl ModuleLowerer<'_> {
                     .into_any()
             }
             dir::Expression::PrivateMember { left, name } => {
-                let left_id = self
-                    .lower_expression(*left)
-                    .expect_node::<js::Expression>(left.into_global_any(self.module.id), self)?;
+                let left_id = self.lower_expression_as::<js::Expression>(*left)?;
                 let Some(name) = *name else {
-                    return Err(CodegenJsError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(self.module.id),
-                        message: Some("missing private member name".to_string()),
-                    });
+                    return Err(self.unsupported_construct(
+                        expression_id.into_global_any(self.module.id),
+                        Some("missing private member name".to_string()),
+                    ));
                 };
                 let expression = js::Expression::PrivateMember {
                     left: left_id,
@@ -982,19 +915,15 @@ impl ModuleLowerer<'_> {
                 left,
                 index,
             } => {
-                let left_id = self
-                    .lower_expression(*left)
-                    .expect_node::<js::Expression>(left.into_global_any(self.module.id), self)?;
+                let left_id = self.lower_expression_as::<js::Expression>(*left)?;
                 let position = self.get_postfix_expression_position(left_id);
                 let Some(right) = *index else {
-                    return Err(CodegenJsError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(self.module.id),
-                        message: Some("index expressions need a right operand".to_string()),
-                    });
+                    return Err(self.unsupported_construct(
+                        expression_id.into_global_any(self.module.id),
+                        Some("index expressions need a right operand".to_string()),
+                    ));
                 };
-                let right_id = self
-                    .lower_expression(right)
-                    .expect_node::<js::Expression>(right.into_global_any(self.module.id), self)?;
+                let right_id = self.lower_expression_as::<js::Expression>(right)?;
                 let expression = js::Expression::Index {
                     position,
                     left: left_id,
@@ -1008,9 +937,7 @@ impl ModuleLowerer<'_> {
                 left,
                 generic_arguments,
             } => {
-                let left_id = self
-                    .lower_expression(*left)
-                    .expect_node::<js::Expression>(left.into_global_any(self.module.id), self)?;
+                let left_id = self.lower_expression_as::<js::Expression>(*left)?;
                 let generic_arguments = self.lower_static_type_arguments(generic_arguments)?;
                 let expression = js::Expression::Instantiation {
                     left: left_id,
@@ -1027,15 +954,13 @@ impl ModuleLowerer<'_> {
                 generic_arguments,
                 arguments,
             } => {
-                let left_id = self
-                    .lower_expression(*left)
-                    .expect_node::<js::Expression>(left.into_global_any(self.module.id), self)?;
+                let left_id = self.lower_expression_as::<js::Expression>(*left)?;
                 let position = self.get_postfix_expression_position(left_id);
                 let generic_arguments = self.lower_static_type_arguments(generic_arguments)?;
                 let arguments = arguments
                     .iter()
                     .map(|argument| self.lower_argument(*argument))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
                 let expression = js::Expression::Call {
                     position,
                     left: left_id,
@@ -1051,7 +976,7 @@ impl ModuleLowerer<'_> {
                 let arguments = arguments
                     .iter()
                     .map(|argument| self.lower_argument(*argument))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
                 let expression = js::Expression::New {
                     left: left_id,
                     generic_arguments,
@@ -1062,10 +987,10 @@ impl ModuleLowerer<'_> {
                     .into_any()
             }
             dir::Expression::NewMaybe { .. } => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module.id),
-                    message: Some("fallible new expressions are not lowered to JS".to_string()),
-                });
+                return Err(self.unsupported_construct(
+                    expression_id.into_global_any(self.module.id),
+                    Some("fallible new expressions are not lowered to JS".to_string()),
+                ));
             }
             dir::Expression::If {
                 form,
@@ -1076,34 +1001,25 @@ impl ModuleLowerer<'_> {
                 dir::IfForm::Ternary => {
                     let condition = match condition {
                         dir::IfCondition::Expression { condition } => self
-                            .lower_expression(*condition)
-                            .expect_node::<js::Expression>(
+                            .lower_expression_as_anchored::<js::Expression>(
+                                *condition,
                                 condition.into_global_any(self.module.id),
-                                self,
                             )?,
                         dir::IfCondition::Let { .. } => {
-                            return Err(CodegenJsError::UnsupportedConstruct {
-                                node: expression_id.into_global_any(self.module.id),
-                                message: Some(
-                                    "if let conditions should be elaborated before JS codegen"
+                            return Err(self.unsupported_construct(
+                                expression_id.into_global_any(self.module.id),
+                                Some(
+                                    "if let conditions should be elaborated before JS emit"
                                         .to_string(),
                                 ),
-                            });
+                            ));
                         }
                     };
-                    let then_expression = self
-                        .lower_expression(*then_expression)
-                        .expect_node::<js::Expression>(
-                            then_expression.into_global_any(self.module.id),
-                            self,
-                        )?;
+                    let then_expression =
+                        self.lower_expression_as::<js::Expression>(*then_expression)?;
                     let else_expression = else_expression
                         .map(|else_expression| {
-                            self.lower_expression(else_expression)
-                                .expect_node::<js::Expression>(
-                                    else_expression.into_global_any(self.module.id),
-                                    self,
-                                )
+                            self.lower_expression_as::<js::Expression>(else_expression)
                         })
                         .transpose()?;
                     let expression = js::Expression::IfTernary {
@@ -1118,19 +1034,18 @@ impl ModuleLowerer<'_> {
                 dir::IfForm::If => {
                     let condition = match condition {
                         dir::IfCondition::Expression { condition } => self
-                            .lower_expression(*condition)
-                            .expect_node::<js::Expression>(
+                            .lower_expression_as_anchored::<js::Expression>(
+                                *condition,
                                 condition.into_global_any(self.module.id),
-                                self,
                             )?,
                         dir::IfCondition::Let { .. } => {
-                            return Err(CodegenJsError::UnsupportedConstruct {
-                                node: expression_id.into_global_any(self.module.id),
-                                message: Some(
-                                    "if let conditions should be elaborated before JS codegen"
+                            return Err(self.unsupported_construct(
+                                expression_id.into_global_any(self.module.id),
+                                Some(
+                                    "if let conditions should be elaborated before JS emit"
                                         .to_string(),
                                 ),
-                            });
+                            ));
                         }
                     };
                     let then_block = self.lower_expression_as_block(*then_expression)?;
@@ -1153,12 +1068,7 @@ impl ModuleLowerer<'_> {
                 body,
             } => {
                 let body = self.lower_block(*body)?;
-                let condition = self
-                    .lower_expression(*condition)
-                    .expect_node::<js::Expression>(
-                        condition.into_global_any(self.module.id),
-                        self,
-                    )?;
+                let condition = self.lower_expression_as::<js::Expression>(*condition)?;
                 if *form == dir::WhileForm::DoWhile {
                     let statement = js::Statement::DoWhile { body, condition };
                     return Ok(self
@@ -1192,12 +1102,7 @@ impl ModuleLowerer<'_> {
                 iterator,
                 body,
             } => {
-                let iterator = self
-                    .lower_expression(*iterator)
-                    .expect_node::<js::Expression>(
-                        iterator.into_global_any(self.module.id),
-                        self,
-                    )?;
+                let iterator = self.lower_expression_as::<js::Expression>(*iterator)?;
                 let body = self.lower_block(*body)?;
                 let statement = match operator {
                     dir::ForEachOperator::Of => {
@@ -1210,13 +1115,13 @@ impl ModuleLowerer<'_> {
                                 keyword.map(|keyword| self.lower_for_each_keyword(keyword)),
                             ),
                             dir::ForEachBinding::Using { .. } => {
-                                return Err(CodegenJsError::UnsupportedConstruct {
-                                    node: expression_id.into_global_any(self.module.id),
-                                    message: Some(
+                                return Err(self.unsupported_construct(
+                                    expression_id.into_global_any(self.module.id),
+                                    Some(
                                         "using bindings in for-of are not lowered to JS yet"
                                             .to_string(),
                                     ),
-                                });
+                                ));
                             }
                         };
                         js::Statement::ForOf {
@@ -1237,13 +1142,13 @@ impl ModuleLowerer<'_> {
                                 keyword.map(|keyword| self.lower_for_each_keyword(keyword)),
                             ),
                             dir::ForEachBinding::Using { .. } => {
-                                return Err(CodegenJsError::UnsupportedConstruct {
-                                    node: expression_id.into_global_any(self.module.id),
-                                    message: Some(
+                                return Err(self.unsupported_construct(
+                                    expression_id.into_global_any(self.module.id),
+                                    Some(
                                         "using bindings in for-in are not lowered to JS yet"
                                             .to_string(),
                                     ),
-                                });
+                                ));
                             }
                         };
                         js::Statement::ForIn {
@@ -1268,22 +1173,10 @@ impl ModuleLowerer<'_> {
                     .map(|initialization| self.lower_for_initialization(initialization))
                     .transpose()?;
                 let condition = condition
-                    .map(|condition| {
-                        self.lower_expression(condition)
-                            .expect_node::<js::Expression>(
-                                condition.into_global_any(self.module.id),
-                                self,
-                            )
-                    })
+                    .map(|condition| self.lower_expression_as::<js::Expression>(condition))
                     .transpose()?;
                 let increment = increment
-                    .map(|increment| {
-                        self.lower_expression(increment)
-                            .expect_node::<js::Expression>(
-                                increment.into_global_any(self.module.id),
-                                self,
-                            )
-                    })
+                    .map(|increment| self.lower_expression_as::<js::Expression>(increment))
                     .transpose()?;
                 let body = self.lower_block(*body)?;
                 let statement = js::Statement::For {
@@ -1298,22 +1191,20 @@ impl ModuleLowerer<'_> {
             }
             dir::Expression::Match { form, value, cases } => {
                 if *form != dir::MatchForm::Switch {
-                    return Err(CodegenJsError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(self.module.id),
-                        message: Some(
-                            "non-switch match expressions should be elaborated before JS codegen"
+                    return Err(self.unsupported_construct(
+                        expression_id.into_global_any(self.module.id),
+                        Some(
+                            "non-switch match expressions should be elaborated before JS emit"
                                 .to_string(),
                         ),
-                    });
+                    ));
                 }
 
-                let value = self
-                    .lower_expression(*value)
-                    .expect_node::<js::Expression>(value.into_global_any(self.module.id), self)?;
+                let value = self.lower_expression_as::<js::Expression>(*value)?;
                 let cases = cases
                     .iter()
                     .map(|case_id| self.lower_switch_case(*case_id))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
                 let statement = js::Statement::Switch { value, cases };
                 self.tree
                     .insert_from_source(statement, self.module.id, expression_id)
@@ -1356,10 +1247,10 @@ impl ModuleLowerer<'_> {
             }
             dir::Expression::Break { label, value } => {
                 if value.is_some() {
-                    return Err(CodegenJsError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(self.module.id),
-                        message: Some("break values are not lowered to JS".to_string()),
-                    });
+                    return Err(self.unsupported_construct(
+                        expression_id.into_global_any(self.module.id),
+                        Some("break values are not lowered to JS".to_string()),
+                    ));
                 }
 
                 let label = *label;
@@ -1376,21 +1267,14 @@ impl ModuleLowerer<'_> {
                     .into_any()
             }
             dir::Expression::Throw { value } => {
-                let value = self
-                    .lower_expression(*value)
-                    .expect_node::<js::Expression>(value.into_global_any(self.module.id), self)?;
+                let value = self.lower_expression_as::<js::Expression>(*value)?;
                 let statement = js::Statement::Throw { value };
                 self.tree
                     .insert_from_source(statement, self.module.id, expression_id)
                     .into_any()
             }
             dir::Expression::Await { expression } => {
-                let value = self
-                    .lower_expression(*expression)
-                    .expect_node::<js::Expression>(
-                        expression.into_global_any(self.module.id),
-                        self,
-                    )?;
+                let value = self.lower_expression_as::<js::Expression>(*expression)?;
                 let expression = js::Expression::Await { value };
                 self.tree
                     .insert_from_source(expression, self.module.id, expression_id)
@@ -1399,18 +1283,13 @@ impl ModuleLowerer<'_> {
             dir::Expression::Yield { cardinality, value } => {
                 let is_delegate = *cardinality == dir::YieldCardinality::Generator;
                 let value = value
-                    .map(|value| {
-                        self.lower_expression(value).expect_node::<js::Expression>(
-                            value.into_global_any(self.module.id),
-                            self,
-                        )
-                    })
+                    .map(|value| self.lower_expression_as::<js::Expression>(value))
                     .transpose()?;
                 if is_delegate && value.is_none() {
-                    return Err(CodegenJsError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(self.module.id),
-                        message: Some("delegated yield requires a value".to_string()),
-                    });
+                    return Err(self.unsupported_construct(
+                        expression_id.into_global_any(self.module.id),
+                        Some("delegated yield requires a value".to_string()),
+                    ));
                 }
                 let expression = js::Expression::Yield { is_delegate, value };
                 self.tree
@@ -1419,12 +1298,7 @@ impl ModuleLowerer<'_> {
             }
             dir::Expression::Return { value } => {
                 let value = value
-                    .map(|value| {
-                        self.lower_expression(value).expect_node::<js::Expression>(
-                            value.into_global_any(self.module.id),
-                            self,
-                        )
-                    })
+                    .map(|value| self.lower_expression_as::<js::Expression>(value))
                     .transpose()?;
                 let statement = js::Statement::Return { value };
                 self.tree
@@ -1481,10 +1355,10 @@ impl ModuleLowerer<'_> {
             | dir::Expression::AwaitMust { .. }
             | dir::Expression::MoveOf { .. }
             | dir::Expression::BorrowOf { .. } => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module.id),
-                    message: Some(format!("unsupported expression: {expression:?}")),
-                });
+                return Err(self.unsupported_construct(
+                    expression_id.into_global_any(self.module.id),
+                    Some(format!("unsupported expression: {expression:?}")),
+                ));
             }
         };
 
@@ -1496,35 +1370,31 @@ impl ModuleLowerer<'_> {
         &mut self,
         argument_id: dir::LocalNodeId<dir::Argument>,
         expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::ArrayElement>> {
+    ) -> Result<js::LocalNodeId<js::ArrayElement>, EmitError> {
         let argument = self.dir_tree.get(argument_id);
 
         let array_element = match argument {
             dir::Argument::Named { .. } => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module.id),
-                    message: Some("named array elements are not lowered to JS".to_string()),
-                });
+                return Err(self.unsupported_construct(
+                    expression_id.into_global_any(self.module.id),
+                    Some("named array elements are not lowered to JS".to_string()),
+                ));
             }
             dir::Argument::Positional { value, .. } | dir::Argument::Labeled { value, .. } => {
-                let value = self
-                    .lower_expression(*value)
-                    .expect_node::<js::Expression>(value.into_global_any(self.module.id), self)?;
+                let value = self.lower_expression_as::<js::Expression>(*value)?;
 
                 js::ArrayElement::Expression { value }
             }
             dir::Argument::Spread { value, .. } => {
-                let value = self
-                    .lower_expression(*value)
-                    .expect_node::<js::Expression>(value.into_global_any(self.module.id), self)?;
+                let value = self.lower_expression_as::<js::Expression>(*value)?;
 
                 js::ArrayElement::Spread { value }
             }
             dir::Argument::Error => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module.id),
-                    message: Some("array literal errors are not lowered to JS".to_string()),
-                });
+                return Err(self.unsupported_construct(
+                    expression_id.into_global_any(self.module.id),
+                    Some("array literal errors are not lowered to JS".to_string()),
+                ));
             }
         };
 

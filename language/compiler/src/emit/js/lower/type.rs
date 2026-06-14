@@ -1,4 +1,5 @@
-use crate::generate::js::{CodegenJsError, CodegenJsResult, ModuleLowerer};
+use crate::EmitError;
+use crate::emit::js::ModuleLowerer;
 use destack_dir as dir;
 use destack_js as js;
 
@@ -7,7 +8,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_type_annotation_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
+    ) -> Result<js::LocalNodeId<js::TypeExpression>, EmitError> {
         let global_id = expression_id.into_global_any(self.module.id);
 
         // lower through the semantic type lane
@@ -15,10 +16,10 @@ impl ModuleLowerer<'_> {
             return self.lower_type(type_id);
         }
 
-        Err(CodegenJsError::UnsupportedConstruct {
-            node: global_id,
-            message: Some("missing declared type for type annotation".to_string()),
-        })
+        Err(self.unsupported_construct(
+            global_id,
+            Some("missing declared type for type annotation".to_string()),
+        ))
     }
 
     /// Lower a mutability from DIR into JS AST.
@@ -45,7 +46,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         source_id: dir::LocalNodeIdAny,
         element: &dir::TypeElement,
-    ) -> CodegenJsResult<js::LocalNodeId<js::TupleElement>> {
+    ) -> Result<js::LocalNodeId<js::TupleElement>, EmitError> {
         let label = element.label;
         let ty = self.lower_type(element.ty)?;
         let tuple_element = js::TupleElement {
@@ -65,11 +66,11 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_generic_parameters(
         &mut self,
         parameters: &[dir::LocalNodeId<dir::GenericParameter>],
-    ) -> CodegenJsResult<Vec<js::LocalNodeId<js::GenericParameter>>> {
+    ) -> Result<Vec<js::LocalNodeId<js::GenericParameter>>, EmitError> {
         let generic_parameters = parameters
             .iter()
             .map(|parameter_id| self.lower_generic_parameter(*parameter_id))
-            .collect::<Result<Vec<_>, CodegenJsError>>()?;
+            .collect::<Result<Vec<_>, EmitError>>()?;
 
         Ok(generic_parameters)
     }
@@ -78,7 +79,7 @@ impl ModuleLowerer<'_> {
     fn lower_generic_parameter(
         &mut self,
         parameter_id: dir::LocalNodeId<dir::GenericParameter>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::GenericParameter>> {
+    ) -> Result<js::LocalNodeId<js::GenericParameter>, EmitError> {
         let parameter = self.dir_tree.get(parameter_id);
 
         let parameter = match parameter {
@@ -109,30 +110,28 @@ impl ModuleLowerer<'_> {
                 }
             }
             dir::GenericParameter::VariadicType { .. } => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: parameter_id.into_global_any(self.module.id),
-                    message: Some(
+                return Err(self.unsupported_construct(
+                    parameter_id.into_global_any(self.module.id),
+                    Some(
                         "variadic generic parameters must be elaborated before JS lowering"
                             .to_string(),
                     ),
-                });
+                ));
             }
             dir::GenericParameter::Value { .. } | dir::GenericParameter::VariadicValue { .. } => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: parameter_id.into_global_any(self.module.id),
-                    message: Some(
+                return Err(self.unsupported_construct(
+                    parameter_id.into_global_any(self.module.id),
+                    Some(
                         "value generic parameters must be elaborated before JS lowering"
                             .to_string(),
                     ),
-                });
+                ));
             }
             dir::GenericParameter::Error => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: parameter_id.into_global_any(self.module.id),
-                    message: Some(
-                        "generic parameter error slots are not lowered to JS".to_string(),
-                    ),
-                });
+                return Err(self.unsupported_construct(
+                    parameter_id.into_global_any(self.module.id),
+                    Some("generic parameter error slots are not lowered to JS".to_string()),
+                ));
             }
         };
 
@@ -145,7 +144,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_type_annotation_expressions(
         &mut self,
         expressions: &[dir::LocalNodeId<dir::TypeExpression>],
-    ) -> CodegenJsResult<Vec<js::LocalNodeId<js::TypeExpression>>> {
+    ) -> Result<Vec<js::LocalNodeId<js::TypeExpression>>, EmitError> {
         expressions
             .iter()
             .map(|expression_id| self.lower_type_annotation_expression(*expression_id))
@@ -203,12 +202,9 @@ impl ModuleLowerer<'_> {
         &mut self,
         source_id: dir::LocalNodeIdAny,
         literal: &dir::TypeLiteral,
-    ) -> CodegenJsResult<js::TypeLiteral> {
+    ) -> Result<js::TypeLiteral, EmitError> {
         self.lower_type_literal_value(literal)
-            .ok_or_else(|| CodegenJsError::UnsupportedConstruct {
-                node: source_id.into_global(self.module.id),
-                message: None,
-            })
+            .ok_or_else(|| self.unsupported_construct(source_id.into_global(self.module.id), None))
     }
 
     /// Lower one mapped type modifier from DIR into JS AST.
@@ -238,7 +234,7 @@ impl ModuleLowerer<'_> {
         source_id: dir::LocalNodeIdAny,
         mapping: dir::StringMapping,
         target: dir::GlobalTypeId,
-    ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
+    ) -> Result<js::LocalNodeId<js::TypeExpression>, EmitError> {
         let mapping_name = match mapping {
             dir::StringMapping::Uppercase => "Uppercase",
             dir::StringMapping::Lowercase => "Lowercase",
@@ -264,7 +260,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_static_type_argument(
         &mut self,
         argument_id: dir::LocalNodeId<dir::GenericArgument>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
+    ) -> Result<js::LocalNodeId<js::TypeExpression>, EmitError> {
         let argument = self.dir_tree.get(argument_id);
 
         match argument {
@@ -272,28 +268,22 @@ impl ModuleLowerer<'_> {
             | dir::GenericArgument::AssociatedType { value, .. } => {
                 self.lower_type_annotation_expression(*value)
             }
-            dir::GenericArgument::SpreadType { .. } => Err(CodegenJsError::UnsupportedConstruct {
-                node: argument_id.into_global_any(self.module.id),
-                message: Some(
+            dir::GenericArgument::SpreadType { .. } => Err(self.unsupported_construct(
+                argument_id.into_global_any(self.module.id),
+                Some(
                     "variadic generic arguments must be elaborated before JS lowering".to_string(),
                 ),
-            }),
+            )),
             dir::GenericArgument::Value { .. }
             | dir::GenericArgument::SpreadValue { .. }
-            | dir::GenericArgument::AssociatedConst { .. } => {
-                Err(CodegenJsError::UnsupportedConstruct {
-                    node: argument_id.into_global_any(self.module.id),
-                    message: Some(
-                        "value generic arguments must be elaborated before JS lowering".to_string(),
-                    ),
-                })
-            }
-            dir::GenericArgument::Error => Err(CodegenJsError::UnsupportedConstruct {
-                node: argument_id.into_global_any(self.module.id),
-                message: Some(
-                    "argument error slots are not lowered to JS type arguments".to_string(),
-                ),
-            }),
+            | dir::GenericArgument::AssociatedConst { .. } => Err(self.unsupported_construct(
+                argument_id.into_global_any(self.module.id),
+                Some("value generic arguments must be elaborated before JS lowering".to_string()),
+            )),
+            dir::GenericArgument::Error => Err(self.unsupported_construct(
+                argument_id.into_global_any(self.module.id),
+                Some("argument error slots are not lowered to JS type arguments".to_string()),
+            )),
         }
     }
 
@@ -301,11 +291,11 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_static_type_arguments(
         &mut self,
         arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-    ) -> CodegenJsResult<Vec<js::LocalNodeId<js::TypeExpression>>> {
+    ) -> Result<Vec<js::LocalNodeId<js::TypeExpression>>, EmitError> {
         let generic_arguments = arguments
             .iter()
             .map(|argument| self.lower_static_type_argument(*argument))
-            .collect::<Result<Vec<_>, CodegenJsError>>()?;
+            .collect::<Result<Vec<_>, EmitError>>()?;
 
         Ok(generic_arguments)
     }
@@ -315,7 +305,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         source_id: dir::LocalNodeIdAny,
         value: &dir::StaticTerm,
-    ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
+    ) -> Result<js::LocalNodeId<js::TypeExpression>, EmitError> {
         match value {
             dir::StaticTerm::ScalarLiteral { value } => {
                 let literal = self.lower_scalar_literal(value);
@@ -330,12 +320,10 @@ impl ModuleLowerer<'_> {
             | dir::StaticTerm::FixedArray { .. }
             | dir::StaticTerm::Tuple { .. }
             | dir::StaticTerm::Object { .. }
-            | dir::StaticTerm::Struct { .. } => Err(CodegenJsError::UnsupportedConstruct {
-                node: source_id.into_global(self.module.id),
-                message: Some(
-                    "static value arguments do not lower to JS type arguments".to_string(),
-                ),
-            }),
+            | dir::StaticTerm::Struct { .. } => Err(self.unsupported_construct(
+                source_id.into_global(self.module.id),
+                Some("static value arguments do not lower to JS type arguments".to_string()),
+            )),
         }
     }
 
@@ -344,7 +332,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         source_id: dir::LocalNodeIdAny,
         value: &str,
-    ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
+    ) -> Result<js::LocalNodeId<js::TypeExpression>, EmitError> {
         let value = self.strings.intern(value);
         let literal = js::ScalarLiteral::String(value);
         let literal = js::TypeLiteral::ScalarLiteral(literal);
@@ -361,25 +349,23 @@ impl ModuleLowerer<'_> {
         source_id: dir::LocalNodeIdAny,
         symbol_id: dir::GlobalSymbolId,
         generic_arguments: Option<&[dir::GlobalTypeId]>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
+    ) -> Result<js::LocalNodeId<js::TypeExpression>, EmitError> {
         if symbol_id.module_id != self.module.id {
-            return Err(CodegenJsError::UnsupportedConstruct {
-                node: source_id.into_global(self.module.id),
-                message: Some(
+            return Err(self.unsupported_construct(
+                source_id.into_global(self.module.id),
+                Some(
                     "remote semantic type references need source-backed lowering in JS output"
                         .to_string(),
                 ),
-            });
+            ));
         }
 
         let symbol = self.symbols.get_symbol(dir::LocalSymbolId::from(symbol_id));
         let Some(dir::StaticKey::Name(name)) = symbol.key else {
-            return Err(CodegenJsError::UnsupportedConstruct {
-                node: source_id.into_global(self.module.id),
-                message: Some(
-                    "type reference symbol is missing a path-like key in JS output".to_string(),
-                ),
-            });
+            return Err(self.unsupported_construct(
+                source_id.into_global(self.module.id),
+                Some("type reference symbol is missing a path-like key in JS output".to_string()),
+            ));
         };
 
         let segment = name;
@@ -390,7 +376,7 @@ impl ModuleLowerer<'_> {
             .unwrap_or_default()
             .iter()
             .map(|argument| self.lower_type(*argument))
-            .collect::<Result<Vec<_>, CodegenJsError>>()?;
+            .collect::<Result<Vec<_>, EmitError>>()?;
         let ty = js::TypeExpression::Path {
             path,
             generic_arguments,
@@ -406,12 +392,12 @@ impl ModuleLowerer<'_> {
         &mut self,
         source_id: dir::LocalNodeIdAny,
         parameter: dir::GlobalGenericParameterId,
-    ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
+    ) -> Result<js::LocalNodeId<js::TypeExpression>, EmitError> {
         // reject foreign generics
         if parameter.module_id != self.module.id {
-            return Err(CodegenJsError::Internal {
-                message: format!("JS lowering cannot read foreign DIR generic {parameter:?}"),
-            });
+            return Err(self.internal_error(format!(
+                "JS lowering cannot read foreign DIR generic {parameter:?}"
+            )));
         }
 
         // lower by committed parameter key
@@ -431,12 +417,12 @@ impl ModuleLowerer<'_> {
         &mut self,
         source_id: dir::LocalNodeIdAny,
         key: dir::GenericParameterKey,
-    ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
+    ) -> Result<js::LocalNodeId<js::TypeExpression>, EmitError> {
         let dir::GenericParameterKey::Generated(name) = key else {
-            return Err(CodegenJsError::UnsupportedConstruct {
-                node: source_id.into_global(self.module.id),
-                message: Some("generic parameter key is not generated".to_string()),
-            });
+            return Err(self.unsupported_construct(
+                source_id.into_global(self.module.id),
+                Some("generic parameter key is not generated".to_string()),
+            ));
         };
         let path = js::Path {
             segments: smallvec::smallvec![name],
@@ -455,7 +441,7 @@ impl ModuleLowerer<'_> {
     fn try_lower_reference_type_from_source(
         &mut self,
         source_id: dir::LocalNodeIdAny,
-    ) -> CodegenJsResult<Option<js::LocalNodeId<js::TypeExpression>>> {
+    ) -> Result<Option<js::LocalNodeId<js::TypeExpression>>, EmitError> {
         let Ok(expression_id) = source_id.try_into_typed::<dir::Expression>() else {
             return Ok(None);
         };
@@ -488,7 +474,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         source_id: dir::LocalNodeIdAny,
         field: &dir::TypeField,
-    ) -> CodegenJsResult<js::LocalNodeId<js::TypeMember>> {
+    ) -> Result<js::LocalNodeId<js::TypeMember>, EmitError> {
         let mut modifiers = js::BindingModifier::default();
 
         // field modifiers
@@ -543,7 +529,7 @@ impl ModuleLowerer<'_> {
         source_id: dir::LocalNodeIdAny,
         name: String,
         ty_id: dir::GlobalTypeId,
-    ) -> CodegenJsResult<js::LocalNodeId<js::GenericParameter>> {
+    ) -> Result<js::LocalNodeId<js::GenericParameter>, EmitError> {
         let name = self.strings.intern(&name);
         let constraint = Some(self.lower_type(ty_id)?);
         let parameter = js::GenericParameter::Type {
@@ -564,7 +550,7 @@ impl ModuleLowerer<'_> {
         source_id: dir::LocalNodeIdAny,
         name: String,
         parameter: dir::FunctionParameterType,
-    ) -> CodegenJsResult<js::LocalNodeId<js::Parameter>> {
+    ) -> Result<js::LocalNodeId<js::Parameter>, EmitError> {
         let name = self.strings.intern(&name);
         let ty = Some(self.lower_type(parameter.ty)?);
         let modifiers = if parameter.is_optional {
@@ -600,14 +586,12 @@ impl ModuleLowerer<'_> {
         &mut self,
         source_id: dir::LocalNodeIdAny,
         ty_id: dir::GlobalTypeId,
-    ) -> CodegenJsResult<js::FunctionTypeDeclaration> {
+    ) -> Result<js::FunctionTypeDeclaration, EmitError> {
         let dir::Type::Function(function) = self.require_type(ty_id)?.clone() else {
-            return Err(CodegenJsError::UnsupportedConstruct {
-                node: source_id.into_global(self.module.id),
-                message: Some(
-                    "semantic function signature lowering expected a function type".to_string(),
-                ),
-            });
+            return Err(self.unsupported_construct(
+                source_id.into_global(self.module.id),
+                Some("semantic function signature lowering expected a function type".to_string()),
+            ));
         };
 
         // generic parameters
@@ -622,7 +606,7 @@ impl ModuleLowerer<'_> {
                     *parameter_type_id,
                 )
             })
-            .collect::<Result<Vec<_>, CodegenJsError>>()?;
+            .collect::<Result<Vec<_>, EmitError>>()?;
 
         // this parameter
         let this_parameter = function
@@ -649,7 +633,7 @@ impl ModuleLowerer<'_> {
             .map(|(index, parameter)| {
                 self.lower_semantic_function_parameter(source_id, format!("arg{index}"), *parameter)
             })
-            .collect::<Result<Vec<_>, CodegenJsError>>()?;
+            .collect::<Result<Vec<_>, EmitError>>()?;
 
         // return type
         let return_type = function
@@ -670,7 +654,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         source_id: dir::LocalNodeIdAny,
         signature: &dir::TypeIndexSignature,
-    ) -> CodegenJsResult<js::LocalNodeId<js::TypeMember>> {
+    ) -> Result<js::LocalNodeId<js::TypeMember>, EmitError> {
         let modifiers = if signature.is_readonly {
             Some(js::BindingModifier {
                 mutability: Some(js::Mutability::Immutable),
@@ -698,7 +682,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_type(
         &mut self,
         ty_id: dir::GlobalTypeId,
-    ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
+    ) -> Result<js::LocalNodeId<js::TypeExpression>, EmitError> {
         let source_id = self.require_type_source(ty_id)?;
         let ty = self.require_type(ty_id)?.clone();
 
@@ -804,7 +788,7 @@ impl ModuleLowerer<'_> {
                         .spans
                         .iter()
                         .map(|span| self.lower_type(*span))
-                        .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                        .collect::<Result<Vec<_>, EmitError>>()?;
                     let template = js::TypeTemplateLiteral { strings, spans };
                     let ty = js::TypeExpression::TemplateLiteral(template);
 
@@ -832,10 +816,9 @@ impl ModuleLowerer<'_> {
                 | dir::TypeOperation::TryResidual { .. }
                 | dir::TypeOperation::StaticBinary(_)
                 | dir::TypeOperation::StaticUnary(_) => {
-                    return Err(CodegenJsError::Internal {
-                        message: "JS lowering cannot emit an unevaluated static operation"
-                            .to_string(),
-                    });
+                    return Err(self.internal_error(
+                        "JS lowering cannot emit an unevaluated static operation".to_string(),
+                    ));
                 }
             },
             dir::Type::Parameter(parameter) => {
@@ -892,17 +875,17 @@ impl ModuleLowerer<'_> {
                 )
             }
             dir::Type::Range(_) => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: source_id.into_global(self.module.id),
-                    message: Some("range types must be reduced before JS lowering".to_string()),
-                });
+                return Err(self.unsupported_construct(
+                    source_id.into_global(self.module.id),
+                    Some("range types must be reduced before JS lowering".to_string()),
+                ));
             }
             dir::Type::Shape(object) => {
                 let mut members = object
                     .fields
                     .iter()
                     .map(|field| self.lower_object_type_field(source_id, field))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
 
                 let call_signatures = object
                     .call_signatures
@@ -919,7 +902,7 @@ impl ModuleLowerer<'_> {
                             .tree
                             .insert_from_source_any(field, self.module.id, source_id))
                     })
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
                 members.extend(call_signatures);
 
                 let construct_signatures = object
@@ -942,14 +925,14 @@ impl ModuleLowerer<'_> {
                             .tree
                             .insert_from_source_any(field, self.module.id, source_id))
                     })
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
                 members.extend(construct_signatures);
 
                 let index_signatures = object
                     .index_signatures
                     .iter()
                     .map(|signature| self.lower_object_type_index_signature(source_id, signature))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
                 members.extend(index_signatures);
 
                 let ty = js::TypeExpression::Object { members };
@@ -961,7 +944,7 @@ impl ModuleLowerer<'_> {
                     .elements
                     .iter()
                     .map(|element| self.lower_tuple_element(source_id, element))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
                 self.tree.insert_from_source_any(
                     js::TypeExpression::Tuple { elements },
                     self.module.id,
@@ -973,7 +956,7 @@ impl ModuleLowerer<'_> {
                     .elements
                     .iter()
                     .map(|element| self.lower_type(*element))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
                 let ty = js::TypeExpression::Union { elements };
                 self.tree
                     .insert_from_source_any(ty, self.module.id, source_id)
@@ -983,7 +966,7 @@ impl ModuleLowerer<'_> {
                     .elements
                     .iter()
                     .map(|element| self.lower_type(*element))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
                 let ty = js::TypeExpression::Intersection { elements };
                 self.tree
                     .insert_from_source_any(ty, self.module.id, source_id)
@@ -1017,10 +1000,7 @@ impl ModuleLowerer<'_> {
                 self.lower_semantic_static_type_expression(source_id, &value)?
             }
             _ => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: source_id.into_global(self.module.id),
-                    message: None,
-                });
+                return Err(self.unsupported_construct(source_id.into_global(self.module.id), None));
             }
         };
 
