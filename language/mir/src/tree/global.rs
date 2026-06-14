@@ -1,7 +1,7 @@
 use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
-use crate::{Constant, FunctionReference, Mutability, Node, NodeType, Space, TypeReference};
+use crate::{Constant, FunctionReference, Mutability, Node, NodeType, Space, Symbol, TypeReference};
 
 /// Symbol linkage (visibility and definition location).
 ///
@@ -46,6 +46,8 @@ impl Linkage {
 pub struct Global {
     /// Name for linking and debugging.
     pub name: StringId,
+    /// The global's persistent mangled symbol: its linkable identity.
+    pub symbol: Symbol,
     /// The type of the global.
     pub ty: TypeReference,
     /// Whether this global is mutable.
@@ -72,6 +74,7 @@ impl Global {
     ) -> Self {
         Self {
             name,
+            symbol: Symbol(name),
             ty,
             mutability,
             space: Space::Local,
@@ -94,6 +97,7 @@ impl Global {
     pub fn import(name: StringId, ty: TypeReference, mutability: Mutability) -> Self {
         Self {
             name,
+            symbol: Symbol(name),
             ty,
             mutability,
             space: Space::Local,
