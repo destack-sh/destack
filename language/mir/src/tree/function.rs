@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Block, Lifetime, LifetimeParameter, Linkage, Local, LocalNodeId, Node, NodeType, Parameter,
-    Place, PlaceEffect, Projection, Tree, Type, TypeReference, Value, ValueReference,
+    Place, PlaceEffect, Projection, Symbol, Tree, Type, TypeReference, Value, ValueReference,
 };
 
 /// Memory allocation restrictions for a function.
@@ -84,6 +84,8 @@ impl SuspensionKind {
 pub struct Function {
     /// The function's name (for linking and debugging).
     pub name: StringId,
+    /// The function's persistent mangled symbol: its linkable identity.
+    pub symbol: Symbol,
     /// Linkage (local, export, or import).
     pub linkage: Linkage,
 
@@ -192,6 +194,7 @@ impl Function {
         // function body and signature
         Self {
             name,
+            symbol: Symbol(name),
             parameters,
             lifetimes: Vec::new(),
             parameter_names,

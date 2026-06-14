@@ -3,8 +3,8 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
     AllocationMode, Attribute, AttributeArgs, AttributeIdentifier, Copy, Function, Global,
-    GlobalInitializer, Linkage, LocalNodeId, Mutability, Type, TypeAlias, TypeDeclarationSpans,
-    TypeReference, Value, ValueReference,
+    GlobalInitializer, Linkage, LocalNodeId, Mutability, Symbol, Type, TypeAlias,
+    TypeDeclarationSpans, TypeReference, Value, ValueReference,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -136,6 +136,7 @@ impl Parser {
                     let void_type = self.tree.insert_type(Type::Void);
                     let placeholder = Function {
                         name: name_id,
+                        symbol: Symbol(name_id),
                         parameters: Vec::new(),
                         lifetimes: Vec::new(),
                         parameter_names: Vec::new(),
@@ -587,6 +588,7 @@ impl Parser {
         let name_id = self.strings.intern(&name);
         let global = Global {
             name: name_id,
+            symbol: Symbol(name_id),
             ty,
             mutability,
             space,

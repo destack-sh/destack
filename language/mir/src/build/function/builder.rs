@@ -4,8 +4,8 @@ use indexmap::{IndexMap, IndexSet};
 use crate::build::{BuildError, BuildResult, Variable};
 use crate::{
     AllocationMode, AllocationSize, Block, Function, FunctionBehavior, Instruction, Linkage,
-    LocalNodeId, MemoryEffect, Parameter, Place, Projection, Tree, Type, TypeReference, Value,
-    ValueReference, finalize_function_names,
+    LocalNodeId, MemoryEffect, Parameter, Place, Projection, Symbol, Tree, Type, TypeReference,
+    Value, ValueReference, finalize_function_names,
 };
 
 /// Builder for constructing a single MIR function with automatic SSA construction.
@@ -94,6 +94,7 @@ impl<'a> FunctionBuilder<'a> {
         // blank function (entry will be set in finish())
         let function = Function {
             name,
+            symbol: Symbol(name),
             parameters,
             lifetimes: Vec::new(),
             parameter_names: vec![None; parameter_types.len()],
