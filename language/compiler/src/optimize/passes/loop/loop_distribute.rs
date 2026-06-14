@@ -1,19 +1,18 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, AnalysisPreservation, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis,
-    MemoryAccess, MemoryAccessEffect, MemoryAccessLocation, MemorySSA,
-    block_is_speculatable_no_reads, build_instruction_block_map, build_value_definition_map,
-    clone_loop_blocks_with_instructions, control_instructions_for_latch, effects_may_alias,
-    instruction_has_atomic_ordering, instruction_is_speculatable, loop_guard_branch,
-    loop_preheader, terminator_remap,
+    AliasAnalysis, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, MemoryAccess,
+    MemoryAccessEffect, MemoryAccessLocation, MemorySSA, Mutation, block_is_speculatable_no_reads,
+    build_instruction_block_map, build_value_definition_map, clone_loop_blocks_with_instructions,
+    control_instructions_for_latch, effects_may_alias, instruction_has_atomic_ordering,
+    instruction_is_speculatable, loop_guard_branch, loop_preheader, terminator_remap,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Split independent store groups into separate loops.
     ///
     /// This transformation separates disjoint memory writes into multiple loops
@@ -87,7 +86,7 @@ impl FunctionPass for LoopDistribute {
         tree: &mut mir::Tree,
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // gather analyses
         let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
         let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
@@ -106,10 +105,11 @@ impl FunctionPass for LoopDistribute {
             &alias,
         );
 
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW | Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

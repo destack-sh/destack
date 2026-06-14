@@ -1,17 +1,17 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, AnalysisPreservation, ConstantPropagation, DominatorTree, Loop, LoopAnalysis,
-    MemoryAccess, MemoryAccessId, MemoryAccessLocation, MemorySSA, RangeAnalysis, ValueRange,
+    AliasAnalysis, ConstantPropagation, DominatorTree, Loop, LoopAnalysis, MemoryAccess,
+    MemoryAccessId, MemoryAccessLocation, MemorySSA, Mutation, RangeAnalysis, ValueRange,
     build_instruction_block_map, instruction_allows_read_only_motion,
     instruction_is_read_only_access, instruction_is_speculatable,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Move loop invariant computations outside of loops.
     ///
     /// An instruction is loop invariant if all its operands are defined outside the loop or by other loop invariant instructions.
@@ -65,10 +65,10 @@ impl FunctionPass for Licm {
         tree: &mut mir::Tree,
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         let entry = match function.entry {
             Some(entry) => entry,
-            None => return AnalysisPreservation::all(),
+            None => return Mutation::NONE,
         };
 
         // get analyses
@@ -83,7 +83,7 @@ impl FunctionPass for Licm {
             )
         };
         if loops.num_loops() == 0 {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         // run LICM
@@ -99,10 +99,11 @@ impl FunctionPass for Licm {
             memory_ssa.as_ref(),
         );
 
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

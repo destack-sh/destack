@@ -1,19 +1,19 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, AnalysisPreservation, BlockParamForwarding, ConstantPropagation,
-    ControlFlowGraph, DominatorTree, LoopAnalysis, LoopEffectPolicy, MemoryAccessEffect, MemorySSA,
-    ValueEquivalence, block_is_speculatable_no_reads, build_instruction_block_map,
-    build_value_definition_map, clone_instruction_metadata, collect_loop_effects,
-    control_instructions_for_latch, effects_may_alias, instruction_is_speculatable,
-    instruction_map, loop_guard_branch, loop_preheader,
+    AliasAnalysis, BlockParamForwarding, ConstantPropagation, ControlFlowGraph, DominatorTree,
+    LoopAnalysis, LoopEffectPolicy, MemoryAccessEffect, MemorySSA, Mutation, ValueEquivalence,
+    block_is_speculatable_no_reads, build_instruction_block_map, build_value_definition_map,
+    clone_instruction_metadata, collect_loop_effects, control_instructions_for_latch,
+    effects_may_alias, instruction_is_speculatable, instruction_map, loop_guard_branch,
+    loop_preheader,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Fuse adjacent loops with identical bounds and independent bodies.
     ///
     /// This pass merges two sequential loops into one by interleaving their bodies
@@ -89,7 +89,7 @@ impl FunctionPass for LoopFusion {
         tree: &mut mir::Tree,
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // gather analyses
         let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
         let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
@@ -110,10 +110,11 @@ impl FunctionPass for LoopFusion {
             constants.as_ref(),
         );
 
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW | Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

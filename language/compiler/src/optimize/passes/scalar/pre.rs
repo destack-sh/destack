@@ -1,18 +1,18 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AnalysisPreservation, AvailableExpressions, ControlFlowGraph, DominatorTree, EdgeSplitPolicy,
-    ExpressionKey, UseDefMaps, ValueTypeMap, append_successor_arguments,
+    AvailableExpressions, ControlFlowGraph, DominatorTree, EdgeSplitPolicy, ExpressionKey,
+    Mutation, UseDefMaps, ValueTypeMap, append_successor_arguments,
     apply_substitutions_in_function, build_use_def_maps, collect_reachable_blocks,
     compute_dominance_frontiers, ensure_edge_block, expression_key_from_instruction,
     expression_key_substitute, instruction_has_side_effects, instruction_is_speculatable,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Eliminate partially redundant expressions by inserting computations.
     ///
     /// This pass computes SSA like phi values for pure expressions at join points.
@@ -61,10 +61,10 @@ impl FunctionPass for PartialRedundancyElim {
         tree: &mut mir::Tree,
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip imported functions
         let Some(entry) = function.entry else {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         };
 
         // gather analyses
@@ -84,10 +84,11 @@ impl FunctionPass for PartialRedundancyElim {
             &value_types,
         );
 
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW | Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

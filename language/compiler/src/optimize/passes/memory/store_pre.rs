@@ -1,19 +1,19 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, AnalysisPreservation, ConstantPropagation, ControlFlowGraph, DominatorTree,
-    EdgeSplitPolicy, MemoryAccess, MemoryAccessEffect, MemoryAccessId, MemoryAccessLocation,
-    MemorySSA, ValueEquivalence, build_instruction_block_map, build_use_def_maps,
-    build_value_definition_map, effect_is_trackable, effects_match_location, ensure_edge_block,
+    AliasAnalysis, ConstantPropagation, ControlFlowGraph, DominatorTree, EdgeSplitPolicy,
+    MemoryAccess, MemoryAccessEffect, MemoryAccessId, MemoryAccessLocation, MemorySSA, Mutation,
+    ValueEquivalence, build_instruction_block_map, build_use_def_maps, build_value_definition_map,
+    effect_is_trackable, effects_match_location, ensure_edge_block,
     instruction_has_atomic_ordering, instruction_is_read_only_access, instruction_is_speculatable,
     resolve_edge_value, value_available_in_block,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Eliminate partially redundant stores by sinking them to predecessor edges.
     ///
     /// When a join block stores a value that is already stored on some incoming paths,
@@ -63,19 +63,20 @@ impl FunctionPass for StorePre {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip imported functions
         if function.entry.is_none() {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         // run store PRE
         let changed = run_store_pre(function, tree, ctx, analyses);
 
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW | Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

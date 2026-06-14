@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AnalysisPreservation, ControlFlowGraph, clone_instruction_metadata,
-    instruction_is_speculatable, instruction_map,
+    ControlFlowGraph, Mutation, clone_instruction_metadata, instruction_is_speculatable,
+    instruction_map,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Convert simple diamonds into select instructions.
     ///
     /// This removes branches by speculatively executing both sides of a small
@@ -72,20 +72,20 @@ impl FunctionPass for IfConvert {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip imported functions
         if function.entry.is_none() {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         // run if conversion
         let changed = run_if_convert(function, tree, ctx, analyses);
 
-        // preserve analyses when nothing changed
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW | Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

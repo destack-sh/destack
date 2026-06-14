@@ -1,16 +1,16 @@
 use std::collections::HashMap;
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AnalysisPreservation, ConstantPropagation, ControlFlowGraph, DominatorTree, ValueRange,
+    ConstantPropagation, ControlFlowGraph, DominatorTree, Mutation, ValueRange,
     apply_substitutions_in_dominated_blocks, build_use_def_maps, build_value_instruction_map,
     swap_comparison_operator,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Propagate equalities implied by dominating conditions.
     ///
     /// When a branch condition proves two values are equal, this pass replaces
@@ -64,10 +64,10 @@ impl FunctionPass for CorrelatedValueProp {
         tree: &mut mir::Tree,
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip imported functions
         if function.entry.is_none() {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         // gather analyses
@@ -78,11 +78,11 @@ impl FunctionPass for CorrelatedValueProp {
         // run correlated propagation
         let changed = run_correlated_value_prop(function, tree, &domtree, &cfg, &constants);
 
-        // preserve analyses when nothing changed
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

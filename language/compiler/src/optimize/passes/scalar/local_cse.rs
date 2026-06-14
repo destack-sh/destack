@@ -1,18 +1,17 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, AnalysisPreservation, ExpressionKey, MemoryLocation,
-    expression_key_from_instruction, expression_key_substitute, instruction_has_side_effects,
-    instruction_may_affect_memory, instruction_requires_exact_access,
-    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
-    resolve_substitution_chains, terminator_substitute_uses,
+    AliasAnalysis, ExpressionKey, MemoryLocation, Mutation, expression_key_from_instruction,
+    expression_key_substitute, instruction_has_side_effects, instruction_may_affect_memory,
+    instruction_requires_exact_access, instruction_substitute_uses_in_tree,
+    remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Local Common Subexpression Elimination.
     ///
     /// Eliminates redundant computations within a single basic block by tracking
@@ -51,18 +50,18 @@ impl FunctionPass for LocalCse {
         tree: &mut mir::Tree,
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // build alias analysis
         let alias = analyses.get::<AliasAnalysis>(function, tree);
 
         // run local CSE
         let changed = run_local_cse(function, tree, &alias);
 
-        // preserve analyses when nothing changed
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

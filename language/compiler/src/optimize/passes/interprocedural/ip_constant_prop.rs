@@ -1,15 +1,15 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{ModulePass, PipelineContext};
 use destack_mir::{
-    AnalysisPreservation, SignatureKey, apply_constant_parameters, build_value_definition_map,
+    Mutation, SignatureKey, apply_constant_parameters, build_value_definition_map,
     constant_for_value, constant_matches_type, constant_type_of,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Propagate constants across direct callsites.
     ///
     /// This pass substitutes parameters in a callee when all direct callsites
@@ -58,16 +58,16 @@ impl ModulePass for InterproceduralConstantPropagation {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         _analyses: &mir::ModuleAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         let pointer_width_bits = ctx.options.type_context().pointer_width_bits;
         let changed = run_interprocedural_constant_prop(tree, pointer_width_bits);
 
-        // report analysis preservation based on whether changes occurred
+        // report what this pass changed
         if changed {
             ctx.strings.intern("ip-constant-prop");
-            AnalysisPreservation::none()
+            Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

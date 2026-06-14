@@ -1,15 +1,14 @@
 use std::collections::HashSet;
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AnalysisPreservation, ControlFlowGraph, DominatorTree, LoopAnalysis, clone_loop_blocks,
-    terminator_remap,
+    ControlFlowGraph, DominatorTree, LoopAnalysis, Mutation, clone_loop_blocks, terminator_remap,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Peel a single iteration from loops guarded at the latch.
     ///
     /// The peeled iteration preserves the loop guard by redirecting the backedge
@@ -66,17 +65,17 @@ impl FunctionPass for LoopPeel {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip imported functions
         if function.entry.is_none() {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         let changed = run_loop_peel(function, tree, ctx, analyses);
         if changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW | Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

@@ -151,7 +151,6 @@ impl AvailableExpressions {
 
 impl Analysis for AvailableExpressions {
     const ID: AnalysisId = AnalysisId("available-exprs");
-    const DEPENDENCIES: &'static [AnalysisId] = &[ControlFlowGraph::ID];
 }
 
 impl FunctionAnalysis for AvailableExpressions {

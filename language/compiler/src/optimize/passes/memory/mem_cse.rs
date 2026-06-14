@@ -1,17 +1,17 @@
 use std::collections::HashSet;
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, AliasResult, AnalysisPreservation, ConstantPropagation, MemoryAccess,
-    MemoryAccessEffect, MemoryAccessId, MemoryAccessLocation, MemoryDef, MemorySSA,
-    ValueEquivalence, build_instruction_block_map, build_value_definition_map, effect_is_trackable,
+    AliasAnalysis, AliasResult, ConstantPropagation, MemoryAccess, MemoryAccessEffect,
+    MemoryAccessId, MemoryAccessLocation, MemoryDef, MemorySSA, Mutation, ValueEquivalence,
+    build_instruction_block_map, build_value_definition_map, effect_is_trackable,
     effects_match_location, instruction_has_atomic_ordering, spaces_may_alias,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Remove redundant memory stores.
     ///
     /// Eliminates stores that write the same value as the last clobbering definition of the same location.
@@ -53,11 +53,11 @@ impl FunctionPass for MemCse {
         tree: &mut mir::Tree,
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip empty functions
         let _entry = match function.entry {
             Some(entry) => entry,
-            None => return AnalysisPreservation::all(),
+            None => return Mutation::NONE,
         };
 
         // get analyses
@@ -78,11 +78,11 @@ impl FunctionPass for MemCse {
             constants.as_ref(),
         );
 
-        // report analysis preservation
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

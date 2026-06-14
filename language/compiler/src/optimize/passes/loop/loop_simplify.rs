@@ -1,10 +1,10 @@
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
-use destack_mir::{AnalysisPreservation, ControlFlowGraph, LoopAnalysis};
+use destack_mir::{ControlFlowGraph, LoopAnalysis, Mutation};
 
-declare_mir_pass! {
+declare_pass! {
     /// Canonicalize loops into a simplified form.
     ///
     /// This pass transforms loops to have:
@@ -35,10 +35,10 @@ impl FunctionPass for LoopSimplify {
         tree: &mut mir::Tree,
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         let entry = match function.entry {
             Some(entry) => entry,
-            None => return AnalysisPreservation::all(),
+            None => return Mutation::NONE,
         };
 
         // get analyses
@@ -49,15 +49,15 @@ impl FunctionPass for LoopSimplify {
             )
         };
         if loops.num_loops() == 0 {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         // run loop simplification
         let changed = run_loop_simplify(entry, function, tree, &loops, &cfg);
         if changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

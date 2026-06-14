@@ -1,16 +1,16 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AnalysisPreservation, BlockParamForwarding, ControlFlowGraph, LoopAnalysis, RangeAnalysis,
-    ScalarEvolution, Scev, UseDefMaps, ValueRange, ValueTypeMap, build_use_def_maps,
-    clone_loop_blocks, terminator_remap, unsigned_int_width_for_value,
+    BlockParamForwarding, ControlFlowGraph, LoopAnalysis, Mutation, RangeAnalysis, ScalarEvolution,
+    Scev, UseDefMaps, ValueRange, ValueTypeMap, build_use_def_maps, clone_loop_blocks,
+    terminator_remap, unsigned_int_width_for_value,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Version loops to specialize bounds checks with a preheader guard.
     ///
     /// When the loop guard bounds the iteration count, this pass emits a preheader comparison.
@@ -89,17 +89,17 @@ impl FunctionPass for LoopVersioning {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip imported functions
         if function.entry.is_none() {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         let changed = run_loop_versioning(function, tree, ctx, analyses);
         if changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW | Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

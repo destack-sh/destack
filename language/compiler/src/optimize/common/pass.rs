@@ -71,8 +71,7 @@ pub trait Pass: Send + Sync {
 }
 
 /// Declare one MIR pass and its static metadata.
-#[macro_export]
-macro_rules! declare_mir_pass {
+macro_rules! declare_pass {
     (
         $(#[doc = $doc:literal])*
         #[pass(id = $id:literal $(, requires($($requirement:ident),* $(,)?))?)]
@@ -96,7 +95,7 @@ macro_rules! declare_mir_pass {
                     id: $id,
                     name: stringify!($name),
                     description: $description,
-                    requirements: $crate::declare_mir_pass!(@requirements $($($requirement),*)?),
+                    requirements: declare_pass!(@requirements $($($requirement),*)?),
             };
 
             /// Return the pass metadata.
@@ -111,7 +110,7 @@ macro_rules! declare_mir_pass {
     };
 
     (@requirements $first:ident $(, $rest:ident)*) => {
-        $crate::declare_mir_pass!(@requirement $first)$(.union($crate::declare_mir_pass!(@requirement $rest)))*
+        declare_pass!(@requirement $first)$(.union(declare_pass!(@requirement $rest)))*
     };
 
     (@requirement call_effects) => {
@@ -131,26 +130,28 @@ macro_rules! declare_mir_pass {
     };
 }
 
+pub(crate) use declare_pass;
+
 use destack_mir as mir;
 
 use crate::optimize::{
     PackagePipelineContext, PackageWorkset, PipelineContext, ProgramPipelineContext, ProgramWorkset,
 };
-use destack_mir::{AnalysisPreservation, FunctionAnalyses, ModuleAnalyses};
+use destack_mir::{FunctionAnalyses, ModuleAnalyses, Mutation};
 
 /// Trait for optimization passes that operate on individual functions.
 pub trait FunctionPass: Pass + Send + Sync {
     /// Run the pass on a function.
     ///
     /// The analysis cache persists across this function's pass sequence; the
-    /// pass queries it for the analyses it needs and reports which it preserves.
+    /// pass queries it for the analyses it needs and returns what it changed.
     fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
         context: &PipelineContext<'_>,
         analyses: &FunctionAnalyses,
-    ) -> AnalysisPreservation;
+    ) -> Mutation;
 
     /// Return the pass name.
     fn name(&self) -> &'static str;
@@ -169,7 +170,7 @@ pub trait ModulePass: Pass + Send + Sync {
         tree: &mut mir::Tree,
         context: &PipelineContext<'_>,
         analyses: &ModuleAnalyses,
-    ) -> AnalysisPreservation;
+    ) -> Mutation;
 
     /// Return the pass name.
     fn name(&self) -> &'static str;
@@ -183,11 +184,7 @@ pub trait ModulePass: Pass + Send + Sync {
 /// Trait for optimization passes that operate on one package.
 pub trait PackagePass: Pass + Send + Sync {
     /// Run the pass on a package workset.
-    fn run(
-        &self,
-        workset: &mut PackageWorkset,
-        context: &PackagePipelineContext,
-    ) -> AnalysisPreservation;
+    fn run(&self, workset: &mut PackageWorkset, context: &PackagePipelineContext) -> Mutation;
 
     /// Return the pass name.
     fn name(&self) -> &'static str;
@@ -201,11 +198,7 @@ pub trait PackagePass: Pass + Send + Sync {
 /// Trait for optimization passes that operate on one program.
 pub trait ProgramPass: Pass + Send + Sync {
     /// Run the pass on a program workset.
-    fn run(
-        &self,
-        workset: &mut ProgramWorkset,
-        context: &ProgramPipelineContext,
-    ) -> AnalysisPreservation;
+    fn run(&self, workset: &mut ProgramWorkset, context: &ProgramPipelineContext) -> Mutation;
 
     /// Return the pass name.
     fn name(&self) -> &'static str;
@@ -236,11 +229,11 @@ pub fn run_function_passes(
 
     let mut changed = false;
     for pass in passes {
-        let preservation = pass.run(&mut function, tree, context, &analyses);
+        let mutation = pass.run(&mut function, tree, context, &analyses);
 
-        // invalidate whatever this pass did not preserve
-        analyses.apply_preservation(&preservation);
-        if !preservation.preserves_all() {
+        // drop the analyses this pass's mutation invalidates
+        analyses.apply(mutation);
+        if !mutation.is_none() {
             changed = true;
         }
     }
@@ -271,8 +264,8 @@ pub fn run_function_passes_always(
     function.recompute_next_value_id(tree);
 
     for pass in passes {
-        let preservation = pass.run(&mut function, tree, context, &analyses);
-        analyses.apply_preservation(&preservation);
+        let mutation = pass.run(&mut function, tree, context, &analyses);
+        analyses.apply(mutation);
     }
 
     *tree.get_mut(function_id) = function;

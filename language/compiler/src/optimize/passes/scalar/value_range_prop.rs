@@ -1,10 +1,10 @@
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
-use destack_mir::{AnalysisPreservation, RangeAnalysis, instruction_is_pure};
+use destack_mir::{Mutation, RangeAnalysis, instruction_is_pure};
 
-declare_mir_pass! {
+declare_pass! {
     /// Fold values that range analysis proves constant.
     ///
     /// Range analysis can prove that some comparisons are always true or false.
@@ -43,10 +43,10 @@ impl FunctionPass for ValueRangePropagation {
         tree: &mut mir::Tree,
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip imported functions
         if function.entry.is_none() {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         // gather range analysis
@@ -55,11 +55,11 @@ impl FunctionPass for ValueRangePropagation {
         // fold instructions with constant ranges
         let changed = run_value_range_propagation(function, tree, &ranges);
 
-        // preserve analyses when nothing changed
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

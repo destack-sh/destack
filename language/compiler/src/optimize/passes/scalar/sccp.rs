@@ -1,16 +1,16 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AnalysisPreservation, TypeContext, build_use_def_maps, fold_binary, fold_cast, fold_intrinsic,
-    fold_unary, instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
+    Mutation, TypeContext, build_use_def_maps, fold_binary, fold_cast, fold_intrinsic, fold_unary,
+    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
     terminator_substitute_uses,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Perform sparse conditional constant propagation.
     ///
     /// This pass tracks constant values along executable paths and folds
@@ -61,14 +61,14 @@ impl FunctionPass for SparseConditionalConstantPropagation {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         _analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // run SCCP
         let (cfg_changed, value_changed) = run_sccp(function, tree, ctx.type_context());
 
         if cfg_changed || value_changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW | Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

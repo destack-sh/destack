@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::passes::scalar::{
@@ -8,11 +8,10 @@ use crate::optimize::passes::scalar::{
 };
 use crate::optimize::{ModulePass, PipelineContext, run_function_passes_always};
 use destack_mir::{
-    AnalysisPreservation, CallGraphScc, CallsiteHotness, ConstantPropagation, ParameterRemap,
-    SignatureKey, apply_constant_parameters, build_signature_type, callsite_hotness,
-    clone_instruction_metadata, constant_arguments_for_parameters,
-    constant_propagation_with_params, instruction_map_with_locals, required_parameter_indices,
-    terminator_remap,
+    CallGraphScc, CallsiteHotness, ConstantPropagation, Mutation, ParameterRemap, SignatureKey,
+    apply_constant_parameters, build_signature_type, callsite_hotness, clone_instruction_metadata,
+    constant_arguments_for_parameters, constant_propagation_with_params,
+    instruction_map_with_locals, required_parameter_indices, terminator_remap,
 };
 
 /// Maximum specializations per function.
@@ -20,7 +19,7 @@ const MAX_SPECIALIZE_PER_FUNCTION: usize = 4;
 /// Maximum specializations per module.
 const MAX_SPECIALIZE_TOTAL: usize = 32;
 
-declare_mir_pass! {
+declare_pass! {
     /// Clone functions for constant argument callsites.
     ///
     /// This pass clones a callee for callsites with constant arguments and
@@ -75,16 +74,16 @@ impl ModulePass for ArgumentSpecialize {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         analyses: &mir::ModuleAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // run the specialization pass
         let changed = run_argument_specialize(tree, ctx, analyses);
 
-        // report analysis preservation based on whether changes occurred
+        // report what this pass changed
         if changed {
             ctx.strings.intern("argument-specialize");
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW | Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

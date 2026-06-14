@@ -1,16 +1,16 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AnalysisPreservation, ConstantPropagation, TypeContext, fold_binary, fold_cast, fold_intrinsic,
-    fold_unary, instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
+    ConstantPropagation, Mutation, TypeContext, fold_binary, fold_cast, fold_intrinsic, fold_unary,
+    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
     resolve_substitution_chains, terminator_substitute_uses,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Fold constant expressions at compile time.
     ///
     /// Evaluates operations on constant values and replaces them with the
@@ -46,18 +46,18 @@ impl FunctionPass for ConstantFold {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // get constant propagation analysis
         let constants = { analyses.get::<ConstantPropagation>(function, tree).clone() };
 
         // run constant folding
         let changed = run_constant_fold(function, tree, &constants, ctx.type_context());
 
-        // preserve analyses when nothing changed
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW | Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

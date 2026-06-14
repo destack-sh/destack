@@ -1,13 +1,13 @@
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::passes::interprocedural::{
     run_dead_function_eliminate, run_global_dead_code_eliminate,
 };
 use crate::optimize::{ModulePass, PipelineContext};
-use destack_mir::AnalysisPreservation;
+use destack_mir::Mutation;
 
-declare_mir_pass! {
+declare_pass! {
     /// Run interprocedural cleanup after cross function optimizations.
     ///
     /// This pass prunes dead functions and globals.
@@ -49,16 +49,16 @@ impl ModulePass for InterproceduralDceCleanup {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         analyses: &mir::ModuleAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // run the cleanup pass
         let changed = run_interprocedural_dce_cleanup(tree, analyses);
 
-        // report analysis preservation based on whether changes occurred
+        // report what this pass changed
         if changed {
             ctx.strings.intern("ip-dce-cleanup");
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

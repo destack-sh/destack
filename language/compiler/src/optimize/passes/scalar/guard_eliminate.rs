@@ -1,10 +1,10 @@
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
-use destack_mir::{AnalysisPreservation, RangeAnalysis, constraint_truth_value};
+use destack_mir::{Mutation, RangeAnalysis, constraint_truth_value};
 
-declare_mir_pass! {
+declare_pass! {
     /// Eliminate redundant guard checks when conditions are proven.
     ///
     /// Uses control flow facts, assume instructions, and range analysis to
@@ -54,10 +54,10 @@ impl FunctionPass for GuardEliminate {
         tree: &mut mir::Tree,
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip imported functions
         let Some(_entry) = function.entry else {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         };
 
         // gather analyses
@@ -89,11 +89,11 @@ impl FunctionPass for GuardEliminate {
             }
         }
 
-        // preserve analyses when nothing changed
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

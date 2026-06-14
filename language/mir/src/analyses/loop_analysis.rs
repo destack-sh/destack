@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate as mir;
 
-use crate::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis};
+use crate::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, Mutation};
 
 use super::{ControlFlowGraph, DominatorTree};
 
@@ -403,7 +403,7 @@ impl LoopAnalysis {
 
 impl Analysis for LoopAnalysis {
     const ID: AnalysisId = AnalysisId("loops");
-    const DEPENDENCIES: &'static [AnalysisId] = &[DominatorTree::ID];
+    const INVALIDATED_BY: Mutation = Mutation::CONTROL_FLOW;
 }
 
 impl FunctionAnalysis for LoopAnalysis {

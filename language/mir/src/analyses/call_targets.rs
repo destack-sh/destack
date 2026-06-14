@@ -64,7 +64,6 @@ impl CallTargetAnalysis {
 
 impl Analysis for CallTargetAnalysis {
     const ID: AnalysisId = AnalysisId("call-targets");
-    const DEPENDENCIES: &'static [AnalysisId] = &[CallGraph::ID];
 }
 
 impl ModuleAnalysis for CallTargetAnalysis {

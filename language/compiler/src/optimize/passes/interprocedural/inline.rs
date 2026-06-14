@@ -1,18 +1,18 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{ModulePass, PipelineContext};
 use destack_mir::{
-    AnalysisPreservation, CallGraphScc, CallsiteHotness, ValueTypeMap, block_execution_counts,
+    CallGraphScc, CallsiteHotness, Mutation, ValueTypeMap, block_execution_counts,
     block_hotness_from_counts, build_value_definition_map, callsite_hotness,
     clone_instruction_metadata, constant_for_value, instruction_map_with_locals,
     instruction_substitute_uses_in_tree, remap_instruction_memory_accesses, terminator_remap,
     terminator_substitute_uses,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Inline direct calls into their callers when the callee is small.
     ///
     /// This pass clones callee blocks into the caller, rewires returns to a continuation block, and skips recursive SCCs and functions with tail calls.
@@ -55,14 +55,14 @@ impl ModulePass for Inline {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         analyses: &mir::ModuleAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         let changed = run_inline(tree, ctx, analyses);
 
-        // report analysis preservation based on whether changes occurred
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW | Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

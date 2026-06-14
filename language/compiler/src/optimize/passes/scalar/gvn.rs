@@ -1,18 +1,18 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, AnalysisPreservation, ConstantPropagation, DominatorTree, ExpressionKey,
-    MemoryAccess, MemoryAccessEffect, MemoryAccessId, MemoryAccessLocation, MemorySSA, TypeContext,
+    AliasAnalysis, ConstantPropagation, DominatorTree, ExpressionKey, MemoryAccess,
+    MemoryAccessEffect, MemoryAccessId, MemoryAccessLocation, MemorySSA, Mutation, TypeContext,
     ValueTypeMap, apply_substitutions_in_function, can_substitute_value,
     expression_key_from_instruction, expression_key_substitute, instruction_has_side_effects,
     memory_locations_compatible, resolve_substitution_chains, spaces_may_alias,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Global Value Numbering.
     ///
     /// Eliminates redundant computations across basic blocks by walking the dominator
@@ -61,11 +61,11 @@ impl FunctionPass for GlobalValueNumbering {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip empty functions
         let entry = match function.entry {
             Some(entry) => entry,
-            None => return AnalysisPreservation::all(),
+            None => return Mutation::NONE,
         };
 
         // get dominator tree children map for analysis
@@ -89,11 +89,11 @@ impl FunctionPass for GlobalValueNumbering {
             ctx.type_context(),
         );
 
-        // preserve analyses when nothing changed
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

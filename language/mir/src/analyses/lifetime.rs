@@ -91,7 +91,6 @@ fn explicit_signature_return_lifetime(
 
 impl Analysis for LifetimeAnalysis {
     const ID: AnalysisId = AnalysisId("lifetime");
-    const DEPENDENCIES: &'static [AnalysisId] = &[];
 }
 
 impl ModuleAnalysis for LifetimeAnalysis {

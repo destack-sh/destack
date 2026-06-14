@@ -1,19 +1,18 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, AnalysisPreservation, BlockParamForwarding, ControlFlowGraph, DominatorTree,
-    LoopAnalysis, RangeAnalysis, ScalarEvolution, Scev, TypeKey, UseDefMaps, ValueRange,
-    ValueTypeMap, build_use_def_maps, build_value_definition_map, build_value_use_counts,
-    constant_for_value, constant_is_zero, instruction_has_side_effects,
-    instruction_is_borrow_address, instruction_is_speculatable, instruction_requires_exact_access,
-    unsigned_int_width_for_value,
+    AliasAnalysis, BlockParamForwarding, ControlFlowGraph, DominatorTree, LoopAnalysis, Mutation,
+    RangeAnalysis, ScalarEvolution, Scev, TypeKey, UseDefMaps, ValueRange, ValueTypeMap,
+    build_use_def_maps, build_value_definition_map, build_value_use_counts, constant_for_value,
+    constant_is_zero, instruction_has_side_effects, instruction_is_borrow_address,
+    instruction_is_speculatable, instruction_requires_exact_access, unsigned_int_width_for_value,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Recognize loop idioms and replace them with memory intrinsics.
     ///
     /// This pass recognizes simple byte memset loops and copy loops with a canonical induction
@@ -76,17 +75,17 @@ impl FunctionPass for LoopIdiomRecognize {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip imported functions
         if function.entry.is_none() {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         let changed = run_loop_idiom(function, tree, ctx, analyses);
         if changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW | Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

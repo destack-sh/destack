@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AnalysisPreservation, BlockParamForwarding, ControlFlowGraph, DominatorTree, Loop,
-    LoopAnalysis, RangeAnalysis, RangeMap, ScalarEvolution, Scev, ValueRange, constant_zero_like,
+    BlockParamForwarding, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, Mutation,
+    RangeAnalysis, RangeMap, ScalarEvolution, Scev, ValueRange, constant_zero_like,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Eliminate bounds checks dominated by loop guards.
     ///
     /// Uses loop guard comparisons to remove redundant bounds checks inside
@@ -73,10 +73,10 @@ impl FunctionPass for LoopBoundsCheckEliminate {
         tree: &mut mir::Tree,
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip imported functions
         if function.entry.is_none() {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         // gather analyses
@@ -88,7 +88,7 @@ impl FunctionPass for LoopBoundsCheckEliminate {
 
         // skip when no loops are present
         if loops.num_loops() == 0 {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         // build helper state
@@ -106,9 +106,9 @@ impl FunctionPass for LoopBoundsCheckEliminate {
             &forwarding,
         );
         if changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

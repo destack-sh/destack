@@ -1,16 +1,16 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AnalysisPreservation, ControlFlowGraph, DominatorTree, LoopAnalysis, LoopEffectPolicy,
-    MemorySSA, build_value_definition_blocks, collect_loop_effects, loop_guard_branch,
-    loop_preheader, value_available_in_block,
+    ControlFlowGraph, DominatorTree, LoopAnalysis, LoopEffectPolicy, MemorySSA, Mutation,
+    build_value_definition_blocks, collect_loop_effects, loop_guard_branch, loop_preheader,
+    value_available_in_block,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Interchange perfectly nested read-only loops.
     ///
     /// This pass swaps the order of two perfectly nested loops when the body
@@ -80,7 +80,7 @@ impl FunctionPass for LoopInterchange {
         tree: &mut mir::Tree,
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // gather analyses
         let loops = analyses.get::<LoopAnalysis>(function, tree).clone();
         let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
@@ -90,10 +90,11 @@ impl FunctionPass for LoopInterchange {
         let changed =
             run_loop_interchange(function, tree, &loops, &cfg, &domtree, memory_ssa.as_ref());
 
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW | Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

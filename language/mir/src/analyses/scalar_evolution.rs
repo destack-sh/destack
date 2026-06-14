@@ -176,7 +176,6 @@ impl ScalarEvolution {
 
 impl Analysis for ScalarEvolution {
     const ID: AnalysisId = AnalysisId("scev");
-    const DEPENDENCIES: &'static [AnalysisId] = &[LoopAnalysis::ID];
 }
 
 impl FunctionAnalysis for ScalarEvolution {
