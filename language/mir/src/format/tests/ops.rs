@@ -125,3 +125,19 @@ entry0(value0: int32, value1: int32, value2: boolean, value3: float64):
 "#,
     );
 }
+
+/// Infinite and NaN float literals round-trip through the formatter.
+#[test]
+fn test_format_float_infinity_and_nan() {
+    assert_format(
+        r#"
+function floatLimits(): float32 {
+entry0:
+    value0: float32 = inffloat32
+    value1: float32 = -inffloat32
+    value2: float32 = NaNfloat32
+    return value1
+}
+"#,
+    );
+}

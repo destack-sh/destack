@@ -100,6 +100,11 @@ impl<'a> Lexer<'a> {
             {
                 self.number()
             }
+            // negative non-digit literal like -inf or -nan
+            '-' if self.peek().is_some_and(is_identifier_start) => {
+                self.bump_while(is_identifier_continue);
+                TokenType::Identifier
+            }
             character if is_identifier_start(character) => {
                 self.bump_while(is_identifier_continue);
                 TokenType::Identifier
