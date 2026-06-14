@@ -351,11 +351,13 @@ b0:
         let program = TestProgram::new(
             r#"
 global g: int32 = 0int32
-external function external(ref<int32, raw>): void
+
+external function imported(ref<int32, raw>): void
+
 function test(): void {
 b0:
     v0: ref<int32, raw, space(static)> = global.address g
-    call external(v0): (ref<int32, raw>) -> void
+    call imported(v0): (ref<int32, raw>) -> void
     return
 }"#,
         );
@@ -381,7 +383,9 @@ b0:
         let program = TestProgram::new(
             r#"
 global g: int32 = 0int32
+
 function test(v0: ref<ref<int32, raw>, raw>): void {
+
 b0(v0: ref<ref<int32, raw>, raw>):
     v1: ref<int32, raw, space(static)> = global.address g
     store v0, v1
@@ -405,7 +409,9 @@ b0(v0: ref<ref<int32, raw>, raw>):
         let program = TestProgram::new(
             r#"
 global g: int32 = 0int32
+
 function test(v0: ref<int32, raw>): void {
+
 b0(v0: ref<int32, raw>):
     v1: ref<int32, raw, space(static)> = global.address g
     v2: int32 = 42int32
@@ -434,7 +440,9 @@ b0(v0: ref<int32, raw>):
         let program = TestProgram::new(
             r#"
 type Point { int32, int32 }
+
 global g: Point = { 0int32, 0int32 }
+
 function test(): void {
 b0:
     v0: ref<Point, raw, space(static)> = global.address g
