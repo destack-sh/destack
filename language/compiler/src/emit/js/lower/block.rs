@@ -1,14 +1,15 @@
+use crate::EmitError;
 use destack_dir as dir;
 use destack_js as js;
 
-use crate::generate::js::{CodegenJsError, CodegenJsResult, ModuleLowerer};
+use crate::emit::js::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
     /// Lower one expression into a JS statement.
     pub(crate) fn lower_expression_as_statement(
         &mut self,
         source_expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::Statement>> {
+    ) -> Result<js::LocalNodeId<js::Statement>, EmitError> {
         let lowered_id = self.lower_expression(source_expression_id)?;
 
         let statement_id = match lowered_id.ty {
@@ -29,13 +30,13 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(statement, self.module.id, source_expression_id)
             }
             _ => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: source_expression_id.into_global_any(self.module.id),
-                    message: Some(format!(
+                return Err(self.unsupported_construct(
+                    source_expression_id.into_global_any(self.module.id),
+                    Some(format!(
                         "statement lowering expected expression, statement, or block, got {}",
                         lowered_id.ty.name()
                     )),
-                });
+                ));
             }
         };
 
@@ -46,7 +47,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_expression_as_block(
         &mut self,
         source_expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::Block>> {
+    ) -> Result<js::LocalNodeId<js::Block>, EmitError> {
         let lowered_id = self.lower_expression(source_expression_id)?;
 
         let block_id = match lowered_id.ty {
@@ -75,13 +76,13 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(block, self.module.id, source_expression_id)
             }
             _ => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: source_expression_id.into_global_any(self.module.id),
-                    message: Some(format!(
+                return Err(self.unsupported_construct(
+                    source_expression_id.into_global_any(self.module.id),
+                    Some(format!(
                         "block lowering expected expression, statement, or block, got {}",
                         lowered_id.ty.name()
                     )),
-                });
+                ));
             }
         };
 
@@ -92,12 +93,12 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_block(
         &mut self,
         block_id: dir::LocalNodeId<dir::Block>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::Block>> {
+    ) -> Result<js::LocalNodeId<js::Block>, EmitError> {
         let block = self.dir_tree.get(block_id);
         let statements = block
             .iter_expressions()
             .map(|statement| self.lower_expression_as_statement(statement))
-            .collect::<Result<Vec<_>, CodegenJsError>>()?;
+            .collect::<Result<Vec<_>, EmitError>>()?;
         let block = js::Block { statements };
         Ok(self
             .tree

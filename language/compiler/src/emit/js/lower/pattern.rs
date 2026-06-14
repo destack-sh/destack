@@ -1,29 +1,26 @@
+use crate::EmitError;
 use destack_dir as dir;
 use destack_js as js;
 
-use crate::generate::js::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
+use crate::emit::js::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
     /// Lower one assign pattern from DIR into JS AST.
     pub(crate) fn lower_assign_pattern(
         &mut self,
         assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::AssignPattern>> {
+    ) -> Result<js::LocalNodeId<js::AssignPattern>, EmitError> {
         let assign_pattern = self.dir_tree.get(assign_pattern_id);
         let assign_pattern_id = match assign_pattern {
             dir::AssignPattern::Expression { value } => {
-                let value = self
-                    .lower_expression(*value)
-                    .expect_node::<js::Expression>(value.into_global_any(self.module.id), self)?;
+                let value = self.lower_expression_as::<js::Expression>(*value)?;
                 let assign_pattern = js::AssignPattern::Expression { value };
                 self.tree
                     .insert_from_source(assign_pattern, self.module.id, assign_pattern_id)
             }
             dir::AssignPattern::Assign { pattern, value } => {
                 let pattern = self.lower_assign_pattern(*pattern)?;
-                let value = self
-                    .lower_expression(*value)
-                    .expect_node::<js::Expression>(value.into_global_any(self.module.id), self)?;
+                let value = self.lower_expression_as::<js::Expression>(*value)?;
                 let assign_pattern = js::AssignPattern::Assign { pattern, value };
                 self.tree
                     .insert_from_source(assign_pattern, self.module.id, assign_pattern_id)
@@ -32,7 +29,7 @@ impl ModuleLowerer<'_> {
                 let fields = fields
                     .iter()
                     .map(|field_id| self.lower_assign_pattern_field(*field_id))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
                 let assign_pattern = js::AssignPattern::Array { fields };
                 self.tree
                     .insert_from_source(assign_pattern, self.module.id, assign_pattern_id)
@@ -41,7 +38,7 @@ impl ModuleLowerer<'_> {
                 let fields = fields
                     .iter()
                     .map(|field_id| self.lower_assign_pattern_field(*field_id))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
                 let assign_pattern = js::AssignPattern::Object { fields };
                 self.tree
                     .insert_from_source(assign_pattern, self.module.id, assign_pattern_id)
@@ -55,7 +52,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_assign_pattern_field(
         &mut self,
         assign_pattern_field_id: dir::LocalNodeId<dir::AssignPatternField>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::AssignPatternField>> {
+    ) -> Result<js::LocalNodeId<js::AssignPatternField>, EmitError> {
         let assign_pattern_field = self.dir_tree.get(assign_pattern_field_id);
         let assign_pattern_field_id = match assign_pattern_field {
             dir::AssignPatternField::Named {
@@ -79,9 +76,7 @@ impl ModuleLowerer<'_> {
                 )
             }
             dir::AssignPatternField::Computed { key, pattern } => {
-                let key = self
-                    .lower_expression(*key)
-                    .expect_node::<js::Expression>(key.into_global_any(self.module.id), self)?;
+                let key = self.lower_expression_as::<js::Expression>(*key)?;
                 let pattern = self.lower_assign_pattern(*pattern)?;
                 let assign_pattern_field = js::AssignPatternField::Computed { key, pattern };
                 self.tree.insert_from_source(
@@ -127,7 +122,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_pattern(
         &mut self,
         pattern_id: dir::LocalNodeId<dir::Pattern>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::Pattern>> {
+    ) -> Result<js::LocalNodeId<js::Pattern>, EmitError> {
         let source_pattern_id = pattern_id;
         let pattern = self.dir_tree.get(pattern_id);
         let pattern_id = match pattern {
@@ -156,7 +151,7 @@ impl ModuleLowerer<'_> {
                 let fields = fields
                     .iter()
                     .map(|field_id| self.lower_array_pattern_field(*field_id))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
 
                 let pattern = js::Pattern::Array { fields };
                 self.tree
@@ -166,16 +161,16 @@ impl ModuleLowerer<'_> {
                 let fields = fields
                     .iter()
                     .map(|field| self.lower_pattern_field(*field))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    .collect::<Result<Vec<_>, EmitError>>()?;
                 let pattern = js::Pattern::Object { fields };
                 self.tree
                     .insert_from_source(pattern, self.module.id, pattern_id)
             }
             _ => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: pattern_id.into_global_any(self.module.id),
-                    message: Some(format!("unsupported pattern kind: {pattern:?}")),
-                });
+                return Err(self.unsupported_construct(
+                    pattern_id.into_global_any(self.module.id),
+                    Some(format!("unsupported pattern kind: {pattern:?}")),
+                ));
             }
         };
 
@@ -186,7 +181,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_declaration_pattern(
         &mut self,
         pattern_id: dir::LocalNodeId<dir::Pattern>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::Pattern>> {
+    ) -> Result<js::LocalNodeId<js::Pattern>, EmitError> {
         self.lower_pattern(pattern_id)
     }
 
@@ -194,7 +189,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_array_pattern_field(
         &mut self,
         pattern_field_id: dir::LocalNodeId<dir::PatternField>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::PatternField>> {
+    ) -> Result<js::LocalNodeId<js::PatternField>, EmitError> {
         let pattern_field = self.dir_tree.get(pattern_field_id);
 
         match pattern_field {
@@ -226,12 +221,10 @@ impl ModuleLowerer<'_> {
                     .tree
                     .insert_from_source(pattern_field, self.module.id, pattern_field_id))
             }
-            dir::PatternField::Computed { .. } => Err(CodegenJsError::UnsupportedConstruct {
-                node: pattern_field_id.into_global_any(self.module.id),
-                message: Some(
-                    "computed array or tuple pattern fields are not lowered to JS".to_string(),
-                ),
-            }),
+            dir::PatternField::Computed { .. } => Err(self.unsupported_construct(
+                pattern_field_id.into_global_any(self.module.id),
+                Some("computed array or tuple pattern fields are not lowered to JS".to_string()),
+            )),
             _ => self.lower_pattern_field(pattern_field_id),
         }
     }
@@ -240,7 +233,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_pattern_field(
         &mut self,
         pattern_field_id: dir::LocalNodeId<dir::PatternField>,
-    ) -> CodegenJsResult<js::LocalNodeId<js::PatternField>> {
+    ) -> Result<js::LocalNodeId<js::PatternField>, EmitError> {
         let source_pattern_field_id = pattern_field_id;
         let pattern_field = self.dir_tree.get(pattern_field_id);
         let pattern_field_id = match pattern_field {
@@ -268,9 +261,7 @@ impl ModuleLowerer<'_> {
                 pattern_field_id
             }
             dir::PatternField::Computed { key, pattern } => {
-                let key = self
-                    .lower_expression(*key)
-                    .expect_node::<js::Expression>(key.into_global_any(self.module.id), self)?;
+                let key = self.lower_expression_as::<js::Expression>(*key)?;
                 let pattern = self.lower_pattern(*pattern)?;
                 let pattern_field = js::PatternField::Computed {
                     mutability: None,
