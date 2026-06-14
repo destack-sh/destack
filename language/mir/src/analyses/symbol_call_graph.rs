@@ -1147,7 +1147,7 @@ mod tests {
 
     /// Build the cross-module call graph over a set of parsed modules.
     fn call_graph(modules: &[ParsedModule]) -> SymbolCallGraph {
-        let refs: Vec<ModuleRef> = modules.iter().map(ParsedModule::module_ref).collect();
+        let refs: Vec<ModuleRef<'_>> = modules.iter().map(ParsedModule::module_ref).collect();
         SymbolCallGraph::build(&refs)
     }
 
