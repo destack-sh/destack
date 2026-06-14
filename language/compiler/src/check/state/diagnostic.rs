@@ -131,6 +131,18 @@ impl CheckState<'_> {
         self.module_mut(module).diagnostics.push(diagnostic.into());
     }
 
+    /// Report a decorator target that is not a static declaration name.
+    pub(in crate::check) fn report_invalid_decorator_target(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::InvalidDecoratorTarget { anchor, module };
+
+        self.module_mut(module).diagnostics.push(diagnostic.into());
+    }
+
     /// Report an intrinsic marker outside a compiler-recognized language item.
     pub(in crate::check) fn report_invalid_intrinsic_type(
         &mut self,

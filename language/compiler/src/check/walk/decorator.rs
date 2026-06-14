@@ -42,25 +42,54 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         let source = target.into_global_any(self.module);
 
-        // select bare decorator targets
-        let name = match self.tree.get(target) {
-            dir::Expression::Identifier { name } => *name,
-            // leave non-reference decorator targets unresolved
-            _ => return Ok(()),
+        // a decorator must name a declaration; a member access or any other
+        // computed form is not a name and cannot resolve here
+        let dir::Expression::Identifier { name } = self.tree.get(target) else {
+            self.check
+                .report_invalid_decorator_target(self.module, target.into_any());
+
+            return Ok(());
         };
+        let name = *name;
+
+        // decorators resolve eagerly during the walk and cannot defer to
+        // selection, so anything but a single visible declaration is an error
         let lookup = self.check.lookup_name(
             self.module,
             target.into_any(),
             name,
             dir::SymbolSpace::Value,
         );
-        if let NameLookup::Found(candidate) = lookup
-            && let Some(symbol) = candidate.symbol()
-        {
-            let resolution = dir::NameResolution::new(symbol);
+        match lookup {
+            NameLookup::Found(candidate) => match candidate.symbol() {
+                Some(symbol) => {
+                    self.check.record_decision(
+                        source,
+                        Decision::Name(dir::NameResolution::new(symbol)),
+                    )?;
+                }
+                // a namespace is not itself a decorator
+                None => {
+                    self.check
+                        .report_invalid_decorator_target(self.module, target.into_any());
+                }
+            },
+            NameLookup::Missing => {
+                let path = dir::Path {
+                    segments: smallvec::smallvec![name],
+                };
 
-            self.check
-                .record_decision(source, Decision::Name(resolution))?;
+                self.check
+                    .report_unresolved_reference(self.module, target.into_any(), &path);
+            }
+            NameLookup::Ambiguous(_) => {
+                let path = dir::Path {
+                    segments: smallvec::smallvec![name],
+                };
+
+                self.check
+                    .report_ambiguous_reference(self.module, target.into_any(), &path);
+            }
         }
 
         Ok(())
