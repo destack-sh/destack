@@ -2493,8 +2493,8 @@ b0:
 function test(): int32 {
 b0:
     v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = atomic.load v0, acquire, device, device, any
-    atomic.store v0, v1, release, device, device, any
+    v1: int32 = atomic.load v0, acquire, scope(device)
+    atomic.store v0, v1, release, scope(device)
     return v1
 }"#,
         );
@@ -2530,7 +2530,7 @@ b0:
             r#"
 function test(): int32 {
 b0:
-    atomic.fence sequentiallyConsistent, device, device, any
+    atomic.fence sequentiallyConsistent, scope(device), memory(device)
     v0: int32 = 0int32
     return v0
 }"#,
@@ -2562,10 +2562,10 @@ b0:
     fn test_memory_ssa_call_is_unknown_def() {
         let test = TestProgram::new(
             r#"
-external function external(ref<int32, raw>): void
+external function imported(ref<int32, raw>): void
 function test(v0: ref<int32, raw>): int32 {
 b0(v0: ref<int32, raw>):
-    call external(v0): (ref<int32, raw>) -> void
+    call imported(v0): (ref<int32, raw>) -> void
     v1: int32 = 0int32
     return v1
 }"#,
@@ -2604,10 +2604,10 @@ b0(v0: ref<int32, raw>):
     fn test_memory_ssa_skips_no_memory_call() {
         let mut test = TestProgram::new(
             r#"
-external function external(ref<int32, raw>): void
+external function imported(ref<int32, raw>): void
 function test(v0: ref<int32, raw>): int32 {
 b0(v0: ref<int32, raw>):
-    call external(v0): (ref<int32, raw>) -> void
+    call imported(v0): (ref<int32, raw>) -> void
     v1: int32 = 0int32
     return v1
 }"#,
@@ -2634,10 +2634,10 @@ b0(v0: ref<int32, raw>):
         // build the test test
         let mut test = TestProgram::new(
             r#"
-external function external(ref<int32, raw>, ref<int32, raw>): void
+external function imported(ref<int32, raw>, ref<int32, raw>): void
 function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
 b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
-    call external(v0, v1): (ref<int32, raw>, ref<int32, raw>) -> void
+    call imported(v0, v1): (ref<int32, raw>, ref<int32, raw>) -> void
     v2: int32 = 0int32
     return v2
 }"#,

@@ -373,10 +373,10 @@ b0:
     fn test_call_metadata_no_memory_mod_ref() {
         let mut program = TestProgram::new(
             r#"
-external function external(ref<int32, raw>): void
+external function imported(ref<int32, raw>): void
 function test(v0: ref<int32, raw>): void {
 b0(v0: ref<int32, raw>):
-    call external(v0): (ref<int32, raw>) -> void
+    call imported(v0): (ref<int32, raw>) -> void
     return
 }"#,
         );
