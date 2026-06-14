@@ -1,17 +1,17 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AnalysisPreservation, ConstantPropagation, DominatorTree, LoopAnalysis, RangeAnalysis,
-    RangeMap, ValueRange, apply_substitutions_in_dominated_blocks,
-    block_parameters_used_outside_block, block_uses_available_in_predecessor, bool_from_range,
-    build_use_def_maps, build_value_instruction_map, build_value_use_counts,
-    clone_instruction_metadata, constraint_truth_value, evaluate_integer_range_comparison,
-    function_thread_jumps, instruction_is_speculatable, instruction_map, is_comparison_operator,
-    substitute_values, swap_comparison_operator, terminator_remap, terminator_substitute_uses,
+    ConstantPropagation, DominatorTree, LoopAnalysis, Mutation, RangeAnalysis, RangeMap,
+    ValueRange, apply_substitutions_in_dominated_blocks, block_parameters_used_outside_block,
+    block_uses_available_in_predecessor, bool_from_range, build_use_def_maps,
+    build_value_instruction_map, build_value_use_counts, clone_instruction_metadata,
+    constraint_truth_value, evaluate_integer_range_comparison, function_thread_jumps,
+    instruction_is_speculatable, instruction_map, is_comparison_operator, substitute_values,
+    swap_comparison_operator, terminator_remap, terminator_substitute_uses,
 };
 
 /// Return block metadata for canonicalization.
@@ -34,7 +34,7 @@ const TAIL_DUP_MIN_EDGE_RATIO: f64 = 0.20;
 /// Maximum rounds of CFG simplification before reanalysis.
 const MAX_SIMPLIFY_CFG_ITERATIONS: usize = 8;
 
-declare_mir_pass! {
+declare_pass! {
     /// Simplify the control flow graph.
     ///
     /// This pass performs several CFG simplifications:
@@ -99,15 +99,15 @@ impl FunctionPass for SimplifyCfg {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // run simplify cfg with bounded fixed point
         let changed = run_simplify_cfg(function, tree, ctx.profile(), ctx, analyses);
 
-        // select preservation based on CFG changes
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW | Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

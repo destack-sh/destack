@@ -1,18 +1,17 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AnalysisPreservation, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, RangeAnalysis,
-    ScalarEvolution, Scev, TypeContext, ValueRange, ValueTypeMap, clone_instruction_metadata,
-    constant_is_zero, instruction_is_speculatable, instruction_map,
-    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
-    resolve_substitution_chains, terminator_substitute_uses,
+    ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, Mutation, RangeAnalysis, ScalarEvolution,
+    Scev, TypeContext, ValueRange, ValueTypeMap, clone_instruction_metadata, constant_is_zero,
+    instruction_is_speculatable, instruction_map, instruction_substitute_uses_in_tree,
+    remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Reduce strength of loop expressions derived from induction variables.
     ///
     /// Rewrites loop values with linear recurrences into explicit header
@@ -71,10 +70,10 @@ impl FunctionPass for LoopStrengthReduce {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip imported functions
         if function.entry.is_none() {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         // gather analyses
@@ -87,7 +86,7 @@ impl FunctionPass for LoopStrengthReduce {
 
         // skip when no loops are present
         if loops.num_loops() == 0 {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         // run the strength reduction pass
@@ -102,9 +101,9 @@ impl FunctionPass for LoopStrengthReduce {
         };
         let changed = run_loop_strength_reduce(function, tree, &context);
         if changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW | Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

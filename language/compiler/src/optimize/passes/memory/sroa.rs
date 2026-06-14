@@ -1,16 +1,16 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AnalysisPreservation, ConstantPropagation, instruction_requires_exact_access,
+    ConstantPropagation, Mutation, instruction_requires_exact_access,
     instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
     terminator_substitute_uses, terminator_uses,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Scalar Replacement of Aggregates.
     ///
     /// Breaks apart aggregate stack allocations (structs, tuples, small arrays)
@@ -60,11 +60,11 @@ impl FunctionPass for Sroa {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip empty functions
         let entry = match function.entry {
             Some(entry) => entry,
-            None => return AnalysisPreservation::all(),
+            None => return Mutation::NONE,
         };
 
         // get constant propagation analysis
@@ -79,11 +79,11 @@ impl FunctionPass for Sroa {
             &constants,
         );
 
-        // select preservation based on SROA changes
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

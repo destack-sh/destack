@@ -1,17 +1,17 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::passes::scalar::{SimplifyCfg, SparseConditionalConstantPropagation};
 use crate::optimize::{ModulePass, PipelineContext, run_function_passes};
 use destack_mir::{
-    AnalysisPreservation, ConstantPropagation, SignatureKey, apply_constant_parameters,
+    ConstantPropagation, Mutation, SignatureKey, apply_constant_parameters,
     constant_arguments_for_parameters, constant_matches_type, constant_propagation_with_params,
     constant_type_of,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Propagate constants across call edges and prune dead paths.
     ///
     /// This pass discovers constant arguments for direct callsites and applies them to callees.
@@ -55,16 +55,16 @@ impl ModulePass for InterproceduralSccp {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         _analyses: &mir::ModuleAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // run the interprocedural pass
         let changed = run_interprocedural_sccp(tree, ctx);
 
-        // report analysis preservation based on whether changes occurred
+        // report what this pass changed
         if changed {
             ctx.strings.intern("ip-sccp");
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW | Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

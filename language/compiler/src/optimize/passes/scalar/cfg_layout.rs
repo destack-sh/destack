@@ -1,18 +1,18 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AnalysisPreservation, CallsiteHotness, ControlFlowGraph, DominatorTree, EdgeSplitPolicy,
+    CallsiteHotness, ControlFlowGraph, DominatorTree, EdgeSplitPolicy, Mutation,
     block_execution_counts, block_hotness_from_counts, block_parameters_used_outside_block,
     block_uses_available_in_predecessor, build_use_def_maps, clone_instruction_metadata,
     collect_reachable_blocks, ensure_edge_block, instruction_is_speculatable, instruction_map,
     terminator_edges, terminator_substitute_uses,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Reorder blocks based on profile hotness.
     ///
     /// Hot paths are laid out contiguously and cold blocks are placed last.
@@ -54,27 +54,28 @@ impl FunctionPass for CfgLayout {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip imported functions
         let Some(entry) = function.entry else {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         };
 
         // skip when no profile data is available
         let Some(profile) = ctx.profile() else {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         };
         if profile.is_empty() {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         // compute a new layout
         let changed = run_cfg_layout(function, tree, entry, profile, ctx, analyses);
 
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW | Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

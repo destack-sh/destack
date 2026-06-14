@@ -1,18 +1,18 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AnalysisPreservation, BlockParamForwarding, CallsiteHotness, ControlFlowGraph, DominatorTree,
-    Loop, LoopAnalysis, ScalarEvolution, Scev, ValueTypeMap, block_execution_counts,
+    BlockParamForwarding, CallsiteHotness, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis,
+    Mutation, ScalarEvolution, Scev, ValueTypeMap, block_execution_counts,
     block_hotness_from_counts, build_use_def_maps, build_value_definition_map,
     clone_instruction_metadata, clone_loop_blocks, instruction_is_speculatable, instruction_map,
     terminator_arguments_for_successor, terminator_remap,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Unroll loops with a constant trip count.
     ///
     /// Replaces the loop backedge with a chain of unrolled iterations.
@@ -70,7 +70,7 @@ declare_mir_pass! {
     "Unroll loops with constant trip counts"
 }
 
-declare_mir_pass! {
+declare_pass! {
     /// Unroll and jam perfectly nested loops.
     ///
     /// The outer loop is unrolled and the inner loop body is duplicated so that
@@ -162,20 +162,20 @@ impl FunctionPass for LoopUnroll {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip imported functions
         if function.entry.is_none() {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         // run loop unrolling
         let changed = run_loop_unroll(function, tree, ctx, analyses);
 
-        // invalidate analyses on change
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW | Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 
@@ -198,20 +198,20 @@ impl FunctionPass for LoopUnrollAndJam {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip imported functions
         if function.entry.is_none() {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         // run loop unroll and jam
         let changed = run_loop_unroll_and_jam(function, tree, ctx, analyses);
 
-        // invalidate analyses on change
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW | Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

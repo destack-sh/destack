@@ -1,12 +1,12 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{ModulePass, PipelineContext};
-use destack_mir::{AnalysisPreservation, CallGraph, SignatureKey};
+use destack_mir::{CallGraph, Mutation, SignatureKey};
 
-declare_mir_pass! {
+declare_pass! {
     /// Remove functions that are not reachable from exported roots.
     ///
     /// This pass keeps exported functions and anything reachable via direct calls, plus any signatures reachable from unresolved indirect calls.
@@ -51,15 +51,15 @@ impl ModulePass for DeadFunctionEliminate {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         analyses: &mir::ModuleAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         let changed = run_dead_function_eliminate(tree, analyses);
 
-        // report analysis preservation based on whether changes occurred
+        // report what this pass changed
         if changed {
             ctx.strings.intern("dead-function-eliminate");
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

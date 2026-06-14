@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
-use destack_mir::{AnalysisPreservation, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis};
+use destack_mir::{ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, Mutation};
 
-declare_mir_pass! {
+declare_pass! {
     /// Rotate loops to expose optimization opportunities.
     ///
     /// Loop rotation transforms a while-loop (test-at-top) into a do-while loop
@@ -40,10 +40,10 @@ impl FunctionPass for LoopRotate {
         tree: &mut mir::Tree,
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         let entry = match function.entry {
             Some(entry) => entry,
-            None => return AnalysisPreservation::all(),
+            None => return Mutation::NONE,
         };
 
         // get analyses
@@ -55,14 +55,14 @@ impl FunctionPass for LoopRotate {
             )
         };
         if loops.num_loops() == 0 {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         let changed = run_loop_rotate(entry, function, tree, &loops, &cfg, &domtree);
         if changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW | Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

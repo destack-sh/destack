@@ -1,12 +1,12 @@
 use std::collections::{HashMap, VecDeque};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{ModulePass, PipelineContext};
-use destack_mir::{AnalysisPreservation, CallGraph};
+use destack_mir::{CallGraph, Mutation};
 
-declare_mir_pass! {
+declare_pass! {
     /// Infer memory and behavior attributes for functions and callsites.
     ///
     /// This pass aggregates memory effects, allocation behavior, and convergence from instruction semantics and direct callees.
@@ -35,14 +35,14 @@ impl ModulePass for FunctionAttrs {
         tree: &mut mir::Tree,
         _ctx: &PipelineContext<'_>,
         analyses: &mir::ModuleAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         let changed = run_function_attrs(tree, analyses);
 
-        // report analysis preservation based on whether changes occurred
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

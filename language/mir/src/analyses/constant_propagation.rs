@@ -282,7 +282,6 @@ pub fn constant_propagation_with_params(
 
 impl Analysis for ConstantPropagation {
     const ID: AnalysisId = AnalysisId("constprop");
-    const DEPENDENCIES: &'static [AnalysisId] = &[ControlFlowGraph::ID];
 }
 
 impl FunctionAnalysis for ConstantPropagation {

@@ -1,14 +1,14 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use destack_core::StringPool;
 
 use crate::optimize::{ModulePass, PipelineContext};
-use destack_mir::{AnalysisPreservation, build_signature_type, clone_instruction_metadata};
+use destack_mir::{Mutation, build_signature_type, clone_instruction_metadata};
 
-declare_mir_pass! {
+declare_pass! {
     /// Eliminates tail-recursive calls by converting them to jumps.
     ///
     /// A call is in tail position when it is the last instruction before a return,
@@ -31,13 +31,13 @@ impl ModulePass for TailCallElim {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         _analyses: &mir::ModuleAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // run tail call elimination
         let changed = run_tail_call_elimination(tree, ctx.strings);
         if changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW | Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AnalysisPreservation, RangeAnalysis, RangeMap, ValueRange, ValueTypeMap, is_comparison_operator,
+    Mutation, RangeAnalysis, RangeMap, ValueRange, ValueTypeMap, is_comparison_operator,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Narrow integer operands for comparisons and bounds checks.
     ///
     /// This pass inserts truncating casts where the upper bits are provably unused.
@@ -44,10 +44,10 @@ impl FunctionPass for Narrow {
         tree: &mut mir::Tree,
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip imported functions
         if function.entry.is_none() {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         // gather analyses
@@ -57,9 +57,9 @@ impl FunctionPass for Narrow {
         // apply narrowing
         let changed = run_narrow(function, tree, &ranges, &value_types);
         if changed {
-            AnalysisPreservation::none()
+            Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

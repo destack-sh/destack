@@ -614,7 +614,6 @@ impl MemorySSA {
 
 impl Analysis for MemorySSA {
     const ID: AnalysisId = AnalysisId("memory-ssa");
-    const DEPENDENCIES: &'static [AnalysisId] = &[DominatorTree::ID, ControlFlowGraph::ID];
 }
 
 impl FunctionAnalysis for MemorySSA {

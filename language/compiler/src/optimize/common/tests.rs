@@ -832,11 +832,11 @@ impl TestProgram {
 mod tests {
     use std::sync::Arc;
 
-    use crate::declare_mir_pass;
+    use crate::optimize::declare_pass;
     use destack_core::StringPool;
     use destack_mir as mir;
     use destack_mir::{
-        Analysis, AnalysisId, AnalysisPreservation, FunctionAnalysis, instruction_is_speculatable,
+        Analysis, AnalysisId, FunctionAnalysis, Mutation, instruction_is_speculatable,
     };
 
     use super::*;
@@ -850,7 +850,8 @@ mod tests {
 
     impl Analysis for TestAnalysisA {
         const ID: AnalysisId = AnalysisId("test-a");
-        const DEPENDENCIES: &'static [AnalysisId] = &[];
+        // survives value-only changes so partial preservation is observable
+        const INVALIDATED_BY: Mutation = Mutation::CONTROL_FLOW;
     }
 
     impl FunctionAnalysis for TestAnalysisA {
@@ -870,7 +871,6 @@ mod tests {
 
     impl Analysis for TestAnalysisB {
         const ID: AnalysisId = AnalysisId("test-b");
-        const DEPENDENCIES: &'static [AnalysisId] = &[TestAnalysisA::ID];
     }
 
     impl FunctionAnalysis for TestAnalysisB {
@@ -893,7 +893,6 @@ mod tests {
 
     impl Analysis for TestAnalysisC {
         const ID: AnalysisId = AnalysisId("test-c");
-        const DEPENDENCIES: &'static [AnalysisId] = &[TestAnalysisB::ID];
     }
 
     impl FunctionAnalysis for TestAnalysisC {
@@ -1005,57 +1004,7 @@ b0:
     }
 
     #[test]
-    fn test_analysis_invalidate_single() {
-        let program = TestProgram::new(
-            r#"
-function test(): void {
-b0:
-    return
-}"#,
-        );
-
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses();
-
-        // compute A
-        let _ = analyses.get::<TestAnalysisA>(function, &program.tree);
-        assert!(analyses.is_cached::<TestAnalysisA>());
-
-        // invalidate A
-        analyses.invalidate(TestAnalysisA::ID);
-        assert!(!analyses.is_cached::<TestAnalysisA>());
-    }
-
-    #[test]
-    fn test_analysis_invalidate_all() {
-        let program = TestProgram::new(
-            r#"
-function test(): void {
-b0:
-    return
-}"#,
-        );
-
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses();
-
-        // compute all
-        let _ = analyses.get::<TestAnalysisC>(function, &program.tree);
-        assert!(analyses.is_cached::<TestAnalysisA>());
-        assert!(analyses.is_cached::<TestAnalysisB>());
-        assert!(analyses.is_cached::<TestAnalysisC>());
-
-        // invalidate all
-        analyses.clear();
-        assert!(!analyses.is_cached::<TestAnalysisA>());
-        assert!(!analyses.is_cached::<TestAnalysisB>());
-        assert!(!analyses.is_cached::<TestAnalysisC>());
-    }
-
-    #[test]
-    fn test_analysis_preservation_all() {
+    fn test_apply_no_change_preserves_all() {
         let program = TestProgram::new(
             r#"
 function test(): void {
@@ -1071,8 +1020,8 @@ b0:
         // compute all
         let _ = analyses.get::<TestAnalysisC>(function, &program.tree);
 
-        // preserve all
-        analyses.apply_preservation(&AnalysisPreservation::all());
+        // a pass that changed nothing keeps every analysis
+        analyses.apply(Mutation::NONE);
 
         // all still cached
         assert!(analyses.is_cached::<TestAnalysisA>());
@@ -1081,7 +1030,7 @@ b0:
     }
 
     #[test]
-    fn test_analysis_preservation_none() {
+    fn test_apply_full_change_invalidates_all() {
         let program = TestProgram::new(
             r#"
 function test(): void {
@@ -1097,8 +1046,8 @@ b0:
         // compute all
         let _ = analyses.get::<TestAnalysisC>(function, &program.tree);
 
-        // preserve none
-        analyses.apply_preservation(&AnalysisPreservation::none());
+        // a pass that changed everything clears every analysis
+        analyses.apply(Mutation::ALL);
 
         // all invalidated
         assert!(!analyses.is_cached::<TestAnalysisA>());
@@ -1107,7 +1056,7 @@ b0:
     }
 
     #[test]
-    fn test_analysis_preservation_some() {
+    fn test_apply_partial_change_preserves_by_mask() {
         let program = TestProgram::new(
             r#"
 function test(): void {
@@ -1120,16 +1069,17 @@ b0:
         let function = program.tree.get(function_id);
         let analyses = program.function_analyses();
 
-        // compute all
-        let _ = analyses.get::<TestAnalysisC>(function, &program.tree);
+        // compute a structural analysis (invalidated by control flow only) and a
+        // data-flow analysis (invalidated by any change)
+        let _ = analyses.get::<mir::ControlFlowGraph>(function, &program.tree);
+        let _ = analyses.get::<mir::ConstantPropagation>(function, &program.tree);
 
-        // preserve only A
-        analyses.apply_preservation(&AnalysisPreservation::preserving(&[TestAnalysisA::ID]));
+        // a value-only change preserves the control-flow graph and invalidates the
+        // value-dependent analysis
+        analyses.apply(Mutation::VALUES);
 
-        // A still cached, B and C invalidated
-        assert!(analyses.is_cached::<TestAnalysisA>());
-        assert!(!analyses.is_cached::<TestAnalysisB>());
-        assert!(!analyses.is_cached::<TestAnalysisC>());
+        assert!(analyses.is_cached::<mir::ControlFlowGraph>());
+        assert!(!analyses.is_cached::<mir::ConstantPropagation>());
     }
 
     #[test]
@@ -1139,26 +1089,29 @@ b0:
     }
 
     #[test]
-    fn test_analysis_preservation_is_preserved() {
-        let all = AnalysisPreservation::all();
-        assert!(all.is_preserved(AnalysisId("anything")));
+    fn test_mutation_set_operations() {
+        // the empty change touches nothing
+        assert!(Mutation::NONE.is_none());
+        assert!(!Mutation::NONE.intersects(Mutation::ALL));
 
-        let none = AnalysisPreservation::none();
-        assert!(!none.is_preserved(AnalysisId("anything")));
+        // a union carries both kinds
+        let both = Mutation::CONTROL_FLOW | Mutation::VALUES;
+        assert_eq!(both, Mutation::ALL);
+        assert!(both.intersects(Mutation::CONTROL_FLOW));
+        assert!(both.intersects(Mutation::VALUES));
 
-        let some = AnalysisPreservation::preserving(&[AnalysisId("cfg")]);
-        assert!(some.is_preserved(AnalysisId("cfg")));
-        assert!(!some.is_preserved(AnalysisId("domtree")));
+        // distinct kinds do not intersect
+        assert!(!Mutation::CONTROL_FLOW.intersects(Mutation::VALUES));
     }
 
-    declare_mir_pass! {
+    declare_pass! {
         /// Require profile data for validation in tests.
         #[pass(id = "test-profile", requires(profile_data))]
         pub(super) TestProfilePass,
         "Test profile requirement enforcement"
     }
 
-    declare_mir_pass! {
+    declare_pass! {
         /// Require type layout metadata for validation in tests.
         #[pass(id = "test-layout", requires(type_layouts))]
         pub(super) TestLayoutPass,
@@ -1171,8 +1124,8 @@ b0:
             _tree: &mut mir::Tree,
             _ctx: &PipelineContext<'_>,
             _analyses: &ModuleAnalyses,
-        ) -> AnalysisPreservation {
-            AnalysisPreservation::all()
+        ) -> Mutation {
+            Mutation::NONE
         }
 
         fn name(&self) -> &'static str {
@@ -1186,8 +1139,8 @@ b0:
             _tree: &mut mir::Tree,
             _ctx: &PipelineContext<'_>,
             _analyses: &ModuleAnalyses,
-        ) -> AnalysisPreservation {
-            AnalysisPreservation::all()
+        ) -> Mutation {
+            Mutation::NONE
         }
 
         fn name(&self) -> &'static str {

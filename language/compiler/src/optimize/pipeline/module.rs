@@ -83,11 +83,11 @@ impl Pipeline for FunctionPipeline {
                     continue;
                 }
 
-                let preserved = pass.run(&mut function, tree, ctx, &analyses);
+                let mutation = pass.run(&mut function, tree, ctx, &analyses);
 
-                // invalidate whatever this pass did not preserve
-                analyses.apply_preservation(&preserved);
-                if !preserved.preserves_all() {
+                // drop the analyses this pass's mutation invalidates
+                analyses.apply(mutation);
+                if !mutation.is_none() {
                     any_changed = true;
                 }
             }
@@ -156,11 +156,11 @@ impl Pipeline for ModulePipeline {
                 continue;
             }
 
-            let preserved = pass.run(tree, ctx, &analyses);
+            let mutation = pass.run(tree, ctx, &analyses);
 
-            // invalidate whatever this pass did not preserve
-            analyses.apply_preservation(&preserved);
-            if !preserved.preserves_all() {
+            // drop the analyses this pass's mutation invalidates
+            analyses.apply(mutation);
+            if !mutation.is_none() {
                 any_changed = true;
             }
         }
@@ -325,7 +325,7 @@ impl Pipeline for CompositePipeline {
 
 #[cfg(test)]
 mod tests {
-    use destack_mir::AnalysisPreservation;
+    use destack_mir::Mutation;
 
     use super::*;
     use crate::optimize::{Pass, PassMetadata, PassRequirements, PipelineBuilder};
@@ -354,8 +354,8 @@ mod tests {
             _tree: &mut mir::Tree,
             _ctx: &PipelineContext<'_>,
             _analyses: &mir::FunctionAnalyses,
-        ) -> AnalysisPreservation {
-            AnalysisPreservation::all()
+        ) -> Mutation {
+            Mutation::NONE
         }
 
         fn name(&self) -> &'static str {
@@ -389,8 +389,8 @@ mod tests {
             _tree: &mut mir::Tree,
             _ctx: &PipelineContext<'_>,
             _analyses: &mir::FunctionAnalyses,
-        ) -> AnalysisPreservation {
-            AnalysisPreservation::none()
+        ) -> Mutation {
+            Mutation::ALL
         }
 
         fn name(&self) -> &'static str {

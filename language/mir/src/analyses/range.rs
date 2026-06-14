@@ -459,7 +459,6 @@ impl RangeAnalysis {
 
 impl Analysis for RangeAnalysis {
     const ID: AnalysisId = AnalysisId("range");
-    const DEPENDENCIES: &'static [AnalysisId] = &[ControlFlowGraph::ID];
 }
 
 impl FunctionAnalysis for RangeAnalysis {

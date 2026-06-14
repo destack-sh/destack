@@ -1,12 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{ModulePass, PipelineContext};
-use destack_mir::{AnalysisPreservation, build_value_definition_map};
+use destack_mir::{Mutation, build_value_definition_map};
 
-declare_mir_pass! {
+declare_pass! {
     /// Mark private globals readonly when no write can reach them.
     ///
     /// This pass promotes mutable globals to immutable when they are never written.
@@ -42,15 +42,15 @@ impl ModulePass for GlobalOpt {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         _analyses: &mir::ModuleAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         let changed = run_global_opt(tree);
 
-        // report analysis preservation based on whether changes occurred
+        // report what this pass changed
         if changed {
             ctx.strings.intern("global-opt");
-            AnalysisPreservation::none()
+            Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

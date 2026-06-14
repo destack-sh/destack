@@ -1,16 +1,16 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AnalysisPreservation, ControlFlowGraph, DominatorTree, compute_dominance_frontiers,
+    ControlFlowGraph, DominatorTree, Mutation, compute_dominance_frontiers,
     instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
     terminator_substitute_uses,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Memory to register promotion pass.
     ///
     /// Promotes local variables (stack slots) to SSA values when they:
@@ -53,10 +53,10 @@ impl FunctionPass for Mem2Reg {
         tree: &mut mir::Tree,
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip functions without locals
         if function.locals.is_empty() {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         // get analyses
@@ -70,11 +70,11 @@ impl FunctionPass for Mem2Reg {
         // run mem2reg
         let changed = run_mem2reg(function, tree, &cfg, &domtree);
 
-        // select preservation based on mem2reg changes
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

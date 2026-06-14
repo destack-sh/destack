@@ -1,16 +1,16 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, AnalysisPreservation, ControlFlowGraph, EdgeSplitPolicy, MemoryAccess,
-    MemoryAccessId, MemorySSA, build_value_definition_map, collect_non_escaping_frame_allocs,
-    effect_is_trackable, ensure_edge_block, frame_alloc_base, instruction_has_atomic_ordering,
+    AliasAnalysis, ControlFlowGraph, EdgeSplitPolicy, MemoryAccess, MemoryAccessId, MemorySSA,
+    Mutation, build_value_definition_map, collect_non_escaping_frame_allocs, effect_is_trackable,
+    ensure_edge_block, frame_alloc_base, instruction_has_atomic_ordering,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Sink stores down to the successors that use them.
     ///
     /// When a store feeds memory uses only along a subset of outgoing edges,
@@ -58,19 +58,20 @@ impl FunctionPass for StoreSink {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip imported functions
         if function.entry.is_none() {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         // run store sinking
         let changed = run_store_sink(function, tree, ctx, analyses);
 
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW | Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

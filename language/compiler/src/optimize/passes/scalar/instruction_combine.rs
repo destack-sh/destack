@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use destack_repository::FloatMathPolicy;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AnalysisPreservation, ConstantMap, ConstantPropagation, RangeAnalysis, RangeMap, TypeContext,
+    ConstantMap, ConstantPropagation, Mutation, RangeAnalysis, RangeMap, TypeContext,
     constant_all_ones_like, constant_is_all_ones, constant_is_float_one, constant_is_float_zero,
     constant_is_one, constant_is_zero, constant_zero_like, evaluate_integer_range_comparison,
     fold_binary, fold_cast, fold_unary, instruction_substitute_uses_in_tree,
@@ -17,7 +17,7 @@ use destack_mir::{
 /// Maximum recursion depth for chained field.set/element.set simplification.
 const MAX_AGGREGATE_CHAIN_DEPTH: usize = 64;
 
-declare_mir_pass! {
+declare_pass! {
     /// Algebraic simplification of instructions.
     ///
     /// Applies identity and annihilator rules to simplify expressions:
@@ -67,7 +67,7 @@ impl FunctionPass for InstructionCombine {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // collect analyses and options
         let constants = analyses.get::<ConstantPropagation>(function, tree).clone();
         let ranges = analyses.get::<RangeAnalysis>(function, tree).clone();
@@ -82,11 +82,11 @@ impl FunctionPass for InstructionCombine {
             ctx.type_context(),
         );
 
-        // preserve analyses when nothing changed
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

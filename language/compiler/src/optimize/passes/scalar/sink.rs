@@ -1,17 +1,17 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, AnalysisPreservation, ControlFlowGraph, DominatorTree, LoopAnalysis,
-    MemoryLocation, build_instruction_block_map, build_use_def_maps, build_value_definition_map,
+    AliasAnalysis, ControlFlowGraph, DominatorTree, LoopAnalysis, MemoryLocation, Mutation,
+    build_instruction_block_map, build_use_def_maps, build_value_definition_map,
     instruction_is_memory_read, instruction_is_speculatable, instruction_may_affect_memory,
     instruction_requires_exact_access,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Sink instructions closer to their uses.
     ///
     /// Code sinking moves instructions from a block into successors where
@@ -66,11 +66,11 @@ impl FunctionPass for Sink {
         tree: &mut mir::Tree,
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip empty functions
         let entry = match function.entry {
             Some(entry) => entry,
-            None => return AnalysisPreservation::all(),
+            None => return Mutation::NONE,
         };
 
         // get analyses
@@ -82,11 +82,11 @@ impl FunctionPass for Sink {
         // run sink
         let changed = run_sink(entry, function, tree, &cfg, &domtree, &loops, &alias);
 
-        // select preservation based on sink changes
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

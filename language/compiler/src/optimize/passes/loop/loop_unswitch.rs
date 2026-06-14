@@ -1,18 +1,18 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AnalysisPreservation, CallsiteHotness, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis,
-    RangeAnalysis, SuccessorArguments, block_execution_counts, block_hotness_from_counts,
-    bool_from_range, build_value_definition_map, clone_instruction_metadata, clone_loop_blocks,
+    CallsiteHotness, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, Mutation, RangeAnalysis,
+    SuccessorArguments, block_execution_counts, block_hotness_from_counts, bool_from_range,
+    build_value_definition_map, clone_instruction_metadata, clone_loop_blocks,
     instruction_is_speculatable, instruction_map_with_locals,
     terminator_arguments_for_successor_checked, terminator_remap,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Move loop invariant conditionals outside of loops by duplicating the loop.
     ///
     /// This eliminates the branch inside the loop, improving branch prediction
@@ -78,20 +78,20 @@ impl FunctionPass for LoopUnswitch {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip empty functions
         if function.entry.is_none() {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         // run loop unswitching
         let changed = run_loop_unswitch(function, tree, ctx, analyses);
 
-        // select preservation based on unswitch changes
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW | Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

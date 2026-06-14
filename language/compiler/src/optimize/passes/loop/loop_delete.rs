@@ -1,15 +1,14 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AnalysisPreservation, ConstantPropagation, DominatorTree, Loop, LoopAnalysis,
-    instruction_has_side_effects,
+    ConstantPropagation, DominatorTree, Loop, LoopAnalysis, Mutation, instruction_has_side_effects,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Delete loops that are proven to be skipped.
     ///
     /// A loop can be deleted if:
@@ -56,9 +55,9 @@ impl FunctionPass for LoopDelete {
         tree: &mut mir::Tree,
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         if function.entry.is_none() {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         // get analyses
@@ -70,15 +69,15 @@ impl FunctionPass for LoopDelete {
             )
         };
         if loops.num_loops() == 0 {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         // run loop deletion
         let changed = run_loop_delete(function, tree, &loops, &domtree, &constants);
         if changed {
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW | Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

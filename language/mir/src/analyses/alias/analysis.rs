@@ -204,7 +204,6 @@ impl AliasAnalysis {
 
 impl Analysis for AliasAnalysis {
     const ID: AnalysisId = AnalysisId("alias");
-    const DEPENDENCIES: &'static [AnalysisId] = &[];
 }
 
 impl FunctionAnalysis for AliasAnalysis {

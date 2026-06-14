@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use super::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis};
+use super::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, Mutation};
 use crate::{Block, BlockReference, Function, LocalNodeId, Tree};
 
 /// Control flow graph for one function.
@@ -78,6 +78,7 @@ impl ControlFlowGraph {
 
 impl Analysis for ControlFlowGraph {
     const ID: AnalysisId = AnalysisId("cfg");
+    const INVALIDATED_BY: Mutation = Mutation::CONTROL_FLOW;
 }
 
 impl FunctionAnalysis for ControlFlowGraph {

@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use super::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis};
+use super::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, Mutation};
 use crate::{Block, ControlFlowGraph, Function, LocalNodeId, Tree};
 
 /// Postdominator tree for one function.
@@ -224,7 +224,7 @@ impl PostDominatorTree {
 
 impl Analysis for PostDominatorTree {
     const ID: AnalysisId = AnalysisId("postdomtree");
-    const DEPENDENCIES: &'static [AnalysisId] = &[ControlFlowGraph::ID];
+    const INVALIDATED_BY: Mutation = Mutation::CONTROL_FLOW;
 }
 
 impl FunctionAnalysis for PostDominatorTree {

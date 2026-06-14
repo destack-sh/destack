@@ -1,17 +1,17 @@
 use std::collections::HashMap;
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AnalysisPreservation, BlockParamForwarding, ControlFlowGraph, LoopAnalysis, ScalarEvolution,
-    Scev, TypeKey, constant_is_zero, fold_binary, instruction_substitute_uses_in_tree,
+    BlockParamForwarding, ControlFlowGraph, LoopAnalysis, Mutation, ScalarEvolution, Scev, TypeKey,
+    constant_is_zero, fold_binary, instruction_substitute_uses_in_tree,
     remap_instruction_memory_accesses, resolve_substitution_chains,
     terminator_arguments_for_successor, terminator_substitute_uses,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Simplify redundant induction variables in loop headers.
     ///
     /// Identifies header parameters with identical recurrence patterns and
@@ -61,10 +61,10 @@ impl FunctionPass for InductionVariableSimplify {
         tree: &mut mir::Tree,
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip imported functions
         if function.entry.is_none() {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         // gather analyses
@@ -74,16 +74,16 @@ impl FunctionPass for InductionVariableSimplify {
 
         // skip when no loops are present
         if loops.num_loops() == 0 {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         // run the simplification pass
         function.recompute_next_value_id(tree);
         let changed = run_induction_simplify(function, tree, &loops, &scev, &cfg);
         if changed {
-            AnalysisPreservation::none()
+            Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

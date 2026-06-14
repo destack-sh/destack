@@ -1,12 +1,12 @@
 use std::collections::HashSet;
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{ModulePass, PipelineContext};
-use destack_mir::AnalysisPreservation;
+use destack_mir::Mutation;
 
-declare_mir_pass! {
+declare_pass! {
     /// Remove unused local globals from the module.
     ///
     /// ```mir
@@ -40,15 +40,15 @@ impl ModulePass for GlobalDeadCodeEliminate {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         _analyses: &mir::ModuleAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         let changed = run_global_dead_code_eliminate(tree);
 
-        // report analysis preservation based on whether changes occurred
+        // report what this pass changed
         if changed {
             ctx.strings.intern("global-dead-code-eliminate");
-            AnalysisPreservation::none()
+            Mutation::CONTROL_FLOW
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

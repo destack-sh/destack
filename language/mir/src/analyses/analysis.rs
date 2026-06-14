@@ -5,11 +5,7 @@ use std::sync::Arc;
 
 use crate as mir;
 
-use super::{
-    AliasAnalysis, AvailableExpressions, CallGraph, CallTargetAnalysis, ConstantPropagation,
-    ControlFlowGraph, DominatorTree, FunctionLiveness, LifetimeAnalysis, LoopAnalysis, MemorySSA,
-    PostDominatorTree, RangeAnalysis, ReachingDefinitions, ScalarEvolution,
-};
+use super::Mutation;
 
 /// Type related context for MIR analysis.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -57,17 +53,15 @@ impl std::fmt::Display for AnalysisId {
 
 /// Base trait for all analyses.
 ///
-/// Provides identity and dependency information for caching and invalidation.
-/// Concrete analyses implement `FunctionAnalysis`, `ModuleAnalysis`, or a
-/// consumer defined scope trait built on the same identity scheme.
+/// Provides identity and invalidation information for caching. Concrete analyses
+/// implement `FunctionAnalysis`, `ModuleAnalysis`, or a consumer defined scope
+/// trait built on the same identity scheme.
 pub trait Analysis: 'static + Send + Sync + Sized {
     /// Unique identifier for this analysis.
     const ID: AnalysisId;
 
-    /// Analyses this one depends on (for cascading invalidation).
-    ///
-    /// When a dependency is invalidated, this analysis is also invalidated.
-    const DEPENDENCIES: &'static [AnalysisId] = &[];
+    /// The mutations that invalidate this analysis.
+    const INVALIDATED_BY: Mutation = Mutation::ALL;
 }
 
 /// Function-scoped analysis.
@@ -82,123 +76,66 @@ pub trait ModuleAnalysis: Analysis {
     fn compute(tree: &mir::Tree, analyses: &ModuleAnalyses) -> Self;
 }
 
-/// Dependency graph for cascading invalidation.
-#[derive(Debug, Default)]
-pub struct DependencyGraph {
-    /// Maps each analysis to analyses that depend on it.
-    dependents: HashMap<AnalysisId, Vec<AnalysisId>>,
-}
-
-impl DependencyGraph {
-    /// Register an analysis and its dependencies.
-    pub fn register(&mut self, id: AnalysisId, dependencies: &[AnalysisId]) {
-        for dep in dependencies {
-            self.dependents.entry(*dep).or_default().push(id);
-        }
-    }
-
-    /// Get all analyses that directly depend on the given analysis.
-    pub fn get_dependents(&self, id: AnalysisId) -> &[AnalysisId] {
-        self.dependents
-            .get(&id)
-            .map(|v| v.as_slice())
-            .unwrap_or(&[])
-    }
-}
-
-/// Register an analysis in the dependency graph.
-pub fn register_analysis<A: Analysis>(graph: &mut DependencyGraph) {
-    graph.register(A::ID, A::DEPENDENCIES);
-}
-
 /// Shared cache machinery for analyses of any scope.
-///
-/// Holds computed analyses keyed by id alongside the dependency graph used for
-/// cascading invalidation. The cache never owns the IR or workset it analyzes:
-/// the scope wrappers ([`FunctionAnalyses`], [`ModuleAnalyses`], and the package
-/// and program caches in the optimizer) supply the work input at each query, so
-/// the cache outlives any single borrow and survives the mutations passes
-/// perform between queries.
-pub struct AnalysisCache {
-    cache: RefCell<HashMap<AnalysisId, Arc<dyn Any + Send + Sync>>>,
-    dependency_graph: DependencyGraph,
+pub(crate) struct AnalysisCache {
+    cache: RefCell<HashMap<AnalysisId, (Arc<dyn Any + Send + Sync>, Mutation)>>,
 }
 
 impl AnalysisCache {
-    /// Create a cache whose dependency graph is populated by `register`.
-    pub fn new(register: impl FnOnce(&mut DependencyGraph)) -> Self {
-        let mut dependency_graph = DependencyGraph::default();
-        register(&mut dependency_graph);
-
+    /// Create an empty cache.
+    pub(crate) fn new() -> Self {
         Self {
             cache: RefCell::new(HashMap::new()),
-            dependency_graph,
         }
     }
 
     /// Return a cached analysis or compute it with `compute` and cache it.
-    pub fn get_or_compute<A: Analysis>(&self, compute: impl FnOnce() -> A) -> Arc<A> {
+    pub(crate) fn get_or_compute<A: Analysis>(&self, compute: impl FnOnce() -> A) -> Arc<A> {
         // return the cached result when present
-        if let Some(cached) = self.cache.borrow().get(&A::ID).cloned() {
-            return cached.downcast::<A>().expect("analysis type mismatch");
+        if let Some((cached, _)) = self.cache.borrow().get(&A::ID) {
+            return cached
+                .clone()
+                .downcast::<A>()
+                .expect("analysis type mismatch");
         }
 
         // compute (may recursively query the cache for dependencies)
         let result = Arc::new(compute());
 
-        // cache and return
-        self.cache.borrow_mut().insert(A::ID, result.clone());
+        // cache it next to the mutations that invalidate it
+        self.cache
+            .borrow_mut()
+            .insert(A::ID, (result.clone(), A::INVALIDATED_BY));
         result
     }
 
     /// Check if an analysis is cached.
-    pub fn is_cached<A: Analysis>(&self) -> bool {
+    pub(crate) fn is_cached<A: Analysis>(&self) -> bool {
         self.cache.borrow().contains_key(&A::ID)
     }
 
-    /// Invalidate an analysis and all its dependents (cascading).
-    pub fn invalidate(&self, id: AnalysisId) {
-        // remove from cache
-        self.cache.borrow_mut().remove(&id);
-
-        // cascade to dependents
-        for dependent in self.dependency_graph.get_dependents(id) {
-            self.invalidate(*dependent);
+    /// Drop every cached analysis the given mutation invalidates.
+    pub(crate) fn apply(&self, mutation: Mutation) {
+        // nothing changed; every analysis stays valid
+        if mutation.is_none() {
+            return;
         }
-    }
 
-    /// Clear all cached analyses (when moving to a new work unit).
-    pub fn clear(&self) {
-        self.cache.borrow_mut().clear();
-    }
-
-    /// Invalidate every analysis a pass did not preserve.
-    pub fn apply_preservation(&self, preserved: &AnalysisPreservation) {
-        match preserved {
-            // everything stays valid
-            AnalysisPreservation::All => {}
-            // nothing preserved, clear all
-            AnalysisPreservation::Some(ids) if ids.is_empty() => self.clear(),
-            // remove anything not preserved
-            AnalysisPreservation::Some(preserved_ids) => {
-                let to_remove: Vec<_> = self
-                    .cache
-                    .borrow()
-                    .keys()
-                    .filter(|id| !preserved_ids.contains(id))
-                    .copied()
-                    .collect();
-
-                for id in to_remove {
-                    self.invalidate(id);
-                }
-            }
-        }
+        // keep only analyses the mutation does not touch
+        self.cache
+            .borrow_mut()
+            .retain(|_, (_, invalidated_by)| !invalidated_by.intersects(mutation));
     }
 
     /// The number of analyses currently cached.
-    pub fn cached_count(&self) -> usize {
+    pub(crate) fn cached_count(&self) -> usize {
         self.cache.borrow().len()
+    }
+}
+
+impl Default for AnalysisCache {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -212,9 +149,9 @@ impl std::fmt::Debug for AnalysisCache {
 
 /// Caches function-scoped analyses across one function's pass sequence.
 ///
-/// A pipeline holds one cache per function, clears it when moving to the next
-/// function, and applies each pass's preservation to invalidate stale entries.
-#[derive(Debug)]
+/// A pipeline holds one cache per function and applies each pass's reported
+/// mutation to drop stale entries.
+#[derive(Debug, Default)]
 pub struct FunctionAnalyses {
     cache: AnalysisCache,
     options: MirAnalysisOptions,
@@ -223,31 +160,15 @@ pub struct FunctionAnalyses {
 impl FunctionAnalyses {
     /// Create a new function analysis cache with default options.
     pub fn new() -> Self {
-        Self::with_options(MirAnalysisOptions::default())
+        Self::default()
     }
 
     /// Create a new function analysis cache with the given options.
     pub fn with_options(options: MirAnalysisOptions) -> Self {
         Self {
-            cache: AnalysisCache::new(Self::register),
+            cache: AnalysisCache::new(),
             options,
         }
-    }
-
-    /// Register all known function analyses.
-    fn register(graph: &mut DependencyGraph) {
-        register_analysis::<ControlFlowGraph>(graph);
-        register_analysis::<DominatorTree>(graph);
-        register_analysis::<PostDominatorTree>(graph);
-        register_analysis::<LoopAnalysis>(graph);
-        register_analysis::<FunctionLiveness>(graph);
-        register_analysis::<ConstantPropagation>(graph);
-        register_analysis::<ReachingDefinitions>(graph);
-        register_analysis::<AvailableExpressions>(graph);
-        register_analysis::<ScalarEvolution>(graph);
-        register_analysis::<RangeAnalysis>(graph);
-        register_analysis::<AliasAnalysis>(graph);
-        register_analysis::<MemorySSA>(graph);
     }
 
     /// Get the analysis options.
@@ -271,30 +192,14 @@ impl FunctionAnalyses {
         self.cache.is_cached::<A>()
     }
 
-    /// Invalidate an analysis and all its dependents (cascading).
-    pub fn invalidate(&self, id: AnalysisId) {
-        self.cache.invalidate(id);
-    }
-
-    /// Clear all cached analyses (when moving to a new function).
-    pub fn clear(&self) {
-        self.cache.clear();
-    }
-
-    /// Invalidate every analysis a pass did not preserve.
-    pub fn apply_preservation(&self, preserved: &AnalysisPreservation) {
-        self.cache.apply_preservation(preserved);
-    }
-}
-
-impl Default for FunctionAnalyses {
-    fn default() -> Self {
-        Self::new()
+    /// Drop every analysis the given mutation invalidates.
+    pub fn apply(&self, mutation: Mutation) {
+        self.cache.apply(mutation);
     }
 }
 
 /// Caches module-scoped analyses across one module's pass sequence.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ModuleAnalyses {
     cache: AnalysisCache,
 }
@@ -302,16 +207,7 @@ pub struct ModuleAnalyses {
 impl ModuleAnalyses {
     /// Create a new module analysis cache.
     pub fn new() -> Self {
-        Self {
-            cache: AnalysisCache::new(Self::register),
-        }
-    }
-
-    /// Register all known module analyses.
-    fn register(graph: &mut DependencyGraph) {
-        register_analysis::<LifetimeAnalysis>(graph);
-        register_analysis::<CallGraph>(graph);
-        register_analysis::<CallTargetAnalysis>(graph);
+        Self::default()
     }
 
     /// Get or compute a module analysis for the given tree.
@@ -324,108 +220,8 @@ impl ModuleAnalyses {
         self.cache.is_cached::<A>()
     }
 
-    /// Invalidate a module analysis and all its dependents.
-    pub fn invalidate(&self, id: AnalysisId) {
-        self.cache.invalidate(id);
-    }
-
-    /// Clear all cached analyses.
-    pub fn clear(&self) {
-        self.cache.clear();
-    }
-
-    /// Invalidate every analysis a pass did not preserve.
-    pub fn apply_preservation(&self, preserved: &AnalysisPreservation) {
-        self.cache.apply_preservation(preserved);
-    }
-}
-
-impl Default for ModuleAnalyses {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Declares what analyses are still valid after a pass runs.
-///
-/// Returned dynamically by passes based on what they actually changed.
-#[derive(Debug, Clone)]
-pub enum AnalysisPreservation {
-    /// All analyses preserved (pass made no changes).
-    All,
-    /// Only specific analyses preserved.
-    Some(Vec<AnalysisId>),
-}
-
-impl AnalysisPreservation {
-    /// All analyses preserved.
-    pub fn all() -> Self {
-        Self::All
-    }
-
-    /// No analyses preserved.
-    pub fn none() -> Self {
-        Self::Some(Vec::new())
-    }
-
-    /// Specific analyses preserved.
-    pub fn preserving(ids: &[AnalysisId]) -> Self {
-        Self::Some(ids.to_vec())
-    }
-
-    /// Check if all analyses are preserved.
-    pub fn preserves_all(&self) -> bool {
-        matches!(self, Self::All)
-    }
-
-    /// Check if a specific analysis is preserved.
-    pub fn is_preserved(&self, id: AnalysisId) -> bool {
-        match self {
-            Self::All => true,
-            Self::Some(ids) => ids.contains(&id),
-        }
-    }
-}
-
-impl Default for AnalysisPreservation {
-    fn default() -> Self {
-        Self::none()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Ensure the dependency registry matches each analysis declaration.
-    #[test]
-    fn test_function_analysis_dependency_registry() {
-        // build the registered dependency graph
-        let analyses = FunctionAnalyses::new();
-        let graph = &analyses.cache.dependency_graph;
-
-        // validate dependency edges for all registered analyses
-        assert_registered_dependencies::<ControlFlowGraph>(graph);
-        assert_registered_dependencies::<DominatorTree>(graph);
-        assert_registered_dependencies::<PostDominatorTree>(graph);
-        assert_registered_dependencies::<LoopAnalysis>(graph);
-        assert_registered_dependencies::<FunctionLiveness>(graph);
-        assert_registered_dependencies::<ConstantPropagation>(graph);
-        assert_registered_dependencies::<ScalarEvolution>(graph);
-        assert_registered_dependencies::<RangeAnalysis>(graph);
-        assert_registered_dependencies::<AliasAnalysis>(graph);
-    }
-
-    /// Ensure registry edges match analysis declared dependencies.
-    fn assert_registered_dependencies<A: Analysis>(graph: &DependencyGraph) {
-        // check each declared dependency edge
-        for dependency in A::DEPENDENCIES {
-            let dependents = graph.get_dependents(*dependency);
-            assert!(
-                dependents.contains(&A::ID),
-                "missing dependency {dependency} for analysis {}",
-                A::ID
-            );
-        }
+    /// Drop every analysis the given mutation invalidates.
+    pub fn apply(&self, mutation: Mutation) {
+        self.cache.apply(mutation);
     }
 }

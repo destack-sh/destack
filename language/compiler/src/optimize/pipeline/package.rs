@@ -53,8 +53,8 @@ impl PackagePipeline for PackagePassPipeline {
 
         // run each package pass in order
         for pass in &self.passes {
-            let preserved = pass.run(workset, ctx);
-            if !preserved.preserves_all() {
+            let mutation = pass.run(workset, ctx);
+            if !mutation.is_none() {
                 any_changed = true;
             }
         }
@@ -118,8 +118,8 @@ impl ProgramPipeline for ProgramPassPipeline {
 
         // run each program pass in order
         for pass in &self.passes {
-            let preserved = pass.run(workset, ctx);
-            if !preserved.preserves_all() {
+            let mutation = pass.run(workset, ctx);
+            if !mutation.is_none() {
                 any_changed = true;
             }
         }

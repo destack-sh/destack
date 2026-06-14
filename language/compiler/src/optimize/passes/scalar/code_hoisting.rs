@@ -1,17 +1,17 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AnalysisPreservation, ControlFlowGraph, DominatorTree, ExpressionKey,
+    ControlFlowGraph, DominatorTree, ExpressionKey, Mutation,
     apply_substitutions_in_dominated_blocks, build_use_def_maps, clone_instruction_metadata,
     expression_key_from_instruction, instruction_is_speculatable, instruction_map,
     instruction_substitute_uses_in_tree,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Hoist common instructions out of diamonds.
     ///
     /// Finds identical, speculatable instruction prefixes in both sides of a
@@ -66,10 +66,10 @@ impl FunctionPass for CodeHoisting {
         tree: &mut mir::Tree,
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip imported functions
         if function.entry.is_none() {
-            return AnalysisPreservation::all();
+            return Mutation::NONE;
         }
 
         // recompute value ids for inserted instructions
@@ -82,11 +82,11 @@ impl FunctionPass for CodeHoisting {
         // run the hoisting pass
         let changed = run_code_hoisting(function, tree, &cfg, &domtree);
 
-        // preserve analyses when nothing changed
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

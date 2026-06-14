@@ -1,18 +1,18 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, AnalysisPreservation, DecomposedPointer, MemoryAccess, MemoryAccessId,
-    MemoryAccessLocation, MemorySSA, PointerDecomposer, PostDominatorTree, RangeRelation,
-    TypeContext, ValueTypeMap, build_value_definition_map, collect_block_param_defs,
+    AliasAnalysis, DecomposedPointer, MemoryAccess, MemoryAccessId, MemoryAccessLocation,
+    MemorySSA, Mutation, PointerDecomposer, PostDominatorTree, RangeRelation, TypeContext,
+    ValueTypeMap, build_value_definition_map, collect_block_param_defs,
     collect_frame_alloc_bases_for_value, collect_local_defs, collect_non_escaping_frame_allocs,
     frame_alloc_base, range_relation,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Dead Store Elimination.
     ///
     /// Removes stores to memory locations that are never read:
@@ -62,11 +62,11 @@ impl FunctionPass for DeadStoreEliminate {
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // skip empty functions
         let _entry = match function.entry {
             Some(entry) => entry,
-            None => return AnalysisPreservation::all(),
+            None => return Mutation::NONE,
         };
 
         // get analyses
@@ -91,11 +91,11 @@ impl FunctionPass for DeadStoreEliminate {
             ctx.type_context(),
         );
 
-        // preserve analyses when unchanged
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

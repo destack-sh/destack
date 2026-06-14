@@ -1,15 +1,15 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, AnalysisPreservation, MemoryLocation, instruction_has_side_effects,
+    AliasAnalysis, MemoryLocation, Mutation, instruction_has_side_effects,
     instruction_requires_exact_access,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Aggressive Dead Code Elimination (ADCE).
     ///
     /// Uses LLVM-style reverse dataflow analysis to efficiently identify and remove dead
@@ -46,18 +46,18 @@ impl FunctionPass for DeadCodeEliminate {
         tree: &mut mir::Tree,
         _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // build alias analysis for local dead store elimination
         let alias = analyses.get::<AliasAnalysis>(function, tree);
 
         // run dead code elimination
         let changed = run_dead_code_elimination(function, tree, &alias);
 
-        // preserve analyses when nothing changed
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

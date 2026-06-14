@@ -1,15 +1,15 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_mir_pass;
+use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    AnalysisPreservation, instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
+    Mutation, instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
     resolve_substitution_chains, terminator_substitute_uses,
 };
 
-declare_mir_pass! {
+declare_pass! {
     /// Copy propagation pass.
     ///
     /// Replaces uses of block parameters that are copies of another value.
@@ -48,15 +48,15 @@ impl FunctionPass for CopyPropagate {
         tree: &mut mir::Tree,
         _ctx: &PipelineContext<'_>,
         _analyses: &mir::FunctionAnalyses,
-    ) -> AnalysisPreservation {
+    ) -> Mutation {
         // run copy propagation
         let changed = run_copy_propagate(function, tree);
 
-        // preserve analyses when nothing changed
+        // report what this pass changed
         if changed {
-            AnalysisPreservation::none()
+            Mutation::VALUES
         } else {
-            AnalysisPreservation::all()
+            Mutation::NONE
         }
     }
 

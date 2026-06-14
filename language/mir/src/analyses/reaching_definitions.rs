@@ -193,7 +193,6 @@ impl ReachingDefinitions {
 
 impl Analysis for ReachingDefinitions {
     const ID: AnalysisId = AnalysisId("reaching-defs");
-    const DEPENDENCIES: &'static [AnalysisId] = &[ControlFlowGraph::ID];
 }
 
 impl FunctionAnalysis for ReachingDefinitions {
