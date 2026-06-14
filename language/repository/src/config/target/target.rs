@@ -60,7 +60,7 @@ pub struct Target {
     pub features: Vec<String>,
     /// Active source graph tags for this target.
     pub tags: Vec<String>,
-    /// Assembly topology for this script target.
+    /// Assembly topology for this JavaScript target.
     pub assembly: BundleMode,
     /// Whether to preserve one emitted module file per reachable module.
     pub preserve_modules: bool,

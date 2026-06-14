@@ -96,7 +96,7 @@ pub enum BundleFormat {
     Iife,
 }
 
-/// Assembly mode for one script target.
+/// Assembly mode for one JavaScript target.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
@@ -131,7 +131,7 @@ pub enum BundleLegalComment {
     None,
 }
 
-/// Asset handling policy for one script target.
+/// Asset handling policy for one JavaScript target.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
@@ -243,7 +243,7 @@ pub struct BundleOutputOptions {
     pub footer: Option<String>,
     /// Generated code controls for final output rendering.
     pub generated_code: Option<BundleGeneratedCodeOptions>,
-    /// Source map emission mode for bundled script output.
+    /// Source map emission mode for bundled JavaScript output.
     pub sourcemap: Option<SourceMapMode>,
     /// Whether to omit source contents from source maps.
     pub sourcemap_exclude_sources: bool,
