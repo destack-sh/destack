@@ -235,6 +235,7 @@ where
             terminator,
             mir::Terminator::Return { .. }
                 | mir::Terminator::Trap { .. }
+                | mir::Terminator::Panic { .. }
                 | mir::Terminator::Unreachable
                 | mir::Terminator::TailCall { .. }
                 | mir::Terminator::TailCallVirtual { .. }
