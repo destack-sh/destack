@@ -517,7 +517,6 @@ fn expression_is_known_pure_statement(expression: &dir::Expression) -> bool {
     matches!(
         expression,
         dir::Expression::Identifier { .. }
-            | dir::Expression::QualifiedReference { .. }
             | dir::Expression::Member { .. }
             | dir::Expression::PrivateMember { .. }
             | dir::Expression::Index { .. }

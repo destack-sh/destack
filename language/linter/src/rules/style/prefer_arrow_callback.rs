@@ -511,10 +511,7 @@ fn expression_is_single_name_reference(
     let expression = tree.get(expression_id);
 
     match expression {
-        dir::Expression::QualifiedReference {
-            path,
-            generic_arguments,
-        } => generic_arguments.is_empty() && path.segments.len() == 1 && path.segments[0] == name,
+        dir::Expression::Identifier { name: identifier } => *identifier == name,
         _ => false,
     }
 }

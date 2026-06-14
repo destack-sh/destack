@@ -1267,14 +1267,6 @@ impl<'a> DuplicateSignatureCollector<'a> {
             }
         }
     }
-
-    /// Push path metadata.
-    fn push_path(&mut self, path: &dir::Path) {
-        self.push_length("path_len", path.segments.len());
-        for segment in &path.segments {
-            self.push_identifier_id("path_segment", *segment);
-        }
-    }
 }
 
 impl dir::NodeVisitor for DuplicateSignatureCollector<'_> {
@@ -1390,13 +1382,6 @@ impl dir::NodeVisitor for DuplicateSignatureCollector<'_> {
             }
             dir::Expression::Identifier { name } => {
                 self.push_identifier_id("expr_identifier", *name);
-            }
-            dir::Expression::QualifiedReference {
-                path,
-                generic_arguments,
-            } => {
-                self.push_path(path);
-                self.push_bool("expr_path_generic_arguments", !generic_arguments.is_empty());
             }
             dir::Expression::PrivateIdentifier { name } => {
                 self.push_identifier_id("expr_private_identifier", *name);

@@ -80,8 +80,8 @@ impl LintRule for PreferSetOverEmptyMap {
                     .is_some_and(|type_id| {
                         contains_map_with_empty_value_type(ctx, type_id, map_symbol)
                     }),
-                // type references can carry map generic arguments directly
-                dir::Expression::QualifiedReference {
+                // instantiations can carry map generic arguments directly
+                dir::Expression::Instantiation {
                     generic_arguments, ..
                 } => ctx
                     .expression_target_symbol(expression_id)

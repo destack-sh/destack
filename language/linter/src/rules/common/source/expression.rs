@@ -408,7 +408,6 @@ pub fn expression_can_start_expression_statement(expression: &dir::Expression) -
     matches!(
         expression,
         dir::Expression::Identifier { .. }
-            | dir::Expression::QualifiedReference { .. }
             | dir::Expression::Member { .. }
             | dir::Expression::Index { .. }
             | dir::Expression::Call { .. }
@@ -1168,17 +1167,6 @@ fn collect_expression_path_segments(
             segments.push(*name);
             Some(())
         }
-        dir::Expression::QualifiedReference {
-            path,
-            generic_arguments,
-        } => {
-            if !generic_arguments.is_empty() {
-                return None;
-            }
-
-            segments.extend_from_slice(&path.segments);
-            Some(())
-        }
         dir::Expression::Member {
             left,
             name: Some(name),
@@ -1387,16 +1375,6 @@ pub fn expression_is_equal(
             dir::Expression::Identifier { name: left_name },
             dir::Expression::Identifier { name: right_name },
         ) => string_ids_equal(ctx, *left_name, *right_name),
-
-        // qualified references: compare segments
-        (
-            dir::Expression::QualifiedReference {
-                path: left_path, ..
-            },
-            dir::Expression::QualifiedReference {
-                path: right_path, ..
-            },
-        ) => paths_equal(ctx, left_path, right_path),
 
         // scalar literals: direct comparison
         (
@@ -2037,8 +2015,8 @@ pub fn expression_has_side_effects(
 
         // pure: references
         dir::Expression::Identifier { .. }
-        | dir::Expression::QualifiedReference { .. }
         | dir::Expression::ImportMeta
+        | dir::Expression::ImportSource
         | dir::Expression::This
         | dir::Expression::Super => false,
 
@@ -2565,12 +2543,6 @@ impl dir::NodeVisitor for ExpressionSignatureCollector<'_> {
             }
             dir::Expression::Identifier { name } => {
                 self.push_string_id("expression_identifier", *name);
-            }
-            dir::Expression::QualifiedReference { path, .. } => {
-                self.push_debug("expression_path_len", path.segments.len());
-                for segment in &path.segments {
-                    self.push_string_id("expression_path_segment", *segment);
-                }
             }
             dir::Expression::PrivateIdentifier { name } => {
                 self.push_string_id("expression_private_identifier", *name);

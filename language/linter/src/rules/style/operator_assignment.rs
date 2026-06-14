@@ -275,9 +275,7 @@ fn can_fix_assignment_target(
 
     match expression {
         // bare references are safe rewrite targets
-        dir::Expression::Identifier { .. }
-        | dir::Expression::QualifiedReference { .. }
-        | dir::Expression::This => true,
+        dir::Expression::Identifier { .. } | dir::Expression::This => true,
 
         // dot member targets are safe when their receiver is stable
         dir::Expression::Member { left, .. } => {

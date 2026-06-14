@@ -764,8 +764,7 @@ fn expression_is_heuristically_tainted(
 
     matches!(
         expression,
-        dir::Expression::QualifiedReference { .. }
-            | dir::Expression::Member { .. }
+        dir::Expression::Member { .. }
             | dir::Expression::Call { .. }
             | dir::Expression::Index { .. }
             | dir::Expression::Binary { .. }

@@ -143,9 +143,7 @@ fn is_assert_call(ctx: &LintModuleContext<'_>, callee_id: dir::LocalNodeId<Expre
 
     match callee {
         // direct or qualified call: assert(...) or Debug.assert(...)
-        Expression::Identifier { .. }
-        | Expression::QualifiedReference { .. }
-        | Expression::Member { .. } => {
+        Expression::Identifier { .. } | Expression::Member { .. } => {
             let Some(path_segments) = expression_path_segments(ctx.dir.tree(), callee_id) else {
                 return false;
             };
