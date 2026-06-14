@@ -4,6 +4,7 @@ use std::fmt::{Debug, Formatter};
 use destack_core::StringId;
 use destack_source::{ModuleId, NodeSpanRegion, NodeSpanType, SourceIndex, Span};
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 
 use super::index::NodeIndexEntry;
 use super::parent::reparent_direct_children;
@@ -12,8 +13,8 @@ use crate::{
     Arena, Argument, AssignPattern, AssignPatternField, Block, Catch, Comment, Declaration,
     Declarator, Decorator, DependencyItem, Documentation, EnumField, Expression, GenericArgument,
     GenericParameter, LocalNodeId, LocalNodeIdAny, MatchCase, Member, Node, NodeType, Origin,
-    Parameter, Pattern, PatternField, Property, TreeCapacity, TreeMark, TreeStore, TupleElement,
-    TypeExpression, TypeMappedParameter, TypeMember, WhereClause,
+    Parameter, Path, Pattern, PatternField, Property, TreeCapacity, TreeMark, TreeStore,
+    TupleElement, TypeExpression, TypeMappedParameter, TypeMember, WhereClause,
 };
 
 /// Mutable DIR tree across a set of related source units.
@@ -639,6 +640,36 @@ impl Tree {
                 self.node_index_by_node_id[self.node_index(parent_id)].node_type(),
             )
         })
+    }
+
+    /// Return the static name path a reference expression spells, or `None` for a dynamic step.
+    pub fn reference_path(&self, id: LocalNodeId<Expression>) -> Option<Path> {
+        let mut segments = SmallVec::<[StringId; 1]>::new();
+        let mut current = id;
+
+        loop {
+            match self.get(current) {
+                // the chain root is a bare identifier
+                Expression::Identifier { name } => {
+                    segments.push(*name);
+                    segments.reverse();
+
+                    return Some(Path { segments });
+                }
+
+                // extend through one named member segment
+                Expression::Member {
+                    left,
+                    name: Some(name),
+                } => {
+                    segments.push(*name);
+                    current = *left;
+                }
+
+                // a dynamic step has no static path
+                _ => return None,
+            }
+        }
     }
 
     /// Set the parent node id override for one node id.

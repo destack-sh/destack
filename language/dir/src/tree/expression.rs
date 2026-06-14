@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, Declaration,
     Declarator, DependencyForm, DependencyItem, ExportKind, GenericArgument, ImportAttributeClause,
-    Keyword, LocalNodeId, MatchCase, MatchForm, Mutability, Node, NodeType, Path, Pattern,
-    Property, RangeEnd, ScalarLiteral, StaticKey, TemplateLiteral, TypeExpression, UnaryOperator,
+    Keyword, LocalNodeId, MatchCase, MatchForm, Mutability, Node, NodeType, Pattern, Property,
+    RangeEnd, ScalarLiteral, StaticKey, TemplateLiteral, TypeExpression, UnaryOperator,
 };
 
 /// A catch branch.
@@ -389,12 +389,6 @@ pub enum Expression {
     /// Bare identifier reference.
     Identifier { name: StringId },
 
-    /// Static qualified reference, optionally parameterized.
-    QualifiedReference {
-        path: Path,
-        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-    },
-
     /// Private identifier (JavaScript/TypeScript).
     ///
     /// Examples:
@@ -412,6 +406,9 @@ pub enum Expression {
 
     /// Import meta intrinsic value.
     ImportMeta,
+
+    /// Import source intrinsic value.
+    ImportSource,
 
     /// Literal scalar value.
     ///
@@ -845,20 +842,14 @@ impl Expression {
     /// Return whether this expression only references another value.
     #[inline]
     pub fn is_reference(&self) -> bool {
-        matches!(
-            self,
-            Self::Identifier { .. } | Self::QualifiedReference { .. } | Self::This | Self::Super
-        )
+        matches!(self, Self::Identifier { .. } | Self::This | Self::Super)
     }
 
     /// Return explicit generic arguments carried by this expression.
     #[inline]
     pub fn generic_arguments(&self) -> Option<&[LocalNodeId<GenericArgument>]> {
         match self {
-            Expression::QualifiedReference {
-                generic_arguments, ..
-            }
-            | Expression::TaggedTemplateExpression {
+            Expression::TaggedTemplateExpression {
                 generic_arguments, ..
             }
             | Expression::TreeExpression {

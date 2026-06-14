@@ -942,19 +942,12 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::Identifier { name: _ } => {}
 
-        Expression::QualifiedReference {
-            path: _,
-            generic_arguments,
-        } => {
-            for argument_id in generic_arguments {
-                let argument = tree.get(*argument_id);
-                visitor.visit_generic_argument(tree, *argument_id, argument);
-            }
-        }
-
         Expression::PrivateIdentifier { name: _ } => {}
 
-        Expression::This | Expression::Super | Expression::ImportMeta => {}
+        Expression::This
+        | Expression::Super
+        | Expression::ImportMeta
+        | Expression::ImportSource => {}
 
         Expression::ScalarLiteral(_) => {
             // no child nodes to visit
