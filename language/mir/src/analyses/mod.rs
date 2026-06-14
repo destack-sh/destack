@@ -24,7 +24,6 @@ mod range;
 mod reaching_definitions;
 mod scalar_evolution;
 mod signature;
-mod symbol_call_graph;
 mod r#type;
 mod value;
 
@@ -54,7 +53,6 @@ pub use range::*;
 pub use reaching_definitions::*;
 pub use scalar_evolution::*;
 pub use signature::*;
-pub use symbol_call_graph::*;
 pub use r#type::*;
 pub use value::*;
 
