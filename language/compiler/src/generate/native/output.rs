@@ -5,11 +5,11 @@ use destack_mir as mir;
 use destack_repository::{ArtifactReader, ProfileId, ProviderContext, Target};
 use destack_source::{ModuleId, TargetId};
 
-use super::GenerateState;
+use super::super::GenerateState;
 
 impl Compiler {
     /// Generate one native module output through the native backend.
-    pub(super) fn generate_native_module_output(
+    pub(in crate::generate) fn generate_native_module_output(
         &self,
         module_id: ModuleId,
         target: &Target,

@@ -4584,7 +4584,7 @@
           "default": []
         },
         "globals": {
-          "description": "Global modules added as discovery roots.",
+          "description": "Global modules added to every target root set.",
           "type": "array",
           "items": {
             "type": "string"
@@ -4701,7 +4701,7 @@
           "default": []
         },
         "assembly": {
-          "description": "Assembly topology for this script target.",
+          "description": "Assembly topology for this JavaScript target.",
           "$ref": "#/$defs/BundleMode",
           "default": "singleFile"
         },
@@ -5196,7 +5196,7 @@
       }
     },
     "BundleMode": {
-      "description": "Assembly mode for one script target.",
+      "description": "Assembly mode for one JavaScript target.",
       "oneOf": [
         {
           "description": "Assemble one entry rooted bundle.",
@@ -5275,7 +5275,7 @@
       }
     },
     "BundleAssetMode": {
-      "description": "Asset handling policy for one script target.",
+      "description": "Asset handling policy for one JavaScript target.",
       "oneOf": [
         {
           "description": "Emit referenced assets as output files.",
@@ -5389,7 +5389,7 @@
           "default": null
         },
         "sourcemap": {
-          "description": "Source map emission mode for bundled script output.",
+          "description": "Source map emission mode for bundled JavaScript output.",
           "anyOf": [
             {
               "$ref": "#/$defs/SourceMapMode"
