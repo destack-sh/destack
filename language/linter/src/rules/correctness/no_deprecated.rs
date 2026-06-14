@@ -148,10 +148,7 @@ impl NodeVisitor for DeprecatedUsageVisitor<'_, '_> {
 fn is_usage_expression(expression: &dir::Expression) -> bool {
     matches!(
         expression,
-        dir::Expression::QualifiedReference { .. }
-            | dir::Expression::Member { .. }
-            | dir::Expression::Call { .. }
-            | dir::Expression::New { .. }
+        dir::Expression::Member { .. } | dir::Expression::Call { .. } | dir::Expression::New { .. }
     )
 }
 

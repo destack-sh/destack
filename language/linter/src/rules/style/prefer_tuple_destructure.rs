@@ -205,9 +205,7 @@ fn direct_reference_text(
 
     // keep plain symbol references only
     match expression {
-        dir::Expression::QualifiedReference {
-            generic_arguments, ..
-        } if generic_arguments.is_empty() => {
+        dir::Expression::Identifier { .. } => {
             Some(ctx.get_span_text(ctx.get_span(expression_id)).to_string())
         }
         _ => None,

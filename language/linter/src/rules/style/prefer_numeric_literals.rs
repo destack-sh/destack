@@ -225,9 +225,7 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
         let expression_id = expression_unwrap_transparent(self.ctx.dir.tree(), expression_id);
         let expression = self.ctx.dir.get(expression_id);
         match expression {
-            dir::Expression::QualifiedReference { path, .. } => {
-                path.segments.len() == 1 && path.segments[0] == self.parse_int_name
-            }
+            dir::Expression::Identifier { name } => *name == self.parse_int_name,
             _ => false,
         }
     }
@@ -240,8 +238,8 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
 
         let expression_id = expression_unwrap_transparent(self.ctx.dir.tree(), expression_id);
         let expression = self.ctx.dir.get(expression_id);
-        if let dir::Expression::QualifiedReference { path, .. } = expression {
-            return path.segments.len() == 1 && path.segments[0] == self.number_name;
+        if let dir::Expression::Identifier { name } = expression {
+            return *name == self.number_name;
         }
 
         false

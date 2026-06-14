@@ -234,7 +234,7 @@ fn expression_name_hint(
     let expression_id = expression_unwrap_parenthesized(tree, expression_id);
     let expression = tree.get(expression_id);
     match expression {
-        dir::Expression::QualifiedReference { path, .. } => path.last_segment(),
+        dir::Expression::Identifier { name } => Some(*name),
         dir::Expression::Member { name, .. } | dir::Expression::PrivateMember { name, .. } => *name,
         dir::Expression::As {
             expression: value,

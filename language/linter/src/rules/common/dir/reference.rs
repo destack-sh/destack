@@ -515,20 +515,11 @@ pub fn expression_method_call(
     })
 }
 
-/// Return one path when the expression is a path-like reference without generic arguments.
-fn expression_path_without_generic_arguments(expression: &dir::Expression) -> Option<&dir::Path> {
-    match expression {
-        dir::Expression::QualifiedReference {
-            path,
-            generic_arguments,
-        } if generic_arguments.is_empty() => Some(path),
-        _ => None,
-    }
-}
-
 /// Return the last path segment for one path-like expression.
 fn expression_path_last_segment(expression: &dir::Expression) -> Option<StringId> {
-    let path = expression_path_without_generic_arguments(expression)?;
-
-    path.last_segment()
+    match expression {
+        dir::Expression::Identifier { name } => Some(*name),
+        dir::Expression::Member { name, .. } => *name,
+        _ => None,
+    }
 }

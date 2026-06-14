@@ -850,8 +850,7 @@ pub fn expression_is_potentially_tainted(
     // these expression kinds can carry user controlled data
     matches!(
         expression,
-        dir::Expression::QualifiedReference { .. }
-            | dir::Expression::Member { left: _, name: _ }
+        dir::Expression::Member { .. }
             | dir::Expression::Call {
                 position: _,
                 left: _,
@@ -909,19 +908,9 @@ fn expression_contains_reference_segment(
             type_expression_contains_reference_segment(tree, *value, target_segment)
         }
 
-        dir::Expression::QualifiedReference {
-            path,
-            generic_arguments,
-        } => path_or_generic_arguments_contain_reference_segment(
-            tree,
-            path,
-            generic_arguments,
-            target_segment,
-        ),
-
-        dir::Expression::Member { left, name: _ }
-        | dir::Expression::PrivateMember { left, name: _ } => {
-            expression_contains_reference_segment(tree, *left, target_segment)
+        dir::Expression::Member { left, name } | dir::Expression::PrivateMember { left, name } => {
+            *name == Some(target_segment)
+                || expression_contains_reference_segment(tree, *left, target_segment)
         }
 
         dir::Expression::As { expression, .. }
