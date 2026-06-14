@@ -196,16 +196,23 @@ fn argument_reference(
     argument: &dir::Argument,
 ) -> Option<ArgumentReference> {
     // resolve the argument expression
-    let expr = dir_tree.get::<dir::Expression>(argument.value()?);
-
-    // resolve a simple reference name
-    match expr {
-        dir::Expression::QualifiedReference { path, .. } => path
-            .last_segment()
-            .map(|id| ArgumentReference::Name(strings.get(id).to_string())),
-        dir::Expression::This => Some(ArgumentReference::This),
-        _ => None,
+    let value_id = argument.value()?;
+    if matches!(
+        dir_tree.get::<dir::Expression>(value_id),
+        dir::Expression::This
+    ) {
+        return Some(ArgumentReference::This);
     }
+
+    // resolve a simple reference name from the trailing path segment
+    let name_id = dir_tree
+        .tree()
+        .reference_path(value_id)?
+        .segments
+        .last()
+        .copied()?;
+
+    Some(ArgumentReference::Name(strings.get(name_id).to_string()))
 }
 
 /// A simple reference extracted from an argument expression.

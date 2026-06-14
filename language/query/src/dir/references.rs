@@ -87,7 +87,7 @@ impl ModuleQueryContext<'_> {
                 dir.insert_reference_target_keys(&mut targets, symbol);
             }
 
-            if let dir::Expression::QualifiedReference { path, .. } = expression {
+            if let Some(path) = dir.tree().reference_path(expression_id) {
                 for segment_index in 0..path.segments.len() {
                     let segment_index =
                         u16::try_from(segment_index).expect("path segment index overflow");
@@ -265,10 +265,9 @@ impl DirQueryContext<'_> {
         }
 
         // capture plain path segments from multi segment path expressions
-        for (expression_id, expression) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
-            let path = match expression {
-                dir::Expression::QualifiedReference { path, .. } => path,
-                _ => continue,
+        for (expression_id, _expression) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
+            let Some(path) = dir_tree.tree().reference_path(expression_id) else {
+                continue;
             };
             if path.segments.len() < 2 {
                 continue;
@@ -539,7 +538,7 @@ impl DirQueryContext<'_> {
         let expression = ctx.tree().get(expression_id);
         if matches!(
             expression,
-            dir::Expression::Identifier { .. } | dir::Expression::QualifiedReference { .. }
+            dir::Expression::Identifier { .. } | dir::Expression::Member { .. }
         ) {
             let expression_span = ctx.tree().source_index.get(expression_id.id);
             if let Some(identifier_span) = ctx.source_identifier_span_in_expression(expression_span)

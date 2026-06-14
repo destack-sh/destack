@@ -65,14 +65,12 @@ impl DirQueryContext<'_> {
 
         // inspect the target expression shape
         match left_expression {
-            dir::Expression::QualifiedReference { path, .. } => {
+            dir::Expression::Identifier { name } => {
+                let name_id = *name;
                 let symbol = self.expression_symbol_target(left_expression_id);
                 let name = symbol
                     .and_then(|symbol| self.symbol_name(symbol))
-                    .or_else(|| {
-                        path.last_segment()
-                            .map(|name_id| self.strings().get(name_id).to_string())
-                    });
+                    .or_else(|| Some(self.strings().get(name_id).to_string()));
 
                 // prefer the canonical function symbol when possible
                 let function_symbol = symbol.and_then(|symbol| {

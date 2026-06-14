@@ -247,8 +247,7 @@ fn should_parenthesize(value: &str, expression: &dir::Expression) -> bool {
 fn expression_is_simple(expression: &dir::Expression) -> bool {
     matches!(
         expression,
-        dir::Expression::QualifiedReference { .. }
-            | dir::Expression::Member { .. }
+        dir::Expression::Member { .. }
             | dir::Expression::PrivateMember { .. }
             | dir::Expression::Index { .. }
             | dir::Expression::Call { .. }
