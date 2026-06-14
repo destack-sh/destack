@@ -123,7 +123,7 @@ impl CheckState<'_> {
         let types = self
             .modules
             .values()
-            .map(|module| module.working.types.iter_type_ids().count())
+            .map(|module| module.types.iter_type_ids().count())
             .sum();
 
         CheckStats {

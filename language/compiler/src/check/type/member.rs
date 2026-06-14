@@ -505,7 +505,7 @@ impl CheckState<'_> {
 
         // collect extensions declared beside the looking module
         if let Some(state) = self.modules.get(&module) {
-            let working = &state.working.definitions;
+            let working = &state.definitions;
             symbols.extend(working.target_extensions(target).iter().copied());
             symbols.extend(working.blanket_extensions().iter().copied());
         }
@@ -513,7 +513,7 @@ impl CheckState<'_> {
         // collect inherent extensions beside the target declaration
         if target.module_id != module {
             if let Some(state) = self.modules.get(&target.module_id) {
-                let working = &state.working.definitions;
+                let working = &state.definitions;
                 symbols.extend(working.target_extensions(target).iter().copied());
                 symbols.extend(working.blanket_extensions().iter().copied());
             }

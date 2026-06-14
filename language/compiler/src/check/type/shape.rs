@@ -16,12 +16,12 @@ impl CheckState<'_> {
         let Some(module) = self.modules.get(&id.module_id) else {
             return Ok(false);
         };
-        if module.working.types.get_type_maybe(id.local_id).is_none() {
+        if module.types.get_type_maybe(id.local_id).is_none() {
             return Ok(false);
         }
 
         // the type's source must be an object literal expression
-        let source = module.working.types.get_type_source(id.local_id);
+        let source = module.types.get_type_source(id.local_id);
         if source.ty != dir::NodeType::Expression {
             return Ok(false);
         }
@@ -60,12 +60,12 @@ impl CheckState<'_> {
         let Some(module) = self.modules.get(&id.module_id) else {
             return Ok(None);
         };
-        if module.working.types.get_type_maybe(id.local_id).is_none() {
+        if module.types.get_type_maybe(id.local_id).is_none() {
             return Ok(None);
         }
 
         // the type's source must be a spread-free array literal
-        let source = module.working.types.get_type_source(id.local_id);
+        let source = module.types.get_type_source(id.local_id);
         if source.ty != dir::NodeType::Expression {
             return Ok(None);
         }
