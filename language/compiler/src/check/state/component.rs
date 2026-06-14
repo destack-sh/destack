@@ -23,11 +23,6 @@ pub(in crate::check) struct CheckComponentKey {
 }
 
 /// State for checking one resolved component.
-///
-/// Fields group by speculation behavior: the solver tables roll back
-/// under probes through the journal, the memo tables only record
-/// closed facts that stay valid across probe rollback, and everything
-/// else is fixed once walking finishes.
 pub(in crate::check) struct CheckState<'a> {
     // the provider attempt running this check
     /// The compiler running this check attempt.
@@ -215,14 +210,10 @@ impl<'a> CheckState<'a> {
 }
 
 impl CheckState<'_> {
-    /// Return one type, reading open working types over committed tables.
+    /// Return one type from this component's open overlay or external tables.
     pub(in crate::check) fn ty(&self, id: dir::GlobalTypeId) -> CompilerResult<&dir::Type> {
-        // read open working types over committed component tables
+        // read this component's open working types
         if let Some(module) = self.modules.get(&id.module_id) {
-            if let Some(ty) = module.working.types.get_type_maybe(id.local_id) {
-                return Ok(ty);
-            }
-
             module
                 .type_maybe(id.local_id)
                 .ok_or_else(|| CompilerError::Internal {
@@ -254,7 +245,7 @@ impl CheckState<'_> {
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("check module {module:?} has no working types"),
             })?;
-        let local = working.working.types.insert_type_from_any(ty, source);
+        let local = working.types.insert_type_from_any(ty, source);
         // probe rollback reclaims speculative allocations
         self.journal.record(Mutation::TypeAllocated { module });
 
@@ -277,7 +268,7 @@ impl CheckState<'_> {
     ) -> Option<&dir::Definition> {
         // read working component definitions first
         if let Some(module) = self.modules.get(&symbol.module_id)
-            && let Some(definition) = module.working.definitions.definition(symbol)
+            && let Some(definition) = module.definitions.definition(symbol)
         {
             return Some(definition);
         }
@@ -308,7 +299,6 @@ impl CheckState<'_> {
                 })?;
 
         working
-            .working
             .definitions
             .insert_definition(symbol, source, definition);
 

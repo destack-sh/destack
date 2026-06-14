@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use destack_artifact::{DirBound, DirExpanded, DirParsed, DirResolved, ProfileKey};
+use destack_artifact::{
+    DiagnosticBuilder, DirBound, DirExpanded, DirParsed, DirResolved, ProfileKey,
+};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_repository::Module;
@@ -8,15 +10,14 @@ use destack_source::{ModuleId, Span};
 use indexmap::{IndexMap, IndexSet};
 use smallvec::SmallVec;
 
-use crate::check::{Capture, CheckError, CheckState, CheckWarning, Condition, PlaceAccess};
+use crate::check::{Capture, CheckError, CheckState, CheckWarning, PlaceAccess};
 use crate::{CompilerError, CompilerResult};
 
 /// State owned by one module inside a checked component.
 pub(in crate::check) struct CheckModuleState {
+    // inherited inputs from upstream phases, read-only
     /// The requested source module.
     pub(in crate::check) module: Arc<Module>,
-    /// Out-of-component modules visible from this module.
-    pub(in crate::check) external_modules: IndexSet<ModuleId>,
     /// The active semantic profile.
     pub(in crate::check) profile: ProfileKey,
     /// The shared string pool.
@@ -29,30 +30,40 @@ pub(in crate::check) struct CheckModuleState {
     pub(in crate::check) resolved: Arc<DirResolved>,
     /// The expanded DIR input.
     pub(in crate::check) expanded: Arc<DirExpanded>,
-
     /// The cumulative binding table built once at load.
     pub(in crate::check) bindings: dir::BindingTable<'static>,
-    /// The cumulative bound type table built once at load.
-    pub(in crate::check) types: dir::TypeTable<'static>,
-    /// Open check output accumulating for this module.
-    pub(in crate::check) working: WorkingSegments,
+    /// Out-of-component modules visible from this module.
+    pub(in crate::check) external_modules: IndexSet<ModuleId>,
+
+    // open check output committed into this module
+    /// Open inference types layered over the expanded base.
+    pub(in crate::check) types: dir::TypeSegment,
+    /// Checked declaration definitions.
+    pub(in crate::check) definitions: dir::DefinitionSegment,
+    /// Induced generic templates and parameters.
+    pub(in crate::check) generics: dir::GenericSegment,
     /// Inferred static symbol values, materialized to statics at commit.
-    pub(in crate::check) symbol_values: IndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
-    /// Active static guard predicates keyed by guarded node.
-    pub(in crate::check) node_conditions:
-        IndexMap<dir::GlobalNodeIdAny, SmallVec<[dir::GlobalTypeId; 2]>>,
-    /// Place accesses keyed by written place node.
-    pub(in crate::check) place_accesses: IndexMap<dir::GlobalNodeIdAny, PlaceAccess>,
+    pub(in crate::check) values: IndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
     /// Captures discovered while walking this module.
     pub(in crate::check) captures: Vec<Capture>,
-    /// Static availability of declarations in this module.
-    pub(in crate::check) availability: IndexMap<dir::GlobalSymbolId, Condition>,
+
+    // walk-recorded selection context, consumed during select, not committed
+    /// Active static `@if` guard predicates keyed by guarded node.
+    pub(in crate::check) node_conditions:
+        IndexMap<dir::GlobalNodeIdAny, SmallVec<[dir::GlobalTypeId; 2]>>,
+    /// Active static `@if` guard predicates keyed by guarded declaration.
+    pub(in crate::check) symbol_conditions:
+        IndexMap<dir::GlobalSymbolId, SmallVec<[dir::GlobalTypeId; 2]>>,
     /// Declarations whose guards decided statically false.
     pub(in crate::check) unavailable: IndexSet<dir::GlobalSymbolId>,
+    /// Place accesses keyed by written place node.
+    pub(in crate::check) accesses: IndexMap<dir::GlobalNodeIdAny, PlaceAccess>,
+
+    // diagnostics drained at commit
     /// Diagnostics reported while walking this module.
-    pub(in crate::check) diagnostics: Vec<destack_artifact::DiagnosticBuilder<CheckError>>,
+    pub(in crate::check) diagnostics: Vec<DiagnosticBuilder<CheckError>>,
     /// Warnings reported while walking this module.
-    pub(in crate::check) warnings: Vec<destack_artifact::DiagnosticBuilder<CheckWarning>>,
+    pub(in crate::check) warnings: Vec<DiagnosticBuilder<CheckWarning>>,
 }
 
 impl CheckModuleState {
@@ -66,10 +77,11 @@ impl CheckModuleState {
         resolved: Arc<DirResolved>,
         expanded: Arc<DirExpanded>,
     ) -> Self {
-        // build the layered tables once, every lookup reuses them
+        // build the inherited bindings and this check's open overlays
         let bindings = expanded.binding_table(&bound);
-        let types = expanded.type_table(&bound);
-        let working = WorkingSegments::new(module.id, &expanded);
+        let types = dir::TypeSegment::from_base(&expanded.types);
+        let definitions = dir::DefinitionSegment::new(module.id);
+        let generics = dir::GenericSegment::new(module.id);
 
         Self {
             module,
@@ -81,26 +93,39 @@ impl CheckModuleState {
             expanded,
             bindings,
             types,
-            working,
-            symbol_values: IndexMap::new(),
+            definitions,
+            generics,
+            values: IndexMap::new(),
             node_conditions: IndexMap::new(),
-            place_accesses: IndexMap::new(),
+            symbol_conditions: IndexMap::new(),
+            unavailable: IndexSet::new(),
+            accesses: IndexMap::new(),
             external_modules: IndexSet::new(),
             captures: Vec::new(),
-            availability: IndexMap::new(),
-            unavailable: IndexSet::new(),
             diagnostics: Vec::new(),
             warnings: Vec::new(),
         }
     }
 
-    /// Move this module's working segments out for commit.
-    /// No read may follow the move; fresh empty segments replace them.
-    pub(in crate::check) fn take_working(&mut self) -> WorkingSegments {
+    /// Move this module's open type overlay out for commit, leaving it empty.
+    pub(in crate::check) fn take_types(&mut self) -> dir::TypeSegment {
         std::mem::replace(
-            &mut self.working,
-            WorkingSegments::new(self.module.id, &self.expanded),
+            &mut self.types,
+            dir::TypeSegment::from_base(&self.expanded.types),
         )
+    }
+
+    /// Move this module's checked definitions out for commit, leaving them empty.
+    pub(in crate::check) fn take_definitions(&mut self) -> dir::DefinitionSegment {
+        std::mem::replace(
+            &mut self.definitions,
+            dir::DefinitionSegment::new(self.module.id),
+        )
+    }
+
+    /// Move this module's induced generics out for commit, leaving them empty.
+    pub(in crate::check) fn take_generics(&mut self) -> dir::GenericSegment {
+        std::mem::replace(&mut self.generics, dir::GenericSegment::new(self.module.id))
     }
 
     /// Return the post-expansion DIR tree view visible to check.
@@ -178,12 +203,7 @@ impl CheckModuleState {
         Ok(declaration.local_id)
     }
 
-    /// Return the cumulative type table visible to check inputs.
-    pub(in crate::check) fn type_table(&self) -> &dir::TypeTable<'static> {
-        &self.types
-    }
-
-    /// Return one committed type when any bound segment carries it.
+    /// Return one open working type when this module's overlay carries it.
     pub(in crate::check) fn type_maybe(&self, type_id: dir::LocalTypeId) -> Option<&dir::Type> {
         self.types.get_type_maybe(type_id)
     }
@@ -232,7 +252,7 @@ impl CheckState<'_> {
     ) -> Option<dir::GlobalTypeId> {
         self.modules
             .get(&node.module_id)
-            .and_then(|module| module.working.types.get_node_type_id(node))
+            .and_then(|module| module.types.get_node_type_id(node))
     }
 
     /// Record the inferred type of one source node.
@@ -241,7 +261,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeIdAny,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        let types = &mut self.module_mut(node.module_id).working.types;
+        let types = &mut self.module_mut(node.module_id).types;
         if types
             .get_node_type_id(node)
             .is_some_and(|previous| previous != ty)
@@ -262,7 +282,7 @@ impl CheckState<'_> {
     ) -> Option<dir::GlobalTypeId> {
         self.modules
             .get(&symbol.module_id)
-            .and_then(|module| module.working.types.get_symbol_type_id(symbol))
+            .and_then(|module| module.types.get_symbol_type_id(symbol))
     }
 
     /// Record the inferred type of one source symbol.
@@ -271,7 +291,7 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        let types = &mut self.module_mut(symbol.module_id).working.types;
+        let types = &mut self.module_mut(symbol.module_id).types;
         if types
             .get_symbol_type_id(symbol)
             .is_some_and(|previous| previous != ty)
@@ -292,7 +312,7 @@ impl CheckState<'_> {
     ) -> Option<dir::GlobalTypeId> {
         self.modules
             .get(&symbol.module_id)
-            .and_then(|module| module.symbol_values.get(&symbol).copied())
+            .and_then(|module| module.values.get(&symbol).copied())
     }
 
     /// Record the inferred static value of one source symbol as a singleton type.
@@ -301,7 +321,7 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        let values = &mut self.module_mut(symbol.module_id).symbol_values;
+        let values = &mut self.module_mut(symbol.module_id).values;
         if values
             .insert(symbol, value)
             .is_some_and(|previous| previous != value)
@@ -314,7 +334,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Return the active static guard predicates of one source node.
+    /// Return the active static `@if` guard predicates of one source node.
     pub(in crate::check) fn node_condition(
         &self,
         node: dir::GlobalNodeIdAny,
@@ -325,7 +345,7 @@ impl CheckState<'_> {
             .map_or(&[], |predicates| predicates.as_slice())
     }
 
-    /// Record the active static guard predicates of one source node.
+    /// Record the active static `@if` guard predicates of one source node.
     pub(in crate::check) fn set_node_condition(
         &mut self,
         node: dir::GlobalNodeIdAny,
@@ -336,11 +356,33 @@ impl CheckState<'_> {
             .insert(node, predicates);
     }
 
+    /// Return the active static `@if` guard predicates of one declaration.
+    pub(in crate::check) fn symbol_condition(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> &[dir::GlobalTypeId] {
+        self.modules
+            .get(&symbol.module_id)
+            .and_then(|module| module.symbol_conditions.get(&symbol))
+            .map_or(&[], |predicates| predicates.as_slice())
+    }
+
+    /// Record the active static `@if` guard predicates of one declaration.
+    pub(in crate::check) fn set_symbol_condition(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        predicates: SmallVec<[dir::GlobalTypeId; 2]>,
+    ) {
+        self.module_mut(symbol.module_id)
+            .symbol_conditions
+            .insert(symbol, predicates);
+    }
+
     /// Return how syntax accesses one place expression.
     pub(in crate::check) fn place_access(&self, node: dir::GlobalNodeIdAny) -> PlaceAccess {
         self.modules
             .get(&node.module_id)
-            .and_then(|module| module.place_accesses.get(&node).copied())
+            .and_then(|module| module.accesses.get(&node).copied())
             .unwrap_or(PlaceAccess::Read)
     }
 
@@ -351,7 +393,7 @@ impl CheckState<'_> {
         access: PlaceAccess,
     ) {
         self.module_mut(node.module_id)
-            .place_accesses
+            .accesses
             .insert(node, access);
     }
 
@@ -381,27 +423,5 @@ impl CheckState<'_> {
         let symbol = binding_table.get_symbol(symbol.local_id);
 
         symbol.kind
-    }
-}
-
-/// Working segments accumulating open check output for one module.
-/// TODO #Cleanup: inline WorkingSegments
-pub(in crate::check) struct WorkingSegments {
-    /// Open types layered over the expanded table.
-    pub(in crate::check) types: dir::TypeSegment,
-    /// Checked declaration definitions.
-    pub(in crate::check) definitions: dir::DefinitionSegment,
-    /// Induced generic templates and parameters.
-    pub(in crate::check) generics: dir::GenericSegment,
-}
-
-impl WorkingSegments {
-    /// Create empty working segments over one expanded module.
-    fn new(module: ModuleId, expanded: &DirExpanded) -> Self {
-        Self {
-            types: dir::TypeSegment::from_base(&expanded.types),
-            definitions: dir::DefinitionSegment::new(module),
-            generics: dir::GenericSegment::new(module),
-        }
     }
 }

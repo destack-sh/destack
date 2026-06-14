@@ -117,15 +117,12 @@ impl WalkState<'_, '_> {
                 Ok(None)
             }
             GuardOutcome::Present(condition) => {
-                // store availability after combining enclosing guards
+                // store the symbol's guard predicates after combining enclosing guards
                 let combined = self.active_static_guard().and(condition.clone());
                 if let Some(symbol) = symbol
-                    && combined != Condition::Always
+                    && let Condition::When(predicates) = combined
                 {
-                    self.check
-                        .module_mut(self.module)
-                        .availability
-                        .insert(symbol, combined);
+                    self.check.set_symbol_condition(symbol, predicates);
                 }
 
                 self.flow_mut().push_static_guard(condition);

@@ -158,7 +158,7 @@ impl CheckState<'_> {
     ) -> Option<&dir::GenericTemplate> {
         // read working component templates first
         if let Some(module) = self.modules.get(&id.module_id)
-            && let Some(template) = module.working.generics.get_local_template(id.local_id)
+            && let Some(template) = module.generics.get_local_template(id.local_id)
         {
             return Some(template);
         }
@@ -178,7 +178,7 @@ impl CheckState<'_> {
     ) -> Option<&dir::GenericParameterBinding> {
         // read working component parameters first
         if let Some(module) = self.modules.get(&id.module_id)
-            && let Some(parameter) = module.working.generics.get_local_parameter(id.local_id)
+            && let Some(parameter) = module.generics.get_local_parameter(id.local_id)
         {
             return Some(parameter);
         }
@@ -238,7 +238,6 @@ impl CheckState<'_> {
                 message: format!("check module {module:?} has no working generics"),
             })?;
         let local = working
-            .working
             .generics
             .push_template(dir::GenericTemplate::new(source, symbol, parent));
         let id = local.into_global(module);
@@ -266,7 +265,7 @@ impl CheckState<'_> {
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("check module {module:?} has no working generics"),
             })?;
-        let local = working.working.generics.push_template_parameter(binding);
+        let local = working.generics.push_template_parameter(binding);
         let id = local.into_global(module);
 
         if let Some(symbol) = symbol {
@@ -322,11 +321,7 @@ impl CheckState<'_> {
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("check module {module:?} has no working generics"),
             })?;
-        let Some(binding) = working
-            .working
-            .generics
-            .get_local_parameter_mut(parameter.local_id)
-        else {
+        let Some(binding) = working.generics.get_local_parameter_mut(parameter.local_id) else {
             return Err(CompilerError::Internal {
                 message: format!("generic parameter {parameter:?} is not in its working segment"),
             });

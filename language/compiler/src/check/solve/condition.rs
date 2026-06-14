@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Condition, Dependency, Origin};
+use crate::check::{Answer, CheckState, Dependency, Origin};
 
 impl CheckState<'_> {
     /// Decide whether one symbol's @if availability conditions hold.
@@ -10,13 +10,14 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<bool>> {
-        let Some(module) = self.modules.get(&symbol.module_id) else {
+        let predicates = self
+            .symbol_condition(symbol)
+            .iter()
+            .copied()
+            .collect::<SmallVec<[_; 2]>>();
+        if predicates.is_empty() {
             return Ok(Answer::Ready(true));
-        };
-        let predicates = match module.availability.get(&symbol) {
-            Some(Condition::When(predicates)) => predicates.clone(),
-            _ => return Ok(Answer::Ready(true)),
-        };
+        }
 
         self.decide_condition(&predicates)
     }

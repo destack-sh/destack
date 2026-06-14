@@ -249,11 +249,7 @@ impl CheckState<'_> {
         for (variable, state) in self.variables.iter() {
             for bound in state.lower.iter().chain(state.upper.iter()) {
                 let live = self.modules.get(&bound.module_id).is_some_and(|module| {
-                    module
-                        .working
-                        .types
-                        .get_type_maybe(bound.local_id)
-                        .is_some()
+                    module.types.get_type_maybe(bound.local_id).is_some()
                         || module.type_maybe(bound.local_id).is_some()
                 }) || self.external_modules.contains_key(&bound.module_id);
 
@@ -273,7 +269,7 @@ impl CheckState<'_> {
             // drop the youngest working type
             Mutation::TypeAllocated { module } => {
                 if let Some(module) = self.modules.get_mut(&module) {
-                    let types = &mut module.working.types;
+                    let types = &mut module.types;
                     let count = types.type_count();
                     types.truncate_types(count.saturating_sub(1));
                 }

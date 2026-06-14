@@ -621,11 +621,11 @@ impl CheckState<'_> {
             return Ok(None);
         };
         // working types are synthesized, not written
-        if module.working.types.get_type_maybe(id.local_id).is_some() {
+        if module.types.get_type_maybe(id.local_id).is_some() {
             return Ok(None);
         }
 
-        let source = module.type_table().get_type_source(id.local_id);
+        let source = module.types.get_type_source(id.local_id);
 
         Ok(Some(self.diagnostic_anchor(id.module_id, source)))
     }
@@ -734,9 +734,8 @@ impl CheckState<'_> {
                 .symbol_declaration_node(symbol.local_id),
             Origin::Type(ty) => {
                 let module = self.module(ty.module_id);
-                let table = module.type_table();
 
-                Ok(table.get_type_source(ty.local_id))
+                Ok(module.types.get_type_source(ty.local_id))
             }
         }
     }

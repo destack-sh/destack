@@ -58,11 +58,11 @@ impl CheckState<'_> {
         let module = commit.module;
         let mut output = CheckModuleOutput::new(module, self.module(module));
 
-        // move the working segments wholesale
-        let working = self.module_mut(module).take_working();
-        output.types = working.types;
-        output.generics = working.generics;
-        output.definitions = working.definitions;
+        // move the open overlays out into the committed output
+        let state = self.module_mut(module);
+        output.types = state.take_types();
+        output.definitions = state.take_definitions();
+        output.generics = state.take_generics();
         if let Some(layouts) = self.layouts.swap_remove(&module) {
             output.layouts = layouts;
         }
@@ -120,7 +120,7 @@ impl CheckState<'_> {
         module: ModuleId,
     ) -> CompilerResult<Vec<(dir::LocalTypeId, dir::Type)>> {
         // collect the variable entries owned by this segment
-        let working = &self.module(module).working.types;
+        let working = &self.module(module).types;
         let mut variables = Vec::new();
         for local in working.iter_type_ids() {
             let Some(dir::Type::Variable(variable)) = working.get_type_maybe(local) else {
@@ -167,12 +167,7 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<Vec<(dir::GlobalNodeIdAny, dir::GlobalTypeId)>> {
-        let node_types = self
-            .module(module)
-            .working
-            .types
-            .node_types()
-            .collect::<Vec<_>>();
+        let node_types = self.module(module).types.node_types().collect::<Vec<_>>();
         let mut resolved = Vec::with_capacity(node_types.len());
         for (node, ty) in node_types {
             resolved.push((node, self.shallow_resolve(ty)?));
@@ -228,12 +223,7 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<Vec<(dir::GlobalSymbolId, dir::GlobalTypeId)>> {
-        let symbol_types = self
-            .module(module)
-            .working
-            .types
-            .symbol_types()
-            .collect::<Vec<_>>();
+        let symbol_types = self.module(module).types.symbol_types().collect::<Vec<_>>();
         let mut resolved = Vec::with_capacity(symbol_types.len());
         for (symbol, ty) in symbol_types {
             // alias values commit their evaluated answer; every other
@@ -258,7 +248,6 @@ impl CheckState<'_> {
     ) -> CompilerResult<Vec<(dir::GlobalSymbolId, dir::GlobalTypeId)>> {
         let aliases = self
             .module(module)
-            .working
             .definitions
             .iter_definitions()
             .filter_map(|(symbol, definition)| match definition {
@@ -281,7 +270,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Vec<(dir::GlobalSymbolId, dir::ScalarLiteral)>> {
         let symbol_values = self
             .module(module)
-            .symbol_values
+            .values
             .iter()
             .map(|(symbol, value)| (*symbol, *value))
             .collect::<Vec<_>>();

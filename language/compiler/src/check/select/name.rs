@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{CheckState, Condition};
+use crate::check::CheckState;
 
 /// One target visible to source name lookup.
 #[derive(Debug, Clone, PartialEq)]
@@ -18,8 +18,6 @@ pub(in crate::check) enum NameTarget {
 pub(in crate::check) struct NameCandidate {
     /// The visible target.
     pub(in crate::check) target: NameTarget,
-    /// The condition under which the target exists.
-    pub(in crate::check) condition: Condition,
 }
 
 impl NameCandidate {
@@ -164,19 +162,6 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return one symbol's @if availability condition.
-    pub(in crate::check) fn symbol_availability(&self, symbol: dir::GlobalSymbolId) -> Condition {
-        let Some(module) = self.modules.get(&symbol.module_id) else {
-            return Condition::Always;
-        };
-
-        module
-            .availability
-            .get(&symbol)
-            .cloned()
-            .unwrap_or(Condition::Always)
-    }
-
     /// Return whether one symbol's guard decided statically false.
     pub(in crate::check) fn is_unavailable_symbol(&self, symbol: dir::GlobalSymbolId) -> bool {
         self.modules
@@ -194,7 +179,6 @@ impl CheckState<'_> {
         if self.is_unavailable_symbol(symbol) {
             return None;
         }
-        let condition = self.symbol_availability(symbol);
 
         // expose imported targets at lookup time
         if symbol.module_id == module
@@ -209,23 +193,19 @@ impl CheckState<'_> {
                     if self.is_unavailable_symbol(target) {
                         return None;
                     }
-                    let condition = condition.and(self.symbol_availability(target));
 
                     Some(NameCandidate {
                         target: NameTarget::Symbol(target),
-                        condition,
                     })
                 }
                 dir::ImportTarget::Namespace(namespace) => Some(NameCandidate {
                     target: NameTarget::Namespace(namespace),
-                    condition,
                 }),
             };
         }
 
         Some(NameCandidate {
             target: NameTarget::Symbol(symbol),
-            condition,
         })
     }
 
@@ -249,12 +229,10 @@ impl CheckState<'_> {
 
                     Some(NameCandidate {
                         target: NameTarget::Symbol(*symbol),
-                        condition: self.symbol_availability(*symbol),
                     })
                 }
                 dir::ImportTarget::Namespace(module) => Some(NameCandidate {
                     target: NameTarget::Namespace(*module),
-                    condition: Condition::Always,
                 }),
             })
             .collect()
