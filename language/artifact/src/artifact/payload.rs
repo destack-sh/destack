@@ -52,7 +52,7 @@ pub enum ArtifactPayload {
     ModuleQueryIndex(Arc<ModuleQueryIndex>),
     /// Query index for one workspace profile.
     WorkspaceQueryIndex(Arc<WorkspaceQueryIndex>),
-    /// One generated module output for one target.
+    /// One emitted module output for one target.
     ModuleOutput(Arc<ModuleOutput>),
     /// Output entries for one package target.
     PackageOutput(Arc<PackageOutput>),
@@ -107,7 +107,7 @@ pub enum ArtifactPayloadRef<'a> {
     ModuleQueryIndex(&'a ModuleQueryIndex),
     /// Query index for one workspace profile.
     WorkspaceQueryIndex(&'a WorkspaceQueryIndex),
-    /// One generated module output for one target.
+    /// One emitted module output for one target.
     ModuleOutput(&'a ModuleOutput),
     /// Output entries for one package target.
     PackageOutput(&'a PackageOutput),

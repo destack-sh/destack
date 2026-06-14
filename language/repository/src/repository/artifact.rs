@@ -690,7 +690,7 @@ impl ArtifactCache {
         )
     }
 
-    /// Read one generated module output artifact.
+    /// Read one emitted module output artifact.
     pub fn module_output(
         &self,
         module_id: ModuleId,

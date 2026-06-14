@@ -107,7 +107,7 @@ pub enum ArtifactKey {
     /// Query index for one workspace profile.
     WorkspaceQueryIndex { profile: ProfileId },
 
-    /// One generated module output for one target.
+    /// One emitted module output for one target.
     ModuleOutput { module: ModuleId, target: TargetId },
     /// Output entries for one package target.
     PackageOutput {
