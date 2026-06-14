@@ -73,7 +73,7 @@ pub struct ArtifactStore {
     /// Query indexes by workspace and profile.
     workspace_query_index: ArtifactMap<WorkspaceQueryIndex>,
 
-    /// Generated module outputs by module and target.
+    /// Emitted module outputs by module and target.
     module_output: ArtifactMap<ModuleOutput>,
     /// Output entries by package and target.
     package_output: ArtifactMap<PackageOutput>,

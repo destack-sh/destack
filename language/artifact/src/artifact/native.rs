@@ -1,25 +1,16 @@
 use destack_source::FileType;
 use serde::{Deserialize, Serialize};
 
-use crate::{JsOutput, SourceMapArtifact};
+use crate::SourceMapArtifact;
 
-/// One generated module output.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum ModuleOutput {
-    /// One generated JS output.
-    Js(Box<JsOutput>),
-    /// One generated native output.
-    Native(Box<NativeOutput>),
-}
-
-/// One generated native output.
+/// One emitted native output.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NativeOutput {
-    /// The generated output file type.
+    /// The emitted output file type.
     pub file_type: FileType,
-    /// The generated native payload bytes.
+    /// The emitted native payload bytes.
     pub bytes: Vec<u8>,
-    /// The generated source map payload when one exists.
+    /// The emitted source map payload when one exists.
     pub source_map: Option<SourceMapArtifact>,
 }
 
