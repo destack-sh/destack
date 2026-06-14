@@ -717,7 +717,6 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        let import_span = self.peek_keyword(Keyword::Import)?.span;
         self.eat_keyword(Keyword::Import)?;
         self.eat_token(TokenType::Dot)?;
         if self.current_identifier_str_is("meta") {
@@ -725,20 +724,9 @@ impl Parser {
             return Ok(self.insert_node(Expression::ImportMeta, self.get_span_from(start)));
         }
         if self.current_identifier_str_is("source") {
-            let import_name = self.strings.intern("import");
-            let (source_name, source_span) = self.eat_identifier_with_span()?;
-            let path = Path {
-                segments: smallvec![import_name, source_name],
-            };
-            let id = self.insert_node(
-                Expression::QualifiedReference {
-                    path,
-                    generic_arguments: Vec::new(),
-                },
-                self.get_span_from(start),
-            );
-            self.set_path_expression_spans(id, &[import_span, source_span])?;
-            return Ok(id);
+            self.bump();
+
+            return Ok(self.insert_node(Expression::ImportSource, self.get_span_from(start)));
         }
 
         Err(ParserError::unexpected(self.peek()?.span))

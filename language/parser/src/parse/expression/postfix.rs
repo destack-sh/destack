@@ -514,17 +514,6 @@ impl Parser {
 
                 Some(self.insert_node(ty, self.tree.get_span(expression_id)))
             }
-            Expression::QualifiedReference {
-                path,
-                generic_arguments,
-            } => {
-                let ty = TypeExpression::Reference {
-                    path: path.clone(),
-                    generic_arguments: generic_arguments.clone(),
-                };
-
-                Some(self.insert_node(ty, self.tree.get_span(expression_id)))
-            }
             Expression::Member {
                 left,
                 name: Some(name),

@@ -1686,26 +1686,11 @@ impl Parser {
             let Some(segment_spans) = path_segment_spans.as_deref() else {
                 return Err(ParserError::unexpected(opening_span));
             };
-            let Some(first_segment_span) = segment_spans.first().copied() else {
+            if segment_spans.is_empty() {
                 return Err(ParserError::unexpected(opening_span));
-            };
-            let Some(last_segment_span) = segment_spans.last().copied() else {
-                return Err(ParserError::unexpected(opening_span));
-            };
-            let path_span = Span::new(
-                first_segment_span.file,
-                first_segment_span.start,
-                last_segment_span.end,
-            );
-            let expression_id = self.insert_node(
-                Expression::QualifiedReference {
-                    path,
-                    generic_arguments: vec![],
-                },
-                path_span,
-            );
-            self.set_path_expression_spans(expression_id, segment_spans)?;
-            Some(expression_id)
+            }
+
+            Some(self.build_member_chain(&path.segments, segment_spans))
         } else {
             None
         };

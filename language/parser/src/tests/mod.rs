@@ -27,5 +27,5 @@ mod r#where;
 
 pub(crate) use parser::{
     TestParser, block_expression_ids, expression_path_string, normalized_comment_payload,
-    qualified_reference_path_string, value_expression_path_string,
+    value_expression_path_string,
 };

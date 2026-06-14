@@ -239,39 +239,14 @@ impl Parser {
                 }
                 // range with path or identifier start
                 else if let Some(end_kind) = range_end_kind {
-                    let expression_id = if path.segments.len() > 1 {
-                        let expression_id = self.insert_node(
-                            Expression::QualifiedReference {
-                                path,
-                                generic_arguments: vec![],
-                            },
-                            self.get_span_from(&start),
-                        );
-                        self.set_path_expression_spans(expression_id, &segment_spans)?;
-                        expression_id
-                    } else {
-                        let expression_id = self.insert_node(
-                            Expression::Identifier {
-                                name: path.segments[0],
-                            },
-                            self.get_span_from(&start),
-                        );
-                        self.tree.set_main_span(expression_id, last_span);
-                        expression_id
-                    };
+                    let expression_id = self.build_member_chain(&path.segments, &segment_spans);
 
                     self.eat_range_pattern_with_start(&start, expression_id, end_kind)?
                 }
                 // path
                 else if path.segments.len() > 1 {
-                    let expression_id = self.insert_node(
-                        Expression::QualifiedReference {
-                            path,
-                            generic_arguments: vec![],
-                        },
-                        self.get_span_from(&start),
-                    );
-                    self.set_path_expression_spans(expression_id, &segment_spans)?;
+                    let expression_id = self.build_member_chain(&path.segments, &segment_spans);
+
                     self.insert_node(
                         Pattern::Expression {
                             value: expression_id,

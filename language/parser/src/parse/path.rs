@@ -1,5 +1,5 @@
 use destack_core::StringId;
-use destack_source::{NodeSpanList, NodeSpanType, Span};
+use destack_source::Span;
 use smallvec::SmallVec;
 
 use crate::{Parser, ParserError, ParserResult};
@@ -110,41 +110,31 @@ impl Parser {
         Ok((path, segment_spans, last_span))
     }
 
-    /// Record the identifier spans for one path expression.
-    pub fn set_path_expression_spans(
+    /// Build a nested member chain expression from path segments and their spans.
+    pub(in crate::parse) fn build_member_chain(
         &mut self,
-        expression_id: LocalNodeId<Expression>,
+        segments: &[StringId],
         segment_spans: &[Span],
-    ) -> ParserResult<()> {
-        let Some(first_span) = segment_spans.first().copied() else {
-            return Err(ParserError::unexpected(self.tree.get_span(expression_id)));
-        };
-        let Some(last_span) = segment_spans.last().copied() else {
-            return Err(ParserError::unexpected(self.tree.get_span(expression_id)));
-        };
+    ) -> LocalNodeId<Expression> {
+        // the path root is a bare identifier
+        let root_span = segment_spans[0];
+        let mut node = self.insert_node(Expression::Identifier { name: segments[0] }, root_span);
+        self.tree.set_main_span(node, root_span);
 
-        self.tree.set_main_span(expression_id, last_span);
-
-        if segment_spans.len() <= 1 {
-            return Ok(());
-        }
-
-        self.tree.set_head_span(expression_id, first_span);
-
-        // record each path segment so semantic consumers can target the exact token
-        for (index, segment_span) in segment_spans.iter().copied().enumerate() {
-            let Ok(segment_index) = u16::try_from(index) else {
-                return Err(ParserError::unexpected(segment_span));
-            };
-
-            self.tree.set_side_span(
-                expression_id,
-                NodeSpanType::ListItem(NodeSpanList::Segment, segment_index),
-                segment_span,
+        // extend through each member segment, spanning from the path start to the segment
+        for (name, span) in segments[1..].iter().zip(&segment_spans[1..]) {
+            let combined = Span::new(root_span.file, root_span.start, span.end);
+            node = self.insert_node(
+                Expression::Member {
+                    left: node,
+                    name: Some(*name),
+                },
+                combined,
             );
+            self.tree.set_main_span(node, *span);
         }
 
-        Ok(())
+        node
     }
 
     /// Return whether the current dot continues a static path.
