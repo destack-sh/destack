@@ -1,6 +1,6 @@
 use std::path::{Component, Path, PathBuf};
 
-use crate::generate::js::{
+use crate::emit::js::{
     JsFormatOptions, Module as ScriptModule, PrintedJsModule,
     print_js_module as print_codegen_script_module,
 };
@@ -122,7 +122,7 @@ impl<'a> JsTextOutputPolicy<'a> {
         prefix
     }
 
-    /// Return the mapped byte offset introduced before generated JS code.
+    /// Return the mapped byte offset introduced before emitted JS code.
     fn js_banner_prefix_byte_count(self) -> u32 {
         self.js_banner_prefix().len() as u32
     }
@@ -399,9 +399,9 @@ impl JsLinker<'_> {
         let mut source_map = source_map;
         let has_source_map = source_map.is_some();
 
-        // banner bytes shift every generated marker forward in the final output
+        // banner bytes shift every emitted marker forward in the final output
         if let Some(source_map) = &mut source_map {
-            source_map.prepend_generated_bytes(output_policy.js_banner_prefix_byte_count());
+            source_map.prepend_emitted_bytes(output_policy.js_banner_prefix_byte_count());
         }
         let source_map = source_map.map(|source_map| {
             source_map.build(

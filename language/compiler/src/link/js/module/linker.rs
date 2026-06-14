@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
-use crate::generate::js;
+use crate::emit::js;
 use crate::{Compiler, LinkError, LinkResult};
 use destack_artifact::{EmitFormat, JsOutput, ModuleOutput};
 use destack_repository::{BundleFormat, BundleMode, Target};
@@ -180,7 +180,7 @@ impl<'a> JsLinker<'a> {
         Ok(())
     }
 
-    /// Load one generated JS output for linking.
+    /// Load one emitted JS output for linking.
     pub(crate) fn js_output(&self, module_id: ModuleId) -> LinkResult<JsOutput> {
         let artifact = self.module_output(module_id)?;
 

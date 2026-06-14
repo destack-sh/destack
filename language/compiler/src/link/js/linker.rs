@@ -89,7 +89,7 @@ impl<'a> JsLinker<'a> {
             .map_err(|error| self.link_error(error))
     }
 
-    /// Return one generated module output for this target.
+    /// Return one emitted module output for this target.
     pub(crate) fn module_output(&self, module_id: ModuleId) -> LinkResult<Arc<ModuleOutput>> {
         self.artifacts
             .module_output(module_id, *self.target_id)

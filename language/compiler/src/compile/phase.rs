@@ -24,8 +24,8 @@ pub enum CompilePhase {
     Verify = 10,
     /// Optimize MIR.
     Optimize = 11,
-    /// Generate emitted artifacts from compiler products.
-    Generate = 12,
+    /// Emit module output artifacts from compiler products.
+    Emit = 12,
     /// Link emitted artifacts into package artifacts.
     Link = 13,
 }
@@ -56,7 +56,7 @@ impl CompilePhase {
             Self::Lower => "lower",
             Self::Verify => "verify",
             Self::Optimize => "optimize",
-            Self::Generate => "generate",
+            Self::Emit => "emit",
             Self::Link => "link",
         }
     }
@@ -75,7 +75,7 @@ impl CompilePhase {
             Self::Lower => "lower DIR into MIR",
             Self::Verify => "verify MIR semantic invariants",
             Self::Optimize => "optimize MIR",
-            Self::Generate => "generate emitted artifacts",
+            Self::Emit => "emit module output artifacts",
             Self::Link => "link emitted artifacts",
         }
     }
@@ -94,7 +94,7 @@ impl CompilePhase {
             Self::Lower => 'L',
             Self::Verify => 'V',
             Self::Optimize => 'O',
-            Self::Generate => 'G',
+            Self::Emit => 'G',
             Self::Link => 'K',
         }
     }
@@ -112,7 +112,7 @@ impl CompilePhase {
         Self::Lower,
         Self::Verify,
         Self::Optimize,
-        Self::Generate,
+        Self::Emit,
         Self::Link,
     ];
 

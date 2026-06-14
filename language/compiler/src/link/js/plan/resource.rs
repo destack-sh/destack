@@ -1,4 +1,4 @@
-use crate::generate::js;
+use crate::emit::js;
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use destack_artifact::{Data, EmitFormat, JsDeclaration, JsLanguage, JsOutput};
@@ -97,7 +97,7 @@ fn insert_default_export_statement(
     )
 }
 
-/// Insert one string expression into the generated module tree.
+/// Insert one string expression into the emitted module tree.
 fn insert_string_expression(
     tree: &mut js::Tree,
     strings: &mut StringPool,
@@ -114,7 +114,7 @@ fn insert_string_expression(
     )
 }
 
-/// Insert one JSON expression into the generated module tree.
+/// Insert one JSON expression into the emitted module tree.
 fn insert_json_expression(
     tree: &mut js::Tree,
     strings: &mut StringPool,
@@ -202,7 +202,7 @@ fn insert_json_expression(
     }
 }
 
-/// Insert one binary runtime value into the generated module tree.
+/// Insert one binary runtime value into the emitted module tree.
 fn insert_binary_expression(
     tree: &mut js::Tree,
     strings: &mut StringPool,

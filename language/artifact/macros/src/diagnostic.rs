@@ -119,7 +119,7 @@ fn phase_letter(phase: &Ident) -> Result<char> {
         "Lower" => 'L',
         "Verify" => 'V',
         "Optimize" => 'O',
-        "Generate" => 'G',
+        "Generate" | "Emit" => 'G',
         "Link" => 'K',
         "Lint" => 'L',
         other => {

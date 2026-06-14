@@ -1,4 +1,4 @@
-use crate::generate::js;
+use crate::emit::js;
 
 use super::linker::Rewriter;
 

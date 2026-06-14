@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use super::output::SourceMapMode;
 
-/// Module format for generated JavaScript output.
+/// Module format for emitted JavaScript output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
@@ -31,7 +31,7 @@ impl JsModuleFormat {
     }
 }
 
-/// ECMAScript target for generated JavaScript output.
+/// ECMAScript target for emitted JavaScript output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]

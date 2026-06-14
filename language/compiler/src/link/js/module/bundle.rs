@@ -1,4 +1,4 @@
-use crate::generate::js;
+use crate::emit::js;
 use destack_artifact::JsOutput;
 use destack_repository::{ProviderContext, Target};
 use destack_source::{ModuleId, PackageId, ProfileId, Span, TargetId};
@@ -270,7 +270,7 @@ impl JsLinker<'_> {
         }
     }
 
-    /// Rewrite one generated JS module for bundled output.
+    /// Rewrite one emitted JS module for bundled output.
     fn rewrite_module(
         &self,
         module_id: ModuleId,
@@ -370,7 +370,7 @@ impl JsLinker<'_> {
         format!("{}\n", parts.join("\n\n"))
     }
 
-    /// Rewrite one generated JS module for target-level bundled output.
+    /// Rewrite one emitted JS module for target-level bundled output.
     pub(crate) fn rewrite_script_module(
         &self,
         module_id: ModuleId,

@@ -3,12 +3,12 @@ use serde::{Deserialize, Serialize};
 /// The stable source map version.
 pub const SOURCE_MAP_VERSION: u32 = 3;
 
-/// One generated or linked source map payload.
+/// One emitted or linked source map payload.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SourceMapArtifact {
     /// The source map version.
     pub version: u32,
-    /// The generated file name when one exists.
+    /// The emitted file name when one exists.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub file: Option<String>,
     /// The source root when one exists.

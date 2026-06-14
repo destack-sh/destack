@@ -2,10 +2,10 @@ use crate::DiagnosticAnchor;
 use destack_artifact_macros::Diagnostic;
 use destack_source::ModuleId;
 
-/// Errors during the generate phase.
+/// Errors during the emit phase.
 #[derive(Debug, Clone, PartialEq, Diagnostic)]
-#[diagnostic(severity = Error, phase = Generate)]
-pub enum GenerateError {
+#[diagnostic(severity = Error, phase = Emit)]
+pub enum EmitError {
     // -------------------------------------------------------------------------
     // 1xx: Target / setup
     // -------------------------------------------------------------------------
@@ -28,7 +28,7 @@ pub enum GenerateError {
     // -------------------------------------------------------------------------
     // 2xx: Type issues
     // -------------------------------------------------------------------------
-    /// Unsupported type for codegen.
+    /// Unsupported type for emit.
     #[diagnostic(code = "EG200", message = "unsupported type")]
     UnsupportedType {
         anchor: DiagnosticAnchor,
@@ -61,7 +61,7 @@ pub enum GenerateError {
         message: String,
     },
 
-    /// Unresolved construct (not fully resolved before codegen).
+    /// Unresolved construct.
     #[diagnostic(code = "EG302", message = "unresolved construct")]
     UnresolvedConstruct {
         anchor: DiagnosticAnchor,
@@ -83,7 +83,7 @@ pub enum GenerateError {
     // -------------------------------------------------------------------------
     // 9xx: Internal
     // -------------------------------------------------------------------------
-    /// Internal codegen error.
+    /// Internal emit error.
     #[diagnostic(code = "EG900", message = "internal error: {message}")]
     Internal {
         anchor: DiagnosticAnchor,

@@ -1,7 +1,7 @@
 use destack_repository::ProviderContext;
 use std::path::{Component, Path, PathBuf};
 
-use crate::generate::js;
+use crate::emit::js;
 use crate::link::{SourceMapBuilder, SourceMapMarker};
 use crate::{CompilerResult, JsLinker};
 use destack_source::ModuleId;
@@ -18,7 +18,7 @@ impl JsLinker<'_> {
     ) -> CompilerResult<SourceMapBuilder> {
         let mut sources = Vec::new();
         let mut markers = Vec::new();
-        let mut generated_byte_offset = 0u32;
+        let mut emitted_byte_offset = 0u32;
 
         // compose each printed module with one stable source index
         for (part_index, (module_id, printed)) in parts.iter().enumerate() {
@@ -45,16 +45,16 @@ impl JsLinker<'_> {
                     continue;
                 };
 
-                marker.generated_byte += generated_byte_offset;
+                marker.emitted_byte += emitted_byte_offset;
                 markers.push(marker);
             }
 
-            generated_byte_offset += normalized_length;
+            emitted_byte_offset += normalized_length;
 
             // linked module text inserts one separator between parts
             if part_index + 1 < parts.len() {
                 let separator = self.script_part_separator(&printed.code, is_minimal);
-                generated_byte_offset += separator.len() as u32;
+                emitted_byte_offset += separator.len() as u32;
             }
         }
 
