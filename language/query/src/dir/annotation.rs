@@ -51,9 +51,7 @@ impl DirQueryContext<'_> {
                 dir::Expression::Call { left, .. } => {
                     expression_id = *left;
                 }
-                dir::Expression::QualifiedReference { path, .. } => {
-                    return path.segments.last().copied();
-                }
+                dir::Expression::Member { name, .. } => return *name,
                 dir::Expression::Identifier { name } => return Some(*name),
                 _ => return None,
             }

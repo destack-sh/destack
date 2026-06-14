@@ -1,6 +1,6 @@
 use destack_core::{StringId, StringPool};
 use destack_dir as dir;
-use destack_source::{NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use std::str::FromStr;
 
 use crate::core::{DirQueryContext, ModuleQueryContext};
@@ -87,21 +87,22 @@ impl DirQueryContext<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         segment_index: u16,
     ) -> Option<Span> {
-        let expression = self.view().get::<dir::Expression>(expression_id);
-        let path = match expression {
-            dir::Expression::QualifiedReference { path, .. } => path,
-            _ => return None,
-        };
-
-        if usize::from(segment_index) >= path.segments.len() {
-            return None;
+        // collect the member chain nodes from root to leaf
+        let mut nodes = Vec::new();
+        let mut current = Some(expression_id);
+        while let Some(id) = current {
+            nodes.push(id);
+            current = match self.view().get::<dir::Expression>(id) {
+                dir::Expression::Member { left, .. } => Some(*left),
+                _ => None,
+            };
         }
+        nodes.reverse();
 
-        let source_id = self.view().get_source(expression_id);
-        let span = self.tree().get_side_span_by_id(
-            source_id,
-            NodeSpanType::ListItem(NodeSpanList::Segment, segment_index),
-        )?;
+        // the segment span is the matching chain node's own span
+        let node = *nodes.get(usize::from(segment_index))?;
+        let source_id = self.view().get_source(node);
+        let span = self.tree().get_main_span_by_id(source_id)?;
 
         Some(Span::new(self.file_id(), span.start, span.end))
     }
@@ -585,8 +586,12 @@ impl ModuleQueryContext<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         offset: u32,
     ) -> Option<SymbolAtOffset> {
-        let segment_count =
-            Self::path_segment_count(ctx.view().get::<dir::Expression>(expression_id))?;
+        // multi segment name paths carry one symbol per segment
+        let path = ctx.tree().reference_path(expression_id)?;
+        if path.segments.len() <= 1 {
+            return None;
+        }
+        let segment_count = path.segments.len();
 
         for segment_index in 0..segment_count {
             let segment_index =
@@ -648,16 +653,6 @@ impl ModuleQueryContext<'_> {
         }
 
         None
-    }
-
-    /// Return the number of segments in one plain path expression.
-    fn path_segment_count(expression: &dir::Expression) -> Option<usize> {
-        let path = match expression {
-            dir::Expression::QualifiedReference { path, .. } => path,
-            _ => return None,
-        };
-
-        (path.segments.len() > 1).then_some(path.segments.len())
     }
 
     /// Resolve a declaration symbol from a declaration modifier keyword.

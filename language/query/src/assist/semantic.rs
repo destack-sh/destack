@@ -271,22 +271,6 @@ impl ModuleQueryContext<'_> {
             };
 
             match expression {
-                // symbol references - look up the symbol to determine type
-                dir::Expression::QualifiedReference { .. } => {
-                    let Some(target_symbol) = ctx.dir().expression_symbol_target(expression_id)
-                    else {
-                        continue;
-                    };
-                    let Some(target_ctx) = ctx.module_context(target_symbol.module_id) else {
-                        continue;
-                    };
-                    let target_symbols = target_ctx.dir().symbols();
-                    let symbol = target_symbols.get_symbol(target_symbol.local_id);
-
-                    let token_type = symbol_kind_to_token_type(symbol.kind);
-                    tokens.push(SemanticToken::new(span, token_type));
-                }
-
                 // labelled statement - the label itself
                 dir::Expression::Label { .. } => {
                     if let Some(main_span) = ctx
