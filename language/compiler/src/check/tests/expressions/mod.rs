@@ -1,6 +1,7 @@
 mod assignment;
 mod calls;
 mod control;
+mod decorators;
 mod functions;
 mod literals;
 mod members;

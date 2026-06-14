@@ -488,6 +488,20 @@ pub enum CheckError {
         name: String,
     },
 
+    /// Decorator target is not a static declaration name.
+    ///
+    /// ```ds
+    /// @value.field
+    /// const decorated = 1;
+    /// ```
+    #[diagnostic(code = "EC310", message = "decorator must name a declaration")]
+    InvalidDecoratorTarget {
+        /// Report the decorator target expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
     /// Member access reads through a possibly nullish value.
     ///
     /// ```ds
