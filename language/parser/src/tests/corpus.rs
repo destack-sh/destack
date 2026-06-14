@@ -41,7 +41,7 @@ fn collect_library_sources(root: &Path, paths: &mut Vec<PathBuf>) {
 }
 
 /// Build a parser file for one library path.
-fn library_file(path: &Path, source: String) -> Arc<File> {
+fn library_file(path: &Path, logical_path: &Path, source: String) -> Arc<File> {
     let file_name = path
         .file_name()
         .expect("expected library file name")
@@ -50,7 +50,7 @@ fn library_file(path: &Path, source: String) -> Arc<File> {
     let path_text = path.to_string_lossy();
 
     Arc::new(File::from_text(
-        FileId::from_logical_path(path),
+        FileId::from_logical_path(logical_path),
         file_name,
         Uri::from_string(path_text.as_ref()),
         Some(path.to_path_buf()),
@@ -60,9 +60,12 @@ fn library_file(path: &Path, source: String) -> Arc<File> {
 }
 
 /// Parse one source file as a checked-in library module.
-fn parse_library_source(path: &Path, strings: Arc<StringPool>) -> (Arc<File>, Parser) {
+fn parse_library_source(path: &Path, root: &Path, strings: Arc<StringPool>) -> (Arc<File>, Parser) {
     let source = fs::read_to_string(path).expect("expected library source");
-    let file = library_file(path, source);
+    let logical_path = path
+        .strip_prefix(root)
+        .expect("expected source below library root");
+    let file = library_file(path, logical_path, source);
     let parser = Parser::lex_file_with_options(
         file.clone(),
         LanguageType::Destack,
@@ -101,7 +104,7 @@ fn test_parse_library() {
     let mut failures = Vec::new();
 
     for path in paths {
-        let (file, mut parser) = parse_library_source(&path, strings.clone());
+        let (file, mut parser) = parse_library_source(&path, &root, strings.clone());
         parser.parse();
 
         // record every failing path
