@@ -637,10 +637,7 @@ fn resolve_edge_target(
                 else_target
             };
             let resolved_args = substitute_values(&target.arguments, &param_substitutions);
-            Some(mir::BlockTarget {
-                block: target.block,
-                arguments: resolved_args,
-            })
+            Some(mir::BlockTarget::new(target.block, resolved_args))
         }
         mir::Terminator::Check {
             constraint,
@@ -651,10 +648,7 @@ fn resolve_edge_target(
             // choose the resolved check target
             let target = if condition_value { success } else { failure };
             let resolved_args = substitute_values(&target.arguments, &param_substitutions);
-            Some(mir::BlockTarget {
-                block: target.block,
-                arguments: resolved_args,
-            })
+            Some(mir::BlockTarget::new(target.block, resolved_args))
         }
         mir::Terminator::Switch {
             value,
@@ -671,10 +665,7 @@ fn resolve_edge_target(
             )?;
             // forward the resolved switch edge
             let resolved_args = substitute_values(&resolved.arguments, &param_substitutions);
-            Some(mir::BlockTarget {
-                block: resolved.block,
-                arguments: resolved_args,
-            })
+            Some(mir::BlockTarget::new(resolved.block, resolved_args))
         }
         _ => None,
     }?;
@@ -1675,10 +1666,7 @@ fn rewrite_return_targets(
             // build the remapped jump when possible
             if let Some(arguments) = remapped {
                 return mir::Terminator::Jump {
-                    target: mir::BlockTarget {
-                        block: canonical_return.into(),
-                        arguments,
-                    },
+                    target: mir::BlockTarget::new(canonical_return.into(), arguments),
                 };
             }
 
@@ -1702,10 +1690,7 @@ fn rewrite_return_targets(
             let mut remapped = false;
             let new_then_target = if let Some(arguments) = then_remap {
                 remapped = true;
-                mir::BlockTarget {
-                    block: canonical_return.into(),
-                    arguments,
-                }
+                mir::BlockTarget::new(canonical_return.into(), arguments)
             } else {
                 record_kept_return(return_blocks, kept_returns, then_target.block);
                 then_target.clone()
@@ -1714,10 +1699,7 @@ fn rewrite_return_targets(
             // apply remapped else edge when available
             let new_else_target = if let Some(arguments) = else_remap {
                 remapped = true;
-                mir::BlockTarget {
-                    block: canonical_return.into(),
-                    arguments,
-                }
+                mir::BlockTarget::new(canonical_return.into(), arguments)
             } else {
                 record_kept_return(return_blocks, kept_returns, else_target.block);
                 else_target.clone()
@@ -1747,10 +1729,7 @@ fn rewrite_return_targets(
             let mut remapped = false;
             let new_success = if let Some(arguments) = success_remap {
                 remapped = true;
-                mir::BlockTarget {
-                    block: canonical_return.into(),
-                    arguments,
-                }
+                mir::BlockTarget::new(canonical_return.into(), arguments)
             } else {
                 record_kept_return(return_blocks, kept_returns, success.block);
                 success.clone()
@@ -1759,10 +1738,7 @@ fn rewrite_return_targets(
             // apply remapped failure edge when available
             let new_failure = if let Some(arguments) = failure_remap {
                 remapped = true;
-                mir::BlockTarget {
-                    block: canonical_return.into(),
-                    arguments,
-                }
+                mir::BlockTarget::new(canonical_return.into(), arguments)
             } else {
                 record_kept_return(return_blocks, kept_returns, failure.block);
                 failure.clone()
@@ -1791,10 +1767,7 @@ fn rewrite_return_targets(
             let mut remapped = false;
             let new_default = if let Some(arguments) = default_remap {
                 remapped = true;
-                mir::BlockTarget {
-                    block: canonical_return.into(),
-                    arguments,
-                }
+                mir::BlockTarget::new(canonical_return.into(), arguments)
             } else {
                 record_kept_return(return_blocks, kept_returns, default.block);
                 default.clone()
@@ -1811,10 +1784,7 @@ fn rewrite_return_targets(
                     remapped = true;
                     new_cases.push(mir::SwitchCase {
                         value: case.value,
-                        target: mir::BlockTarget {
-                            block: canonical_return.into(),
-                            arguments,
-                        },
+                        target: mir::BlockTarget::new(canonical_return.into(), arguments),
                     });
                 } else {
                     record_kept_return(return_blocks, kept_returns, case.target.block);
@@ -2008,10 +1978,7 @@ fn fold_same_target_branches(function: &mut mir::Function, tree: &mut mir::Tree)
 
         // replace the branch with a jump to the shared target
         let new_terminator = mir::Terminator::Jump {
-            target: mir::BlockTarget {
-                block: then_target.block,
-                arguments: new_arguments,
-            },
+            target: mir::BlockTarget::new(then_target.block, new_arguments),
         };
         tree.set(new_block.terminator, new_terminator);
         tree.set(block_id, new_block);
@@ -2041,6 +2008,9 @@ fn tail_duplicate_blocks(
     // build definition metadata
     let use_def = build_use_def_maps(function, tree);
     let value_def_blocks = &use_def.def_block;
+    let block_counts =
+        mir::profile_block_counts(function, tree, profile, &mir::FunctionAnalyses::new());
+    let edge_counts = mir::edge_counts(function, tree, &block_counts);
 
     // collect predecessor counts and jump predecessors
     let mut predecessor_counts: HashMap<mir::LocalNodeId<mir::Block>, usize> = HashMap::new();
@@ -2135,7 +2105,7 @@ fn tail_duplicate_blocks(
             continue;
         }
 
-        let candidates = select_tail_dup_predecessors(block_id, jump_preds, profile);
+        let candidates = select_tail_dup_predecessors(block_id, jump_preds, &edge_counts);
         if candidates.is_empty() {
             continue;
         }
@@ -2229,10 +2199,7 @@ fn tail_duplicate_blocks(
             let pred_block = tree.get(pred.pred).clone();
             let updated_pred = pred_block.clone();
             let new_pred_terminator = mir::Terminator::Jump {
-                target: mir::BlockTarget {
-                    block: new_block_id.into(),
-                    arguments: Vec::new(),
-                },
+                target: mir::BlockTarget::new(new_block_id.into(), Vec::new()),
             };
             tree.set(updated_pred.terminator, new_pred_terminator);
             tree.set(pred.pred, updated_pred);
@@ -2273,19 +2240,14 @@ fn values_available_in_block(
 fn select_tail_dup_predecessors(
     block_id: mir::LocalNodeId<mir::Block>,
     jump_predecessors: &[JumpPredecessor],
-    profile: Option<&mir::Profile>,
+    edge_counts: &HashMap<mir::Edge, u64>,
 ) -> Vec<JumpPredecessor> {
-    // fall back to all predecessors when profile data is missing
-    let Some(profile) = profile else {
-        return jump_predecessors.to_vec();
-    };
-
     // collect edge counts for jump predecessors
     let mut total_count = 0_u64;
     let mut counts: HashMap<mir::LocalNodeId<mir::Block>, u64> = HashMap::new();
     for pred in jump_predecessors {
         let edge = mir::Edge::new(pred.pred, mir::Successor::Jump, block_id);
-        let count = profile.edge_count(&edge).map(mir::Count::get).unwrap_or(0);
+        let count = edge_counts.get(&edge).copied().unwrap_or(0);
         total_count = total_count.saturating_add(count);
         counts.insert(pred.pred, count);
     }
@@ -2566,10 +2528,10 @@ fn split_critical_edge_target(
 
     // reuse previously split edges for the same source and target
     if let Some(existing) = split_cache.get(&(source, target_block_id)) {
-        return Some(mir::BlockTarget {
-            block: (*existing).into(),
-            arguments: target.arguments.clone(),
-        });
+        return Some(mir::BlockTarget::new(
+            (*existing).into(),
+            target.arguments.clone(),
+        ));
     }
 
     // read the target block parameters
@@ -2594,10 +2556,7 @@ fn split_critical_edge_target(
 
     // build the split block
     let new_terminator = tree.insert(mir::Terminator::Jump {
-        target: mir::BlockTarget {
-            block: target_block_id.into(),
-            arguments: new_arguments,
-        },
+        target: mir::BlockTarget::new(target_block_id.into(), new_arguments),
     });
     let new_block = mir::Block::with_parameters(new_parameters, new_terminator);
 
@@ -2606,10 +2565,10 @@ fn split_critical_edge_target(
     insert_block_after(function, source, new_block_id);
     split_cache.insert((source, target_block_id), new_block_id);
 
-    Some(mir::BlockTarget {
-        block: new_block_id.into(),
-        arguments: target.arguments.clone(),
-    })
+    Some(mir::BlockTarget::new(
+        new_block_id.into(),
+        target.arguments.clone(),
+    ))
 }
 
 /// Merge blocks where predecessor has single successor and successor has single predecessor.
@@ -3679,20 +3638,19 @@ b4(v6: int32):
         // parse input test
         let mut test = TestProgram::new(input);
 
-        // gather the hot and cold jump predecessors
+        // gather the function and its entry branch
         let function_id = test.first_function_id();
         let mut function = test.tree.get(function_id).clone();
-        let (hot_pred, cold_pred) = test.entry_branch_targets(&function);
-        let tail_block = test.jump_target(hot_pred);
+        let entry_block = function.entry.unwrap();
 
         // build dominance data for tail duplication
         let analyses = test.function_analyses();
         let domtree = analyses.get::<DominatorTree>(&function, &test.tree).clone();
 
-        // build the profile table for jump edges
+        // weight the then predecessor hot so only its edge into the tail duplicates
         let mut profile = mir::Profile::new();
-        test.record_jump_edge_count(&mut profile, hot_pred, tail_block, 100);
-        test.record_jump_edge_count(&mut profile, cold_pred, tail_block, 1);
+        test.record_function_entry(&mut profile, function_id, 100);
+        test.record_successor_weights(entry_block, &[100, 1]);
 
         // run tail duplication with the profile data
         function.recompute_next_value_id(&test.tree);

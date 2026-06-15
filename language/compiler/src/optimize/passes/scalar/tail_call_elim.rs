@@ -417,14 +417,16 @@ fn remap_terminator_blocks(
         mir::LocalNodeId<mir::Block>,
     >,
 ) -> mir::Terminator {
-    let clone_target = |target: &mir::BlockTarget| mir::BlockTarget {
-        block: target
-            .block
-            .block()
-            .and_then(|block| block_map.get(&block).copied())
-            .map(mir::BlockReference::from)
-            .unwrap_or(target.block),
-        arguments: target.arguments.clone(),
+    let clone_target = |target: &mir::BlockTarget| {
+        mir::BlockTarget::new(
+            target
+                .block
+                .block()
+                .and_then(|block| block_map.get(&block).copied())
+                .map(mir::BlockReference::from)
+                .unwrap_or(target.block),
+            target.arguments.clone(),
+        )
     };
 
     match terminator {
@@ -432,15 +434,15 @@ fn remap_terminator_blocks(
             panic!("recovered MIR terminator reached optimizer");
         }
         mir::Terminator::Jump { target } => mir::Terminator::Jump {
-            target: mir::BlockTarget {
-                block: target
+            target: mir::BlockTarget::new(
+                target
                     .block
                     .block()
                     .and_then(|block| block_map.get(&block).copied())
                     .map(mir::BlockReference::from)
                     .unwrap_or(target.block),
-                arguments: target.arguments.clone(),
-            },
+                target.arguments.clone(),
+            ),
         },
         mir::Terminator::Branch {
             condition,
@@ -448,24 +450,24 @@ fn remap_terminator_blocks(
             else_target,
         } => mir::Terminator::Branch {
             condition: *condition,
-            then_target: mir::BlockTarget {
-                block: then_target
+            then_target: mir::BlockTarget::new(
+                then_target
                     .block
                     .block()
                     .and_then(|block| block_map.get(&block).copied())
                     .map(mir::BlockReference::from)
                     .unwrap_or(then_target.block),
-                arguments: then_target.arguments.clone(),
-            },
-            else_target: mir::BlockTarget {
-                block: else_target
+                then_target.arguments.clone(),
+            ),
+            else_target: mir::BlockTarget::new(
+                else_target
                     .block
                     .block()
                     .and_then(|block| block_map.get(&block).copied())
                     .map(mir::BlockReference::from)
                     .unwrap_or(else_target.block),
-                arguments: else_target.arguments.clone(),
-            },
+                else_target.arguments.clone(),
+            ),
         },
         mir::Terminator::Check {
             constraint,
@@ -473,24 +475,24 @@ fn remap_terminator_blocks(
             failure,
         } => mir::Terminator::Check {
             constraint: constraint.clone(),
-            success: mir::BlockTarget {
-                block: success
+            success: mir::BlockTarget::new(
+                success
                     .block
                     .block()
                     .and_then(|block| block_map.get(&block).copied())
                     .map(mir::BlockReference::from)
                     .unwrap_or(success.block),
-                arguments: success.arguments.clone(),
-            },
-            failure: mir::BlockTarget {
-                block: failure
+                success.arguments.clone(),
+            ),
+            failure: mir::BlockTarget::new(
+                failure
                     .block
                     .block()
                     .and_then(|block| block_map.get(&block).copied())
                     .map(mir::BlockReference::from)
                     .unwrap_or(failure.block),
-                arguments: failure.arguments.clone(),
-            },
+                failure.arguments.clone(),
+            ),
         },
         mir::Terminator::NewZeroedTry {
             layout,
@@ -538,29 +540,28 @@ fn remap_terminator_blocks(
             cases,
         } => mir::Terminator::Switch {
             value: *value,
-            default: mir::BlockTarget {
-                block: default
+            default: mir::BlockTarget::new(
+                default
                     .block
                     .block()
                     .and_then(|block| block_map.get(&block).copied())
                     .map(mir::BlockReference::from)
                     .unwrap_or(default.block),
-                arguments: default.arguments.clone(),
-            },
+                default.arguments.clone(),
+            ),
             cases: cases
                 .iter()
                 .map(|case| mir::SwitchCase {
                     value: case.value,
-                    target: mir::BlockTarget {
-                        block: case
-                            .target
+                    target: mir::BlockTarget::new(
+                        case.target
                             .block
                             .block()
                             .and_then(|block| block_map.get(&block).copied())
                             .map(mir::BlockReference::from)
                             .unwrap_or(case.target.block),
-                        arguments: case.target.arguments.clone(),
-                    },
+                        case.target.arguments.clone(),
+                    ),
                 })
                 .collect(),
         },
@@ -633,23 +634,25 @@ fn remap_terminator_blocks(
             unwind,
         } => mir::Terminator::Yield {
             value: *value,
-            resume: mir::BlockTarget {
-                block: resume
+            resume: mir::BlockTarget::new(
+                resume
                     .block
                     .block()
                     .and_then(|block| block_map.get(&block).copied())
                     .map(mir::BlockReference::from)
                     .unwrap_or(resume.block),
-                arguments: resume.arguments.clone(),
-            },
-            unwind: unwind.as_ref().map(|unwind| mir::BlockTarget {
-                block: unwind
-                    .block
-                    .block()
-                    .and_then(|block| block_map.get(&block).copied())
-                    .map(mir::BlockReference::from)
-                    .unwrap_or(unwind.block),
-                arguments: unwind.arguments.clone(),
+                resume.arguments.clone(),
+            ),
+            unwind: unwind.as_ref().map(|unwind| {
+                mir::BlockTarget::new(
+                    unwind
+                        .block
+                        .block()
+                        .and_then(|block| block_map.get(&block).copied())
+                        .map(mir::BlockReference::from)
+                        .unwrap_or(unwind.block),
+                    unwind.arguments.clone(),
+                )
             }),
         },
     }
@@ -1206,10 +1209,7 @@ fn transform_accumulator_block(
     let jump_arguments: Vec<_> = jump_args.into_iter().map(Into::into).collect();
 
     let new_terminator = mir::Terminator::Jump {
-        target: mir::BlockTarget {
-            block: entry_block.into(),
-            arguments: jump_arguments,
-        },
+        target: mir::BlockTarget::new(entry_block.into(), jump_arguments),
     };
 
     // replace the block
@@ -1347,10 +1347,7 @@ fn transform_self_recursive_tail_call(
     new_instructions.pop();
 
     let new_terminator = mir::Terminator::Jump {
-        target: mir::BlockTarget {
-            block: entry_block.into(),
-            arguments: jump_arguments,
-        },
+        target: mir::BlockTarget::new(entry_block.into(), jump_arguments),
     };
 
     let mut new_block = block.clone();

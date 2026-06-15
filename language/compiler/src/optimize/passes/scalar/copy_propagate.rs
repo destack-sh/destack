@@ -409,10 +409,7 @@ fn remove_arguments_at_indices(
             }
 
             mir::Terminator::Jump {
-                target: mir::BlockTarget {
-                    block: target.block,
-                    arguments: new_arguments,
-                },
+                target: mir::BlockTarget::new(target.block, new_arguments),
             }
         }
         mir::Terminator::Branch {
@@ -435,14 +432,8 @@ fn remove_arguments_at_indices(
             if new_then_args != then_target.arguments || new_else_args != else_target.arguments {
                 mir::Terminator::Branch {
                     condition: *condition,
-                    then_target: mir::BlockTarget {
-                        block: then_target.block,
-                        arguments: new_then_args,
-                    },
-                    else_target: mir::BlockTarget {
-                        block: else_target.block,
-                        arguments: new_else_args,
-                    },
+                    then_target: mir::BlockTarget::new(then_target.block, new_then_args),
+                    else_target: mir::BlockTarget::new(else_target.block, new_else_args),
                 }
             } else {
                 terminator.clone()
@@ -468,14 +459,8 @@ fn remove_arguments_at_indices(
             if new_success_args != success.arguments || new_failure_args != failure.arguments {
                 mir::Terminator::Check {
                     constraint: constraint.clone(),
-                    success: mir::BlockTarget {
-                        block: success.block,
-                        arguments: new_success_args,
-                    },
-                    failure: mir::BlockTarget {
-                        block: failure.block,
-                        arguments: new_failure_args,
-                    },
+                    success: mir::BlockTarget::new(success.block, new_success_args),
+                    failure: mir::BlockTarget::new(failure.block, new_failure_args),
                 }
             } else {
                 terminator.clone()
@@ -504,19 +489,13 @@ fn remove_arguments_at_indices(
                         .unwrap_or_else(|| case.target.arguments.clone());
                     mir::SwitchCase {
                         value: case.value,
-                        target: mir::BlockTarget {
-                            block: case.target.block,
-                            arguments: new_args,
-                        },
+                        target: mir::BlockTarget::new(case.target.block, new_args),
                     }
                 })
                 .collect();
             mir::Terminator::Switch {
                 value: *value,
-                default: mir::BlockTarget {
-                    block: default.block,
-                    arguments: new_default_args,
-                },
+                default: mir::BlockTarget::new(default.block, new_default_args),
                 cases: new_cases,
             }
         }
@@ -546,19 +525,13 @@ fn remove_arguments_at_indices(
                     unwind.arguments.clone()
                 };
 
-                mir::BlockTarget {
-                    block: unwind.block,
-                    arguments,
-                }
+                mir::BlockTarget::new(unwind.block, arguments)
             });
 
             if new_resume_args != resume.arguments || new_unwind != *unwind {
                 mir::Terminator::Yield {
                     value: *value,
-                    resume: mir::BlockTarget {
-                        block: resume.block,
-                        arguments: new_resume_args,
-                    },
+                    resume: mir::BlockTarget::new(resume.block, new_resume_args),
                     unwind: new_unwind,
                 }
             } else {

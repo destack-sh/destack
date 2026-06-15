@@ -9,9 +9,10 @@ use crate::optimize::passes::scalar::{
 use crate::optimize::{ModulePass, PipelineContext, run_function_passes_always};
 use destack_mir::{
     CallGraphScc, CallsiteHotness, ConstantPropagation, Mutation, ParameterRemap, SignatureKey,
-    apply_constant_parameters, build_signature_type, callsite_hotness, clone_instruction_metadata,
-    constant_arguments_for_parameters, constant_propagation_with_params,
-    instruction_map_with_locals, required_parameter_indices, terminator_remap,
+    apply_constant_parameters, block_hotness_from_counts, build_signature_type,
+    clone_instruction_metadata, constant_arguments_for_parameters,
+    constant_propagation_with_params, instruction_map_with_locals, required_parameter_indices,
+    terminator_remap,
 };
 
 /// Maximum specializations per function.
@@ -173,6 +174,11 @@ fn run_argument_specialize(
         HashMap::new();
     let mut specialization_counts: HashMap<mir::LocalNodeId<mir::Function>, usize> = HashMap::new();
     let mut total_specializations = 0usize;
+    let mut caller_block_counts: HashMap<
+        mir::LocalNodeId<mir::Function>,
+        HashMap<mir::LocalNodeId<mir::Block>, u64>,
+    > = HashMap::new();
+
     // process callsites for specialization
     for callsite in &call_data.callsites {
         // skip recursive callees
@@ -197,12 +203,28 @@ fn run_argument_specialize(
         }
 
         // skip cold callsites when profile data is present
-        let hotness = callsite_hotness(
-            ctx.profile(),
-            callsite.caller,
-            mir::CallSite::Instruction(callsite.call_instruction),
-        );
-        if matches!(hotness, CallsiteHotness::Cold) {
+        if !caller_block_counts.contains_key(&callsite.caller) {
+            let counts = mir::profile_block_counts(
+                tree.get(callsite.caller),
+                tree,
+                ctx.profile(),
+                &mir::FunctionAnalyses::new(),
+            );
+            caller_block_counts.insert(callsite.caller, counts);
+        }
+        let entry_count = ctx
+            .profile()
+            .and_then(|profile| profile.function(tree.get(callsite.caller).symbol))
+            .map(|function_profile| function_profile.entry.get())
+            .unwrap_or(0);
+        let block_count = caller_block_counts[&callsite.caller]
+            .get(&callsite.block)
+            .copied()
+            .unwrap_or(0);
+        if matches!(
+            block_hotness_from_counts(block_count, entry_count),
+            CallsiteHotness::Cold
+        ) {
             continue;
         }
 
@@ -884,38 +906,10 @@ b0:
 
         let mut test = TestProgram::new(input);
         let root_id = test.function_id_by_name("root");
-        let (call_id, _) = test.first_call_in_entry(root_id);
 
+        // a cold caller leaves the callsite unspecialized
         let mut profile = mir::Profile::new();
-        test.record_function_count(&mut profile, root_id, 100);
-        test.record_callsite_profile(&mut profile, call_id, 5);
-
-        test.run_module_pass_with_profile(&ArgumentSpecialize, profile);
-        test.assert_unchanged(input);
-    }
-
-    /// Missing callsite profiles prevent specialization.
-    #[test]
-    fn test_argument_specialize_skips_missing_callsite_profile() {
-        let input = r#"
-function callee(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    return v2
-}
-function root(): int32 {
-b0:
-    v0: int32 = 2int32
-    v1: int32 = 3int32
-    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
-    return v2
-}"#;
-
-        let mut test = TestProgram::new(input);
-        let root_id = test.function_id_by_name("root");
-
-        let mut profile = mir::Profile::new();
-        test.record_function_count(&mut profile, root_id, 100);
+        test.record_function_entry(&mut profile, root_id, 5);
 
         test.run_module_pass_with_profile(&ArgumentSpecialize, profile);
         test.assert_unchanged(input);
@@ -939,11 +933,9 @@ b0:
 }"#;
 
         let mut test = TestProgram::new(input);
-        let root_id = test.function_id_by_name("root");
-        let (call_id, _) = test.first_call_in_entry(root_id);
 
-        let mut profile = mir::Profile::new();
-        test.record_callsite_profile(&mut profile, call_id, 5);
+        // without a function entry count the caller hotness is unknown, so skip
+        let profile = mir::Profile::new();
 
         test.run_module_pass_with_profile(&ArgumentSpecialize, profile);
         test.assert_unchanged(input);
@@ -989,11 +981,10 @@ entry0:
 
         let mut test = TestProgram::new(input);
         let root_id = test.function_id_by_name("root");
-        let (call_id, _) = test.first_call_in_entry(root_id);
 
+        // a hot caller specializes the constant callsite
         let mut profile = mir::Profile::new();
-        test.record_function_count(&mut profile, root_id, 100);
-        test.record_callsite_profile(&mut profile, call_id, 25);
+        test.record_function_entry(&mut profile, root_id, 100);
 
         test.run_module_pass_with_profile(&ArgumentSpecialize, profile);
         test.assert_output(expected);

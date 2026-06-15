@@ -640,15 +640,15 @@ fn apply_distribution(
     // update the preheader to enter the first header
     let preheader_block = tree.get(candidate.preheader).clone();
     let new_terminator = mir::Terminator::Jump {
-        target: mir::BlockTarget {
-            block: loop_instances[0].header.into(),
-            arguments: candidate
+        target: mir::BlockTarget::new(
+            loop_instances[0].header.into(),
+            candidate
                 .preheader_args
                 .iter()
                 .copied()
                 .map(Into::into)
                 .collect(),
-        },
+        ),
     };
     tree.set(candidate.preheader, preheader_block);
     tree.set(tree.get(candidate.preheader).terminator, new_terminator);
@@ -739,10 +739,7 @@ fn update_header_exit(
     } else {
         Vec::new()
     };
-    let exit_target = mir::BlockTarget {
-        block: exit_target.into(),
-        arguments: exit_arguments,
-    };
+    let exit_target = mir::BlockTarget::new(exit_target.into(), exit_arguments);
 
     // rewrite the header terminator
     let new_terminator = if in_loop_is_then {

@@ -6,10 +6,9 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     CallsiteHotness, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, Mutation, RangeAnalysis,
-    SuccessorArguments, block_execution_counts, block_hotness_from_counts, bool_from_range,
-    build_value_definition_map, clone_instruction_metadata, clone_loop_blocks,
-    instruction_is_speculatable, instruction_map_with_locals,
-    terminator_arguments_for_successor_checked, terminator_remap,
+    SuccessorArguments, block_hotness_from_counts, bool_from_range, build_value_definition_map,
+    clone_instruction_metadata, clone_loop_blocks, instruction_is_speculatable,
+    instruction_map_with_locals, terminator_arguments_for_successor_checked, terminator_remap,
 };
 
 declare_pass! {
@@ -132,7 +131,7 @@ fn run_loop_unswitch(
         };
 
         // compute profile driven heuristics
-        let heuristics = UnswitchHeuristics::new(function, tree, ctx.profile());
+        let heuristics = UnswitchHeuristics::new(function, tree, ctx.profile(), analyses);
 
         // stop when there are no loops to process
         if loops.num_loops() == 0 {
@@ -256,9 +255,14 @@ struct UnswitchHeuristics {
 
 impl UnswitchHeuristics {
     /// Create heuristics from profile data.
-    fn new(function: &mir::Function, tree: &mir::Tree, profile: Option<&mir::Profile>) -> Self {
+    fn new(
+        function: &mir::Function,
+        tree: &mir::Tree,
+        profile: Option<&mir::Profile>,
+        analyses: &mir::FunctionAnalyses,
+    ) -> Self {
         // compute block counts from profile data
-        let block_counts = block_execution_counts(function, tree, profile);
+        let block_counts = mir::profile_block_counts(function, tree, profile, analyses);
         let entry_count = function
             .entry
             .and_then(|entry| block_counts.get(&entry).copied())
@@ -635,15 +639,15 @@ fn unswitch_loop(
     // modify original branch block: always take the "then" branch
     let branch_block = tree.get(candidate.branch_block).clone();
     let branch_terminator = mir::Terminator::Jump {
-        target: mir::BlockTarget {
-            block: candidate.then_target.into(),
-            arguments: candidate
+        target: mir::BlockTarget::new(
+            candidate.then_target.into(),
+            candidate
                 .then_arguments
                 .iter()
                 .copied()
                 .map(Into::into)
                 .collect(),
-        },
+        ),
     };
     tree.set(branch_block.terminator, branch_terminator);
     tree.set(candidate.branch_block, branch_block);
@@ -661,10 +665,10 @@ fn unswitch_loop(
         .map(|v| *value_map.get(v).unwrap_or(v))
         .collect();
     let cloned_terminator = mir::Terminator::Jump {
-        target: mir::BlockTarget {
-            block: else_target.into(),
-            arguments: else_arguments.into_iter().map(Into::into).collect(),
-        },
+        target: mir::BlockTarget::new(
+            else_target.into(),
+            else_arguments.into_iter().map(Into::into).collect(),
+        ),
     };
     tree.set(cloned.terminator, cloned_terminator);
     tree.set(cloned_branch_block, cloned);
@@ -688,24 +692,24 @@ fn unswitch_loop(
     };
     let preheader_terminator = mir::Terminator::Branch {
         condition: condition_value.into(),
-        then_target: mir::BlockTarget {
-            block: candidate.header.into(),
-            arguments: candidate
+        then_target: mir::BlockTarget::new(
+            candidate.header.into(),
+            candidate
                 .preheader_to_header_args
                 .iter()
                 .copied()
                 .map(Into::into)
                 .collect(),
-        },
-        else_target: mir::BlockTarget {
-            block: cloned_header.into(),
-            arguments: candidate
+        ),
+        else_target: mir::BlockTarget::new(
+            cloned_header.into(),
+            candidate
                 .preheader_to_header_args
                 .iter()
                 .copied()
                 .map(Into::into)
                 .collect(),
-        },
+        ),
     };
     tree.set(preheader.terminator, preheader_terminator);
     tree.set(candidate.preheader, preheader);
@@ -1301,9 +1305,10 @@ b3:
             _ => panic!("missing loop header jump"),
         };
 
+        // a cold function leaves its loop branches unswitched
         let mut profile = mir::Profile::new();
-        profile.blocks.insert(entry_block, mir::Count::new(100));
-        profile.blocks.insert(header_block, mir::Count::new(1));
+        test.record_function_entry(&mut profile, function_id, 1);
+        test.record_successor_weights(header_block, &[1, 1]);
 
         test.run_pass_with_profile(&LoopUnswitch, profile);
         test.assert_output(input);

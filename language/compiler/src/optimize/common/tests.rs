@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use destack_core::StringPool;
@@ -538,73 +539,59 @@ impl TestProgram {
             .expect("jump should reference a concrete block")
     }
 
-    /// Record a jump edge profile count.
-    pub(crate) fn record_jump_edge_count(
-        &self,
-        profile: &mut mir::Profile,
-        source: mir::LocalNodeId<mir::Block>,
-        target: mir::LocalNodeId<mir::Block>,
-        count: u64,
-    ) {
-        // record the edge profile count
-        profile.edges.insert(
-            mir::Edge::new(source, mir::Successor::Jump, target),
-            mir::Count::new(count),
-        );
-    }
-
-    /// Record a function entry profile count.
-    pub(crate) fn record_function_count(
+    /// Record a function's profiled entry execution count, keyed by its symbol.
+    pub(crate) fn record_function_entry(
         &self,
         profile: &mut mir::Profile,
         function: mir::LocalNodeId<mir::Function>,
         count: u64,
     ) {
-        // record the function entry count
-        profile.functions.insert(function, mir::Count::new(count));
-    }
-
-    /// Record a block execution profile count.
-    pub(crate) fn record_block_count(
-        &self,
-        profile: &mut mir::Profile,
-        block: mir::LocalNodeId<mir::Block>,
-        count: u64,
-    ) {
-        // record the block execution count
-        profile.blocks.insert(block, mir::Count::new(count));
-    }
-
-    /// Record a control flow edge profile count.
-    pub(crate) fn record_edge_count(
-        &self,
-        profile: &mut mir::Profile,
-        source: mir::LocalNodeId<mir::Block>,
-        kind: mir::Successor,
-        target: mir::LocalNodeId<mir::Block>,
-        count: u64,
-    ) {
-        // record the edge execution count
-        let edge = mir::Edge::new(source, kind, target);
-        profile.edges.insert(edge, mir::Count::new(count));
-    }
-
-    /// Record a callsite profile count.
-    pub(crate) fn record_callsite_profile(
-        &self,
-        profile: &mut mir::Profile,
-        callsite: mir::LocalNodeId<mir::Instruction>,
-        count: u64,
-    ) {
-        // record the callsite profile count
-        profile.callsites.insert(
-            mir::CallSite::Instruction(callsite),
-            mir::CallSiteProfile {
-                total_count: mir::Count::new(count),
-                targets: Vec::new(),
-                unknown_count: mir::Count::default(),
+        // store the entry count that scales the function's block frequencies
+        let symbol = self.tree.get(function).symbol;
+        profile.functions.insert(
+            symbol,
+            mir::FunctionProfile {
+                hash: mir::FunctionHash(0),
+                entry: mir::Count::new(count),
+                counts: Vec::new(),
+                values: HashMap::new(),
             },
         );
+    }
+
+    /// Set relative weights on a block terminator's successors, in field order.
+    ///
+    /// Ordering matches the terminator's successor fields: branch is then then else,
+    /// switch is default then each case, and check is success then failure.
+    pub(crate) fn record_successor_weights(
+        &mut self,
+        block: mir::LocalNodeId<mir::Block>,
+        weights: &[u32],
+    ) {
+        // collect the successor targets in field order
+        let terminator_id = self.tree.get(block).terminator;
+        let terminator = self.tree.get_mut(terminator_id);
+        let targets: Vec<&mut mir::BlockTarget> = match terminator {
+            mir::Terminator::Branch {
+                then_target,
+                else_target,
+                ..
+            } => vec![then_target, else_target],
+            mir::Terminator::Check {
+                success, failure, ..
+            } => vec![success, failure],
+            mir::Terminator::Switch { default, cases, .. } => {
+                let mut targets = vec![default];
+                targets.extend(cases.iter_mut().map(|case| &mut case.target));
+                targets
+            }
+            _ => panic!("terminator has no weighted successors"),
+        };
+
+        // weight each successor so block frequencies follow the profiled split
+        for (target, &weight) in targets.into_iter().zip(weights) {
+            target.weight = mir::EdgeWeight::Known(weight);
+        }
     }
 
     /// Apply a module pass to the program.

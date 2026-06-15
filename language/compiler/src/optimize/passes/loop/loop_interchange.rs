@@ -351,15 +351,15 @@ fn apply_interchange(tree: &mut mir::Tree, candidate: &InterchangeCandidate) -> 
     // update the outer preheader to jump to the inner header
     let preheader_block = tree.get(candidate.outer_preheader).clone();
     let preheader_terminator = mir::Terminator::Jump {
-        target: mir::BlockTarget {
-            block: candidate.inner_header.into(),
-            arguments: candidate
+        target: mir::BlockTarget::new(
+            candidate.inner_header.into(),
+            candidate
                 .inner_header_args
                 .iter()
                 .copied()
                 .map(Into::into)
                 .collect(),
-        },
+        ),
     };
     tree.set(candidate.outer_preheader, preheader_block);
     tree.set(
@@ -384,36 +384,30 @@ fn apply_interchange(tree: &mut mir::Tree, candidate: &InterchangeCandidate) -> 
     let new_inner_terminator = if in_loop_is_then {
         mir::Terminator::Branch {
             condition: *condition,
-            then_target: mir::BlockTarget {
-                block: candidate.outer_header.into(),
-                arguments: candidate
+            then_target: mir::BlockTarget::new(
+                candidate.outer_header.into(),
+                candidate
                     .outer_preheader_args
                     .iter()
                     .copied()
                     .map(Into::into)
                     .collect(),
-            },
-            else_target: mir::BlockTarget {
-                block: candidate.outer_exit.into(),
-                arguments: Vec::new(),
-            },
+            ),
+            else_target: mir::BlockTarget::new(candidate.outer_exit.into(), Vec::new()),
         }
     } else {
         mir::Terminator::Branch {
             condition: *condition,
-            then_target: mir::BlockTarget {
-                block: candidate.outer_exit.into(),
-                arguments: Vec::new(),
-            },
-            else_target: mir::BlockTarget {
-                block: candidate.outer_header.into(),
-                arguments: candidate
+            then_target: mir::BlockTarget::new(candidate.outer_exit.into(), Vec::new()),
+            else_target: mir::BlockTarget::new(
+                candidate.outer_header.into(),
+                candidate
                     .outer_preheader_args
                     .iter()
                     .copied()
                     .map(Into::into)
                     .collect(),
-            },
+            ),
         }
     };
     tree.set(candidate.inner_header, inner_header_block);
@@ -439,26 +433,14 @@ fn apply_interchange(tree: &mut mir::Tree, candidate: &InterchangeCandidate) -> 
     let new_outer_terminator = if in_loop_is_then {
         mir::Terminator::Branch {
             condition: *condition,
-            then_target: mir::BlockTarget {
-                block: candidate.outer_latch.into(),
-                arguments: Vec::new(),
-            },
-            else_target: mir::BlockTarget {
-                block: candidate.inner_latch.into(),
-                arguments: Vec::new(),
-            },
+            then_target: mir::BlockTarget::new(candidate.outer_latch.into(), Vec::new()),
+            else_target: mir::BlockTarget::new(candidate.inner_latch.into(), Vec::new()),
         }
     } else {
         mir::Terminator::Branch {
             condition: *condition,
-            then_target: mir::BlockTarget {
-                block: candidate.inner_latch.into(),
-                arguments: Vec::new(),
-            },
-            else_target: mir::BlockTarget {
-                block: candidate.outer_latch.into(),
-                arguments: Vec::new(),
-            },
+            then_target: mir::BlockTarget::new(candidate.inner_latch.into(), Vec::new()),
+            else_target: mir::BlockTarget::new(candidate.outer_latch.into(), Vec::new()),
         }
     };
     tree.set(candidate.outer_header, outer_header_block);

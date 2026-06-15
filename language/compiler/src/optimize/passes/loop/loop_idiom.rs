@@ -272,10 +272,7 @@ fn run_loop_idiom(
 
                 let mem_block = if should_guard {
                     let terminator = tree.insert(mir::Terminator::Jump {
-                        target: mir::BlockTarget {
-                            block: exit_block.into(),
-                            arguments: Vec::new(),
-                        },
+                        target: mir::BlockTarget::new(exit_block.into(), Vec::new()),
                     });
                     let mem_block = tree.insert(mir::Block {
                         name: None,
@@ -317,10 +314,7 @@ fn run_loop_idiom(
                     &mut mem_block_data,
                 );
                 let mem_terminator = mir::Terminator::Jump {
-                    target: mir::BlockTarget {
-                        block: exit_block.into(),
-                        arguments: Vec::new(),
-                    },
+                    target: mir::BlockTarget::new(exit_block.into(), Vec::new()),
                 };
                 tree.set(mem_block, mem_block_data);
                 tree.set(tree.get(mem_block).terminator, mem_terminator);
@@ -342,10 +336,7 @@ fn run_loop_idiom(
                     }
                 } else {
                     let preheader_terminator = mir::Terminator::Jump {
-                        target: mir::BlockTarget {
-                            block: exit_block.into(),
-                            arguments: Vec::new(),
-                        },
+                        target: mir::BlockTarget::new(exit_block.into(), Vec::new()),
                     };
                     tree.set(preheader_block.terminator, preheader_terminator);
                 }
@@ -434,10 +425,7 @@ fn run_loop_idiom(
 
             let mem_block = if should_guard {
                 let terminator = tree.insert(mir::Terminator::Jump {
-                    target: mir::BlockTarget {
-                        block: exit_block.into(),
-                        arguments: Vec::new(),
-                    },
+                    target: mir::BlockTarget::new(exit_block.into(), Vec::new()),
                 });
                 let mem_block = tree.insert(mir::Block {
                     name: None,
@@ -490,10 +478,7 @@ fn run_loop_idiom(
                 &mut mem_block_data,
             );
             let mem_terminator = mir::Terminator::Jump {
-                target: mir::BlockTarget {
-                    block: exit_block.into(),
-                    arguments: Vec::new(),
-                },
+                target: mir::BlockTarget::new(exit_block.into(), Vec::new()),
             };
             tree.set(mem_block, mem_block_data);
             tree.set(tree.get(mem_block).terminator, mem_terminator);
@@ -514,10 +499,7 @@ fn run_loop_idiom(
                 }
             } else {
                 let preheader_terminator = mir::Terminator::Jump {
-                    target: mir::BlockTarget {
-                        block: exit_block.into(),
-                        arguments: Vec::new(),
-                    },
+                    target: mir::BlockTarget::new(exit_block.into(), Vec::new()),
                 };
                 tree.set(preheader_block.terminator, preheader_terminator);
             }
@@ -895,14 +877,8 @@ fn insert_bound_guard(
     let guard_value = tree.get(guard_inst).destination()?;
     let guard_terminator = mir::Terminator::Branch {
         condition: guard_value,
-        then_target: mir::BlockTarget {
-            block: success_target.into(),
-            arguments: Vec::new(),
-        },
-        else_target: mir::BlockTarget {
-            block: failure_target.into(),
-            arguments: Vec::new(),
-        },
+        then_target: mir::BlockTarget::new(success_target.into(), Vec::new()),
+        else_target: mir::BlockTarget::new(failure_target.into(), Vec::new()),
     };
     tree.set(preheader_block.terminator, guard_terminator);
 

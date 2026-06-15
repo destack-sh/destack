@@ -284,14 +284,14 @@ fn run_loop_versioning(
         };
         let preheader_terminator = mir::Terminator::Branch {
             condition,
-            then_target: mir::BlockTarget {
-                block: fast_header.into(),
-                arguments: preheader_args.iter().copied().map(Into::into).collect(),
-            },
-            else_target: mir::BlockTarget {
-                block: header.into(),
-                arguments: preheader_args.iter().copied().map(Into::into).collect(),
-            },
+            then_target: mir::BlockTarget::new(
+                fast_header.into(),
+                preheader_args.iter().copied().map(Into::into).collect(),
+            ),
+            else_target: mir::BlockTarget::new(
+                header.into(),
+                preheader_args.iter().copied().map(Into::into).collect(),
+            ),
         };
         tree.set(preheader_block.terminator, preheader_terminator);
         tree.set(preheader, preheader_block);

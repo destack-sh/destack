@@ -1070,10 +1070,7 @@ fn append_arguments_for_successor(
             let mut updated_args = target.arguments.clone();
             updated_args.extend(new_args.iter().copied().map(mir::ValueReference::from));
             Some(mir::Terminator::Jump {
-                target: mir::BlockTarget {
-                    block: target.block,
-                    arguments: updated_args,
-                },
+                target: mir::BlockTarget::new(target.block, updated_args),
             })
         }
         mir::Terminator::Branch {
@@ -1104,14 +1101,8 @@ fn append_arguments_for_successor(
 
             Some(mir::Terminator::Branch {
                 condition: *condition,
-                then_target: mir::BlockTarget {
-                    block: then_target.block,
-                    arguments: updated_then,
-                },
-                else_target: mir::BlockTarget {
-                    block: else_target.block,
-                    arguments: updated_else,
-                },
+                then_target: mir::BlockTarget::new(then_target.block, updated_then),
+                else_target: mir::BlockTarget::new(else_target.block, updated_else),
             })
         }
         mir::Terminator::Check {
@@ -1142,14 +1133,8 @@ fn append_arguments_for_successor(
 
             Some(mir::Terminator::Check {
                 constraint: constraint.clone(),
-                success: mir::BlockTarget {
-                    block: success.block,
-                    arguments: updated_success,
-                },
-                failure: mir::BlockTarget {
-                    block: failure.block,
-                    arguments: updated_failure,
-                },
+                success: mir::BlockTarget::new(success.block, updated_success),
+                failure: mir::BlockTarget::new(failure.block, updated_failure),
             })
         }
         mir::Terminator::Switch {
@@ -1179,10 +1164,7 @@ fn append_arguments_for_successor(
 
                 updated_cases.push(mir::SwitchCase {
                     value: case.value,
-                    target: mir::BlockTarget {
-                        block: case.target.block,
-                        arguments: updated_case_args,
-                    },
+                    target: mir::BlockTarget::new(case.target.block, updated_case_args),
                 });
             }
 
@@ -1193,10 +1175,7 @@ fn append_arguments_for_successor(
 
             Some(mir::Terminator::Switch {
                 value: *value,
-                default: mir::BlockTarget {
-                    block: default.block,
-                    arguments: updated_default,
-                },
+                default: mir::BlockTarget::new(default.block, updated_default),
                 cases: updated_cases,
             })
         }
