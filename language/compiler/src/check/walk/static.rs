@@ -4,7 +4,7 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{Condition, FlowState, NameLookup, NameTarget, StaticIfCondition, WalkState};
-use crate::r#static::{StaticContext, StaticFailure, StaticValue};
+use crate::r#static::{StaticContext, StaticError};
 
 /// One active static guard scope.
 pub(in crate::check) struct StaticGuard {
@@ -194,14 +194,14 @@ impl WalkState<'_, '_> {
         match evaluated {
             Ok(true) => Ok(GuardOutcome::Present(Condition::Always)),
             Ok(false) => Ok(GuardOutcome::Absent),
-            Err(StaticFailure::NotBoolean(expression)) => {
+            Err(StaticError::NotBoolean(expression)) => {
                 self.check
                     .report_invalid_static_guard(module, expression.into_any());
 
                 Ok(GuardOutcome::Absent)
             }
             // open conditions lower to predicate types for the solver
-            Err(StaticFailure::NotStatic(_)) => {
+            Err(StaticError::NotStatic(_)) => {
                 let predicate = self.lower_static_predicate(condition)?;
 
                 Ok(GuardOutcome::Present(Condition::When(smallvec::smallvec![
@@ -237,8 +237,8 @@ impl WalkState<'_, '_> {
 
             context.evaluate_expression(expression).ok()
         };
-        if let Some(value) = evaluated
-            && let Some(literal) = self.static_value_literal(value)
+        if let Some(term) = evaluated
+            && let Some(literal) = self.static_term_literal(term)
         {
             return self.push_type(dir::Type::Literal(literal), source);
         }
@@ -374,18 +374,11 @@ impl WalkState<'_, '_> {
         }
     }
 
-    /// Return one eagerly evaluated static value as a scalar literal.
-    fn static_value_literal(&mut self, value: StaticValue) -> Option<dir::ScalarLiteral> {
-        match value {
-            StaticValue::Boolean(value) => Some(dir::ScalarLiteral::Boolean(value)),
-            StaticValue::String(value) => {
-                let id = self.check.module_mut(self.module).strings.intern(&value);
-
-                Some(dir::ScalarLiteral::String(id))
-            }
-            StaticValue::Scalar(value) => Some(value),
-            StaticValue::Undefined => Some(dir::ScalarLiteral::Undefined),
-            StaticValue::Object | StaticValue::StringList(_) => None,
+    /// Return one eagerly evaluated static term as a scalar literal.
+    fn static_term_literal(&self, term: dir::StaticTerm) -> Option<dir::ScalarLiteral> {
+        match term {
+            dir::StaticTerm::ScalarLiteral { value } => Some(value),
+            _ => None,
         }
     }
 }

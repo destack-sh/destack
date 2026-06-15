@@ -19,6 +19,16 @@ pub enum EmitFormat {
 }
 
 impl EmitFormat {
+    /// The canonical lowercase tag for this format.
+    pub fn canonical_tag(&self) -> &'static str {
+        match self {
+            Self::Js => "js",
+            Self::Ts => "ts",
+            Self::Wasm => "wasm",
+            Self::Native => "native",
+        }
+    }
+
     /// Whether this family produces JavaScript output.
     pub fn is_js(&self) -> bool {
         matches!(self, Self::Js)

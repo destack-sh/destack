@@ -1,9 +1,7 @@
 use destack_dir as dir;
 
-use crate::r#static::{
-    StaticContext, StaticFailure, StaticGuard, StaticGuardError, static_guard,
-};
 use crate::import::state::ImportState;
+use crate::r#static::{StaticContext, StaticError, StaticGuard, StaticGuardError, static_guard};
 use crate::{CompilerResult, ImportError};
 
 impl ImportState<'_> {
@@ -68,13 +66,13 @@ impl ImportState<'_> {
 
         match context.evaluate_boolean(condition) {
             Ok(value) => Ok(Some(value)),
-            Err(StaticFailure::NotBoolean(expression)) => {
+            Err(StaticError::NotBoolean(expression)) => {
                 let anchor = self.anchor_node(expression.id)?;
                 self.report_diagnostic(ImportError::StaticIfRequiresBoolean { anchor });
 
                 Ok(None)
             }
-            Err(StaticFailure::NotStatic(expression)) => {
+            Err(StaticError::NotStatic(expression)) => {
                 let anchor = self.anchor_node(expression.id)?;
                 self.report_diagnostic(ImportError::StaticIfNotStatic { anchor });
 
