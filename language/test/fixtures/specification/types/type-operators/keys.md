@@ -86,7 +86,7 @@ The operator sees the actual instantiation, not the bound.
 
 ```ds
 type Keys<T: { a: number }> = keyof T;
-type Actual = Keys<type { a: number; b: string }>;
+type Actual = Keys<{ a: number; b: string }>;
 
 const key: Actual = "b";
 key satisfies "a" | "b";

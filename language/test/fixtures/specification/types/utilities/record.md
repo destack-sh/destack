@@ -20,7 +20,7 @@ ok satisfies Flags;
 Keys must be key-typed.
 
 ```ds
-type Bad = Record<type { name: string }, boolean>;
+type Bad = Record<{ name: string }, boolean>;
 ```
 
 - contains: not assignable
