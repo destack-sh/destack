@@ -4,7 +4,7 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{Condition, FlowState, NameLookup, NameTarget, StaticIfCondition, WalkState};
-use crate::common::dir::r#static::{StaticContext, StaticFailure, StaticValue};
+use crate::r#static::{StaticContext, StaticFailure, StaticValue};
 
 /// One active static guard scope.
 pub(in crate::check) struct StaticGuard {
