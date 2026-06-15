@@ -156,31 +156,12 @@ impl Parser {
         let speculative_start_idx = self.tree.next_id();
         let parsed_type_expression =
             self.with_flags(context, |parser| parser.eat_type_expression());
-        let type_expression_id = parsed_type_expression.ok();
-        let prefers_type_expression = type_expression_id.is_some_and(|type_expression_id| {
-            self.generic_argument_allows_implicit_type_marker(type_expression_id)
-        }) && self.generic_argument_has_boundary();
+        let prefers_type_expression =
+            parsed_type_expression.is_ok() && self.generic_argument_has_boundary();
 
         self.restore(speculative_start, speculative_start_idx);
 
         prefers_type_expression
-    }
-
-    /// Return whether one type generic argument can omit its `type` marker.
-    fn generic_argument_allows_implicit_type_marker(
-        &self,
-        type_expression_id: LocalNodeId<TypeExpression>,
-    ) -> bool {
-        // typescript generic arguments are always types
-        if !self.language.is_destack() {
-            return true;
-        }
-
-        // destack object shaped types overlap with value literals
-        !matches!(
-            self.tree.get(type_expression_id),
-            TypeExpression::Object { .. } | TypeExpression::Mapped { .. }
-        )
     }
 
     /// Return whether the current generic argument starts as an unambiguous type.
@@ -199,7 +180,7 @@ impl Parser {
             return false;
         }
 
-        // destack keeps object-shaped arguments ambiguous without `type`
+        // object-shaped arguments need the whole-argument parse above
         let token_type = self.peek_token_type();
         if token_type == TokenType::OpenBrace {
             return false;

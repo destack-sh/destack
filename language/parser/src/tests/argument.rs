@@ -1,8 +1,8 @@
 use destack_dir::{
     Argument, Asynchrony, ClassDeclaration, CommentKind, Declaration, Decorator, DecoratorPosition,
     Expression, FunctionDeclaration, FunctionRole, GenericArgument, GenericParameter, IfForm,
-    IntegerType, Key, Keyword, Member, Name, NodeType, Parameter, Pattern, PatternField, Property,
-    ScalarLiteral, TokenType, TupleElement, TypeExpression, TypeLiteral,
+    IntegerType, Key, Keyword, Member, Name, NodeType, Parameter, Pattern, PatternField,
+    ScalarLiteral, TokenType, TupleElement, TypeExpression, TypeLiteral, TypeMember,
 };
 use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
 
@@ -541,7 +541,7 @@ fn test_parse_generic_arguments_explicit_type_argument() {
 }
 
 #[test]
-fn test_parse_generic_arguments_object_literal_stays_value_in_type_context() {
+fn test_parse_generic_arguments_object_shape_prefers_type_in_type_context() {
     // <{ name: "alpha"; count: 1 }>
     let mut test =
         TestParser::new_with_language(r#"<{ name: "alpha"; count: 1 }>"#, LanguageType::Destack);
@@ -551,20 +551,20 @@ fn test_parse_generic_arguments_object_literal_stays_value_in_type_context() {
 
     test.assert_no_errors(&parser);
     assert_eq!(arguments.len(), 1);
-    assert_node!(parser.tree, arguments[0], GenericArgument::Value { value } => {
-        assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
-            assert_eq!(properties.len(), 2);
+    assert_node!(parser.tree, arguments[0], GenericArgument::Type { value } => {
+        assert_node!(parser.tree, *value, TypeExpression::Object { members } => {
+            assert_eq!(members.len(), 2);
 
-            assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
+            assert_node!(parser.tree, members[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
                 assert_string!(parser, *name, "name");
-                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(value)) => {
+                assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::ScalarLiteral { value: ScalarLiteral::String(value) } => {
                     assert_string!(parser, *value, "alpha");
                 });
             });
 
-            assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
+            assert_node!(parser.tree, members[1], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
                 assert_string!(parser, *name, "count");
-                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+                assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::ScalarLiteral { value: ScalarLiteral::Integer(1) });
             });
         });
     });
