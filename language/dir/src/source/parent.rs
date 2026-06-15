@@ -7,11 +7,14 @@ use crate::{
     TypeExpression, TypeMember, WhereClause, walk_any,
 };
 
-/// The NodeParentIndex is a side index of parent nodes into the DIR tree.
-/// (We maintain this separately since it's more convenient to build bottom up during parsing;
-///  having bottom-up ids also makes it simpler to get the "innermost" or "outermost" node unambiguously.)
+/// The NodeParentIndex maps every node of one tree to its parent.
+///
+/// Slots are keyed by node id relative to the tree base, the same convention the tree
+/// uses for its other dense per-node storage, so a tail tree indexes only its own nodes.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeParentIndex {
+    /// First global node id this index covers; slots are keyed relative to it.
+    base: u32,
     parent_id_by_node_id: Vec<u32>,
 }
 
@@ -25,9 +28,15 @@ impl NodeParentIndex {
     /// Sentinel used for nodes without a parent.
     const NO_PARENT: u32 = u32::MAX;
 
-    /// Create a new NodeParentIndex.
+    /// Create a new NodeParentIndex over a base tree.
     pub fn new() -> Self {
+        Self::with_base(0)
+    }
+
+    /// Create a new NodeParentIndex over a tree starting at one base node id.
+    pub fn with_base(base: u32) -> Self {
         Self {
+            base,
             parent_id_by_node_id: Vec::new(),
         }
     }
@@ -35,28 +44,40 @@ impl NodeParentIndex {
     /// Create a new NodeParentIndex from a Tree.
     pub fn from_tree(tree: &Tree) -> Self {
         // build dense parent lookup directly: no hash map and no captured child list
+        let base = tree.first_global_id();
         let node_count = tree.node_index_by_node_id.len();
-        let mut visitor = ParentIndexBuilderVisitor::new(node_count);
-        for (parent_id, entry) in tree.node_index_by_node_id.iter().enumerate() {
-            visitor.set_current_parent(parent_id as u32);
-            walk_any(&mut visitor, tree, entry.node_type(), parent_id as u32);
+        let mut visitor = ParentIndexBuilderVisitor::new(base, node_count);
+        for (index, entry) in tree.node_index_by_node_id.iter().enumerate() {
+            let node_id = base + index as u32;
+            visitor.set_current_parent(node_id);
+            walk_any(&mut visitor, tree, entry.node_type(), node_id);
+        }
+
+        // record side-attached decorators against the nodes they decorate
+        for (owner_id, decorator_ids) in tree.get_all_decorators() {
+            visitor.set_current_parent(*owner_id);
+            for decorator_id in decorator_ids {
+                visitor.record_parent_for(decorator_id.id);
+            }
         }
 
         Self {
+            base,
             parent_id_by_node_id: visitor.take_parent_ids(),
         }
     }
 
     /// Create a new NodeParentIndex from reachable expression roots.
     pub fn from_expression_roots(tree: &Tree, roots: &[LocalNodeId<Expression>]) -> Self {
+        let base = tree.first_global_id();
         let node_count = tree.node_index_by_node_id.len();
-        let mut reachable = ReachableNodeVisitor::new(node_count);
+        let mut reachable = ReachableNodeVisitor::new(base, node_count);
 
         for root_id in roots {
             walk_any(&mut reachable, tree, NodeType::Expression, root_id.id);
         }
 
-        let mut visitor = ParentIndexBuilderVisitor::new(node_count);
+        let mut visitor = ParentIndexBuilderVisitor::new(base, node_count);
         for parent_id in reachable.take_node_ids() {
             let node_type = tree.get_node_type(parent_id);
             visitor.set_current_parent(parent_id);
@@ -64,6 +85,7 @@ impl NodeParentIndex {
         }
 
         Self {
+            base,
             parent_id_by_node_id: visitor.take_parent_ids(),
         }
     }
@@ -80,7 +102,8 @@ impl NodeParentIndex {
     /// Get the parent for a node by its id.
     #[inline]
     pub fn get_by_id(&self, node_id: u32) -> Option<u32> {
-        let parent_id = self.parent_id_by_node_id[node_id as usize];
+        let index = node_id.checked_sub(self.base)? as usize;
+        let parent_id = *self.parent_id_by_node_id.get(index)?;
         (parent_id != Self::NO_PARENT).then_some(parent_id)
     }
 
@@ -106,15 +129,38 @@ impl NodeParentIndex {
         self.walk_parents_by_id(node_id.id)
     }
 
-    /// Append a root node with no parent.
-    pub fn append_root(&mut self) {
-        self.parent_id_by_node_id.push(Self::NO_PARENT);
+    /// Set or clear the parent for one node id, growing the index to fit.
+    #[inline]
+    pub fn set(&mut self, node_id: u32, parent_id: Option<u32>) {
+        let Some(index) = node_id.checked_sub(self.base) else {
+            return;
+        };
+
+        let index = index as usize;
+        if index >= self.parent_id_by_node_id.len() {
+            self.parent_id_by_node_id.resize(index + 1, Self::NO_PARENT);
+        }
+
+        self.parent_id_by_node_id[index] = parent_id.unwrap_or(Self::NO_PARENT);
+    }
+
+    /// Drop parents for nodes at or beyond one global id and clear dangling links.
+    #[inline]
+    pub fn truncate(&mut self, next_global_id: u32) {
+        let len = next_global_id.saturating_sub(self.base) as usize;
+        self.parent_id_by_node_id.truncate(len);
+        for parent_id in &mut self.parent_id_by_node_id {
+            if *parent_id != Self::NO_PARENT && *parent_id >= next_global_id {
+                *parent_id = Self::NO_PARENT;
+            }
+        }
     }
 }
 
 /// Internal visitor that records direct child to parent mappings.
 #[derive(Debug, Clone)]
 struct ParentIndexBuilderVisitor {
+    base: u32,
     current_parent: u32,
     parent_id_by_node_id: Vec<u32>,
     options: NodeVisitorOptions,
@@ -123,6 +169,7 @@ struct ParentIndexBuilderVisitor {
 /// Internal visitor that collects reachable node ids from one root set.
 #[derive(Debug, Clone)]
 struct ReachableNodeVisitor {
+    base: u32,
     seen: Vec<bool>,
     node_ids: Vec<u32>,
     options: NodeVisitorOptions,
@@ -130,8 +177,9 @@ struct ReachableNodeVisitor {
 
 impl ReachableNodeVisitor {
     /// Create one reachable-node collector with fixed node capacity.
-    fn new(node_count: usize) -> Self {
+    fn new(base: u32, node_count: usize) -> Self {
         Self {
+            base,
             seen: vec![false; node_count],
             node_ids: Vec::with_capacity(node_count),
             options: NodeVisitorOptions::default(),
@@ -152,19 +200,21 @@ impl NodeVisitor for ReachableNodeVisitor {
 
     #[inline]
     fn visit_any(&mut self, _tree: &Tree, _ty: NodeType, id: u32) {
-        if self.seen[id as usize] {
+        let index = (id - self.base) as usize;
+        if self.seen[index] {
             return;
         }
 
-        self.seen[id as usize] = true;
+        self.seen[index] = true;
         self.node_ids.push(id);
     }
 }
 
 impl ParentIndexBuilderVisitor {
     /// Create a parent index builder with fixed node capacity.
-    fn new(node_count: usize) -> Self {
+    fn new(base: u32, node_count: usize) -> Self {
         Self {
+            base,
             current_parent: 0,
             parent_id_by_node_id: vec![NodeParentIndex::NO_PARENT; node_count],
             options: NodeVisitorOptions::default(),
@@ -184,7 +234,7 @@ impl ParentIndexBuilderVisitor {
             return;
         }
 
-        self.parent_id_by_node_id[node_id as usize] = self.current_parent;
+        self.parent_id_by_node_id[(node_id - self.base) as usize] = self.current_parent;
     }
 
     /// Consume the builder and return the dense parent table.
