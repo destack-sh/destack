@@ -76,7 +76,9 @@ extension<T> of Slice<T> implements
     }
 
     /// Borrow the first element.
-    first<comptime A: Access = "readonly">(this: WithAccess<&Slice<T>, A>): WithAccess<&T, A> | undefined {
+    first<comptime A: Access = "readonly">(
+        this: WithAccess<&Slice<T>, A>,
+    ): WithAccess<&T, A> | undefined {
         todo("Slice.first")
     }
 
@@ -92,7 +94,9 @@ extension<T> of Slice<T> implements
     }
 
     /// Borrow the last element.
-    last<comptime A: Access = "readonly">(this: WithAccess<&Slice<T>, A>): WithAccess<&T, A> | undefined {
+    last<comptime A: Access = "readonly">(
+        this: WithAccess<&Slice<T>, A>,
+    ): WithAccess<&T, A> | undefined {
         todo("Slice.last")
     }
 
@@ -158,7 +162,9 @@ extension<T> of Slice<T> implements
     }
 
     /// Return an iterator over borrowed values.
-    iterator<comptime A: Access = "readonly">(this: WithAccess<&Slice<T>, A>): Iterator<WithAccess<&T, A>> {
+    iterator<comptime A: Access = "readonly">(
+        this: WithAccess<&Slice<T>, A>,
+    ): Iterator<WithAccess<&T, A>> {
         todo("Slice.iterator")
     }
 }
@@ -173,7 +179,10 @@ extension<T> of Slice<T> implements Index<usize>, IndexSet<usize, T> {
     }
 
     /// Borrow the element at `index`.
-    index<comptime A: Access = "readonly">(this: WithAccess<&Slice<T>, A>, index: usize): WithAccess<&T, A> {
+    index<comptime A: Access = "readonly">(
+        this: WithAccess<&Slice<T>, A>,
+        index: usize,
+    ): WithAccess<&T, A> {
         todo("Slice.index")
     }
 

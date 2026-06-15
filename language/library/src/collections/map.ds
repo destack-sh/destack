@@ -265,7 +265,9 @@ extension<K: Hash, V> of Map<K, V> implements
     }
 
     /// Return all borrowed values.
-    values<comptime A: Access = "readonly">(this: WithAccess<&Map<K, V>, A>): Iterator<WithAccess<&V, A>> {
+    values<comptime A: Access = "readonly">(
+        this: WithAccess<&Map<K, V>, A>,
+    ): Iterator<WithAccess<&V, A>> {
         todo("Map.values")
     }
 
