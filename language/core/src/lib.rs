@@ -8,6 +8,7 @@ mod float;
 mod fnv;
 mod hash;
 mod humanize;
+mod scc;
 mod stack;
 mod string;
 
@@ -21,5 +22,6 @@ pub use float::*;
 pub use fnv::*;
 pub use hash::*;
 pub use humanize::*;
+pub use scc::*;
 pub use stack::*;
 pub use string::*;
