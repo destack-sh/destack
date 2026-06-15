@@ -17,9 +17,7 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         match self.tree.get(id) {
             // x
-            dir::Expression::Identifier { .. }
-            // namespace.x
-            | dir::Expression::QualifiedReference { .. } => {}
+            dir::Expression::Identifier { .. } => {}
             // value.member
             dir::Expression::Member { left, .. }
             // value.#member

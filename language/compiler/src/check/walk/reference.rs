@@ -70,102 +70,86 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
-    /// Walk one qualified reference expression.
+    /// Walk one member access, resolving static name paths and deferring value members.
     ///
-    /// Example:
-    /// ```ds
-    /// namespace.value<T>
-    /// ```
-    pub(in crate::check) fn walk_qualified_reference_expression(
+    /// A member chain that resolves to a declaration by name decides immediately; a
+    /// genuine value member projection resolves later at selection.
+    pub(in crate::check) fn walk_member_expression(
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
-        path: &dir::Path,
-        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
+        left: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
-        let source = id.into_global_any(self.module);
+        // resolve the receiver chain first
+        self.walk_expression(left, self.tree.get(left))?;
 
-        // resolve the path through the resolve-phase table
-        let key = dir::PathKey::new(source, path.segments.len() as u32);
-        let resolution = self
+        let source = id.into_global_any(self.module);
+        let reference = self
             .check
             .module(self.module)
             .resolved
-            .paths
-            .get(key)
+            .references
+            .get(source)
             .cloned();
-        let symbol = match resolution {
-            Some(dir::PathResolution::Found(dir::PathTarget::Symbol(symbol))) => Some(symbol),
-            Some(dir::PathResolution::Found(dir::PathTarget::Namespace(_))) => None,
-            Some(dir::PathResolution::Ambiguous(_)) => {
-                self.check
-                    .report_ambiguous_reference(self.module, id.into_any(), path);
 
-                None
-            }
-            Some(dir::PathResolution::Missing) | None => {
-                // single-segment paths resolve lexically
-                if let [name] = path.segments.as_slice() {
-                    return self.walk_identifier_reference(id, *name, generic_arguments);
+        match reference {
+            // a name path resolves to its declaration like an identifier
+            Some(dir::Reference::Bound(symbols)) => {
+                for symbol in symbols.iter().copied() {
+                    self.capture_symbol_reference(symbol);
                 }
-                self.check
-                    .report_unresolved_reference(self.module, id.into_any(), path);
-
-                None
+                match symbols.as_slice() {
+                    [symbol] => {
+                        let symbol = *symbol;
+                        self.check.record_decision(
+                            source,
+                            Decision::Name(dir::NameResolution::new(symbol)),
+                        )?;
+                        let ty = self.reference_symbol_type(symbol)?;
+                        self.declare_node_type(id, ty)?;
+                    }
+                    // overload sets resolve at their call sites
+                    _ => {
+                        self.check.record_decision(
+                            source,
+                            Decision::Name(dir::NameResolution::from_symbols(symbols.to_vec())),
+                        )?;
+                        self.node_type(id)?;
+                    }
+                }
             }
-        };
 
-        let Some(symbol) = symbol else {
-            let error = self.push_type(dir::Type::Error, id.into_any())?;
-            self.declare_node_type(id, error)?;
+            // conflicting name targets fail loudly
+            Some(dir::Reference::Ambiguous(_)) => {
+                if let Some(path) = self.tree.tree().reference_path(id) {
+                    self.check
+                        .report_ambiguous_reference(self.module, id.into_any(), &path);
+                }
+                let error = self.push_type(dir::Type::Error, id.into_any())?;
+                self.declare_node_type(id, error)?;
+            }
 
-            return Ok(());
-        };
+            // unresolved name paths fail loudly
+            Some(dir::Reference::Missing) => {
+                if let Some(path) = self.tree.tree().reference_path(id) {
+                    self.check
+                        .report_unresolved_reference(self.module, id.into_any(), &path);
+                }
+                let error = self.push_type(dir::Type::Error, id.into_any())?;
+                self.declare_node_type(id, error)?;
+            }
 
-        self.capture_symbol_reference(symbol);
-        self.check
-            .record_decision(source, Decision::Name(dir::NameResolution::new(symbol)))?;
-        let ty = self.applied_reference_type(id, symbol, generic_arguments)?;
-        self.declare_node_type(id, ty)?;
+            // a namespace prefix carries only further member selection
+            Some(dir::Reference::Namespace(_)) => {
+                let error = self.push_type(dir::Type::Error, id.into_any())?;
+                self.declare_node_type(id, error)?;
+            }
 
-        Ok(())
-    }
-
-    /// Walk one identifier with applied generic arguments.
-    fn walk_identifier_reference(
-        &mut self,
-        id: dir::LocalNodeId<dir::Expression>,
-        name: dir::StringId,
-        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-    ) -> CompilerResult<()> {
-        if generic_arguments.is_empty() {
-            return self.walk_identifier_expression(id, name);
+            // a value member access resolves at selection
+            Some(dir::Reference::Projected { .. }) | None => {
+                self.node_type(id)?;
+                self.queue_select(id.into_global_any(self.module));
+            }
         }
-
-        let source = id.into_global_any(self.module);
-        let lookup =
-            self.check
-                .lookup_name(self.module, id.into_any(), name, dir::SymbolSpace::Value);
-        let symbol = match lookup {
-            NameLookup::Found(candidate) => candidate.symbol(),
-            NameLookup::Missing | NameLookup::Ambiguous(_) => None,
-        };
-        let Some(symbol) = symbol else {
-            let path = dir::Path {
-                segments: smallvec::smallvec![name],
-            };
-            self.check
-                .report_unresolved_reference(self.module, id.into_any(), &path);
-            let error = self.push_type(dir::Type::Error, id.into_any())?;
-            self.declare_node_type(id, error)?;
-
-            return Ok(());
-        };
-
-        self.capture_symbol_reference(symbol);
-        self.check
-            .record_decision(source, Decision::Name(dir::NameResolution::new(symbol)))?;
-        let ty = self.applied_reference_type(id, symbol, generic_arguments)?;
-        self.declare_node_type(id, ty)?;
 
         Ok(())
     }

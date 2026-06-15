@@ -315,23 +315,17 @@ impl WalkState<'_, '_> {
                 )?;
                 self.declare_node_type(id, meta)?;
             }
+            // import.source resolves to its module source descriptor at lowering
+            dir::Expression::ImportSource => {
+                let source = self.push_type(dir::Type::Error, id.into_any())?;
+                self.declare_node_type(id, source)?;
+            }
             // #name, debugger, missing, stub, damaged syntax
             dir::Expression::PrivateIdentifier { .. }
             | dir::Expression::Debugger
             | dir::Expression::Missing
             | dir::Expression::Stub
             | dir::Expression::Error => {}
-            // namespace.value<T>
-            dir::Expression::QualifiedReference {
-                path,
-                generic_arguments,
-            } => {
-                let arguments = generic_arguments
-                    .iter()
-                    .copied()
-                    .collect::<SmallVec<[_; 2]>>();
-                self.walk_qualified_reference_expression(id, path, &arguments)?;
-            }
             // start..end
             dir::Expression::RangeExpression {
                 start,
@@ -645,12 +639,16 @@ impl WalkState<'_, '_> {
                 )?;
                 self.declare_node_type(id, borrowed)?;
             }
-            // value.member, value.#member
-            dir::Expression::Member { left, .. } | dir::Expression::PrivateMember { left, .. } => {
+            // value.member, or a static name path resolved by the resolve phase
+            dir::Expression::Member { left, .. } => {
+                let left = *left;
+                self.walk_member_expression(id, left)?;
+            }
+            // value.#member always projects at selection
+            dir::Expression::PrivateMember { left, .. } => {
                 let left = *left;
                 self.walk_expression(left, self.tree.get(left))?;
 
-                // member meaning resolves at selection
                 self.node_type(id)?;
                 self.queue_select(id.into_global_any(self.module));
             }

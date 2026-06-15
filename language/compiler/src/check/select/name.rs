@@ -42,30 +42,16 @@ pub(in crate::check) enum NameLookup {
 }
 
 impl CheckState<'_> {
-    /// Return the nearest lexical scope visible at one node.
-    pub(in crate::check) fn lexical_scope(
+    /// Return the scope in effect at one node.
+    pub(in crate::check) fn scope_at(
         &self,
         module: ModuleId,
         bindings: &dir::BindingTable<'_>,
         node: dir::LocalNodeIdAny,
     ) -> dir::LocalScope {
-        let mut current = Some(node);
         let view = self.module(module).view();
 
-        // find nearest parent with a scope
-        while let Some(node) = current {
-            let global = node.into_global(module);
-            if let Some(scope) = bindings.scope_for_node(global) {
-                return scope;
-            }
-            current = view.get_parent(node.id);
-        }
-
-        // use module namespace when no child scope owns the node
-        dir::LocalScope::new(
-            self.module(module).bound.namespace_scope,
-            dir::LocalScopeMark::end(),
-        )
+        bindings.scope_at(&view, node)
     }
 
     /// Return lexical symbols visible from one scope.
@@ -139,7 +125,7 @@ impl CheckState<'_> {
         // look up local bindings first
         let key = dir::StaticKey::Name(name);
         let bindings = self.module(module).binding_table();
-        let scope = self.lexical_scope(module, bindings, source);
+        let scope = self.scope_at(module, bindings, source);
         let symbols = self.scope_symbols(module, bindings, scope, key, space);
 
         // fall back to imported bindings

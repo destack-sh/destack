@@ -28,22 +28,6 @@ pub(crate) enum ExportTarget {
     Namespace(ModuleId),
 }
 
-impl ExportTarget {
-    /// Return this target as a path table target.
-    ///
-    /// Example:
-    /// ```ds
-    /// dep.api.value
-    /// // dep.api can resolve to a namespace, dep.api.value can resolve to a symbol
-    /// ```
-    pub(crate) fn path_target(self) -> dir::PathTarget {
-        match self {
-            Self::Symbol(symbol) => dir::PathTarget::Symbol(symbol),
-            Self::Namespace(module) => dir::PathTarget::Namespace(module),
-        }
-    }
-}
-
 /// Cache key for one exported name in one module.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct ExportLookupKey {
