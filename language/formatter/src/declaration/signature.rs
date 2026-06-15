@@ -1105,28 +1105,16 @@ pub(crate) fn format_where_clause_with_break<'ast>(
     where_clauses: &[LocalNodeId<WhereClause>],
 ) -> FormatResult<()> {
     let body = separated_entries(",", where_clauses, TrailingSeparator::Omit, None);
-    let body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        if where_clauses.len() > 1 {
-            write!(
-                f,
-                [group(&format_args![
-                    token("("),
-                    soft_block_indent(&body),
-                    token(")")
-                ])]
-            )
-        } else {
-            write!(f, [body])
-        }
-    });
 
+    // the outer group moves `where` onto its own line when the signature is full,
+    // while the inner group keeps the bounds inline unless they overflow on their own
     write!(
         f,
         [group(&format_args![
             soft_line_break_or_space(),
             Keyword::Where,
             space(),
-            body
+            group(&body)
         ])]
     )
 }
