@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{FileContentId, LabeledSpan, Span};
+use crate::{ContentId, LabeledSpan, Span};
 
 /// One concrete source label in a diagnostic.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DiagnosticLabel {
-    /// The exact file content containing the span.
-    pub content: FileContentId,
+    /// The exact content containing the span.
+    pub content: ContentId,
     /// The concrete source span.
     pub span: Span,
     /// The optional label shown on the span.
@@ -15,7 +15,7 @@ pub struct DiagnosticLabel {
 
 impl DiagnosticLabel {
     /// Create a source label.
-    pub fn new(content: FileContentId, span: Span) -> Self {
+    pub fn new(content: ContentId, span: Span) -> Self {
         Self {
             content,
             span,
@@ -24,7 +24,7 @@ impl DiagnosticLabel {
     }
 
     /// Create a source label with one message.
-    pub fn message(content: FileContentId, span: Span, message: impl Into<String>) -> Self {
+    pub fn message(content: ContentId, span: Span, message: impl Into<String>) -> Self {
         Self {
             content,
             span,

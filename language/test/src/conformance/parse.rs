@@ -11,7 +11,7 @@ use destack_repository::{
     DestackLayout, DestackLayoutOverride, Environment, Repository, Revision, Settings,
 };
 use destack_source::{
-    DiagnosticCollection, DiagnosticSeverity, File, FileContent, FileId, FileSystem, FileType,
+    Content, DiagnosticCollection, DiagnosticSeverity, File, FileId, FileSystem, FileType,
     LanguageType, MemoryFileSystem, ModuleId, PrintOptions, Uri,
 };
 
@@ -342,7 +342,7 @@ fn parse_file_with_compiler(
 
     // materialize the source file with the requested file type
     let file_path = conformance_module_path_for_type(&file_path, file_type);
-    let content = FileContent::Text {
+    let content = Content::Text {
         content: content.to_string(),
     };
     let _ = write_workspace_file(&program, &file_path, content);

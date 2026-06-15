@@ -6,8 +6,8 @@ use destack_core::StringPool;
 use destack_mir as mir;
 use destack_repository::{ProviderContext, Revision};
 use destack_source::{
-    DiagnosticCollection, DiagnosticLabel, FileContentId, FileId, ModuleId, PackageId, ProfileId,
-    Span, TargetId,
+    ContentId, DiagnosticCollection, DiagnosticLabel, FileId, ModuleId, PackageId, ProfileId, Span,
+    TargetId,
 };
 
 /// MIR program under compiler tests.
@@ -69,7 +69,7 @@ impl DiagnosticContext for TestMirProvider {
         };
 
         Ok(DiagnosticLabel {
-            content: FileContentId::new(0),
+            content: ContentId::new(0),
             span,
             message,
         })

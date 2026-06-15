@@ -5,7 +5,7 @@ use destack_repository::Revision;
 use destack_session as session;
 use destack_session::Session;
 use destack_source::{
-    FileContentId, FileWatchEvent, FileWatchEventKind, TextChange, Uri, apply_text_changes,
+    ContentId, FileWatchEvent, FileWatchEventKind, TextChange, Uri, apply_text_changes,
 };
 
 use crate::diagnostic::{Error, diagnostics_by_file};
@@ -510,7 +510,7 @@ impl Workspace {
         session: &Session,
         revision: Revision,
         path: &Path,
-    ) -> Result<FileContentId, Error> {
+    ) -> Result<ContentId, Error> {
         // open files must point at an existing file payload
         let repository = session.repository();
         let file_id = session.file_id(path);

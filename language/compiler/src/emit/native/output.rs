@@ -1,9 +1,9 @@
 use crate::{Compiler, CompilerError, CompilerResult, DiagnosticAnchor, EmitError};
-use destack_artifact::ModuleOutput;
+use destack_artifact::{ModuleOutput, NativeOutput};
 use destack_codegen_native::CodegenCraneliftError;
 use destack_mir as mir;
 use destack_repository::{ArtifactReader, ProfileId, ProviderContext, Target};
-use destack_source::{ModuleId, TargetId};
+use destack_source::{Content, ModuleId, TargetId};
 
 impl Compiler {
     /// Emit one native module output through the native backend.
@@ -34,7 +34,7 @@ impl Compiler {
         );
 
         // emit one native output through the current backend
-        let (artifact, errors) = destack_codegen_native::NativeOutputGenerator::new(
+        let (output, errors) = destack_codegen_native::NativeOutputGenerator::new(
             module.clone(),
             self.repository.string_pool().clone(),
             Some(mir_optimized.clone()),
@@ -49,6 +49,12 @@ impl Compiler {
             let error = Self::map_native_emit_error(&state, error);
             self.emit_diagnostic(context, error)?;
         }
+
+        // intern emitted native bytes in repository contents
+        let content = self.repository.intern_content(Content::Binary {
+            content: output.bytes,
+        })?;
+        let artifact = NativeOutput::new(output.file_type, content, output.source_map);
 
         Ok(ModuleOutput::Native(Box::new(artifact)))
     }

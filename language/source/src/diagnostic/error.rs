@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
-use crate::{EditApplyError, FileContentId, FileId};
+use crate::{ContentId, EditApplyError, FileId};
 
 /// Error produced while annotating one source span.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -101,14 +101,14 @@ pub enum DiagnosticRenderError {
         /// The missing file.
         file: FileId,
     },
-    /// A diagnostic label references stale or different file content.
+    /// A diagnostic label references stale or different content.
     ContentMismatch {
         /// The file carrying the rendered content.
         file: FileId,
         /// The content expected by the diagnostic label.
-        expected: FileContentId,
+        expected: ContentId,
         /// The content carried by the current file.
-        actual: FileContentId,
+        actual: ContentId,
     },
     /// One source annotation could not be rendered.
     Annotate {

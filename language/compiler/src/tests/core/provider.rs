@@ -10,9 +10,7 @@ use destack_repository::{
     ArtifactProduct, Collector, Provider, ProviderContext, ProviderError, ProviderOutput,
     ProviderResult, Repository, Revision,
 };
-use destack_source::{
-    DiagnosticCollection, DiagnosticLabel, FileContentId, FileId, ModuleId, Span,
-};
+use destack_source::{ContentId, DiagnosticCollection, DiagnosticLabel, FileId, ModuleId, Span};
 
 use super::module::{parse_module, parsed_dependencies};
 use crate::Compiler;
@@ -231,7 +229,7 @@ impl<'a> TestProviderContext<'a> {
     }
 
     /// Return one file content id in this revision.
-    fn file_content_id(&self, file: FileId) -> Result<FileContentId, DiagnosticError> {
+    fn file_content_id(&self, file: FileId) -> Result<ContentId, DiagnosticError> {
         self.provider
             .repository
             .file_content_id(self.provider.revision, file)

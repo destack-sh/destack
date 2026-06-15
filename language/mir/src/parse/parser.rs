@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use destack_core::StringPool;
 use destack_source::{
-    DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, FileContentId, FileId,
-    NodeSpanList, NodeSpanType, Span,
+    ContentId, DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, FileId, NodeSpanList,
+    NodeSpanType, Span,
 };
 
 use crate::source::{Lexer, Token, TokenType};
@@ -78,7 +78,7 @@ pub struct Parser {
     /// The source file id for spans.
     pub(super) file_id: FileId,
     /// The exact source content id for diagnostics.
-    pub(super) content_id: FileContentId,
+    pub(super) content_id: ContentId,
     /// The diagnostics produced while parsing.
     pub(super) diagnostics: DiagnosticCollector,
     /// Map from function names to their ids (for forward references).
@@ -115,7 +115,7 @@ pub struct Parser {
 impl Parser {
     /// Create a new parser for a specific file.
     pub fn new(file_id: FileId, source: &str, options: ParseOptions) -> Self {
-        let content_id = FileContentId::for_text(source);
+        let content_id = ContentId::for_text(source);
         let mut tree = Tree::with_parsed_source(source.to_string(), Lexer::lex(file_id, source));
         tree.set_pointer_bytes(options.pointer_bytes);
 

@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use destack_repository::{Dependency, DestackFile, Repository, RepositoryError, Revision};
 use destack_source::{
-    File, FileContent, FileContentId, FileId, FileMetadata, FileSystem, FileType, Uri,
+    Content, ContentId, File, FileId, FileMetadata, FileSystem, FileType, Uri,
     matches as glob_matches,
 };
 
@@ -431,7 +431,7 @@ impl<'a> FileSystemSource<'a> {
         let content = self.read_content(path)?;
 
         self.seen_file_ids.insert(file_id);
-        let incoming = FileContentId::for_content(&content);
+        let incoming = ContentId::for_content(&content);
         let current = self.repository.file_content_id(self.base, file_id)?;
 
         // record changed files only
@@ -559,7 +559,7 @@ impl<'a> FileSystemSource<'a> {
     }
 
     /// Read one source file content.
-    fn read_content(&self, path: &Path) -> Result<FileContent, SourceError> {
+    fn read_content(&self, path: &Path) -> Result<Content, SourceError> {
         let file_type = FileType::from_path_or_unknown(path);
 
         // binary file content
@@ -572,7 +572,7 @@ impl<'a> FileSystemSource<'a> {
                 }
             })?;
 
-            Ok(FileContent::Binary { content })
+            Ok(Content::Binary { content })
         }
         // text file content
         else {
@@ -586,7 +586,7 @@ impl<'a> FileSystemSource<'a> {
                     message: error.to_string(),
                 })?;
 
-            Ok(FileContent::Text { content })
+            Ok(Content::Text { content })
         }
     }
 }

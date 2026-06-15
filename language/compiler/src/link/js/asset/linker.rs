@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use base64::Engine as _;
-use destack_artifact::{OutputContent, OutputFile};
+use destack_artifact::OutputFile;
 use destack_repository::{BundleAssetMode, Module, Target};
-use destack_source::{File, FileContent, FileType, ModuleId};
+use destack_source::{Content, File, FileType, ModuleId};
 use indexmap::{IndexMap, IndexSet};
 
 use super::super::JsLinker;
@@ -24,6 +24,7 @@ impl Asset {
         Ok(Self::new(
             module.id,
             content,
+            file.ty,
             hash,
             output_extension,
             media_type,
@@ -32,32 +33,29 @@ impl Asset {
     }
 
     /// Build one normalized emitted payload from one loaded file.
-    fn content_from_file(file: &File) -> Result<OutputContent, String> {
+    fn content_from_file(file: &File) -> Result<Content, String> {
         let file_type = file.ty;
 
         // text assets keep a textual payload for emission and inline references
         if file_type.is_text() {
             let text = match file.content.payload() {
-                FileContent::Text { content } => content.clone(),
-                FileContent::Binary { content } => std::str::from_utf8(content)
+                Content::Text { content } => content.clone(),
+                Content::Binary { content } => std::str::from_utf8(content)
                     .map_err(|_| format!("failed to read text asset '{}'", file.uri))?
                     .to_string(),
             };
 
-            return Ok(OutputContent::Text {
-                code: text,
-                file_type,
-            });
+            return Ok(Content::Text { content: text });
         }
 
         let bytes = match file.content.payload() {
-            FileContent::Binary { content } => content.clone(),
-            FileContent::Text { .. } => {
+            Content::Binary { content } => content.clone(),
+            Content::Text { .. } => {
                 return Err(format!("failed to read binary asset '{}'", file.uri));
             }
         };
 
-        Ok(OutputContent::Binary { bytes, file_type })
+        Ok(Content::Binary { content: bytes })
     }
 
     /// Render the configured output file name for this asset.
@@ -76,18 +74,13 @@ impl Asset {
     /// Build one inline asset data URL.
     fn inline_url(&self) -> String {
         match self.content() {
-            OutputContent::Text { code, .. } => {
-                let encoded = percent_encode_for_data_url(code);
-
-                format!("data:{},{}", self.media_type(), encoded)
-            }
-            OutputContent::Json { content, .. } => {
+            Content::Text { content } => {
                 let encoded = percent_encode_for_data_url(content);
 
                 format!("data:{},{}", self.media_type(), encoded)
             }
-            OutputContent::Binary { bytes, .. } => {
-                let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
+            Content::Binary { content } => {
+                let encoded = base64::engine::general_purpose::STANDARD.encode(content);
 
                 format!("data:{};base64,{}", self.media_type(), encoded)
             }
@@ -323,7 +316,13 @@ impl<'a> JsLinker<'a> {
 
         debug_assert_eq!(asset.module_id(), module_id);
 
-        Ok(asset.output_file(output_location))
+        asset
+            .output_file(output_location, self.compiler)
+            .map_err(|error| LinkError::Internal {
+                anchor: (self.package_id).into(),
+                package: self.package_id,
+                message: error.to_string(),
+            })
     }
 
     /// Emit the concrete asset output files for one planned asset reference map.

@@ -374,7 +374,7 @@ impl Default for ProtocolCodec {
 
 #[cfg(test)]
 mod tests {
-    use destack_source::{Diagnostic, DiagnosticLabel, FileContentId, FileId, FileType, Span, Uri};
+    use destack_source::{ContentId, Diagnostic, DiagnosticLabel, FileId, FileType, Span, Uri};
 
     use super::{FrameCodec, ProtocolCodec, ProtocolLimits, ProtocolMessage};
     use crate::CommandRevision;
@@ -558,7 +558,7 @@ mod tests {
     fn test_protocol_command_response_roundtrip() {
         // build a minimal diagnostic payload
         let file_id = FileId::new(1);
-        let content = FileContentId::for_text("export const answer = 42;\n");
+        let content = ContentId::for_text("export const answer = 42;\n");
         let diagnostic = Diagnostic::error(
             "E001",
             "example error",

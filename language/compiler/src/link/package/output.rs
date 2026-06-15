@@ -1,13 +1,13 @@
 use destack_repository::ProviderContext;
 use std::path::Path;
 
-use crate::{Compiler, CompilerResult, LinkResult};
+use crate::{Compiler, CompilerResult};
 
 use destack_artifact::{
-    BuildManifest, OutputContent, OutputFile, PackageAssembly, PackageOutput, TargetOutputName,
+    BuildManifest, OutputFile, PackageAssembly, PackageOutput, SourceMapArtifact, TargetOutputName,
 };
-use destack_repository::{BundleMode, Target};
-use destack_source::{FileType, ModuleId, Uri};
+use destack_repository::{BundleMode, RepositoryError, Target};
+use destack_source::{Content, FileType, ModuleId, Uri};
 
 use super::layout::TargetLocation;
 
@@ -61,27 +61,57 @@ impl Compiler {
         target_name: &str,
         output: &mut PackageOutput,
         manifest: BuildManifest,
-    ) -> LinkResult<()> {
+    ) -> Result<(), RepositoryError> {
         let manifest_content = serde_json::to_string_pretty(&manifest)
             .unwrap_or_else(|_| serde_json::to_string(&manifest).unwrap_or_default());
 
         let output_layout = TargetLocation::new(package_dir, target, target_name);
         let manifest_path = output_layout.manifest_location();
 
+        let file = self.intern_output_file(
+            Uri::from_path(manifest_path.path()),
+            FileType::Json,
+            Self::text_output_content(manifest_content),
+            None,
+        )?;
+
         output
             .outputs
             .entry(TargetOutputName::Manifest)
             .or_default()
-            .push(OutputFile {
-                uri: Uri::from_path(manifest_path.path()),
-                content: OutputContent::json(
-                    manifest_content,
-                    serde_json::to_value(manifest).unwrap_or_default(),
-                    FileType::Json,
-                ),
-                source: None,
-            });
+            .push(file);
 
         Ok(())
+    }
+
+    /// Intern one output file payload and return its artifact record.
+    pub(crate) fn intern_output_file(
+        &self,
+        uri: Uri,
+        file_type: FileType,
+        content: Content,
+        source: Option<Uri>,
+    ) -> Result<OutputFile, RepositoryError> {
+        let content = self.repository.intern_content(content)?;
+
+        Ok(OutputFile::new(uri, file_type, content, source))
+    }
+
+    /// Build one normalized text output payload.
+    pub(crate) fn text_output_content(mut content: String) -> Content {
+        if !content.is_empty() && !content.ends_with('\n') {
+            content.push('\n');
+        }
+
+        Content::Text { content }
+    }
+
+    /// Build one source map output payload.
+    pub(crate) fn source_map_content(
+        source_map: &SourceMapArtifact,
+    ) -> Result<Content, serde_json::Error> {
+        let content = serde_json::to_string(source_map)?;
+
+        Ok(Self::text_output_content(content))
     }
 }

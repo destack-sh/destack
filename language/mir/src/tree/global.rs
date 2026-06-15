@@ -1,7 +1,9 @@
 use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
-use crate::{Constant, FunctionReference, Mutability, Node, NodeType, Space, Symbol, TypeReference};
+use crate::{
+    Constant, FunctionReference, Mutability, Node, NodeType, Space, Symbol, TypeReference,
+};
 
 /// Symbol linkage (visibility and definition location).
 ///

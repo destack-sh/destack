@@ -1,9 +1,10 @@
 use std::path::Path;
 
-use destack_artifact::{NativeOutput, OutputContent, OutputFile};
+use destack_artifact::{NativeOutput, OutputFile};
 use destack_repository::{Module, Target};
 use destack_source::{FileType, Uri};
 
+use crate::Compiler;
 use crate::link::module_source_path;
 
 /// One error while materializing emitted native outputs.
@@ -15,6 +16,7 @@ pub(crate) struct NativeOutputError {
 
 /// Link one emitted native output into output files.
 pub(crate) fn link_native_output_files(
+    compiler: &Compiler,
     module: &Module,
     artifact: &NativeOutput,
     target: &Target,
@@ -28,26 +30,37 @@ pub(crate) fn link_native_output_files(
         file_type: artifact.file_type,
     })?;
     let output_path = target.resolve_out_file(package_dir, root_dir, &module_path, extension);
-    let mut files = vec![OutputFile {
-        uri: Uri::from_path(&output_path),
-        content: OutputContent::Binary {
-            bytes: artifact.bytes.clone(),
+    let _ = compiler
+        .repository
+        .content(artifact.content)
+        .map_err(|_| NativeOutputError {
             file_type: artifact.file_type,
-        },
-        source: None,
-    }];
+        })?;
+    let mut files = vec![OutputFile::new(
+        Uri::from_path(&output_path),
+        artifact.file_type,
+        artifact.content,
+        None,
+    )];
 
     // source map
     if let Some(map) = &artifact.source_map {
         let map_path = target.resolve_out_file(package_dir, root_dir, &module_path, "map");
-        let content = OutputContent::source_map(map).map_err(|_| NativeOutputError {
+        let content = Compiler::source_map_content(map).map_err(|_| NativeOutputError {
             file_type: FileType::SourceMap,
         })?;
-        files.push(OutputFile {
-            uri: Uri::from_path(&map_path),
-            content,
-            source: None,
-        });
+        files.push(
+            compiler
+                .intern_output_file(
+                    Uri::from_path(&map_path),
+                    FileType::SourceMap,
+                    content,
+                    None,
+                )
+                .map_err(|_| NativeOutputError {
+                    file_type: FileType::SourceMap,
+                })?,
+        );
     }
 
     Ok(files)
