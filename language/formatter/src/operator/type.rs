@@ -210,10 +210,7 @@ pub(crate) fn expression_generic_arguments(
     expression: &Expression,
 ) -> Option<&[LocalNodeId<GenericArgument>]> {
     match expression {
-        Expression::QualifiedReference {
-            generic_arguments, ..
-        }
-        | Expression::TaggedTemplateExpression {
+        Expression::TaggedTemplateExpression {
             generic_arguments, ..
         }
         | Expression::TreeExpression {

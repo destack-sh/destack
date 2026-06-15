@@ -281,15 +281,9 @@ fn should_merge_tail_with_head(
                                     context.options.indent_width,
                                 ))
                     }
-                    Expression::QualifiedReference { path, .. } if path.segments.len() == 1 => {
-                        has_computed_property || is_factory_name(context, path.segments[0])
-                    }
                     Expression::This => true,
                     _ => false,
                 }
-            }
-            ChainRoot::Path { segment, .. } => {
-                has_computed_property || is_factory_name(context, *segment)
             }
         }
     } else if let Some(ChainMember::Member { segment, .. }) = head.last() {
@@ -533,7 +527,6 @@ fn first_call_expression_id(
                 return Some(expression_id);
             }
         }
-        ChainRoot::Path { .. } => {}
     }
 
     head.iter()
@@ -848,38 +841,10 @@ fn write_chain_head<'ast>(
     tail_groups: &TailChainGroups,
     expand_if_value_root: bool,
 ) -> FormatResult<()> {
-    let root_is_decorator_expression = f
-        .context()
-        .parent(formatted_root_id)
-        .is_some_and(|(_, parent_type)| matches!(parent_type, NodeType::Decorator));
     let skip_root_for_start_call = root_is_owned_by_start_call(root, head);
 
     if !skip_root_for_start_call {
         match root {
-            ChainRoot::Path {
-                node_id,
-                segment,
-                generic_arguments,
-                emit_postfix_annotations,
-            } => {
-                if !root_is_decorator_expression {
-                    write!(f, [prefix_annotations(f.context(), *node_id)])?;
-                }
-                write!(f, [*segment])?;
-                if !generic_arguments.is_empty() {
-                    let next_operation = head
-                        .first()
-                        .or_else(|| first_tail_group_member(tail_groups));
-                    if next_operation.is_some_and(chain_member_is_index) {
-                        format_generic_argument_list_with_relational_spacing(f, generic_arguments)?;
-                    } else {
-                        format_generic_argument_list(f, generic_arguments)?;
-                    }
-                }
-                if *emit_postfix_annotations {
-                    write!(f, [infix_or_postfix_annotations(f.context(), *node_id)])?;
-                }
-            }
             ChainRoot::Expression(node_id) => {
                 let first_continuation = head
                     .first()
@@ -965,7 +930,6 @@ fn skip_comments_after_chain_head<'ast>(
     } else {
         match root {
             ChainRoot::Expression(node_id) => f.context().span(*node_id).end,
-            ChainRoot::Path { node_id, .. } => f.context().span(*node_id).end,
         }
     };
 

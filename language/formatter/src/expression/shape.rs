@@ -1,8 +1,8 @@
 use crate::DestackFormatContext;
 use crate::operator::assign_pattern_target_expression;
 use destack_dir::{
-    Argument, Expression, GenericArgument, IfCondition, IfForm, LocalNodeId, NodeType, Pattern,
-    Property, ScalarLiteral, TokenType, Tree, TypeExpression, UnaryOperator,
+    Argument, Expression, IfCondition, IfForm, LocalNodeId, NodeType, Pattern, Property,
+    ScalarLiteral, TokenType, Tree, TypeExpression, UnaryOperator,
 };
 use destack_source::Span;
 
@@ -83,6 +83,7 @@ pub fn is_trivial_expression(tree: &Tree, expression: &Expression) -> bool {
         Expression::ScalarLiteral(_)
         | Expression::Identifier { .. }
         | Expression::ImportMeta
+        | Expression::ImportSource
         | Expression::This
         | Expression::Super
         | Expression::PrivateIdentifier { .. } => true,
@@ -103,10 +104,6 @@ pub fn is_trivial_expression(tree: &Tree, expression: &Expression) -> bool {
         Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
             is_trivial_expression(tree, tree.get(*left))
         }
-        Expression::QualifiedReference {
-            path,
-            generic_arguments,
-        } => path.segments.len() <= 3 && generic_arguments_are_trivial(tree, generic_arguments),
         Expression::As {
             expression: left,
             target_type: right,
@@ -119,28 +116,6 @@ pub fn is_trivial_expression(tree: &Tree, expression: &Expression) -> bool {
         }
         _ => false,
     }
-}
-
-/// Return whether generic arguments stay concise when inlined.
-fn generic_arguments_are_trivial(
-    tree: &Tree,
-    generic_arguments: &[LocalNodeId<GenericArgument>],
-) -> bool {
-    generic_arguments
-        .iter()
-        .all(|argument_id| match tree.get(*argument_id) {
-            GenericArgument::Type { value }
-            | GenericArgument::SpreadType { value }
-            | GenericArgument::AssociatedType { value, .. } => {
-                is_trivial_type_expression(tree, *value)
-            }
-            GenericArgument::Value { value }
-            | GenericArgument::SpreadValue { value }
-            | GenericArgument::AssociatedConst { value, .. } => {
-                is_trivial_expression(tree, tree.get(*value))
-            }
-            GenericArgument::Error => false,
-        })
 }
 
 /// Return whether an argument prefers inline layout.
@@ -207,9 +182,6 @@ pub fn is_expression_breakable(tree: &Tree, expression: &Expression) -> bool {
         | Expression::Satisfies { .. }
         | Expression::Is { .. }
         | Expression::InstanceOf { .. } => true,
-        Expression::QualifiedReference {
-            generic_arguments, ..
-        } => !generic_arguments.is_empty(),
         _ => false,
     }
 }

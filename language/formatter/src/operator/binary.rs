@@ -391,6 +391,7 @@ impl BinaryLikeExpression {
                     | Expression::NewMaybe { .. }
                     | Expression::Import { .. }
                     | Expression::ImportMeta
+                    | Expression::ImportSource
             );
         }
 
@@ -409,6 +410,7 @@ impl BinaryLikeExpression {
                 | Expression::NewMaybe { .. }
                 | Expression::Import { .. }
                 | Expression::ImportMeta
+                | Expression::ImportSource
         )
     }
 

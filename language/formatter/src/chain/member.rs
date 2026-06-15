@@ -9,8 +9,8 @@ use crate::operator::{is_chain_expression, write_postfix_base_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_core::StringId;
 use destack_dir::{
-    Argument, Declarator, DecoratorPosition, Expression, GenericArgument, IfForm, LocalNodeId,
-    NodeType, PostfixPosition, ScalarLiteral, TokenType, Tree,
+    Argument, Declarator, Expression, GenericArgument, IfForm, LocalNodeId, NodeType,
+    PostfixPosition, ScalarLiteral, TokenType, Tree,
 };
 use destack_fir::format::{Buffer, FormatError, FormatResult};
 use destack_fir::prelude::token;
@@ -38,12 +38,6 @@ pub(crate) fn format_maybe_expression<'ast>(
 /// The root printed before the head group members.
 #[derive(Clone)]
 pub(crate) enum ChainRoot {
-    Path {
-        node_id: LocalNodeId<Expression>,
-        segment: StringId,
-        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-        emit_postfix_annotations: bool,
-    },
     Expression(LocalNodeId<Expression>),
 }
 
@@ -221,14 +215,8 @@ pub(super) fn build_member_chain_parts(
     let root_id = chain[0];
     let base_root_id = root_id;
 
-    let mut root = ChainRoot::Expression(base_root_id);
+    let root = ChainRoot::Expression(base_root_id);
     let mut members = Vec::new();
-
-    // path root decomposition
-    if let Some((path_root, path_members)) = split_path_chain_root(context, base_root_id)? {
-        root = path_root;
-        members.extend(path_members);
-    }
 
     let mut chain_tail = chain.iter().skip(1).copied().peekable();
     while let Some(expression_id) = chain_tail.next() {
@@ -257,68 +245,6 @@ pub(super) fn build_member_chain_parts(
     let tail_groups = build_tail_chain_groups(context, tail_members);
 
     Ok((chain, root, head, tail_groups))
-}
-
-/// Try to split one path root into a chain base head plus member operations.
-fn split_path_chain_root(
-    context: &DestackFormatContext<'_>,
-    base_root_id: LocalNodeId<Expression>,
-) -> FormatResult<Option<(ChainRoot, Vec<ChainMember>)>> {
-    let Expression::QualifiedReference {
-        path,
-        generic_arguments,
-    } = context.tree.get(base_root_id)
-    else {
-        return Ok(None);
-    };
-
-    if path.segments.len() <= 1 {
-        return Ok(None);
-    }
-
-    let segments = &path.segments;
-    let generic_arguments = generic_arguments.clone();
-    let Some(first_segment) = segments.first().copied() else {
-        return Err(FormatError::SyntaxError {
-            message: "path chain root must contain at least one segment",
-        });
-    };
-
-    let tail_segments = &segments[1..];
-    let tail_len = tail_segments.len();
-    let emit_postfix_on_tail = tail_len > 0
-        && path_postfix_annotations_emit_on_tail(context, base_root_id, segments.len());
-    let base_generic_arguments = if tail_len == 0 {
-        generic_arguments.clone()
-    } else {
-        Vec::new()
-    };
-    let root = ChainRoot::Path {
-        node_id: base_root_id,
-        segment: first_segment,
-        generic_arguments: base_generic_arguments,
-        emit_postfix_annotations: tail_len == 0 || !emit_postfix_on_tail,
-    };
-
-    let mut operations = Vec::with_capacity(tail_len);
-    for (index, segment) in tail_segments.iter().copied().enumerate() {
-        let is_last = index + 1 == tail_len;
-        let generic_arguments = if is_last {
-            generic_arguments.clone()
-        } else {
-            Vec::new()
-        };
-        operations.push(ChainMember::Member {
-            node_id: base_root_id,
-            optional_position: None,
-            segment,
-            generic_arguments,
-            emit_prefix_annotations: false,
-            emit_postfix_annotations: emit_postfix_on_tail && is_last,
-        });
-    }
-
-    Ok(Some((root, operations)))
 }
 
 /// Check whether source contains a comment between two expression nodes.
@@ -373,10 +299,6 @@ pub(crate) fn expression_trivia_anchor_end(
             .tree
             .get_main_span(expression_id)
             .map_or(span.end, |member_span| member_span.end),
-        Expression::QualifiedReference { path, .. } if path.segments.len() == 1 => context
-            .tree
-            .get_main_span(expression_id)
-            .map_or(span.end, |path_span| path_span.end),
         Expression::Identifier { .. } => context
             .tree
             .get_main_span(expression_id)
@@ -437,59 +359,6 @@ pub(crate) fn member_is_private_hash(
     };
 
     prev_token.token.ty() == TokenType::Hash
-}
-
-/// Decide whether postfix annotations on a path belong after the last segment.
-pub(crate) fn path_postfix_annotations_emit_on_tail(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    segments_len: usize,
-) -> bool {
-    let Some(last_segment_start) = path_last_segment_start(context, node_id, segments_len) else {
-        return false;
-    };
-
-    let mut has_postfix = false;
-
-    for annotation_id in context.annotation_ids(node_id).iter().copied() {
-        let annotation = context.annotation(annotation_id);
-        let position = annotation.position;
-        let is_postfix = matches!(
-            position,
-            DecoratorPosition::LinePostfix
-                | DecoratorPosition::BlockInfix
-                | DecoratorPosition::BlockPostfix
-        );
-        if !is_postfix {
-            continue;
-        }
-
-        has_postfix = true;
-        let span = context.annotation_span(annotation_id);
-        if span.start < last_segment_start {
-            return false;
-        }
-    }
-
-    if !has_postfix {
-        return true;
-    }
-
-    true
-}
-
-/// Find the start byte of the last path segment token.
-fn path_last_segment_start(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    segments_len: usize,
-) -> Option<u32> {
-    if segments_len == 0 {
-        return None;
-    }
-
-    let span = context.span(node_id);
-    context.nth_token_type_start_in_span(span, TokenType::Identifier, segments_len)
 }
 
 /// Convert one chain expression node into a chain operation.

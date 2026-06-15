@@ -54,9 +54,9 @@ fn write_expression_trailing_annotations<'ast>(
             write_statement_expression_trailing_annotations(f, expression_id, expression)
         }
         Expression::Identifier { .. }
-        | Expression::QualifiedReference { .. }
         | Expression::PrivateIdentifier { .. }
         | Expression::ImportMeta
+        | Expression::ImportSource
         | Expression::This
         | Expression::Super
         | Expression::Type { .. }
@@ -232,9 +232,9 @@ fn format_expression_body_at_current_stack<'ast>(
             debug_assert!(is_formatted);
         }
         Expression::Identifier { .. }
-        | Expression::QualifiedReference { .. }
         | Expression::PrivateIdentifier { .. }
         | Expression::ImportMeta
+        | Expression::ImportSource
         | Expression::This
         | Expression::Super
         | Expression::Type { .. }

@@ -730,7 +730,6 @@ fn expression_is_callable_selection(child_expression: &Expression) -> bool {
         Expression::Member { .. } | Expression::PrivateMember { .. } | Expression::Index { .. } => {
             true
         }
-        Expression::QualifiedReference { path, .. } => path.segments.len() > 1,
         _ => false,
     }
 }

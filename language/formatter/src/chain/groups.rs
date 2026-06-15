@@ -346,7 +346,6 @@ fn chain_root_has_leading_call_like(
             chain_expression_is_call_like_base(context, expression)
                 || head_members.first().is_some_and(chain_member_is_call_like)
         }
-        ChainRoot::Path { .. } => head_members.first().is_some_and(chain_member_is_call_like),
     }
 }
 

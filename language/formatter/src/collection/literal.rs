@@ -369,7 +369,6 @@ fn template_argument_should_indent_fit_layout(
             | Expression::Comptime { .. }
             | Expression::Binary { .. }
             | Expression::Identifier { .. }
-            | Expression::QualifiedReference { .. }
     )
 }
 
