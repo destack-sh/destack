@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use destack_core::StringPool;
-use destack_source::DiagnosticCollection;
+use destack_source::{ContentId, DiagnosticCollection};
 use serde::Serialize;
 
 use super::entry::{ArtifactEntry, ArtifactOutcome, ArtifactSidecar};
@@ -129,6 +129,14 @@ impl ArtifactStore {
         }
     }
 
+    /// Return all exact artifact versions retained by live pins.
+    pub fn retained_versions(&self) -> Vec<ArtifactVersion> {
+        self.retained_versions
+            .iter()
+            .map(|entry| *entry.key())
+            .collect()
+    }
+
     /// Return the recorded diagnostics for one exact artifact version.
     pub fn diagnostics(&self, version: &ArtifactVersion) -> Option<Arc<DiagnosticCollection>> {
         self.entries
@@ -209,7 +217,7 @@ impl ArtifactStore {
         &self,
         version: &ArtifactVersion,
         strings: &StringPool,
-    ) -> Result<Option<ArtifactRecord>, crate::ArtifactImageError> {
+    ) -> Result<Option<ArtifactRecord>, crate::ArtifactBlobError> {
         let Some(dependencies) = self.dependencies(version) else {
             return Ok(None);
         };
@@ -570,7 +578,7 @@ impl ArtifactStore {
         dependencies: &Arc<[ArtifactDependency]>,
         diagnostics: &Arc<DiagnosticCollection>,
         sidecars: &Arc<[ArtifactSidecar]>,
-    ) -> Result<ArtifactRecord, crate::ArtifactImageError>
+    ) -> Result<ArtifactRecord, crate::ArtifactBlobError>
     where
         T: Serialize,
     {
@@ -986,6 +994,30 @@ impl ArtifactStore {
         self.product_output
             .get(version)
             .map(|entry| entry.value().clone())
+    }
+
+    /// Return content ids referenced by one exact artifact payload.
+    pub fn content_ids(&self, version: &ArtifactVersion) -> Vec<ContentId> {
+        match &version.key {
+            ArtifactKey::ModuleOutput { .. } => {
+                if let Some(payload) = self.module_output(version) {
+                    return payload.content_ids();
+                }
+            }
+            ArtifactKey::PackageOutput { .. } => {
+                if let Some(payload) = self.package_output(version) {
+                    return payload.content_ids();
+                }
+            }
+            ArtifactKey::ProductOutput { .. } => {
+                if let Some(payload) = self.product_output(version) {
+                    return payload.content_ids();
+                }
+            }
+            _ => {}
+        }
+
+        Vec::new()
     }
 
     /// Get one module lint artifact.

@@ -68,6 +68,24 @@ impl CacheStore for MemoryCacheStore {
 
         Ok(Some(entry.bytes.len() as u64))
     }
+
+    fn entries(&self, root: &Path) -> Result<Vec<PathBuf>, CacheStoreError> {
+        let entries = self.entries.read();
+        let paths = entries
+            .keys()
+            .filter(|path| path.starts_with(root))
+            .cloned()
+            .collect();
+
+        Ok(paths)
+    }
+
+    fn remove(&self, path: &Path) -> Result<(), CacheStoreError> {
+        let mut entries = self.entries.write();
+        entries.remove(path);
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

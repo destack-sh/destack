@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use destack_source::{DiagnosticCollection, FileContent};
+use destack_source::{Content, DiagnosticCollection};
 use serde::{Deserialize, Serialize};
 
 use crate::{ArtifactDependency, ArtifactFailure};
@@ -58,7 +58,7 @@ pub struct ArtifactSidecar {
     /// The stable labels describing this sidecar.
     pub labels: BTreeMap<String, String>,
     /// The sidecar content.
-    pub content: FileContent,
+    pub content: Content,
 }
 
 impl ArtifactSidecar {
@@ -66,7 +66,7 @@ impl ArtifactSidecar {
     pub fn new(
         name: impl Into<String>,
         labels: impl IntoIterator<Item = (impl Into<String>, impl Into<String>)>,
-        content: FileContent,
+        content: Content,
     ) -> Self {
         let labels = labels
             .into_iter()

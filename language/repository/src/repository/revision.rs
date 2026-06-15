@@ -7,7 +7,7 @@ use destack_core::stable_hash_value_256;
 use im::OrdMap;
 use serde::{Deserialize, Serialize};
 
-use destack_source::{FileContentId, FileId};
+use destack_source::{ContentId, FileId};
 
 use crate::Environment;
 use crate::repository::{FileEntry, RevisionCache};
@@ -168,7 +168,7 @@ impl RevisionState {
     }
 
     /// Return the file content id for one file.
-    pub(crate) fn file_content_id(&self, file_id: FileId) -> Option<FileContentId> {
+    pub(crate) fn file_content_id(&self, file_id: FileId) -> Option<ContentId> {
         self.files.get(&file_id).map(|entry| entry.content_id)
     }
 

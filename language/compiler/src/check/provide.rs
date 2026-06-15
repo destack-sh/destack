@@ -6,7 +6,7 @@ use destack_artifact::{
     DirChecked, DirCheckedComponent, GlobalEnvironment,
 };
 use destack_repository::{ArtifactReader, ProfileId, ProviderContext, ProviderError};
-use destack_source::{ComponentId, FileContent, ModuleId};
+use destack_source::{ComponentId, Content, ModuleId};
 use indexmap::{IndexMap, IndexSet};
 
 use crate::check::{AnnotatedSource, CheckComponentKey, CheckState};
@@ -14,9 +14,6 @@ use crate::{Compiler, CompilerError, CompilerResult};
 
 impl Compiler {
     /// Collect inputs for checked DIR side tables of one component.
-    ///
-    /// The member and external inputs are derived from the component graph, so
-    /// until it is built this returns the partial closure naming just the graph.
     pub(crate) fn collect_dir_checked_component(
         &self,
         entry: ModuleId,
@@ -285,7 +282,7 @@ fn check_sidecar(name: &str, content: String) -> ArtifactSidecar {
     ArtifactSidecar::new(
         name,
         iter::once(("phase", "check")),
-        FileContent::Text { content },
+        Content::Text { content },
     )
 }
 
@@ -297,7 +294,7 @@ fn annotated_sidecar(source: AnnotatedSource) -> ArtifactSidecar {
             ("phase", "check".to_string()),
             ("module", source.module.uri.to_string()),
         ],
-        FileContent::Text {
+        Content::Text {
             content: source.content,
         },
     )

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 
 use dashmap::DashMap;
-use destack_source::{FileContentId, ProfileId};
+use destack_source::{ContentId, ProfileId};
 use im::OrdMap;
 use rustc_hash::FxHashSet;
 
@@ -35,7 +35,7 @@ impl RevisionCache {
 #[derive(Debug, Default)]
 pub(crate) struct FileCache {
     /// The config parse result by exact content.
-    pub(crate) destack_by_content_id: DashMap<FileContentId, Result<Arc<DestackFile>, String>>,
+    pub(crate) destack_by_content_id: DashMap<ContentId, Result<Arc<DestackFile>, String>>,
 }
 
 impl FileCache {
@@ -45,7 +45,7 @@ impl FileCache {
     }
 
     /// Drop entries for file contents that are no longer reachable.
-    pub(crate) fn retain_file_contents(&self, reachable: &HashSet<FileContentId>) {
+    pub(crate) fn retain_file_contents(&self, reachable: &HashSet<ContentId>) {
         self.destack_by_content_id
             .retain(|content_id, _| reachable.contains(content_id));
     }

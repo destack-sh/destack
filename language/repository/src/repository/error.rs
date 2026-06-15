@@ -3,7 +3,7 @@ use std::fmt;
 use std::path::PathBuf;
 
 use destack_artifact::ArtifactVersion;
-use destack_source::{FileContentId, FileId, ModuleId, PackageId, ProfileId, TargetId};
+use destack_source::{ContentId, FileId, ModuleId, PackageId, ProfileId, TargetId};
 
 use crate::repository::{Ref, Revision};
 
@@ -25,7 +25,11 @@ pub enum RepositoryError {
     /// The requested revision does not exist.
     MissingRevision { revision: Revision },
     /// The requested content payload does not exist.
-    MissingContent { content: FileContentId },
+    MissingContent { content: ContentId },
+    /// The repository content cache failed.
+    ContentCache { message: String },
+    /// The repository artifact cache failed.
+    ArtifactCache { message: String },
     /// The requested module does not exist in the given revision.
     MissingModule { module: ModuleId },
     /// The requested package does not exist in the given revision.
@@ -111,6 +115,12 @@ impl fmt::Display for RepositoryError {
             }
             Self::MissingContent { content } => {
                 write!(formatter, "missing repository content '{content}'")
+            }
+            Self::ContentCache { message } => {
+                write!(formatter, "repository content cache failed: {message}")
+            }
+            Self::ArtifactCache { message } => {
+                write!(formatter, "repository artifact cache failed: {message}")
             }
             Self::MissingModule { module } => {
                 write!(formatter, "missing repository module '{module}'")

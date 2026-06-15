@@ -2,8 +2,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_source::{
-    File, FileContent, FileContentEntry, FileContentId, FileId, FileMetadata, FileType,
-    LanguageType, Loader, ModuleId, PackageId, Uri,
+    Content, ContentEntry, ContentId, File, FileId, FileMetadata, FileType, LanguageType, Loader,
+    ModuleId, PackageId, Uri,
 };
 use indexmap::IndexMap;
 
@@ -239,8 +239,8 @@ impl BuiltinFile {
     }
 
     /// Return the stable builtin source content id.
-    pub fn content_id(self) -> FileContentId {
-        FileContentId::for_text(self.content)
+    pub fn content_id(self) -> ContentId {
+        ContentId::for_text(self.content)
     }
 
     /// Return the stable builtin module id.
@@ -274,10 +274,10 @@ impl BuiltinFile {
     /// Return this builtin as a source file.
     pub fn file(self) -> File {
         // build shared text content
-        let content = FileContent::Text {
+        let content = Content::Text {
             content: self.content.to_string(),
         };
-        let content = Arc::new(FileContentEntry::new(content));
+        let content = Arc::new(ContentEntry::new(content));
 
         // build virtual source file
         File::from_content(

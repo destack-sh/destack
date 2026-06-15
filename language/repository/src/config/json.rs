@@ -1,4 +1,4 @@
-use destack_source::{File, FileContent, strip_json};
+use destack_source::{Content, File, strip_json};
 use serde_json::Value;
 
 /// Build one file content error.
@@ -32,15 +32,15 @@ pub fn parse_jsonc_text(content: &str) -> Result<Value, serde_json::Error> {
 /// Parse one file as strict file text.
 pub fn parse_json_file(file: &File) -> Result<Value, serde_json::Error> {
     match file.content.payload() {
-        FileContent::Text { content } => parse_json_text(content),
-        FileContent::Binary { .. } => Err(json_content_error("file is not text")),
+        Content::Text { content } => parse_json_text(content),
+        Content::Binary { .. } => Err(json_content_error("file is not text")),
     }
 }
 
 /// Parse one file as fileC text.
 pub fn parse_jsonc_file(file: &File) -> Result<Value, serde_json::Error> {
     match file.content.payload() {
-        FileContent::Text { content } => parse_jsonc_text(content),
-        FileContent::Binary { .. } => Err(json_content_error("file is not text")),
+        Content::Text { content } => parse_jsonc_text(content),
+        Content::Binary { .. } => Err(json_content_error("file is not text")),
     }
 }

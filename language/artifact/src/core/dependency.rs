@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use destack_source::{FileContentId, FileId};
+use destack_source::{ContentId, FileId};
 
 use crate::{ArtifactKey, ArtifactVersion};
 
@@ -57,7 +57,7 @@ pub enum SourceDependency {
         /// The source file id.
         file: FileId,
         /// The exact source content id.
-        content: FileContentId,
+        content: ContentId,
     },
 }
 
@@ -80,7 +80,7 @@ impl SourceDependency {
     }
 
     /// Build one file content dependency.
-    pub fn file_content(file: FileId, content: FileContentId) -> Self {
+    pub fn file_content(file: FileId, content: ContentId) -> Self {
         Self::FileContent { file, content }
     }
 }
@@ -127,12 +127,12 @@ impl ArtifactDependencySet {
     }
 
     /// Declare one observed source file content id.
-    pub fn observe_file_content(&mut self, file: FileId, content: FileContentId) {
+    pub fn observe_file_content(&mut self, file: FileId, content: ContentId) {
         self.observe_source(SourceDependency::file_content(file, content));
     }
 
     /// Declare one observed regular source file.
-    pub fn observe_file(&mut self, file: FileId, content: FileContentId) {
+    pub fn observe_file(&mut self, file: FileId, content: ContentId) {
         self.observe_path_state(file, ArtifactPathState::File);
         self.observe_file_content(file, content);
     }
@@ -172,7 +172,7 @@ impl ArtifactDependency {
     }
 
     /// Build one file content dependency.
-    pub fn file_content(file: FileId, content: FileContentId) -> Self {
+    pub fn file_content(file: FileId, content: ContentId) -> Self {
         Self::Source(SourceDependency::file_content(file, content))
     }
 }

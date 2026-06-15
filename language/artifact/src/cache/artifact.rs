@@ -1,67 +1,75 @@
+use std::collections::HashSet;
 use std::path::PathBuf;
 
-use serde::Serialize;
-use serde::de::DeserializeOwned;
-
 use crate::{
-    ARTIFACT_IMAGE_LIMIT_BYTES, ArtifactImage, ArtifactImageCacheLayout, ArtifactImageError,
-    ArtifactVersion, CacheStore, CacheStoreError,
+    ArtifactBlobError, ArtifactRecord, ArtifactVersion, CACHE_BLOB_LIMIT_BYTES, CacheStore,
+    CacheStoreError, RepositoryCacheLayout,
 };
 
-/// Cache of canonical artifact images.
+/// Cache of canonical artifact records.
 #[derive(Debug)]
-pub struct ArtifactImageCache<'a> {
-    /// The cache store backing this artifact image cache.
+pub struct ArtifactCache<'a> {
+    /// The cache store backing this artifact cache.
     store: &'a dyn CacheStore,
-    /// The artifact image cache layout.
-    layout: ArtifactImageCacheLayout,
+    /// The repository cache layout.
+    layout: RepositoryCacheLayout,
+    /// The build fingerprint partition this artifact cache serves.
+    build_fingerprint: &'a str,
 }
 
-impl<'a> ArtifactImageCache<'a> {
-    /// Create one artifact image cache.
-    pub fn new(store: &'a dyn CacheStore, layout: &ArtifactImageCacheLayout) -> Self {
+impl<'a> ArtifactCache<'a> {
+    /// Create one artifact cache.
+    pub fn new(
+        store: &'a dyn CacheStore,
+        layout: &RepositoryCacheLayout,
+        build_fingerprint: &'a str,
+    ) -> Self {
         Self {
             store,
             layout: layout.clone(),
+            build_fingerprint,
         }
     }
 
-    /// Load one exact artifact image.
-    pub fn load<T>(
+    /// Load one exact artifact record.
+    pub fn load(
         &self,
         expected: &ArtifactVersion,
-    ) -> Result<Option<ArtifactImage<T>>, ArtifactImageError>
-    where
-        T: DeserializeOwned,
-    {
-        // image bytes
-        let Some(bytes) = self.read_image_bytes(expected)? else {
+    ) -> Result<Option<ArtifactRecord>, ArtifactBlobError> {
+        // read cached bytes
+        let Some(bytes) = self.read_record_bytes(expected)? else {
             return Ok(None);
         };
 
-        // payload decode
-        let image = ArtifactImage::<T>::deserialize(&bytes)?;
-        if image.version() != *expected {
-            return Err(ArtifactImageError::Version {
+        // decode and validate record
+        let record = postcard::from_bytes::<ArtifactRecord>(&bytes)
+            .map_err(|error| ArtifactBlobError::Codec(Box::new(error)))?;
+        if record.version != *expected {
+            return Err(ArtifactBlobError::Version {
                 expected: Box::new(*expected),
-                found: Box::new(image.version()),
+                found: Box::new(record.version),
             });
         }
 
-        Ok(Some(image))
+        Ok(Some(record))
     }
 
-    /// Save one exact artifact image.
-    pub fn save<T>(&self, image: &ArtifactImage<T>) -> Result<(), ArtifactImageError>
-    where
-        T: Serialize,
-    {
-        // image bytes
-        let bytes = image.serialize()?;
+    /// Store one exact artifact record.
+    pub fn store(&self, record: &ArtifactRecord) -> Result<(), ArtifactBlobError> {
+        // encode record
+        let bytes = postcard::to_allocvec(record)
+            .map_err(|error| ArtifactBlobError::Codec(Box::new(error)))?;
+        let byte_len = bytes.len() as u64;
+        if byte_len > CACHE_BLOB_LIMIT_BYTES {
+            return Err(ArtifactBlobError::Size {
+                limit: CACHE_BLOB_LIMIT_BYTES,
+                actual: byte_len,
+            });
+        }
 
-        // publish image
+        // write under cache lock
         self.with_write_lock(|| {
-            self.write_image_bytes(&image.version(), &bytes)?;
+            self.write_record_bytes(&record.version, &bytes)?;
 
             Ok(())
         })?;
@@ -69,63 +77,92 @@ impl<'a> ArtifactImageCache<'a> {
         Ok(())
     }
 
-    /// Run one write operation under the artifact cache lock.
+    /// Retain only reachable artifact records.
+    pub fn retain_reachable(
+        &self,
+        reachable: &HashSet<ArtifactVersion>,
+    ) -> Result<(), ArtifactBlobError> {
+        // build retained path set
+        let root = self.layout.artifact_root(&self.build_fingerprint);
+        let retained_paths = reachable
+            .iter()
+            .map(|version| self.record_path(version))
+            .collect::<HashSet<_>>();
+
+        // remove unreachable entries
+        self.with_write_lock(|| {
+            for path in self.store.entries(&root)? {
+                if !retained_paths.contains(&path) {
+                    self.store.remove(&path)?;
+                }
+            }
+
+            Ok(())
+        })
+    }
+
+    /// Run one write operation under the persistent cache lock.
     fn with_write_lock<T>(
         &self,
-        operation: impl FnOnce() -> Result<T, ArtifactImageError>,
-    ) -> Result<T, ArtifactImageError> {
-        let lock_path = self.layout.image_lock_path();
+        operation: impl FnOnce() -> Result<T, ArtifactBlobError>,
+    ) -> Result<T, ArtifactBlobError> {
+        // acquire cache lock
+        let lock_path = self.layout.cache_lock_path();
         let mut operation = Some(operation);
         let mut output = None;
 
+        // run operation once
         self.store.with_exclusive_lock(&lock_path, &mut || {
             let Some(operation) = operation.take() else {
-                panic!("artifact cache lock should run exactly once");
+                panic!("cache lock should run exactly once");
             };
             let result = operation();
             output = Some(result);
         })?;
 
+        // return operation result
         match output {
             Some(output) => output,
-            None => panic!("artifact cache lock should produce one value"),
+            None => panic!("cache lock should produce one value"),
         }
     }
 
-    /// Read one exact image.
-    fn read_image_bytes(
+    /// Read one exact record.
+    fn read_record_bytes(
         &self,
         expected: &ArtifactVersion,
-    ) -> Result<Option<Vec<u8>>, ArtifactImageError> {
-        // image bytes
-        let image_path = self.image_path(expected)?;
-        let Some(byte_len) = self.store.byte_len(&image_path)? else {
+    ) -> Result<Option<Vec<u8>>, ArtifactBlobError> {
+        // inspect cached record
+        let record_path = self.record_path(expected);
+        let Some(byte_len) = self.store.byte_len(&record_path)? else {
             return Ok(None);
         };
-        if byte_len > ARTIFACT_IMAGE_LIMIT_BYTES {
-            return Err(ArtifactImageError::Size {
-                limit: ARTIFACT_IMAGE_LIMIT_BYTES,
+        if byte_len > CACHE_BLOB_LIMIT_BYTES {
+            return Err(ArtifactBlobError::Size {
+                limit: CACHE_BLOB_LIMIT_BYTES,
                 actual: byte_len,
             });
         }
 
-        let Some(bytes) = self.store.read(&image_path)? else {
+        // read cached bytes
+        let Some(bytes) = self.store.read(&record_path)? else {
             return Ok(None);
         };
 
         Ok(Some(bytes))
     }
 
-    /// Write one exact image blob.
-    fn write_image_bytes(
+    /// Write one exact record blob.
+    fn write_record_bytes(
         &self,
         version: &ArtifactVersion,
         bytes: &[u8],
-    ) -> Result<(), ArtifactImageError> {
-        let image_path = self.image_path(version)?;
-        if let Some(existing_bytes) = self.store.read(&image_path)? {
+    ) -> Result<(), ArtifactBlobError> {
+        // accept existing identical bytes
+        let record_path = self.record_path(version);
+        if let Some(existing_bytes) = self.store.read(&record_path)? {
             if existing_bytes != bytes {
-                return Err(ArtifactImageError::Conflict {
+                return Err(ArtifactBlobError::Conflict {
                     version: Box::new(*version),
                 });
             }
@@ -133,16 +170,17 @@ impl<'a> ArtifactImageCache<'a> {
             return Ok(());
         }
 
-        match self.store.write_once(&image_path, bytes) {
+        // write new bytes
+        match self.store.write_once(&record_path, bytes) {
             Ok(()) => {}
             Err(CacheStoreError::AlreadyExists) => {
-                let Some(existing_bytes) = self.store.read(&image_path)? else {
-                    return Err(ArtifactImageError::Corrupt(
+                let Some(existing_bytes) = self.store.read(&record_path)? else {
+                    return Err(ArtifactBlobError::Corrupt(
                         "cache entry disappeared after write conflict",
                     ));
                 };
                 if existing_bytes != bytes {
-                    return Err(ArtifactImageError::Conflict {
+                    return Err(ArtifactBlobError::Conflict {
                         version: Box::new(*version),
                     });
                 }
@@ -153,29 +191,19 @@ impl<'a> ArtifactImageCache<'a> {
         Ok(())
     }
 
-    /// Return the cached image path for one exact header.
-    fn image_path(&self, version: &ArtifactVersion) -> Result<PathBuf, ArtifactImageError> {
-        let image_key_bytes = postcard::to_allocvec(version)
-            .map_err(|error| ArtifactImageError::Codec(Box::new(error)))?;
-        let image_token = artifact_image_token(&image_key_bytes);
-        let shard = &image_token[0..2];
+    /// Return the cached record path for one exact version.
+    fn record_path(&self, version: &ArtifactVersion) -> PathBuf {
+        let fingerprint = version.fingerprint.to_string();
+        let shard = &fingerprint[1..3];
 
-        Ok(self
-            .layout
-            .image_root()
+        self.layout
+            .artifact_root(&self.build_fingerprint)
             .join(shard)
-            .join(format!("{image_token}.bin")))
+            .join(format!("{fingerprint}.bin"))
     }
 }
 
-/// Return the stable path token for one artifact image version.
-fn artifact_image_token(bytes: &[u8]) -> String {
-    let digest = blake3::hash(bytes);
-
-    digest.to_hex().to_string()
-}
-
-impl From<CacheStoreError> for ArtifactImageError {
+impl From<CacheStoreError> for ArtifactBlobError {
     fn from(error: CacheStoreError) -> Self {
         Self::Cache(Box::new(error))
     }

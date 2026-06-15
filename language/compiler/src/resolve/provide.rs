@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactSidecar};
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProviderContext, ProviderError, Revision};
-use destack_source::{FileContent, ModuleId, ProfileId};
+use destack_source::{Content, ModuleId, ProfileId};
 use indexmap::IndexSet;
 
 use crate::resolve::state::ResolveState;
@@ -90,7 +90,7 @@ impl Compiler {
         context.emit_sidecar(ArtifactSidecar::new(
             "metadata",
             iter::once(("phase", "resolve")),
-            FileContent::Text {
+            Content::Text {
                 content: stats.render_metadata(),
             },
         ));

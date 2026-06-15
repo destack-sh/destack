@@ -134,7 +134,8 @@ impl Repository {
         dependencies: Vec<ArtifactDependency>,
         failed: Option<ArtifactKey>,
     ) -> ProviderResult<ArtifactVersion> {
-        let version = ArtifactVersion::new(key, dependencies.iter().cloned());
+        let version =
+            ArtifactVersion::new(key, self.build_fingerprint(), dependencies.iter().cloned());
 
         // a poisoned dependency fails this artifact without running the provider
         if let Some(failed) = failed {
@@ -155,6 +156,14 @@ impl Repository {
             self.bind_artifact(revision, version)
                 .map_err(|error| ProviderError::internal(error.to_string()))?;
 
+            return Ok(version);
+        }
+
+        // load a committed record before running the provider
+        if self
+            .load_artifact(revision, version)
+            .map_err(|error| ProviderError::internal(error.to_string()))?
+        {
             return Ok(version);
         }
 
@@ -237,7 +246,9 @@ impl Repository {
         // the first poisoned dependency fails the artifact without running it
         let mut failed = None;
         for dependency in &set.artifacts {
-            if let Some(ArtifactOutcome::Failed(_)) = self.artifact_outcome(revision, *dependency)? {
+            if let Some(ArtifactOutcome::Failed(_)) =
+                self.artifact_outcome(revision, *dependency)?
+            {
                 failed = Some(*dependency);
 
                 break;
@@ -317,7 +328,14 @@ impl Repository {
         sidecars: Vec<ArtifactSidecar>,
         failure: ArtifactFailure,
     ) -> ProviderResult<()> {
-        self.fail_artifact(revision, version, dependencies, diagnostics, sidecars, failure)
-            .map_err(|error| ProviderError::internal(error.to_string()).into())
+        self.fail_artifact(
+            revision,
+            version,
+            dependencies,
+            diagnostics,
+            sidecars,
+            failure,
+        )
+        .map_err(|error| ProviderError::internal(error.to_string()).into())
     }
 }

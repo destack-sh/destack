@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactSidecar};
 use destack_dir as dir;
 use destack_repository::{ProfileId, ProviderContext};
-use destack_source::{FileContent, ModuleId};
+use destack_source::{Content, ModuleId};
 
 use crate::export::state::ExportState;
 use crate::{Compiler, CompilerError, CompilerResult};
@@ -67,7 +67,7 @@ impl Compiler {
         context.emit_sidecar(ArtifactSidecar::new(
             "metadata",
             iter::once(("phase", "export")),
-            FileContent::Text {
+            Content::Text {
                 content: stats.render_metadata(),
             },
         ));

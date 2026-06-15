@@ -111,7 +111,11 @@ impl Worker {
         };
 
         // the version is fixed by the frozen closure before any provider runs
-        let version = ArtifactVersion::new(task.key, dependencies.iter().cloned());
+        let version = ArtifactVersion::new(
+            task.key,
+            repository.build_fingerprint(),
+            dependencies.iter().cloned(),
+        );
 
         // fails this artifact immediately on a poisoned dependency
         if let Some(failed_dependency) = failed {
@@ -137,6 +141,16 @@ impl Worker {
             return self.finish_ready(run.id(), task);
         }
 
+        // load a committed record before running the provider
+        if repository
+            .load_artifact(task.revision, version)
+            .map_err(|error| SessionError::Internal {
+                detail: format!("failed to load cached artifact {:?}: {error}", task.key),
+            })?
+        {
+            return self.finish_ready(run.id(), task);
+        }
+
         // run the provider exactly once over the frozen closure
         let tracer = Arc::new(run.trace().begin(task.key, self.index));
         let attempt = ProviderAttempt::new(repository, task.revision, task.key)
@@ -153,11 +167,13 @@ impl Worker {
 
     /// Park one task until its unready dependency frontier becomes terminal.
     fn wait_on(&self, run: RunId, task: Task, frontier: Vec<Task>) -> Result<(), SessionError> {
+        let repository = self.session.repository();
         let result = self.scheduler.wait_on(task, run, frontier);
 
         // a rejected wait records the artifact as failed so waiters cannot stall
         if let Err(error) = result {
-            let version = ArtifactVersion::new(task.key, Vec::new());
+            let version =
+                ArtifactVersion::new(task.key, repository.build_fingerprint(), Vec::new());
 
             self.fail(
                 run,

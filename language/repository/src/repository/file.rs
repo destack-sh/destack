@@ -1,13 +1,8 @@
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::repository::{Repository, RepositoryError, Revision};
-use dashmap::DashMap;
-use destack_source::{
-    File, FileContent, FileContentEntry, FileContentId, FileId, FileMetadata, FileType, PathExt,
-    StringId, Uri,
-};
+use destack_source::{ContentId, File, FileId, FileMetadata, FileType, PathExt, StringId, Uri};
 use im::OrdMap;
 use rustc_hash::FxHashSet;
 
@@ -20,54 +15,16 @@ pub(crate) struct FileEntry {
     /// The logical path for this file in this revision.
     pub logical_path: StringId,
     /// The fixed content binding for this file.
-    pub content_id: FileContentId,
+    pub content_id: ContentId,
 }
 
 impl FileEntry {
     /// Build one loaded file entry.
-    pub(crate) fn loaded(logical_path: StringId, content_id: FileContentId) -> Self {
+    pub(crate) fn loaded(logical_path: StringId, content_id: ContentId) -> Self {
         Self {
             logical_path,
             content_id,
         }
-    }
-}
-
-/// Shared immutable source content storage.
-#[derive(Debug, Default)]
-pub(crate) struct FileStore {
-    /// Content payloads by exact content identity.
-    content_by_id: DashMap<FileContentId, Arc<FileContentEntry>>,
-}
-
-impl FileStore {
-    /// Create one empty content store.
-    pub(crate) fn new() -> Self {
-        Self::default()
-    }
-
-    /// Intern one content payload and return its exact identity.
-    pub(crate) fn intern(&self, content: FileContent) -> FileContentId {
-        let content_id = FileContentId::for_content(&content);
-
-        self.content_by_id
-            .entry(content_id)
-            .or_insert_with(|| Arc::new(FileContentEntry::new(content)));
-
-        content_id
-    }
-
-    /// Get one shared content payload.
-    pub(crate) fn get(&self, content_id: FileContentId) -> Option<Arc<FileContentEntry>> {
-        self.content_by_id
-            .get(&content_id)
-            .map(|entry| Arc::clone(entry.value()))
-    }
-
-    /// Retain only the reachable content ids.
-    pub(crate) fn retain_reachable(&self, reachable: &HashSet<FileContentId>) {
-        self.content_by_id
-            .retain(|content_id, _| reachable.contains(content_id));
     }
 }
 
@@ -201,7 +158,7 @@ impl Repository {
         };
 
         // assemble the physical source file
-        let content = self.file_content_by_id(entry.content_id)?;
+        let content = self.content(entry.content_id)?;
         let logical_path = self.logical_path_text(entry.logical_path);
         let path = self.file_entry_path(&entry);
         let uri = Uri::from_path(&path);
@@ -258,7 +215,7 @@ impl Repository {
         &self,
         revision: Revision,
         file_id: FileId,
-    ) -> Result<Option<FileContentId>, RepositoryError> {
+    ) -> Result<Option<ContentId>, RepositoryError> {
         // prefer immutable builtin files
         if let Some(builtin) = self.builtin.file(file_id) {
             return Ok(Some(builtin.content_id()));

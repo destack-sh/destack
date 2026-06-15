@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use dashmap::mapref::entry::Entry;
-use destack_source::{FileContent, FileId, FileType};
+use destack_source::{Content, FileId, FileType};
 use im::OrdMap;
 
 use crate::repository::{
@@ -15,7 +15,7 @@ impl Repository {
     pub fn fork_ref(&self, from: &Ref, to: Ref) -> Result<Revision, RepositoryError> {
         let revision = self.current(from)?;
         self.refs.insert(to, revision);
-        self.prune_unreachable();
+        self.prune_unreachable()?;
 
         Ok(revision)
     }
@@ -28,7 +28,7 @@ impl Repository {
     ) -> Result<Revision, RepositoryError> {
         let _revision = self.revision(revision)?;
         self.refs.insert(reference.clone(), revision);
-        self.prune_unreachable();
+        self.prune_unreachable()?;
 
         Ok(revision)
     }
@@ -60,7 +60,7 @@ impl Repository {
         };
 
         if did_advance {
-            self.prune_unreachable();
+            self.prune_unreachable()?;
         }
 
         Ok(did_advance)
@@ -92,7 +92,7 @@ impl Repository {
     }
 
     /// Load one workspace file payload from the attached file system.
-    pub fn load_workspace_file_content(&self, path: &Path) -> Result<FileContent, RepositoryError> {
+    pub fn load_workspace_file_content(&self, path: &Path) -> Result<Content, RepositoryError> {
         let file_type = FileType::from_path_or_unknown(path);
 
         // binary
@@ -106,7 +106,7 @@ impl Repository {
                     message: error.to_string(),
                 })?;
 
-            Ok(FileContent::Binary { content })
+            Ok(Content::Binary { content })
         }
         // text
         else {
@@ -119,7 +119,7 @@ impl Repository {
                         message: error.to_string(),
                     })?;
 
-            Ok(FileContent::Text { content })
+            Ok(Content::Text { content })
         }
     }
 
@@ -146,7 +146,7 @@ impl Repository {
                     }
 
                     let logical_path = self.intern_logical_path(logical_path);
-                    let content = self.files.intern(content);
+                    let content = self.intern_content(content)?;
                     files.insert(file_id, FileEntry::loaded(logical_path, content));
                 }
 
@@ -158,7 +158,7 @@ impl Repository {
                     let logical_path = normalize_logical_path(&logical_path);
                     let file_id = FileId::from_logical_str(&logical_path);
                     let logical_path = self.intern_logical_path(logical_path);
-                    let content = self.files.intern(content);
+                    let content = self.intern_content(content)?;
                     files.insert(file_id, FileEntry::loaded(logical_path, content));
                 }
 
