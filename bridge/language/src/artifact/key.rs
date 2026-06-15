@@ -40,6 +40,13 @@ pub enum ArtifactKey {
         /// Semantic profile.
         profile: ProfileId,
     },
+    /// Whole-program analysis for one profile and target.
+    ProgramAnalysis {
+        /// Semantic profile.
+        profile: ProfileId,
+        /// Build target.
+        target: TargetId,
+    },
     /// Bound DIR.
     DirBound {
         /// Source module.
@@ -116,6 +123,15 @@ pub enum ArtifactKey {
     },
     /// Verified MIR after required semantic verification.
     MirVerified {
+        /// Source module.
+        module: ModuleId,
+        /// Semantic profile.
+        profile: ProfileId,
+        /// Build target.
+        target: TargetId,
+    },
+    /// Per-module link summary for whole-program analysis.
+    MirAnalyzed {
         /// Source module.
         module: ModuleId,
         /// Semantic profile.
@@ -203,6 +219,10 @@ impl ArtifactKey {
             artifact::ArtifactKey::ComponentGraph { profile } => Self::ComponentGraph {
                 profile: profile.into(),
             },
+            artifact::ArtifactKey::ProgramAnalysis { profile, target } => Self::ProgramAnalysis {
+                profile: profile.into(),
+                target: target.into(),
+            },
             artifact::ArtifactKey::DirBound { module, profile } => Self::DirBound {
                 module: module.into(),
                 profile: profile.into(),
@@ -258,6 +278,15 @@ impl ArtifactKey {
                 profile,
                 target,
             } => Self::MirVerified {
+                module: module.into(),
+                profile: profile.into(),
+                target: target.into(),
+            },
+            artifact::ArtifactKey::MirAnalyzed {
+                module,
+                profile,
+                target,
+            } => Self::MirAnalyzed {
                 module: module.into(),
                 profile: profile.into(),
                 target: target.into(),
@@ -322,6 +351,12 @@ impl ArtifactKey {
             Self::ComponentGraph { profile } => Ok(artifact::ArtifactKey::ComponentGraph {
                 profile: profile.into_source()?,
             }),
+            Self::ProgramAnalysis { profile, target } => {
+                Ok(artifact::ArtifactKey::ProgramAnalysis {
+                    profile: profile.into_source()?,
+                    target: target.into_source()?,
+                })
+            }
             Self::DirBound { module, profile } => Ok(artifact::ArtifactKey::DirBound {
                 module: module.into_source()?,
                 profile: profile.into_source()?,
@@ -379,6 +414,15 @@ impl ArtifactKey {
                 profile,
                 target,
             } => Ok(artifact::ArtifactKey::MirVerified {
+                module: module.into_source()?,
+                profile: profile.into_source()?,
+                target: target.into_source()?,
+            }),
+            Self::MirAnalyzed {
+                module,
+                profile,
+                target,
+            } => Ok(artifact::ArtifactKey::MirAnalyzed {
                 module: module.into_source()?,
                 profile: profile.into_source()?,
                 target: target.into_source()?,

@@ -215,6 +215,14 @@ export function toNapiArtifactKey(value: ArtifactKey): Napi.ArtifactKey {
         };
     }
 
+    if (value.kind === "programAnalysis") {
+        return {
+            kind: "programAnalysis",
+            profile: toNapiProfileId(value.profile),
+            target: toNapiTargetId(value.target),
+        };
+    }
+
     if (value.kind === "dirBound") {
         return {
             kind: "dirBound",
@@ -300,6 +308,15 @@ export function toNapiArtifactKey(value: ArtifactKey): Napi.ArtifactKey {
     if (value.kind === "mirVerified") {
         return {
             kind: "mirVerified",
+            module: toNapiModuleId(value.module),
+            profile: toNapiProfileId(value.profile),
+            target: toNapiTargetId(value.target),
+        };
+    }
+
+    if (value.kind === "mirAnalyzed") {
+        return {
+            kind: "mirAnalyzed",
             module: toNapiModuleId(value.module),
             profile: toNapiProfileId(value.profile),
             target: toNapiTargetId(value.target),
@@ -449,6 +466,24 @@ export function fromNapiArtifactKey(value: Napi.ArtifactKey): ArtifactKey {
         return {
             kind: "componentGraph",
             profile: fromNapiProfileId(payload_profile),
+        };
+    }
+
+    if (value.kind === "programAnalysis") {
+        const payload_profile = value.profile;
+        if (payload_profile == null) {
+            throw new Error("profile payload is missing");
+        }
+
+        const payload_target = value.target;
+        if (payload_target == null) {
+            throw new Error("target payload is missing");
+        }
+
+        return {
+            kind: "programAnalysis",
+            profile: fromNapiProfileId(payload_profile),
+            target: fromNapiTargetId(payload_target),
         };
     }
 
@@ -662,6 +697,30 @@ export function fromNapiArtifactKey(value: Napi.ArtifactKey): ArtifactKey {
 
         return {
             kind: "mirVerified",
+            module: fromNapiModuleId(payload_module),
+            profile: fromNapiProfileId(payload_profile),
+            target: fromNapiTargetId(payload_target),
+        };
+    }
+
+    if (value.kind === "mirAnalyzed") {
+        const payload_module = value.module;
+        if (payload_module == null) {
+            throw new Error("module payload is missing");
+        }
+
+        const payload_profile = value.profile;
+        if (payload_profile == null) {
+            throw new Error("profile payload is missing");
+        }
+
+        const payload_target = value.target;
+        if (payload_target == null) {
+            throw new Error("target payload is missing");
+        }
+
+        return {
+            kind: "mirAnalyzed",
             module: fromNapiModuleId(payload_module),
             profile: fromNapiProfileId(payload_profile),
             target: fromNapiTargetId(payload_target),

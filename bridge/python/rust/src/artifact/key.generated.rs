@@ -75,6 +75,17 @@ impl ArtifactKey {
         }
     }
 
+    /// Whole-program analysis for one profile and target.
+    #[staticmethod]
+    pub fn program_analysis(profile: ProfileId, target: TargetId) -> Self {
+        Self {
+            value: bridge::ArtifactKey::ProgramAnalysis {
+                profile: profile.into_bridge(),
+                target: target.into_bridge(),
+            },
+        }
+    }
+
     /// Bound DIR.
     #[staticmethod]
     pub fn dir_bound(module: ModuleId, profile: ProfileId) -> Self {
@@ -203,6 +214,18 @@ impl ArtifactKey {
         }
     }
 
+    /// Per-module link summary for whole-program analysis.
+    #[staticmethod]
+    pub fn mir_analyzed(module: ModuleId, profile: ProfileId, target: TargetId) -> Self {
+        Self {
+            value: bridge::ArtifactKey::MirAnalyzed {
+                module: module.into_bridge(),
+                profile: profile.into_bridge(),
+                target: target.into_bridge(),
+            },
+        }
+    }
+
     /// Optimized MIR.
     #[staticmethod]
     pub fn mir_optimized(module: ModuleId, profile: ProfileId, target: TargetId) -> Self {
@@ -308,6 +331,7 @@ impl ArtifactKey {
             bridge::ArtifactKey::PackageIndex { .. } => "packageIndex",
             bridge::ArtifactKey::ModuleIndex { .. } => "moduleIndex",
             bridge::ArtifactKey::ComponentGraph { .. } => "componentGraph",
+            bridge::ArtifactKey::ProgramAnalysis { .. } => "programAnalysis",
             bridge::ArtifactKey::DirBound { .. } => "dirBound",
             bridge::ArtifactKey::DirImported { .. } => "dirImported",
             bridge::ArtifactKey::DirExpanded { .. } => "dirExpanded",
@@ -319,6 +343,7 @@ impl ArtifactKey {
             bridge::ArtifactKey::DirElaborated { .. } => "dirElaborated",
             bridge::ArtifactKey::MirLowered { .. } => "mirLowered",
             bridge::ArtifactKey::MirVerified { .. } => "mirVerified",
+            bridge::ArtifactKey::MirAnalyzed { .. } => "mirAnalyzed",
             bridge::ArtifactKey::MirOptimized { .. } => "mirOptimized",
             bridge::ArtifactKey::ModuleQueryIndex { .. } => "moduleQueryIndex",
             bridge::ArtifactKey::WorkspaceQueryIndex { .. } => "workspaceQueryIndex",
@@ -391,6 +416,9 @@ impl ArtifactKey {
             bridge::ArtifactKey::MirVerified { module, .. } => {
                 Some(ModuleId::from_bridge(module.clone()))
             }
+            bridge::ArtifactKey::MirAnalyzed { module, .. } => {
+                Some(ModuleId::from_bridge(module.clone()))
+            }
             bridge::ArtifactKey::MirOptimized { module, .. } => {
                 Some(ModuleId::from_bridge(module.clone()))
             }
@@ -451,6 +479,9 @@ impl ArtifactKey {
             bridge::ArtifactKey::ComponentGraph { profile, .. } => {
                 Some(ProfileId::from_bridge(profile.clone()))
             }
+            bridge::ArtifactKey::ProgramAnalysis { profile, .. } => {
+                Some(ProfileId::from_bridge(profile.clone()))
+            }
             bridge::ArtifactKey::DirBound { profile, .. } => {
                 Some(ProfileId::from_bridge(profile.clone()))
             }
@@ -484,6 +515,9 @@ impl ArtifactKey {
             bridge::ArtifactKey::MirVerified { profile, .. } => {
                 Some(ProfileId::from_bridge(profile.clone()))
             }
+            bridge::ArtifactKey::MirAnalyzed { profile, .. } => {
+                Some(ProfileId::from_bridge(profile.clone()))
+            }
             bridge::ArtifactKey::MirOptimized { profile, .. } => {
                 Some(ProfileId::from_bridge(profile.clone()))
             }
@@ -504,10 +538,16 @@ impl ArtifactKey {
     #[getter]
     pub fn target(&self) -> Option<TargetId> {
         match &self.value {
+            bridge::ArtifactKey::ProgramAnalysis { target, .. } => {
+                Some(TargetId::from_bridge(target.clone()))
+            }
             bridge::ArtifactKey::MirLowered { target, .. } => {
                 Some(TargetId::from_bridge(target.clone()))
             }
             bridge::ArtifactKey::MirVerified { target, .. } => {
+                Some(TargetId::from_bridge(target.clone()))
+            }
+            bridge::ArtifactKey::MirAnalyzed { target, .. } => {
                 Some(TargetId::from_bridge(target.clone()))
             }
             bridge::ArtifactKey::MirOptimized { target, .. } => {

@@ -55,6 +55,10 @@ class ArtifactKey:
     @staticmethod
     def component_graph(profile: ProfileId) -> ArtifactKey: ...
 
+    """Whole-program analysis for one profile and target."""
+    @staticmethod
+    def program_analysis(profile: ProfileId, target: TargetId) -> ArtifactKey: ...
+
     """Bound DIR."""
     @staticmethod
     def dir_bound(module: ModuleId, profile: ProfileId) -> ArtifactKey: ...
@@ -98,6 +102,10 @@ class ArtifactKey:
     """Verified MIR after required semantic verification."""
     @staticmethod
     def mir_verified(module: ModuleId, profile: ProfileId, target: TargetId) -> ArtifactKey: ...
+
+    """Per-module link summary for whole-program analysis."""
+    @staticmethod
+    def mir_analyzed(module: ModuleId, profile: ProfileId, target: TargetId) -> ArtifactKey: ...
 
     """Optimized MIR."""
     @staticmethod
