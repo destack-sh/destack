@@ -1,38 +1,93 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
+use std::sync::Arc;
 
+use destack_core::StringPool;
+
+use crate::store::ArtifactCache;
 use crate::{
     ArtifactBlobError, ArtifactRecord, ArtifactVersion, CACHE_BLOB_LIMIT_BYTES, CacheStore,
     CacheStoreError, RepositoryCacheLayout,
 };
 
-/// Cache of canonical artifact records.
-#[derive(Debug)]
-pub struct ArtifactCache<'a> {
-    /// The cache store backing this artifact cache.
-    store: &'a dyn CacheStore,
-    /// The repository cache layout.
-    layout: RepositoryCacheLayout,
-    /// The build fingerprint partition this artifact cache serves.
-    build_fingerprint: &'a str,
+/// Persistent store for exact artifact records.
+pub trait ArtifactStore: std::fmt::Debug + Send + Sync {
+    /// Load one exact artifact record when it is present.
+    fn load(&self, expected: &ArtifactVersion)
+    -> Result<Option<ArtifactRecord>, ArtifactBlobError>;
+
+    /// Store one exact artifact record when this store persists artifacts.
+    fn store(
+        &self,
+        version: &ArtifactVersion,
+        cache: &ArtifactCache,
+        strings: &StringPool,
+    ) -> Result<(), ArtifactBlobError>;
+
+    /// Retain only reachable artifact records.
+    fn retain(&self, reachable: &HashSet<ArtifactVersion>) -> Result<(), ArtifactBlobError>;
 }
 
-impl<'a> ArtifactCache<'a> {
-    /// Create one artifact cache.
+/// Artifact store that disables persistence.
+#[derive(Debug, Default, Clone)]
+pub struct NullArtifactStore;
+
+impl NullArtifactStore {
+    /// Create a null artifact store.
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl ArtifactStore for NullArtifactStore {
+    fn load(
+        &self,
+        _expected: &ArtifactVersion,
+    ) -> Result<Option<ArtifactRecord>, ArtifactBlobError> {
+        Ok(None)
+    }
+
+    fn store(
+        &self,
+        _version: &ArtifactVersion,
+        _cache: &ArtifactCache,
+        _strings: &StringPool,
+    ) -> Result<(), ArtifactBlobError> {
+        Ok(())
+    }
+
+    fn retain(&self, _reachable: &HashSet<ArtifactVersion>) -> Result<(), ArtifactBlobError> {
+        Ok(())
+    }
+}
+
+/// Disk-backed store of canonical artifact records.
+#[derive(Debug)]
+pub struct DiskArtifactStore {
+    /// The byte store backing this artifact store.
+    store: Arc<dyn CacheStore>,
+    /// The repository cache layout.
+    layout: RepositoryCacheLayout,
+    /// The build fingerprint partition this artifact store serves.
+    build_fingerprint: String,
+}
+
+impl DiskArtifactStore {
+    /// Create one disk artifact store.
     pub fn new(
-        store: &'a dyn CacheStore,
-        layout: &RepositoryCacheLayout,
-        build_fingerprint: &'a str,
+        store: Arc<dyn CacheStore>,
+        layout: RepositoryCacheLayout,
+        build_fingerprint: impl Into<String>,
     ) -> Self {
         Self {
             store,
-            layout: layout.clone(),
-            build_fingerprint,
+            layout,
+            build_fingerprint: build_fingerprint.into(),
         }
     }
 
     /// Load one exact artifact record.
-    pub fn load(
+    fn load_record(
         &self,
         expected: &ArtifactVersion,
     ) -> Result<Option<ArtifactRecord>, ArtifactBlobError> {
@@ -55,7 +110,7 @@ impl<'a> ArtifactCache<'a> {
     }
 
     /// Store one exact artifact record.
-    pub fn store(&self, record: &ArtifactRecord) -> Result<(), ArtifactBlobError> {
+    fn store_record(&self, record: &ArtifactRecord) -> Result<(), ArtifactBlobError> {
         // encode record
         let bytes = postcard::to_allocvec(record)
             .map_err(|error| ArtifactBlobError::Codec(Box::new(error)))?;
@@ -78,7 +133,7 @@ impl<'a> ArtifactCache<'a> {
     }
 
     /// Retain only reachable artifact records.
-    pub fn retain_reachable(
+    fn retain_reachable(
         &self,
         reachable: &HashSet<ArtifactVersion>,
     ) -> Result<(), ArtifactBlobError> {
@@ -205,6 +260,34 @@ impl<'a> ArtifactCache<'a> {
 
 impl From<CacheStoreError> for ArtifactBlobError {
     fn from(error: CacheStoreError) -> Self {
-        Self::Cache(Box::new(error))
+        Self::Store(Box::new(error))
+    }
+}
+
+impl ArtifactStore for DiskArtifactStore {
+    fn load(
+        &self,
+        expected: &ArtifactVersion,
+    ) -> Result<Option<ArtifactRecord>, ArtifactBlobError> {
+        self.load_record(expected)
+    }
+
+    fn store(
+        &self,
+        version: &ArtifactVersion,
+        cache: &ArtifactCache,
+        strings: &StringPool,
+    ) -> Result<(), ArtifactBlobError> {
+        let Some(record) = cache.record(version, strings)? else {
+            return Err(ArtifactBlobError::Corrupt(
+                "artifact store cannot persist missing artifact version",
+            ));
+        };
+
+        self.store_record(&record)
+    }
+
+    fn retain(&self, reachable: &HashSet<ArtifactVersion>) -> Result<(), ArtifactBlobError> {
+        self.retain_reachable(reachable)
     }
 }

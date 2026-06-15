@@ -157,8 +157,8 @@ pub enum ArtifactBlobError {
     Size { limit: u64, actual: u64 },
     /// The cache already has different bytes for the same exact version.
     Conflict { version: Box<ArtifactVersion> },
-    /// The artifact cache failed to read or write.
-    Cache(Box<CacheStoreError>),
+    /// The artifact store failed to read or write.
+    Store(Box<CacheStoreError>),
 }
 
 impl fmt::Display for ArtifactBlobError {
@@ -185,8 +185,8 @@ impl fmt::Display for ArtifactBlobError {
             ArtifactBlobError::Conflict { version } => {
                 write!(f, "conflicting artifact blob bytes for {version:?}")
             }
-            ArtifactBlobError::Cache(error) => {
-                write!(f, "artifact cache error: {error}")
+            ArtifactBlobError::Store(error) => {
+                write!(f, "artifact store error: {error}")
             }
         }
     }
@@ -196,7 +196,7 @@ impl std::error::Error for ArtifactBlobError {}
 
 impl From<std::io::Error> for ArtifactBlobError {
     fn from(error: std::io::Error) -> Self {
-        Self::Cache(Box::new(CacheStoreError::from(error)))
+        Self::Store(Box::new(CacheStoreError::from(error)))
     }
 }
 

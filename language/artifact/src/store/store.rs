@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use dashmap::DashMap;
@@ -20,9 +21,9 @@ use crate::{
 /// One versioned artifact family map.
 type ArtifactMap<T> = DashMap<ArtifactVersion, Arc<T>>;
 
-/// Store of published semantic artifacts.
+/// Cache of published semantic artifacts.
 #[derive(Debug, Default)]
-pub struct ArtifactStore {
+pub struct ArtifactCache {
     /// The exact artifact version entries.
     entries: DashMap<ArtifactVersion, ArtifactEntry>,
     /// The live retain count for each exact artifact version.
@@ -87,8 +88,8 @@ pub struct ArtifactStore {
     workspace_linted: ArtifactMap<WorkspaceLinted>,
 }
 
-impl ArtifactStore {
-    /// Create a new semantic artifact store.
+impl ArtifactCache {
+    /// Create a new semantic artifact cache.
     pub fn new() -> Self {
         Self::default()
     }
@@ -135,6 +136,51 @@ impl ArtifactStore {
             .iter()
             .map(|entry| *entry.key())
             .collect()
+    }
+
+    /// Retain reachable and explicitly pinned artifact versions.
+    pub fn retain_reachable(&self, reachable: &HashSet<ArtifactVersion>) {
+        // collect pinned versions
+        let retained = self
+            .retained_versions
+            .iter()
+            .map(|entry| *entry.key())
+            .collect::<HashSet<_>>();
+
+        // keep reachable and pinned versions
+        let keep =
+            |version: &ArtifactVersion| reachable.contains(version) || retained.contains(version);
+
+        // prune each artifact family
+        self.entries.retain(|version, _| keep(version));
+        self.dir_parsed.retain(|version, _| keep(version));
+        self.data.retain(|version, _| keep(version));
+        self.global_environment.retain(|version, _| keep(version));
+        self.package_index.retain(|version, _| keep(version));
+        self.module_index.retain(|version, _| keep(version));
+        self.component_graph.retain(|version, _| keep(version));
+        self.dir_bound.retain(|version, _| keep(version));
+        self.dir_imported.retain(|version, _| keep(version));
+        self.dir_expanded.retain(|version, _| keep(version));
+        self.dir_exported.retain(|version, _| keep(version));
+        self.dir_resolved.retain(|version, _| keep(version));
+        self.dir_checked_component
+            .retain(|version, _| keep(version));
+        self.dir_checked.retain(|version, _| keep(version));
+        self.dir_materialized.retain(|version, _| keep(version));
+        self.dir_elaborated.retain(|version, _| keep(version));
+        self.mir_lowered.retain(|version, _| keep(version));
+        self.mir_verified.retain(|version, _| keep(version));
+        self.mir_optimized.retain(|version, _| keep(version));
+        self.module_query_index.retain(|version, _| keep(version));
+        self.workspace_query_index
+            .retain(|version, _| keep(version));
+        self.module_output.retain(|version, _| keep(version));
+        self.package_output.retain(|version, _| keep(version));
+        self.product_output.retain(|version, _| keep(version));
+        self.module_linted.retain(|version, _| keep(version));
+        self.package_linted.retain(|version, _| keep(version));
+        self.workspace_linted.retain(|version, _| keep(version));
     }
 
     /// Return the recorded diagnostics for one exact artifact version.
@@ -830,7 +876,7 @@ impl ArtifactStore {
     }
 }
 
-impl ArtifactStore {
+impl ArtifactCache {
     /// Get one global environment artifact.
     pub fn global_environment(&self, version: &ArtifactVersion) -> Option<Arc<GlobalEnvironment>> {
         self.global_environment
