@@ -7,7 +7,7 @@ use destack_daemon::protocol::{
     CommandPayload, CommonCommandOptions,
 };
 use destack_mir::{MirFormatOptions, Tree, format_mir};
-use destack_source::FileContent;
+use destack_source::Content;
 
 use crate::common::{
     DiagnosticArgs, DiagnosticFormat, FormatOptions, InputArgs, ProgramArgs, ReportArgs,
@@ -261,12 +261,12 @@ fn print_inspect_sidecars(sidecars: &[ArtifactSidecar]) {
 }
 
 /// Print one sidecar content payload.
-fn print_sidecar_content(content: &FileContent) {
+fn print_sidecar_content(content: &Content) {
     match content {
-        FileContent::Text { content } => {
+        Content::Text { content } => {
             print!("{content}");
         }
-        FileContent::Binary { content } => {
+        Content::Binary { content } => {
             println!("binary: {} bytes", content.len());
         }
     }
@@ -274,11 +274,11 @@ fn print_sidecar_content(content: &FileContent) {
 
 /// Format one inspected artifact as text.
 fn format_inspect_artifact(view: InspectView, artifact: &ArtifactRecord) -> Result<String, String> {
-    let image = artifact
-        .artifact_image()
-        .map_err(|error| format!("failed to decode artifact image: {error}"))?;
+    let payload = artifact
+        .decode_payload()
+        .map_err(|error| format!("failed to decode artifact payload: {error}"))?;
 
-    match (view, image.payload) {
+    match (view, payload) {
         (InspectView::MirLowered, ArtifactPayload::MirLowered(payload)) => {
             format_inspect_mir(&payload.tree, artifact)
         }
