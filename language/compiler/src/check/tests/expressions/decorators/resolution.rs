@@ -75,6 +75,45 @@ const value = 1;
 }
 
 #[test]
+fn test_namespace_member_decorator_resolves() {
+    let session = TestSession::builder()
+        .module("marks.ds", "export const mark = 1;\n")
+        .module(
+            "main.ds",
+            r#"
+import * as marks from "./marks.ds";
+
+@marks.mark
+const value = 1;
+"#,
+        )
+        .build();
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+import * as marks from "./marks.ds";
+
+@marks.mark
+const value: 1 = 1;
+
+=== checked ===
+import * as marks from "./marks.ds";
+
+@marks.mark
+/// @resolution.name source=marks.mark target=marks.mark
+
+const value = 1;
+/// @type.symbol symbol=value source=value type=1
+/// @type.node source=1 type=1
+"#,
+        "",
+    );
+}
+
+#[test]
 fn test_member_access_decorator_reports_error() {
     let session = TestSession::single(
         r#"
