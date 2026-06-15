@@ -6,7 +6,7 @@ use destack_artifact::{
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_repository::{
-    ArtifactCache, LinterOptions, Module, Package, ProfileId, Repository, Revision,
+    ArtifactReader, LinterOptions, Module, Package, ProfileId, Repository, Revision,
 };
 use destack_source::{File, FileId, ModuleId, PackageId};
 
@@ -15,8 +15,6 @@ use destack_source::{File, FileId, ModuleId, PackageId};
 pub struct LintSession {
     /// The repository backing this lint pass.
     pub repository: Arc<Repository>,
-    /// Revision artifact cache for this lint pass.
-    pub artifacts: Arc<ArtifactCache>,
     /// The source revision for this lint pass.
     pub revision: Revision,
     /// The active profile for this lint pass.
@@ -29,18 +27,21 @@ impl LintSession {
     /// Create a new lint session.
     pub fn new(
         repository: Arc<Repository>,
-        artifacts: Arc<ArtifactCache>,
         revision: Revision,
         profile_id: ProfileId,
         options: LinterOptions,
     ) -> Self {
         Self {
             repository,
-            artifacts,
             revision,
             profile_id,
             options,
         }
+    }
+
+    /// Return a revision-bound artifact reader.
+    fn artifact_reader(&self) -> ArtifactReader<'_> {
+        ArtifactReader::new(self.repository.as_ref(), self.revision)
     }
 
     /// Return one module for the active revision when present.
@@ -66,45 +67,58 @@ impl LintSession {
 
     /// Return one parsed DIR artifact for one revision-scoped module.
     pub fn dir_parsed(&self, module_id: ModuleId) -> Option<Arc<DirParsed>> {
-        self.artifacts.dir_parsed(module_id)
+        self.artifact_reader().dir_parsed(module_id).ok()
     }
 
     /// Return one bound DIR artifact for one revision-scoped module.
     pub fn dir_bound(&self, module_id: ModuleId) -> Option<Arc<DirBound>> {
-        self.artifacts.dir_bound(module_id, self.profile_id)
+        self.artifact_reader()
+            .dir_bound(module_id, self.profile_id)
+            .ok()
     }
 
     /// Return one imported DIR artifact for one revision-scoped module.
     pub fn dir_imported(&self, module_id: ModuleId) -> Option<Arc<DirImported>> {
-        self.artifacts.dir_imported(module_id, self.profile_id)
+        self.artifact_reader()
+            .dir_imported(module_id, self.profile_id)
+            .ok()
     }
 
     /// Return one expanded DIR artifact for one revision-scoped module.
     pub fn dir_expanded(&self, module_id: ModuleId) -> Option<Arc<DirExpanded>> {
-        self.artifacts.dir_expanded(module_id, self.profile_id)
+        self.artifact_reader()
+            .dir_expanded(module_id, self.profile_id)
+            .ok()
     }
 
     /// Return one checked DIR artifact for one revision-scoped module.
     pub fn dir_checked(&self, module_id: ModuleId) -> Option<Arc<DirCheckedModule>> {
-        self.artifacts.dir_checked(module_id, self.profile_id)
+        self.artifact_reader()
+            .dir_checked(module_id, self.profile_id)
+            .ok()
     }
 
     /// Return one exported DIR artifact for one revision-scoped module.
     pub fn dir_exported(&self, module_id: ModuleId) -> Option<Arc<DirExported>> {
-        self.artifacts.dir_exported(module_id, self.profile_id)
+        self.artifact_reader()
+            .dir_exported(module_id, self.profile_id)
+            .ok()
     }
 
     /// Return the global environment for the active revision and profile.
     pub fn global_environment(&self) -> Option<Arc<GlobalEnvironment>> {
-        self.artifacts.global_environment(self.profile_id)
+        self.artifact_reader()
+            .global_environment(self.profile_id)
+            .ok()
     }
 
     /// Return one checked semantic module view.
     pub fn checked_module(&self, module_id: ModuleId) -> Option<LintCheckedModule> {
-        let parsed = self.dir_parsed(module_id)?;
-        let bound = self.dir_bound(module_id)?;
-        let expanded = self.dir_expanded(module_id)?;
-        let checked = self.dir_checked(module_id)?;
+        let artifacts = self.artifact_reader();
+        let parsed = artifacts.dir_parsed(module_id).ok()?;
+        let bound = artifacts.dir_bound(module_id, self.profile_id).ok()?;
+        let expanded = artifacts.dir_expanded(module_id, self.profile_id).ok()?;
+        let checked = artifacts.dir_checked(module_id, self.profile_id).ok()?;
         let strings = self.repository.string_pool().clone();
 
         Some(LintCheckedModule::new(
