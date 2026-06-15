@@ -1,15 +1,15 @@
 use crate::CompositePipeline;
 use crate::optimize::passes::{
     ArgumentSpecialize, BoundsCheckEliminate, CfgLayout, CodeHoisting, ConstantFold, CopyPropagate,
-    CorrelatedValueProp, DeadArgEliminate, DeadCodeEliminate, DeadStoreEliminate, FunctionAttrs,
-    GlobalOpt, GlobalValueNumbering, GuardEliminate, IfConvert, InductionVariableSimplify, Inline,
-    InstructionCombine, InterproceduralConstantPropagation, InterproceduralDceCleanup,
-    InterproceduralSccp, Licm, LoadPre, LoadStoreForward, LocalCse, LoopBoundsCheckEliminate,
-    LoopDelete, LoopDistribute, LoopFusion, LoopIdiomRecognize, LoopInterchange, LoopPeel,
-    LoopRotate, LoopSimplify, LoopStrengthReduce, LoopUnroll, LoopUnrollAndJam, LoopUnswitch,
-    LoopVersioning, Mem2Reg, MemCse, Narrow, PartialRedundancyElim, Reassociate, SimplifyCfg, Sink,
-    SparseConditionalConstantPropagation, Sroa, StorePre, StoreSink, TailCallElim,
-    ValueRangePropagation,
+    CorrelatedValueProp, DeadArgEliminate, DeadCodeEliminate, DeadFunctionEliminate,
+    DeadStoreEliminate, FunctionAttrs, GlobalOpt, GlobalValueNumbering, GuardEliminate, IfConvert,
+    InductionVariableSimplify, Inline, InstructionCombine, InterproceduralConstantPropagation,
+    InterproceduralDceCleanup, InterproceduralSccp, Licm, LoadPre, LoadStoreForward, LocalCse,
+    LoopBoundsCheckEliminate, LoopDelete, LoopDistribute, LoopFusion, LoopIdiomRecognize,
+    LoopInterchange, LoopPeel, LoopRotate, LoopSimplify, LoopStrengthReduce, LoopUnroll,
+    LoopUnrollAndJam, LoopUnswitch, LoopVersioning, Mem2Reg, MemCse, Narrow, PartialRedundancyElim,
+    Reassociate, SimplifyCfg, Sink, SparseConditionalConstantPropagation, Sroa, StorePre,
+    StoreSink, TailCallElim, ValueRangePropagation,
 };
 use crate::optimize::{FunctionPass, OptimizationLevel};
 
@@ -211,6 +211,8 @@ fn o1_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
         .function_passes(scalar_island_light())
         .function_passes(optimize_types())
         .function_passes(cleanup())
+        // drop functions no root reaches (module scope at this level)
+        .module_pass(DeadFunctionEliminate)
         .build()
 }
 
@@ -226,6 +228,8 @@ fn o2_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
             2,
             FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_island_full(false))),
         )
+        // drop functions no root reaches (whole-program scope at this level)
+        .module_pass(DeadFunctionEliminate)
         // interprocedural inlining and attribute inference
         .module_pass(FunctionAttrs)
         .module_pass(InterproceduralConstantPropagation)
@@ -269,6 +273,8 @@ fn o3_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
             3,
             FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_island_full(true))),
         )
+        // drop functions no root reaches (whole-program scope at this level)
+        .module_pass(DeadFunctionEliminate)
         // interprocedural inlining and attribute inference
         .module_pass(FunctionAttrs)
         .module_pass(InterproceduralConstantPropagation)
@@ -316,6 +322,8 @@ fn o4_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
             4,
             FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_island_full(true))),
         )
+        // drop functions no root reaches (whole-program scope at this level)
+        .module_pass(DeadFunctionEliminate)
         // interprocedural inlining and attribute inference
         .module_pass(FunctionAttrs)
         .module_pass(InterproceduralConstantPropagation)

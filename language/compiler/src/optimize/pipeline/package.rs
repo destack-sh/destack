@@ -650,7 +650,10 @@ mod tests {
         workset.add_package(package_workset(1, OptimizationLevel::O1));
         workset.add_package(package_workset(2, OptimizationLevel::O3));
 
-        let mut ctx = ProgramPipelineContext::new("test".to_string());
+        let mut ctx = ProgramPipelineContext::new(
+            "test".to_string(),
+            Arc::new(destack_artifact::ProgramAnalysis::new()),
+        );
         let changed = pipeline.run(&mut workset, &mut ctx);
 
         assert!(changed);
@@ -675,7 +678,10 @@ mod tests {
         let mut workset = ProgramWorkset::new();
         workset.add_package(package_workset(1, OptimizationLevel::O1));
 
-        let mut ctx = ProgramPipelineContext::new("test".to_string());
+        let mut ctx = ProgramPipelineContext::new(
+            "test".to_string(),
+            Arc::new(destack_artifact::ProgramAnalysis::new()),
+        );
         let changed = pipeline.run(&mut workset, &mut ctx);
 
         assert!(changed);
@@ -694,7 +700,10 @@ mod tests {
         let mut workset = ProgramWorkset::new();
         workset.add_package(package_workset(1, OptimizationLevel::O1));
 
-        let mut ctx = ProgramPipelineContext::new("test".to_string());
+        let mut ctx = ProgramPipelineContext::new(
+            "test".to_string(),
+            Arc::new(destack_artifact::ProgramAnalysis::new()),
+        );
         let changed = pipeline.run(&mut workset, &mut ctx);
 
         assert!(changed);

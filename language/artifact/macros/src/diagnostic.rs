@@ -118,6 +118,7 @@ fn phase_letter(phase: &Ident) -> Result<char> {
         "Materialize" => 'M',
         "Lower" => 'L',
         "Verify" => 'V',
+        "Analyze" => 'A',
         "Optimize" => 'O',
         "Generate" | "Emit" => 'G',
         "Link" => 'K',

@@ -1,5 +1,5 @@
 use destack_core::BitSet;
-use destack_mir::{self as mir, CallComponents, LinkGraph, LinkSupergraph, Symbol};
+use destack_mir::{self as mir, CallComponentGraph, LinkGraph, LinkSupergraph, Symbol};
 use serde::{Deserialize, Serialize};
 
 /// Lowered MIR payload before optimization.
@@ -95,7 +95,7 @@ pub struct ProgramAnalysis {
     /// Whether each symbol is internal to the program (not an external root).
     internal: BitSet,
     /// Strongly connected components of the whole-program call graph.
-    components: CallComponents,
+    components: CallComponentGraph,
 }
 
 impl ProgramAnalysis {

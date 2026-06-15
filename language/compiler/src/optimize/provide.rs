@@ -5,7 +5,8 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, EmitFormat, MirOptimized, TargetArch,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, EmitFormat, MirOptimized, ProgramAnalysis,
+    TargetArch,
 };
 use destack_mir as mir;
 use destack_repository::{Module, OptimizeLevel as WorkspaceOptimizeLevel, ProfileId, Target};
@@ -29,6 +30,17 @@ impl Compiler {
     ) -> CompilerResult<ArtifactDependencySet> {
         let mut dependencies = ArtifactDependencySet::default();
         dependencies.require(ArtifactKey::mir_verified(module, profile, target));
+
+        // the analysis scope follows the build: whole program when interprocedural
+        // passes run, otherwise this module alone (a program of one module)
+        let target_config = self.target_for_module(module, &target, context)?;
+        let level = self.optimization_level_for_target_config(&target_config);
+        if Self::level_runs_whole_program(level) {
+            dependencies.require(ArtifactKey::program_analysis(profile, target));
+        } else {
+            dependencies.require(ArtifactKey::mir_analyzed(module, profile, target));
+        }
+
         self.observe_package_config(context, target.package_id(), &mut dependencies)?;
 
         Ok(dependencies)
@@ -83,6 +95,19 @@ impl Compiler {
             .mir_verified(module, profile, *target)
             .map_err(CompilerError::from)?;
         let mut tree = verified.patch.tree.clone();
+
+        // scope the analysis to the build: the shared whole-program one when
+        // interprocedural passes run, otherwise this module as a standalone program
+        let program_analysis = if Self::level_runs_whole_program(level) {
+            artifacts
+                .program_analysis(profile, *target)
+                .map_err(CompilerError::from)?
+        } else {
+            let analyzed = artifacts
+                .mir_analyzed(module, profile, *target)
+                .map_err(CompilerError::from)?;
+            Arc::new(module_scoped_analysis(&analyzed.links))
+        };
         let strings = self.repository.string_pool().clone();
 
         // resolve pipeline options
@@ -91,8 +116,15 @@ impl Compiler {
             self.pipeline_options_for_module(module_ref.as_ref(), &target_config, level, context);
 
         // run the pipeline
-        let mut pipeline_context =
-            PipelineContext::new(&strings, options, module, profile, *target, None);
+        let mut pipeline_context = PipelineContext::new(
+            &strings,
+            options,
+            module,
+            profile,
+            *target,
+            None,
+            program_analysis,
+        );
         pipeline.run(&mut tree, &mut pipeline_context);
 
         // collect accumulated diagnostics from verification passes
@@ -109,6 +141,14 @@ impl Compiler {
         };
 
         Ok(payload)
+    }
+
+    /// Return whether a level runs the interprocedural passes that need program analysis.
+    fn level_runs_whole_program(level: OptimizationLevel) -> bool {
+        matches!(
+            level,
+            OptimizationLevel::O2 | OptimizationLevel::O3 | OptimizationLevel::O4
+        )
     }
 
     /// Resolve the optimization level for a target configuration.
@@ -249,4 +289,19 @@ impl Compiler {
                 message: "target not found".to_string(),
             })
     }
+}
+
+/// Analyze a single module as a standalone program over its own link graph.
+///
+/// Compiled alone, a module is an open world: anything it exports may be called from
+/// outside, so every exported symbol is a root and reachability stays within the module.
+fn module_scoped_analysis(links: &mir::LinkGraph) -> ProgramAnalysis {
+    let roots: Vec<mir::Symbol> = links
+        .nodes()
+        .filter(|(_, node)| node.linkage().is_exported())
+        .map(|(symbol, _)| symbol)
+        .collect();
+
+    let supergraph = mir::LinkSupergraph::build([links]);
+    ProgramAnalysis::analyze(&supergraph, &roots)
 }

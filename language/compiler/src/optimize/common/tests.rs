@@ -430,6 +430,7 @@ impl TestProgram {
             test_profile_id(),
             test_target_id(),
             profile,
+            Arc::new(destack_artifact::ProgramAnalysis::new()),
         );
 
         // collect function ids
@@ -594,8 +595,27 @@ impl TestProgram {
         }
     }
 
+    /// Build a module-scoped program analysis from the current tree.
+    ///
+    /// A test module is a standalone program, so its exported symbols are the roots.
+    fn module_program_analysis(&self) -> Arc<destack_artifact::ProgramAnalysis> {
+        let links = ModuleAnalyses::new().get::<mir::LinkGraph>(&self.tree);
+        let roots: Vec<_> = links
+            .nodes()
+            .filter(|(_, node)| node.linkage().is_exported())
+            .map(|(symbol, _)| symbol)
+            .collect();
+        let supergraph = mir::LinkSupergraph::build([&*links]);
+
+        Arc::new(destack_artifact::ProgramAnalysis::analyze(
+            &supergraph,
+            &roots,
+        ))
+    }
+
     /// Apply a module pass to the program.
     pub(crate) fn run_module_pass<P: ModulePass + ?Sized>(&mut self, pass: &P) {
+        let program_analysis = self.module_program_analysis();
         let context = PipelineContext::new(
             &self.strings_pool,
             PipelineOptions::default(),
@@ -603,6 +623,7 @@ impl TestProgram {
             test_profile_id(),
             test_target_id(),
             None,
+            program_analysis,
         );
 
         // enforce pass requirements
@@ -630,6 +651,7 @@ impl TestProgram {
         pass: &P,
         options: PipelineOptions,
     ) {
+        let program_analysis = self.module_program_analysis();
         let context = PipelineContext::new(
             &self.strings_pool,
             options,
@@ -637,6 +659,7 @@ impl TestProgram {
             test_profile_id(),
             test_target_id(),
             None,
+            program_analysis,
         );
 
         // enforce pass requirements
@@ -664,6 +687,7 @@ impl TestProgram {
         pass: &P,
         profile: mir::Profile,
     ) {
+        let program_analysis = self.module_program_analysis();
         let context = PipelineContext::new(
             &self.strings_pool,
             PipelineOptions::default(),
@@ -671,6 +695,7 @@ impl TestProgram {
             test_profile_id(),
             test_target_id(),
             Some(Arc::new(profile)),
+            program_analysis,
         );
 
         // enforce pass requirements
@@ -721,6 +746,7 @@ impl TestProgram {
         let actual = actual.trim();
 
         if actual != expected {
+            eprintln!("===ACTUAL_BEGIN===\n{actual}\n===ACTUAL_END===");
             print_diff(expected, actual, &DiffOptions::new());
             panic!("optimization output mismatch");
         }
@@ -937,6 +963,7 @@ b0:
             super::test_profile_id(),
             super::test_target_id(),
             Some(profile),
+            Arc::new(destack_artifact::ProgramAnalysis::new()),
         );
 
         // verify profile accessors

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use destack_artifact::DiagnosticBuilder;
+use destack_artifact::{DiagnosticBuilder, ProgramAnalysis};
 use destack_core::StringPool;
 use destack_mir as mir;
 use destack_repository::FloatMathPolicy;
@@ -166,6 +166,8 @@ pub struct PipelineContext<'a> {
     target_id: TargetId,
     /// Optional profile guided optimization data.
     profile: Option<Arc<mir::Profile>>,
+    /// Whole-program analysis shared across the modules of this profile and target.
+    program_analysis: Arc<ProgramAnalysis>,
 
     /// Shared diagnostics state.
     diagnostics: Arc<PipelineDiagnostics>,
@@ -196,6 +198,7 @@ impl<'a> PipelineContext<'a> {
         profile_id: ProfileId,
         target_id: TargetId,
         profile: Option<Arc<mir::Profile>>,
+        program_analysis: Arc<ProgramAnalysis>,
     ) -> Self {
         Self::with_diagnostics(
             strings,
@@ -204,6 +207,7 @@ impl<'a> PipelineContext<'a> {
             profile_id,
             target_id,
             profile,
+            program_analysis,
             Arc::new(PipelineDiagnostics::default()),
         )
     }
@@ -216,6 +220,7 @@ impl<'a> PipelineContext<'a> {
         profile_id: ProfileId,
         target_id: TargetId,
         profile: Option<Arc<mir::Profile>>,
+        program_analysis: Arc<ProgramAnalysis>,
         diagnostics: Arc<PipelineDiagnostics>,
     ) -> Self {
         Self {
@@ -225,6 +230,7 @@ impl<'a> PipelineContext<'a> {
             profile_id,
             target_id,
             profile,
+            program_analysis,
             diagnostics,
         }
     }
@@ -247,6 +253,11 @@ impl<'a> PipelineContext<'a> {
     /// Get profile data if available.
     pub fn profile(&self) -> Option<&mir::Profile> {
         self.profile.as_deref()
+    }
+
+    /// Get the whole-program analysis for this profile and target.
+    pub fn program_analysis(&self) -> &ProgramAnalysis {
+        &self.program_analysis
     }
 
     /// Return true when profile data is available.
@@ -384,16 +395,23 @@ pub struct PackagePipelineContext {
     package_id: PackageId,
     /// The target being optimized.
     target_id: TargetId,
+    /// Whole-program analysis shared across the package's modules.
+    program_analysis: Arc<ProgramAnalysis>,
     /// Shared diagnostics state.
     diagnostics: Arc<PipelineDiagnostics>,
 }
 
 impl PackagePipelineContext {
     /// Create a new package pipeline context.
-    pub fn new(package_id: PackageId, target_id: TargetId) -> Self {
+    pub fn new(
+        package_id: PackageId,
+        target_id: TargetId,
+        program_analysis: Arc<ProgramAnalysis>,
+    ) -> Self {
         Self::with_diagnostics(
             package_id,
             target_id,
+            program_analysis,
             Arc::new(PipelineDiagnostics::default()),
         )
     }
@@ -402,11 +420,13 @@ impl PackagePipelineContext {
     pub fn with_diagnostics(
         package_id: PackageId,
         target_id: TargetId,
+        program_analysis: Arc<ProgramAnalysis>,
         diagnostics: Arc<PipelineDiagnostics>,
     ) -> Self {
         Self {
             package_id,
             target_id,
+            program_analysis,
             diagnostics,
         }
     }
@@ -439,6 +459,7 @@ impl PackagePipelineContext {
                 module.profile_id(),
                 *module.target_id(),
                 profile,
+                self.program_analysis.clone(),
                 self.diagnostics.clone(),
             );
 
@@ -511,20 +532,31 @@ impl DiagnosticEmitter for PackagePipelineContext {
 pub struct ProgramPipelineContext {
     /// The target name being optimized.
     target_name: String,
+    /// Whole-program analysis shared across the program's packages.
+    program_analysis: Arc<ProgramAnalysis>,
     /// Shared diagnostics state.
     diagnostics: Arc<PipelineDiagnostics>,
 }
 
 impl ProgramPipelineContext {
     /// Create a new program pipeline context.
-    pub fn new(target_name: String) -> Self {
-        Self::with_diagnostics(target_name, Arc::new(PipelineDiagnostics::default()))
+    pub fn new(target_name: String, program_analysis: Arc<ProgramAnalysis>) -> Self {
+        Self::with_diagnostics(
+            target_name,
+            program_analysis,
+            Arc::new(PipelineDiagnostics::default()),
+        )
     }
 
     /// Create a new program pipeline context with shared diagnostics.
-    pub fn with_diagnostics(target_name: String, diagnostics: Arc<PipelineDiagnostics>) -> Self {
+    pub fn with_diagnostics(
+        target_name: String,
+        program_analysis: Arc<ProgramAnalysis>,
+        diagnostics: Arc<PipelineDiagnostics>,
+    ) -> Self {
         Self {
             target_name,
+            program_analysis,
             diagnostics,
         }
     }
@@ -544,6 +576,7 @@ impl ProgramPipelineContext {
         let mut context = PackagePipelineContext::with_diagnostics(
             package.package_id(),
             *package.target_id(),
+            self.program_analysis.clone(),
             self.diagnostics.clone(),
         );
 
