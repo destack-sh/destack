@@ -1,7 +1,7 @@
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependencySet, ArtifactPathState, SourceDependency};
+use destack_artifact::ArtifactDependencySet;
 use destack_repository::{
     CompilerOptions, DestackFile, Module, Package, Profile, ProviderContext, Revision, Target,
 };
@@ -121,11 +121,7 @@ impl Compiler {
                     message: format!("missing config file content id for {file_id:?}"),
                 })?;
 
-            dependencies.observe(SourceDependency::path_state(
-                *file_id,
-                ArtifactPathState::File,
-            ));
-            dependencies.observe(SourceDependency::file_content(*file_id, content));
+            dependencies.observe_file(*file_id, content);
         }
 
         Ok(())
