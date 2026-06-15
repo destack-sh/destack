@@ -3,7 +3,49 @@ use destack_source::matches as glob_matches;
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 
+use crate::{builtin_modes, builtin_roles};
+
 use super::Dependency;
+
+/// Built-in condition aliases accepted in module file suffixes.
+const BUILTIN_SUFFIX_ALIASES: &[BuiltinSuffixAlias] = &[
+    BuiltinSuffixAlias::new(ConditionAxis::Host, "native"),
+    BuiltinSuffixAlias::new(ConditionAxis::Host, "browser"),
+    BuiltinSuffixAlias::new(ConditionAxis::Host, "wasi"),
+    BuiltinSuffixAlias::new(ConditionAxis::Host, "emscripten"),
+    BuiltinSuffixAlias::new(ConditionAxis::Host, "freestanding"),
+    BuiltinSuffixAlias::new(ConditionAxis::Runtime, "destack"),
+    BuiltinSuffixAlias::new(ConditionAxis::Runtime, "js"),
+];
+
+/// One built-in condition alias accepted in module file suffixes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct BuiltinSuffixAlias {
+    /// The condition axis selected by the alias.
+    axis: ConditionAxis,
+    /// The alias name accepted in the suffix.
+    name: &'static str,
+}
+
+impl BuiltinSuffixAlias {
+    /// Create one built-in suffix alias.
+    const fn new(axis: ConditionAxis, name: &'static str) -> Self {
+        Self { axis, name }
+    }
+
+    /// Return this alias as a condition gate.
+    fn gate(self) -> ConditionGate {
+        ConditionGate::axis(self.axis, self.name)
+    }
+
+    /// Return the built-in suffix alias with this name.
+    fn named(name: &str) -> Option<Self> {
+        BUILTIN_SUFFIX_ALIASES
+            .iter()
+            .find(|alias| alias.name == name)
+            .copied()
+    }
+}
 
 /// Named source graph condition.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -72,6 +114,16 @@ impl ConditionCatalog {
         self.insert_axis_aliases(&mut aliases, ConditionAxis::Role)?;
         self.insert_axis_aliases(&mut aliases, ConditionAxis::Feature)?;
         self.insert_axis_aliases(&mut aliases, ConditionAxis::Tag)?;
+
+        // add built-in suffix aliases through normal name resolution
+        for alias in BUILTIN_SUFFIX_ALIASES {
+            if aliases.contains_key(alias.name) {
+                continue;
+            }
+
+            let gate = self.resolve_unprefixed_name(alias.name)?;
+            aliases.insert(alias.name.to_string(), gate);
+        }
 
         Ok(aliases)
     }
@@ -199,7 +251,15 @@ impl ConditionCatalog {
         self.resolve_axis_alias(&mut gate, ConditionAxis::Feature, name)?;
         self.resolve_axis_alias(&mut gate, ConditionAxis::Tag, name)?;
 
-        gate.ok_or_else(|| ConditionRefError::UnknownName {
+        if let Some(gate) = gate {
+            return Ok(gate);
+        }
+
+        if let Some(alias) = BuiltinSuffixAlias::named(name) {
+            return Ok(alias.gate());
+        }
+
+        Err(ConditionRefError::UnknownName {
             name: name.to_string(),
         })
     }
@@ -556,12 +616,16 @@ impl ConditionGate {
 pub fn builtin_condition_aliases() -> IndexMap<String, ConditionGate> {
     let mut aliases = IndexMap::new();
 
-    for name in super::builtin_modes().keys() {
+    for name in builtin_modes().keys() {
         aliases.insert(name.clone(), ConditionGate::mode(name.clone()));
     }
 
-    for name in super::builtin_roles().keys() {
+    for name in builtin_roles().keys() {
         aliases.insert(name.clone(), ConditionGate::role(name.clone()));
+    }
+
+    for alias in BUILTIN_SUFFIX_ALIASES {
+        aliases.insert(alias.name.to_string(), alias.gate());
     }
 
     aliases
@@ -771,5 +835,44 @@ mod tests {
         assert!(!exact.matches(&conditions(&[], &["client"])));
         assert!(either.matches(&conditions(&[], &["client"])));
         assert!(either.matches(&conditions(&[], &["server"])));
+    }
+
+    #[test]
+    fn test_suffix_aliases_include_runtime_and_host() {
+        let catalog = ConditionCatalog::default();
+        let aliases = catalog.suffix_aliases().unwrap();
+        let browser = aliases.get("browser").unwrap();
+        let js = aliases.get("js").unwrap();
+
+        assert_eq!(
+            browser,
+            &ConditionGate::axis(ConditionAxis::Host, "browser")
+        );
+        assert_eq!(js, &ConditionGate::axis(ConditionAxis::Runtime, "js"));
+    }
+
+    #[test]
+    fn test_suffix_aliases_preserve_declared_names() {
+        let mut catalog = ConditionCatalog::default();
+        catalog
+            .roles
+            .insert("browser".to_string(), Condition::default());
+        let aliases = catalog.suffix_aliases().unwrap();
+        let browser = aliases.get("browser").unwrap();
+
+        assert_eq!(browser, &ConditionGate::role("browser"));
+    }
+
+    #[test]
+    fn test_builtin_condition_aliases_include_runtime_and_host() {
+        let aliases = builtin_condition_aliases();
+        let native = aliases.get("native").unwrap();
+        let destack = aliases.get("destack").unwrap();
+
+        assert_eq!(native, &ConditionGate::axis(ConditionAxis::Host, "native"));
+        assert_eq!(
+            destack,
+            &ConditionGate::axis(ConditionAxis::Runtime, "destack")
+        );
     }
 }

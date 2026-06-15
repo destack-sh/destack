@@ -410,6 +410,8 @@ impl Ord for ConditionFileAlias {
 mod tests {
     use std::path::{Path, PathBuf};
 
+    use crate::{ConditionSelector, builtin_condition_aliases};
+
     use super::*;
 
     #[test]
@@ -419,7 +421,7 @@ mod tests {
         aliases.insert(
             "browser".to_string(),
             ConditionGate {
-                host: Some(crate::ConditionSelector::exact("browser")),
+                host: Some(ConditionSelector::exact("browser")),
                 ..ConditionGate::default()
             },
         );
@@ -441,6 +443,41 @@ mod tests {
 
         assert_eq!(names, vec!["test", "browser"]);
         assert_eq!(ranks, vec![0, 1]);
+    }
+
+    #[test]
+    fn test_find_builtin_host_and_runtime_aliases() {
+        let aliases = builtin_condition_aliases();
+
+        // recognize target environment suffixes without package aliases
+        let file_aliases = Repository::condition_aliases_for_path(
+            Path::new("src/user.browser.js.ds"),
+            FileType::Destack,
+            &aliases,
+        );
+        let names = file_aliases
+            .iter()
+            .map(|alias| alias.name.as_str())
+            .collect::<Vec<_>>();
+        let gates = file_aliases
+            .iter()
+            .map(|alias| alias.gate.clone())
+            .collect::<Vec<_>>();
+
+        assert_eq!(names, vec!["browser", "js"]);
+        assert_eq!(
+            gates,
+            vec![
+                ConditionGate {
+                    host: Some(ConditionSelector::exact("browser")),
+                    ..ConditionGate::default()
+                },
+                ConditionGate {
+                    runtime: Some(ConditionSelector::exact("js")),
+                    ..ConditionGate::default()
+                }
+            ]
+        );
     }
 
     #[test]
