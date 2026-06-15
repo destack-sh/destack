@@ -115,7 +115,7 @@ impl StaticContext<'_> {
         let conditions = self.conditions;
 
         match name {
-            "url" => Ok(self.string(&self.module.uri.to_string())),
+            "url" => Ok(self.string(self.module.uri.as_ref())),
             "path" => Ok(self.module_path_value()),
             "dir" => Ok(self.module_dir_value()),
             "output" => Ok(self.string(self.profile.emit.canonical_tag())),
