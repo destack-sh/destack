@@ -498,26 +498,46 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let source = id.into_global_any(self.module);
 
-        // resolve the path through the resolve-phase table
-        let key = dir::PathKey::new(source, path.segments.len() as u32);
-        let resolution = self
+        // resolve the path through the resolve-phase reference table
+        let reference = self
             .check
             .module(self.module)
             .resolved
-            .paths
-            .get(key)
+            .references
+            .get(source)
             .cloned();
-        let symbol = match resolution {
-            Some(dir::PathResolution::Found(dir::PathTarget::Symbol(symbol))) => Some(symbol),
-            Some(dir::PathResolution::Found(dir::PathTarget::Namespace(_))) => None,
-            Some(dir::PathResolution::Ambiguous(_)) => {
+        let symbol = match reference {
+            // a complete name path resolves to its declaration
+            Some(dir::Reference::Bound(symbols)) => symbols.first().copied(),
+
+            // a path that names a base then projects its tail as type members
+            Some(dir::Reference::Projected { base, from }) => {
+                return self.lower_projected_type(
+                    id,
+                    base,
+                    &path.segments[from as usize..],
+                    generic_arguments,
+                );
+            }
+
+            // conflicting targets fail loudly
+            Some(dir::Reference::Ambiguous(_)) => {
                 self.check
                     .report_ambiguous_reference(self.module, id.into_any(), path);
 
                 None
             }
-            Some(dir::PathResolution::Missing) | None => {
-                // single-segment paths resolve lexically in type space
+
+            // a namespace or unresolved path is not a type here
+            Some(dir::Reference::Namespace(_)) | Some(dir::Reference::Missing) => {
+                self.check
+                    .report_unresolved_reference(self.module, id.into_any(), path);
+
+                None
+            }
+
+            // single-segment type names resolve lexically in type space
+            None => {
                 let symbol = if let [name] = path.segments.as_slice() {
                     let lookup = self.check.lookup_name(
                         self.module,
@@ -562,6 +582,46 @@ impl WalkState<'_, '_> {
             dir::Type::Reference(dir::GenericInstance { symbol, arguments }),
             id.into_any(),
         )
+    }
+
+    /// Lower one type path that names a base then projects its trailing segments.
+    fn lower_projected_type(
+        &mut self,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        base: dir::GlobalSymbolId,
+        tail: &[dir::StringId],
+        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.capture_symbol_reference(base);
+        self.check.record_decision(
+            id.into_global_any(self.module),
+            Decision::Name(dir::NameResolution::new(base)),
+        )?;
+
+        // project each trailing segment as a type member off the running type
+        let mut ty = self.reference_symbol_type(base)?;
+        for (index, segment) in tail.iter().copied().enumerate() {
+            let is_last = index + 1 == tail.len();
+            let arguments = if is_last && !generic_arguments.is_empty() {
+                self.walk_generic_arguments(generic_arguments)?
+                    .into_iter()
+                    .map(|(_, ty)| ty)
+                    .collect()
+            } else {
+                Vec::new()
+            };
+
+            ty = self.push_type(
+                dir::Type::Member(dir::MemberType {
+                    owner: ty,
+                    key: dir::StaticKey::Name(segment),
+                    arguments,
+                }),
+                id.into_any(),
+            )?;
+        }
+
+        Ok(ty)
     }
 
     /// Lower one object type expression to a structural shape.

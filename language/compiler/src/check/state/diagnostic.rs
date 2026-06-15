@@ -308,7 +308,7 @@ impl CheckState<'_> {
         let name = self.module(module).strings.get(*name).to_string();
 
         let bindings = self.module(module).binding_table();
-        let scope = self.lexical_scope(module, bindings, source);
+        let scope = self.scope_at(module, bindings, source);
         let mut candidates = Vec::new();
 
         // collect lexical names visible at the source node

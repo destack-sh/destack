@@ -104,14 +104,6 @@ fn is_static_if_callee(
         // match bare @if
         dir::Expression::Identifier { name } => strings.get(*name) == "if",
 
-        // match resolved @if syntax
-        dir::Expression::QualifiedReference { path, .. } => {
-            let [name] = path.segments.as_slice() else {
-                return false;
-            };
-
-            strings.get(*name) == "if"
-        }
         // anything else is an ordinary decorator
         _ => false,
     }

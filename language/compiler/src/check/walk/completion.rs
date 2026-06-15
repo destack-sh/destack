@@ -107,11 +107,11 @@ impl WalkState<'_, '_> {
             | dir::Expression::PrivateIdentifier { .. }
             | dir::Expression::Super
             | dir::Expression::ImportMeta
+            | dir::Expression::ImportSource
             | dir::Expression::Debugger
             | dir::Expression::Missing
             | dir::Expression::Stub
             | dir::Expression::Error
-            | dir::Expression::QualifiedReference { .. }
             | dir::Expression::RangeExpression { .. }
             | dir::Expression::TemplateExpression { .. }
             | dir::Expression::TaggedTemplateExpression { .. }

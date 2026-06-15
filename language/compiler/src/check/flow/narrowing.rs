@@ -34,20 +34,6 @@ impl WalkState<'_, '_> {
 
                 Some(FlowPath::symbol(symbol))
             }
-            // namespace
-            dir::Expression::QualifiedReference { path, .. } if path.segments.len() == 1 => {
-                // resolve the stable root binding, ambiguity has no path
-                let name = path.segments[0];
-                let lookup =
-                    self.check
-                        .lookup_name(self.module, id.into_any(), name, dir::SymbolSpace::Value);
-                let symbol = match lookup {
-                    NameLookup::Found(candidate) => candidate.symbol()?,
-                    NameLookup::Missing | NameLookup::Ambiguous(_) => return None,
-                };
-
-                Some(FlowPath::symbol(symbol))
-            }
             // this
             dir::Expression::This if self.flow().current_receiver().is_some() => {
                 Some(FlowPath::receiver(dir::ReceiverKind::This))
