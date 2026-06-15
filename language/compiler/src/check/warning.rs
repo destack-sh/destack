@@ -103,4 +103,19 @@ pub enum CheckWarning {
         /// The statically known value.
         value: bool,
     },
+
+    /// Declaration sits in a module block, which is pointless nesting.
+    ///
+    /// ```ds
+    /// module {
+    ///     const role = "server";
+    /// }
+    /// ```
+    #[diagnostic(code = "WC106", message = "pointless declaration in module block")]
+    PointlessModuleDeclaration {
+        /// Report the pointless declaration.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
 }

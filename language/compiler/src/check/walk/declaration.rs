@@ -154,9 +154,12 @@ impl WalkState<'_, '_> {
                     self.walk_expression(*expression, self.tree.get(*expression))?;
                 }
             }
-            // module M { ... }
+            // module { ... }
             dir::Declaration::Module(declaration) => {
                 for expression in &declaration.expressions {
+                    // a module block carries only module-wide decorators
+                    self.check
+                        .report_pointless_module_declaration(self.module, expression.into_any());
                     self.walk_expression(*expression, self.tree.get(*expression))?;
                 }
             }
