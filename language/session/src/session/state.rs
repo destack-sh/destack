@@ -122,7 +122,7 @@ impl SessionState {
         };
 
         // revision bindings must point at a terminal store entry
-        let Some(outcome) = repository.artifact_store().outcome(&version) else {
+        let Some(outcome) = repository.artifact_cache().outcome(&version) else {
             return Err(SessionError::Internal {
                 detail: format!("artifact version is missing from store: {version:?}"),
             });

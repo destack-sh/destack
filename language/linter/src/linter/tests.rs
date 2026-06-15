@@ -693,7 +693,7 @@ impl TestProgram {
                 DestackLayoutOverride::default(),
             )
             .expect("failed to import repository from linter test file system")
-            .with_cache(TEST_CACHE_STORE.clone()),
+            .with_cache_store(TEST_CACHE_STORE.clone()),
         );
 
         // profile

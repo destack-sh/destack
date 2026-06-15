@@ -3,9 +3,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactKey, ArtifactPayload, ArtifactStore, ArtifactVersion, ComponentGraph, DirBound,
+    ArtifactCache, ArtifactKey, ArtifactPayload, ArtifactVersion, ComponentGraph, DirBound,
     DirCheckedModule, DirExpanded, DirExported, DirImported, DirParsed, DirResolved,
-    MemoryCacheStore,
+    MemoryCacheStore, NullArtifactStore,
 };
 use destack_dir as dir;
 use destack_repository::{
@@ -130,14 +130,17 @@ impl TestSession {
             &DestackLayoutOverride::default(),
             None,
         );
-        let repository = Arc::new(Repository::new(
-            root,
-            shared_cache_store(),
-            Arc::new(MemoryFileSystem::new()),
-            environment,
-            Settings::default(),
-            layout,
-        ));
+        let repository = Arc::new(
+            Repository::new(
+                root,
+                shared_cache_store(),
+                Arc::new(MemoryFileSystem::new()),
+                environment,
+                Settings::default(),
+                layout,
+            )
+            .with_artifact_store(Arc::new(NullArtifactStore::new())),
+        );
         let reference = Ref::for_root(repository.path());
         let revision = repository
             .current(&reference)
@@ -856,9 +859,9 @@ impl TestSession {
         }
     }
 
-    /// Return the repository artifact store.
-    fn artifacts(&self) -> Arc<ArtifactStore> {
-        self.repository.artifact_store().clone()
+    /// Return the repository artifact cache.
+    fn artifacts(&self) -> Arc<ArtifactCache> {
+        self.repository.artifact_cache().clone()
     }
 
     /// Return foreign bound and expanded artifacts needed for labels.

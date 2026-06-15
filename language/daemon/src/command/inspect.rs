@@ -145,7 +145,7 @@ impl CommandContext<'_> {
             .ok_or_else(|| format!("missing inspected artifact: {key:?}"))?;
         let record = self
             .repository
-            .artifact_store()
+            .artifact_cache()
             .record(&version, self.repository.string_pool())
             .map_err(|error| format!("failed to serialize artifact record: {error}"))?
             .ok_or_else(|| format!("missing inspected artifact payload: {key:?}"))?;

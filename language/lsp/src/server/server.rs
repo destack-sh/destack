@@ -812,7 +812,7 @@ impl LanguageServer for DestackLanguageServer {
         )
         .map_err(|_| jsonrpc::Error::internal_error())?;
         #[cfg(test)]
-        let repository = repository.with_cache(Arc::new(MemoryCacheStore::new()));
+        let repository = repository.with_cache_store(Arc::new(MemoryCacheStore::new()));
         let root = repository.path().to_path_buf();
 
         // merge discovery root with initialize roots

@@ -540,7 +540,7 @@ fn read_module_query_context_from_checked(
     global_environment_version: ArtifactVersion,
 ) -> Option<ModuleQueryContext<'_>> {
     let module = repository.module(revision, module_id).ok().flatten()?;
-    let artifacts = repository.artifact_store();
+    let artifacts = repository.artifact_cache();
 
     // resolve exact source artifacts
     let parsed_key = ArtifactKey::dir_parsed(module.id);
@@ -631,7 +631,7 @@ fn module_query_indexes(
     let mut indexes = Vec::with_capacity(workspace.modules.len());
 
     for version in &workspace.modules {
-        let index = repository.artifact_store().module_query_index(version)?;
+        let index = repository.artifact_cache().module_query_index(version)?;
 
         indexes.push(index);
     }

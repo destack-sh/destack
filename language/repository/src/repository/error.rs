@@ -28,8 +28,8 @@ pub enum RepositoryError {
     MissingContent { content: ContentId },
     /// The repository content cache failed.
     ContentCache { message: String },
-    /// The repository artifact cache failed.
-    ArtifactCache { message: String },
+    /// The repository artifact store failed.
+    ArtifactStore { message: String },
     /// The requested module does not exist in the given revision.
     MissingModule { module: ModuleId },
     /// The requested package does not exist in the given revision.
@@ -119,8 +119,8 @@ impl fmt::Display for RepositoryError {
             Self::ContentCache { message } => {
                 write!(formatter, "repository content cache failed: {message}")
             }
-            Self::ArtifactCache { message } => {
-                write!(formatter, "repository artifact cache failed: {message}")
+            Self::ArtifactStore { message } => {
+                write!(formatter, "repository artifact store failed: {message}")
             }
             Self::MissingModule { module } => {
                 write!(formatter, "missing repository module '{module}'")

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use destack_artifact::{
     ArtifactCache, ArtifactKey, ArtifactStore, ArtifactVersion, CacheStore, ContentCache,
-    RepositoryCacheLayout,
+    DiskArtifactStore, RepositoryCacheLayout,
 };
 use destack_core::StringPool;
 use destack_source::{Content, ContentEntry, ContentId, FileId, FileSystem};
@@ -31,8 +31,10 @@ pub struct Repository {
     /// Exact artifact versions bound to revision-local artifact keys.
     pub(crate) artifact_versions: DashMap<(Revision, ArtifactKey), ArtifactVersion>,
 
-    /// Shared persistent cache backend.
-    pub(crate) cache: Arc<dyn CacheStore>,
+    /// Shared byte cache backend for persisted blobs.
+    pub(crate) cache_store: Arc<dyn CacheStore>,
+    /// Persistent artifact record store.
+    pub(crate) artifact_store: Arc<dyn ArtifactStore>,
     /// Toolchain identity used to version derived artifacts.
     pub(crate) build_fingerprint: String,
     /// Resolved storage layout for this repository.
@@ -49,8 +51,8 @@ pub struct Repository {
     pub(crate) file_cache: FileCache,
     /// Named physical bases for dependency roots outside the workspace.
     pub(crate) mounts: DashMap<String, PathBuf>,
-    /// Shared derived artifacts.
-    pub(crate) artifacts: Arc<ArtifactStore>,
+    /// Shared typed derived artifacts.
+    pub(crate) artifacts: Arc<ArtifactCache>,
     /// Shared interned strings for this repository.
     pub(crate) strings: Arc<StringPool>,
 }
@@ -59,7 +61,7 @@ impl Repository {
     /// Create one repository from explicit parts.
     pub fn new(
         root: PathBuf,
-        cache: Arc<dyn CacheStore>,
+        cache_store: Arc<dyn CacheStore>,
         fs: Arc<dyn FileSystem>,
         environment: Environment,
         settings: Settings,
@@ -73,6 +75,12 @@ impl Repository {
         let file_cache = FileCache::new();
         let root_reference = Ref::for_root(&root);
 
+        let artifact_store = Arc::new(DiskArtifactStore::new(
+            Arc::clone(&cache_store),
+            Self::repository_cache_layout_for(&root, &layout),
+            BUILD_FINGERPRINT.trim(),
+        ));
+
         let repository = Self {
             root,
             fs,
@@ -83,9 +91,10 @@ impl Repository {
             contents,
             mounts: DashMap::new(),
             builtin: BuiltinPackage::new(),
-            artifacts: Arc::new(ArtifactStore::default()),
+            artifacts: Arc::new(ArtifactCache::default()),
             strings: Arc::new(StringPool::new()),
-            cache,
+            artifact_store,
+            cache_store,
             build_fingerprint: BUILD_FINGERPRINT.trim().to_owned(),
             layout,
             settings,
@@ -106,9 +115,23 @@ impl Repository {
         repository
     }
 
-    /// Override the backing cache store.
-    pub fn with_cache(mut self, cache: Arc<dyn CacheStore>) -> Self {
-        self.cache = cache;
+    /// Override the backing byte cache store.
+    pub fn with_cache_store(mut self, cache_store: Arc<dyn CacheStore>) -> Self {
+        let artifact_store = Arc::new(DiskArtifactStore::new(
+            Arc::clone(&cache_store),
+            self.repository_cache_layout(),
+            self.build_fingerprint.clone(),
+        ));
+
+        self.cache_store = cache_store;
+        self.artifact_store = artifact_store;
+
+        self
+    }
+
+    /// Override the persistent artifact store.
+    pub fn with_artifact_store(mut self, artifact_store: Arc<dyn ArtifactStore>) -> Self {
+        self.artifact_store = artifact_store;
         self
     }
 
@@ -117,9 +140,14 @@ impl Repository {
         &self.fs
     }
 
-    /// Return the repository artifact store.
-    pub fn artifact_store(&self) -> &Arc<ArtifactStore> {
+    /// Return the repository artifact cache.
+    pub fn artifact_cache(&self) -> &Arc<ArtifactCache> {
         &self.artifacts
+    }
+
+    /// Return the persistent artifact store.
+    pub fn artifact_store(&self) -> &Arc<dyn ArtifactStore> {
+        &self.artifact_store
     }
 
     /// Return the repository string pool.
@@ -127,9 +155,9 @@ impl Repository {
         &self.strings
     }
 
-    /// Return the repository cache store.
-    pub fn cache(&self) -> &Arc<dyn CacheStore> {
-        &self.cache
+    /// Return the repository byte cache store.
+    pub fn cache_store(&self) -> &Arc<dyn CacheStore> {
+        &self.cache_store
     }
 
     /// Return the resolved repository layout.
@@ -187,24 +215,22 @@ impl Repository {
 
     /// Build one persisted repository cache layout.
     pub fn repository_cache_layout(&self) -> RepositoryCacheLayout {
-        let cache_root = self.cache_directory();
-        let is_shared_root = !cache_root.starts_with(self.path());
-
-        RepositoryCacheLayout::new(&cache_root, self.path(), is_shared_root)
+        Self::repository_cache_layout_for(self.path(), self.layout())
     }
 
-    /// Build one persisted artifact cache.
-    pub fn artifact_cache(&self) -> ArtifactCache<'_> {
-        let layout = self.repository_cache_layout();
+    /// Build one persisted repository cache layout from explicit parts.
+    fn repository_cache_layout_for(root: &Path, layout: &DestackLayout) -> RepositoryCacheLayout {
+        let cache_root = layout.workspace_cache.clone();
+        let is_shared_root = !cache_root.starts_with(root);
 
-        ArtifactCache::new(self.cache().as_ref(), &layout, self.build_fingerprint())
+        RepositoryCacheLayout::new(&cache_root, root, is_shared_root)
     }
 
     /// Build one persisted content cache.
     pub fn content_cache(&self) -> ContentCache<'_> {
         let layout = self.repository_cache_layout();
 
-        ContentCache::new(self.cache().as_ref(), &layout)
+        ContentCache::new(self.cache_store().as_ref(), &layout)
     }
 
     /// Return the current revision for one ref.
