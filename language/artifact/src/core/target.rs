@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum Runtime {
-    /// Destack semantic runtime.
+    /// Destack native runtime.
     #[default]
     Destack,
     /// JavaScript host runtime.
