@@ -5,10 +5,10 @@ use destack_artifact::{
     ArtifactCache, ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactOutcome,
     ArtifactPayload, ArtifactRecord, ArtifactSidecar, ArtifactVersion, ComponentGraph, Data,
     DirBound, DirCheckedComponent, DirCheckedModule, DirElaborated, DirExpanded, DirExported,
-    DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirLowered,
-    MirOptimized, MirVerified, ModuleIndex, ModuleLinted, ModuleOutput, ModuleQueryIndex,
-    PackageIndex, PackageLinted, PackageOutput, ProductOutput, WorkspaceLinted,
-    WorkspaceQueryIndex,
+    DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed,
+    MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted, ModuleOutput,
+    ModuleQueryIndex, PackageIndex, PackageLinted, PackageOutput, ProductOutput, ProgramAnalysis,
+    WorkspaceLinted, WorkspaceQueryIndex,
 };
 use destack_source::{
     ComponentId, DiagnosticCollection, ModuleId, PackageId, ProductId, ProfileId, TargetId,
@@ -264,6 +264,31 @@ impl<'a> ArtifactReader<'a> {
         self.read(
             ArtifactKey::mir_verified(module, profile, target),
             ArtifactCache::mir_verified,
+        )
+    }
+
+    /// Read one analyzed MIR link summary.
+    pub fn mir_analyzed(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+        target: TargetId,
+    ) -> Result<Arc<MirAnalyzed>, ProviderError> {
+        self.read(
+            ArtifactKey::mir_analyzed(module, profile, target),
+            ArtifactStore::mir_analyzed,
+        )
+    }
+
+    /// Read one whole-program analysis artifact.
+    pub fn program_analysis(
+        &self,
+        profile: ProfileId,
+        target: TargetId,
+    ) -> Result<Arc<ProgramAnalysis>, ProviderError> {
+        self.read(
+            ArtifactKey::program_analysis(profile, target),
+            ArtifactStore::program_analysis,
         )
     }
 
