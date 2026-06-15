@@ -1,6 +1,6 @@
 use destack_artifact as artifact;
 
-use crate::{ArtifactVersion, FileContentId, FileId, bridge};
+use crate::{ArtifactVersion, ContentId, FileId, bridge};
 
 /// Exact source path state observed by one artifact computation.
 #[bridge]
@@ -51,7 +51,7 @@ pub enum ArtifactSourceDependency {
         /// The source file id.
         file: FileId,
         /// The exact source content id.
-        content: FileContentId,
+        content: ContentId,
     },
 }
 
@@ -115,7 +115,7 @@ impl ArtifactSourceDependency {
             }
             artifact::SourceDependency::FileContent { file, content } => Self::FileContent {
                 file: FileId::from_source(file),
-                content: FileContentId::from_source(content),
+                content: ContentId::from_source(content),
             },
         }
     }

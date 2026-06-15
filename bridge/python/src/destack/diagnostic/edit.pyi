@@ -46,4 +46,3 @@ class BatchEdit:
     """Per-file edits."""
     @property
     def files(self) -> list[FilePatch]: ...
-

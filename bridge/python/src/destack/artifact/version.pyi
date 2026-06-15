@@ -20,4 +20,3 @@ class ArtifactVersion:
     """Exact semantic fingerprint."""
     @property
     def fingerprint(self) -> str: ...
-

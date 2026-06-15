@@ -645,17 +645,17 @@ impl DestackOptionalArtifactDirectoryEntry {
 /// C ABI bridge value.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackFileContentId {
-    /// Canonical lowercase hex file content id.
+pub struct DestackContentId {
+    /// Canonical lowercase hex content id.
     pub(crate) id: *mut c_char,
 }
 
 /// C ABI bridge value array.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackFileContentIdArray {
+pub struct DestackContentIdArray {
     /// Owned value pointer.
-    pub(crate) ptr: *mut DestackFileContentId,
+    pub(crate) ptr: *mut DestackContentId,
     /// Value count.
     pub(crate) len: usize,
 }
@@ -663,24 +663,24 @@ pub struct DestackFileContentIdArray {
 /// C ABI optional bridge value.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackOptionalFileContentId {
+pub struct DestackOptionalContentId {
     /// Whether the value is present.
     pub(crate) is_some: bool,
     /// Value when present.
-    pub(crate) value: DestackFileContentId,
+    pub(crate) value: DestackContentId,
 }
 
-impl DestackFileContentId {
+impl DestackContentId {
     /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::FileContentId) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: rust::ContentId) -> Result<Self, String> {
         Ok(Self {
             id: c_string(value.id)?,
         })
     }
 
     /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::FileContentId, String> {
-        Ok(rust::FileContentId {
+    pub(crate) fn to_bridge(&self) -> Result<rust::ContentId, String> {
+        Ok(rust::ContentId {
             id: read_string(self.id)?,
         })
     }
@@ -699,19 +699,19 @@ impl DestackFileContentId {
     }
 }
 
-impl DestackFileContentIdArray {
+impl DestackContentIdArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::FileContentId>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(values: Vec<rust::ContentId>) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
-            converted.push(DestackFileContentId::from_bridge(value)?);
+            converted.push(DestackContentId::from_bridge(value)?);
         }
         let (ptr, len) = owned_array(converted);
         Ok(Self { ptr, len })
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::FileContentId>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::ContentId>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
@@ -739,23 +739,23 @@ impl DestackFileContentIdArray {
     }
 }
 
-impl DestackOptionalFileContentId {
+impl DestackOptionalContentId {
     /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::FileContentId>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: Option<rust::ContentId>) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
                 is_some: false,
-                value: DestackFileContentId::empty(),
+                value: DestackContentId::empty(),
             });
         };
         Ok(Self {
             is_some: true,
-            value: DestackFileContentId::from_bridge(value)?,
+            value: DestackContentId::from_bridge(value)?,
         })
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::FileContentId>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<rust::ContentId>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -769,7 +769,7 @@ impl DestackOptionalFileContentId {
             self.value.destroy();
         }
         self.is_some = false;
-        self.value = DestackFileContentId::empty();
+        self.value = DestackContentId::empty();
     }
 }
 
@@ -796,7 +796,7 @@ pub struct DestackArtifactSourceDependency {
     pub(crate) directory: DestackFileId,
     pub(crate) entries: DestackArtifactDirectoryEntryArray,
     pub(crate) file: DestackFileId,
-    pub(crate) content: DestackFileContentId,
+    pub(crate) content: DestackContentId,
 }
 
 /// C ABI bridge enum array.
@@ -833,7 +833,7 @@ impl DestackArtifactSourceDependency {
                     len: 0,
                 },
                 file: DestackFileId::empty(),
-                content: DestackFileContentId::empty(),
+                content: DestackContentId::empty(),
             },
             rust::ArtifactSourceDependency::DirectoryEntries { directory, entries } => Self {
                 kind: DestackArtifactSourceDependencyKind::DirectoryEntries,
@@ -842,7 +842,7 @@ impl DestackArtifactSourceDependency {
                 directory: DestackFileId::from_bridge(directory)?,
                 entries: DestackArtifactDirectoryEntryArray::from_bridge(entries)?,
                 file: DestackFileId::empty(),
-                content: DestackFileContentId::empty(),
+                content: DestackContentId::empty(),
             },
             rust::ArtifactSourceDependency::FileContent { file, content } => Self {
                 kind: DestackArtifactSourceDependencyKind::FileContent,
@@ -854,7 +854,7 @@ impl DestackArtifactSourceDependency {
                     len: 0,
                 },
                 file: DestackFileId::from_bridge(file)?,
-                content: DestackFileContentId::from_bridge(content)?,
+                content: DestackContentId::from_bridge(content)?,
             },
         })
     }
@@ -911,7 +911,7 @@ impl DestackArtifactSourceDependency {
                 len: 0,
             },
             file: DestackFileId::empty(),
-            content: DestackFileContentId::empty(),
+            content: DestackContentId::empty(),
         }
     }
 }
@@ -1441,19 +1441,19 @@ impl DestackOptionalArtifactSidecarLabel {
 /// C ABI bridge enum kind.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DestackFileContentKind {
-    /// Text file content.
+pub enum DestackContentKind {
+    /// Text content.
     Text = 0,
-    /// Binary file content.
+    /// Binary content.
     Binary = 1,
 }
 
 /// C ABI bridge enum.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackFileContent {
+pub struct DestackContent {
     /// Active enum variant.
-    pub(crate) kind: DestackFileContentKind,
+    pub(crate) kind: DestackContentKind,
     pub(crate) text_content: *mut c_char,
     pub(crate) binary_content: DestackByteArray,
 }
@@ -1461,9 +1461,9 @@ pub struct DestackFileContent {
 /// C ABI bridge enum array.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackFileContentArray {
+pub struct DestackContentArray {
     /// Owned value pointer.
-    pub(crate) ptr: *mut DestackFileContent,
+    pub(crate) ptr: *mut DestackContent,
     /// Value count.
     pub(crate) len: usize,
 }
@@ -1471,27 +1471,27 @@ pub struct DestackFileContentArray {
 /// C ABI optional bridge enum.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackOptionalFileContent {
+pub struct DestackOptionalContent {
     /// Whether the value is present.
     pub(crate) is_some: bool,
     /// Value when present.
-    pub(crate) value: DestackFileContent,
+    pub(crate) value: DestackContent,
 }
 
-impl DestackFileContent {
+impl DestackContent {
     /// Convert one bridge enum into one C ABI enum.
-    pub(crate) fn from_bridge(value: rust::FileContent) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: rust::Content) -> Result<Self, String> {
         Ok(match value {
-            rust::FileContent::Text { content } => Self {
-                kind: DestackFileContentKind::Text,
+            rust::Content::Text { content } => Self {
+                kind: DestackContentKind::Text,
                 text_content: c_string(content)?,
                 binary_content: DestackByteArray {
                     ptr: ptr::null_mut(),
                     len: 0,
                 },
             },
-            rust::FileContent::Binary { content } => Self {
-                kind: DestackFileContentKind::Binary,
+            rust::Content::Binary { content } => Self {
+                kind: DestackContentKind::Binary,
                 text_content: ptr::null_mut(),
                 binary_content: DestackByteArray::from_vec(content),
             },
@@ -1499,20 +1499,20 @@ impl DestackFileContent {
     }
 
     /// Convert this C ABI enum into one bridge enum.
-    pub(crate) fn to_bridge(&self) -> Result<rust::FileContent, String> {
+    pub(crate) fn to_bridge(&self) -> Result<rust::Content, String> {
         match self.kind {
-            DestackFileContentKind::Text => {
+            DestackContentKind::Text => {
                 let text_content = read_string(self.text_content)?;
-                Ok(rust::FileContent::Text {
+                Ok(rust::Content::Text {
                     content: text_content,
                 })
             }
-            DestackFileContentKind::Binary => {
+            DestackContentKind::Binary => {
                 let binary_content = read_bytes(
                     self.binary_content.ptr.cast_const(),
                     self.binary_content.len,
                 )?;
-                Ok(rust::FileContent::Binary {
+                Ok(rust::Content::Binary {
                     content: binary_content,
                 })
             }
@@ -1529,7 +1529,7 @@ impl DestackFileContent {
     /// Return one empty C ABI enum.
     pub(crate) fn empty() -> Self {
         Self {
-            kind: DestackFileContentKind::Text,
+            kind: DestackContentKind::Text,
             text_content: ptr::null_mut(),
             binary_content: DestackByteArray {
                 ptr: ptr::null_mut(),
@@ -1539,19 +1539,19 @@ impl DestackFileContent {
     }
 }
 
-impl DestackFileContentArray {
+impl DestackContentArray {
     /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::FileContent>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(values: Vec<rust::Content>) -> Result<Self, String> {
         let mut converted = Vec::with_capacity(values.len());
         for value in values {
-            converted.push(DestackFileContent::from_bridge(value)?);
+            converted.push(DestackContent::from_bridge(value)?);
         }
         let (ptr, len) = owned_array(converted);
         Ok(Self { ptr, len })
     }
 
     /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::FileContent>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::Content>, String> {
         if self.len == 0 {
             return Ok(Vec::new());
         }
@@ -1579,23 +1579,23 @@ impl DestackFileContentArray {
     }
 }
 
-impl DestackOptionalFileContent {
+impl DestackOptionalContent {
     /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::FileContent>) -> Result<Self, String> {
+    pub(crate) fn from_bridge(value: Option<rust::Content>) -> Result<Self, String> {
         let Some(value) = value else {
             return Ok(Self {
                 is_some: false,
-                value: DestackFileContent::empty(),
+                value: DestackContent::empty(),
             });
         };
         Ok(Self {
             is_some: true,
-            value: DestackFileContent::from_bridge(value)?,
+            value: DestackContent::from_bridge(value)?,
         })
     }
 
     /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::FileContent>, String> {
+    pub(crate) fn to_bridge(&self) -> Result<Option<rust::Content>, String> {
         if self.is_some {
             Ok(Some(self.value.to_bridge()?))
         } else {
@@ -1609,7 +1609,7 @@ impl DestackOptionalFileContent {
             self.value.destroy();
         }
         self.is_some = false;
-        self.value = DestackFileContent::empty();
+        self.value = DestackContent::empty();
     }
 }
 
@@ -1622,7 +1622,7 @@ pub struct DestackArtifactSidecar {
     /// Stable labels describing this sidecar.
     pub(crate) labels: DestackArtifactSidecarLabelArray,
     /// Sidecar content.
-    pub(crate) content: DestackFileContent,
+    pub(crate) content: DestackContent,
 }
 
 /// C ABI bridge value array.
@@ -1651,7 +1651,7 @@ impl DestackArtifactSidecar {
         Ok(Self {
             name: c_string(value.name)?,
             labels: DestackArtifactSidecarLabelArray::from_bridge(value.labels)?,
-            content: DestackFileContent::from_bridge(value.content)?,
+            content: DestackContent::from_bridge(value.content)?,
         })
     }
 
@@ -1680,7 +1680,7 @@ impl DestackArtifactSidecar {
                 ptr: ptr::null_mut(),
                 len: 0,
             },
-            content: DestackFileContent::empty(),
+            content: DestackContent::empty(),
         }
     }
 }
@@ -2172,8 +2172,8 @@ impl DestackOptionalSpan {
 #[repr(C)]
 #[derive(Debug)]
 pub struct DestackDiagnosticLabel {
-    /// Exact file content containing the span.
-    pub(crate) content: DestackFileContentId,
+    /// Exact content containing the span.
+    pub(crate) content: DestackContentId,
     /// Concrete source span.
     pub(crate) span: DestackSpan,
     /// Optional label shown on the span.
@@ -2204,7 +2204,7 @@ impl DestackDiagnosticLabel {
     /// Convert one bridge value into one C ABI value.
     pub(crate) fn from_bridge(value: rust::DiagnosticLabel) -> Result<Self, String> {
         Ok(Self {
-            content: DestackFileContentId::from_bridge(value.content)?,
+            content: DestackContentId::from_bridge(value.content)?,
             span: DestackSpan::from_bridge(value.span)?,
             message: DestackOptionalString::from_bridge(value.message)?,
         })
@@ -2229,7 +2229,7 @@ impl DestackDiagnosticLabel {
     /// Return one empty C ABI value.
     pub(crate) fn empty() -> Self {
         Self {
-            content: DestackFileContentId::empty(),
+            content: DestackContentId::empty(),
             span: DestackSpan::empty(),
             message: DestackOptionalString::empty(),
         }
@@ -3465,8 +3465,8 @@ impl DestackOptionalDiagnostic {
 pub struct DestackArtifactRecord {
     /// The exact artifact version.
     pub(crate) version: DestackArtifactVersion,
-    /// Serialized artifact image bytes.
-    pub(crate) image: DestackByteArray,
+    /// Serialized artifact payload bytes.
+    pub(crate) payload: DestackByteArray,
     /// String pool needed to interpret interned ids in the payload.
     pub(crate) strings: DestackArtifactStringArray,
     /// Exact artifact dependencies.
@@ -3502,7 +3502,7 @@ impl DestackArtifactRecord {
     pub(crate) fn from_bridge(value: rust::ArtifactRecord) -> Result<Self, String> {
         Ok(Self {
             version: DestackArtifactVersion::from_bridge(value.version)?,
-            image: DestackByteArray::from_vec(value.image),
+            payload: DestackByteArray::from_vec(value.payload),
             strings: DestackArtifactStringArray::from_bridge(value.strings)?,
             dependencies: DestackArtifactDependencyArray::from_bridge(value.dependencies)?,
             diagnostics: DestackDiagnosticArray::from_bridge(value.diagnostics)?,
@@ -3514,7 +3514,7 @@ impl DestackArtifactRecord {
     pub(crate) fn to_bridge(&self) -> Result<rust::ArtifactRecord, String> {
         Ok(rust::ArtifactRecord {
             version: self.version.to_bridge()?,
-            image: read_bytes(self.image.ptr.cast_const(), self.image.len)?,
+            payload: read_bytes(self.payload.ptr.cast_const(), self.payload.len)?,
             strings: self.strings.to_bridge()?,
             dependencies: self.dependencies.to_bridge()?,
             diagnostics: self.diagnostics.to_bridge()?,
@@ -3525,7 +3525,7 @@ impl DestackArtifactRecord {
     /// Destroy this C ABI value.
     pub(crate) fn destroy(&mut self) {
         self.version.destroy();
-        self.image.destroy();
+        self.payload.destroy();
         self.strings.destroy();
         self.dependencies.destroy();
         self.diagnostics.destroy();
@@ -3536,7 +3536,7 @@ impl DestackArtifactRecord {
     pub(crate) fn empty() -> Self {
         Self {
             version: DestackArtifactVersion::empty(),
-            image: DestackByteArray {
+            payload: DestackByteArray {
                 ptr: ptr::null_mut(),
                 len: 0,
             },
@@ -6356,7 +6356,7 @@ pub unsafe extern "C" fn destack_artifact_directory_entry_array_destroy(
 
 /// Destroy one C ABI bridge value.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_file_content_id_destroy(value: *mut DestackFileContentId) {
+pub unsafe extern "C" fn destack_content_id_destroy(value: *mut DestackContentId) {
     if let Some(value) = unsafe { value.as_mut() } {
         value.destroy();
     }
@@ -6364,9 +6364,7 @@ pub unsafe extern "C" fn destack_file_content_id_destroy(value: *mut DestackFile
 
 /// Destroy one C ABI bridge value array.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_file_content_id_array_destroy(
-    mut array: DestackFileContentIdArray,
-) {
+pub unsafe extern "C" fn destack_content_id_array_destroy(mut array: DestackContentIdArray) {
     array.destroy();
 }
 
@@ -6442,7 +6440,7 @@ pub unsafe extern "C" fn destack_artifact_sidecar_label_array_destroy(
 
 /// Destroy one C ABI bridge value.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_file_content_destroy(value: *mut DestackFileContent) {
+pub unsafe extern "C" fn destack_content_destroy(value: *mut DestackContent) {
     if let Some(value) = unsafe { value.as_mut() } {
         value.destroy();
     }
@@ -6450,7 +6448,7 @@ pub unsafe extern "C" fn destack_file_content_destroy(value: *mut DestackFileCon
 
 /// Destroy one C ABI bridge value array.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_file_content_array_destroy(mut array: DestackFileContentArray) {
+pub unsafe extern "C" fn destack_content_array_destroy(mut array: DestackContentArray) {
     array.destroy();
 }
 

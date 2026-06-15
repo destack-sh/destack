@@ -4,7 +4,7 @@ use destack_bridge_language as bridge;
 
 use pyo3::prelude::*;
 
-use crate::{ArtifactVersion, FileContentId, FileId};
+use crate::{ArtifactVersion, ContentId, FileId};
 
 /// Exact source path state observed by one artifact computation.
 #[pyclass(name = "ArtifactPathState", module = "destack._native", from_py_object)]
@@ -167,7 +167,7 @@ impl ArtifactSourceDependency {
 
     /// The exact source content read for one file.
     #[staticmethod]
-    pub fn file_content(file: FileId, content: FileContentId) -> Self {
+    pub fn file_content(file: FileId, content: ContentId) -> Self {
         Self {
             value: bridge::ArtifactSourceDependency::FileContent {
                 file: file.into_bridge(),
@@ -188,10 +188,10 @@ impl ArtifactSourceDependency {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn content(&self) -> Option<FileContentId> {
+    pub fn content(&self) -> Option<ContentId> {
         match &self.value {
             bridge::ArtifactSourceDependency::FileContent { content, .. } => {
-                Some(FileContentId::from_bridge(content.clone()))
+                Some(ContentId::from_bridge(content.clone()))
             }
             _ => None,
         }

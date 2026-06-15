@@ -36,15 +36,15 @@ class ArtifactString:
 class ArtifactRecord:
     """Self-contained raw artifact body crossing bridge boundaries."""
 
-    def __init__(self, version: ArtifactVersion, image: bytes | bytearray | Sequence[int], strings: Sequence[ArtifactString], dependencies: Sequence[ArtifactDependency], diagnostics: Sequence[Diagnostic], sidecars: Sequence[ArtifactSidecar]) -> None: ...
+    def __init__(self, version: ArtifactVersion, payload: bytes | bytearray | Sequence[int], strings: Sequence[ArtifactString], dependencies: Sequence[ArtifactDependency], diagnostics: Sequence[Diagnostic], sidecars: Sequence[ArtifactSidecar]) -> None: ...
 
     """The exact artifact version."""
     @property
     def version(self) -> ArtifactVersion: ...
 
-    """Serialized artifact image bytes."""
+    """Serialized artifact payload bytes."""
     @property
-    def image(self) -> list[int]: ...
+    def payload(self) -> list[int]: ...
 
     """String pool needed to interpret interned ids in the payload."""
     @property
@@ -61,4 +61,3 @@ class ArtifactRecord:
     """Artifact sidecars recorded for this artifact version."""
     @property
     def sidecars(self) -> list[ArtifactSidecar]: ...
-

@@ -4,7 +4,7 @@ use destack_bridge_language as bridge;
 
 use napi_derive::napi;
 
-use crate::FileContent;
+use crate::Content;
 
 /// One stable sidecar label crossing bridge boundaries.
 #[derive(Debug)]
@@ -35,7 +35,7 @@ pub struct ArtifactSidecar {
     /// Stable labels describing this sidecar.
     pub labels: Vec<ArtifactSidecarLabel>,
     /// Sidecar content.
-    pub content: FileContent,
+    pub content: Content,
 }
 
 impl ArtifactSidecar {
@@ -48,7 +48,7 @@ impl ArtifactSidecar {
                 .into_iter()
                 .map(|item| ArtifactSidecarLabel::from_bridge(item))
                 .collect(),
-            content: FileContent::from_bridge(value.content),
+            content: Content::from_bridge(value.content),
         }
     }
 }

@@ -24,4 +24,3 @@ export type BatchEdit = {
     /** Per-file edits. */
     readonly files: readonly FilePatch[];
 };
-

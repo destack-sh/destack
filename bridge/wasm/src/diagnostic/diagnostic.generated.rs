@@ -4,13 +4,13 @@ use destack_bridge_language as bridge;
 
 use wasm_bindgen::prelude::wasm_bindgen;
 
-use crate::{BatchEdit, FileContentId, Span};
+use crate::{BatchEdit, ContentId, Span};
 
 /// One concrete source label in a diagnostic.
 #[derive(Debug, Clone)]
 #[wasm_bindgen]
 pub struct DiagnosticLabel {
-    content: FileContentId,
+    content: ContentId,
     span: Span,
     message: Option<String>,
 }
@@ -19,7 +19,7 @@ pub struct DiagnosticLabel {
 impl DiagnosticLabel {
     /// Create one value.
     #[wasm_bindgen(constructor)]
-    pub fn new(content: FileContentId, span: Span, message: Option<String>) -> Self {
+    pub fn new(content: ContentId, span: Span, message: Option<String>) -> Self {
         Self {
             content,
             span,
@@ -27,9 +27,9 @@ impl DiagnosticLabel {
         }
     }
 
-    /// Exact file content containing the span.
+    /// Exact content containing the span.
     #[wasm_bindgen(getter, js_name = "content")]
-    pub fn content(&self) -> FileContentId {
+    pub fn content(&self) -> ContentId {
         self.content.clone()
     }
 
@@ -50,7 +50,7 @@ impl DiagnosticLabel {
     /// Convert one bridge value into one WASM value.
     pub(crate) fn from_bridge(value: bridge::DiagnosticLabel) -> Self {
         Self {
-            content: FileContentId::from_bridge(value.content),
+            content: ContentId::from_bridge(value.content),
             span: Span::from_bridge(value.span),
             message: value.message,
         }

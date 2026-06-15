@@ -12,4 +12,3 @@ class Revision:
     """Displayed repository revision id."""
     @property
     def id(self) -> str: ...
-

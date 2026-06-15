@@ -98,4 +98,3 @@ class Commit:
     """Changed files."""
     @property
     def changes(self) -> list[Change]: ...
-

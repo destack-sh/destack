@@ -6,21 +6,21 @@ export type FileId = {
     readonly id: string;
 };
 
-/** External file content id crossing bridge boundaries. */
-export type FileContentId = {
-    /** Canonical lowercase hex file content id. */
+/** External content id crossing bridge boundaries. */
+export type ContentId = {
+    /** Canonical lowercase hex content id. */
     readonly id: string;
 };
 
-/** Full file content crossing bridge boundaries. */
-export type FileContent =
-    /** Text file content. */
+/** Full content crossing bridge boundaries. */
+export type Content =
+    /** Text content. */
     | {
           readonly kind: "text";
           /** Text content. */
           readonly content: string;
       }
-    /** Binary file content. */
+    /** Binary content. */
     | {
           readonly kind: "binary";
           /** Binary content. */
@@ -28,16 +28,15 @@ export type FileContent =
       }
 ;
 
-export const FileContent = {
-    /** Text file content. */
-    text(content: string): FileContent {
+export const Content = {
+    /** Text content. */
+    text(content: string): Content {
         return { kind: "text", content };
     },
 
-    /** Binary file content. */
-    binary(content: Uint8Array | readonly number[]): FileContent {
+    /** Binary content. */
+    binary(content: Uint8Array | readonly number[]): Content {
         return { kind: "binary", content };
     },
 
 };
-

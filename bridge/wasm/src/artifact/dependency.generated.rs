@@ -4,7 +4,7 @@ use destack_bridge_language as bridge;
 
 use wasm_bindgen::prelude::wasm_bindgen;
 
-use crate::{ArtifactVersion, FileContentId, FileId};
+use crate::{ArtifactVersion, ContentId, FileId};
 
 /// One exact directory entry observed by one artifact computation.
 #[derive(Debug, Clone)]
@@ -74,7 +74,7 @@ enum ArtifactSourceDependencyContent {
         /// The source file id.
         file: FileId,
         /// The exact source content id.
-        content: FileContentId,
+        content: ContentId,
     },
 }
 
@@ -98,7 +98,7 @@ impl ArtifactSourceDependency {
 
     /// Create one payload variant.
     #[wasm_bindgen(js_name = "fileContent")]
-    pub fn file_content(file: FileId, content: FileContentId) -> Self {
+    pub fn file_content(file: FileId, content: ContentId) -> Self {
         Self {
             content: ArtifactSourceDependencyContent::FileContent { file, content },
         }
@@ -166,7 +166,7 @@ impl ArtifactSourceDependency {
 
     /// The exact source content id.
     #[wasm_bindgen(getter, js_name = "content")]
-    pub fn content(&self) -> Option<FileContentId> {
+    pub fn content(&self) -> Option<ContentId> {
         match &self.content {
             ArtifactSourceDependencyContent::FileContent { content: value, .. } => {
                 Some(value.clone())
@@ -198,7 +198,7 @@ impl ArtifactSourceDependency {
             bridge::ArtifactSourceDependency::FileContent { file, content } => Self {
                 content: ArtifactSourceDependencyContent::FileContent {
                     file: FileId::from_bridge(file),
-                    content: FileContentId::from_bridge(content),
+                    content: ContentId::from_bridge(content),
                 },
             },
         }

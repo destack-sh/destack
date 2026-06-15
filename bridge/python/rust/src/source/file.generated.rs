@@ -41,24 +41,24 @@ impl FileId {
     }
 }
 
-/// External file content id crossing bridge boundaries.
-#[pyclass(name = "FileContentId", module = "destack._native", from_py_object)]
+/// External content id crossing bridge boundaries.
+#[pyclass(name = "ContentId", module = "destack._native", from_py_object)]
 #[derive(Debug, Clone)]
-pub struct FileContentId {
-    pub(crate) value: bridge::FileContentId,
+pub struct ContentId {
+    pub(crate) value: bridge::ContentId,
 }
 
 #[pymethods]
-impl FileContentId {
+impl ContentId {
     /// Create one value.
     #[new]
     pub fn new(id: String) -> Self {
         Self {
-            value: bridge::FileContentId { id },
+            value: bridge::ContentId { id },
         }
     }
 
-    /// Canonical lowercase hex file content id.
+    /// Canonical lowercase hex content id.
     #[getter]
     pub fn id(&self) -> String {
         self.value.id.clone()
@@ -66,40 +66,40 @@ impl FileContentId {
 }
 
 #[allow(dead_code)]
-impl FileContentId {
+impl ContentId {
     /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::FileContentId {
+    pub(crate) fn into_bridge(self) -> bridge::ContentId {
         self.value
     }
 
     /// Convert one bridge value into one Python value.
-    pub(crate) fn from_bridge(value: bridge::FileContentId) -> Self {
+    pub(crate) fn from_bridge(value: bridge::ContentId) -> Self {
         Self { value }
     }
 }
 
-/// Full file content crossing bridge boundaries.
-#[pyclass(name = "FileContent", module = "destack._native", from_py_object)]
+/// Full content crossing bridge boundaries.
+#[pyclass(name = "Content", module = "destack._native", from_py_object)]
 #[derive(Debug, Clone)]
-pub struct FileContent {
-    pub(crate) value: bridge::FileContent,
+pub struct Content {
+    pub(crate) value: bridge::Content,
 }
 
 #[pymethods]
-impl FileContent {
-    /// Text file content.
+impl Content {
+    /// Text content.
     #[staticmethod]
     pub fn text(content: String) -> Self {
         Self {
-            value: bridge::FileContent::Text { content },
+            value: bridge::Content::Text { content },
         }
     }
 
-    /// Binary file content.
+    /// Binary content.
     #[staticmethod]
     pub fn binary(content: Vec<u8>) -> Self {
         Self {
-            value: bridge::FileContent::Binary { content },
+            value: bridge::Content::Binary { content },
         }
     }
 
@@ -107,8 +107,8 @@ impl FileContent {
     #[getter]
     pub fn kind(&self) -> &'static str {
         match &self.value {
-            bridge::FileContent::Text { .. } => "text",
-            bridge::FileContent::Binary { .. } => "binary",
+            bridge::Content::Text { .. } => "text",
+            bridge::Content::Binary { .. } => "binary",
         }
     }
 
@@ -116,7 +116,7 @@ impl FileContent {
     #[getter]
     pub fn binary_content(&self) -> Option<Vec<u8>> {
         match &self.value {
-            bridge::FileContent::Binary { content, .. } => Some(content.clone()),
+            bridge::Content::Binary { content, .. } => Some(content.clone()),
             _ => None,
         }
     }
@@ -125,20 +125,20 @@ impl FileContent {
     #[getter]
     pub fn text_content(&self) -> Option<String> {
         match &self.value {
-            bridge::FileContent::Text { content, .. } => Some(content.clone()),
+            bridge::Content::Text { content, .. } => Some(content.clone()),
             _ => None,
         }
     }
 }
 
-impl FileContent {
+impl Content {
     /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::FileContent {
+    pub(crate) fn into_bridge(self) -> bridge::Content {
         self.value
     }
 
     /// Convert one bridge value into one Python value.
-    pub(crate) fn from_bridge(value: bridge::FileContent) -> Self {
+    pub(crate) fn from_bridge(value: bridge::Content) -> Self {
         Self { value }
     }
 }
@@ -146,7 +146,7 @@ impl FileContent {
 /// Register generated Python bridge classes.
 pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<FileId>()?;
-    module.add_class::<FileContentId>()?;
-    module.add_class::<FileContent>()?;
+    module.add_class::<ContentId>()?;
+    module.add_class::<Content>()?;
     Ok(())
 }

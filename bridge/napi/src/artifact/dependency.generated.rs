@@ -4,7 +4,7 @@ use destack_bridge_language as bridge;
 
 use napi_derive::napi;
 
-use crate::{ArtifactVersion, FileContentId, FileId};
+use crate::{ArtifactVersion, ContentId, FileId};
 
 /// One exact directory entry observed by one artifact computation.
 #[derive(Debug)]
@@ -43,7 +43,7 @@ pub struct ArtifactSourceDependency {
     /// The source file id.
     pub file: Option<FileId>,
     /// The exact source content id.
-    pub content: Option<FileContentId>,
+    pub content: Option<ContentId>,
 }
 
 impl ArtifactSourceDependency {
@@ -76,7 +76,7 @@ impl ArtifactSourceDependency {
             bridge::ArtifactSourceDependency::FileContent { file, content } => Self {
                 kind: "fileContent".to_string(),
                 file: Some(FileId::from_bridge(file)),
-                content: Some(FileContentId::from_bridge(content)),
+                content: Some(ContentId::from_bridge(content)),
                 path: None,
                 state: None,
                 directory: None,

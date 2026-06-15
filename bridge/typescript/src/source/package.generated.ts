@@ -5,4 +5,3 @@ export type PackageId = {
     /** Canonical lowercase hex package id. */
     readonly id: string;
 };
-

@@ -20,4 +20,3 @@ class TargetId:
     """Canonical lowercase hex target key within the package."""
     @property
     def key(self) -> str: ...
-

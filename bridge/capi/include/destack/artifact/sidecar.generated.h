@@ -28,7 +28,7 @@ typedef struct DestackOptionalArtifactSidecarLabel {
 typedef struct DestackArtifactSidecar {
     char *name;
     DestackArtifactSidecarLabelArray labels;
-    DestackFileContent content;
+    DestackContent content;
 } DestackArtifactSidecar;
 
 typedef struct DestackArtifactSidecarArray {

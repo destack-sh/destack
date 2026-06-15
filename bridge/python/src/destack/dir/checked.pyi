@@ -44,4 +44,3 @@ class DirChecked:
     """Component entry module."""
     @property
     def entry(self) -> ModuleId: ...
-

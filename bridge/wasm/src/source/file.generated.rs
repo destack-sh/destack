@@ -33,51 +33,51 @@ impl FileId {
     }
 }
 
-/// External file content id crossing bridge boundaries.
+/// External content id crossing bridge boundaries.
 #[derive(Debug, Clone)]
 #[wasm_bindgen]
-pub struct FileContentId {
+pub struct ContentId {
     id: String,
 }
 
 #[wasm_bindgen]
-impl FileContentId {
+impl ContentId {
     /// Create one value.
     #[wasm_bindgen(constructor)]
     pub fn new(id: String) -> Self {
         Self { id }
     }
 
-    /// Canonical lowercase hex file content id.
+    /// Canonical lowercase hex content id.
     #[wasm_bindgen(getter, js_name = "id")]
     pub fn id(&self) -> String {
         self.id.clone()
     }
 }
 
-impl FileContentId {
+impl ContentId {
     /// Convert one bridge value into one WASM value.
-    pub(crate) fn from_bridge(value: bridge::FileContentId) -> Self {
+    pub(crate) fn from_bridge(value: bridge::ContentId) -> Self {
         Self { id: value.id }
     }
 }
 
-/// Full file content crossing bridge boundaries.
+/// Full content crossing bridge boundaries.
 #[derive(Debug, Clone)]
 #[wasm_bindgen]
-pub struct FileContent {
-    content: FileContentContent,
+pub struct Content {
+    content: ContentContent,
 }
 
 /// Concrete payload enum content.
 #[derive(Debug, Clone)]
-enum FileContentContent {
-    /// Text file content.
+enum ContentContent {
+    /// Text content.
     Text {
         /// Text content.
         content: String,
     },
-    /// Binary file content.
+    /// Binary content.
     Binary {
         /// Binary content.
         content: Vec<u8>,
@@ -85,12 +85,12 @@ enum FileContentContent {
 }
 
 #[wasm_bindgen]
-impl FileContent {
+impl Content {
     /// Create one payload variant.
     #[wasm_bindgen(js_name = "text")]
     pub fn text(content: String) -> Self {
         Self {
-            content: FileContentContent::Text { content },
+            content: ContentContent::Text { content },
         }
     }
 
@@ -98,7 +98,7 @@ impl FileContent {
     #[wasm_bindgen(js_name = "binary")]
     pub fn binary(content: Vec<u8>) -> Self {
         Self {
-            content: FileContentContent::Binary { content },
+            content: ContentContent::Binary { content },
         }
     }
 
@@ -106,8 +106,8 @@ impl FileContent {
     #[wasm_bindgen(getter, js_name = "kind")]
     pub fn kind(&self) -> String {
         let label = match &self.content {
-            FileContentContent::Text { .. } => "text",
-            FileContentContent::Binary { .. } => "binary",
+            ContentContent::Text { .. } => "text",
+            ContentContent::Binary { .. } => "binary",
         };
         label.to_string()
     }
@@ -116,7 +116,7 @@ impl FileContent {
     #[wasm_bindgen(getter, js_name = "textContent")]
     pub fn text_content(&self) -> Option<String> {
         match &self.content {
-            FileContentContent::Text { content: value, .. } => Some(value.clone()),
+            ContentContent::Text { content: value, .. } => Some(value.clone()),
             _ => None,
         }
     }
@@ -125,21 +125,21 @@ impl FileContent {
     #[wasm_bindgen(getter, js_name = "binaryContent")]
     pub fn binary_content(&self) -> Option<Vec<u8>> {
         match &self.content {
-            FileContentContent::Binary { content: value, .. } => Some(value.clone()),
+            ContentContent::Binary { content: value, .. } => Some(value.clone()),
             _ => None,
         }
     }
 }
 
-impl FileContent {
+impl Content {
     /// Convert one bridge payload enum into one WASM payload enum.
-    pub(crate) fn from_bridge(value: bridge::FileContent) -> Self {
+    pub(crate) fn from_bridge(value: bridge::Content) -> Self {
         match value {
-            bridge::FileContent::Text { content } => Self {
-                content: FileContentContent::Text { content },
+            bridge::Content::Text { content } => Self {
+                content: ContentContent::Text { content },
             },
-            bridge::FileContent::Binary { content } => Self {
-                content: FileContentContent::Binary { content },
+            bridge::Content::Binary { content } => Self {
+                content: ContentContent::Binary { content },
             },
         }
     }

@@ -13,4 +13,3 @@ export type DirResolved = {
     /** Resolved semantic profile. */
     readonly profile: ProfileId;
 };
-

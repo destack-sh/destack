@@ -13,4 +13,3 @@ export type Change = {
     /** Updated module id when known. */
     readonly moduleId?: ModuleId;
 };
-

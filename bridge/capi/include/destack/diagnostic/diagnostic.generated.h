@@ -43,7 +43,7 @@ typedef struct DestackOptionalDiagnosticHelp {
 } DestackOptionalDiagnosticHelp;
 
 typedef struct DestackDiagnosticLabel {
-    DestackFileContentId content;
+    DestackContentId content;
     DestackSpan span;
     DestackOptionalString message;
 } DestackDiagnosticLabel;

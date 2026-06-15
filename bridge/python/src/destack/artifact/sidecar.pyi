@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from destack.source.file import (
-    FileContent,
+    Content,
 )
 
 class ArtifactSidecarLabel:
@@ -24,7 +24,7 @@ class ArtifactSidecarLabel:
 class ArtifactSidecar:
     """One named artifact sidecar crossing bridge boundaries."""
 
-    def __init__(self, name: str, labels: Sequence[ArtifactSidecarLabel], content: FileContent) -> None: ...
+    def __init__(self, name: str, labels: Sequence[ArtifactSidecarLabel], content: Content) -> None: ...
 
     """Sidecar name."""
     @property
@@ -36,5 +36,4 @@ class ArtifactSidecar:
 
     """Sidecar content."""
     @property
-    def content(self) -> FileContent: ...
-
+    def content(self) -> Content: ...

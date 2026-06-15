@@ -40,11 +40,25 @@ pub(crate) fn write_text(root: &Path, relative: &str, content: String) -> Result
     let parent = path
         .parent()
         .with_context(|| format!("generated path has no parent: {}", path.display()))?;
+    let content = normalize_text(content);
 
     fs::create_dir_all(parent).with_context(|| format!("failed to create {}", parent.display()))?;
     fs::write(&path, content).with_context(|| format!("failed to write {}", path.display()))?;
 
     Ok(())
+}
+
+/// Normalize generated text file endings.
+fn normalize_text(mut content: String) -> String {
+    while content.ends_with("\n\n") {
+        content.pop();
+    }
+
+    if !content.is_empty() && !content.ends_with('\n') {
+        content.push('\n');
+    }
+
+    content
 }
 
 /// Render generated Rust tokens as source text.

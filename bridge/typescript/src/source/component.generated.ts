@@ -5,4 +5,3 @@ export type ComponentId = {
     /** Canonical lowercase hex component id. */
     readonly id: string;
 };
-

@@ -5,8 +5,8 @@ from .component import (
 )
 from .file import (
     FileId,
-    FileContentId,
-    FileContent,
+    ContentId,
+    Content,
 )
 from .module import (
     ModuleId,
@@ -31,8 +31,8 @@ from .target import (
 __all__ = [
     "ComponentId",
     "FileId",
-    "FileContentId",
-    "FileContent",
+    "ContentId",
+    "Content",
     "ModuleId",
     "PackageId",
     "ProductId",

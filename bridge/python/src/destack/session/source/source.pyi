@@ -30,4 +30,3 @@ class Source:
 
     @property
     def root(self) -> str | None: ...
-

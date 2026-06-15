@@ -9,7 +9,7 @@ from destack.artifact.version import (
 )
 
 from destack.source.file import (
-    FileContentId,
+    ContentId,
     FileId,
 )
 
@@ -65,13 +65,13 @@ class ArtifactSourceDependency:
 
     """The exact source content read for one file."""
     @staticmethod
-    def file_content(file: FileId, content: FileContentId) -> ArtifactSourceDependency: ...
+    def file_content(file: FileId, content: ContentId) -> ArtifactSourceDependency: ...
 
     @property
     def kind(self) -> str: ...
 
     @property
-    def content(self) -> FileContentId | None: ...
+    def content(self) -> ContentId | None: ...
 
     @property
     def directory(self) -> FileId | None: ...
@@ -107,4 +107,3 @@ class ArtifactDependency:
 
     @property
     def version(self) -> ArtifactVersion | None: ...
-

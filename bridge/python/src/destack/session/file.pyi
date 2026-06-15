@@ -12,4 +12,3 @@ class SessionFile:
     """Repository logical path."""
     @property
     def path(self) -> str: ...
-

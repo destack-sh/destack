@@ -16,4 +16,3 @@ class Module:
     """Stable source module id."""
     @property
     def id(self) -> ModuleId: ...
-

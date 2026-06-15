@@ -12,4 +12,3 @@ class PackageId:
     """Canonical lowercase hex package id."""
     @property
     def id(self) -> str: ...
-

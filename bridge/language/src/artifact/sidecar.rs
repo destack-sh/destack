@@ -1,6 +1,6 @@
 use destack_artifact as artifact;
 
-use crate::{FileContent, bridge};
+use crate::{Content, bridge};
 
 /// One stable sidecar label crossing bridge boundaries.
 #[bridge]
@@ -21,7 +21,7 @@ pub struct ArtifactSidecar {
     /// Stable labels describing this sidecar.
     pub labels: Vec<ArtifactSidecarLabel>,
     /// Sidecar content.
-    pub content: FileContent,
+    pub content: Content,
 }
 
 impl ArtifactSidecar {

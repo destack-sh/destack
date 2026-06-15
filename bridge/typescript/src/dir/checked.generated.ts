@@ -18,4 +18,3 @@ export type DirChecked = {
     /** Component entry module. */
     readonly entry: ModuleId;
 };
-

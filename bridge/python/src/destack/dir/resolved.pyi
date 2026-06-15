@@ -32,4 +32,3 @@ class DirResolved:
     """Resolved semantic profile."""
     @property
     def profile(self) -> ProfileId: ...
-

@@ -2,12 +2,12 @@
 
 from .._native import (
     FileId,
-    FileContentId,
-    FileContent,
+    ContentId,
+    Content,
 )
 
 __all__ = [
     "FileId",
-    "FileContentId",
-    "FileContent",
+    "ContentId",
+    "Content",
 ]

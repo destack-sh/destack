@@ -20,4 +20,3 @@ class ModuleId:
     """Canonical lowercase hex module key within the package."""
     @property
     def key(self) -> str: ...
-

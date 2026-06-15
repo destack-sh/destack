@@ -19,25 +19,25 @@ impl FileId {
     }
 }
 
-/// External file content id crossing bridge boundaries.
+/// External content id crossing bridge boundaries.
 #[derive(Debug)]
 #[napi(object)]
-pub struct FileContentId {
-    /// Canonical lowercase hex file content id.
+pub struct ContentId {
+    /// Canonical lowercase hex content id.
     pub id: String,
 }
 
-impl FileContentId {
+impl ContentId {
     /// Convert one bridge value into one NAPI value.
-    pub(crate) fn from_bridge(value: bridge::FileContentId) -> Self {
+    pub(crate) fn from_bridge(value: bridge::ContentId) -> Self {
         Self { id: value.id }
     }
 }
 
-/// Full file content crossing bridge boundaries.
+/// Full content crossing bridge boundaries.
 #[derive(Debug)]
 #[napi(object)]
-pub struct FileContent {
+pub struct Content {
     /// Payload variant label.
     pub kind: String,
     /// Text content.
@@ -46,16 +46,16 @@ pub struct FileContent {
     pub binary_content: Option<Vec<u8>>,
 }
 
-impl FileContent {
+impl Content {
     /// Convert one bridge payload enum into one NAPI payload enum.
-    pub(crate) fn from_bridge(value: bridge::FileContent) -> Self {
+    pub(crate) fn from_bridge(value: bridge::Content) -> Self {
         match value {
-            bridge::FileContent::Text { content } => Self {
+            bridge::Content::Text { content } => Self {
                 kind: "text".to_string(),
                 text_content: Some(content),
                 binary_content: None,
             },
-            bridge::FileContent::Binary { content } => Self {
+            bridge::Content::Binary { content } => Self {
                 kind: "binary".to_string(),
                 binary_content: Some(content),
                 text_content: None,
