@@ -1875,8 +1875,8 @@ This keeps the branches unambiguous in both directions: `flag ? -x : x` is a con
 
 #### Try
 
-The standard `Try` interface is the extension point behind these operators.
-A carrier names its success and failure types, can branch into either case, and can rebuild itself from a success value:
+The "try" operators `?`, `??` and `!` are all based on the builtin `Try` operator interface, much like in Rust,
+A carrier has success and failure types, can branch into either case, and can then rebuild itself from a success value:
 
 ```ds
 struct TryContinue<T> {
@@ -1901,11 +1901,10 @@ newtype interface Try {
 ```
 
 For `Result<T, E>`, `Ok { value }` branches to `TryContinue<T>` and `Err { error }` branches to `TryFailure<E>`.
-The branch names describe the operator's control flow, not the data constructors of any one type.
 
 #### Try-Catch-Finally
 
-The well known `try`/`catch` forms work with explicit `Try` propagation:
+The well known `try`/`catch` forms still work with explicit `Try` propagation, which is quite cool:
 
 ```ds
 declare function readConfig(path: string): Result<Config, IOError>;
@@ -1918,17 +1917,22 @@ try {
 }
 ```
 
-The example uses `Result`, but any type implementing `Try` behaves the same:
-- `try` does not implicitly unwrap `Result` values
+The example above uses `Result`, but any type implementing `Try` can be used:
+- `try` provides an error propagation context (but does not unwrap `Result` values by itself)
 - Use `?` inside the block to propagate `Try` failures into the catch
 - Use `??` inside the block when the failure should be handled locally with a fallback
 
-For convenience, Destack introduces a new `catch match` form that can branch on `Try` failures directly for some pretty pleasant syntactic sugar:
+For convenience, Destack also supports a nicer `catch match` form that can branch on `Try` failures directly for some pretty pleasant syntactic sugar:
 
 ```ds
 try {
-    readConfig()?; // -> Result<void, MissingError>
-    parseConfig()?; // -> Result<void, FormatError>
+    let config = readConfig()?; // -> Result<RaConfig, MissingError>
+    config satisfies RawConfig;
+
+    let config = parseConfig(config)?; // -> Result<Config, FormatError>
+    config satisfies Config;
+
+    // ... do stuff with config ...
 } catch match (failure) { // failure: MissingError | FormatError
     MissingError { path } => Report.wrap(failure, `missing config: ${path}`)
     FormatError { line } => Report.wrap(failure, `bad format on line ${line}`)
@@ -1936,6 +1940,7 @@ try {
 ```
 
 Finally arms run as usual after the `try` / `catch` body, including when `?` leaves the block early.
+Oh, and the whole try-catch-finally form is an expression like any other, so we can still do `let result = try { ... }` and scope the operation and result directly that way as well.
 
 #### Panics
 
