@@ -223,8 +223,8 @@ export const value = 1;
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 let local = api.value;
-/// @path.symbol source=api.value target=api.value
-/// @path.namespace source=api module=api.ds
+/// @reference.namespace source=api module=api.ds
+/// @reference.bound source=api.value targets=[api.value]
 
 /// @import.language item=collections.Array symbol=collections.array.Array
 /// @import.language item=collections.FixedArray symbol=collections.array.FixedArray
@@ -235,7 +235,7 @@ let local = api.value;
 
 /// @import.summary globals=1 language=5
 /// @resolve.stats roots=1 expressions=3 types=0 globals=required:1 language=required:5 exports=miss:1,hit:0,cycle:0
-/// @path.summary paths=2
+/// @reference.summary references=2
 "#,
     );
 }

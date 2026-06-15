@@ -3,26 +3,43 @@ use destack_dir as dir;
 use super::{DirSnapshotBuilder, SnapshotTable};
 use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 
-impl SnapshotTable for dir::PathTable {
+impl SnapshotTable for dir::ReferenceTable {
     fn add_snapshot_rows(&self, builder: &mut DirSnapshotBuilder<'_>) {
-        for (key, resolution) in &self.entries {
-            let anchor = builder.anchor_node(key.source);
-            let source = builder.source_path_prefix_label(*key);
-            let row = match resolution {
-                dir::PathResolution::Found(target) => {
-                    path_target_row(builder, anchor, source, *target)
-                }
-                dir::PathResolution::Missing => {
-                    SnapshotRow::new(anchor, "path", "missing").field("source", source)
-                }
-                dir::PathResolution::Ambiguous(targets) => {
-                    let targets = targets
+        for (node, reference) in &self.entries {
+            let anchor = builder.anchor_node(*node);
+            let source = builder.reference_source_label(*node);
+            let row = match reference {
+                dir::Reference::Bound(symbols) => {
+                    let targets = symbols
                         .iter()
-                        .map(|target| path_target_label(builder, *target));
+                        .map(|symbol| builder.symbol_path_label(*symbol));
 
-                    SnapshotRow::new(anchor, "path", "ambiguous")
+                    SnapshotRow::new(anchor, "reference", "bound")
                         .field("source", source)
                         .list_field("targets", targets)
+                }
+                dir::Reference::Namespace(module) => {
+                    SnapshotRow::new(anchor, "reference", "namespace")
+                        .field("source", source)
+                        .field("module", builder.module_path(*module))
+                }
+                dir::Reference::Projected { base, from } => {
+                    SnapshotRow::new(anchor, "reference", "projected")
+                        .field("source", source)
+                        .field("base", builder.symbol_path_label(*base))
+                        .field("from", from.to_string())
+                }
+                dir::Reference::Ambiguous(symbols) => {
+                    let targets = symbols
+                        .iter()
+                        .map(|symbol| builder.symbol_path_label(*symbol));
+
+                    SnapshotRow::new(anchor, "reference", "ambiguous")
+                        .field("source", source)
+                        .list_field("targets", targets)
+                }
+                dir::Reference::Missing => {
+                    SnapshotRow::new(anchor, "reference", "missing").field("source", source)
                 }
             };
             builder.push(row);
@@ -32,33 +49,8 @@ impl SnapshotTable for dir::PathTable {
             return;
         }
 
-        let row = SnapshotRow::new(SnapshotAnchor::End, "path", "summary")
-            .count_field("paths", self.entries.len());
+        let row = SnapshotRow::new(SnapshotAnchor::End, "reference", "summary")
+            .count_field("references", self.entries.len());
         builder.push(row);
-    }
-}
-
-/// Return one path target row.
-fn path_target_row(
-    builder: &DirSnapshotBuilder<'_>,
-    anchor: SnapshotAnchor,
-    source: String,
-    target: dir::PathTarget,
-) -> SnapshotRow {
-    match target {
-        dir::PathTarget::Symbol(symbol) => SnapshotRow::new(anchor, "path", "symbol")
-            .field("source", source)
-            .field("target", builder.symbol_path_label(symbol)),
-        dir::PathTarget::Namespace(module) => SnapshotRow::new(anchor, "path", "namespace")
-            .field("source", source)
-            .field("module", builder.module_path(module)),
-    }
-}
-
-/// Return one path target label.
-fn path_target_label(builder: &DirSnapshotBuilder<'_>, target: dir::PathTarget) -> String {
-    match target {
-        dir::PathTarget::Symbol(symbol) => builder.symbol_path_label(symbol),
-        dir::PathTarget::Namespace(module) => builder.module_path(module),
     }
 }

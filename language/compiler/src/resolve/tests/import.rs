@@ -87,8 +87,8 @@ import * as dep from "./dep.ds";
 /// @import.namespace symbol=dep module=dep.ds
 
 dep.value;
-/// @path.symbol source=dep.value target=dep.value
-/// @path.namespace source=dep module=dep.ds
+/// @reference.namespace source=dep module=dep.ds
+/// @reference.bound source=dep.value targets=[dep.value]
 
 /// @import.language item=collections.Array symbol=collections.array.Array
 /// @import.language item=collections.FixedArray symbol=collections.array.FixedArray
@@ -98,7 +98,7 @@ dep.value;
 
 /// @import.summary symbols=1 language=5
 /// @resolve.stats roots=2 expressions=3 types=0 clauses=import:1,reexport:0 language=required:5 exports=miss:1,hit:0,cycle:0
-/// @path.summary paths=2
+/// @reference.summary references=2
 "#,
     );
 }
@@ -136,9 +136,9 @@ import * as dep from "./dep.ds";
 /// @import.namespace symbol=dep module=dep.ds
 
 dep.api.value;
-/// @path.symbol source=dep.api.value target=api.value
-/// @path.namespace source=dep module=dep.ds
-/// @path.namespace source=dep.api module=api.ds
+/// @reference.namespace source=dep module=dep.ds
+/// @reference.namespace source=dep.api module=api.ds
+/// @reference.bound source=dep.api.value targets=[api.value]
 
 /// @import.language item=collections.Array symbol=collections.array.Array
 /// @import.language item=collections.FixedArray symbol=collections.array.FixedArray
@@ -148,7 +148,7 @@ dep.api.value;
 
 /// @import.summary symbols=1 language=5
 /// @resolve.stats roots=2 expressions=4 types=0 clauses=import:1,reexport:0 language=required:5 exports=miss:2,hit:0,cycle:0
-/// @path.summary paths=3
+/// @reference.summary references=3
 "#,
     );
 }
@@ -187,9 +187,9 @@ import * as dep from "./dep.ds";
 /// @import.namespace symbol=dep module=dep.ds
 
 dep.api.value;
-/// @path.symbol source=dep.api.value target=api.value
-/// @path.namespace source=dep module=dep.ds
-/// @path.namespace source=dep.api module=api.ds
+/// @reference.namespace source=dep module=dep.ds
+/// @reference.namespace source=dep.api module=api.ds
+/// @reference.bound source=dep.api.value targets=[api.value]
 
 /// @import.language item=collections.Array symbol=collections.array.Array
 /// @import.language item=collections.FixedArray symbol=collections.array.FixedArray
@@ -199,7 +199,7 @@ dep.api.value;
 
 /// @import.summary symbols=1 language=5
 /// @resolve.stats roots=2 expressions=4 types=0 clauses=import:1,reexport:0 language=required:5 exports=miss:2,hit:0,cycle:0
-/// @path.summary paths=3
+/// @reference.summary references=3
 "#,
     );
 }

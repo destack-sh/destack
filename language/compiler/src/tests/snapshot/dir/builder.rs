@@ -198,7 +198,7 @@ impl<'a> DirSnapshotBuilder<'a> {
 
         if selection.import {
             self.add_table(&resolved.imports);
-            self.add_table(&resolved.paths);
+            self.add_table(&resolved.references);
         }
     }
 
@@ -341,36 +341,30 @@ impl<'a> DirSnapshotBuilder<'a> {
         self.anchor_node(node_id)
     }
 
-    /// Render one source path prefix.
-    pub(crate) fn source_path_prefix_label(&self, key: dir::PathKey) -> String {
+    /// Render the dotted source path label for one reference node.
+    pub(crate) fn reference_source_label(&self, node: dir::GlobalNodeIdAny) -> String {
         assert_eq!(
-            key.source.module_id, self.tree.module_id,
+            node.module_id, self.tree.module_id,
             "dir snapshot cannot render foreign source paths"
         );
-        let length = key.length as usize;
 
-        let path = match key.source.local_id.ty {
+        let path = match node.local_id.ty {
             dir::NodeType::Expression => {
-                let node_id = key.source.local_id.into_typed();
+                let node_id = node.local_id.into_typed();
                 self.expression_source_path_segments(node_id)
             }
             dir::NodeType::TypeExpression => {
-                let node_id = key.source.local_id.into_typed();
+                let node_id = node.local_id.into_typed();
                 let dir::TypeExpression::Reference { path, .. } = self.tree.get(node_id) else {
-                    panic!("path table type source is not a reference");
+                    panic!("reference table type source is not a reference");
                 };
 
                 path.segments.iter().copied().collect()
             }
-            _ => panic!("path table source is not a path-bearing node"),
+            _ => panic!("reference table source is not a path-bearing node"),
         };
-        assert!(
-            length <= path.len(),
-            "path table prefix is longer than source path"
-        );
 
         path.iter()
-            .take(length)
             .map(|segment| self.strings.get(*segment))
             .collect::<Vec<_>>()
             .join(".")
@@ -396,9 +390,6 @@ impl<'a> DirSnapshotBuilder<'a> {
         match self.tree.get(node_id) {
             dir::Expression::Identifier { name } => {
                 segments.push(*name);
-            }
-            dir::Expression::QualifiedReference { path, .. } => {
-                segments.extend(path.segments.iter().copied());
             }
             dir::Expression::Member {
                 left,
