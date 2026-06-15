@@ -550,7 +550,10 @@ fn is_import_meta_resolve_call(
         return false;
     }
 
-    matches!(context.tree.get(*left), Expression::ImportMeta)
+    matches!(
+        context.tree.get(*left),
+        Expression::ImportMeta | Expression::ImportSource
+    )
 }
 
 /// Return callee names in top-down order.

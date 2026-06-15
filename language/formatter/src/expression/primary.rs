@@ -535,20 +535,6 @@ pub(crate) fn format_primary_expression<'ast>(
             write!(f, [*name])?;
         }
 
-        // qualified reference
-        Expression::QualifiedReference {
-            path,
-            generic_arguments,
-        } => {
-            let _ = node_id;
-
-            write!(f, [path])?;
-
-            if !generic_arguments.is_empty() {
-                format_generic_argument_list(f, generic_arguments)?;
-            }
-        }
-
         // private identifier
         Expression::PrivateIdentifier { name } => {
             write!(f, [token("#"), *name])?;
@@ -557,6 +543,11 @@ pub(crate) fn format_primary_expression<'ast>(
         // import meta
         Expression::ImportMeta => {
             write!(f, [Keyword::Import, token("."), token("meta")])?;
+        }
+
+        // import source
+        Expression::ImportSource => {
+            write!(f, [Keyword::Import, token("."), token("source")])?;
         }
 
         // this

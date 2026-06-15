@@ -310,7 +310,6 @@ fn parameter_default_is_huggable(
 
     match context.tree.get(default) {
         Expression::Identifier { .. }
-        | Expression::QualifiedReference { .. }
         | Expression::ScalarLiteral(_)
         | Expression::This
         | Expression::Super => true,

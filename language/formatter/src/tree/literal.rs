@@ -127,12 +127,7 @@ fn write_tree_closing_tag<'ast>(
 ) -> FormatResult<()> {
     write!(f, [token("</")])?;
     if let Some(left) = left {
-        let left_expression = f.context().tree.get(*left);
-        if let Expression::QualifiedReference { path, .. } = left_expression {
-            write!(f, [path])?;
-        } else {
-            write!(f, [left])?;
-        }
+        write!(f, [left])?;
     }
     write!(f, [token(">")])?;
     Ok(())

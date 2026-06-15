@@ -111,6 +111,7 @@ fn expression_is_simple(
         | Expression::Identifier { .. }
         | Expression::PrivateIdentifier { .. }
         | Expression::ImportMeta
+        | Expression::ImportSource
         | Expression::This
         | Expression::Super => true,
 
@@ -154,12 +155,6 @@ fn expression_is_simple(
                     SimpleArgument::from(index_id).is_simple_with_depth(context, depth)
                 })
         }
-        Expression::QualifiedReference {
-            generic_arguments, ..
-        } => generic_arguments
-            .iter()
-            .copied()
-            .all(|argument_id| generic_argument_is_simple(context, argument_id, depth + 1)),
         Expression::Call {
             left,
             generic_arguments,
