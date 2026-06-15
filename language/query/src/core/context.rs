@@ -395,7 +395,7 @@ impl<'a> ModuleQueryContext<'a> {
             profile_id: self.profile_id,
             file_id: self.file_id,
             tree: &self.dir_parsed.tree,
-            parents: &self.dir_parsed.parents,
+            parents: self.dir_parsed.tree.parents(),
             roots,
             patch: &self.dir_expanded.patch,
             namespace_scope: self.dir_bound.namespace_scope,

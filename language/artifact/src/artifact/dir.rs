@@ -7,10 +7,8 @@ use serde::{Deserialize, Serialize};
 /// Parsed DIR for one source module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirParsed {
-    /// The parsed tree.
+    /// The parsed tree, indexed with its structural parents.
     pub tree: dir::Tree,
-    /// The parsed parent index.
-    pub parents: dir::NodeParentIndex,
     /// The parsed physical files.
     pub files: Vec<DirParsedFile>,
     /// Stable anchor expression for diagnostics.
@@ -20,15 +18,15 @@ pub struct DirParsed {
 impl DirParsed {
     /// Create a parsed DIR artifact.
     pub fn new(
-        tree: dir::Tree,
+        mut tree: dir::Tree,
         files: Vec<DirParsedFile>,
         anchor_expression: dir::LocalNodeId<dir::Expression>,
     ) -> Self {
-        let parents = dir::NodeParentIndex::from_tree(&tree);
+        // index parent links once the tree is final
+        tree.index_parents();
 
         Self {
             tree,
-            parents,
             files,
             anchor_expression,
         }

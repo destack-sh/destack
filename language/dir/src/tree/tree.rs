@@ -12,9 +12,9 @@ use super::sparse::SparseNodeMap;
 use crate::{
     Arena, Argument, AssignPattern, AssignPatternField, Block, Catch, Comment, Declaration,
     Declarator, Decorator, DependencyItem, Documentation, EnumField, Expression, GenericArgument,
-    GenericParameter, LocalNodeId, LocalNodeIdAny, MatchCase, Member, Node, NodeType, Origin,
-    Parameter, Path, Pattern, PatternField, Property, TreeCapacity, TreeMark, TreeStore,
-    TupleElement, TypeExpression, TypeMappedParameter, TypeMember, WhereClause,
+    GenericParameter, LocalNodeId, LocalNodeIdAny, MatchCase, Member, Node, NodeParentIndex,
+    NodeType, Origin, Parameter, Path, Pattern, PatternField, Property, TreeCapacity, TreeMark,
+    TreeStore, TupleElement, TypeExpression, TypeMappedParameter, TypeMember, WhereClause,
 };
 
 /// Mutable DIR tree across a set of related source units.
@@ -61,8 +61,8 @@ pub struct Tree {
     pub(crate) decorators: Arena<Decorator>,
 
     // node side data
-    /// Parent node id overrides by node id.
-    parent_id_by_node_id: SparseNodeMap<u32>,
+    /// Parent of every node, rebuilt when the tree is complete and updated in place.
+    parents: NodeParentIndex,
     /// How each derived node came to be.
     origin_by_node_id: SparseNodeMap<Origin>,
     /// The alias node id by replaced or derived node id.
@@ -87,8 +87,6 @@ struct DecoratorAttachment {
     target_id: u32,
     /// The decorator node id.
     decorator_id: LocalNodeId<Decorator>,
-    /// The parent slot value before attachment.
-    previous_parent_id: Option<u32>,
 }
 
 impl Debug for Tree {
@@ -146,7 +144,7 @@ impl Tree {
             comments: Vec::with_capacity(capacity.comments),
             decorators: Arena::new(),
 
-            parent_id_by_node_id: SparseNodeMap::new(),
+            parents: NodeParentIndex::new(),
             origin_by_node_id: SparseNodeMap::new(),
             alias_node_id_by_node_id: BTreeMap::new(),
             decorators_by_node_id: BTreeMap::new(),
@@ -162,6 +160,7 @@ impl Tree {
         let mut tree = Self::with_capacity(base.module_id, capacity);
         tree.first_global_id = base.next_global_id();
         tree.next_global_id = base.next_global_id();
+        tree.parents = NodeParentIndex::with_base(tree.first_global_id);
 
         tree
     }
@@ -314,18 +313,13 @@ impl Tree {
                 self.decorators_by_node_id.remove(&attachment.target_id);
             }
         }
-
-        if attachment.decorator_id.id < self.next_global_id {
-            self.set_parent_id(attachment.decorator_id.id, attachment.previous_parent_id);
-        }
     }
 
     /// Prune side tables that point at nodes allocated after one mark.
     fn prune_node_side_tables(&mut self, next_global_id: u32) {
         self.alias_node_id_by_node_id
             .retain(|node_id, alias_id| *node_id < next_global_id && *alias_id < next_global_id);
-        self.parent_id_by_node_id
-            .retain(|node_id, parent_id| node_id < next_global_id && *parent_id < next_global_id);
+        self.parents.truncate(next_global_id);
         self.origin_by_node_id.retain(|node_id, origin| {
             node_id < next_global_id && origin.parents.iter().all(|parent| *parent < next_global_id)
         });
@@ -628,7 +622,18 @@ impl Tree {
     /// Get the parent node id for a node id.
     #[inline]
     pub fn get_parent_id(&self, node_id: u32) -> Option<u32> {
-        self.parent_id_by_node_id.get(node_id)
+        self.parents.get_by_id(node_id)
+    }
+
+    /// Return the structural parent index.
+    #[inline]
+    pub fn parents(&self) -> &NodeParentIndex {
+        &self.parents
+    }
+
+    /// Build the structural parent index from the finished tree.
+    pub fn index_parents(&mut self) {
+        self.parents = NodeParentIndex::from_tree(self);
     }
 
     /// Get the parent node id for a node id.
@@ -672,15 +677,11 @@ impl Tree {
         }
     }
 
-    /// Set the parent node id override for one node id.
+    /// Set or clear the parent node id for one node id.
     #[inline]
     pub(crate) fn set_parent_id(&mut self, node_id: u32, parent_id: Option<u32>) {
         self.node_index(node_id);
-        if let Some(parent_id) = parent_id {
-            self.parent_id_by_node_id.insert(node_id, parent_id);
-        } else {
-            self.parent_id_by_node_id.remove(node_id);
-        }
+        self.parents.set(node_id, parent_id);
     }
 
     /// Set the origin for one derived node.
@@ -911,13 +912,8 @@ impl Tree {
     pub fn append_decorator(&mut self, target_id: u32, decorator: LocalNodeId<Decorator>) {
         debug_assert!(target_id < self.next_global_id);
 
-        let previous_parent_id = if decorator.id != target_id {
-            self.get_parent_id(decorator.id)
-        } else {
-            None
-        };
-
-        // track decorators for the target node
+        // track decorators for the target node; index_parents derives the decorator
+        // parent from this map, so no parent slot is written here
         self.decorators_by_node_id
             .entry(target_id)
             .or_default()
@@ -925,13 +921,7 @@ impl Tree {
         self.decorator_attachments.push(DecoratorAttachment {
             target_id,
             decorator_id: decorator,
-            previous_parent_id,
         });
-
-        // attach the decorator to its target for parent lookups
-        if decorator.id != target_id {
-            self.set_parent_id(decorator.id, Some(target_id));
-        }
     }
 
     /// Whether there are any decorators attached to a node.
