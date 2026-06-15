@@ -1992,17 +1992,7 @@ Essentially, `TreeTag` generalizes `jsxFactory` and `TreeTagBuilder` generalizes
  - Uppercase or qualified tags resolve as value tags through normal value lookup and the `TreeTag` interface.
  - Lowercase unqualified tags resolve as intrinsic tags through the active `TreeTagBuilder`.
 
-The active `TreeTagBuilder` comes from the compiler / target / profile options by default, but can be locally overridden with [module metadata](#module).
-
-```ds
-import { HtmlTree } from "destack:ui/html";
-
-module {
-    const tree = HtmlTree;
-}
-
-import.meta.tree satisfies TreeTagBuilder;
-```
+The active `TreeTagBuilder` comes from the compiler / target / profile options.
 
 ### Decorators
 
@@ -2115,7 +2105,7 @@ Destack supports all the common capability-like derives one would expect from a 
 | `Tagged` | `destack:decorator.Tagged` | discriminated newtype unions | declaration is not a supported tagged union |
 
 Also unlike Rust, Destack's `derive` supports automatic globally configured (and module/target/..-overridable) derives that are applied by default without explicit `derive` annotation whenever possible.
-This is very convenient since most types do in fact want all the same basic well known `derive`s, but we can also trivially disable this globally, or override it per-item with an empty `@derive()`, _or_ at the module level with `module { derive: [] }`.
+This is very convenient since most types do in fact want all the same basic well known `derive`s, but we can also trivially disable this globally, or override it per-item with an empty `@derive()`.
 
 #### Static If
 
@@ -2138,41 +2128,20 @@ Static ifs may annotate any meaningfully _removable_ source contribution - if re
 
 | Context | Nodes | Static inputs |
 | --- | --- | --- |
-| Module level | imports, re-exports, top-level declarations, `module { ... }` entries | profile, module metadata, literals |
+| Module level | imports, re-exports, top-level declarations, `module { ... }` decorators | profile, module metadata, literals |
 | Declaration members | struct fields, class / interface / extension members, enum variants | containing declaration generics and static members |
 | Expression positions | statements, match cases, call / tree / generic arguments, tuple elements, object and type literal fields | enclosing static and generic context |
 
 ### Module
 
-Destack modules can contain (up to) one static `module { ... }` declaration block for source-level configuration that needs to be specific to a module.
-Usually, we would configure via the compiler / target / profile options, but sometimes it's helpful to refine a specific module locally:
+Destack modules can contain (up to) one `module { ... }` declaration block, which carries decorators that apply to the whole source module.
 
 ```ds
-import { HtmlTree } from "destack:ui/html";
-
 @noHeap
-module {
-    const tree = HtmlTree;
-    const derive = ["Debug", "Clone"];
-    const product = "editor";
-}
+module {}
 ```
 
-Decorators on `module` apply rules to the _whole_ source module, and declarations inside `module` define readonly module metadata available through `import.meta`:
-
-```ds
-module {
-    const role = "server";
-    const labels = {
-        feature: ["search", "billing"],
-    };
-}
-
-import.meta.role satisfies "server";
-import.meta.labels.feature satisfies readonly ["search", "billing"];
-```
-
-It should be noted that module declarations (like global declarations) are proper static constants that are evaluated as static terms during compile time, so we could also do something slightly more dynamic like `const role = import.meta.test ? "server" : "client";`
+Module metadata such as the role, labels, product, active derives, or tree builder comes from the compiler / target / profile configuration and is read through `import.meta`.
 
 ### Globals
 
