@@ -113,7 +113,7 @@ impl Executor {
             });
         };
 
-        match self.state.repository().artifact_store().outcome(&version) {
+        match self.state.repository().artifact_cache().outcome(&version) {
             Some(ArtifactOutcome::Ok) => Ok(version),
 
             Some(ArtifactOutcome::Failed(_)) => Err(SessionError::Internal {

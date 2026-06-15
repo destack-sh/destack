@@ -569,7 +569,7 @@ impl Workspace {
             })?;
 
             let index = repository
-                .artifact_store()
+                .artifact_cache()
                 .workspace_query_index(&version)
                 .ok_or_else(|| Error::Internal {
                     detail: format!(

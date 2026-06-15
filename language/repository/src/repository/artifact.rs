@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactPayload,
-    ArtifactRecord, ArtifactSidecar, ArtifactStore, ArtifactVersion, ComponentGraph, Data,
+    ArtifactCache, ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactOutcome,
+    ArtifactPayload, ArtifactRecord, ArtifactSidecar, ArtifactVersion, ComponentGraph, Data,
     DirBound, DirCheckedComponent, DirCheckedModule, DirElaborated, DirExpanded, DirExported,
     DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirLowered,
     MirOptimized, MirVerified, ModuleIndex, ModuleLinted, ModuleOutput, ModuleQueryIndex,
@@ -23,8 +23,8 @@ pub struct ArtifactReader<'a> {
     repository: &'a Repository,
     /// The pinned revision the reader resolves against.
     revision: Revision,
-    /// The artifact store that owns typed payloads.
-    store: Arc<ArtifactStore>,
+    /// The artifact cache that owns typed payloads.
+    store: Arc<ArtifactCache>,
 }
 
 impl std::fmt::Debug for ArtifactReader<'_> {
@@ -38,7 +38,7 @@ impl std::fmt::Debug for ArtifactReader<'_> {
 impl<'a> ArtifactReader<'a> {
     /// Create a read-only reader for one repository revision.
     pub fn new(repository: &'a Repository, revision: Revision) -> Self {
-        let store = repository.artifact_store().clone();
+        let store = repository.artifact_cache().clone();
 
         Self {
             repository,
@@ -66,7 +66,7 @@ impl<'a> ArtifactReader<'a> {
     fn read<T>(
         &self,
         artifact_key: ArtifactKey,
-        get: impl FnOnce(&ArtifactStore, &ArtifactVersion) -> Option<Arc<T>>,
+        get: impl FnOnce(&ArtifactCache, &ArtifactVersion) -> Option<Arc<T>>,
     ) -> Result<Arc<T>, ProviderError> {
         let version = self.version(artifact_key)?;
         let payload = get(&self.store, &version).ok_or(ProviderError::Corrupt { version })?;
@@ -76,12 +76,12 @@ impl<'a> ArtifactReader<'a> {
 
     /// Read one parsed DIR artifact.
     pub fn dir_parsed(&self, module: ModuleId) -> Result<Arc<DirParsed>, ProviderError> {
-        self.read(ArtifactKey::dir_parsed(module), ArtifactStore::dir_parsed)
+        self.read(ArtifactKey::dir_parsed(module), ArtifactCache::dir_parsed)
     }
 
     /// Read one data artifact.
     pub fn data(&self, module: ModuleId) -> Result<Arc<Data>, ProviderError> {
-        self.read(ArtifactKey::data(module), ArtifactStore::data)
+        self.read(ArtifactKey::data(module), ArtifactCache::data)
     }
 
     /// Read one global environment artifact.
@@ -91,7 +91,7 @@ impl<'a> ArtifactReader<'a> {
     ) -> Result<Arc<GlobalEnvironment>, ProviderError> {
         self.read(
             ArtifactKey::global_environment(profile),
-            ArtifactStore::global_environment,
+            ArtifactCache::global_environment,
         )
     }
 
@@ -99,7 +99,7 @@ impl<'a> ArtifactReader<'a> {
     pub fn package_index(&self, profile: ProfileId) -> Result<Arc<PackageIndex>, ProviderError> {
         self.read(
             ArtifactKey::package_index(profile),
-            ArtifactStore::package_index,
+            ArtifactCache::package_index,
         )
     }
 
@@ -107,7 +107,7 @@ impl<'a> ArtifactReader<'a> {
     pub fn module_index(&self, profile: ProfileId) -> Result<Arc<ModuleIndex>, ProviderError> {
         self.read(
             ArtifactKey::module_index(profile),
-            ArtifactStore::module_index,
+            ArtifactCache::module_index,
         )
     }
 
@@ -118,7 +118,7 @@ impl<'a> ArtifactReader<'a> {
     ) -> Result<Arc<ComponentGraph>, ProviderError> {
         self.read(
             ArtifactKey::component_graph(profile),
-            ArtifactStore::component_graph,
+            ArtifactCache::component_graph,
         )
     }
 
@@ -130,7 +130,7 @@ impl<'a> ArtifactReader<'a> {
     ) -> Result<Arc<DirBound>, ProviderError> {
         self.read(
             ArtifactKey::dir_bound(module, profile),
-            ArtifactStore::dir_bound,
+            ArtifactCache::dir_bound,
         )
     }
 
@@ -142,7 +142,7 @@ impl<'a> ArtifactReader<'a> {
     ) -> Result<Arc<DirImported>, ProviderError> {
         self.read(
             ArtifactKey::dir_imported(module, profile),
-            ArtifactStore::dir_imported,
+            ArtifactCache::dir_imported,
         )
     }
 
@@ -154,7 +154,7 @@ impl<'a> ArtifactReader<'a> {
     ) -> Result<Arc<DirExpanded>, ProviderError> {
         self.read(
             ArtifactKey::dir_expanded(module, profile),
-            ArtifactStore::dir_expanded,
+            ArtifactCache::dir_expanded,
         )
     }
 
@@ -166,7 +166,7 @@ impl<'a> ArtifactReader<'a> {
     ) -> Result<Arc<DirExported>, ProviderError> {
         self.read(
             ArtifactKey::dir_exported(module, profile),
-            ArtifactStore::dir_exported,
+            ArtifactCache::dir_exported,
         )
     }
 
@@ -178,7 +178,7 @@ impl<'a> ArtifactReader<'a> {
     ) -> Result<Arc<DirResolved>, ProviderError> {
         self.read(
             ArtifactKey::dir_resolved(module, profile),
-            ArtifactStore::dir_resolved,
+            ArtifactCache::dir_resolved,
         )
     }
 
@@ -213,7 +213,7 @@ impl<'a> ArtifactReader<'a> {
     ) -> Result<Arc<DirCheckedComponent>, ProviderError> {
         self.read(
             ArtifactKey::dir_checked_component(entry, component, profile),
-            ArtifactStore::dir_checked_component,
+            ArtifactCache::dir_checked_component,
         )
     }
 
@@ -225,7 +225,7 @@ impl<'a> ArtifactReader<'a> {
     ) -> Result<Arc<DirMaterialized>, ProviderError> {
         self.read(
             ArtifactKey::dir_materialized(module, profile),
-            ArtifactStore::dir_materialized,
+            ArtifactCache::dir_materialized,
         )
     }
 
@@ -237,7 +237,7 @@ impl<'a> ArtifactReader<'a> {
     ) -> Result<Arc<DirElaborated>, ProviderError> {
         self.read(
             ArtifactKey::dir_elaborated(module, profile),
-            ArtifactStore::dir_elaborated,
+            ArtifactCache::dir_elaborated,
         )
     }
 
@@ -250,7 +250,7 @@ impl<'a> ArtifactReader<'a> {
     ) -> Result<Arc<MirLowered>, ProviderError> {
         self.read(
             ArtifactKey::mir_lowered(module, profile, target),
-            ArtifactStore::mir_lowered,
+            ArtifactCache::mir_lowered,
         )
     }
 
@@ -263,7 +263,7 @@ impl<'a> ArtifactReader<'a> {
     ) -> Result<Arc<MirVerified>, ProviderError> {
         self.read(
             ArtifactKey::mir_verified(module, profile, target),
-            ArtifactStore::mir_verified,
+            ArtifactCache::mir_verified,
         )
     }
 
@@ -276,7 +276,7 @@ impl<'a> ArtifactReader<'a> {
     ) -> Result<Arc<MirOptimized>, ProviderError> {
         self.read(
             ArtifactKey::mir_optimized(module, profile, target),
-            ArtifactStore::mir_optimized,
+            ArtifactCache::mir_optimized,
         )
     }
 
@@ -288,7 +288,7 @@ impl<'a> ArtifactReader<'a> {
     ) -> Result<Arc<ModuleQueryIndex>, ProviderError> {
         self.read(
             ArtifactKey::module_query_index(module, profile),
-            ArtifactStore::module_query_index,
+            ArtifactCache::module_query_index,
         )
     }
 
@@ -299,7 +299,7 @@ impl<'a> ArtifactReader<'a> {
     ) -> Result<Arc<WorkspaceQueryIndex>, ProviderError> {
         self.read(
             ArtifactKey::workspace_query_index(profile),
-            ArtifactStore::workspace_query_index,
+            ArtifactCache::workspace_query_index,
         )
     }
 
@@ -311,7 +311,7 @@ impl<'a> ArtifactReader<'a> {
     ) -> Result<Arc<ModuleOutput>, ProviderError> {
         self.read(
             ArtifactKey::module_output(module, target),
-            ArtifactStore::module_output,
+            ArtifactCache::module_output,
         )
     }
 
@@ -323,7 +323,7 @@ impl<'a> ArtifactReader<'a> {
     ) -> Result<Arc<PackageOutput>, ProviderError> {
         self.read(
             ArtifactKey::package_output(package, target),
-            ArtifactStore::package_output,
+            ArtifactCache::package_output,
         )
     }
 
@@ -335,7 +335,7 @@ impl<'a> ArtifactReader<'a> {
     ) -> Result<Arc<ProductOutput>, ProviderError> {
         self.read(
             ArtifactKey::product_output(package, product),
-            ArtifactStore::product_output,
+            ArtifactCache::product_output,
         )
     }
 
@@ -347,7 +347,7 @@ impl<'a> ArtifactReader<'a> {
     ) -> Result<Arc<ModuleLinted>, ProviderError> {
         self.read(
             ArtifactKey::module_linted(module, profile),
-            ArtifactStore::module_linted,
+            ArtifactCache::module_linted,
         )
     }
 
@@ -355,7 +355,7 @@ impl<'a> ArtifactReader<'a> {
     pub fn package_linted(&self, package: PackageId) -> Result<Arc<PackageLinted>, ProviderError> {
         self.read(
             ArtifactKey::package_linted(package),
-            ArtifactStore::package_linted,
+            ArtifactCache::package_linted,
         )
     }
 
@@ -363,7 +363,7 @@ impl<'a> ArtifactReader<'a> {
     pub fn workspace_linted(&self) -> Result<Arc<WorkspaceLinted>, ProviderError> {
         self.read(
             ArtifactKey::workspace_linted(),
-            ArtifactStore::workspace_linted,
+            ArtifactCache::workspace_linted,
         )
     }
 }
@@ -392,7 +392,7 @@ impl Repository {
         let _revision = self.revision(revision)?;
 
         // the version must already carry a terminal outcome to be reusable
-        if self.artifact_store().outcome(&version).is_none() {
+        if self.artifact_cache().outcome(&version).is_none() {
             return Err(RepositoryError::MissingArtifact { version });
         }
 
@@ -402,14 +402,14 @@ impl Repository {
         Ok(())
     }
 
-    /// Load one ready artifact from the persistent artifact cache when present.
+    /// Load one ready artifact from the persistent artifact store when present.
     pub fn load_artifact(
         &self,
         revision: Revision,
         version: ArtifactVersion,
     ) -> Result<bool, RepositoryError> {
-        let Some(record) = self.artifact_cache().load(&version).map_err(|error| {
-            RepositoryError::ArtifactCache {
+        let Some(record) = self.artifact_store().load(&version).map_err(|error| {
+            RepositoryError::ArtifactStore {
                 message: error.to_string(),
             }
         })?
@@ -453,7 +453,7 @@ impl Repository {
     ) -> Result<(), RepositoryError> {
         let payload = record
             .decode_payload()
-            .map_err(|error| RepositoryError::ArtifactCache {
+            .map_err(|error| RepositoryError::ArtifactStore {
                 message: error.to_string(),
             })?;
 
@@ -485,26 +485,18 @@ impl Repository {
         self.load_artifact_contents(&payload)?;
 
         let key = version.key;
-        self.artifact_store()
+        self.artifact_cache()
             .publish(version, payload, dependencies, diagnostics, sidecars);
         self.artifact_versions.insert((revision, key), version);
 
         Ok(())
     }
 
-    /// Store one ready artifact in the persistent artifact cache.
+    /// Store one ready artifact in the persistent artifact store.
     fn store_artifact(&self, version: ArtifactVersion) -> Result<(), RepositoryError> {
-        let record = self
-            .artifact_store()
-            .record(&version, self.string_pool())
-            .map_err(|error| RepositoryError::ArtifactCache {
-                message: error.to_string(),
-            })?
-            .ok_or(RepositoryError::MissingArtifact { version })?;
-
-        self.artifact_cache()
-            .store(&record)
-            .map_err(|error| RepositoryError::ArtifactCache {
+        self.artifact_store()
+            .store(&version, self.artifact_cache(), self.string_pool())
+            .map_err(|error| RepositoryError::ArtifactStore {
                 message: error.to_string(),
             })?;
 
@@ -535,7 +527,7 @@ impl Repository {
         // store failure before exposing the revision binding
         let key = version.key;
 
-        self.artifact_store()
+        self.artifact_cache()
             .fail(version, dependencies, diagnostics, sidecars, failure);
         self.artifact_versions.insert((revision, key), version);
 
@@ -557,7 +549,7 @@ impl Repository {
                 return Ok(diagnostics);
             };
             let artifact_diagnostics = self
-                .artifact_store()
+                .artifact_cache()
                 .diagnostics(&version)
                 .map(|diagnostics| diagnostics.as_ref().clone())
                 .ok_or(RepositoryError::MissingArtifact { version })?;
@@ -575,7 +567,7 @@ impl Repository {
             }
 
             let artifact_diagnostics = self
-                .artifact_store()
+                .artifact_cache()
                 .diagnostics(version)
                 .map(|diagnostics| diagnostics.as_ref().clone())
                 .ok_or(RepositoryError::MissingArtifact { version: *version })?;
@@ -596,7 +588,7 @@ impl Repository {
             return Ok(Arc::from([]));
         };
 
-        self.artifact_store()
+        self.artifact_cache()
             .sidecars(&version)
             .ok_or(RepositoryError::MissingArtifact { version })
     }

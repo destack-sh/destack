@@ -55,7 +55,7 @@ impl Worker {
                 return;
             };
 
-            // artifact store truth wins over stale scheduler entries
+            // artifact cache truth wins over stale scheduler entries
             match self.session.artifact_outcome(task) {
                 Ok(Some(_)) => {
                     self.scheduler.mark_done(task);
@@ -131,7 +131,7 @@ impl Worker {
         }
 
         // reuse a committed payload when the closure already produced this version
-        if repository.artifact_store().outcome(&version).is_some() {
+        if repository.artifact_cache().outcome(&version).is_some() {
             repository
                 .bind_artifact(task.revision, version)
                 .map_err(|error| SessionError::Internal {

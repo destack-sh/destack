@@ -125,7 +125,7 @@ impl TestDaemon {
                 DestackLayoutOverride::default(),
             )
             .expect("failed to import repository from test file system")
-            .with_cache(Arc::new(MemoryCacheStore::new())),
+            .with_cache_store(Arc::new(MemoryCacheStore::new())),
         );
 
         let daemon = Daemon::new_with_watcher(repository.clone(), 1, None, watcher.clone())

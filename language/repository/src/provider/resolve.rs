@@ -152,7 +152,7 @@ impl Repository {
         }
 
         // reuse a committed payload when the closure already produced this version
-        if self.artifact_store().outcome(&version).is_some() {
+        if self.artifact_cache().outcome(&version).is_some() {
             self.bind_artifact(revision, version)
                 .map_err(|error| ProviderError::internal(error.to_string()))?;
 
@@ -268,7 +268,7 @@ impl Repository {
             return Ok(None);
         };
 
-        Ok(self.artifact_store().outcome(&version).map(|_| version))
+        Ok(self.artifact_cache().outcome(&version).map(|_| version))
     }
 
     /// Return the terminal outcome of one artifact bound in this revision.
@@ -281,7 +281,7 @@ impl Repository {
             return Ok(None);
         };
 
-        Ok(self.artifact_store().outcome(&version))
+        Ok(self.artifact_cache().outcome(&version))
     }
 
     /// Return the version bound to one artifact key in this revision.

@@ -45,9 +45,10 @@ impl Repository {
             .retain(|revision, _| reachable_revisions.contains(revision));
         self.artifact_versions
             .retain(|(revision, _), _| reachable_revisions.contains(revision));
-        self.artifact_cache()
-            .retain_reachable(&reachable_artifacts)
-            .map_err(|error| RepositoryError::ArtifactCache {
+        self.artifact_cache().retain_reachable(&reachable_artifacts);
+        self.artifact_store()
+            .retain(&reachable_artifacts)
+            .map_err(|error| RepositoryError::ArtifactStore {
                 message: error.to_string(),
             })?;
         self.file_cache.retain_file_contents(&reachable_contents);
@@ -406,7 +407,7 @@ mod tests {
         );
         assert!(
             repository
-                .artifact_store()
+                .artifact_cache()
                 .package_output(&version)
                 .is_some()
         );
