@@ -3,7 +3,6 @@
 
 mod bind;
 mod check;
-mod common;
 mod compile;
 mod elaborate;
 mod emit;
@@ -15,6 +14,7 @@ mod lower;
 mod materialize;
 mod optimize;
 mod resolve;
+mod r#static;
 mod verify;
 
 pub use bind::*;

@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::common::dir::r#static::{
+use crate::r#static::{
     StaticContext, StaticFailure, StaticGuard, StaticGuardError, static_guard,
 };
 use crate::export::state::ExportState;
