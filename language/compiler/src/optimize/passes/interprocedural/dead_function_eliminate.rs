@@ -1,15 +1,17 @@
-use std::collections::{HashMap, HashSet, VecDeque};
-
-use crate::optimize::declare_pass;
+use destack_artifact::ProgramAnalysis;
 use destack_mir as mir;
+use destack_mir::Mutation;
 
-use crate::optimize::{ModulePass, PipelineContext};
-use destack_mir::{CallGraph, Mutation, SignatureKey};
+use crate::optimize::{ModulePass, PipelineContext, declare_pass};
 
 declare_pass! {
-    /// Remove functions that are not reachable from exported roots.
+    /// Remove functions the analysis scope cannot reach.
     ///
-    /// This pass keeps exported functions and anything reachable via direct calls, plus any signatures reachable from unresolved indirect calls.
+    /// Scope-agnostic: with a module-scoped program analysis it drops module-dead
+    /// functions, with a whole-program analysis it drops program-dead functions. A
+    /// function survives only when some root reaches it over call or address edges; a
+    /// never-address-taken function is dead even amid unknown indirect calls, since no
+    /// pointer to it can exist.
     ///
     /// ```mir
     /// export function root(): void {
@@ -45,18 +47,17 @@ declare_pass! {
 }
 
 impl ModulePass for DeadFunctionEliminate {
-    /// Run dead function elimination for the module.
+    /// Strip functions the analysis scope cannot reach.
     fn run(
         &self,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::ModuleAnalyses,
+        _analyses: &mir::ModuleAnalyses,
     ) -> Mutation {
-        let changed = run_dead_function_eliminate(tree, analyses);
+        let changed = run_dead_function_eliminate(tree, ctx.program_analysis());
 
-        // report what this pass changed
+        // report stripped definitions as control-flow changes
         if changed {
-            ctx.strings.intern("dead-function-eliminate");
             Mutation::CONTROL_FLOW
         } else {
             Mutation::NONE
@@ -74,245 +75,34 @@ impl ModulePass for DeadFunctionEliminate {
     }
 }
 
-/// Constraint describing a potential indirect call target set.
-#[derive(Debug, Clone)]
-enum CallConstraint {
-    /// Indirect call with no usable signature information.
-    Unknown,
-    /// Indirect call with a known signature.
-    Signature(SignatureKey),
-}
+/// Strip every defined function the analysis scope cannot reach.
+pub(crate) fn run_dead_function_eliminate(tree: &mut mir::Tree, program: &ProgramAnalysis) -> bool {
+    // an empty scope defines no symbols, so nothing can be proven dead
+    if program.is_empty() {
+        return false;
+    }
 
-/// Run dead function elimination over the module.
-pub(crate) fn run_dead_function_eliminate(
-    tree: &mut mir::Tree,
-    analyses: &mir::ModuleAnalyses,
-) -> bool {
-    // build the module call graph
-    let callgraph = analyses.get::<CallGraph>(tree);
-
-    // collect functions that have bodies
-    let defined_functions: Vec<_> = tree
+    // collect defined functions no root reaches
+    let dead: Vec<_> = tree
         .iter_nodes::<mir::Function>()
-        .filter_map(|(id, function)| function.entry.is_some().then_some(id))
+        .filter_map(|(id, function)| {
+            (function.entry.is_some() && !program.is_live(function.symbol)).then_some(id)
+        })
         .collect();
 
-    // return early when there are no definitions
-    if defined_functions.is_empty() {
-        return false;
+    // strip each unreachable function down to an external declaration
+    for function_id in &dead {
+        strip_function_body(*function_id, tree);
     }
 
-    // build a signature index for indirect resolution
-    let signature_index = build_signature_index(tree, &defined_functions);
-
-    // seed roots with exported functions
-    let mut roots: Vec<_> = defined_functions
-        .iter()
-        .copied()
-        .filter(|id| tree.get(*id).linkage.is_exported())
-        .collect();
-
-    // keep all functions when no explicit roots exist
-    if roots.is_empty() {
-        roots = defined_functions.clone();
-    }
-
-    // walk reachable functions using a worklist
-    let mut reachable = HashSet::new();
-    let mut worklist: VecDeque<_> = roots.into();
-    let mut keep_all = false;
-    while let Some(function_id) = worklist.pop_front() {
-        // skip functions that are already marked reachable
-        if !reachable.insert(function_id) {
-            continue;
-        }
-
-        // enqueue direct callees
-        for edge in callgraph.outgoing(function_id) {
-            if edge.dispatch == mir::CallDispatchKind::Direct {
-                worklist.push_back(edge.callee);
-            }
-        }
-
-        // handle unresolved callsites conservatively
-        let constraints = unknown_call_constraints(tree, function_id);
-        for constraint in constraints {
-            match constraint {
-                CallConstraint::Unknown => {
-                    keep_all = true;
-                    break;
-                }
-                CallConstraint::Signature(signature) => {
-                    if let Some(candidates) = signature_index.get(&signature) {
-                        for &candidate in candidates {
-                            worklist.push_back(candidate);
-                        }
-                    }
-                }
-            }
-        }
-
-        // stop once we determine all functions are reachable
-        if keep_all {
-            break;
-        }
-    }
-
-    // avoid stripping when unresolved calls exist
-    if keep_all {
-        return false;
-    }
-
-    // strip bodies from unreachable local functions
-    let mut changed = false;
-    for function_id in defined_functions {
-        if reachable.contains(&function_id) {
-            continue;
-        }
-        let function = tree.get_mut(function_id);
-        if function.entry.is_none() {
-            continue;
-        }
-        if function.linkage.is_exported() {
-            continue;
-        }
-        strip_function_body(function_id, tree);
-        changed = true;
-    }
-
-    changed
-}
-
-/// Build a map from signature keys to candidate function ids.
-fn build_signature_index(
-    tree: &mir::Tree,
-    functions: &[mir::LocalNodeId<mir::Function>],
-) -> HashMap<SignatureKey, Vec<mir::LocalNodeId<mir::Function>>> {
-    // insert each function under its signature key
-    let mut index: HashMap<SignatureKey, Vec<mir::LocalNodeId<mir::Function>>> = HashMap::new();
-
-    // populate the signature index
-    for function_id in functions {
-        let function = tree.get(*function_id);
-        let Some(signature) = SignatureKey::from_function(tree, function) else {
-            continue;
-        };
-
-        index.entry(signature).or_default().push(*function_id);
-    }
-
-    index
-}
-
-/// Collect unresolved call constraints for a function.
-fn unknown_call_constraints(
-    tree: &mir::Tree,
-    function_id: mir::LocalNodeId<mir::Function>,
-) -> Vec<CallConstraint> {
-    // scan the function blocks for indirect calls
-    let function = tree.get(function_id);
-    let mut constraints = Vec::new();
-
-    for &block_id in &function.blocks {
-        let block = tree.get(block_id);
-
-        for &instruction_id in &block.instructions {
-            let instruction = tree.get(instruction_id);
-            if let Some(constraint) =
-                call_constraint_from_instruction(tree, instruction_id, instruction)
-            {
-                constraints.push(constraint);
-            }
-        }
-
-        let terminator = tree.get(block.terminator);
-        if let Some(constraint) = call_constraint_from_terminator(tree, block_id, terminator) {
-            constraints.push(constraint);
-        }
-    }
-
-    constraints
-}
-
-/// Resolve a call constraint from a call instruction.
-fn call_constraint_from_instruction(
-    tree: &mir::Tree,
-    instruction_id: mir::LocalNodeId<mir::Instruction>,
-    instruction: &mir::Instruction,
-) -> Option<CallConstraint> {
-    let dispatch = instruction.call_dispatch_kind()?;
-    if dispatch == mir::CallDispatchKind::Direct {
-        return None;
-    }
-
-    let signature = instruction.call_signature()?;
-    let target = tree
-        .metadata
-        .functions
-        .call(mir::CallSite::Instruction(instruction_id))
-        .and_then(|metadata| metadata.target);
-    call_constraint_from_signature(tree, &signature, target)
-}
-
-/// Resolve a call constraint from a call terminator.
-fn call_constraint_from_terminator(
-    tree: &mir::Tree,
-    block_id: mir::LocalNodeId<mir::Block>,
-    terminator: &mir::Terminator,
-) -> Option<CallConstraint> {
-    // resolve analyzed target for dynamic call terminators
-    let target = tree
-        .metadata
-        .functions
-        .call(mir::CallSite::Terminator(block_id))
-        .and_then(|metadata| metadata.target);
-
-    // classify call terminators
-    match terminator {
-        mir::Terminator::Call { .. } => None,
-        mir::Terminator::CallIndirect { call, .. } => {
-            call_constraint_from_signature(tree, &call.signature, None)
-        }
-        mir::Terminator::CallVirtual { call, .. } => {
-            call_constraint_from_signature(tree, &call.signature, target)
-        }
-        mir::Terminator::CallDynamic { call, .. } => {
-            call_constraint_from_signature(tree, &call.signature, target)
-        }
-        mir::Terminator::TailCall { .. } => None,
-        mir::Terminator::TailCallIndirect { call, .. } => {
-            call_constraint_from_signature(tree, &call.signature, None)
-        }
-        mir::Terminator::TailCallVirtual { call, .. } => {
-            call_constraint_from_signature(tree, &call.signature, target)
-        }
-        mir::Terminator::TailCallDynamic { call, .. } => {
-            call_constraint_from_signature(tree, &call.signature, target)
-        }
-        _ => None,
-    }
-}
-
-/// Resolve call constraints from a signature type.
-fn call_constraint_from_signature(
-    tree: &mir::Tree,
-    signature: &mir::TypeReference,
-    target: Option<mir::LocalNodeId<mir::Function>>,
-) -> Option<CallConstraint> {
-    if let Some(signature) = SignatureKey::from_signature_type(tree, signature) {
-        return Some(CallConstraint::Signature(signature));
-    }
-
-    if let Some(target) = target {
-        let signature = SignatureKey::from_function(tree, tree.get(target));
-        return signature.map(CallConstraint::Signature);
-    }
-
-    Some(CallConstraint::Unknown)
+    !dead.is_empty()
 }
 
 /// Strip the body of a function, leaving an import declaration.
-fn strip_function_body(function_id: mir::LocalNodeId<mir::Function>, tree: &mut mir::Tree) {
+pub(crate) fn strip_function_body(
+    function_id: mir::LocalNodeId<mir::Function>,
+    tree: &mut mir::Tree,
+) {
     // collect blocks and instructions before stripping the body
     let block_ids = tree.get(function_id).blocks.clone();
 
@@ -340,10 +130,23 @@ mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
 
-    /// Unreferenced local functions are removed.
+    /// Build a program analysis treating the module as a standalone program.
+    fn module_analysis(tree: &mir::Tree) -> ProgramAnalysis {
+        let links = mir::ModuleAnalyses::new().get::<mir::LinkGraph>(tree);
+        let roots: Vec<_> = links
+            .nodes()
+            .filter(|(_, node)| node.linkage().is_exported())
+            .map(|(symbol, _)| symbol)
+            .collect();
+        let supergraph = mir::LinkSupergraph::build([&*links]);
+
+        ProgramAnalysis::analyze(&supergraph, &roots)
+    }
+
     #[test]
-    fn test_dead_function_eliminate_local() {
-        let input = r#"
+    fn test_eliminates_functions_no_root_reaches() {
+        let mut test = TestProgram::new(
+            r#"
 export function root(): void {
 b0:
     call live(): () -> void
@@ -356,161 +159,21 @@ b0:
 function dead(): void {
 b0:
     return
-}"#;
+}"#,
+        );
+        let root_id = test.function_id_by_name("root");
+        let live_id = test.function_id_by_name("live");
+        let dead_id = test.function_id_by_name("dead");
 
-        let expected = r#"
-export function root(): void {
-b0:
-    call live(): () -> void
-    return
-}
-function live(): void {
-b0:
-    return
-}
-external function dead(): void"#;
+        // the export reaches `live`; `dead` is reached by nothing
+        let program = module_analysis(&test.tree);
+        let changed = run_dead_function_eliminate(&mut test.tree, &program);
 
-        let mut test = TestProgram::new(input);
-        test.run_module_pass(&DeadFunctionEliminate);
-        test.assert_output(expected);
-    }
-
-    /// Unknown indirect calls keep all functions.
-    #[test]
-    fn test_dead_function_eliminate_unknown_indirect() {
-        let input = r#"
-export function root(v0: () -> void): void  {
-b0(v0: () -> void):
-    call.indirect v0(): () -> void
-    return
-}
-function live(): void {
-b0:
-    return
-}
-function dead(): void {
-b0:
-    return
-}"#;
-
-        let mut test = TestProgram::new(input);
-        test.run_module_pass(&DeadFunctionEliminate);
-        test.assert_output(input);
-    }
-
-    /// Modules without exports keep all definitions.
-    #[test]
-    fn test_dead_function_eliminate_no_exports() {
-        let input = r#"
-function alpha(): void {
-b0:
-    return
-}
-function beta(): void {
-b0:
-    return
-}"#;
-
-        let mut test = TestProgram::new(input);
-        test.run_module_pass(&DeadFunctionEliminate);
-        test.assert_output(input);
-    }
-
-    /// Signature constrained indirect calls keep matching functions only.
-    #[test]
-    fn test_dead_function_eliminate_signature_indirect() {
-        let input = r#"
-export function root(v0: (int32) -> int32, v1: int32): void  {
-b0(v0: (int32) -> int32, v1: int32):
-    v2: int32 = call.indirect v0(v1): (int32) -> int32
-    return
-}
-function keep(v0: int32): int32 {
-b0(v0: int32):
-    return v0
-}
-function drop(v0: int64): int64 {
-b0(v0: int64):
-    return v0
-}"#;
-
-        let mut test = TestProgram::new(input);
-        test.run_module_pass(&DeadFunctionEliminate);
-        let expected = r#"
-export function root(v0: (int32) -> int32, v1: int32): void  {
-b0(v0: (int32) -> int32, v1: int32):
-    v2: int32 = call.indirect v0(v1): (int32) -> int32
-    return
-}
-function keep(v0: int32): int32 {
-b0(v0: int32):
-    return v0
-}
-external function drop(int64): int64"#;
-
-        test.assert_output(expected);
-    }
-
-    /// Signature constrained indirect call terminators keep matching functions only.
-    #[test]
-    fn test_dead_function_eliminate_signature_indirect_terminator() {
-        let input = r#"
-export function root(v0: (int32) -> int32, v1: int32): int32 {
-b0(v0: (int32) -> int32, v1: int32):
-    call.indirect v0(v1): (int32) -> int32 -> b1
-b1(v2: int32):
-    return v2
-b2(v3: ref<int32, managed, readonly>):
-    panic v3
-}
-function keep(v0: int32): int32 {
-b0(v0: int32):
-    return v0
-}
-function drop(v0: int64): int64 {
-b0(v0: int64):
-    return v0
-}"#;
-
-        let mut test = TestProgram::new(input);
-        test.run_module_pass(&DeadFunctionEliminate);
-        let expected = r#"
-export function root(v0: (int32) -> int32, v1: int32): int32 {
-b0(v0: (int32) -> int32, v1: int32):
-    call.indirect v0(v1): (int32) -> int32 -> b1
-b1(v2: int32):
-    return v2
-b2(v3: ref<int32, managed, readonly>):
-    panic v3
-}
-function keep(v0: int32): int32 {
-b0(v0: int32):
-    return v0
-}
-external function drop(int64): int64"#;
-
-        test.assert_output(expected);
-    }
-
-    /// Tailcall indirect sites keep all functions.
-    #[test]
-    fn test_dead_function_eliminate_tailcall_indirect() {
-        let input = r#"
-export function root(v0: () -> void): void {
-b0(v0: () -> void):
-    tailCall.indirect v0(): () -> void
-}
-function live(): void {
-b0:
-    return
-}
-function dead(): void {
-b0:
-    return
-}"#;
-
-        let mut test = TestProgram::new(input);
-        test.run_module_pass(&DeadFunctionEliminate);
-        test.assert_output(input);
+        // reachable functions keep their bodies; the unreachable one is externalized
+        assert!(changed);
+        assert!(test.tree.get(root_id).entry.is_some());
+        assert!(test.tree.get(live_id).entry.is_some());
+        assert!(test.tree.get(dead_id).entry.is_none());
+        assert_eq!(test.tree.get(dead_id).linkage, mir::Linkage::Import);
     }
 }
