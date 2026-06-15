@@ -1,4 +1,5 @@
 use crate::optimize::declare_pass;
+use destack_artifact::ProgramAnalysis;
 use destack_mir as mir;
 
 use crate::optimize::passes::interprocedural::{
@@ -48,10 +49,10 @@ impl ModulePass for InterproceduralDceCleanup {
         &self,
         tree: &mut mir::Tree,
         ctx: &PipelineContext<'_>,
-        analyses: &mir::ModuleAnalyses,
+        _analyses: &mir::ModuleAnalyses,
     ) -> Mutation {
         // run the cleanup pass
-        let changed = run_interprocedural_dce_cleanup(tree, analyses);
+        let changed = run_interprocedural_dce_cleanup(tree, ctx.program_analysis());
 
         // report what this pass changed
         if changed {
@@ -74,10 +75,10 @@ impl ModulePass for InterproceduralDceCleanup {
 }
 
 /// Run interprocedural cleanup over the module.
-fn run_interprocedural_dce_cleanup(tree: &mut mir::Tree, analyses: &mir::ModuleAnalyses) -> bool {
+fn run_interprocedural_dce_cleanup(tree: &mut mir::Tree, program: &ProgramAnalysis) -> bool {
     let mut changed = false;
 
-    if run_dead_function_eliminate(tree, analyses) {
+    if run_dead_function_eliminate(tree, program) {
         changed = true;
     }
 
@@ -112,12 +113,14 @@ b0:
 
         let expected = r#"
 external readonly global dead: int32
+
 external function dead(): int32
+
 export function root(): int32 {
-b0:
-    v0: int32 = 1int32
-    v1: int32 = int.add v0, v0
-    return v0
+entry0:
+    value0: int32 = 1int32
+    value1: int32 = int.add value0, value0
+    return value0
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -140,12 +143,14 @@ b0:
 
         let expected = r#"
 readonly global live: int32 = 1int32
+
 external readonly global dead: int32
+
 export function root(): int32 {
-b0:
-    v0: ref<int32, raw, readonly> = global.address live
-    v1: int32 = load v0
-    return v1
+entry0:
+    value0: ref<int32, raw, readonly> = global.address live
+    value1: int32 = load value0
+    return value1
 }"#;
 
         let mut test = TestProgram::new(input);
