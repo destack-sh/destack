@@ -183,7 +183,9 @@ extension<T> of Slab<T> implements
     }
 
     /// Return all live borrowed values.
-    values<comptime A: Access = "readonly">(this: WithAccess<&Slab<T>, A>): Iterator<WithAccess<&T, A>> {
+    values<comptime A: Access = "readonly">(
+        this: WithAccess<&Slab<T>, A>,
+    ): Iterator<WithAccess<&T, A>> {
         todo("Slab.values")
     }
 
@@ -200,7 +202,9 @@ extension<T> of Slab<T> implements
     }
 
     /// Return an iterator over borrowed values.
-    iterator<comptime A: Access = "readonly">(this: WithAccess<&Slab<T>, A>): Iterator<WithAccess<&T, A>> {
+    iterator<comptime A: Access = "readonly">(
+        this: WithAccess<&Slab<T>, A>,
+    ): Iterator<WithAccess<&T, A>> {
         todo("Slab.iterator")
     }
 

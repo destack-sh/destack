@@ -241,7 +241,10 @@ extension<T> of Array<T> implements
     }
 
     /// Borrow the element at `index`.
-    index<comptime A: Access = "readonly">(this: WithAccess<&Array<T>, A>, index: usize): WithAccess<&T, A> {
+    index<comptime A: Access = "readonly">(
+        this: WithAccess<&Array<T>, A>,
+        index: usize,
+    ): WithAccess<&T, A> {
         todo("Array.index")
     }
 
@@ -256,7 +259,9 @@ extension<T> of Array<T> implements
     }
 
     /// Borrow the first element.
-    first<comptime A: Access = "readonly">(this: WithAccess<&Array<T>, A>): WithAccess<&T, A> | undefined {
+    first<comptime A: Access = "readonly">(
+        this: WithAccess<&Array<T>, A>,
+    ): WithAccess<&T, A> | undefined {
         todo("Array.first")
     }
 
@@ -266,7 +271,9 @@ extension<T> of Array<T> implements
     }
 
     /// Borrow the last element.
-    last<comptime A: Access = "readonly">(this: WithAccess<&Array<T>, A>): WithAccess<&T, A> | undefined {
+    last<comptime A: Access = "readonly">(
+        this: WithAccess<&Array<T>, A>,
+    ): WithAccess<&T, A> | undefined {
         todo("Array.last")
     }
 
@@ -501,7 +508,9 @@ extension<T> of Array<T> implements
     }
 
     /// Return an iterator over borrowed values.
-    iterator<comptime A: Access = "readonly">(this: WithAccess<&Array<T>, A>): Iterator<WithAccess<&T, A>> {
+    iterator<comptime A: Access = "readonly">(
+        this: WithAccess<&Array<T>, A>,
+    ): Iterator<WithAccess<&T, A>> {
         todo("Array.iterator")
     }
 
@@ -516,7 +525,9 @@ extension<T> of Array<T> implements
     }
 }
 
-extension<T, comptime A: Access = "readonly"> of Array<T> implements As<Slice<T>, A>, Borrow<Slice<T>, A> {
+extension<T, comptime A: Access = "readonly"> of Array<T> implements
+    As<Slice<T>, A>,
+    Borrow<Slice<T>, A> {
     /// Borrow the initialized storage as a slice.
     as(this: WithAccess<&Array<T>, A>): WithAccess<&Slice<T>, A> {
         todo("Array.as")

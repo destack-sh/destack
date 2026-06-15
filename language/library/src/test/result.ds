@@ -49,7 +49,11 @@ export newtype interface SuiteContext extends Context {
 }
 
 /// Test callback result.
-export type BodyResult = void | Promise<void> | Result<void, Dynamic<Error>> | AsyncResult<void, Dynamic<Error>>;
+export type BodyResult =
+    | void
+    | Promise<void>
+    | Result<void, Dynamic<Error>>
+    | AsyncResult<void, Dynamic<Error>>;
 
 /// Test callback.
 export type Body = (ctx: CaseContext) => BodyResult;

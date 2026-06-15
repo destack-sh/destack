@@ -101,7 +101,11 @@ export newtype WithBase<Q, T> = intrinsic;
 
 /// Add ownership form `O` around `Q`.
 @languageItem("memory.WithOwnership")
-export newtype WithOwnership<Q, comptime O: Ownership, comptime L: Lifetime = LifetimeOf<Q>> = intrinsic;
+export newtype WithOwnership<
+    Q,
+    comptime O: Ownership,
+    comptime L: Lifetime = LifetimeOf<Q>,
+> = intrinsic;
 
 /// Place `Q` in `P`.
 @languageItem("memory.WithPlace")

@@ -15,8 +15,8 @@ import { Os } from "destack:os/binding";
 import { Process } from "destack:process/binding";
 import { Random } from "destack:random/binding";
 import { Time } from "destack:time/binding";
-import { Topology } from "destack:topology/binding";
 import { Tls } from "destack:tls/binding";
+import { Topology } from "destack:topology/binding";
 import { Tty } from "destack:tty/binding";
 
 import { ContextKey } from "./key.ds";

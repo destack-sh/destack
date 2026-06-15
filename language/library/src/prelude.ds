@@ -240,12 +240,7 @@ global {
     } from "destack:async";
 
     // destack:iter
-    export {
-        Extend,
-        FromIterator,
-        Iterable,
-        Iterator,
-    } from "destack:iter";
+    export { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
 
     // destack:collections
     export {

@@ -192,8 +192,7 @@ extension<K: Hash, V> of ConcurrentMap<K, V> implements Extend<(K, V)> {
     }
 
     /// Clone and return a value by key.
-    get<Q: Hash>(&this, key: &readonly Q): V | undefined
-    where K: Borrow<Q>, Q: Equal<Q>, V: Clone {
+    get<Q: Hash>(&this, key: &readonly Q): V | undefined where K: Borrow<Q>, Q: Equal<Q>, V: Clone {
         todo("ConcurrentMap.get")
     }
 
