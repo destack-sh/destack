@@ -1,4 +1,4 @@
-use destack_mir::{self as mir};
+use destack_mir::{self as mir, LinkGraph};
 use serde::{Deserialize, Serialize};
 
 /// Lowered MIR payload before optimization.
@@ -63,5 +63,33 @@ impl MirOptimized {
 impl Default for MirOptimized {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Per-module link summary produced by program analysis.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MirAnalyzed {
+    /// The module's symbol reference graph.
+    pub links: LinkGraph,
+}
+
+impl MirAnalyzed {
+    /// Create a per-module analysis payload from its link graph.
+    pub fn new(links: LinkGraph) -> Self {
+        Self { links }
+    }
+}
+
+/// Whole-program analysis facts shared across the optimization of every module.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ProgramAnalysis {
+    /// Every module's references merged into one symbol graph.
+    pub links: LinkGraph,
+}
+
+impl ProgramAnalysis {
+    /// Create an empty whole-program analysis.
+    pub fn new() -> Self {
+        Self::default()
     }
 }

@@ -13,9 +13,9 @@ use crate::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactPayloadRef,
     ArtifactVersion, ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent,
     DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
-    GlobalEnvironment, MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted,
-    ModuleOutput, ModuleQueryIndex, PackageIndex, PackageLinted, PackageOutput, ProductOutput,
-    WorkspaceLinted, WorkspaceQueryIndex,
+    GlobalEnvironment, MirAnalyzed, MirLowered, MirOptimized, MirVerified, ModuleIndex,
+    ModuleLinted, ModuleOutput, ModuleQueryIndex, PackageIndex, PackageLinted, PackageOutput,
+    ProductOutput, ProgramAnalysis, WorkspaceLinted, WorkspaceQueryIndex,
 };
 
 /// One versioned artifact family map.
@@ -42,6 +42,8 @@ pub struct ArtifactCache {
     module_index: ArtifactMap<ModuleIndex>,
     /// Component partitions by profile.
     component_graph: ArtifactMap<ComponentGraph>,
+    /// Whole-program analysis by profile and target.
+    program_analysis: ArtifactMap<ProgramAnalysis>,
 
     /// Bound DIR artifacts by module and profile.
     dir_bound: ArtifactMap<DirBound>,
@@ -66,6 +68,8 @@ pub struct ArtifactCache {
     mir_lowered: ArtifactMap<MirLowered>,
     /// Verified MIR markers by module, profile, and target.
     mir_verified: ArtifactMap<MirVerified>,
+    /// Analyzed MIR link summaries by module, profile, and target.
+    mir_analyzed: ArtifactMap<MirAnalyzed>,
     /// Optimized MIR artifacts by module, profile, and target.
     mir_optimized: ArtifactMap<MirOptimized>,
 
@@ -229,6 +233,7 @@ impl ArtifactCache {
             ArtifactKey::PackageIndex { .. } => self.package_index.contains_key(version),
             ArtifactKey::ModuleIndex { .. } => self.module_index.contains_key(version),
             ArtifactKey::ComponentGraph { .. } => self.component_graph.contains_key(version),
+            ArtifactKey::ProgramAnalysis { .. } => self.program_analysis.contains_key(version),
             ArtifactKey::DirParsed { .. } => self.dir_parsed.contains_key(version),
             ArtifactKey::Data { .. } => self.data.contains_key(version),
             ArtifactKey::DirBound { .. } => self.dir_bound.contains_key(version),
@@ -244,6 +249,7 @@ impl ArtifactCache {
             ArtifactKey::DirElaborated { .. } => self.dir_elaborated.contains_key(version),
             ArtifactKey::MirLowered { .. } => self.mir_lowered.contains_key(version),
             ArtifactKey::MirVerified { .. } => self.mir_verified.contains_key(version),
+            ArtifactKey::MirAnalyzed { .. } => self.mir_analyzed.contains_key(version),
             ArtifactKey::MirOptimized { .. } => self.mir_optimized.contains_key(version),
             ArtifactKey::ModuleQueryIndex { .. } => self.module_query_index.contains_key(version),
             ArtifactKey::WorkspaceQueryIndex { .. } => {
@@ -320,6 +326,19 @@ impl ArtifactCache {
                     Self::record_from_payload(
                         version,
                         ArtifactPayloadRef::ComponentGraph(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::ProgramAnalysis { .. } => self
+                .program_analysis(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::ProgramAnalysis(payload.as_ref()),
                         strings,
                         &dependencies,
                         &diagnostics,
@@ -489,6 +508,19 @@ impl ArtifactCache {
                     Self::record_from_payload(
                         version,
                         ArtifactPayloadRef::MirVerified(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::MirAnalyzed { .. } => self
+                .mir_analyzed(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::MirAnalyzed(payload.as_ref()),
                         strings,
                         &dependencies,
                         &diagnostics,
@@ -698,6 +730,13 @@ impl ArtifactCache {
                 matches!(&version.key, ArtifactKey::ComponentGraph { .. }),
                 "ComponentGraph",
             ),
+            ArtifactPayload::ProgramAnalysis(payload) => Self::insert_payload(
+                &self.program_analysis,
+                version,
+                payload,
+                matches!(&version.key, ArtifactKey::ProgramAnalysis { .. }),
+                "ProgramAnalysis",
+            ),
             ArtifactPayload::DirParsed(payload) => Self::insert_payload(
                 &self.dir_parsed,
                 version,
@@ -788,6 +827,13 @@ impl ArtifactCache {
                 payload,
                 matches!(&version.key, ArtifactKey::MirVerified { .. }),
                 "MirVerified",
+            ),
+            ArtifactPayload::MirAnalyzed(payload) => Self::insert_payload(
+                &self.mir_analyzed,
+                version,
+                payload,
+                matches!(&version.key, ArtifactKey::MirAnalyzed { .. }),
+                "MirAnalyzed",
             ),
             ArtifactPayload::MirOptimized(payload) => Self::insert_payload(
                 &self.mir_optimized,
@@ -905,6 +951,13 @@ impl ArtifactCache {
             .map(|entry| entry.value().clone())
     }
 
+    /// Get one whole-program analysis artifact.
+    pub fn program_analysis(&self, version: &ArtifactVersion) -> Option<Arc<ProgramAnalysis>> {
+        self.program_analysis
+            .get(version)
+            .map(|entry| entry.value().clone())
+    }
+
     /// Get one DIR artifact.
     pub fn dir_parsed(&self, version: &ArtifactVersion) -> Option<Arc<DirParsed>> {
         self.dir_parsed
@@ -993,6 +1046,13 @@ impl ArtifactCache {
     /// Get one verified MIR marker.
     pub fn mir_verified(&self, version: &ArtifactVersion) -> Option<Arc<MirVerified>> {
         self.mir_verified
+            .get(version)
+            .map(|entry| entry.value().clone())
+    }
+
+    /// Get one analyzed MIR link summary.
+    pub fn mir_analyzed(&self, version: &ArtifactVersion) -> Option<Arc<MirAnalyzed>> {
+        self.mir_analyzed
             .get(version)
             .map(|entry| entry.value().clone())
     }
