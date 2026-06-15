@@ -62,7 +62,10 @@ impl BitSet {
 
     /// Count the set bits.
     pub fn count(&self) -> usize {
-        self.words.iter().map(|word| word.count_ones() as usize).sum()
+        self.words
+            .iter()
+            .map(|word| word.count_ones() as usize)
+            .sum()
     }
 }
 
