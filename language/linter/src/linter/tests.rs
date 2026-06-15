@@ -5,9 +5,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Once};
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactFailure, ArtifactKey, ArtifactPathState, ArtifactPayload,
-    ArtifactProvider, ArtifactSidecar, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
-    DiagnosticError, DirParsed, DirParsedFile, MemoryCacheStore, SourceDependency, ToDiagnostic,
+    ArtifactDependencySet, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactProvider,
+    ArtifactSidecar, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay, DiagnosticError,
+    DirParsed, DirParsedFile, MemoryCacheStore, ToDiagnostic,
 };
 use destack_compiler::Compiler;
 use destack_core::StringPool;
@@ -187,11 +187,7 @@ fn collect_loader(
                 ProviderError::internal(format!("missing source content id: {file_id:?}"))
             })?;
 
-        dependencies.observe(SourceDependency::path_state(
-            file_id,
-            ArtifactPathState::File,
-        ));
-        dependencies.observe(SourceDependency::file_content(file_id, content));
+        dependencies.observe_file(file_id, content);
     }
 
     Ok(dependencies)

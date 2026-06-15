@@ -71,7 +71,7 @@ impl TestProvider {
             parsed_dependencies(self.repository.as_ref(), self.revision, module.as_ref())
         {
             if let ArtifactDependency::Source(source) = dependency {
-                dependencies.observe(source);
+                dependencies.observe_source(source);
             }
         }
 

@@ -102,9 +102,39 @@ impl ArtifactDependencySet {
         self.artifacts.push(key);
     }
 
-    /// Declare one primitive source observation.
+    /// Declare one raw source observation.
     pub fn observe(&mut self, source: SourceDependency) {
+        self.observe_source(source);
+    }
+
+    /// Declare one raw source observation.
+    pub fn observe_source(&mut self, source: SourceDependency) {
         self.sources.push(source);
+    }
+
+    /// Declare one observed source path state.
+    pub fn observe_path_state(&mut self, path: FileId, state: ArtifactPathState) {
+        self.observe_source(SourceDependency::path_state(path, state));
+    }
+
+    /// Declare one observed source directory listing.
+    pub fn observe_directory_entries(
+        &mut self,
+        directory: FileId,
+        entries: impl IntoIterator<Item = ArtifactDirectoryEntry>,
+    ) {
+        self.observe_source(SourceDependency::directory_entries(directory, entries));
+    }
+
+    /// Declare one observed source file content id.
+    pub fn observe_file_content(&mut self, file: FileId, content: FileContentId) {
+        self.observe_source(SourceDependency::file_content(file, content));
+    }
+
+    /// Declare one observed regular source file.
+    pub fn observe_file(&mut self, file: FileId, content: FileContentId) {
+        self.observe_path_state(file, ArtifactPathState::File);
+        self.observe_file_content(file, content);
     }
 
     /// Mark the closure incomplete so the engine runs the collect pass again.
