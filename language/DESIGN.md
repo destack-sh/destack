@@ -4,29 +4,31 @@ The Destack language (`.ds`) is a superset of "strict modern" TypeScript with su
 Strict TypeScript code "just works", but Destack has absolutely **no JavaScript or NPM interoperability**  (see [COMPARISON.md](COMPARISON.md)).
 
 We believe that the ideal way to build correct, optimal, integrated software systems is to build a fully integrated stack, and thus by "language" ("TypeScript++") we mean much more than "just" a coding language: a language, a runtime, a toolchain, plugins, and ultimately, a way of programming.
+It's all connected, and to leave out a part would be to betray the whole, which is why we need to begin with an _actual_ programming language.
 
-## Universality
+## Universality and Completeness
 
 We're very early in software, and we're still figuring out how to build optimal, correct, and integrated software systems.
 Over 50 years, we have grown more and more layers of software sediment and need ever _more_ tools to get any code out the door, and yet confidence and performance have plummeted.
 We can do better, but not by adding _more_ and more inscrutable pieces.
 
-The best possible stack must be fully integrated across the language itself, the toolchain, the runtime, and basically anything that touches the code.
-Only TypeScript is close to being a universal software foundation, because it runs directly on the web, and the web is the most ubiquitous software platform.
-The TypeScript ecosystem has good - if not perfect - answers to all modern software needs, from great developer tools to rich interactive frontends to quite performant backends.
+The best possible stack would be fully integrated across the language itself, the toolchain, the runtime, and basically anything that touches the software stack.
+To be fully integrated, we need a base programming language that can actually run all modern software efficiently across all relevant target platforms.
 
-Excluding the legacy JavaScript baggage and all the dynamic prototype mess, modern TypeScript is surprisingly close to a fully AOT-compilable language (and most browsers retrofit compilation internally already based on these assumptions).
-Embracing TypeScript and "the web ecosystem" lets us build a new toolchain that truly covers the full stack, is immediately familiar to millions of developers, runs transparently on existing targets, and can be completely free of JS overhead and (some) historic baggage.
+Only TypeScript is seriously close to being a universal software foundation: it is the most popular and familiar programming language, it runs _directly_ on the web, and that means it runs directly on the most ubiquitous software platform.
+The TypeScript ecosystem has good - if not perfect - conceptions of answers to all modern software needs, from great developer tools to rich interactive frontends to reasonably performant backends.
+
+Disregarding the legacy JavaScript baggage, modern TypeScript is surprisingly close to a fully AOT-compilable language - indeed, most browsers retrofit compilation internally already based on this assumption.
+Embracing TypeScript and "the web ecosystem" lets us build a new toolchain that covers the full stack, is immediately familiar to millions of developers, runs transparently on existing targets, and can be made to run as fast as the machine allows.
 
 # Language
 
-"TypeScript++" is a superset of the "strict modern" subset of TypeScript, which essentially means that existing TypeScript (and TSX!) _just works_ **if** it follows our strict TypeScript-based type system _and_ has no exceptions.
-Fortunately, strict TypeScript is already a best practice, and it's what you get when enabling the recommended soundness flags in TSC (mostly).
-TypeScript++ adds some new features to TypeScript that wouldn't fit in TypeScript itself, much like `.tsx` or `.svelte` do for frontend-shaped software, but for the entire software stack including "systems software".
+Our `.ds` "TypeScript++" is a superset of the "strict modern" subset of TypeScript, similar in spirit to `.tsx` or `.svelte`.
+Generally, existing TypeScript (and TSX!) _just works_ **if** it follows our strict TypeScript-based type system _and_ uses no exceptions.
+Fortunately, strict TypeScript is already a best practice - it's what you get when enabling the recommended soundness flags in TSC (mostly) - and converting implicit exceptions to explicit results is a trivial (and worthwhile) one-shot transformation.
 
-There are solid arguments that a language should be minimal (like Zig or Go or even C), but we do not believe "language minimalism" to be pragmatic for the universal language and toolchain we want.
-That said, TypeScript is already not a simple language, and any additional language features risk becoming unwieldy.
-We embrace this tradeoff, and as we needed _some_ additions for serious systems programming, we took the opportunity to round out the language with modern ergonomics like patterns, operator overloading, reflection, and comptime.
+There are solid arguments that a language should be minimal (like Zig or Go or even C), but we do not believe "language minimalism" to be pragmatic for the universal language and toolchain we want: Destack aims to be a _complete_ (and coherent and pragmatic) language, not a purely _minimal_ language.
+And since we needed _some_ additions anyway, we took the opportunity to round out the language with modern ergonomics like patterns, operator overloading, reflection, and comptime.
 
 ## Types
 
