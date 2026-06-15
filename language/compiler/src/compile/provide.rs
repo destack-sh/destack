@@ -34,6 +34,9 @@ impl Compiler {
             ArtifactKey::ComponentGraph { profile } => {
                 self.collect_component_graph(profile, context)
             }
+            ArtifactKey::ProgramAnalysis { profile, target } => {
+                self.collect_program_analysis(profile, target, context)
+            }
             ArtifactKey::DirBound { module, profile } => {
                 self.collect_dir_bound(module, profile, context)
             }
@@ -73,6 +76,11 @@ impl Compiler {
                 profile,
                 target,
             } => self.collect_mir_verified(module, profile, target, context),
+            ArtifactKey::MirAnalyzed {
+                module,
+                profile,
+                target,
+            } => self.collect_mir_analyzed(module, profile, target, context),
             ArtifactKey::MirOptimized {
                 module,
                 profile,
@@ -131,6 +139,9 @@ impl Compiler {
             ArtifactKey::ComponentGraph { profile } => {
                 self.provide_component_graph(profile, context)
             }
+            ArtifactKey::ProgramAnalysis { profile, target } => {
+                self.provide_program_analysis(profile, target, context)
+            }
             ArtifactKey::DirBound { module, profile } => {
                 self.provide_dir_bound(module, profile, context)
             }
@@ -170,6 +181,11 @@ impl Compiler {
                 profile,
                 target,
             } => self.provide_mir_verified(module, profile, target, context),
+            ArtifactKey::MirAnalyzed {
+                module,
+                profile,
+                target,
+            } => self.provide_mir_analyzed(module, profile, target, context),
             ArtifactKey::MirOptimized {
                 module,
                 profile,

@@ -1,6 +1,7 @@
 #![feature(default_field_values)]
 #![allow(clippy::result_large_err)]
 
+mod analyze;
 mod bind;
 mod check;
 mod compile;
@@ -17,6 +18,7 @@ mod resolve;
 mod r#static;
 mod verify;
 
+pub use analyze::*;
 pub use bind::*;
 pub use check::*;
 pub use compile::*;
