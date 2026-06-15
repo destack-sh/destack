@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use destack_repository::{Ref, Revision};
-use destack_source::{FileContent, FileId, Span, Uri, apply_file_edit};
+use destack_source::{Content, FileId, Span, Uri, apply_file_edit};
 
 use crate::{Change, Session, SessionError};
 
@@ -191,7 +191,7 @@ impl Session {
                 let path = self.repository_path(&path);
                 repository_edits.push(destack_repository::Edit::SetFile {
                     logical_path: path,
-                    content: FileContent::Binary { content: bytes },
+                    content: Content::Binary { content: bytes },
                 });
             }
             Edit::Remove { path } => {

@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use destack_source::ContentId;
+
 use crate::{
     ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirElaborated, DirExpanded,
     DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment,
@@ -153,6 +155,16 @@ impl ArtifactPayload {
             Self::ModuleLinted(_) => "module_linted",
             Self::PackageLinted(_) => "package_linted",
             Self::WorkspaceLinted(_) => "workspace_linted",
+        }
+    }
+
+    /// Return all content ids referenced by this payload.
+    pub fn content_ids(&self) -> Vec<ContentId> {
+        match self {
+            Self::ModuleOutput(payload) => payload.content_ids(),
+            Self::PackageOutput(payload) => payload.content_ids(),
+            Self::ProductOutput(payload) => payload.content_ids(),
+            _ => Vec::new(),
         }
     }
 }

@@ -45,13 +45,19 @@ impl<'a> NativeLinker<'a> {
         if self.target.bundle_output.manifest {
             let manifest = self.build_manifest(&output);
 
-            self.compiler.append_manifest_output(
-                self.package_dir,
-                self.target,
-                self.target_name(),
-                &mut output,
-                manifest,
-            )?;
+            self.compiler
+                .append_manifest_output(
+                    self.package_dir,
+                    self.target,
+                    self.target_name(),
+                    &mut output,
+                    manifest,
+                )
+                .map_err(|error| LinkError::Internal {
+                    anchor: (self.package_id).into(),
+                    package: self.package_id,
+                    message: error.to_string(),
+                })?;
         }
 
         Ok(output)
@@ -93,6 +99,7 @@ impl<'a> NativeLinker<'a> {
                 .module(self.context.revision(), *module_id)
                 .map_err(|error| Compiler::link_error(self.package_id, error))?;
             let native_files = link_native_output_files(
+                self.compiler,
                 module.as_ref(),
                 native,
                 self.target,
@@ -120,7 +127,7 @@ impl<'a> NativeLinker<'a> {
 
         // group linked native files by their emitted output role
         for file in files {
-            let output_name = self.target_output_name_for_file(file.content.file_type());
+            let output_name = self.target_output_name_for_file(file.file_type);
 
             outputs
                 .entry(output_name)

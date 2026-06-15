@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 
 use destack_repository::{Repository, Revision};
 use destack_source::{
-    Diagnostic, FileContent, FileId, FileWatchEvent, FileWatchEventKind, FileWatchRescanReason,
+    Content, Diagnostic, FileId, FileWatchEvent, FileWatchEventKind, FileWatchRescanReason,
     FileWatchStatus,
 };
 use destack_workspace::{FileImage, FileUpdate, Message, MessageKind, UpdateKind};
@@ -284,8 +284,8 @@ fn file_image(
 
     // resolve text content when available
     let content = match file.content.payload() {
-        FileContent::Text { .. } => Some(file.text().to_string()),
-        FileContent::Binary { .. } => None,
+        Content::Text { .. } => Some(file.text().to_string()),
+        Content::Binary { .. } => None,
     };
 
     Some(FileUpdateImage {

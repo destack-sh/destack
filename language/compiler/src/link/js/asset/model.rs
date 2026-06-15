@@ -1,6 +1,8 @@
-use destack_artifact::{OutputContent, OutputFile};
-use destack_source::{ModuleId, Uri};
+use destack_artifact::OutputFile;
+use destack_repository::RepositoryError;
+use destack_source::{Content, FileType, ModuleId, Uri};
 
+use crate::Compiler;
 use crate::link::OutputLocation;
 
 /// One linker-local asset payload derived from one source module.
@@ -9,7 +11,9 @@ pub(crate) struct Asset {
     /// The source module identity for this asset payload.
     module_id: ModuleId,
     /// The emitted payload content for this asset.
-    content: OutputContent,
+    content: Content,
+    /// The emitted file type for this asset.
+    file_type: FileType,
     /// The stable content hash for `[hash]`.
     hash: String,
     /// The emitted extension used for `[ext]`.
@@ -35,7 +39,8 @@ impl Asset {
     /// Create one linker-local asset payload.
     pub(crate) fn new(
         module_id: ModuleId,
-        content: OutputContent,
+        content: Content,
+        file_type: FileType,
         hash: String,
         output_extension: String,
         media_type: String,
@@ -44,6 +49,7 @@ impl Asset {
         Self {
             module_id,
             content,
+            file_type,
             hash,
             output_extension,
             media_type,
@@ -57,7 +63,7 @@ impl Asset {
     }
 
     /// Return the emitted payload content for this asset.
-    pub(crate) fn content(&self) -> &OutputContent {
+    pub(crate) fn content(&self) -> &Content {
         &self.content
     }
 
@@ -79,18 +85,22 @@ impl Asset {
     /// Return the output payload size in bytes.
     pub(crate) fn byte_len(&self) -> usize {
         match &self.content {
-            OutputContent::Text { code, .. } => code.len(),
-            OutputContent::Json { content, .. } => content.len(),
-            OutputContent::Binary { bytes, .. } => bytes.len(),
+            Content::Text { content } => content.len(),
+            Content::Binary { content } => content.len(),
         }
     }
 
     /// Build one emitted output file for this asset at one concrete location.
-    pub(crate) fn output_file(&self, output_location: &OutputLocation) -> OutputFile {
-        OutputFile {
-            uri: Uri::from_path(output_location.path()),
-            content: self.content.clone(),
-            source: Some(self.source.clone()),
-        }
+    pub(crate) fn output_file(
+        &self,
+        output_location: &OutputLocation,
+        compiler: &Compiler,
+    ) -> Result<OutputFile, RepositoryError> {
+        compiler.intern_output_file(
+            Uri::from_path(output_location.path()),
+            self.file_type,
+            self.content.clone(),
+            Some(self.source.clone()),
+        )
     }
 }

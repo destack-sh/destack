@@ -1,8 +1,8 @@
-use destack_source::{FileContent, FileType, Uri};
+use destack_source::{ContentId, FileType, Uri};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{EmitFormat, Host, Platform, Runtime, SourceMapArtifact};
+use crate::{EmitFormat, Host, Platform, Runtime};
 
 /// Builtin target output name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -64,118 +64,29 @@ impl PackageAssembly {
     }
 }
 
-/// One derived output file payload.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum OutputContent {
-    /// Text output.
-    Text {
-        /// The emitted text.
-        code: String,
-        /// The emitted file type.
-        file_type: FileType,
-    },
-    /// JSON output.
-    Json {
-        /// The serialized JSON text.
-        content: String,
-        /// The parsed JSON value.
-        value: serde_json::Value,
-        /// The emitted file type.
-        file_type: FileType,
-    },
-    /// Binary output.
-    Binary {
-        /// The emitted bytes.
-        bytes: Vec<u8>,
-        /// The emitted file type.
-        file_type: FileType,
-    },
-}
-
-impl OutputContent {
-    /// Normalize one emitted text payload to the canonical file form.
-    fn normalize_text_payload(mut text: String) -> String {
-        if !text.is_empty() && !text.ends_with('\n') {
-            text.push('\n');
-        }
-
-        text
-    }
-
-    /// Create JavaScript content.
-    pub fn javascript(code: String) -> Self {
-        Self::Text {
-            code: Self::normalize_text_payload(code),
-            file_type: FileType::JavaScript,
-        }
-    }
-
-    /// Create TypeScript content.
-    pub fn typescript(code: String) -> Self {
-        Self::Text {
-            code: Self::normalize_text_payload(code),
-            file_type: FileType::TypeScript,
-        }
-    }
-
-    /// Create TypeScript declaration content.
-    pub fn declaration(code: String) -> Self {
-        Self::Text {
-            code: Self::normalize_text_payload(code),
-            file_type: FileType::TypeScriptDeclaration,
-        }
-    }
-
-    /// Create JSON content.
-    pub fn json(content: String, value: serde_json::Value, file_type: FileType) -> Self {
-        Self::Json {
-            content: Self::normalize_text_payload(content),
-            value,
-            file_type,
-        }
-    }
-
-    /// Create source map content.
-    pub fn source_map(value: &SourceMapArtifact) -> Result<Self, serde_json::Error> {
-        let content = serde_json::to_string(value)?;
-        let value = value.to_json_value()?;
-        Ok(Self::json(content, value, FileType::SourceMap))
-    }
-
-    /// Return the file type for this content.
-    pub fn file_type(&self) -> FileType {
-        match self {
-            Self::Text { file_type, .. }
-            | Self::Json { file_type, .. }
-            | Self::Binary { file_type, .. } => *file_type,
-        }
-    }
-
-    /// Convert this content to file content.
-    pub fn to_file_content(&self) -> FileContent {
-        match self {
-            Self::Text { code, .. } => FileContent::Text {
-                content: code.clone(),
-            },
-            Self::Json { content, .. } => FileContent::Text {
-                content: content.clone(),
-            },
-            Self::Binary { bytes, .. } => FileContent::Binary {
-                content: bytes.clone(),
-            },
-        }
-    }
-}
-
 /// One derived output file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OutputFile {
     /// The output URI.
     pub uri: Uri,
-    /// The output content.
-    pub content: OutputContent,
+    /// The emitted file type.
+    pub file_type: FileType,
+    /// The output content identity.
+    pub content: ContentId,
     /// The related source URI when one exists.
     pub source: Option<Uri>,
+}
+
+impl OutputFile {
+    /// Create one derived output file.
+    pub fn new(uri: Uri, file_type: FileType, content: ContentId, source: Option<Uri>) -> Self {
+        Self {
+            uri,
+            file_type,
+            content,
+            source,
+        }
+    }
 }
 
 /// One package target output.
@@ -207,6 +118,11 @@ impl PackageOutput {
     pub fn files(&self) -> impl Iterator<Item = &OutputFile> {
         self.outputs.values().flatten()
     }
+
+    /// Return all content ids referenced by this package output.
+    pub fn content_ids(&self) -> Vec<ContentId> {
+        self.files().map(|file| file.content).collect()
+    }
 }
 
 /// One linked product output.
@@ -222,6 +138,11 @@ impl ProductOutput {
     /// Create one product output.
     pub fn new(manifest: ProductManifest, files: Vec<OutputFile>) -> Self {
         Self { manifest, files }
+    }
+
+    /// Return all content ids referenced by this product output.
+    pub fn content_ids(&self) -> Vec<ContentId> {
+        self.files.iter().map(|file| file.content).collect()
     }
 }
 

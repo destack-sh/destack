@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use destack_session as session;
-use destack_source::{Diagnostic, File, FileContent, FileId, FileType, ModuleId, Uri};
+use destack_source::{Content, Diagnostic, File, FileId, FileType, ModuleId, Uri};
 
 /// In-memory image for one updated file.
 #[derive(Debug, Clone, PartialEq)]
@@ -24,8 +24,8 @@ impl From<&File> for FileImage {
     /// Build a file image from one source file.
     fn from(file: &File) -> Self {
         let content = match file.content.payload() {
-            FileContent::Text { content } => Some(content.clone()),
-            FileContent::Binary { .. } => None,
+            Content::Text { content } => Some(content.clone()),
+            Content::Binary { .. } => None,
         };
 
         Self {

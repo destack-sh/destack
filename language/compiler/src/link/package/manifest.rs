@@ -18,7 +18,7 @@ impl Compiler {
 
     /// Return the manifest file type for one emitted file.
     pub(crate) fn build_manifest_file_type(&self, file: &OutputFile) -> BuildManifestFileType {
-        match file.content.file_type() {
+        match file.file_type {
             FileType::JavaScript | FileType::TypeScript => BuildManifestFileType::Chunk,
             FileType::Object | FileType::Wasm => BuildManifestFileType::Binary,
             _ => BuildManifestFileType::Asset,
@@ -27,7 +27,7 @@ impl Compiler {
 
     /// Return the manifest loader string for one emitted file.
     pub(crate) fn build_manifest_loader(&self, file: &OutputFile) -> BuildManifestLoader {
-        match file.content.file_type() {
+        match file.file_type {
             FileType::JavaScript => BuildManifestLoader::Js,
             FileType::TypeScript => BuildManifestLoader::Ts,
             FileType::SourceMap => BuildManifestLoader::Map,

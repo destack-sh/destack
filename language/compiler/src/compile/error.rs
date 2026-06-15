@@ -1,7 +1,7 @@
 use destack_artifact::{
     ArtifactFailure, ArtifactKey, ArtifactVersion, DiagnosticError, DiagnosticLike,
 };
-use destack_repository::ProviderError;
+use destack_repository::{ProviderError, RepositoryError};
 
 use crate::{
     BindError, CheckError, ElaborateError, EmitError, ExpandError, ExportError, ImportError,
@@ -36,6 +36,14 @@ impl From<ProviderError> for CompilerError {
                 message: format!("provider failed without compiler diagnostic: {failure:?}"),
             },
             ProviderError::Internal { message } => Self::Internal { message },
+        }
+    }
+}
+
+impl From<RepositoryError> for CompilerError {
+    fn from(error: RepositoryError) -> Self {
+        Self::Internal {
+            message: error.to_string(),
         }
     }
 }

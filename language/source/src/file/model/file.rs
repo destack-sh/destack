@@ -9,7 +9,7 @@ use crate::{FileType, Span, Uri};
 
 const FILE_LOGICAL_DOMAIN: &[u8] = b"destack.source.file.logical.v1";
 const FILE_SOURCE_DOMAIN: &[u8] = b"destack.source.file.source.v1";
-const FILE_CONTENT_DOMAIN: &[u8] = b"destack.source.file.content.v1";
+const CONTENT_DOMAIN: &[u8] = b"destack.content.v1";
 
 /// The id of a File.
 #[repr(transparent)]
@@ -77,54 +77,54 @@ pub struct File {
     /// The length of the File in bytes.
     pub len: u32,
     /// The shared content entry for the File.
-    pub content: Arc<FileContentEntry>,
+    pub content: Arc<ContentEntry>,
 }
 
-/// The content of a File.
+/// One exact content payload.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum FileContent {
+pub enum Content {
     /// Text content.
     Text { content: String },
     /// Binary content.
     Binary { content: Vec<u8> },
 }
 
-/// The exact identity of one source content payload.
+/// The exact identity of one content payload.
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct FileContentId(pub u128);
+pub struct ContentId(pub u128);
 
-impl std::fmt::Debug for FileContentId {
+impl std::fmt::Debug for ContentId {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(formatter, "c{:032x}", self.0)
     }
 }
 
-impl std::fmt::Display for FileContentId {
+impl std::fmt::Display for ContentId {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(formatter, "c{:032x}", self.0)
     }
 }
 
-impl FileContentId {
+impl ContentId {
     /// Build one content id from one raw stable value.
     pub const fn new(value: u128) -> Self {
         Self(value)
     }
 
-    /// Build one content id from one exact source content payload.
-    pub fn for_content(content: &FileContent) -> Self {
+    /// Build one content id from one exact content payload.
+    pub fn for_content(content: &Content) -> Self {
         match content {
-            FileContent::Text { content } => Self::for_text(content),
-            FileContent::Binary { content } => Self::for_binary(content),
+            Content::Text { content } => Self::for_text(content),
+            Content::Binary { content } => Self::for_binary(content),
         }
     }
 
     /// Build one content id from one exact text payload.
     pub fn for_text(content: &str) -> Self {
         let mut hasher = StableHasher::new();
-        hasher.update_len_prefixed(FILE_CONTENT_DOMAIN);
+        hasher.update_len_prefixed(CONTENT_DOMAIN);
 
         hasher.update(&[0]);
         hasher.update_len_prefixed(content.as_bytes());
@@ -135,7 +135,7 @@ impl FileContentId {
     /// Build one content id from one exact binary payload.
     pub fn for_binary(content: &[u8]) -> Self {
         let mut hasher = StableHasher::new();
-        hasher.update_len_prefixed(FILE_CONTENT_DOMAIN);
+        hasher.update_len_prefixed(CONTENT_DOMAIN);
 
         hasher.update(&[1]);
         hasher.update_len_prefixed(content);
@@ -146,21 +146,21 @@ impl FileContentId {
 
 /// One canonical content payload and its derived data.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FileContentEntry {
+pub struct ContentEntry {
     /// The raw content payload.
-    pub payload: FileContent,
+    pub payload: Content,
     /// Shared line index for text content.
     line_index: Option<Arc<[u32]>>,
 }
 
-impl FileContentEntry {
+impl ContentEntry {
     /// Build one shared content entry from one payload.
-    pub fn new(payload: FileContent) -> Self {
+    pub fn new(payload: Content) -> Self {
         let line_index = match &payload {
-            FileContent::Text { content } => Some(Arc::<[u32]>::from(
+            Content::Text { content } => Some(Arc::<[u32]>::from(
                 File::precompute_line_start_offsets(content),
             )),
-            FileContent::Binary { .. } => None,
+            Content::Binary { .. } => None,
         };
 
         Self {
@@ -170,13 +170,13 @@ impl FileContentEntry {
     }
 
     /// Return the raw payload.
-    pub fn payload(&self) -> &FileContent {
+    pub fn payload(&self) -> &Content {
         &self.payload
     }
 
     /// Return the exact content id for this payload.
-    pub fn content_id(&self) -> FileContentId {
-        FileContentId::for_content(&self.payload)
+    pub fn content_id(&self) -> ContentId {
+        ContentId::for_content(&self.payload)
     }
 
     /// Return shared line start offsets when present.
@@ -239,11 +239,11 @@ impl File {
         uri: Uri,
         path: Option<PathBuf>,
         ty: FileType,
-        content: Arc<FileContentEntry>,
+        content: Arc<ContentEntry>,
     ) -> Self {
         let len = match content.payload() {
-            FileContent::Text { content } => content.len() as u32,
-            FileContent::Binary { content } => content.len() as u32,
+            Content::Text { content } => content.len() as u32,
+            Content::Binary { content } => content.len() as u32,
         };
 
         Self {
@@ -273,7 +273,7 @@ impl File {
             uri,
             path,
             ty,
-            Arc::new(FileContentEntry::new(FileContent::Text { content })),
+            Arc::new(ContentEntry::new(Content::Text { content })),
         )
     }
 
@@ -292,7 +292,7 @@ impl File {
             uri,
             path,
             ty,
-            Arc::new(FileContentEntry::new(FileContent::Binary { content })),
+            Arc::new(ContentEntry::new(Content::Binary { content })),
         )
     }
 
@@ -300,13 +300,13 @@ impl File {
     #[inline]
     pub fn text(&self) -> &str {
         match self.content.payload() {
-            FileContent::Text { content } => content,
+            Content::Text { content } => content,
             _ => "",
         }
     }
 
     /// Return the exact content id for this file image.
-    pub fn content_id(&self) -> FileContentId {
+    pub fn content_id(&self) -> ContentId {
         self.content.content_id()
     }
 
@@ -338,8 +338,8 @@ impl File {
     #[inline]
     pub fn get_span_str(&self, span: Span) -> Option<&str> {
         match self.content.payload() {
-            FileContent::Text { content } => Some(&content[span.start as usize..span.end as usize]),
-            FileContent::Binary { .. } => None,
+            Content::Text { content } => Some(&content[span.start as usize..span.end as usize]),
+            Content::Binary { .. } => None,
         }
     }
 

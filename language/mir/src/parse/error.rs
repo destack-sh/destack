@@ -1,7 +1,7 @@
 use crate::source::TokenType;
 use std::fmt;
 
-use destack_source::{Diagnostic, DiagnosticLabel, FileContentId, FileId, Span};
+use destack_source::{ContentId, Diagnostic, DiagnosticLabel, FileId, Span};
 
 use crate::source::Token;
 
@@ -67,7 +67,7 @@ impl ParseError {
     }
 
     /// Convert this parse error into one shared source diagnostic.
-    pub fn to_diagnostic(&self, content: FileContentId, file_id: FileId) -> Diagnostic {
+    pub fn to_diagnostic(&self, content: ContentId, file_id: FileId) -> Diagnostic {
         let start = u32::try_from(self.position).unwrap_or(u32::MAX);
         let length = u32::try_from(self.length).unwrap_or(u32::MAX);
         let span = Span::at(file_id, start, length);

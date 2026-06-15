@@ -12,7 +12,7 @@ use destack_repository::{
 };
 use destack_session::Session;
 use destack_source::{
-    DiagnosticCollection, FileContent, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId,
+    Content, DiagnosticCollection, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId,
 };
 use serde_json::{Map, Value, json};
 
@@ -240,11 +240,7 @@ pub fn module_id_for_path(repository: &Repository, revision: Revision, path: &Pa
 }
 
 /// Apply one full file write to the current workspace revision.
-pub fn write_workspace_file(
-    repository: &Repository,
-    path: &Path,
-    content: FileContent,
-) -> Revision {
+pub fn write_workspace_file(repository: &Repository, path: &Path, content: Content) -> Revision {
     let reference = Ref::for_root(repository.path());
     let logical_path = repository.logical_path(path);
     let edit = Edit::SetFile {
@@ -269,7 +265,7 @@ pub fn write_workspace_text_file(repository: &Repository, path: &Path, content: 
     write_workspace_file(
         repository,
         path,
-        FileContent::Text {
+        Content::Text {
             content: content.to_string(),
         },
     )

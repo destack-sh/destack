@@ -5,11 +5,11 @@ use crate::emit::js::{
     print_js_module as print_codegen_script_module,
 };
 use crate::link::{OutputLayout, SourceMapBuilder, SourceMapMarker};
-use crate::{CompilerError, CompilerResult, JsLinker};
+use crate::{Compiler, CompilerError, CompilerResult, JsLinker};
 use base64::Engine as _;
-use destack_artifact::{EmitFormat, JsOutput, OutputContent, OutputFile, SourceMapArtifact};
+use destack_artifact::{EmitFormat, JsOutput, OutputFile, SourceMapArtifact};
 use destack_repository::{Module, ProviderContext, SourceMapMode, Target};
-use destack_source::{FileType, ModuleId, Uri};
+use destack_source::{Content, FileType, ModuleId, Uri};
 
 /// One final JS text output policy derived from one target.
 #[derive(Debug, Clone, Copy)]
@@ -25,10 +25,11 @@ impl<'a> JsTextOutputPolicy<'a> {
     }
 
     /// Build one final JavaScript or TypeScript content payload.
-    fn js_content(self, file_type: FileType, code: String) -> Result<OutputContent, String> {
+    fn js_content(self, file_type: FileType, code: String) -> Result<Content, String> {
         match file_type {
-            FileType::JavaScript => Ok(OutputContent::javascript(code)),
-            FileType::TypeScript => Ok(OutputContent::typescript(code)),
+            FileType::JavaScript | FileType::TypeScript => {
+                Ok(crate::Compiler::text_output_content(code))
+            }
             other => Err(format!("unsupported JS text output: {other:?}")),
         }
     }
@@ -301,11 +302,16 @@ impl JsLinker<'_> {
             FileType::TypeScriptDeclaration,
         )?;
 
-        Ok(OutputFile {
-            uri: Uri::from_path(&output_path),
-            content: OutputContent::declaration(declaration_text.to_string()),
-            source: None,
-        })
+        let content = Compiler::text_output_content(declaration_text.to_string());
+
+        self.compiler
+            .intern_output_file(
+                Uri::from_path(&output_path),
+                FileType::TypeScriptDeclaration,
+                content,
+                None,
+            )
+            .map_err(|error| error.to_string())
     }
 
     /// Link one JS output into output files.
@@ -419,11 +425,11 @@ impl JsLinker<'_> {
             source_map_reference,
         )?;
         let content = output_policy.js_content(file_type, code)?;
-        let mut files = vec![OutputFile {
-            uri: Uri::from_path(output_path),
-            content,
-            source: None,
-        }];
+        let mut files = vec![
+            self.compiler
+                .intern_output_file(Uri::from_path(output_path), file_type, content, None)
+                .map_err(|error| error.to_string())?,
+        ];
 
         let Some(source_map) = source_map.as_ref() else {
             return Ok(files);
@@ -433,14 +439,19 @@ impl JsLinker<'_> {
             return Ok(files);
         };
 
-        let content = OutputContent::source_map(source_map)
+        let content = Compiler::source_map_content(source_map)
             .map_err(|error| format!("failed to serialize source map: {error}"))?;
 
-        files.push(OutputFile {
-            uri: Uri::from_path(source_map_path),
-            content,
-            source: None,
-        });
+        files.push(
+            self.compiler
+                .intern_output_file(
+                    Uri::from_path(source_map_path),
+                    FileType::SourceMap,
+                    content,
+                    None,
+                )
+                .map_err(|error| error.to_string())?,
+        );
 
         Ok(files)
     }

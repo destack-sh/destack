@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
-use destack_artifact::{EmitFormat, MirLowered, MirOptimized, NativeOutput};
+use destack_artifact::{EmitFormat, MirLowered, MirOptimized, SourceMapArtifact};
 use destack_core::StringPool;
 use destack_repository::{Module, Target};
+use destack_source::FileType;
 
 use crate::{CodegenCraneliftError, CodegenCraneliftResult};
 
@@ -19,6 +20,28 @@ pub struct NativeOutputGenerator<'a> {
     mir_lowered: Option<Arc<MirLowered>>,
     /// The target configuration.
     target: &'a Target,
+}
+
+/// One native output payload before repository content interning.
+#[derive(Debug, Clone)]
+pub struct NativeOutputBytes {
+    /// The emitted output file type.
+    pub file_type: FileType,
+    /// The emitted native payload bytes.
+    pub bytes: Vec<u8>,
+    /// The emitted source map payload when one exists.
+    pub source_map: Option<SourceMapArtifact>,
+}
+
+impl NativeOutputBytes {
+    /// Create one native output payload.
+    pub fn new(file_type: FileType, bytes: Vec<u8>, source_map: Option<SourceMapArtifact>) -> Self {
+        Self {
+            file_type,
+            bytes,
+            source_map,
+        }
+    }
 }
 
 impl<'a> NativeOutputGenerator<'a> {
@@ -40,7 +63,9 @@ impl<'a> NativeOutputGenerator<'a> {
     }
 
     /// Generate one native output.
-    pub fn generate(self) -> CodegenCraneliftResult<(NativeOutput, Vec<CodegenCraneliftError>)> {
+    pub fn generate(
+        self,
+    ) -> CodegenCraneliftResult<(NativeOutputBytes, Vec<CodegenCraneliftError>)> {
         // validate target
         match self.target.emit {
             EmitFormat::Wasm | EmitFormat::Native => {}
@@ -70,12 +95,14 @@ impl<'a> NativeOutputGenerator<'a> {
             panic!("codegen requires committed MIR artifact");
         };
 
-        let artifact = match self.target.emit {
-            EmitFormat::Native => NativeOutput::object(compile_output.bytes),
-            EmitFormat::Wasm => NativeOutput::wasm(compile_output.bytes, None),
+        let output = match self.target.emit {
+            EmitFormat::Native => {
+                NativeOutputBytes::new(FileType::Object, compile_output.bytes, None)
+            }
+            EmitFormat::Wasm => NativeOutputBytes::new(FileType::Wasm, compile_output.bytes, None),
             _ => unreachable!(),
         };
 
-        Ok((artifact, compile_output.errors))
+        Ok((output, compile_output.errors))
     }
 }

@@ -76,7 +76,7 @@ impl<'a> JsLinker<'a> {
 
         // group linked files by their emitted output role
         for file in files {
-            let output_name = self.target_output_name_for_file(file.content.file_type());
+            let output_name = self.target_output_name_for_file(file.file_type);
 
             outputs
                 .entry(output_name)

@@ -13,8 +13,8 @@ use destack_repository::{
     Revision, Settings,
 };
 use destack_source::{
-    DiagnosticCollection, DiffOptions, FileContent, MemoryFileSystem, ModuleId, ProfileId,
-    TargetId, format_diff,
+    Content, DiagnosticCollection, DiffOptions, MemoryFileSystem, ModuleId, ProfileId, TargetId,
+    format_diff,
 };
 
 use crate::tests::snapshot::{
@@ -28,7 +28,7 @@ use super::provider::TestProvider;
 #[derive(Debug, Default)]
 pub(crate) struct TestSessionBuilder {
     /// Source files keyed by logical path.
-    files: BTreeMap<String, FileContent>,
+    files: BTreeMap<String, Content>,
     /// Whether provider attempts should emit event traces.
     emit_events: bool,
 }
@@ -38,7 +38,7 @@ impl TestSessionBuilder {
     pub(crate) fn module(mut self, path: &str, source: &str) -> Self {
         self.files.insert(
             path.to_string(),
-            FileContent::Text {
+            Content::Text {
                 content: source.to_string(),
             },
         );
@@ -50,7 +50,7 @@ impl TestSessionBuilder {
     pub(crate) fn data(mut self, path: &str, source: &str) -> Self {
         self.files.insert(
             path.to_string(),
-            FileContent::Text {
+            Content::Text {
                 content: source.to_string(),
             },
         );
@@ -66,7 +66,7 @@ impl TestSessionBuilder {
         // enable sidecar snapshots in compiler tests
         files
             .entry("destack.json".to_string())
-            .or_insert_with(|| FileContent::Text {
+            .or_insert_with(|| Content::Text {
                 content: r#"{
   "compiler": {
     "emitStats": true,
@@ -119,7 +119,7 @@ impl TestSession {
     }
 
     /// Build one test session from source files.
-    fn build(files: BTreeMap<String, FileContent>, emit_events: bool) -> Self {
+    fn build(files: BTreeMap<String, Content>, emit_events: bool) -> Self {
         let root = PathBuf::new();
         let environment = Environment::default();
         let layout = DestackLayout::resolve(
@@ -283,8 +283,8 @@ impl TestSession {
             .unwrap_or_else(|| panic!("test artifact sidecar `{name}` should exist"));
 
         match sidecar.content {
-            FileContent::Text { content } => content,
-            FileContent::Binary { .. } => {
+            Content::Text { content } => content,
+            Content::Binary { .. } => {
                 panic!("test artifact sidecar `{name}` should be text")
             }
         }
@@ -388,7 +388,7 @@ impl TestSession {
     fn build_modules(
         repository: &Repository,
         revision: Revision,
-        files: &BTreeMap<String, FileContent>,
+        files: &BTreeMap<String, Content>,
     ) -> BTreeMap<String, TestModule> {
         let mut entries = BTreeMap::new();
 
@@ -452,7 +452,8 @@ impl TestSession {
         for entry in entries.values() {
             let dependencies = parsed_dependencies(repository, revision, entry.module.as_ref());
             let key = ArtifactKey::dir_parsed(entry.module.id);
-            let version = ArtifactVersion::new(key, dependencies.clone());
+            let version =
+                ArtifactVersion::new(key, repository.build_fingerprint(), dependencies.clone());
 
             repository
                 .complete_artifact(
@@ -471,7 +472,7 @@ impl TestSession {
     fn module_path_by_id(
         repository: &Repository,
         revision: Revision,
-        files: &BTreeMap<String, FileContent>,
+        files: &BTreeMap<String, Content>,
     ) -> BTreeMap<ModuleId, String> {
         let mut paths = files
             .keys()

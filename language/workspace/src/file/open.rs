@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use destack_repository::{Repository, Revision};
 use destack_session as session;
-use destack_source::{FileContentId, FileId, Uri};
+use destack_source::{ContentId, FileId, Uri};
 
 use crate::diagnostic::Error;
 use crate::workspace::Workspace;
@@ -15,7 +15,7 @@ pub(crate) struct OpenFile {
     /// Client-provided file version.
     pub version: i32,
     /// Repository content id corresponding to the open content.
-    pub content_id: FileContentId,
+    pub content_id: ContentId,
     /// Current open content.
     pub content: session::Edit,
 }
@@ -42,7 +42,7 @@ impl Workspace {
         path: &Path,
         uri: Uri,
         version: i32,
-        content_id: FileContentId,
+        content_id: ContentId,
         content: session::Edit,
     ) {
         // mirror open text into the shared filesystem overlay

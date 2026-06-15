@@ -4,7 +4,7 @@ use destack_artifact::{ArtifactDependency, ArtifactPathState, DirParsed, DirPars
 use destack_dir as dir;
 use destack_parser::{Parser, ParserOptions};
 use destack_repository::{Module, Repository, Revision};
-use destack_source::{File, FileContentId, FileId, LanguageType, ProfileId, Span};
+use destack_source::{ContentId, File, FileId, LanguageType, ProfileId, Span};
 
 /// One code module in a compiler test.
 #[derive(Debug)]
@@ -120,7 +120,7 @@ pub(crate) fn parsed_dependencies(
 }
 
 /// Return one file content id from the repository.
-fn file_content_id(repository: &Repository, revision: Revision, file: FileId) -> FileContentId {
+fn file_content_id(repository: &Repository, revision: Revision, file: FileId) -> ContentId {
     repository
         .file_content_id(revision, file)
         .expect("test file content should resolve")

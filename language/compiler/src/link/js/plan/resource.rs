@@ -5,7 +5,7 @@ use destack_artifact::{Data, EmitFormat, JsDeclaration, JsLanguage, JsOutput};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_repository::Module;
-use destack_source::{FileContent, Loader, ModuleId};
+use destack_source::{Content, Loader, ModuleId};
 use serde_json::Value as JsonValue;
 
 use crate::link::TargetLocation;
@@ -400,7 +400,7 @@ impl<'a> JsLinker<'a> {
 
         if module.loader == Loader::Base64 {
             let file = self.file(module.file_id)?;
-            let FileContent::Binary { content } = file.content.payload() else {
+            let Content::Binary { content } = file.content.payload() else {
                 return Err(LinkError::Internal {
                     anchor: (self.package_id).into(),
                     package: self.package_id,
@@ -419,7 +419,7 @@ impl<'a> JsLinker<'a> {
 
         if module.loader.is_text() {
             let file = self.file(module.file_id)?;
-            let FileContent::Text { content } = file.content.payload() else {
+            let Content::Text { content } = file.content.payload() else {
                 return Err(LinkError::Internal {
                     anchor: (self.package_id).into(),
                     package: self.package_id,
@@ -437,7 +437,7 @@ impl<'a> JsLinker<'a> {
 
         if module.loader == Loader::Binary {
             let file = self.file(module.file_id)?;
-            let FileContent::Binary { content } = file.content.payload() else {
+            let Content::Binary { content } = file.content.payload() else {
                 return Err(LinkError::Internal {
                     anchor: (self.package_id).into(),
                     package: self.package_id,

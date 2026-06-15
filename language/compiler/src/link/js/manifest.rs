@@ -107,7 +107,7 @@ impl<'a> JsLinker<'a> {
             });
         let chunk = self.build_js_manifest_output_metadata(
             target_layout,
-            file.content.file_type(),
+            file.file_type,
             output_location.as_ref(),
             plan,
         )?;

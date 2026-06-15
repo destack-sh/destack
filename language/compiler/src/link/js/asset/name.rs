@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use destack_artifact::OutputContent;
 use destack_core::stable_hash_bytes;
+use destack_source::Content;
 
 /// Return the sanitized directory token for one asset module path.
 pub(super) fn directory_token(
@@ -42,11 +42,10 @@ pub(super) fn name_token(source_path: &Path) -> Option<String> {
 }
 
 /// Return one stable content hash for one asset payload.
-pub(super) fn content_hash(content: &OutputContent) -> Result<String, String> {
+pub(super) fn content_hash(content: &Content) -> Result<String, String> {
     let hash = match content {
-        OutputContent::Text { code, .. } => stable_hash_bytes(code.as_bytes()),
-        OutputContent::Json { content, .. } => stable_hash_bytes(content.as_bytes()),
-        OutputContent::Binary { bytes, .. } => stable_hash_bytes(bytes),
+        Content::Text { content } => stable_hash_bytes(content.as_bytes()),
+        Content::Binary { content } => stable_hash_bytes(content),
     };
 
     Ok(format!("{:08x}", hash as u32))

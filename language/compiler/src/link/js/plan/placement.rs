@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use crate::{LinkError, LinkResult};
 use destack_core::{StableHasher, stable_hash_bytes};
 use destack_repository::{BundleFormat, BundleMode, Module, Target};
-use destack_source::{FileContent, FileType, ModuleId};
+use destack_source::{Content, FileType, ModuleId};
 
 use crate::link::{OutputFileNameValues, OutputLocation, TargetLocation, module_source_path};
 
@@ -173,8 +173,8 @@ impl<'a> JsLinker<'a> {
 
         // hash the loaded content directly, regardless of file kind
         let hash = match file.content.payload() {
-            FileContent::Text { content } => stable_hash_bytes(content.as_bytes()),
-            FileContent::Binary { content } => stable_hash_bytes(content),
+            Content::Text { content } => stable_hash_bytes(content.as_bytes()),
+            Content::Binary { content } => stable_hash_bytes(content),
         };
 
         Ok(format!("{:08x}", hash as u32))

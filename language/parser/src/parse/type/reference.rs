@@ -292,10 +292,7 @@ impl Parser {
         self.eat_keyword(Keyword::Typeof)?;
         let value = self.eat_typeof_query_value()?;
 
-        Ok(self.insert_node(
-            TypeExpression::TypeOf { value },
-            self.get_span_from(start),
-        ))
+        Ok(self.insert_node(TypeExpression::TypeOf { value }, self.get_span_from(start)))
     }
 
     /// Eat the value operand of a `typeof` type query.
