@@ -6,6 +6,8 @@ mod file;
 mod module;
 #[path = "package.generated.rs"]
 mod package;
+#[path = "product.generated.rs"]
+mod product;
 #[path = "profile.generated.rs"]
 mod profile;
 mod registry;
@@ -18,6 +20,7 @@ pub use component::*;
 pub use file::*;
 pub use module::*;
 pub use package::*;
+pub use product::*;
 pub use profile::*;
 pub(crate) use registry::register;
 pub use span::*;

@@ -4,7 +4,7 @@ use destack_bridge_language as bridge;
 
 use wasm_bindgen::prelude::wasm_bindgen;
 
-use crate::{ComponentId, ModuleId, PackageId, ProfileId, TargetId};
+use crate::{ComponentId, ModuleId, PackageId, ProductId, ProfileId, TargetId};
 
 /// External artifact key crossing bridge boundaries.
 #[derive(Debug, Clone)]
@@ -163,6 +163,13 @@ enum ArtifactKeyContent {
         package: PackageId,
         /// Build target.
         target: TargetId,
+    },
+    /// Output entries for one product.
+    ProductOutput {
+        /// Source package.
+        package: PackageId,
+        /// Product.
+        product: ProductId,
     },
     /// Realized lint diagnostics for one module profile.
     ModuleLinted {
@@ -379,6 +386,14 @@ impl ArtifactKey {
     }
 
     /// Create one payload variant.
+    #[wasm_bindgen(js_name = "productOutput")]
+    pub fn product_output(package: PackageId, product: ProductId) -> Self {
+        Self {
+            content: ArtifactKeyContent::ProductOutput { package, product },
+        }
+    }
+
+    /// Create one payload variant.
     #[wasm_bindgen(js_name = "moduleLinted")]
     pub fn module_linted(module: ModuleId, profile: ProfileId) -> Self {
         Self {
@@ -428,6 +443,7 @@ impl ArtifactKey {
             ArtifactKeyContent::WorkspaceQueryIndex { .. } => "workspaceQueryIndex",
             ArtifactKeyContent::ModuleOutput { .. } => "moduleOutput",
             ArtifactKeyContent::PackageOutput { .. } => "packageOutput",
+            ArtifactKeyContent::ProductOutput { .. } => "productOutput",
             ArtifactKeyContent::ModuleLinted { .. } => "moduleLinted",
             ArtifactKeyContent::PackageLinted { .. } => "packageLinted",
             ArtifactKeyContent::WorkspaceLinted => "workspaceLinted",
@@ -524,7 +540,17 @@ impl ArtifactKey {
     pub fn package(&self) -> Option<PackageId> {
         match &self.content {
             ArtifactKeyContent::PackageOutput { package: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::ProductOutput { package: value, .. } => Some(value.clone()),
             ArtifactKeyContent::PackageLinted { package: value, .. } => Some(value.clone()),
+            _ => None,
+        }
+    }
+
+    /// Product.
+    #[wasm_bindgen(getter, js_name = "product")]
+    pub fn product(&self) -> Option<ProductId> {
+        match &self.content {
+            ArtifactKeyContent::ProductOutput { product: value, .. } => Some(value.clone()),
             _ => None,
         }
     }
@@ -655,6 +681,12 @@ impl ArtifactKey {
                 bridge::ArtifactKey::PackageOutput {
                     package: package.into_bridge(),
                     target: target.into_bridge(),
+                }
+            }
+            ArtifactKeyContent::ProductOutput { package, product } => {
+                bridge::ArtifactKey::ProductOutput {
+                    package: package.into_bridge(),
+                    product: product.into_bridge(),
                 }
             }
             ArtifactKeyContent::ModuleLinted { module, profile } => {
@@ -818,6 +850,12 @@ impl ArtifactKey {
                 content: ArtifactKeyContent::PackageOutput {
                     package: PackageId::from_bridge(package),
                     target: TargetId::from_bridge(target),
+                },
+            },
+            bridge::ArtifactKey::ProductOutput { package, product } => Self {
+                content: ArtifactKeyContent::ProductOutput {
+                    package: PackageId::from_bridge(package),
+                    product: ProductId::from_bridge(product),
                 },
             },
             bridge::ArtifactKey::ModuleLinted { module, profile } => Self {

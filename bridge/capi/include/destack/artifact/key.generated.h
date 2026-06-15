@@ -139,6 +139,12 @@ DestackStatus destack_artifact_key_package_output(
     DestackArtifactKey **out,
     DestackError **error
 );
+DestackStatus destack_artifact_key_product_output(
+    DestackPackageId package,
+    DestackProductId product,
+    DestackArtifactKey **out,
+    DestackError **error
+);
 DestackStatus destack_artifact_key_module_linted(
     DestackModuleId module,
     DestackProfileId profile,

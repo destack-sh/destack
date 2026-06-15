@@ -3,6 +3,7 @@
 import type { ComponentId } from "../source/component.generated.js";
 import type { ModuleId } from "../source/module.generated.js";
 import type { PackageId } from "../source/package.generated.js";
+import type { ProductId } from "../source/product.generated.js";
 import type { ProfileId } from "../source/profile.generated.js";
 import type { TargetId } from "../source/target.generated.js";
 
@@ -178,6 +179,14 @@ export type ArtifactKey =
           /** Build target. */
           readonly target: TargetId;
       }
+    /** Output entries for one product. */
+    | {
+          readonly kind: "productOutput";
+          /** Source package. */
+          readonly package: PackageId;
+          /** Product. */
+          readonly product: ProductId;
+      }
     /** Realized lint diagnostics for one module profile. */
     | {
           readonly kind: "moduleLinted";
@@ -307,6 +316,11 @@ export const ArtifactKey = {
     /** Output entries for one package target. */
     packageOutput(packageValue: PackageId, target: TargetId): ArtifactKey {
         return { kind: "packageOutput", package: packageValue, target };
+    },
+
+    /** Output entries for one product. */
+    productOutput(packageValue: PackageId, product: ProductId): ArtifactKey {
+        return { kind: "productOutput", package: packageValue, product };
     },
 
     /** Realized lint diagnostics for one module profile. */

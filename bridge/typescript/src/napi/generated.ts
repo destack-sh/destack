@@ -54,6 +54,7 @@ import type {
 } from "../source/file.generated.js";
 import type { ModuleId } from "../source/module.generated.js";
 import type { PackageId } from "../source/package.generated.js";
+import type { ProductId } from "../source/product.generated.js";
 import type { ProfileId } from "../source/profile.generated.js";
 import type {
     Span,
@@ -342,6 +343,14 @@ export function toNapiArtifactKey(value: ArtifactKey): Napi.ArtifactKey {
             kind: "packageOutput",
             package: toNapiPackageId(value.package),
             target: toNapiTargetId(value.target),
+        };
+    }
+
+    if (value.kind === "productOutput") {
+        return {
+            kind: "productOutput",
+            package: toNapiPackageId(value.package),
+            product: toNapiProductId(value.product),
         };
     }
 
@@ -746,6 +755,24 @@ export function fromNapiArtifactKey(value: Napi.ArtifactKey): ArtifactKey {
             kind: "packageOutput",
             package: fromNapiPackageId(payload_package),
             target: fromNapiTargetId(payload_target),
+        };
+    }
+
+    if (value.kind === "productOutput") {
+        const payload_package = value.package;
+        if (payload_package == null) {
+            throw new Error("package payload is missing");
+        }
+
+        const payload_product = value.product;
+        if (payload_product == null) {
+            throw new Error("product payload is missing");
+        }
+
+        return {
+            kind: "productOutput",
+            package: fromNapiPackageId(payload_package),
+            product: fromNapiProductId(payload_product),
         };
     }
 
@@ -1181,6 +1208,22 @@ export function toNapiPackageId(value: PackageId): Napi.PackageId {
 export function fromNapiPackageId(value: Napi.PackageId): PackageId {
     return {
         id: value.id,
+    };
+}
+
+/** Convert one ProductId into the NAPI transport shape. */
+export function toNapiProductId(value: ProductId): Napi.ProductId {
+    return {
+        package: toNapiPackageId(value.package),
+        key: value.key,
+    };
+}
+
+/** Convert one NAPI ProductId into the public bridge shape. */
+export function fromNapiProductId(value: Napi.ProductId): ProductId {
+    return {
+        package: fromNapiPackageId(value.package),
+        key: value.key,
     };
 }
 

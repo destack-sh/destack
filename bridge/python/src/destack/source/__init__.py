@@ -14,6 +14,9 @@ from .module import (
 from .package import (
     PackageId,
 )
+from .product import (
+    ProductId,
+)
 from .profile import (
     ProfileId,
 )
@@ -32,6 +35,7 @@ __all__ = [
     "FileContent",
     "ModuleId",
     "PackageId",
+    "ProductId",
     "ProfileId",
     "Span",
     "LabeledSpan",

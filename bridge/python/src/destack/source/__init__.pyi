@@ -16,6 +16,9 @@ from .module import (
 from .package import (
     PackageId,
 )
+from .product import (
+    ProductId,
+)
 from .profile import (
     ProfileId,
 )

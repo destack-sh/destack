@@ -2,7 +2,7 @@ use destack_source::{FileContent, FileType, Uri};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{EmitFormat, SourceMapArtifact};
+use crate::{EmitFormat, Host, Platform, Runtime, SourceMapArtifact};
 
 /// Builtin target output name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -206,5 +206,97 @@ impl PackageOutput {
     /// Return an iterator over all output files.
     pub fn files(&self) -> impl Iterator<Item = &OutputFile> {
         self.outputs.values().flatten()
+    }
+}
+
+/// One linked product output.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ProductOutput {
+    /// The product image manifest.
+    pub manifest: ProductManifest,
+    /// The files in this product image.
+    pub files: Vec<OutputFile>,
+}
+
+impl ProductOutput {
+    /// Create one product output.
+    pub fn new(manifest: ProductManifest, files: Vec<OutputFile>) -> Self {
+        Self { manifest, files }
+    }
+}
+
+/// Manifest for one product image.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ProductManifest {
+    /// The configured product name.
+    pub product: String,
+    /// The product units keyed by product target role.
+    pub units: IndexMap<String, ProductUnit>,
+    /// The launchable product entries.
+    pub entries: Vec<ProductEntry>,
+}
+
+impl ProductManifest {
+    /// Create one product manifest.
+    pub fn new(
+        product: String,
+        units: IndexMap<String, ProductUnit>,
+        entries: Vec<ProductEntry>,
+    ) -> Self {
+        Self {
+            product,
+            units,
+            entries,
+        }
+    }
+}
+
+/// One unit assembled into a product image.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProductUnit {
+    /// The configured target name assembled into this unit.
+    pub target: String,
+    /// The runtime contract this unit expects.
+    pub runtime: Runtime,
+    /// The host environment this unit expects.
+    pub host: Host,
+    /// The platform this unit expects.
+    pub platform: Platform,
+    /// The unit output files grouped by target output name.
+    pub outputs: IndexMap<TargetOutputName, Vec<Uri>>,
+}
+
+impl ProductUnit {
+    /// Create one product unit.
+    pub fn new(
+        target: String,
+        runtime: Runtime,
+        host: Host,
+        platform: Platform,
+        outputs: IndexMap<TargetOutputName, Vec<Uri>>,
+    ) -> Self {
+        Self {
+            target,
+            runtime,
+            host,
+            platform,
+            outputs,
+        }
+    }
+}
+
+/// One launchable entry in a product image.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProductEntry {
+    /// The product unit that owns the entry.
+    pub unit: String,
+    /// The entry output URI.
+    pub uri: Uri,
+}
+
+impl ProductEntry {
+    /// Create one product entry.
+    pub fn new(unit: String, uri: Uri) -> Self {
+        Self { unit, uri }
     }
 }

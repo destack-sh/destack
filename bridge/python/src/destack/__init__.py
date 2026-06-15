@@ -80,6 +80,9 @@ from .source.module import (
 from .source.package import (
     PackageId,
 )
+from .source.product import (
+    ProductId,
+)
 from .source.profile import (
     ProfileId,
 )
@@ -132,6 +135,7 @@ __all__ = [
     "FileContent",
     "ModuleId",
     "PackageId",
+    "ProductId",
     "ProfileId",
     "Span",
     "LabeledSpan",

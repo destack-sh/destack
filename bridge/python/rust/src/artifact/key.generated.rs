@@ -4,7 +4,7 @@ use destack_bridge_language as bridge;
 
 use pyo3::prelude::*;
 
-use crate::{ComponentId, ModuleId, PackageId, ProfileId, TargetId};
+use crate::{ComponentId, ModuleId, PackageId, ProductId, ProfileId, TargetId};
 
 /// External artifact key crossing bridge boundaries.
 #[pyclass(name = "ArtifactKey", module = "destack._native", from_py_object)]
@@ -258,6 +258,17 @@ impl ArtifactKey {
         }
     }
 
+    /// Output entries for one product.
+    #[staticmethod]
+    pub fn product_output(package: PackageId, product: ProductId) -> Self {
+        Self {
+            value: bridge::ArtifactKey::ProductOutput {
+                package: package.into_bridge(),
+                product: product.into_bridge(),
+            },
+        }
+    }
+
     /// Realized lint diagnostics for one module profile.
     #[staticmethod]
     pub fn module_linted(module: ModuleId, profile: ProfileId) -> Self {
@@ -313,6 +324,7 @@ impl ArtifactKey {
             bridge::ArtifactKey::WorkspaceQueryIndex { .. } => "workspaceQueryIndex",
             bridge::ArtifactKey::ModuleOutput { .. } => "moduleOutput",
             bridge::ArtifactKey::PackageOutput { .. } => "packageOutput",
+            bridge::ArtifactKey::ProductOutput { .. } => "productOutput",
             bridge::ArtifactKey::ModuleLinted { .. } => "moduleLinted",
             bridge::ArtifactKey::PackageLinted { .. } => "packageLinted",
             bridge::ArtifactKey::WorkspaceLinted => "workspaceLinted",
@@ -402,8 +414,22 @@ impl ArtifactKey {
             bridge::ArtifactKey::PackageOutput { package, .. } => {
                 Some(PackageId::from_bridge(package.clone()))
             }
+            bridge::ArtifactKey::ProductOutput { package, .. } => {
+                Some(PackageId::from_bridge(package.clone()))
+            }
             bridge::ArtifactKey::PackageLinted { package, .. } => {
                 Some(PackageId::from_bridge(package.clone()))
+            }
+            _ => None,
+        }
+    }
+
+    /// Return this payload field when present.
+    #[getter]
+    pub fn product(&self) -> Option<ProductId> {
+        match &self.value {
+            bridge::ArtifactKey::ProductOutput { product, .. } => {
+                Some(ProductId::from_bridge(product.clone()))
             }
             _ => None,
         }
