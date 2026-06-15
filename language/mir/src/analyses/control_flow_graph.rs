@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use super::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, Mutation};
+use crate as mir;
 use crate::{Block, BlockReference, Function, LocalNodeId, Tree};
 
 /// Control flow graph for one function.
@@ -85,6 +86,189 @@ impl FunctionAnalysis for ControlFlowGraph {
     fn compute(function: &Function, tree: &Tree, _analyses: &FunctionAnalyses) -> Self {
         Self::build(function, tree)
     }
+}
+
+/// Successor selected by one MIR terminator.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Successor {
+    /// The target of an unconditional jump.
+    Jump,
+    /// The return continuation of a call terminator.
+    CallReturn,
+    /// The unwind continuation of a call terminator.
+    CallUnwind,
+    /// The then target of a branch terminator.
+    BranchThen,
+    /// The else target of a branch terminator.
+    BranchElse,
+    /// The success target of a check terminator.
+    CheckSuccess,
+    /// The failure target of a check terminator.
+    CheckFailure,
+    /// The success target of a fallible terminator.
+    TrySuccess,
+    /// The failure target of a fallible terminator.
+    TryFailure,
+    /// One switch case target.
+    SwitchCase { value: i128 },
+    /// The default target of a switch terminator.
+    SwitchDefault,
+    /// The resume target of a yield terminator.
+    YieldResume,
+    /// The unwind target of a yield terminator.
+    YieldUnwind,
+}
+
+/// Control flow edge selected by a terminator successor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Edge {
+    /// The source block.
+    pub source: LocalNodeId<Block>,
+    /// The successor field selected from the source terminator.
+    pub successor: Successor,
+    /// The target block.
+    pub target: LocalNodeId<Block>,
+}
+
+impl Edge {
+    /// Create one control flow edge.
+    pub fn new(
+        source: LocalNodeId<Block>,
+        successor: Successor,
+        target: LocalNodeId<Block>,
+    ) -> Self {
+        Self {
+            source,
+            successor,
+            target,
+        }
+    }
+}
+
+/// Enumerate the control flow edges leaving one terminator.
+pub fn terminator_edges(
+    source: mir::LocalNodeId<mir::Block>,
+    terminator: &mir::Terminator,
+) -> Vec<(mir::Edge, mir::LocalNodeId<mir::Block>)> {
+    terminator_targets(source, terminator)
+        .into_iter()
+        .map(|(edge, _)| (edge, edge.target))
+        .collect()
+}
+
+/// Enumerate the control flow edges leaving one terminator with their targets.
+pub fn terminator_targets(
+    source: mir::LocalNodeId<mir::Block>,
+    terminator: &mir::Terminator,
+) -> Vec<(mir::Edge, &mir::BlockTarget)> {
+    match terminator {
+        mir::Terminator::Error => Vec::new(),
+        mir::Terminator::Jump { target, .. } => block_edge(source, mir::Successor::Jump, target)
+            .into_iter()
+            .collect(),
+        mir::Terminator::Branch {
+            then_target,
+            else_target,
+            ..
+        } => [
+            block_edge(source, mir::Successor::BranchThen, then_target),
+            block_edge(source, mir::Successor::BranchElse, else_target),
+        ]
+        .into_iter()
+        .flatten()
+        .collect(),
+        mir::Terminator::Check {
+            success, failure, ..
+        } => [
+            block_edge(source, mir::Successor::CheckSuccess, success),
+            block_edge(source, mir::Successor::CheckFailure, failure),
+        ]
+        .into_iter()
+        .flatten()
+        .collect(),
+        mir::Terminator::NewZeroedTry {
+            success, failure, ..
+        }
+        | mir::Terminator::NewUninitTry {
+            success, failure, ..
+        }
+        | mir::Terminator::NewSliceZeroedTry {
+            success, failure, ..
+        }
+        | mir::Terminator::NewSliceUninitTry {
+            success, failure, ..
+        } => [
+            block_edge(source, mir::Successor::TrySuccess, success),
+            block_edge(source, mir::Successor::TryFailure, failure),
+        ]
+        .into_iter()
+        .flatten()
+        .collect(),
+        mir::Terminator::Switch { default, cases, .. } => {
+            let mut edges = Vec::with_capacity(cases.len() + 1);
+
+            // default edge
+            edges.extend(block_edge(source, mir::Successor::SwitchDefault, default));
+
+            // case edges
+            for case in cases {
+                let Some(value) = case.value.integer() else {
+                    continue;
+                };
+                edges.extend(block_edge(
+                    source,
+                    mir::Successor::SwitchCase { value },
+                    &case.target,
+                ));
+            }
+
+            edges
+        }
+        mir::Terminator::Yield { resume, unwind, .. } => {
+            let mut edges = Vec::with_capacity(2);
+
+            edges.extend(block_edge(source, mir::Successor::YieldResume, resume));
+            if let Some(unwind) = unwind {
+                edges.extend(block_edge(source, mir::Successor::YieldUnwind, unwind));
+            }
+
+            edges
+        }
+        mir::Terminator::Call { target, unwind, .. }
+        | mir::Terminator::CallIndirect { target, unwind, .. }
+        | mir::Terminator::CallVirtual { target, unwind, .. }
+        | mir::Terminator::CallDynamic { target, unwind, .. } => {
+            let mut edges = Vec::with_capacity(2);
+
+            edges.extend(block_edge(source, mir::Successor::CallReturn, target));
+            if let Some(unwind) = unwind {
+                edges.extend(block_edge(source, mir::Successor::CallUnwind, unwind));
+            }
+
+            edges
+        }
+        mir::Terminator::Return { .. }
+        | mir::Terminator::Panic { .. }
+        | mir::Terminator::ResumeUnwind
+        | mir::Terminator::Trap { .. }
+        | mir::Terminator::Unreachable
+        | mir::Terminator::TailCall { .. }
+        | mir::Terminator::TailCallVirtual { .. }
+        | mir::Terminator::TailCallDynamic { .. }
+        | mir::Terminator::TailCallIndirect { .. } => Vec::new(),
+    }
+}
+
+/// Pair one block target with its edge when it resolves to a concrete block.
+fn block_edge(
+    source: mir::LocalNodeId<mir::Block>,
+    successor: mir::Successor,
+    target: &mir::BlockTarget,
+) -> Option<(mir::Edge, &mir::BlockTarget)> {
+    target
+        .block
+        .block()
+        .map(|block| (mir::Edge::new(source, successor, block), target))
 }
 
 #[cfg(test)]

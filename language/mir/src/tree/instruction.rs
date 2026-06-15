@@ -6,8 +6,8 @@ use smallvec::{SmallVec, smallvec};
 
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CompareExchangeAccess, Constant,
-    DispatchSlot, FenceAccess, FunctionReference, GlobalReference, Intrinsic, LocalReference, Node,
-    NodeType, Place, PlaceEffect, ProfileCounterId, Projection, TensorConvertMode,
+    CounterId, DispatchSlot, FenceAccess, FunctionReference, GlobalReference, Intrinsic,
+    LocalReference, Node, NodeType, Place, PlaceEffect, Projection, TensorConvertMode,
     TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
     TensorGatherDimensionNumbers, TensorIndexReduceOperator, TensorIndexTieBreak,
     TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, TypeReference,
@@ -903,12 +903,12 @@ pub enum Instruction {
     /// Increment one profile counter.
     ProfileIncrement {
         /// The counter to increment.
-        counter: ProfileCounterId,
+        counter: CounterId,
     },
     /// Record one profiled runtime value.
     ProfileValue {
         /// The counter receiving the sampled value.
-        counter: ProfileCounterId,
+        counter: CounterId,
         /// The sampled MIR value.
         value: ValueReference,
     },

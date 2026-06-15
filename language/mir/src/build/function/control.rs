@@ -25,10 +25,7 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::Jump {
-            target: BlockTarget {
-                block: target_block.into(),
-                arguments: Vec::new(),
-            },
+            target: BlockTarget::new(target_block.into(), Vec::new()),
         };
     }
 
@@ -47,14 +44,8 @@ impl<'a> FunctionBuilder<'a> {
 
         *terminator = Terminator::Branch {
             condition: condition_value.into(),
-            then_target: BlockTarget {
-                block: then_block.into(),
-                arguments: Vec::new(),
-            },
-            else_target: BlockTarget {
-                block: else_block.into(),
-                arguments: Vec::new(),
-            },
+            then_target: BlockTarget::new(then_block.into(), Vec::new()),
+            else_target: BlockTarget::new(else_block.into(), Vec::new()),
         };
     }
 
@@ -73,14 +64,8 @@ impl<'a> FunctionBuilder<'a> {
 
         *terminator = Terminator::Check {
             constraint,
-            success: BlockTarget {
-                block: success_block.into(),
-                arguments: Vec::new(),
-            },
-            failure: BlockTarget {
-                block: failure_block.into(),
-                arguments: Vec::new(),
-            },
+            success: BlockTarget::new(success_block.into(), Vec::new()),
+            failure: BlockTarget::new(failure_block.into(), Vec::new()),
         };
     }
 
@@ -140,10 +125,10 @@ impl<'a> FunctionBuilder<'a> {
                     .collect::<Vec<_>>(),
                 signature.into(),
             ),
-            target: BlockTarget {
-                block: target_block.into(),
-                arguments: target_arguments.into_iter().map(Into::into).collect(),
-            },
+            target: BlockTarget::new(
+                target_block.into(),
+                target_arguments.into_iter().map(Into::into).collect(),
+            ),
             unwind: None,
         };
     }
@@ -172,10 +157,10 @@ impl<'a> FunctionBuilder<'a> {
                     .collect::<Vec<_>>(),
                 signature.into(),
             ),
-            target: BlockTarget {
-                block: target_block.into(),
-                arguments: target_arguments.into_iter().map(Into::into).collect(),
-            },
+            target: BlockTarget::new(
+                target_block.into(),
+                target_arguments.into_iter().map(Into::into).collect(),
+            ),
             unwind: None,
         };
     }
@@ -209,10 +194,10 @@ impl<'a> FunctionBuilder<'a> {
                     .collect::<Vec<_>>(),
                 signature.into(),
             ),
-            target: BlockTarget {
-                block: target_block.into(),
-                arguments: target_arguments.into_iter().map(Into::into).collect(),
-            },
+            target: BlockTarget::new(
+                target_block.into(),
+                target_arguments.into_iter().map(Into::into).collect(),
+            ),
             unwind: None,
         };
         if let Some(target) = target {
@@ -252,10 +237,10 @@ impl<'a> FunctionBuilder<'a> {
                     .collect::<Vec<_>>(),
                 signature.into(),
             ),
-            target: BlockTarget {
-                block: target_block.into(),
-                arguments: target_arguments.into_iter().map(Into::into).collect(),
-            },
+            target: BlockTarget::new(
+                target_block.into(),
+                target_arguments.into_iter().map(Into::into).collect(),
+            ),
             unwind: None,
         };
     }

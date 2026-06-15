@@ -4,7 +4,7 @@ use crate::{LocalNodeId, Type};
 
 use super::{
     DataLayout, DispatchMetadata, DropMetadata, FunctionMetadataTable, LayoutMetadata,
-    MemoryMetadata, Profile, TypeMetadata,
+    MemoryMetadata, TypeMetadata,
 };
 
 /// Structured MIR metadata domains.
@@ -22,8 +22,6 @@ pub struct Metadata {
     pub drop: DropMetadata,
     /// Derived function and call metadata.
     pub functions: FunctionMetadataTable,
-    /// Profile metadata.
-    pub profile: Option<Profile>,
     /// Memory and alias metadata.
     pub memory: MemoryMetadata,
 }

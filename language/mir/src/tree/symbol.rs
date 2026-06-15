@@ -1,7 +1,7 @@
 use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
-/// Persistent, mangled linkable identity of a function or global.
+/// Persistent, mangled identity of a function, global, or type.
 ///
 /// Unique and stable across builds, minted from the resolved path during
 /// lowering. MIR carries it but does not compute it; cross-module references

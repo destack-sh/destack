@@ -2,9 +2,104 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use destack_core::StringId;
+use crate::Symbol;
 
-use crate::{Block, CallSite, Function, LocalNodeId};
+/// Loaded profile-guided optimization data for a program.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct Profile {
+    /// Per-function profile, by persistent symbol.
+    pub functions: HashMap<Symbol, FunctionProfile>,
+    /// Per-global profile, by persistent symbol.
+    pub globals: HashMap<Symbol, GlobalProfile>,
+}
+
+impl Profile {
+    /// Create an empty profile.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Return true when no per-symbol profile data is present.
+    pub fn is_empty(&self) -> bool {
+        self.functions.is_empty() && self.globals.is_empty()
+    }
+
+    /// Look up one function's profile by symbol.
+    pub fn function(&self, symbol: Symbol) -> Option<&FunctionProfile> {
+        self.functions.get(&symbol)
+    }
+
+    /// Look up one global's profile by symbol.
+    pub fn global(&self, symbol: Symbol) -> Option<&GlobalProfile> {
+        self.globals.get(&symbol)
+    }
+}
+
+/// Profile data for one function, addressed by its persistent symbol.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FunctionProfile {
+    /// Control-flow hash guarding against stale application.
+    pub hash: FunctionHash,
+    /// Function entry execution count.
+    pub entry: Count,
+    /// Per-counter execution counts, indexed by [`CounterId`].
+    pub counts: Vec<Count>,
+    /// Observed value-profiling sites, by counter.
+    pub values: HashMap<CounterId, ValueProfile>,
+}
+
+/// Profile data for one global, addressed by its persistent symbol.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GlobalProfile {
+    /// Writes observed after initialization; zero means effectively constant.
+    pub writes: Count,
+    /// Read accesses observed, for layout and colocation.
+    pub reads: Count,
+}
+
+/// Observed runtime values recorded at one value-profiling site.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ValueProfile {
+    /// Indirect and virtual call target distribution.
+    Calls(Histogram<Symbol>),
+    /// Observed runtime type distribution at a dynamic site.
+    Types(Histogram<Symbol>),
+    /// Scalar value or size distribution.
+    Scalars(Histogram<i64>),
+    /// Allocation size and survival behavior.
+    Alloc(Allocation),
+    /// Suspension behavior at a suspension point.
+    Suspend(Suspension),
+}
+
+/// Observed frequency distribution over a domain at one site.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Histogram<T> {
+    /// Observed entries and how often each occurred.
+    pub buckets: Vec<(T, Count)>,
+    /// Count attributed to entries not individually tracked.
+    pub unknown: Count,
+}
+
+/// Observed allocation behavior at one allocation site.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Allocation {
+    /// Observed payload sizes; its total is the number of allocations seen.
+    pub size: Histogram<i64>,
+    /// How many of those allocations were promoted past the young generation.
+    pub survived: Count,
+}
+
+/// Observed suspension behavior at one suspension point.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Suspension {
+    /// Executions of the suspension point.
+    pub reached: Count,
+    /// Of those, how many actually parked (handed back a continuation).
+    pub parked: Count,
+    /// Of the parked frames, how many were resumed; the rest were dropped.
+    pub resumed: Count,
+}
 
 /// Execution count from profile data.
 #[derive(
@@ -29,143 +124,16 @@ impl Count {
     }
 }
 
-/// Successor selected by one MIR terminator.
+/// Identifier for one emitted profile counter, positional within a function.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum Successor {
-    /// The target of an unconditional jump.
-    Jump,
-    /// The return continuation of a call terminator.
-    CallReturn,
-    /// The unwind continuation of a call terminator.
-    CallUnwind,
-    /// The then target of a branch terminator.
-    BranchThen,
-    /// The else target of a branch terminator.
-    BranchElse,
-    /// The success target of a check terminator.
-    CheckSuccess,
-    /// The failure target of a check terminator.
-    CheckFailure,
-    /// The success target of a fallible terminator.
-    TrySuccess,
-    /// The failure target of a fallible terminator.
-    TryFailure,
-    /// One switch case target.
-    SwitchCase { value: i128 },
-    /// The default target of a switch terminator.
-    SwitchDefault,
-    /// The resume target of a yield terminator.
-    YieldResume,
-    /// The unwind target of a yield terminator.
-    YieldUnwind,
-}
-
-/// Control flow edge selected by a terminator successor.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct Edge {
-    /// The source block.
-    pub source: LocalNodeId<Block>,
-    /// The successor field selected from the source terminator.
-    pub successor: Successor,
-    /// The target block.
-    pub target: LocalNodeId<Block>,
-}
-
-impl Edge {
-    /// Create one control flow edge.
-    pub fn new(
-        source: LocalNodeId<Block>,
-        successor: Successor,
-        target: LocalNodeId<Block>,
-    ) -> Self {
-        Self {
-            source,
-            successor,
-            target,
-        }
-    }
-}
-
-/// Profile data for a callsite.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CallSiteProfile {
-    /// Total executions at this callsite.
-    pub total_count: Count,
-    /// Known target distribution for indirect calls.
-    pub targets: Vec<CallTargetProfile>,
-    /// Count attributed to unknown targets.
-    pub unknown_count: Count,
-}
-
-/// Profile data for a call target.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CallTargetProfile {
-    /// Target identifier.
-    pub target: CallTarget,
-    /// Execution count for the target.
-    pub count: Count,
-}
-
-/// Target identifier for indirect call profiles.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum CallTarget {
-    /// A known MIR function.
-    Function(LocalNodeId<Function>),
-    /// A symbol not present in this MIR module.
-    Symbol(StringId),
-}
-
-/// Identifier for one emitted profile counter.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ProfileCounterId(
+pub struct CounterId(
     /// The zero-based profile counter index.
     pub u32,
 );
 
-/// Profile-guided optimization data for a MIR module.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Profile {
-    /// Per-function entry counts.
-    pub functions: HashMap<LocalNodeId<Function>, Count>,
-    /// Per-block execution counts.
-    pub blocks: HashMap<LocalNodeId<Block>, Count>,
-    /// Per-edge execution counts.
-    pub edges: HashMap<Edge, Count>,
-    /// Per-callsite profiles.
-    pub callsites: HashMap<CallSite, CallSiteProfile>,
-}
-
-impl Profile {
-    /// Create an empty profile.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Return true when no profile data is present.
-    pub fn is_empty(&self) -> bool {
-        self.functions.is_empty()
-            && self.blocks.is_empty()
-            && self.edges.is_empty()
-            && self.callsites.is_empty()
-    }
-
-    /// Look up a function entry count.
-    pub fn function_count(&self, function: LocalNodeId<Function>) -> Option<Count> {
-        self.functions.get(&function).copied()
-    }
-
-    /// Look up a block execution count.
-    pub fn block_count(&self, block: LocalNodeId<Block>) -> Option<Count> {
-        self.blocks.get(&block).copied()
-    }
-
-    /// Look up an edge execution count.
-    pub fn edge_count(&self, edge: &Edge) -> Option<Count> {
-        self.edges.get(edge).copied()
-    }
-
-    /// Look up a callsite profile.
-    pub fn callsite_profile(&self, callsite: CallSite) -> Option<&CallSiteProfile> {
-        self.callsites.get(&callsite)
-    }
-}
+/// Structural hash of a function's profiled control flow, for stale detection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct FunctionHash(
+    /// The structural hash value.
+    pub u64,
+);
