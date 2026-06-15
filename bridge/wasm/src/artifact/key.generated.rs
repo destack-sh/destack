@@ -46,6 +46,13 @@ enum ArtifactKeyContent {
         /// Semantic profile.
         profile: ProfileId,
     },
+    /// Whole-program analysis for one profile and target.
+    ProgramAnalysis {
+        /// Semantic profile.
+        profile: ProfileId,
+        /// Build target.
+        target: TargetId,
+    },
     /// Bound DIR.
     DirBound {
         /// Source module.
@@ -122,6 +129,15 @@ enum ArtifactKeyContent {
     },
     /// Verified MIR after required semantic verification.
     MirVerified {
+        /// Source module.
+        module: ModuleId,
+        /// Semantic profile.
+        profile: ProfileId,
+        /// Build target.
+        target: TargetId,
+    },
+    /// Per-module link summary for whole-program analysis.
+    MirAnalyzed {
         /// Source module.
         module: ModuleId,
         /// Semantic profile.
@@ -238,6 +254,14 @@ impl ArtifactKey {
     }
 
     /// Create one payload variant.
+    #[wasm_bindgen(js_name = "programAnalysis")]
+    pub fn program_analysis(profile: ProfileId, target: TargetId) -> Self {
+        Self {
+            content: ArtifactKeyContent::ProgramAnalysis { profile, target },
+        }
+    }
+
+    /// Create one payload variant.
     #[wasm_bindgen(js_name = "dirBound")]
     pub fn dir_bound(module: ModuleId, profile: ProfileId) -> Self {
         Self {
@@ -342,6 +366,18 @@ impl ArtifactKey {
     }
 
     /// Create one payload variant.
+    #[wasm_bindgen(js_name = "mirAnalyzed")]
+    pub fn mir_analyzed(module: ModuleId, profile: ProfileId, target: TargetId) -> Self {
+        Self {
+            content: ArtifactKeyContent::MirAnalyzed {
+                module,
+                profile,
+                target,
+            },
+        }
+    }
+
+    /// Create one payload variant.
     #[wasm_bindgen(js_name = "mirOptimized")]
     pub fn mir_optimized(module: ModuleId, profile: ProfileId, target: TargetId) -> Self {
         Self {
@@ -427,6 +463,7 @@ impl ArtifactKey {
             ArtifactKeyContent::PackageIndex { .. } => "packageIndex",
             ArtifactKeyContent::ModuleIndex { .. } => "moduleIndex",
             ArtifactKeyContent::ComponentGraph { .. } => "componentGraph",
+            ArtifactKeyContent::ProgramAnalysis { .. } => "programAnalysis",
             ArtifactKeyContent::DirBound { .. } => "dirBound",
             ArtifactKeyContent::DirImported { .. } => "dirImported",
             ArtifactKeyContent::DirExpanded { .. } => "dirExpanded",
@@ -438,6 +475,7 @@ impl ArtifactKey {
             ArtifactKeyContent::DirElaborated { .. } => "dirElaborated",
             ArtifactKeyContent::MirLowered { .. } => "mirLowered",
             ArtifactKeyContent::MirVerified { .. } => "mirVerified",
+            ArtifactKeyContent::MirAnalyzed { .. } => "mirAnalyzed",
             ArtifactKeyContent::MirOptimized { .. } => "mirOptimized",
             ArtifactKeyContent::ModuleQueryIndex { .. } => "moduleQueryIndex",
             ArtifactKeyContent::WorkspaceQueryIndex { .. } => "workspaceQueryIndex",
@@ -467,6 +505,7 @@ impl ArtifactKey {
             ArtifactKeyContent::DirElaborated { module: value, .. } => Some(value.clone()),
             ArtifactKeyContent::MirLowered { module: value, .. } => Some(value.clone()),
             ArtifactKeyContent::MirVerified { module: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::MirAnalyzed { module: value, .. } => Some(value.clone()),
             ArtifactKeyContent::MirOptimized { module: value, .. } => Some(value.clone()),
             ArtifactKeyContent::ModuleQueryIndex { module: value, .. } => Some(value.clone()),
             ArtifactKeyContent::ModuleOutput { module: value, .. } => Some(value.clone()),
@@ -483,6 +522,7 @@ impl ArtifactKey {
             ArtifactKeyContent::PackageIndex { profile: value, .. } => Some(value.clone()),
             ArtifactKeyContent::ModuleIndex { profile: value, .. } => Some(value.clone()),
             ArtifactKeyContent::ComponentGraph { profile: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::ProgramAnalysis { profile: value, .. } => Some(value.clone()),
             ArtifactKeyContent::DirBound { profile: value, .. } => Some(value.clone()),
             ArtifactKeyContent::DirImported { profile: value, .. } => Some(value.clone()),
             ArtifactKeyContent::DirExpanded { profile: value, .. } => Some(value.clone()),
@@ -494,10 +534,26 @@ impl ArtifactKey {
             ArtifactKeyContent::DirElaborated { profile: value, .. } => Some(value.clone()),
             ArtifactKeyContent::MirLowered { profile: value, .. } => Some(value.clone()),
             ArtifactKeyContent::MirVerified { profile: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::MirAnalyzed { profile: value, .. } => Some(value.clone()),
             ArtifactKeyContent::MirOptimized { profile: value, .. } => Some(value.clone()),
             ArtifactKeyContent::ModuleQueryIndex { profile: value, .. } => Some(value.clone()),
             ArtifactKeyContent::WorkspaceQueryIndex { profile: value, .. } => Some(value.clone()),
             ArtifactKeyContent::ModuleLinted { profile: value, .. } => Some(value.clone()),
+            _ => None,
+        }
+    }
+
+    /// Build target.
+    #[wasm_bindgen(getter, js_name = "target")]
+    pub fn target(&self) -> Option<TargetId> {
+        match &self.content {
+            ArtifactKeyContent::ProgramAnalysis { target: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::MirLowered { target: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::MirVerified { target: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::MirAnalyzed { target: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::MirOptimized { target: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::ModuleOutput { target: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::PackageOutput { target: value, .. } => Some(value.clone()),
             _ => None,
         }
     }
@@ -518,19 +574,6 @@ impl ArtifactKey {
             ArtifactKeyContent::DirCheckedComponent {
                 component: value, ..
             } => Some(value.clone()),
-            _ => None,
-        }
-    }
-
-    /// Build target.
-    #[wasm_bindgen(getter, js_name = "target")]
-    pub fn target(&self) -> Option<TargetId> {
-        match &self.content {
-            ArtifactKeyContent::MirLowered { target: value, .. } => Some(value.clone()),
-            ArtifactKeyContent::MirVerified { target: value, .. } => Some(value.clone()),
-            ArtifactKeyContent::MirOptimized { target: value, .. } => Some(value.clone()),
-            ArtifactKeyContent::ModuleOutput { target: value, .. } => Some(value.clone()),
-            ArtifactKeyContent::PackageOutput { target: value, .. } => Some(value.clone()),
             _ => None,
         }
     }
@@ -580,6 +623,12 @@ impl ArtifactKey {
             ArtifactKeyContent::ComponentGraph { profile } => bridge::ArtifactKey::ComponentGraph {
                 profile: profile.into_bridge(),
             },
+            ArtifactKeyContent::ProgramAnalysis { profile, target } => {
+                bridge::ArtifactKey::ProgramAnalysis {
+                    profile: profile.into_bridge(),
+                    target: target.into_bridge(),
+                }
+            }
             ArtifactKeyContent::DirBound { module, profile } => bridge::ArtifactKey::DirBound {
                 module: module.into_bridge(),
                 profile: profile.into_bridge(),
@@ -647,6 +696,15 @@ impl ArtifactKey {
                 profile,
                 target,
             } => bridge::ArtifactKey::MirVerified {
+                module: module.into_bridge(),
+                profile: profile.into_bridge(),
+                target: target.into_bridge(),
+            },
+            ArtifactKeyContent::MirAnalyzed {
+                module,
+                profile,
+                target,
+            } => bridge::ArtifactKey::MirAnalyzed {
                 module: module.into_bridge(),
                 profile: profile.into_bridge(),
                 target: target.into_bridge(),
@@ -737,6 +795,12 @@ impl ArtifactKey {
                     profile: ProfileId::from_bridge(profile),
                 },
             },
+            bridge::ArtifactKey::ProgramAnalysis { profile, target } => Self {
+                content: ArtifactKeyContent::ProgramAnalysis {
+                    profile: ProfileId::from_bridge(profile),
+                    target: TargetId::from_bridge(target),
+                },
+            },
             bridge::ArtifactKey::DirBound { module, profile } => Self {
                 content: ArtifactKeyContent::DirBound {
                     module: ModuleId::from_bridge(module),
@@ -813,6 +877,17 @@ impl ArtifactKey {
                 target,
             } => Self {
                 content: ArtifactKeyContent::MirVerified {
+                    module: ModuleId::from_bridge(module),
+                    profile: ProfileId::from_bridge(profile),
+                    target: TargetId::from_bridge(target),
+                },
+            },
+            bridge::ArtifactKey::MirAnalyzed {
+                module,
+                profile,
+                target,
+            } => Self {
+                content: ArtifactKeyContent::MirAnalyzed {
                     module: ModuleId::from_bridge(module),
                     profile: ProfileId::from_bridge(profile),
                     target: TargetId::from_bridge(target),

@@ -202,6 +202,13 @@ export function toWasmArtifactKey(
         return wasm.ArtifactKey.componentGraph(toWasmProfileId(wasm, value.profile));
     }
 
+    if (value.kind === "programAnalysis") {
+        return wasm.ArtifactKey.programAnalysis(
+            toWasmProfileId(wasm, value.profile),
+            toWasmTargetId(wasm, value.target),
+        );
+    }
+
     if (value.kind === "dirBound") {
         return wasm.ArtifactKey.dirBound(
             toWasmModuleId(wasm, value.module),
@@ -276,6 +283,14 @@ export function toWasmArtifactKey(
 
     if (value.kind === "mirVerified") {
         return wasm.ArtifactKey.mirVerified(
+            toWasmModuleId(wasm, value.module),
+            toWasmProfileId(wasm, value.profile),
+            toWasmTargetId(wasm, value.target),
+        );
+    }
+
+    if (value.kind === "mirAnalyzed") {
+        return wasm.ArtifactKey.mirAnalyzed(
             toWasmModuleId(wasm, value.module),
             toWasmProfileId(wasm, value.profile),
             toWasmTargetId(wasm, value.target),
@@ -411,6 +426,24 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
         return {
             kind: "componentGraph",
             profile: fromWasmProfileId(payload_profile),
+        };
+    }
+
+    if (value.kind === "programAnalysis") {
+        const payload_profile = value.profile;
+        if (payload_profile == null) {
+            throw new Error("profile payload is missing");
+        }
+
+        const payload_target = value.target;
+        if (payload_target == null) {
+            throw new Error("target payload is missing");
+        }
+
+        return {
+            kind: "programAnalysis",
+            profile: fromWasmProfileId(payload_profile),
+            target: fromWasmTargetId(payload_target),
         };
     }
 
@@ -624,6 +657,30 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
 
         return {
             kind: "mirVerified",
+            module: fromWasmModuleId(payload_module),
+            profile: fromWasmProfileId(payload_profile),
+            target: fromWasmTargetId(payload_target),
+        };
+    }
+
+    if (value.kind === "mirAnalyzed") {
+        const payload_module = value.module;
+        if (payload_module == null) {
+            throw new Error("module payload is missing");
+        }
+
+        const payload_profile = value.profile;
+        if (payload_profile == null) {
+            throw new Error("profile payload is missing");
+        }
+
+        const payload_target = value.target;
+        if (payload_target == null) {
+            throw new Error("target payload is missing");
+        }
+
+        return {
+            kind: "mirAnalyzed",
             module: fromWasmModuleId(payload_module),
             profile: fromWasmProfileId(payload_profile),
             target: fromWasmTargetId(payload_target),

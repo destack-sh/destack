@@ -5917,6 +5917,23 @@ pub unsafe extern "C" fn destack_artifact_key_component_graph(
 
 /// Create one artifact key handle.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_artifact_key_program_analysis(
+    profile: DestackProfileId,
+    target: DestackTargetId,
+    out: *mut *mut DestackArtifactKey,
+    error: *mut *mut DestackError,
+) -> DestackStatus {
+    return_status(error, || {
+        let profile = profile.to_bridge()?;
+        let target = target.to_bridge()?;
+        let value = rust::ArtifactKey::ProgramAnalysis { profile, target };
+        let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
+        write_out(out, key, "artifact key output is null")
+    })
+}
+
+/// Create one artifact key handle.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_artifact_key_dir_bound(
     module: DestackModuleId,
     profile: DestackProfileId,
@@ -6111,6 +6128,29 @@ pub unsafe extern "C" fn destack_artifact_key_mir_verified(
         let profile = profile.to_bridge()?;
         let target = target.to_bridge()?;
         let value = rust::ArtifactKey::MirVerified {
+            module,
+            profile,
+            target,
+        };
+        let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
+        write_out(out, key, "artifact key output is null")
+    })
+}
+
+/// Create one artifact key handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_artifact_key_mir_analyzed(
+    module: DestackModuleId,
+    profile: DestackProfileId,
+    target: DestackTargetId,
+    out: *mut *mut DestackArtifactKey,
+    error: *mut *mut DestackError,
+) -> DestackStatus {
+    return_status(error, || {
+        let module = module.to_bridge()?;
+        let profile = profile.to_bridge()?;
+        let target = target.to_bridge()?;
+        let value = rust::ArtifactKey::MirAnalyzed {
             module,
             profile,
             target,

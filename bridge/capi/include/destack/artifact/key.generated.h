@@ -40,6 +40,12 @@ DestackStatus destack_artifact_key_component_graph(
     DestackArtifactKey **out,
     DestackError **error
 );
+DestackStatus destack_artifact_key_program_analysis(
+    DestackProfileId profile,
+    DestackTargetId target,
+    DestackArtifactKey **out,
+    DestackError **error
+);
 DestackStatus destack_artifact_key_dir_bound(
     DestackModuleId module,
     DestackProfileId profile,
@@ -103,6 +109,13 @@ DestackStatus destack_artifact_key_mir_lowered(
     DestackError **error
 );
 DestackStatus destack_artifact_key_mir_verified(
+    DestackModuleId module,
+    DestackProfileId profile,
+    DestackTargetId target,
+    DestackArtifactKey **out,
+    DestackError **error
+);
+DestackStatus destack_artifact_key_mir_analyzed(
     DestackModuleId module,
     DestackProfileId profile,
     DestackTargetId target,

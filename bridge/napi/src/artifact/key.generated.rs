@@ -16,12 +16,12 @@ pub struct ArtifactKey {
     pub module: Option<ModuleId>,
     /// Semantic profile.
     pub profile: Option<ProfileId>,
+    /// Build target.
+    pub target: Option<TargetId>,
     /// Component entry module.
     pub entry: Option<ModuleId>,
     /// Checked component id.
     pub component: Option<ComponentId>,
-    /// Build target.
-    pub target: Option<TargetId>,
     /// Source package.
     pub package: Option<PackageId>,
     /// Product.
@@ -36,14 +36,14 @@ impl ArtifactKey {
                 if self.profile.is_some() {
                     return Err(unexpected_payload("profile"));
                 }
+                if self.target.is_some() {
+                    return Err(unexpected_payload("target"));
+                }
                 if self.entry.is_some() {
                     return Err(unexpected_payload("entry"));
                 }
                 if self.component.is_some() {
                     return Err(unexpected_payload("component"));
-                }
-                if self.target.is_some() {
-                    return Err(unexpected_payload("target"));
                 }
                 if self.package.is_some() {
                     return Err(unexpected_payload("package"));
@@ -61,14 +61,14 @@ impl ArtifactKey {
                 if self.profile.is_some() {
                     return Err(unexpected_payload("profile"));
                 }
+                if self.target.is_some() {
+                    return Err(unexpected_payload("target"));
+                }
                 if self.entry.is_some() {
                     return Err(unexpected_payload("entry"));
                 }
                 if self.component.is_some() {
                     return Err(unexpected_payload("component"));
-                }
-                if self.target.is_some() {
-                    return Err(unexpected_payload("target"));
                 }
                 if self.package.is_some() {
                     return Err(unexpected_payload("package"));
@@ -86,14 +86,14 @@ impl ArtifactKey {
                 if self.module.is_some() {
                     return Err(unexpected_payload("module"));
                 }
+                if self.target.is_some() {
+                    return Err(unexpected_payload("target"));
+                }
                 if self.entry.is_some() {
                     return Err(unexpected_payload("entry"));
                 }
                 if self.component.is_some() {
                     return Err(unexpected_payload("component"));
-                }
-                if self.target.is_some() {
-                    return Err(unexpected_payload("target"));
                 }
                 if self.package.is_some() {
                     return Err(unexpected_payload("package"));
@@ -111,14 +111,14 @@ impl ArtifactKey {
                 if self.module.is_some() {
                     return Err(unexpected_payload("module"));
                 }
+                if self.target.is_some() {
+                    return Err(unexpected_payload("target"));
+                }
                 if self.entry.is_some() {
                     return Err(unexpected_payload("entry"));
                 }
                 if self.component.is_some() {
                     return Err(unexpected_payload("component"));
-                }
-                if self.target.is_some() {
-                    return Err(unexpected_payload("target"));
                 }
                 if self.package.is_some() {
                     return Err(unexpected_payload("package"));
@@ -136,14 +136,14 @@ impl ArtifactKey {
                 if self.module.is_some() {
                     return Err(unexpected_payload("module"));
                 }
+                if self.target.is_some() {
+                    return Err(unexpected_payload("target"));
+                }
                 if self.entry.is_some() {
                     return Err(unexpected_payload("entry"));
                 }
                 if self.component.is_some() {
                     return Err(unexpected_payload("component"));
-                }
-                if self.target.is_some() {
-                    return Err(unexpected_payload("target"));
                 }
                 if self.package.is_some() {
                     return Err(unexpected_payload("package"));
@@ -161,14 +161,14 @@ impl ArtifactKey {
                 if self.module.is_some() {
                     return Err(unexpected_payload("module"));
                 }
+                if self.target.is_some() {
+                    return Err(unexpected_payload("target"));
+                }
                 if self.entry.is_some() {
                     return Err(unexpected_payload("entry"));
                 }
                 if self.component.is_some() {
                     return Err(unexpected_payload("component"));
-                }
-                if self.target.is_some() {
-                    return Err(unexpected_payload("target"));
                 }
                 if self.package.is_some() {
                     return Err(unexpected_payload("package"));
@@ -182,15 +182,41 @@ impl ArtifactKey {
                 let profile = value.into_bridge()?;
                 Ok(bridge::ArtifactKey::ComponentGraph { profile })
             }
-            "dirBound" => {
+            "programAnalysis" => {
+                if self.module.is_some() {
+                    return Err(unexpected_payload("module"));
+                }
                 if self.entry.is_some() {
                     return Err(unexpected_payload("entry"));
                 }
                 if self.component.is_some() {
                     return Err(unexpected_payload("component"));
                 }
+                if self.package.is_some() {
+                    return Err(unexpected_payload("package"));
+                }
+                if self.product.is_some() {
+                    return Err(unexpected_payload("product"));
+                }
+                let Some(value) = self.profile else {
+                    return Err(missing_payload("profile"));
+                };
+                let profile = value.into_bridge()?;
+                let Some(value) = self.target else {
+                    return Err(missing_payload("target"));
+                };
+                let target = value.into_bridge()?;
+                Ok(bridge::ArtifactKey::ProgramAnalysis { profile, target })
+            }
+            "dirBound" => {
                 if self.target.is_some() {
                     return Err(unexpected_payload("target"));
+                }
+                if self.entry.is_some() {
+                    return Err(unexpected_payload("entry"));
+                }
+                if self.component.is_some() {
+                    return Err(unexpected_payload("component"));
                 }
                 if self.package.is_some() {
                     return Err(unexpected_payload("package"));
@@ -209,14 +235,14 @@ impl ArtifactKey {
                 Ok(bridge::ArtifactKey::DirBound { module, profile })
             }
             "dirImported" => {
+                if self.target.is_some() {
+                    return Err(unexpected_payload("target"));
+                }
                 if self.entry.is_some() {
                     return Err(unexpected_payload("entry"));
                 }
                 if self.component.is_some() {
                     return Err(unexpected_payload("component"));
-                }
-                if self.target.is_some() {
-                    return Err(unexpected_payload("target"));
                 }
                 if self.package.is_some() {
                     return Err(unexpected_payload("package"));
@@ -235,14 +261,14 @@ impl ArtifactKey {
                 Ok(bridge::ArtifactKey::DirImported { module, profile })
             }
             "dirExpanded" => {
+                if self.target.is_some() {
+                    return Err(unexpected_payload("target"));
+                }
                 if self.entry.is_some() {
                     return Err(unexpected_payload("entry"));
                 }
                 if self.component.is_some() {
                     return Err(unexpected_payload("component"));
-                }
-                if self.target.is_some() {
-                    return Err(unexpected_payload("target"));
                 }
                 if self.package.is_some() {
                     return Err(unexpected_payload("package"));
@@ -261,14 +287,14 @@ impl ArtifactKey {
                 Ok(bridge::ArtifactKey::DirExpanded { module, profile })
             }
             "dirExported" => {
+                if self.target.is_some() {
+                    return Err(unexpected_payload("target"));
+                }
                 if self.entry.is_some() {
                     return Err(unexpected_payload("entry"));
                 }
                 if self.component.is_some() {
                     return Err(unexpected_payload("component"));
-                }
-                if self.target.is_some() {
-                    return Err(unexpected_payload("target"));
                 }
                 if self.package.is_some() {
                     return Err(unexpected_payload("package"));
@@ -287,14 +313,14 @@ impl ArtifactKey {
                 Ok(bridge::ArtifactKey::DirExported { module, profile })
             }
             "dirResolved" => {
+                if self.target.is_some() {
+                    return Err(unexpected_payload("target"));
+                }
                 if self.entry.is_some() {
                     return Err(unexpected_payload("entry"));
                 }
                 if self.component.is_some() {
                     return Err(unexpected_payload("component"));
-                }
-                if self.target.is_some() {
-                    return Err(unexpected_payload("target"));
                 }
                 if self.package.is_some() {
                     return Err(unexpected_payload("package"));
@@ -344,14 +370,14 @@ impl ArtifactKey {
                 })
             }
             "dirChecked" => {
+                if self.target.is_some() {
+                    return Err(unexpected_payload("target"));
+                }
                 if self.entry.is_some() {
                     return Err(unexpected_payload("entry"));
                 }
                 if self.component.is_some() {
                     return Err(unexpected_payload("component"));
-                }
-                if self.target.is_some() {
-                    return Err(unexpected_payload("target"));
                 }
                 if self.package.is_some() {
                     return Err(unexpected_payload("package"));
@@ -370,14 +396,14 @@ impl ArtifactKey {
                 Ok(bridge::ArtifactKey::DirChecked { module, profile })
             }
             "dirMaterialized" => {
+                if self.target.is_some() {
+                    return Err(unexpected_payload("target"));
+                }
                 if self.entry.is_some() {
                     return Err(unexpected_payload("entry"));
                 }
                 if self.component.is_some() {
                     return Err(unexpected_payload("component"));
-                }
-                if self.target.is_some() {
-                    return Err(unexpected_payload("target"));
                 }
                 if self.package.is_some() {
                     return Err(unexpected_payload("package"));
@@ -396,14 +422,14 @@ impl ArtifactKey {
                 Ok(bridge::ArtifactKey::DirMaterialized { module, profile })
             }
             "dirElaborated" => {
+                if self.target.is_some() {
+                    return Err(unexpected_payload("target"));
+                }
                 if self.entry.is_some() {
                     return Err(unexpected_payload("entry"));
                 }
                 if self.component.is_some() {
                     return Err(unexpected_payload("component"));
-                }
-                if self.target.is_some() {
-                    return Err(unexpected_payload("target"));
                 }
                 if self.package.is_some() {
                     return Err(unexpected_payload("package"));
@@ -483,6 +509,37 @@ impl ArtifactKey {
                     target,
                 })
             }
+            "mirAnalyzed" => {
+                if self.entry.is_some() {
+                    return Err(unexpected_payload("entry"));
+                }
+                if self.component.is_some() {
+                    return Err(unexpected_payload("component"));
+                }
+                if self.package.is_some() {
+                    return Err(unexpected_payload("package"));
+                }
+                if self.product.is_some() {
+                    return Err(unexpected_payload("product"));
+                }
+                let Some(value) = self.module else {
+                    return Err(missing_payload("module"));
+                };
+                let module = value.into_bridge()?;
+                let Some(value) = self.profile else {
+                    return Err(missing_payload("profile"));
+                };
+                let profile = value.into_bridge()?;
+                let Some(value) = self.target else {
+                    return Err(missing_payload("target"));
+                };
+                let target = value.into_bridge()?;
+                Ok(bridge::ArtifactKey::MirAnalyzed {
+                    module,
+                    profile,
+                    target,
+                })
+            }
             "mirOptimized" => {
                 if self.entry.is_some() {
                     return Err(unexpected_payload("entry"));
@@ -515,14 +572,14 @@ impl ArtifactKey {
                 })
             }
             "moduleQueryIndex" => {
+                if self.target.is_some() {
+                    return Err(unexpected_payload("target"));
+                }
                 if self.entry.is_some() {
                     return Err(unexpected_payload("entry"));
                 }
                 if self.component.is_some() {
                     return Err(unexpected_payload("component"));
-                }
-                if self.target.is_some() {
-                    return Err(unexpected_payload("target"));
                 }
                 if self.package.is_some() {
                     return Err(unexpected_payload("package"));
@@ -544,14 +601,14 @@ impl ArtifactKey {
                 if self.module.is_some() {
                     return Err(unexpected_payload("module"));
                 }
+                if self.target.is_some() {
+                    return Err(unexpected_payload("target"));
+                }
                 if self.entry.is_some() {
                     return Err(unexpected_payload("entry"));
                 }
                 if self.component.is_some() {
                     return Err(unexpected_payload("component"));
-                }
-                if self.target.is_some() {
-                    return Err(unexpected_payload("target"));
                 }
                 if self.package.is_some() {
                     return Err(unexpected_payload("package"));
@@ -624,14 +681,14 @@ impl ArtifactKey {
                 if self.profile.is_some() {
                     return Err(unexpected_payload("profile"));
                 }
+                if self.target.is_some() {
+                    return Err(unexpected_payload("target"));
+                }
                 if self.entry.is_some() {
                     return Err(unexpected_payload("entry"));
                 }
                 if self.component.is_some() {
                     return Err(unexpected_payload("component"));
-                }
-                if self.target.is_some() {
-                    return Err(unexpected_payload("target"));
                 }
                 let Some(value) = self.package else {
                     return Err(missing_payload("package"));
@@ -644,14 +701,14 @@ impl ArtifactKey {
                 Ok(bridge::ArtifactKey::ProductOutput { package, product })
             }
             "moduleLinted" => {
+                if self.target.is_some() {
+                    return Err(unexpected_payload("target"));
+                }
                 if self.entry.is_some() {
                     return Err(unexpected_payload("entry"));
                 }
                 if self.component.is_some() {
                     return Err(unexpected_payload("component"));
-                }
-                if self.target.is_some() {
-                    return Err(unexpected_payload("target"));
                 }
                 if self.package.is_some() {
                     return Err(unexpected_payload("package"));
@@ -676,14 +733,14 @@ impl ArtifactKey {
                 if self.profile.is_some() {
                     return Err(unexpected_payload("profile"));
                 }
+                if self.target.is_some() {
+                    return Err(unexpected_payload("target"));
+                }
                 if self.entry.is_some() {
                     return Err(unexpected_payload("entry"));
                 }
                 if self.component.is_some() {
                     return Err(unexpected_payload("component"));
-                }
-                if self.target.is_some() {
-                    return Err(unexpected_payload("target"));
                 }
                 if self.product.is_some() {
                     return Err(unexpected_payload("product"));
@@ -701,14 +758,14 @@ impl ArtifactKey {
                 if self.profile.is_some() {
                     return Err(unexpected_payload("profile"));
                 }
+                if self.target.is_some() {
+                    return Err(unexpected_payload("target"));
+                }
                 if self.entry.is_some() {
                     return Err(unexpected_payload("entry"));
                 }
                 if self.component.is_some() {
                     return Err(unexpected_payload("component"));
-                }
-                if self.target.is_some() {
-                    return Err(unexpected_payload("target"));
                 }
                 if self.package.is_some() {
                     return Err(unexpected_payload("package"));
@@ -745,9 +802,9 @@ impl ArtifactKey {
                 kind: "dirParsed".to_string(),
                 module: Some(ModuleId::from_bridge(module)),
                 profile: None,
+                target: None,
                 entry: None,
                 component: None,
-                target: None,
                 package: None,
                 product: None,
             },
@@ -755,9 +812,9 @@ impl ArtifactKey {
                 kind: "data".to_string(),
                 module: Some(ModuleId::from_bridge(module)),
                 profile: None,
+                target: None,
                 entry: None,
                 component: None,
-                target: None,
                 package: None,
                 product: None,
             },
@@ -765,9 +822,9 @@ impl ArtifactKey {
                 kind: "globalEnvironment".to_string(),
                 profile: Some(ProfileId::from_bridge(profile)),
                 module: None,
+                target: None,
                 entry: None,
                 component: None,
-                target: None,
                 package: None,
                 product: None,
             },
@@ -775,9 +832,9 @@ impl ArtifactKey {
                 kind: "packageIndex".to_string(),
                 profile: Some(ProfileId::from_bridge(profile)),
                 module: None,
+                target: None,
                 entry: None,
                 component: None,
-                target: None,
                 package: None,
                 product: None,
             },
@@ -785,9 +842,9 @@ impl ArtifactKey {
                 kind: "moduleIndex".to_string(),
                 profile: Some(ProfileId::from_bridge(profile)),
                 module: None,
+                target: None,
                 entry: None,
                 component: None,
-                target: None,
                 package: None,
                 product: None,
             },
@@ -795,9 +852,19 @@ impl ArtifactKey {
                 kind: "componentGraph".to_string(),
                 profile: Some(ProfileId::from_bridge(profile)),
                 module: None,
+                target: None,
                 entry: None,
                 component: None,
-                target: None,
+                package: None,
+                product: None,
+            },
+            bridge::ArtifactKey::ProgramAnalysis { profile, target } => Self {
+                kind: "programAnalysis".to_string(),
+                profile: Some(ProfileId::from_bridge(profile)),
+                target: Some(TargetId::from_bridge(target)),
+                module: None,
+                entry: None,
+                component: None,
                 package: None,
                 product: None,
             },
@@ -805,9 +872,9 @@ impl ArtifactKey {
                 kind: "dirBound".to_string(),
                 module: Some(ModuleId::from_bridge(module)),
                 profile: Some(ProfileId::from_bridge(profile)),
+                target: None,
                 entry: None,
                 component: None,
-                target: None,
                 package: None,
                 product: None,
             },
@@ -815,9 +882,9 @@ impl ArtifactKey {
                 kind: "dirImported".to_string(),
                 module: Some(ModuleId::from_bridge(module)),
                 profile: Some(ProfileId::from_bridge(profile)),
+                target: None,
                 entry: None,
                 component: None,
-                target: None,
                 package: None,
                 product: None,
             },
@@ -825,9 +892,9 @@ impl ArtifactKey {
                 kind: "dirExpanded".to_string(),
                 module: Some(ModuleId::from_bridge(module)),
                 profile: Some(ProfileId::from_bridge(profile)),
+                target: None,
                 entry: None,
                 component: None,
-                target: None,
                 package: None,
                 product: None,
             },
@@ -835,9 +902,9 @@ impl ArtifactKey {
                 kind: "dirExported".to_string(),
                 module: Some(ModuleId::from_bridge(module)),
                 profile: Some(ProfileId::from_bridge(profile)),
+                target: None,
                 entry: None,
                 component: None,
-                target: None,
                 package: None,
                 product: None,
             },
@@ -845,9 +912,9 @@ impl ArtifactKey {
                 kind: "dirResolved".to_string(),
                 module: Some(ModuleId::from_bridge(module)),
                 profile: Some(ProfileId::from_bridge(profile)),
+                target: None,
                 entry: None,
                 component: None,
-                target: None,
                 package: None,
                 product: None,
             },
@@ -869,9 +936,9 @@ impl ArtifactKey {
                 kind: "dirChecked".to_string(),
                 module: Some(ModuleId::from_bridge(module)),
                 profile: Some(ProfileId::from_bridge(profile)),
+                target: None,
                 entry: None,
                 component: None,
-                target: None,
                 package: None,
                 product: None,
             },
@@ -879,9 +946,9 @@ impl ArtifactKey {
                 kind: "dirMaterialized".to_string(),
                 module: Some(ModuleId::from_bridge(module)),
                 profile: Some(ProfileId::from_bridge(profile)),
+                target: None,
                 entry: None,
                 component: None,
-                target: None,
                 package: None,
                 product: None,
             },
@@ -889,9 +956,9 @@ impl ArtifactKey {
                 kind: "dirElaborated".to_string(),
                 module: Some(ModuleId::from_bridge(module)),
                 profile: Some(ProfileId::from_bridge(profile)),
+                target: None,
                 entry: None,
                 component: None,
-                target: None,
                 package: None,
                 product: None,
             },
@@ -923,6 +990,20 @@ impl ArtifactKey {
                 package: None,
                 product: None,
             },
+            bridge::ArtifactKey::MirAnalyzed {
+                module,
+                profile,
+                target,
+            } => Self {
+                kind: "mirAnalyzed".to_string(),
+                module: Some(ModuleId::from_bridge(module)),
+                profile: Some(ProfileId::from_bridge(profile)),
+                target: Some(TargetId::from_bridge(target)),
+                entry: None,
+                component: None,
+                package: None,
+                product: None,
+            },
             bridge::ArtifactKey::MirOptimized {
                 module,
                 profile,
@@ -941,9 +1022,9 @@ impl ArtifactKey {
                 kind: "moduleQueryIndex".to_string(),
                 module: Some(ModuleId::from_bridge(module)),
                 profile: Some(ProfileId::from_bridge(profile)),
+                target: None,
                 entry: None,
                 component: None,
-                target: None,
                 package: None,
                 product: None,
             },
@@ -951,9 +1032,9 @@ impl ArtifactKey {
                 kind: "workspaceQueryIndex".to_string(),
                 profile: Some(ProfileId::from_bridge(profile)),
                 module: None,
+                target: None,
                 entry: None,
                 component: None,
-                target: None,
                 package: None,
                 product: None,
             },
@@ -983,17 +1064,17 @@ impl ArtifactKey {
                 product: Some(ProductId::from_bridge(product)),
                 module: None,
                 profile: None,
+                target: None,
                 entry: None,
                 component: None,
-                target: None,
             },
             bridge::ArtifactKey::ModuleLinted { module, profile } => Self {
                 kind: "moduleLinted".to_string(),
                 module: Some(ModuleId::from_bridge(module)),
                 profile: Some(ProfileId::from_bridge(profile)),
+                target: None,
                 entry: None,
                 component: None,
-                target: None,
                 package: None,
                 product: None,
             },
@@ -1002,18 +1083,18 @@ impl ArtifactKey {
                 package: Some(PackageId::from_bridge(package)),
                 module: None,
                 profile: None,
+                target: None,
                 entry: None,
                 component: None,
-                target: None,
                 product: None,
             },
             bridge::ArtifactKey::WorkspaceLinted => Self {
                 kind: "workspaceLinted".to_string(),
                 module: None,
                 profile: None,
+                target: None,
                 entry: None,
                 component: None,
-                target: None,
                 package: None,
                 product: None,
             },

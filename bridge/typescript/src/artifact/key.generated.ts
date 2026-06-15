@@ -45,6 +45,14 @@ export type ArtifactKey =
           /** Semantic profile. */
           readonly profile: ProfileId;
       }
+    /** Whole-program analysis for one profile and target. */
+    | {
+          readonly kind: "programAnalysis";
+          /** Semantic profile. */
+          readonly profile: ProfileId;
+          /** Build target. */
+          readonly target: TargetId;
+      }
     /** Bound DIR. */
     | {
           readonly kind: "dirBound";
@@ -132,6 +140,16 @@ export type ArtifactKey =
     /** Verified MIR after required semantic verification. */
     | {
           readonly kind: "mirVerified";
+          /** Source module. */
+          readonly module: ModuleId;
+          /** Semantic profile. */
+          readonly profile: ProfileId;
+          /** Build target. */
+          readonly target: TargetId;
+      }
+    /** Per-module link summary for whole-program analysis. */
+    | {
+          readonly kind: "mirAnalyzed";
           /** Source module. */
           readonly module: ModuleId;
           /** Semantic profile. */
@@ -238,6 +256,11 @@ export const ArtifactKey = {
         return { kind: "componentGraph", profile };
     },
 
+    /** Whole-program analysis for one profile and target. */
+    programAnalysis(profile: ProfileId, target: TargetId): ArtifactKey {
+        return { kind: "programAnalysis", profile, target };
+    },
+
     /** Bound DIR. */
     dirBound(module: ModuleId, profile: ProfileId): ArtifactKey {
         return { kind: "dirBound", module, profile };
@@ -291,6 +314,11 @@ export const ArtifactKey = {
     /** Verified MIR after required semantic verification. */
     mirVerified(module: ModuleId, profile: ProfileId, target: TargetId): ArtifactKey {
         return { kind: "mirVerified", module, profile, target };
+    },
+
+    /** Per-module link summary for whole-program analysis. */
+    mirAnalyzed(module: ModuleId, profile: ProfileId, target: TargetId): ArtifactKey {
+        return { kind: "mirAnalyzed", module, profile, target };
     },
 
     /** Optimized MIR. */
