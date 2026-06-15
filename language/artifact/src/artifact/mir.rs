@@ -1,4 +1,5 @@
-use destack_mir::{self as mir, LinkGraph};
+use destack_core::BitSet;
+use destack_mir::{self as mir, CallComponents, LinkGraph, LinkSupergraph, Symbol};
 use serde::{Deserialize, Serialize};
 
 /// Lowered MIR payload before optimization.
@@ -80,16 +81,75 @@ impl MirAnalyzed {
     }
 }
 
-/// Whole-program analysis facts shared across the optimization of every module.
+/// Whole-program analysis columns shared across the optimization of every module.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ProgramAnalysis {
-    /// Every module's references merged into one symbol graph.
-    pub links: LinkGraph,
+    /// Every defined symbol in the program.
+    symbols: Vec<Symbol>,
+    /// Whether each symbol is reachable from a program root.
+    live: BitSet,
+    /// Program-wide incoming reference count of each symbol.
+    references: Vec<u32>,
+    /// Whether each symbol's address is taken anywhere in the program.
+    address_taken: BitSet,
+    /// Whether each symbol is internal to the program (not an external root).
+    internal: BitSet,
+    /// Strongly connected components of the whole-program call graph.
+    components: CallComponents,
 }
 
 impl ProgramAnalysis {
     /// Create an empty whole-program analysis.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Derive the whole-program columns from the supergraph and the program's roots.
+    pub fn analyze(supergraph: &LinkSupergraph, roots: &[Symbol]) -> Self {
+        Self {
+            symbols: supergraph.symbols().to_vec(),
+            live: supergraph.reachable(roots),
+            references: supergraph.reference_counts(),
+            address_taken: supergraph.address_taken(),
+            internal: supergraph.internal(roots),
+            components: supergraph.call_components(),
+        }
+    }
+
+    /// Return whether the analysis covers any symbols.
+    pub fn is_empty(&self) -> bool {
+        self.symbols.is_empty()
+    }
+
+    /// Return whether the whole program can reach a symbol.
+    pub fn is_live(&self, symbol: Symbol) -> bool {
+        self.live.contains(self.index_of(symbol))
+    }
+
+    /// Return the program-wide reference count of a symbol.
+    pub fn references(&self, symbol: Symbol) -> u32 {
+        self.references[self.index_of(symbol)]
+    }
+
+    /// Return whether a symbol's address is taken anywhere in the program.
+    pub fn is_address_taken(&self, symbol: Symbol) -> bool {
+        self.address_taken.contains(self.index_of(symbol))
+    }
+
+    /// Return whether a symbol is internal to the program (not an external root).
+    pub fn is_internal(&self, symbol: Symbol) -> bool {
+        self.internal.contains(self.index_of(symbol))
+    }
+
+    /// Return whether a symbol belongs to a recursive call-graph component.
+    pub fn is_recursive(&self, symbol: Symbol) -> bool {
+        self.components.is_recursive(self.index_of(symbol))
+    }
+
+    /// Return the dense id of a symbol the program defines.
+    fn index_of(&self, symbol: Symbol) -> usize {
+        self.symbols
+            .binary_search(&symbol)
+            .expect("queried a symbol the program analysis does not define")
     }
 }
