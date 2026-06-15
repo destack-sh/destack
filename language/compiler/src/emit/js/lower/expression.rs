@@ -585,30 +585,14 @@ impl ModuleLowerer<'_> {
 
                 lowered_id.into_any()
             }
-            dir::Expression::QualifiedReference {
-                path,
-                generic_arguments,
-                ..
-            } => {
-                let source_id = expression_id.into_global_any(self.module.id);
-                let path = self.lower_path(expression_id.into_any(), path)?;
-                let generic_arguments = self.lower_static_type_arguments(generic_arguments)?;
-                let expression = js::Expression::Path {
-                    path,
-                    generic_arguments,
-                };
-                let expression_id =
-                    self.tree
-                        .insert_from_source(expression, self.module.id, expression_id);
-
-                // copy lexical binding targets
-                if let Some(target_symbol) = self.resolutions.symbol_resolution(source_id) {
-                    self.set_global_node_symbol(expression_id, target_symbol);
-                }
-
-                expression_id.into_any()
-            }
             dir::Expression::ImportMeta => {
+                let expression = js::Expression::ImportMeta;
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
+                    .into_any()
+            }
+            // TODO #Incomplete: lower import.source to its module source descriptor
+            dir::Expression::ImportSource => {
                 let expression = js::Expression::ImportMeta;
                 self.tree
                     .insert_from_source(expression, self.module.id, expression_id)
