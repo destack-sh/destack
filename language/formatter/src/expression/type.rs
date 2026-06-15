@@ -3042,10 +3042,6 @@ impl<'ast> FormatNode<'ast, GenericArgument> for GenericArgument {
                     write!(f, [token("...")])?;
                 }
 
-                if generic_type_argument_needs_type_prefix(f.context(), *value) {
-                    write!(f, [Keyword::Type, space()])?;
-                }
-
                 write!(f, [value])?;
             }
             GenericArgument::AssociatedType { name, value } => {
@@ -3091,18 +3087,6 @@ impl<'ast> FormatNode<'ast, GenericArgument> for GenericArgument {
         // trailing annotations
         write!(f, [infix_or_postfix_annotations(f.context(), node_id)])
     }
-}
-
-/// Return whether one generic type argument needs an explicit type marker.
-fn generic_type_argument_needs_type_prefix(
-    context: &DestackFormatContext<'_>,
-    value: LocalNodeId<TypeExpression>,
-) -> bool {
-    context.options.language_type.is_destack()
-        && matches!(
-            context.tree.get(value),
-            TypeExpression::Object { .. } | TypeExpression::Mapped { .. }
-        )
 }
 
 impl<'ast> FormatNode<'ast, TupleElement> for TupleElement {
