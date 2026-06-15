@@ -88,7 +88,10 @@ fn relative_library_path<'a>(root: &Path, path: &'a Path) -> &'a Path {
 }
 
 /// Build a formatter file for one library path.
-fn library_file(path: &Path, source: &str) -> File {
+///
+/// The file identity derives from the library-relative logical path, while the
+/// URI and physical path keep the absolute location for diagnostics.
+fn library_file(path: &Path, logical_path: &Path, source: &str) -> File {
     let file_name = path
         .file_name()
         .expect("expected library file name")
@@ -97,7 +100,7 @@ fn library_file(path: &Path, source: &str) -> File {
     let path_text = path.to_string_lossy();
 
     File::from_text(
-        FileId::from_logical_path(path),
+        FileId::from_logical_path(logical_path),
         file_name,
         Uri::from_string(path_text.as_ref()),
         Some(path.to_path_buf()),
@@ -107,8 +110,8 @@ fn library_file(path: &Path, source: &str) -> File {
 }
 
 /// Format one checked-in library source.
-fn format_library_source(path: &Path, source: &str) -> Result<String, String> {
-    let file = library_file(path, source);
+fn format_library_source(path: &Path, logical_path: &Path, source: &str) -> Result<String, String> {
+    let file = library_file(path, logical_path, source);
 
     format_file_source(&file, source, FormatterOptions::default()).map_err(|error| error.message)
 }
@@ -156,8 +159,8 @@ fn print_summary(checked_file_count: usize, failures: &[LibraryFailure]) {
 }
 
 /// Print parser diagnostics for one library source.
-fn print_parse_diagnostics(path: &Path, source: &str) {
-    let file = Arc::new(library_file(path, source));
+fn print_parse_diagnostics(path: &Path, logical_path: &Path, source: &str) {
+    let file = Arc::new(library_file(path, logical_path, source));
     let file_id = file.id;
     let file_for_id = |current_file_id| {
         if current_file_id == file_id {
@@ -194,7 +197,7 @@ fn record_parse_failure(
     error: String,
 ) {
     print_section("library formatter corpus: parse failure", relative_path);
-    print_parse_diagnostics(path, source);
+    print_parse_diagnostics(path, relative_path, source);
     failures.push(LibraryFailure::new(relative_path, pass, error));
 }
 
@@ -226,7 +229,7 @@ fn test_format_library() -> Result<(), String> {
         let relative_path = relative_library_path(&root, &path);
 
         // format checked-in source
-        let formatted = match format_library_source(&path, &source) {
+        let formatted = match format_library_source(&path, relative_path, &source) {
             Ok(formatted) => formatted,
             Err(error) => {
                 record_parse_failure(
@@ -240,6 +243,15 @@ fn test_format_library() -> Result<(), String> {
                 continue;
             }
         };
+
+        // rewrite the checked-in corpus when explicitly requested
+        if std::env::var_os("DESTACK_FORMAT_UPDATE").is_some() {
+            if formatted != source {
+                fs::write(&path, &formatted).expect("expected to write library source");
+            }
+
+            continue;
+        }
 
         // compare checked-in source
         if formatted != source {
@@ -278,7 +290,7 @@ fn test_format_library_idempotence() -> Result<(), String> {
         let relative_path = relative_library_path(&root, &path);
 
         // first pass
-        let first = match format_library_source(&path, &source) {
+        let first = match format_library_source(&path, relative_path, &source) {
             Ok(first) => first,
             Err(error) => {
                 record_parse_failure(
@@ -294,7 +306,7 @@ fn test_format_library_idempotence() -> Result<(), String> {
         };
 
         // second pass
-        let second = match format_library_source(&path, &first) {
+        let second = match format_library_source(&path, relative_path, &first) {
             Ok(second) => second,
             Err(error) => {
                 record_parse_failure(
