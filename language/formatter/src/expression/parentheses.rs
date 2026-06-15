@@ -726,12 +726,10 @@ fn expression_has_transparent_wrapper(
 
 /// Return whether one expression is a callable selection.
 fn expression_is_callable_selection(child_expression: &Expression) -> bool {
-    match child_expression {
-        Expression::Member { .. } | Expression::PrivateMember { .. } | Expression::Index { .. } => {
-            true
-        }
-        _ => false,
-    }
+    matches!(
+        child_expression,
+        Expression::Member { .. } | Expression::PrivateMember { .. } | Expression::Index { .. }
+    )
 }
 
 /// Return whether one wrapper changes postfix parsing.
