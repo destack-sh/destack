@@ -228,7 +228,6 @@ Generics work as in TypeScript, with explicitness required where inference would
 | Feature | Example | Ruling |
 | --- | --- | --- |
 | **Declaration parameter inference** | `function f(x = 1) {}` | not supported, public declaration surfaces need explicit parameter types |
-| **Generic argument ambiguity** | `Foo<{ value: string }>` | object-shaped type arguments need `type` |
 
 ### Variance
 
