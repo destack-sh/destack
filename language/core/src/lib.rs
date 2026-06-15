@@ -1,4 +1,5 @@
 mod arena;
+mod bitset;
 mod capture;
 mod color;
 mod cow;
@@ -11,6 +12,7 @@ mod stack;
 mod string;
 
 pub use arena::*;
+pub use bitset::*;
 pub use capture::*;
 pub use color::*;
 pub use cow::*;
