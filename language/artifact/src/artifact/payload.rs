@@ -5,9 +5,9 @@ use destack_source::ContentId;
 use crate::{
     ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirElaborated, DirExpanded,
     DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment,
-    MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted, ModuleOutput,
-    ModuleQueryIndex, PackageIndex, PackageLinted, PackageOutput, ProductOutput, WorkspaceLinted,
-    WorkspaceQueryIndex,
+    MirAnalyzed, MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted, ModuleOutput,
+    ModuleQueryIndex, PackageIndex, PackageLinted, PackageOutput, ProductOutput, ProgramAnalysis,
+    WorkspaceLinted, WorkspaceQueryIndex,
 };
 use serde::{Deserialize, Serialize};
 
@@ -26,6 +26,8 @@ pub enum ArtifactPayload {
     ModuleIndex(Arc<ModuleIndex>),
     /// Component partition for one profile.
     ComponentGraph(Arc<ComponentGraph>),
+    /// Whole-program analysis for one profile and target.
+    ProgramAnalysis(Arc<ProgramAnalysis>),
     /// Bound DIR.
     DirBound(Arc<DirBound>),
     /// Imported DIR.
@@ -48,6 +50,8 @@ pub enum ArtifactPayload {
     MirLowered(Arc<MirLowered>),
     /// Verified MIR marker after required semantic verification.
     MirVerified(Arc<MirVerified>),
+    /// Per-module link summary for whole-program analysis.
+    MirAnalyzed(Arc<MirAnalyzed>),
     /// Optimized MIR.
     MirOptimized(Arc<MirOptimized>),
     /// Query index for one module profile.
@@ -83,6 +87,8 @@ pub enum ArtifactPayloadRef<'a> {
     ModuleIndex(&'a ModuleIndex),
     /// Component partition for one profile.
     ComponentGraph(&'a ComponentGraph),
+    /// Whole-program analysis for one profile and target.
+    ProgramAnalysis(&'a ProgramAnalysis),
     /// Bound DIR.
     DirBound(&'a DirBound),
     /// Imported DIR.
@@ -105,6 +111,8 @@ pub enum ArtifactPayloadRef<'a> {
     MirLowered(&'a MirLowered),
     /// Verified MIR marker after required semantic verification.
     MirVerified(&'a MirVerified),
+    /// Per-module link summary for whole-program analysis.
+    MirAnalyzed(&'a MirAnalyzed),
     /// Optimized MIR.
     MirOptimized(&'a MirOptimized),
     /// Query index for one module profile.
@@ -133,6 +141,7 @@ impl ArtifactPayload {
             Self::PackageIndex(_) => "package_index",
             Self::ModuleIndex(_) => "module_index",
             Self::ComponentGraph(_) => "component_graph",
+            Self::ProgramAnalysis(_) => "program_analysis",
             Self::DirParsed(_) => "dir_parsed",
             Self::Data(_) => "data",
             Self::DirBound(_) => "dir_bound",
@@ -146,6 +155,7 @@ impl ArtifactPayload {
             Self::DirElaborated(_) => "dir_elaborated",
             Self::MirLowered(_) => "mir_lowered",
             Self::MirVerified(_) => "mir_verified",
+            Self::MirAnalyzed(_) => "mir_analyzed",
             Self::MirOptimized(_) => "mir_optimized",
             Self::ModuleQueryIndex(_) => "module_query_index",
             Self::WorkspaceQueryIndex(_) => "workspace_query_index",
@@ -208,6 +218,13 @@ impl From<ComponentGraph> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: ComponentGraph) -> Self {
         Self::ComponentGraph(Arc::new(payload))
+    }
+}
+
+impl From<ProgramAnalysis> for ArtifactPayload {
+    /// Convert a typed artifact into an artifact payload.
+    fn from(payload: ProgramAnalysis) -> Self {
+        Self::ProgramAnalysis(Arc::new(payload))
     }
 }
 
@@ -285,6 +302,13 @@ impl From<MirVerified> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: MirVerified) -> Self {
         Self::MirVerified(Arc::new(payload))
+    }
+}
+
+impl From<MirAnalyzed> for ArtifactPayload {
+    /// Convert a typed artifact into an artifact payload.
+    fn from(payload: MirAnalyzed) -> Self {
+        Self::MirAnalyzed(Arc::new(payload))
     }
 }
 

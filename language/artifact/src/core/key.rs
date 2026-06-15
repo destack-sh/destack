@@ -31,6 +31,11 @@ pub enum ArtifactKey {
     ModuleIndex { profile: ProfileId },
     /// Strongly connected component partition for one profile.
     ComponentGraph { profile: ProfileId },
+    /// Whole-program analysis for one profile and target.
+    ProgramAnalysis {
+        profile: ProfileId,
+        target: TargetId,
+    },
 
     /// Bound DIR.
     DirBound {
@@ -88,6 +93,12 @@ pub enum ArtifactKey {
     },
     /// Verified MIR after required semantic verification.
     MirVerified {
+        module: ModuleId,
+        profile: ProfileId,
+        target: TargetId,
+    },
+    /// Per-module link summary for whole-program analysis.
+    MirAnalyzed {
         module: ModuleId,
         profile: ProfileId,
         target: TargetId,
@@ -183,6 +194,7 @@ impl ArtifactKey {
             | Self::PackageIndex { .. }
             | Self::ModuleIndex { .. }
             | Self::ComponentGraph { .. }
+            | Self::ProgramAnalysis { .. }
             | Self::DirBound { .. }
             | Self::DirImported { .. }
             | Self::DirExpanded { .. }
@@ -194,6 +206,7 @@ impl ArtifactKey {
             | Self::DirElaborated { .. }
             | Self::MirLowered { .. }
             | Self::MirVerified { .. }
+            | Self::MirAnalyzed { .. }
             | Self::MirOptimized { .. }
             | Self::ModuleOutput { .. }
             | Self::PackageOutput { .. }
@@ -235,6 +248,11 @@ impl ArtifactKey {
     /// Build one component graph artifact key.
     pub fn component_graph(profile: ProfileId) -> Self {
         Self::ComponentGraph { profile }
+    }
+
+    /// Build one whole-program analysis artifact key.
+    pub fn program_analysis(profile: ProfileId, target: TargetId) -> Self {
+        Self::ProgramAnalysis { profile, target }
     }
 
     /// Build one DIR artifact key.
@@ -318,6 +336,15 @@ impl ArtifactKey {
         }
     }
 
+    /// Build one analyzed MIR artifact key.
+    pub fn mir_analyzed(module: ModuleId, profile: ProfileId, target: TargetId) -> Self {
+        Self::MirAnalyzed {
+            module,
+            profile,
+            target,
+        }
+    }
+
     /// Build one optimized MIR artifact key.
     pub fn mir_optimized(module: ModuleId, profile: ProfileId, target: TargetId) -> Self {
         Self::MirOptimized {
@@ -382,6 +409,8 @@ impl ArtifactKey {
             Self::DirElaborated { .. }
             | Self::MirLowered { .. }
             | Self::MirVerified { .. }
+            | Self::MirAnalyzed { .. }
+            | Self::ProgramAnalysis { .. }
             | Self::MirOptimized { .. } => ArtifactStage::Lower,
             Self::ModuleOutput { .. } => ArtifactStage::Emit,
             Self::PackageOutput { .. } | Self::ProductOutput { .. } => ArtifactStage::Link,
@@ -409,12 +438,14 @@ impl ArtifactKey {
             Self::DirResolved { .. } => "dir.resolve",
             Self::ModuleIndex { .. } => "module.index",
             Self::ComponentGraph { .. } => "component.graph",
+            Self::ProgramAnalysis { .. } => "program.analyze",
             Self::DirCheckedComponent { .. } => "dir.check.component",
             Self::DirChecked { .. } => "dir.check",
             Self::DirMaterialized { .. } => "dir.materialize",
             Self::DirElaborated { .. } => "dir.elaborate",
             Self::MirLowered { .. } => "mir.lower",
             Self::MirVerified { .. } => "mir.verify",
+            Self::MirAnalyzed { .. } => "mir.analyze",
             Self::MirOptimized { .. } => "mir.optimize",
             Self::ModuleQueryIndex { .. } => "module.index",
             Self::WorkspaceQueryIndex { .. } => "workspace.index",
@@ -441,12 +472,14 @@ impl ArtifactKey {
             Self::DirResolved { .. } => "dir_resolved",
             Self::ModuleIndex { .. } => "module_index",
             Self::ComponentGraph { .. } => "component_graph",
+            Self::ProgramAnalysis { .. } => "program_analysis",
             Self::DirCheckedComponent { .. } => "dir_checked_component",
             Self::DirChecked { .. } => "dir_checked",
             Self::DirMaterialized { .. } => "dir_materialized",
             Self::DirElaborated { .. } => "dir_elaborated",
             Self::MirLowered { .. } => "mir_lowered",
             Self::MirVerified { .. } => "mir_verified",
+            Self::MirAnalyzed { .. } => "mir_analyzed",
             Self::MirOptimized { .. } => "mir_optimized",
             Self::ModuleQueryIndex { .. } => "module_query_index",
             Self::WorkspaceQueryIndex { .. } => "workspace_query_index",
@@ -475,6 +508,7 @@ impl ArtifactKey {
             | Self::DirElaborated { module, .. }
             | Self::MirLowered { module, .. }
             | Self::MirVerified { module, .. }
+            | Self::MirAnalyzed { module, .. }
             | Self::MirOptimized { module, .. }
             | Self::ModuleQueryIndex { module, .. }
             | Self::ModuleOutput { module, .. }
@@ -483,6 +517,7 @@ impl ArtifactKey {
             | Self::PackageIndex { .. }
             | Self::ModuleIndex { .. }
             | Self::ComponentGraph { .. }
+            | Self::ProgramAnalysis { .. }
             | Self::WorkspaceQueryIndex { .. }
             | Self::PackageOutput { .. }
             | Self::ProductOutput { .. }
@@ -516,6 +551,7 @@ impl ArtifactKey {
             | Self::PackageIndex { profile }
             | Self::ModuleIndex { profile }
             | Self::ComponentGraph { profile }
+            | Self::ProgramAnalysis { profile, .. }
             | Self::DirBound { profile, .. }
             | Self::DirImported { profile, .. }
             | Self::DirExpanded { profile, .. }
@@ -527,6 +563,7 @@ impl ArtifactKey {
             | Self::DirElaborated { profile, .. }
             | Self::MirLowered { profile, .. }
             | Self::MirVerified { profile, .. }
+            | Self::MirAnalyzed { profile, .. }
             | Self::MirOptimized { profile, .. }
             | Self::ModuleQueryIndex { profile, .. }
             | Self::WorkspaceQueryIndex { profile }
