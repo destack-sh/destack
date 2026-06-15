@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::types::PyModule;
 
-use super::{component, file, module, package, profile, span, target};
+use super::{component, file, module, package, product, profile, span, target};
 
 /// Register generated source id classes.
 pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -11,5 +11,6 @@ pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     component::register(module)?;
     file::register(module)?;
     span::register(module)?;
+    product::register(module)?;
     target::register(module)
 }

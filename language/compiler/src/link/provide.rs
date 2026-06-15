@@ -1,10 +1,11 @@
+use super::ProductLinker;
 use super::js::JsLinker;
 use super::native::NativeLinker;
 use super::state::LinkState;
 use crate::{Compiler, CompilerError, CompilerResult, LinkError};
 use destack_artifact::{ArtifactDependencySet, ArtifactPayload, EmitFormat, PackageOutput};
 use destack_repository::{ArtifactReader, ProviderContext, RepositoryError, Target};
-use destack_source::{ModuleId, PackageId, TargetId};
+use destack_source::{ModuleId, PackageId, ProductId, TargetId};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -58,6 +59,29 @@ impl Compiler {
         let output = self.link_target(state.package, &state.target, state.context, &artifacts)?;
 
         Ok(ArtifactPayload::PackageOutput(Arc::new(output)))
+    }
+
+    /// Collect inputs for one product output.
+    pub(crate) fn collect_product_output(
+        &self,
+        package: PackageId,
+        product: ProductId,
+        context: &dyn ProviderContext,
+    ) -> CompilerResult<ArtifactDependencySet> {
+        ProductLinker::new(self, package, product, context)?.collect()
+    }
+
+    /// Build one product output.
+    pub(crate) fn provide_product_output(
+        &self,
+        package: PackageId,
+        product: ProductId,
+        context: &dyn ProviderContext,
+    ) -> CompilerResult<ArtifactPayload> {
+        let artifacts = self.artifact_reader(context.revision());
+        let output = ProductLinker::new(self, package, product, context)?.link(&artifacts)?;
+
+        Ok(ArtifactPayload::ProductOutput(Arc::new(output)))
     }
 
     /// Link all modules for one target.

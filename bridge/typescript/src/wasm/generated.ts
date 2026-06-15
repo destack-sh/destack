@@ -54,6 +54,7 @@ import type {
 } from "../source/file.generated.js";
 import type { ModuleId } from "../source/module.generated.js";
 import type { PackageId } from "../source/package.generated.js";
+import type { ProductId } from "../source/product.generated.js";
 import type { ProfileId } from "../source/profile.generated.js";
 import type {
     Span,
@@ -311,6 +312,13 @@ export function toWasmArtifactKey(
         return wasm.ArtifactKey.packageOutput(
             toWasmPackageId(wasm, value.package),
             toWasmTargetId(wasm, value.target),
+        );
+    }
+
+    if (value.kind === "productOutput") {
+        return wasm.ArtifactKey.productOutput(
+            toWasmPackageId(wasm, value.package),
+            toWasmProductId(wasm, value.product),
         );
     }
 
@@ -709,6 +717,24 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
             kind: "packageOutput",
             package: fromWasmPackageId(payload_package),
             target: fromWasmTargetId(payload_target),
+        };
+    }
+
+    if (value.kind === "productOutput") {
+        const payload_package = value.package;
+        if (payload_package == null) {
+            throw new Error("package payload is missing");
+        }
+
+        const payload_product = value.product;
+        if (payload_product == null) {
+            throw new Error("product payload is missing");
+        }
+
+        return {
+            kind: "productOutput",
+            package: fromWasmPackageId(payload_package),
+            product: fromWasmProductId(payload_product),
         };
     }
 
@@ -1131,6 +1157,22 @@ export function toWasmPackageId(
 export function fromWasmPackageId(value: Wasm.PackageId): PackageId {
     return {
         id: value.id,
+    };
+}
+
+/** Convert one ProductId into the WASM transport shape. */
+export function toWasmProductId(
+    wasm: WasmModule,
+    value: ProductId,
+): Wasm.ProductId {
+    return new wasm.ProductId(toWasmPackageId(wasm, value.package), value.key);
+}
+
+/** Convert one WASM ProductId into the public bridge shape. */
+export function fromWasmProductId(value: Wasm.ProductId): ProductId {
+    return {
+        package: fromWasmPackageId(value.package),
+        key: value.key,
     };
 }
 

@@ -5157,6 +5157,143 @@ impl DestackOptionalModule {
 /// C ABI bridge value.
 #[repr(C)]
 #[derive(Debug)]
+pub struct DestackProductId {
+    /// Owning package.
+    pub(crate) package: DestackPackageId,
+    /// Canonical lowercase hex product key within the package.
+    pub(crate) key: *mut c_char,
+}
+
+/// C ABI bridge value array.
+#[repr(C)]
+#[derive(Debug)]
+pub struct DestackProductIdArray {
+    /// Owned value pointer.
+    pub(crate) ptr: *mut DestackProductId,
+    /// Value count.
+    pub(crate) len: usize,
+}
+
+/// C ABI optional bridge value.
+#[repr(C)]
+#[derive(Debug)]
+pub struct DestackOptionalProductId {
+    /// Whether the value is present.
+    pub(crate) is_some: bool,
+    /// Value when present.
+    pub(crate) value: DestackProductId,
+}
+
+impl DestackProductId {
+    /// Convert one bridge value into one C ABI value.
+    pub(crate) fn from_bridge(value: rust::ProductId) -> Result<Self, String> {
+        Ok(Self {
+            package: DestackPackageId::from_bridge(value.package)?,
+            key: c_string(value.key)?,
+        })
+    }
+
+    /// Convert this C ABI value into one bridge value.
+    pub(crate) fn to_bridge(&self) -> Result<rust::ProductId, String> {
+        Ok(rust::ProductId {
+            package: self.package.to_bridge()?,
+            key: read_string(self.key)?,
+        })
+    }
+
+    /// Destroy this C ABI value.
+    pub(crate) fn destroy(&mut self) {
+        self.package.destroy();
+        destroy_string(self.key);
+        self.key = ptr::null_mut();
+    }
+
+    /// Return one empty C ABI value.
+    pub(crate) fn empty() -> Self {
+        Self {
+            package: DestackPackageId::empty(),
+            key: ptr::null_mut(),
+        }
+    }
+}
+
+impl DestackProductIdArray {
+    /// Convert bridge values into one C ABI array.
+    pub(crate) fn from_bridge(values: Vec<rust::ProductId>) -> Result<Self, String> {
+        let mut converted = Vec::with_capacity(values.len());
+        for value in values {
+            converted.push(DestackProductId::from_bridge(value)?);
+        }
+        let (ptr, len) = owned_array(converted);
+        Ok(Self { ptr, len })
+    }
+
+    /// Convert this C ABI array into bridge values.
+    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::ProductId>, String> {
+        if self.len == 0 {
+            return Ok(Vec::new());
+        }
+        if self.ptr.is_null() {
+            return Err("array pointer is null".to_string());
+        }
+        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let mut converted = Vec::with_capacity(values.len());
+        for value in values {
+            converted.push(value.to_bridge()?);
+        }
+        Ok(converted)
+    }
+
+    /// Destroy this C ABI array.
+    pub(crate) fn destroy(&mut self) {
+        if self.ptr.is_null() {
+            return;
+        }
+        unsafe {
+            destroy_array(self.ptr, self.len, |value| value.destroy());
+        }
+        self.ptr = ptr::null_mut();
+        self.len = 0;
+    }
+}
+
+impl DestackOptionalProductId {
+    /// Convert one optional bridge value into one C ABI optional value.
+    pub(crate) fn from_bridge(value: Option<rust::ProductId>) -> Result<Self, String> {
+        let Some(value) = value else {
+            return Ok(Self {
+                is_some: false,
+                value: DestackProductId::empty(),
+            });
+        };
+        Ok(Self {
+            is_some: true,
+            value: DestackProductId::from_bridge(value)?,
+        })
+    }
+
+    /// Convert this C ABI optional value into one bridge optional value.
+    pub(crate) fn to_bridge(&self) -> Result<Option<rust::ProductId>, String> {
+        if self.is_some {
+            Ok(Some(self.value.to_bridge()?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Destroy this C ABI optional value.
+    pub(crate) fn destroy(&mut self) {
+        if self.is_some {
+            self.value.destroy();
+        }
+        self.is_some = false;
+        self.value = DestackProductId::empty();
+    }
+}
+
+/// C ABI bridge value.
+#[repr(C)]
+#[derive(Debug)]
 pub struct DestackSessionFile {
     /// Repository logical path.
     pub(crate) path: *mut c_char,
@@ -6074,6 +6211,23 @@ pub unsafe extern "C" fn destack_artifact_key_package_output(
 
 /// Create one artifact key handle.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_artifact_key_product_output(
+    package: DestackPackageId,
+    product: DestackProductId,
+    out: *mut *mut DestackArtifactKey,
+    error: *mut *mut DestackError,
+) -> DestackStatus {
+    return_status(error, || {
+        let package = package.to_bridge()?;
+        let product = product.to_bridge()?;
+        let value = rust::ArtifactKey::ProductOutput { package, product };
+        let key = Box::into_raw(Box::new(DestackArtifactKey { value }));
+        write_out(out, key, "artifact key output is null")
+    })
+}
+
+/// Create one artifact key handle.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_artifact_key_module_linted(
     module: DestackModuleId,
     profile: DestackProfileId,
@@ -6669,6 +6823,20 @@ pub unsafe extern "C" fn destack_module_destroy(value: *mut DestackModule) {
 /// Destroy one C ABI bridge value array.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_module_array_destroy(mut array: DestackModuleArray) {
+    array.destroy();
+}
+
+/// Destroy one C ABI bridge value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_product_id_destroy(value: *mut DestackProductId) {
+    if let Some(value) = unsafe { value.as_mut() } {
+        value.destroy();
+    }
+}
+
+/// Destroy one C ABI bridge value array.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_product_id_array_destroy(mut array: DestackProductIdArray) {
     array.destroy();
 }
 

@@ -1,4 +1,4 @@
-use destack_source::{PackageId, TargetId};
+use destack_source::{PackageId, ProductId, TargetId};
 
 use crate::repository::{Repository, RepositoryError, Revision};
 use crate::{Destack, Product, Target};
@@ -103,8 +103,8 @@ impl Repository {
             && let Some(default_target) = config.default_target.as_ref()
         {
             let target_id = TargetId::new(package_id, default_target);
-            if let Some(target) = package.targets.get(&target_id) {
-                return Ok(Some((target_id, target.clone())));
+            if let Some(target) = self.target_or_builtin(revision, target_id)? {
+                return Ok(Some((target_id, target)));
             }
 
             return Err(RepositoryError::MissingTarget { target: target_id });
@@ -117,8 +117,8 @@ impl Repository {
             && let Some((_, target_name)) = product.targets.iter().next()
         {
             let target_id = TargetId::new(package_id, target_name);
-            if let Some(target) = package.targets.get(&target_id) {
-                return Ok(Some((target_id, target.clone())));
+            if let Some(target) = self.target_or_builtin(revision, target_id)? {
+                return Ok(Some((target_id, target)));
             }
 
             return Err(RepositoryError::MissingTarget { target: target_id });
@@ -162,6 +162,72 @@ impl Repository {
         let product = selected_product(config, selection.product.as_deref())?;
 
         Ok(product.map(|(name, _)| name.to_string()))
+    }
+
+    /// Return one configured product name by id.
+    pub fn product_name(
+        &self,
+        revision: Revision,
+        product_id: ProductId,
+    ) -> Result<String, RepositoryError> {
+        let package_id = product_id.package_id();
+        let Some(_package) = self.package(revision, package_id)? else {
+            return Err(RepositoryError::MissingPackage {
+                package: package_id,
+            });
+        };
+        let config = self.destack_for_package_id(revision, package_id)?;
+
+        // find configured product by stable id
+        if let Some(config) = config.as_ref() {
+            for product_name in config.products.keys() {
+                if ProductId::new(package_id, product_name) == product_id {
+                    return Ok(product_name.clone());
+                }
+            }
+        }
+
+        Err(RepositoryError::MissingProduct {
+            product: product_id.to_string(),
+        })
+    }
+
+    /// Return the configured targets for one product.
+    pub fn product_targets(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+        product_name: &str,
+    ) -> Result<Vec<(String, String, TargetId, Target)>, RepositoryError> {
+        let Some(_package) = self.package(revision, package_id)? else {
+            return Err(RepositoryError::MissingPackage {
+                package: package_id,
+            });
+        };
+        let config = self.destack_for_package_id(revision, package_id)?;
+        let Some(config) = config.as_ref() else {
+            return Err(RepositoryError::MissingProduct {
+                product: product_name.to_string(),
+            });
+        };
+        let Some(product) = config.products.get(product_name) else {
+            return Err(RepositoryError::MissingProduct {
+                product: product_name.to_string(),
+            });
+        };
+        let mut targets = Vec::with_capacity(product.targets.len());
+
+        // resolve each configured product target
+        for (key, target_name) in &product.targets {
+            let target_id = TargetId::new(package_id, target_name);
+            let Some(target) = self.target_or_builtin(revision, target_id)? else {
+                return Err(RepositoryError::MissingTarget { target: target_id });
+            };
+
+            targets.push((key.clone(), target_name.clone(), target_id, target));
+        }
+
+        Ok(targets)
     }
 
     /// Return the product role selected by one target name.

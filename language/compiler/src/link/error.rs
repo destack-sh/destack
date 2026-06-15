@@ -1,6 +1,6 @@
 use crate::DiagnosticAnchor;
 use destack_artifact_macros::Diagnostic;
-use destack_source::{PackageId, TargetId};
+use destack_source::{PackageId, ProductId, TargetId};
 
 /// Errors during the link phase.
 #[derive(Debug, Clone, PartialEq, Diagnostic)]
@@ -64,6 +64,23 @@ pub enum LinkError {
         target: TargetId,
         subject: String,
         value: String,
+    },
+
+    /// Missing product.
+    #[diagnostic(code = "EK105", message = "missing product: {product}")]
+    MissingProduct {
+        anchor: DiagnosticAnchor,
+        package: PackageId,
+        product: ProductId,
+    },
+
+    /// Invalid product configuration.
+    #[diagnostic(code = "EK106", message = "invalid product: {product}: {message}")]
+    InvalidProduct {
+        anchor: DiagnosticAnchor,
+        package: PackageId,
+        product: ProductId,
+        message: String,
     },
 
     // -------------------------------------------------------------------------

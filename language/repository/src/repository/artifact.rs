@@ -9,9 +9,11 @@ use destack_artifact::{
     DirCheckedComponent, DirCheckedModule, DirElaborated, DirExpanded, DirExported, DirImported,
     DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirLowered, MirOptimized,
     MirVerified, ModuleIndex, ModuleLinted, ModuleOutput, ModuleQueryIndex, PackageIndex,
-    PackageLinted, PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
+    PackageLinted, PackageOutput, ProductOutput, WorkspaceLinted, WorkspaceQueryIndex,
 };
-use destack_source::{ComponentId, DiagnosticCollection, ModuleId, PackageId, ProfileId, TargetId};
+use destack_source::{
+    ComponentId, DiagnosticCollection, ModuleId, PackageId, ProductId, ProfileId, TargetId,
+};
 
 use crate::provider::ProviderError;
 use crate::repository::{Repository, RepositoryError, Revision};
@@ -324,6 +326,18 @@ impl<'a> ArtifactReader<'a> {
         )
     }
 
+    /// Read one product output artifact.
+    pub fn product_output(
+        &self,
+        package: PackageId,
+        product: ProductId,
+    ) -> Result<Arc<ProductOutput>, ProviderError> {
+        self.read(
+            ArtifactKey::product_output(package, product),
+            ArtifactStore::product_output,
+        )
+    }
+
     /// Read one module lint marker artifact.
     pub fn module_linted(
         &self,
@@ -398,6 +412,8 @@ pub struct ArtifactCache {
     module_output: DashMap<(ModuleId, TargetId), Arc<ModuleOutput>>,
     /// Package outputs by package and target.
     package_output: DashMap<(PackageId, TargetId), Arc<PackageOutput>>,
+    /// Product outputs by package and product.
+    product_output: DashMap<(PackageId, ProductId), Arc<ProductOutput>>,
     /// Module lint markers by module and profile.
     module_linted: DashMap<(ModuleId, ProfileId), Arc<ModuleLinted>>,
     /// Package lint markers by package.
@@ -431,6 +447,7 @@ impl ArtifactCache {
             workspace_query_index: DashMap::new(),
             module_output: DashMap::new(),
             package_output: DashMap::new(),
+            product_output: DashMap::new(),
             module_linted: DashMap::new(),
             package_linted: DashMap::new(),
             workspace_linted: DashMap::new(),
@@ -715,6 +732,20 @@ impl ArtifactCache {
             (package_id, target_id),
             ArtifactKey::package_output(package_id, target_id),
             |version| self.repository.artifact_store().package_output(version),
+        )
+    }
+
+    /// Read one product output artifact.
+    pub fn product_output(
+        &self,
+        package_id: PackageId,
+        product_id: ProductId,
+    ) -> Option<Arc<ProductOutput>> {
+        self.read_cached(
+            &self.product_output,
+            (package_id, product_id),
+            ArtifactKey::product_output(package_id, product_id),
+            |version| self.repository.artifact_store().product_output(version),
         )
     }
 

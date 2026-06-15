@@ -23,6 +23,7 @@
 #include "destack/source/file.generated.h"
 #include "destack/source/module.generated.h"
 #include "destack/source/package.generated.h"
+#include "destack/source/product.generated.h"
 #include "destack/source/profile.generated.h"
 #include "destack/source/span.generated.h"
 #include "destack/source/target.generated.h"

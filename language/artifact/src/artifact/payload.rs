@@ -4,7 +4,7 @@ use crate::{
     ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirElaborated, DirExpanded,
     DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment,
     MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted, ModuleOutput,
-    ModuleQueryIndex, PackageIndex, PackageLinted, PackageOutput, WorkspaceLinted,
+    ModuleQueryIndex, PackageIndex, PackageLinted, PackageOutput, ProductOutput, WorkspaceLinted,
     WorkspaceQueryIndex,
 };
 use serde::{Deserialize, Serialize};
@@ -56,6 +56,8 @@ pub enum ArtifactPayload {
     ModuleOutput(Arc<ModuleOutput>),
     /// Output entries for one package target.
     PackageOutput(Arc<PackageOutput>),
+    /// Output entries for one product.
+    ProductOutput(Arc<ProductOutput>),
     /// Realized lint diagnostics for one module profile.
     ModuleLinted(Arc<ModuleLinted>),
     /// Realized lint diagnostics for one package.
@@ -111,6 +113,8 @@ pub enum ArtifactPayloadRef<'a> {
     ModuleOutput(&'a ModuleOutput),
     /// Output entries for one package target.
     PackageOutput(&'a PackageOutput),
+    /// Output entries for one product.
+    ProductOutput(&'a ProductOutput),
     /// Realized lint diagnostics for one module profile.
     ModuleLinted(&'a ModuleLinted),
     /// Realized lint diagnostics for one package.
@@ -145,6 +149,7 @@ impl ArtifactPayload {
             Self::WorkspaceQueryIndex(_) => "workspace_query_index",
             Self::ModuleOutput(_) => "module_output",
             Self::PackageOutput(_) => "package_output",
+            Self::ProductOutput(_) => "product_output",
             Self::ModuleLinted(_) => "module_linted",
             Self::PackageLinted(_) => "package_linted",
             Self::WorkspaceLinted(_) => "workspace_linted",
@@ -303,6 +308,13 @@ impl From<PackageOutput> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: PackageOutput) -> Self {
         Self::PackageOutput(Arc::new(payload))
+    }
+}
+
+impl From<ProductOutput> for ArtifactPayload {
+    /// Convert a typed artifact into an artifact payload.
+    fn from(payload: ProductOutput) -> Self {
+        Self::ProductOutput(Arc::new(payload))
     }
 }
 

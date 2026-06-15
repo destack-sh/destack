@@ -86,6 +86,9 @@ impl Compiler {
             ArtifactKey::PackageOutput { package, target } => {
                 self.collect_package_output(package, target, context)
             }
+            ArtifactKey::ProductOutput { package, product } => {
+                self.collect_product_output(package, product, context)
+            }
             ArtifactKey::ModuleLinted { .. }
             | ArtifactKey::PackageLinted { .. }
             | ArtifactKey::WorkspaceLinted
@@ -179,6 +182,9 @@ impl Compiler {
             }
             ArtifactKey::PackageOutput { package, target } => {
                 self.provide_package_output(package, target, context)
+            }
+            ArtifactKey::ProductOutput { package, product } => {
+                self.provide_product_output(package, product, context)
             }
             ArtifactKey::ModuleLinted { .. }
             | ArtifactKey::PackageLinted { .. }

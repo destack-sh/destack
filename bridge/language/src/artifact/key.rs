@@ -2,7 +2,9 @@ use std::fmt::{self, Display, Formatter};
 
 use destack_artifact as artifact;
 
-use crate::{ComponentId, ModuleId, PackageId, ProfileId, SourceIdParseError, TargetId, bridge};
+use crate::{
+    ComponentId, ModuleId, PackageId, ProductId, ProfileId, SourceIdParseError, TargetId, bridge,
+};
 
 /// External artifact key crossing bridge boundaries.
 #[bridge(capi_handle)]
@@ -156,6 +158,13 @@ pub enum ArtifactKey {
         /// Build target.
         target: TargetId,
     },
+    /// Output entries for one product.
+    ProductOutput {
+        /// Source package.
+        package: PackageId,
+        /// Product.
+        product: ProductId,
+    },
     /// Realized lint diagnostics for one module profile.
     ModuleLinted {
         /// Source module.
@@ -277,6 +286,10 @@ impl ArtifactKey {
                 package: package.into(),
                 target: target.into(),
             },
+            artifact::ArtifactKey::ProductOutput { package, product } => Self::ProductOutput {
+                package: package.into(),
+                product: product.into(),
+            },
             artifact::ArtifactKey::ModuleLinted { module, profile } => Self::ModuleLinted {
                 module: module.into(),
                 profile: profile.into(),
@@ -397,6 +410,10 @@ impl ArtifactKey {
             Self::PackageOutput { package, target } => Ok(artifact::ArtifactKey::PackageOutput {
                 package: package.into_source()?,
                 target: target.into_source()?,
+            }),
+            Self::ProductOutput { package, product } => Ok(artifact::ArtifactKey::ProductOutput {
+                package: package.into_source()?,
+                product: product.into_source()?,
             }),
             Self::ModuleLinted { module, profile } => Ok(artifact::ArtifactKey::ModuleLinted {
                 module: module.into_source()?,

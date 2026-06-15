@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use destack_source::{ComponentId, ModuleId, PackageId, ProfileId, TargetId};
+use destack_source::{ComponentId, ModuleId, PackageId, ProductId, ProfileId, TargetId};
 
 /// Provider family for one artifact key.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -114,6 +114,11 @@ pub enum ArtifactKey {
         package: PackageId,
         target: TargetId,
     },
+    /// Output entries for one product.
+    ProductOutput {
+        package: PackageId,
+        product: ProductId,
+    },
 
     /// Realized lint diagnostics for one module profile.
     ModuleLinted {
@@ -191,7 +196,8 @@ impl ArtifactKey {
             | Self::MirVerified { .. }
             | Self::MirOptimized { .. }
             | Self::ModuleOutput { .. }
-            | Self::PackageOutput { .. } => ArtifactProvider::Compiler,
+            | Self::PackageOutput { .. }
+            | Self::ProductOutput { .. } => ArtifactProvider::Compiler,
             Self::ModuleLinted { .. } | Self::PackageLinted { .. } | Self::WorkspaceLinted => {
                 ArtifactProvider::Linter
             }
@@ -204,7 +210,9 @@ impl ArtifactKey {
     /// Return the package referenced by this artifact key when one exists.
     pub fn package_id(&self) -> Option<PackageId> {
         match self {
-            Self::PackageOutput { package, .. } | Self::PackageLinted { package } => Some(*package),
+            Self::PackageOutput { package, .. }
+            | Self::ProductOutput { package, .. }
+            | Self::PackageLinted { package } => Some(*package),
             _ => None,
         }
     }
@@ -339,6 +347,11 @@ impl ArtifactKey {
         Self::PackageOutput { package, target }
     }
 
+    /// Build one product output artifact key.
+    pub fn product_output(package: PackageId, product: ProductId) -> Self {
+        Self::ProductOutput { package, product }
+    }
+
     /// Build one module lint artifact key.
     pub fn module_linted(module: ModuleId, profile: ProfileId) -> Self {
         Self::ModuleLinted { module, profile }
@@ -371,7 +384,7 @@ impl ArtifactKey {
             | Self::MirVerified { .. }
             | Self::MirOptimized { .. } => ArtifactStage::Lower,
             Self::ModuleOutput { .. } => ArtifactStage::Emit,
-            Self::PackageOutput { .. } => ArtifactStage::Link,
+            Self::PackageOutput { .. } | Self::ProductOutput { .. } => ArtifactStage::Link,
             Self::ModuleLinted { .. } | Self::PackageLinted { .. } | Self::WorkspaceLinted => {
                 ArtifactStage::Lint
             }
@@ -407,6 +420,7 @@ impl ArtifactKey {
             Self::WorkspaceQueryIndex { .. } => "workspace.index",
             Self::ModuleOutput { .. } => "module.emit",
             Self::PackageOutput { .. } => "package.link",
+            Self::ProductOutput { .. } => "product.link",
             Self::ModuleLinted { .. } => "module.lint",
             Self::PackageLinted { .. } => "package.lint",
             Self::WorkspaceLinted => "workspace.lint",
@@ -438,6 +452,7 @@ impl ArtifactKey {
             Self::WorkspaceQueryIndex { .. } => "workspace_query_index",
             Self::ModuleOutput { .. } => "module_output",
             Self::PackageOutput { .. } => "package_output",
+            Self::ProductOutput { .. } => "product_output",
             Self::ModuleLinted { .. } => "module_linted",
             Self::PackageLinted { .. } => "package_linted",
             Self::WorkspaceLinted => "workspace_linted",
@@ -470,6 +485,7 @@ impl ArtifactKey {
             | Self::ComponentGraph { .. }
             | Self::WorkspaceQueryIndex { .. }
             | Self::PackageOutput { .. }
+            | Self::ProductOutput { .. }
             | Self::PackageLinted { .. }
             | Self::WorkspaceLinted => None,
         }
@@ -481,6 +497,14 @@ impl ArtifactKey {
     pub fn target_id(&self) -> Option<TargetId> {
         match self {
             Self::ModuleOutput { target, .. } | Self::PackageOutput { target, .. } => Some(*target),
+            _ => None,
+        }
+    }
+
+    /// Return the product id encoded in this key when one exists.
+    pub fn product_id(&self) -> Option<ProductId> {
+        match self {
+            Self::ProductOutput { product, .. } => Some(*product),
             _ => None,
         }
     }
@@ -511,6 +535,7 @@ impl ArtifactKey {
             | Self::Data { .. }
             | Self::ModuleOutput { .. }
             | Self::PackageOutput { .. }
+            | Self::ProductOutput { .. }
             | Self::PackageLinted { .. }
             | Self::WorkspaceLinted => None,
         }

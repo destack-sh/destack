@@ -13,8 +13,8 @@ use crate::{
     ArtifactVersion, ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent,
     DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
     GlobalEnvironment, MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted,
-    ModuleOutput, ModuleQueryIndex, PackageIndex, PackageLinted, PackageOutput, WorkspaceLinted,
-    WorkspaceQueryIndex,
+    ModuleOutput, ModuleQueryIndex, PackageIndex, PackageLinted, PackageOutput, ProductOutput,
+    WorkspaceLinted, WorkspaceQueryIndex,
 };
 
 /// One versioned artifact family map.
@@ -77,6 +77,8 @@ pub struct ArtifactStore {
     module_output: ArtifactMap<ModuleOutput>,
     /// Output entries by package and target.
     package_output: ArtifactMap<PackageOutput>,
+    /// Output entries by product.
+    product_output: ArtifactMap<ProductOutput>,
     /// Module lint surfaces by module and profile.
     module_linted: ArtifactMap<ModuleLinted>,
     /// Package lint surfaces by package.
@@ -195,6 +197,7 @@ impl ArtifactStore {
             }
             ArtifactKey::ModuleOutput { .. } => self.module_output.contains_key(version),
             ArtifactKey::PackageOutput { .. } => self.package_output.contains_key(version),
+            ArtifactKey::ProductOutput { .. } => self.product_output.contains_key(version),
             ArtifactKey::ModuleLinted { .. } => self.module_linted.contains_key(version),
             ArtifactKey::PackageLinted { .. } => self.package_linted.contains_key(version),
             ArtifactKey::WorkspaceLinted => self.workspace_linted.contains_key(version),
@@ -504,6 +507,19 @@ impl ArtifactStore {
                     )
                 })
                 .transpose(),
+            ArtifactKey::ProductOutput { .. } => self
+                .product_output(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::ProductOutput(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
             ArtifactKey::ModuleLinted { .. } => self
                 .module_linted(version)
                 .map(|payload| {
@@ -754,6 +770,13 @@ impl ArtifactStore {
                 matches!(&version.key, ArtifactKey::PackageOutput { .. }),
                 "PackageOutput",
             ),
+            ArtifactPayload::ProductOutput(payload) => Self::insert_payload(
+                &self.product_output,
+                version,
+                payload,
+                matches!(&version.key, ArtifactKey::ProductOutput { .. }),
+                "ProductOutput",
+            ),
             ArtifactPayload::ModuleLinted(payload) => Self::insert_payload(
                 &self.module_linted,
                 version,
@@ -954,6 +977,13 @@ impl ArtifactStore {
     /// Get one package output artifact.
     pub fn package_output(&self, version: &ArtifactVersion) -> Option<Arc<PackageOutput>> {
         self.package_output
+            .get(version)
+            .map(|entry| entry.value().clone())
+    }
+
+    /// Get one product output artifact.
+    pub fn product_output(&self, version: &ArtifactVersion) -> Option<Arc<ProductOutput>> {
+        self.product_output
             .get(version)
             .map(|entry| entry.value().clone())
     }

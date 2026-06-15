@@ -16,6 +16,10 @@ from destack.source.package import (
     PackageId,
 )
 
+from destack.source.product import (
+    ProductId,
+)
+
 from destack.source.profile import (
     ProfileId,
 )
@@ -115,6 +119,10 @@ class ArtifactKey:
     @staticmethod
     def package_output(package: PackageId, target: TargetId) -> ArtifactKey: ...
 
+    """Output entries for one product."""
+    @staticmethod
+    def product_output(package: PackageId, product: ProductId) -> ArtifactKey: ...
+
     """Realized lint diagnostics for one module profile."""
     @staticmethod
     def module_linted(module: ModuleId, profile: ProfileId) -> ArtifactKey: ...
@@ -141,6 +149,9 @@ class ArtifactKey:
 
     @property
     def package(self) -> PackageId | None: ...
+
+    @property
+    def product(self) -> ProductId | None: ...
 
     @property
     def profile(self) -> ProfileId | None: ...

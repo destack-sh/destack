@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use destack_dir::LanguageItem;
-use destack_source::{FileType, ModuleId, PackageId, ProfileId, TargetId, Uri};
+use destack_source::{FileType, ModuleId, PackageId, ProductId, ProfileId, TargetId, Uri};
 
 use crate::{DiagnosticContext, DiagnosticDisplay, DiagnosticError};
 
@@ -243,6 +243,16 @@ impl DiagnosticFormat for TargetId {
         formatter: &DiagnosticFormatter<'_>,
     ) -> Result<String, DiagnosticError> {
         formatter.display(DiagnosticDisplay::Target(*self))
+    }
+}
+
+impl DiagnosticFormat for ProductId {
+    /// Format one product id for display.
+    fn format_diagnostic(
+        &self,
+        _formatter: &DiagnosticFormatter<'_>,
+    ) -> Result<String, DiagnosticError> {
+        Ok(self.to_string())
     }
 }
 
