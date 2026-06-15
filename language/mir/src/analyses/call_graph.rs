@@ -1,4 +1,6 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+
+use destack_core::{BitSet, DenseGraph};
 
 use crate as mir;
 
@@ -175,21 +177,23 @@ impl ModuleAnalysis for CallGraph {
 /// Strongly connected components for a module call graph.
 #[derive(Debug, Default)]
 pub struct CallGraphScc {
-    /// Maps each function to its SCC id.
-    function_scc: HashMap<mir::LocalNodeId<mir::Function>, usize>,
+    /// Component id by dense function id.
+    function_scc: Vec<u32>,
     /// SCCs that are recursive.
-    recursive_sccs: HashSet<usize>,
+    recursive_sccs: BitSet,
 }
 
 impl CallGraphScc {
     /// Return the SCC id for a function.
     pub fn scc_id(&self, function_id: mir::LocalNodeId<mir::Function>) -> Option<usize> {
-        self.function_scc.get(&function_id).copied()
+        self.function_scc
+            .get(function_id.get())
+            .map(|component| *component as usize)
     }
 
     /// Return true when the SCC is recursive.
     pub fn is_recursive_scc(&self, scc_id: usize) -> bool {
-        self.recursive_sccs.contains(&scc_id)
+        scc_id < self.recursive_sccs.len() && self.recursive_sccs.contains(scc_id)
     }
 
     /// Return true when the function is part of a recursive SCC.
@@ -216,125 +220,77 @@ impl ModuleAnalysis for CallGraphScc {
 
 /// Compute SCCs for the module call graph.
 fn compute_callgraph_scc(tree: &mir::Tree, callgraph: &CallGraph) -> CallGraphScc {
-    // prepare tarjan state
-    let mut index = 0usize;
-    let mut next_scc_id = 0usize;
-    let mut stack = Vec::new();
-    let mut on_stack = HashSet::new();
-    let mut indices = HashMap::new();
-    let mut lowlinks = HashMap::new();
-    let mut scc_map = CallGraphScc::default();
-
-    // collect function ids for traversal
-    let function_ids: Vec<_> = tree
+    // size the dense graph from the function arena ids
+    let function_count = tree
         .iter_nodes::<mir::Function>()
-        .map(|(id, _)| id)
-        .collect();
+        .map(|(id, _)| id.get())
+        .max()
+        .map_or(0, |last| last + 1);
 
-    // run tarjan across all functions
-    for function_id in function_ids {
-        if !indices.contains_key(&function_id) {
-            tarjan_visit(
-                function_id,
-                callgraph,
-                &mut index,
-                &mut next_scc_id,
-                &mut stack,
-                &mut on_stack,
-                &mut indices,
-                &mut lowlinks,
-                &mut scc_map,
-            );
+    // count direct call edges per function
+    let mut edge_offsets = vec![0u32; function_count + 1];
+    for (function_id, _) in tree.iter_nodes::<mir::Function>() {
+        let source = function_id.get();
+        let count = callgraph
+            .outgoing(function_id)
+            .iter()
+            .filter(|edge| edge.is_direct())
+            .count();
+        edge_offsets[source + 1] = count as u32;
+    }
+
+    // prefix sum edge counts into CSR offsets
+    for source in 0..function_count {
+        edge_offsets[source + 1] += edge_offsets[source];
+    }
+
+    // copy direct call targets into dense edge storage
+    let mut edge_targets = Vec::with_capacity(edge_offsets[function_count] as usize);
+    for source in 0..function_count {
+        let function_id = mir::LocalNodeId::<mir::Function>::new(source as u32);
+        for edge in callgraph.outgoing(function_id) {
+            if edge.is_direct() {
+                edge_targets.push(edge.callee.get() as u32);
+            }
+        }
+    }
+
+    // partition the direct call graph
+    let graph = DenseGraph::new(&edge_offsets, &edge_targets);
+    let partition = graph.strongly_connected_components();
+
+    // count component sizes to identify multi-function cycles
+    let component_count = partition.component_count() as usize;
+    let mut component_sizes = vec![0usize; component_count];
+    for component in partition.components() {
+        component_sizes[*component as usize] += 1;
+    }
+
+    // map each function to its component
+    let mut scc_map = CallGraphScc {
+        function_scc: vec![0; function_count],
+        recursive_sccs: BitSet::new(component_count),
+    };
+    for (function_id, _) in tree.iter_nodes::<mir::Function>() {
+        let component = partition.component(function_id.get()) as usize;
+        scc_map.function_scc[function_id.get()] = component as u32;
+    }
+
+    // mark recursive components from cycles or direct self-calls
+    for (function_id, _) in tree.iter_nodes::<mir::Function>() {
+        let component = partition.component(function_id.get()) as usize;
+        let is_cycle = component_sizes[component] > 1;
+        let is_self_call = callgraph
+            .outgoing(function_id)
+            .iter()
+            .any(|edge| edge.is_direct() && edge.callee == function_id);
+
+        if is_cycle || is_self_call {
+            scc_map.recursive_sccs.insert(component);
         }
     }
 
     scc_map
-}
-
-/// Tarjan recursion for SCC discovery.
-#[allow(clippy::too_many_arguments)]
-fn tarjan_visit(
-    function_id: mir::LocalNodeId<mir::Function>,
-    callgraph: &CallGraph,
-    index: &mut usize,
-    next_scc_id: &mut usize,
-    stack: &mut Vec<mir::LocalNodeId<mir::Function>>,
-    on_stack: &mut HashSet<mir::LocalNodeId<mir::Function>>,
-    indices: &mut HashMap<mir::LocalNodeId<mir::Function>, usize>,
-    lowlinks: &mut HashMap<mir::LocalNodeId<mir::Function>, usize>,
-    scc_map: &mut CallGraphScc,
-) {
-    // initialize tarjan state for this node
-    indices.insert(function_id, *index);
-    lowlinks.insert(function_id, *index);
-    *index += 1;
-    stack.push(function_id);
-    on_stack.insert(function_id);
-
-    // walk direct call edges to discover SCCs
-    for edge in callgraph.outgoing(function_id) {
-        // skip non direct edges for recursion detection
-        if edge.dispatch != mir::CallDispatchKind::Direct {
-            continue;
-        }
-
-        // visit the callee for scc discovery
-        let callee = edge.callee;
-        if !indices.contains_key(&callee) {
-            tarjan_visit(
-                callee,
-                callgraph,
-                index,
-                next_scc_id,
-                stack,
-                on_stack,
-                indices,
-                lowlinks,
-                scc_map,
-            );
-
-            // update the lowlink with the child lowlink
-            let lowlink = lowlinks[&function_id].min(lowlinks[&callee]);
-            lowlinks.insert(function_id, lowlink);
-        } else if on_stack.contains(&callee) {
-            let lowlink = lowlinks[&function_id].min(indices[&callee]);
-            lowlinks.insert(function_id, lowlink);
-        }
-    }
-
-    // finalize SCC if this node is a root
-    if lowlinks[&function_id] == indices[&function_id] {
-        // assign a new scc id
-        let scc_id = *next_scc_id;
-        *next_scc_id += 1;
-        let mut scc_members = Vec::new();
-
-        // pop the scc nodes from the stack
-        while let Some(node) = stack.pop() {
-            on_stack.remove(&node);
-            scc_map.function_scc.insert(node, scc_id);
-            scc_members.push(node);
-            if node == function_id {
-                break;
-            }
-        }
-
-        // mark the scc as recursive when it has a cycle
-        if scc_members.len() > 1 {
-            scc_map.recursive_sccs.insert(scc_id);
-        } else {
-            let node = scc_members[0];
-
-            // detect a self edge to mark recursion
-            let self_edge = callgraph
-                .outgoing(node)
-                .iter()
-                .any(|edge| edge.callee == node && edge.dispatch == mir::CallDispatchKind::Direct);
-            if self_edge {
-                scc_map.recursive_sccs.insert(scc_id);
-            }
-        }
-    }
 }
 
 /// Resolved callsite data for call graph construction.
