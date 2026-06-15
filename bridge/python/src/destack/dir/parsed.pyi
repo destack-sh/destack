@@ -24,4 +24,3 @@ class DirParsed:
     """Parsed module id."""
     @property
     def module(self) -> ModuleId: ...
-

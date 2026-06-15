@@ -9,4 +9,3 @@ export type TargetId = {
     /** Canonical lowercase hex target key within the package. */
     readonly key: string;
 };
-

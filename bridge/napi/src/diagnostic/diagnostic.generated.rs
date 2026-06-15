@@ -4,14 +4,14 @@ use destack_bridge_language as bridge;
 
 use napi_derive::napi;
 
-use crate::{BatchEdit, FileContentId, Span};
+use crate::{BatchEdit, ContentId, Span};
 
 /// One concrete source label in a diagnostic.
 #[derive(Debug)]
 #[napi(object)]
 pub struct DiagnosticLabel {
-    /// Exact file content containing the span.
-    pub content: FileContentId,
+    /// Exact content containing the span.
+    pub content: ContentId,
     /// Concrete source span.
     pub span: Span,
     /// Optional label shown on the span.
@@ -22,7 +22,7 @@ impl DiagnosticLabel {
     /// Convert one bridge value into one NAPI value.
     pub(crate) fn from_bridge(value: bridge::DiagnosticLabel) -> Self {
         Self {
-            content: FileContentId::from_bridge(value.content),
+            content: ContentId::from_bridge(value.content),
             span: Span::from_bridge(value.span),
             message: value.message,
         }

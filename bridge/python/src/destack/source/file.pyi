@@ -13,25 +13,25 @@ class FileId:
     @property
     def id(self) -> str: ...
 
-class FileContentId:
-    """External file content id crossing bridge boundaries."""
+class ContentId:
+    """External content id crossing bridge boundaries."""
 
     def __init__(self, id: str) -> None: ...
 
-    """Canonical lowercase hex file content id."""
+    """Canonical lowercase hex content id."""
     @property
     def id(self) -> str: ...
 
-class FileContent:
-    """Full file content crossing bridge boundaries."""
+class Content:
+    """Full content crossing bridge boundaries."""
 
-    """Text file content."""
+    """Text content."""
     @staticmethod
-    def text(content: str) -> FileContent: ...
+    def text(content: str) -> Content: ...
 
-    """Binary file content."""
+    """Binary content."""
     @staticmethod
-    def binary(content: bytes | bytearray | Sequence[int]) -> FileContent: ...
+    def binary(content: bytes | bytearray | Sequence[int]) -> Content: ...
 
     @property
     def kind(self) -> str: ...
@@ -41,4 +41,3 @@ class FileContent:
 
     @property
     def text_content(self) -> str | None: ...
-

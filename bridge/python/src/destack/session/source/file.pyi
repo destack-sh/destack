@@ -28,4 +28,3 @@ class Change:
     """Updated module id when known."""
     @property
     def module_id(self) -> ModuleId | None: ...
-

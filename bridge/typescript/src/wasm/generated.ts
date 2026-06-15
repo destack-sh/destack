@@ -49,8 +49,8 @@ import type {
 import type { ComponentId } from "../source/component.generated.js";
 import type {
     FileId,
-    FileContentId,
-    FileContent,
+    ContentId,
+    Content,
 } from "../source/file.generated.js";
 import type { ModuleId } from "../source/module.generated.js";
 import type { PackageId } from "../source/package.generated.js";
@@ -137,7 +137,7 @@ export function fromWasmArtifactSourceDependency(
         return {
             kind: "fileContent",
             file: fromWasmFileId(payload_file),
-            content: fromWasmFileContentId(payload_content),
+            content: fromWasmContentId(payload_content),
         };
     }
 
@@ -789,7 +789,7 @@ export function fromWasmArtifactString(value: Wasm.ArtifactString): ArtifactStri
 export function fromWasmArtifactRecord(value: Wasm.ArtifactRecord): ArtifactRecord {
     return {
         version: fromWasmArtifactVersion(value.version),
-        image: Uint8Array.from(value.image),
+        payload: Uint8Array.from(value.payload),
         strings: value.strings.map((item) => fromWasmArtifactString(item)),
         dependencies: value.dependencies.map((item) => fromWasmArtifactDependency(item)),
         diagnostics: value.diagnostics.map((item) => fromWasmDiagnostic(item)),
@@ -812,7 +812,7 @@ export function fromWasmArtifactSidecar(value: Wasm.ArtifactSidecar): ArtifactSi
     return {
         name: value.name,
         labels: value.labels.map((item) => fromWasmArtifactSidecarLabel(item)),
-        content: fromWasmFileContent(value.content),
+        content: fromWasmContent(value.content),
     };
 }
 
@@ -854,7 +854,7 @@ export function fromWasmApplicability(value: string): Applicability {
 /** Convert one WASM DiagnosticLabel into the public bridge shape. */
 export function fromWasmDiagnosticLabel(value: Wasm.DiagnosticLabel): DiagnosticLabel {
     return {
-        content: fromWasmFileContentId(value.content),
+        content: fromWasmContentId(value.content),
         span: fromWasmSpan(value.span),
         message: value.message == null ? undefined : value.message,
     };
@@ -1093,15 +1093,15 @@ export function fromWasmFileId(value: Wasm.FileId): FileId {
     };
 }
 
-/** Convert one WASM FileContentId into the public bridge shape. */
-export function fromWasmFileContentId(value: Wasm.FileContentId): FileContentId {
+/** Convert one WASM ContentId into the public bridge shape. */
+export function fromWasmContentId(value: Wasm.ContentId): ContentId {
     return {
         id: value.id,
     };
 }
 
-/** Convert one WASM FileContent into the public bridge shape. */
-export function fromWasmFileContent(value: Wasm.FileContent): FileContent {
+/** Convert one WASM Content into the public bridge shape. */
+export function fromWasmContent(value: Wasm.Content): Content {
     if (value.kind === "text") {
         const payload_textContent = value.textContent;
         if (payload_textContent == null) {
@@ -1126,7 +1126,7 @@ export function fromWasmFileContent(value: Wasm.FileContent): FileContent {
         };
     }
 
-    throw new Error("unknown FileContent");
+    throw new Error("unknown Content");
 }
 
 /** Convert one ModuleId into the WASM transport shape. */

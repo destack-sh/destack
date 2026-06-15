@@ -7,8 +7,8 @@ from .component import (
 )
 from .file import (
     FileId,
-    FileContentId,
-    FileContent,
+    ContentId,
+    Content,
 )
 from .module import (
     ModuleId,

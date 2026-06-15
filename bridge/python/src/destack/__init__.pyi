@@ -74,8 +74,8 @@ from .source.component import (
 )
 from .source.file import (
     FileId,
-    FileContentId,
-    FileContent,
+    ContentId,
+    Content,
 )
 from .source.module import (
     ModuleId,
@@ -133,4 +133,3 @@ class Session:
     def diagnostics(self, revision: Revision, key: ArtifactKey | None = None) -> list[Diagnostic]: ...
 
     def sidecars(self, revision: Revision, key: ArtifactKey) -> list[ArtifactSidecar]: ...
-

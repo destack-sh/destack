@@ -98,4 +98,3 @@ export type Commit = {
     /** Changed files. */
     readonly changes: readonly Change[];
 };
-

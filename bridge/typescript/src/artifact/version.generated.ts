@@ -9,4 +9,3 @@ export type ArtifactVersion = {
     /** Exact semantic fingerprint. */
     readonly fingerprint: string;
 };
-

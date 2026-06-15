@@ -17,8 +17,8 @@ export type ArtifactString = {
 export type ArtifactRecord = {
     /** The exact artifact version. */
     readonly version: ArtifactVersion;
-    /** Serialized artifact image bytes. */
-    readonly image: Uint8Array | readonly number[];
+    /** Serialized artifact payload bytes. */
+    readonly payload: Uint8Array | readonly number[];
     /** String pool needed to interpret interned ids in the payload. */
     readonly strings: readonly ArtifactString[];
     /** Exact artifact dependencies. */
@@ -28,4 +28,3 @@ export type ArtifactRecord = {
     /** Artifact sidecars recorded for this artifact version. */
     readonly sidecars: readonly ArtifactSidecar[];
 };
-

@@ -57,7 +57,7 @@ typedef struct DestackArtifactSourceDependency {
     DestackFileId directory;
     DestackArtifactDirectoryEntryArray entries;
     DestackFileId file;
-    DestackFileContentId content;
+    DestackContentId content;
 } DestackArtifactSourceDependency;
 
 typedef struct DestackArtifactSourceDependencyArray {

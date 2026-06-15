@@ -5,4 +5,3 @@ export type SessionFile = {
     /** Repository logical path. */
     readonly path: string;
 };
-

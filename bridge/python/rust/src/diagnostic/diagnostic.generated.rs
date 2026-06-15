@@ -4,7 +4,7 @@ use destack_bridge_language as bridge;
 
 use pyo3::prelude::*;
 
-use crate::{BatchEdit, FileContentId, Span};
+use crate::{BatchEdit, ContentId, Span};
 
 /// Diagnostic severity crossing bridge boundaries.
 #[pyclass(
@@ -180,7 +180,7 @@ pub struct DiagnosticLabel {
 impl DiagnosticLabel {
     /// Create one value.
     #[new]
-    pub fn new(content: FileContentId, span: Span, message: Option<String>) -> Self {
+    pub fn new(content: ContentId, span: Span, message: Option<String>) -> Self {
         Self {
             value: bridge::DiagnosticLabel {
                 content: content.into_bridge(),
@@ -190,10 +190,10 @@ impl DiagnosticLabel {
         }
     }
 
-    /// Exact file content containing the span.
+    /// Exact content containing the span.
     #[getter]
-    pub fn content(&self) -> FileContentId {
-        FileContentId::from_bridge(self.value.content.clone())
+    pub fn content(&self) -> ContentId {
+        ContentId::from_bridge(self.value.content.clone())
     }
 
     /// Concrete source span.

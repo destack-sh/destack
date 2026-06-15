@@ -4,7 +4,7 @@ use destack_bridge_language as bridge;
 
 use wasm_bindgen::prelude::wasm_bindgen;
 
-use crate::FileContent;
+use crate::Content;
 
 /// One stable sidecar label crossing bridge boundaries.
 #[derive(Debug, Clone)]
@@ -51,14 +51,14 @@ impl ArtifactSidecarLabel {
 pub struct ArtifactSidecar {
     name: String,
     labels: Vec<ArtifactSidecarLabel>,
-    content: FileContent,
+    content: Content,
 }
 
 #[wasm_bindgen]
 impl ArtifactSidecar {
     /// Create one value.
     #[wasm_bindgen(constructor)]
-    pub fn new(name: String, labels: Vec<ArtifactSidecarLabel>, content: FileContent) -> Self {
+    pub fn new(name: String, labels: Vec<ArtifactSidecarLabel>, content: Content) -> Self {
         Self {
             name,
             labels,
@@ -80,7 +80,7 @@ impl ArtifactSidecar {
 
     /// Sidecar content.
     #[wasm_bindgen(getter, js_name = "content")]
-    pub fn content(&self) -> FileContent {
+    pub fn content(&self) -> Content {
         self.content.clone()
     }
 }
@@ -95,7 +95,7 @@ impl ArtifactSidecar {
                 .into_iter()
                 .map(|item| ArtifactSidecarLabel::from_bridge(item))
                 .collect(),
-            content: FileContent::from_bridge(value.content),
+            content: Content::from_bridge(value.content),
         }
     }
 }

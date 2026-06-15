@@ -19,4 +19,3 @@ export type LabeledSpan = {
     /** Display label. */
     readonly label: string;
 };
-

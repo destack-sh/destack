@@ -23,47 +23,47 @@ typedef struct DestackOptionalFileId {
     DestackFileId value;
 } DestackOptionalFileId;
 
-typedef struct DestackFileContentId {
+typedef struct DestackContentId {
     char *id;
-} DestackFileContentId;
+} DestackContentId;
 
-typedef struct DestackFileContentIdArray {
-    DestackFileContentId *ptr;
+typedef struct DestackContentIdArray {
+    DestackContentId *ptr;
     size_t len;
-} DestackFileContentIdArray;
+} DestackContentIdArray;
 
-typedef struct DestackOptionalFileContentId {
+typedef struct DestackOptionalContentId {
     bool is_some;
-    DestackFileContentId value;
-} DestackOptionalFileContentId;
+    DestackContentId value;
+} DestackOptionalContentId;
 
-typedef enum DestackFileContentKind {
-    DESTACK_FILE_CONTENT_KIND_TEXT = 0,
-    DESTACK_FILE_CONTENT_KIND_BINARY = 1,
-} DestackFileContentKind;
+typedef enum DestackContentKind {
+    DESTACK_CONTENT_KIND_TEXT = 0,
+    DESTACK_CONTENT_KIND_BINARY = 1,
+} DestackContentKind;
 
-typedef struct DestackFileContent {
-    DestackFileContentKind kind;
+typedef struct DestackContent {
+    DestackContentKind kind;
     char *text_content;
     DestackByteArray binary_content;
-} DestackFileContent;
+} DestackContent;
 
-typedef struct DestackFileContentArray {
-    DestackFileContent *ptr;
+typedef struct DestackContentArray {
+    DestackContent *ptr;
     size_t len;
-} DestackFileContentArray;
+} DestackContentArray;
 
-typedef struct DestackOptionalFileContent {
+typedef struct DestackOptionalContent {
     bool is_some;
-    DestackFileContent value;
-} DestackOptionalFileContent;
+    DestackContent value;
+} DestackOptionalContent;
 
 void destack_file_id_destroy(DestackFileId *value);
 void destack_file_id_array_destroy(DestackFileIdArray array);
-void destack_file_content_id_destroy(DestackFileContentId *value);
-void destack_file_content_id_array_destroy(DestackFileContentIdArray array);
-void destack_file_content_destroy(DestackFileContent *value);
-void destack_file_content_array_destroy(DestackFileContentArray array);
+void destack_content_id_destroy(DestackContentId *value);
+void destack_content_id_array_destroy(DestackContentIdArray array);
+void destack_content_destroy(DestackContent *value);
+void destack_content_array_destroy(DestackContentArray array);
 
 #ifdef __cplusplus
 }

@@ -1,6 +1,6 @@
 use destack_source as source;
 
-use crate::{BatchEdit, FileContentId, SourceIdParseError, Span, bridge};
+use crate::{BatchEdit, ContentId, SourceIdParseError, Span, bridge};
 
 /// Diagnostic severity crossing bridge boundaries.
 #[bridge]
@@ -40,8 +40,8 @@ pub enum Applicability {
 #[bridge]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DiagnosticLabel {
-    /// Exact file content containing the span.
-    pub content: FileContentId,
+    /// Exact content containing the span.
+    pub content: ContentId,
     /// Concrete source span.
     pub span: Span,
     /// Optional label shown on the span.

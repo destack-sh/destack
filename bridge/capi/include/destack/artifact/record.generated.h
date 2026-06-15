@@ -30,7 +30,7 @@ typedef struct DestackOptionalArtifactString {
 
 typedef struct DestackArtifactRecord {
     DestackArtifactVersion version;
-    DestackByteArray image;
+    DestackByteArray payload;
     DestackArtifactStringArray strings;
     DestackArtifactDependencyArray dependencies;
     DestackDiagnosticArray diagnostics;

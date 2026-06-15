@@ -50,7 +50,7 @@ impl ArtifactString {
 #[wasm_bindgen]
 pub struct ArtifactRecord {
     version: ArtifactVersion,
-    image: Vec<u8>,
+    payload: Vec<u8>,
     strings: Vec<ArtifactString>,
     dependencies: Vec<ArtifactDependency>,
     diagnostics: Vec<Diagnostic>,
@@ -63,7 +63,7 @@ impl ArtifactRecord {
     #[wasm_bindgen(constructor)]
     pub fn new(
         version: ArtifactVersion,
-        image: Vec<u8>,
+        payload: Vec<u8>,
         strings: Vec<ArtifactString>,
         dependencies: Vec<ArtifactDependency>,
         diagnostics: Vec<Diagnostic>,
@@ -71,7 +71,7 @@ impl ArtifactRecord {
     ) -> Self {
         Self {
             version,
-            image,
+            payload,
             strings,
             dependencies,
             diagnostics,
@@ -85,10 +85,10 @@ impl ArtifactRecord {
         self.version.clone()
     }
 
-    /// Serialized artifact image bytes.
-    #[wasm_bindgen(getter, js_name = "image")]
-    pub fn image(&self) -> Vec<u8> {
-        self.image.clone()
+    /// Serialized artifact payload bytes.
+    #[wasm_bindgen(getter, js_name = "payload")]
+    pub fn payload(&self) -> Vec<u8> {
+        self.payload.clone()
     }
 
     /// String pool needed to interpret interned ids in the payload.
@@ -121,7 +121,7 @@ impl ArtifactRecord {
     pub(crate) fn from_bridge(value: bridge::ArtifactRecord) -> Self {
         Self {
             version: ArtifactVersion::from_bridge(value.version),
-            image: value.image,
+            payload: value.payload,
             strings: value
                 .strings
                 .into_iter()

@@ -7,4 +7,3 @@ export type Module = {
     /** Stable source module id. */
     readonly id: ModuleId;
 };
-

@@ -12,4 +12,3 @@ class ComponentId:
     """Canonical lowercase hex component id."""
     @property
     def id(self) -> str: ...
-

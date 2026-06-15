@@ -62,7 +62,7 @@ impl ArtifactRecord {
     #[new]
     pub fn new(
         version: ArtifactVersion,
-        image: Vec<u8>,
+        payload: Vec<u8>,
         strings: Vec<ArtifactString>,
         dependencies: Vec<ArtifactDependency>,
         diagnostics: Vec<Diagnostic>,
@@ -71,7 +71,7 @@ impl ArtifactRecord {
         Self {
             value: bridge::ArtifactRecord {
                 version: version.into_bridge(),
-                image,
+                payload,
                 strings: strings.into_iter().map(|item| item.into_bridge()).collect(),
                 dependencies: dependencies
                     .into_iter()
@@ -95,10 +95,10 @@ impl ArtifactRecord {
         ArtifactVersion::from_bridge(self.value.version.clone())
     }
 
-    /// Serialized artifact image bytes.
+    /// Serialized artifact payload bytes.
     #[getter]
-    pub fn image(&self) -> Vec<u8> {
-        self.value.image.clone()
+    pub fn payload(&self) -> Vec<u8> {
+        self.value.payload.clone()
     }
 
     /// String pool needed to interpret interned ids in the payload.

@@ -11,24 +11,24 @@ pub struct FileId {
     pub id: String,
 }
 
-/// External file content id crossing bridge boundaries.
+/// External content id crossing bridge boundaries.
 #[bridge]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct FileContentId {
-    /// Canonical lowercase hex file content id.
+pub struct ContentId {
+    /// Canonical lowercase hex content id.
     pub id: String,
 }
 
-/// Full file content crossing bridge boundaries.
+/// Full content crossing bridge boundaries.
 #[bridge]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FileContent {
-    /// Text file content.
+pub enum Content {
+    /// Text content.
     Text {
         /// Text content.
         content: String,
     },
-    /// Binary file content.
+    /// Binary content.
     Binary {
         /// Binary content.
         content: Vec<u8>,
@@ -51,36 +51,36 @@ impl FileId {
     }
 }
 
-impl FileContentId {
-    /// Convert one source file content id into one bridge file content id.
-    pub fn from_source(id: source::FileContentId) -> Self {
+impl ContentId {
+    /// Convert one source content id into one bridge content id.
+    pub fn from_source(id: source::ContentId) -> Self {
         Self {
             id: format!("{:032x}", id.0),
         }
     }
 
-    /// Convert this bridge file content id into one source file content id.
-    pub fn into_source(self) -> Result<source::FileContentId, SourceIdParseError> {
-        let id = parse_u128("file content", &self.id)?;
+    /// Convert this bridge content id into one source content id.
+    pub fn into_source(self) -> Result<source::ContentId, SourceIdParseError> {
+        let id = parse_u128("content", &self.id)?;
 
-        Ok(source::FileContentId::new(id))
+        Ok(source::ContentId::new(id))
     }
 }
 
-impl FileContent {
-    /// Convert one source file content into one bridge file content.
-    pub fn from_source(content: source::FileContent) -> Self {
+impl Content {
+    /// Convert one source content into one bridge content.
+    pub fn from_source(content: source::Content) -> Self {
         match content {
-            source::FileContent::Text { content } => Self::Text { content },
-            source::FileContent::Binary { content } => Self::Binary { content },
+            source::Content::Text { content } => Self::Text { content },
+            source::Content::Binary { content } => Self::Binary { content },
         }
     }
 
-    /// Convert this bridge file content into one source file content.
-    pub fn into_source(self) -> source::FileContent {
+    /// Convert this bridge content into one source content.
+    pub fn into_source(self) -> source::Content {
         match self {
-            Self::Text { content } => source::FileContent::Text { content },
-            Self::Binary { content } => source::FileContent::Binary { content },
+            Self::Text { content } => source::Content::Text { content },
+            Self::Binary { content } => source::Content::Binary { content },
         }
     }
 }
@@ -101,32 +101,32 @@ impl TryFrom<FileId> for source::FileId {
     }
 }
 
-impl From<source::FileContentId> for FileContentId {
-    /// Convert one source file content id into one bridge file content id.
-    fn from(id: source::FileContentId) -> Self {
+impl From<source::ContentId> for ContentId {
+    /// Convert one source content id into one bridge content id.
+    fn from(id: source::ContentId) -> Self {
         Self::from_source(id)
     }
 }
 
-impl TryFrom<FileContentId> for source::FileContentId {
+impl TryFrom<ContentId> for source::ContentId {
     type Error = SourceIdParseError;
 
-    /// Convert one bridge file content id into one source file content id.
-    fn try_from(id: FileContentId) -> Result<Self, Self::Error> {
+    /// Convert one bridge content id into one source content id.
+    fn try_from(id: ContentId) -> Result<Self, Self::Error> {
         id.into_source()
     }
 }
 
-impl From<source::FileContent> for FileContent {
-    /// Convert one source file content into one bridge file content.
-    fn from(content: source::FileContent) -> Self {
+impl From<source::Content> for Content {
+    /// Convert one source content into one bridge content.
+    fn from(content: source::Content) -> Self {
         Self::from_source(content)
     }
 }
 
-impl From<FileContent> for source::FileContent {
-    /// Convert one bridge file content into one source file content.
-    fn from(content: FileContent) -> Self {
+impl From<Content> for source::Content {
+    /// Convert one bridge content into one source content.
+    fn from(content: Content) -> Self {
         content.into_source()
     }
 }

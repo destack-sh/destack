@@ -5,4 +5,3 @@ export type Revision = {
     /** Displayed repository revision id. */
     readonly id: string;
 };
-

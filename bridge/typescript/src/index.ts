@@ -35,8 +35,8 @@ export type { DirResolved } from "./dir/resolved.generated.js";
 export type { Revision } from "./repository/revision.generated.js";
 export type { ComponentId } from "./source/component.generated.js";
 export type {
-    FileContent,
-    FileContentId,
+    Content,
+    ContentId,
     FileId,
 } from "./source/file.generated.js";
 export type { ModuleId } from "./source/module.generated.js";

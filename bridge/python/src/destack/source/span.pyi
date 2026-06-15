@@ -37,4 +37,3 @@ class LabeledSpan:
     """Display label."""
     @property
     def label(self) -> str: ...
-

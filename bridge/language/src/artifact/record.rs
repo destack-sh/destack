@@ -19,8 +19,8 @@ pub struct ArtifactString {
 pub struct ArtifactRecord {
     /// The exact artifact version.
     pub version: ArtifactVersion,
-    /// Serialized artifact image bytes.
-    pub image: Vec<u8>,
+    /// Serialized artifact payload bytes.
+    pub payload: Vec<u8>,
     /// String pool needed to interpret interned ids in the payload.
     pub strings: Vec<ArtifactString>,
     /// Exact artifact dependencies.
@@ -69,7 +69,7 @@ impl ArtifactRecord {
 
         Self {
             version: ArtifactVersion::from_artifact(record.version),
-            image: record.image,
+            payload: record.payload,
             strings,
             dependencies,
             diagnostics,

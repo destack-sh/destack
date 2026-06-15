@@ -5,4 +5,3 @@ export type ProfileId = {
     /** Canonical lowercase hex profile id. */
     readonly id: string;
 };
-

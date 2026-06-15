@@ -12,4 +12,3 @@ class ProfileId:
     """Canonical lowercase hex profile id."""
     @property
     def id(self) -> str: ...
-

@@ -10,4 +10,3 @@ export type DirParsed = {
     /** Parsed module id. */
     readonly module: ModuleId;
 };
-

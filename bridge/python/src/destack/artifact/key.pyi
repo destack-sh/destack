@@ -158,4 +158,3 @@ class ArtifactKey:
 
     @property
     def target(self) -> TargetId | None: ...
-

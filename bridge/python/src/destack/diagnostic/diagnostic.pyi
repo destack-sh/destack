@@ -9,7 +9,7 @@ from destack.diagnostic.edit import (
 )
 
 from destack.source.file import (
-    FileContentId,
+    ContentId,
 )
 
 from destack.source.span import (
@@ -69,11 +69,11 @@ class Applicability:
 class DiagnosticLabel:
     """One concrete source label in a diagnostic."""
 
-    def __init__(self, content: FileContentId, span: Span, message: str | None) -> None: ...
+    def __init__(self, content: ContentId, span: Span, message: str | None) -> None: ...
 
-    """Exact file content containing the span."""
+    """Exact content containing the span."""
     @property
-    def content(self) -> FileContentId: ...
+    def content(self) -> ContentId: ...
 
     """Concrete source span."""
     @property
@@ -162,4 +162,3 @@ class Diagnostic:
     """Extra semantic tags."""
     @property
     def tags(self) -> list[DiagnosticTag]: ...
-

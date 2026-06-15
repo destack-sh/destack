@@ -49,8 +49,8 @@ import type {
 import type { ComponentId } from "../source/component.generated.js";
 import type {
     FileId,
-    FileContentId,
-    FileContent,
+    ContentId,
+    Content,
 } from "../source/file.generated.js";
 import type { ModuleId } from "../source/module.generated.js";
 import type { PackageId } from "../source/package.generated.js";
@@ -135,7 +135,7 @@ export function fromNapiArtifactSourceDependency(
         return {
             kind: "fileContent",
             file: fromNapiFileId(payload_file),
-            content: fromNapiFileContentId(payload_content),
+            content: fromNapiContentId(payload_content),
         };
     }
 
@@ -827,7 +827,7 @@ export function fromNapiArtifactString(value: Napi.ArtifactString): ArtifactStri
 export function fromNapiArtifactRecord(value: Napi.ArtifactRecord): ArtifactRecord {
     return {
         version: fromNapiArtifactVersion(value.version),
-        image: Uint8Array.from(value.image),
+        payload: Uint8Array.from(value.payload),
         strings: value.strings.map((item) => fromNapiArtifactString(item)),
         dependencies: value.dependencies.map((item) => fromNapiArtifactDependency(item)),
         diagnostics: value.diagnostics.map((item) => fromNapiDiagnostic(item)),
@@ -850,7 +850,7 @@ export function fromNapiArtifactSidecar(value: Napi.ArtifactSidecar): ArtifactSi
     return {
         name: value.name,
         labels: value.labels.map((item) => fromNapiArtifactSidecarLabel(item)),
-        content: fromNapiFileContent(value.content),
+        content: fromNapiContent(value.content),
     };
 }
 
@@ -892,7 +892,7 @@ export function fromNapiApplicability(value: string): Applicability {
 /** Convert one NAPI DiagnosticLabel into the public bridge shape. */
 export function fromNapiDiagnosticLabel(value: Napi.DiagnosticLabel): DiagnosticLabel {
     return {
-        content: fromNapiFileContentId(value.content),
+        content: fromNapiContentId(value.content),
         span: fromNapiSpan(value.span),
         message: value.message == null ? undefined : value.message,
     };
@@ -1145,15 +1145,15 @@ export function fromNapiFileId(value: Napi.FileId): FileId {
     };
 }
 
-/** Convert one NAPI FileContentId into the public bridge shape. */
-export function fromNapiFileContentId(value: Napi.FileContentId): FileContentId {
+/** Convert one NAPI ContentId into the public bridge shape. */
+export function fromNapiContentId(value: Napi.ContentId): ContentId {
     return {
         id: value.id,
     };
 }
 
-/** Convert one NAPI FileContent into the public bridge shape. */
-export function fromNapiFileContent(value: Napi.FileContent): FileContent {
+/** Convert one NAPI Content into the public bridge shape. */
+export function fromNapiContent(value: Napi.Content): Content {
     if (value.kind === "text") {
         const payload_textContent = value.textContent;
         if (payload_textContent == null) {
@@ -1178,7 +1178,7 @@ export function fromNapiFileContent(value: Napi.FileContent): FileContent {
         };
     }
 
-    throw new Error("unknown FileContent");
+    throw new Error("unknown Content");
 }
 
 /** Convert one ModuleId into the NAPI transport shape. */

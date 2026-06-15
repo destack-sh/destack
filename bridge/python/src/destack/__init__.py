@@ -71,8 +71,8 @@ from .source.component import (
 )
 from .source.file import (
     FileId,
-    FileContentId,
-    FileContent,
+    ContentId,
+    Content,
 )
 from .source.module import (
     ModuleId,
@@ -131,8 +131,8 @@ __all__ = [
     "Commit",
     "ComponentId",
     "FileId",
-    "FileContentId",
-    "FileContent",
+    "ContentId",
+    "Content",
     "ModuleId",
     "PackageId",
     "ProductId",

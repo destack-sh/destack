@@ -4,7 +4,7 @@ use destack_bridge_language as bridge;
 
 use pyo3::prelude::*;
 
-use crate::FileContent;
+use crate::Content;
 
 /// One stable sidecar label crossing bridge boundaries.
 #[pyclass(
@@ -64,7 +64,7 @@ pub struct ArtifactSidecar {
 impl ArtifactSidecar {
     /// Create one value.
     #[new]
-    pub fn new(name: String, labels: Vec<ArtifactSidecarLabel>, content: FileContent) -> Self {
+    pub fn new(name: String, labels: Vec<ArtifactSidecarLabel>, content: Content) -> Self {
         Self {
             value: bridge::ArtifactSidecar {
                 name,
@@ -93,8 +93,8 @@ impl ArtifactSidecar {
 
     /// Sidecar content.
     #[getter]
-    pub fn content(&self) -> FileContent {
-        FileContent::from_bridge(self.value.content.clone())
+    pub fn content(&self) -> Content {
+        Content::from_bridge(self.value.content.clone())
     }
 }
 

@@ -9,4 +9,3 @@ export type ModuleId = {
     /** Canonical lowercase hex module key within the package. */
     readonly key: string;
 };
-
