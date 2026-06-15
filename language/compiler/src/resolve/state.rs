@@ -25,8 +25,8 @@ pub(in crate::resolve) struct ResolveState<'a> {
     pub(in crate::resolve) strings: &'a StringPool,
     /// The import table being built.
     pub(in crate::resolve) imports: dir::ImportTable,
-    /// The namespace path table being built.
-    pub(in crate::resolve) paths: dir::PathTable,
+    /// The reference resolutions being built.
+    pub(in crate::resolve) references: dir::ReferenceTable,
     /// The recoverable diagnostics produced while resolving.
     pub(in crate::resolve) diagnostics: Vec<ResolveError>,
     /// The work stats accumulated while resolving.
@@ -35,8 +35,8 @@ pub(in crate::resolve) struct ResolveState<'a> {
     pub(in crate::resolve) module_clauses: Vec<ModuleClause>,
     /// Namespace path references collected from active roots.
     pub(in crate::resolve) path_references: Vec<PathReference>,
-    /// Member path collection depth during the resolve walk.
-    pub(in crate::resolve) member_path_collection_depth: usize,
+    /// Nesting depth within a member chain, so only its outermost member collects.
+    pub(in crate::resolve) member_chain_depth: usize,
     /// Bare global keys required by active roots.
     pub(in crate::resolve) global_keys: IndexSet<dir::StaticKey>,
     /// Language items required by syntax in active roots.
@@ -106,12 +106,12 @@ impl<'a> ResolveState<'a> {
             modules,
             strings,
             imports: dir::ImportTable::new(module),
-            paths: dir::PathTable::new(module),
+            references: dir::ReferenceTable::new(module),
             diagnostics: Vec::new(),
             stats: ResolveStats::default(),
             module_clauses: Vec::new(),
             path_references: Vec::new(),
-            member_path_collection_depth: 0,
+            member_chain_depth: 0,
             global_keys: IndexSet::new(),
             language_items: IndexSet::new(),
             function_stack: Vec::new(),
@@ -157,11 +157,11 @@ impl<'a> ResolveState<'a> {
         key: dir::StaticKey,
         space: dir::SymbolSpace,
     ) {
-        let source = source.into_global(self.module);
         self.stats.local_binding_lookups += 1;
 
         if !matches!(
-            self.bindings.lookup_symbol_at(source, key, space),
+            self.bindings
+                .lookup_symbol_at(&self.view, source, key, space),
             dir::SymbolLookup::Missing,
         ) {
             return;
@@ -191,7 +191,7 @@ impl<'a> ResolveState<'a> {
     pub(in crate::resolve) fn finish(self) -> DirResolved {
         DirResolved {
             imports: self.imports,
-            paths: self.paths,
+            references: self.references,
         }
     }
 

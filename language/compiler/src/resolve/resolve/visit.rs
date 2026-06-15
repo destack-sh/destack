@@ -236,9 +236,6 @@ impl ResolveState<'_> {
                 self.is_static_if_decorator_expression(tree, *left)
             }
             dir::Expression::Identifier { name } => self.strings.get(*name) == "if",
-            dir::Expression::QualifiedReference { path, .. } if path.segments.len() == 1 => {
-                self.strings.get(path.segments[0]) == "if"
-            }
             _ => false,
         }
     }
