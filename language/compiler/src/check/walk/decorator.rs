@@ -31,6 +31,10 @@ impl WalkState<'_, '_> {
 
     /// Walk one non-if decorator target name.
     ///
+    /// A decorator names a single declaration, either by a lexical name or
+    /// through a namespace path. Decorators resolve eagerly during the walk
+    /// and cannot defer to selection, so anything else is an error.
+    ///
     /// Example:
     /// ```ds
     /// @repr("C")
@@ -40,58 +44,121 @@ impl WalkState<'_, '_> {
         &mut self,
         target: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
-        let source = target.into_global_any(self.module);
+        let symbol = match self.tree.get(target) {
+            dir::Expression::Identifier { name } => self.decorator_identifier_symbol(target, *name),
+            dir::Expression::Member { .. } => self.decorator_path_symbol(target),
+            // any other computed form is not a name and cannot resolve here
+            _ => {
+                self.check
+                    .report_invalid_decorator_target(self.module, target.into_any());
 
-        // a decorator must name a declaration; a member access or any other
-        // computed form is not a name and cannot resolve here
-        let dir::Expression::Identifier { name } = self.tree.get(target) else {
-            self.check
-                .report_invalid_decorator_target(self.module, target.into_any());
-
-            return Ok(());
+                None
+            }
         };
-        let name = *name;
 
-        // decorators resolve eagerly during the walk and cannot defer to
-        // selection, so anything but a single visible declaration is an error
+        if let Some(symbol) = symbol {
+            self.check.record_decision(
+                target.into_global_any(self.module),
+                Decision::Name(dir::NameResolution::new(symbol)),
+            )?;
+        }
+
+        Ok(())
+    }
+
+    /// Resolve one lexical decorator name to its single declaration.
+    fn decorator_identifier_symbol(
+        &mut self,
+        target: dir::LocalNodeId<dir::Expression>,
+        name: dir::StringId,
+    ) -> Option<dir::GlobalSymbolId> {
         let lookup = self.check.lookup_name(
             self.module,
             target.into_any(),
             name,
             dir::SymbolSpace::Value,
         );
+
         match lookup {
             NameLookup::Found(candidate) => match candidate.symbol() {
-                Some(symbol) => {
-                    self.check.record_decision(
-                        source,
-                        Decision::Name(dir::NameResolution::new(symbol)),
-                    )?;
-                }
+                Some(symbol) => Some(symbol),
                 // a namespace is not itself a decorator
                 None => {
                     self.check
                         .report_invalid_decorator_target(self.module, target.into_any());
+
+                    None
                 }
             },
             NameLookup::Missing => {
                 let path = dir::Path {
                     segments: smallvec::smallvec![name],
                 };
-
                 self.check
                     .report_unresolved_reference(self.module, target.into_any(), &path);
+
+                None
             }
             NameLookup::Ambiguous(_) => {
                 let path = dir::Path {
                     segments: smallvec::smallvec![name],
                 };
-
                 self.check
                     .report_ambiguous_reference(self.module, target.into_any(), &path);
+
+                None
             }
         }
+    }
 
-        Ok(())
+    /// Resolve one namespace-path decorator to its single declaration.
+    fn decorator_path_symbol(
+        &mut self,
+        target: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::GlobalSymbolId> {
+        let reference = self
+            .check
+            .module(self.module)
+            .resolved
+            .references
+            .get(target.into_global_any(self.module))
+            .cloned();
+
+        match reference {
+            // a namespace path naming a single declaration
+            Some(dir::Reference::Bound(symbols)) => match symbols.as_slice() {
+                [symbol] => Some(*symbol),
+                // an overload set is not a single decorator
+                _ => {
+                    self.check
+                        .report_invalid_decorator_target(self.module, target.into_any());
+
+                    None
+                }
+            },
+            Some(dir::Reference::Ambiguous(_)) => {
+                if let Some(path) = self.tree.tree().reference_path(target) {
+                    self.check
+                        .report_ambiguous_reference(self.module, target.into_any(), &path);
+                }
+
+                None
+            }
+            Some(dir::Reference::Missing) => {
+                if let Some(path) = self.tree.tree().reference_path(target) {
+                    self.check
+                        .report_unresolved_reference(self.module, target.into_any(), &path);
+                }
+
+                None
+            }
+            // a namespace, a value projection, or an untracked target is not a decorator
+            Some(dir::Reference::Namespace(_)) | Some(dir::Reference::Projected { .. }) | None => {
+                self.check
+                    .report_invalid_decorator_target(self.module, target.into_any());
+
+                None
+            }
+        }
     }
 }
