@@ -445,17 +445,13 @@ impl ModuleLowerer<'_> {
         let Ok(expression_id) = source_id.try_into_typed::<dir::Expression>() else {
             return Ok(None);
         };
-        let expression = self.dir_tree.get(expression_id);
-        let (path, generic_arguments) = match expression {
-            dir::Expression::QualifiedReference {
-                path,
-                generic_arguments,
-                ..
-            } => (path, generic_arguments.as_slice()),
-            _ => return Ok(None),
+        // a static name path lowers as a reference; anything else is not a type path
+        let Some(path) = self.dir_tree.reference_path(expression_id) else {
+            return Ok(None);
         };
+        let generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>] = &[];
 
-        let path = self.lower_path(source_id, path)?;
+        let path = self.lower_path(source_id, &path)?;
         let generic_arguments = self.lower_static_type_arguments(generic_arguments)?;
         let ty = js::TypeExpression::Path {
             path,

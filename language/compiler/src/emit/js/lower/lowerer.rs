@@ -27,8 +27,6 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) statics: &'a dir::StaticTable<'static>,
     /// The generic table.
     pub(crate) generics: &'a dir::GenericTable<'static>,
-    /// The resolution table.
-    pub(crate) resolutions: &'a dir::ResolutionTable<'static>,
     /// The module table.
     pub(crate) modules: dir::ModuleTable<'static>,
 
@@ -163,7 +161,6 @@ impl<'a> ModuleLowerer<'a> {
         types: &'a dir::TypeTable<'static>,
         statics: &'a dir::StaticTable<'static>,
         generics: &'a dir::GenericTable<'static>,
-        resolutions: &'a dir::ResolutionTable<'static>,
         modules: dir::ModuleTable<'static>,
     ) -> Self {
         let strings = StringPool::new();
@@ -178,7 +175,6 @@ impl<'a> ModuleLowerer<'a> {
             types,
             statics,
             generics,
-            resolutions,
             modules,
             tree: js::Tree::new(),
             roots: Vec::new(),
