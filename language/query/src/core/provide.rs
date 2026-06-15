@@ -99,11 +99,7 @@ impl Query {
         profile_id: ProfileId,
     ) -> ProviderResult<ArtifactPayload> {
         let revision = context.revision();
-        let artifacts = ArtifactReader::new(
-            self.repository(),
-            revision,
-            self.repository().artifact_store().clone(),
-        );
+        let artifacts = ArtifactReader::new(self.repository(), revision);
 
         // build the module index from one checked query context
         let context = require_module_query_context(

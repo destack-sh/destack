@@ -23,8 +23,8 @@ use destack_repository::{
 };
 use destack_session::open_repository_from_fs;
 use destack_source::{
-    DiagnosticCollection, DiagnosticLabel, DiagnosticSeverity, DiffOptions, Edit as SourceEdit,
-    File, FileContentId, FileId, FileSystem, FileType, LanguageType, Loader, ModuleId,
+    ContentId, DiagnosticCollection, DiagnosticLabel, DiagnosticSeverity, DiffOptions,
+    Edit as SourceEdit, File, FileId, FileSystem, FileType, LanguageType, Loader, ModuleId,
     OverlayFileSystem, PackageId, PhysicalFileSystem, PrintOptions, Span, TargetId, Uri,
     print_diagnostics, print_diff,
 };
@@ -88,7 +88,7 @@ impl TestProviderContext {
     }
 
     /// Return one exact file content id.
-    fn file_content_id(&self, file_id: FileId) -> Result<FileContentId, DiagnosticError> {
+    fn file_content_id(&self, file_id: FileId) -> Result<ContentId, DiagnosticError> {
         let content = self
             .repository
             .file_content_id(self.revision, file_id)

@@ -11,7 +11,7 @@ use crate::{CompilerResult, ResolveError, diagnostic_suggestion_distance};
 
 /// Resolve phase state for one module.
 pub(in crate::resolve) struct ResolveState<'a> {
-    /// Provider-scoped artifact reader.
+    /// Revision-bound artifact reader.
     pub(in crate::resolve) artifacts: ArtifactReader<'a>,
     /// The current module.
     pub(in crate::resolve) module: ModuleId,
