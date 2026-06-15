@@ -66,7 +66,7 @@ impl CacheStore for DiskCacheStore {
         // close the temp file handle before rename
         drop(file);
 
-        // publish without replacing an existing exact image
+        // publish without replacing an existing exact file
         match fs::hard_link(&temp_path, path) {
             Ok(()) => {
                 cleanup_temp_path(&temp_path);
@@ -94,6 +94,45 @@ impl CacheStore for DiskCacheStore {
             Err(error) => Err(CacheStoreError::from(error)),
         }
     }
+
+    fn entries(&self, root: &Path) -> Result<Vec<PathBuf>, CacheStoreError> {
+        let mut paths = Vec::new();
+
+        collect_entries(root, &mut paths)?;
+
+        Ok(paths)
+    }
+
+    fn remove(&self, path: &Path) -> Result<(), CacheStoreError> {
+        match fs::remove_file(path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(CacheStoreError::from(error)),
+        }
+    }
+}
+
+/// Collect cache entry files below one root.
+fn collect_entries(root: &Path, paths: &mut Vec<PathBuf>) -> Result<(), CacheStoreError> {
+    let entries = match fs::read_dir(root) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(CacheStoreError::from(error)),
+    };
+
+    for entry in entries {
+        let entry = entry?;
+        let path = entry.path();
+        let file_type = entry.file_type()?;
+
+        if file_type.is_dir() {
+            collect_entries(&path, paths)?;
+        } else if file_type.is_file() {
+            paths.push(path);
+        }
+    }
+
+    Ok(())
 }
 
 /// Return one temp path for atomic replacement.

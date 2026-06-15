@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use destack_artifact::{ArtifactKey, ArtifactVersion};
-use destack_source::{File, FileContentId, FileId, ModuleId, PackageId};
+use destack_source::{ContentId, File, FileId, ModuleId, PackageId};
 
 use crate::repository::{Repository, RepositoryError, Revision};
 use crate::{Module, Package, Root};
@@ -35,17 +35,30 @@ impl Repository {
     }
 
     /// Prune file revisions and file contents that are no longer reachable.
-    pub fn prune_unreachable(&self) {
+    pub fn prune_unreachable(&self) -> Result<(), RepositoryError> {
         let reachable_revisions = self.reachable_file_revisions();
-        let reachable_file_contents = self.reachable_file_content_ids(&reachable_revisions);
+        let reachable_artifacts = self.reachable_artifact_versions(&reachable_revisions);
+        let reachable_contents =
+            self.reachable_content_ids(&reachable_revisions, &reachable_artifacts);
 
         self.revisions
             .retain(|revision, _| reachable_revisions.contains(revision));
         self.artifact_versions
             .retain(|(revision, _), _| reachable_revisions.contains(revision));
-        self.file_cache
-            .retain_file_contents(&reachable_file_contents);
-        self.files.retain_reachable(&reachable_file_contents);
+        self.artifact_cache()
+            .retain_reachable(&reachable_artifacts)
+            .map_err(|error| RepositoryError::ArtifactCache {
+                message: error.to_string(),
+            })?;
+        self.file_cache.retain_file_contents(&reachable_contents);
+        self.contents.retain_reachable(&reachable_contents);
+        self.content_cache()
+            .retain_reachable(&reachable_contents)
+            .map_err(|error| RepositoryError::ContentCache {
+                message: error.to_string(),
+            })?;
+
+        Ok(())
     }
 
     /// Collect all file revisions reachable from refs and revision pins.
@@ -59,13 +72,35 @@ impl Repository {
         reachable
     }
 
-    /// Collect all file content ids reachable from one revision set.
-    fn reachable_file_content_ids(
+    /// Collect all artifact versions reachable from revisions and artifact pins.
+    fn reachable_artifact_versions(
         &self,
         reachable_revisions: &HashSet<Revision>,
-    ) -> HashSet<FileContentId> {
+    ) -> HashSet<ArtifactVersion> {
         let mut reachable = HashSet::new();
 
+        for artifact_version in self.artifact_versions.iter() {
+            if reachable_revisions.contains(&artifact_version.key().0) {
+                reachable.insert(*artifact_version.value());
+            }
+        }
+
+        for artifact_version in self.artifacts.retained_versions() {
+            reachable.insert(artifact_version);
+        }
+
+        reachable
+    }
+
+    /// Collect all content ids reachable from one revision set.
+    fn reachable_content_ids(
+        &self,
+        reachable_revisions: &HashSet<Revision>,
+        reachable_artifacts: &HashSet<ArtifactVersion>,
+    ) -> HashSet<ContentId> {
+        let mut reachable = HashSet::new();
+
+        // source file contents
         for revision in reachable_revisions {
             let Some(revision_entry) = self.revisions.get(revision) else {
                 continue;
@@ -74,6 +109,13 @@ impl Repository {
 
             for entry in revision_state.files.values() {
                 reachable.insert(entry.content_id);
+            }
+        }
+
+        // artifact output contents
+        for artifact_version in reachable_artifacts {
+            for content in self.artifacts.content_ids(artifact_version) {
+                reachable.insert(content);
             }
         }
 
@@ -184,11 +226,40 @@ mod tests {
     use std::sync::Arc;
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    use destack_artifact::DiskCacheStore;
-    use destack_source::{FileSystem, PhysicalFileSystem};
+    use destack_artifact::{
+        ArtifactKey, ArtifactVersion, DiskCacheStore, EmitFormat, OutputFile, PackageAssembly,
+        PackageOutput, TargetOutputName,
+    };
+    use destack_source::{
+        Content, DiagnosticCollection, FileSystem, FileType, PackageId, PhysicalFileSystem,
+        TargetId, Uri,
+    };
 
     use crate::repository::{Edit, Ref, Repository, Revision};
     use crate::{DestackLayout, DestackLayoutOverride, Environment, Settings};
+
+    /// Create one repository for a test root.
+    fn test_repository(root: &PathBuf) -> Repository {
+        let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+        let environment = Environment::capture_process();
+        let layout = DestackLayout::resolve(
+            root,
+            root,
+            &environment,
+            &Settings::default(),
+            &DestackLayoutOverride::default(),
+            None,
+        );
+
+        Repository::new(
+            root.clone(),
+            Arc::new(DiskCacheStore::new()),
+            file_system,
+            environment,
+            Settings::default(),
+            layout,
+        )
+    }
 
     /// Keep one anonymous revision alive while it is pinned.
     #[test]
@@ -240,8 +311,106 @@ mod tests {
 
         // after the last pin drops, the anonymous revision becomes collectible
         drop(revision_pin);
-        repository.prune_unreachable();
+        repository
+            .prune_unreachable()
+            .expect("repository should prune");
         assert!(repository.revision(anonymous_revision).is_err());
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// Load content from the persistent cache into a fresh repository.
+    #[test]
+    fn test_load_content_from_cache() {
+        let root = unique_test_root("repository-content-load");
+        fs::create_dir_all(&root).expect("repository content load test root should exist");
+
+        let repository = test_repository(&root);
+        let content = Content::Text {
+            content: "cached content\n".to_string(),
+        };
+        let content_id = repository
+            .intern_content(content.clone())
+            .expect("content should intern");
+
+        let repository = test_repository(&root);
+        let loaded = repository
+            .content(content_id)
+            .expect("content should load from cache");
+
+        assert_eq!(loaded.payload(), &content);
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// Load an artifact record from the persistent cache into a fresh repository.
+    #[test]
+    fn test_load_artifact_from_cache() {
+        let root = unique_test_root("repository-artifact-load");
+        fs::create_dir_all(&root).expect("repository artifact load test root should exist");
+
+        let repository = test_repository(&root);
+        let revision = repository
+            .current(&Ref::for_root(&root))
+            .expect("root ref should exist");
+        let package = PackageId::new(1);
+        let target = TargetId::new(package, "browser");
+        let content = repository
+            .intern_content(Content::Text {
+                content: "console.log('loaded')\n".to_string(),
+            })
+            .expect("artifact content should intern");
+        let output = PackageOutput::new(
+            EmitFormat::Js,
+            PackageAssembly::SingleFile,
+            [(
+                TargetOutputName::Entry,
+                vec![OutputFile::new(
+                    Uri::from_string("memory:/out.js"),
+                    FileType::JavaScript,
+                    content,
+                    None,
+                )],
+            )]
+            .into_iter()
+            .collect(),
+        );
+        let key = ArtifactKey::package_output(package, target);
+        let version = ArtifactVersion::new(key, repository.build_fingerprint(), []);
+
+        repository
+            .complete_artifact(
+                revision,
+                version,
+                output.into(),
+                Vec::new(),
+                DiagnosticCollection::new(),
+                Vec::new(),
+            )
+            .expect("package output should publish");
+
+        let repository = test_repository(&root);
+        let revision = repository
+            .current(&Ref::for_root(&root))
+            .expect("root ref should exist");
+        let loaded = repository
+            .load_artifact(revision, version)
+            .expect("artifact should load from cache");
+
+        assert!(loaded);
+        assert_eq!(
+            repository
+                .artifact_version(revision, &key)
+                .expect("artifact binding should load"),
+            Some(version)
+        );
+        assert!(
+            repository
+                .artifact_store()
+                .package_output(&version)
+                .is_some()
+        );
+        assert!(repository.content(content).is_ok());
 
         let _ = fs::remove_dir_all(&root);
     }
@@ -304,6 +473,80 @@ mod tests {
 
         // old ref state
         assert!(repository.revision(revision_1).is_err());
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// Keep generated artifact contents while their artifact version is reachable.
+    #[test]
+    fn test_keep_generated_contents_while_artifact_reachable() {
+        let root = unique_test_root("repository-generated-contents");
+        fs::create_dir_all(&root).expect("repository generated contents test root should exist");
+
+        let repository = test_repository(&root);
+        let revision = repository
+            .current(&Ref::for_root(&root))
+            .expect("root ref should exist");
+        let package = PackageId::new(1);
+        let target = TargetId::new(package, "browser");
+        let retained = repository
+            .intern_content(Content::Text {
+                content: "console.log('retained')\n".to_string(),
+            })
+            .expect("retained content should intern");
+        let pruned = repository
+            .intern_content(Content::Text {
+                content: "console.log('pruned')\n".to_string(),
+            })
+            .expect("pruned content should intern");
+        let output = PackageOutput::new(
+            EmitFormat::Js,
+            PackageAssembly::SingleFile,
+            [(
+                TargetOutputName::Entry,
+                vec![OutputFile::new(
+                    Uri::from_string("memory:/out.js"),
+                    FileType::JavaScript,
+                    retained,
+                    None,
+                )],
+            )]
+            .into_iter()
+            .collect(),
+        );
+        let version = ArtifactVersion::new(
+            ArtifactKey::package_output(package, target),
+            repository.build_fingerprint(),
+            [],
+        );
+
+        repository
+            .complete_artifact(
+                revision,
+                version,
+                output.into(),
+                Vec::new(),
+                DiagnosticCollection::new(),
+                Vec::new(),
+            )
+            .expect("package output should publish");
+        repository
+            .prune_unreachable()
+            .expect("repository should prune");
+
+        // reachable artifact contents
+        assert!(repository.content(retained).is_ok());
+
+        // unreferenced generated contents
+        assert!(repository.content(pruned).is_err());
+
+        let repository = test_repository(&root);
+
+        // persistent reachable artifact contents
+        assert!(repository.content(retained).is_ok());
+
+        // persistent unreferenced generated contents
+        assert!(repository.content(pruned).is_err());
 
         let _ = fs::remove_dir_all(&root);
     }

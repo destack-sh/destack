@@ -1,15 +1,14 @@
 use std::collections::BTreeMap;
-use std::hash::Hash;
 use std::sync::Arc;
 
-use dashmap::DashMap;
 use destack_artifact::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactPayload,
-    ArtifactSidecar, ArtifactStore, ArtifactVersion, ComponentGraph, Data, DirBound,
-    DirCheckedComponent, DirCheckedModule, DirElaborated, DirExpanded, DirExported, DirImported,
-    DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirLowered, MirOptimized,
-    MirVerified, ModuleIndex, ModuleLinted, ModuleOutput, ModuleQueryIndex, PackageIndex,
-    PackageLinted, PackageOutput, ProductOutput, WorkspaceLinted, WorkspaceQueryIndex,
+    ArtifactRecord, ArtifactSidecar, ArtifactStore, ArtifactVersion, ComponentGraph, Data,
+    DirBound, DirCheckedComponent, DirCheckedModule, DirElaborated, DirExpanded, DirExported,
+    DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirLowered,
+    MirOptimized, MirVerified, ModuleIndex, ModuleLinted, ModuleOutput, ModuleQueryIndex,
+    PackageIndex, PackageLinted, PackageOutput, ProductOutput, WorkspaceLinted,
+    WorkspaceQueryIndex,
 };
 use destack_source::{
     ComponentId, DiagnosticCollection, ModuleId, PackageId, ProductId, ProfileId, TargetId,
@@ -18,7 +17,7 @@ use destack_source::{
 use crate::provider::ProviderError;
 use crate::repository::{Repository, RepositoryError, Revision};
 
-/// Provider-scoped read-only view over a ready artifact closure.
+/// Revision-bound read-only view over ready artifacts.
 pub struct ArtifactReader<'a> {
     /// The repository that binds artifact versions to the revision.
     repository: &'a Repository,
@@ -37,8 +36,10 @@ impl std::fmt::Debug for ArtifactReader<'_> {
 }
 
 impl<'a> ArtifactReader<'a> {
-    /// Create a read-only reader for one pinned revision.
-    pub fn new(repository: &'a Repository, revision: Revision, store: Arc<ArtifactStore>) -> Self {
+    /// Create a read-only reader for one repository revision.
+    pub fn new(repository: &'a Repository, revision: Revision) -> Self {
+        let store = repository.artifact_store().clone();
+
         Self {
             repository,
             revision,
@@ -367,449 +368,6 @@ impl<'a> ArtifactReader<'a> {
     }
 }
 
-/// Revision-scoped cache for committed artifacts.
-#[derive(Debug)]
-pub struct ArtifactCache {
-    /// The repository that owns artifact bindings.
-    repository: Arc<Repository>,
-    /// The revision that owns artifact bindings.
-    revision: Revision,
-    /// Parsed DIR artifacts by module.
-    dir_parsed: DashMap<ModuleId, Arc<DirParsed>>,
-    /// Parsed data artifacts by module.
-    data: DashMap<ModuleId, Arc<Data>>,
-    /// Global environments by profile.
-    global_environment: DashMap<ProfileId, Arc<GlobalEnvironment>>,
-    /// Bound DIR artifacts by module and profile.
-    dir_bound: DashMap<(ModuleId, ProfileId), Arc<DirBound>>,
-    /// Imported DIR artifacts by module and profile.
-    dir_imported: DashMap<(ModuleId, ProfileId), Arc<DirImported>>,
-    /// Expanded DIR artifacts by module and profile.
-    dir_expanded: DashMap<(ModuleId, ProfileId), Arc<DirExpanded>>,
-    /// Exported DIR artifacts by module and profile.
-    dir_exported: DashMap<(ModuleId, ProfileId), Arc<DirExported>>,
-    /// Resolved DIR artifacts by module and profile.
-    dir_resolved: DashMap<(ModuleId, ProfileId), Arc<DirResolved>>,
-    /// Checked DIR module outputs by module and profile.
-    dir_checked: DashMap<(ModuleId, ProfileId), Arc<DirCheckedModule>>,
-    /// Checked DIR component artifacts by entry, component, and profile.
-    dir_checked_component: DashMap<(ModuleId, ComponentId, ProfileId), Arc<DirCheckedComponent>>,
-    /// Materialized DIR artifacts by module and profile.
-    dir_materialized: DashMap<(ModuleId, ProfileId), Arc<DirMaterialized>>,
-    /// Elaborated DIR artifacts by module and profile.
-    dir_elaborated: DashMap<(ModuleId, ProfileId), Arc<DirElaborated>>,
-    /// Lowered MIR artifacts by module, profile, and target.
-    mir_lowered: DashMap<(ModuleId, ProfileId, TargetId), Arc<MirLowered>>,
-    /// Verified MIR artifacts by module, profile, and target.
-    mir_verified: DashMap<(ModuleId, ProfileId, TargetId), Arc<MirVerified>>,
-    /// Optimized MIR artifacts by module, profile, and target.
-    mir_optimized: DashMap<(ModuleId, ProfileId, TargetId), Arc<MirOptimized>>,
-    /// Module query indexes by module and profile.
-    module_query_index: DashMap<(ModuleId, ProfileId), Arc<ModuleQueryIndex>>,
-    /// Root query indexes by profile.
-    workspace_query_index: DashMap<ProfileId, Arc<WorkspaceQueryIndex>>,
-    /// Module outputs by module and target.
-    module_output: DashMap<(ModuleId, TargetId), Arc<ModuleOutput>>,
-    /// Package outputs by package and target.
-    package_output: DashMap<(PackageId, TargetId), Arc<PackageOutput>>,
-    /// Product outputs by package and product.
-    product_output: DashMap<(PackageId, ProductId), Arc<ProductOutput>>,
-    /// Module lint markers by module and profile.
-    module_linted: DashMap<(ModuleId, ProfileId), Arc<ModuleLinted>>,
-    /// Package lint markers by package.
-    package_linted: DashMap<PackageId, Arc<PackageLinted>>,
-    /// Root lint marker.
-    workspace_linted: DashMap<(), Arc<WorkspaceLinted>>,
-}
-
-impl ArtifactCache {
-    /// Create a cache for one repository revision.
-    pub fn new(repository: Arc<Repository>, revision: Revision) -> Self {
-        Self {
-            repository,
-            revision,
-            dir_parsed: DashMap::new(),
-            data: DashMap::new(),
-            global_environment: DashMap::new(),
-            dir_bound: DashMap::new(),
-            dir_imported: DashMap::new(),
-            dir_expanded: DashMap::new(),
-            dir_exported: DashMap::new(),
-            dir_resolved: DashMap::new(),
-            dir_checked: DashMap::new(),
-            dir_checked_component: DashMap::new(),
-            dir_materialized: DashMap::new(),
-            dir_elaborated: DashMap::new(),
-            mir_lowered: DashMap::new(),
-            mir_verified: DashMap::new(),
-            mir_optimized: DashMap::new(),
-            module_query_index: DashMap::new(),
-            workspace_query_index: DashMap::new(),
-            module_output: DashMap::new(),
-            package_output: DashMap::new(),
-            product_output: DashMap::new(),
-            module_linted: DashMap::new(),
-            package_linted: DashMap::new(),
-            workspace_linted: DashMap::new(),
-        }
-    }
-
-    /// Return the recorded artifact version for one key.
-    pub fn version(&self, key: ArtifactKey) -> Option<ArtifactVersion> {
-        self.repository
-            .artifact_version(self.revision, &key)
-            .ok()
-            .flatten()
-    }
-
-    /// Read one parsed DIR artifact.
-    pub fn dir_parsed(&self, module_id: ModuleId) -> Option<Arc<DirParsed>> {
-        self.read_cached(
-            &self.dir_parsed,
-            module_id,
-            ArtifactKey::dir_parsed(module_id),
-            |version| self.repository.artifact_store().dir_parsed(version),
-        )
-    }
-
-    /// Read one data artifact.
-    pub fn data(&self, module_id: ModuleId) -> Option<Arc<Data>> {
-        self.read_cached(
-            &self.data,
-            module_id,
-            ArtifactKey::data(module_id),
-            |version| self.repository.artifact_store().data(version),
-        )
-    }
-
-    /// Read one global environment artifact.
-    pub fn global_environment(&self, profile_id: ProfileId) -> Option<Arc<GlobalEnvironment>> {
-        self.read_cached(
-            &self.global_environment,
-            profile_id,
-            ArtifactKey::global_environment(profile_id),
-            |version| self.repository.artifact_store().global_environment(version),
-        )
-    }
-
-    /// Read one bound DIR artifact.
-    pub fn dir_bound(&self, module_id: ModuleId, profile_id: ProfileId) -> Option<Arc<DirBound>> {
-        self.read_cached(
-            &self.dir_bound,
-            (module_id, profile_id),
-            ArtifactKey::dir_bound(module_id, profile_id),
-            |version| self.repository.artifact_store().dir_bound(version),
-        )
-    }
-
-    /// Read one imported DIR artifact.
-    pub fn dir_imported(
-        &self,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-    ) -> Option<Arc<DirImported>> {
-        self.read_cached(
-            &self.dir_imported,
-            (module_id, profile_id),
-            ArtifactKey::dir_imported(module_id, profile_id),
-            |version| self.repository.artifact_store().dir_imported(version),
-        )
-    }
-
-    /// Read one expanded DIR artifact.
-    pub fn dir_expanded(
-        &self,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-    ) -> Option<Arc<DirExpanded>> {
-        self.read_cached(
-            &self.dir_expanded,
-            (module_id, profile_id),
-            ArtifactKey::dir_expanded(module_id, profile_id),
-            |version| self.repository.artifact_store().dir_expanded(version),
-        )
-    }
-
-    /// Read one exported DIR artifact.
-    pub fn dir_exported(
-        &self,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-    ) -> Option<Arc<DirExported>> {
-        self.read_cached(
-            &self.dir_exported,
-            (module_id, profile_id),
-            ArtifactKey::dir_exported(module_id, profile_id),
-            |version| self.repository.artifact_store().dir_exported(version),
-        )
-    }
-
-    /// Read one resolved DIR artifact.
-    pub fn dir_resolved(
-        &self,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-    ) -> Option<Arc<DirResolved>> {
-        self.read_cached(
-            &self.dir_resolved,
-            (module_id, profile_id),
-            ArtifactKey::dir_resolved(module_id, profile_id),
-            |version| self.repository.artifact_store().dir_resolved(version),
-        )
-    }
-
-    /// Read one checked DIR module output.
-    pub fn dir_checked(
-        &self,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-    ) -> Option<Arc<DirCheckedModule>> {
-        // return cached module output
-        if let Some(payload) = self
-            .dir_checked
-            .get(&(module_id, profile_id))
-            .map(|payload| payload.clone())
-        {
-            return Some(payload);
-        }
-
-        // read the facade and owning component
-        let version = self.version(ArtifactKey::dir_checked(module_id, profile_id))?;
-        let checked = self.repository.artifact_store().dir_checked(&version)?;
-        let component = self.dir_checked_component(checked.entry, checked.component, profile_id)?;
-        let entry = component.module(module_id)?;
-        let checked = Arc::new(entry.checked.clone());
-
-        // retain module output for this cache lifetime
-        self.dir_checked
-            .insert((module_id, profile_id), checked.clone());
-
-        Some(checked)
-    }
-
-    /// Read one checked DIR component artifact.
-    pub fn dir_checked_component(
-        &self,
-        entry: ModuleId,
-        component_id: ComponentId,
-        profile_id: ProfileId,
-    ) -> Option<Arc<DirCheckedComponent>> {
-        self.read_cached(
-            &self.dir_checked_component,
-            (entry, component_id, profile_id),
-            ArtifactKey::dir_checked_component(entry, component_id, profile_id),
-            |version| {
-                self.repository
-                    .artifact_store()
-                    .dir_checked_component(version)
-            },
-        )
-    }
-
-    /// Read one materialized DIR artifact.
-    pub fn dir_materialized(
-        &self,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-    ) -> Option<Arc<DirMaterialized>> {
-        self.read_cached(
-            &self.dir_materialized,
-            (module_id, profile_id),
-            ArtifactKey::dir_materialized(module_id, profile_id),
-            |version| self.repository.artifact_store().dir_materialized(version),
-        )
-    }
-
-    /// Read one elaborated DIR artifact.
-    pub fn dir_elaborated(
-        &self,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-    ) -> Option<Arc<DirElaborated>> {
-        self.read_cached(
-            &self.dir_elaborated,
-            (module_id, profile_id),
-            ArtifactKey::dir_elaborated(module_id, profile_id),
-            |version| self.repository.artifact_store().dir_elaborated(version),
-        )
-    }
-
-    /// Read one lowered MIR artifact.
-    pub fn mir_lowered(
-        &self,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-        target_id: TargetId,
-    ) -> Option<Arc<MirLowered>> {
-        self.read_cached(
-            &self.mir_lowered,
-            (module_id, profile_id, target_id),
-            ArtifactKey::mir_lowered(module_id, profile_id, target_id),
-            |version| self.repository.artifact_store().mir_lowered(version),
-        )
-    }
-
-    /// Read one verified MIR artifact.
-    pub fn mir_verified(
-        &self,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-        target_id: TargetId,
-    ) -> Option<Arc<MirVerified>> {
-        self.read_cached(
-            &self.mir_verified,
-            (module_id, profile_id, target_id),
-            ArtifactKey::mir_verified(module_id, profile_id, target_id),
-            |version| self.repository.artifact_store().mir_verified(version),
-        )
-    }
-
-    /// Read one optimized MIR artifact.
-    pub fn mir_optimized(
-        &self,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-        target_id: TargetId,
-    ) -> Option<Arc<MirOptimized>> {
-        self.read_cached(
-            &self.mir_optimized,
-            (module_id, profile_id, target_id),
-            ArtifactKey::mir_optimized(module_id, profile_id, target_id),
-            |version| self.repository.artifact_store().mir_optimized(version),
-        )
-    }
-
-    /// Read one module query index artifact.
-    pub fn module_query_index(
-        &self,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-    ) -> Option<Arc<ModuleQueryIndex>> {
-        self.read_cached(
-            &self.module_query_index,
-            (module_id, profile_id),
-            ArtifactKey::module_query_index(module_id, profile_id),
-            |version| self.repository.artifact_store().module_query_index(version),
-        )
-    }
-
-    /// Read one workspace query index artifact.
-    pub fn workspace_query_index(&self, profile_id: ProfileId) -> Option<Arc<WorkspaceQueryIndex>> {
-        self.read_cached(
-            &self.workspace_query_index,
-            profile_id,
-            ArtifactKey::workspace_query_index(profile_id),
-            |version| {
-                self.repository
-                    .artifact_store()
-                    .workspace_query_index(version)
-            },
-        )
-    }
-
-    /// Read one emitted module output artifact.
-    pub fn module_output(
-        &self,
-        module_id: ModuleId,
-        target_id: TargetId,
-    ) -> Option<Arc<ModuleOutput>> {
-        self.read_cached(
-            &self.module_output,
-            (module_id, target_id),
-            ArtifactKey::module_output(module_id, target_id),
-            |version| self.repository.artifact_store().module_output(version),
-        )
-    }
-
-    /// Read one package output artifact.
-    pub fn package_output(
-        &self,
-        package_id: PackageId,
-        target_id: TargetId,
-    ) -> Option<Arc<PackageOutput>> {
-        self.read_cached(
-            &self.package_output,
-            (package_id, target_id),
-            ArtifactKey::package_output(package_id, target_id),
-            |version| self.repository.artifact_store().package_output(version),
-        )
-    }
-
-    /// Read one product output artifact.
-    pub fn product_output(
-        &self,
-        package_id: PackageId,
-        product_id: ProductId,
-    ) -> Option<Arc<ProductOutput>> {
-        self.read_cached(
-            &self.product_output,
-            (package_id, product_id),
-            ArtifactKey::product_output(package_id, product_id),
-            |version| self.repository.artifact_store().product_output(version),
-        )
-    }
-
-    /// Read one module lint marker artifact.
-    pub fn module_linted(
-        &self,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-    ) -> Option<Arc<ModuleLinted>> {
-        self.read_cached(
-            &self.module_linted,
-            (module_id, profile_id),
-            ArtifactKey::module_linted(module_id, profile_id),
-            |version| self.repository.artifact_store().module_linted(version),
-        )
-    }
-
-    /// Read one package lint marker artifact.
-    pub fn package_linted(&self, package_id: PackageId) -> Option<Arc<PackageLinted>> {
-        self.read_cached(
-            &self.package_linted,
-            package_id,
-            ArtifactKey::package_linted(package_id),
-            |version| self.repository.artifact_store().package_linted(version),
-        )
-    }
-
-    /// Read the workspace lint marker artifact.
-    pub fn workspace_linted(&self) -> Option<Arc<WorkspaceLinted>> {
-        self.read_cached(
-            &self.workspace_linted,
-            (),
-            ArtifactKey::workspace_linted(),
-            |version| self.repository.artifact_store().workspace_linted(version),
-        )
-    }
-
-    /// Read and cache one artifact payload.
-    fn read_cached<K, T>(
-        &self,
-        cache: &DashMap<K, Arc<T>>,
-        key: K,
-        artifact_key: ArtifactKey,
-        load: impl FnOnce(&ArtifactVersion) -> Option<Arc<T>>,
-    ) -> Option<Arc<T>>
-    where
-        K: Copy + Eq + Hash,
-    {
-        // return cached payload
-        if let Some(payload) = cache.get(&key).map(|payload| payload.clone()) {
-            return Some(payload);
-        }
-
-        // load committed payload
-        let version = self.version(artifact_key)?;
-        let payload = load(&version)?;
-
-        // retain payload for this cache lifetime
-        cache.insert(key, payload.clone());
-
-        Some(payload)
-    }
-}
-
 impl Repository {
     /// Return the recorded artifact version for one revision-scoped artifact key.
     pub fn artifact_version(
@@ -826,7 +384,6 @@ impl Repository {
     }
 
     /// Bind one already-stored artifact version to one revision.
-    /// provider never runs for an unchanged input closure.
     pub fn bind_artifact(
         &self,
         revision: Revision,
@@ -845,6 +402,26 @@ impl Repository {
         Ok(())
     }
 
+    /// Load one ready artifact from the persistent artifact cache when present.
+    pub fn load_artifact(
+        &self,
+        revision: Revision,
+        version: ArtifactVersion,
+    ) -> Result<bool, RepositoryError> {
+        let Some(record) = self.artifact_cache().load(&version).map_err(|error| {
+            RepositoryError::ArtifactCache {
+                message: error.to_string(),
+            }
+        })?
+        else {
+            return Ok(false);
+        };
+
+        self.load_artifact_record(revision, record)?;
+
+        Ok(true)
+    }
+
     /// Publish one ready artifact and bind its exact version to one revision.
     pub fn complete_artifact(
         &self,
@@ -855,14 +432,90 @@ impl Repository {
         diagnostics: DiagnosticCollection,
         sidecars: Vec<ArtifactSidecar>,
     ) -> Result<(), RepositoryError> {
+        self.publish_ready_artifact(
+            revision,
+            version,
+            payload,
+            dependencies,
+            diagnostics,
+            sidecars,
+        )?;
+        self.store_artifact(version)?;
+
+        Ok(())
+    }
+
+    /// Publish one loaded artifact record and bind its exact version to one revision.
+    fn load_artifact_record(
+        &self,
+        revision: Revision,
+        record: ArtifactRecord,
+    ) -> Result<(), RepositoryError> {
+        let payload = record
+            .decode_payload()
+            .map_err(|error| RepositoryError::ArtifactCache {
+                message: error.to_string(),
+            })?;
+
         let _revision = self.revision(revision)?;
+        self.load_artifact_contents(&payload)?;
+        self.string_pool().ensure_all_from(&record.strings);
 
-        // store payload before exposing the revision binding
+        self.publish_ready_artifact(
+            revision,
+            record.version,
+            payload,
+            record.dependencies,
+            record.diagnostics,
+            record.sidecars,
+        )
+    }
+
+    /// Publish one ready payload without writing the persistent cache.
+    fn publish_ready_artifact(
+        &self,
+        revision: Revision,
+        version: ArtifactVersion,
+        payload: ArtifactPayload,
+        dependencies: Vec<ArtifactDependency>,
+        diagnostics: DiagnosticCollection,
+        sidecars: Vec<ArtifactSidecar>,
+    ) -> Result<(), RepositoryError> {
+        let _revision = self.revision(revision)?;
+        self.load_artifact_contents(&payload)?;
+
         let key = version.key;
-
         self.artifact_store()
             .publish(version, payload, dependencies, diagnostics, sidecars);
         self.artifact_versions.insert((revision, key), version);
+
+        Ok(())
+    }
+
+    /// Store one ready artifact in the persistent artifact cache.
+    fn store_artifact(&self, version: ArtifactVersion) -> Result<(), RepositoryError> {
+        let record = self
+            .artifact_store()
+            .record(&version, self.string_pool())
+            .map_err(|error| RepositoryError::ArtifactCache {
+                message: error.to_string(),
+            })?
+            .ok_or(RepositoryError::MissingArtifact { version })?;
+
+        self.artifact_cache()
+            .store(&record)
+            .map_err(|error| RepositoryError::ArtifactCache {
+                message: error.to_string(),
+            })?;
+
+        Ok(())
+    }
+
+    /// Load all content ids referenced by one artifact payload.
+    fn load_artifact_contents(&self, payload: &ArtifactPayload) -> Result<(), RepositoryError> {
+        for content in payload.content_ids() {
+            let _ = self.content(content)?;
+        }
 
         Ok(())
     }

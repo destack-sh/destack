@@ -22,9 +22,10 @@ impl std::fmt::Display for ArtifactFingerprint {
 }
 
 impl ArtifactFingerprint {
-    /// Create one artifact fingerprint from an artifact key and exact dependencies.
+    /// Create one artifact fingerprint from an artifact key, build fingerprint, and exact dependencies.
     pub(crate) fn new(
         key: ArtifactKey,
+        build_fingerprint: &str,
         dependencies: impl IntoIterator<Item = ArtifactDependency>,
     ) -> Self {
         // artifact dependencies are a set
@@ -35,8 +36,9 @@ impl ArtifactFingerprint {
         // stable fingerprint stream
         let mut hasher = StableHasher::new();
 
-        hasher.update_len_prefixed(b"destack.artifact.fingerprint.v1");
+        hasher.update_len_prefixed(b"destack.artifact.fingerprint.v2");
         update_stable_value(&mut hasher, &key);
+        hasher.update_len_prefixed(build_fingerprint.as_bytes());
         update_stable_values(&mut hasher, &dependencies);
 
         Self(hasher.finish_u128())

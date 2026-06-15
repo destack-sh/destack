@@ -44,4 +44,10 @@ pub trait CacheStore: std::fmt::Debug + Send + Sync {
 
     /// Return the cache entry byte length if present.
     fn byte_len(&self, path: &Path) -> Result<Option<u64>, CacheStoreError>;
+
+    /// List cache entry paths below one root.
+    fn entries(&self, root: &Path) -> Result<Vec<std::path::PathBuf>, CacheStoreError>;
+
+    /// Remove one cache entry if it exists.
+    fn remove(&self, path: &Path) -> Result<(), CacheStoreError>;
 }

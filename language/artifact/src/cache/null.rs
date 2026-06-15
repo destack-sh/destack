@@ -35,4 +35,12 @@ impl CacheStore for NullCacheStore {
     fn byte_len(&self, _path: &Path) -> Result<Option<u64>, CacheStoreError> {
         Ok(None)
     }
+
+    fn entries(&self, _root: &Path) -> Result<Vec<std::path::PathBuf>, CacheStoreError> {
+        Ok(Vec::new())
+    }
+
+    fn remove(&self, _path: &Path) -> Result<(), CacheStoreError> {
+        Ok(())
+    }
 }

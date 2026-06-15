@@ -6,7 +6,7 @@ use destack_artifact::{
 };
 use destack_dir as dir;
 use destack_repository::{ConditionSet, Module, ProviderContext};
-use destack_source::{FileContent, ModuleId, ProfileId};
+use destack_source::{Content, ModuleId, ProfileId};
 use dir::NodeVisitor as _;
 
 use super::state::BindState;
@@ -53,7 +53,7 @@ impl Compiler {
         context.emit_sidecar(ArtifactSidecar::new(
             "metadata",
             iter::once(("phase", "bind")),
-            FileContent::Text {
+            Content::Text {
                 content: stats.render_metadata(),
             },
         ));

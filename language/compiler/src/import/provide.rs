@@ -6,7 +6,7 @@ use destack_artifact::{
 };
 use destack_dir as dir;
 use destack_repository::{ProfileId, ProviderContext};
-use destack_source::{FileContent, ModuleId};
+use destack_source::{Content, ModuleId};
 
 use crate::import::state::ImportState;
 use crate::{Compiler, CompilerError, CompilerResult};
@@ -151,7 +151,7 @@ impl Compiler {
         context.emit_sidecar(ArtifactSidecar::new(
             "metadata",
             iter::once(("phase", "import")),
-            FileContent::Text {
+            Content::Text {
                 content: stats.render_metadata(),
             },
         ));

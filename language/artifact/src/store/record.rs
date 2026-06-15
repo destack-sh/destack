@@ -3,7 +3,7 @@ use destack_source::DiagnosticCollection;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ArtifactDependency, ArtifactImage, ArtifactImageError, ArtifactPayload, ArtifactSidecar,
+    ArtifactBlobError, ArtifactDependency, ArtifactPayload, ArtifactPayloadBlob, ArtifactSidecar,
     ArtifactVersion,
 };
 
@@ -12,8 +12,8 @@ use crate::{
 pub struct ArtifactRecord {
     /// The exact artifact version.
     pub version: ArtifactVersion,
-    /// The serialized artifact image.
-    pub image: Vec<u8>,
+    /// The serialized artifact payload.
+    pub payload: Vec<u8>,
     /// String pool needed to interpret interned ids in the payload.
     pub strings: StringPool,
     /// The exact artifact dependencies.
@@ -33,15 +33,15 @@ impl ArtifactRecord {
         dependencies: Vec<ArtifactDependency>,
         diagnostics: DiagnosticCollection,
         sidecars: Vec<ArtifactSidecar>,
-    ) -> Result<Self, ArtifactImageError>
+    ) -> Result<Self, ArtifactBlobError>
     where
         T: Serialize,
     {
-        let image = ArtifactImage::new(version, payload).serialize()?;
+        let payload = ArtifactPayloadBlob::new(version, payload).serialize()?;
 
         Ok(Self {
             version,
-            image,
+            payload,
             strings,
             dependencies,
             diagnostics,
@@ -49,8 +49,16 @@ impl ArtifactRecord {
         })
     }
 
-    /// Decode the serialized artifact image.
-    pub fn artifact_image(&self) -> Result<ArtifactImage<ArtifactPayload>, ArtifactImageError> {
-        ArtifactImage::deserialize(&self.image)
+    /// Decode the serialized artifact payload.
+    pub fn decode_payload(&self) -> Result<ArtifactPayload, ArtifactBlobError> {
+        let payload = ArtifactPayloadBlob::deserialize(&self.payload)?;
+        if payload.version() != self.version {
+            return Err(ArtifactBlobError::Version {
+                expected: Box::new(self.version),
+                found: Box::new(payload.version()),
+            });
+        }
+
+        Ok(payload.payload)
     }
 }

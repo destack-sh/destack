@@ -1,4 +1,4 @@
-use destack_source::{FileContent, FileId};
+use destack_source::{Content, FileId};
 
 use crate::repository::{Repository, RepositoryError, Revision, normalize_logical_path};
 
@@ -9,13 +9,13 @@ pub enum Edit {
     AddFile {
         /// The workspace logical path.
         logical_path: String,
-        content: FileContent,
+        content: Content,
     },
     /// Set one file with one full content payload.
     SetFile {
         /// The workspace logical path.
         logical_path: String,
-        content: FileContent,
+        content: Content,
     },
     /// Remove one file from the revision file map.
     RemoveFile {
@@ -36,7 +36,7 @@ impl Edit {
     pub fn add_text(path: impl AsRef<str>, content: impl Into<String>) -> Self {
         Self::AddFile {
             logical_path: normalize_logical_path(path),
-            content: FileContent::Text {
+            content: Content::Text {
                 content: content.into(),
             },
         }
@@ -46,7 +46,7 @@ impl Edit {
     pub fn set_text(path: impl AsRef<str>, content: impl Into<String>) -> Self {
         Self::SetFile {
             logical_path: normalize_logical_path(path),
-            content: FileContent::Text {
+            content: Content::Text {
                 content: content.into(),
             },
         }

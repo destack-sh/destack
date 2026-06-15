@@ -8,52 +8,39 @@ pub const CACHE_DIR_NAME: &str = "cache";
 pub const LANGUAGE_CACHE_DIR_NAME: &str = "language";
 /// Directory name for shared workspace partitions.
 pub const WORKSPACES_CACHE_DIR_NAME: &str = "workspaces";
-/// Directory name for artifact image entries.
+/// Directory name for artifact record entries.
 pub const ARTIFACT_CACHE_DIR_NAME: &str = "artifacts";
-/// Directory name for artifact images.
-pub const ARTIFACT_IMAGES_DIR_NAME: &str = "images";
-/// Lock file name for artifact image writes.
-pub const ARTIFACT_IMAGE_LOCK_FILE_NAME: &str = "images.lock";
+/// Directory name for content cache entries.
+pub const CONTENT_CACHE_DIR_NAME: &str = "contents";
+/// Lock file name for persistent cache writes.
+pub const CACHE_LOCK_FILE_NAME: &str = "cache.lock";
 
-/// One artifact image cache layout.
+/// Filesystem layout for one repository cache partition.
 #[derive(Debug, Clone)]
-pub struct ArtifactImageCacheLayout {
+pub struct RepositoryCacheLayout {
     /// The `.destack` cache root.
     cache_root: PathBuf,
-    /// The stable workspace root.
-    workspace_root: PathBuf,
-    /// The cache ABI.
-    cache_abi: String,
+    /// The stable repository root.
+    repository_root: PathBuf,
     /// Whether this root is shared across workspaces.
     is_shared_root: bool,
 }
 
-impl ArtifactImageCacheLayout {
-    /// Create an artifact image cache layout.
-    pub fn new(
-        cache_root: &Path,
-        workspace_root: &Path,
-        cache_abi: impl Into<String>,
-        is_shared_root: bool,
-    ) -> Self {
+impl RepositoryCacheLayout {
+    /// Create one repository cache layout.
+    pub fn new(cache_root: &Path, repository_root: &Path, is_shared_root: bool) -> Self {
         Self {
             cache_root: cache_root.to_path_buf(),
-            workspace_root: workspace_root.to_path_buf(),
-            cache_abi: cache_abi.into(),
+            repository_root: repository_root.to_path_buf(),
             is_shared_root,
         }
     }
 
-    /// Return the language cache ABI.
-    fn cache_abi(&self) -> &str {
-        &self.cache_abi
-    }
-
     /// Return the stable workspace cache key.
-    fn workspace_key(&self) -> String {
-        let workspace_root = self.workspace_root.to_string_lossy();
+    fn repository_key(&self) -> String {
+        let repository_root = self.repository_root.to_string_lossy();
 
-        format!("{:032x}", stable_hash_text_128(&workspace_root))
+        format!("{:032x}", stable_hash_text_128(&repository_root))
     }
 
     /// Return the language cache root.
@@ -63,35 +50,32 @@ impl ArtifactImageCacheLayout {
             .join(LANGUAGE_CACHE_DIR_NAME)
     }
 
-    /// Return the cache ABI root.
-    fn abi_root(&self) -> PathBuf {
-        self.language_root().join(self.cache_abi())
-    }
-
-    /// Return the workspace cache root.
-    fn workspace_root(&self) -> PathBuf {
+    /// Return the repository cache root.
+    fn repository_root(&self) -> PathBuf {
         if self.is_shared_root {
             return self
-                .abi_root()
+                .language_root()
                 .join(WORKSPACES_CACHE_DIR_NAME)
-                .join(self.workspace_key());
+                .join(self.repository_key());
         }
 
-        self.abi_root()
+        self.language_root()
     }
 
     /// Return the artifact cache root.
-    fn artifact_root(&self) -> PathBuf {
-        self.workspace_root().join(ARTIFACT_CACHE_DIR_NAME)
+    pub(crate) fn artifact_root(&self, build_fingerprint: &str) -> PathBuf {
+        self.repository_root()
+            .join(ARTIFACT_CACHE_DIR_NAME)
+            .join(build_fingerprint)
     }
 
-    /// Return the artifact image root.
-    pub fn image_root(&self) -> PathBuf {
-        self.artifact_root().join(ARTIFACT_IMAGES_DIR_NAME)
+    /// Return the content cache root.
+    pub fn content_root(&self) -> PathBuf {
+        self.repository_root().join(CONTENT_CACHE_DIR_NAME)
     }
 
-    /// Return the artifact image write lock path.
-    pub(crate) fn image_lock_path(&self) -> PathBuf {
-        self.artifact_root().join(ARTIFACT_IMAGE_LOCK_FILE_NAME)
+    /// Return the persistent cache write lock path.
+    pub(crate) fn cache_lock_path(&self) -> PathBuf {
+        self.repository_root().join(CACHE_LOCK_FILE_NAME)
     }
 }

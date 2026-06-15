@@ -17,9 +17,10 @@ impl ArtifactVersion {
     /// Create one artifact version from the complete recorded build dependencies.
     pub fn new(
         key: ArtifactKey,
+        build_fingerprint: &str,
         dependencies: impl IntoIterator<Item = ArtifactDependency>,
     ) -> Self {
-        let fingerprint = ArtifactFingerprint::new(key, dependencies);
+        let fingerprint = ArtifactFingerprint::new(key, build_fingerprint, dependencies);
 
         Self { key, fingerprint }
     }

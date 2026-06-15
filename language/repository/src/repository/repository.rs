@@ -3,18 +3,20 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use destack_artifact::{
-    ArtifactImageCache, ArtifactImageCacheLayout, ArtifactKey, ArtifactStore, ArtifactVersion,
-    CacheStore,
+    ArtifactCache, ArtifactKey, ArtifactStore, ArtifactVersion, CacheStore, ContentCache,
+    RepositoryCacheLayout,
 };
 use destack_core::StringPool;
-use destack_source::{FileContentEntry, FileContentId, FileId, FileSystem};
+use destack_source::{Content, ContentEntry, ContentId, FileId, FileSystem};
 use im::OrdMap;
 
 use crate::repository::{
-    BuiltinPackage, FileCache, FileEntry, FileStore, Ref, RepositoryError, Revision, RevisionEntry,
-    RevisionState,
+    BuiltinPackage, ContentStore, FileCache, FileEntry, Ref, RepositoryError, Revision,
+    RevisionEntry, RevisionState,
 };
 use crate::{DestackLayout, Environment, Root, RootKind, Settings};
+
+const BUILD_FINGERPRINT: &str = include_str!("../../../../VERSION.txt");
 
 /// Content-addressed store for revision source state and derived artifacts.
 #[derive(Debug)]
@@ -31,15 +33,17 @@ pub struct Repository {
 
     /// Shared persistent cache backend.
     pub(crate) cache: Arc<dyn CacheStore>,
+    /// Toolchain identity used to version derived artifacts.
+    pub(crate) build_fingerprint: String,
     /// Resolved storage layout for this repository.
     pub(crate) layout: DestackLayout,
     /// Machine-local settings used to open this repository.
     pub(crate) settings: Settings,
     /// The file system backing repository discovery and loads.
     pub(crate) fs: Arc<dyn FileSystem>,
-    /// Shared immutable file contents.
-    pub(crate) files: FileStore,
-    /// Immutable builtin package shipped with the toolchain.
+    /// Shared immutable contents.
+    pub(crate) contents: ContentStore,
+    /// Immutable builtin package shipped with the current build.
     pub(crate) builtin: BuiltinPackage,
     /// Parsed file data by exact file content.
     pub(crate) file_cache: FileCache,
@@ -61,7 +65,7 @@ impl Repository {
         settings: Settings,
         layout: DestackLayout,
     ) -> Self {
-        let file_contents = FileStore::new();
+        let contents = ContentStore::new();
 
         let revisions = DashMap::new();
         let refs = DashMap::new();
@@ -76,12 +80,13 @@ impl Repository {
             refs,
             artifact_versions,
             file_cache,
-            files: file_contents,
+            contents,
             mounts: DashMap::new(),
             builtin: BuiltinPackage::new(),
             artifacts: Arc::new(ArtifactStore::default()),
             strings: Arc::new(StringPool::new()),
             cache,
+            build_fingerprint: BUILD_FINGERPRINT.trim().to_owned(),
             layout,
             settings,
         };
@@ -175,19 +180,31 @@ impl Repository {
         self.layout.workspace_cache.clone()
     }
 
-    /// Build one persisted artifact cache layout.
-    pub fn artifact_image_cache_layout(&self, cache_abi: &str) -> ArtifactImageCacheLayout {
+    /// Return the build fingerprint used to version derived artifacts.
+    pub fn build_fingerprint(&self) -> &str {
+        &self.build_fingerprint
+    }
+
+    /// Build one persisted repository cache layout.
+    pub fn repository_cache_layout(&self) -> RepositoryCacheLayout {
         let cache_root = self.cache_directory();
         let is_shared_root = !cache_root.starts_with(self.path());
 
-        ArtifactImageCacheLayout::new(&cache_root, self.path(), cache_abi, is_shared_root)
+        RepositoryCacheLayout::new(&cache_root, self.path(), is_shared_root)
     }
 
     /// Build one persisted artifact cache.
-    pub fn artifact_image_cache(&self, cache_abi: &str) -> ArtifactImageCache<'_> {
-        let layout = self.artifact_image_cache_layout(cache_abi);
+    pub fn artifact_cache(&self) -> ArtifactCache<'_> {
+        let layout = self.repository_cache_layout();
 
-        ArtifactImageCache::new(self.cache().as_ref(), &layout)
+        ArtifactCache::new(self.cache().as_ref(), &layout, self.build_fingerprint())
+    }
+
+    /// Build one persisted content cache.
+    pub fn content_cache(&self) -> ContentCache<'_> {
+        let layout = self.repository_cache_layout();
+
+        ContentCache::new(self.cache().as_ref(), &layout)
     }
 
     /// Return the current revision for one ref.
@@ -211,12 +228,40 @@ impl Repository {
             .ok_or(RepositoryError::MissingRevision { revision })
     }
 
-    /// Return one shared file content payload by exact content id.
-    pub(crate) fn file_content_by_id(
-        &self,
-        content: FileContentId,
-    ) -> Result<Arc<FileContentEntry>, RepositoryError> {
-        self.files
+    /// Intern one immutable content payload.
+    pub fn intern_content(&self, content: Content) -> Result<ContentId, RepositoryError> {
+        let content_id = self.content_cache().store(&content).map_err(|error| {
+            RepositoryError::ContentCache {
+                message: error.to_string(),
+            }
+        })?;
+        let stored_id = self.contents.intern(content);
+
+        debug_assert_eq!(stored_id, content_id);
+
+        Ok(content_id)
+    }
+
+    /// Return one shared content payload by exact content id.
+    pub fn content(&self, content: ContentId) -> Result<Arc<ContentEntry>, RepositoryError> {
+        if let Some(entry) = self.contents.get(content) {
+            return Ok(entry);
+        }
+
+        let Some(payload) =
+            self.content_cache()
+                .load(content)
+                .map_err(|error| RepositoryError::ContentCache {
+                    message: error.to_string(),
+                })?
+        else {
+            return Err(RepositoryError::MissingContent { content });
+        };
+
+        let stored_id = self.contents.intern(payload);
+        debug_assert_eq!(stored_id, content);
+
+        self.contents
             .get(content)
             .ok_or(RepositoryError::MissingContent { content })
     }

@@ -6,7 +6,7 @@ use destack_artifact::{
 };
 use destack_repository::{ArtifactTracer, ProviderContext, Repository, Revision};
 use destack_source::{
-    DiagnosticCollection, DiagnosticLabel, FileContentId, FileId, ModuleId, PackageId, Span,
+    ContentId, DiagnosticCollection, DiagnosticLabel, FileId, ModuleId, PackageId, Span,
 };
 use parking_lot::Mutex;
 
@@ -132,7 +132,7 @@ impl ProviderAttempt {
     }
 
     /// Return one file content id in this revision.
-    fn file_content_id(&self, file: FileId) -> Result<FileContentId, DiagnosticError> {
+    fn file_content_id(&self, file: FileId) -> Result<ContentId, DiagnosticError> {
         let content = self
             .repository
             .file_content_id(self.revision, file)
