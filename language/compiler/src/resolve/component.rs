@@ -1,6 +1,7 @@
 use destack_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, ComponentGraph, ModuleIndex,
 };
+use destack_core::DenseGraph;
 use destack_repository::{ArtifactReader, ProfileId, ProviderContext};
 use destack_source::{ComponentId, ModuleId};
 use indexmap::{IndexMap, IndexSet};
@@ -140,111 +141,58 @@ impl Compiler {
     }
 }
 
-/// Iterative Tarjan state for strongly connected component discovery.
-/// Keeping deep import chains off the call stack avoids recursion limits.
-struct TarjanState<'a> {
-    /// The module import edge map.
-    edges: &'a IndexMap<ModuleId, Vec<ModuleId>>,
-    /// The next preorder index.
-    index: u32,
-    /// The preorder index per reached module.
-    indices: IndexMap<ModuleId, u32>,
-    /// The lowest reachable index per reached module.
-    low_links: IndexMap<ModuleId, u32>,
-    /// Whether each reached module is still on the open stack.
-    on_stack: IndexMap<ModuleId, bool>,
-    /// The open Tarjan stack.
-    stack: Vec<ModuleId>,
-    /// The discovered components, each sorted.
-    components: Vec<Vec<ModuleId>>,
-}
-
 /// Return the strongly connected components of one module import graph.
-/// Each component's members sort ascending, with components emitted in
-/// reverse topological order.
 fn strongly_connected_components(edges: &IndexMap<ModuleId, Vec<ModuleId>>) -> Vec<Vec<ModuleId>> {
-    let mut tarjan = TarjanState {
-        edges,
-        index: 0,
-        indices: IndexMap::new(),
-        low_links: IndexMap::new(),
-        on_stack: IndexMap::new(),
-        stack: Vec::new(),
-        components: Vec::new(),
-    };
+    // assign dense ids in artifact order
+    let modules = edges.keys().copied().collect::<Vec<_>>();
+    let module_index = modules
+        .iter()
+        .enumerate()
+        .map(|(index, module)| (*module, index as u32))
+        .collect::<IndexMap<_, _>>();
 
-    // walk every module with an explicit frame stack
-    for root in edges.keys().copied() {
-        if tarjan.indices.contains_key(&root) {
-            continue;
-        }
+    // count in-graph imports per module
+    let mut edge_offsets = vec![0u32; modules.len() + 1];
+    for (source, module) in modules.iter().copied().enumerate() {
+        let count = edges
+            .get(&module)
+            .map(Vec::as_slice)
+            .unwrap_or_default()
+            .iter()
+            .filter(|target| module_index.contains_key(*target))
+            .count();
+        edge_offsets[source + 1] = count as u32;
+    }
 
-        // one frame per open module: the module and its next edge offset
-        let mut frames: Vec<(ModuleId, usize)> = vec![(root, 0)];
-        while let Some((module, edge)) = frames.last().copied() {
-            if edge == 0 {
-                tarjan.indices.insert(module, tarjan.index);
-                tarjan.low_links.insert(module, tarjan.index);
-                tarjan.index += 1;
-                tarjan.stack.push(module);
-                tarjan.on_stack.insert(module, true);
-            }
+    // prefix sum counts into CSR offsets
+    for source in 0..modules.len() {
+        edge_offsets[source + 1] += edge_offsets[source];
+    }
 
-            // descend into the next unvisited in-graph dependency
-            let targets = tarjan
-                .edges
-                .get(&module)
-                .map(|targets| targets.as_slice())
-                .unwrap_or(&[]);
-            let mut descended = false;
-            let mut offset = edge;
-            while let Some(target) = targets.get(offset).copied() {
-                offset += 1;
-                if !tarjan.edges.contains_key(&target) {
-                    continue;
-                }
-                if let Some(target_index) = tarjan.indices.get(&target) {
-                    // back edges into the open stack lower this link
-                    if tarjan.on_stack.get(&target).copied().unwrap_or(false) {
-                        let low = (*tarjan.low_links.get(&module).unwrap()).min(*target_index);
-                        tarjan.low_links.insert(module, low);
-                    }
-                    continue;
-                }
-
-                frames.last_mut().unwrap().1 = offset;
-                frames.push((target, 0));
-                descended = true;
-                break;
-            }
-            if descended {
-                continue;
-            }
-            frames.last_mut().unwrap().1 = offset;
-
-            // close the frame, popping a finished component at its root
-            let low = *tarjan.low_links.get(&module).unwrap();
-            if low == *tarjan.indices.get(&module).unwrap() {
-                let mut component = Vec::new();
-                while let Some(member) = tarjan.stack.pop() {
-                    tarjan.on_stack.insert(member, false);
-                    component.push(member);
-                    if member == module {
-                        break;
-                    }
-                }
-                component.sort_unstable();
-                tarjan.components.push(component);
-            }
-            frames.pop();
-
-            // propagate the closed link into the parent frame
-            if let Some((parent, _)) = frames.last().copied() {
-                let parent_low = (*tarjan.low_links.get(&parent).unwrap()).min(low);
-                tarjan.low_links.insert(parent, parent_low);
+    // copy import targets in source import order
+    let mut edge_targets = Vec::with_capacity(edge_offsets[modules.len()] as usize);
+    for module in &modules {
+        let imports = edges.get(module).map(Vec::as_slice).unwrap_or_default();
+        for target in imports {
+            if let Some(target_index) = module_index.get(target).copied() {
+                edge_targets.push(target_index);
             }
         }
     }
 
-    tarjan.components
+    // partition dense module graph
+    let graph = DenseGraph::new(&edge_offsets, &edge_targets);
+    let partition = graph.strongly_connected_components();
+
+    // rebuild sorted module components from dense ids
+    let mut components = vec![Vec::new(); partition.component_count() as usize];
+    for (index, module) in modules.into_iter().enumerate() {
+        let component = partition.component(index) as usize;
+        components[component].push(module);
+    }
+    for component in &mut components {
+        component.sort_unstable();
+    }
+
+    components
 }
