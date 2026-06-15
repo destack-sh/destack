@@ -200,6 +200,18 @@ impl CheckState<'_> {
         self.module_mut(module).warnings.push(warning.into());
     }
 
+    /// Report a pointless declaration inside a module block.
+    pub(in crate::check) fn report_pointless_module_declaration(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let warning = CheckWarning::PointlessModuleDeclaration { anchor, module };
+
+        self.module_mut(module).warnings.push(warning.into());
+    }
+
     /// Report an invalid writable place at one source node.
     pub(in crate::check) fn report_ambient_lifetime_elided(
         &mut self,
