@@ -6,10 +6,10 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     BlockParamForwarding, CallsiteHotness, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis,
-    Mutation, ScalarEvolution, Scev, ValueTypeMap, block_execution_counts,
-    block_hotness_from_counts, build_use_def_maps, build_value_definition_map,
-    clone_instruction_metadata, clone_loop_blocks, instruction_is_speculatable, instruction_map,
-    terminator_arguments_for_successor, terminator_remap,
+    Mutation, ScalarEvolution, Scev, ValueTypeMap, block_hotness_from_counts, build_use_def_maps,
+    build_value_definition_map, clone_instruction_metadata, clone_loop_blocks,
+    instruction_is_speculatable, instruction_map, terminator_arguments_for_successor,
+    terminator_remap,
 };
 
 declare_pass! {
@@ -363,10 +363,7 @@ fn run_loop_unroll(
     }
 
     // collect profile data for hotness decisions
-    let block_counts = match ctx.profile() {
-        Some(profile) => block_execution_counts(function, tree, Some(profile)),
-        None => HashMap::new(),
-    };
+    let block_counts = mir::profile_block_counts(function, tree, ctx.profile(), analyses);
     let entry_count = function
         .entry
         .and_then(|entry| block_counts.get(&entry).copied())
@@ -471,10 +468,7 @@ fn run_loop_unroll_and_jam(
     }
 
     // collect profile data for hotness decisions
-    let block_counts = match ctx.profile() {
-        Some(profile) => block_execution_counts(function, tree, Some(profile)),
-        None => HashMap::new(),
-    };
+    let block_counts = mir::profile_block_counts(function, tree, ctx.profile(), analyses);
     let entry_count = function
         .entry
         .and_then(|entry| block_counts.get(&entry).copied())
@@ -1706,10 +1700,7 @@ fn peel_jam_remainder(
     };
     let preheader_block = tree.get(preheader);
     let preheader_terminator = mir::Terminator::Jump {
-        target: mir::BlockTarget {
-            block: first_iteration.header.into(),
-            arguments: preheader_args,
-        },
+        target: mir::BlockTarget::new(first_iteration.header.into(), preheader_args),
     };
     tree.set(preheader_block.terminator, preheader_terminator);
 
@@ -1895,10 +1886,7 @@ fn rewrite_outer_latch_step(
     arguments[candidate.outer_param_index] = updated_value.into();
 
     let new_terminator = mir::Terminator::Jump {
-        target: mir::BlockTarget {
-            block: candidate.outer_header.into(),
-            arguments,
-        },
+        target: mir::BlockTarget::new(candidate.outer_header.into(), arguments),
     };
     tree.set(latch_block.terminator, new_terminator);
 
@@ -2267,10 +2255,7 @@ fn peel_remainder(
     };
     let preheader_block = tree.get(preheader);
     let preheader_terminator = mir::Terminator::Jump {
-        target: mir::BlockTarget {
-            block: first_iteration.header.into(),
-            arguments: preheader_args,
-        },
+        target: mir::BlockTarget::new(first_iteration.header.into(), preheader_args),
     };
     tree.set(preheader_block.terminator, preheader_terminator);
 
@@ -2354,10 +2339,7 @@ fn rewrite_latch_to_jump(
 
     // replace the latch terminator with a jump
     let new_terminator = mir::Terminator::Jump {
-        target: mir::BlockTarget {
-            block: next_header.into(),
-            arguments: latch_args.to_vec(),
-        },
+        target: mir::BlockTarget::new(next_header.into(), latch_args.to_vec()),
     };
     tree.set(block.terminator, new_terminator);
 
@@ -2394,10 +2376,7 @@ fn rewrite_latch_block(
 
         // redirect to the next iteration header
         let new_terminator = mir::Terminator::Jump {
-            target: mir::BlockTarget {
-                block: next.header.into(),
-                arguments: latch_args.to_vec(),
-            },
+            target: mir::BlockTarget::new(next.header.into(), latch_args.to_vec()),
         };
         tree.set(block.terminator, new_terminator);
 
@@ -2418,10 +2397,7 @@ fn rewrite_latch_block(
         };
 
         let new_terminator = mir::Terminator::Jump {
-            target: mir::BlockTarget {
-                block: candidate.exit_block.into(),
-                arguments: exit_arguments,
-            },
+            target: mir::BlockTarget::new(candidate.exit_block.into(), exit_arguments),
         };
         tree.set(block.terminator, new_terminator);
 
@@ -2431,10 +2407,7 @@ fn rewrite_latch_block(
     // handle partial unroll with header guards
     if !candidate.guard_at_latch {
         let new_terminator = mir::Terminator::Jump {
-            target: mir::BlockTarget {
-                block: candidate.header.into(),
-                arguments: latch_args.to_vec(),
-            },
+            target: mir::BlockTarget::new(candidate.header.into(), latch_args.to_vec()),
         };
         tree.set(block.terminator, new_terminator);
 
@@ -2459,22 +2432,22 @@ fn rewrite_latch_block(
 
     let new_terminator = mir::Terminator::Branch {
         condition,
-        then_target: mir::BlockTarget {
-            block: if candidate.in_loop_is_then {
+        then_target: mir::BlockTarget::new(
+            if candidate.in_loop_is_then {
                 candidate.header.into()
             } else {
                 candidate.exit_block.into()
             },
-            arguments: then_arguments,
-        },
-        else_target: mir::BlockTarget {
-            block: if candidate.in_loop_is_then {
+            then_arguments,
+        ),
+        else_target: mir::BlockTarget::new(
+            if candidate.in_loop_is_then {
                 candidate.exit_block.into()
             } else {
                 candidate.header.into()
             },
-            arguments: else_arguments,
-        },
+            else_arguments,
+        ),
     };
     tree.set(block.terminator, new_terminator);
 
@@ -3221,13 +3194,12 @@ b3(v7: int32):
         test.run_pass(&LoopSimplify);
 
         let function_id = test.entry_function_id();
-        let function = test.tree.get(function_id);
-        let entry = function.entry.unwrap();
-        let header = function.blocks[1];
+        let header = test.tree.get(function_id).blocks[1];
 
+        // a cold function leaves its loops unrolled
         let mut profile = mir::Profile::new();
-        test.record_block_count(&mut profile, entry, 100);
-        test.record_block_count(&mut profile, header, 1);
+        test.record_function_entry(&mut profile, function_id, 1);
+        test.record_successor_weights(header, &[1, 1]);
 
         test.run_pass_with_profile(&LoopUnroll, profile);
         test.assert_output(input);

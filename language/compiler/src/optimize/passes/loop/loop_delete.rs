@@ -390,15 +390,15 @@ fn delete_loop(function: &mut mir::Function, tree: &mut mir::Tree, candidate: &D
     // update preheader to jump directly to exit
     let preheader = tree.get(candidate.preheader).clone();
     let new_terminator = mir::Terminator::Jump {
-        target: mir::BlockTarget {
-            block: candidate.exit_block.into(),
-            arguments: candidate
+        target: mir::BlockTarget::new(
+            candidate.exit_block.into(),
+            candidate
                 .exit_arguments
                 .iter()
                 .copied()
                 .map(Into::into)
                 .collect(),
-        },
+        ),
     };
     tree.set(candidate.preheader, preheader);
     tree.set(tree.get(candidate.preheader).terminator, new_terminator);

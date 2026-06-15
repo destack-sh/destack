@@ -633,15 +633,17 @@ fn update_terminator_arguments(
     value_stacks: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
     substitutions: &HashMap<mir::Value, mir::Value>,
 ) -> mir::Terminator {
-    let extend_target = |target: &mir::BlockTarget| mir::BlockTarget {
-        block: target.block,
-        arguments: extend_arguments(
+    let extend_target = |target: &mir::BlockTarget| {
+        mir::BlockTarget::new(
             target.block,
-            &target.arguments,
-            block_params,
-            value_stacks,
-            substitutions,
-        ),
+            extend_arguments(
+                target.block,
+                &target.arguments,
+                block_params,
+                value_stacks,
+                substitutions,
+            ),
+        )
     };
 
     match terminator {
@@ -657,10 +659,7 @@ fn update_terminator_arguments(
                 substitutions,
             );
             mir::Terminator::Jump {
-                target: mir::BlockTarget {
-                    block: target.block,
-                    arguments: new_args,
-                },
+                target: mir::BlockTarget::new(target.block, new_args),
             }
         }
         mir::Terminator::Branch {
@@ -684,14 +683,8 @@ fn update_terminator_arguments(
             );
             mir::Terminator::Branch {
                 condition: remap_value_reference(*condition, substitutions),
-                then_target: mir::BlockTarget {
-                    block: then_target.block,
-                    arguments: new_then_args,
-                },
-                else_target: mir::BlockTarget {
-                    block: else_target.block,
-                    arguments: new_else_args,
-                },
+                then_target: mir::BlockTarget::new(then_target.block, new_then_args),
+                else_target: mir::BlockTarget::new(else_target.block, new_else_args),
             }
         }
         mir::Terminator::Check {
@@ -785,14 +778,8 @@ fn update_terminator_arguments(
             };
             mir::Terminator::Check {
                 constraint,
-                success: mir::BlockTarget {
-                    block: success.block,
-                    arguments: new_success_args,
-                },
-                failure: mir::BlockTarget {
-                    block: failure.block,
-                    arguments: new_failure_args,
-                },
+                success: mir::BlockTarget::new(success.block, new_success_args),
+                failure: mir::BlockTarget::new(failure.block, new_failure_args),
             }
         }
         mir::Terminator::NewZeroedTry {
@@ -801,16 +788,16 @@ fn update_terminator_arguments(
             failure,
         } => mir::Terminator::NewZeroedTry {
             layout: layout.clone(),
-            success: mir::BlockTarget {
-                block: success.block,
-                arguments: extend_arguments(
+            success: mir::BlockTarget::new(
+                success.block,
+                extend_arguments(
                     success.block,
                     &success.arguments,
                     block_params,
                     value_stacks,
                     substitutions,
                 ),
-            },
+            ),
             failure: extend_target(failure),
         },
         mir::Terminator::NewUninitTry {
@@ -819,16 +806,16 @@ fn update_terminator_arguments(
             failure,
         } => mir::Terminator::NewUninitTry {
             layout: layout.clone(),
-            success: mir::BlockTarget {
-                block: success.block,
-                arguments: extend_arguments(
+            success: mir::BlockTarget::new(
+                success.block,
+                extend_arguments(
                     success.block,
                     &success.arguments,
                     block_params,
                     value_stacks,
                     substitutions,
                 ),
-            },
+            ),
             failure: extend_target(failure),
         },
         mir::Terminator::NewSliceZeroedTry {
@@ -839,16 +826,16 @@ fn update_terminator_arguments(
         } => mir::Terminator::NewSliceZeroedTry {
             element: element.clone(),
             length: remap_value_reference(*length, substitutions),
-            success: mir::BlockTarget {
-                block: success.block,
-                arguments: extend_arguments(
+            success: mir::BlockTarget::new(
+                success.block,
+                extend_arguments(
                     success.block,
                     &success.arguments,
                     block_params,
                     value_stacks,
                     substitutions,
                 ),
-            },
+            ),
             failure: extend_target(failure),
         },
         mir::Terminator::NewSliceUninitTry {
@@ -859,16 +846,16 @@ fn update_terminator_arguments(
         } => mir::Terminator::NewSliceUninitTry {
             element: element.clone(),
             length: remap_value_reference(*length, substitutions),
-            success: mir::BlockTarget {
-                block: success.block,
-                arguments: extend_arguments(
+            success: mir::BlockTarget::new(
+                success.block,
+                extend_arguments(
                     success.block,
                     &success.arguments,
                     block_params,
                     value_stacks,
                     substitutions,
                 ),
-            },
+            ),
             failure: extend_target(failure),
         },
         mir::Terminator::Switch {
@@ -887,24 +874,21 @@ fn update_terminator_arguments(
                 .iter()
                 .map(|case| mir::SwitchCase {
                     value: case.value,
-                    target: mir::BlockTarget {
-                        block: case.target.block,
-                        arguments: extend_arguments(
+                    target: mir::BlockTarget::new(
+                        case.target.block,
+                        extend_arguments(
                             case.target.block,
                             &case.target.arguments,
                             block_params,
                             value_stacks,
                             substitutions,
                         ),
-                    },
+                    ),
                 })
                 .collect();
             mir::Terminator::Switch {
                 value: remap_value_reference(*value, substitutions),
-                default: mir::BlockTarget {
-                    block: default.block,
-                    arguments: new_default_args,
-                },
+                default: mir::BlockTarget::new(default.block, new_default_args),
                 cases: new_cases,
             }
         }
@@ -922,19 +906,18 @@ fn update_terminator_arguments(
             );
             mir::Terminator::Yield {
                 value: remap_value_reference(*value, substitutions),
-                resume: mir::BlockTarget {
-                    block: resume.block,
-                    arguments: new_resume_args,
-                },
-                unwind: unwind.as_ref().map(|unwind| mir::BlockTarget {
-                    block: unwind.block,
-                    arguments: extend_arguments(
+                resume: mir::BlockTarget::new(resume.block, new_resume_args),
+                unwind: unwind.as_ref().map(|unwind| {
+                    mir::BlockTarget::new(
                         unwind.block,
-                        &unwind.arguments,
-                        block_params,
-                        value_stacks,
-                        substitutions,
-                    ),
+                        extend_arguments(
+                            unwind.block,
+                            &unwind.arguments,
+                            block_params,
+                            value_stacks,
+                            substitutions,
+                        ),
+                    )
                 }),
             }
         }
@@ -953,16 +936,16 @@ fn update_terminator_arguments(
                     .collect(),
                 ..call.clone()
             },
-            target: mir::BlockTarget {
-                block: target.block,
-                arguments: extend_arguments(
+            target: mir::BlockTarget::new(
+                target.block,
+                extend_arguments(
                     target.block,
                     &target.arguments,
                     block_params,
                     value_stacks,
                     substitutions,
                 ),
-            },
+            ),
             unwind: unwind.as_ref().map(&extend_target),
         },
         mir::Terminator::CallIndirect {
@@ -980,16 +963,16 @@ fn update_terminator_arguments(
                     .collect(),
                 ..call.clone()
             },
-            target: mir::BlockTarget {
-                block: target.block,
-                arguments: extend_arguments(
+            target: mir::BlockTarget::new(
+                target.block,
+                extend_arguments(
                     target.block,
                     &target.arguments,
                     block_params,
                     value_stacks,
                     substitutions,
                 ),
-            },
+            ),
             unwind: unwind.as_ref().map(&extend_target),
         },
         mir::Terminator::CallVirtual {
@@ -1011,16 +994,16 @@ fn update_terminator_arguments(
             },
             class: class.clone(),
             slot: *slot,
-            target: mir::BlockTarget {
-                block: target.block,
-                arguments: extend_arguments(
+            target: mir::BlockTarget::new(
+                target.block,
+                extend_arguments(
                     target.block,
                     &target.arguments,
                     block_params,
                     value_stacks,
                     substitutions,
                 ),
-            },
+            ),
             unwind: unwind.as_ref().map(&extend_target),
         },
         mir::Terminator::CallDynamic {
@@ -1042,16 +1025,16 @@ fn update_terminator_arguments(
             },
             constraint: constraint.clone(),
             slot: *slot,
-            target: mir::BlockTarget {
-                block: target.block,
-                arguments: extend_arguments(
+            target: mir::BlockTarget::new(
+                target.block,
+                extend_arguments(
                     target.block,
                     &target.arguments,
                     block_params,
                     value_stacks,
                     substitutions,
                 ),
-            },
+            ),
             unwind: unwind.as_ref().map(extend_target),
         },
         mir::Terminator::Return { value } => mir::Terminator::Return {

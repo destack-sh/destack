@@ -151,10 +151,10 @@ fn run_loop_peel(
         // redirect preheader to the peeled iteration
         let preheader_block = tree.get(preheader).clone();
         let preheader_terminator = mir::Terminator::Jump {
-            target: mir::BlockTarget {
-                block: cloned_header.into(),
-                arguments: preheader_args.into_iter().map(Into::into).collect(),
-            },
+            target: mir::BlockTarget::new(
+                cloned_header.into(),
+                preheader_args.into_iter().map(Into::into).collect(),
+            ),
         };
         tree.set(preheader, preheader_block);
         tree.set(tree.get(preheader).terminator, preheader_terminator);
@@ -252,14 +252,8 @@ fn redirect_backedge(
 
             *terminator = mir::Terminator::Branch {
                 condition: *condition,
-                then_target: mir::BlockTarget {
-                    block: new_then,
-                    arguments: then_target.arguments.clone(),
-                },
-                else_target: mir::BlockTarget {
-                    block: new_else,
-                    arguments: else_target.arguments.clone(),
-                },
+                then_target: mir::BlockTarget::new(new_then, then_target.arguments.clone()),
+                else_target: mir::BlockTarget::new(new_else, else_target.arguments.clone()),
             };
         }
         mir::Terminator::Check {
@@ -281,14 +275,8 @@ fn redirect_backedge(
 
             *terminator = mir::Terminator::Check {
                 constraint: constraint.clone(),
-                success: mir::BlockTarget {
-                    block: success_target,
-                    arguments: success.arguments.clone(),
-                },
-                failure: mir::BlockTarget {
-                    block: failure_target,
-                    arguments: failure.arguments.clone(),
-                },
+                success: mir::BlockTarget::new(success_target, success.arguments.clone()),
+                failure: mir::BlockTarget::new(failure_target, failure.arguments.clone()),
             };
         }
         _ => return false,

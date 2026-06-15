@@ -292,12 +292,15 @@ fn apply_if_convert(
     }
 
     // check conversion cost model
+    let block_counts =
+        mir::profile_block_counts(function, tree, ctx.profile(), &mir::FunctionAnalyses::new());
+    let edge_counts = mir::edge_counts(function, tree, &block_counts);
     if !should_convert(
         &candidate,
         &then_block,
         &else_block,
         then_merge_args.len(),
-        ctx,
+        &edge_counts,
     ) {
         return false;
     }
@@ -337,10 +340,7 @@ fn apply_if_convert(
     let mut header = tree.get(candidate.header).clone();
     header.instructions = new_instructions;
     let new_terminator = mir::Terminator::Jump {
-        target: mir::BlockTarget {
-            block: candidate.merge_block.into(),
-            arguments: select_args,
-        },
+        target: mir::BlockTarget::new(candidate.merge_block.into(), select_args),
     };
     tree.set(candidate.header, header);
     tree.set(tree.get(candidate.header).terminator, new_terminator);
@@ -354,7 +354,7 @@ fn should_convert(
     then_block: &mir::Block,
     else_block: &mir::Block,
     merge_args: usize,
-    ctx: &PipelineContext<'_>,
+    edge_counts: &HashMap<mir::Edge, u64>,
 ) -> bool {
     // compute instruction costs for each branch
     let then_cost = block_instruction_cost(then_block);
@@ -368,7 +368,7 @@ fn should_convert(
     }
 
     // check branch profile balance when available
-    if let Some((then_count, else_count)) = branch_profile_counts(candidate, ctx.profile()) {
+    if let Some((then_count, else_count)) = branch_profile_counts(candidate, edge_counts) {
         let total_count = then_count + else_count;
         if total_count == 0 {
             return total_cost <= BASE_CONVERT_BUDGET;
@@ -408,9 +408,8 @@ fn block_instruction_cost(block: &mir::Block) -> usize {
 /// Read branch profile counts when available.
 fn branch_profile_counts(
     candidate: &IfConvertCandidate,
-    profile: Option<&mir::Profile>,
+    edge_counts: &HashMap<mir::Edge, u64>,
 ) -> Option<(u64, u64)> {
-    let profile = profile?;
     let then_edge = mir::Edge::new(
         candidate.header,
         mir::Successor::BranchThen,
@@ -422,8 +421,8 @@ fn branch_profile_counts(
         candidate.else_block,
     );
 
-    let then_count = profile.edge_count(&then_edge)?.get();
-    let else_count = profile.edge_count(&else_edge)?.get();
+    let then_count = edge_counts.get(&then_edge).copied()?;
+    let else_count = edge_counts.get(&else_edge).copied()?;
 
     Some((then_count, else_count))
 }

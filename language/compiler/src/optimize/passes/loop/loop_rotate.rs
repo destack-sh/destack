@@ -328,26 +328,26 @@ fn rotate_loop(
     let preheader_terminator = if candidate.then_to_body {
         mir::Terminator::Branch {
             condition: preheader_condition.into(),
-            then_target: mir::BlockTarget {
-                block: candidate.body_block.into(),
-                arguments: remapped_body_args.into_iter().map(Into::into).collect(),
-            },
-            else_target: mir::BlockTarget {
-                block: candidate.exit_block.into(),
-                arguments: remapped_exit_args.into_iter().map(Into::into).collect(),
-            },
+            then_target: mir::BlockTarget::new(
+                candidate.body_block.into(),
+                remapped_body_args.into_iter().map(Into::into).collect(),
+            ),
+            else_target: mir::BlockTarget::new(
+                candidate.exit_block.into(),
+                remapped_exit_args.into_iter().map(Into::into).collect(),
+            ),
         }
     } else {
         mir::Terminator::Branch {
             condition: preheader_condition.into(),
-            then_target: mir::BlockTarget {
-                block: candidate.exit_block.into(),
-                arguments: remapped_exit_args.into_iter().map(Into::into).collect(),
-            },
-            else_target: mir::BlockTarget {
-                block: candidate.body_block.into(),
-                arguments: remapped_body_args.into_iter().map(Into::into).collect(),
-            },
+            then_target: mir::BlockTarget::new(
+                candidate.exit_block.into(),
+                remapped_exit_args.into_iter().map(Into::into).collect(),
+            ),
+            else_target: mir::BlockTarget::new(
+                candidate.body_block.into(),
+                remapped_body_args.into_iter().map(Into::into).collect(),
+            ),
         }
     };
 
@@ -366,26 +366,26 @@ fn rotate_loop(
     let latch_terminator = if candidate.then_to_body {
         mir::Terminator::Branch {
             condition: latch_condition.into(),
-            then_target: mir::BlockTarget {
-                block: candidate.body_block.into(),
-                arguments: latch_body_args.into_iter().map(Into::into).collect(),
-            },
-            else_target: mir::BlockTarget {
-                block: candidate.exit_block.into(),
-                arguments: latch_exit_args.into_iter().map(Into::into).collect(),
-            },
+            then_target: mir::BlockTarget::new(
+                candidate.body_block.into(),
+                latch_body_args.into_iter().map(Into::into).collect(),
+            ),
+            else_target: mir::BlockTarget::new(
+                candidate.exit_block.into(),
+                latch_exit_args.into_iter().map(Into::into).collect(),
+            ),
         }
     } else {
         mir::Terminator::Branch {
             condition: latch_condition.into(),
-            then_target: mir::BlockTarget {
-                block: candidate.exit_block.into(),
-                arguments: latch_exit_args.into_iter().map(Into::into).collect(),
-            },
-            else_target: mir::BlockTarget {
-                block: candidate.body_block.into(),
-                arguments: latch_body_args.into_iter().map(Into::into).collect(),
-            },
+            then_target: mir::BlockTarget::new(
+                candidate.exit_block.into(),
+                latch_exit_args.into_iter().map(Into::into).collect(),
+            ),
+            else_target: mir::BlockTarget::new(
+                candidate.body_block.into(),
+                latch_body_args.into_iter().map(Into::into).collect(),
+            ),
         }
     };
 

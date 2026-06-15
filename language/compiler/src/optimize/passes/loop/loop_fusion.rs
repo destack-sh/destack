@@ -896,18 +896,12 @@ fn apply_fusion(
         mir::Terminator::Branch {
             condition: *condition,
             then_target: then_target.clone(),
-            else_target: mir::BlockTarget {
-                block: candidate.second.exit_block.into(),
-                arguments: Vec::new(),
-            },
+            else_target: mir::BlockTarget::new(candidate.second.exit_block.into(), Vec::new()),
         }
     } else {
         mir::Terminator::Branch {
             condition: *condition,
-            then_target: mir::BlockTarget {
-                block: candidate.second.exit_block.into(),
-                arguments: Vec::new(),
-            },
+            then_target: mir::BlockTarget::new(candidate.second.exit_block.into(), Vec::new()),
             else_target: else_target.clone(),
         }
     };
