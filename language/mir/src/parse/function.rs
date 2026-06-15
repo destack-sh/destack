@@ -828,10 +828,7 @@ impl Parser {
             }
             TokenType::Jump => {
                 self.bump();
-                let target = BlockTarget {
-                    block: self.parse_block_ref()?,
-                    arguments: self.parse_optional_block_arguments()?,
-                };
+                let target = self.parse_block_target()?;
 
                 Ok(Terminator::Jump { target })
             }
@@ -839,15 +836,9 @@ impl Parser {
                 self.bump();
                 let condition = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
-                let then_target = BlockTarget {
-                    block: self.parse_block_ref()?,
-                    arguments: self.parse_optional_block_arguments()?,
-                };
+                let then_target = self.parse_block_target()?;
                 self.eat_token(TokenType::Comma)?;
-                let else_target = BlockTarget {
-                    block: self.parse_block_ref()?,
-                    arguments: self.parse_optional_block_arguments()?,
-                };
+                let else_target = self.parse_block_target()?;
 
                 Ok(Terminator::Branch {
                     condition,
@@ -859,15 +850,9 @@ impl Parser {
                 self.bump();
                 let constraint = self.parse_check_kind()?;
                 self.eat_token(TokenType::Arrow)?;
-                let success = BlockTarget {
-                    block: self.parse_block_ref()?,
-                    arguments: self.parse_optional_block_arguments()?,
-                };
+                let success = self.parse_block_target()?;
                 self.eat_token(TokenType::Comma)?;
-                let failure = BlockTarget {
-                    block: self.parse_block_ref()?,
-                    arguments: self.parse_optional_block_arguments()?,
-                };
+                let failure = self.parse_block_target()?;
                 Ok(Terminator::Check {
                     constraint,
                     success,
@@ -878,19 +863,13 @@ impl Parser {
                 self.bump();
                 let value = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
-                let default = BlockTarget {
-                    block: self.parse_block_ref()?,
-                    arguments: self.parse_optional_block_arguments()?,
-                };
+                let default = self.parse_block_target()?;
 
                 let mut cases = Vec::new();
                 while self.eat_token_maybe(TokenType::Comma) {
                     let case_value = self.parse_int_literal()?;
                     self.eat_token(TokenType::FatArrow)?;
-                    let target = BlockTarget {
-                        block: self.parse_block_ref()?,
-                        arguments: self.parse_optional_block_arguments()?,
-                    };
+                    let target = self.parse_block_target()?;
                     cases.push(SwitchCase {
                         value: IntegerReference::Integer(case_value),
                         target,
@@ -1109,15 +1088,9 @@ impl Parser {
     fn parse_allocation_targets(&mut self) -> ParseResult<(BlockTarget, BlockTarget)> {
         self.eat_token(TokenType::Arrow)?;
 
-        let success = BlockTarget {
-            block: self.parse_block_ref()?,
-            arguments: self.parse_optional_block_arguments()?,
-        };
+        let success = self.parse_block_target()?;
         self.eat_token(TokenType::Comma)?;
-        let failure = BlockTarget {
-            block: self.parse_block_ref()?,
-            arguments: self.parse_optional_block_arguments()?,
-        };
+        let failure = self.parse_block_target()?;
 
         Ok((success, failure))
     }
@@ -1372,24 +1345,25 @@ impl Parser {
         }
     }
 
+    /// Parse one control-flow edge target: a block and its optional arguments.
+    fn parse_block_target(&mut self) -> ParseResult<BlockTarget> {
+        let block = self.parse_block_ref()?;
+        let arguments = self.parse_optional_block_arguments()?;
+        Ok(BlockTarget::new(block, arguments))
+    }
+
     /// Parse the continuation for a call terminator.
     /// Parse one continuation: `-> target`, with an optional `| target` unwind alternative.
     fn parse_continuation(&mut self) -> ParseResult<(BlockTarget, Option<BlockTarget>)> {
         self.eat_token(TokenType::Arrow)?;
-        let target = BlockTarget {
-            block: self.parse_block_ref()?,
-            arguments: self.parse_optional_block_arguments()?,
-        };
+        let target = self.parse_block_target()?;
 
         // the unwind alternative
         if !self.eat_token_maybe(TokenType::Pipe) {
             return Ok((target, None));
         }
 
-        let unwind = BlockTarget {
-            block: self.parse_block_ref()?,
-            arguments: self.parse_optional_block_arguments()?,
-        };
+        let unwind = self.parse_block_target()?;
 
         Ok((target, Some(unwind)))
     }

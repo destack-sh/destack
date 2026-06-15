@@ -13,6 +13,46 @@ pub struct BlockTarget {
     pub block: BlockReference,
     /// Arguments for the target block's parameters.
     pub arguments: Vec<ValueReference>,
+    /// Relative execution weight of this edge under profile data.
+    #[serde(default)]
+    pub weight: EdgeWeight,
+}
+
+impl BlockTarget {
+    /// Create a control-flow edge target with unknown weight.
+    pub fn new(block: BlockReference, arguments: Vec<ValueReference>) -> Self {
+        Self {
+            block,
+            arguments,
+            weight: EdgeWeight::Unknown,
+        }
+    }
+
+    /// Set the relative execution weight of this edge.
+    pub fn with_weight(mut self, weight: EdgeWeight) -> Self {
+        self.weight = weight;
+        self
+    }
+}
+
+/// Relative execution weight of a control-flow edge; Unknown until apply-profile sets it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum EdgeWeight {
+    /// No profile data attributes this edge.
+    #[default]
+    Unknown,
+    /// Relative weight among the source terminator's successors.
+    Known(u32),
+}
+
+impl EdgeWeight {
+    /// Return the relative weight when profile data attributes this edge.
+    pub fn known(self) -> Option<u32> {
+        match self {
+            EdgeWeight::Known(weight) => Some(weight),
+            EdgeWeight::Unknown => None,
+        }
+    }
 }
 
 /// Unrecoverable runtime trap kind.

@@ -5,8 +5,8 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
     ArgumentSlice, AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CastOperator,
-    CompareExchangeAccess, DispatchSlot, FenceAccess, FunctionReference, Instruction, LocalNodeId,
-    MemoryFlags, MemoryOrdering, MemoryScope, Place, PlaceOrigin, ProfileCounterId, Projection,
+    CompareExchangeAccess, CounterId, DispatchSlot, FenceAccess, FunctionReference, Instruction,
+    LocalNodeId, MemoryFlags, MemoryOrdering, MemoryScope, Place, PlaceOrigin, Projection,
     SpaceSet, SyncScope, TensorConvertMode, TensorConvolutionDimensionNumbers,
     TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
     TensorIndexReduceOperator, TensorIndexTieBreak, TensorReduceOperator,
@@ -1129,7 +1129,7 @@ impl Parser {
     fn parse_profile_counter_segment(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<ProfileCounterId> {
+    ) -> ParseResult<CounterId> {
         let keyword = self.eat_token(TokenType::Identifier)?;
         segment_spans.push(keyword.span);
         if self.tree.source_text(keyword.span) != "counter" {
@@ -1150,7 +1150,7 @@ impl Parser {
         let close = self.eat_token(TokenType::CloseParenthesis)?;
         segment_spans.push(close.span);
 
-        Ok(ProfileCounterId(value))
+        Ok(CounterId(value))
     }
 
     /// Parse a parenthesized list of values.
