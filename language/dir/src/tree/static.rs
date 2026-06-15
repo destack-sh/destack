@@ -36,6 +36,12 @@ pub enum StaticTerm {
     },
 }
 
+impl From<ScalarLiteral> for StaticTerm {
+    fn from(value: ScalarLiteral) -> Self {
+        Self::ScalarLiteral { value }
+    }
+}
+
 /// Static object property in a checked static context.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum StaticProperty {
