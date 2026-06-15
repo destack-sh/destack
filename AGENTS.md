@@ -345,12 +345,22 @@ pub(crate) struct SmallSpace {
 
 ```
 UserService.signup(name: string, email: string, password: string, session, ...)
- -> User.create(..., session)
-   -> User.validate(...)
-   -> User.save(...)
+ -> User.create(..., session) // create in DB
+   -> User.validate(...)      // validate inputs
+   -> User.save(...)          // save to DB
    -> NotificationService.send()
     -> Workflow::trigger()
    -> Session.commit(...)
+```
+
+```
+provide_program_analysis(profile, target)
+ ├─ load each module's MirAnalyzed (per-module LinkGraph, cached, incremental)
+ ├─ roots = exported symbols of the target's root modules
+ ├─ LinkSupergraph::build(&link_graphs)        // transient: dense index + CSR
+ │   └─ live = supergraph.reachable(&roots)     // CSR BFS -> BitSet
+ │      (later: references, address_taken, internal — same walk)
+ └─ persist ProgramAnalysis { symbols, live }   // columns only, O(symbols) bits
 ```
 
 ### Checks
