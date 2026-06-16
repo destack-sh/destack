@@ -491,20 +491,22 @@ mod tests {
     fn test_fold_binary_add() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 1int32
-    v1: int32 = 2int32
-    v2: int32 = int.add v0, v1
-    return v2
-}"#;
+entry0:
+    value0: int32 = 1int32
+    value1: int32 = 2int32
+    value2: int32 = int.add value0, value1
+    return value2
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 1int32
-    v1: int32 = 2int32
-    v2: int32 = 3int32
-    return v2
-}"#;
+entry0:
+    value0: int32 = 1int32
+    value1: int32 = 2int32
+    value2: int32 = 3int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&ConstantFold);
@@ -517,24 +519,26 @@ b0:
         // 2 * 3 = 6, then 6 + 4 = 10
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 2int32
-    v1: int32 = 3int32
-    v2: int32 = int.mul v0, v1
-    v3: int32 = 4int32
-    v4: int32 = int.add v2, v3
-    return v4
-}"#;
+entry0:
+    value0: int32 = 2int32
+    value1: int32 = 3int32
+    value2: int32 = int.mul value0, value1
+    value3: int32 = 4int32
+    value4: int32 = int.add value2, value3
+    return value4
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 2int32
-    v1: int32 = 3int32
-    v2: int32 = 6int32
-    v3: int32 = 4int32
-    v4: int32 = 10int32
-    return v4
-}"#;
+entry0:
+    value0: int32 = 2int32
+    value1: int32 = 3int32
+    value2: int32 = 6int32
+    value3: int32 = 4int32
+    value4: int32 = 10int32
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&ConstantFold);
@@ -546,20 +550,22 @@ b0:
     fn test_fold_comparison() {
         let input = r#"
 function test(): boolean {
-b0:
-    v0: int32 = 5int32
-    v1: int32 = 3int32
-    v2: boolean = int.gt.s v0, v1
-    return v2
-}"#;
+entry0:
+    value0: int32 = 5int32
+    value1: int32 = 3int32
+    value2: boolean = int.gt.s value0, value1
+    return value2
+}
+"#;
         let expected = r#"
 function test(): boolean {
-b0:
-    v0: int32 = 5int32
-    v1: int32 = 3int32
-    v2: boolean = true
-    return v2
-}"#;
+entry0:
+    value0: int32 = 5int32
+    value1: int32 = 3int32
+    value2: boolean = true
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&ConstantFold);
@@ -571,12 +577,13 @@ b0:
     fn test_preserve_non_constant_operands() {
         // v0 is a parameter, not a constant
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 2int32
-    v2: int32 = int.add v0, v1
-    return v2
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 2int32
+    value2: int32 = int.add value0, value1
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&ConstantFold);
@@ -588,18 +595,20 @@ b0(v0: int32):
     fn test_fold_unary_negation_instruction() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 42int32
-    v1: int32 = int.negate v0
-    return v1
-}"#;
+entry0:
+    value0: int32 = 42int32
+    value1: int32 = int.negate value0
+    return value1
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 42int32
-    v1: int32 = -42int32
-    return v1
-}"#;
+entry0:
+    value0: int32 = 42int32
+    value1: int32 = -42int32
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&ConstantFold);
@@ -611,18 +620,20 @@ b0:
     fn test_fold_boolean_not() {
         let input = r#"
 function test(): boolean {
-b0:
-    v0: boolean = true
-    v1: boolean = int.not v0
-    return v1
-}"#;
+entry0:
+    value0: boolean = true
+    value1: boolean = int.not value0
+    return value1
+}
+"#;
         let expected = r#"
 function test(): boolean {
-b0:
-    v0: boolean = true
-    v1: boolean = false
-    return v1
-}"#;
+entry0:
+    value0: boolean = true
+    value1: boolean = false
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&ConstantFold);
@@ -634,20 +645,22 @@ b0:
     fn test_fold_unsigned_division() {
         let input = r#"
 function test(): uint32 {
-b0:
-    v0: uint32 = 10uint32
-    v1: uint32 = 3uint32
-    v2: uint32 = int.div.u v0, v1
-    return v2
-}"#;
+entry0:
+    value0: uint32 = 10uint32
+    value1: uint32 = 3uint32
+    value2: uint32 = int.div.u value0, value1
+    return value2
+}
+"#;
         let expected = r#"
 function test(): uint32 {
-b0:
-    v0: uint32 = 10uint32
-    v1: uint32 = 3uint32
-    v2: uint32 = 3uint32
-    return v2
-}"#;
+entry0:
+    value0: uint32 = 10uint32
+    value1: uint32 = 3uint32
+    value2: uint32 = 3uint32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&ConstantFold);
@@ -659,12 +672,13 @@ b0:
     fn test_preserve_division_by_zero() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 10int32
-    v1: int32 = 0int32
-    v2: int32 = int.div.s v0, v1
-    return v2
-}"#;
+entry0:
+    value0: int32 = 10int32
+    value1: int32 = 0int32
+    value2: int32 = int.div.s value0, value1
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&ConstantFold);
@@ -675,31 +689,37 @@ b0:
     #[test]
     fn test_fold_across_blocks() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 5int32
-    v2: int32 = 3int32
-    branch v0, b1, b2
-b1:
-    v3: int32 = int.add v1, v2
-    return v3
-b2:
-    v4: int32 = int.mul v1, v2
-    return v4
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 5int32
+    value2: int32 = 3int32
+    branch value0, block1(), block2()
+
+block1:
+    value3: int32 = int.add value1, value2
+    return value3
+
+block2:
+    value4: int32 = int.mul value1, value2
+    return value4
+}
+"#;
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 5int32
-    v2: int32 = 3int32
-    branch v0, b1, b2
-b1:
-    v3: int32 = 8int32
-    return v3
-b2:
-    v4: int32 = 15int32
-    return v4
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 5int32
+    value2: int32 = 3int32
+    branch value0, block1(), block2()
+
+block1:
+    value3: int32 = 8int32
+    return value3
+
+block2:
+    value4: int32 = 15int32
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&ConstantFold);
@@ -711,13 +731,15 @@ b2:
     fn test_preserve_readonly_global_load_boolean() {
         let input = r#"
 readonly global flag: boolean = true
+
 function test(): boolean {
-b0:
-    v0: ref<boolean, raw, readonly> = global.address flag
-    v1: boolean = load v0
-    v2: boolean = int.not v1
-    return v2
-}"#;
+entry0:
+    value0: ref<boolean, raw, readonly> = global.address flag
+    value1: boolean = load value0
+    value2: boolean = int.not value1
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&ConstantFold);
@@ -729,13 +751,15 @@ b0:
     fn test_preserve_mutable_global_load_boolean() {
         let input = r#"
 global flag: boolean = true
+
 function test(): boolean {
-b0:
-    v0: ref<boolean, raw> = global.address flag
-    v1: boolean = load v0
-    v2: boolean = int.not v1
-    return v2
-}"#;
+entry0:
+    value0: ref<boolean, raw> = global.address flag
+    value1: boolean = load value0
+    value2: boolean = int.not value1
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&ConstantFold);
@@ -747,22 +771,26 @@ b0:
     fn test_fold_block_param_constant() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 3int32
-    jump b1(v0)
-b1(v1: int32):
-    v2: int32 = int.add v1, v1
-    return v2
-}"#;
+entry0:
+    value0: int32 = 3int32
+    jump block1(value0)
+
+block1(value1: int32):
+    value2: int32 = int.add value1, value1
+    return value2
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 3int32
-    jump b1(v0)
-b1(v1: int32):
-    v2: int32 = 6int32
-    return v2
-}"#;
+entry0:
+    value0: int32 = 3int32
+    jump block1(value0)
+
+block1(value1: int32):
+    value2: int32 = 6int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&ConstantFold);
@@ -774,18 +802,20 @@ b1(v1: int32):
     fn test_fold_cast_sign_extend() {
         let input = r#"
 function test(): int64 {
-b0:
-    v0: int32 = -1int32
-    v1: int64 = cast.extend.s v0 -> int64
-    return v1
-}"#;
+entry0:
+    value0: int32 = -1int32
+    value1: int64 = cast.extend.s value0 -> int64
+    return value1
+}
+"#;
         let expected = r#"
 function test(): int64 {
-b0:
-    v0: int32 = -1int32
-    v1: int64 = -1int64
-    return v1
-}"#;
+entry0:
+    value0: int32 = -1int32
+    value1: int64 = -1int64
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&ConstantFold);
@@ -797,18 +827,20 @@ b0:
     fn test_fold_cast_truncate() {
         let input = r#"
 function test(): uint8 {
-b0:
-    v0: uint16 = 257uint16
-    v1: uint8 = cast.truncate v0 -> uint8
-    return v1
-}"#;
+entry0:
+    value0: uint16 = 257uint16
+    value1: uint8 = cast.truncate value0 -> uint8
+    return value1
+}
+"#;
         let expected = r#"
 function test(): uint8 {
-b0:
-    v0: uint16 = 257uint16
-    v1: uint8 = 1uint8
-    return v1
-}"#;
+entry0:
+    value0: uint16 = 257uint16
+    value1: uint8 = 1uint8
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&ConstantFold);
@@ -821,24 +853,26 @@ b0:
         // 10 & 12 = 8, 10 | 12 = 14, 10 ^ 12 = 6
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 10int32
-    v1: int32 = 12int32
-    v2: int32 = int.and v0, v1
-    v3: int32 = int.or v0, v1
-    v4: int32 = int.xor v0, v1
-    return v2
-}"#;
+entry0:
+    value0: int32 = 10int32
+    value1: int32 = 12int32
+    value2: int32 = int.and value0, value1
+    value3: int32 = int.or value0, value1
+    value4: int32 = int.xor value0, value1
+    return value2
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 10int32
-    v1: int32 = 12int32
-    v2: int32 = 8int32
-    v3: int32 = 14int32
-    v4: int32 = 6int32
-    return v2
-}"#;
+entry0:
+    value0: int32 = 10int32
+    value1: int32 = 12int32
+    value2: int32 = 8int32
+    value3: int32 = 14int32
+    value4: int32 = 6int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&ConstantFold);
@@ -851,22 +885,24 @@ b0:
         // 8 << 2 = 32, 8 >> 2 = 2 (signed/arithmetic)
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 8int32
-    v1: int32 = 2int32
-    v2: int32 = int.shiftLeft v0, v1
-    v3: int32 = int.shiftRight.s v0, v1
-    return v2
-}"#;
+entry0:
+    value0: int32 = 8int32
+    value1: int32 = 2int32
+    value2: int32 = int.shl value0, value1
+    value3: int32 = int.shr.s value0, value1
+    return value2
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 8int32
-    v1: int32 = 2int32
-    v2: int32 = 32int32
-    v3: int32 = 2int32
-    return v2
-}"#;
+entry0:
+    value0: int32 = 8int32
+    value1: int32 = 2int32
+    value2: int32 = 32int32
+    value3: int32 = 2int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&ConstantFold);
@@ -879,22 +915,24 @@ b0:
         // true && false = false, true || false = true
         let input = r#"
 function test(): boolean {
-b0:
-    v0: boolean = true
-    v1: boolean = false
-    v2: boolean = int.and v0, v1
-    v3: boolean = int.or v0, v1
-    return v2
-}"#;
+entry0:
+    value0: boolean = true
+    value1: boolean = false
+    value2: boolean = int.and value0, value1
+    value3: boolean = int.or value0, value1
+    return value2
+}
+"#;
         let expected = r#"
 function test(): boolean {
-b0:
-    v0: boolean = true
-    v1: boolean = false
-    v2: boolean = false
-    v3: boolean = true
-    return v2
-}"#;
+entry0:
+    value0: boolean = true
+    value1: boolean = false
+    value2: boolean = false
+    value3: boolean = true
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&ConstantFold);
@@ -906,22 +944,24 @@ b0:
     fn test_fold_select_true_condition() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: boolean = true
-    v1: int32 = 42int32
-    v2: int32 = 0int32
-    v3: int32 = select v0, v1, v2
-    return v3
-}"#;
+entry0:
+    value0: boolean = true
+    value1: int32 = 42int32
+    value2: int32 = 0int32
+    value3: int32 = select value0, value1, value2
+    return value3
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: boolean = true
-    v1: int32 = 42int32
-    v2: int32 = 0int32
-    v3: int32 = 42int32
-    return v3
-}"#;
+entry0:
+    value0: boolean = true
+    value1: int32 = 42int32
+    value2: int32 = 0int32
+    value3: int32 = 42int32
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&ConstantFold);
@@ -933,22 +973,24 @@ b0:
     fn test_fold_select_false_condition() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: boolean = false
-    v1: int32 = 42int32
-    v2: int32 = 0int32
-    v3: int32 = select v0, v1, v2
-    return v3
-}"#;
+entry0:
+    value0: boolean = false
+    value1: int32 = 42int32
+    value2: int32 = 0int32
+    value3: int32 = select value0, value1, value2
+    return value3
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: boolean = false
-    v1: int32 = 42int32
-    v2: int32 = 0int32
-    v3: int32 = 0int32
-    return v3
-}"#;
+entry0:
+    value0: boolean = false
+    value1: int32 = 42int32
+    value2: int32 = 0int32
+    value3: int32 = 0int32
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&ConstantFold);
@@ -959,13 +1001,14 @@ b0:
     #[test]
     fn test_preserve_select_non_constant_condition() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 42int32
-    v2: int32 = 0int32
-    v3: int32 = select v0, v1, v2
-    return v3
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 42int32
+    value2: int32 = 0int32
+    value3: int32 = select value0, value1, value2
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&ConstantFold);
@@ -976,20 +1019,22 @@ b0(v0: boolean):
     #[test]
     fn test_fold_select_constant_to_copy() {
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: boolean = true
-    v2: int32 = int.add v0, v0
-    v3: int32 = select v1, v2, v0
-    return v3
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: boolean = true
+    value2: int32 = int.add value0, value0
+    value3: int32 = select value1, value2, value0
+    return value3
+}
+"#;
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: boolean = true
-    v2: int32 = int.add v0, v0
-    return v2
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: boolean = true
+    value2: int32 = int.add value0, value0
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&ConstantFold);
@@ -1001,28 +1046,34 @@ b0(v0: int32):
     fn test_fold_constant_branch() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: boolean = true
-    branch v0, b1, b2
-b1:
-    v1: int32 = 1int32
-    return v1
-b2:
-    v2: int32 = 2int32
-    return v2
-}"#;
+entry0:
+    value0: boolean = true
+    branch value0, block1(), block2()
+
+block1:
+    value1: int32 = 1int32
+    return value1
+
+block2:
+    value2: int32 = 2int32
+    return value2
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: boolean = true
-    jump b1
-b1:
-    v1: int32 = 1int32
-    return v1
-b2:
-    v2: int32 = 2int32
-    return v2
-}"#;
+entry0:
+    value0: boolean = true
+    jump block1()
+
+block1:
+    value1: int32 = 1int32
+    return value1
+
+block2:
+    value2: int32 = 2int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&ConstantFold);
@@ -1034,18 +1085,20 @@ b2:
     fn test_fold_intrinsic_clz() {
         let input = r#"
 function test(): uint32 {
-b0:
-    v0: uint32 = 8uint32
-    v1: uint32 = intrinsic.math.bits.leadingZeroCount(v0)
-    return v1
-}"#;
+entry0:
+    value0: uint32 = 8uint32
+    value1: uint32 = intrinsic.math.bits.leadingZeroCount(value0)
+    return value1
+}
+"#;
         let expected = r#"
 function test(): uint32 {
-b0:
-    v0: uint32 = 8uint32
-    v1: uint32 = 28uint32
-    return v1
-}"#;
+entry0:
+    value0: uint32 = 8uint32
+    value1: uint32 = 28uint32
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&ConstantFold);

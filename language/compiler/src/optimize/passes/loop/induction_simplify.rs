@@ -719,35 +719,41 @@ mod tests {
     fn test_simplify_redundant_induction_params() {
         // source test
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    jump b1(v1, v1)
-b1(v2: int32, v3: int32):
-    v4: int32 = int.add v2, v3
-    v5: int32 = 1int32
-    v6: int32 = int.add v2, v5
-    v7: boolean = int.lt.s v6, v0
-    branch v7, b1(v6, v6), b2(v3)
-b2(v8: int32):
-    return v8
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    jump block1(value1, value1)
+
+block1(value2: int32, value3: int32):
+    value4: int32 = int.add value2, value3
+    value5: int32 = 1int32
+    value6: int32 = int.add value2, value5
+    value7: boolean = int.lt.s value6, value0
+    branch value7, block1(value6, value6), block2(value3)
+
+block2(value8: int32):
+    return value8
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    jump b1(v1)
-b1(v2: int32):
-    v3: int32 = int.add v2, v2
-    v4: int32 = 1int32
-    v5: int32 = int.add v2, v4
-    v6: boolean = int.lt.s v5, v0
-    branch v6, b1(v5), b2(v2)
-b2(v7: int32):
-    return v7
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    jump block1(value1)
+
+block1(value2: int32):
+    value4: int32 = int.add value2, value2
+    value5: int32 = 1int32
+    value6: int32 = int.add value2, value5
+    value7: boolean = int.lt.s value6, value0
+    branch value7, block1(value6), block2(value2)
+
+block2(value8: int32):
+    return value8
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -760,20 +766,23 @@ b2(v7: int32):
     fn test_preserve_distinct_induction_params() {
         // source test
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: int32 = 1int32
-    v3: int32 = 2int32
-    jump b1(v1, v1)
-b1(v4: int32, v5: int32):
-    v6: int32 = int.add v4, v2
-    v7: int32 = int.add v5, v3
-    v8: boolean = int.lt.s v6, v0
-    branch v8, b1(v6, v7), b2(v5)
-b2(v9: int32):
-    return v9
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: int32 = 1int32
+    value3: int32 = 2int32
+    jump block1(value1, value1)
+
+block1(value4: int32, value5: int32):
+    value6: int32 = int.add value4, value2
+    value7: int32 = int.add value5, value3
+    value8: boolean = int.lt.s value6, value0
+    branch value8, block1(value6, value7), block2(value5)
+
+block2(value9: int32):
+    return value9
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -786,37 +795,43 @@ b2(v9: int32):
     fn test_simplify_multiple_redundant_params() {
         // source test
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    jump b1(v1, v1, v1)
-b1(v2: int32, v3: int32, v4: int32):
-    v5: int32 = int.add v2, v3
-    v6: int32 = int.add v3, v4
-    v7: int32 = 1int32
-    v8: int32 = int.add v2, v7
-    v9: boolean = int.lt.s v8, v0
-    branch v9, b1(v8, v8, v8), b2(v4)
-b2(v10: int32):
-    return v10
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    jump block1(value1, value1, value1)
+
+block1(value2: int32, value3: int32, value4: int32):
+    value5: int32 = int.add value2, value3
+    value6: int32 = int.add value3, value4
+    value7: int32 = 1int32
+    value8: int32 = int.add value2, value7
+    value9: boolean = int.lt.s value8, value0
+    branch value9, block1(value8, value8, value8), block2(value4)
+
+block2(value10: int32):
+    return value10
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    jump b1(v1)
-b1(v2: int32):
-    v3: int32 = int.add v2, v2
-    v4: int32 = int.add v2, v2
-    v5: int32 = 1int32
-    v6: int32 = int.add v2, v5
-    v7: boolean = int.lt.s v6, v0
-    branch v7, b1(v6), b2(v2)
-b2(v8: int32):
-    return v8
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    jump block1(value1)
+
+block1(value2: int32):
+    value5: int32 = int.add value2, value2
+    value6: int32 = int.add value2, value2
+    value7: int32 = 1int32
+    value8: int32 = int.add value2, value7
+    value9: boolean = int.lt.s value8, value0
+    branch value9, block1(value8), block2(value2)
+
+block2(value10: int32):
+    return value10
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -829,39 +844,47 @@ b2(v8: int32):
     fn test_simplify_forwarded_signature_match() {
         // source test
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    jump b1(v1, v1)
-b1(v2: int32, v3: int32):
-    jump b2(v2, v3)
-b2(v4: int32, v5: int32):
-    v6: int32 = int.add v4, v5
-    v7: int32 = 1int32
-    v8: int32 = int.add v4, v7
-    v9: boolean = int.lt.s v8, v0
-    branch v9, b2(v8, v8), b3(v5)
-b3(v10: int32):
-    return v10
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    jump block1(value1, value1)
+
+block1(value2: int32, value3: int32):
+    jump block2(value2, value3)
+
+block2(value4: int32, value5: int32):
+    value6: int32 = int.add value4, value5
+    value7: int32 = 1int32
+    value8: int32 = int.add value4, value7
+    value9: boolean = int.lt.s value8, value0
+    branch value9, block2(value8, value8), block3(value5)
+
+block3(value10: int32):
+    return value10
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    jump b1(v1, v1)
-b1(v2: int32, v3: int32):
-    jump b2(v2)
-b2(v4: int32):
-    v5: int32 = int.add v4, v4
-    v6: int32 = 1int32
-    v7: int32 = int.add v4, v6
-    v8: boolean = int.lt.s v7, v0
-    branch v8, b2(v7), b3(v4)
-b3(v9: int32):
-    return v9
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    jump block1(value1, value1)
+
+block1(value2: int32, value3: int32):
+    jump block2(value2)
+
+block2(value4: int32):
+    value6: int32 = int.add value4, value4
+    value7: int32 = 1int32
+    value8: int32 = int.add value4, value7
+    value9: boolean = int.lt.s value8, value0
+    branch value9, block2(value8), block3(value4)
+
+block3(value10: int32):
+    return value10
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -874,21 +897,24 @@ b3(v9: int32):
     fn test_preserve_different_typed_recurrences() {
         // source test
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: uint32 = 0uint32
-    v3: int32 = 1int32
-    v4: uint32 = 1uint32
-    jump b1(v1, v2)
-b1(v5: int32, v6: uint32):
-    v7: int32 = int.add v5, v3
-    v8: uint32 = int.add v6, v4
-    v9: boolean = int.lt.s v7, v0
-    branch v9, b1(v7, v8), b2(v5)
-b2(v10: int32):
-    return v10
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: uint32 = 0uint32
+    value3: int32 = 1int32
+    value4: uint32 = 1uint32
+    jump block1(value1, value2)
+
+block1(value5: int32, value6: uint32):
+    value7: int32 = int.add value5, value3
+    value8: uint32 = int.add value6, value4
+    value9: boolean = int.lt.s value7, value0
+    branch value9, block1(value7, value8), block2(value5)
+
+block2(value10: int32):
+    return value10
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -901,35 +927,41 @@ b2(v10: int32):
     fn test_simplify_check_terminator() {
         // source test
         let input = r#"
-function test(v0: [int32; 4]): void {
-b0(v0: [int32; 4]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = 4uint32
-    jump b1(v1, v1)
-b1(v4: uint32, v5: uint32):
-    v6: uint32 = int.add v4, v2
-    v7: boolean = int.lt.u v6, v3
-    check bounds.u v6, v3, v0 -> b1(v6, v6), b2
-b2:
+function test(value0: [int32; 4]): void {
+entry0(value0: [int32; 4]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = 4uint32
+    jump block1(value1, value1)
+
+block1(value4: uint32, value5: uint32):
+    value6: uint32 = int.add value4, value2
+    value7: boolean = int.lt.u value6, value3
+    check bounds.u value6, value3, value0 -> block1(value6, value6), block2()
+
+block2:
     return
-}"#;
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: [int32; 4]): void {
-b0(v0: [int32; 4]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = 4uint32
-    jump b1(v1)
-b1(v4: uint32):
-    v5: uint32 = int.add v4, v2
-    v6: boolean = int.lt.u v5, v3
-    check bounds.u v5, v3, v0 -> b1(v5), b2
-b2:
+function test(value0: [int32; 4]): void {
+entry0(value0: [int32; 4]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = 4uint32
+    jump block1(value1)
+
+block1(value4: uint32):
+    value6: uint32 = int.add value4, value2
+    value7: boolean = int.lt.u value6, value3
+    check bounds.u value6, value3, value0 -> block1(value6), block2()
+
+block2:
     return
-}"#;
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -942,35 +974,41 @@ b2:
     fn test_simplify_switch_terminator() {
         // source test
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: int32 = 1int32
-    jump b1(v1, v1)
-b1(v3: int32, v4: int32):
-    v5: int32 = int.add v3, v2
-    v6: int32 = int.add v4, v2
-    v7: boolean = int.lt.s v5, v0
-    switch v7, b2, 0 => b1(v5, v6), 1 => b2
-b2:
-    return v3
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: int32 = 1int32
+    jump block1(value1, value1)
+
+block1(value3: int32, value4: int32):
+    value5: int32 = int.add value3, value2
+    value6: int32 = int.add value4, value2
+    value7: boolean = int.lt.s value5, value0
+    switch value7, block2(), 0 => block1(value5, value6), 1 => block2()
+
+block2:
+    return value3
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: int32 = 1int32
-    jump b1(v1)
-b1(v3: int32):
-    v4: int32 = int.add v3, v2
-    v5: int32 = int.add v3, v2
-    v6: boolean = int.lt.s v4, v0
-    switch v6, b2, 0 => b1(v4), 1 => b2
-b2:
-    return v3
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: int32 = 1int32
+    jump block1(value1)
+
+block1(value3: int32):
+    value5: int32 = int.add value3, value2
+    value6: int32 = int.add value3, value2
+    value7: boolean = int.lt.s value5, value0
+    switch value7, block2(), 0 => block1(value5), 1 => block2()
+
+block2:
+    return value3
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -983,38 +1021,44 @@ b2:
     fn test_simplify_affine_offset_induction() {
         // source test
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: int32 = 1int32
-    v3: int32 = 4int32
-    jump b1(v1, v2)
-b1(v4: int32, v5: int32):
-    v6: int32 = int.add v4, v2
-    v7: int32 = int.add v5, v2
-    v8: boolean = int.lt.s v6, v3
-    branch v8, b1(v6, v7), b2(v5)
-b2(v9: int32):
-    return v9
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: int32 = 1int32
+    value3: int32 = 4int32
+    jump block1(value1, value2)
+
+block1(value4: int32, value5: int32):
+    value6: int32 = int.add value4, value2
+    value7: int32 = int.add value5, value2
+    value8: boolean = int.lt.s value6, value3
+    branch value8, block1(value6, value7), block2(value5)
+
+block2(value9: int32):
+    return value9
+}
+"#;
         // expected output
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: int32 = 1int32
-    v3: int32 = 4int32
-    jump b1(v1)
-b1(v4: int32):
-    v5: int32 = 1int32
-    v6: int32 = int.add v4, v5
-    v7: int32 = int.add v4, v2
-    v8: int32 = int.add v6, v2
-    v9: boolean = int.lt.s v7, v3
-    branch v9, b1(v7), b2(v6)
-b2(v10: int32):
-    return v10
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: int32 = 1int32
+    value3: int32 = 4int32
+    jump block1(value1)
+
+block1(value4: int32):
+    value10: int32 = 1int32
+    value11: int32 = int.add value4, value10
+    value6: int32 = int.add value4, value2
+    value7: int32 = int.add value11, value2
+    value8: boolean = int.lt.s value6, value3
+    branch value8, block1(value6), block2(value11)
+
+block2(value9: int32):
+    return value9
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -1027,35 +1071,41 @@ b2(v10: int32):
     fn test_simplify_equivalent_recurrence_distinct_latch_values() {
         // source test
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: int32 = 1int32
-    jump b1(v1, v1)
-b1(v3: int32, v4: int32):
-    v5: int32 = int.add v3, v2
-    v6: int32 = int.add v4, v2
-    v7: boolean = int.lt.s v5, v0
-    branch v7, b1(v5, v6), b2(v4)
-b2(v8: int32):
-    return v8
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: int32 = 1int32
+    jump block1(value1, value1)
+
+block1(value3: int32, value4: int32):
+    value5: int32 = int.add value3, value2
+    value6: int32 = int.add value4, value2
+    value7: boolean = int.lt.s value5, value0
+    branch value7, block1(value5, value6), block2(value4)
+
+block2(value8: int32):
+    return value8
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: int32 = 1int32
-    jump b1(v1)
-b1(v3: int32):
-    v4: int32 = int.add v3, v2
-    v5: int32 = int.add v3, v2
-    v6: boolean = int.lt.s v4, v0
-    branch v6, b1(v4), b2(v3)
-b2(v7: int32):
-    return v7
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: int32 = 1int32
+    jump block1(value1)
+
+block1(value3: int32):
+    value5: int32 = int.add value3, value2
+    value6: int32 = int.add value3, value2
+    value7: boolean = int.lt.s value5, value0
+    branch value7, block1(value5), block2(value3)
+
+block2(value8: int32):
+    return value8
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -1068,19 +1118,22 @@ b2(v7: int32):
     fn test_param_signature_equivalence() {
         // source test
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    jump b1(v1, v1)
-b1(v2: int32, v3: int32):
-    v4: int32 = int.add v2, v3
-    v5: int32 = 1int32
-    v6: int32 = int.add v2, v5
-    v7: boolean = int.lt.s v6, v0
-    branch v7, b1(v6, v6), b2(v3)
-b2(v8: int32):
-    return v8
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    jump block1(value1, value1)
+
+block1(value2: int32, value3: int32):
+    value4: int32 = int.add value2, value3
+    value5: int32 = 1int32
+    value6: int32 = int.add value2, value5
+    value7: boolean = int.lt.s value6, value0
+    branch value7, block1(value6, value6), block2(value3)
+
+block2(value8: int32):
+    return value8
+}
+"#;
 
         // resolve header signatures
         let test = TestProgram::new(input);

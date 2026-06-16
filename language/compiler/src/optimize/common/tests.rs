@@ -29,6 +29,44 @@ fn test_target_id_for_package(package_id: PackageId, name: &str) -> TargetId {
     TargetId::new(package_id, name)
 }
 
+/// Format one MIR fixture into canonical text.
+fn canonical_mir_text(source: &str) -> String {
+    let (tree, strings) = match mir::parse::Parser::parse(
+        FileId::new(0),
+        source,
+        mir::parse::ParseOptions::default(),
+    )
+    .finish()
+    {
+        Ok(parsed) => parsed,
+        Err(error) => {
+            eprintln!("===EXPECTED_BEGIN===\n{source}\n===EXPECTED_END===");
+            panic!("expected MIR fixture is unparseable: {error:?}");
+        }
+    };
+    let formatted = match mir::format_mir(&tree, &strings, mir::MirFormatOptions::default()) {
+        Ok(formatted) => formatted,
+        Err(error) => {
+            eprintln!("===EXPECTED_BEGIN===\n{source}\n===EXPECTED_END===");
+            panic!("expected MIR fixture failed to format: {error:?}");
+        }
+    };
+
+    formatted.trim().to_string()
+}
+
+/// Require one MIR fixture to parse.
+fn assert_parseable_mir_text(source: &str) {
+    let result =
+        mir::parse::Parser::parse(FileId::new(0), source, mir::parse::ParseOptions::default())
+            .finish();
+
+    if let Err(error) = result {
+        eprintln!("===UNPARSEABLE_MIR_BEGIN===\n{source}\n===UNPARSEABLE_MIR_END===");
+        panic!("optimizer produced unparseable MIR: {error:?}");
+    }
+}
+
 /// Test program for optimization passes.
 ///
 /// Parses MIR from text, applies passes, and formats the result back to text.
@@ -742,12 +780,14 @@ impl TestProgram {
     #[track_caller]
     pub(crate) fn assert_output(&self, expected: &str) {
         let actual = self.format();
-        let expected = expected.trim();
+        let expected = canonical_mir_text(expected);
         let actual = actual.trim();
 
-        if actual != expected {
+        assert_parseable_mir_text(actual);
+
+        if actual != expected.as_str() {
             eprintln!("===ACTUAL_BEGIN===\n{actual}\n===ACTUAL_END===");
-            print_diff(expected, actual, &DiffOptions::new());
+            print_diff(&expected, actual, &DiffOptions::new());
             panic!("optimization output mismatch");
         }
     }
@@ -926,9 +966,10 @@ mod tests {
         let program = TestProgram::new(
             r#"
 function test(): void {
-b0:
+entry0:
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -976,9 +1017,10 @@ b0:
         let program = TestProgram::new(
             r#"
 function test(): void {
-b0:
+entry0:
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -998,9 +1040,10 @@ b0:
         let program = TestProgram::new(
             r#"
 function test(): void {
-b0:
+entry0:
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -1022,9 +1065,10 @@ b0:
         let program = TestProgram::new(
             r#"
 function test(): void {
-b0:
+entry0:
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -1048,9 +1092,10 @@ b0:
         let program = TestProgram::new(
             r#"
 function test(): void {
-b0:
+entry0:
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -1074,9 +1119,10 @@ b0:
         let program = TestProgram::new(
             r#"
 function test(): void {
-b0:
+entry0:
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -1166,16 +1212,18 @@ b0:
     #[test]
     fn test_requirements_call_effects() {
         let input = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    return v0
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    return value0
 }
+
 function root(): int32 {
-b0:
-    v0: int32 = 1int32
-    v1: int32 = call callee(v0): (int32) -> int32
-    return v1
-}"#;
+entry0:
+    value0: int32 = 1int32
+    value1: int32 = call callee(value0): (int32) -> int32
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let options = PipelineOptions {
@@ -1191,11 +1239,12 @@ b0:
     #[test]
     fn test_requirements_memory_access_metadata() {
         let input = r#"
-function test(v0: ref<int32, raw>): int32 {
-b0(v0: ref<int32, raw>):
-    v1: int32 = load v0
-    return v1
-}"#;
+function test(value0: ref<int32, raw>): int32 {
+entry0(value0: ref<int32, raw>):
+    value1: int32 = load value0
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let options = PipelineOptions {
@@ -1212,9 +1261,10 @@ b0(v0: ref<int32, raw>):
     fn test_requirements_profile_data() {
         let input = r#"
 function test(): void {
-b0:
+entry0:
     return
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let options = PipelineOptions {
@@ -1234,11 +1284,13 @@ type Point {
     int32;
     int32;
 }
-function makePoint(v0: int32, v1: int32): Point {
-b0(v0: int32, v1: int32):
-    v2: Point = struct Point (v0, v1)
-    return v2
-}"#;
+
+function makePoint(value0: int32, value1: int32): Point {
+entry0(value0: int32, value1: int32):
+    value2: Point = struct Point (value0, value1)
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
 

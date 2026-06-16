@@ -2772,22 +2772,26 @@ mod tests {
         // block1 is empty (just returns), block2 is unreachable
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 1int32
-    jump b1
-b1:
-    return v0
-b2:
-    v1: int32 = 2int32
-    return v1
-}"#;
+entry0:
+    value0: int32 = 1int32
+    jump block1()
+
+block1:
+    return value0
+
+block2:
+    value1: int32 = 2int32
+    return value1
+}
+"#;
         // b0's jump threads to return, b1 and b2 become unreachable
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 1int32
-    return v0
-}"#;
+entry0:
+    value0: int32 = 1int32
+    return value0
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -2799,21 +2803,25 @@ b0:
     fn test_eliminate_unreachable_chain() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 1int32
-    return v0
-b1:
-    jump b2
-b2:
-    v1: int32 = 2int32
-    return v1
-}"#;
+entry0:
+    value0: int32 = 1int32
+    return value0
+
+block1:
+    jump block2()
+
+block2:
+    value1: int32 = 2int32
+    return value1
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 1int32
-    return v0
-}"#;
+entry0:
+    value0: int32 = 1int32
+    return value0
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -2826,25 +2834,29 @@ b0:
         // branch on true folds to jump, then threads through empty return block
         let input = r#"
 function test(): int32 {
-b0:
-    v0: boolean = true
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    branch v0, b1, b2
-b1:
-    return v1
-b2:
-    return v2
-}"#;
+entry0:
+    value0: boolean = true
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    branch value0, block1(), block2()
+
+block1:
+    return value1
+
+block2:
+    return value2
+}
+"#;
         // branch folds to jump, then threads to return
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: boolean = true
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    return v1
-}"#;
+entry0:
+    value0: boolean = true
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -2857,25 +2869,29 @@ b0:
         // branch on false folds to jump, then threads through empty return block
         let input = r#"
 function test(): int32 {
-b0:
-    v0: boolean = false
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    branch v0, b1, b2
-b1:
-    return v1
-b2:
-    return v2
-}"#;
+entry0:
+    value0: boolean = false
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    branch value0, block1(), block2()
+
+block1:
+    return value1
+
+block2:
+    return value2
+}
+"#;
         // branch folds to jump to block2, then threads to return v2
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: boolean = false
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    return v2
-}"#;
+entry0:
+    value0: boolean = false
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -2886,19 +2902,23 @@ b0:
     #[test]
     fn test_merge_identical_return_blocks() {
         let input = r#"
-function test(v0: boolean): void {
-b0(v0: boolean):
-    branch v0, b1, b2
-b1:
+function test(value0: boolean): void {
+entry0(value0: boolean):
+    branch value0, block1(), block2()
+
+block1:
     return
-b2:
+
+block2:
     return
-}"#;
+}
+"#;
         let expected = r#"
-function test(v0: boolean): void {
-b0(v0: boolean):
+function test(value0: boolean): void {
+entry0(value0: boolean):
     return
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -2909,20 +2929,26 @@ b0(v0: boolean):
     #[test]
     fn test_canonicalize_non_void_return_blocks() {
         let input = r#"
-function test(v0: boolean, v1: int32, v2: int32): int32 {
-b0(v0: boolean, v1: int32, v2: int32):
-    branch v0, b1(v1), b2(v2)
-b1(v3: int32):
-    return v3
-b2(v4: int32):
-    return v4
-}"#;
+function test(value0: boolean, value1: int32, value2: int32): int32 {
+entry0(value0: boolean, value1: int32, value2: int32):
+    branch value0, block1(value1), block2(value2)
+
+block1(value3: int32):
+    return value3
+
+block2(value4: int32):
+    return value4
+}
+"#;
         let expected = r#"
-function test(v0: boolean, v1: int32, v2: int32): int32 {
-b0(v0: boolean, v1: int32, v2: int32):
-    v3: int32 = select v0, v1, v2
-    return v3
-}"#;
+function test(value0: boolean, value1: int32, value2: int32): int32 {
+entry0(value0: boolean, value1: int32, value2: int32):
+    branch value0, block1(value1), block1(value2)
+
+block1(value5: int32):
+    return value5
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -2933,24 +2959,30 @@ b0(v0: boolean, v1: int32, v2: int32):
     #[test]
     fn test_canonicalize_return_with_outer_value() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    branch v0, b1, b2
-b1:
-    return v1
-b2:
-    return v2
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    branch value0, block1(), block2()
+
+block1:
+    return value1
+
+block2:
+    return value2
+}
+"#;
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    v3: int32 = select v0, v1, v2
-    return v3
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    branch value0, block1(value1), block1(value2)
+
+block1(value3: int32):
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -2962,22 +2994,41 @@ b0(v0: boolean):
     fn test_preserve_readonly_global_load_branch() {
         let input = r#"
 readonly global flag: boolean = true
+
 function test(): int32 {
-b0:
-    v0: ref<boolean, raw, readonly> = global.address flag
-    v1: boolean = load v0
-    v2: int32 = 1int32
-    v3: int32 = 2int32
-    branch v1, b1, b2
-b1:
-    return v2
-b2:
-    return v3
-}"#;
+entry0:
+    value0: ref<boolean, raw, readonly> = global.address flag
+    value1: boolean = load value0
+    value2: int32 = 1int32
+    value3: int32 = 2int32
+    branch value1, block1(), block2()
+
+block1:
+    return value2
+
+block2:
+    return value3
+}
+"#;
+        let expected = r#"
+readonly global flag: boolean = true
+
+function test(): int32 {
+entry0:
+    value0: ref<boolean, raw, readonly> = global.address flag
+    value1: boolean = load value0
+    value2: int32 = 1int32
+    value3: int32 = 2int32
+    branch value1, block1(value2), block1(value3)
+
+block1(value4: int32):
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
-        test.assert_unchanged(input);
+        test.assert_output(expected);
     }
 
     /// Branch on non constant condition is preserved.
@@ -2985,18 +3036,21 @@ b2:
     fn test_preserve_non_constant_branch() {
         // v0 is a parameter, not a constant
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    branch v0, b1, b2
-b1:
-    v3: int32 = int.add v1, v2
-    return v3
-b2:
-    v4: int32 = int.sub v2, v1
-    return v4
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    branch value0, block1(), block2()
+
+block1:
+    value3: int32 = int.add value1, value2
+    return value3
+
+block2:
+    value4: int32 = int.sub value2, value1
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3007,30 +3061,37 @@ b2:
     #[test]
     fn test_fold_block_param_constant_branch() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: boolean = true
-    branch v0, b1(v1), b2(v1)
-b1(v2: boolean):
-    jump b3(v2)
-b2(v3: boolean):
-    jump b3(v3)
-b3(v4: boolean):
-    branch v4, b4, b5
-b4:
-    v5: int32 = 1int32
-    return v5
-b5:
-    v6: int32 = 2int32
-    return v6
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: boolean = true
+    branch value0, block1(value1), block2(value1)
+
+block1(value2: boolean):
+    jump block3(value2)
+
+block2(value3: boolean):
+    jump block3(value3)
+
+block3(value4: boolean):
+    branch value4, block4(), block5()
+
+block4:
+    value5: int32 = 1int32
+    return value5
+
+block5:
+    value6: int32 = 2int32
+    return value6
+}
+"#;
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: boolean = true
-    v2: int32 = 1int32
-    return v2
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: boolean = true
+    value5: int32 = 1int32
+    return value5
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3043,24 +3104,28 @@ b0(v0: boolean):
         // branch on true folds to jump to block1, then threads to return
         let input = r#"
 function test(): int32 {
-b0:
-    v0: boolean = true
-    v1: int32 = 42int32
-    branch v0, b1, b2
-b1:
-    return v1
-b2:
-    v2: int32 = 0int32
-    return v2
-}"#;
+entry0:
+    value0: boolean = true
+    value1: int32 = 42int32
+    branch value0, block1(), block2()
+
+block1:
+    return value1
+
+block2:
+    value2: int32 = 0int32
+    return value2
+}
+"#;
         // branch folds, jump threads through empty block1, block2 eliminated
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: boolean = true
-    v1: int32 = 42int32
-    return v1
-}"#;
+entry0:
+    value0: boolean = true
+    value1: int32 = 42int32
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3072,20 +3137,24 @@ b0:
     fn test_preserve_loop_structure() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 0int32
-    jump b1(v0)
-b1(v1: int32):
-    v2: int32 = 10int32
-    v3: boolean = int.lt.s v1, v2
-    branch v3, b2, b3
-b2:
-    v4: int32 = 1int32
-    v5: int32 = int.add v1, v4
-    jump b1(v5)
-b3:
-    return v1
-}"#;
+entry0:
+    value0: int32 = 0int32
+    jump block1(value0)
+
+block1(value1: int32):
+    value2: int32 = 10int32
+    value3: boolean = int.lt.s value1, value2
+    branch value3, block2(), block3()
+
+block2:
+    value4: int32 = 1int32
+    value5: int32 = int.add value1, value4
+    jump block1(value5)
+
+block3:
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3097,10 +3166,11 @@ b3:
     fn test_preserve_single_block() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 42int32
-    return v0
-}"#;
+entry0:
+    value0: int32 = 42int32
+    return value0
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3113,30 +3183,36 @@ b0:
         // v0=true to block1, v1=false to block4, block2 and block3 become unreachable
         let input = r#"
 function test(): int32 {
-b0:
-    v0: boolean = true
-    v1: boolean = false
-    branch v0, b1, b2
-b1:
-    branch v1, b3, b4
-b2:
-    v2: int32 = 2int32
-    return v2
-b3:
-    v3: int32 = 3int32
-    return v3
-b4:
-    v4: int32 = 4int32
-    return v4
-}"#;
+entry0:
+    value0: boolean = true
+    value1: boolean = false
+    branch value0, block1(), block2()
+
+block1:
+    branch value1, block3(), block4()
+
+block2:
+    value2: int32 = 2int32
+    return value2
+
+block3:
+    value3: int32 = 3int32
+    return value3
+
+block4:
+    value4: int32 = 4int32
+    return value4
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: boolean = true
-    v1: boolean = false
-    v2: int32 = 4int32
-    return v2
-}"#;
+entry0:
+    value0: boolean = true
+    value1: boolean = false
+    value4: int32 = 4int32
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3147,18 +3223,22 @@ b0:
     #[test]
     fn test_preserve_diamond_cfg() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    branch v0, b1, b2
-b1:
-    jump b3(v1)
-b2:
-    jump b3(v2)
-b3(v3: int32):
-    return v3
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    branch value0, block1(), block2()
+
+block1:
+    jump block3(value1)
+
+block2:
+    jump block3(value2)
+
+block3(value3: int32):
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3170,26 +3250,32 @@ b3(v3: int32):
     fn test_eliminate_multiple_unreachable_spaces() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 1int32
-    return v0
-b1:
-    v1: int32 = 2int32
-    jump b2
-b2:
-    return v1
-b3:
-    v2: int32 = 3int32
-    jump b4
-b4:
-    return v2
-}"#;
+entry0:
+    value0: int32 = 1int32
+    return value0
+
+block1:
+    value1: int32 = 2int32
+    jump block2()
+
+block2:
+    return value1
+
+block3:
+    value2: int32 = 3int32
+    jump block4()
+
+block4:
+    return value2
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 1int32
-    return v0
-}"#;
+entry0:
+    value0: int32 = 1int32
+    return value0
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3201,23 +3287,26 @@ b0:
     fn test_fold_branch_with_block_arguments() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: boolean = true
-    v1: int32 = 42int32
-    v2: int32 = 0int32
-    branch v0, b1(v1), b1(v2)
-b1(v3: int32):
-    return v3
-}"#;
+entry0:
+    value0: boolean = true
+    value1: int32 = 42int32
+    value2: int32 = 0int32
+    branch value0, block1(value1), block1(value2)
+
+block1(value3: int32):
+    return value3
+}
+"#;
         // after folding branch to jump, block merging merges b1 into b0
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: boolean = true
-    v1: int32 = 42int32
-    v2: int32 = 0int32
-    return v1
-}"#;
+entry0:
+    value0: boolean = true
+    value1: int32 = 42int32
+    value2: int32 = 0int32
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3228,25 +3317,29 @@ b0:
     #[test]
     fn test_fold_assume_branch() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    assume v0
-    branch v0, b1, b2
-b1:
-    return v1
-b2:
-    return v2
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    assume value0
+    branch value0, block1(), block2()
+
+block1:
+    return value1
+
+block2:
+    return value2
+}
+"#;
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    assume v0
-    return v1
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    assume value0
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3257,23 +3350,33 @@ b0(v0: boolean):
     #[test]
     fn test_fold_assume_check() {
         let input = r#"
-function test(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]): uint32 {
-b0(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]):
-    v4: boolean = int.lt.u v1, v2
-    assume v4
-    check bounds.u v1, v2, v3 -> b1, b2
-b1:
-    return v1
-b2:
+function test(value0: boolean, value1: uint32, value2: uint32, value3: [uint32; 4]): uint32 {
+entry0(value0: boolean, value1: uint32, value2: uint32, value3: [uint32; 4]):
+    value4: boolean = int.lt.u value1, value2
+    assume value4
+    check bounds.u value1, value2, value3 -> block1(), block2()
+
+block1:
+    return value1
+
+block2:
     unreachable
-}"#;
+}
+"#;
         let expected = r#"
-function test(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]): uint32 {
-b0(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]):
-    v4: boolean = int.lt.u v1, v2
-    assume v4
-    return v1
-}"#;
+function test(value0: boolean, value1: uint32, value2: uint32, value3: [uint32; 4]): uint32 {
+entry0(value0: boolean, value1: uint32, value2: uint32, value3: [uint32; 4]):
+    value4: boolean = int.lt.u value1, value2
+    assume value4
+    check bounds.u value1, value2, value3 -> block1(), block2()
+
+block1:
+    return value1
+
+block2:
+    unreachable
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3284,23 +3387,27 @@ b0(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]):
     #[test]
     fn test_fold_check_constraint_truth() {
         let input = r#"
-function test(v0: boolean, v1: [uint32; 4]): uint32 {
-b0(v0: boolean, v1: [uint32; 4]):
-    v2: uint32 = 0uint32
-    v3: uint32 = 4uint32
-    check bounds.u v2, v3, v1 -> b1, b2
-b1:
-    return v2
-b2:
+function test(value0: boolean, value1: [uint32; 4]): uint32 {
+entry0(value0: boolean, value1: [uint32; 4]):
+    value2: uint32 = 0uint32
+    value3: uint32 = 4uint32
+    check bounds.u value2, value3, value1 -> block1(), block2()
+
+block1:
+    return value2
+
+block2:
     unreachable
-}"#;
+}
+"#;
         let expected = r#"
-function test(v0: boolean, v1: [uint32; 4]): uint32 {
-b0(v0: boolean, v1: [uint32; 4]):
-    v2: uint32 = 0uint32
-    v3: uint32 = 4uint32
-    return v2
-}"#;
+function test(value0: boolean, value1: [uint32; 4]): uint32 {
+entry0(value0: boolean, value1: [uint32; 4]):
+    value2: uint32 = 0uint32
+    value3: uint32 = 4uint32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3313,21 +3420,25 @@ b0(v0: boolean, v1: [uint32; 4]):
         // block1 and block2 are both empty threadable blocks
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 42int32
-    jump b1
-b1:
-    jump b2
-b2:
-    return v0
-}"#;
+entry0:
+    value0: int32 = 42int32
+    jump block1()
+
+block1:
+    jump block2()
+
+block2:
+    return value0
+}
+"#;
         // b0's jump threads all the way to return, both intermediates become unreachable
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 42int32
-    return v0
-}"#;
+entry0:
+    value0: int32 = 42int32
+    return value0
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3340,23 +3451,28 @@ b0:
         // all intermediate blocks are empty and threadable
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 42int32
-    jump b1
-b1:
-    jump b2
-b2:
-    jump b3
-b3:
-    return v0
-}"#;
+entry0:
+    value0: int32 = 42int32
+    jump block1()
+
+block1:
+    jump block2()
+
+block2:
+    jump block3()
+
+block3:
+    return value0
+}
+"#;
         // b0's jump threads through entire chain to return
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 42int32
-    return v0
-}"#;
+entry0:
+    value0: int32 = 42int32
+    return value0
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3370,23 +3486,27 @@ b0:
         // but after threading b1's jump to return, b0 and b1 merge
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 1int32
-    jump b1
-b1:
-    v1: int32 = int.add v0, v0
-    jump b2
-b2:
-    return v1
-}"#;
+entry0:
+    value0: int32 = 1int32
+    jump block1()
+
+block1:
+    value1: int32 = int.add value0, value0
+    jump block2()
+
+block2:
+    return value1
+}
+"#;
         // b1's jump threads to return, then b0 and b1 merge
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 1int32
-    v1: int32 = int.add v0, v0
-    return v1
-}"#;
+entry0:
+    value0: int32 = 1int32
+    value1: int32 = int.add value0, value0
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3397,28 +3517,36 @@ b0:
     #[test]
     fn test_thread_branch_targets() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    branch v0, b1, b2
-b1:
-    jump b3
-b2:
-    jump b4
-b3:
-    return v1
-b4:
-    return v2
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    branch value0, block1(), block2()
+
+block1:
+    jump block3()
+
+block2:
+    jump block4()
+
+block3:
+    return value1
+
+block4:
+    return value2
+}
+"#;
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    v3: int32 = select v0, v1, v2
-    return v3
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    branch value0, block1(value1), block1(value2)
+
+block1(value3: int32):
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3429,23 +3557,29 @@ b0(v0: boolean):
     #[test]
     fn test_thread_check_targets() {
         let input = r#"
-function test(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]): void {
-b0(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]):
-    check bounds.u v1, v2, v3 -> b1, b2
-b1:
-    jump b3
-b2:
-    jump b4
-b3:
+function test(value0: boolean, value1: uint32, value2: uint32, value3: [uint32; 4]): void {
+entry0(value0: boolean, value1: uint32, value2: uint32, value3: [uint32; 4]):
+    check bounds.u value1, value2, value3 -> block1(), block2()
+
+block1:
+    jump block3()
+
+block2:
+    jump block4()
+
+block3:
     return
-b4:
+
+block4:
     return
-}"#;
+}
+"#;
         let expected = r#"
-function test(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]): void {
-b0(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]):
+function test(value0: boolean, value1: uint32, value2: uint32, value3: [uint32; 4]): void {
+entry0(value0: boolean, value1: uint32, value2: uint32, value3: [uint32; 4]):
     return
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3456,31 +3590,39 @@ b0(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]):
     #[test]
     fn test_thread_switch_edges() {
         let input = r#"
-function test(v0: uint32): int32 {
-b0(v0: uint32):
-    switch v0, b1, 0 => b2
-b1:
-    jump b3
-b2:
-    jump b4
-b3:
-    v1: int32 = 1int32
-    return v1
-b4:
-    v2: int32 = 2int32
-    return v2
-}"#;
+function test(value0: uint32): int32 {
+entry0(value0: uint32):
+    switch value0, block1(), 0 => block2()
+
+block1:
+    jump block3()
+
+block2:
+    jump block4()
+
+block3:
+    value1: int32 = 1int32
+    return value1
+
+block4:
+    value2: int32 = 2int32
+    return value2
+}
+"#;
         let expected = r#"
-function test(v0: uint32): int32 {
-b0(v0: uint32):
-    switch v0, b1, 0 => b2
-b1:
-    v1: int32 = 1int32
-    return v1
-b2:
-    v2: int32 = 2int32
-    return v2
-}"#;
+function test(value0: uint32): int32 {
+entry0(value0: uint32):
+    switch value0, block3(), 0 => block4()
+
+block3:
+    value1: int32 = 1int32
+    return value1
+
+block4:
+    value2: int32 = 2int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3491,45 +3633,53 @@ b2:
     #[test]
     fn test_thread_edge_condition_with_ranges() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: uint32 = 0uint32
-    v2: uint32 = 20uint32
-    v3: uint32 = select v0, v1, v2
-    v4: uint32 = 10uint32
-    v5: uint32 = 15uint32
-    v6: boolean = int.lt.u v3, v4
-    branch v6, b1, b2
-b1:
-    v7: boolean = int.lt.u v3, v5
-    branch v7, b3, b4
-b2:
-    v8: int32 = 1int32
-    return v8
-b3:
-    v9: int32 = 2int32
-    return v9
-b4:
-    v10: int32 = 3int32
-    return v10
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: uint32 = 0uint32
+    value2: uint32 = 20uint32
+    value3: uint32 = select value0, value1, value2
+    value4: uint32 = 10uint32
+    value5: uint32 = 15uint32
+    value6: boolean = int.lt.u value3, value4
+    branch value6, block1(), block2()
+
+block1:
+    value7: boolean = int.lt.u value3, value5
+    branch value7, block3(), block4()
+
+block2:
+    value8: int32 = 1int32
+    return value8
+
+block3:
+    value9: int32 = 2int32
+    return value9
+
+block4:
+    value10: int32 = 3int32
+    return value10
+}
+"#;
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: uint32 = 0uint32
-    v2: uint32 = 20uint32
-    v3: uint32 = select v0, v1, v2
-    v4: uint32 = 10uint32
-    v5: uint32 = 15uint32
-    v6: boolean = int.lt.u v3, v4
-    branch v6, b2, b1
-b1:
-    v7: int32 = 1int32
-    return v7
-b2:
-    v8: int32 = 2int32
-    return v8
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: uint32 = 0uint32
+    value2: uint32 = 20uint32
+    value3: uint32 = select value0, value1, value2
+    value4: uint32 = 10uint32
+    value5: uint32 = 15uint32
+    value6: boolean = int.lt.u value3, value4
+    branch value6, block3(), block2()
+
+block2:
+    value8: int32 = 1int32
+    return value8
+
+block3:
+    value9: int32 = 2int32
+    return value9
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3541,25 +3691,31 @@ b2:
     fn test_thread_parameterized_block_successor() {
         // block1 has params so can't be threaded through, but block2 is empty and threadable
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    branch v0, b1(v1), b1(v2)
-b1(v3: int32):
-    jump b2
-b2:
-    return v3
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    branch value0, block1(value1), block1(value2)
+
+block1(value3: int32):
+    jump block2()
+
+block2:
+    return value3
+}
+"#;
         // block1's jump is threaded directly to the return, block2 becomes unreachable
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    v3: int32 = select v0, v1, v2
-    return v3
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    branch value0, block1(value1), block1(value2)
+
+block1(value4: int32):
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3570,28 +3726,34 @@ b0(v0: boolean):
     #[test]
     fn test_tail_duplicate_jump_predecessor() {
         let input = r#"
-function test(v0: boolean, v1: int32): int32 {
-b0(v0: boolean, v1: int32):
-    v2: int32 = 1int32
-    branch v0, b1, b2(v1)
-b1:
-    jump b2(v1)
-b2(v3: int32):
-    v4: int32 = int.add v3, v2
-    return v4
-}"#;
+function test(value0: boolean, value1: int32): int32 {
+entry0(value0: boolean, value1: int32):
+    value2: int32 = 1int32
+    branch value0, block1(), block2(value1)
+
+block1:
+    jump block2(value1)
+
+block2(value3: int32):
+    value4: int32 = int.add value3, value2
+    return value4
+}
+"#;
         let expected = r#"
-function test(v0: boolean, v1: int32): int32 {
-b0(v0: boolean, v1: int32):
-    v2: int32 = 1int32
-    branch v0, b1, b2(v1)
-b1:
-    v3: int32 = int.add v1, v2
-    return v3
-b2(v4: int32):
-    v5: int32 = int.add v4, v2
-    return v5
-}"#;
+function test(value0: boolean, value1: int32): int32 {
+entry0(value0: boolean, value1: int32):
+    value2: int32 = 1int32
+    branch value0, block1(), block2(value1)
+
+block1:
+    value5: int32 = int.add value1, value2
+    return value5
+
+block2(value3: int32):
+    value4: int32 = int.add value3, value2
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3603,37 +3765,46 @@ b2(v4: int32):
     fn test_tail_duplicate_profile_hot_edge() {
         // base cfg with two jump predecessors into a shared tail block
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    branch v0, b1(v1), b2(v2)
-b1(v3: int32):
-    jump b3(v3)
-b2(v4: int32):
-    jump b3(v4)
-b3(v5: int32):
-    v6: int32 = int.mul v5, v5
-    return v6
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    branch value0, block1(value1), block2(value2)
+
+block1(value3: int32):
+    jump block3(value3)
+
+block2(value4: int32):
+    jump block3(value4)
+
+block3(value5: int32):
+    value6: int32 = int.mul value5, value5
+    return value6
+}
+"#;
         // expected cfg after duplicating the hot predecessor only
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    branch v0, b1(v1), b3(v2)
-b1(v3: int32):
-    jump b2
-b2:
-    v4: int32 = int.mul v3, v3
-    return v4
-b3(v5: int32):
-    jump b4(v5)
-b4(v6: int32):
-    v7: int32 = int.mul v6, v6
-    return v7
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    branch value0, block1(value1), block2_1(value2)
+
+block1(value3: int32):
+    jump block2()
+
+block2:
+    value7: int32 = int.mul value3, value3
+    return value7
+
+block2_1(value4: int32):
+    jump block3(value4)
+
+block3(value5: int32):
+    value6: int32 = int.mul value5, value5
+    return value6
+}
+"#;
 
         // parse input test
         let mut test = TestProgram::new(input);
@@ -3673,29 +3844,36 @@ b4(v6: int32):
     #[test]
     fn test_split_critical_edge() {
         let input = r#"
-function test(v0: boolean, v1: int32): int32 {
-b0(v0: boolean, v1: int32):
-    v2: int32 = 1int32
-    branch v0, b1(v2), b2(v1)
-b1(v3: int32):
-    return v3
-b2(v4: int32):
-    v5: int32 = int.add v4, v2
-    jump b1(v5)
-}"#;
+function test(value0: boolean, value1: int32): int32 {
+entry0(value0: boolean, value1: int32):
+    value2: int32 = 1int32
+    branch value0, block1(value2), block2(value1)
+
+block1(value3: int32):
+    return value3
+
+block2(value4: int32):
+    value5: int32 = int.add value4, value2
+    jump block1(value5)
+}
+"#;
         let expected = r#"
-function test(v0: boolean, v1: int32): int32 {
-b0(v0: boolean, v1: int32):
-    v2: int32 = 1int32
-    branch v0, b1(v2), b3(v1)
-b1(v3: int32):
-    jump b2(v3)
-b2(v4: int32):
-    return v4
-b3(v5: int32):
-    v6: int32 = int.add v5, v2
-    jump b2(v6)
-}"#;
+function test(value0: boolean, value1: int32): int32 {
+entry0(value0: boolean, value1: int32):
+    value2: int32 = 1int32
+    branch value0, block1(value2), block2(value1)
+
+block1(value6: int32):
+    jump block1_1(value6)
+
+block1_1(value3: int32):
+    return value3
+
+block2(value4: int32):
+    value5: int32 = int.add value4, value2
+    jump block1_1(value5)
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3706,33 +3884,37 @@ b3(v5: int32):
     #[test]
     fn test_fold_range_branch_select() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = select v0, v1, v2
-    v4: uint32 = 2uint32
-    v5: boolean = int.lt.u v3, v4
-    v6: int32 = 10int32
-    v7: int32 = 20int32
-    branch v5, b1, b2
-b1:
-    return v6
-b2:
-    return v7
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = select value0, value1, value2
+    value4: uint32 = 2uint32
+    value5: boolean = int.lt.u value3, value4
+    value6: int32 = 10int32
+    value7: int32 = 20int32
+    branch value5, block1(), block2()
+
+block1:
+    return value6
+
+block2:
+    return value7
+}
+"#;
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = select v0, v1, v2
-    v4: uint32 = 2uint32
-    v5: boolean = int.lt.u v3, v4
-    v6: int32 = 10int32
-    v7: int32 = 20int32
-    return v6
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = select value0, value1, value2
+    value4: uint32 = 2uint32
+    value5: boolean = int.lt.u value3, value4
+    value6: int32 = 10int32
+    value7: int32 = 20int32
+    return value6
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3743,42 +3925,51 @@ b0(v0: boolean):
     #[test]
     fn test_prune_switch_cases_by_range() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = select v0, v1, v2
-    switch v3, b3, 0 => b1, 1 => b2, 2 => b4
-b1:
-    v4: int32 = 10int32
-    return v4
-b2:
-    v5: int32 = 11int32
-    return v5
-b3:
-    v6: int32 = 12int32
-    return v6
-b4:
-    v7: int32 = 13int32
-    return v7
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = select value0, value1, value2
+    switch value3, block3(), 0 => block1(), 1 => block2(), 2 => block4()
+
+block1:
+    value4: int32 = 10int32
+    return value4
+
+block2:
+    value5: int32 = 11int32
+    return value5
+
+block3:
+    value6: int32 = 12int32
+    return value6
+
+block4:
+    value7: int32 = 13int32
+    return value7
+}
+"#;
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = select v0, v1, v2
-    switch v3, b3, 0 => b1, 1 => b2
-b1:
-    v4: int32 = 10int32
-    return v4
-b2:
-    v5: int32 = 11int32
-    return v5
-b3:
-    v6: int32 = 12int32
-    return v6
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = select value0, value1, value2
+    switch value3, block3(), 0 => block1(), 1 => block2()
+
+block1:
+    value4: int32 = 10int32
+    return value4
+
+block2:
+    value5: int32 = 11int32
+    return value5
+
+block3:
+    value6: int32 = 12int32
+    return value6
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3789,19 +3980,22 @@ b3:
     #[test]
     fn test_fold_switch_with_identical_targets() {
         let input = r#"
-function test(v0: uint32): int32 {
-b0(v0: uint32):
-    switch v0, b1, 0 => b1, 1 => b1
-b1:
-    v1: int32 = 10int32
-    return v1
-}"#;
+function test(value0: uint32): int32 {
+entry0(value0: uint32):
+    switch value0, block1(), 0 => block1(), 1 => block1()
+
+block1:
+    value1: int32 = 10int32
+    return value1
+}
+"#;
         let expected = r#"
-function test(v0: uint32): int32 {
-b0(v0: uint32):
-    v1: int32 = 10int32
-    return v1
-}"#;
+function test(value0: uint32): int32 {
+entry0(value0: uint32):
+    value1: int32 = 10int32
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3812,35 +4006,41 @@ b0(v0: uint32):
     #[test]
     fn test_lower_single_case_switch_to_branch() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = select v0, v1, v2
-    switch v3, b1, 1 => b2
-b1:
-    v4: int32 = 10int32
-    return v4
-b2:
-    v5: int32 = 20int32
-    return v5
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = select value0, value1, value2
+    switch value3, block1(), 1 => block2()
+
+block1:
+    value4: int32 = 10int32
+    return value4
+
+block2:
+    value5: int32 = 20int32
+    return value5
+}
+"#;
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = select v0, v1, v2
-    v4: uint32 = 1uint32
-    v5: boolean = int.eq v3, v4
-    branch v5, b2, b1
-b1:
-    v6: int32 = 10int32
-    return v6
-b2:
-    v7: int32 = 20int32
-    return v7
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = select value0, value1, value2
+    value6: uint32 = 1uint32
+    value7: boolean = int.eq value3, value6
+    branch value7, block2(), block1()
+
+block1:
+    value4: int32 = 10int32
+    return value4
+
+block2:
+    value5: int32 = 20int32
+    return value5
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3851,31 +4051,37 @@ b2:
     #[test]
     fn test_lower_boolean_switch_to_branch() {
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: boolean = int.eq v0, v1
-    switch v2, b1, 1 => b2
-b1:
-    v3: int32 = 1int32
-    return v3
-b2:
-    v4: int32 = 2int32
-    return v4
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: boolean = int.eq value0, value1
+    switch value2, block1(), 1 => block2()
+
+block1:
+    value3: int32 = 1int32
+    return value3
+
+block2:
+    value4: int32 = 2int32
+    return value4
+}
+"#;
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: boolean = int.eq v0, v1
-    branch v2, b2, b1
-b1:
-    v3: int32 = 1int32
-    return v3
-b2:
-    v4: int32 = 2int32
-    return v4
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: boolean = int.eq value0, value1
+    branch value2, block2(), block1()
+
+block1:
+    value3: int32 = 1int32
+    return value3
+
+block2:
+    value4: int32 = 2int32
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3886,33 +4092,39 @@ b2:
     #[test]
     fn test_lower_boolean_switch_with_arguments() {
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: boolean = int.eq v0, v1
-    v3: int32 = 7int32
-    v4: int32 = 9int32
-    switch v2, b1(v3), 1 => b2(v4)
-b1(v5: int32):
-    v6: int32 = int.add v5, v5
-    return v6
-b2(v7: int32):
-    v8: int32 = int.add v7, v7
-    return v8
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: boolean = int.eq value0, value1
+    value3: int32 = 7int32
+    value4: int32 = 9int32
+    switch value2, block1(value3), 1 => block2(value4)
+
+block1(value5: int32):
+    value6: int32 = int.add value5, value5
+    return value6
+
+block2(value7: int32):
+    value8: int32 = int.add value7, value7
+    return value8
+}
+"#;
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: boolean = int.eq v0, v1
-    v3: int32 = 7int32
-    v4: int32 = 9int32
-    branch v2, b2(v4), b1(v3)
-b1(v5: int32):
-    v6: int32 = int.add v5, v5
-    return v6
-b2(v7: int32):
-    v8: int32 = int.add v7, v7
-    return v8
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: boolean = int.eq value0, value1
+    value3: int32 = 7int32
+    value4: int32 = 9int32
+    branch value2, block2(value4), block1(value3)
+
+block1(value5: int32):
+    value6: int32 = int.add value5, value5
+    return value6
+
+block2(value7: int32):
+    value8: int32 = int.add value7, value7
+    return value8
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3923,34 +4135,41 @@ b2(v7: int32):
     #[test]
     fn test_lower_boolean_switch_two_cases() {
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: boolean = int.eq v0, v1
-    switch v2, b1, 0 => b2, 1 => b3
-b1:
-    v3: int32 = 10int32
-    return v3
-b2:
-    v4: int32 = 20int32
-    return v4
-b3:
-    v5: int32 = 30int32
-    return v5
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: boolean = int.eq value0, value1
+    switch value2, block1(), 0 => block2(), 1 => block3()
+
+block1:
+    value3: int32 = 10int32
+    return value3
+
+block2:
+    value4: int32 = 20int32
+    return value4
+
+block3:
+    value5: int32 = 30int32
+    return value5
+}
+"#;
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: boolean = int.eq v0, v1
-    branch v2, b2, b1
-b1:
-    v3: int32 = 20int32
-    return v3
-b2:
-    v4: int32 = 30int32
-    return v4
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: boolean = int.eq value0, value1
+    branch value2, block3(), block2()
+
+block2:
+    value4: int32 = 20int32
+    return value4
+
+block3:
+    value5: int32 = 30int32
+    return value5
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -3961,39 +4180,45 @@ b2:
     #[test]
     fn test_lower_single_case_switch_with_arguments() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 0int32
-    v2: int32 = 1int32
-    v3: int32 = select v0, v1, v2
-    v4: int32 = 4int32
-    v5: int32 = 8int32
-    switch v3, b1(v4), 1 => b2(v5)
-b1(v6: int32):
-    v7: int32 = int.mul v6, v6
-    return v7
-b2(v8: int32):
-    v9: int32 = int.mul v8, v8
-    return v9
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 0int32
+    value2: int32 = 1int32
+    value3: int32 = select value0, value1, value2
+    value4: int32 = 4int32
+    value5: int32 = 8int32
+    switch value3, block1(value4), 1 => block2(value5)
+
+block1(value6: int32):
+    value7: int32 = int.mul value6, value6
+    return value7
+
+block2(value8: int32):
+    value9: int32 = int.mul value8, value8
+    return value9
+}
+"#;
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 0int32
-    v2: int32 = 1int32
-    v3: int32 = select v0, v1, v2
-    v4: int32 = 4int32
-    v5: int32 = 8int32
-    v6: int32 = 1int32
-    v7: boolean = int.eq v3, v6
-    branch v7, b2(v5), b1(v4)
-b1(v8: int32):
-    v9: int32 = int.mul v8, v8
-    return v9
-b2(v10: int32):
-    v11: int32 = int.mul v10, v10
-    return v11
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 0int32
+    value2: int32 = 1int32
+    value3: int32 = select value0, value1, value2
+    value4: int32 = 4int32
+    value5: int32 = 8int32
+    value10: int32 = 1int32
+    value11: boolean = int.eq value3, value10
+    branch value11, block2(value5), block1(value4)
+
+block1(value6: int32):
+    value7: int32 = int.mul value6, value6
+    return value7
+
+block2(value8: int32):
+    value9: int32 = int.mul value8, value8
+    return value9
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -4004,27 +4229,33 @@ b2(v10: int32):
     #[test]
     fn test_prune_default_switch_case() {
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    switch v0, b1, 0 => b1, 1 => b2
-b1:
-    v1: int32 = 10int32
-    return v1
-b2:
-    v2: int32 = 20int32
-    return v2
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    switch value0, block1(), 0 => block1(), 1 => block2()
+
+block1:
+    value1: int32 = 10int32
+    return value1
+
+block2:
+    value2: int32 = 20int32
+    return value2
+}
+"#;
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    switch v0, b1, 1 => b2
-b1:
-    v1: int32 = 10int32
-    return v1
-b2:
-    v2: int32 = 20int32
-    return v2
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    switch value0, block1(), 1 => block2()
+
+block1:
+    value1: int32 = 10int32
+    return value1
+
+block2:
+    value2: int32 = 20int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -4036,20 +4267,24 @@ b2:
     fn test_thread_passthrough_block_parameters() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 5int32
-    jump b1(v0)
-b1(v1: int32):
-    jump b2(v1)
-b2(v2: int32):
-    return v2
-}"#;
+entry0:
+    value0: int32 = 5int32
+    jump block1(value0)
+
+block1(value1: int32):
+    jump block2(value1)
+
+block2(value2: int32):
+    return value2
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 5int32
-    return v0
-}"#;
+entry0:
+    value0: int32 = 5int32
+    return value0
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);
@@ -4543,22 +4778,28 @@ b0:
     #[test]
     fn test_simplify_cfg_preserves_argument_counts() {
         let input = r#"
-function test(v0: boolean, v1: int32, v2: int32): int32 {
-b0(v0: boolean, v1: int32, v2: int32):
-    branch v0, b1(v1), b2(v2)
-b1(v3: int32):
-    v4: int32 = int.add v3, v2
-    jump b3(v4)
-b2(v5: int32):
-    v6: int32 = int.add v5, v1
-    jump b3(v6)
-b3(v7: int32):
-    branch v0, b4(v7), b5(v7)
-b4(v8: int32):
-    return v8
-b5(v9: int32):
-    return v9
-}"#;
+function test(value0: boolean, value1: int32, value2: int32): int32 {
+entry0(value0: boolean, value1: int32, value2: int32):
+    branch value0, block1(value1), block2(value2)
+
+block1(value3: int32):
+    value4: int32 = int.add value3, value2
+    jump block3(value4)
+
+block2(value5: int32):
+    value6: int32 = int.add value5, value1
+    jump block3(value6)
+
+block3(value7: int32):
+    branch value0, block4(value7), block5(value7)
+
+block4(value8: int32):
+    return value8
+
+block5(value9: int32):
+    return value9
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SimplifyCfg);

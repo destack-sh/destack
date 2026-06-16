@@ -294,40 +294,47 @@ mod tests {
     #[test]
     fn test_loop_peel_single_iteration() {
         let input = r#"
-function test(v0: uint32): uint32 {
-b0(v0: uint32):
-    v1: uint32 = 0uint32
-    jump b1(v1)
-b1(v2: uint32):
-    v3: uint32 = int.add v2, v0
-    v4: uint32 = 1uint32
-    v5: uint32 = int.add v2, v4
-    v6: boolean = int.lt.u v5, v0
-    branch v6, b1(v5), b2
-b2:
-    return v3
-}"#;
+function test(value0: uint32): uint32 {
+entry0(value0: uint32):
+    value1: uint32 = 0uint32
+    jump block1(value1)
+
+block1(value2: uint32):
+    value3: uint32 = int.add value2, value0
+    value4: uint32 = 1uint32
+    value5: uint32 = int.add value2, value4
+    value6: boolean = int.lt.u value5, value0
+    branch value6, block1(value5), block2()
+
+block2:
+    return value3
+}
+"#;
 
         let expected = r#"
-function test(v0: uint32): uint32 {
-b0(v0: uint32):
-    v1: uint32 = 0uint32
-    jump b3(v1)
-b1(v2: uint32):
-    v3: uint32 = int.add v2, v0
-    v4: uint32 = 1uint32
-    v5: uint32 = int.add v2, v4
-    v6: boolean = int.lt.u v5, v0
-    branch v6, b1(v5), b2
-b2:
-    return v3
-b3(v7: uint32):
-    v8: uint32 = int.add v7, v0
-    v9: uint32 = 1uint32
-    v10: uint32 = int.add v7, v9
-    v11: boolean = int.lt.u v10, v0
-    branch v11, b1(v10), b2
-}"#;
+function test(value0: uint32): uint32 {
+entry0(value0: uint32):
+    value1: uint32 = 0uint32
+    jump block3(value1)
+
+block1(value2: uint32):
+    value3: uint32 = int.add value2, value0
+    value4: uint32 = 1uint32
+    value5: uint32 = int.add value2, value4
+    value6: boolean = int.lt.u value5, value0
+    branch value6, block1(value5), block2()
+
+block2:
+    return value3
+
+block3(value7: uint32):
+    value8: uint32 = int.add value7, value0
+    value9: uint32 = 1uint32
+    value10: uint32 = int.add value7, value9
+    value11: boolean = int.lt.u value10, value0
+    branch value11, block1(value10), block2()
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopPeel);
@@ -338,20 +345,24 @@ b3(v7: uint32):
     #[test]
     fn test_loop_peel_skips_header_guard() {
         let input = r#"
-function test(v0: uint32): uint32 {
-b0(v0: uint32):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    jump b1(v1)
-b1(v3: uint32):
-    v4: boolean = int.lt.u v3, v0
-    branch v4, b2(v3), b3
-b2(v5: uint32):
-    v6: uint32 = int.add v5, v2
-    jump b1(v6)
-b3:
-    return v3
-}"#;
+function test(value0: uint32): uint32 {
+entry0(value0: uint32):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    jump block1(value1)
+
+block1(value3: uint32):
+    value4: boolean = int.lt.u value3, value0
+    branch value4, block2(value3), block3()
+
+block2(value5: uint32):
+    value6: uint32 = int.add value5, value2
+    jump block1(value6)
+
+block3:
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopPeel);
@@ -362,24 +373,30 @@ b3:
     #[test]
     fn test_loop_peel_skips_multiple_exits() {
         let input = r#"
-function test(v0: uint32, v1: boolean): uint32 {
-b0(v0: uint32, v1: boolean):
-    v2: uint32 = 0uint32
-    v3: uint32 = 1uint32
-    jump b1(v2)
-b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v0
-    branch v5, b2(v4), b4
-b2(v6: uint32):
-    branch v1, b3(v6), b5
-b3(v7: uint32):
-    v8: uint32 = int.add v7, v3
-    jump b1(v8)
-b4:
-    return v4
-b5:
-    return v6
-}"#;
+function test(value0: uint32, value1: boolean): uint32 {
+entry0(value0: uint32, value1: boolean):
+    value2: uint32 = 0uint32
+    value3: uint32 = 1uint32
+    jump block1(value2)
+
+block1(value4: uint32):
+    value5: boolean = int.lt.u value4, value0
+    branch value5, block2(value4), block4()
+
+block2(value6: uint32):
+    branch value1, block3(value6), block5()
+
+block3(value7: uint32):
+    value8: uint32 = int.add value7, value3
+    jump block1(value8)
+
+block4:
+    return value4
+
+block5:
+    return value6
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopPeel);

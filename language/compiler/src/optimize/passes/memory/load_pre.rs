@@ -551,41 +551,49 @@ mod tests {
     #[test]
     fn test_load_pre_inserts_edge_loads() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    branch v0, b1, b2
-b1:
-    v2: int32 = 1int32
-    store v1, v2
-    jump b3
-b2:
-    v3: int32 = 2int32
-    store v1, v3
-    jump b3
-b3:
-    v4: int32 = load v1
-    return v4
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    branch value0, block1(), block2()
+
+block1:
+    value2: int32 = 1int32
+    store value1, value2
+    jump block3()
+
+block2:
+    value3: int32 = 2int32
+    store value1, value3
+    jump block3()
+
+block3:
+    value4: int32 = load value1
+    return value4
+}
+"#;
 
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    branch v0, b1, b2
-b1:
-    v2: int32 = 1int32
-    store v1, v2
-    v3: int32 = load v1
-    jump b3(v3)
-b2:
-    v4: int32 = 2int32
-    store v1, v4
-    v5: int32 = load v1
-    jump b3(v5)
-b3(v6: int32):
-    return v6
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    branch value0, block1(), block2()
+
+block1:
+    value2: int32 = 1int32
+    store value1, value2
+    value6: int32 = load value1
+    jump block3(value6)
+
+block2:
+    value3: int32 = 2int32
+    store value1, value3
+    value7: int32 = load value1
+    jump block3(value7)
+
+block3(value5: int32):
+    return value5
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoadPre);
@@ -596,18 +604,22 @@ b3(v6: int32):
     #[test]
     fn test_load_pre_skips_unavailable_pointer() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    branch v0, b1, b2
-b1:
-    jump b3
-b2:
-    jump b3
-b3:
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int32 = load v1
-    return v2
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    branch value0, block1(), block2()
+
+block1:
+    jump block3()
+
+block2:
+    jump block3()
+
+block3:
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value2: int32 = load value1
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoadPre);
@@ -618,20 +630,24 @@ b3:
     #[test]
     fn test_load_pre_skips_side_effects() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    branch v0, b1, b2
-b1:
-    jump b3
-b2:
-    jump b3
-b3:
-    v2: int32 = 0int32
-    store v1, v2
-    v3: int32 = load v1
-    return v3
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    branch value0, block1(), block2()
+
+block1:
+    jump block3()
+
+block2:
+    jump block3()
+
+block3:
+    value2: int32 = 0int32
+    store value1, value2
+    value3: int32 = load value1
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoadPre);
@@ -642,45 +658,55 @@ b3:
     #[test]
     fn test_load_pre_allows_read_only_call() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    branch v0, b1, b2
-b1:
-    v2: int32 = 1int32
-    store v1, v2
-    jump b3
-b2:
-    v3: int32 = 2int32
-    store v1, v3
-    jump b3
-b3:
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    branch value0, block1(), block2()
+
+block1:
+    value2: int32 = 1int32
+    store value1, value2
+    jump block3()
+
+block2:
+    value3: int32 = 2int32
+    store value1, value3
+    jump block3()
+
+block3:
     call readOnly(): () -> void
-    v4: int32 = load v1
-    return v4
+    value4: int32 = load value1
+    return value4
 }
-external function readOnly(): void"#;
+
+external function readOnly(): void
+"#;
 
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    branch v0, b1, b2
-b1:
-    v2: int32 = 1int32
-    store v1, v2
-    v3: int32 = load v1
-    jump b3(v3)
-b2:
-    v4: int32 = 2int32
-    store v1, v4
-    v5: int32 = load v1
-    jump b3(v5)
-b3(v6: int32):
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    branch value0, block1(), block2()
+
+block1:
+    value2: int32 = 1int32
+    store value1, value2
+    value6: int32 = load value1
+    jump block3(value6)
+
+block2:
+    value3: int32 = 2int32
+    store value1, value3
+    value7: int32 = load value1
+    jump block3(value7)
+
+block3(value5: int32):
     call readOnly(): () -> void
-    return v6
+    return value5
 }
-external function readOnly(): void"#;
+
+external function readOnly(): void
+"#;
 
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
@@ -700,18 +726,22 @@ external function readOnly(): void"#;
     #[test]
     fn test_load_pre_skips_volatile_load() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    branch v0, b1, b2
-b1:
-    jump b3
-b2:
-    jump b3
-b3:
-    v2: int32 = load v1
-    return v2
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    branch value0, block1(), block2()
+
+block1:
+    jump block3()
+
+block2:
+    jump block3()
+
+block3:
+    value2: int32 = load value1
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let function_id = test.first_function_id();
@@ -736,18 +766,22 @@ b3:
     #[test]
     fn test_load_pre_skips_unknown_location() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    branch v0, b1, b2
-b1:
-    jump b3
-b2:
-    jump b3
-b3:
-    v2: int32 = load v1
-    return v2
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    branch value0, block1(), block2()
+
+block1:
+    jump block3()
+
+block2:
+    jump block3()
+
+block3:
+    value2: int32 = load value1
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let function_id = test.first_function_id();
@@ -778,20 +812,24 @@ b3:
     #[test]
     fn test_load_pre_skips_non_phi_defining_access() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    branch v0, b1, b2
-b1:
-    jump b3
-b2:
-    jump b3
-b3:
-    v2: int32 = 1int32
-    store v1, v2
-    v3: int32 = load v1
-    return v3
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    branch value0, block1(), block2()
+
+block1:
+    jump block3()
+
+block2:
+    jump block3()
+
+block3:
+    value2: int32 = 1int32
+    store value1, value2
+    value3: int32 = load value1
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoadPre);
@@ -802,44 +840,54 @@ b3:
     #[test]
     fn test_load_pre_reuses_predecessor_load() {
         let input = r#"
-function test(v0: boolean, v1: boolean): int32 {
-b0(v0: boolean, v1: boolean):
-    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    branch v0, b1, b2
-b1:
-    v3: int32 = 1int32
-    store v2, v3
-    v4: int32 = load v2
-    branch v1, b3, b4
-b2:
-    jump b3
-b3:
-    v5: int32 = load v2
-    return v5
-b4:
-    v6: int32 = 0int32
-    return v6
-}"#;
+function test(value0: boolean, value1: boolean): int32 {
+entry0(value0: boolean, value1: boolean):
+    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    branch value0, block1(), block2()
+
+block1:
+    value3: int32 = 1int32
+    store value2, value3
+    value4: int32 = load value2
+    branch value1, block3(), block4()
+
+block2:
+    jump block3()
+
+block3:
+    value5: int32 = load value2
+    return value5
+
+block4:
+    value6: int32 = 0int32
+    return value6
+}
+"#;
 
         let expected = r#"
-function test(v0: boolean, v1: boolean): int32 {
-b0(v0: boolean, v1: boolean):
-    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    branch v0, b1, b2
-b1:
-    v3: int32 = 1int32
-    store v2, v3
-    v4: int32 = load v2
-    branch v1, b3(v4), b4
-b2:
-    v5: int32 = load v2
-    jump b3(v5)
-b3(v6: int32):
-    return v6
-b4:
-    v7: int32 = 0int32
-    return v7
-}"#;
+function test(value0: boolean, value1: boolean): int32 {
+entry0(value0: boolean, value1: boolean):
+    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    branch value0, block1(), block2()
+
+block1:
+    value3: int32 = 1int32
+    store value2, value3
+    value4: int32 = load value2
+    branch value1, block3(value4), block4()
+
+block2:
+    value8: int32 = load value2
+    jump block3(value8)
+
+block3(value7: int32):
+    return value7
+
+block4:
+    value6: int32 = 0int32
+    return value6
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoadPre);
@@ -850,45 +898,53 @@ b4:
     #[test]
     fn test_load_pre_allows_read_only_intrinsic() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    branch v0, b1, b2
-b1:
-    v2: int32 = 1int32
-    store v1, v2
-    jump b3
-b2:
-    v3: int32 = 2int32
-    store v1, v3
-    jump b3
-b3:
-    v4: int64 = 4int64
-    v5: int32 = intrinsic.memory.raw.compareBytes(v1, v1, v4)
-    v6: int32 = load v1
-    return v6
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    branch value0, block1(), block2()
+
+block1:
+    value2: int32 = 1int32
+    store value1, value2
+    jump block3()
+
+block2:
+    value3: int32 = 2int32
+    store value1, value3
+    jump block3()
+
+block3:
+    value4: int64 = 4int64
+    value5: int32 = intrinsic.memory.raw.compareBytes(value1, value1, value4)
+    value6: int32 = load value1
+    return value6
+}
+"#;
 
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    branch v0, b1, b2
-b1:
-    v2: int32 = 1int32
-    store v1, v2
-    v3: int32 = load v1
-    jump b3(v3)
-b2:
-    v4: int32 = 2int32
-    store v1, v4
-    v5: int32 = load v1
-    jump b3(v5)
-b3(v6: int32):
-    v7: int64 = 4int64
-    v8: int32 = intrinsic.memory.raw.compareBytes(v1, v1, v7)
-    return v6
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    branch value0, block1(), block2()
+
+block1:
+    value2: int32 = 1int32
+    store value1, value2
+    value8: int32 = load value1
+    jump block3(value8)
+
+block2:
+    value3: int32 = 2int32
+    store value1, value3
+    value9: int32 = load value1
+    jump block3(value9)
+
+block3(value7: int32):
+    value4: int64 = 4int64
+    value5: int32 = intrinsic.memory.raw.compareBytes(value1, value1, value4)
+    return value7
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoadPre);
@@ -899,49 +955,60 @@ b3(v6: int32):
     #[test]
     fn test_load_pre_splits_edge_blocks() {
         let input = r#"
-function test(v0: boolean, v1: boolean): int32 {
-b0(v0: boolean, v1: boolean):
-    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    branch v0, b1, b2
-b1:
-    v3: int32 = 1int32
-    store v2, v3
-    branch v1, b3, b4
-b2:
-    v4: int32 = 2int32
-    store v2, v4
-    jump b3
-b3:
-    v5: int32 = load v2
-    return v5
-b4:
-    v6: int32 = 0int32
-    return v6
-}"#;
+function test(value0: boolean, value1: boolean): int32 {
+entry0(value0: boolean, value1: boolean):
+    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    branch value0, block1(), block2()
+
+block1:
+    value3: int32 = 1int32
+    store value2, value3
+    branch value1, block3(), block4()
+
+block2:
+    value4: int32 = 2int32
+    store value2, value4
+    jump block3()
+
+block3:
+    value5: int32 = load value2
+    return value5
+
+block4:
+    value6: int32 = 0int32
+    return value6
+}
+"#;
 
         let expected = r#"
-function test(v0: boolean, v1: boolean): int32 {
-b0(v0: boolean, v1: boolean):
-    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    branch v0, b1, b3
-b1:
-    v3: int32 = 1int32
-    store v2, v3
-    branch v1, b2, b5
-b2:
-    v4: int32 = load v2
-    jump b4(v4)
-b3:
-    v5: int32 = 2int32
-    store v2, v5
-    v6: int32 = load v2
-    jump b4(v6)
-b4(v7: int32):
-    return v7
-b5:
-    v8: int32 = 0int32
-    return v8
-}"#;
+function test(value0: boolean, value1: boolean): int32 {
+entry0(value0: boolean, value1: boolean):
+    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    branch value0, block1(), block2_1()
+
+block1:
+    value3: int32 = 1int32
+    store value2, value3
+    branch value1, block2(), block4()
+
+block2:
+    value8: int32 = load value2
+    jump block3(value8)
+
+block2_1:
+    value4: int32 = 2int32
+    store value2, value4
+    value9: int32 = load value2
+    jump block3(value9)
+
+block3(value7: int32):
+    return value7
+
+block4:
+    value6: int32 = 0int32
+    return value6
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoadPre);

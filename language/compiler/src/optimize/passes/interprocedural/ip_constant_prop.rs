@@ -373,34 +373,38 @@ mod tests {
     #[test]
     fn test_ip_constant_prop_inserts_constants() {
         let input = r#"
-function callee(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    return v2
+function callee(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    return value2
 }
+
 function root(): int32 {
-b0:
-    v0: int32 = 40int32
-    v1: int32 = 2int32
-    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
-    return v2
-}"#;
+entry0:
+    value0: int32 = 40int32
+    value1: int32 = 2int32
+    value2: int32 = call callee(value0, value1): (int32, int32) -> int32
+    return value2
+}
+"#;
 
         let expected = r#"
-function callee(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 40int32
-    v3: int32 = 2int32
-    v4: int32 = int.add v2, v3
-    return v4
+function callee(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value3: int32 = 40int32
+    value4: int32 = 2int32
+    value2: int32 = int.add value3, value4
+    return value2
 }
+
 function root(): int32 {
-b0:
-    v0: int32 = 40int32
-    v1: int32 = 2int32
-    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
-    return v2
-}"#;
+entry0:
+    value0: int32 = 40int32
+    value1: int32 = 2int32
+    value2: int32 = call callee(value0, value1): (int32, int32) -> int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&InterproceduralConstantPropagation);
@@ -411,49 +415,92 @@ b0:
     #[test]
     fn test_ip_constant_prop_skips_mismatched_constants() {
         let input = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = int.add v0, v0
-    return v1
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = int.add value0, value0
+    return value1
 }
+
 function root(): int32 {
-b0:
-    v0: int32 = 1int32
-    v1: int32 = call callee(v0): (int32) -> int32
-    return v1
+entry0:
+    value0: int32 = 1int32
+    value1: int32 = call callee(value0): (int32) -> int32
+    return value1
 }
+
 function other(): int32 {
-b0:
-    v0: int32 = 2int32
-    v1: int32 = call callee(v0): (int32) -> int32
-    return v1
-}"#;
+entry0:
+    value0: int32 = 2int32
+    value1: int32 = call callee(value0): (int32) -> int32
+    return value1
+}
+"#;
+
+        let expected = r#"
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = int.add value0, value0
+    return value1
+}
+
+function root(): int32 {
+entry0:
+    value0: int32 = 1int32
+    value1: int32 = call callee(value0): (int32) -> int32
+    return value1
+}
+
+function other(): int32 {
+entry0:
+    value0: int32 = 2int32
+    value1: int32 = call callee(value0): (int32) -> int32
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&InterproceduralConstantPropagation);
-        test.assert_output(input);
+        test.assert_output(expected);
     }
 
     /// Indirect call signatures prevent propagation.
     #[test]
     fn test_ip_constant_prop_skips_indirect_signature() {
         let input = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = int.add v0, v0
-    return v1
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = int.add value0, value0
+    return value1
 }
-function root(v0: (int32) -> int32, v1: int32): int32  {
-b0(v0: (int32) -> int32, v1: int32):
-    v2: int32 = call.indirect v0(v1): (int32) -> int32
-    v3: int32 = 4int32
-    v4: int32 = call callee(v3): (int32) -> int32
-    return v4
-}"#;
+
+function root(value0: (int32) -> int32, value1: int32): int32 {
+entry0(value0: (int32) -> int32, value1: int32):
+    value2: int32 = call.indirect value0(value1): (int32) -> int32
+    value3: int32 = 4int32
+    value4: int32 = call callee(value3): (int32) -> int32
+    return value4
+}
+"#;
+
+        let expected = r#"
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = int.add value0, value0
+    return value1
+}
+
+function root(value0: (int32) -> int32, value1: int32): int32 {
+entry0(value0: (int32) -> int32, value1: int32):
+    value2: int32 = call.indirect value0(value1): (int32) -> int32
+    value3: int32 = 4int32
+    value4: int32 = call callee(value3): (int32) -> int32
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&InterproceduralConstantPropagation);
-        test.assert_output(input);
+        test.assert_output(expected);
     }
 
     /// Readonly global loads are not propagated as call constants.
@@ -461,31 +508,37 @@ b0(v0: (int32) -> int32, v1: int32):
     fn test_ip_constant_prop_skips_global_load() {
         let input = r#"
 readonly global value: int32 = 7int32
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    return v0
+
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    return value0
 }
+
 function root(): int32 {
-b0:
-    v0: ref<int32, raw, readonly> = global.address value
-    v1: int32 = load v0
-    v2: int32 = call callee(v1): (int32) -> int32
-    return v2
-}"#;
+entry0:
+    value0: ref<int32, raw, readonly> = global.address value
+    value1: int32 = load value0
+    value2: int32 = call callee(value1): (int32) -> int32
+    return value2
+}
+"#;
 
         let expected = r#"
 readonly global value: int32 = 7int32
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    return v0
+
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    return value0
 }
+
 function root(): int32 {
-b0:
-    v0: ref<int32, raw, readonly> = global.address value
-    v1: int32 = load v0
-    v2: int32 = call callee(v1): (int32) -> int32
-    return v2
-}"#;
+entry0:
+    value0: ref<int32, raw, readonly> = global.address value
+    value1: int32 = load value0
+    value2: int32 = call callee(value1): (int32) -> int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&InterproceduralConstantPropagation);
@@ -496,35 +549,43 @@ b0:
     #[test]
     fn test_ip_constant_prop_propagates_call_terminator() {
         let input = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    return v0
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    return value0
 }
+
 function root(): int32 {
-b0:
-    v0: int32 = 4int32
-    call callee(v0): (int32) -> int32 -> b1
-b1(v1: int32):
-    return v1
-b2(v2: ref<int32, managed, readonly>):
-    panic v2
-}"#;
+entry0:
+    value0: int32 = 4int32
+    call callee(value0): (int32) -> int32 -> block1()
+
+block1(value1: int32):
+    return value1
+
+block2(value2: ref<int32, managed, readonly>):
+    panic value2
+}
+"#;
 
         let expected = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 4int32
-    return v1
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 4int32
+    return value1
 }
+
 function root(): int32 {
-b0:
-    v0: int32 = 4int32
-    call callee(v0): (int32) -> int32 -> b1
-b1(v1: int32):
-    return v1
-b2(v2: ref<int32, managed, readonly>):
-    panic v2
-}"#;
+entry0:
+    value0: int32 = 4int32
+    call callee(value0): (int32) -> int32 -> block1()
+
+block1(value1: int32):
+    return value1
+
+block2(value2: ref<int32, managed, readonly>):
+    panic value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&InterproceduralConstantPropagation);
@@ -535,27 +596,31 @@ b2(v2: ref<int32, managed, readonly>):
     #[test]
     fn test_ip_constant_prop_propagates_tailcall() {
         let input = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    return v0
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    return value0
 }
+
 function root(): int32 {
-b0:
-    v0: int32 = 9int32
-    tailCall callee(v0): (int32) -> int32
-}"#;
+entry0:
+    value0: int32 = 9int32
+    tailCall callee(value0): (int32) -> int32
+}
+"#;
 
         let expected = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 9int32
-    return v1
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 9int32
+    return value1
 }
+
 function root(): int32 {
-b0:
-    v0: int32 = 9int32
-    tailCall callee(v0): (int32) -> int32
-}"#;
+entry0:
+    value0: int32 = 9int32
+    tailCall callee(value0): (int32) -> int32
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&InterproceduralConstantPropagation);

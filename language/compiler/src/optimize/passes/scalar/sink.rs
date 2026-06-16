@@ -381,27 +381,33 @@ mod tests {
     #[test]
     fn test_sink_to_single_user() {
         let input = r#"
-function test(v0: int32, v1: boolean): int32 {
-b0(v0: int32, v1: boolean):
-    v2: int32 = 1int32
-    v3: int32 = int.add v0, v2
-    branch v1, b1, b2
-b1:
-    return v3
-b2:
-    return v0
-}"#;
+function test(value0: int32, value1: boolean): int32 {
+entry0(value0: int32, value1: boolean):
+    value2: int32 = 1int32
+    value3: int32 = int.add value0, value2
+    branch value1, block1(), block2()
+
+block1:
+    return value3
+
+block2:
+    return value0
+}
+"#;
         let expected = r#"
-function test(v0: int32, v1: boolean): int32 {
-b0(v0: int32, v1: boolean):
-    v2: int32 = 1int32
-    branch v1, b1, b2
-b1:
-    v3: int32 = int.add v0, v2
-    return v3
-b2:
-    return v0
-}"#;
+function test(value0: int32, value1: boolean): int32 {
+entry0(value0: int32, value1: boolean):
+    value2: int32 = 1int32
+    branch value1, block1(), block2()
+
+block1:
+    value3: int32 = int.add value0, value2
+    return value3
+
+block2:
+    return value0
+}
+"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&Sink);
         test.assert_output(expected);
@@ -411,18 +417,21 @@ b2:
     #[test]
     fn test_preserve_terminator_use() {
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
-    v2: int32 = int.add v0, v1
-    v3: int32 = 10int32
-    v4: boolean = int.lt.s v2, v3
-    branch v4, b1, b2
-b1:
-    return v2
-b2:
-    return v0
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 1int32
+    value2: int32 = int.add value0, value1
+    value3: int32 = 10int32
+    value4: boolean = int.lt.s value2, value3
+    branch value4, block1(), block2()
+
+block1:
+    return value2
+
+block2:
+    return value0
+}
+"#;
         let mut test = TestProgram::new(input);
         let before = test.format();
         test.run_pass(&Sink);
@@ -436,33 +445,39 @@ b2:
     #[test]
     fn test_preserve_side_effects() {
         let input = r#"
-function test(v0: int32, v1: boolean): int32 {
-b0(v0: int32, v1: boolean):
-    v2: int32 = 1int32
-    drop v0
-    branch v1, b1, b2
-b1:
-    return v2
-b2:
-    v3: int32 = 0int32
-    return v3
-}"#;
+function test(value0: int32, value1: boolean): int32 {
+entry0(value0: int32, value1: boolean):
+    value2: int32 = 1int32
+    drop value0
+    branch value1, block1(), block2()
+
+block1:
+    return value2
+
+block2:
+    value3: int32 = 0int32
+    return value3
+}
+"#;
         // v2 is used only in block1, so it could sink if not for drop ordering
         // however, drop has side effects and cannot be reordered
         // v2 is computed before drop, so sinking v2 past drop would reorder them
         // actually, v2 has no dependency on drop, so v2 CAN sink to block1
         let expected = r#"
-function test(v0: int32, v1: boolean): int32 {
-b0(v0: int32, v1: boolean):
-    drop v0
-    branch v1, b1, b2
-b1:
-    v2: int32 = 1int32
-    return v2
-b2:
-    v3: int32 = 0int32
-    return v3
-}"#;
+function test(value0: int32, value1: boolean): int32 {
+entry0(value0: int32, value1: boolean):
+    drop value0
+    branch value1, block1(), block2()
+
+block1:
+    value2: int32 = 1int32
+    return value2
+
+block2:
+    value3: int32 = 0int32
+    return value3
+}
+"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&Sink);
         test.assert_output(expected);
@@ -472,16 +487,19 @@ b2:
     #[test]
     fn test_preserve_multiple_users() {
         let input = r#"
-function test(v0: int32, v1: boolean): int32 {
-b0(v0: int32, v1: boolean):
-    v2: int32 = 1int32
-    v3: int32 = int.add v0, v2
-    branch v1, b1, b2
-b1:
-    return v3
-b2:
-    return v3
-}"#;
+function test(value0: int32, value1: boolean): int32 {
+entry0(value0: int32, value1: boolean):
+    value2: int32 = 1int32
+    value3: int32 = int.add value0, value2
+    branch value1, block1(), block2()
+
+block1:
+    return value3
+
+block2:
+    return value3
+}
+"#;
         let mut test = TestProgram::new(input);
         let before = test.format();
         test.run_pass(&Sink);
@@ -492,31 +510,35 @@ b2:
     #[test]
     fn test_sink_chain_unconditional() {
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
-    v2: int32 = int.add v0, v1
-    v3: int32 = 2int32
-    v4: int32 = int.add v2, v3
-    jump b1
-b1:
-    return v4
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 1int32
+    value2: int32 = int.add value0, value1
+    value3: int32 = 2int32
+    value4: int32 = int.add value2, value3
+    jump block1()
+
+block1:
+    return value4
+}
+"#;
         // v1 used by v2 (same block) → can't sink
         // v2 used by v4 (same block) → can't sink
         // v3 used by v4 (same block) → can't sink
         // v4 used only in block1 → sinks
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
-    v2: int32 = int.add v0, v1
-    v3: int32 = 2int32
-    jump b1
-b1:
-    v4: int32 = int.add v2, v3
-    return v4
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 1int32
+    value2: int32 = int.add value0, value1
+    value3: int32 = 2int32
+    jump block1()
+
+block1:
+    value4: int32 = int.add value2, value3
+    return value4
+}
+"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&Sink);
         test.assert_output(expected);
@@ -526,17 +548,20 @@ b1:
     #[test]
     fn test_preserve_volatile_load() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int32 = load v1
-    branch v0, b1, b2
-b1:
-    return v2
-b2:
-    v3: int32 = 0int32
-    return v3
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value2: int32 = load value1
+    branch value0, block1(), block2()
+
+block1:
+    return value2
+
+block2:
+    value3: int32 = 0int32
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let function_id = test.first_function_id();
@@ -568,18 +593,22 @@ b2:
     #[test]
     fn test_preserve_multiple_predecessors() {
         let input = r#"
-function test(v0: int32, v1: boolean): int32 {
-b0(v0: int32, v1: boolean):
-    v2: int32 = 1int32
-    v3: int32 = int.add v0, v2
-    branch v1, b1, b2
-b1:
-    jump b3
-b2:
-    jump b3
-b3:
-    return v3
-}"#;
+function test(value0: int32, value1: boolean): int32 {
+entry0(value0: int32, value1: boolean):
+    value2: int32 = 1int32
+    value3: int32 = int.add value0, value2
+    branch value1, block1(), block2()
+
+block1:
+    jump block3()
+
+block2:
+    jump block3()
+
+block3:
+    return value3
+}
+"#;
         let mut test = TestProgram::new(input);
         let before = test.format();
         test.run_pass(&Sink);
@@ -590,19 +619,23 @@ b3:
     #[test]
     fn test_preserve_no_sink_into_loop() {
         let input = r#"
-function test(v0: int32, v1: boolean): int32 {
-b0(v0: int32, v1: boolean):
-    v2: int32 = 1int32
-    v3: int32 = int.add v0, v2
-    jump b1
-b1:
-    branch v1, b2, b3
-b2:
-    v4: int32 = int.add v3, v3
-    jump b1
-b3:
-    return v3
-}"#;
+function test(value0: int32, value1: boolean): int32 {
+entry0(value0: int32, value1: boolean):
+    value2: int32 = 1int32
+    value3: int32 = int.add value0, value2
+    jump block1()
+
+block1:
+    branch value1, block2(), block3()
+
+block2:
+    value4: int32 = int.add value3, value3
+    jump block1()
+
+block3:
+    return value3
+}
+"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
         let before = test.format();
@@ -618,9 +651,10 @@ b3:
     fn test_preserve_empty_function() {
         let input = r#"
 function test(): void {
-b0:
+entry0:
     return
-}"#;
+}
+"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&Sink);
         test.assert_unchanged(input);
@@ -630,32 +664,38 @@ b0:
     #[test]
     fn test_preserve_same_block_use() {
         let input = r#"
-function test(v0: int32, v1: boolean): int32 {
-b0(v0: int32, v1: boolean):
-    v2: int32 = 1int32
-    v3: int32 = int.add v0, v2
-    v4: int32 = int.add v3, v2
-    branch v1, b1, b2
-b1:
-    return v4
-b2:
-    return v0
-}"#;
+function test(value0: int32, value1: boolean): int32 {
+entry0(value0: int32, value1: boolean):
+    value2: int32 = 1int32
+    value3: int32 = int.add value0, value2
+    value4: int32 = int.add value3, value2
+    branch value1, block1(), block2()
+
+block1:
+    return value4
+
+block2:
+    return value0
+}
+"#;
         // v2 is used by v3 and v4 in the same block, so cannot sink
         // v3 is used by v4 in the same block, so cannot sink
         // v4 could sink to block1, but v3 and v2 cannot
         let expected = r#"
-function test(v0: int32, v1: boolean): int32 {
-b0(v0: int32, v1: boolean):
-    v2: int32 = 1int32
-    v3: int32 = int.add v0, v2
-    branch v1, b1, b2
-b1:
-    v4: int32 = int.add v3, v2
-    return v4
-b2:
-    return v0
-}"#;
+function test(value0: int32, value1: boolean): int32 {
+entry0(value0: int32, value1: boolean):
+    value2: int32 = 1int32
+    value3: int32 = int.add value0, value2
+    branch value1, block1(), block2()
+
+block1:
+    value4: int32 = int.add value3, value2
+    return value4
+
+block2:
+    return value0
+}
+"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&Sink);
         test.assert_output(expected);
@@ -665,12 +705,13 @@ b2:
     #[test]
     fn test_preserve_nothing_to_sink() {
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
-    v2: int32 = int.add v0, v1
-    return v2
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 1int32
+    value2: int32 = int.add value0, value1
+    return value2
+}
+"#;
         let mut test = TestProgram::new(input);
         let before = test.format();
         test.run_pass(&Sink);
@@ -681,19 +722,23 @@ b0(v0: int32):
     #[test]
     fn test_sink_within_loop() {
         let input = r#"
-function test(v0: int32, v1: boolean): int32 {
-b0(v0: int32, v1: boolean):
-    jump b1
-b1:
-    v2: int32 = 1int32
-    v3: int32 = int.add v0, v2
-    branch v1, b2, b3
-b2:
-    v4: int32 = int.add v3, v2
-    jump b1
-b3:
-    return v3
-}"#;
+function test(value0: int32, value1: boolean): int32 {
+entry0(value0: int32, value1: boolean):
+    jump block1()
+
+block1:
+    value2: int32 = 1int32
+    value3: int32 = int.add value0, value2
+    branch value1, block2(), block3()
+
+block2:
+    value4: int32 = int.add value3, value2
+    jump block1()
+
+block3:
+    return value3
+}
+"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
         let before = test.format();
@@ -709,18 +754,22 @@ b3:
     #[test]
     fn test_sink_loop_internal() {
         let input = r#"
-function test(v0: int32, v1: boolean): int32 {
-b0(v0: int32, v1: boolean):
-    jump b1
-b1:
-    v2: int32 = 1int32
-    v3: int32 = int.add v0, v2
-    jump b2
-b2:
-    branch v1, b1, b3
-b3:
-    return v3
-}"#;
+function test(value0: int32, value1: boolean): int32 {
+entry0(value0: int32, value1: boolean):
+    jump block1()
+
+block1:
+    value2: int32 = 1int32
+    value3: int32 = int.add value0, value2
+    jump block2()
+
+block2:
+    branch value1, block1(), block3()
+
+block3:
+    return value3
+}
+"#;
         // v3 is computed in block1 (inside loop) but only used in block3 (exit)
         // sinking v3 from inside the loop to outside would be beneficial,
         // but block3 has predecessor block2 which is inside the loop
@@ -738,16 +787,19 @@ b3:
     #[test]
     fn test_preserve_load_with_intervening_store() {
         let input = r#"
-function test(v0: ref<int32, raw>, v1: boolean, v2: int32): int32 {
-b0(v0: ref<int32, raw>, v1: boolean, v2: int32):
-    v3: int32 = load v0
-    store v0, v2
-    branch v1, b1, b2
-b1:
-    return v3
-b2:
-    return v2
-}"#;
+function test(value0: ref<int32, raw>, value1: boolean, value2: int32): int32 {
+entry0(value0: ref<int32, raw>, value1: boolean, value2: int32):
+    value3: int32 = load value0
+    store value0, value2
+    branch value1, block1(), block2()
+
+block1:
+    return value3
+
+block2:
+    return value2
+}
+"#;
         // v3 is only used in block1, but there's a store after the load
         // sinking past the store could change the loaded value
         let mut test = TestProgram::new(input);
@@ -760,30 +812,36 @@ b2:
     #[test]
     fn test_sink_load_no_intervening_ops() {
         let input = r#"
-function test(v0: ref<int32, raw>, v1: boolean): int32 {
-b0(v0: ref<int32, raw>, v1: boolean):
-    v2: int32 = load v0
-    v3: int32 = 0int32
-    branch v1, b1, b2
-b1:
-    return v2
-b2:
-    return v3
-}"#;
+function test(value0: ref<int32, raw>, value1: boolean): int32 {
+entry0(value0: ref<int32, raw>, value1: boolean):
+    value2: int32 = load value0
+    value3: int32 = 0int32
+    branch value1, block1(), block2()
+
+block1:
+    return value2
+
+block2:
+    return value3
+}
+"#;
         // v2 (load) is only used in b1, no intervening memory ops
         // v3 (const) is only used in b2
         // both are sunk to their respective successors
         let expected = r#"
-function test(v0: ref<int32, raw>, v1: boolean): int32 {
-b0(v0: ref<int32, raw>, v1: boolean):
-    branch v1, b1, b2
-b1:
-    v2: int32 = load v0
-    return v2
-b2:
-    v3: int32 = 0int32
-    return v3
-}"#;
+function test(value0: ref<int32, raw>, value1: boolean): int32 {
+entry0(value0: ref<int32, raw>, value1: boolean):
+    branch value1, block1(), block2()
+
+block1:
+    value2: int32 = load value0
+    return value2
+
+block2:
+    value3: int32 = 0int32
+    return value3
+}
+"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&Sink);
         test.assert_output(expected);
@@ -793,31 +851,37 @@ b2:
     #[test]
     fn test_sink_pure_past_store() {
         let input = r#"
-function test(v0: int32, v1: ref<int32, raw>, v2: boolean): int32 {
-b0(v0: int32, v1: ref<int32, raw>, v2: boolean):
-    v3: int32 = 1int32
-    v4: int32 = int.add v0, v3
-    store v1, v0
-    branch v2, b1, b2
-b1:
-    return v4
-b2:
-    return v0
-}"#;
+function test(value0: int32, value1: ref<int32, raw>, value2: boolean): int32 {
+entry0(value0: int32, value1: ref<int32, raw>, value2: boolean):
+    value3: int32 = 1int32
+    value4: int32 = int.add value0, value3
+    store value1, value0
+    branch value2, block1(), block2()
+
+block1:
+    return value4
+
+block2:
+    return value0
+}
+"#;
         // v4 is a pure computation (int.add) used only in b1
         // it can be sunk past the store since it doesn't read memory
         let expected = r#"
-function test(v0: int32, v1: ref<int32, raw>, v2: boolean): int32 {
-b0(v0: int32, v1: ref<int32, raw>, v2: boolean):
-    v3: int32 = 1int32
-    store v1, v0
-    branch v2, b1, b2
-b1:
-    v4: int32 = int.add v0, v3
-    return v4
-b2:
-    return v0
-}"#;
+function test(value0: int32, value1: ref<int32, raw>, value2: boolean): int32 {
+entry0(value0: int32, value1: ref<int32, raw>, value2: boolean):
+    value3: int32 = 1int32
+    store value1, value0
+    branch value2, block1(), block2()
+
+block1:
+    value4: int32 = int.add value0, value3
+    return value4
+
+block2:
+    return value0
+}
+"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&Sink);
         test.assert_output(expected);

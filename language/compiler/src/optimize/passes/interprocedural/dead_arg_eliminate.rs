@@ -402,26 +402,30 @@ mod tests {
     #[test]
     fn test_dead_arg_eliminate_removes_unused_param() {
         let input = r#"
-function callee(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    return v0
+function callee(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    return value0
 }
-function root(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
-    return v2
-}"#;
+
+function root(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = call callee(value0, value1): (int32, int32) -> int32
+    return value2
+}
+"#;
 
         let expected = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    return v0
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    return value0
 }
-function root(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = call callee(v0): (int32) -> int32
-    return v1
-}"#;
+
+function root(value0: int32): int32 {
+entry0(value0: int32):
+    value2: int32 = call callee(value0): (int32) -> int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&DeadArgEliminate);
@@ -432,24 +436,28 @@ b0(v0: int32):
     #[test]
     fn test_dead_arg_eliminate_updates_tailcall() {
         let input = r#"
-function callee(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    return v0
+function callee(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    return value0
 }
-function root(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    tailCall callee(v0, v1): (int32, int32) -> int32
-}"#;
+
+function root(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    tailCall callee(value0, value1): (int32, int32) -> int32
+}
+"#;
 
         let expected = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    return v0
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    return value0
 }
-function root(v0: int32): int32 {
-b0(v0: int32):
-    tailCall callee(v0): (int32) -> int32
-}"#;
+
+function root(value0: int32): int32 {
+entry0(value0: int32):
+    tailCall callee(value0): (int32, int32) -> int32
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&DeadArgEliminate);
@@ -460,32 +468,40 @@ b0(v0: int32):
     #[test]
     fn test_dead_arg_eliminate_updates_call_terminator() {
         let input = r#"
-function callee(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    return v0
+function callee(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    return value0
 }
-function root(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    call callee(v0, v1): (int32, int32) -> int32 -> b1
-b1(v2: int32):
-    return v2
-b2(v3: ref<int32, managed, readonly>):
-    panic v3
-}"#;
+
+function root(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    call callee(value0, value1): (int32, int32) -> int32 -> block1()
+
+block1(value2: int32):
+    return value2
+
+block2(value3: ref<int32, managed, readonly>):
+    panic value3
+}
+"#;
 
         let expected = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    return v0
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    return value0
 }
-function root(v0: int32): int32 {
-b0(v0: int32):
-    call callee(v0): (int32) -> int32 -> b1
-b1(v1: int32):
-    return v1
-b2(v2: ref<int32, managed, readonly>):
-    panic v2
-}"#;
+
+function root(value0: int32): int32 {
+entry0(value0: int32):
+    call callee(value0): (int32, int32) -> int32 -> block1()
+
+block1(value2: int32):
+    return value2
+
+block2(value3: ref<int32, managed, readonly>):
+    panic value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&DeadArgEliminate);
@@ -496,15 +512,17 @@ b2(v2: ref<int32, managed, readonly>):
     #[test]
     fn test_dead_arg_eliminate_skips_exports() {
         let input = r#"
-export function callee(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    return v0
+export function callee(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    return value0
 }
-function root(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
-    return v2
-}"#;
+
+function root(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = call callee(value0, value1): (int32, int32) -> int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&DeadArgEliminate);
@@ -515,16 +533,18 @@ b0(v0: int32, v1: int32):
     #[test]
     fn test_dead_arg_eliminate_skips_indirect_signature() {
         let input = r#"
-function callee(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    return v0
+function callee(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    return value0
 }
-function root(v0: (int32, int32) -> int32, v1: int32, v2: int32): int32  {
-b0(v0: (int32, int32) -> int32, v1: int32, v2: int32):
-    v3: int32 = call.indirect v0(v1, v2): (int32, int32) -> int32
-    v4: int32 = call callee(v1, v2): (int32, int32) -> int32
-    return v4
-}"#;
+
+function root(value0: (int32, int32) -> int32, value1: int32, value2: int32): int32 {
+entry0(value0: (int32, int32) -> int32, value1: int32, value2: int32):
+    value3: int32 = call.indirect value0(value1, value2): (int32, int32) -> int32
+    value4: int32 = call callee(value1, value2): (int32, int32) -> int32
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&DeadArgEliminate);
@@ -535,26 +555,30 @@ b0(v0: (int32, int32) -> int32, v1: int32, v2: int32):
     #[test]
     fn test_dead_arg_eliminate_updates_call_metadata() {
         let input = r#"
-function callee(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    return v0
+function callee(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    return value0
 }
-function root(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
-    return v2
-}"#;
+
+function root(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = call callee(value0, value1): (int32, int32) -> int32
+    return value2
+}
+"#;
 
         let expected = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    return v0
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    return value0
 }
-function root(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = call callee(v0): (int32) -> int32
-    return v1
-}"#;
+
+function root(value0: int32): int32 {
+entry0(value0: int32):
+    value2: int32 = call callee(value0): (int32) -> int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let root_id = test.function_id_by_name("root");
@@ -591,26 +615,30 @@ b0(v0: int32):
     #[test]
     fn test_dead_arg_eliminate_remaps_metadata_indices() {
         let input = r#"
-function callee(v0: int32, v1: int32, v2: int32): int32 {
-b0(v0: int32, v1: int32, v2: int32):
-    return v0
+function callee(value0: int32, value1: int32, value2: int32): int32 {
+entry0(value0: int32, value1: int32, value2: int32):
+    return value0
 }
-function root(v0: int32, v1: int32, v2: int32): int32 {
-b0(v0: int32, v1: int32, v2: int32):
-    v3: int32 = call callee(v0, v1, v2): (int32, int32, int32) -> int32
-    return v3
-}"#;
+
+function root(value0: int32, value1: int32, value2: int32): int32 {
+entry0(value0: int32, value1: int32, value2: int32):
+    value3: int32 = call callee(value0, value1, value2): (int32, int32, int32) -> int32
+    return value3
+}
+"#;
 
         let expected = r#"
-function callee(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    return v0
+function callee(value0: int32, value2: int32): int32 {
+entry0(value0: int32, value2: int32):
+    return value0
 }
-function root(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
-    return v2
-}"#;
+
+function root(value0: int32, value2: int32): int32 {
+entry0(value0: int32, value2: int32):
+    value3: int32 = call callee(value0, value2): (int32, int32) -> int32
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let callee_id = test.function_id_by_name("callee");
@@ -639,10 +667,11 @@ b0(v0: int32, v1: int32):
     #[test]
     fn test_dead_arg_eliminate_preserves_alloc_size_param() {
         let input = r#"
-function callee(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    return v0
-}"#;
+function callee(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    return value0
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let callee_id = test.function_id_by_name("callee");
@@ -670,26 +699,30 @@ b0(v0: int32, v1: int32):
     #[test]
     fn test_dead_arg_eliminate_remaps_call_allocation_size() {
         let input = r#"
-function callee(v0: int32, v1: int32, v2: int32): int32 {
-b0(v0: int32, v1: int32, v2: int32):
-    return v0
+function callee(value0: int32, value1: int32, value2: int32): int32 {
+entry0(value0: int32, value1: int32, value2: int32):
+    return value0
 }
-function root(v0: int32, v1: int32, v2: int32): int32 {
-b0(v0: int32, v1: int32, v2: int32):
-    v3: int32 = call callee(v0, v1, v2): (int32, int32, int32) -> int32
-    return v3
-}"#;
+
+function root(value0: int32, value1: int32, value2: int32): int32 {
+entry0(value0: int32, value1: int32, value2: int32):
+    value3: int32 = call callee(value0, value1, value2): (int32, int32, int32) -> int32
+    return value3
+}
+"#;
 
         let expected = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    return v0
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    return value0
 }
-function root(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = call callee(v0): (int32) -> int32
-    return v1
-}"#;
+
+function root(value0: int32): int32 {
+entry0(value0: int32):
+    value3: int32 = call callee(value0): (int32) -> int32
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let root_id = test.function_id_by_name("root");

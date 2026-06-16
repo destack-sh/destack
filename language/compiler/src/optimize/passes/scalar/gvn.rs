@@ -678,27 +678,33 @@ mod tests {
     #[test]
     fn test_eliminate_cross_block() {
         let input = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = int.add v0, v1
-    branch v2, b1, b2
-b1:
-    v4: int32 = int.add v0, v1
-    return v4
-b2:
-    v5: int32 = int.add v0, v1
-    return v5
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    value3: int32 = int.add value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    value4: int32 = int.add value0, value1
+    return value4
+
+block2:
+    value5: int32 = int.add value0, value1
+    return value5
+}
+"#;
         let expected = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = int.add v0, v1
-    branch v2, b1, b2
-b1:
-    return v3
-b2:
-    return v3
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    value3: int32 = int.add value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    return value3
+
+block2:
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&GlobalValueNumbering);
@@ -709,18 +715,22 @@ b2:
     #[test]
     fn test_skip_non_dominating_blocks() {
         let input = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
-b1:
-    v3: int32 = int.add v0, v1
-    jump b3(v3)
-b2:
-    v4: int32 = int.add v0, v1
-    jump b3(v4)
-b3(v5: int32):
-    return v5
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = int.add value0, value1
+    jump block3(value3)
+
+block2:
+    value4: int32 = int.add value0, value1
+    jump block3(value4)
+
+block3(value5: int32):
+    return value5
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&GlobalValueNumbering);
@@ -731,30 +741,36 @@ b3(v5: int32):
     #[test]
     fn test_eliminate_through_dominator_chain() {
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    jump b1
-b1:
-    v3: int32 = int.mul v2, v2
-    jump b2
-b2:
-    v4: int32 = int.add v0, v1
-    v5: int32 = int.add v3, v4
-    return v5
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    jump block1()
+
+block1:
+    value3: int32 = int.mul value2, value2
+    jump block2()
+
+block2:
+    value4: int32 = int.add value0, value1
+    value5: int32 = int.add value3, value4
+    return value5
+}
+"#;
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    jump b1
-b1:
-    v3: int32 = int.mul v2, v2
-    jump b2
-b2:
-    v4: int32 = int.add v3, v2
-    return v4
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    jump block1()
+
+block1:
+    value3: int32 = int.mul value2, value2
+    jump block2()
+
+block2:
+    value5: int32 = int.add value3, value2
+    return value5
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&GlobalValueNumbering);
@@ -765,24 +781,28 @@ b2:
     #[test]
     fn test_eliminate_commutative() {
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    jump b1
-b1:
-    v3: int32 = int.add v1, v0
-    v4: int32 = int.add v2, v3
-    return v4
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    jump block1()
+
+block1:
+    value3: int32 = int.add value1, value0
+    value4: int32 = int.add value2, value3
+    return value4
+}
+"#;
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    jump b1
-b1:
-    v3: int32 = int.add v2, v2
-    return v3
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    jump block1()
+
+block1:
+    value4: int32 = int.add value2, value2
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&GlobalValueNumbering);
@@ -793,32 +813,38 @@ b1:
     #[test]
     fn test_apply_transitive_substitutions() {
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    jump b1
-b1:
-    v3: int32 = int.add v0, v1
-    v4: int32 = int.mul v3, v3
-    jump b2
-b2:
-    v5: int32 = int.add v0, v1
-    v6: int32 = int.mul v5, v5
-    v7: int32 = int.add v4, v6
-    return v7
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    jump block1()
+
+block1:
+    value3: int32 = int.add value0, value1
+    value4: int32 = int.mul value3, value3
+    jump block2()
+
+block2:
+    value5: int32 = int.add value0, value1
+    value6: int32 = int.mul value5, value5
+    value7: int32 = int.add value4, value6
+    return value7
+}
+"#;
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    jump b1
-b1:
-    v3: int32 = int.mul v2, v2
-    jump b2
-b2:
-    v4: int32 = int.add v3, v3
-    return v4
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    jump block1()
+
+block1:
+    value4: int32 = int.mul value2, value2
+    jump block2()
+
+block2:
+    value7: int32 = int.add value4, value4
+    return value7
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&GlobalValueNumbering);
@@ -829,20 +855,22 @@ b2:
     #[test]
     fn test_eliminate_local_redundancies() {
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    v3: int32 = int.add v0, v1
-    v4: int32 = int.add v2, v3
-    return v4
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    value3: int32 = int.add value0, value1
+    value4: int32 = int.add value2, value3
+    return value4
+}
+"#;
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    v3: int32 = int.add v2, v2
-    return v3
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    value4: int32 = int.add value2, value2
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&GlobalValueNumbering);
@@ -853,30 +881,38 @@ b0(v0: int32, v1: int32):
     #[test]
     fn test_eliminate_through_deep_chain() {
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    jump b1
-b1:
-    jump b2
-b2:
-    jump b3
-b3:
-    v3: int32 = int.add v0, v1
-    return v3
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    jump block1()
+
+block1:
+    jump block2()
+
+block2:
+    jump block3()
+
+block3:
+    value3: int32 = int.add value0, value1
+    return value3
+}
+"#;
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    jump b1
-b1:
-    jump b2
-b2:
-    jump b3
-b3:
-    return v2
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    jump block1()
+
+block1:
+    jump block2()
+
+block2:
+    jump block3()
+
+block3:
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&GlobalValueNumbering);
@@ -887,31 +923,39 @@ b3:
     #[test]
     fn test_eliminate_in_diamond_cfg() {
         let input = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = int.add v0, v1
-    branch v2, b1, b2
-b1:
-    v4: int32 = int.add v0, v1
-    jump b3(v4)
-b2:
-    v5: int32 = int.add v0, v1
-    jump b3(v5)
-b3(v6: int32):
-    return v6
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    value3: int32 = int.add value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    value4: int32 = int.add value0, value1
+    jump block3(value4)
+
+block2:
+    value5: int32 = int.add value0, value1
+    jump block3(value5)
+
+block3(value6: int32):
+    return value6
+}
+"#;
         let expected = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = int.add v0, v1
-    branch v2, b1, b2
-b1:
-    jump b3(v3)
-b2:
-    jump b3(v3)
-b3(v4: int32):
-    return v4
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    value3: int32 = int.add value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    jump block3(value3)
+
+block2:
+    jump block3(value3)
+
+block3(value6: int32):
+    return value6
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&GlobalValueNumbering);
@@ -922,17 +966,20 @@ b3(v4: int32):
     #[test]
     fn test_preserve_unique_expressions() {
         let input = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = int.add v0, v1
-    branch v2, b1, b2
-b1:
-    v4: int32 = int.sub v0, v1
-    return v4
-b2:
-    v5: int32 = int.mul v0, v1
-    return v5
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    value3: int32 = int.add value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    value4: int32 = int.sub value0, value1
+    return value4
+
+block2:
+    value5: int32 = int.mul value0, value1
+    return value5
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&GlobalValueNumbering);
@@ -943,24 +990,28 @@ b2:
     #[test]
     fn test_eliminate_unary_cross_block() {
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = int.negate v0
-    jump b1
-b1:
-    v2: int32 = int.negate v0
-    v3: int32 = int.add v1, v2
-    return v3
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = int.negate value0
+    jump block1()
+
+block1:
+    value2: int32 = int.negate value0
+    value3: int32 = int.add value1, value2
+    return value3
+}
+"#;
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = int.negate v0
-    jump b1
-b1:
-    v2: int32 = int.add v1, v1
-    return v2
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = int.negate value0
+    jump block1()
+
+block1:
+    value3: int32 = int.add value1, value1
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&GlobalValueNumbering);
@@ -971,24 +1022,28 @@ b1:
     #[test]
     fn test_eliminate_field_get_cross_block() {
         let input = r#"
-function test(v0: (int32, int32)): int32 {
-b0(v0: (int32, int32)):
-    v1: int32 = field.get v0, 0
-    jump b1
-b1:
-    v2: int32 = field.get v0, 0
-    v3: int32 = int.add v1, v2
-    return v3
-}"#;
+function test(value0: (int32, int32)): int32 {
+entry0(value0: (int32, int32)):
+    value1: int32 = field.get value0, 0
+    jump block1()
+
+block1:
+    value2: int32 = field.get value0, 0
+    value3: int32 = int.add value1, value2
+    return value3
+}
+"#;
         let expected = r#"
-function test(v0: (int32, int32)): int32 {
-b0(v0: (int32, int32)):
-    v1: int32 = field.get v0, 0
-    jump b1
-b1:
-    v2: int32 = int.add v1, v1
-    return v2
-}"#;
+function test(value0: (int32, int32)): int32 {
+entry0(value0: (int32, int32)):
+    value1: int32 = field.get value0, 0
+    jump block1()
+
+block1:
+    value3: int32 = int.add value1, value1
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&GlobalValueNumbering);
@@ -999,27 +1054,31 @@ b1:
     #[test]
     fn test_eliminate_multiple_expressions() {
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    v3: int32 = int.mul v0, v1
-    jump b1
-b1:
-    v4: int32 = int.add v0, v1
-    v5: int32 = int.mul v0, v1
-    v6: int32 = int.add v4, v5
-    return v6
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    value3: int32 = int.mul value0, value1
+    jump block1()
+
+block1:
+    value4: int32 = int.add value0, value1
+    value5: int32 = int.mul value0, value1
+    value6: int32 = int.add value4, value5
+    return value6
+}
+"#;
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    v3: int32 = int.mul v0, v1
-    jump b1
-b1:
-    v4: int32 = int.add v2, v3
-    return v4
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    value3: int32 = int.mul value0, value1
+    jump block1()
+
+block1:
+    value6: int32 = int.add value2, value3
+    return value6
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&GlobalValueNumbering);
@@ -1030,25 +1089,29 @@ b1:
     #[test]
     fn test_aggregate_tuple_cross_block() {
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: (int32, int32) = tuple (int32, int32) (v0, v1)
-    jump b1
-b1:
-    v3: int32 = field.get v2, 0
-    v4: int32 = field.get v2, 1
-    v5: int32 = int.add v3, v4
-    return v5
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: (int32, int32) = tuple (int32, int32) (value0, value1)
+    jump block1()
+
+block1:
+    value3: int32 = field.get value2, 0
+    value4: int32 = field.get value2, 1
+    value5: int32 = int.add value3, value4
+    return value5
+}
+"#;
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: (int32, int32) = tuple (int32, int32) (v0, v1)
-    jump b1
-b1:
-    v3: int32 = int.add v0, v1
-    return v3
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: (int32, int32) = tuple (int32, int32) (value0, value1)
+    jump block1()
+
+block1:
+    value5: int32 = int.add value0, value1
+    return value5
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&GlobalValueNumbering);
@@ -1063,29 +1126,35 @@ type Point {
     int32;
     int32;
 }
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: Point = struct Point (v0, v1)
-    jump b1
-b1:
-    v3: int32 = field.get v2, 0
-    v4: int32 = field.get v2, 1
-    v5: int32 = int.add v3, v4
-    return v5
-}"#;
+
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: Point = struct Point (value0, value1)
+    jump block1()
+
+block1:
+    value3: int32 = field.get value2, 0
+    value4: int32 = field.get value2, 1
+    value5: int32 = int.add value3, value4
+    return value5
+}
+"#;
         let expected = r#"
 type Point {
     int32;
     int32;
 }
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: Point = struct Point (v0, v1)
-    jump b1
-b1:
-    v3: int32 = int.add v0, v1
-    return v3
-}"#;
+
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: Point = struct Point (value0, value1)
+    jump block1()
+
+block1:
+    value5: int32 = int.add value0, value1
+    return value5
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&GlobalValueNumbering);
@@ -1096,30 +1165,38 @@ b1:
     #[test]
     fn test_aggregate_through_deep_chain() {
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: (int32, int32) = tuple (int32, int32) (v0, v1)
-    jump b1
-b1:
-    jump b2
-b2:
-    jump b3
-b3:
-    v3: int32 = field.get v2, 1
-    return v3
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: (int32, int32) = tuple (int32, int32) (value0, value1)
+    jump block1()
+
+block1:
+    jump block2()
+
+block2:
+    jump block3()
+
+block3:
+    value3: int32 = field.get value2, 1
+    return value3
+}
+"#;
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: (int32, int32) = tuple (int32, int32) (v0, v1)
-    jump b1
-b1:
-    jump b2
-b2:
-    jump b3
-b3:
-    return v1
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: (int32, int32) = tuple (int32, int32) (value0, value1)
+    jump block1()
+
+block1:
+    jump block2()
+
+block2:
+    jump block3()
+
+block3:
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&GlobalValueNumbering);
@@ -1130,34 +1207,42 @@ b3:
     #[test]
     fn test_aggregate_skip_non_dominating() {
         let input = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
-b1:
-    v3: (int32, int32) = tuple (int32, int32) (v0, v1)
-    jump b3(v3)
-b2:
-    v4: (int32, int32) = tuple (int32, int32) (v1, v0)
-    v5: int32 = field.get v4, 0
-    jump b3(v4)
-b3(v6: (int32, int32)):
-    v7: int32 = field.get v6, 0
-    return v7
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    branch value2, block1(), block2()
+
+block1:
+    value3: (int32, int32) = tuple (int32, int32) (value0, value1)
+    jump block3(value3)
+
+block2:
+    value4: (int32, int32) = tuple (int32, int32) (value1, value0)
+    value5: int32 = field.get value4, 0
+    jump block3(value4)
+
+block3(value6: (int32, int32)):
+    value7: int32 = field.get value6, 0
+    return value7
+}
+"#;
         let expected = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
-b1:
-    v3: (int32, int32) = tuple (int32, int32) (v0, v1)
-    jump b3(v3)
-b2:
-    v4: (int32, int32) = tuple (int32, int32) (v1, v0)
-    jump b3(v4)
-b3(v5: (int32, int32)):
-    v6: int32 = field.get v5, 0
-    return v6
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    branch value2, block1(), block2()
+
+block1:
+    value3: (int32, int32) = tuple (int32, int32) (value0, value1)
+    jump block3(value3)
+
+block2:
+    value4: (int32, int32) = tuple (int32, int32) (value1, value0)
+    jump block3(value4)
+
+block3(value6: (int32, int32)):
+    value7: int32 = field.get value6, 0
+    return value7
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&GlobalValueNumbering);
@@ -1168,31 +1253,39 @@ b3(v5: (int32, int32)):
     #[test]
     fn test_aggregate_diamond_cfg() {
         let input = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    v3: (int32, int32) = tuple (int32, int32) (v0, v1)
-    branch v2, b1, b2
-b1:
-    v4: int32 = field.get v3, 0
-    jump b3(v4)
-b2:
-    v5: int32 = field.get v3, 1
-    jump b3(v5)
-b3(v6: int32):
-    return v6
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    value3: (int32, int32) = tuple (int32, int32) (value0, value1)
+    branch value2, block1(), block2()
+
+block1:
+    value4: int32 = field.get value3, 0
+    jump block3(value4)
+
+block2:
+    value5: int32 = field.get value3, 1
+    jump block3(value5)
+
+block3(value6: int32):
+    return value6
+}
+"#;
         let expected = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    v3: (int32, int32) = tuple (int32, int32) (v0, v1)
-    branch v2, b1, b2
-b1:
-    jump b3(v0)
-b2:
-    jump b3(v1)
-b3(v4: int32):
-    return v4
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    value3: (int32, int32) = tuple (int32, int32) (value0, value1)
+    branch value2, block1(), block2()
+
+block1:
+    jump block3(value0)
+
+block2:
+    jump block3(value1)
+
+block3(value6: int32):
+    return value6
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&GlobalValueNumbering);
@@ -1203,27 +1296,31 @@ b3(v4: int32):
     #[test]
     fn test_aggregate_combined_with_gvn() {
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    v3: (int32, int32) = tuple (int32, int32) (v2, v1)
-    jump b1
-b1:
-    v4: int32 = int.add v0, v1
-    v5: int32 = field.get v3, 0
-    v6: int32 = int.add v4, v5
-    return v6
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    value3: (int32, int32) = tuple (int32, int32) (value2, value1)
+    jump block1()
+
+block1:
+    value4: int32 = int.add value0, value1
+    value5: int32 = field.get value3, 0
+    value6: int32 = int.add value4, value5
+    return value6
+}
+"#;
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    v3: (int32, int32) = tuple (int32, int32) (v2, v1)
-    jump b1
-b1:
-    v4: int32 = int.add v2, v2
-    return v4
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    value3: (int32, int32) = tuple (int32, int32) (value2, value1)
+    jump block1()
+
+block1:
+    value6: int32 = int.add value2, value2
+    return value6
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&GlobalValueNumbering);
@@ -1235,25 +1332,29 @@ b1:
     fn test_eliminate_loads_across_blocks() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = load v0
-    jump b1
-b1:
-    v2: int32 = load v0
-    v3: int32 = int.add v1, v2
-    return v3
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = load value0
+    jump block1()
+
+block1:
+    value2: int32 = load value0
+    value3: int32 = int.add value1, value2
+    return value3
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = load v0
-    jump b1
-b1:
-    v2: int32 = int.add v1, v1
-    return v2
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = load value0
+    jump block1()
+
+block1:
+    value3: int32 = int.add value1, value1
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&GlobalValueNumbering);
@@ -1265,16 +1366,18 @@ b1:
     fn test_preserve_loads_after_store() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = load v0
-    v2: int32 = 1int32
-    store v0, v2
-    jump b1
-b1:
-    v3: int32 = load v0
-    return v3
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = load value0
+    value2: int32 = 1int32
+    store value0, value2
+    jump block1()
+
+block1:
+    value3: int32 = load value0
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&GlobalValueNumbering);
@@ -1285,13 +1388,14 @@ b1:
     #[test]
     fn test_no_forward_load_size_mismatch() {
         let input = r#"
-function test(v0: ref<int32, raw>): int32 {
-b0(v0: ref<int32, raw>):
-    v1: int32 = load v0
-    v2: int32 = load v0
-    v3: int32 = int.add v1, v2
-    return v3
-}"#;
+function test(value0: ref<int32, raw>): int32 {
+entry0(value0: ref<int32, raw>):
+    value1: int32 = load value0
+    value2: int32 = load value0
+    value3: int32 = int.add value1, value2
+    return value3
+}
+"#;
         let expected = input;
 
         let mut test = TestProgram::new(input);
@@ -1324,26 +1428,30 @@ b0(v0: ref<int32, raw>):
     #[test]
     fn test_forward_loads_across_no_memory_call() {
         let input = r#"
-external function external(ref<int32, raw>): void
+external function imported(ref<int32, raw>): void
+
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = load v0
-    call external(v0): (ref<int32, raw>) -> void
-    v2: int32 = load v0
-    v3: int32 = int.add v1, v2
-    return v3
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = load value0
+    call imported(value0): (ref<int32, raw>) -> void
+    value2: int32 = load value0
+    value3: int32 = int.add value1, value2
+    return value3
+}
+"#;
         let expected = r#"
-external function external(ref<int32, raw>): void
+external function imported(ref<int32, raw>): void
+
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = load v0
-    call external(v0): (ref<int32, raw>) -> void
-    v2: int32 = int.add v1, v1
-    return v2
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = load value0
+    call imported(value0): (ref<int32, raw>) -> void
+    value3: int32 = int.add value1, value1
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
 

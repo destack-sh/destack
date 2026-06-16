@@ -2838,48 +2838,60 @@ mod tests {
     fn test_full_unroll_small_trip_count() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 0int32
-    v1: int32 = 3int32
-    v2: int32 = 1int32
-    jump b1(v0)
-b1(v3: int32):
-    v4: boolean = int.lt.s v3, v1
-    branch v4, b2(v3), b3(v3)
-b2(v5: int32):
-    v6: int32 = int.add v5, v2
-    jump b1(v6)
-b3(v7: int32):
-    return v7
-}"#;
+entry0:
+    value0: int32 = 0int32
+    value1: int32 = 3int32
+    value2: int32 = 1int32
+    jump block1(value0)
+
+block1(value3: int32):
+    value4: boolean = int.lt.s value3, value1
+    branch value4, block2(value3), block3(value3)
+
+block2(value5: int32):
+    value6: int32 = int.add value5, value2
+    jump block1(value6)
+
+block3(value7: int32):
+    return value7
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 0int32
-    v1: int32 = 3int32
-    v2: int32 = 1int32
-    jump b1(v0)
-b1(v3: int32):
-    v4: boolean = int.lt.s v3, v1
-    branch v4, b2(v3), b3(v3)
-b2(v5: int32):
-    v6: int32 = int.add v5, v2
-    jump b4(v6)
-b3(v7: int32):
-    return v7
-b4(v8: int32):
-    v9: boolean = int.lt.s v8, v1
-    branch v9, b5(v8), b3(v8)
-b5(v10: int32):
-    v11: int32 = int.add v10, v2
-    jump b6(v11)
-b6(v12: int32):
-    v13: boolean = int.lt.s v12, v1
-    branch v13, b7(v12), b3(v12)
-b7(v14: int32):
-    v15: int32 = int.add v14, v2
-    jump b3(v15)
-}"#;
+entry0:
+    value0: int32 = 0int32
+    value1: int32 = 3int32
+    value2: int32 = 1int32
+    jump block1(value0)
+
+block1(value3: int32):
+    value4: boolean = int.lt.s value3, value1
+    branch value4, block2(value3), block3(value3)
+
+block2(value5: int32):
+    value6: int32 = int.add value5, value2
+    jump block4(value6)
+
+block3(value7: int32):
+    return value7
+
+block4(value8: int32):
+    value9: boolean = int.lt.s value8, value1
+    branch value9, block5(value8), block3(value8)
+
+block5(value10: int32):
+    value11: int32 = int.add value10, value2
+    jump block6(value11)
+
+block6(value12: int32):
+    value13: boolean = int.lt.s value12, value1
+    branch value13, block7(value12), block3(value12)
+
+block7(value14: int32):
+    value15: int32 = int.add value14, value2
+    jump block3(value15)
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -2892,49 +2904,61 @@ b7(v14: int32):
     fn test_full_unroll_decreasing_trip_count() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 3int32
-    v1: int32 = 0int32
-    v2: int32 = 1int32
-    jump b1(v0)
-b1(v3: int32):
-    v4: boolean = int.gt.s v3, v1
-    branch v4, b2(v3), b3(v3)
-b2(v5: int32):
-    v6: int32 = int.sub v5, v2
-    jump b1(v6)
-b3(v7: int32):
-    return v7
-}"#;
+entry0:
+    value0: int32 = 3int32
+    value1: int32 = 0int32
+    value2: int32 = 1int32
+    jump block1(value0)
+
+block1(value3: int32):
+    value4: boolean = int.gt.s value3, value1
+    branch value4, block2(value3), block3(value3)
+
+block2(value5: int32):
+    value6: int32 = int.sub value5, value2
+    jump block1(value6)
+
+block3(value7: int32):
+    return value7
+}
+"#;
 
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 3int32
-    v1: int32 = 0int32
-    v2: int32 = 1int32
-    jump b1(v0)
-b1(v3: int32):
-    v4: boolean = int.gt.s v3, v1
-    branch v4, b2(v3), b3(v3)
-b2(v5: int32):
-    v6: int32 = int.sub v5, v2
-    jump b4(v6)
-b3(v7: int32):
-    return v7
-b4(v8: int32):
-    v9: boolean = int.gt.s v8, v1
-    branch v9, b5(v8), b3(v8)
-b5(v10: int32):
-    v11: int32 = int.sub v10, v2
-    jump b6(v11)
-b6(v12: int32):
-    v13: boolean = int.gt.s v12, v1
-    branch v13, b7(v12), b3(v12)
-b7(v14: int32):
-    v15: int32 = int.sub v14, v2
-    jump b3(v15)
-}"#;
+entry0:
+    value0: int32 = 3int32
+    value1: int32 = 0int32
+    value2: int32 = 1int32
+    jump block1(value0)
+
+block1(value3: int32):
+    value4: boolean = int.gt.s value3, value1
+    branch value4, block2(value3), block3(value3)
+
+block2(value5: int32):
+    value6: int32 = int.sub value5, value2
+    jump block4(value6)
+
+block3(value7: int32):
+    return value7
+
+block4(value8: int32):
+    value9: boolean = int.gt.s value8, value1
+    branch value9, block5(value8), block3(value8)
+
+block5(value10: int32):
+    value11: int32 = int.sub value10, value2
+    jump block6(value11)
+
+block6(value12: int32):
+    value13: boolean = int.gt.s value12, value1
+    branch value13, block7(value12), block3(value12)
+
+block7(value14: int32):
+    value15: int32 = int.sub value14, value2
+    jump block3(value15)
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -2946,20 +2970,24 @@ b7(v14: int32):
     #[test]
     fn test_unroll_requires_constant_trip_count() {
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: int32 = 1int32
-    jump b1(v1)
-b1(v3: int32):
-    v4: boolean = int.lt.s v3, v0
-    branch v4, b2(v3), b3(v3)
-b2(v5: int32):
-    v6: int32 = int.add v5, v2
-    jump b1(v6)
-b3(v7: int32):
-    return v7
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: int32 = 1int32
+    jump block1(value1)
+
+block1(value3: int32):
+    value4: boolean = int.lt.s value3, value0
+    branch value4, block2(value3), block3(value3)
+
+block2(value5: int32):
+    value6: int32 = int.add value5, value2
+    jump block1(value6)
+
+block3(value7: int32):
+    return value7
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -2972,52 +3000,63 @@ b3(v7: int32):
     fn test_partial_unroll_with_remainder() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 0int32
-    v1: int32 = 10int32
-    v2: int32 = 1int32
-    jump b1(v0)
-b1(v3: int32):
-    v4: int32 = int.add v3, v2
-    v5: boolean = int.lt.s v4, v1
-    branch v5, b1(v4), b2(v4)
-b2(v6: int32):
-    return v6
-}"#;
+entry0:
+    value0: int32 = 0int32
+    value1: int32 = 10int32
+    value2: int32 = 1int32
+    jump block1(value0)
+
+block1(value3: int32):
+    value4: int32 = int.add value3, value2
+    value5: boolean = int.lt.s value4, value1
+    branch value5, block1(value4), block2(value4)
+
+block2(value6: int32):
+    return value6
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 0int32
-    v1: int32 = 10int32
-    v2: int32 = 1int32
-    jump b3(v0)
-b1(v3: int32):
-    v4: int32 = int.add v3, v2
-    v5: boolean = int.lt.s v4, v1
-    jump b5(v4)
-b2(v6: int32):
-    return v6
-b3(v7: int32):
-    v8: int32 = int.add v7, v2
-    v9: boolean = int.lt.s v8, v1
-    jump b4(v8)
-b4(v10: int32):
-    v11: int32 = int.add v10, v2
-    v12: boolean = int.lt.s v11, v1
-    jump b1(v11)
-b5(v13: int32):
-    v14: int32 = int.add v13, v2
-    v15: boolean = int.lt.s v14, v1
-    jump b6(v14)
-b6(v16: int32):
-    v17: int32 = int.add v16, v2
-    v18: boolean = int.lt.s v17, v1
-    jump b7(v17)
-b7(v19: int32):
-    v20: int32 = int.add v19, v2
-    v21: boolean = int.lt.s v20, v1
-    branch v21, b1(v20), b2(v20)
-}"#;
+entry0:
+    value0: int32 = 0int32
+    value1: int32 = 10int32
+    value2: int32 = 1int32
+    jump block3(value0)
+
+block1(value3: int32):
+    value4: int32 = int.add value3, value2
+    value5: boolean = int.lt.s value4, value1
+    jump block5(value4)
+
+block2(value6: int32):
+    return value6
+
+block3(value7: int32):
+    value8: int32 = int.add value7, value2
+    value9: boolean = int.lt.s value8, value1
+    jump block4(value8)
+
+block4(value10: int32):
+    value11: int32 = int.add value10, value2
+    value12: boolean = int.lt.s value11, value1
+    jump block1(value11)
+
+block5(value13: int32):
+    value14: int32 = int.add value13, value2
+    value15: boolean = int.lt.s value14, value1
+    jump block6(value14)
+
+block6(value16: int32):
+    value17: int32 = int.add value16, value2
+    value18: boolean = int.lt.s value17, value1
+    jump block7(value17)
+
+block7(value19: int32):
+    value20: int32 = int.add value19, value2
+    value21: boolean = int.lt.s value20, value1
+    branch value21, block1(value20), block2(value20)
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -3030,54 +3069,68 @@ b7(v19: int32):
     fn test_partial_unroll_header_guard() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 0int32
-    v1: int32 = 9int32
-    v2: int32 = 1int32
-    jump b1(v0)
-b1(v3: int32):
-    v4: boolean = int.lt.s v3, v1
-    branch v4, b2(v3), b3(v3)
-b2(v5: int32):
-    v6: int32 = int.add v5, v2
-    jump b1(v6)
-b3(v7: int32):
-    return v7
-}"#;
+entry0:
+    value0: int32 = 0int32
+    value1: int32 = 9int32
+    value2: int32 = 1int32
+    jump block1(value0)
+
+block1(value3: int32):
+    value4: boolean = int.lt.s value3, value1
+    branch value4, block2(value3), block3(value3)
+
+block2(value5: int32):
+    value6: int32 = int.add value5, value2
+    jump block1(value6)
+
+block3(value7: int32):
+    return value7
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 0int32
-    v1: int32 = 9int32
-    v2: int32 = 1int32
-    jump b1(v0)
-b1(v3: int32):
-    v4: boolean = int.lt.s v3, v1
-    branch v4, b2(v3), b3(v3)
-b2(v5: int32):
-    v6: int32 = int.add v5, v2
-    jump b4(v6)
-b3(v7: int32):
-    return v7
-b4(v8: int32):
-    v9: boolean = int.lt.s v8, v1
-    branch v9, b5(v8), b3(v8)
-b5(v10: int32):
-    v11: int32 = int.add v10, v2
-    jump b6(v11)
-b6(v12: int32):
-    v13: boolean = int.lt.s v12, v1
-    branch v13, b7(v12), b3(v12)
-b7(v14: int32):
-    v15: int32 = int.add v14, v2
-    jump b8(v15)
-b8(v16: int32):
-    v17: boolean = int.lt.s v16, v1
-    branch v17, b9(v16), b3(v16)
-b9(v18: int32):
-    v19: int32 = int.add v18, v2
-    jump b1(v19)
-}"#;
+entry0:
+    value0: int32 = 0int32
+    value1: int32 = 9int32
+    value2: int32 = 1int32
+    jump block1(value0)
+
+block1(value3: int32):
+    value4: boolean = int.lt.s value3, value1
+    branch value4, block2(value3), block3(value3)
+
+block2(value5: int32):
+    value6: int32 = int.add value5, value2
+    jump block4(value6)
+
+block3(value7: int32):
+    return value7
+
+block4(value8: int32):
+    value9: boolean = int.lt.s value8, value1
+    branch value9, block5(value8), block3(value8)
+
+block5(value10: int32):
+    value11: int32 = int.add value10, value2
+    jump block6(value11)
+
+block6(value12: int32):
+    value13: boolean = int.lt.s value12, value1
+    branch value13, block7(value12), block3(value12)
+
+block7(value14: int32):
+    value15: int32 = int.add value14, value2
+    jump block8(value15)
+
+block8(value16: int32):
+    value17: boolean = int.lt.s value16, value1
+    branch value17, block9(value16), block3(value16)
+
+block9(value18: int32):
+    value19: int32 = int.add value18, value2
+    jump block1(value19)
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -3090,49 +3143,61 @@ b9(v18: int32):
     fn test_unroll_non_unit_stride() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 0int32
-    v1: int32 = 6int32
-    v2: int32 = 2int32
-    jump b1(v0)
-b1(v3: int32):
-    v4: boolean = int.lt.s v3, v1
-    branch v4, b2(v3), b3(v3)
-b2(v5: int32):
-    v6: int32 = int.add v5, v2
-    jump b1(v6)
-b3(v7: int32):
-    return v7
-}"#;
+entry0:
+    value0: int32 = 0int32
+    value1: int32 = 6int32
+    value2: int32 = 2int32
+    jump block1(value0)
+
+block1(value3: int32):
+    value4: boolean = int.lt.s value3, value1
+    branch value4, block2(value3), block3(value3)
+
+block2(value5: int32):
+    value6: int32 = int.add value5, value2
+    jump block1(value6)
+
+block3(value7: int32):
+    return value7
+}
+"#;
 
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 0int32
-    v1: int32 = 6int32
-    v2: int32 = 2int32
-    jump b1(v0)
-b1(v3: int32):
-    v4: boolean = int.lt.s v3, v1
-    branch v4, b2(v3), b3(v3)
-b2(v5: int32):
-    v6: int32 = int.add v5, v2
-    jump b4(v6)
-b3(v7: int32):
-    return v7
-b4(v8: int32):
-    v9: boolean = int.lt.s v8, v1
-    branch v9, b5(v8), b3(v8)
-b5(v10: int32):
-    v11: int32 = int.add v10, v2
-    jump b6(v11)
-b6(v12: int32):
-    v13: boolean = int.lt.s v12, v1
-    branch v13, b7(v12), b3(v12)
-b7(v14: int32):
-    v15: int32 = int.add v14, v2
-    jump b3(v15)
-}"#;
+entry0:
+    value0: int32 = 0int32
+    value1: int32 = 6int32
+    value2: int32 = 2int32
+    jump block1(value0)
+
+block1(value3: int32):
+    value4: boolean = int.lt.s value3, value1
+    branch value4, block2(value3), block3(value3)
+
+block2(value5: int32):
+    value6: int32 = int.add value5, value2
+    jump block4(value6)
+
+block3(value7: int32):
+    return value7
+
+block4(value8: int32):
+    value9: boolean = int.lt.s value8, value1
+    branch value9, block5(value8), block3(value8)
+
+block5(value10: int32):
+    value11: int32 = int.add value10, value2
+    jump block6(value11)
+
+block6(value12: int32):
+    value13: boolean = int.lt.s value12, value1
+    branch value13, block7(value12), block3(value12)
+
+block7(value14: int32):
+    value15: int32 = int.add value14, value2
+    jump block3(value15)
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -3144,25 +3209,31 @@ b7(v14: int32):
     #[test]
     fn test_unroll_skips_multiple_exits() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 0int32
-    v2: int32 = 4int32
-    v3: int32 = 1int32
-    jump b1(v1)
-b1(v4: int32):
-    v5: boolean = int.lt.s v4, v2
-    branch v5, b2(v4), b5(v4)
-b2(v6: int32):
-    branch v0, b3(v6), b4(v6)
-b3(v7: int32):
-    v8: int32 = int.add v7, v3
-    jump b1(v8)
-b4(v9: int32):
-    return v9
-b5(v10: int32):
-    return v10
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 0int32
+    value2: int32 = 4int32
+    value3: int32 = 1int32
+    jump block1(value1)
+
+block1(value4: int32):
+    value5: boolean = int.lt.s value4, value2
+    branch value5, block2(value4), block5(value4)
+
+block2(value6: int32):
+    branch value0, block3(value6), block4(value6)
+
+block3(value7: int32):
+    value8: int32 = int.add value7, value3
+    jump block1(value8)
+
+block4(value9: int32):
+    return value9
+
+block5(value10: int32):
+    return value10
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -3175,20 +3246,24 @@ b5(v10: int32):
     fn test_unroll_skips_cold_profile() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 0int32
-    v1: int32 = 3int32
-    v2: int32 = 1int32
-    jump b1(v0)
-b1(v3: int32):
-    v4: boolean = int.lt.s v3, v1
-    branch v4, b2(v3), b3(v3)
-b2(v5: int32):
-    v6: int32 = int.add v5, v2
-    jump b1(v6)
-b3(v7: int32):
-    return v7
-}"#;
+entry0:
+    value0: int32 = 0int32
+    value1: int32 = 3int32
+    value2: int32 = 1int32
+    jump block1(value0)
+
+block1(value3: int32):
+    value4: boolean = int.lt.s value3, value1
+    branch value4, block2(value3), block3(value3)
+
+block2(value5: int32):
+    value6: int32 = int.add value5, value2
+    jump block1(value6)
+
+block3(value7: int32):
+    return value7
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -3209,68 +3284,82 @@ b3(v7: int32):
     #[test]
     fn test_unroll_and_jam_nested_loop() {
         let input = r#"
-function test(v0: [uint32; 8]): void {
-b0(v0: [uint32; 8]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 2uint32
-    v3: uint32 = 2uint32
-    v4: uint32 = 1uint32
-    jump b1(v1)
-b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v2
-    branch v6, b2, b6
-b2:
-    v7: uint32 = 0uint32
-    jump b3(v5, v7)
-b3(v8: uint32, v9: uint32):
-    v10: boolean = int.lt.u v9, v3
-    branch v10, b4(v8, v9), b5(v8)
-b4(v11: uint32, v12: uint32):
-    v13: ref<uint32, borrowed> = element.address v0, v12
-    store v13, v11
-    v14: uint32 = int.add v12, v4
-    jump b3(v11, v14)
-b5(v15: uint32):
-    v16: uint32 = int.add v15, v4
-    jump b1(v16)
-b6:
+function test(value0: [uint32; 8]): void {
+entry0(value0: [uint32; 8]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 2uint32
+    value3: uint32 = 2uint32
+    value4: uint32 = 1uint32
+    jump block1(value1)
+
+block1(value5: uint32):
+    value6: boolean = int.lt.u value5, value2
+    branch value6, block2(), block6()
+
+block2:
+    value7: uint32 = 0uint32
+    jump block3(value5, value7)
+
+block3(value8: uint32, value9: uint32):
+    value10: boolean = int.lt.u value9, value3
+    branch value10, block4(value8, value9), block5(value8)
+
+block4(value11: uint32, value12: uint32):
+    value13: ref<uint32, borrowed> = element.address value0, value12
+    store value13, value11
+    value14: uint32 = int.add value12, value4
+    jump block3(value11, value14)
+
+block5(value15: uint32):
+    value16: uint32 = int.add value15, value4
+    jump block1(value16)
+
+block6:
     return
-}"#;
+}
+"#;
 
         let expected = r#"
-function test(v0: [uint32; 8]): void {
-b0(v0: [uint32; 8]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 2uint32
-    v3: uint32 = 2uint32
-    v4: uint32 = 1uint32
-    jump b1(v1)
-b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v2
-    branch v6, b2, b6
-b2:
-    v7: uint32 = 0uint32
-    jump b3(v5, v7)
-b3(v8: uint32, v9: uint32):
-    v10: boolean = int.lt.u v9, v3
-    branch v10, b4(v8, v9), b5(v8)
-b4(v11: uint32, v12: uint32):
-    v13: ref<uint32, borrowed> = element.address v0, v12
-    store v13, v11
-    v14: uint32 = 1uint32
-    v15: uint32 = int.add v8, v14
-    v16: ref<uint32, borrowed> = element.address v0, v12
-    store v16, v15
-    v17: uint32 = int.add v12, v4
-    jump b3(v11, v17)
-b5(v18: uint32):
-    v19: uint32 = int.add v18, v4
-    v20: uint32 = 2uint32
-    v21: uint32 = int.add v18, v20
-    jump b1(v21)
-b6:
+function test(value0: [uint32; 8]): void {
+entry0(value0: [uint32; 8]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 2uint32
+    value3: uint32 = 2uint32
+    value4: uint32 = 1uint32
+    jump block1(value1)
+
+block1(value5: uint32):
+    value6: boolean = int.lt.u value5, value2
+    branch value6, block2(), block6()
+
+block2:
+    value7: uint32 = 0uint32
+    jump block3(value5, value7)
+
+block3(value8: uint32, value9: uint32):
+    value10: boolean = int.lt.u value9, value3
+    branch value10, block4(value8, value9), block5(value8)
+
+block4(value11: uint32, value12: uint32):
+    value13: ref<uint32, borrowed> = element.address value0, value12
+    store value13, value11
+    value19: uint32 = 1uint32
+    value20: uint32 = int.add value8, value19
+    value21: ref<uint32, borrowed> = element.address value0, value12
+    store value21, value20
+    value14: uint32 = int.add value12, value4
+    jump block3(value11, value14)
+
+block5(value15: uint32):
+    value16: uint32 = int.add value15, value4
+    value17: uint32 = 2uint32
+    value18: uint32 = int.add value15, value17
+    jump block1(value18)
+
+block6:
     return
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -3282,34 +3371,41 @@ b6:
     #[test]
     fn test_unroll_and_jam_skips_outer_dependency() {
         let input = r#"
-function test(v0: [uint32; 8]): void {
-b0(v0: [uint32; 8]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 4uint32
-    v3: uint32 = 2uint32
-    v4: uint32 = 1uint32
-    jump b1(v1)
-b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v2
-    branch v6, b2, b6
-b2:
-    v7: uint32 = 0uint32
-    v8: uint32 = int.add v5, v4
-    jump b3(v5, v7, v8)
-b3(v9: uint32, v10: uint32, v11: uint32):
-    v12: boolean = int.lt.u v10, v3
-    branch v12, b4(v9, v10, v11), b5(v9)
-b4(v13: uint32, v14: uint32, v15: uint32):
-    v16: ref<uint32, borrowed> = element.address v0, v15
-    store v16, v13
-    v17: uint32 = int.add v14, v4
-    jump b3(v13, v17, v15)
-b5(v18: uint32):
-    v19: uint32 = int.add v18, v4
-    jump b1(v19)
-b6:
+function test(value0: [uint32; 8]): void {
+entry0(value0: [uint32; 8]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 4uint32
+    value3: uint32 = 2uint32
+    value4: uint32 = 1uint32
+    jump block1(value1)
+
+block1(value5: uint32):
+    value6: boolean = int.lt.u value5, value2
+    branch value6, block2(), block6()
+
+block2:
+    value7: uint32 = 0uint32
+    value8: uint32 = int.add value5, value4
+    jump block3(value5, value7, value8)
+
+block3(value9: uint32, value10: uint32, value11: uint32):
+    value12: boolean = int.lt.u value10, value3
+    branch value12, block4(value9, value10, value11), block5(value9)
+
+block4(value13: uint32, value14: uint32, value15: uint32):
+    value16: ref<uint32, borrowed> = element.address value0, value15
+    store value16, value13
+    value17: uint32 = int.add value14, value4
+    jump block3(value13, value17, value15)
+
+block5(value18: uint32):
+    value19: uint32 = int.add value18, value4
+    jump block1(value19)
+
+block6:
     return
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -3323,34 +3419,41 @@ b6:
     #[test]
     fn test_unroll_and_jam_skips_inner_update_not_last() {
         let input = r#"
-function test(v0: [uint32; 8]): void {
-b0(v0: [uint32; 8]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 4uint32
-    v3: uint32 = 2uint32
-    v4: uint32 = 1uint32
-    jump b1(v1)
-b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v2
-    branch v6, b2, b6
-b2:
-    v7: uint32 = 0uint32
-    jump b3(v5, v7)
-b3(v8: uint32, v9: uint32):
-    v10: boolean = int.lt.u v9, v3
-    branch v10, b4(v8, v9), b5(v8)
-b4(v11: uint32, v12: uint32):
-    v13: ref<uint32, borrowed> = element.address v0, v12
-    store v13, v11
-    v14: uint32 = int.add v12, v4
-    v15: uint32 = int.add v11, v4
-    jump b3(v15, v14)
-b5(v16: uint32):
-    v17: uint32 = int.add v16, v4
-    jump b1(v17)
-b6:
+function test(value0: [uint32; 8]): void {
+entry0(value0: [uint32; 8]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 4uint32
+    value3: uint32 = 2uint32
+    value4: uint32 = 1uint32
+    jump block1(value1)
+
+block1(value5: uint32):
+    value6: boolean = int.lt.u value5, value2
+    branch value6, block2(), block6()
+
+block2:
+    value7: uint32 = 0uint32
+    jump block3(value5, value7)
+
+block3(value8: uint32, value9: uint32):
+    value10: boolean = int.lt.u value9, value3
+    branch value10, block4(value8, value9), block5(value8)
+
+block4(value11: uint32, value12: uint32):
+    value13: ref<uint32, borrowed> = element.address value0, value12
+    store value13, value11
+    value14: uint32 = int.add value12, value4
+    value15: uint32 = int.add value11, value4
+    jump block3(value15, value14)
+
+block5(value16: uint32):
+    value17: uint32 = int.add value16, value4
+    jump block1(value17)
+
+block6:
     return
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -3364,70 +3467,84 @@ b6:
     #[test]
     fn test_unroll_and_jam_allows_trailing_invariants() {
         let input = r#"
-function test(v0: [uint32; 8]): void {
-b0(v0: [uint32; 8]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 2uint32
-    v3: uint32 = 2uint32
-    v4: uint32 = 1uint32
-    jump b1(v1)
-b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v2
-    branch v6, b2, b6
-b2:
-    v7: uint32 = 0uint32
-    jump b3(v5, v7)
-b3(v8: uint32, v9: uint32):
-    v10: boolean = int.lt.u v9, v3
-    branch v10, b4(v8, v9), b5(v8)
-b4(v11: uint32, v12: uint32):
-    v13: ref<uint32, borrowed> = element.address v0, v12
-    store v13, v11
-    v14: uint32 = int.add v12, v4
-    v15: uint32 = int.add v14, v4
-    jump b3(v11, v14)
-b5(v16: uint32):
-    v17: uint32 = int.add v16, v4
-    jump b1(v17)
-b6:
+function test(value0: [uint32; 8]): void {
+entry0(value0: [uint32; 8]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 2uint32
+    value3: uint32 = 2uint32
+    value4: uint32 = 1uint32
+    jump block1(value1)
+
+block1(value5: uint32):
+    value6: boolean = int.lt.u value5, value2
+    branch value6, block2(), block6()
+
+block2:
+    value7: uint32 = 0uint32
+    jump block3(value5, value7)
+
+block3(value8: uint32, value9: uint32):
+    value10: boolean = int.lt.u value9, value3
+    branch value10, block4(value8, value9), block5(value8)
+
+block4(value11: uint32, value12: uint32):
+    value13: ref<uint32, borrowed> = element.address value0, value12
+    store value13, value11
+    value14: uint32 = int.add value12, value4
+    value15: uint32 = int.add value14, value4
+    jump block3(value11, value14)
+
+block5(value16: uint32):
+    value17: uint32 = int.add value16, value4
+    jump block1(value17)
+
+block6:
     return
-}"#;
+}
+"#;
 
         let expected = r#"
-function test(v0: [uint32; 8]): void {
-b0(v0: [uint32; 8]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 2uint32
-    v3: uint32 = 2uint32
-    v4: uint32 = 1uint32
-    jump b1(v1)
-b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v2
-    branch v6, b2, b6
-b2:
-    v7: uint32 = 0uint32
-    jump b3(v5, v7)
-b3(v8: uint32, v9: uint32):
-    v10: boolean = int.lt.u v9, v3
-    branch v10, b4(v8, v9), b5(v8)
-b4(v11: uint32, v12: uint32):
-    v13: ref<uint32, borrowed> = element.address v0, v12
-    store v13, v11
-    v14: uint32 = 1uint32
-    v15: uint32 = int.add v8, v14
-    v16: ref<uint32, borrowed> = element.address v0, v12
-    store v16, v15
-    v17: uint32 = int.add v12, v4
-    v18: uint32 = int.add v17, v4
-    jump b3(v11, v17)
-b5(v19: uint32):
-    v20: uint32 = int.add v19, v4
-    v21: uint32 = 2uint32
-    v22: uint32 = int.add v19, v21
-    jump b1(v22)
-b6:
+function test(value0: [uint32; 8]): void {
+entry0(value0: [uint32; 8]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 2uint32
+    value3: uint32 = 2uint32
+    value4: uint32 = 1uint32
+    jump block1(value1)
+
+block1(value5: uint32):
+    value6: boolean = int.lt.u value5, value2
+    branch value6, block2(), block6()
+
+block2:
+    value7: uint32 = 0uint32
+    jump block3(value5, value7)
+
+block3(value8: uint32, value9: uint32):
+    value10: boolean = int.lt.u value9, value3
+    branch value10, block4(value8, value9), block5(value8)
+
+block4(value11: uint32, value12: uint32):
+    value13: ref<uint32, borrowed> = element.address value0, value12
+    store value13, value11
+    value20: uint32 = 1uint32
+    value21: uint32 = int.add value8, value20
+    value22: ref<uint32, borrowed> = element.address value0, value12
+    store value22, value21
+    value14: uint32 = int.add value12, value4
+    value15: uint32 = int.add value14, value4
+    jump block3(value11, value14)
+
+block5(value16: uint32):
+    value17: uint32 = int.add value16, value4
+    value18: uint32 = 2uint32
+    value19: uint32 = int.add value16, value18
+    jump block1(value19)
+
+block6:
     return
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -3439,92 +3556,111 @@ b6:
     #[test]
     fn test_unroll_and_jam_peels_remainder_trip_count() {
         let input = r#"
-function test(v0: [uint32; 8]): void {
-b0(v0: [uint32; 8]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 5uint32
-    v3: uint32 = 2uint32
-    v4: uint32 = 1uint32
-    jump b1(v1)
-b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v2
-    branch v6, b2, b6
-b2:
-    v7: uint32 = 0uint32
-    jump b3(v5, v7)
-b3(v8: uint32, v9: uint32):
-    v10: boolean = int.lt.u v9, v3
-    branch v10, b4(v8, v9), b5(v8)
-b4(v11: uint32, v12: uint32):
-    v13: ref<uint32, borrowed> = element.address v0, v12
-    store v13, v11
-    v14: uint32 = int.add v12, v4
-    jump b3(v11, v14)
-b5(v15: uint32):
-    v16: uint32 = int.add v15, v4
-    jump b1(v16)
-b6:
+function test(value0: [uint32; 8]): void {
+entry0(value0: [uint32; 8]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 5uint32
+    value3: uint32 = 2uint32
+    value4: uint32 = 1uint32
+    jump block1(value1)
+
+block1(value5: uint32):
+    value6: boolean = int.lt.u value5, value2
+    branch value6, block2(), block6()
+
+block2:
+    value7: uint32 = 0uint32
+    jump block3(value5, value7)
+
+block3(value8: uint32, value9: uint32):
+    value10: boolean = int.lt.u value9, value3
+    branch value10, block4(value8, value9), block5(value8)
+
+block4(value11: uint32, value12: uint32):
+    value13: ref<uint32, borrowed> = element.address value0, value12
+    store value13, value11
+    value14: uint32 = int.add value12, value4
+    jump block3(value11, value14)
+
+block5(value15: uint32):
+    value16: uint32 = int.add value15, value4
+    jump block1(value16)
+
+block6:
     return
-}"#;
+}
+"#;
         let expected = r#"
-function test(v0: [uint32; 8]): void {
-b0(v0: [uint32; 8]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 5uint32
-    v3: uint32 = 2uint32
-    v4: uint32 = 1uint32
-    jump b7(v1)
-b1(v5: uint32):
-    v6: boolean = int.lt.u v5, v2
-    branch v6, b2, b6
-b2:
-    v7: uint32 = 0uint32
-    jump b3(v5, v7)
-b3(v8: uint32, v9: uint32):
-    v10: boolean = int.lt.u v9, v3
-    branch v10, b4(v8, v9), b5(v8)
-b4(v11: uint32, v12: uint32):
-    v13: ref<uint32, borrowed> = element.address v0, v12
-    store v13, v11
-    v14: uint32 = 1uint32
-    v15: uint32 = int.add v8, v14
-    v16: ref<uint32, borrowed> = element.address v0, v12
-    store v16, v15
-    v17: uint32 = 2uint32
-    v18: uint32 = int.add v8, v17
-    v19: ref<uint32, borrowed> = element.address v0, v12
-    store v19, v18
-    v20: uint32 = 3uint32
-    v21: uint32 = int.add v8, v20
-    v22: ref<uint32, borrowed> = element.address v0, v12
-    store v22, v21
-    v23: uint32 = int.add v12, v4
-    jump b3(v11, v23)
-b5(v24: uint32):
-    v25: uint32 = int.add v24, v4
-    v26: uint32 = 4uint32
-    v27: uint32 = int.add v24, v26
-    jump b1(v27)
-b6:
+function test(value0: [uint32; 8]): void {
+entry0(value0: [uint32; 8]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 5uint32
+    value3: uint32 = 2uint32
+    value4: uint32 = 1uint32
+    jump block7(value1)
+
+block1(value5: uint32):
+    value6: boolean = int.lt.u value5, value2
+    branch value6, block2(), block6()
+
+block2:
+    value7: uint32 = 0uint32
+    jump block3(value5, value7)
+
+block3(value8: uint32, value9: uint32):
+    value10: boolean = int.lt.u value9, value3
+    branch value10, block4(value8, value9), block5(value8)
+
+block4(value11: uint32, value12: uint32):
+    value13: ref<uint32, borrowed> = element.address value0, value12
+    store value13, value11
+    value31: uint32 = 1uint32
+    value32: uint32 = int.add value8, value31
+    value33: ref<uint32, borrowed> = element.address value0, value12
+    store value33, value32
+    value34: uint32 = 2uint32
+    value35: uint32 = int.add value8, value34
+    value36: ref<uint32, borrowed> = element.address value0, value12
+    store value36, value35
+    value37: uint32 = 3uint32
+    value38: uint32 = int.add value8, value37
+    value39: ref<uint32, borrowed> = element.address value0, value12
+    store value39, value38
+    value14: uint32 = int.add value12, value4
+    jump block3(value11, value14)
+
+block5(value15: uint32):
+    value16: uint32 = int.add value15, value4
+    value29: uint32 = 4uint32
+    value30: uint32 = int.add value15, value29
+    jump block1(value30)
+
+block6:
     return
-b7(v28: uint32):
-    v29: boolean = int.lt.u v28, v2
-    branch v29, b8, b6
-b8:
-    v30: uint32 = 0uint32
-    jump b9(v28, v30)
-b9(v31: uint32, v32: uint32):
-    v33: boolean = int.lt.u v32, v3
-    branch v33, b10(v31, v32), b11(v31)
-b10(v34: uint32, v35: uint32):
-    v36: ref<uint32, borrowed> = element.address v0, v35
-    store v36, v34
-    v37: uint32 = int.add v35, v4
-    jump b9(v34, v37)
-b11(v38: uint32):
-    v39: uint32 = int.add v38, v4
-    jump b1(v39)
-}"#;
+
+block7(value17: uint32):
+    value18: boolean = int.lt.u value17, value2
+    branch value18, block8(), block6()
+
+block8:
+    value19: uint32 = 0uint32
+    jump block9(value17, value19)
+
+block9(value20: uint32, value21: uint32):
+    value22: boolean = int.lt.u value21, value3
+    branch value22, block10(value20, value21), block11(value20)
+
+block10(value23: uint32, value24: uint32):
+    value25: ref<uint32, borrowed> = element.address value0, value24
+    store value25, value23
+    value26: uint32 = int.add value24, value4
+    jump block9(value23, value26)
+
+block11(value27: uint32):
+    value28: uint32 = int.add value27, value4
+    jump block1(value28)
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);

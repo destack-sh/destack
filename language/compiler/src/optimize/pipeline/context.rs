@@ -5,7 +5,7 @@ use destack_artifact::{DiagnosticBuilder, ProgramAnalysis};
 use destack_core::StringPool;
 use destack_mir as mir;
 use destack_repository::FloatMathPolicy;
-use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
+use destack_source::{FileId, ModuleId, PackageId, ProfileId, Span, TargetId};
 use parking_lot::Mutex;
 
 use crate::optimize::{DiagnosticEmitter, ModuleWorkItem, PackageWorkset, PassMetadata};
@@ -284,7 +284,7 @@ impl<'a> PipelineContext<'a> {
     pub fn anchor(&self, tree: &mir::Tree, node: mir::LocalNodeIdAny) -> DiagnosticAnchor {
         let span = tree
             .get_span_by_id(node.id)
-            .expect("optimizer diagnostic node is missing a source span");
+            .unwrap_or_else(|| Span::empty(FileId::new(0)));
 
         DiagnosticAnchor::Span(span)
     }

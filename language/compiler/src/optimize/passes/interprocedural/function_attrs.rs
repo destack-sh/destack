@@ -865,11 +865,12 @@ mod tests {
     #[test]
     fn test_function_attrs_pure() {
         let input = r#"
-function pure(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = int.add v0, v0
-    return v1
-}"#;
+function pure(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = int.add value0, value0
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&FunctionAttrs);
@@ -890,10 +891,12 @@ b0(v0: int32):
     fn test_function_attrs_alloc_behavior() {
         let input = r#"
 function alloc(): void {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+entry0:
+    value0: ref<int32, unique> = new.zeroed int32
+    free value0
     return
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&FunctionAttrs);
@@ -916,9 +919,10 @@ b0:
     fn test_function_attrs_panic_behavior() {
         let input = r#"
 function fail(): void {
-b0:
+entry0:
     panic
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&FunctionAttrs);
@@ -941,15 +945,17 @@ b0:
     fn test_function_attrs_updates_call_metadata() {
         let input = r#"
 function callee(): int32 {
-b0:
-    v0: int32 = 1int32
-    return v0
+entry0:
+    value0: int32 = 1int32
+    return value0
 }
+
 function caller(): int32 {
-b0:
-    v0: int32 = call callee(): () -> int32
-    return v0
-}"#;
+entry0:
+    value0: int32 = call callee(): () -> int32
+    return value0
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let caller_id = test.function_id_by_name("caller");
@@ -972,15 +978,17 @@ b0:
     #[test]
     fn test_function_attrs_tailcall_returns() {
         let input = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = int.add v0, v0
-    return v1
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = int.add value0, value0
+    return value1
 }
-function caller(v0: int32): int32 {
-b0(v0: int32):
-    tailCall callee(v0): (int32) -> int32
-}"#;
+
+function caller(value0: int32): int32 {
+entry0(value0: int32):
+    tailCall callee(value0): (int32) -> int32
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&FunctionAttrs);
@@ -1002,13 +1010,15 @@ b0(v0: int32):
     fn test_function_attrs_tailcall_noreturn() {
         let input = r#"
 function sink(): void {
-b0:
-    jump b0
+entry0:
+    jump entry0()
 }
+
 function caller(): void {
-b0:
+entry0:
     tailCall sink(): () -> void
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&FunctionAttrs);
@@ -1029,11 +1039,12 @@ b0:
     #[test]
     fn test_function_attrs_unknown_indirect_effects() {
         let input = r#"
-function callee(v0: (int32) -> int32, v1: int32): int32  {
-b0(v0: (int32) -> int32, v1: int32):
-    v2: int32 = call.indirect v0(v1): (int32) -> int32
-    return v2
-}"#;
+function callee(value0: (int32) -> int32, value1: int32): int32 {
+entry0(value0: (int32) -> int32, value1: int32):
+    value2: int32 = call.indirect value0(value1): (int32) -> int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&FunctionAttrs);
@@ -1055,17 +1066,19 @@ b0(v0: (int32) -> int32, v1: int32):
     #[test]
     fn test_function_attrs_resolved_dynamic_call_effects() {
         let input = r#"
-function callee(v0: ref<int32, raw>): int32 {
-b0(v0: ref<int32, raw>):
-    v1: int32 = 1int32
-    store v0, v1
-    return v1
+function callee(value0: ref<int32, raw>): int32 {
+entry0(value0: ref<int32, raw>):
+    value1: int32 = 1int32
+    store value0, value1
+    return value1
 }
-function caller(v0: ref<int32, raw>): void {
-b0(v0: ref<int32, raw>):
-    v1: int32 = call.virtual v0, int32, 1(v0): (ref<int32, raw>) -> int32
+
+function caller(value0: ref<int32, raw>): void {
+entry0(value0: ref<int32, raw>):
+    value1: int32 = call.virtual value0, int32, 1(value0): (ref<int32, raw>) -> int32
     return
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let callee_id = test.function_id_by_name("callee");
@@ -1099,20 +1112,24 @@ b0(v0: ref<int32, raw>):
     #[test]
     fn test_function_attrs_call_terminator_effects() {
         let input = r#"
-function callee(v0: ref<int32, raw>): void {
-b0(v0: ref<int32, raw>):
-    v1: int32 = 1int32
-    store v0, v1
+function callee(value0: ref<int32, raw>): void {
+entry0(value0: ref<int32, raw>):
+    value1: int32 = 1int32
+    store value0, value1
     return
 }
-function caller(v0: ref<int32, raw>, v1: ref<void, managed, readonly>): void {
-b0(v0: ref<int32, raw>, v1: ref<void, managed, readonly>):
-    call callee(v0): (ref<int32, raw>) -> void -> b1
-b1:
+
+function caller(value0: ref<int32, raw>, value1: ref<void, managed, readonly>): void {
+entry0(value0: ref<int32, raw>, value1: ref<void, managed, readonly>):
+    call callee(value0): (ref<int32, raw>) -> void -> block1()
+
+block1:
     return
-b2(v2: ref<void, managed, readonly>):
-    panic v2
-}"#;
+
+block2(value2: ref<void, managed, readonly>):
+    panic value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&FunctionAttrs);

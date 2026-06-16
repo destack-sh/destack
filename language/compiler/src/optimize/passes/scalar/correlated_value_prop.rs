@@ -799,35 +799,43 @@ mod tests {
     fn test_cvp_substitutes_equal_values() {
         // source test
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
-b1:
-    v3: int32 = int.add v0, v1
-    jump b3(v3)
-b2:
-    v4: int32 = int.sub v0, v1
-    jump b3(v4)
-b3(v5: int32):
-    return v5
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: boolean = int.eq value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = int.add value0, value1
+    jump block3(value3)
+
+block2:
+    value4: int32 = int.sub value0, value1
+    jump block3(value4)
+
+block3(value5: int32):
+    return value5
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
-b1:
-    v3: int32 = int.add v0, v0
-    jump b3(v3)
-b2:
-    v4: int32 = int.sub v0, v1
-    jump b3(v4)
-b3(v5: int32):
-    return v5
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: boolean = int.eq value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = int.add value0, value0
+    jump block3(value3)
+
+block2:
+    value4: int32 = int.sub value0, value1
+    jump block3(value4)
+
+block3(value5: int32):
+    return value5
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -840,31 +848,37 @@ b3(v5: int32):
     fn test_cvp_inverts_not_equal() {
         // source test
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: boolean = int.ne v0, v1
-    branch v2, b1, b2
-b1:
-    v3: int32 = int.add v0, v1
-    return v3
-b2:
-    v4: int32 = int.sub v0, v1
-    return v4
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: boolean = int.ne value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = int.add value0, value1
+    return value3
+
+block2:
+    value4: int32 = int.sub value0, value1
+    return value4
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: boolean = int.ne v0, v1
-    branch v2, b1, b2
-b1:
-    v3: int32 = int.add v0, v1
-    return v3
-b2:
-    v4: int32 = int.sub v0, v0
-    return v4
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: boolean = int.ne value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = int.add value0, value1
+    return value3
+
+block2:
+    value4: int32 = int.sub value0, value0
+    return value4
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -877,31 +891,37 @@ b2:
     fn test_cvp_prefers_constant_operand() {
         // source test
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 7int32
-    v3: boolean = int.eq v0, v2
-    branch v3, b1, b2
-b1:
-    v4: int32 = int.add v0, v1
-    return v4
-b2:
-    return v0
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = 7int32
+    value3: boolean = int.eq value0, value2
+    branch value3, block1(), block2()
+
+block1:
+    value4: int32 = int.add value0, value1
+    return value4
+
+block2:
+    return value0
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 7int32
-    v3: boolean = int.eq v0, v2
-    branch v3, b1, b2
-b1:
-    v4: int32 = int.add v2, v1
-    return v4
-b2:
-    return v0
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = 7int32
+    value3: boolean = int.eq value0, value2
+    branch value3, block1(), block2()
+
+block1:
+    value4: int32 = int.add value2, value1
+    return value4
+
+block2:
+    return value0
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -914,17 +934,20 @@ b2:
     fn test_cvp_skips_float_equal() {
         // source test
         let input = r#"
-function test(v0: float64, v1: float64): float64 {
-b0(v0: float64, v1: float64):
-    v2: boolean = float.eq v0, v1
-    branch v2, b1, b2
-b1:
-    v3: float64 = float.add v0, v1
-    return v3
-b2:
-    v4: float64 = float.sub v0, v1
-    return v4
-}"#;
+function test(value0: float64, value1: float64): float64 {
+entry0(value0: float64, value1: float64):
+    value2: boolean = float.eq value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    value3: float64 = float.add value0, value1
+    return value3
+
+block2:
+    value4: float64 = float.sub value0, value1
+    return value4
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -937,33 +960,41 @@ b2:
     fn test_cvp_propagates_into_dominated_blocks() {
         // source test
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
-b1:
-    jump b3
-b2:
-    return v0
-b3:
-    v3: int32 = int.add v0, v1
-    return v3
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: boolean = int.eq value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    jump block3()
+
+block2:
+    return value0
+
+block3:
+    value3: int32 = int.add value0, value1
+    return value3
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
-b1:
-    jump b3
-b2:
-    return v0
-b3:
-    v3: int32 = int.add v0, v0
-    return v3
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: boolean = int.eq value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    jump block3()
+
+block2:
+    return value0
+
+block3:
+    value3: int32 = int.add value0, value0
+    return value3
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -976,33 +1007,39 @@ b3:
     fn test_cvp_handles_negated_equal() {
         // source test
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: boolean = int.eq v0, v1
-    v3: boolean = int.not v2
-    branch v3, b1, b2
-b1:
-    v4: int32 = int.sub v0, v1
-    return v4
-b2:
-    v5: int32 = int.add v0, v1
-    return v5
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: boolean = int.eq value0, value1
+    value3: boolean = int.not value2
+    branch value3, block1(), block2()
+
+block1:
+    value4: int32 = int.sub value0, value1
+    return value4
+
+block2:
+    value5: int32 = int.add value0, value1
+    return value5
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: boolean = int.eq v0, v1
-    v3: boolean = int.not v2
-    branch v3, b1, b2
-b1:
-    v4: int32 = int.sub v0, v1
-    return v4
-b2:
-    v5: int32 = int.add v0, v0
-    return v5
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: boolean = int.eq value0, value1
+    value3: boolean = int.not value2
+    branch value3, block1(), block2()
+
+block1:
+    value4: int32 = int.sub value0, value1
+    return value4
+
+block2:
+    value5: int32 = int.add value0, value0
+    return value5
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -1015,29 +1052,35 @@ b2:
     fn test_cvp_handles_check_terminator() {
         // source test
         let input = r#"
-function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
-b0(v0: uint32, v1: uint32, v2: [uint32; 4]):
-    v3: boolean = int.eq v0, v1
-    check bounds.u v0, v1, v2 -> b1, b2
-b1:
-    v4: uint32 = int.add v0, v1
-    return v4
-b2:
-    return v0
-}"#;
+function test(value0: uint32, value1: uint32, value2: [uint32; 4]): uint32 {
+entry0(value0: uint32, value1: uint32, value2: [uint32; 4]):
+    value3: boolean = int.eq value0, value1
+    check bounds.u value0, value1, value2 -> block1(), block2()
+
+block1:
+    value4: uint32 = int.add value0, value1
+    return value4
+
+block2:
+    return value0
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
-b0(v0: uint32, v1: uint32, v2: [uint32; 4]):
-    v3: boolean = int.eq v0, v1
-    check bounds.u v0, v1, v2 -> b1, b2
-b1:
-    v4: uint32 = int.add v0, v0
-    return v4
-b2:
-    return v0
-}"#;
+function test(value0: uint32, value1: uint32, value2: [uint32; 4]): uint32 {
+entry0(value0: uint32, value1: uint32, value2: [uint32; 4]):
+    value3: boolean = int.eq value0, value1
+    check bounds.u value0, value1, value2 -> block1(), block2()
+
+block1:
+    value4: uint32 = int.add value0, value1
+    return value4
+
+block2:
+    return value0
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -1050,16 +1093,19 @@ b2:
     fn test_cvp_requires_single_predecessor() {
         // source test
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
-b1:
-    v3: int32 = int.add v0, v1
-    return v3
-b2:
-    jump b1
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: boolean = int.eq value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = int.add value0, value1
+    return value3
+
+block2:
+    jump block1()
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -1072,31 +1118,37 @@ b2:
     fn test_cvp_range_constraint_then_edge() {
         // source test
         let input = r#"
-function test(v0: int32): boolean {
-b0(v0: int32):
-    v1: int32 = 5int32
-    v2: boolean = int.lt.s v0, v1
-    branch v2, b1, b2
-b1:
-    v3: boolean = int.lt.s v0, v1
-    return v3
-b2:
-    return v2
-}"#;
+function test(value0: int32): boolean {
+entry0(value0: int32):
+    value1: int32 = 5int32
+    value2: boolean = int.lt.s value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    value3: boolean = int.lt.s value0, value1
+    return value3
+
+block2:
+    return value2
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32): boolean {
-b0(v0: int32):
-    v1: int32 = 5int32
-    v2: boolean = int.lt.s v0, v1
-    branch v2, b1, b2
-b1:
-    v3: boolean = true
-    return v3
-b2:
-    return v2
-}"#;
+function test(value0: int32): boolean {
+entry0(value0: int32):
+    value1: int32 = 5int32
+    value2: boolean = int.lt.s value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    value3: boolean = true
+    return value3
+
+block2:
+    return value2
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -1109,31 +1161,37 @@ b2:
     fn test_cvp_range_constraint_else_edge() {
         // source test
         let input = r#"
-function test(v0: int32): boolean {
-b0(v0: int32):
-    v1: int32 = 5int32
-    v2: boolean = int.lt.s v0, v1
-    branch v2, b1, b2
-b1:
-    return v2
-b2:
-    v3: boolean = int.lt.s v0, v1
-    return v3
-}"#;
+function test(value0: int32): boolean {
+entry0(value0: int32):
+    value1: int32 = 5int32
+    value2: boolean = int.lt.s value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    return value2
+
+block2:
+    value3: boolean = int.lt.s value0, value1
+    return value3
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32): boolean {
-b0(v0: int32):
-    v1: int32 = 5int32
-    v2: boolean = int.lt.s v0, v1
-    branch v2, b1, b2
-b1:
-    return v2
-b2:
-    v3: boolean = false
-    return v3
-}"#;
+function test(value0: int32): boolean {
+entry0(value0: int32):
+    value1: int32 = 5int32
+    value2: boolean = int.lt.s value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    return value2
+
+block2:
+    value3: boolean = false
+    return value3
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);

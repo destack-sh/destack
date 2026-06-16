@@ -500,34 +500,41 @@ mod tests {
     #[test]
     fn test_store_sink_to_single_successor() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int32 = 7int32
-    store v1, v2
-    branch v0, b1, b2
-b1:
-    v3: int32 = load v1
-    return v3
-b2:
-    return v2
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value2: int32 = 7int32
+    store value1, value2
+    branch value0, block1(), block2()
+
+block1:
+    value3: int32 = load value1
+    return value3
+
+block2:
+    return value2
+}
+"#;
 
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int32 = 7int32
-    branch v0, b1, b3
-b1:
-    store v1, v2
-    jump b2
-b2:
-    v3: int32 = load v1
-    return v3
-b3:
-    return v2
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value2: int32 = 7int32
+    branch value0, block1(), block2()
+
+block1:
+    store value1, value2
+    jump block1_1()
+
+block1_1:
+    value3: int32 = load value1
+    return value3
+
+block2:
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&StoreSink);
@@ -538,19 +545,22 @@ b3:
     #[test]
     fn test_store_sink_skips_all_successors() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int32 = 7int32
-    store v1, v2
-    branch v0, b1, b2
-b1:
-    v3: int32 = load v1
-    return v3
-b2:
-    v4: int32 = load v1
-    return v4
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value2: int32 = 7int32
+    store value1, value2
+    branch value0, block1(), block2()
+
+block1:
+    value3: int32 = load value1
+    return value3
+
+block2:
+    value4: int32 = load value1
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&StoreSink);
@@ -561,16 +571,19 @@ b2:
     #[test]
     fn test_store_sink_skips_escaping_store() {
         let input = r#"
-function test(v0: boolean, v1: ref<int32, raw, space(static)>): void {
-b0(v0: boolean, v1: ref<int32, raw, space(static)>):
-    v2: int32 = 1int32
-    store v1, v2
-    branch v0, b1, b2
-b1:
+function test(value0: boolean, value1: ref<int32, raw, space(static)>): void {
+entry0(value0: boolean, value1: ref<int32, raw, space(static)>):
+    value2: int32 = 1int32
+    store value1, value2
+    branch value0, block1(), block2()
+
+block1:
     return
-b2:
+
+block2:
     return
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&StoreSink);

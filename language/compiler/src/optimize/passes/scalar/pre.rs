@@ -757,32 +757,40 @@ mod tests {
     #[test]
     fn test_pre_diamond_inserts_expression() {
         let input = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
-b1:
-    v3: int32 = int.add v0, v1
-    jump b3
-b2:
-    jump b3
-b3:
-    v4: int32 = int.add v0, v1
-    return v4
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = int.add value0, value1
+    jump block3()
+
+block2:
+    jump block3()
+
+block3:
+    value4: int32 = int.add value0, value1
+    return value4
+}
+"#;
 
         let expected = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
-b1:
-    v3: int32 = int.add v0, v1
-    jump b3(v3)
-b2:
-    v4: int32 = int.add v0, v1
-    jump b3(v4)
-b3(v5: int32):
-    return v5
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = int.add value0, value1
+    jump block3(value3)
+
+block2:
+    value6: int32 = int.add value0, value1
+    jump block3(value6)
+
+block3(value5: int32):
+    return value5
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&PartialRedundancyElim);
@@ -793,38 +801,49 @@ b3(v5: int32):
     #[test]
     fn test_pre_splits_critical_edge_for_insertion() {
         let input = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
-b1:
-    v3: int32 = int.add v0, v1
-    jump b3
-b2:
-    branch v2, b3, b4
-b3:
-    v4: int32 = int.add v0, v1
-    return v4
-b4:
-    return v0
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = int.add value0, value1
+    jump block3()
+
+block2:
+    branch value2, block3(), block4()
+
+block3:
+    value4: int32 = int.add value0, value1
+    return value4
+
+block4:
+    return value0
+}
+"#;
 
         let expected = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
-b1:
-    v3: int32 = int.add v0, v1
-    jump b4(v3)
-b2:
-    branch v2, b3, b5
-b3:
-    v4: int32 = int.add v0, v1
-    jump b4(v4)
-b4(v5: int32):
-    return v5
-b5:
-    return v0
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = int.add value0, value1
+    jump block3_1(value3)
+
+block2:
+    branch value2, block3(), block4()
+
+block3:
+    value6: int32 = int.add value0, value1
+    jump block3_1(value6)
+
+block3_1(value5: int32):
+    return value5
+
+block4:
+    return value0
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&PartialRedundancyElim);
@@ -835,30 +854,37 @@ b5:
     #[test]
     fn test_pre_switch_default_inserts_expression() {
         let input = r#"
-function test(v0: int32, v1: int32, v2: int32): int32 {
-b0(v0: int32, v1: int32, v2: int32):
-    switch v2, b2, 0 => b1
-b1:
-    v3: int32 = int.add v0, v1
-    jump b2
-b2:
-    v4: int32 = int.add v0, v1
-    return v4
-}"#;
+function test(value0: int32, value1: int32, value2: int32): int32 {
+entry0(value0: int32, value1: int32, value2: int32):
+    switch value2, block2(), 0 => block1()
+
+block1:
+    value3: int32 = int.add value0, value1
+    jump block2()
+
+block2:
+    value4: int32 = int.add value0, value1
+    return value4
+}
+"#;
 
         let expected = r#"
-function test(v0: int32, v1: int32, v2: int32): int32 {
-b0(v0: int32, v1: int32, v2: int32):
-    switch v2, b1, 0 => b2
-b1:
-    v3: int32 = int.add v0, v1
-    jump b3(v3)
-b2:
-    v4: int32 = int.add v0, v1
-    jump b3(v4)
-b3(v5: int32):
-    return v5
-}"#;
+function test(value0: int32, value1: int32, value2: int32): int32 {
+entry0(value0: int32, value1: int32, value2: int32):
+    switch value2, block1(), 0 => block1_1()
+
+block1:
+    value6: int32 = int.add value0, value1
+    jump block2(value6)
+
+block1_1:
+    value3: int32 = int.add value0, value1
+    jump block2(value3)
+
+block2(value5: int32):
+    return value5
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&PartialRedundancyElim);
@@ -869,38 +895,47 @@ b3(v5: int32):
     #[test]
     fn test_pre_switch_case_appends_expression() {
         let input = r#"
-function test(v0: int32, v1: int32, v2: int32): int32 {
-b0(v0: int32, v1: int32, v2: int32):
-    v3: int32 = 7int32
-    switch v2, b2, 0 => b1, 1 => b3(v3)
-b1:
-    v4: int32 = int.add v0, v1
-    jump b3(v3)
-b2:
-    v5: int32 = 0int32
-    return v5
-b3(v6: int32):
-    v7: int32 = int.add v0, v1
-    return v7
-}"#;
+function test(value0: int32, value1: int32, value2: int32): int32 {
+entry0(value0: int32, value1: int32, value2: int32):
+    value3: int32 = 7int32
+    switch value2, block2(), 0 => block1(), 1 => block3(value3)
+
+block1:
+    value4: int32 = int.add value0, value1
+    jump block3(value3)
+
+block2:
+    value5: int32 = 0int32
+    return value5
+
+block3(value6: int32):
+    value7: int32 = int.add value0, value1
+    return value7
+}
+"#;
 
         let expected = r#"
-function test(v0: int32, v1: int32, v2: int32): int32 {
-b0(v0: int32, v1: int32, v2: int32):
-    v3: int32 = 7int32
-    switch v2, b3, 0 => b2, 1 => b1
-b1:
-    v4: int32 = int.add v0, v1
-    jump b4(v3, v4)
-b2:
-    v5: int32 = int.add v0, v1
-    jump b4(v3, v5)
-b3:
-    v6: int32 = 0int32
-    return v6
-b4(v7: int32, v8: int32):
-    return v8
-}"#;
+function test(value0: int32, value1: int32, value2: int32): int32 {
+entry0(value0: int32, value1: int32, value2: int32):
+    value3: int32 = 7int32
+    switch value2, block2(), 0 => block1_1(), 1 => block1()
+
+block1:
+    value9: int32 = int.add value0, value1
+    jump block3(value3, value9)
+
+block1_1:
+    value4: int32 = int.add value0, value1
+    jump block3(value3, value4)
+
+block2:
+    value5: int32 = 0int32
+    return value5
+
+block3(value6: int32, value8: int32):
+    return value8
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&PartialRedundancyElim);
@@ -911,40 +946,51 @@ b4(v7: int32, v8: int32):
     #[test]
     fn test_pre_check_inserts_expression() {
         let input = r#"
-function test(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]): uint32 {
-b0(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
-    branch v2, b1, b2
-b1:
-    v4: uint32 = int.add v0, v1
-    v5: boolean = int.lt.u v0, v1
-    check bounds.u v0, v1, v3 -> b3, b4
-b2:
-    jump b3
-b3:
-    v6: uint32 = int.add v0, v1
-    return v6
-b4:
+function test(value0: uint32, value1: uint32, value2: boolean, value3: [uint8; 8]): uint32 {
+entry0(value0: uint32, value1: uint32, value2: boolean, value3: [uint8; 8]):
+    branch value2, block1(), block2()
+
+block1:
+    value4: uint32 = int.add value0, value1
+    value5: boolean = int.lt.u value0, value1
+    check bounds.u value0, value1, value3 -> block3(), block4()
+
+block2:
+    jump block3()
+
+block3:
+    value6: uint32 = int.add value0, value1
+    return value6
+
+block4:
     unreachable
-}"#;
+}
+"#;
 
         let expected = r#"
-function test(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]): uint32 {
-b0(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
-    branch v2, b1, b3
-b1:
-    v4: uint32 = int.add v0, v1
-    v5: boolean = int.lt.u v0, v1
-    check bounds.u v0, v1, v3 -> b2, b5
-b2:
-    jump b4(v4)
-b3:
-    v6: uint32 = int.add v0, v1
-    jump b4(v6)
-b4(v7: uint32):
-    return v7
-b5:
+function test(value0: uint32, value1: uint32, value2: boolean, value3: [uint8; 8]): uint32 {
+entry0(value0: uint32, value1: uint32, value2: boolean, value3: [uint8; 8]):
+    branch value2, block1(), block2_1()
+
+block1:
+    value4: uint32 = int.add value0, value1
+    value5: boolean = int.lt.u value0, value1
+    check bounds.u value0, value1, value3 -> block2(), block4()
+
+block2:
+    jump block3(value4)
+
+block2_1:
+    value8: uint32 = int.add value0, value1
+    jump block3(value8)
+
+block3(value7: uint32):
+    return value7
+
+block4:
     unreachable
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&PartialRedundancyElim);
@@ -955,40 +1001,51 @@ b5:
     #[test]
     fn test_pre_check_failure_inserts_expression() {
         let input = r#"
-function test(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]): uint32 {
-b0(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
-    branch v2, b1, b2
-b1:
-    v4: uint32 = int.add v0, v1
-    v5: boolean = int.lt.u v0, v1
-    check bounds.u v0, v1, v3 -> b3, b4
-b2:
-    jump b4
-b3:
-    return v4
-b4:
-    v6: uint32 = int.add v0, v1
-    return v6
-}"#;
+function test(value0: uint32, value1: uint32, value2: boolean, value3: [uint8; 8]): uint32 {
+entry0(value0: uint32, value1: uint32, value2: boolean, value3: [uint8; 8]):
+    branch value2, block1(), block2()
+
+block1:
+    value4: uint32 = int.add value0, value1
+    value5: boolean = int.lt.u value0, value1
+    check bounds.u value0, value1, value3 -> block3(), block4()
+
+block2:
+    jump block4()
+
+block3:
+    return value4
+
+block4:
+    value6: uint32 = int.add value0, value1
+    return value6
+}
+"#;
 
         let expected = r#"
-function test(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]): uint32 {
-b0(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
-    branch v2, b1, b3
-b1:
-    v4: uint32 = int.add v0, v1
-    v5: boolean = int.lt.u v0, v1
-    check bounds.u v0, v1, v3 -> b4, b2
-b2:
-    jump b5(v4)
-b3:
-    v6: uint32 = int.add v0, v1
-    jump b5(v6)
-b4:
-    return v4
-b5(v7: uint32):
-    return v7
-}"#;
+function test(value0: uint32, value1: uint32, value2: boolean, value3: [uint8; 8]): uint32 {
+entry0(value0: uint32, value1: uint32, value2: boolean, value3: [uint8; 8]):
+    branch value2, block1(), block2_1()
+
+block1:
+    value4: uint32 = int.add value0, value1
+    value5: boolean = int.lt.u value0, value1
+    check bounds.u value0, value1, value3 -> block3(), block2()
+
+block2:
+    jump block4(value4)
+
+block2_1:
+    value8: uint32 = int.add value0, value1
+    jump block4(value8)
+
+block3:
+    return value4
+
+block4(value7: uint32):
+    return value7
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&PartialRedundancyElim);
@@ -999,36 +1056,44 @@ b5(v7: uint32):
     #[test]
     fn test_pre_yield_resume_inserts_expression() {
         let input = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
-b1:
-    v3: int32 = int.add v0, v1
-    v4: int32 = 1int32
-    yield v4, b3(v0)
-b2:
-    v5: int32 = 2int32
-    yield v5, b3(v0)
-b3(v6: int32, v7: int32):
-    v8: int32 = int.add v0, v1
-    return v8
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = int.add value0, value1
+    value4: int32 = 1int32
+    yield value4 -> block3(value0)
+
+block2:
+    value5: int32 = 2int32
+    yield value5 -> block3(value0)
+
+block3(value6: int32, value7: int32):
+    value8: int32 = int.add value0, value1
+    return value8
+}
+"#;
 
         let expected = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
-b1:
-    v3: int32 = int.add v0, v1
-    v4: int32 = 1int32
-    yield v4, b3(v0, v3)
-b2:
-    v5: int32 = 2int32
-    v6: int32 = int.add v0, v1
-    yield v5, b3(v0, v6)
-b3(v7: int32, v8: int32, v9: int32):
-    return v9
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = int.add value0, value1
+    value4: int32 = 1int32
+    yield value4 -> block3(value0, value3)
+
+block2:
+    value5: int32 = 2int32
+    value10: int32 = int.add value0, value1
+    yield value5 -> block3(value0, value10)
+
+block3(value6: int32, value7: int32, value9: int32):
+    return value9
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&PartialRedundancyElim);
@@ -1039,18 +1104,22 @@ b3(v7: int32, v8: int32, v9: int32):
     #[test]
     fn test_pre_skips_non_speculatable_expression() {
         let input = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
-b1:
-    v3: int32 = int.div.s v0, v1
-    jump b3
-b2:
-    jump b3
-b3:
-    v4: int32 = int.div.s v0, v1
-    return v4
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = int.div.s value0, value1
+    jump block3()
+
+block2:
+    jump block3()
+
+block3:
+    value4: int32 = int.div.s value0, value1
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&PartialRedundancyElim);
@@ -1061,18 +1130,22 @@ b3:
     #[test]
     fn test_pre_skips_float_to_int_cast() {
         let input = r#"
-function test(v0: float32, v1: boolean): int32 {
-b0(v0: float32, v1: boolean):
-    branch v1, b1, b2
-b1:
-    v2: int32 = cast.floatToInt.s v0 -> int32
-    jump b3
-b2:
-    jump b3
-b3:
-    v3: int32 = cast.floatToInt.s v0 -> int32
-    return v3
-}"#;
+function test(value0: float32, value1: boolean): int32 {
+entry0(value0: float32, value1: boolean):
+    branch value1, block1(), block2()
+
+block1:
+    value2: int32 = cast.floatToInt.s value0 -> int32
+    jump block3()
+
+block2:
+    jump block3()
+
+block3:
+    value3: int32 = cast.floatToInt.s value0 -> int32
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&PartialRedundancyElim);
@@ -1083,23 +1156,28 @@ b3:
     #[test]
     fn test_pre_skips_calls() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    branch v0, b1, b2
-b1:
-    v1: int32 = call getValue(): () -> int32
-    jump b3
-b2:
-    jump b3
-b3:
-    v2: int32 = call getValue(): () -> int32
-    return v2
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    branch value0, block1(), block2()
+
+block1:
+    value1: int32 = call getValue(): () -> int32
+    jump block3()
+
+block2:
+    jump block3()
+
+block3:
+    value2: int32 = call getValue(): () -> int32
+    return value2
 }
+
 function getValue(): int32 {
-b0:
-    v0: int32 = 42int32
-    return v0
-}"#;
+entry0:
+    value0: int32 = 42int32
+    return value0
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&PartialRedundancyElim);
@@ -1110,19 +1188,23 @@ b0:
     #[test]
     fn test_pre_skips_unavailable_operands() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    branch v0, b1, b2
-b1:
-    v1: int32 = 1int32
-    jump b3
-b2:
-    v2: int32 = 2int32
-    jump b3
-b3:
-    v3: int32 = int.add v1, v2
-    return v3
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    branch value0, block1(), block2()
+
+block1:
+    value1: int32 = 1int32
+    jump block3()
+
+block2:
+    value2: int32 = 2int32
+    jump block3()
+
+block3:
+    value3: int32 = int.add value1, value2
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&PartialRedundancyElim);
@@ -1133,18 +1215,22 @@ b3:
     #[test]
     fn test_pre_skips_fully_redundant_expression() {
         let input = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = int.add v0, v1
-    branch v2, b1, b2
-b1:
-    jump b3
-b2:
-    jump b3
-b3:
-    v4: int32 = int.add v0, v1
-    return v4
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    value3: int32 = int.add value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    jump block3()
+
+block2:
+    jump block3()
+
+block3:
+    value4: int32 = int.add value0, value1
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&PartialRedundancyElim);
