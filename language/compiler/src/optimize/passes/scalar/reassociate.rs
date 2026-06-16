@@ -119,7 +119,7 @@ fn run_reassociate(
             } = instruction
             {
                 let (Some(destination), Some(left), Some(right)) =
-                    (destination.value(), left.value(), right.value())
+                    (Some(destination), Some(left), Some(right))
                 else {
                     new_instructions.push(*instruction_id);
                     continue;
@@ -218,15 +218,10 @@ fn run_reassociate(
             // update constant tracking for non binary instructions
             match instruction {
                 mir::Instruction::Const { destination, value } => {
-                    if let Some(destination) = destination.value() {
-                        block_constants.insert(destination, value);
-                    }
+                    block_constants.insert(destination, value);
                 }
                 _ => {
-                    if let Some(destination) = instruction
-                        .destination()
-                        .and_then(|destination| destination.value())
-                    {
+                    if let Some(destination) = instruction.destination() {
                         block_constants.remove(destination);
                     }
                 }
@@ -383,25 +378,17 @@ fn collect_associative_operands(
     }
 
     // collect nested operands
-    let Some(left) = left.value() else {
-        non_constants.push(value);
-        return;
-    };
     collect_associative_operands(
         context,
-        left,
+        *left,
         non_constants,
         constant_values,
         constant_cache,
     );
 
-    let Some(right) = right.value() else {
-        non_constants.push(value);
-        return;
-    };
     collect_associative_operands(
         context,
-        right,
+        *right,
         non_constants,
         constant_values,
         constant_cache,
@@ -452,17 +439,8 @@ fn associative_subtree_contains_constant(
     }
 
     // check whether either subtree contains constants
-    let Some(left) = left.value() else {
-        constant_cache.insert(value, false);
-        return false;
-    };
-    let Some(right) = right.value() else {
-        constant_cache.insert(value, false);
-        return false;
-    };
-
-    let left_has = associative_subtree_contains_constant(context, left, constant_cache);
-    let right_has = associative_subtree_contains_constant(context, right, constant_cache);
+    let left_has = associative_subtree_contains_constant(context, *left, constant_cache);
+    let right_has = associative_subtree_contains_constant(context, *right, constant_cache);
     let has_constant = left_has || right_has;
 
     constant_cache.insert(value, has_constant);

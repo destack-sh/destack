@@ -346,12 +346,9 @@ fn find_unswitchable_loop(
     let preheader_block = tree.get(preheader);
     let preheader_terminator = tree.get(preheader_block.terminator);
     let preheader_to_header_args = match preheader_terminator {
-        mir::Terminator::Jump { target } if target.block.block() == Some(header) => target
-            .arguments
-            .iter()
-            .copied()
-            .map(|argument| argument.value())
-            .collect::<Option<Vec<_>>>()?,
+        mir::Terminator::Jump { target } if target.block == header => {
+            tree.get_values(target.arguments).to_vec()
+        }
         _ => return None,
     };
 
@@ -393,21 +390,11 @@ fn find_unswitchable_loop(
                 then_target,
                 else_target,
             } => (
-                condition.value()?,
-                then_target.block.block()?,
-                then_target
-                    .arguments
-                    .iter()
-                    .copied()
-                    .map(|argument| argument.value())
-                    .collect::<Option<Vec<_>>>()?,
-                else_target.block.block()?,
-                else_target
-                    .arguments
-                    .iter()
-                    .copied()
-                    .map(|argument| argument.value())
-                    .collect::<Option<Vec<_>>>()?,
+                *condition,
+                then_target.block,
+                tree.get_values(then_target.arguments).to_vec(),
+                else_target.block,
+                tree.get_values(else_target.arguments).to_vec(),
             ),
             _ => continue,
         };
@@ -478,9 +465,7 @@ fn collect_base_invariant_values(
 
     // function parameters
     for param in &function.parameters {
-        if let Some(value) = param.value.value() {
-            invariant.insert(value);
-        }
+        invariant.insert(param.value);
     }
 
     // values from blocks outside the loop
@@ -491,14 +476,12 @@ fn collect_base_invariant_values(
 
         let block = tree.get(block_id);
         for param in &block.parameters {
-            if let Some(value) = param.value.value() {
-                invariant.insert(value);
-            }
+            invariant.insert(param.value);
         }
 
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
-            if let Some(destination) = instruction.destination().and_then(|value| value.value()) {
+            if let Some(destination) = instruction.destination() {
                 invariant.insert(destination);
             }
         }
@@ -530,11 +513,7 @@ fn try_hoist_invariant_condition(
 
     // require all operands to be invariant under rewrite
     let all_invariant = instruction.uses().iter().all(|value| {
-        let Some(value) = value.value() else {
-            return false;
-        };
-
-        let mapped = header_param_rewrites.get(&value).copied().unwrap_or(value);
+        let mapped = header_param_rewrites.get(value).copied().unwrap_or(*value);
         invariant_values.contains(&mapped)
     });
     if !all_invariant {
@@ -572,9 +551,7 @@ fn collect_header_param_rewrites(
     // build rewrite mapping for invariant parameters
     let mut rewrites = HashMap::new();
     for (index, param) in header_block.parameters.iter().enumerate() {
-        let Some(param_value) = param.value.value() else {
-            return HashMap::new();
-        };
+        let param_value = param.value;
         let preheader_arg = preheader_args[index];
 
         // require invariant preheader argument
@@ -588,8 +565,11 @@ fn collect_header_param_rewrites(
             // read arguments flowing into the header
             let pred_block = tree.get(pred);
             let pred_terminator = tree.get(pred_block.terminator);
-            let args = match terminator_arguments_for_successor_checked(pred_terminator, lp.header)
-            {
+            let args = match terminator_arguments_for_successor_checked(
+                tree,
+                pred_terminator,
+                lp.header,
+            ) {
                 SuccessorArguments::Consistent(args) => args,
                 SuccessorArguments::Missing | SuccessorArguments::Conflict => {
                     return HashMap::new();
@@ -605,8 +585,8 @@ fn collect_header_param_rewrites(
             let arg = args[index];
 
             // detect arguments that differ from invariant candidates
-            let is_preheader_match = arg.value() == Some(preheader_arg);
-            let is_param_match = arg.value() == Some(param_value);
+            let is_preheader_match = arg == preheader_arg;
+            let is_param_match = arg == param_value;
             if !is_preheader_match && !is_param_match {
                 is_invariant = false;
                 break;
@@ -641,12 +621,7 @@ fn unswitch_loop(
     let branch_terminator = mir::Terminator::Jump {
         target: mir::BlockTarget::new(
             candidate.then_target.into(),
-            candidate
-                .then_arguments
-                .iter()
-                .copied()
-                .map(Into::into)
-                .collect(),
+            tree.add_values(&candidate.then_arguments),
         ),
     };
     tree.set(branch_block.terminator, branch_terminator);
@@ -665,10 +640,7 @@ fn unswitch_loop(
         .map(|v| *value_map.get(v).unwrap_or(v))
         .collect();
     let cloned_terminator = mir::Terminator::Jump {
-        target: mir::BlockTarget::new(
-            else_target.into(),
-            else_arguments.into_iter().map(Into::into).collect(),
-        ),
+        target: mir::BlockTarget::new(else_target.into(), tree.add_values(&else_arguments)),
     };
     tree.set(cloned.terminator, cloned_terminator);
     tree.set(cloned_branch_block, cloned);
@@ -694,21 +666,11 @@ fn unswitch_loop(
         condition: condition_value.into(),
         then_target: mir::BlockTarget::new(
             candidate.header.into(),
-            candidate
-                .preheader_to_header_args
-                .iter()
-                .copied()
-                .map(Into::into)
-                .collect(),
+            tree.add_values(&candidate.preheader_to_header_args),
         ),
         else_target: mir::BlockTarget::new(
             cloned_header.into(),
-            candidate
-                .preheader_to_header_args
-                .iter()
-                .copied()
-                .map(Into::into)
-                .collect(),
+            tree.add_values(&candidate.preheader_to_header_args),
         ),
     };
     tree.set(preheader.terminator, preheader_terminator);
@@ -720,10 +682,10 @@ fn unswitch_loop(
             continue;
         }
 
-        let block = tree.get(cloned_id);
-        let mut terminator = tree.get(block.terminator).clone();
-        terminator_remap(&mut terminator, &block_map, &value_map);
-        tree.set(block.terminator, terminator);
+        let terminator_id = tree.get(cloned_id).terminator;
+        let mut terminator = tree.get(terminator_id).clone();
+        terminator_remap(tree, &mut terminator, &block_map, &value_map);
+        tree.set(terminator_id, terminator);
     }
 
     // add cloned blocks to function (sorted for deterministic output)
@@ -1191,7 +1153,7 @@ entry(v0: boolean, v1: uint32, v2: [uint8; 8]):
     jump b1(v1)
 
 b1(v3: uint32):
-    check bounds.u v3, v1, v2 -> b2, b3
+    check bounds.u v3, v1, v2 => b2, b3
 
 b2:
     jump b1(v3)
@@ -1207,7 +1169,7 @@ entry(v0: boolean, v1: uint32, v2: [uint8; 8]):
     jump b1(v1)
 
 b1(v3: uint32):
-    check bounds.u v3, v1, v2 -> b2, b3
+    check bounds.u v3, v1, v2 => b2, b3
 
 b2:
     jump b1(v3)
@@ -1420,17 +1382,14 @@ b3:
         let entry_block = test.entry_block_id(function_id);
         let entry_terminator = test.tree.get(test.tree.get(entry_block).terminator);
         let header_block = match entry_terminator {
-            mir::Terminator::Jump { target, .. } => target
-                .block
-                .block()
-                .expect("loop header jump should reference a concrete block"),
+            mir::Terminator::Jump { target, .. } => target.block,
             _ => panic!("missing loop header jump"),
         };
 
         // a cold function leaves its loop branches unswitched
         let mut profile = mir::Profile::new();
         test.record_function_entry(&mut profile, function_id, 1);
-        test.record_successor_weights(header_block, &[1, 1]);
+        test.record_successor_weights(&mut profile, header_block, &[1, 1]);
 
         test.run_pass_with_profile(&LoopUnswitch, profile);
         test.assert_output(input);

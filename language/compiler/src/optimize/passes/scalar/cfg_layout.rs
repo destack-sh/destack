@@ -105,7 +105,7 @@ struct EdgePredecessor {
     /// The successor from the predecessor.
     successor: mir::Successor,
     /// Arguments passed to the target block.
-    arguments: Vec<mir::ValueReference>,
+    arguments: Vec<mir::Value>,
     /// Profile count for this edge.
     count: u64,
 }
@@ -133,7 +133,7 @@ fn run_cfg_layout(
     let domtree = analyses.get::<DominatorTree>(function, tree).clone();
 
     // duplicate hot edges into small blocks
-    let duplicated = duplicate_hot_edges(function, tree, &domtree, &mut block_counts);
+    let duplicated = duplicate_hot_edges(function, tree, profile, &domtree, &mut block_counts);
 
     // rebuild cfg after duplication for cold edge outlining
     let cfg = ControlFlowGraph::build(function, tree);
@@ -146,7 +146,7 @@ fn run_cfg_layout(
     let reachable_set: HashSet<_> = reachable.iter().copied().collect();
 
     // compute edge weights
-    let edge_weights = compute_edge_weights(function, tree, &block_counts);
+    let edge_weights = compute_edge_weights(function, tree, profile, &block_counts);
 
     // build a hot trace layout
     let mut placed = HashSet::new();
@@ -275,11 +275,7 @@ fn outline_cold_edges(
         // inspect successor edges for cold targets
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
-        for successor in terminator.successors() {
-            let Some(successor) = successor.block() else {
-                continue;
-            };
-
+        for successor in tree.terminator_successors(terminator) {
             if !cold_blocks.contains(&successor) {
                 continue;
             }
@@ -316,13 +312,14 @@ fn outline_cold_edges(
 fn duplicate_hot_edges(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    profile: &mir::Profile,
     domtree: &DominatorTree,
     block_counts: &mut HashMap<mir::LocalNodeId<mir::Block>, u64>,
 ) -> bool {
     // build definition metadata
     let use_def = build_use_def_maps(function, tree);
     let value_def_blocks = &use_def.def_block;
-    let edge_counts = mir::edge_counts(function, tree, block_counts);
+    let edge_counts = mir::edge_counts(function, tree, Some(profile), block_counts);
 
     // collect edge predecessors keyed by target
     let mut predecessors: HashMap<mir::LocalNodeId<mir::Block>, Vec<EdgePredecessor>> =
@@ -331,30 +328,31 @@ fn duplicate_hot_edges(
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
 
-        let mut record_edge = |successor: mir::Successor,
-                               target: &mir::BlockTarget,
-                               arguments: &[mir::ValueReference]| {
-            let Some(target_block) = target.block.block() else {
-                return;
+        let mut record_edge =
+            |successor: mir::Successor, target: &mir::BlockTarget, arguments: &[mir::Value]| {
+                let target_block = target.block;
+
+                let edge = mir::Edge::new(block_id, successor, target_block);
+                let count = edge_counts.get(&edge).copied().unwrap_or(0);
+
+                predecessors
+                    .entry(target_block)
+                    .or_default()
+                    .push(EdgePredecessor {
+                        pred: block_id,
+                        successor,
+                        arguments: arguments.to_vec(),
+                        count,
+                    });
             };
-
-            let edge = mir::Edge::new(block_id, successor, target_block);
-            let count = edge_counts.get(&edge).copied().unwrap_or(0);
-
-            predecessors
-                .entry(target_block)
-                .or_default()
-                .push(EdgePredecessor {
-                    pred: block_id,
-                    successor,
-                    arguments: arguments.to_vec(),
-                    count,
-                });
-        };
 
         match terminator {
             mir::Terminator::Jump { target } => {
-                record_edge(mir::Successor::Jump, target, &target.arguments);
+                record_edge(
+                    mir::Successor::Jump,
+                    target,
+                    tree.block_target_values(target),
+                );
             }
             mir::Terminator::Branch {
                 then_target,
@@ -364,19 +362,27 @@ fn duplicate_hot_edges(
                 record_edge(
                     mir::Successor::BranchThen,
                     then_target,
-                    &then_target.arguments,
+                    tree.block_target_values(then_target),
                 );
                 record_edge(
                     mir::Successor::BranchElse,
                     else_target,
-                    &else_target.arguments,
+                    tree.block_target_values(else_target),
                 );
             }
             mir::Terminator::Check {
                 success, failure, ..
             } => {
-                record_edge(mir::Successor::CheckSuccess, success, &success.arguments);
-                record_edge(mir::Successor::CheckFailure, failure, &failure.arguments);
+                record_edge(
+                    mir::Successor::CheckSuccess,
+                    success,
+                    tree.block_target_values(success),
+                );
+                record_edge(
+                    mir::Successor::CheckFailure,
+                    failure,
+                    tree.block_target_values(failure),
+                );
             }
             _ => {}
         }
@@ -475,14 +481,8 @@ fn duplicate_hot_edges(
             // build value map for parameters and new instruction values
             let mut value_map: HashMap<mir::Value, mir::Value> = HashMap::new();
             for (param, arg) in block.parameters.iter().zip(pred.arguments.iter()) {
-                let Some(parameter) = param.value.value() else {
-                    continue;
-                };
-                let Some(argument) = arg.value() else {
-                    continue;
-                };
-
-                value_map.insert(parameter, argument);
+                let parameter = param.value;
+                value_map.insert(parameter, *arg);
             }
 
             // clone instructions with remapped values
@@ -490,8 +490,7 @@ fn duplicate_hot_edges(
             for instruction_id in &block.instructions {
                 let instruction = tree.get(*instruction_id).clone();
 
-                if let Some(destination) = instruction.destination().and_then(|value| value.value())
-                {
+                if let Some(destination) = instruction.destination() {
                     let new_destination = function.next_typed_value_like(destination);
                     value_map.insert(destination, new_destination);
                 }
@@ -503,8 +502,8 @@ fn duplicate_hot_edges(
             }
 
             // clone the terminator with remapped values
-            let block_terminator = tree.get(block.terminator);
-            let new_terminator = terminator_substitute_uses(block_terminator, &value_map);
+            let block_terminator = tree.get(block.terminator).clone();
+            let new_terminator = terminator_substitute_uses(tree, &block_terminator, &value_map);
 
             // create the duplicated block
             let new_terminator_id = tree.insert(new_terminator);
@@ -619,10 +618,10 @@ fn rewrite_hot_edge_target(
         ..
     } = terminator
         && matches!(successor, mir::Successor::Jump)
-        && jump_target.block.block() == Some(target)
+        && jump_target.block == target
     {
         return Some(mir::Terminator::Jump {
-            target: mir::BlockTarget::new(new_target.into(), Vec::new()),
+            target: mir::BlockTarget::new(new_target.into(), mir::ValueSlice::default()),
         });
     }
 
@@ -633,18 +632,24 @@ fn rewrite_hot_edge_target(
     } = terminator
     {
         return match successor {
-            mir::Successor::BranchThen if then_target.block.block() == Some(target) => {
+            mir::Successor::BranchThen if then_target.block == target => {
                 Some(mir::Terminator::Branch {
                     condition: *condition,
-                    then_target: mir::BlockTarget::new(new_target.into(), Vec::new()),
+                    then_target: mir::BlockTarget::new(
+                        new_target.into(),
+                        mir::ValueSlice::default(),
+                    ),
                     else_target: else_target.clone(),
                 })
             }
-            mir::Successor::BranchElse if else_target.block.block() == Some(target) => {
+            mir::Successor::BranchElse if else_target.block == target => {
                 Some(mir::Terminator::Branch {
                     condition: *condition,
                     then_target: then_target.clone(),
-                    else_target: mir::BlockTarget::new(new_target.into(), Vec::new()),
+                    else_target: mir::BlockTarget::new(
+                        new_target.into(),
+                        mir::ValueSlice::default(),
+                    ),
                 })
             }
             _ => None,
@@ -659,20 +664,20 @@ fn rewrite_hot_edge_target(
     } = terminator
     {
         return match successor {
-            mir::Successor::CheckSuccess if success.block.block() == Some(target) => {
+            mir::Successor::CheckSuccess if success.block == target => {
                 let mut updated_success = success.clone();
                 updated_success.block = new_target.into();
-                updated_success.arguments = Vec::new();
+                updated_success.arguments = mir::ValueSlice::default();
                 Some(mir::Terminator::Check {
                     constraint: constraint.clone(),
                     success: updated_success,
                     failure: failure.clone(),
                 })
             }
-            mir::Successor::CheckFailure if failure.block.block() == Some(target) => {
+            mir::Successor::CheckFailure if failure.block == target => {
                 let mut updated_failure = failure.clone();
                 updated_failure.block = new_target.into();
-                updated_failure.arguments = Vec::new();
+                updated_failure.arguments = mir::ValueSlice::default();
                 Some(mir::Terminator::Check {
                     constraint: constraint.clone(),
                     success: success.clone(),
@@ -726,11 +731,7 @@ fn select_hot_successor(
     let terminator = tree.get(block.terminator);
     let mut best: Option<(u64, u64, mir::LocalNodeId<mir::Block>)> = None;
 
-    for successor in terminator.successors() {
-        let Some(successor) = successor.block() else {
-            continue;
-        };
-
+    for successor in tree.terminator_successors(terminator) {
         // skip successors already placed or marked cold
         if placed.contains(&successor) || cold_blocks.contains(&successor) {
             continue;
@@ -776,17 +777,18 @@ fn sort_blocks_by_hotness(
 fn compute_edge_weights(
     function: &mir::Function,
     tree: &mir::Tree,
+    profile: &mir::Profile,
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
 ) -> HashMap<(mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>), u64> {
     let mut weights = HashMap::new();
-    let edge_counts = mir::edge_counts(function, tree, block_counts);
+    let edge_counts = mir::edge_counts(function, tree, Some(profile), block_counts);
 
     // compute a weight per edge using profile data when possible
     for &block_id in &function.blocks {
         // read terminator edge list
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
-        for (edge, target) in terminator_edges(block_id, terminator) {
+        for (edge, target) in terminator_edges(tree, block_id, terminator) {
             // prefer explicit edge profiles, falling back to the target block count
             let edge_weight = edge_counts
                 .get(&edge)
@@ -847,7 +849,7 @@ b2:
 
         // weight the else arm (b2) hot
         test.record_function_entry(&mut profile, function_id, 100);
-        test.record_successor_weights(entry, &[10, 90]);
+        test.record_successor_weights(&mut profile, entry, &[10, 90]);
 
         test.run_pass_with_profile(&CfgLayout, profile);
         test.assert_output(expected);
@@ -921,7 +923,7 @@ b3:
 
         // weight the else arm (b2) hot and the then arm (b1) cold
         test.record_function_entry(&mut profile, function_id, 100);
-        test.record_successor_weights(entry, &[1, 80]);
+        test.record_successor_weights(&mut profile, entry, &[1, 80]);
 
         test.run_pass_with_profile(&CfgLayout, profile);
         test.assert_output(expected);
@@ -933,7 +935,7 @@ b3:
         let input = r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
-    switch v0, b1, 0 -> b2
+    switch v0, b1, 0 => b2
 
 b1:
     v1: int32 = 2
@@ -948,18 +950,18 @@ b2:
         let expected = r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
-    switch v0, b3, 0 -> b1
+    switch v0, b3, 0 => b2
 
-b1:
+b2:
     v2: int32 = 1
     return v2
 
-b2:
+b1:
     v1: int32 = 2
     return v1
 
 b3:
-    jump b2
+    jump b1
 }
 "#;
 
@@ -970,7 +972,7 @@ b3:
 
         // weight the case target (b2) hot over the default (b1)
         test.record_function_entry(&mut profile, function_id, 100);
-        test.record_successor_weights(entry, &[5, 90]);
+        test.record_successor_weights(&mut profile, entry, &[5, 90]);
 
         test.run_pass_with_profile(&CfgLayout, profile);
         test.assert_output(expected);
@@ -984,7 +986,7 @@ function test(v0: uint32, v1: [uint32; 8]): int32 {
 entry(v0: uint32, v1: [uint32; 8]):
     v2: uint32 = 1
     v3: boolean = int.lt.u v0, v2
-    check bounds.u v0, v2, v1 -> b2, b1
+    check bounds.u v0, v2, v1 => b2, b1
 
 b1:
     v4: int32 = 2
@@ -1001,18 +1003,18 @@ function test(v0: uint32, v1: [uint32; 8]): int32 {
 entry(v0: uint32, v1: [uint32; 8]):
     v2: uint32 = 1
     v3: boolean = int.lt.u v0, v2
-    check bounds.u v0, v2, v1 -> b1, b3
+    check bounds.u v0, v2, v1 => b2, b3
 
-b1:
+b2:
     v5: int32 = 1
     return v5
 
-b2:
+b1:
     v4: int32 = 2
     return v4
 
 b3:
-    jump b2
+    jump b1
 }
 "#;
 
@@ -1023,7 +1025,7 @@ b3:
 
         // weight the success target (b2) hot over the failure (b1)
         test.record_function_entry(&mut profile, function_id, 100);
-        test.record_successor_weights(entry, &[90, 2]);
+        test.record_successor_weights(&mut profile, entry, &[90, 2]);
 
         test.run_pass_with_profile(&CfgLayout, profile);
         test.assert_output(expected);
@@ -1050,13 +1052,13 @@ b2:
         let expected = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b2, b1
+    branch v0, b1, b2
 
-b1:
+b2:
     v2: int32 = 2
     return v2
 
-b2:
+b1:
     v1: int32 = 1
     return v1
 }
@@ -1069,7 +1071,7 @@ b2:
 
         // the else arm (b2) carries most of the edge frequency
         test.record_function_entry(&mut profile, function_id, 100);
-        test.record_successor_weights(entry, &[20, 80]);
+        test.record_successor_weights(&mut profile, entry, &[20, 80]);
 
         test.run_pass_with_profile(&CfgLayout, profile);
         test.assert_output(expected);
@@ -1117,7 +1119,7 @@ b3:
 
         // the then edge into b2 is hot, so b2 is duplicated onto it
         test.record_function_entry(&mut profile, function_id, 100);
-        test.record_successor_weights(entry, &[80, 20]);
+        test.record_successor_weights(&mut profile, entry, &[80, 20]);
 
         test.run_pass_with_profile(&CfgLayout, profile);
         test.assert_output(expected);
@@ -1148,17 +1150,17 @@ b3:
         let expected = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0, b1, b3
 
 b1:
     v1: int32 = 1
     return v1
 
-b2:
+b3:
     v3: int32 = 2
     return v3
 
-b3:
+b2:
     v2: int32 = 3
     return v2
 }
@@ -1171,7 +1173,7 @@ b3:
 
         // b1 is the hot arm; the unreachable b2 stays last
         test.record_function_entry(&mut profile, function_id, 100);
-        test.record_successor_weights(entry, &[90, 10]);
+        test.record_successor_weights(&mut profile, entry, &[90, 10]);
 
         test.run_pass_with_profile(&CfgLayout, profile);
         test.assert_output(expected);

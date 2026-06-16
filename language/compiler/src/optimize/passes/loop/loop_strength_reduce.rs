@@ -193,9 +193,7 @@ impl ValueDefinitions {
             // record block parameters
             let block = tree.get(block_id);
             for param in block.parameters.iter() {
-                let Some(value) = param.value.value() else {
-                    continue;
-                };
+                let value = param.value;
 
                 definitions.insert(
                     value,
@@ -209,10 +207,7 @@ impl ValueDefinitions {
             // record instruction destinations
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
-                if let Some(destination) = instruction
-                    .destination()
-                    .and_then(|destination| destination.value())
-                {
+                if let Some(destination) = instruction.destination() {
                     definitions.insert(
                         destination,
                         ValueDefinition {
@@ -256,20 +251,12 @@ impl ValueUses {
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
                 for value in instruction.uses() {
-                    let Some(value) = value.value() else {
-                        continue;
-                    };
-
                     uses.entry(value).or_default().insert(block_id);
                 }
 
                 // scan external argument slices
                 if let Some(args) = instruction.argument_slice() {
-                    for &value in tree.get_arguments(args) {
-                        let Some(value) = value.value() else {
-                            continue;
-                        };
-
+                    for &value in tree.get_values(args) {
                         uses.entry(value).or_default().insert(block_id);
                     }
                 }
@@ -277,11 +264,7 @@ impl ValueUses {
 
             // scan terminator uses
             let terminator = tree.get(block.terminator);
-            for value in terminator.uses() {
-                let Some(value) = value.value() else {
-                    continue;
-                };
-
+            for value in tree.terminator_uses(terminator) {
                 uses.entry(value).or_default().insert(block_id);
             }
         }
@@ -359,14 +342,14 @@ impl<'a> CandidateContext<'a> {
             // ensure preheader and latch reach the header
             let preheader_block = self.tree.get(preheader);
             let preheader_terminator = self.tree.get(preheader_block.terminator);
-            if !terminator_has_successor(preheader_terminator, lp.header) {
+            if !terminator_has_successor(self.tree, preheader_terminator, lp.header) {
                 continue;
             }
 
             // ensure the latch has a back edge to the header
             let latch_block = self.tree.get(latch);
             let latch_terminator = self.tree.get(latch_block.terminator);
-            if !terminator_has_successor(latch_terminator, lp.header) {
+            if !terminator_has_successor(self.tree, latch_terminator, lp.header) {
                 continue;
             }
 
@@ -385,10 +368,7 @@ impl<'a> CandidateContext<'a> {
                 for &instruction_id in &block.instructions {
                     // read the instruction and its destination
                     let instruction = self.tree.get(instruction_id);
-                    let Some(destination) = instruction
-                        .destination()
-                        .and_then(|destination| destination.value())
-                    else {
+                    let Some(destination) = instruction.destination() else {
                         continue;
                     };
 
@@ -404,11 +384,10 @@ impl<'a> CandidateContext<'a> {
                         right,
                         ..
                     } = instruction
-                        && let (Some(left), Some(right)) = (left.value(), right.value())
                         && !division_is_safe(
                             *operator,
-                            left,
-                            right,
+                            *left,
+                            *right,
                             block_id,
                             self.ranges,
                             self.value_types,
@@ -600,15 +579,14 @@ fn run_loop_strength_reduce(
     // apply substitutions to terminators
     for &block_id in &function.blocks {
         // read the current block
-        let block = tree.get(block_id);
-        let terminator = tree.get(block.terminator).clone();
+        let terminator_id = tree.get(block_id).terminator;
+        let terminator = tree.get(terminator_id).clone();
 
         // rewrite terminator uses
-        let new_terminator = terminator_substitute_uses(&terminator, &substitutions);
+        let new_terminator = terminator_substitute_uses(tree, &terminator, &substitutions);
 
         // replace blocks that changed
         if new_terminator != terminator {
-            let terminator_id = block.terminator;
             tree.set(terminator_id, new_terminator);
         }
     }
@@ -688,12 +666,12 @@ fn apply_candidates_for_loop(
 
     // compute updated latch terminator
     let latch_block = tree.get(latch).clone();
-    let latch_current_terminator = tree.get(latch_block.terminator);
+    let latch_current_terminator = tree.get(latch_block.terminator).clone();
 
     // collect latch arguments in header parameter order
     let latch_args: Vec<_> = plan_items.iter().map(|item| item.next_value).collect();
     let Some(latch_terminator) =
-        append_arguments_for_successor(latch_current_terminator, header, &latch_args)
+        append_arguments_for_successor(tree, &latch_current_terminator, header, &latch_args)
     else {
         return Vec::new();
     };
@@ -704,9 +682,12 @@ fn apply_candidates_for_loop(
 
     // collect preheader arguments in header parameter order
     let preheader_args: Vec<_> = plan_items.iter().map(|item| item.start_value).collect();
-    let Some(preheader_terminator) =
-        append_arguments_for_successor(&preheader_current_terminator, header, &preheader_args)
-    else {
+    let Some(preheader_terminator) = append_arguments_for_successor(
+        tree,
+        &preheader_current_terminator,
+        header,
+        &preheader_args,
+    ) else {
         return Vec::new();
     };
 
@@ -1040,15 +1021,17 @@ fn find_preheader(
 
 /// Check if a terminator has an edge to a successor.
 fn terminator_has_successor(
+    tree: &mir::Tree,
     terminator: &mir::Terminator,
     successor: mir::LocalNodeId<mir::Block>,
 ) -> bool {
     // check successor list
-    terminator.successors().contains(&successor.into())
+    tree.terminator_successors(terminator).contains(&successor)
 }
 
 /// Append arguments for a successor edge.
 fn append_arguments_for_successor(
+    tree: &mut mir::Tree,
     terminator: &mir::Terminator,
     successor: mir::LocalNodeId<mir::Block>,
     new_args: &[mir::Value],
@@ -1067,8 +1050,7 @@ fn append_arguments_for_successor(
             }
 
             // append arguments for the jump
-            let mut updated_args = target.arguments.clone();
-            updated_args.extend(new_args.iter().copied().map(mir::ValueReference::from));
+            let updated_args = appended_arguments(tree, target.arguments, new_args);
             Some(mir::Terminator::Jump {
                 target: mir::BlockTarget::new(target.block, updated_args),
             })
@@ -1079,18 +1061,18 @@ fn append_arguments_for_successor(
             else_target,
         } => {
             // update branch arguments for matching edges
-            let mut updated_then = then_target.arguments.clone();
-            let mut updated_else = else_target.arguments.clone();
+            let mut updated_then = then_target.arguments;
+            let mut updated_else = else_target.arguments;
             let mut touched = false;
 
             if then_target.block == successor.into() {
-                updated_then.extend(new_args.iter().copied().map(mir::ValueReference::from));
+                updated_then = appended_arguments(tree, then_target.arguments, new_args);
                 touched = true;
             }
 
             // update else arguments when needed
             if else_target.block == successor.into() {
-                updated_else.extend(new_args.iter().copied().map(mir::ValueReference::from));
+                updated_else = appended_arguments(tree, else_target.arguments, new_args);
                 touched = true;
             }
 
@@ -1111,18 +1093,18 @@ fn append_arguments_for_successor(
             failure,
         } => {
             // update check target arguments for matching edges
-            let mut updated_success = success.arguments.clone();
-            let mut updated_failure = failure.arguments.clone();
+            let mut updated_success = success.arguments;
+            let mut updated_failure = failure.arguments;
             let mut touched = false;
 
             if success.block == successor.into() {
-                updated_success.extend(new_args.iter().copied().map(mir::ValueReference::from));
+                updated_success = appended_arguments(tree, success.arguments, new_args);
                 touched = true;
             }
 
             // update failure arguments when needed
             if failure.block == successor.into() {
-                updated_failure.extend(new_args.iter().copied().map(mir::ValueReference::from));
+                updated_failure = appended_arguments(tree, failure.arguments, new_args);
                 touched = true;
             }
 
@@ -1144,21 +1126,21 @@ fn append_arguments_for_successor(
         } => {
             // update switch case arguments for matching edges
             let mut updated_cases = Vec::new();
-            let mut updated_default = default.arguments.clone();
+            let mut updated_default = default.arguments;
             let mut touched = false;
 
             // update default arguments when needed
             if default.block == successor.into() {
-                updated_default.extend(new_args.iter().copied().map(mir::ValueReference::from));
+                updated_default = appended_arguments(tree, default.arguments, new_args);
                 touched = true;
             }
 
             // update case arguments when needed
+            let cases = tree.get_switch_cases(*cases).to_vec();
             for case in cases {
-                let mut updated_case_args = case.target.arguments.clone();
+                let mut updated_case_args = case.target.arguments;
                 if case.target.block == successor.into() {
-                    updated_case_args
-                        .extend(new_args.iter().copied().map(mir::ValueReference::from));
+                    updated_case_args = appended_arguments(tree, case.target.arguments, new_args);
                     touched = true;
                 }
 
@@ -1176,7 +1158,7 @@ fn append_arguments_for_successor(
             Some(mir::Terminator::Switch {
                 value: *value,
                 default: mir::BlockTarget::new(default.block, updated_default),
-                cases: updated_cases,
+                cases: tree.add_switch_cases(&updated_cases),
             })
         }
         mir::Terminator::Yield {
@@ -1184,15 +1166,13 @@ fn append_arguments_for_successor(
             resume,
             unwind,
         } => {
-            let successor = mir::BlockReference::from(successor);
+            let successor = mir::BlockId::from(successor);
             let mut touched = false;
 
             // append resume arguments
             let mut updated_resume = resume.clone();
             if resume.block == successor {
-                updated_resume
-                    .arguments
-                    .extend(new_args.iter().copied().map(mir::ValueReference::from));
+                updated_resume.arguments = appended_arguments(tree, resume.arguments, new_args);
                 touched = true;
             }
 
@@ -1201,9 +1181,7 @@ fn append_arguments_for_successor(
             if let Some(unwind) = &mut updated_unwind
                 && unwind.block == successor
             {
-                unwind
-                    .arguments
-                    .extend(new_args.iter().copied().map(mir::ValueReference::from));
+                unwind.arguments = appended_arguments(tree, unwind.arguments, new_args);
                 touched = true;
             }
 
@@ -1219,6 +1197,18 @@ fn append_arguments_for_successor(
         }
         _ => None,
     }
+}
+
+/// Append values to one compact argument slice.
+fn appended_arguments(
+    tree: &mut mir::Tree,
+    arguments: mir::ValueSlice,
+    new_args: &[mir::Value],
+) -> mir::ValueSlice {
+    let mut arguments = tree.get_values(arguments).to_vec();
+    arguments.extend_from_slice(new_args);
+
+    tree.add_values(&arguments)
 }
 
 /// Helper for materializing SCEV expressions in the preheader.
@@ -1275,9 +1265,7 @@ impl<'a> ScevMaterializer<'a> {
                 continue;
             };
 
-            let Some(destination) = destination.value() else {
-                continue;
-            };
+            let destination = *destination;
 
             constant_cache.push((value.clone(), destination));
         }
@@ -1617,7 +1605,7 @@ impl<'a> ScevMaterializer<'a> {
 
         // materialize inline operands
         for operand in instruction.uses() {
-            let operand = operand.value()?;
+            let operand = operand;
 
             let mapped = self.materialize_value(function, operand)?;
             value_map.insert(operand, mapped);
@@ -1625,9 +1613,9 @@ impl<'a> ScevMaterializer<'a> {
 
         // materialize externalized operands when present
         if let Some(args_slice) = instruction.argument_slice() {
-            let arguments = self.tree.get_arguments(args_slice).to_vec();
+            let arguments = self.tree.get_values(args_slice).to_vec();
             for operand in arguments {
-                let operand = operand.value()?;
+                let operand = operand;
 
                 let mapped = self.materialize_value(function, operand)?;
                 value_map.insert(operand, mapped);
@@ -2236,7 +2224,7 @@ entry(v0: int32):
     v2: int32 = 1
     v3: int32 = 4
     v4: int32 = 0
-    switch v4, b3, 0 -> b1(v1)
+    switch v4, b3, 0 => b1(v1)
 
 b1(v5: int32):
     v6: boolean = int.lt.s v5, v0
@@ -2261,7 +2249,7 @@ entry(v0: int32):
     v2: int32 = 1
     v3: int32 = 4
     v4: int32 = 0
-    switch v4, b3, 0 -> b1(v1, v1)
+    switch v4, b3, 0 => b1(v1, v1)
 
 b1(v5: int32, v10: int32):
     v6: boolean = int.lt.s v5, v0
@@ -2362,7 +2350,7 @@ b2:
     v7: uint32 = int.add v6, v2
     v8: uint32 = int.add v4, v2
     v9: boolean = int.lt.u v8, v3
-    check bounds.u v8, v3, v0 -> b1(v8), b3
+    check bounds.u v8, v3, v0 => b1(v8), b3
 
 b3:
     return
@@ -2391,7 +2379,7 @@ b2:
     v8: uint32 = int.add v4, v2
     v9: boolean = int.lt.u v8, v3
     v11: uint32 = int.add v10, v3
-    check bounds.u v8, v3, v0 -> b1(v8, v11), b3
+    check bounds.u v8, v3, v0 => b1(v8, v11), b3
 
 b3:
     return

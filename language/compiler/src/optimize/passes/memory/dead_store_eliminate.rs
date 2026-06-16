@@ -671,9 +671,7 @@ fn build_integer_constant_map(
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
             if let mir::Instruction::Const { destination, value } = instruction {
-                let Some(destination) = destination.value() else {
-                    continue;
-                };
+                let destination = *destination;
                 match value {
                     mir::Constant::Int { value, .. } => {
                         if let Ok(value) = i64::try_from(*value) {
@@ -705,9 +703,7 @@ mod tests {
             panic!("expected store instruction");
         };
 
-        pointer
-            .value()
-            .expect("store instruction should reference a concrete pointer value")
+        *pointer
     }
 
     /// Attach store access metadata for a store instruction.
@@ -1453,7 +1449,7 @@ entry(v0: int32):
     v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 42
     store v1, v2
-    switch v0, b1(v1), 0 -> b2
+    switch v0, b1(v1), 0 => b2
 
 b1(v3: ref<int32, raw>):
     return

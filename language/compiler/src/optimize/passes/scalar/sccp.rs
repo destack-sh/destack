@@ -155,7 +155,7 @@ struct ExecutableEdge {
     /// The target block.
     target: mir::LocalNodeId<mir::Block>,
     /// The arguments passed to the target.
-    arguments: Vec<mir::ValueReference>,
+    arguments: Vec<mir::Value>,
 }
 
 /// Result of the SCCP analysis.
@@ -274,9 +274,7 @@ impl<'a> SccpState<'a> {
 
         // treat entry parameters as overdefined
         for param in &block.parameters {
-            let Some(value) = param.value.value() else {
-                continue;
-            };
+            let value = param.value;
 
             self.update_value(value, LatticeValue::Overdefined);
         }
@@ -342,9 +340,7 @@ impl<'a> SccpState<'a> {
         if edges.iter().any(|edge| edge.arguments.len() != expected) {
             // mark parameters as overdefined
             for param in &block.parameters {
-                let Some(value) = param.value.value() else {
-                    continue;
-                };
+                let value = param.value;
 
                 self.update_value(value, LatticeValue::Overdefined);
             }
@@ -353,20 +349,13 @@ impl<'a> SccpState<'a> {
 
         // merge incoming arguments per parameter
         for (index, param) in block.parameters.iter().enumerate() {
-            let Some(value) = param.value.value() else {
-                continue;
-            };
+            let value = param.value;
 
             let mut merged = LatticeValue::Unknown;
 
             // combine values from each executable edge
             for edge in &edges {
-                let Some(arg) = edge.arguments[index].value() else {
-                    merged = LatticeValue::Overdefined;
-                    break;
-                };
-
-                let incoming = self.value_state(arg);
+                let incoming = self.value_state(edge.arguments[index]);
                 merged = merged.meet(&incoming);
             }
 
@@ -387,10 +376,7 @@ impl<'a> SccpState<'a> {
             let instruction = self.tree.get(instruction_id);
 
             // skip instructions without destinations
-            let Some(destination) = instruction
-                .destination()
-                .and_then(|destination| destination.value())
-            else {
+            let Some(destination) = instruction.destination() else {
                 continue;
             };
 
@@ -412,11 +398,10 @@ impl<'a> SccpState<'a> {
                 panic!("recovered MIR terminator reached optimizer");
             }
             mir::Terminator::Jump { target } => {
-                let Some(target_block) = target.block.block() else {
-                    return;
-                };
+                let target_block = target.block;
+                let arguments = self.tree.block_target_values(target);
 
-                self.mark_edge_executable(block_id, target_block, &target.arguments);
+                self.mark_edge_executable(block_id, target_block, arguments);
             }
             mir::Terminator::Branch {
                 condition,
@@ -424,42 +409,37 @@ impl<'a> SccpState<'a> {
                 else_target,
             } => {
                 // evaluate branch condition
-                let condition_state = condition
-                    .value()
-                    .map(|condition| self.value_state(condition))
-                    .unwrap_or(LatticeValue::Overdefined);
+                let condition_state = self.value_state(*condition);
 
-                let Some(then_block) = then_target.block.block() else {
-                    return;
-                };
-                let Some(else_block) = else_target.block.block() else {
-                    return;
-                };
+                let then_block = then_target.block;
+                let else_block = else_target.block;
 
                 // mark executable edges for the branch
                 if let LatticeValue::Constant(mir::Constant::Boolean { value }) = condition_state {
                     if value {
-                        self.mark_edge_executable(block_id, then_block, &then_target.arguments);
+                        let arguments = self.tree.block_target_values(then_target);
+                        self.mark_edge_executable(block_id, then_block, arguments);
                     } else {
-                        self.mark_edge_executable(block_id, else_block, &else_target.arguments);
+                        let arguments = self.tree.block_target_values(else_target);
+                        self.mark_edge_executable(block_id, else_block, arguments);
                     }
                 } else {
-                    self.mark_edge_executable(block_id, then_block, &then_target.arguments);
-                    self.mark_edge_executable(block_id, else_block, &else_target.arguments);
+                    let then_arguments = self.tree.block_target_values(then_target);
+                    self.mark_edge_executable(block_id, then_block, then_arguments);
+                    let else_arguments = self.tree.block_target_values(else_target);
+                    self.mark_edge_executable(block_id, else_block, else_arguments);
                 }
             }
             mir::Terminator::Check {
                 success, failure, ..
             } => {
-                let Some(success_block) = success.block.block() else {
-                    return;
-                };
-                let Some(failure_block) = failure.block.block() else {
-                    return;
-                };
+                let success_block = success.block;
+                let failure_block = failure.block;
 
-                self.mark_edge_executable(block_id, success_block, &success.arguments);
-                self.mark_edge_executable(block_id, failure_block, &failure.arguments);
+                let success_arguments = self.tree.block_target_values(success);
+                self.mark_edge_executable(block_id, success_block, success_arguments);
+                let failure_arguments = self.tree.block_target_values(failure);
+                self.mark_edge_executable(block_id, failure_block, failure_arguments);
             }
             mir::Terminator::NewZeroedTry {
                 success, failure, ..
@@ -467,19 +447,13 @@ impl<'a> SccpState<'a> {
             | mir::Terminator::NewUninitTry {
                 success, failure, ..
             } => {
-                let Some(success_block) = success.block.block() else {
-                    return;
-                };
-                let Some(failure_block) = failure.block.block() else {
-                    return;
-                };
+                let success_block = success.block;
+                let failure_block = failure.block;
 
-                let mut success_arguments = Vec::with_capacity(success.arguments.len() + 1);
-                success_arguments.push(mir::ValueReference::Missing);
-                success_arguments.extend(success.arguments.iter().copied());
-
-                self.mark_edge_executable(block_id, success_block, &success_arguments);
-                self.mark_edge_executable(block_id, failure_block, &failure.arguments);
+                let success_arguments = self.tree.block_target_values(success);
+                self.mark_edge_executable(block_id, success_block, success_arguments);
+                let failure_arguments = self.tree.block_target_values(failure);
+                self.mark_edge_executable(block_id, failure_block, failure_arguments);
             }
             mir::Terminator::NewSliceZeroedTry {
                 length,
@@ -493,26 +467,18 @@ impl<'a> SccpState<'a> {
                 failure,
                 ..
             } => {
-                let Some(success_block) = success.block.block() else {
-                    return;
-                };
-                let Some(failure_block) = failure.block.block() else {
-                    return;
-                };
+                let success_block = success.block;
+                let failure_block = failure.block;
 
-                let mut success_arguments = Vec::with_capacity(success.arguments.len() + 1);
-                success_arguments.push(mir::ValueReference::Missing);
-                success_arguments.extend(success.arguments.iter().copied());
+                let success_arguments = self.tree.block_target_values(success);
+                self.mark_edge_executable(block_id, success_block, success_arguments);
+                let failure_arguments = self.tree.block_target_values(failure);
+                self.mark_edge_executable(block_id, failure_block, failure_arguments);
 
-                self.mark_edge_executable(block_id, success_block, &success_arguments);
-                self.mark_edge_executable(block_id, failure_block, &failure.arguments);
-
-                if let Some(length) = length.value() {
-                    self.edge_use_blocks
-                        .entry(length)
-                        .or_default()
-                        .insert(block_id);
-                }
+                self.edge_use_blocks
+                    .entry(*length)
+                    .or_default()
+                    .insert(block_id);
             }
             mir::Terminator::Switch {
                 value,
@@ -520,80 +486,70 @@ impl<'a> SccpState<'a> {
                 cases,
             } => {
                 // evaluate switch condition
-                let value_state = value
-                    .value()
-                    .map(|value| self.value_state(value))
-                    .unwrap_or(LatticeValue::Overdefined);
+                let value_state = self.value_state(*value);
 
-                let Some(default_block) = default.block.block() else {
-                    return;
-                };
+                let default_block = default.block;
 
                 // mark executable edges for the switch
                 if let LatticeValue::Constant(constant) = value_state {
                     if let Some(value) = switch_constant_value(&constant) {
+                        let cases = self.tree.get_switch_cases(*cases);
                         if let Some(target) = select_switch_target(value, cases) {
-                            let Some(target_block) = target.target.block.block() else {
-                                return;
-                            };
+                            let target_block = target.target.block;
+                            let arguments = self.tree.block_target_values(&target.target);
 
-                            self.mark_edge_executable(
-                                block_id,
-                                target_block,
-                                &target.target.arguments,
-                            );
+                            self.mark_edge_executable(block_id, target_block, arguments);
                         } else {
-                            self.mark_edge_executable(block_id, default_block, &default.arguments);
+                            let arguments = self.tree.block_target_values(default);
+                            self.mark_edge_executable(block_id, default_block, arguments);
                         }
                     } else {
-                        self.mark_edge_executable(block_id, default_block, &default.arguments);
+                        let arguments = self.tree.block_target_values(default);
+                        self.mark_edge_executable(block_id, default_block, arguments);
+                        let cases = self.tree.get_switch_cases(*cases);
                         for case in cases {
-                            let Some(case_block) = case.target.block.block() else {
-                                return;
-                            };
+                            let case_block = case.target.block;
+                            let arguments = self.tree.block_target_values(&case.target);
 
-                            self.mark_edge_executable(block_id, case_block, &case.target.arguments);
+                            self.mark_edge_executable(block_id, case_block, arguments);
                         }
                     }
                 } else {
-                    self.mark_edge_executable(block_id, default_block, &default.arguments);
+                    let arguments = self.tree.block_target_values(default);
+                    self.mark_edge_executable(block_id, default_block, arguments);
+                    let cases = self.tree.get_switch_cases(*cases);
                     for case in cases {
-                        let Some(case_block) = case.target.block.block() else {
-                            return;
-                        };
+                        let case_block = case.target.block;
+                        let arguments = self.tree.block_target_values(&case.target);
 
-                        self.mark_edge_executable(block_id, case_block, &case.target.arguments);
+                        self.mark_edge_executable(block_id, case_block, arguments);
                     }
                 }
             }
             mir::Terminator::Yield { resume, unwind, .. } => {
-                let Some(resume_block) = resume.block.block() else {
-                    return;
-                };
+                let resume_block = resume.block;
+                let arguments = self.tree.block_target_values(resume);
 
-                self.mark_edge_executable(block_id, resume_block, &resume.arguments);
+                self.mark_edge_executable(block_id, resume_block, arguments);
 
                 if let Some(unwind) = unwind {
-                    let Some(unwind_block) = unwind.block.block() else {
-                        return;
-                    };
+                    let unwind_block = unwind.block;
+                    let arguments = self.tree.block_target_values(unwind);
 
-                    self.mark_edge_executable(block_id, unwind_block, &unwind.arguments);
+                    self.mark_edge_executable(block_id, unwind_block, arguments);
                 }
             }
             mir::Terminator::Call { target, unwind, .. }
             | mir::Terminator::CallIndirect { target, unwind, .. }
             | mir::Terminator::CallVirtual { target, unwind, .. }
             | mir::Terminator::CallDynamic { target, unwind, .. } => {
-                let Some(target_block) = target.block.block() else {
-                    return;
-                };
+                let target_block = target.block;
+                let arguments = self.tree.block_target_values(target);
 
-                self.mark_edge_executable(block_id, target_block, &target.arguments);
-                if let Some(unwind) = unwind
-                    && let Some(target_block) = unwind.block.block()
-                {
-                    self.mark_edge_executable(block_id, target_block, &unwind.arguments);
+                self.mark_edge_executable(block_id, target_block, arguments);
+                if let Some(unwind) = unwind {
+                    let arguments = self.tree.block_target_values(unwind);
+                    self.mark_edge_executable(block_id, unwind.block, arguments);
                 }
             }
             mir::Terminator::Return { .. }
@@ -613,7 +569,7 @@ impl<'a> SccpState<'a> {
         &mut self,
         pred: mir::LocalNodeId<mir::Block>,
         target: mir::LocalNodeId<mir::Block>,
-        arguments: &[mir::ValueReference],
+        arguments: &[mir::Value],
     ) {
         // record new edge
         let edge = ExecutableEdge {
@@ -629,10 +585,6 @@ impl<'a> SccpState<'a> {
 
         // record edge argument uses
         for &argument in arguments {
-            let Some(argument) = argument.value() else {
-                continue;
-            };
-
             self.edge_use_blocks
                 .entry(argument)
                 .or_default()
@@ -696,15 +648,8 @@ impl<'a> SccpState<'a> {
                 ..
             } => {
                 // read operand lattice states
-                let Some(left) = left.value() else {
-                    return LatticeValue::Overdefined;
-                };
-                let Some(right) = right.value() else {
-                    return LatticeValue::Overdefined;
-                };
-
-                let left_state = self.value_state(left);
-                let right_state = self.value_state(right);
+                let left_state = self.value_state(*left);
+                let right_state = self.value_state(*right);
 
                 // fold based on operand states
                 match (left_state, right_state) {
@@ -726,11 +671,7 @@ impl<'a> SccpState<'a> {
                 operator, argument, ..
             } => {
                 // read operand lattice state
-                let Some(argument) = argument.value() else {
-                    return LatticeValue::Overdefined;
-                };
-
-                let argument_state = self.value_state(argument);
+                let argument_state = self.value_state(*argument);
 
                 // fold based on operand state
                 match argument_state {
@@ -749,21 +690,14 @@ impl<'a> SccpState<'a> {
                 ..
             } => {
                 // read operand lattice state
-                let Some(argument) = argument.value() else {
-                    return LatticeValue::Overdefined;
-                };
-                let Some(to_type) = to_type.ty() else {
-                    return LatticeValue::Overdefined;
-                };
-
-                let argument_state = self.value_state(argument);
+                let argument_state = self.value_state(*argument);
 
                 // fold based on operand state
                 match argument_state {
                     LatticeValue::Constant(value) => fold_cast(
                         *operator,
                         value,
-                        to_type,
+                        *to_type,
                         self.type_context.pointer_width_bits,
                         self.tree,
                     )
@@ -781,19 +715,9 @@ impl<'a> SccpState<'a> {
                 ..
             } => {
                 // evaluate select using condition when possible
-                let Some(condition) = condition.value() else {
-                    return LatticeValue::Overdefined;
-                };
-                let Some(then_value) = then_value.value() else {
-                    return LatticeValue::Overdefined;
-                };
-                let Some(else_value) = else_value.value() else {
-                    return LatticeValue::Overdefined;
-                };
-
-                let condition_state = self.value_state(condition);
-                let then_state = self.value_state(then_value);
-                let else_state = self.value_state(else_value);
+                let condition_state = self.value_state(*condition);
+                let then_state = self.value_state(*then_value);
+                let else_state = self.value_state(*else_value);
 
                 match condition_state {
                     LatticeValue::Constant(mir::Constant::Boolean { value }) => {
@@ -822,23 +746,19 @@ impl<'a> SccpState<'a> {
             }
             mir::Instruction::Struct { fields, .. } => {
                 // evaluate aggregate fields
-                let arguments = self.tree.get_arguments(*fields);
+                let arguments = self.tree.get_values(*fields);
                 self.evaluate_aggregate(arguments)
             }
             mir::Instruction::Tuple { elements, .. } | mir::Instruction::Array { elements, .. } => {
                 // evaluate aggregate elements
-                let arguments = self.tree.get_arguments(*elements);
+                let arguments = self.tree.get_values(*elements);
                 self.evaluate_aggregate(arguments)
             }
             mir::Instruction::FieldGet {
                 aggregate, index, ..
             } => {
                 // evaluate field get from aggregates
-                let Some(aggregate) = aggregate.value() else {
-                    return LatticeValue::Overdefined;
-                };
-
-                let aggregate_state = self.value_state(aggregate);
+                let aggregate_state = self.value_state(*aggregate);
                 self.evaluate_field_get(aggregate_state, *index as usize)
             }
             mir::Instruction::FieldSet {
@@ -848,24 +768,13 @@ impl<'a> SccpState<'a> {
                 ..
             } => {
                 // evaluate field set on aggregates
-                let Some(aggregate) = aggregate.value() else {
-                    return LatticeValue::Overdefined;
-                };
-                let Some(value) = value.value() else {
-                    return LatticeValue::Overdefined;
-                };
-
-                let aggregate_state = self.value_state(aggregate);
-                let value_state = self.value_state(value);
+                let aggregate_state = self.value_state(*aggregate);
+                let value_state = self.value_state(*value);
                 self.evaluate_field_set(aggregate_state, *index as usize, value_state)
             }
             mir::Instruction::ElementGet { array, index, .. } => {
                 // evaluate element get from arrays
-                let Some(array) = array.value() else {
-                    return LatticeValue::Overdefined;
-                };
-
-                let array_state = self.value_state(array);
+                let array_state = self.value_state(*array);
                 self.evaluate_element_get(array_state, *index as usize)
             }
             mir::Instruction::ElementSet {
@@ -875,15 +784,8 @@ impl<'a> SccpState<'a> {
                 ..
             } => {
                 // evaluate element set on arrays
-                let Some(array) = array.value() else {
-                    return LatticeValue::Overdefined;
-                };
-                let Some(value) = value.value() else {
-                    return LatticeValue::Overdefined;
-                };
-
-                let array_state = self.value_state(array);
-                let value_state = self.value_state(value);
+                let array_state = self.value_state(*array);
+                let value_state = self.value_state(*value);
                 self.evaluate_element_set(array_state, *index as usize, value_state)
             }
             mir::Instruction::Intrinsic {
@@ -897,11 +799,7 @@ impl<'a> SccpState<'a> {
                 }
 
                 let mut constants = Vec::new();
-                for &argument in self.tree.get_arguments(*arguments) {
-                    let Some(argument) = argument.value() else {
-                        return LatticeValue::Overdefined;
-                    };
-
+                for &argument in self.tree.get_values(*arguments) {
                     let argument_state = self.value_state(argument);
                     match argument_state {
                         LatticeValue::Constant(constant) => constants.push(constant),
@@ -922,16 +820,11 @@ impl<'a> SccpState<'a> {
     }
 
     /// Build an aggregate lattice value from operand values.
-    fn evaluate_aggregate(&self, values: &[mir::ValueReference]) -> LatticeValue {
+    fn evaluate_aggregate(&self, values: &[mir::Value]) -> LatticeValue {
         // collect operand lattice values
         let elements = values
             .iter()
-            .map(|value| {
-                value
-                    .value()
-                    .map(|value| self.value_state(value))
-                    .unwrap_or(LatticeValue::Overdefined)
-            })
+            .map(|value| self.value_state(*value))
             .collect();
         LatticeValue::Aggregate(elements)
     }
@@ -1024,9 +917,7 @@ fn switch_constant_value(constant: &mir::Constant) -> Option<i128> {
 /// Select the switch case that matches a constant value.
 fn select_switch_target(value: i128, cases: &[mir::SwitchCase]) -> Option<&mir::SwitchCase> {
     // find matching case
-    cases
-        .iter()
-        .find(|case| case.value.integer() == Some(value))
+    cases.iter().find(|case| case.value == value)
 }
 
 /// Apply SCCP results to the function and tree.
@@ -1066,8 +957,7 @@ fn apply_sccp_result(
         for instruction_id in instruction_ids {
             // read instruction destination
             let instruction = tree.get(instruction_id);
-            let Some(destination) = instruction.destination().and_then(|value| value.value())
-            else {
+            let Some(destination) = instruction.destination() else {
                 continue;
             };
 
@@ -1095,7 +985,7 @@ fn apply_sccp_result(
         }
 
         // fold constant branches and switches
-        if let Some(new_terminator) = fold_constant_terminator(&terminator, result)
+        if let Some(new_terminator) = fold_constant_terminator(tree, &terminator, result)
             && new_terminator != terminator
         {
             let terminator_id = tree.get(block_id).terminator;
@@ -1159,12 +1049,8 @@ fn function_insert_block_param_constants(
         // scan parameters for constant values
         for param in &params {
             // skip non constant parameters
-            let Some(value) = param.value.value() else {
-                continue;
-            };
-            let Some(ty) = param.ty.ty() else {
-                continue;
-            };
+            let value = param.value;
+            let ty = param.ty;
             let Some(constant) = result.value_constant(value) else {
                 continue;
             };
@@ -1247,7 +1133,7 @@ fn function_substitute_constant_uses(
         }
 
         // rewrite terminator uses
-        let new_terminator = terminator_substitute_uses(&terminator, substitutions);
+        let new_terminator = terminator_substitute_uses(tree, &terminator, substitutions);
 
         // update terminator when rewritten
         if new_terminator != terminator {
@@ -1266,21 +1152,20 @@ fn instruction_needs_substitution(
     substitutions: &HashMap<mir::Value, mir::Value>,
 ) -> bool {
     // check inline operands
-    if instruction.uses().iter().any(|value| {
-        value
-            .value()
-            .is_some_and(|value| substitutions.contains_key(&value))
-    }) {
+    if instruction
+        .uses()
+        .iter()
+        .any(|value| substitutions.contains_key(value))
+    {
         return true;
     }
 
     // check externalized arguments
     if let Some(arguments) = instruction.argument_slice() {
-        return tree.get_arguments(arguments).iter().any(|value| {
-            value
-                .value()
-                .is_some_and(|value| substitutions.contains_key(&value))
-        });
+        return tree
+            .get_values(arguments)
+            .iter()
+            .any(|value| substitutions.contains_key(value));
     }
 
     false
@@ -1288,6 +1173,7 @@ fn instruction_needs_substitution(
 
 /// Fold a terminator when its condition is constant.
 fn fold_constant_terminator(
+    tree: &mir::Tree,
     terminator: &mir::Terminator,
     result: &SccpResult,
 ) -> Option<mir::Terminator> {
@@ -1299,10 +1185,7 @@ fn fold_constant_terminator(
     } = terminator
     {
         // resolve branch condition
-        let condition_state = condition
-            .value()
-            .map(|value| result.value_state(value))
-            .unwrap_or(LatticeValue::Overdefined);
+        let condition_state = result.value_state(*condition);
         let is_true = match condition_state {
             LatticeValue::Constant(mir::Constant::Boolean { value }) => Some(value),
             _ => None,
@@ -1327,12 +1210,13 @@ fn fold_constant_terminator(
     } = terminator
     {
         // resolve switch condition
-        let constant = value.value().and_then(|value| result.value_constant(value));
+        let constant = result.value_constant(*value);
         if let Some(constant) = constant {
             // resolve switch constant
             let value = switch_constant_value(constant)?;
 
             // jump to matching case or default
+            let cases = tree.get_switch_cases(*cases);
             if let Some(case) = select_switch_target(value, cases) {
                 return Some(mir::Terminator::Jump {
                     target: case.target.clone(),
@@ -1357,21 +1241,21 @@ mod tests {
     fn test_constant_branch_propagates_block_param() {
         let input = r#"
 function test(): int32 {
-entry0:
-    value0: boolean = true
-    branch value0, block1(), block2()
+entry:
+    v0: boolean = true
+    branch v0, b1, b2
 
-block1:
-    value1: int32 = 10int32
-    jump block3(value1)
+b1:
+    v1: int32 = 10
+    jump b3(v1)
 
-block2:
-    value2: int32 = 20int32
-    jump block3(value2)
+b2:
+    v2: int32 = 20
+    jump b3(v2)
 
-block3(value3: int32):
-    value4: int32 = int.add value3, value3
-    return value4
+b3(v3: int32):
+    v4: int32 = int.add v3, v3
+    return v4
 }
 "#;
         let expected = r#"
@@ -1382,9 +1266,9 @@ entry:
 
 b1:
     v1: int32 = 10
-    jump b2(v1)
+    jump b3(v1)
 
-b2(v3: int32):
+b3(v3: int32):
     v5: int32 = 10
     v4: int32 = 20
     return v4
@@ -1497,7 +1381,7 @@ b1(v3: int32):
 function test(): int32 {
 entry:
     v0: int32 = 2
-    switch v0, b3, 1 -> b1, 2 -> b2
+    switch v0, b3, 1 => b1, 2 => b2
 
 b1:
     v1: int32 = 10
@@ -1516,9 +1400,9 @@ b3:
 function test(): int32 {
 entry:
     v0: int32 = 2
-    jump b1
+    jump b2
 
-b1:
+b2:
     v2: int32 = 20
     return v2
 }
@@ -1669,7 +1553,7 @@ b1(v1: int32):
 function test(): int32 {
 entry:
     v0: uint64 = 18446744073709551615
-    switch v0, b2, -1 -> b1
+    switch v0, b2, -1 => b1
 
 b1:
     v1: int32 = 1
@@ -1684,9 +1568,9 @@ b2:
 function test(): int32 {
 entry:
     v0: uint64 = 18446744073709551615
-    jump b1
+    jump b2
 
-b1:
+b2:
     v2: int32 = 2
     return v2
 }

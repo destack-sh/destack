@@ -133,7 +133,7 @@ enum ExpressionTemplate {
     /// Cast expression template.
     Cast {
         operator: mir::CastOperator,
-        to_type: mir::TypeReference,
+        to_type: mir::TypeId,
     },
     /// Select expression template.
     Select,
@@ -182,10 +182,7 @@ fn run_pre(
             let Some(key) = expression_key_from_instruction(instruction, tree) else {
                 continue;
             };
-            let Some(destination) = instruction
-                .destination()
-                .and_then(|destination| destination.value())
-            else {
+            let Some(destination) = instruction.destination() else {
                 continue;
             };
             let value_type = value_types.require_value_type(destination);
@@ -364,9 +361,7 @@ fn run_pre(
                     value
                 } else {
                     // insert a missing computation along this edge when possible
-                    let Some(value_type) = placement.param.ty.ty() else {
-                        continue;
-                    };
+                    let value_type = placement.param.ty;
 
                     let inserted_value = insert_expression_in_block(
                         pred,
@@ -519,11 +514,7 @@ fn value_available_in_block(
     use_def: &UseDefMaps,
 ) -> bool {
     // function parameters are always available
-    if function
-        .parameters
-        .iter()
-        .any(|param| param.value.value() == Some(value))
-    {
+    if function.parameters.iter().any(|param| param.value == value) {
         return true;
     }
 
@@ -582,7 +573,7 @@ fn rename_block(
             current
                 .entry(placement.key.clone())
                 .or_default()
-                .push(placement.param.value.value().unwrap());
+                .push(placement.param.value);
             pushed_keys.push(placement.key.clone());
         }
     }
@@ -598,10 +589,7 @@ fn rename_block(
         let Some(key) = expression_key_from_instruction(instruction, tree) else {
             continue;
         };
-        let Some(destination) = instruction
-            .destination()
-            .and_then(|destination| destination.value())
-        else {
+        let Some(destination) = instruction.destination() else {
             continue;
         };
 
@@ -828,19 +816,19 @@ entry(v0: int32, v1: int32, v2: boolean):
 
 b1:
     v3: int32 = int.add v0, v1
-    jump block3_1(v3)
+    jump b3_1(v3)
 
 b2:
-    branch v2, b3, b5
+    branch v2, b3, b4
 
 b3:
     v6: int32 = int.add v0, v1
-    jump block3_1(v6)
+    jump b3_1(v6)
 
-block3_1(v5: int32):
+b3_1(v5: int32):
     return v5
 
-b5:
+b4:
     return v0
 }
 "#;
@@ -856,7 +844,7 @@ b5:
         let input = r#"
 function test(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
-    switch v2, b2, 0 -> b1
+    switch v2, b2, 0 => b1
 
 b1:
     v3: int32 = int.add v0, v1
@@ -871,17 +859,17 @@ b2:
         let expected = r#"
 function test(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
-    switch v2, b1, 0 -> block1_1
+    switch v2, b1, 0 => b1_1
 
 b1:
     v6: int32 = int.add v0, v1
-    jump b3(v6)
+    jump b2(v6)
 
-block1_1:
+b1_1:
     v3: int32 = int.add v0, v1
-    jump b3(v3)
+    jump b2(v3)
 
-b3(v5: int32):
+b2(v5: int32):
     return v5
 }
 "#;
@@ -898,7 +886,7 @@ b3(v5: int32):
 function test(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
     v3: int32 = 7
-    switch v2, b2, 0 -> b1, 1 -> b3(v3)
+    switch v2, b2, 0 => b1, 1 => b3(v3)
 
 b1:
     v4: int32 = int.add v0, v1
@@ -918,21 +906,21 @@ b3(v6: int32):
 function test(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
     v3: int32 = 7
-    switch v2, b3, 0 -> block1_1, 1 -> b1
+    switch v2, b2, 0 => b1_1, 1 => b1
 
 b1:
     v9: int32 = int.add v0, v1
-    jump b4(v3, v9)
+    jump b3(v3, v9)
 
-block1_1:
+b1_1:
     v4: int32 = int.add v0, v1
-    jump b4(v3, v4)
+    jump b3(v3, v4)
 
-b3:
+b2:
     v5: int32 = 0
     return v5
 
-b4(v6: int32, v8: int32):
+b3(v6: int32, v8: int32):
     return v8
 }
 "#;
@@ -953,7 +941,7 @@ entry(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
 b1:
     v4: uint32 = int.add v0, v1
     v5: boolean = int.lt.u v0, v1
-    check bounds.u v0, v1, v3 -> b3, b4
+    check bounds.u v0, v1, v3 => b3, b4
 
 b2:
     jump b3
@@ -970,24 +958,24 @@ b4:
         let expected = r#"
 function test(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]): uint32 {
 entry(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
-    branch v2, b1, block2_1
+    branch v2, b1, b2_1
 
 b1:
     v4: uint32 = int.add v0, v1
     v5: boolean = int.lt.u v0, v1
-    check bounds.u v0, v1, v3 -> b2, b5
+    check bounds.u v0, v1, v3 => b2, b4
 
 b2:
-    jump b4(v4)
+    jump b3(v4)
 
-block2_1:
+b2_1:
     v8: uint32 = int.add v0, v1
-    jump b4(v8)
+    jump b3(v8)
 
-b4(v7: uint32):
+b3(v7: uint32):
     return v7
 
-b5:
+b4:
     unreachable
 }
 "#;
@@ -1008,7 +996,7 @@ entry(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
 b1:
     v4: uint32 = int.add v0, v1
     v5: boolean = int.lt.u v0, v1
-    check bounds.u v0, v1, v3 -> b3, b4
+    check bounds.u v0, v1, v3 => b3, b4
 
 b2:
     jump b4
@@ -1025,24 +1013,24 @@ b4:
         let expected = r#"
 function test(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]): uint32 {
 entry(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
-    branch v2, b1, block2_1
+    branch v2, b1, b2_1
 
 b1:
     v4: uint32 = int.add v0, v1
     v5: boolean = int.lt.u v0, v1
-    check bounds.u v0, v1, v3 -> b4, b2
+    check bounds.u v0, v1, v3 => b3, b2
 
 b2:
-    jump b5(v4)
+    jump b4(v4)
 
-block2_1:
+b2_1:
     v8: uint32 = int.add v0, v1
-    jump b5(v8)
+    jump b4(v8)
 
-b4:
+b3:
     return v4
 
-b5(v7: uint32):
+b4(v7: uint32):
     return v7
 }
 "#;
@@ -1063,11 +1051,11 @@ entry(v0: int32, v1: int32, v2: boolean):
 b1:
     v3: int32 = int.add v0, v1
     v4: int32 = 1
-    yield v4 -> b3(v0)
+    yield v4 => b3(v0)
 
 b2:
     v5: int32 = 2
-    yield v5 -> b3(v0)
+    yield v5 => b3(v0)
 
 b3(v6: int32, v7: int32):
     v8: int32 = int.add v0, v1
@@ -1083,12 +1071,12 @@ entry(v0: int32, v1: int32, v2: boolean):
 b1:
     v3: int32 = int.add v0, v1
     v4: int32 = 1
-    yield v4 -> b3(v0, v3)
+    yield v4 => b3(v0, v3)
 
 b2:
     v5: int32 = 2
     v10: int32 = int.add v0, v1
-    yield v5 -> b3(v0, v10)
+    yield v5 => b3(v0, v10)
 
 b3(v6: int32, v7: int32, v9: int32):
     return v9

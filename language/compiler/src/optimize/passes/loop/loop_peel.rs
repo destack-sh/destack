@@ -143,7 +143,7 @@ fn run_loop_peel(
             let block = tree.get(cloned_id).clone();
             let terminator_id = block.terminator;
             let mut terminator = tree.get(terminator_id).clone();
-            terminator_remap(&mut terminator, &block_map, &value_map);
+            terminator_remap(tree, &mut terminator, &block_map, &value_map);
             tree.set(cloned_id, block);
             tree.set(terminator_id, terminator);
         }
@@ -151,10 +151,7 @@ fn run_loop_peel(
         // redirect preheader to the peeled iteration
         let preheader_block = tree.get(preheader).clone();
         let preheader_terminator = mir::Terminator::Jump {
-            target: mir::BlockTarget::new(
-                cloned_header.into(),
-                preheader_args.into_iter().map(Into::into).collect(),
-            ),
+            target: mir::BlockTarget::new(cloned_header.into(), tree.add_values(&preheader_args)),
         };
         tree.set(preheader, preheader_block);
         tree.set(tree.get(preheader).terminator, preheader_terminator);
@@ -213,12 +210,9 @@ fn find_preheader(
     let preheader_block = tree.get(preheader);
     let preheader_terminator = tree.get(preheader_block.terminator);
     let arguments = match preheader_terminator {
-        mir::Terminator::Jump { target } if target.block.block()? == header => target
-            .arguments
-            .iter()
-            .copied()
-            .map(|argument| argument.value())
-            .collect::<Option<_>>()?,
+        mir::Terminator::Jump { target } if target.block == header => {
+            tree.get_values(target.arguments).to_vec()
+        }
         _ => return None,
     };
 

@@ -272,7 +272,10 @@ fn run_loop_idiom(
 
                 let mem_block = if should_guard {
                     let terminator = tree.insert(mir::Terminator::Jump {
-                        target: mir::BlockTarget::new(exit_block.into(), Vec::new()),
+                        target: mir::BlockTarget::new(
+                            exit_block.into(),
+                            mir::ValueSlice::default(),
+                        ),
                     });
                     let mem_block = tree.insert(mir::Block {
                         name: None,
@@ -314,7 +317,7 @@ fn run_loop_idiom(
                     &mut mem_block_data,
                 );
                 let mem_terminator = mir::Terminator::Jump {
-                    target: mir::BlockTarget::new(exit_block.into(), Vec::new()),
+                    target: mir::BlockTarget::new(exit_block.into(), mir::ValueSlice::default()),
                 };
                 tree.set(mem_block, mem_block_data);
                 tree.set(tree.get(mem_block).terminator, mem_terminator);
@@ -336,7 +339,10 @@ fn run_loop_idiom(
                     }
                 } else {
                     let preheader_terminator = mir::Terminator::Jump {
-                        target: mir::BlockTarget::new(exit_block.into(), Vec::new()),
+                        target: mir::BlockTarget::new(
+                            exit_block.into(),
+                            mir::ValueSlice::default(),
+                        ),
                     };
                     tree.set(preheader_block.terminator, preheader_terminator);
                 }
@@ -425,7 +431,7 @@ fn run_loop_idiom(
 
             let mem_block = if should_guard {
                 let terminator = tree.insert(mir::Terminator::Jump {
-                    target: mir::BlockTarget::new(exit_block.into(), Vec::new()),
+                    target: mir::BlockTarget::new(exit_block.into(), mir::ValueSlice::default()),
                 });
                 let mem_block = tree.insert(mir::Block {
                     name: None,
@@ -478,7 +484,7 @@ fn run_loop_idiom(
                 &mut mem_block_data,
             );
             let mem_terminator = mir::Terminator::Jump {
-                target: mir::BlockTarget::new(exit_block.into(), Vec::new()),
+                target: mir::BlockTarget::new(exit_block.into(), mir::ValueSlice::default()),
             };
             tree.set(mem_block, mem_block_data);
             tree.set(tree.get(mem_block).terminator, mem_terminator);
@@ -499,7 +505,7 @@ fn run_loop_idiom(
                 }
             } else {
                 let preheader_terminator = mir::Terminator::Jump {
-                    target: mir::BlockTarget::new(exit_block.into(), Vec::new()),
+                    target: mir::BlockTarget::new(exit_block.into(), mir::ValueSlice::default()),
                 };
                 tree.set(preheader_block.terminator, preheader_terminator);
             }
@@ -585,8 +591,8 @@ fn match_memset_pattern(
                     if store_ptr.is_some() {
                         return None;
                     }
-                    store_ptr = Some(pointer.value()?);
-                    store_value = Some(value.value()?);
+                    store_ptr = Some(*pointer);
+                    store_value = Some(*value);
                     store_block = Some(block_id);
                     continue;
                 }
@@ -658,8 +664,8 @@ fn match_memcpy_pattern(
                     if store_ptr.is_some() {
                         return None;
                     }
-                    store_ptr = Some(pointer.value()?);
-                    store_value = Some(value.value()?);
+                    store_ptr = Some(*pointer);
+                    store_value = Some(*value);
                     store_block = Some(block_id);
                     continue;
                 }
@@ -671,8 +677,8 @@ fn match_memcpy_pattern(
                     if load_ptr.is_some() {
                         return None;
                     }
-                    load_ptr = Some(pointer.value()?);
-                    load_value = Some(destination.value()?);
+                    load_ptr = Some(*pointer);
+                    load_value = Some(*destination);
                     load_block = Some(block_id);
                     continue;
                 }
@@ -742,7 +748,7 @@ fn element_addr_for_pointer(
             index,
             result_type,
             ..
-        } => Some((array.value()?, index.value()?, result_type.ty()?)),
+        } => Some((*array, *index, *result_type)),
         _ => None,
     }
 }
@@ -774,9 +780,9 @@ fn array_element_type(
     let ty = tree.get(ty_id);
 
     match ty {
-        mir::Type::Array { element, .. } => element.ty(),
-        mir::Type::Reference { pointee, .. } => match tree.get(pointee.ty()?) {
-            mir::Type::Array { element, .. } => element.ty(),
+        mir::Type::Array { element, .. } => Some(*element),
+        mir::Type::Reference { pointee, .. } => match tree.get(*pointee) {
+            mir::Type::Array { element, .. } => Some(*element),
             _ => None,
         },
         _ => None,
@@ -802,8 +808,8 @@ fn arrays_are_value_types(
 }
 
 /// Return the space for a reference type.
-fn reference_space(ty_id: mir::TypeReference, tree: &mir::Tree) -> Option<mir::Space> {
-    let ty_id = ty_id.ty()?;
+fn reference_space(ty_id: mir::TypeId, tree: &mir::Tree) -> Option<mir::Space> {
+    let ty_id = ty_id;
 
     match tree.get(ty_id) {
         mir::Type::Reference { space, .. } => Some(space.clone()),
@@ -877,8 +883,8 @@ fn insert_bound_guard(
     let guard_value = tree.get(guard_inst).destination()?;
     let guard_terminator = mir::Terminator::Branch {
         condition: guard_value,
-        then_target: mir::BlockTarget::new(success_target.into(), Vec::new()),
-        else_target: mir::BlockTarget::new(failure_target.into(), Vec::new()),
+        then_target: mir::BlockTarget::new(success_target.into(), mir::ValueSlice::default()),
+        else_target: mir::BlockTarget::new(failure_target.into(), mir::ValueSlice::default()),
     };
     tree.set(preheader_block.terminator, guard_terminator);
 
@@ -900,8 +906,8 @@ fn emit_memset(
 ) {
     // materialize the fill constant
     let element_type = match tree.get(element_addr_type) {
-        mir::Type::Reference { pointee, .. } => pointee.ty(),
-        mir::Type::TensorView { element, .. } => element.ty(),
+        mir::Type::Reference { pointee, .. } => Some(*pointee),
+        mir::Type::TensorView { element, .. } => Some(*element),
         _ => None,
     };
     let Some(element_type) = element_type else {
@@ -923,7 +929,7 @@ fn emit_memset(
     block.instructions.push(ptr_inst);
 
     // emit the memset call
-    let args = tree.add_arguments(&[
+    let args = tree.add_values(&[
         tree.get(ptr_inst).destination().unwrap(),
         tree.get(fill_inst).destination().unwrap(),
         length.into(),
@@ -970,7 +976,7 @@ fn emit_memcpy_or_memmove(
     block.instructions.push(src_ptr_inst);
 
     // emit the intrinsic call
-    let args = tree.add_arguments(&[
+    let args = tree.add_values(&[
         tree.get(dest_ptr_inst).destination().unwrap(),
         tree.get(src_ptr_inst).destination().unwrap(),
         length.into(),
@@ -1124,7 +1130,7 @@ fn emit_copy_length(
             right: start.into(),
         });
         block.instructions.push(subtract_inst);
-        tree.get(subtract_inst).destination().unwrap().value()?
+        tree.get(subtract_inst).destination().unwrap()
     };
 
     // byte size requires no further scaling
@@ -1152,7 +1158,7 @@ fn emit_copy_length(
     });
     block.instructions.push(length_inst);
 
-    tree.get(length_inst).destination().unwrap().value()
+    tree.get(length_inst).destination()
 }
 
 /// Check whether a value is loop invariant.
@@ -1199,12 +1205,9 @@ fn find_preheader(
     let preheader_block = tree.get(preheader);
     let preheader_terminator = tree.get(preheader_block.terminator);
     let arguments = match preheader_terminator {
-        mir::Terminator::Jump { target } if target.block.block()? == header => target
-            .arguments
-            .iter()
-            .copied()
-            .map(|argument| argument.value())
-            .collect::<Option<_>>()?,
+        mir::Terminator::Jump { target } if target.block == header => {
+            tree.get_values(target.arguments).to_vec()
+        }
         _ => return None,
     };
 
@@ -1223,7 +1226,7 @@ fn preheader_value_for_param(
     let position = header_block
         .parameters
         .iter()
-        .position(|param| param.value.value() == Some(value));
+        .position(|param| param.value == value);
 
     // return the mapped argument when the value is a header parameter
     match position {
@@ -1244,7 +1247,7 @@ fn preheader_induction_start(
     let position = header_block
         .parameters
         .iter()
-        .position(|param| param.value.value() == Some(induction))?;
+        .position(|param| param.value == induction)?;
 
     // return the preheader argument for the induction parameter
     preheader_args.get(position).copied()
@@ -1269,21 +1272,19 @@ fn guard_from_header(
     };
 
     // require the true edge to stay inside the loop
-    if !loop_blocks.contains(&then_target.block.block()?) {
+    if !loop_blocks.contains(&then_target.block) {
         return None;
     }
 
-    let condition = condition.value()?;
+    let condition = condition;
 
     // locate the guard instruction that produces the condition
     let def_block = use_def.def_block.get(&condition)?;
     let block = tree.get(*def_block);
-    let inst_id = block.instructions.iter().find(|&&inst_id| {
-        tree.get(inst_id)
-            .destination()
-            .and_then(|value| value.value())
-            == Some(condition)
-    })?;
+    let inst_id = block
+        .instructions
+        .iter()
+        .find(|&&inst_id| tree.get(inst_id).destination() == Some(*condition))?;
     let inst = tree.get(*inst_id);
     let mir::Instruction::Binary {
         operator,
@@ -1304,15 +1305,15 @@ fn guard_from_header(
     let header_params: Vec<_> = header_block
         .parameters
         .iter()
-        .filter_map(|param| param.value.value())
+        .map(|param| param.value)
         .collect();
-    if !header_params.contains(&left.value()?) {
+    if !header_params.contains(left) {
         return None;
     }
 
     Some(GuardInfo {
-        induction: left.value()?,
-        bound: right.value()?,
+        induction: *left,
+        bound: *right,
     })
 }
 
@@ -1514,10 +1515,7 @@ b3:
         }
 
         let store_id = store_id.expect("missing store instruction");
-        let store_ptr = store_ptr
-            .expect("missing store pointer")
-            .value()
-            .expect("store pointer should be concrete");
+        let store_ptr = store_ptr.expect("missing store pointer");
         test.insert_pointer_access_with_options(
             store_id,
             mir::MemoryAccessKind::Write,

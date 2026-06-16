@@ -27,7 +27,7 @@ declare_pass! {
     ///     branch v5, b2, b3
     /// b2:
     ///     v6 = int.lt.u v4, v3
-    ///     check bounds.u v4, v3, v0 -> b4, b5
+    ///     check bounds.u v4, v3, v0 => b4, b5
     /// b4:
     ///     v7 = int.add v4, v2
     ///     jump b1(v7)
@@ -160,9 +160,7 @@ impl ValueDefinitions {
 
             // record block parameters
             for param in block.parameters.iter() {
-                let Some(value) = param.value.value() else {
-                    continue;
-                };
+                let value = param.value;
 
                 definitions.insert(
                     value,
@@ -175,8 +173,7 @@ impl ValueDefinitions {
             // record instruction destinations
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
-                if let Some(destination) = instruction.destination().and_then(|value| value.value())
-                {
+                if let Some(destination) = instruction.destination() {
                     definitions.insert(
                         destination,
                         ValueDefinition {
@@ -300,12 +297,8 @@ fn run_loop_bounds_check_eliminate(
             else {
                 continue;
             };
-            let Some(index) = index.value() else {
-                continue;
-            };
-            let Some(length) = length.value() else {
-                continue;
-            };
+            let index = *index;
+            let length = *length;
 
             // find a guard that implies the bounds check
             let mut guard_implies = false;
@@ -396,18 +389,10 @@ fn collect_loop_guards(
                 ..
             } = constraint
         {
-            let Some(success) = success.block.block() else {
-                continue;
-            };
-            let Some(failure) = failure.block.block() else {
-                continue;
-            };
-            let Some(index) = index.value() else {
-                continue;
-            };
-            let Some(length) = length.value() else {
-                continue;
-            };
+            let success = success.block;
+            let failure = failure.block;
+            let index = *index;
+            let length = *length;
 
             // ensure the success edge stays inside the loop
             let success_in_loop = lp.blocks.contains(&success);
@@ -497,8 +482,8 @@ fn guard_comparison(
         ..
     } = instruction
     {
-        let left = left.value()?;
-        let right = right.value()?;
+        let left = *left;
+        let right = *right;
 
         return Some((*operator, left, right, guard_is_true));
     }
@@ -510,7 +495,7 @@ fn guard_comparison(
         ..
     } = instruction
     {
-        let argument = argument.value()?;
+        let argument = *argument;
         let nested_definition = definitions.definition_for(argument)?;
         let ValueDefinitionKind::Instruction { instruction } = nested_definition.kind else {
             return None;
@@ -526,8 +511,8 @@ fn guard_comparison(
             return None;
         };
 
-        let left = left.value()?;
-        let right = right.value()?;
+        let left = *left;
+        let right = *right;
 
         return Some((*operator, left, right, !guard_is_true));
     }
@@ -556,9 +541,8 @@ fn guard_condition(terminator: mir::Terminator, lp: &Loop) -> Option<(mir::Value
             else_target,
             ..
         } => {
-            let condition = condition.value()?;
-            let then_target = then_target.block.block()?;
-            let else_target = else_target.block.block()?;
+            let then_target = then_target.block;
+            let else_target = else_target.block;
 
             // determine which branch stays inside the loop
             let then_in_loop = lp.blocks.contains(&then_target);
@@ -943,7 +927,7 @@ b1(v4: uint32):
 
 b2:
     v6: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 -> b3, b4
+    check bounds.u v4, v3, v0 => b3, b4
 
 b3:
     v7: uint32 = int.add v4, v2
@@ -1006,7 +990,7 @@ entry(v0: [int32; 4]):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 -> b2, b3
+    check bounds.u v4, v3, v0 => b2, b3
 
 b2:
     v6: uint32 = int.add v4, v2
@@ -1032,7 +1016,7 @@ entry(v0: [int32; 4]):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 -> b2, b3
+    check bounds.u v4, v3, v0 => b2, b3
 
 b2:
     v6: uint32 = int.add v4, v2
@@ -1071,7 +1055,7 @@ b1(v4: uint32):
 
 b2:
     v6: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 -> b3, b4
+    check bounds.u v4, v3, v0 => b3, b4
 
 b3:
     v7: uint32 = int.add v4, v2
@@ -1137,7 +1121,7 @@ b1(v4: int32):
 
 b2:
     v6: boolean = int.lt.s v4, v3
-    check bounds.s v4, v3, v0 -> b3, b4
+    check bounds.s v4, v3, v0 => b3, b4
 
 b3:
     v7: int32 = int.add v4, v2
@@ -1165,7 +1149,7 @@ b1(v4: int32):
 
 b2:
     v6: boolean = int.lt.s v4, v3
-    check bounds.s v4, v3, v0 -> b3, b4
+    check bounds.s v4, v3, v0 => b3, b4
 
 b3:
     v7: int32 = int.add v4, v2
@@ -1203,7 +1187,7 @@ b1(v4: uint32):
 
 b2(v6: uint32):
     v7: boolean = int.lt.u v6, v3
-    check bounds.u v6, v3, v0 -> b3, b4
+    check bounds.u v6, v3, v0 => b3, b4
 
 b3:
     v8: uint32 = int.add v6, v2
@@ -1273,7 +1257,7 @@ b2:
 
 b3:
     v7: boolean = int.lt.s v4, v3
-    check bounds.s v4, v3, v0 -> b4, b5
+    check bounds.s v4, v3, v0 => b4, b5
 
 b4:
     v8: int32 = 1
@@ -1348,7 +1332,7 @@ b2:
 
 b3:
     v7: boolean = int.lt.s v4, v3
-    check bounds.s v4, v3, v0 -> b4, b5
+    check bounds.s v4, v3, v0 => b4, b5
 
 b4:
     v8: int32 = 1
@@ -1423,7 +1407,7 @@ b2:
 
 b3:
     v7: boolean = int.lt.s v4, v3
-    check bounds.s v4, v3, v0 -> b4, b5
+    check bounds.s v4, v3, v0 => b4, b5
 
 b4:
     v8: int32 = 1
@@ -1499,7 +1483,7 @@ b2:
 
 b3:
     v7: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 -> b4, b5
+    check bounds.u v4, v3, v0 => b4, b5
 
 b4:
     v8: uint32 = int.add v4, v2
@@ -1559,11 +1543,11 @@ entry(v0: [int32; 4]):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 -> b2, b5
+    check bounds.u v4, v3, v0 => b2, b5
 
 b2:
     v6: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 -> b3, b4
+    check bounds.u v4, v3, v0 => b3, b4
 
 b3:
     v7: uint32 = int.add v4, v2
@@ -1588,7 +1572,7 @@ entry(v0: [int32; 4]):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 -> b2, b5
+    check bounds.u v4, v3, v0 => b2, b5
 
 b2:
     v6: boolean = int.lt.u v4, v3
@@ -1629,7 +1613,7 @@ b1(v4: int32):
 
 b2:
     v6: boolean = int.lt.s v4, v3
-    check bounds.s v4, v3, v0 -> b3, b4
+    check bounds.s v4, v3, v0 => b3, b4
 
 b3:
     v7: int32 = int.add v4, v2
@@ -1657,7 +1641,7 @@ b1(v4: int32):
 
 b2:
     v6: boolean = int.lt.s v4, v3
-    check bounds.s v4, v3, v0 -> b3, b4
+    check bounds.s v4, v3, v0 => b3, b4
 
 b3:
     v7: int32 = int.add v4, v2
@@ -1696,7 +1680,7 @@ b1(v4: uint32):
 
 b2:
     v7: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 -> b3, b4
+    check bounds.u v4, v3, v0 => b3, b4
 
 b3:
     v8: uint32 = int.add v4, v2
@@ -1765,7 +1749,7 @@ b1(v4: uint32):
 b2:
     v6: uint32 = int.add v4, v2
     v7: boolean = int.lt.u v6, v3
-    check bounds.u v6, v3, v0 -> b3, b4
+    check bounds.u v6, v3, v0 => b3, b4
 
 b3:
     v8: uint32 = int.add v4, v2
@@ -1795,7 +1779,7 @@ b1(v4: uint32):
 b2:
     v6: uint32 = int.add v4, v2
     v7: boolean = int.lt.u v6, v3
-    check bounds.u v6, v3, v0 -> b3, b4
+    check bounds.u v6, v3, v0 => b3, b4
 
 b3:
     v8: uint32 = int.add v4, v2
@@ -1834,7 +1818,7 @@ b1(v4: uint32):
 
 b2:
     v7: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 -> b3, b4
+    check bounds.u v4, v3, v0 => b3, b4
 
 b3:
     v8: uint32 = int.add v4, v2
@@ -1903,7 +1887,7 @@ b1(v4: uint32):
 
 b2:
     v7: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 -> b3, b4
+    check bounds.u v4, v3, v0 => b3, b4
 
 b3:
     v8: uint32 = int.add v4, v2
@@ -1933,7 +1917,7 @@ b1(v4: uint32):
 
 b2:
     v7: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 -> b3, b4
+    check bounds.u v4, v3, v0 => b3, b4
 
 b3:
     v8: uint32 = int.add v4, v2

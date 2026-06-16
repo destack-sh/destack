@@ -114,9 +114,9 @@ struct IfConvertCandidate {
     /// The merge block.
     merge_block: mir::LocalNodeId<mir::Block>,
     /// Arguments passed to the then block.
-    then_arguments: Vec<mir::ValueReference>,
+    then_arguments: Vec<mir::Value>,
     /// Arguments passed to the else block.
-    else_arguments: Vec<mir::ValueReference>,
+    else_arguments: Vec<mir::Value>,
 }
 
 /// Run if conversion and return true when changes were made.
@@ -170,11 +170,11 @@ fn find_if_convert_candidate(
                 then_target,
                 else_target,
             } => (
-                condition.value()?,
-                then_target.block.block()?,
-                else_target.block.block()?,
-                then_target.arguments.clone(),
-                else_target.arguments.clone(),
+                condition,
+                then_target.block,
+                else_target.block,
+                tree.block_target_values(then_target).to_vec(),
+                tree.block_target_values(else_target).to_vec(),
             ),
             _ => return None,
         };
@@ -204,7 +204,7 @@ fn find_if_convert_candidate(
         (mir::Terminator::Jump { target }, mir::Terminator::Jump { target: other })
             if target.block == other.block =>
         {
-            target.block.block()?
+            target.block
         }
         _ => return None,
     };
@@ -234,7 +234,7 @@ fn find_if_convert_candidate(
 
     Some(IfConvertCandidate {
         header,
-        condition,
+        condition: *condition,
         then_block,
         else_block,
         merge_block,
@@ -280,11 +280,11 @@ fn apply_if_convert(
 
     // read merge arguments
     let then_terminator = tree.get(then_block.terminator);
-    let Some(then_merge_args) = jump_arguments(then_terminator) else {
+    let Some(then_merge_args) = jump_arguments(tree, then_terminator) else {
         return false;
     };
     let else_terminator = tree.get(else_block.terminator);
-    let Some(else_merge_args) = jump_arguments(else_terminator) else {
+    let Some(else_merge_args) = jump_arguments(tree, else_terminator) else {
         return false;
     };
     if then_merge_args.len() != else_merge_args.len() {
@@ -294,7 +294,7 @@ fn apply_if_convert(
     // check conversion cost model
     let block_counts =
         mir::profile_block_counts(function, tree, ctx.profile(), &mir::FunctionAnalyses::new());
-    let edge_counts = mir::edge_counts(function, tree, &block_counts);
+    let edge_counts = mir::edge_counts(function, tree, ctx.profile(), &block_counts);
     if !should_convert(
         &candidate,
         &then_block,
@@ -314,15 +314,8 @@ fn apply_if_convert(
     // build select values for merge arguments
     let mut select_args = Vec::with_capacity(then_merge_args.len());
     for (then_value, else_value) in then_merge_args.iter().zip(else_merge_args.iter()) {
-        let Some(then_value) = then_value.value() else {
-            return false;
-        };
-        let Some(else_value) = else_value.value() else {
-            return false;
-        };
-
-        let then_value = remap_value(then_value, &then_value_map);
-        let else_value = remap_value(else_value, &else_value_map);
+        let then_value = remap_value(*then_value, &then_value_map);
+        let else_value = remap_value(*else_value, &else_value_map);
 
         let destination = function.next_typed_value_like(then_value);
         let select = mir::Instruction::Select {
@@ -339,6 +332,7 @@ fn apply_if_convert(
     // update header block
     let mut header = tree.get(candidate.header).clone();
     header.instructions = new_instructions;
+    let select_args = tree.add_values(&select_args);
     let new_terminator = mir::Terminator::Jump {
         target: mir::BlockTarget::new(candidate.merge_block.into(), select_args),
     };
@@ -432,7 +426,7 @@ fn build_value_map(
     function: &mut mir::Function,
     tree: &mir::Tree,
     block: &mir::Block,
-    arguments: &[mir::ValueReference],
+    arguments: &[mir::Value],
 ) -> Option<HashMap<mir::Value, mir::Value>> {
     // validate parameter arity
     if block.parameters.len() != arguments.len() {
@@ -442,16 +436,13 @@ fn build_value_map(
     // map parameters to incoming arguments
     let mut value_map = HashMap::new();
     for (param, arg) in block.parameters.iter().zip(arguments.iter()) {
-        value_map.insert(param.value.value()?, arg.value()?);
+        value_map.insert(param.value, *arg);
     }
 
     // map instruction destinations to fresh values
     for &instruction_id in &block.instructions {
         let instruction = tree.get(instruction_id);
-        if let Some(destination) = instruction
-            .destination()
-            .and_then(|destination| destination.value())
-        {
+        if let Some(destination) = instruction.destination() {
             let new_value = function.next_typed_value_like(destination);
             value_map.insert(destination, new_value);
         }
@@ -494,9 +485,9 @@ fn instructions_speculatable(
 }
 
 /// Read jump arguments from a block terminator.
-fn jump_arguments(terminator: &mir::Terminator) -> Option<Vec<mir::ValueReference>> {
+fn jump_arguments(tree: &mir::Tree, terminator: &mir::Terminator) -> Option<Vec<mir::Value>> {
     match terminator {
-        mir::Terminator::Jump { target } => Some(target.arguments.clone()),
+        mir::Terminator::Jump { target } => Some(tree.block_target_values(target).to_vec()),
         _ => None,
     }
 }
@@ -587,14 +578,8 @@ b3(v9: int32):
 
         let then_instruction = test.instructions_in_block(then_block_id)[0];
         let else_instruction = test.instructions_in_block(else_block_id)[0];
-        let then_param = test.tree.get(then_block_id).parameters[0]
-            .value
-            .value()
-            .expect("then block parameter should be concrete");
-        let else_param = test.tree.get(else_block_id).parameters[1]
-            .value
-            .value()
-            .expect("else block parameter should be concrete");
+        let then_param = test.tree.get(then_block_id).parameters[0].value;
+        let else_param = test.tree.get(else_block_id).parameters[1].value;
 
         test.insert_pointer_access_with_options(
             then_instruction,
@@ -616,14 +601,8 @@ b3(v9: int32):
         test.run_pass(&IfConvert);
 
         let header_block = test.tree.get(header_block_id);
-        let then_arg = header_block.parameters[1]
-            .value
-            .value()
-            .expect("converted then parameter should be concrete");
-        let else_arg = header_block.parameters[2]
-            .value
-            .value()
-            .expect("converted else parameter should be concrete");
+        let then_arg = header_block.parameters[1].value;
+        let else_arg = header_block.parameters[2].value;
         let mut saw_then = false;
         let mut saw_else = false;
 

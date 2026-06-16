@@ -383,9 +383,7 @@ fn process_block(
         // update availability based on instruction kind
         match instruction {
             mir::Instruction::Store { value, .. } | mir::Instruction::LocalSet { value, .. } => {
-                let Some(value) = value.value() else {
-                    continue;
-                };
+                let value = *value;
 
                 // resolve the memory def access
                 let Some(def_access_id) = def_access_id(memory_ssa, instruction_id) else {
@@ -412,9 +410,7 @@ fn process_block(
             }
 
             mir::Instruction::Load { destination, .. } => {
-                let Some(destination) = destination.value() else {
-                    continue;
-                };
+                let destination = *destination;
 
                 // resolve the memory use access
                 let Some(use_access_id) = use_access_id(memory_ssa, instruction_id) else {
@@ -454,9 +450,7 @@ fn process_block(
             }
 
             mir::Instruction::LocalGet { destination, .. } => {
-                let Some(destination) = destination.value() else {
-                    continue;
-                };
+                let destination = *destination;
 
                 // resolve the memory use access
                 let Some(use_access_id) = use_access_id(memory_ssa, instruction_id) else {
@@ -751,7 +745,7 @@ entry:
     v1: int32 = 7
     v2: uint32 = 0
     store v0, v1
-    switch v2, b1, 0 -> b2, 1 -> b3
+    switch v2, b1, 0 => b2, 1 => b3
 
 b1:
     jump b4
@@ -774,7 +768,7 @@ entry:
     v1: int32 = 7
     v2: uint32 = 0
     store v0, v1
-    switch v2, b1, 0 -> b2, 1 -> b3
+    switch v2, b1, 0 => b2, 1 => b3
 
 b1:
     jump b4

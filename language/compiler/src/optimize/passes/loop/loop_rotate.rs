@@ -166,21 +166,11 @@ fn find_rotation_candidate(
             then_target,
             else_target,
         } => (
-            condition.value()?,
-            then_target.block.block()?,
-            then_target
-                .arguments
-                .iter()
-                .copied()
-                .map(|argument| argument.value())
-                .collect::<Option<Vec<_>>>()?,
-            else_target.block.block()?,
-            else_target
-                .arguments
-                .iter()
-                .copied()
-                .map(|argument| argument.value())
-                .collect::<Option<Vec<_>>>()?,
+            *condition,
+            then_target.block,
+            tree.get_values(then_target.arguments).to_vec(),
+            else_target.block,
+            tree.get_values(else_target.arguments).to_vec(),
         ),
         _ => return None,
     };
@@ -207,8 +197,8 @@ fn find_rotation_candidate(
     let header_params: Vec<_> = header_block
         .parameters
         .iter()
-        .map(|param| param.value.value())
-        .collect::<Option<_>>()?;
+        .map(|param| param.value)
+        .collect();
     let header_param_set: std::collections::HashSet<_> = header_params.iter().copied().collect();
     let passed_to_body: std::collections::HashSet<_> = body_arguments.iter().copied().collect();
     if !header_param_set.is_subset(&passed_to_body) {
@@ -250,32 +240,19 @@ fn rotate_loop(
     tree: &mut mir::Tree,
     candidate: &RotationCandidate,
 ) -> bool {
-    let header_block = tree.get(candidate.header).clone();
-    let Some(header_params): Option<Vec<_>> = header_block
+    let header_block = tree.get(candidate.header);
+    let header_params: Vec<_> = header_block
         .parameters
         .iter()
-        .map(|param| param.value.value())
-        .collect()
-    else {
-        return false;
-    };
+        .map(|param| param.value)
+        .collect();
 
     // get arguments passed to header from preheader and latch
     let preheader_block = tree.get(candidate.preheader);
     let preheader_current_terminator = tree.get(preheader_block.terminator);
     let preheader_args = match preheader_current_terminator {
-        mir::Terminator::Jump { target } if target.block.block() == Some(candidate.header) => {
-            let Some(arguments) = target
-                .arguments
-                .iter()
-                .copied()
-                .map(|argument| argument.value())
-                .collect::<Option<Vec<_>>>()
-            else {
-                return false;
-            };
-
-            arguments
+        mir::Terminator::Jump { target } if target.block == candidate.header => {
+            tree.get_values(target.arguments).to_vec()
         }
         _ => return false,
     };
@@ -283,18 +260,8 @@ fn rotate_loop(
     let latch_block = tree.get(candidate.latch);
     let latch_current_terminator = tree.get(latch_block.terminator);
     let latch_args = match latch_current_terminator {
-        mir::Terminator::Jump { target } if target.block.block() == Some(candidate.header) => {
-            let Some(arguments) = target
-                .arguments
-                .iter()
-                .copied()
-                .map(|argument| argument.value())
-                .collect::<Option<Vec<_>>>()
-            else {
-                return false;
-            };
-
-            arguments
+        mir::Terminator::Jump { target } if target.block == candidate.header => {
+            tree.get_values(target.arguments).to_vec()
         }
         _ => return false,
     };
@@ -324,30 +291,20 @@ fn rotate_loop(
     let remapped_body_args = remap_args(&candidate.body_arguments, &preheader_value_map);
     let remapped_exit_args = remap_args(&candidate.exit_arguments, &preheader_value_map);
     let preheader_condition = remap(candidate.branch_condition, &preheader_value_map);
+    let preheader_body_args = tree.add_values(&remapped_body_args);
+    let preheader_exit_args = tree.add_values(&remapped_exit_args);
 
     let preheader_terminator = if candidate.then_to_body {
         mir::Terminator::Branch {
             condition: preheader_condition.into(),
-            then_target: mir::BlockTarget::new(
-                candidate.body_block.into(),
-                remapped_body_args.into_iter().map(Into::into).collect(),
-            ),
-            else_target: mir::BlockTarget::new(
-                candidate.exit_block.into(),
-                remapped_exit_args.into_iter().map(Into::into).collect(),
-            ),
+            then_target: mir::BlockTarget::new(candidate.body_block.into(), preheader_body_args),
+            else_target: mir::BlockTarget::new(candidate.exit_block.into(), preheader_exit_args),
         }
     } else {
         mir::Terminator::Branch {
             condition: preheader_condition.into(),
-            then_target: mir::BlockTarget::new(
-                candidate.exit_block.into(),
-                remapped_exit_args.into_iter().map(Into::into).collect(),
-            ),
-            else_target: mir::BlockTarget::new(
-                candidate.body_block.into(),
-                remapped_body_args.into_iter().map(Into::into).collect(),
-            ),
+            then_target: mir::BlockTarget::new(candidate.exit_block.into(), preheader_exit_args),
+            else_target: mir::BlockTarget::new(candidate.body_block.into(), preheader_body_args),
         }
     };
 
@@ -362,30 +319,20 @@ fn rotate_loop(
     let latch_body_args = remap_args(&candidate.body_arguments, &latch_value_map);
     let latch_exit_args = remap_args(&candidate.exit_arguments, &latch_value_map);
     let latch_condition = remap(candidate.branch_condition, &latch_value_map);
+    let latch_body_args = tree.add_values(&latch_body_args);
+    let latch_exit_args = tree.add_values(&latch_exit_args);
 
     let latch_terminator = if candidate.then_to_body {
         mir::Terminator::Branch {
             condition: latch_condition.into(),
-            then_target: mir::BlockTarget::new(
-                candidate.body_block.into(),
-                latch_body_args.into_iter().map(Into::into).collect(),
-            ),
-            else_target: mir::BlockTarget::new(
-                candidate.exit_block.into(),
-                latch_exit_args.into_iter().map(Into::into).collect(),
-            ),
+            then_target: mir::BlockTarget::new(candidate.body_block.into(), latch_body_args),
+            else_target: mir::BlockTarget::new(candidate.exit_block.into(), latch_exit_args),
         }
     } else {
         mir::Terminator::Branch {
             condition: latch_condition.into(),
-            then_target: mir::BlockTarget::new(
-                candidate.exit_block.into(),
-                latch_exit_args.into_iter().map(Into::into).collect(),
-            ),
-            else_target: mir::BlockTarget::new(
-                candidate.body_block.into(),
-                latch_body_args.into_iter().map(Into::into).collect(),
-            ),
+            then_target: mir::BlockTarget::new(candidate.exit_block.into(), latch_exit_args),
+            else_target: mir::BlockTarget::new(candidate.body_block.into(), latch_body_args),
         }
     };
 
@@ -433,21 +380,21 @@ entry(v0: boolean):
     branch v0, b2, b1
 
 b1:
-    jump b6
+    jump b3
 
 b2:
-    jump block2_1
+    jump b2_1
 
-block2_1:
+b2_1:
     branch v0, b5, b4
 
 b4:
-    jump b6
+    jump b3
 
 b5:
-    jump block2_1
+    jump b2_1
 
-b6:
+b3:
     return
 }
 "#;
@@ -495,24 +442,24 @@ entry(v0: int32, v1: int32):
     branch v3, b2(v2, v3), b1(v2)
 
 b1(v14: int32):
-    jump b6(v14)
+    jump b3(v14)
 
 b2(v12: int32, v13: boolean):
-    jump block2_1(v12, v13)
+    jump b2_1(v12, v13)
 
-block2_1(v6: int32, v7: boolean):
+b2_1(v6: int32, v7: boolean):
     v8: int32 = 1
     v9: int32 = int.add v6, v8
     v10: boolean = int.lt.s v9, v1
     branch v10, b5(v9, v10), b4(v9)
 
 b4(v17: int32):
-    jump b6(v17)
+    jump b3(v17)
 
 b5(v15: int32, v16: boolean):
-    jump block2_1(v15, v16)
+    jump b2_1(v15, v16)
 
-b6(v11: int32):
+b3(v11: int32):
     return v11
 }
 "#;
@@ -541,7 +488,7 @@ b3:
     return
 }
 "#;
-        // condition false -> body, condition true -> exit
+        // condition false => body, condition true -> exit
         // critical edges are split after SimplifyCfg
         let expected = r#"
 function test(v0: boolean): void {
@@ -549,21 +496,21 @@ entry(v0: boolean):
     branch v0, b2, b1
 
 b1:
-    jump block2_1
+    jump b2_1
 
 b2:
-    jump b6
+    jump b3
 
-block2_1:
+b2_1:
     branch v0, b5, b4
 
 b4:
-    jump block2_1
+    jump b2_1
 
 b5:
-    jump b6
+    jump b3
 
-b6:
+b3:
     return
 }
 "#;
@@ -739,24 +686,24 @@ entry(v0: int32, v1: int32):
     branch v4, b2(v2, v3, v4), b1(v2, v3)
 
 b1(v20: int32, v21: int32):
-    jump b6(v20, v21)
+    jump b3(v20, v21)
 
 b2(v17: int32, v18: int32, v19: boolean):
-    jump block2_1(v17, v18, v19)
+    jump b2_1(v17, v18, v19)
 
-block2_1(v8: int32, v9: int32, v10: boolean):
+b2_1(v8: int32, v9: int32, v10: boolean):
     v11: int32 = int.add v8, v9
     v12: int32 = int.add v9, v3
     v13: boolean = int.lt.s v11, v0
     branch v13, b5(v11, v12, v13), b4(v11, v12)
 
 b4(v25: int32, v26: int32):
-    jump b6(v25, v26)
+    jump b3(v25, v26)
 
 b5(v22: int32, v23: int32, v24: boolean):
-    jump block2_1(v22, v23, v24)
+    jump b2_1(v22, v23, v24)
 
-b6(v14: int32, v15: int32):
+b3(v14: int32, v15: int32):
     v16: int32 = int.add v14, v15
     return v16
 }

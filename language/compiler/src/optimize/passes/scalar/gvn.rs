@@ -461,15 +461,10 @@ fn process_block(
                 ..
             } => {
                 // record struct operands for forwarding
-                let Some(destination) = destination.value() else {
-                    continue;
-                };
+                let destination = *destination;
 
-                let args = tree.get_arguments(*fields);
-                value_table.insert_aggregate(
-                    destination,
-                    args.iter().filter_map(|value| value.value()).collect(),
-                );
+                let args = tree.get_values(*fields);
+                value_table.insert_aggregate(destination, args.iter().copied().collect());
             }
             mir::Instruction::Tuple {
                 destination,
@@ -482,15 +477,10 @@ fn process_block(
                 ..
             } => {
                 // record tuple or array operands for forwarding
-                let Some(destination) = destination.value() else {
-                    continue;
-                };
+                let destination = *destination;
 
-                let args = tree.get_arguments(*elements);
-                value_table.insert_aggregate(
-                    destination,
-                    args.iter().filter_map(|value| value.value()).collect(),
-                );
+                let args = tree.get_values(*elements);
+                value_table.insert_aggregate(destination, args.iter().copied().collect());
             }
             _ => {}
         }
@@ -503,18 +493,14 @@ fn process_block(
                 index,
                 ..
             } => {
-                if let (Some(destination), Some(aggregate)) =
-                    (destination.value(), aggregate.value())
-                {
-                    let agg = substitutions.get(&aggregate).copied().unwrap_or(aggregate);
+                let aggregate = *aggregate;
+                let destination = *destination;
+                let agg = substitutions.get(&aggregate).copied().unwrap_or(aggregate);
 
-                    if let Some(operands) = value_table.get_aggregate(&agg)
-                        && let Some(&operand) = operands.get(*index as usize)
-                    {
-                        Some((destination, operand, instruction_id))
-                    } else {
-                        None
-                    }
+                if let Some(operands) = value_table.get_aggregate(&agg)
+                    && let Some(&operand) = operands.get(*index as usize)
+                {
+                    Some((destination, operand, instruction_id))
                 } else {
                     None
                 }
@@ -525,16 +511,14 @@ fn process_block(
                 index,
                 ..
             } => {
-                if let (Some(destination), Some(array)) = (destination.value(), array.value()) {
-                    let agg = substitutions.get(&array).copied().unwrap_or(array);
+                let array = *array;
+                let destination = *destination;
+                let agg = substitutions.get(&array).copied().unwrap_or(array);
 
-                    if let Some(operands) = value_table.get_aggregate(&agg)
-                        && let Some(&operand) = operands.get(*index as usize)
-                    {
-                        Some((destination, operand, instruction_id))
-                    } else {
-                        None
-                    }
+                if let Some(operands) = value_table.get_aggregate(&agg)
+                    && let Some(&operand) = operands.get(*index as usize)
+                {
+                    Some((destination, operand, instruction_id))
                 } else {
                     None
                 }
@@ -553,12 +537,8 @@ fn process_block(
 
         // forward local reads
         if let mir::Instruction::LocalGet { destination, local } = instruction {
-            let Some(destination) = destination.value() else {
-                continue;
-            };
-            let Some(local) = local.local() else {
-                continue;
-            };
+            let destination = *destination;
+            let local = *local;
 
             if let Some(existing) = value_table.get_local(local)
                 && can_substitute_value(destination, existing, value_types, tree)
@@ -573,21 +553,15 @@ fn process_block(
 
         // update local state on writes
         if let mir::Instruction::LocalSet { local, value } = instruction {
-            let Some(local) = local.local() else {
-                continue;
-            };
-            let Some(value) = value.value() else {
-                continue;
-            };
+            let local = *local;
+            let value = *value;
 
             value_table.insert_local(local, value);
         }
 
         // forward redundant loads
         if let mir::Instruction::Load { destination, .. } = instruction {
-            let Some(destination) = destination.value() else {
-                continue;
-            };
+            let destination = *destination;
 
             // resolve the memory ssa use access
             let Some(use_access_id) = memory_ssa.first_use_access(instruction_id) else {
@@ -643,10 +617,7 @@ fn process_block(
         };
 
         // get the destination value
-        let Some(destination) = instruction
-            .destination()
-            .and_then(|destination| destination.value())
-        else {
+        let Some(destination) = instruction.destination() else {
             continue;
         };
 

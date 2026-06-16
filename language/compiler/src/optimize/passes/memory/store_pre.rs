@@ -155,7 +155,7 @@ fn run_store_pre(
     let function_params: HashSet<_> = function
         .parameters
         .iter()
-        .filter_map(|param| param.value.value())
+        .map(|param| param.value)
         .collect();
 
     // track modifications
@@ -175,7 +175,7 @@ fn run_store_pre(
             .parameters
             .iter()
             .enumerate()
-            .filter_map(|(index, param)| Some((param.value.value()?, index)))
+            .map(|(index, param)| (param.value, index))
             .collect::<HashMap<_, _>>();
 
         // scan block instructions for store candidates
@@ -183,24 +183,15 @@ fn run_store_pre(
             // select store instructions
             let (kind, pointer, local, value) = match tree.get(instruction_id) {
                 mir::Instruction::Store { pointer, value } => {
-                    let Some(pointer) = pointer.value() else {
-                        continue;
-                    };
-                    let Some(value) = value.value() else {
-                        continue;
-                    };
+                    let pointer = *pointer;
+                    let value = *value;
 
                     (StoreKind::Store, Some(pointer), None, value)
                 }
                 mir::Instruction::LocalSet { local, value } => {
-                    let Some(local) = local.local() else {
-                        continue;
-                    };
-                    let Some(value) = value.value() else {
-                        continue;
-                    };
+                    let value = *value;
 
-                    (StoreKind::LocalSet, None, Some(local), value)
+                    (StoreKind::LocalSet, None, Some(*local), value)
                 }
                 _ => continue,
             };
@@ -543,22 +534,11 @@ fn incoming_def_matches(
     }
     let (def_kind, def_pointer, def_local, def_value) = match tree.get(def_instruction) {
         mir::Instruction::Store { pointer, value } => {
-            let Some(pointer) = pointer.value() else {
-                return false;
-            };
-            let Some(value) = value.value() else {
-                return false;
-            };
-
-            (StoreKind::Store, Some(pointer), None, value)
+            (StoreKind::Store, Some(*pointer), None, *value)
         }
         mir::Instruction::LocalSet { local, value } => {
-            let Some(local) = local.local() else {
-                return false;
-            };
-            let Some(value) = value.value() else {
-                return false;
-            };
+            let local = *local;
+            let value = *value;
 
             (StoreKind::LocalSet, None, Some(local), value)
         }

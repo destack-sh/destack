@@ -28,7 +28,7 @@ declare_pass! {
     ///     branch v6, b2, b3
     /// b2:
     ///     v7 = int.lt.u v5, v1
-    ///     check bounds.u v5, v1, v0 -> b4, b5
+    ///     check bounds.u v5, v1, v0 => b4, b5
     /// b4:
     ///     v8 = element.address v0, v5
     ///     v9 = 1uint8
@@ -54,7 +54,7 @@ declare_pass! {
     ///     branch v6, b2, b3
     /// b2:
     ///     v7 = int.lt.u v5, v1
-    ///     check bounds.u v5, v1, v0 -> b4, b5
+    ///     check bounds.u v5, v1, v0 => b4, b5
     /// b4:
     ///     v8 = element.address v0, v5
     ///     v9 = 1uint8
@@ -258,9 +258,10 @@ fn run_loop_versioning(
         // remap cloned terminators to cloned blocks
         for &cloned_id in block_map.values() {
             let block = tree.get(cloned_id);
-            let mut terminator = tree.get(block.terminator).clone();
-            terminator_remap(&mut terminator, &block_map, &value_map);
-            tree.set(block.terminator, terminator);
+            let terminator_id = block.terminator;
+            let mut terminator = tree.get(terminator_id).clone();
+            terminator_remap(tree, &mut terminator, &block_map, &value_map);
+            tree.set(terminator_id, terminator);
         }
 
         // remove bounds checks in the cloned loop
@@ -282,16 +283,11 @@ fn run_loop_versioning(
         let Some(condition) = tree.get(fast_guard).destination() else {
             continue;
         };
+        let preheader_args = tree.add_values(&preheader_args);
         let preheader_terminator = mir::Terminator::Branch {
             condition,
-            then_target: mir::BlockTarget::new(
-                fast_header.into(),
-                preheader_args.iter().copied().map(Into::into).collect(),
-            ),
-            else_target: mir::BlockTarget::new(
-                header.into(),
-                preheader_args.iter().copied().map(Into::into).collect(),
-            ),
+            then_target: mir::BlockTarget::new(fast_header.into(), preheader_args),
+            else_target: mir::BlockTarget::new(header.into(), preheader_args),
         };
         tree.set(preheader_block.terminator, preheader_terminator);
         tree.set(preheader, preheader_block);
@@ -334,12 +330,9 @@ fn find_preheader(
     let preheader_block = tree.get(preheader);
     let preheader_terminator = tree.get(preheader_block.terminator);
     let arguments = match preheader_terminator {
-        mir::Terminator::Jump { target } if target.block.block() == Some(header) => target
-            .arguments
-            .iter()
-            .copied()
-            .map(|argument| argument.value())
-            .collect::<Option<Vec<_>>>()?,
+        mir::Terminator::Jump { target } if target.block == header => {
+            tree.get_values(target.arguments).to_vec()
+        }
         _ => return None,
     };
 
@@ -366,19 +359,18 @@ fn guard_from_header(
     };
 
     // require the true edge to stay inside the loop
-    let then_target = then_target.block.block()?;
+    let then_target = then_target.block;
     if !loop_blocks.contains(&then_target) {
         return None;
     }
 
     // locate the guard instruction that produces the condition
-    let condition = condition.value()?;
     let definition = use_def.def_block.get(&condition)?;
     let block = tree.get(*definition);
     let inst_id = block
         .instructions
         .iter()
-        .find(|&&inst_id| tree.get(inst_id).destination() == Some(condition.into()))?;
+        .find(|&&inst_id| tree.get(inst_id).destination() == (*condition).into())?;
     let inst = tree.get(*inst_id);
 
     let mir::Instruction::Binary {
@@ -393,10 +385,10 @@ fn guard_from_header(
 
     // accept unsigned comparisons that can be normalized to induction < bound
     let (induction, bound, is_strict) = match operator {
-        mir::BinaryOperator::UnsignedLessThan => (left.value()?, right.value()?, true),
-        mir::BinaryOperator::UnsignedLessEqual => (left.value()?, right.value()?, false),
-        mir::BinaryOperator::UnsignedGreaterThan => (right.value()?, left.value()?, true),
-        mir::BinaryOperator::UnsignedGreaterEqual => (right.value()?, left.value()?, false),
+        mir::BinaryOperator::UnsignedLessThan => (left, right, true),
+        mir::BinaryOperator::UnsignedLessEqual => (left, right, false),
+        mir::BinaryOperator::UnsignedGreaterThan => (right, left, true),
+        mir::BinaryOperator::UnsignedGreaterEqual => (right, left, false),
         _ => return None,
     };
 
@@ -404,15 +396,15 @@ fn guard_from_header(
     let header_params: Vec<_> = header_block
         .parameters
         .iter()
-        .filter_map(|parameter| parameter.value.value())
+        .map(|parameter| parameter.value)
         .collect();
     if !header_params.contains(&induction) {
         return None;
     }
 
     Some(GuardInfo {
-        induction,
-        bound,
+        induction: *induction,
+        bound: *bound,
         is_strict,
     })
 }
@@ -467,11 +459,11 @@ fn bounds_check_in_loop(
         }
 
         // ignore mismatched indices
-        if index.value() != Some(induction) {
+        if *index != induction {
             continue;
         }
 
-        return Some((length.value()?, collection.value()?));
+        return Some((*length, *collection));
     }
 
     None
@@ -510,12 +502,9 @@ fn insert_preheader_guard(
     let preheader_block = tree.get(preheader);
     let preheader_terminator = tree.get(preheader_block.terminator);
     let target_args = match preheader_terminator {
-        mir::Terminator::Jump { target } if target.block.block() == Some(header) => target
-            .arguments
-            .iter()
-            .copied()
-            .map(|argument| argument.value())
-            .collect::<Option<Vec<_>>>()?,
+        mir::Terminator::Jump { target } if target.block == header => {
+            tree.get_values(target.arguments)
+        }
         _ => return None,
     };
 
@@ -633,11 +622,7 @@ fn strip_bounds_checks(
         };
 
         // ignore non matching checks
-        if *is_signed
-            || index.value() != Some(induction)
-            || bound.value() != Some(length)
-            || col.value() != Some(collection)
-        {
+        if *is_signed || *index != induction || *bound != length || *col != collection {
             continue;
         }
 
@@ -671,7 +656,7 @@ b1(v5: uint32):
 
 b2:
     v7: boolean = int.lt.u v5, v1
-    check bounds.u v5, v1, v0 -> b3, b4
+    check bounds.u v5, v1, v0 => b3, b4
 
 b3:
     v8: ref<uint8, borrowed> = element.address v0, v5
@@ -702,7 +687,7 @@ b1(v5: uint32):
 
 b2:
     v7: boolean = int.lt.u v5, v1
-    check bounds.u v5, v1, v0 -> b3, b4
+    check bounds.u v5, v1, v0 => b3, b4
 
 b3:
     v8: ref<uint8, borrowed> = element.address v0, v5
@@ -755,7 +740,7 @@ b1(v5: uint32):
 
 b2:
     v7: boolean = int.lt.u v5, v1
-    check bounds.u v5, v1, v0 -> b3, b4
+    check bounds.u v5, v1, v0 => b3, b4
 
 b3:
     v8: ref<uint8, borrowed> = element.address v0, v5
@@ -786,7 +771,7 @@ b1(v5: uint32):
 
 b2:
     v7: boolean = int.lt.u v5, v1
-    check bounds.u v5, v1, v0 -> b3, b4
+    check bounds.u v5, v1, v0 => b3, b4
 
 b3:
     v8: ref<uint8, borrowed> = element.address v0, v5
@@ -839,7 +824,7 @@ b1(v5: int32):
 
 b2:
     v7: boolean = int.lt.s v5, v1
-    check bounds.s v5, v1, v0 -> b4, b5
+    check bounds.s v5, v1, v0 => b4, b5
 
 b3:
     return
@@ -877,7 +862,7 @@ b1(v5: uint32):
 
 b2:
     v7: boolean = int.lt.u v5, v2
-    check bounds.u v5, v1, v0 -> b4, b5
+    check bounds.u v5, v1, v0 => b4, b5
 
 b3:
     return
@@ -915,7 +900,7 @@ b1(v5: uint32):
 
 b2:
     v7: boolean = int.lt.u v5, v1
-    check bounds.u v5, v1, v0 -> b3, b4
+    check bounds.u v5, v1, v0 => b3, b4
 
 b3:
     v8: ref<uint8, borrowed> = element.address v0, v5
@@ -946,7 +931,7 @@ b1(v5: uint32):
 
 b2:
     v7: boolean = int.lt.u v5, v1
-    check bounds.u v5, v1, v0 -> b3, b4
+    check bounds.u v5, v1, v0 => b3, b4
 
 b3:
     v8: ref<uint8, borrowed> = element.address v0, v5
@@ -999,7 +984,7 @@ b1(v5: uint32):
 
 b2:
     v7: boolean = int.lt.u v5, v1
-    check bounds.u v5, v1, v0 -> b3, b4
+    check bounds.u v5, v1, v0 => b3, b4
 
 b3:
     v8: ref<uint8, borrowed> = element.address v0, v5

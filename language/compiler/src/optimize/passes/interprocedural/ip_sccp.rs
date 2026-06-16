@@ -123,7 +123,7 @@ struct DirectCallSite {
     /// The call instruction when applicable.
     call_instruction: Option<mir::LocalNodeId<mir::Instruction>>,
     /// The arguments passed at the callsite.
-    arguments: Vec<mir::ValueReference>,
+    arguments: Vec<mir::Value>,
 }
 
 /// Collected callsite data for IPSCCP.
@@ -408,9 +408,7 @@ fn return_state_for_function(
     type_context: mir::TypeContext,
 ) -> LatticeConstant {
     // require a concrete return type
-    let Some(return_type) = function.return_type.ty() else {
-        return LatticeConstant::Overdefined;
-    };
+    let return_type = function.return_type;
 
     // skip void returns
     if matches!(tree.get(return_type), mir::Type::Void) {
@@ -430,12 +428,12 @@ fn return_state_for_function(
         };
 
         // reject returns without a value
-        let Some(value) = value.and_then(|value| value.value()) else {
+        let Some(value) = value else {
             return LatticeConstant::Overdefined;
         };
 
         // resolve the return constant at the block exit
-        let Some(constant) = constants.constant_at_exit(*block_id, value) else {
+        let Some(constant) = constants.constant_at_exit(*block_id, *value) else {
             return LatticeConstant::Overdefined;
         };
 
@@ -498,9 +496,7 @@ fn param_constants_for_function(
     for (param, param_state) in function.parameters.iter().zip(state.param_states.iter()) {
         // skip non constant parameter states
         if let LatticeConstant::Constant(constant) = param_state {
-            let Some(value) = param.value.value() else {
-                continue;
-            };
+            let value = param.value;
 
             constants.insert(value, constant.clone());
         }
@@ -560,10 +556,6 @@ fn replace_constant_calls(
         let Some(destination) = destination else {
             continue;
         };
-        let Some(function) = function.function() else {
-            continue;
-        };
-
         // skip calls that are not pure
         if !call_is_pure(tree, call_instruction, function) {
             continue;
@@ -626,10 +618,8 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                             ..
                         } = instruction
                     {
-                        let Some(callee) = callee.function() else {
-                            continue;
-                        };
-                        let arguments = tree.get_arguments(call.arguments).to_vec();
+                        let callee = *callee;
+                        let arguments = tree.get_values(call.arguments).to_vec();
 
                         data.callsites.push(DirectCallSite {
                             caller: caller_id,
@@ -657,10 +647,8 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                     call,
                     ..
                 } => {
-                    let Some(callee) = callee.function() else {
-                        continue;
-                    };
-                    let arguments = call.arguments.clone();
+                    let callee = *callee;
+                    let arguments = tree.get_values(call.arguments).to_vec();
 
                     data.callsites.push(DirectCallSite {
                         caller: caller_id,
@@ -684,10 +672,8 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                     call,
                     ..
                 } => {
-                    let Some(callee) = callee.function() else {
-                        continue;
-                    };
-                    let arguments = call.arguments.clone();
+                    let callee = *callee;
+                    let arguments = tree.get_values(call.arguments).to_vec();
 
                     data.callsites.push(DirectCallSite {
                         caller: caller_id,
@@ -959,7 +945,7 @@ entry(v0: int32):
 function root(): int32 {
 entry:
     v0: int32 = 9
-    call callee(v0) -> b1
+    call callee(v0) => b1
 
 b1(v1: int32):
     return v1
@@ -979,7 +965,7 @@ entry(v0: int32):
 function root(): int32 {
 entry:
     v0: int32 = 9
-    call callee(v0) -> b1
+    call callee(v0) => b1
 
 b1(v1: int32):
     return v1
@@ -1025,11 +1011,11 @@ entry(v0: int32):
     return v0
 }
 
-function root(v0: (int32) -> int32): int32 {
-entry(v0: (int32) -> int32):
+function root(v0: fn(int32) => int32): int32 {
+entry(v0: fn(int32) => int32):
     v1: int32 = 7
     v2: int32 = call callee(v1)
-    v3: int32 = call.indirect v0(v1): (int32) -> int32
+    v3: int32 = call.indirect v0(v1): (int32) => int32
     return v2
 }
 "#;

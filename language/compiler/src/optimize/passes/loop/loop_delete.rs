@@ -166,9 +166,7 @@ fn find_deletable_loop(
 
         // block parameters are loop-defined
         for param in &block.parameters {
-            let Some(value) = param.value.value() else {
-                continue;
-            };
+            let value = param.value;
 
             loop_defined_values.insert(value);
         }
@@ -176,7 +174,7 @@ fn find_deletable_loop(
         // instruction destinations are loop-defined
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
-            if let Some(destination) = instruction.destination().and_then(|value| value.value()) {
+            if let Some(destination) = instruction.destination() {
                 loop_defined_values.insert(destination);
             }
         }
@@ -202,21 +200,15 @@ fn find_deletable_loop(
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
             for used_value in instruction.uses() {
-                if used_value
-                    .value()
-                    .is_some_and(|value| loop_defined_values.contains(&value))
-                {
+                if loop_defined_values.contains(&used_value) {
                     return None;
                 }
             }
 
             // check externalized arguments
             if let Some(args_slice) = instruction.argument_slice() {
-                for &arg in tree.get_arguments(args_slice) {
-                    if arg
-                        .value()
-                        .is_some_and(|value| loop_defined_values.contains(&value))
-                    {
+                for &arg in tree.get_values(args_slice) {
+                    if loop_defined_values.contains(&arg) {
                         return None;
                     }
                 }
@@ -225,11 +217,8 @@ fn find_deletable_loop(
 
         // check terminator uses
         let terminator = tree.get(block.terminator);
-        for used_value in terminator.uses() {
-            if used_value
-                .value()
-                .is_some_and(|value| loop_defined_values.contains(&value))
-            {
+        for used_value in tree.terminator_uses(terminator) {
+            if loop_defined_values.contains(&used_value) {
                 return None;
             }
         }
@@ -260,17 +249,17 @@ fn find_constant_exit(
             then_target,
             else_target,
         } => (
-            condition.value()?,
-            then_target.block.block()?,
-            then_target.arguments.clone(),
-            else_target.block.block()?,
-            else_target.arguments.clone(),
+            condition,
+            then_target.block,
+            tree.get_values(then_target.arguments).to_vec(),
+            else_target.block,
+            tree.get_values(else_target.arguments).to_vec(),
         ),
         _ => return None,
     };
 
     // evaluate the condition as a constant
-    let condition_constant = constants.constant_at_exit(lp.header, condition)?;
+    let condition_constant = constants.constant_at_exit(lp.header, *condition)?;
     let condition_value = match condition_constant {
         mir::Constant::Boolean { value } => *value,
         _ => return None,
@@ -292,9 +281,7 @@ fn find_constant_exit(
     let preheader_args = preheader_to_header_args(preheader, lp.header, tree)?;
     let mut initial_values: HashMap<mir::Value, mir::Value> = HashMap::new();
     for (param, arg) in header_block.parameters.iter().zip(preheader_args.iter()) {
-        let Some(parameter) = param.value.value() else {
-            continue;
-        };
+        let parameter = param.value;
 
         initial_values.insert(parameter, *arg);
     }
@@ -302,7 +289,7 @@ fn find_constant_exit(
     // resolve exit arguments using initial values
     let resolved_arguments: Vec<mir::Value> = taken_arguments
         .iter()
-        .filter_map(|value| value.value())
+        .copied()
         .map(|value| *initial_values.get(&value).unwrap_or(&value))
         .collect();
 
@@ -320,37 +307,21 @@ fn preheader_to_header_args(
 
     // find the terminator path that leads to the header
     match preheader_terminator {
-        mir::Terminator::Jump { target } if target.block.block() == Some(header) => Some(
-            target
-                .arguments
-                .iter()
-                .filter_map(|value| value.value())
-                .collect(),
-        ),
+        mir::Terminator::Jump { target } if target.block == header => {
+            Some(tree.get_values(target.arguments).to_vec())
+        }
         mir::Terminator::Branch {
             then_target,
             else_target,
             ..
         } => {
             // check then branch
-            if then_target.block.block() == Some(header) {
-                Some(
-                    then_target
-                        .arguments
-                        .iter()
-                        .filter_map(|value| value.value())
-                        .collect(),
-                )
+            if then_target.block == header {
+                Some(tree.get_values(then_target.arguments).to_vec())
             }
             // check else branch
-            else if else_target.block.block() == Some(header) {
-                Some(
-                    else_target
-                        .arguments
-                        .iter()
-                        .filter_map(|value| value.value())
-                        .collect(),
-                )
+            else if else_target.block == header {
+                Some(tree.get_values(else_target.arguments).to_vec())
             } else {
                 None
             }
@@ -359,24 +330,12 @@ fn preheader_to_header_args(
             success, failure, ..
         } => {
             // check success path
-            if success.block.block() == Some(header) {
-                Some(
-                    success
-                        .arguments
-                        .iter()
-                        .filter_map(|value| value.value())
-                        .collect(),
-                )
+            if success.block == header {
+                Some(tree.get_values(success.arguments).to_vec())
             }
             // check failure path
-            else if failure.block.block() == Some(header) {
-                Some(
-                    failure
-                        .arguments
-                        .iter()
-                        .filter_map(|value| value.value())
-                        .collect(),
-                )
+            else if failure.block == header {
+                Some(tree.get_values(failure.arguments).to_vec())
             } else {
                 None
             }
@@ -392,12 +351,7 @@ fn delete_loop(function: &mut mir::Function, tree: &mut mir::Tree, candidate: &D
     let new_terminator = mir::Terminator::Jump {
         target: mir::BlockTarget::new(
             candidate.exit_block.into(),
-            candidate
-                .exit_arguments
-                .iter()
-                .copied()
-                .map(Into::into)
-                .collect(),
+            tree.add_values(&candidate.exit_arguments),
         ),
     };
     tree.set(candidate.preheader, preheader);
@@ -435,9 +389,9 @@ b2:
 function test(): void {
 entry:
     v0: boolean = false
-    jump b1
+    jump b2
 
-b1:
+b2:
     return
 }
 "#;
@@ -471,9 +425,9 @@ function test(v0: int32): void {
 entry(v0: int32):
     v1: boolean = false
     v2: int32 = 0
-    jump b1
+    jump b2
 
-b1:
+b2:
     return
 }
 "#;
@@ -612,12 +566,12 @@ b4:
 function test(v0: boolean): void {
 entry(v0: boolean):
     v1: boolean = false
-    jump b1
+    jump b3
 
-b1:
+b3:
     return
 
-b2:
+b4:
     return
 }
 "#;
@@ -699,14 +653,14 @@ entry(v0: boolean, v1: boolean):
 
 b1(v3: int32):
     v4: boolean = false
-    jump b2
+    jump b3
 
-b2:
+b3:
     v5: int32 = 1
     v6: int32 = int.add v3, v5
-    branch v0, b1(v6), b3(v6)
+    branch v0, b1(v6), b4(v6)
 
-b3(v7: int32):
+b4(v7: int32):
     return v7
 }
 "#;
@@ -740,9 +694,9 @@ function test(v0: int32): int32 {
 entry(v0: int32):
     v1: boolean = false
     v2: int32 = 0
-    jump b1(v2)
+    jump b2(v2)
 
-b1(v6: int32):
+b2(v6: int32):
     return v6
 }
 "#;

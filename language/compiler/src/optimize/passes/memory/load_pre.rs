@@ -138,7 +138,7 @@ fn run_load_pre(
     let function_params: HashSet<_> = function
         .parameters
         .iter()
-        .filter_map(|param| param.value.value())
+        .map(|param| param.value)
         .collect();
 
     // ensure fresh value allocation
@@ -162,7 +162,7 @@ fn run_load_pre(
             .parameters
             .iter()
             .enumerate()
-            .filter_map(|(index, param)| Some((param.value.value()?, index)))
+            .map(|(index, param)| (param.value, index))
             .collect::<HashMap<_, _>>();
 
         // scan block instructions for load candidates
@@ -174,15 +174,9 @@ fn run_load_pre(
                     pointer,
                     result_type,
                 } => {
-                    let Some(destination) = destination.value() else {
-                        continue;
-                    };
-                    let Some(pointer) = pointer.value() else {
-                        continue;
-                    };
-                    let Some(result_type) = result_type.ty() else {
-                        continue;
-                    };
+                    let destination = *destination;
+                    let pointer = *pointer;
+                    let result_type = *result_type;
 
                     LoadCandidate {
                         block: block_id,
@@ -488,7 +482,7 @@ fn reusable_predecessor_load(
         };
 
         // require the pointer and type to match
-        if load_pointer.value() != Some(pointer) || load_type.ty() != Some(result_type) {
+        if *load_pointer != pointer || *load_type != result_type {
             continue;
         }
 
@@ -508,7 +502,7 @@ fn reusable_predecessor_load(
         // require the same incoming memory state
         let load_clobber = memory_ssa.clobbering_access_for_use(use_access_id, alias);
         if load_clobber == incoming_access {
-            reusable = destination.value();
+            reusable = Some(*destination);
         }
     }
 
@@ -984,27 +978,27 @@ b4:
 function test(v0: boolean, v1: boolean): int32 {
 entry(v0: boolean, v1: boolean):
     v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    branch v0, b1, block2_1
+    branch v0, b1, b2_1
 
 b1:
     v3: int32 = 1
     store v2, v3
-    branch v1, b2, b5
+    branch v1, b2, b4
 
 b2:
     v8: int32 = load v2
-    jump b4(v8)
+    jump b3(v8)
 
-block2_1:
+b2_1:
     v4: int32 = 2
     store v2, v4
     v9: int32 = load v2
-    jump b4(v9)
+    jump b3(v9)
 
-b4(v7: int32):
+b3(v7: int32):
     return v7
 
-b5:
+b4:
     v6: int32 = 0
     return v6
 }
