@@ -5,7 +5,7 @@
 use core::{marker::PhantomData, ptr::NonNull};
 use std_alloc::boxed::Box;
 
-/// A raw, owned pointer.
+/// A raw pointer.
 ///
 /// You are required to call `T`'s `Drop` and deallocate the pointer, this won't
 /// automatically do it for you like `Box`.
