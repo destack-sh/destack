@@ -88,84 +88,46 @@ impl CheckState<'_> {
         &mut self,
         place: Place,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
-        // a present rejection reason makes the place read only
-        let diagnostic = match self.decide_writable_place(place)? {
-            Answer::Ready(None) => None,
-            Answer::Ready(Some(reason)) => {
-                let written = self.place_text(place);
-                let (module, anchor) = self.source_anchor(place.source);
-
-                let error = CheckError::NotWritable {
-                    anchor,
-                    module,
-                    place: written,
-                    reason,
-                };
-
-                // point written bindings back at their declarations;
-                // externally declared bindings have no local anchor
-                let mut diagnostic = DiagnosticBuilder::new(error);
-                if let PlaceTarget::Binding { symbol } = place.target {
-                    let declaration = self
-                        .binding_table(symbol.module_id)
-                        .get_symbol_maybe(symbol.local_id)
-                        .and_then(|binding| binding.declaration)
-                        .filter(|declaration| declaration.module_id == symbol.module_id);
-                    if let Some(declaration) = declaration {
-                        let anchor = self.diagnostic_anchor(symbol.module_id, declaration.local_id);
-                        diagnostic = diagnostic.label(anchor, "declared here");
-                    }
-                }
-
-                Some(diagnostic)
-            }
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
-
-        Ok(Answer::Ready(diagnostic))
+        self.build_writable_place_error(place)
     }
 
-    /// Return why one place rejects writes, when it does.
-    fn decide_writable_place(&mut self, place: Place) -> CompilerResult<Answer<Option<String>>> {
-        let decision = match place.target {
+    /// Build the diagnostic for one place that rejects writes.
+    fn build_writable_place_error(
+        &mut self,
+        place: Place,
+    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+        let diagnostic = match place.target {
             PlaceTarget::Binding { symbol } => {
-                self.decide_writable_binding(place.source, symbol)?
+                self.build_writable_binding_error(place.source, symbol)?
             }
             PlaceTarget::Member { owner, key } => {
-                self.decide_writable_member(place.source, owner, key)?
+                self.build_writable_member_error(place.source, owner, key)?
             }
             PlaceTarget::Index { .. } | PlaceTarget::Dereference => Answer::Ready(None),
         };
 
-        Ok(decision)
+        Ok(diagnostic)
     }
 
-    /// Return the written place written form for diagnostics.
-    fn place_text(&mut self, place: Place) -> String {
-        match place.target {
-            PlaceTarget::Binding { symbol } => self.format_symbol(symbol),
-            PlaceTarget::Member { owner, key } => {
-                format!(
-                    "{}.{}",
-                    self.format_type(owner),
-                    self.format_static_key(&key)
-                )
-            }
-            PlaceTarget::Index { receiver, .. } => format!("{}[…]", self.format_type(receiver)),
-            PlaceTarget::Dereference => "*…".to_string(),
-        }
-    }
-
-    /// Return why one local binding rejects writes, when it does.
-    fn decide_writable_binding(
-        &self,
+    /// Build the diagnostic for one binding that rejects writes.
+    fn build_writable_binding_error(
+        &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Answer<Option<String>>> {
+    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+        let (module, anchor) = self.source_anchor(source);
+        let name = self.format_symbol(symbol);
+
+        // cross module symbols are imported into this module
         if symbol.module_id != source.module_id {
-            return Ok(Answer::Ready(Some(
-                "imported bindings cannot be assigned".to_string(),
-            )));
+            let error = CheckError::CannotAssignImportedBinding {
+                anchor,
+                module,
+                name,
+            };
+            let diagnostic = DiagnosticBuilder::new(error);
+
+            return Ok(Answer::Ready(Some(diagnostic)));
         }
 
         let input = self.module(symbol.module_id);
@@ -179,9 +141,14 @@ impl CheckState<'_> {
             .symbol_target(symbol.local_id)
             .is_some()
         {
-            return Ok(Answer::Ready(Some(
-                "imported bindings cannot be assigned".to_string(),
-            )));
+            let error = CheckError::CannotAssignImportedBinding {
+                anchor,
+                module,
+                name,
+            };
+            let diagnostic = self.label_binding_declaration(DiagnosticBuilder::new(error), symbol);
+
+            return Ok(Answer::Ready(Some(diagnostic)));
         }
 
         // immutable bindings reject writes
@@ -192,21 +159,26 @@ impl CheckState<'_> {
             )
         });
         if !is_mutable {
-            return Ok(Answer::Ready(Some(
-                "it is not declared mutable".to_string(),
-            )));
+            let error = CheckError::CannotAssignImmutableBinding {
+                anchor,
+                module,
+                name,
+            };
+            let diagnostic = self.label_binding_declaration(DiagnosticBuilder::new(error), symbol);
+
+            return Ok(Answer::Ready(Some(diagnostic)));
         }
 
         Ok(Answer::Ready(None))
     }
 
-    /// Return why one member target rejects writes, when it does.
-    fn decide_writable_member(
+    /// Build the diagnostic for one member that rejects writes.
+    fn build_writable_member_error(
         &mut self,
         source: dir::GlobalNodeIdAny,
         owner: dir::GlobalTypeId,
         key: dir::StaticKey,
-    ) -> CompilerResult<Answer<Option<String>>> {
+    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
         let origin = Origin::Node(source);
         let owner = match self.evaluate_root(origin, owner)? {
             Answer::Ready(owner) => owner,
@@ -219,10 +191,16 @@ impl CheckState<'_> {
 
             if let Some(field) = field {
                 if field.is_readonly {
-                    return Ok(Answer::Ready(Some(format!(
-                        "member '{}' is readonly",
-                        self.format_static_key(&key)
-                    ))));
+                    let (module, anchor) = self.source_anchor(source);
+                    let member = self.format_static_key(&key);
+                    let error = CheckError::CannotAssignReadonlyMember {
+                        anchor,
+                        module,
+                        member,
+                    };
+                    let diagnostic = DiagnosticBuilder::new(error);
+
+                    return Ok(Answer::Ready(Some(diagnostic)));
                 }
 
                 return Ok(Answer::Ready(None));
@@ -242,6 +220,27 @@ impl CheckState<'_> {
         match lookup {
             MemberLookup::Pending(blockers) => Ok(Answer::Pending(blockers)),
             _ => Ok(Answer::Ready(None)),
+        }
+    }
+
+    /// Add a declaration label to a binding diagnostic when the declaration is local.
+    fn label_binding_declaration(
+        &self,
+        diagnostic: DiagnosticBuilder<CheckError>,
+        symbol: dir::GlobalSymbolId,
+    ) -> DiagnosticBuilder<CheckError> {
+        let declaration = self
+            .binding_table(symbol.module_id)
+            .get_symbol_maybe(symbol.local_id)
+            .and_then(|binding| binding.declaration)
+            .filter(|declaration| declaration.module_id == symbol.module_id);
+
+        if let Some(declaration) = declaration {
+            let anchor = self.diagnostic_anchor(symbol.module_id, declaration.local_id);
+
+            diagnostic.label(anchor, "declared here")
+        } else {
+            diagnostic
         }
     }
 }

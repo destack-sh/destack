@@ -21,53 +21,74 @@ impl CheckState<'_> {
         self.module_mut(module).diagnostics.push(diagnostic.into());
     }
 
-    /// Report invalid control flow at one source node.
-    pub(in crate::check) fn report_invalid_control_flow(
+    /// Report a break with no target.
+    pub(in crate::check) fn report_break_outside_control_target(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
-        message: &'static str,
     ) {
         let anchor = self.diagnostic_anchor(module, source);
-        let diagnostic = CheckError::InvalidControlFlow {
-            anchor,
-            module,
-            message: message.to_owned(),
-        };
+        let diagnostic = CheckError::BreakOutsideControlTarget { anchor, module };
 
         self.module_mut(module).diagnostics.push(diagnostic.into());
     }
 
-    /// Report an invalid yield expression at one source node.
-    pub(in crate::check) fn report_invalid_yield(
+    /// Report a continue with no target loop.
+    pub(in crate::check) fn report_continue_outside_loop(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
-        message: &'static str,
     ) {
         let anchor = self.diagnostic_anchor(module, source);
-        let diagnostic = CheckError::InvalidYield {
-            anchor,
-            module,
-            message: message.to_owned(),
-        };
+        let diagnostic = CheckError::ContinueOutsideLoop { anchor, module };
 
         self.module_mut(module).diagnostics.push(diagnostic.into());
     }
 
-    /// Report an invalid await expression at one source node.
-    pub(in crate::check) fn report_invalid_await(
+    /// Report a return outside a function body.
+    pub(in crate::check) fn report_return_outside_function(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
-        message: &'static str,
     ) {
         let anchor = self.diagnostic_anchor(module, source);
-        let diagnostic = CheckError::InvalidAwait {
-            anchor,
-            module,
-            message: message.to_owned(),
-        };
+        let diagnostic = CheckError::ReturnOutsideFunction { anchor, module };
+
+        self.module_mut(module).diagnostics.push(diagnostic.into());
+    }
+
+    /// Report a yield outside a generator.
+    pub(in crate::check) fn report_yield_outside_generator(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::YieldOutsideGenerator { anchor, module };
+
+        self.module_mut(module).diagnostics.push(diagnostic.into());
+    }
+
+    /// Report a yield delegation without a delegated value.
+    pub(in crate::check) fn report_yield_delegate_missing_value(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::YieldDelegateMissingValue { anchor, module };
+
+        self.module_mut(module).diagnostics.push(diagnostic.into());
+    }
+
+    /// Report an await outside an async context.
+    pub(in crate::check) fn report_await_outside_async_context(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::AwaitOutsideAsyncContext { anchor, module };
 
         self.module_mut(module).diagnostics.push(diagnostic.into());
     }
@@ -84,14 +105,14 @@ impl CheckState<'_> {
         self.module_mut(module).diagnostics.push(diagnostic.into());
     }
 
-    /// Report a method receiver omitted under implicit receiver restrictions.
-    pub(in crate::check) fn report_implicit_receiver(
+    /// Report a missing explicit method receiver.
+    pub(in crate::check) fn report_missing_explicit_receiver(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
     ) {
         let anchor = self.diagnostic_anchor(module, source);
-        let diagnostic = CheckError::ImplicitReceiver { anchor, module };
+        let diagnostic = CheckError::MissingExplicitReceiver { anchor, module };
 
         self.module_mut(module).diagnostics.push(diagnostic.into());
     }
@@ -200,16 +221,64 @@ impl CheckState<'_> {
         self.module_mut(module).warnings.push(warning.into());
     }
 
-    /// Report a pointless declaration inside a module block.
-    pub(in crate::check) fn report_pointless_module_declaration(
+    /// Report an unavailable this expression.
+    pub(in crate::check) fn report_this_outside_receiver(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
     ) {
         let anchor = self.diagnostic_anchor(module, source);
-        let warning = CheckWarning::PointlessModuleDeclaration { anchor, module };
+        let diagnostic = CheckError::ThisOutsideReceiver { anchor, module };
 
-        self.module_mut(module).warnings.push(warning.into());
+        self.module_mut(module).diagnostics.push(diagnostic.into());
+    }
+
+    /// Report an unavailable super expression.
+    pub(in crate::check) fn report_super_outside_class(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::SuperOutsideClass { anchor, module };
+
+        self.module_mut(module).diagnostics.push(diagnostic.into());
+    }
+
+    /// Report a let-else fallback that can complete.
+    pub(in crate::check) fn report_let_else_branch_can_complete(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::LetElseBranchCanComplete { anchor, module };
+
+        self.module_mut(module).diagnostics.push(diagnostic.into());
+    }
+
+    /// Report an unsupported tree expression.
+    pub(in crate::check) fn report_unsupported_tree_expression(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::UnsupportedTreeExpression { anchor, module };
+
+        self.module_mut(module).diagnostics.push(diagnostic.into());
+    }
+
+    /// Report an expression pattern that did not close to a literal.
+    pub(in crate::check) fn report_expression_pattern_not_literal(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::ExpressionPatternNotLiteral { anchor, module };
+
+        self.module_mut(module).diagnostics.push(diagnostic.into());
     }
 
     /// Report an invalid writable place at one source node.
@@ -224,18 +293,14 @@ impl CheckState<'_> {
         self.module_mut(module).diagnostics.push(diagnostic.into());
     }
 
-    pub(in crate::check) fn report_not_writable(
+    /// Report an invalid assignment target.
+    pub(in crate::check) fn report_invalid_assignment_target(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
     ) {
         let anchor = self.diagnostic_anchor(module, source);
-        let diagnostic = CheckError::NotWritable {
-            anchor,
-            module,
-            place: "expression".to_string(),
-            reason: "it is not a place".to_string(),
-        };
+        let diagnostic = CheckError::InvalidAssignmentTarget { anchor, module };
 
         self.module_mut(module).diagnostics.push(diagnostic.into());
     }

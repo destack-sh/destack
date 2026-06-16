@@ -312,11 +312,7 @@ impl CheckState<'_> {
         // TODO(check): select tree constructions through the configured
         // tree builder once tree checking lands.
         let module = node.module_id;
-        self.report_invalid_control_flow(
-            module,
-            node.local_id.into_any(),
-            "tree expressions are not checked yet",
-        );
+        self.report_unsupported_tree_expression(module, node.local_id.into_any());
         self.record_decision(node.into_any(), Decision::Rejected)?;
 
         Ok(Answer::Ready(()))

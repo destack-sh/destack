@@ -14,11 +14,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
         let Some(return_type) = return_type else {
             let (module, anchor) = self.source_anchor(source);
-            let diagnostic = CheckError::InvalidControlFlow {
-                anchor,
-                module,
-                message: "? can only propagate from a function body".to_owned(),
-            };
+            let diagnostic = CheckError::TryOutsideFunction { anchor, module };
 
             return Ok(Answer::Ready(Some(diagnostic.into())));
         };
@@ -32,7 +28,7 @@ impl CheckState<'_> {
                 let target_text = format!("FromResidual<{}>", self.format_type(value));
                 let (module, anchor) = self.source_anchor(source);
 
-                let error = CheckError::DoesNotImplement {
+                let error = CheckError::InterfaceNotImplemented {
                     anchor,
                     module,
                     source: source_text,

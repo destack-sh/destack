@@ -61,7 +61,7 @@ impl WalkState<'_, '_> {
         // reject returns outside function bodies
         let Some(function) = self.flow().current_function() else {
             self.check
-                .report_invalid_control_flow(self.module, source, "return has no target");
+                .report_return_outside_function(self.module, source);
 
             return;
         };
@@ -90,7 +90,7 @@ impl WalkState<'_, '_> {
         // require a surrounding function body
         let Some(function) = self.flow().current_function() else {
             self.check
-                .report_invalid_yield(self.module, source, "yield requires a generator");
+                .report_yield_outside_generator(self.module, source);
 
             return Ok(());
         };
@@ -98,7 +98,7 @@ impl WalkState<'_, '_> {
         // require a generator yield target
         let Some(yield_target) = function.yield_target else {
             self.check
-                .report_invalid_yield(self.module, source, "yield requires a generator");
+                .report_yield_outside_generator(self.module, source);
 
             return Ok(());
         };
@@ -144,7 +144,7 @@ impl WalkState<'_, '_> {
         // reject malformed delegation
         else {
             self.check
-                .report_invalid_yield(self.module, source, "yield* requires a value");
+                .report_yield_delegate_missing_value(self.module, source);
         }
 
         Ok(())
@@ -155,7 +155,7 @@ impl WalkState<'_, '_> {
         // require a surrounding function body
         let Some(function) = self.flow().current_function() else {
             self.check
-                .report_invalid_await(self.module, source, "await requires an async context");
+                .report_await_outside_async_context(self.module, source);
 
             return;
         };
@@ -163,7 +163,7 @@ impl WalkState<'_, '_> {
         // require async function context
         if function.asynchrony != dir::Asynchrony::Async {
             self.check
-                .report_invalid_await(self.module, source, "await requires an async context");
+                .report_await_outside_async_context(self.module, source);
         }
     }
 

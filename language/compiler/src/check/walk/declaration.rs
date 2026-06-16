@@ -157,9 +157,6 @@ impl WalkState<'_, '_> {
             // module { ... }
             dir::Declaration::Module(declaration) => {
                 for expression in &declaration.expressions {
-                    // a module block carries only module-wide decorators
-                    self.check
-                        .report_pointless_module_declaration(self.module, expression.into_any());
                     self.walk_expression(*expression, self.tree.get(*expression))?;
                 }
             }
@@ -335,7 +332,7 @@ impl WalkState<'_, '_> {
         let receiver = self.nominal_receiver(id.into_any(), symbol)?;
         let _receiver = self.enter_receiver_maybe(Some(receiver));
 
-        // walk implemented contracts
+        // walk implemented interfaces
         let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
             let ty = self.walk_type_expression(*implemented_type)?;
@@ -411,7 +408,7 @@ impl WalkState<'_, '_> {
             super_ty = Some(ty);
         }
 
-        // walk implemented contracts
+        // walk implemented interfaces
         let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
             let ty = self.walk_type_expression(*implemented_type)?;
@@ -489,7 +486,7 @@ impl WalkState<'_, '_> {
         let receiver = self.nominal_receiver(id.into_any(), symbol)?;
         let _receiver = self.enter_receiver_maybe(Some(receiver));
 
-        // walk implemented contracts
+        // walk implemented interfaces
         let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
             let ty = self.walk_type_expression(*implemented_type)?;
@@ -558,7 +555,7 @@ impl WalkState<'_, '_> {
         let receiver = self.nominal_receiver(id.into_any(), symbol)?;
         let _receiver = self.enter_receiver_maybe(Some(receiver));
 
-        // walk inherited contracts
+        // walk inherited interfaces
         let mut extends = Vec::new();
         for extends_type in &declaration.extends_types {
             let ty = self.walk_type_expression(*extends_type)?;
@@ -632,7 +629,7 @@ impl WalkState<'_, '_> {
         };
         let _receiver = self.enter_receiver_maybe(Some(receiver));
 
-        // walk implemented contracts
+        // walk implemented interfaces
         let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
             let ty = self.walk_type_expression(*implemented_type)?;
@@ -1022,7 +1019,7 @@ impl WalkState<'_, '_> {
         let error = CheckError::MissingDeclarationBody {
             anchor,
             module,
-            member,
+            name: member,
         };
         self.check.module_mut(module).diagnostics.push(error.into());
     }
