@@ -46,7 +46,7 @@ entry(v0: int32):
 function applyIdentity(v0: int32): int32 {
 entry(v0: int32):
     v1: makeIdentity.return.function = call makeIdentity()
-    v2: int32 = call.indirect v1(v0): (int32) -> int32
+    v2: int32 = call.indirect v1(v0): (int32) => int32
     return v2
 }
 "#,
@@ -117,7 +117,7 @@ entry(v0: int32):
 function applyAdder(v0: int32): int32 {
 entry(v0: int32):
     v1: makeAdder.return.function = call makeAdder()
-    v2: int32 = call.indirect v1(v0): (int32) -> int32
+    v2: int32 = call.indirect v1(v0): (int32) => int32
     return v2
 }
 "#,
@@ -202,7 +202,7 @@ entry:
 function runCounter(): int32 {
 entry:
     v0: makeCounter.return.function = call makeCounter()
-    v1: int32 = call.indirect v0(): () -> int32
+    v1: int32 = call.indirect v0(): () => int32
     return v1
 }
 "#,

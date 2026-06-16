@@ -162,7 +162,7 @@ impl ModuleLowerer<'_> {
                     width,
                     is_signed: true,
                 },
-            ) => mir::Constant::Int {
+            ) -> mir::Constant::Int {
                 value: i128::from(*i),
                 width: *width,
                 is_signed: true,
@@ -181,7 +181,7 @@ impl ModuleLowerer<'_> {
                     width,
                     is_signed: false,
                 },
-            ) => mir::Constant::UInt {
+            ) -> mir::Constant::UInt {
                 value: *i as u128,
                 width: *width,
             },

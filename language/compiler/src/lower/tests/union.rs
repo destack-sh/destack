@@ -596,7 +596,7 @@ function select(v0: select.payload#union): int32 {
 entry(v0: select.payload#union):
     v1: uint8 = field.get v0, 0
     v2: uint8 = 0
-    check variant.tag v1, 0uint8 -> b1, b2
+    check variant.tag v1, 0uint8 => b1, b2
 
 b1:
     v3: int32 = 1

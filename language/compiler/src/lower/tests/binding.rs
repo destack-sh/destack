@@ -248,7 +248,7 @@ function borrowElementChecked(v0: [int32; 4]): ref<int32, borrowed> {
 entry(v0: [int32; 4]):
     v1: int32 = 2int32
     v2: int32 = 4int32
-    check bounds.s v1, v2, v0 -> b2, b1
+    check bounds.s v1, v2, v0 => b2, b1
 b1:
     v3: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${bounds_check_failed}
     v4: ref<String, managed, readonly> = load v3
@@ -325,7 +325,7 @@ function borrowElementRefChecked(v0: ref<[int32; 4], borrowed>): ref<int32, borr
 entry(v0: ref<[int32; 4], borrowed>):
     v1: int32 = 2int32
     v2: int32 = 4int32
-    check bounds.s v1, v2, v0 -> b2, b1
+    check bounds.s v1, v2, v0 => b2, b1
 b1:
     v3: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${bounds_check_failed}
     v4: ref<String, managed, readonly> = load v3

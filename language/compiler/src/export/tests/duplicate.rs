@@ -33,8 +33,7 @@ export type { Foo };
         )
         .build();
     compiler.assert_dir_exported_diagnostics(
-        "main.ds",
-        r#"
+        "main.ds", r#"
 
 "#,
     );
@@ -78,8 +77,7 @@ export const value = 1;
         )
         .build();
     compiler.assert_dir_exported_diagnostics(
-        "main.ds",
-        r#"
+        "main.ds", r#"
 
 "#,
     );
@@ -104,8 +102,7 @@ export const value = 1;
         )
         .build();
     compiler.assert_dir_exported_diagnostics(
-        "main.ds",
-        r#"
+        "main.ds", r#"
 
 "#,
     );

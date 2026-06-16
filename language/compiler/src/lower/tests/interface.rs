@@ -485,7 +485,7 @@ external function Drawable.draw(Drawable.object): int32
 function useDrawable(v0: Drawable): int32 {
 entry(v0: Drawable):
     v1: ref<void, managed, readonly> = field.get v0, 0
-    v2: int32 = call.dynamic v0, Drawable.object, 2(v1): (Drawable.object) -> int32
+    v2: int32 = call.dynamic v0, Drawable.object, 2(v1): (Drawable.object) => int32
     return v2
 }
 

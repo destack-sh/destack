@@ -84,8 +84,7 @@ import data from "./data.json" with { type: true };
         .build();
 
     compiler.assert_dir_imported_diagnostics(
-        "main.ds",
-        r#"
+        "main.ds", r#"
 
 "#,
     );
@@ -111,8 +110,7 @@ import data from "./data.json" with { type: "xml" };
         .build();
 
     compiler.assert_dir_imported_diagnostics(
-        "main.ds",
-        r#"
+        "main.ds", r#"
 
 "#,
     );
