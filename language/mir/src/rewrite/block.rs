@@ -1740,7 +1740,7 @@ pub fn terminator_substitute_uses(
         mir::Terminator::Panic { payload } => mir::Terminator::Panic {
             payload: payload.map(substitute),
         },
-        mir::Terminator::ResumeUnwind => mir::Terminator::ResumeUnwind,
+        mir::Terminator::UnwindResume => mir::Terminator::UnwindResume,
         mir::Terminator::Unreachable => mir::Terminator::Unreachable,
         mir::Terminator::TailCall { function, call } => mir::Terminator::TailCall {
             function: *function,

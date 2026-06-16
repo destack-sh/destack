@@ -449,13 +449,16 @@ mod tests {
         let (tree, function_id) = parse_test_function(
             r#"
 function linear(): void {
-b0:
+entry:
     jump b1
+
 b1:
     jump b2
+
 b2:
     return
-}"#,
+}
+"#,
         );
 
         let function = tree.get(function_id);
@@ -481,15 +484,19 @@ b2:
         let (tree, function_id) = parse_test_function(
             r#"
 function diamond(v0: boolean): void {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
     jump b3
+
 b2:
     jump b3
+
 b3:
     return
-}"#,
+}
+"#,
         );
 
         let function = tree.get(function_id);
@@ -515,15 +522,19 @@ b3:
         let (tree, function_id) = parse_test_function(
             r#"
 function unreachableBlock(v0: boolean): void {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
     return
+
 b2:
     return
+
 b3:
     return
-}"#,
+}
+"#,
         );
 
         let function = tree.get(function_id);
@@ -542,11 +553,13 @@ b3:
         let (tree, function_id) = parse_test_function(
             r#"
 function simple(): void {
-b0:
+entry:
     jump b1
+
 b1:
     return
-}"#,
+}
+"#,
         );
 
         let function = tree.get(function_id);

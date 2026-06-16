@@ -75,6 +75,7 @@ impl Parser {
         let kind = self.token_type(token);
         let token_text = self.tree.source_text(token.span).to_string();
         let token_start = token.start;
+        let expected_type = self.constant_storage_type(expected_type)?;
         let expected = self.tree.get(expected_type).clone();
 
         // validate the literal against the expected type
@@ -118,7 +119,7 @@ impl Parser {
             {
                 self.bump();
 
-                let has_suffix = token_text.chars().any(|c| c.is_ascii_alphabetic());
+                let has_suffix = token_text.contains("float") || token_text.contains("bfloat");
                 let Type::Float(float_type) = expected else {
                     unreachable!("float type was checked by the match guard")
                 };
@@ -200,6 +201,21 @@ impl Parser {
                 }
             }
             _ => Err(ParseError::unexpected("constant", kind, token_start)),
+        }
+    }
+
+    /// Return the storage type used to parse one typed constant.
+    fn constant_storage_type(
+        &self,
+        expected_type: LocalNodeId<Type>,
+    ) -> ParseResult<LocalNodeId<Type>> {
+        let expected = self.tree.get(expected_type);
+        if let Type::Newtype { inner, .. } = expected
+            && let Some(inner) = inner.ty()
+        {
+            Ok(inner)
+        } else {
+            Ok(expected_type)
         }
     }
 

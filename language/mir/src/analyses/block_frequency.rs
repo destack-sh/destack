@@ -563,15 +563,19 @@ b3:
         let (mut tree, function_id) = parse_test_function(
             r#"
 function diamond(v0: boolean): void {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
     jump b3
+
 b2:
     jump b3
+
 b3:
     return
-}"#,
+}
+"#,
         );
 
         let function = tree.get(function_id);
@@ -590,15 +594,19 @@ b3:
         let (mut tree, function_id) = parse_test_function(
             r#"
 function counted(v0: boolean): void {
-b0:
+entry:
     jump b1
+
 b1(v1: boolean):
     branch v1, b2, b3
+
 b2:
     jump b1(v1)
+
 b3:
     return
-}"#,
+}
+"#,
         );
 
         let function = tree.get(function_id);

@@ -5,21 +5,21 @@ use super::assert_format;
 fn test_format_switch() {
     assert_format(
         r#"
-function dispatch(value0: int32): int32 {
-entry0(value0: int32):
-    switch value0, block3(), 0 => block1(), 1 => block2()
+function dispatch(v0: int32): int32 {
+entry(v0: int32):
+    switch v0, b3, 0 -> b1, 1 -> b2
 
-block1:
-    value1: int32 = 100int32
-    return value1
+b1:
+    v1: int32 = 100
+    return v1
 
-block2:
-    value2: int32 = 200int32
-    return value2
+b2:
+    v2: int32 = 200
+    return v2
 
-block3:
-    value3: int32 = 0int32
-    return value3
+b3:
+    v3: int32 = 0
+    return v3
 }
 "#,
     );
@@ -30,14 +30,14 @@ block3:
 fn test_format_yield() {
     assert_format(
         r#"
-function yieldOnce(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 5int32
-    yield value1 -> block1(value0)
+function yieldOnce(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 5
+    yield v1 -> b1(v0)
 
-block1(value2: int32, value3: int32):
-    value4: int32 = int.add value2, value3
-    return value4
+b1(v2: int32, v3: int32):
+    v4: int32 = int.add v2, v3
+    return v4
 }
 "#,
     );
@@ -50,19 +50,19 @@ fn test_format_unwind_continuation() {
         r#"
 external function callee(int32): int32
 
-function suspends(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 5int32
-    yield value1 -> block1(value0) | block2()
+function suspends(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 5
+    yield v1 -> b1(v0) | b2
 
-block1(value2: int32, value3: int32):
-    call callee(value3): (int32) -> int32 -> block3() | block2()
+b1(v2: int32, v3: int32):
+    call callee(v3) -> b3 | b2
 
-block2:
+b2:
     unwind.resume
 
-block3(value4: int32):
-    return value4
+b3(v4: int32):
+    return v4
 }
 "#,
     );
@@ -75,12 +75,12 @@ fn test_format_call_terminator() {
         r#"
 external function callee(int32): int32
 
-function caller(value0: int32): int32 {
-entry0(value0: int32):
-    call callee(value0): (int32) -> int32 -> block1()
+function caller(v0: int32): int32 {
+entry(v0: int32):
+    call callee(v0) -> b1
 
-block1(value1: int32):
-    return value1
+b1(v1: int32):
+    return v1
 }
 "#,
     );
@@ -91,9 +91,9 @@ block1(value1: int32):
 fn test_format_trap() {
     assert_format(
         r#"
-function trapper(value0: ref<void, managed, readonly>): void {
-entry0(value0: ref<void, managed, readonly>):
-    panic value0
+function trapper(v0: ref<void, managed, readonly>): void {
+entry(v0: ref<void, managed, readonly>):
+    panic v0
 }
 "#,
     );
@@ -104,28 +104,28 @@ entry0(value0: ref<void, managed, readonly>):
 fn test_format_check_type_guards() {
     assert_format(
         r#"
-function guard(value0: uint32, value1: ref<void, managed>): int32 {
-entry0(value0: uint32, value1: ref<void, managed>):
-    value2: boolean = int.eq value0, value0
-    check dynamicType value0, int32 -> block1(), block4()
+function guard(v0: uint32, v1: ref<void, managed>): int32 {
+entry(v0: uint32, v1: ref<void, managed>):
+    v2: boolean = int.eq v0, v0
+    check dynamic.type v0, int32 -> b1, b4
 
-block1:
-    value3: boolean = int.eq value0, value0
-    check variantTag value0, 1uint32 -> block4(), block5()
+b1:
+    v3: boolean = int.eq v0, v0
+    check variant.tag v0, 1uint32 -> b4, b5
 
-block2:
-    value4: boolean = int.eq value0, value0
-    check receiverType value1, int32 -> block2(), block4()
+b2:
+    v4: boolean = int.eq v0, v0
+    check receiver.type v1, int32 -> b2, b4
 
-block3:
-    value5: boolean = int.eq value0, value0
-    check interfaceConformance value1, int32 -> block3(), block5()
+b3:
+    v5: boolean = int.eq v0, v0
+    check interface.conformance v1, int32 -> b3, b5
 
-block4:
-    value6: int32 = 0int32
-    return value6
+b4:
+    v6: int32 = 0
+    return v6
 
-block5:
+b5:
     unreachable
 }
 "#,

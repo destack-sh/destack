@@ -6,7 +6,6 @@ mod global;
 mod memory;
 mod metadata;
 mod ops;
-mod options;
 mod tests;
 mod trivia;
 mod r#type;

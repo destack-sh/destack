@@ -1,3 +1,4 @@
+use destack_core::float_from_bits;
 use destack_fir::format::{Format, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
@@ -5,9 +6,9 @@ use destack_fir::write;
 use super::r#type::format_lifetime_group;
 
 use crate::{
-    BlockReference, Constant, FunctionReference, GlobalReference, IntegerReference, LocalReference,
-    MirFormatContext, MirFormatter, Place, PlaceOrigin, Projection, TypeReference, Value,
-    ValueReference,
+    BlockReference, Constant, FunctionReference, GlobalReference, IntegerReference, LocalNodeId,
+    LocalReference, MirFormatContext, MirFormatter, Place, PlaceOrigin, Projection, Type,
+    TypeReference, Value, ValueReference,
 };
 
 fn write_recovery_token<'a>(is_missing: bool, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
@@ -118,7 +119,7 @@ impl<'a> Format<MirFormatContext<'a>> for LocalReference {
         match self {
             LocalReference::Local(local) => {
                 let index = f.context().local_index(*local);
-                write!(f, [text(&format!("local{index}"))])
+                write!(f, [text(&format!("l{index}"))])
             }
             LocalReference::Missing => write_recovery_token(true, f),
             LocalReference::Error => write_recovery_token(false, f),
@@ -159,7 +160,7 @@ impl<'a> Format<MirFormatContext<'a>> for Constant {
                 write!(f, [text(&format!("{value}uint{width}"))])
             }
             Constant::Float { bits, format } => {
-                let value = destack_core::float_from_bits(format.format(), *bits);
+                let value = float_from_bits(format.format(), *bits);
                 let value_str = format!("{value}{}", format.label());
                 write!(f, [text(&value_str)])
             }
@@ -167,6 +168,72 @@ impl<'a> Format<MirFormatContext<'a>> for Constant {
                 write!(f, [text(&format!("{value:?}"))])
             }
         }
+    }
+}
+
+/// Format one constant with an expected MIR type.
+pub(super) fn format_constant_for_type<'a>(
+    constant: &Constant,
+    ty: LocalNodeId<Type>,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    let ty = constant_storage_type(ty, f);
+    let expected = f.context().tree.get(ty);
+
+    match (constant, expected) {
+        (
+            Constant::Int {
+                value,
+                width,
+                is_signed: true,
+            },
+            Type::Int {
+                width: expected_width,
+                is_signed: true,
+            },
+        ) if width == expected_width => write!(f, [text(&value.to_string())]),
+        (
+            Constant::UInt { value, width },
+            Type::Int {
+                width: expected_width,
+                is_signed: false,
+            },
+        ) if width == expected_width => write!(f, [text(&value.to_string())]),
+        (
+            Constant::Int {
+                value,
+                width,
+                is_signed: true,
+            },
+            Type::Isize,
+        ) if *width == f.context().tree.pointer_bits() => write!(f, [text(&value.to_string())]),
+        (Constant::UInt { value, width }, Type::Usize)
+            if *width == f.context().tree.pointer_bits() =>
+        {
+            write!(f, [text(&value.to_string())])
+        }
+        (Constant::Float { bits, format }, Type::Float(expected_format))
+            if format == expected_format =>
+        {
+            let value = float_from_bits(format.format(), *bits);
+            write!(f, [text(&value.to_string())])
+        }
+        _ => constant.format(f),
+    }
+}
+
+/// Return the storage type used to format one typed constant.
+fn constant_storage_type<'a>(
+    ty: LocalNodeId<Type>,
+    f: &mut MirFormatter<'a, '_>,
+) -> LocalNodeId<Type> {
+    let expected = f.context().tree.get(ty);
+    if let Type::Newtype { inner, .. } = expected
+        && let Some(inner) = inner.ty()
+    {
+        inner
+    } else {
+        ty
     }
 }
 

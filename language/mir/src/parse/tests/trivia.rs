@@ -8,19 +8,21 @@ fn test_parse_declaration_comments() {
         r#"
 // aliases
 type Callable = (int32) => int32;
+
 // imports
-external function callee(int32): int32;
+external function callee(int32): int32
 
 // globals
-readonly global Count: int32 = 1int32;
+readonly global Count: int32 = 1
 
 function use(v0: Callable): int32 {
-b0(v0: Callable):
+entry(v0: Callable):
     v1: ref<int32, raw, readonly> = global.address Count
     v2: int32 = load v1
     v3: int32 = call.indirect v0(v2): (int32) -> int32
     return v3
-}"#,
+}
+"#,
     )
     .assert_format(
         r#"
@@ -31,15 +33,16 @@ type Callable = (int32) => int32;
 external function callee(int32): int32
 
 // globals
-readonly global Count: int32 = 1int32
+readonly global Count: int32 = 1
 
-function use(value0: Callable): int32 {
-entry0(value0: Callable):
-    value1: ref<int32, raw, readonly> = global.address Count
-    value2: int32 = load value1
-    value3: int32 = call.indirect value0(value2): (int32) -> int32
-    return value3
-}"#,
+function use(v0: Callable): int32 {
+entry(v0: Callable):
+    v1: ref<int32, raw, readonly> = global.address Count
+    v2: int32 = load v1
+    v3: int32 = call.indirect v0(v2): (int32) -> int32
+    return v3
+}
+"#,
     );
 }
 
@@ -64,7 +67,8 @@ type Pair {
 
     // right
     right: int32;
-}"#,
+}
+"#,
     );
 }
 
@@ -75,7 +79,7 @@ fn test_parse_function_attribute_comments() {
 @cold
 // detail
 function kernel(): void {
-entry0:
+entry:
     return
 }
 "#,
@@ -85,9 +89,10 @@ entry0:
 @cold
 // detail
 function kernel(): void {
-entry0:
+entry:
     return
-}"#,
+}
+"#,
     );
 }
 
@@ -108,7 +113,8 @@ type Pair {
     @align(4)
     // left
     left: int32;
-}"#,
+}
+"#,
     );
 }
 
@@ -118,8 +124,9 @@ fn test_parse_item_comments() {
     let source = r#"
 // head
 function use(): void {
-entry0:
-    return // tail
+entry:
+    return
+ // tail
 }
 "#;
 
@@ -143,10 +150,10 @@ entry0:
 fn test_parse_broken_item_comments() {
     let source = r#"
 // before
-global Broken int32 = 0int32
+global Broken int32 = 0
 // after
 function later(): void {
-entry0:
+entry:
     return
 }
 "#;
@@ -167,7 +174,7 @@ fn test_parse_item_leading_comments() {
 // head
 
 function use(): void {
-entry0:
+entry:
     return
 }
 "#;
@@ -186,8 +193,8 @@ entry0:
 fn test_parse_instruction_inline_comments() {
     let source = r#"
 function use(): void {
-entry0:
-    value0: int32 = 1int32 // tail
+entry:
+    v0: int32 = 1 // tail
     return
 }
 "#;
@@ -209,7 +216,7 @@ entry0:
 fn test_parse_block_leading_comments() {
     let source = r#"
 function use(): void {
-entry0:
+entry:
     return
 
 // next
@@ -233,7 +240,7 @@ fn test_parse_first_block_body_comments() {
     let source = r#"
 function use(): void {
 // body
-entry0:
+entry:
     return
 }
 "#;
@@ -252,7 +259,7 @@ entry0:
 fn test_parse_terminator_leading_comments() {
     let source = r#"
 function use(): void {
-entry0:
+entry:
     // tail
     return
 }
@@ -275,8 +282,9 @@ entry0:
 fn test_parse_block_end_comments() {
     let source = r#"
 function use(): void {
-entry0:
-    return // tail
+entry:
+    return
+ // tail
 }
 "#;
 
@@ -298,7 +306,7 @@ entry0:
 fn test_parse_final_item_comments() {
     let source = r#"
 function use(): void {
-entry0:
+entry:
     return
 }
 // tail

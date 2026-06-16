@@ -249,7 +249,7 @@ pub fn terminator_targets(
         }
         mir::Terminator::Return { .. }
         | mir::Terminator::Panic { .. }
-        | mir::Terminator::ResumeUnwind
+        | mir::Terminator::UnwindResume
         | mir::Terminator::Trap { .. }
         | mir::Terminator::Unreachable
         | mir::Terminator::TailCall { .. }
@@ -281,13 +281,16 @@ mod tests {
         let (tree, function_id) = parse_test_function(
             r#"
 function linear(): void {
-b0:
+entry:
     jump b1
+
 b1:
     jump b2
+
 b2:
     return
-}"#,
+}
+"#,
         );
 
         let function = tree.get(function_id);
@@ -307,13 +310,16 @@ b2:
         let (tree, function_id) = parse_test_function(
             r#"
 function testBranch(v0: boolean): void {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
     return
+
 b2:
     return
-}"#,
+}
+"#,
         );
 
         let function = tree.get(function_id);
@@ -331,15 +337,19 @@ b2:
         let (tree, function_id) = parse_test_function(
             r#"
 function diamond(v0: boolean): void {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
     jump b3
+
 b2:
     jump b3
+
 b3:
     return
-}"#,
+}
+"#,
         );
 
         let function = tree.get(function_id);
@@ -355,13 +365,16 @@ b3:
         let (tree, function_id) = parse_test_function(
             r#"
 function loop(v0: boolean): void {
-b0(v0: boolean):
+entry(v0: boolean):
     jump b1(v0)
+
 b1(v1: boolean):
     branch v1, b1(v1), b2
+
 b2:
     return
-}"#,
+}
+"#,
         );
 
         let function = tree.get(function_id);
@@ -377,17 +390,21 @@ b2:
         let (tree, function_id) = parse_test_function(
             r#"
 function test(v0: boolean): int32 {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: int32 = 1int32
+    v1: int32 = 1
     return v1
+
 b2:
     unreachable
+
 b3:
-    v2: int32 = 2int32
+    v2: int32 = 2
     return v2
-}"#,
+}
+"#,
         );
 
         let function = tree.get(function_id);

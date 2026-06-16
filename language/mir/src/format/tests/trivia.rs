@@ -13,14 +13,15 @@ fn test_format_declaration_comments() {
         r#"
 // aliases
 type Callable = (int32) => int32;
+
 // imports
-external function callee(int32): int32;
+external function callee(int32): int32
 
 // globals
-readonly global Count: int32 = 1int32;
+readonly global Count: int32 = 1
 
 function use(v0: Callable): int32 {
-b0(v0: Callable):
+entry(v0: Callable):
     v1: ref<int32, raw, readonly> = global.address Count
     v2: int32 = load v1
     v3: int32 = call.indirect v0(v2): (int32) -> int32
@@ -35,14 +36,14 @@ type Callable = (int32) => int32;
 external function callee(int32): int32
 
 // globals
-readonly global Count: int32 = 1int32
+readonly global Count: int32 = 1
 
-function use(value0: Callable): int32 {
-entry0(value0: Callable):
-    value1: ref<int32, raw, readonly> = global.address Count
-    value2: int32 = load value1
-    value3: int32 = call.indirect value0(value2): (int32) -> int32
-    return value3
+function use(v0: Callable): int32 {
+entry(v0: Callable):
+    v1: ref<int32, raw, readonly> = global.address Count
+    v2: int32 = load v1
+    v3: int32 = call.indirect v0(v2): (int32) -> int32
+    return v3
 }
 "#,
     );
@@ -61,7 +62,7 @@ type Pair {
 
 @section(".rodata")
 // global detail
-readonly global Count: int32 = 1int32
+readonly global Count: int32 = 1
 
 @section(".rodata")
 // import global detail
@@ -78,7 +79,7 @@ external function callee(int32): int32
 @inline
 // more function detail
 function kernel(): void {
-entry0:
+entry:
     return
 }
 
@@ -86,9 +87,9 @@ entry0:
 // export detail
 @inline
 // more export detail
-export function exported(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+export function exported(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 "#,
     );
@@ -103,7 +104,7 @@ fn test_format_derived_attribute_keeps_head_comment() {
 @custom
 // detail
 function kernel(): void {
-entry0:
+entry:
     return
 }
 "#,
@@ -138,7 +139,7 @@ entry0:
 @environment(ref<int32, managed>)
 // detail
 function kernel(): void {
-entry0:
+entry:
     return
 }
 "#
@@ -182,12 +183,12 @@ external function callee(
 
 function use(
     // left
-    value0: int32,
-    value1: int32 // right
+    v0: int32,
+    v1: int32 // right
 ): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    return value2
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    return v2
 }
 "#,
     );
@@ -200,13 +201,13 @@ fn test_format_body_comments() {
         r#"
 function use(): void {
     // scratch
-    local local0: int32, owned
-    local local1: int32, owned // scratch
+    local l0: int32
+    local l1: int32 // scratch
 
-    // body
-entry0:
+// body
+entry:
     // first
-    value0: int32 = 1int32 // tail
+    v0: int32 = 1 // tail
     jump b1
 
 // next
@@ -219,17 +220,17 @@ b1:
         r#"
 function use(): void {
     // scratch
-    local local0: int32, owned
-    local local1: int32, owned // scratch
+    local l0: int32
+    local l1: int32 // scratch
 
 // body
-entry0:
+entry:
     // first
-    value0: int32 = 1int32 // tail
-    jump block1()
+    v0: int32 = 1 // tail
+    jump b1
 
 // next
-block1:
+b1:
     // tail
     return
 }

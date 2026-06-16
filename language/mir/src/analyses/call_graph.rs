@@ -444,15 +444,17 @@ mod tests {
         let test = TestProgram::new(
             r#"
 function callee(): int32 {
-b0:
-    v0: int32 = 7int32
+entry:
+    v0: int32 = 7
     return v0
 }
+
 function test(): int32 {
-b0:
-    v0: int32 = call callee(): () -> int32
+entry:
+    v0: int32 = call callee()
     return v0
-}"#,
+}
+"#,
         );
 
         let callee_id = test.function_id_by_name("callee");
@@ -478,24 +480,28 @@ b0:
         let test = TestProgram::new(
             r#"
 function alpha(): void {
-b0:
-    call beta(): () -> void
+entry:
+    call beta()
     return
 }
+
 function beta(): void {
-b0:
-    call alpha(): () -> void
+entry:
+    call alpha()
     return
 }
+
 function gamma(): void {
-b0:
-    call gamma(): () -> void
+entry:
+    call gamma()
     return
 }
+
 function delta(): void {
-b0:
+entry:
     return
-}"#,
+}
+"#,
         );
 
         let a_id = test.function_id_by_name("alpha");
@@ -517,11 +523,12 @@ b0:
     fn test_call_graph_indirect_unknown() {
         let test = TestProgram::new(
             r#"
-function test(v0: (int32) -> int32, v1: int32): int32  {
-b0(v0: (int32) -> int32, v1: int32):
+function test(v0: (int32) -> int32, v1: int32): int32 {
+entry(v0: (int32) -> int32, v1: int32):
     v2: int32 = call.indirect v0(v1): (int32) -> int32
     return v2
-}"#,
+}
+"#,
         );
 
         let test_id = test.function_id_by_name("test");
@@ -543,13 +550,15 @@ b0(v0: (int32) -> int32, v1: int32):
         let test = TestProgram::new(
             r#"
 function callee(v0: int32): int32 {
-b0(v0: int32):
+entry(v0: int32):
     return v0
 }
+
 function test(v0: int32): int32 {
-b0(v0: int32):
-    tailCall callee(v0): (int32) -> int32
-}"#,
+entry(v0: int32):
+    tail.call callee(v0)
+}
+"#,
         );
 
         let callee_id = test.function_id_by_name("callee");
@@ -570,9 +579,10 @@ b0(v0: int32):
         let test = TestProgram::new(
             r#"
 function test(v0: (int32) -> int32, v1: int32): int32 {
-b0(v0: (int32) -> int32, v1: int32):
-    tailCall.indirect v0(v1): (int32) -> int32
-}"#,
+entry(v0: (int32) -> int32, v1: int32):
+    tail.call.indirect v0(v1): (int32) -> int32
+}
+"#,
         );
 
         let test_id = test.function_id_by_name("test");
@@ -592,15 +602,16 @@ b0(v0: (int32) -> int32, v1: int32):
         let test = TestProgram::new(
             r#"
 function callee(v0: int32): int32 {
-b0(v0: int32):
+entry(v0: int32):
     return v0
 }
 
-function test(v0: (int32) -> int32, v1: int32): int32  {
-b0(v0: (int32) -> int32, v1: int32):
+function test(v0: (int32) -> int32, v1: int32): int32 {
+entry(v0: (int32) -> int32, v1: int32):
     v2: int32 = call.indirect v0(v1): (int32) -> int32
     return v2
-}"#,
+}
+"#,
         );
 
         let test_id = test.function_id_by_name("test");
@@ -619,17 +630,21 @@ b0(v0: (int32) -> int32, v1: int32):
         let test = TestProgram::new(
             r#"
 function callee(v0: int32): int32 {
-b0(v0: int32):
+entry(v0: int32):
     return v0
 }
+
 function test(v0: int32): int32 {
-b0(v0: int32):
-    call callee(v0): (int32) -> int32 -> b1
+entry(v0: int32):
+    call callee(v0) -> b1
+
 b1(v1: int32):
     return v1
+
 b2(v2: ref<int32, managed, readonly>):
     panic v2
-}"#,
+}
+"#,
         );
 
         let callee_id = test.function_id_by_name("callee");
@@ -652,14 +667,16 @@ b2(v2: ref<int32, managed, readonly>):
         let mut test = TestProgram::new(
             r#"
 function callee(v0: int32): int32 {
-b0(v0: int32):
+entry(v0: int32):
     return v0
 }
+
 function test(v0: int32): int32 {
-b0(v0: int32):
+entry(v0: int32):
     v1: int32 = call.virtual v0, int32, 1(v0): (int32) -> int32
     return v1
-}"#,
+}
+"#,
         );
 
         let callee_id = test.function_id_by_name("callee");
@@ -711,17 +728,21 @@ b0(v0: int32):
         let mut test = TestProgram::new(
             r#"
 function callee(v0: int32): int32 {
-b0(v0: int32):
+entry(v0: int32):
     return v0
 }
+
 function test(v0: int32): int32 {
-b0(v0: int32):
+entry(v0: int32):
     call.virtual v0, int32, 1(v0): (int32) -> int32 -> b1
+
 b1(v1: int32):
     return v1
+
 b2(v2: ref<int32, managed, readonly>):
     panic v2
-}"#,
+}
+"#,
         );
 
         let callee_id = test.function_id_by_name("callee");

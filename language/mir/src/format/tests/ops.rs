@@ -5,39 +5,39 @@ use super::assert_format;
 fn test_format_vector_tensor_ops() {
     assert_format(
         r#"
-function vectorTensorOps(value0: vector<int32, 4>, value1: int32, value2: tensor<int32, (2, 2)>, value3: tensorView<int32, borrowed, (2, 2)>): tensor<int32, (2, 2)> {
-entry0(value0: vector<int32, 4>, value1: int32, value2: tensor<int32, (2, 2)>, value3: tensorView<int32, borrowed, (2, 2)>):
-    value4: vector<int32, 4> = vector.splat value1
-    value5: int32 = vector.extract value4, value1
-    value6: vector<int32, 4> = vector.insert value4, value1, value1
-    value7: vector<int32, 4> = vector.shuffle value4, value6, [0, 1, 2, 3]
-    value8: int32 = vector.reduce add, value7
-    value9: vector<boolean, 4> = vector.compare int.eq, value4, value6
-    value10: vector<int32, 4> = vector.convert exact, value4
-    value11: int32 = 0int32
-    value12: int32 = 1int32
-    value13: int32 = tensor.load value3, [value11, value12]
-    tensor.store value3, [value12, value11], value13
-    tensor.fill value3, value11
-    tensor.copy value3, value3
-    value14: tensor<int32, (2, 2)> = tensor.reshape value2, shape(value11, value12)
-    value15: tensor<int32, (2, 2)> = tensor.broadcast value2, dimensions(0, 1)
-    value16: tensor<int32, (2, 2)> = tensor.transpose value2, permutation(1, 0)
-    value17: tensor<int32, (2, 2)> = tensor.cast value2
-    value18: tensorView<int32, borrowed, (2, 2)> = tensor.view value3, offsets(value11, value11), sizes(value12, value12), strides(value12, value12)
-    value19: tensor<int32, (2, 2)> = tensor.slice value2, offsets(value11, value11), sizes(value12, value12), strides(value12, value12)
-    value20: tensor<int32, (2, 2)> = tensor.pad value2, value(value11), low(value11, value11), high(value11, value11), interior(value11, value11)
-    value21: tensor<int32, (2, 2)> = tensor.concat tensors(value2, value2), axis(0)
-    value22: tensor<boolean, (2, 2)> = tensor.compare int.eq, value2, value2
-    value23: tensor<int32, (2, 2)> = tensor.reduce add, value2, value11, axes(0)
-    value24: tensor<uint64, (2, 2)> = tensor.indexReduce min, value2, axis(0), tieBreak(first)
-    value25: tensor<int32, (2, 2)> = tensor.dot value2, value2, dims(lhsBatch(), rhsBatch(), lhsContract(1), rhsContract(0))
-    value26: tensor<int32, (2, 2)> = tensor.convolution value2, value2, dims(inputBatch(0), inputFeature(1), inputSpatial(2, 3), kernelInputFeature(0), kernelOutputFeature(1), kernelSpatial(2, 3), outputBatch(0), outputFeature(1), outputSpatial(2, 3)), window(strides(1, 1), paddingLow(0, 0), paddingHigh(0, 0), lhsDilation(1, 1), rhsDilation(1, 1), windowReversal(false, false)), groups(feature(1), batch(1))
-    value27: tensor<int32, (2, 2)> = tensor.gather value2, value2, dims(offsetDims(0), collapsedSliceDims(1), startIndexMap(0), indexVectorDim(1)), sliceSizes(1, 1)
-    value28: tensor<int32, (2, 2)> = tensor.scatter value2, value2, value2, dims(updateWindowDims(0), insertedWindowDims(1), scatterDimsToOperandDims(0), indexVectorDim(1)), mode(replace)
-    value29: tensor<float32, (2, 2)> = tensor.convert exact, value2
-    value30: tensor<int32, (2, 2)> = tensor.splat value1
-    return value14
+function vectorTensorOps(v0: vector<int32, 4>, v1: int32, v2: tensor<int32, (2, 2)>, v3: tensorView<int32, borrowed, (2, 2)>): tensor<int32, (2, 2)> {
+entry(v0: vector<int32, 4>, v1: int32, v2: tensor<int32, (2, 2)>, v3: tensorView<int32, borrowed, (2, 2)>):
+    v4: vector<int32, 4> = vector.splat v1
+    v5: int32 = vector.extract v4, v1
+    v6: vector<int32, 4> = vector.insert v4, v1, v1
+    v7: vector<int32, 4> = vector.shuffle v4, v6, [0, 1, 2, 3]
+    v8: int32 = vector.reduce add, v7
+    v9: vector<boolean, 4> = vector.compare int.eq, v4, v6
+    v10: vector<int32, 4> = vector.convert exact, v4
+    v11: int32 = 0
+    v12: int32 = 1
+    v13: int32 = tensor.load v3, [v11, v12]
+    tensor.store v3, [v12, v11], v13
+    tensor.fill v3, v11
+    tensor.copy v3, v3
+    v14: tensor<int32, (2, 2)> = tensor.reshape v2, shape(v11, v12)
+    v15: tensor<int32, (2, 2)> = tensor.broadcast v2, dimensions(0, 1)
+    v16: tensor<int32, (2, 2)> = tensor.transpose v2, permutation(1, 0)
+    v17: tensor<int32, (2, 2)> = tensor.cast v2
+    v18: tensorView<int32, borrowed, (2, 2)> = tensor.view v3, offsets(v11, v11), sizes(v12, v12), strides(v12, v12)
+    v19: tensor<int32, (2, 2)> = tensor.slice v2, offsets(v11, v11), sizes(v12, v12), strides(v12, v12)
+    v20: tensor<int32, (2, 2)> = tensor.pad v2, value(v11), low(v11, v11), high(v11, v11), interior(v11, v11)
+    v21: tensor<int32, (2, 2)> = tensor.concat tensors(v2, v2), axis(0)
+    v22: tensor<boolean, (2, 2)> = tensor.compare int.eq, v2, v2
+    v23: tensor<int32, (2, 2)> = tensor.reduce add, v2, v11, axes(0)
+    v24: tensor<uint64, (2, 2)> = tensor.indexReduce min, v2, axis(0), tieBreak(first)
+    v25: tensor<int32, (2, 2)> = tensor.dot v2, v2, dims(lhsBatch(), rhsBatch(), lhsContract(1), rhsContract(0))
+    v26: tensor<int32, (2, 2)> = tensor.convolution v2, v2, dims(inputBatch(0), inputFeature(1), inputSpatial(2, 3), kernelInputFeature(0), kernelOutputFeature(1), kernelSpatial(2, 3), outputBatch(0), outputFeature(1), outputSpatial(2, 3)), window(strides(1, 1), paddingLow(0, 0), paddingHigh(0, 0), lhsDilation(1, 1), rhsDilation(1, 1), windowReversal(false, false)), groups(feature(1), batch(1))
+    v27: tensor<int32, (2, 2)> = tensor.gather v2, v2, dims(offsetDims(0), collapsedSliceDims(1), startIndexMap(0), indexVectorDim(1)), sliceSizes(1, 1)
+    v28: tensor<int32, (2, 2)> = tensor.scatter v2, v2, v2, dims(updateWindowDims(0), insertedWindowDims(1), scatterDimsToOperandDims(0), indexVectorDim(1)), mode(replace)
+    v29: tensor<float32, (2, 2)> = tensor.convert exact, v2
+    v30: tensor<int32, (2, 2)> = tensor.splat v1
+    return v14
 }
 "#,
     );
@@ -48,19 +48,19 @@ entry0(value0: vector<int32, 4>, value1: int32, value2: tensor<int32, (2, 2)>, v
 fn test_format_check_and_assume() {
     assert_format(
         r#"
-function guard(value0: uint32, value1: uint32, value2: [int32; 4]): int32 {
-entry0(value0: uint32, value1: uint32, value2: [int32; 4]):
-    value3: boolean = int.lt.u value0, value1
-    assume value3
+function guard(v0: uint32, v1: uint32, v2: [int32; 4]): int32 {
+entry(v0: uint32, v1: uint32, v2: [int32; 4]):
+    v3: boolean = int.lt.u v0, v1
+    assume v3
     profile.increment counter(0)
-    profile.value counter(1), value3
-    check bounds.u value0, value1, value2 -> block1(value0), block2()
+    profile.value counter(1), v3
+    check bounds.u v0, v1, v2 -> b1(v0), b2
 
-block1(value4: uint32):
-    value5: int32 = 0int32
-    return value5
+b1(v4: uint32):
+    v5: int32 = 0
+    return v5
 
-block2:
+b2:
     unreachable
 }
 "#,
@@ -75,13 +75,13 @@ fn test_format_calls() {
 external function callee(int32, int32): int32
 
 function caller(): int32 {
-entry0:
-    value0: int32 = 1int32
-    value1: int32 = 2int32
-    value2: int32 = call callee(value0, value1): (int32, int32) -> int32
-    value3: (int32, int32) -> int32 = function.address callee
-    value4: int32 = call.indirect value3(value0, value1): (int32, int32) -> int32
-    return value4
+entry:
+    v0: int32 = 1
+    v1: int32 = 2
+    v2: int32 = call callee(v0, v1)
+    v3: (int32, int32) -> int32 = function.address callee
+    v4: int32 = call.indirect v3(v0, v1): (int32, int32) -> int32
+    return v4
 }
 "#,
     );
@@ -94,9 +94,9 @@ fn test_format_void_call_with_callable_argument() {
         r#"
 external function consume(() -> int32): void
 
-function caller(value0: () -> int32): void {
-entry0(value0: () -> int32):
-    call consume(value0): (() -> int32) -> void
+function caller(v0: () -> int32): void {
+entry(v0: () -> int32):
+    call consume(v0)
     return
 }
 "#,
@@ -108,19 +108,19 @@ entry0(value0: () -> int32):
 fn test_format_scalar_instruction_families() {
     assert_format(
         r#"
-function scalarOps(value0: int32, value1: int32, value2: boolean, value3: float64): int64 {
-entry0(value0: int32, value1: int32, value2: boolean, value3: float64):
-    value4: boolean = int.lt.s value0, value1
-    value5: int32 = select value2, value0, value1
-    value6: int32 = int.negate value5
-    value7: int32 = int.not value6
-    value8: float64 = float.negate value3
-    value9: int64 = cast.extend.s value7 -> int64
-    value10: float64 = intrinsic.math.float.sqrt(value3)
-    value11: float64 = intrinsic.math.float.min(value8, value3)
-    value12: float64 = intrinsic.math.float.fma(value8, value3, value11)
-    value13: (int32, boolean) = intrinsic.math.arithmetic.overflowing.add(value0, value1)
-    return value9
+function scalarOps(v0: int32, v1: int32, v2: boolean, v3: float64): int64 {
+entry(v0: int32, v1: int32, v2: boolean, v3: float64):
+    v4: boolean = int.lt.s v0, v1
+    v5: int32 = select v2, v0, v1
+    v6: int32 = int.negate v5
+    v7: int32 = int.not v6
+    v8: float64 = float.negate v3
+    v9: int64 = cast.extend.s v7 -> int64
+    v10: float64 = intrinsic.math.float.sqrt(v3)
+    v11: float64 = intrinsic.math.float.min(v8, v3)
+    v12: float64 = intrinsic.math.float.fma(v8, v3, v11)
+    v13: (int32, boolean) = intrinsic.math.arithmetic.overflowing.add(v0, v1)
+    return v9
 }
 "#,
     );
@@ -132,11 +132,11 @@ fn test_format_float_infinity_and_nan() {
     assert_format(
         r#"
 function floatLimits(): float32 {
-entry0:
-    value0: float32 = inffloat32
-    value1: float32 = -inffloat32
-    value2: float32 = NaNfloat32
-    return value1
+entry:
+    v0: float32 = inf
+    v1: float32 = -inf
+    v2: float32 = NaN
+    return v1
 }
 "#,
     );

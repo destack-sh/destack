@@ -491,7 +491,7 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(payload, from, to);
                 }
             }
-            Terminator::ResumeUnwind => {}
+            Terminator::UnwindResume => {}
             Terminator::Trap { .. } => {}
             Terminator::Unreachable => {}
             Terminator::TailCall { call, .. } => {

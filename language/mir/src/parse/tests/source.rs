@@ -7,12 +7,12 @@ use super::{TestParser, span_for_text, span_for_text_in, span_for_text_in_after}
 #[test]
 fn test_parse_named_node_spans() {
     let source = r#"
-type Callable = () => void
+type Callable = () => void;
 
-readonly global Count: int32 = 1int32
+readonly global Count: int32 = 1
 
 function use(): void {
-entry0:
+entry:
     return
 }
 "#;
@@ -38,7 +38,7 @@ entry0:
     );
     assert_eq!(
         tree.get_main_span(block_id),
-        Some(span_for_text(source, "entry0"))
+        Some(span_for_text(source, "entry"))
     );
 
     assert_eq!(
@@ -49,7 +49,7 @@ entry0:
         tree.get_side_span(global_id, NodeSpanType::Region(NodeSpanRegion::Type)),
         Some(span_for_text_in(
             source,
-            "readonly global Count: int32 = 1int32",
+            "readonly global Count: int32 = 1",
             "int32"
         ))
     );
@@ -64,21 +64,18 @@ entry0:
     );
     assert_eq!(
         tree.get_span(global_id),
-        Some(span_for_text(
-            source,
-            "readonly global Count: int32 = 1int32"
-        ))
+        Some(span_for_text(source, "readonly global Count: int32 = 1"))
     );
     assert_eq!(
         tree.get_span(function_id),
         Some(span_for_text(
             source,
-            "function use(): void {\nentry0:\n    return\n}"
+            "function use(): void {\nentry:\n    return\n}"
         ))
     );
     assert_eq!(
         tree.get_span(block_id),
-        Some(span_for_text(source, "entry0:\n    return"))
+        Some(span_for_text(source, "entry:\n    return"))
     );
 }
 
@@ -87,7 +84,7 @@ entry0:
 fn test_parse_instruction_spans() {
     let source = r#"
 function use(input0: int32): int32 {
-entry0(input0: int32):
+entry(input0: int32):
     result1: int32 = int.add input0, input0
     return result1
 }
@@ -161,9 +158,9 @@ entry0(input0: int32):
 fn test_parse_local_spans() {
     let source = r#"
 function use(): void {
-    local local0: int32
+    local l0: int32
 
-entry0:
+entry:
     return
 }
 "#;
@@ -173,14 +170,14 @@ entry0:
 
     assert_eq!(
         tree.get_span(local_id),
-        Some(span_for_text(source, "local local0: int32"))
+        Some(span_for_text(source, "local l0: int32"))
     );
     assert_eq!(
         tree.get_main_span(local_id),
-        Some(span_for_text(source, "local0"))
+        Some(span_for_text(source, "l0"))
     );
     assert_eq!(
         tree.get_side_span(local_id, NodeSpanType::Region(NodeSpanRegion::Type)),
-        Some(span_for_text_in(source, "local local0: int32", "int32"))
+        Some(span_for_text_in(source, "local l0: int32", "int32"))
     );
 }

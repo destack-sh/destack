@@ -1,17 +1,14 @@
 use crate::build::{BuildError, BuildResult, FunctionBuilder};
 use crate::{
-    Access, Global, Instruction, Lifetime, Local, LocalNodeId, Mutability, Nullability, Ownership,
-    Place, ReferenceKind, Space, Type, TypeReference, Value, callable_signature,
-    function_signature_parts,
+    Access, Global, Instruction, Lifetime, Local, LocalNodeId, Mutability, Nullability, Place,
+    ReferenceKind, Space, Type, TypeReference, Value, callable_signature, function_signature_parts,
 };
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
     /// Create a local variable (stack slot).
     pub fn local(&mut self, ty: LocalNodeId<Type>, mutability: Mutability) -> LocalNodeId<Local> {
-        let local = self
-            .tree
-            .insert(Local::new(ty.into(), mutability, Ownership::Owned));
+        let local = self.tree.insert(Local::new(ty.into(), mutability));
         let function = self.tree.get_mut(self.function_id);
         function.locals.push(local);
         local

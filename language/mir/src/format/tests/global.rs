@@ -8,12 +8,12 @@ fn test_format_global_variable() {
 global counter: int32 = zeroInit
 
 function increment(): void {
-entry0:
-    value0: ref<int32, raw> = global.address counter
-    value1: int32 = load value0
-    value2: int32 = 1int32
-    value3: int32 = int.add value1, value2
-    store value0, value3
+entry:
+    v0: ref<int32, raw> = global.address counter
+    v1: int32 = load v0
+    v2: int32 = 1
+    v3: int32 = int.add v1, v2
+    store v0, v3
     return
 }
 "#,
@@ -25,13 +25,13 @@ entry0:
 fn test_format_global_constant() {
     assert_format(
         r#"
-readonly global MAGIC: int64 = 42int64
+readonly global MAGIC: int64 = 42
 
 function getMagic(): int64 {
-entry0:
-    value0: ref<int64, raw, readonly> = global.address MAGIC
-    value1: int64 = load value0
-    return value1
+entry:
+    v0: ref<int64, raw, readonly> = global.address MAGIC
+    v1: int64 = load v0
+    return v1
 }
 "#,
     );
@@ -45,9 +45,9 @@ fn test_format_string_constant() {
 readonly global stringLiteralHelloWorldNl: [uint8; 11] = b"hello\nworld"
 
 function escapeTest(): void {
-entry0:
-    value0: ref<[uint8; 11], raw, readonly> = global.address stringLiteralHelloWorldNl
-    value1: [uint8; 11] = load value0
+entry:
+    v0: ref<[uint8; 11], raw, readonly> = global.address stringLiteralHelloWorldNl
+    v1: [uint8; 11] = load v0
     return
 }
 "#,

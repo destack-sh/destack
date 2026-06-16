@@ -14,7 +14,6 @@ pub struct BlockTarget {
     /// Arguments for the target block's parameters.
     pub arguments: Vec<ValueReference>,
     /// Relative execution weight of this edge under profile data.
-    #[serde(default)]
     pub weight: EdgeWeight,
 }
 
@@ -333,7 +332,7 @@ pub enum Terminator {
     },
     /// Continue the active unwind after a cleanup block.
     // TODO #Incomplete: a panic during cleanup must abort, nothing enforces that yet
-    ResumeUnwind,
+    UnwindResume,
     /// Unrecoverable runtime termination.
     Trap {
         /// The trap kind.
@@ -483,7 +482,7 @@ impl Terminator {
                 success, failure, ..
             } => smallvec![success.block, failure.block],
             Terminator::Panic { .. } => smallvec![],
-            Terminator::ResumeUnwind => smallvec![],
+            Terminator::UnwindResume => smallvec![],
             Terminator::Trap { .. } => smallvec![],
             Terminator::Unreachable => smallvec![],
             Terminator::TailCall { .. } => smallvec![],
@@ -639,7 +638,7 @@ impl Terminator {
                 uses
             }
             Terminator::Panic { payload } => payload.iter().copied().collect(),
-            Terminator::ResumeUnwind => smallvec![],
+            Terminator::UnwindResume => smallvec![],
             Terminator::Trap { payload, .. } => payload.iter().copied().collect(),
             Terminator::Unreachable => smallvec![],
             Terminator::TailCall { call, .. } => call.arguments.iter().copied().collect(),

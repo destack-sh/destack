@@ -8,13 +8,12 @@ use destack_source::{
 
 use crate::source::{Lexer, Token, TokenType};
 use crate::{
-    Block, Field, Function, Global, LifetimeParameter, LifetimeSlot, LocalNodeId, Node, Tree, Type,
-    Value, finalize_function_names,
+    Block, Field, Function, Global, LifetimeParameter, LifetimeSlot, Local, LocalNodeId, Node,
+    Tree, Type, Value, finalize_function_names,
 };
 
 use super::error::{ParseError, ParseResult};
 use super::key::{FieldKey, TypeKey};
-
 /// The result of parsing one MIR source file.
 #[derive(Debug)]
 pub struct ParsedMir {
@@ -91,12 +90,12 @@ pub struct Parser {
     pub(super) type_alias_definitions: HashSet<String>,
     /// Map from symbolic block names to their predeclared block ids.
     pub(super) block_name_map: HashMap<String, LocalNodeId<Block>>,
-    /// Map from explicit numeric block labels to their predeclared block ids.
-    pub(super) block_id_by_label_index: HashMap<u32, LocalNodeId<Block>>,
     /// Blocks predeclared for the current function body in source order.
     pub(super) predeclared_blocks: Vec<LocalNodeId<Block>>,
     /// Map from symbolic value names to their SSA ids.
     pub(super) value_name_map: HashMap<String, Value>,
+    /// Map from symbolic local names to their local ids.
+    pub(super) local_name_map: HashMap<String, LocalNodeId<Local>>,
     /// Type interner for canonical type ids.
     pub(super) type_intern: HashMap<TypeKey, LocalNodeId<Type>>,
     /// Field interner for canonical field ids.
@@ -131,9 +130,9 @@ impl Parser {
             type_alias_map: HashMap::new(),
             type_alias_definitions: HashSet::new(),
             block_name_map: HashMap::new(),
-            block_id_by_label_index: HashMap::new(),
             predeclared_blocks: Vec::new(),
             value_name_map: HashMap::new(),
+            local_name_map: HashMap::new(),
             type_intern: HashMap::new(),
             field_intern: HashMap::new(),
             current_function: None,
@@ -518,9 +517,9 @@ impl Parser {
     /// Reset per-function parse state.
     pub(super) fn reset_function_parse_state(&mut self) {
         self.block_name_map.clear();
-        self.block_id_by_label_index.clear();
         self.predeclared_blocks.clear();
         self.value_name_map.clear();
+        self.local_name_map.clear();
         self.next_value_id = 0;
         self.parsed_block_count = 0;
     }
@@ -542,10 +541,6 @@ impl Parser {
 
     /// Return whether the current token starts a value definition.
     pub(super) fn is_value_definition_start(&self) -> bool {
-        if self.peek_token(TokenType::Value) {
-            return true;
-        }
-
         let Some(token) = self.peek() else {
             return false;
         };
@@ -562,25 +557,20 @@ impl Parser {
 
     /// Return whether the current token starts a value reference.
     pub(super) fn is_value_reference_start(&self) -> bool {
-        self.peek().is_some_and(|token| {
-            matches!(
-                self.token_type(token),
-                TokenType::Value | TokenType::Identifier
-            )
-        })
+        self.peek_token(TokenType::Identifier)
     }
 
     /// Return whether the current token starts a block label.
     pub(super) fn is_block_label_start(&self) -> bool {
-        if self.peek_token(TokenType::BlockReference) {
-            return true;
-        }
-
         let Some(token) = self.peek() else {
             return false;
         };
 
         if self.token_type(token) != TokenType::Identifier {
+            return false;
+        }
+
+        if !self.is_token_at_line_start(token) {
             return false;
         }
 
@@ -616,10 +606,11 @@ impl Parser {
             return false;
         };
 
-        if !matches!(
-            self.token_type(token),
-            TokenType::BlockReference | TokenType::Identifier
-        ) {
+        if self.token_type(token) != TokenType::Identifier {
+            return false;
+        }
+
+        if !self.is_token_at_line_start(token) {
             return false;
         }
 
@@ -646,5 +637,17 @@ impl Parser {
         }
 
         saw_colon
+    }
+
+    /// Return whether one token starts at the first byte of its source line.
+    pub(super) fn is_token_at_line_start(&self, token: &Token) -> bool {
+        let source_text = self
+            .tree
+            .source_text
+            .as_deref()
+            .unwrap_or_else(|| unreachable!("MIR tree has no parsed source text"));
+        let start = token.span.start as usize;
+
+        start == 0 || source_text.as_bytes().get(start - 1) == Some(&b'\n')
     }
 }

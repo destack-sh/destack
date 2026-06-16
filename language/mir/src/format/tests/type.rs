@@ -10,9 +10,9 @@ use destack_core::StringPool;
 fn test_format_pointer_sized_builtin_types() {
     assert_format(
         r#"
-function pointerSized(value0: isize, value1: usize, value2: typeDescriptor, value3: typeId): usize {
-entry0(value0: isize, value1: usize, value2: typeDescriptor, value3: typeId):
-    return value1
+function pointerSized(v0: isize, v1: usize, v2: typeDescriptor, v3: typeId): usize {
+entry(v0: isize, v1: usize, v2: typeDescriptor, v3: typeId):
+    return v1
 }
 "#,
     );
@@ -23,10 +23,10 @@ entry0(value0: isize, value1: usize, value2: typeDescriptor, value3: typeId):
 fn test_format_concrete_float_types() {
     assert_format(
         r#"
-function floats(value0: float16, value1: bfloat16, value2: float32, value3: float64): void {
-entry0(value0: float16, value1: bfloat16, value2: float32, value3: float64):
-    value4: float16 = 1.5float16
-    value5: bfloat16 = 1.5bfloat16
+function floats(v0: float16, v1: bfloat16, v2: float32, v3: float64): void {
+entry(v0: float16, v1: bfloat16, v2: float32, v3: float64):
+    v4: float16 = 1.5
+    v5: bfloat16 = 1.5
     return
 }
 "#,
@@ -38,9 +38,9 @@ entry0(value0: float16, value1: bfloat16, value2: float32, value3: float64):
 fn test_format_managed_and_unique_references() {
     assert_format(
         r#"
-function refs(value0: ref<int32, managed, nullable>, value1: ref<int32, unique, readonly>): ref<int32, managed, nullable> {
-entry0(value0: ref<int32, managed, nullable>, value1: ref<int32, unique, readonly>):
-    return value0
+function refs(v0: ref<int32, managed, nullable>, v1: ref<int32, unique, readonly>): ref<int32, managed, nullable> {
+entry(v0: ref<int32, managed, nullable>, v1: ref<int32, unique, readonly>):
+    return v0
 }
 "#,
     );
@@ -51,9 +51,9 @@ entry0(value0: ref<int32, managed, nullable>, value1: ref<int32, unique, readonl
 fn test_format_raw_spaces() {
     assert_format(
         r#"
-function rawSpaces(value0: ref<int32, raw, space(shared)>, value1: ref<int32, raw, space(static)>): ref<int32, raw, space(shared)> {
-entry0(value0: ref<int32, raw, space(shared)>, value1: ref<int32, raw, space(static)>):
-    return value0
+function rawSpaces(v0: ref<int32, raw, space(shared)>, v1: ref<int32, raw, space(static)>): ref<int32, raw, space(shared)> {
+entry(v0: ref<int32, raw, space(shared)>, v1: ref<int32, raw, space(static)>):
+    return v0
 }
 "#,
     );
@@ -64,9 +64,9 @@ entry0(value0: ref<int32, raw, space(shared)>, value1: ref<int32, raw, space(sta
 fn test_format_parameter_borrow_lifetime() {
     assert_format(
         r#"
-function borrowParam(value0: ref<int32, borrowed, lifetime(0)>): ref<int32, borrowed, lifetime(0)> {
-entry0(value0: ref<int32, borrowed, lifetime(0)>):
-    return value0
+function borrowParam(v0: ref<int32, borrowed, lifetime(0)>): ref<int32, borrowed, lifetime(0)> {
+entry(v0: ref<int32, borrowed, lifetime(0)>):
+    return v0
 }
 "#,
     );
@@ -77,9 +77,9 @@ entry0(value0: ref<int32, borrowed, lifetime(0)>):
 fn test_format_static_borrow_lifetime() {
     assert_format(
         r#"
-function staticBorrow(value0: ref<int32, borrowed, lifetime(static)>): ref<int32, borrowed, lifetime(static)> {
-entry0(value0: ref<int32, borrowed, lifetime(static)>):
-    return value0
+function staticBorrow(v0: ref<int32, borrowed, lifetime(static)>): ref<int32, borrowed, lifetime(static)> {
+entry(v0: ref<int32, borrowed, lifetime(static)>):
+    return v0
 }
 "#,
     );
@@ -95,8 +95,8 @@ type Player<LWorld: lifetime, LMesh: lifetime> {
     mesh: ref<float64, borrowed, lifetime(LMesh)>;
 }
 
-function tickPlayer<LPlayer: lifetime, LWorld: lifetime, LMesh: lifetime>(value0: ref<Player<lifetime(LWorld), lifetime(LMesh)>, borrowed, lifetime(LPlayer)>): void {
-entry0(value0: ref<Player<lifetime(LWorld), lifetime(LMesh)>, borrowed, lifetime(LPlayer)>):
+function tickPlayer<LPlayer: lifetime, LWorld: lifetime, LMesh: lifetime>(v0: ref<Player<lifetime(LWorld), lifetime(LMesh)>, borrowed, lifetime(LPlayer)>): void {
+entry(v0: ref<Player<lifetime(LWorld), lifetime(LMesh)>, borrowed, lifetime(LPlayer)>):
     return
 }
 "#,
@@ -108,10 +108,10 @@ entry0(value0: ref<Player<lifetime(LWorld), lifetime(LMesh)>, borrowed, lifetime
 fn test_format_callable_suspension_contract() {
     assert_format(
         r#"
-function callContract(value0: (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0), value1: ref<int32, borrowed, readonly>): int32 {
-entry0(value0: (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0), value1: ref<int32, borrowed, readonly>):
-    value2: int32 = call.indirect value0(value1): (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0)
-    return value2
+function callContract(v0: (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0), v1: ref<int32, borrowed, readonly>): int32 {
+entry(v0: (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0), v1: ref<int32, borrowed, readonly>):
+    v2: int32 = call.indirect v0(v1): (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0)
+    return v2
 }
 "#,
     );
@@ -122,8 +122,8 @@ entry0(value0: (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0), val
 fn test_format_borrowed_shaped_views() {
     assert_format(
         r#"
-function views(value0: slice<int32, borrowed, lifetime(0), readonly>, value1: tensorView<int32, borrowed, lifetime(0), (4, 4)>): void {
-entry0(value0: slice<int32, borrowed, lifetime(0), readonly>, value1: tensorView<int32, borrowed, lifetime(0), (4, 4)>):
+function views(v0: slice<int32, borrowed, lifetime(0), readonly>, v1: tensorView<int32, borrowed, lifetime(0), (4, 4)>): void {
+entry(v0: slice<int32, borrowed, lifetime(0), readonly>, v1: tensorView<int32, borrowed, lifetime(0), (4, 4)>):
     return
 }
 "#,
@@ -135,8 +135,8 @@ entry0(value0: slice<int32, borrowed, lifetime(0), readonly>, value1: tensorView
 fn test_format_tensor_shapes_and_layouts() {
     assert_format(
         r#"
-function tensors(value0: tensor<float32, (batch, dynamic, 64), layout(dense(columnMajor))>, value1: tensorView<float32, borrowed, lifetime(0), readonly, (batch, dynamic, 64), layout(strided)>): void {
-entry0(value0: tensor<float32, (batch, dynamic, 64), layout(dense(columnMajor))>, value1: tensorView<float32, borrowed, lifetime(0), readonly, (batch, dynamic, 64), layout(strided)>):
+function tensors(v0: tensor<float32, (batch, dynamic, 64), layout(dense(columnMajor))>, v1: tensorView<float32, borrowed, lifetime(0), readonly, (batch, dynamic, 64), layout(strided)>): void {
+entry(v0: tensor<float32, (batch, dynamic, 64), layout(dense(columnMajor))>, v1: tensorView<float32, borrowed, lifetime(0), readonly, (batch, dynamic, 64), layout(strided)>):
     return
 }
 "#,
@@ -148,9 +148,9 @@ entry0(value0: tensor<float32, (batch, dynamic, 64), layout(dense(columnMajor))>
 fn test_format_tuple_and_array_types() {
     assert_format(
         r#"
-function sequences(value0: (int32, float64, boolean), value1: [int32; 10]): (int32, float64, boolean) {
-entry0(value0: (int32, float64, boolean), value1: [int32; 10]):
-    return value0
+function sequences(v0: (int32, float64, boolean), v1: [int32; 10]): (int32, float64, boolean) {
+entry(v0: (int32, float64, boolean), v1: [int32; 10]):
+    return v0
 }
 "#,
     );
@@ -161,9 +161,9 @@ entry0(value0: (int32, float64, boolean), value1: [int32; 10]):
 fn test_format_callable_types() {
     assert_format(
         r#"
-function callbacks(value0: (int32, int32) -> int64, value1: (int32) => int32): (int32) => int32 {
-entry0(value0: (int32, int32) -> int64, value1: (int32) => int32):
-    return value1
+function callbacks(v0: (int32, int32) -> int64, v1: (int32) => int32): (int32) => int32 {
+entry(v0: (int32, int32) -> int64, v1: (int32) => int32):
+    return v1
 }
 "#,
     );
@@ -174,9 +174,9 @@ entry0(value0: (int32, int32) -> int64, value1: (int32) => int32):
 fn test_format_structural_types() {
     assert_format(
         r#"
-function point(value0: { x: int32, y: float64 }): { x: int32, y: float64 } {
-entry0(value0: { x: int32, y: float64 }):
-    return value0
+function point(v0: { x: int32, y: float64 }): { x: int32, y: float64 } {
+entry(v0: { x: int32, y: float64 }):
+    return v0
 }
 "#,
     );
@@ -191,9 +191,9 @@ type Writer {
     write: () -> uint32;
 }
 
-function erased(value0: dynamic<Writer>): dynamic<Writer> {
-entry0(value0: dynamic<Writer>):
-    return value0
+function erased(v0: dynamic<Writer>): dynamic<Writer> {
+entry(v0: dynamic<Writer>):
+    return v0
 }
 "#,
     );
@@ -215,7 +215,7 @@ type Node {
 }
 
 function usePoint(v0: ref<Point, managed>, v1: ref<Node, managed>): ref<Point, managed> {
-b0(v0: ref<Point, managed>, v1: ref<Node, managed>):
+entry(v0: ref<Point, managed>, v1: ref<Node, managed>):
     return v0
 }
 "#,
@@ -230,9 +230,9 @@ type Node {
     next: ref<Node, managed>;
 }
 
-function usePoint(value0: ref<Point, managed>, value1: ref<Node, managed>): ref<Point, managed> {
-entry0(value0: ref<Point, managed>, value1: ref<Node, managed>):
-    return value0
+function usePoint(v0: ref<Point, managed>, v1: ref<Node, managed>): ref<Point, managed> {
+entry(v0: ref<Point, managed>, v1: ref<Node, managed>):
+    return v0
 }
 "#,
     );

@@ -98,7 +98,7 @@ impl<'a> FunctionBuilder<'a> {
         let terminator_id = self.tree.get(block).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
-        *terminator = Terminator::ResumeUnwind;
+        *terminator = Terminator::UnwindResume;
     }
 
     /// Call a function with an explicit continuation.

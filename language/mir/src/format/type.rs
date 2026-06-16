@@ -706,13 +706,12 @@ impl<'a> FormatMirNode<'a, TypeAlias> for TypeAlias {
     ) -> FormatResult<()> {
         let attributes = f.context().tree.attributes(id);
         let name = f.context().strings.get(self.name);
-        let name = f.context().format_alias_name(name);
         let Some(type_id) = self.ty.ty() else {
             let previous_lifetimes = std::mem::replace(
                 &mut f.context_mut().current_lifetimes,
                 self.lifetimes.clone(),
             );
-            write!(f, [token("type"), space(), text(&name)])?;
+            write!(f, [token("type"), space(), text(name)])?;
             format_lifetimes(&self.lifetimes, f)?;
             let result = write!(f, [space(), token("="), space(), self.ty, token(";")]);
             f.context_mut().current_lifetimes = previous_lifetimes;
@@ -721,7 +720,7 @@ impl<'a> FormatMirNode<'a, TypeAlias> for TypeAlias {
             return Ok(());
         };
         let ty = f.context().tree.get(type_id);
-        format_type_declaration(&name, attributes, Some(id), type_id, ty, f)
+        format_type_declaration(name, attributes, Some(id), type_id, ty, f)
     }
 }
 

@@ -29,7 +29,7 @@ fn test_build_empty_function() {
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function empty(): void {
-entry0:
+entry:
     return
 }";
     assert_eq!(output, expected);
@@ -57,10 +57,10 @@ fn test_build_function_with_parameters() {
     let (tree, strings) = module.finish();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function add(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    return value2
+function add(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    return v2
 }";
     assert_eq!(output, expected);
 }
@@ -91,13 +91,13 @@ fn test_build_function_with_locals() {
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function withLocal(): int64 {
-    local local0: int64, owned
+    local l0: int64
 
-entry0:
-    value0: int64 = 42int64
-    local.set local0, value0
-    value1: int64 = local.get local0
-    return value1
+entry:
+    v0: int64 = 42
+    local.set l0, v0
+    v1: int64 = local.get l0
+    return v1
 }";
     assert_eq!(output, expected);
 }
@@ -148,20 +148,20 @@ fn test_build_function_with_branch() {
     let (tree, strings) = module.finish();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function select(value0: boolean): int32 {
-entry0(value0: boolean):
-    branch value0, block1(), block2()
+function select(v0: boolean): int32 {
+entry(v0: boolean):
+    branch v0, b1, b2
 
-block1:
-    value1: int32 = 1int32
-    jump block3()
+b1:
+    v1: int32 = 1
+    jump b3
 
-block2:
-    value2: int32 = 0int32
-    jump block3()
+b2:
+    v2: int32 = 0
+    jump b3
 
-block3:
-    return value1
+b3:
+    return v1
 }";
     assert_eq!(output, expected);
 }
@@ -199,12 +199,12 @@ fn test_build_function_with_call_terminator() {
     let expected = "\
 external function callee(int32): int32
 
-function caller(value0: int32): int32 {
-entry0(value0: int32):
-    call callee(value0): (int32) -> int32 -> block1()
+function caller(v0: int32): int32 {
+entry(v0: int32):
+    call callee(v0) -> b1
 
-block1(value1: int32):
-    return value1
+b1(v1: int32):
+    return v1
 }";
     assert_eq!(output, expected);
 }
@@ -232,9 +232,9 @@ fn test_build_function_with_trap_terminator() {
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function trapper(): void {
-entry0:
-    value0: ref<int32, managed, readonly> = null
-    panic value0
+entry:
+    v0: ref<int32, managed, readonly> = null
+    panic v0
 }";
     assert_eq!(output, expected);
 }
@@ -269,9 +269,9 @@ fn test_ssa_define_use_single_block() {
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function varTest(): int32 {
-entry0:
-    value0: int32 = 10int32
-    return value0
+entry:
+    v0: int32 = 10
+    return v0
 }";
     assert_eq!(output, expected);
 }
@@ -308,10 +308,10 @@ fn test_ssa_redefine_variable() {
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function redefine(): int32 {
-entry0:
-    value0: int32 = 1int32
-    value1: int32 = 2int32
-    return value1
+entry:
+    v0: int32 = 1
+    v1: int32 = 2
+    return v1
 }";
     assert_eq!(output, expected);
 }
@@ -367,20 +367,20 @@ fn test_ssa_branch_with_phi() {
     let (tree, strings) = module.finish();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function phiTest(value0: boolean): int32 {
-entry0(value0: boolean):
-    branch value0, block1(), block2()
+function phiTest(v0: boolean): int32 {
+entry(v0: boolean):
+    branch v0, b1, b2
 
-block1:
-    value1: int32 = 1int32
-    jump block3(value1)
+b1:
+    v1: int32 = 1
+    jump b3(v1)
 
-block2:
-    value2: int32 = 0int32
-    jump block3(value2)
+b2:
+    v2: int32 = 0
+    jump b3(v2)
 
-block3(value3: int32):
-    return value3
+b3(v3: int32):
+    return v3
 }";
     assert_eq!(output, expected);
 }
@@ -434,19 +434,19 @@ fn test_ssa_trivial_phi_removal() {
     let (tree, strings) = module.finish();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function trivialPhi(value0: boolean): int32 {
-entry0(value0: boolean):
-    value1: int32 = 42int32
-    branch value0, block1(), block2()
+function trivialPhi(v0: boolean): int32 {
+entry(v0: boolean):
+    v1: int32 = 42
+    branch v0, b1, b2
 
-block1:
-    jump block3()
+b1:
+    jump b3
 
-block2:
-    jump block3()
+b2:
+    jump b3
 
-block3:
-    return value1
+b3:
+    return v1
 }";
     assert_eq!(output, expected);
 }
@@ -499,19 +499,19 @@ fn test_ssa_trivial_phi_unsealed() {
     let (tree, strings) = module.finish();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function trivialPhiUnsealed(value0: boolean): int32 {
-entry0(value0: boolean):
-    value1: int32 = 42int32
-    branch value0, block1(), block2()
+function trivialPhiUnsealed(v0: boolean): int32 {
+entry(v0: boolean):
+    v1: int32 = 42
+    branch v0, b1, b2
 
-block1:
-    jump block3()
+b1:
+    jump b3
 
-block2:
-    jump block3()
+b2:
+    jump b3
 
-block3:
-    return value1
+b3:
+    return v1
 }";
     assert_eq!(output, expected);
 }
@@ -544,13 +544,13 @@ fn test_build_arithmetic_operations() {
     let (tree, strings) = module.finish();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function arithmetic(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    value3: int32 = int.sub value2, value1
-    value4: int32 = int.mul value3, value0
-    value5: int32 = int.div.s value4, value1
-    return value5
+function arithmetic(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v3: int32 = int.sub v2, v1
+    v4: int32 = int.mul v3, v0
+    v5: int32 = int.div.s v4, v1
+    return v5
 }";
     assert_eq!(output, expected);
 }
@@ -583,12 +583,12 @@ fn test_build_comparison_operations() {
     let (tree, strings) = module.finish();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function compare(value0: int32, value1: int32): boolean {
-entry0(value0: int32, value1: int32):
-    value2: boolean = int.eq value0, value1
-    value3: boolean = int.lt.s value0, value1
-    value4: boolean = int.and value2, value3
-    return value4
+function compare(v0: int32, v1: int32): boolean {
+entry(v0: int32, v1: int32):
+    v2: boolean = int.eq v0, v1
+    v3: boolean = int.lt.s v0, v1
+    v4: boolean = int.and v2, v3
+    return v4
 }";
     assert_eq!(output, expected);
 }
@@ -685,13 +685,13 @@ fn test_seal_all_blocks() {
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function multiBlock(): void {
-entry0:
-    jump block1()
+entry:
+    jump b1
 
-block1:
-    jump block2()
+b1:
+    jump b2
 
-block2:
+b2:
     return
 }";
     assert_eq!(output, expected);
@@ -794,9 +794,9 @@ fn test_build_new_zeroed() {
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function allocTest(): ref<int32, managed, readonly> {
-entry0:
-    value0: ref<int32, managed, readonly> = new.zeroed int32
-    return value0
+entry:
+    v0: ref<int32, managed, readonly> = new.zeroed int32
+    return v0
 }";
     assert_eq!(output, expected);
 }
@@ -824,10 +824,10 @@ fn test_build_new_slice_zeroed() {
     let (tree, strings) = module.finish();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function allocArrayTest(value0: int64): slice<int32, managed> {
-entry0(value0: int64):
-    value1: slice<int32, managed> = new.slice.zeroed int32, value0
-    return value1
+function allocArrayTest(v0: int64): slice<int32, managed> {
+entry(v0: int64):
+    v1: slice<int32, managed> = new.slice.zeroed int32, v0
+    return v1
 }";
     assert_eq!(output, expected);
 }
@@ -864,10 +864,10 @@ fn test_build_slice_descriptor() {
     let (tree, strings) = module.finish();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function sliceTest(value0: slice<int32, managed>, value1: int64, value2: int64): slice<int32, borrowed, lifetime(0)> {
-entry0(value0: slice<int32, managed>, value1: int64, value2: int64):
-    value3: slice<int32, borrowed, lifetime(0)> = slice value0, value1, value2
-    return value3
+function sliceTest(v0: slice<int32, managed>, v1: int64, v2: int64): slice<int32, borrowed, lifetime(0)> {
+entry(v0: slice<int32, managed>, v1: int64, v2: int64):
+    v3: slice<int32, borrowed, lifetime(0)> = slice v0, v1, v2
+    return v3
 }";
     assert_eq!(output, expected);
 }
@@ -901,9 +901,9 @@ fn test_build_frame_alloc_zeroed() {
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function stackAllocTest(): ref<int32, raw, readonly, space(frame)> {
-entry0:
-    value0: ref<int32, raw, readonly, space(frame)> = frame.alloc.zeroed int32
-    return value0
+entry:
+    v0: ref<int32, raw, readonly, space(frame)> = frame.alloc.zeroed int32
+    return v0
 }";
     assert_eq!(output, expected);
 }
@@ -936,12 +936,12 @@ fn test_build_intrinsics() {
     let (tree, strings) = module.finish();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function intrinsicTest(value0: float64, value1: float64): float64 {
-entry0(value0: float64, value1: float64):
-    value2: float64 = intrinsic.math.float.sqrt(value0)
-    value3: float64 = intrinsic.math.float.min(value2, value1)
-    value4: float64 = intrinsic.math.float.abs(value3)
-    return value4
+function intrinsicTest(v0: float64, v1: float64): float64 {
+entry(v0: float64, v1: float64):
+    v2: float64 = intrinsic.math.float.sqrt(v0)
+    v3: float64 = intrinsic.math.float.min(v2, v1)
+    v4: float64 = intrinsic.math.float.abs(v3)
+    return v4
 }";
     assert_eq!(output, expected);
 }
@@ -973,7 +973,7 @@ fn test_build_void_intrinsic() {
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function fenceTest(): void {
-entry0:
+entry:
     atomic.fence sequentiallyConsistent, scope(device), memory(device)
     return
 }";
@@ -1009,10 +1009,10 @@ fn test_build_struct() {
     let (tree, strings) = module.finish();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function makePoint(value0: int32, value1: float64): { int32, float64 } {
-entry0(value0: int32, value1: float64):
-    value2: { int32, float64 } = struct { int32, float64 } (value0, value1)
-    return value2
+function makePoint(v0: int32, v1: float64): { int32, float64 } {
+entry(v0: int32, v1: float64):
+    v2: { int32, float64 } = struct { int32, float64 } (v0, v1)
+    return v2
 }";
     assert_eq!(output, expected);
 }
@@ -1042,10 +1042,10 @@ fn test_build_tuple() {
     let (tree, strings) = module.finish();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function makePair(value0: int32, value1: boolean): (int32, boolean) {
-entry0(value0: int32, value1: boolean):
-    value2: (int32, boolean) = tuple (int32, boolean) (value0, value1)
-    return value2
+function makePair(v0: int32, v1: boolean): (int32, boolean) {
+entry(v0: int32, v1: boolean):
+    v2: (int32, boolean) = tuple (int32, boolean) (v0, v1)
+    return v2
 }";
     assert_eq!(output, expected);
 }
@@ -1076,12 +1076,12 @@ fn test_build_array() {
     let output = format_test_mir(&tree, &strings);
     let expected = "\
 function makeArray(): [int32; 3] {
-entry0:
-    value0: int32 = 1int32
-    value1: int32 = 2int32
-    value2: int32 = 3int32
-    value3: [int32; 3] = array [int32; 3] (value0, value1, value2)
-    return value3
+entry:
+    v0: int32 = 1
+    v1: int32 = 2
+    v2: int32 = 3
+    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
+    return v3
 }";
     assert_eq!(output, expected);
 }
@@ -1112,10 +1112,10 @@ fn test_build_field_get_struct() {
     let (tree, strings) = module.finish();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function getY(value0: { int32, float64 }): float64 {
-entry0(value0: { int32, float64 }):
-    value1: float64 = field.get value0, 1
-    return value1
+function getY(v0: { int32, float64 }): float64 {
+entry(v0: { int32, float64 }):
+    v1: float64 = field.get v0, 1
+    return v1
 }";
     assert_eq!(output, expected);
 }
@@ -1144,10 +1144,10 @@ fn test_build_field_get_tuple() {
     let (tree, strings) = module.finish();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function getFirst(value0: (int32, boolean)): int32 {
-entry0(value0: (int32, boolean)):
-    value1: int32 = field.get value0, 0
-    return value1
+function getFirst(v0: (int32, boolean)): int32 {
+entry(v0: (int32, boolean)):
+    v1: int32 = field.get v0, 0
+    return v1
 }";
     assert_eq!(output, expected);
 }
@@ -1176,10 +1176,10 @@ fn test_build_element_get_array() {
     let (tree, strings) = module.finish();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function getElement(value0: [int32; 3], value1: int64): int32 {
-entry0(value0: [int32; 3], value1: int64):
-    value2: int32 = element.get value0, 1
-    return value2
+function getElement(v0: [int32; 3], v1: int64): int32 {
+entry(v0: [int32; 3], v1: int64):
+    v2: int32 = element.get v0, 1
+    return v2
 }";
     assert_eq!(output, expected);
 }
@@ -1262,24 +1262,24 @@ fn test_ssa_passthrough_intermediate_block() {
     // expected: b3 passes the updated x (v4) from b2 to b1
     // note: b3 has no block parameter since it has only one predecessor
     let expected = "\
-function passthrough(value0: boolean): int32 {
-entry0(value0: boolean):
-    value1: int32 = 1int32
-    jump block1(value1)
+function passthrough(v0: boolean): int32 {
+entry(v0: boolean):
+    v1: int32 = 1
+    jump b1(v1)
 
-block1(value2: int32):
-    branch value0, block2(), block4()
+b1(v2: int32):
+    branch v0, b2, b4
 
-block2:
-    value4: int32 = 10int32
-    value5: int32 = int.add value2, value4
-    jump block3()
+b2:
+    v4: int32 = 10
+    v5: int32 = int.add v2, v4
+    jump b3
 
-block3:
-    jump block1(value5)
+b3:
+    jump b1(v5)
 
-block4:
-    return value2
+b4:
+    return v2
 }";
     assert_eq!(output, expected);
 }
@@ -1345,23 +1345,23 @@ fn test_ssa_multiple_phis_at_merge() {
     let (tree, strings) = module.finish();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function multiPhi(value0: boolean): int32 {
-entry0(value0: boolean):
-    branch value0, block1(), block2()
+function multiPhi(v0: boolean): int32 {
+entry(v0: boolean):
+    branch v0, b1, b2
 
-block1:
-    value1: int32 = 1int32
-    value2: int32 = 10int32
-    jump block3(value1, value2)
+b1:
+    v1: int32 = 1
+    v2: int32 = 10
+    jump b3(v1, v2)
 
-block2:
-    value3: int32 = 2int32
-    value4: int32 = 20int32
-    jump block3(value3, value4)
+b2:
+    v3: int32 = 2
+    v4: int32 = 20
+    jump b3(v3, v4)
 
-block3(value5: int32, value6: int32):
-    value7: int32 = int.add value5, value6
-    return value7
+b3(v5: int32, v6: int32):
+    v7: int32 = int.add v5, v6
+    return v7
 }";
     assert_eq!(output, expected);
 }
