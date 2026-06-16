@@ -98,7 +98,7 @@ entry:
     v0: ref<void, managed> = closure.environment
     v1: (int32) => int32 = closure.bind callee, v0
     v2: int32 = 1
-    v3: int32 = call.indirect v1(v2): (int32) -> int32
+    v3: int32 = call.indirect v1(v2): (int32) => int32
     return v3
 }
 "#,

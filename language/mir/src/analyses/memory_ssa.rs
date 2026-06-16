@@ -811,12 +811,7 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::ProfileIncrement { .. }
             | mir::Instruction::ProfileValue { .. } => SmallVec::new(),
             mir::Instruction::TensorLoad { view, .. } => {
-                let Some(view) = view.value() else {
-                    return Self::single_effect(MemoryAccessEffect::read(
-                        MemoryAccessLocation::Unknown,
-                        false,
-                    ));
-                };
+                let view = *view;
 
                 let access_type = self.pointer_access_type(view);
                 let pointer_kind = self.pointer_kind(view);
@@ -836,12 +831,7 @@ impl<'a> MemoryAccessCollector<'a> {
             }
             mir::Instruction::TensorStore { view, .. }
             | mir::Instruction::TensorFill { view, .. } => {
-                let Some(view) = view.value() else {
-                    return Self::single_effect(MemoryAccessEffect::write(
-                        MemoryAccessLocation::Unknown,
-                        false,
-                    ));
-                };
+                let view = *view;
 
                 let access_type = self.pointer_access_type(view);
                 let pointer_kind = self.pointer_kind(view);
@@ -860,12 +850,8 @@ impl<'a> MemoryAccessCollector<'a> {
                 Self::single_effect(effect)
             }
             mir::Instruction::TensorCopy { target, source } => {
-                let (Some(target), Some(source)) = (target.value(), source.value()) else {
-                    return Self::single_effect(MemoryAccessEffect::read_write(
-                        MemoryAccessLocation::Unknown,
-                        false,
-                    ));
-                };
+                let target = *target;
+                let source = *source;
 
                 let mut effects = SmallVec::new();
                 let target_access = self.pointer_access_type(target);
@@ -903,12 +889,7 @@ impl<'a> MemoryAccessCollector<'a> {
                 effects
             }
             mir::Instruction::Load { pointer, .. } => {
-                let Some(pointer) = pointer.value() else {
-                    return Self::single_effect(MemoryAccessEffect::read(
-                        MemoryAccessLocation::Unknown,
-                        false,
-                    ));
-                };
+                let pointer = *pointer;
 
                 let access_type = self.pointer_access_type(pointer);
                 let pointer_kind = self.pointer_kind(pointer);
@@ -927,12 +908,7 @@ impl<'a> MemoryAccessCollector<'a> {
                 Self::single_effect(effect)
             }
             mir::Instruction::Store { pointer, .. } => {
-                let Some(pointer) = pointer.value() else {
-                    return Self::single_effect(MemoryAccessEffect::write(
-                        MemoryAccessLocation::Unknown,
-                        false,
-                    ));
-                };
+                let pointer = *pointer;
 
                 let access_type = self.pointer_access_type(pointer);
                 let pointer_kind = self.pointer_kind(pointer);
@@ -951,12 +927,7 @@ impl<'a> MemoryAccessCollector<'a> {
                 Self::single_effect(effect)
             }
             mir::Instruction::AtomicLoad { pointer, .. } => {
-                let Some(pointer) = pointer.value() else {
-                    return Self::single_effect(MemoryAccessEffect::read(
-                        MemoryAccessLocation::Unknown,
-                        true,
-                    ));
-                };
+                let pointer = *pointer;
 
                 let access_type = self.pointer_access_type(pointer);
                 let pointer_kind = self.pointer_kind(pointer);
@@ -975,12 +946,7 @@ impl<'a> MemoryAccessCollector<'a> {
                 Self::single_effect(effect)
             }
             mir::Instruction::AtomicStore { pointer, .. } => {
-                let Some(pointer) = pointer.value() else {
-                    return Self::single_effect(MemoryAccessEffect::write(
-                        MemoryAccessLocation::Unknown,
-                        true,
-                    ));
-                };
+                let pointer = *pointer;
 
                 let access_type = self.pointer_access_type(pointer);
                 let pointer_kind = self.pointer_kind(pointer);
@@ -1000,12 +966,7 @@ impl<'a> MemoryAccessCollector<'a> {
             }
             mir::Instruction::AtomicCompareExchange { pointer, .. }
             | mir::Instruction::AtomicRmw { pointer, .. } => {
-                let Some(pointer) = pointer.value() else {
-                    return Self::single_effect(MemoryAccessEffect::read_write(
-                        MemoryAccessLocation::Unknown,
-                        true,
-                    ));
-                };
+                let pointer = *pointer;
 
                 let access_type = self.pointer_access_type(pointer);
                 let pointer_kind = self.pointer_kind(pointer);
@@ -1030,28 +991,14 @@ impl<'a> MemoryAccessCollector<'a> {
                 MemoryAccessEffect::read_write(MemoryAccessLocation::Unknown, false),
             ),
             mir::Instruction::LocalGet { local, .. } => {
-                let Some(local) = local.local() else {
-                    return Self::single_effect(MemoryAccessEffect::read(
-                        MemoryAccessLocation::Unknown,
-                        false,
-                    ));
-                };
-
                 let mut effect =
-                    MemoryAccessEffect::read(MemoryAccessLocation::Local(local), false);
+                    MemoryAccessEffect::read(MemoryAccessLocation::Local(*local), false);
                 self.apply_local_location(&mut effect);
                 Self::single_effect(effect)
             }
             mir::Instruction::LocalSet { local, .. } => {
-                let Some(local) = local.local() else {
-                    return Self::single_effect(MemoryAccessEffect::write(
-                        MemoryAccessLocation::Unknown,
-                        false,
-                    ));
-                };
-
                 let mut effect =
-                    MemoryAccessEffect::write(MemoryAccessLocation::Local(local), false);
+                    MemoryAccessEffect::write(MemoryAccessLocation::Local(*local), false);
                 self.apply_local_location(&mut effect);
                 Self::single_effect(effect)
             }
@@ -1262,7 +1209,7 @@ impl<'a> MemoryAccessCollector<'a> {
     /// Read memory effects from a direct callee when available.
     fn callee_memory_effects(&self, instruction: &mir::Instruction) -> Option<mir::MemoryEffect> {
         // only direct calls have callee metadata
-        let function = instruction.call_direct_target()?.function()?;
+        let function = instruction.call_direct_target()?;
         self.tree
             .metadata
             .functions
@@ -1274,10 +1221,10 @@ impl<'a> MemoryAccessCollector<'a> {
     fn intrinsic_effects(
         &mut self,
         intrinsic: mir::Intrinsic,
-        arguments: mir::ArgumentSlice,
+        arguments: mir::ValueSlice,
     ) -> SmallVec<[MemoryAccessEffect; 2]> {
         // load intrinsic arguments
-        let args = self.tree.get_arguments(arguments);
+        let args = self.tree.get_values(arguments);
 
         // classify intrinsic memory effects
         match intrinsic {
@@ -1316,25 +1263,22 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Intrinsic::Memcpy | mir::Intrinsic::Memmove => {
                 // collect the memory operands
                 let mut effects = SmallVec::new();
-                let dst = args.first().and_then(|value| value.value());
-                let src = args.get(1).and_then(|value| value.value());
-                let size = args
-                    .get(2)
-                    .and_then(|len| len.value())
-                    .and_then(|len| self.constant_u64(len));
+                let dst = args.first();
+                let src = args.get(1);
+                let size = args.get(2).and_then(|len| self.constant_u64(*len));
 
                 // emit read and write effects when operands are present
                 match (dst, src) {
                     (Some(dst), Some(src)) => {
-                        let dst_type = self.pointer_access_type(dst);
-                        let src_type = self.pointer_access_type(src);
-                        let dst_kind = self.pointer_kind(dst);
-                        let src_kind = self.pointer_kind(src);
-                        let dst_space = self.pointer_space(dst);
-                        let src_space = self.pointer_space(src);
+                        let dst_type = self.pointer_access_type(*dst);
+                        let src_type = self.pointer_access_type(*src);
+                        let dst_kind = self.pointer_kind(*dst);
+                        let src_kind = self.pointer_kind(*src);
+                        let dst_space = self.pointer_space(*dst);
+                        let src_space = self.pointer_space(*src);
                         let mut read_effect = MemoryAccessEffect::read(
                             MemoryAccessLocation::from_pointer_with_size(
-                                src,
+                                *src,
                                 src_type,
                                 src_kind,
                                 src_space,
@@ -1343,12 +1287,12 @@ impl<'a> MemoryAccessCollector<'a> {
                             ),
                             false,
                         );
-                        self.apply_pointer_location(&mut read_effect, src);
+                        self.apply_pointer_location(&mut read_effect, *src);
                         effects.push(read_effect);
 
                         let mut write_effect = MemoryAccessEffect::write(
                             MemoryAccessLocation::from_pointer_with_size(
-                                dst,
+                                *dst,
                                 dst_type,
                                 dst_kind,
                                 dst_space,
@@ -1357,7 +1301,7 @@ impl<'a> MemoryAccessCollector<'a> {
                             ),
                             false,
                         );
-                        self.apply_pointer_location(&mut write_effect, dst);
+                        self.apply_pointer_location(&mut write_effect, *dst);
                         effects.push(write_effect);
                     }
                     _ => effects.push(MemoryAccessEffect::read_write(
@@ -1372,21 +1316,18 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Intrinsic::Memset => {
                 // collect the memory operands
                 let mut effects = SmallVec::new();
-                let dst = args.first().and_then(|value| value.value());
-                let size = args
-                    .get(2)
-                    .and_then(|len| len.value())
-                    .and_then(|len| self.constant_u64(len));
+                let dst = args.first();
+                let size = args.get(2).and_then(|len| self.constant_u64(*len));
 
                 // emit write effects when operands are present
                 match dst {
                     Some(dst) => {
-                        let dst_type = self.pointer_access_type(dst);
-                        let dst_kind = self.pointer_kind(dst);
-                        let dst_space = self.pointer_space(dst);
+                        let dst_type = self.pointer_access_type(*dst);
+                        let dst_kind = self.pointer_kind(*dst);
+                        let dst_space = self.pointer_space(*dst);
                         let mut effect = MemoryAccessEffect::write(
                             MemoryAccessLocation::from_pointer_with_size(
-                                dst,
+                                *dst,
                                 dst_type,
                                 dst_kind,
                                 dst_space,
@@ -1395,7 +1336,7 @@ impl<'a> MemoryAccessCollector<'a> {
                             ),
                             false,
                         );
-                        self.apply_pointer_location(&mut effect, dst);
+                        self.apply_pointer_location(&mut effect, *dst);
                         effects.push(effect);
                     }
                     None => effects.push(MemoryAccessEffect::write(
@@ -1410,25 +1351,22 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Intrinsic::Memcmp => {
                 // collect the memory operands
                 let mut effects = SmallVec::new();
-                let left = args.first().and_then(|value| value.value());
-                let right = args.get(1).and_then(|value| value.value());
-                let size = args
-                    .get(2)
-                    .and_then(|len| len.value())
-                    .and_then(|len| self.constant_u64(len));
+                let left = args.first();
+                let right = args.get(1);
+                let size = args.get(2).and_then(|len| self.constant_u64(*len));
 
                 // emit read effects when operands are present
                 match (left, right) {
                     (Some(left), Some(right)) => {
-                        let left_type = self.pointer_access_type(left);
-                        let right_type = self.pointer_access_type(right);
-                        let left_kind = self.pointer_kind(left);
-                        let right_kind = self.pointer_kind(right);
-                        let left_space = self.pointer_space(left);
-                        let right_space = self.pointer_space(right);
+                        let left_type = self.pointer_access_type(*left);
+                        let right_type = self.pointer_access_type(*right);
+                        let left_kind = self.pointer_kind(*left);
+                        let right_kind = self.pointer_kind(*right);
+                        let left_space = self.pointer_space(*left);
+                        let right_space = self.pointer_space(*right);
                         let mut left_effect = MemoryAccessEffect::read(
                             MemoryAccessLocation::from_pointer_with_size(
-                                left,
+                                *left,
                                 left_type,
                                 left_kind,
                                 left_space,
@@ -1437,12 +1375,12 @@ impl<'a> MemoryAccessCollector<'a> {
                             ),
                             false,
                         );
-                        self.apply_pointer_location(&mut left_effect, left);
+                        self.apply_pointer_location(&mut left_effect, *left);
                         effects.push(left_effect);
 
                         let mut right_effect = MemoryAccessEffect::read(
                             MemoryAccessLocation::from_pointer_with_size(
-                                right,
+                                *right,
                                 right_type,
                                 right_kind,
                                 right_space,
@@ -1451,7 +1389,7 @@ impl<'a> MemoryAccessCollector<'a> {
                             ),
                             false,
                         );
-                        self.apply_pointer_location(&mut right_effect, right);
+                        self.apply_pointer_location(&mut right_effect, *right);
                         effects.push(right_effect);
                     }
                     _ => effects.push(MemoryAccessEffect::read(
@@ -1471,14 +1409,6 @@ impl<'a> MemoryAccessCollector<'a> {
                 // emit read effects when operands are present
                 match pointer {
                     Some(pointer) => {
-                        let Some(pointer) = pointer.value() else {
-                            effects.push(MemoryAccessEffect::read(
-                                MemoryAccessLocation::Unknown,
-                                false,
-                            ));
-                            return effects;
-                        };
-
                         let access_type = self.pointer_access_type(pointer);
                         let pointer_kind = self.pointer_kind(pointer);
                         let pointer_space = self.pointer_space(pointer);
@@ -1705,11 +1635,7 @@ impl<'a> MemoryRenamer<'a> {
         // wire phi incoming edges for successors
         let block_data = self.tree.get(block);
         let terminator = self.tree.get(block_data.terminator);
-        for successor in terminator.successors() {
-            let Some(successor) = successor.block() else {
-                continue;
-            };
-
+        for successor in self.tree.terminator_successors(terminator) {
             if let Some(phi_id) = ssa.block_phis.get(&successor).copied()
                 && let Some(MemoryAccess::Phi(phi)) = ssa.accesses.get_mut(phi_id.index())
             {
@@ -2675,12 +2601,7 @@ entry(v0: ref<int32, raw>, v1: ref<int32, raw>):
             function
                 .parameters
                 .iter()
-                .map(|param| {
-                    param
-                        .value
-                        .value()
-                        .expect("parameter value should be concrete")
-                })
+                .map(|param| param.value)
                 .collect::<Vec<_>>()
         };
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
@@ -2739,20 +2660,8 @@ entry(v0: ref<int32, raw>, v1: ref<int32, raw>):
         let read_ptr = pointer_from_location(&read_effect.location).expect("missing read pointer");
         let write_ptr =
             pointer_from_location(&write_effect.location).expect("missing write pointer");
-        assert_eq!(
-            read_ptr,
-            function.parameters[0]
-                .value
-                .value()
-                .expect("first parameter value should be concrete")
-        );
-        assert_eq!(
-            write_ptr,
-            function.parameters[1]
-                .value
-                .value()
-                .expect("second parameter value should be concrete")
-        );
+        assert_eq!(read_ptr, function.parameters[0].value);
+        assert_eq!(write_ptr, function.parameters[1].value);
 
         let read_size = size_from_location(&read_effect.location).expect("missing read size");
         let write_size = size_from_location(&write_effect.location).expect("missing write size");

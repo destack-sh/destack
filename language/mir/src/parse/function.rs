@@ -3,9 +3,8 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use crate::source::{Token, TokenType};
 use crate::{
     AllocationMode, Attribute, AttributeArgs, AttributeValue, Block, BlockTarget, Call,
-    CheckConstraint, Function, FunctionHeaderSpans, Instruction, IntegerReference, Linkage, Local,
-    LocalNodeId, Mutability, Parameter, SwitchCase, Terminator, TrapKind, TypeReference,
-    TypedValueSpan, Value, ValueReference,
+    CheckConstraint, Function, FunctionHeaderSpans, Instruction, Linkage, Local, LocalNodeId,
+    Mutability, Parameter, SwitchCase, Terminator, TrapKind, TypeId, TypedValueSpan, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -16,7 +15,7 @@ impl Parser {
     pub(super) fn resolve_function_attributes(
         &mut self,
         attributes: &[Attribute],
-    ) -> ParseResult<Option<TypeReference>> {
+    ) -> ParseResult<Option<TypeId>> {
         // metadata output
         let mut environment_type = None;
 
@@ -83,10 +82,7 @@ impl Parser {
             self.parse_function_parameters(linkage)?;
         let parameter_names = parameters
             .iter()
-            .map(|parameter| match parameter.value {
-                ValueReference::Value(value) => self.tree.get(function_id).value_name(value),
-                ValueReference::Missing | ValueReference::Error => None,
-            })
+            .map(|parameter| self.tree.get(function_id).value_name(parameter.value))
             .collect::<Vec<_>>();
 
         // return type
@@ -94,8 +90,7 @@ impl Parser {
         let return_colon_start = return_colon_token.start;
         let return_colon_length = self.tree.source_text(return_colon_token.span).len();
         let return_colon_span = self.span_at(return_colon_start, return_colon_length);
-        let (return_type, return_type_span) =
-            self.parse_return_type_reference_after(return_colon_token);
+        let (return_type, return_type_span) = self.parse_return_type_use_after(return_colon_token);
         let signature_span = self.span_between(signature_start, return_type_span.end as usize);
 
         // external function body
@@ -263,7 +258,7 @@ impl Parser {
             let mut parameter_spans = Vec::new();
             while !self.peek_token(TokenType::CloseParenthesis) {
                 let parameter_start = self.pos();
-                let (ty, type_span) = self.parse_type_reference_part()?;
+                let (ty, type_span) = self.parse_type_use_part()?;
                 let parameter_span = self.span_from_parse_start(parameter_start);
                 parameter_types.push(ty);
                 parameter_spans.push(TypedValueSpan::new(parameter_span, None, type_span));
@@ -276,7 +271,7 @@ impl Parser {
                 .into_iter()
                 .enumerate()
                 .map(|(index, ty)| Parameter {
-                    value: ValueReference::Value(Value::new(index as u32)),
+                    value: Value::new(index as u32),
                     ty,
                 })
                 .collect();
@@ -321,7 +316,7 @@ impl Parser {
 
         // local type
         let colon_token = self.eat_token(TokenType::Colon)?;
-        let (ty, type_span) = self.parse_type_reference_after(colon_token, "local type");
+        let (ty, type_span) = self.parse_type_use_after(colon_token, "local type");
 
         // local annotations
         let mut mutability = Mutability::Mutable;
@@ -400,11 +395,7 @@ impl Parser {
 
         // block parameter value types
         for param in &parameters {
-            if let ValueReference::Value(value) = param.value
-                && let Some(ty) = param.ty.ty()
-            {
-                self.record_value_type(value, ty)?;
-            }
+            self.record_value_type(param.value, param.ty)?;
         }
 
         self.eat_token(TokenType::Colon)?;
@@ -674,7 +665,7 @@ impl Parser {
             }
 
             self.eat_token(TokenType::Colon)?;
-            let (ty, _) = self.parse_type_reference_part()?;
+            let (ty, _) = self.parse_type_use_part()?;
             if ty != parameter.ty {
                 return Err(ParseError::new(
                     format!(
@@ -694,7 +685,7 @@ impl Parser {
     }
 
     /// Parse one entry block parameter and resolve it to the mirrored function parameter.
-    fn parse_entry_block_parameter(&mut self) -> ParseResult<(ValueReference, Span)> {
+    fn parse_entry_block_parameter(&mut self) -> ParseResult<(Value, Span)> {
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("entry block parameter", self.pos()))?;
@@ -706,12 +697,10 @@ impl Parser {
                 let start = token.start;
                 self.bump();
 
-                let value = self
-                    .value_name_map
-                    .get(&name)
-                    .copied()
-                    .map(ValueReference::Value)
-                    .ok_or_else(|| ParseError::new(format!("undefined value '{name}'"), start))?;
+                let value =
+                    self.value_name_map.get(&name).copied().ok_or_else(|| {
+                        ParseError::new(format!("undefined value '{name}'"), start)
+                    })?;
 
                 Ok((value, span))
             }
@@ -788,6 +777,7 @@ impl Parser {
             TokenType::Call => {
                 self.bump();
                 let (function, arguments, signature) = self.parse_direct_call_target()?;
+                let arguments = self.tree.add_values(&arguments);
                 let (target, unwind) = self.parse_continuation()?;
                 Ok(Terminator::Call {
                     function,
@@ -845,10 +835,11 @@ impl Parser {
                     self.eat_token(TokenType::Arrow)?;
                     let target = self.parse_block_target()?;
                     cases.push(SwitchCase {
-                        value: IntegerReference::Integer(case_value),
+                        value: case_value,
                         target,
                     });
                 }
+                let cases = self.tree.add_switch_cases(&cases);
 
                 Ok(Terminator::Switch {
                     value,
@@ -901,6 +892,7 @@ impl Parser {
             TokenType::TailCall => {
                 self.bump();
                 let (function, arguments, signature) = self.parse_direct_call_target()?;
+                let arguments = self.tree.add_values(&arguments);
                 Ok(Terminator::TailCall {
                     function,
                     call: Call::new(arguments, signature),
@@ -909,6 +901,7 @@ impl Parser {
             TokenType::TailCallIndirect => {
                 self.bump();
                 let (callee, arguments, signature) = self.parse_indirect_call_target()?;
+                let arguments = self.tree.add_values(&arguments);
                 Ok(Terminator::TailCallIndirect {
                     callee,
                     call: Call::new(arguments, signature),
@@ -917,6 +910,7 @@ impl Parser {
             TokenType::CallIndirect => {
                 self.bump();
                 let (callee, arguments, signature) = self.parse_indirect_call_target()?;
+                let arguments = self.tree.add_values(&arguments);
                 let (target, unwind) = self.parse_continuation()?;
                 Ok(Terminator::CallIndirect {
                     callee,
@@ -929,6 +923,7 @@ impl Parser {
                 self.bump();
                 let (receiver, class, slot, arguments, signature) =
                     self.parse_class_call_target()?;
+                let arguments = self.tree.add_values(&arguments);
                 Ok(Terminator::TailCallVirtual {
                     receiver,
                     class,
@@ -940,6 +935,7 @@ impl Parser {
                 self.bump();
                 let (receiver, class, slot, arguments, signature) =
                     self.parse_class_call_target()?;
+                let arguments = self.tree.add_values(&arguments);
                 let (target, unwind) = self.parse_continuation()?;
                 Ok(Terminator::CallVirtual {
                     receiver,
@@ -954,6 +950,7 @@ impl Parser {
                 self.bump();
                 let (receiver, constraint, slot, arguments, signature) =
                     self.parse_dynamic_call_target()?;
+                let arguments = self.tree.add_values(&arguments);
                 Ok(Terminator::TailCallDynamic {
                     receiver,
                     constraint,
@@ -965,6 +962,7 @@ impl Parser {
                 self.bump();
                 let (receiver, constraint, slot, arguments, signature) =
                     self.parse_dynamic_call_target()?;
+                let arguments = self.tree.add_values(&arguments);
                 let (target, unwind) = self.parse_continuation()?;
                 Ok(Terminator::CallDynamic {
                     receiver,
@@ -1129,7 +1127,7 @@ impl Parser {
                 })
             }
             "null" => {
-                if kind_parts.len() != 2 {
+                if kind_parts.len() != 1 {
                     return Err(ParseError::invalid(
                         &format!("check kind '{kind_text}'"),
                         kind_start,
@@ -1160,7 +1158,7 @@ impl Parser {
 
                 let value = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
-                let (expected, _) = self.parse_type_reference_part()?;
+                let (expected, _) = self.parse_type_use_part()?;
 
                 Ok(CheckConstraint::Type { value, expected })
             }
@@ -1188,7 +1186,7 @@ impl Parser {
 
                 let receiver = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
-                let (expected, _) = self.parse_type_reference_part()?;
+                let (expected, _) = self.parse_type_use_part()?;
 
                 Ok(CheckConstraint::ReceiverType { receiver, expected })
             }
@@ -1202,7 +1200,7 @@ impl Parser {
 
                 let receiver = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
-                let (expected, _) = self.parse_type_reference_part()?;
+                let (expected, _) = self.parse_type_use_part()?;
 
                 Ok(CheckConstraint::Implements { receiver, expected })
             }
@@ -1310,7 +1308,7 @@ impl Parser {
     }
 
     /// Parse optional block arguments like `(v0, v1)`.
-    fn parse_optional_block_arguments(&mut self) -> ParseResult<Vec<ValueReference>> {
+    fn parse_optional_block_arguments(&mut self) -> ParseResult<Vec<Value>> {
         if self.eat_token_maybe(TokenType::OpenParenthesis) {
             let arguments = self.parse_value_list()?;
             self.eat_token(TokenType::CloseParenthesis)?;
@@ -1324,10 +1322,11 @@ impl Parser {
     fn parse_block_target(&mut self) -> ParseResult<BlockTarget> {
         let block = self.parse_block_ref()?;
         let arguments = self.parse_optional_block_arguments()?;
+        let arguments = self.tree.add_values(&arguments);
+
         Ok(BlockTarget::new(block, arguments))
     }
 
-    /// Parse the continuation for a call terminator.
     /// Parse one continuation: `-> target`, with an optional `| target` unwind alternative.
     fn parse_continuation(&mut self) -> ParseResult<(BlockTarget, Option<BlockTarget>)> {
         self.eat_token(TokenType::Arrow)?;

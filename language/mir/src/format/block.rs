@@ -3,10 +3,11 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use super::r#type::format_borrow_obligations;
+use super::value::{format_block_id, format_function_id, format_type_id};
 
 use crate::{
     Block, BlockTarget, CheckConstraint, FormatMirNode, LocalNodeId, MirFormatContext,
-    MirFormatter, Terminator, TrapKind, TypeReference, ValueReference, write_comments_after,
+    MirFormatter, Terminator, TrapKind, TypeId, Value, write_comments_after,
     write_inline_comment_after, write_node_leading_comments,
 };
 
@@ -154,13 +155,14 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
         } => {
             write!(f, [token("switch"), space(), value, token(","), space()])?;
             format_block_target(default, f)?;
+            let cases = f.context().tree.get_switch_cases(*cases);
             for case in cases {
                 write!(
                     f,
                     [
                         token(","),
                         space(),
-                        case.value,
+                        text(&case.value.to_string()),
                         space(),
                         token("->"),
                         space()
@@ -190,8 +192,9 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             target,
             unwind,
         } => {
-            write!(f, [token("call"), space(), function])?;
-            format_value_list(&call.arguments, f)?;
+            write!(f, [token("call"), space()])?;
+            format_function_id(*function, f)?;
+            format_value_slice(call.arguments, f)?;
             format_continuation(target, unwind.as_ref(), f)
         }
 
@@ -203,7 +206,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             ..
         } => {
             write!(f, [token("call.indirect"), space(), callee])?;
-            format_value_list(&call.arguments, f)?;
+            format_value_slice(call.arguments, f)?;
             format_call_signature_suffix(&call.signature, f)?;
             format_continuation(target, unwind.as_ref(), f)
         }
@@ -231,7 +234,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     text(&slot.0.to_string())
                 ]
             )?;
-            format_value_list(&call.arguments, f)?;
+            format_value_slice(call.arguments, f)?;
             format_call_signature_suffix(&call.signature, f)?;
             format_continuation(target, unwind.as_ref(), f)
         }
@@ -259,7 +262,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     text(&slot.0.to_string())
                 ]
             )?;
-            format_value_list(&call.arguments, f)?;
+            format_value_slice(call.arguments, f)?;
             format_call_signature_suffix(&call.signature, f)?;
             format_continuation(target, unwind.as_ref(), f)
         }
@@ -349,14 +352,15 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
         }
 
         Terminator::TailCall { function, call } => {
-            write!(f, [token("tail.call"), space(), function])?;
-            format_value_list(&call.arguments, f)?;
+            write!(f, [token("tail.call"), space()])?;
+            format_function_id(*function, f)?;
+            format_value_slice(call.arguments, f)?;
             Ok(())
         }
 
         Terminator::TailCallIndirect { callee, call, .. } => {
             write!(f, [token("tail.call.indirect"), space(), callee])?;
-            format_value_list(&call.arguments, f)?;
+            format_value_slice(call.arguments, f)?;
             format_call_signature_suffix(&call.signature, f)
         }
 
@@ -381,7 +385,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     text(&slot.0.to_string())
                 ]
             )?;
-            format_value_list(&call.arguments, f)?;
+            format_value_slice(call.arguments, f)?;
             format_call_signature_suffix(&call.signature, f)
         }
 
@@ -406,7 +410,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     text(&slot.0.to_string())
                 ]
             )?;
-            format_value_list(&call.arguments, f)?;
+            format_value_slice(call.arguments, f)?;
             format_call_signature_suffix(&call.signature, f)
         }
     }
@@ -600,10 +604,7 @@ fn overflow_check_family(operator: crate::BinaryOperator) -> FormatResult<&'stat
 }
 
 /// Format a parenthesized, comma-separated list of values.
-fn format_value_list<'a>(
-    values: &[ValueReference],
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
+fn format_value_list<'a>(values: &[Value], f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
     write!(f, [token("(")])?;
     for (i, val) in values.iter().enumerate() {
         if i > 0 {
@@ -614,39 +615,46 @@ fn format_value_list<'a>(
     write!(f, [token(")")])
 }
 
+fn format_value_slice<'a>(
+    values: crate::ValueSlice,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    let values = f.context().tree.get_values(values);
+
+    format_value_list(values, f)
+}
+
 fn format_call_signature_suffix<'a>(
-    signature: &TypeReference,
+    signature: &TypeId,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [token(":"), space()])?;
 
-    match signature {
-        TypeReference::Type { ty: signature, .. } => match f.context().tree.get(*signature) {
-            crate::Type::FunctionSignature {
-                parameters,
-                result,
-                borrow_obligations,
-            } => {
-                write!(f, [token("(")])?;
-                for (index, parameter) in parameters.iter().enumerate() {
-                    if index > 0 {
-                        write!(f, [token(","), space()])?;
-                    }
-                    write!(f, [parameter])?;
-                }
-                write!(f, [token(")"), space(), token("->"), space(), result])?;
-                format_borrow_obligations(borrow_obligations, f)
+    if let crate::Type::FunctionSignature {
+        parameters,
+        result,
+        borrow_obligations,
+    } = f.context().tree.get(*signature)
+    {
+        write!(f, [token("(")])?;
+        for (index, parameter) in parameters.iter().enumerate() {
+            if index > 0 {
+                write!(f, [token(","), space()])?;
             }
-            _ => write!(f, [signature]),
-        },
-        TypeReference::Missing | TypeReference::Error => write!(f, [signature]),
+            format_type_id(*parameter, f)?;
+        }
+        write!(f, [token(")"), space(), token("=>"), space()])?;
+        format_type_id(*result, f)?;
+        format_borrow_obligations(borrow_obligations, f)
+    } else {
+        format_type_id(*signature, f)
     }
 }
 
 fn format_block_target<'a>(target: &BlockTarget, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
-    write!(f, [target.block])?;
+    format_block_id(target.block, f)?;
     if !target.arguments.is_empty() {
-        format_value_list(&target.arguments, f)?;
+        format_value_slice(target.arguments, f)?;
     }
 
     Ok(())

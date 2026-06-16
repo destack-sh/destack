@@ -38,6 +38,11 @@ pub enum TypeKey {
     Atomic { value: Box<TypeKey> },
     /// Erased dynamic value type.
     Dynamic { constraint: Box<TypeKey> },
+    /// Type use with applied lifetime arguments.
+    WithLifetimes {
+        base: Box<TypeKey>,
+        lifetimes: Vec<mir::Lifetime>,
+    },
     /// Linear uninitialized allocation token type.
     Uninit { value: Box<TypeKey> },
     /// Reference or pointer type.
@@ -136,13 +141,9 @@ impl TypeKey {
         Self::from_type_inner(type_id, tree, &mut visiting)
     }
 
-    /// Build a type key from a recoverable MIR type reference.
-    pub fn from_type_reference(type_id: &mir::TypeReference, tree: &mir::Tree) -> Self {
-        let Some(type_id) = type_id.ty() else {
-            return TypeKey::NonConcrete;
-        };
-
-        Self::from_type(type_id, tree)
+    /// Build a type key from a MIR type id.
+    pub fn from_type_id(type_id: &mir::TypeId, tree: &mir::Tree) -> Self {
+        Self::from_type(*type_id, tree)
     }
 
     fn from_type_inner(
@@ -158,6 +159,7 @@ impl TypeKey {
 
         let ty = tree.get(type_id);
         let key = match ty {
+            mir::Type::Error => TypeKey::NonConcrete,
             mir::Type::Void => TypeKey::Void,
             mir::Type::Boolean => TypeKey::Boolean,
             mir::Type::Int {
@@ -175,13 +177,17 @@ impl TypeKey {
             mir::Type::TypeDescriptor => TypeKey::TypeDescriptor,
             mir::Type::TypeId => TypeKey::TypeId,
             mir::Type::Atomic { value } => TypeKey::Atomic {
-                value: Box::new(Self::from_type_reference(value, tree)),
+                value: Box::new(Self::from_type_id(value, tree)),
             },
             mir::Type::Dynamic { constraint } => TypeKey::Dynamic {
-                constraint: Box::new(Self::from_type_reference(constraint, tree)),
+                constraint: Box::new(Self::from_type_id(constraint, tree)),
+            },
+            mir::Type::WithLifetimes { base, lifetimes } => TypeKey::WithLifetimes {
+                base: Box::new(Self::from_type_id(base, tree)),
+                lifetimes: lifetimes.clone(),
             },
             mir::Type::Uninit { value } => TypeKey::Uninit {
-                value: Box::new(Self::from_type_reference(value, tree)),
+                value: Box::new(Self::from_type_id(value, tree)),
             },
 
             mir::Type::Reference {
@@ -196,7 +202,7 @@ impl TypeKey {
                 lifetime: lifetime.clone(),
                 space: space.clone(),
                 access: *access,
-                pointee: Box::new(Self::from_type_reference(pointee, tree)),
+                pointee: Box::new(Self::from_type_id(pointee, tree)),
                 nullability: *nullability,
             },
 
@@ -205,7 +211,7 @@ impl TypeKey {
                 length,
                 copy,
             } => TypeKey::Array {
-                element: Box::new(Self::from_type_reference(element, tree)),
+                element: Box::new(Self::from_type_id(element, tree)),
                 length: *length,
                 copy: *copy,
             },
@@ -219,7 +225,7 @@ impl TypeKey {
             } => TypeKey::Slice {
                 kind: *kind,
                 lifetime: lifetime.clone(),
-                element: Box::new(Self::from_type_reference(element, tree)),
+                element: Box::new(Self::from_type_id(element, tree)),
                 space: space.clone(),
                 access: *access,
                 nullability: *nullability,
@@ -228,7 +234,7 @@ impl TypeKey {
             mir::Type::Tuple { elements, copy } => {
                 let elements = elements
                     .iter()
-                    .map(|element| Self::from_type_reference(element, tree))
+                    .map(|element| Self::from_type_id(element, tree))
                     .collect();
                 TypeKey::Tuple {
                     elements,
@@ -241,7 +247,7 @@ impl TypeKey {
                     .iter()
                     .map(|field_id| {
                         let field = tree.get(*field_id);
-                        let field_ty = Self::from_type_reference(&field.ty, tree);
+                        let field_ty = Self::from_type_id(&field.ty, tree);
                         (field.name, field_ty)
                     })
                     .collect();
@@ -252,7 +258,7 @@ impl TypeKey {
             }
 
             mir::Type::Newtype { inner, copy } => TypeKey::Newtype {
-                inner: Box::new(Self::from_type_reference(inner, tree)),
+                inner: Box::new(Self::from_type_id(inner, tree)),
                 copy: *copy,
             },
 
@@ -262,11 +268,11 @@ impl TypeKey {
                 cases,
                 copy,
             } => {
-                let tag = Box::new(Self::from_type_reference(tag, tree));
-                let storage = Box::new(Self::from_type_reference(storage, tree));
+                let tag = Box::new(Self::from_type_id(tag, tree));
+                let storage = Box::new(Self::from_type_id(storage, tree));
                 let cases = cases
                     .iter()
-                    .map(|case| (case.tag.clone(), Self::from_type_reference(&case.ty, tree)))
+                    .map(|case| (case.tag.clone(), Self::from_type_id(&case.ty, tree)))
                     .collect();
                 TypeKey::Variant {
                     tag,
@@ -281,7 +287,7 @@ impl TypeKey {
                 lanes,
                 copy,
             } => TypeKey::Vector {
-                element: Box::new(Self::from_type_reference(element, tree)),
+                element: Box::new(Self::from_type_id(element, tree)),
                 lanes: *lanes,
                 copy: *copy,
             },
@@ -292,7 +298,7 @@ impl TypeKey {
                 layout,
                 copy,
             } => TypeKey::Tensor {
-                element: Box::new(Self::from_type_reference(element, tree)),
+                element: Box::new(Self::from_type_id(element, tree)),
                 shape: shape.clone(),
                 layout: layout.clone(),
                 copy: *copy,
@@ -312,7 +318,7 @@ impl TypeKey {
                 lifetime: lifetime.clone(),
                 space: space.clone(),
                 access: *access,
-                element: Box::new(Self::from_type_reference(element, tree)),
+                element: Box::new(Self::from_type_id(element, tree)),
                 shape: shape.clone(),
                 layout: layout.clone(),
                 nullability: *nullability,
@@ -325,23 +331,23 @@ impl TypeKey {
             } => {
                 let parameters = parameters
                     .iter()
-                    .map(|param| Self::from_type_reference(param, tree))
+                    .map(|param| Self::from_type_id(param, tree))
                     .collect();
                 TypeKey::FunctionSignature {
                     parameters,
-                    result: Box::new(Self::from_type_reference(result, tree)),
+                    result: Box::new(Self::from_type_id(result, tree)),
                     borrow_obligations: borrow_obligations.clone(),
                 }
             }
             mir::Type::FunctionPointer { signature } => TypeKey::FunctionPointer {
-                signature: Box::new(Self::from_type_reference(signature, tree)),
+                signature: Box::new(Self::from_type_id(signature, tree)),
             },
             mir::Type::Closure {
                 signature,
                 environment,
             } => TypeKey::Closure {
-                signature: Box::new(Self::from_type_reference(signature, tree)),
-                environment: Box::new(Self::from_type_reference(environment, tree)),
+                signature: Box::new(Self::from_type_id(signature, tree)),
+                environment: Box::new(Self::from_type_id(environment, tree)),
             },
         };
 
@@ -509,7 +515,7 @@ fn types_are_equal_inner(
                 && a1 == a2
                 && m1 == m2
                 && n1 == n2
-                && type_references_are_equal(p1, p2, tree, visiting)
+                && type_ids_are_equal(p1, p2, tree, visiting)
         }
 
         // arrays: compare element type and length
@@ -524,7 +530,7 @@ fn types_are_equal_inner(
                 length: l2,
                 copy: c2,
             },
-        ) => c1 == c2 && l1 == l2 && type_references_are_equal(e1, e2, tree, visiting),
+        ) => c1 == c2 && l1 == l2 && type_ids_are_equal(e1, e2, tree, visiting),
         (
             mir::Type::Slice {
                 kind: k1,
@@ -548,7 +554,7 @@ fn types_are_equal_inner(
                 && a1 == a2
                 && m1 == m2
                 && n1 == n2
-                && type_references_are_equal(e1, e2, tree, visiting)
+                && type_ids_are_equal(e1, e2, tree, visiting)
         }
 
         // tuples: compare element types
@@ -567,7 +573,7 @@ fn types_are_equal_inner(
                 && e1
                     .iter()
                     .zip(e2.iter())
-                    .all(|(a, b)| type_references_are_equal(a, b, tree, visiting))
+                    .all(|(a, b)| type_ids_are_equal(a, b, tree, visiting))
         }
 
         // structs: compare field types
@@ -587,7 +593,7 @@ fn types_are_equal_inner(
                     let field_a = tree.get(*a);
                     let field_b = tree.get(*b);
                     field_a.name == field_b.name
-                        && type_references_are_equal(&field_a.ty, &field_b.ty, tree, visiting)
+                        && type_ids_are_equal(&field_a.ty, &field_b.ty, tree, visiting)
                 })
         }
 
@@ -601,7 +607,7 @@ fn types_are_equal_inner(
                 inner: i2,
                 copy: c2,
             },
-        ) => c1 == c2 && type_references_are_equal(i1, i2, tree, visiting),
+        ) => c1 == c2 && type_ids_are_equal(i1, i2, tree, visiting),
 
         // function pointers: compare parameter and result types
         (
@@ -621,15 +627,15 @@ fn types_are_equal_inner(
                 && p1
                     .iter()
                     .zip(p2.iter())
-                    .all(|(a, b)| type_references_are_equal(a, b, tree, visiting))
-                && type_references_are_equal(r1, r2, tree, visiting)
+                    .all(|(a, b)| type_ids_are_equal(a, b, tree, visiting))
+                && type_ids_are_equal(r1, r2, tree, visiting)
         }
 
         // function pointers: compare signatures
         (
             mir::Type::FunctionPointer { signature: s1 },
             mir::Type::FunctionPointer { signature: s2 },
-        ) => type_references_are_equal(s1, s2, tree, visiting),
+        ) => type_ids_are_equal(s1, s2, tree, visiting),
 
         // closures: compare signature and environment
         (
@@ -642,8 +648,7 @@ fn types_are_equal_inner(
                 environment: e2,
             },
         ) => {
-            type_references_are_equal(s1, s2, tree, visiting)
-                && type_references_are_equal(e1, e2, tree, visiting)
+            type_ids_are_equal(s1, s2, tree, visiting) && type_ids_are_equal(e1, e2, tree, visiting)
         }
 
         // different type cases are never equal
@@ -655,20 +660,13 @@ fn types_are_equal_inner(
 }
 
 /// Check if two type references resolve to equal concrete types.
-fn type_references_are_equal(
-    left: &mir::TypeReference,
-    right: &mir::TypeReference,
+fn type_ids_are_equal(
+    left: &mir::TypeId,
+    right: &mir::TypeId,
     tree: &mir::Tree,
     visiting: &mut HashSet<(mir::LocalNodeId<mir::Type>, mir::LocalNodeId<mir::Type>)>,
 ) -> bool {
-    match (left.ty(), right.ty()) {
-        (Some(left_id), Some(right_id)) => {
-            left.lifetimes() == right.lifetimes()
-                && types_are_equal_inner(left_id, right_id, tree, visiting)
-        }
-        (None, None) => left == right,
-        _ => false,
-    }
+    types_are_equal_inner(*left, *right, tree, visiting)
 }
 
 #[cfg(test)]

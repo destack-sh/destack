@@ -1,27 +1,29 @@
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
-use crate::{Constant, GlobalReference, Lifetime, LocalReference, Value, ValueReference};
+use crate::{Constant, GlobalId, Lifetime, LocalId, Value};
 
 /// Root storage for one MIR place.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PlaceOrigin {
     /// A function-local stack slot.
-    Local(LocalReference),
+    Local(LocalId),
     /// A module global.
-    Global(GlobalReference),
+    Global(GlobalId),
     /// An opaque reference value.
-    Value(ValueReference),
+    Value(Value),
 }
 
 impl PlaceOrigin {
-    /// Replace value references inside this origin.
+    /// Replace value ids inside this origin.
     fn replace_value(&mut self, from: Value, to: Value) {
         let Self::Value(value) = self else {
             return;
         };
 
-        value.replace_value(from, to);
+        if *value == from {
+            *value = to;
+        }
     }
 }
 
@@ -41,16 +43,16 @@ pub enum Projection {
     /// A runtime element projection.
     Index {
         /// The runtime index value.
-        index: ValueReference,
+        index: Value,
     },
     /// An unknown element projection.
     AnyElement,
     /// A runtime slice projection.
     Slice {
         /// The runtime start index value.
-        start: ValueReference,
+        start: Value,
         /// The runtime length value.
-        length: ValueReference,
+        length: Value,
     },
     /// A variant payload projection.
     Variant {
@@ -65,16 +67,16 @@ impl Projection {
         match self {
             Self::Field { .. } | Self::Element { .. } | Self::AnyElement | Self::Variant { .. } => {
             }
-            Self::Index { index } => index.replace_value(from, to),
+            Self::Index { index } => replace_value(index, from, to),
             Self::Slice { start, length } => {
-                start.replace_value(from, to);
-                length.replace_value(from, to);
+                replace_value(start, from, to);
+                replace_value(length, from, to);
             }
         }
     }
 
-    /// Append value references used by this projection.
-    fn append_value_references(&self, values: &mut SmallVec<[ValueReference; 4]>) {
+    /// Append values used by this projection.
+    fn append_values(&self, values: &mut SmallVec<[Value; 4]>) {
         match self {
             Self::Field { .. } | Self::Element { .. } | Self::AnyElement | Self::Variant { .. } => {
             }
@@ -84,6 +86,13 @@ impl Projection {
                 values.push(*length);
             }
         }
+    }
+}
+
+/// Replace one value id in place.
+fn replace_value(value: &mut Value, from: Value, to: Value) {
+    if *value == from {
+        *value = to;
     }
 }
 
@@ -167,19 +176,19 @@ impl Place {
 
     /// Create a place rooted in a local.
     #[inline]
-    pub fn local(local: LocalReference) -> Self {
+    pub fn local(local: LocalId) -> Self {
         Self::new(PlaceOrigin::Local(local))
     }
 
     /// Create a place rooted in a global.
     #[inline]
-    pub fn global(global: GlobalReference) -> Self {
+    pub fn global(global: GlobalId) -> Self {
         Self::new(PlaceOrigin::Global(global))
     }
 
     /// Create a place rooted in an opaque value.
     #[inline]
-    pub fn value(value: ValueReference) -> Self {
+    pub fn value(value: Value) -> Self {
         Self::new(PlaceOrigin::Value(value))
     }
 
@@ -240,7 +249,7 @@ impl Place {
         !self.is_definitely_disjoint(other)
     }
 
-    /// Replace value references inside this place.
+    /// Replace value ids inside this place.
     pub fn replace_value(&mut self, from: Value, to: Value) {
         self.origin.replace_value(from, to);
 
@@ -249,8 +258,8 @@ impl Place {
         }
     }
 
-    /// Return value references used by this place.
-    pub fn value_references(&self) -> SmallVec<[ValueReference; 4]> {
+    /// Return values used by this place.
+    pub fn values(&self) -> SmallVec<[Value; 4]> {
         let mut values = SmallVec::new();
 
         // include value origins
@@ -260,7 +269,7 @@ impl Place {
 
         // include dynamic projection operands
         for projection in &self.path.projections {
-            projection.append_value_references(&mut values);
+            projection.append_values(&mut values);
         }
 
         values
@@ -340,7 +349,7 @@ mod tests {
         });
 
         assert_eq!(
-            place.value_references().as_slice(),
+            place.values().as_slice(),
             &[Value::new(0).into(), Value::new(1).into()]
         );
     }

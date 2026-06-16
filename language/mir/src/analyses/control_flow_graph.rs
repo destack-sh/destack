@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use super::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, Mutation};
 use crate as mir;
-use crate::{Block, BlockReference, Function, LocalNodeId, Tree};
+use crate::{Block, Function, LocalNodeId, Tree};
 
 /// Control flow graph for one function.
 #[derive(Debug, Clone)]
@@ -26,11 +26,7 @@ impl ControlFlowGraph {
             let block = tree.get(block_id);
             let terminator = tree.get(block.terminator);
 
-            for successor in terminator.successors() {
-                let BlockReference::Block(successor) = successor else {
-                    continue;
-                };
-
+            for successor in tree.terminator_successors(terminator) {
                 if let Some(block_predecessors) = predecessors.get_mut(&successor) {
                     block_predecessors.push(block_id);
                 }
@@ -88,79 +84,24 @@ impl FunctionAnalysis for ControlFlowGraph {
     }
 }
 
-/// Successor selected by one MIR terminator.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Successor {
-    /// The target of an unconditional jump.
-    Jump,
-    /// The return continuation of a call terminator.
-    CallReturn,
-    /// The unwind continuation of a call terminator.
-    CallUnwind,
-    /// The then target of a branch terminator.
-    BranchThen,
-    /// The else target of a branch terminator.
-    BranchElse,
-    /// The success target of a check terminator.
-    CheckSuccess,
-    /// The failure target of a check terminator.
-    CheckFailure,
-    /// The success target of a fallible terminator.
-    TrySuccess,
-    /// The failure target of a fallible terminator.
-    TryFailure,
-    /// One switch case target.
-    SwitchCase { value: i128 },
-    /// The default target of a switch terminator.
-    SwitchDefault,
-    /// The resume target of a yield terminator.
-    YieldResume,
-    /// The unwind target of a yield terminator.
-    YieldUnwind,
-}
-
-/// Control flow edge selected by a terminator successor.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Edge {
-    /// The source block.
-    pub source: LocalNodeId<Block>,
-    /// The successor field selected from the source terminator.
-    pub successor: Successor,
-    /// The target block.
-    pub target: LocalNodeId<Block>,
-}
-
-impl Edge {
-    /// Create one control flow edge.
-    pub fn new(
-        source: LocalNodeId<Block>,
-        successor: Successor,
-        target: LocalNodeId<Block>,
-    ) -> Self {
-        Self {
-            source,
-            successor,
-            target,
-        }
-    }
-}
-
 /// Enumerate the control flow edges leaving one terminator.
 pub fn terminator_edges(
+    tree: &mir::Tree,
     source: mir::LocalNodeId<mir::Block>,
     terminator: &mir::Terminator,
 ) -> Vec<(mir::Edge, mir::LocalNodeId<mir::Block>)> {
-    terminator_targets(source, terminator)
+    terminator_targets(tree, source, terminator)
         .into_iter()
         .map(|(edge, _)| (edge, edge.target))
         .collect()
 }
 
 /// Enumerate the control flow edges leaving one terminator with their targets.
-pub fn terminator_targets(
+pub fn terminator_targets<'a>(
+    tree: &'a mir::Tree,
     source: mir::LocalNodeId<mir::Block>,
-    terminator: &mir::Terminator,
-) -> Vec<(mir::Edge, &mir::BlockTarget)> {
+    terminator: &'a mir::Terminator,
+) -> Vec<(mir::Edge, &'a mir::BlockTarget)> {
     match terminator {
         mir::Terminator::Error => Vec::new(),
         mir::Terminator::Jump { target, .. } => block_edge(source, mir::Successor::Jump, target)
@@ -211,13 +152,10 @@ pub fn terminator_targets(
             edges.extend(block_edge(source, mir::Successor::SwitchDefault, default));
 
             // case edges
-            for case in cases {
-                let Some(value) = case.value.integer() else {
-                    continue;
-                };
+            for case in tree.get_switch_cases(*cases) {
                 edges.extend(block_edge(
                     source,
-                    mir::Successor::SwitchCase { value },
+                    mir::Successor::SwitchCase { value: case.value },
                     &case.target,
                 ));
             }
@@ -265,10 +203,7 @@ fn block_edge(
     successor: mir::Successor,
     target: &mir::BlockTarget,
 ) -> Option<(mir::Edge, &mir::BlockTarget)> {
-    target
-        .block
-        .block()
-        .map(|block| (mir::Edge::new(source, successor, block), target))
+    Some((mir::Edge::new(source, successor, target.block), target))
 }
 
 #[cfg(test)]

@@ -71,7 +71,7 @@ impl<'a> FormatMirNode<'a, Global> for Global {
 
             // format initializer
             if let Some(init) = &self.initializer {
-                format_data_init(init, self.ty.ty(), f)?;
+                format_data_init(init, Some(self.ty), f)?;
             }
         }
 
@@ -123,12 +123,12 @@ fn data_init_element_type<'a>(
     match f.context().tree.get(ty) {
         Type::Array { element, .. }
         | Type::Vector { element, .. }
-        | Type::Tensor { element, .. } => element.ty(),
-        Type::Tuple { elements, .. } => elements.get(index).and_then(|element| element.ty()),
+        | Type::Tensor { element, .. } => Some(*element),
+        Type::Tuple { elements, .. } => elements.get(index).copied(),
         Type::Struct { fields, .. } => fields
             .get(index)
-            .and_then(|field| f.context().tree.get(*field).ty.ty()),
-        Type::Newtype { inner, .. } => data_init_element_type(inner.ty(), index, f),
+            .map(|field| f.context().tree.get(*field).ty),
+        Type::Newtype { inner, .. } => data_init_element_type(Some(*inner), index, f),
         _ => None,
     }
 }

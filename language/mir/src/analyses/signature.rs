@@ -20,30 +20,28 @@ impl SignatureKey {
         let parameters = function
             .parameters
             .iter()
-            .map(|param| TypeKey::from_type_reference(&param.ty, tree))
+            .map(|param| TypeKey::from_type_id(&param.ty, tree))
             .collect();
 
         // collect result type key
-        let result = TypeKey::from_type_reference(&function.return_type, tree);
+        let result = TypeKey::from_type_id(&function.return_type, tree);
 
         Some(Self { parameters, result })
     }
 
     /// Build a signature key from a function pointer type.
-    pub fn from_signature_type(tree: &mir::Tree, signature: &mir::TypeReference) -> Option<Self> {
-        let signature = signature.ty()?;
-
+    pub fn from_signature_type(tree: &mir::Tree, signature: &mir::TypeId) -> Option<Self> {
         // resolve the function pointer signature
-        let (parameters, result) = mir::function_signature_parts(tree.get(signature))?;
+        let (parameters, result) = mir::function_signature_parts(tree.get(*signature))?;
 
         // collect parameter type keys
         let parameters = parameters
             .iter()
-            .map(|param| TypeKey::from_type_reference(param, tree))
+            .map(|param| TypeKey::from_type_id(param, tree))
             .collect();
 
         // collect result type key
-        let result = TypeKey::from_type_reference(&result, tree);
+        let result = TypeKey::from_type_id(&result, tree);
 
         Some(Self { parameters, result })
     }
@@ -169,7 +167,7 @@ pub fn required_parameter_indices(
     let mut required = HashSet::new();
 
     // include return type lifetime slots
-    if let Some(lifetime) = tree.type_reference_lifetime(&function.return_type) {
+    if let Some(lifetime) = tree.type_lifetime(function.return_type) {
         for index in lifetime.slot_indices() {
             required.insert(index as usize);
         }

@@ -53,36 +53,30 @@ impl GlobalsAA {
                 match inst {
                     // direct global access
                     mir::Instruction::GlobalAddr { global, .. } => {
-                        let Some(global) = global.global() else {
-                            continue;
-                        };
-
                         // conservatively mark address as taken
                         // (a more precise analysis could track uses and only mark escaped ones)
-                        address_taken.insert(global);
+                        address_taken.insert(*global);
                     }
 
                     // loads through global addresses
                     mir::Instruction::Load { pointer, .. } => {
-                        if let Some(global) = pointer.value().and_then(|pointer| {
-                            Self::get_global_base(pointer, &info.definitions, tree)
-                        }) {
+                        if let Some(global) =
+                            Self::get_global_base(*pointer, &info.definitions, tree)
+                        {
                             reads.insert(global);
                         }
                     }
 
                     // stores through global addresses
                     mir::Instruction::Store { pointer, value } => {
-                        if let Some(global) = pointer.value().and_then(|pointer| {
-                            Self::get_global_base(pointer, &info.definitions, tree)
-                        }) {
+                        if let Some(global) =
+                            Self::get_global_base(*pointer, &info.definitions, tree)
+                        {
                             writes.insert(global);
                         }
 
                         // storing a global address somewhere makes it escape
-                        if let Some(global) = value
-                            .value()
-                            .and_then(|value| Self::get_global_base(value, &info.definitions, tree))
+                        if let Some(global) = Self::get_global_base(*value, &info.definitions, tree)
                         {
                             address_taken.insert(global);
                         }
@@ -92,8 +86,8 @@ impl GlobalsAA {
                     mir::Instruction::Call { call, .. }
                     | mir::Instruction::CallVirtual { call, .. }
                     | mir::Instruction::CallDynamic { call, .. } => {
-                        let args = tree.get_arguments(call.arguments);
-                        for arg in args.iter().copied().filter_map(|value| value.value()) {
+                        let args = tree.get_values(call.arguments);
+                        for arg in args.iter().copied() {
                             if let Some(global) =
                                 Self::get_global_base(arg, &info.definitions, tree)
                             {
@@ -102,8 +96,8 @@ impl GlobalsAA {
                         }
                     }
                     mir::Instruction::CallIndirect { call, .. } => {
-                        let args = tree.get_arguments(call.arguments);
-                        for arg in args.iter().copied().filter_map(|value| value.value()) {
+                        let args = tree.get_values(call.arguments);
+                        for arg in args.iter().copied() {
                             if let Some(global) =
                                 Self::get_global_base(arg, &info.definitions, tree)
                             {
@@ -142,19 +136,19 @@ impl GlobalsAA {
             let &instruction_id = definitions.get(&current)?;
             let inst = tree.get(instruction_id);
             match inst {
-                mir::Instruction::GlobalAddr { global, .. } => return global.global(),
+                mir::Instruction::GlobalAddr { global, .. } => return Some(*global),
 
                 // follow through address computations
                 mir::Instruction::FieldAddr { aggregate, .. }
                 | mir::Instruction::ElementAddr {
                     array: aggregate, ..
                 } => {
-                    current = aggregate.value()?;
+                    current = *aggregate;
                 }
 
                 // follow casts
                 mir::Instruction::Cast { argument, .. } => {
-                    current = argument.value()?;
+                    current = *argument;
                 }
 
                 _ => return None,

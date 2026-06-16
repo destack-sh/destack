@@ -1,6 +1,6 @@
 use destack_core::{StringId, StringPool};
 
-use crate::{Function, LocalNodeId, Tree, Value, ValueReference};
+use crate::{Function, LocalNodeId, Tree, Value};
 
 /// Finalize missing block and SSA value names for one function.
 pub(crate) fn finalize_function_names(
@@ -28,9 +28,7 @@ pub(crate) fn finalize_function_names(
 
     // function parameters
     for (parameter_index, parameter) in function.parameters.iter().enumerate() {
-        let ValueReference::Value(value) = parameter.value else {
-            continue;
-        };
+        let value = parameter.value;
 
         if tree.get(function_id).value_name(value).is_some() {
             continue;
@@ -55,9 +53,7 @@ pub(crate) fn finalize_function_names(
         let block = tree.get(*block_id).clone();
 
         for parameter in &block.parameters {
-            let ValueReference::Value(value) = parameter.value else {
-                continue;
-            };
+            let value = parameter.value;
 
             if tree.get(function_id).value_name(value).is_some() {
                 continue;
@@ -70,7 +66,7 @@ pub(crate) fn finalize_function_names(
 
         for instruction_id in &block.instructions {
             let instruction = tree.get(*instruction_id);
-            let Some(ValueReference::Value(destination)) = instruction.destination() else {
+            let Some(destination) = instruction.destination() else {
                 continue;
             };
 

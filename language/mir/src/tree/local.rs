@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Mutability, Node, NodeType, TypeReference};
+use crate::{Mutability, Node, NodeType, TypeId};
 
 /// Local variable (stack slot) in a function.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Local {
     /// The type of the value stored in this slot.
-    pub ty: TypeReference,
+    pub ty: TypeId,
     /// Whether this local can be mutated after initialization.
     pub mutability: Mutability,
 }
@@ -17,12 +17,12 @@ impl Node for Local {
 
 impl Local {
     /// Create a new local.
-    pub fn new(ty: TypeReference, mutability: Mutability) -> Self {
+    pub fn new(ty: TypeId, mutability: Mutability) -> Self {
         Self { ty, mutability }
     }
 
     /// Create a mutable local.
-    pub fn mutable(ty: TypeReference) -> Self {
+    pub fn mutable(ty: TypeId) -> Self {
         Self {
             ty,
             mutability: Mutability::Mutable,
@@ -30,7 +30,7 @@ impl Local {
     }
 
     /// Create an immutable local.
-    pub fn immutable(ty: TypeReference) -> Self {
+    pub fn immutable(ty: TypeId) -> Self {
         Self {
             ty,
             mutability: Mutability::Immutable,

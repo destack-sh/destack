@@ -180,10 +180,8 @@ impl ReachingDefinitions {
         for &instruction_id in block_data.instructions.iter().take(instruction_index) {
             let instruction = tree.get(instruction_id);
 
-            if let mir::Instruction::LocalSet { local, .. } = instruction
-                && let Some(local) = local.local()
-            {
-                state.set_definition(local, LocalDefinition::Instruction(instruction_id));
+            if let mir::Instruction::LocalSet { local, .. } = instruction {
+                state.set_definition(*local, LocalDefinition::Instruction(instruction_id));
             }
         }
 
@@ -217,10 +215,8 @@ fn transfer_block(
     // update reaching definitions for each local.set
     for &instruction_id in &block_data.instructions {
         let instruction = tree.get(instruction_id);
-        if let mir::Instruction::LocalSet { local, .. } = instruction
-            && let Some(local) = local.local()
-        {
-            state.set_definition(local, LocalDefinition::Instruction(instruction_id));
+        if let mir::Instruction::LocalSet { local, .. } = instruction {
+            state.set_definition(*local, LocalDefinition::Instruction(instruction_id));
         }
     }
 

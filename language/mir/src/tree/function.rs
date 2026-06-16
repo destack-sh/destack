@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Block, Lifetime, LifetimeParameter, Linkage, Local, LocalNodeId, Node, NodeType, Parameter,
-    Place, PlaceEffect, Projection, Symbol, Tree, Type, TypeReference, Value, ValueReference,
+    Place, PlaceEffect, Projection, Symbol, Tree, Type, TypeId, Value,
 };
 
 /// Memory allocation restrictions for a function.
@@ -106,11 +106,11 @@ pub struct Function {
     pub(crate) next_value_id: u32,
 
     /// The return type.
-    pub return_type: TypeReference,
+    pub return_type: TypeId,
     /// Borrow obligations required by this function body.
     pub borrow_obligations: Vec<BorrowObligation>,
     /// The hidden environment type for this function when present.
-    pub environment: Option<TypeReference>,
+    pub environment: Option<TypeId>,
     /// Local variables (stack-allocated slots for mutable bindings).
     pub locals: Vec<LocalNodeId<Local>>,
     /// All basic blocks in this function.
@@ -143,37 +143,28 @@ impl Function {
     pub(crate) fn parameter_state(
         parameters: &[Parameter],
     ) -> (u32, Vec<Option<LocalNodeId<Type>>>) {
-        // derive the next value id from concrete parameters
+        // derive the next value id from parameters
         let next_value_id = parameters
             .iter()
-            .filter_map(|parameter| match parameter.value {
-                ValueReference::Value(value) => Some(value.0 + 1),
-                ValueReference::Missing | ValueReference::Error => None,
-            })
+            .map(|parameter| parameter.value.0 + 1)
             .max()
             .unwrap_or(0);
 
         // initialize the type table with the next value id
         let mut value_types = vec![None; next_value_id as usize];
 
-        // record concrete parameter types by value id
+        // record parameter types by value id
         for parameter in parameters {
-            let ValueReference::Value(value) = parameter.value else {
-                continue;
-            };
-            let Some(ty) = parameter.ty.ty() else {
-                continue;
-            };
-
-            let index = value.0 as usize;
+            let index = parameter.value.0 as usize;
             let slot = &mut value_types[index];
 
             // idempotent duplicates are okay
-            if slot.is_some_and(|existing| existing != ty) {
+            if slot.is_some_and(|existing| existing != parameter.ty) {
+                let value = parameter.value;
                 unreachable!("value {value:?} has mismatched parameter types");
             }
 
-            *slot = Some(ty);
+            *slot = Some(parameter.ty);
         }
 
         (next_value_id, value_types)
@@ -183,7 +174,7 @@ impl Function {
     fn with_signature(
         name: StringId,
         parameters: Vec<Parameter>,
-        return_type: TypeReference,
+        return_type: TypeId,
         linkage: Linkage,
         entry: Option<LocalNodeId<Block>>,
     ) -> Self {
@@ -215,7 +206,7 @@ impl Function {
     }
 
     /// Create a local function declaration without a body.
-    pub fn declare(name: StringId, parameters: Vec<Parameter>, return_type: TypeReference) -> Self {
+    pub fn declare(name: StringId, parameters: Vec<Parameter>, return_type: TypeId) -> Self {
         Self::with_signature(name, parameters, return_type, Linkage::Local, None)
     }
 
@@ -223,14 +214,14 @@ impl Function {
     pub fn local(
         name: StringId,
         parameters: Vec<Parameter>,
-        return_type: TypeReference,
+        return_type: TypeId,
         entry: LocalNodeId<Block>,
     ) -> Self {
         Self::with_signature(name, parameters, return_type, Linkage::Local, Some(entry))
     }
 
     /// Create an imported function declaration (no body).
-    pub fn import(name: StringId, parameters: Vec<Parameter>, return_type: TypeReference) -> Self {
+    pub fn import(name: StringId, parameters: Vec<Parameter>, return_type: TypeId) -> Self {
         Self::with_signature(name, parameters, return_type, Linkage::Import, None)
     }
 
@@ -426,21 +417,19 @@ impl Function {
 
         // function parameters
         for param in &self.parameters {
-            if let ValueReference::Value(value) = param.value {
-                max_id = max_id.max(value.0);
-            }
+            let value = param.value;
+            max_id = max_id.max(value.0);
         }
 
         // block parameters and instruction destinations
         for &block_id in &self.blocks {
             let block = tree.get(block_id);
             for param in &block.parameters {
-                if let ValueReference::Value(value) = param.value {
-                    max_id = max_id.max(value.0);
-                }
+                let value = param.value;
+                max_id = max_id.max(value.0);
             }
             for &instr_id in &block.instructions {
-                let Some(ValueReference::Value(value)) = tree.get(instr_id).destination() else {
+                let Some(value) = tree.get(instr_id).destination() else {
                     continue;
                 };
 

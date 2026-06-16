@@ -127,7 +127,7 @@ impl PostDominatorTree {
             let block = tree.get(block_id);
             let terminator = tree.get(block.terminator);
 
-            if terminator.successors().is_empty() {
+            if tree.terminator_successors(terminator).is_empty() {
                 exits.insert(block_id);
             }
         }

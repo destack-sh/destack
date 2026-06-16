@@ -2,6 +2,35 @@ use serde::{Deserialize, Serialize};
 
 use crate::{LocalNodeId, Type};
 
+/// Compact reference to a value list stored in the MIR tree.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct ValueSlice {
+    /// Start index in the value buffer.
+    pub start: u32,
+    /// Number of values in the slice.
+    pub count: u16,
+}
+
+impl ValueSlice {
+    /// Create a new value slice.
+    #[inline]
+    pub const fn new(start: u32, count: u16) -> Self {
+        Self { start, count }
+    }
+
+    /// Return whether this slice is empty.
+    #[inline]
+    pub const fn is_empty(&self) -> bool {
+        self.count == 0
+    }
+
+    /// Return the number of values in this slice.
+    #[inline]
+    pub const fn len(&self) -> usize {
+        self.count as usize
+    }
+}
+
 /// SSA value (virtual register).
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]

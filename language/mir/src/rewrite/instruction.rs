@@ -36,10 +36,9 @@ fn place_map_values_and_locals(
 
     // remap local origins
     if let mir::PlaceOrigin::Local(local) = &mut place.origin
-        && let Some(local_id) = local.local()
-        && let Some(mapped) = local_map.get(&local_id)
+        && let Some(mapped) = local_map.get(local)
     {
-        *local = (*mapped).into();
+        *local = *mapped;
     }
 
     place
@@ -177,9 +176,7 @@ pub fn instruction_is_speculatable(instruction: &mir::Instruction, tree: &mir::T
         mir::Instruction::FieldAddr { result_type, .. }
         | mir::Instruction::ElementAddr { result_type, .. }
         | mir::Instruction::LocalAddr { result_type, .. } => {
-            let Some(result_type) = result_type.ty() else {
-                return false;
-            };
+            let result_type = *result_type;
 
             let ty = tree.get(result_type);
             matches!(
@@ -480,9 +477,7 @@ pub fn instruction_collect_used_values(
 
     // add function parameters as implicitly used (they're inputs)
     for param in &function.parameters {
-        if let Some(value) = param.value.value() {
-            used.insert(value);
-        }
+        used.insert(param.value);
     }
 
     // scan blocks for instruction and terminator uses
@@ -496,26 +491,20 @@ pub fn instruction_collect_used_values(
 
             // add inline uses
             for value in instruction.uses() {
-                if let Some(value) = value.value() {
-                    used.insert(value);
-                }
+                used.insert(value);
             }
 
             // add externalized argument uses for calls and intrinsics
             if let Some(args_slice) = instruction.argument_slice() {
-                for &arg in tree.get_arguments(args_slice) {
-                    if let Some(arg) = arg.value() {
-                        used.insert(arg);
-                    }
+                for &arg in tree.get_values(args_slice) {
+                    used.insert(arg);
                 }
             }
         }
 
         // collect uses from terminator
-        for value in terminator.uses() {
-            if let Some(value) = value.value() {
-                used.insert(value);
-            }
+        for value in tree.terminator_uses(terminator) {
+            used.insert(value);
         }
     }
 
@@ -536,17 +525,8 @@ pub fn instruction_substitute_uses(
     }
 
     // resolve a value through the substitution map
-    let substitute = |value: &mir::ValueReference| -> mir::ValueReference {
-        let Some(concrete_value) = value.value() else {
-            return *value;
-        };
-
-        substitutions
-            .get(&concrete_value)
-            .copied()
-            .map(Into::into)
-            .unwrap_or(*value)
-    };
+    let substitute =
+        |value: &mir::Value| -> mir::Value { substitutions.get(value).copied().unwrap_or(*value) };
 
     // rebuild the instruction with substituted operands
     match instruction {
@@ -995,56 +975,48 @@ pub fn instruction_substitute_uses(
             destination,
             left,
             right,
-            dimensions,
+            immediate,
         } => mir::Instruction::TensorDot {
             destination: *destination,
             left: substitute(left),
             right: substitute(right),
-            dimensions: dimensions.clone(),
+            immediate: *immediate,
         },
         mir::Instruction::TensorConvolution {
             destination,
             input,
             kernel,
-            dimensions,
-            window,
-            feature_group_count,
-            batch_group_count,
+            immediate,
         } => mir::Instruction::TensorConvolution {
             destination: *destination,
             input: substitute(input),
             kernel: substitute(kernel),
-            dimensions: dimensions.clone(),
-            window: window.clone(),
-            feature_group_count: *feature_group_count,
-            batch_group_count: *batch_group_count,
+            immediate: *immediate,
         },
         mir::Instruction::TensorGather {
             destination,
             operand,
             indices,
-            dimensions,
-            slice_sizes,
+            immediate,
         } => mir::Instruction::TensorGather {
             destination: *destination,
             operand: substitute(operand),
             indices: substitute(indices),
-            dimensions: dimensions.clone(),
-            slice_sizes: slice_sizes.clone(),
+            immediate: *immediate,
         },
         mir::Instruction::TensorScatter {
             destination,
             operand,
             indices,
             updates,
-            dimensions,
+            immediate,
             mode,
         } => mir::Instruction::TensorScatter {
             destination: *destination,
             operand: substitute(operand),
             indices: substitute(indices),
             updates: substitute(updates),
-            dimensions: dimensions.clone(),
+            immediate: *immediate,
             mode: *mode,
         },
         mir::Instruction::TensorCompare {
@@ -1191,36 +1163,26 @@ pub fn instruction_substitute_uses_in_tree(
     }
 
     // resolve values through the substitution map
-    let substitute = |value: mir::ValueReference| -> mir::ValueReference {
-        let Some(value_id) = value.value() else {
-            return value;
-        };
-
-        substitutions
-            .get(&value_id)
-            .copied()
-            .map(Into::into)
-            .unwrap_or(value)
-    };
+    let substitute =
+        |value: mir::Value| -> mir::Value { substitutions.get(&value).copied().unwrap_or(value) };
 
     // rebuild argument slices when needed
-    let mut substitute_arguments = |slice: mir::ArgumentSlice| -> mir::ArgumentSlice {
+    let mut substitute_arguments = |slice: mir::ValueSlice| -> mir::ValueSlice {
         // read existing arguments
-        let arguments = tree.get_arguments(slice);
+        let arguments = tree.get_values(slice);
 
         // skip when no arguments are substituted
-        if !arguments.iter().any(|value| {
-            value
-                .value()
-                .is_some_and(|value| substitutions.contains_key(&value))
-        }) {
+        if !arguments
+            .iter()
+            .any(|value| substitutions.contains_key(value))
+        {
             return slice;
         }
 
         // build remapped arguments
         let new_arguments: Vec<_> = arguments.iter().map(|value| substitute(*value)).collect();
 
-        tree.add_arguments(&new_arguments)
+        tree.add_values(&new_arguments)
     };
 
     // rebuild the instruction using substituted operands
@@ -1486,56 +1448,48 @@ pub fn instruction_substitute_uses_in_tree(
             destination,
             left,
             right,
-            dimensions,
+            immediate,
         } => mir::Instruction::TensorDot {
             destination: *destination,
             left: substitute(*left),
             right: substitute(*right),
-            dimensions: dimensions.clone(),
+            immediate: *immediate,
         },
         mir::Instruction::TensorConvolution {
             destination,
             input,
             kernel,
-            dimensions,
-            window,
-            feature_group_count,
-            batch_group_count,
+            immediate,
         } => mir::Instruction::TensorConvolution {
             destination: *destination,
             input: substitute(*input),
             kernel: substitute(*kernel),
-            dimensions: dimensions.clone(),
-            window: window.clone(),
-            feature_group_count: *feature_group_count,
-            batch_group_count: *batch_group_count,
+            immediate: *immediate,
         },
         mir::Instruction::TensorGather {
             destination,
             operand,
             indices,
-            dimensions,
-            slice_sizes,
+            immediate,
         } => mir::Instruction::TensorGather {
             destination: *destination,
             operand: substitute(*operand),
             indices: substitute(*indices),
-            dimensions: dimensions.clone(),
-            slice_sizes: slice_sizes.clone(),
+            immediate: *immediate,
         },
         mir::Instruction::TensorScatter {
             destination,
             operand,
             indices,
             updates,
-            dimensions,
+            immediate,
             mode,
         } => mir::Instruction::TensorScatter {
             destination: *destination,
             operand: substitute(*operand),
             indices: substitute(*indices),
             updates: substitute(*updates),
-            dimensions: dimensions.clone(),
+            immediate: *immediate,
             mode: *mode,
         },
         mir::Instruction::TensorCompare {
@@ -1688,9 +1642,9 @@ pub fn instruction_substitute_uses_in_tree(
 
 /// Substitute values in a slice using the provided mapping.
 pub fn substitute_values(
-    values: &[mir::ValueReference],
+    values: &[mir::Value],
     substitutions: &HashMap<mir::Value, mir::Value>,
-) -> Vec<mir::ValueReference> {
+) -> Vec<mir::Value> {
     // fast path for empty substitutions
     if substitutions.is_empty() {
         return values.to_vec();
@@ -1699,17 +1653,7 @@ pub fn substitute_values(
     // apply substitutions to the value list
     values
         .iter()
-        .map(|value| {
-            let Some(value_id) = value.value() else {
-                return *value;
-            };
-
-            substitutions
-                .get(&value_id)
-                .copied()
-                .map(Into::into)
-                .unwrap_or(*value)
-        })
+        .map(|value| substitutions.get(value).copied().unwrap_or(*value))
         .collect()
 }
 
@@ -1766,7 +1710,7 @@ pub fn apply_substitutions_in_function(
 
         // rewrite terminator operands when requested
         let new_terminator = if has_substitutions {
-            terminator_substitute_uses(&terminator, substitutions)
+            terminator_substitute_uses(tree, &terminator, substitutions)
         } else {
             terminator.clone()
         };
@@ -1808,9 +1752,7 @@ pub fn build_use_def_maps(function: &mir::Function, tree: &mir::Tree) -> UseDefM
 
         // block parameters are defined in this block
         for param in &block.parameters {
-            let Some(value) = param.value.value() else {
-                continue;
-            };
+            let value = param.value;
 
             def_block.insert(value, block_id);
         }
@@ -1820,27 +1762,18 @@ pub fn build_use_def_maps(function: &mir::Function, tree: &mir::Tree) -> UseDefM
             let instruction = tree.get(instruction_id);
 
             // record definition
-            if let Some(dest) = instruction.destination().and_then(|value| value.value()) {
+            if let Some(dest) = instruction.destination() {
                 def_block.insert(dest, block_id);
             }
 
             // record uses
-            for use_value in instruction
-                .uses()
-                .into_iter()
-                .filter_map(|value| value.value())
-            {
+            for use_value in instruction.uses() {
                 use_blocks.entry(use_value).or_default().push(block_id);
             }
 
             // externalized arguments
             if let Some(args_slice) = instruction.argument_slice() {
-                for arg in tree
-                    .get_arguments(args_slice)
-                    .iter()
-                    .copied()
-                    .filter_map(|value| value.value())
-                {
+                for &arg in tree.get_values(args_slice) {
                     use_blocks.entry(arg).or_default().push(block_id);
                 }
             }
@@ -1848,11 +1781,7 @@ pub fn build_use_def_maps(function: &mir::Function, tree: &mir::Tree) -> UseDefM
 
         // terminator uses
         let terminator = tree.get(block.terminator);
-        for use_value in terminator
-            .uses()
-            .into_iter()
-            .filter_map(|value| value.value())
-        {
+        for use_value in tree.terminator_uses(terminator) {
             use_blocks.entry(use_value).or_default().push(block_id);
         }
     }
@@ -1964,7 +1893,7 @@ pub fn build_value_definition_map(
         let block = tree.get(block_id);
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
-            if let Some(destination) = instruction.destination().and_then(|value| value.value()) {
+            if let Some(destination) = instruction.destination() {
                 map.insert(destination, instruction_id);
             }
         }
@@ -1987,15 +1916,13 @@ pub fn build_value_definition_blocks(
 
         // record block parameters as definitions
         for param in &block.parameters {
-            if let Some(value) = param.value.value() {
-                map.insert(value, block_id);
-            }
+            map.insert(param.value, block_id);
         }
 
         // record instruction definitions
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
-            if let Some(destination) = instruction.destination().and_then(|value| value.value()) {
+            if let Some(destination) = instruction.destination() {
                 map.insert(destination, block_id);
             }
         }
@@ -2037,7 +1964,7 @@ pub fn build_value_instruction_map(
         for &instruction_id in &block.instructions {
             // record instructions that define a value
             let instruction = tree.get(instruction_id);
-            if let Some(destination) = instruction.destination().and_then(|value| value.value()) {
+            if let Some(destination) = instruction.destination() {
                 map.insert(destination, instruction.clone());
             }
         }
@@ -2061,7 +1988,7 @@ pub fn build_value_instruction_refs(
         for (index, instruction_id) in block.instructions.iter().enumerate() {
             // record instructions that define a value
             let instruction = tree.get(*instruction_id);
-            if let Some(destination) = instruction.destination().and_then(|value| value.value()) {
+            if let Some(destination) = instruction.destination() {
                 map.insert(
                     destination,
                     InstructionRef {
@@ -2088,29 +2015,15 @@ pub fn instruction_map(
     tree: &mut mir::Tree,
 ) -> mir::Instruction {
     // remap values through the provided map
-    let remap = |value: mir::ValueReference| -> mir::ValueReference {
-        let Some(value_id) = value.value() else {
-            return value;
-        };
-
-        value_map
-            .get(&value_id)
-            .copied()
-            .map(Into::into)
-            .unwrap_or(value)
-    };
+    let remap =
+        |value: mir::Value| -> mir::Value { value_map.get(&value).copied().unwrap_or(value) };
 
     // rebuild argument slices with remapped values
-    let mut remap_arguments = |slice: mir::ArgumentSlice| -> mir::ArgumentSlice {
+    let mut remap_arguments = |slice: mir::ValueSlice| -> mir::ValueSlice {
         // remap argument values
-        let new_args: Vec<_> = tree
-            .get_arguments(slice)
-            .iter()
-            .copied()
-            .map(remap)
-            .collect();
+        let new_args: Vec<_> = tree.get_values(slice).iter().copied().map(remap).collect();
 
-        tree.add_arguments(&new_args)
+        tree.add_values(&new_args)
     };
 
     // rebuild the instruction with remapped values
@@ -2581,56 +2494,48 @@ pub fn instruction_map(
             destination,
             left,
             right,
-            dimensions,
+            immediate,
         } => mir::Instruction::TensorDot {
             destination: remap(*destination),
             left: remap(*left),
             right: remap(*right),
-            dimensions: dimensions.clone(),
+            immediate: *immediate,
         },
         mir::Instruction::TensorConvolution {
             destination,
             input,
             kernel,
-            dimensions,
-            window,
-            feature_group_count,
-            batch_group_count,
+            immediate,
         } => mir::Instruction::TensorConvolution {
             destination: remap(*destination),
             input: remap(*input),
             kernel: remap(*kernel),
-            dimensions: dimensions.clone(),
-            window: window.clone(),
-            feature_group_count: *feature_group_count,
-            batch_group_count: *batch_group_count,
+            immediate: *immediate,
         },
         mir::Instruction::TensorGather {
             destination,
             operand,
             indices,
-            dimensions,
-            slice_sizes,
+            immediate,
         } => mir::Instruction::TensorGather {
             destination: remap(*destination),
             operand: remap(*operand),
             indices: remap(*indices),
-            dimensions: dimensions.clone(),
-            slice_sizes: slice_sizes.clone(),
+            immediate: *immediate,
         },
         mir::Instruction::TensorScatter {
             destination,
             operand,
             indices,
             updates,
-            dimensions,
+            immediate,
             mode,
         } => mir::Instruction::TensorScatter {
             destination: remap(*destination),
             operand: remap(*operand),
             indices: remap(*indices),
             updates: remap(*updates),
-            dimensions: dimensions.clone(),
+            immediate: *immediate,
             mode: *mode,
         },
         mir::Instruction::TensorCompare {
@@ -2864,40 +2769,17 @@ pub fn instruction_map_with_locals(
     tree: &mut mir::Tree,
 ) -> mir::Instruction {
     // create a value remapper for simple value uses
-    let remap = |value: mir::ValueReference| -> mir::ValueReference {
-        let Some(value_id) = value.value() else {
-            return value;
-        };
-
-        value_map
-            .get(&value_id)
-            .copied()
-            .map(Into::into)
-            .unwrap_or(value)
-    };
+    let remap =
+        |value: mir::Value| -> mir::Value { value_map.get(&value).copied().unwrap_or(value) };
 
     // create a local remapper for direct local references
-    let remap_local = |local: mir::LocalReference| -> mir::LocalReference {
-        let Some(local_id) = local.local() else {
-            return local;
-        };
-
-        local_map
-            .get(&local_id)
-            .copied()
-            .map(Into::into)
-            .unwrap_or(local)
-    };
+    let remap_local =
+        |local: mir::LocalId| -> mir::LocalId { local_map.get(&local).copied().unwrap_or(local) };
 
     // remap argument slices into a new argument buffer entry
-    let mut remap_arguments = |slice: mir::ArgumentSlice| -> mir::ArgumentSlice {
-        let new_args: Vec<_> = tree
-            .get_arguments(slice)
-            .iter()
-            .copied()
-            .map(remap)
-            .collect();
-        tree.add_arguments(&new_args)
+    let mut remap_arguments = |slice: mir::ValueSlice| -> mir::ValueSlice {
+        let new_args: Vec<_> = tree.get_values(slice).iter().copied().map(remap).collect();
+        tree.add_values(&new_args)
     };
 
     // remap each instruction variant
@@ -3275,56 +3157,48 @@ pub fn instruction_map_with_locals(
             destination,
             left,
             right,
-            dimensions,
+            immediate,
         } => mir::Instruction::TensorDot {
             destination: remap(*destination),
             left: remap(*left),
             right: remap(*right),
-            dimensions: dimensions.clone(),
+            immediate: *immediate,
         },
         mir::Instruction::TensorConvolution {
             destination,
             input,
             kernel,
-            dimensions,
-            window,
-            feature_group_count,
-            batch_group_count,
+            immediate,
         } => mir::Instruction::TensorConvolution {
             destination: remap(*destination),
             input: remap(*input),
             kernel: remap(*kernel),
-            dimensions: dimensions.clone(),
-            window: window.clone(),
-            feature_group_count: *feature_group_count,
-            batch_group_count: *batch_group_count,
+            immediate: *immediate,
         },
         mir::Instruction::TensorGather {
             destination,
             operand,
             indices,
-            dimensions,
-            slice_sizes,
+            immediate,
         } => mir::Instruction::TensorGather {
             destination: remap(*destination),
             operand: remap(*operand),
             indices: remap(*indices),
-            dimensions: dimensions.clone(),
-            slice_sizes: slice_sizes.clone(),
+            immediate: *immediate,
         },
         mir::Instruction::TensorScatter {
             destination,
             operand,
             indices,
             updates,
-            dimensions,
+            immediate,
             mode,
         } => mir::Instruction::TensorScatter {
             destination: remap(*destination),
             operand: remap(*operand),
             indices: remap(*indices),
             updates: remap(*updates),
-            dimensions: dimensions.clone(),
+            immediate: *immediate,
             mode: *mode,
         },
         mir::Instruction::TensorCompare {
@@ -3646,15 +3520,14 @@ pub fn instruction_map_with_locals(
 /// Block targets are remapped according to `block_map`, and values are remapped
 /// according to `value_map`. Values/blocks not in the maps are left unchanged.
 pub fn terminator_remap(
+    tree: &mut mir::Tree,
     terminator: &mut mir::Terminator,
     block_map: &HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     value_map: &HashMap<mir::Value, mir::Value>,
 ) {
     // remap one block target in place
     let remap_target = |target: &mut mir::BlockTarget| {
-        let Some(block) = target.block.block() else {
-            return;
-        };
+        let block = target.block;
 
         if let Some(&remapped_block) = block_map.get(&block) {
             target.block = remapped_block.into();
@@ -3662,20 +3535,9 @@ pub fn terminator_remap(
     };
 
     // remap one value reference in place
-    let remap_value = |value: &mut mir::ValueReference| {
-        let Some(concrete_value) = value.value() else {
-            return;
-        };
-
-        if let Some(&remapped_value) = value_map.get(&concrete_value) {
-            *value = remapped_value.into();
-        }
-    };
-
-    // remap a list of block arguments
-    let remap_args = |args: &mut Vec<mir::ValueReference>| {
-        for arg in args.iter_mut() {
-            remap_value(arg);
+    let remap_value = |value: &mut mir::Value| {
+        if let Some(&remapped_value) = value_map.get(value) {
+            *value = remapped_value;
         }
     };
 
@@ -3686,7 +3548,7 @@ pub fn terminator_remap(
         }
         mir::Terminator::Jump { target } => {
             remap_target(target);
-            remap_args(&mut target.arguments);
+            target.arguments = remap_value_slice(tree, target.arguments, value_map);
         }
         mir::Terminator::Branch {
             condition,
@@ -3695,9 +3557,9 @@ pub fn terminator_remap(
         } => {
             remap_value(condition);
             remap_target(then_target);
-            remap_args(&mut then_target.arguments);
+            then_target.arguments = remap_value_slice(tree, then_target.arguments, value_map);
             remap_target(else_target);
-            remap_args(&mut else_target.arguments);
+            else_target.arguments = remap_value_slice(tree, else_target.arguments, value_map);
         }
         mir::Terminator::Check {
             constraint,
@@ -3705,9 +3567,9 @@ pub fn terminator_remap(
             failure,
         } => {
             remap_target(success);
-            remap_args(&mut success.arguments);
+            success.arguments = remap_value_slice(tree, success.arguments, value_map);
             remap_target(failure);
-            remap_args(&mut failure.arguments);
+            failure.arguments = remap_value_slice(tree, failure.arguments, value_map);
             match constraint {
                 mir::CheckConstraint::Bounds {
                     index,
@@ -3756,9 +3618,9 @@ pub fn terminator_remap(
             success, failure, ..
         } => {
             remap_target(success);
-            remap_args(&mut success.arguments);
+            success.arguments = remap_value_slice(tree, success.arguments, value_map);
             remap_target(failure);
-            remap_args(&mut failure.arguments);
+            failure.arguments = remap_value_slice(tree, failure.arguments, value_map);
         }
         mir::Terminator::NewSliceZeroedTry {
             length,
@@ -3774,9 +3636,9 @@ pub fn terminator_remap(
         } => {
             remap_value(length);
             remap_target(success);
-            remap_args(&mut success.arguments);
+            success.arguments = remap_value_slice(tree, success.arguments, value_map);
             remap_target(failure);
-            remap_args(&mut failure.arguments);
+            failure.arguments = remap_value_slice(tree, failure.arguments, value_map);
         }
         mir::Terminator::Switch {
             value,
@@ -3785,11 +3647,14 @@ pub fn terminator_remap(
         } => {
             remap_value(value);
             remap_target(default);
-            remap_args(&mut default.arguments);
-            for case in cases.iter_mut() {
+            default.arguments = remap_value_slice(tree, default.arguments, value_map);
+
+            let mut new_cases = tree.get_switch_cases(*cases).to_vec();
+            for case in &mut new_cases {
                 remap_target(&mut case.target);
-                remap_args(&mut case.target.arguments);
+                case.target.arguments = remap_value_slice(tree, case.target.arguments, value_map);
             }
+            *cases = tree.add_switch_cases(&new_cases);
         }
         mir::Terminator::Return { value } => {
             if let Some(v) = value {
@@ -3803,10 +3668,10 @@ pub fn terminator_remap(
         } => {
             remap_value(value);
             remap_target(resume);
-            remap_args(&mut resume.arguments);
+            resume.arguments = remap_value_slice(tree, resume.arguments, value_map);
             if let Some(unwind) = unwind {
                 remap_target(unwind);
-                remap_args(&mut unwind.arguments);
+                unwind.arguments = remap_value_slice(tree, unwind.arguments, value_map);
             }
         }
         mir::Terminator::Call {
@@ -3815,12 +3680,12 @@ pub fn terminator_remap(
             unwind,
             ..
         } => {
-            remap_args(&mut call.arguments);
+            call.arguments = remap_value_slice(tree, call.arguments, value_map);
             remap_target(target);
-            remap_args(&mut target.arguments);
+            target.arguments = remap_value_slice(tree, target.arguments, value_map);
             if let Some(unwind) = unwind {
                 remap_target(unwind);
-                remap_args(&mut unwind.arguments);
+                unwind.arguments = remap_value_slice(tree, unwind.arguments, value_map);
             }
         }
         mir::Terminator::CallIndirect {
@@ -3831,12 +3696,12 @@ pub fn terminator_remap(
             ..
         } => {
             remap_value(callee);
-            remap_args(&mut call.arguments);
+            call.arguments = remap_value_slice(tree, call.arguments, value_map);
             remap_target(target);
-            remap_args(&mut target.arguments);
+            target.arguments = remap_value_slice(tree, target.arguments, value_map);
             if let Some(unwind) = unwind {
                 remap_target(unwind);
-                remap_args(&mut unwind.arguments);
+                unwind.arguments = remap_value_slice(tree, unwind.arguments, value_map);
             }
         }
         mir::Terminator::CallVirtual {
@@ -3847,12 +3712,12 @@ pub fn terminator_remap(
             ..
         } => {
             remap_value(receiver);
-            remap_args(&mut call.arguments);
+            call.arguments = remap_value_slice(tree, call.arguments, value_map);
             remap_target(target);
-            remap_args(&mut target.arguments);
+            target.arguments = remap_value_slice(tree, target.arguments, value_map);
             if let Some(unwind) = unwind {
                 remap_target(unwind);
-                remap_args(&mut unwind.arguments);
+                unwind.arguments = remap_value_slice(tree, unwind.arguments, value_map);
             }
         }
         mir::Terminator::CallDynamic {
@@ -3863,12 +3728,12 @@ pub fn terminator_remap(
             ..
         } => {
             remap_value(receiver);
-            remap_args(&mut call.arguments);
+            call.arguments = remap_value_slice(tree, call.arguments, value_map);
             remap_target(target);
-            remap_args(&mut target.arguments);
+            target.arguments = remap_value_slice(tree, target.arguments, value_map);
             if let Some(unwind) = unwind {
                 remap_target(unwind);
-                remap_args(&mut unwind.arguments);
+                unwind.arguments = remap_value_slice(tree, unwind.arguments, value_map);
             }
         }
         mir::Terminator::Panic { payload } => {
@@ -3882,16 +3747,31 @@ pub fn terminator_remap(
         mir::Terminator::TailCall {
             function: _, call, ..
         } => {
-            remap_args(&mut call.arguments);
+            call.arguments = remap_value_slice(tree, call.arguments, value_map);
         }
         mir::Terminator::TailCallVirtual { receiver, call, .. }
         | mir::Terminator::TailCallDynamic { receiver, call, .. } => {
             remap_value(receiver);
-            remap_args(&mut call.arguments);
+            call.arguments = remap_value_slice(tree, call.arguments, value_map);
         }
         mir::Terminator::TailCallIndirect { callee, call, .. } => {
             remap_value(callee);
-            remap_args(&mut call.arguments);
+            call.arguments = remap_value_slice(tree, call.arguments, value_map);
         }
     }
+}
+
+/// Remap one tree-owned value slice.
+fn remap_value_slice(
+    tree: &mut mir::Tree,
+    slice: mir::ValueSlice,
+    value_map: &HashMap<mir::Value, mir::Value>,
+) -> mir::ValueSlice {
+    let values = tree
+        .get_values(slice)
+        .iter()
+        .map(|value| value_map.get(value).copied().unwrap_or(*value))
+        .collect::<Vec<_>>();
+
+    tree.add_values(&values)
 }

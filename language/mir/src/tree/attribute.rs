@@ -1,7 +1,7 @@
 use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
-use crate::{IntegerReference, TypeReference};
+use crate::TypeId;
 
 /// One identifier inside attribute syntax.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -79,9 +79,9 @@ pub enum AttributeValue {
     /// An identifier value.
     Identifier(AttributeIdentifier),
     /// A type value.
-    Type(TypeReference),
+    Type(TypeId),
     /// An integer literal.
-    Integer(IntegerReference),
+    Integer(i128),
     /// A floating point literal.
     Float(FloatValue),
     /// A boolean literal.

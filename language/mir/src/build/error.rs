@@ -1,4 +1,4 @@
-use crate::{BinaryOperator, Block, Function, LocalNodeId, Type, TypeReference, Value};
+use crate::{BinaryOperator, Block, Function, LocalNodeId, Type, TypeId, Value};
 
 use super::Variable;
 
@@ -28,12 +28,12 @@ pub enum BuildError {
         context: String,
     },
     /// A type reference is missing where a concrete type is required.
-    MissingTypeReference {
+    MissingTypeId {
         /// The builder operation requesting the type.
         context: String,
     },
     /// A malformed type reference appeared where a concrete type is required.
-    ErrorTypeReference {
+    ErrorTypeId {
         /// The builder operation requesting the type.
         context: String,
     },
@@ -112,7 +112,7 @@ pub enum BuildError {
     /// A closure environment was requested with a different type than the existing environment.
     MismatchedClosureEnvironment {
         /// The environment type already recorded on the function.
-        existing: TypeReference,
+        existing: TypeId,
         /// The newly requested environment type.
         requested: LocalNodeId<Type>,
     },
@@ -148,10 +148,10 @@ impl std::fmt::Display for BuildError {
             Self::MissingValueType { value, context } => {
                 write!(formatter, "missing value type for {context}: {value:?}")
             }
-            Self::MissingTypeReference { context } => {
+            Self::MissingTypeId { context } => {
                 write!(formatter, "missing type reference for {context}")
             }
-            Self::ErrorTypeReference { context } => {
+            Self::ErrorTypeId { context } => {
                 write!(formatter, "malformed type reference for {context}")
             }
             Self::InvalidFieldIndex { aggregate, index } => {

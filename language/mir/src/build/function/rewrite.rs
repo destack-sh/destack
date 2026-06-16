@@ -1,7 +1,7 @@
+use std::collections::HashMap;
+
 use crate::build::FunctionBuilder;
-use crate::{
-    Block, CheckConstraint, Instruction, LocalNodeId, Parameter, Terminator, Value, ValueReference,
-};
+use crate::{Block, Instruction, LocalNodeId, Parameter, Terminator, Value, terminator_remap};
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
@@ -48,8 +48,9 @@ impl<'a> FunctionBuilder<'a> {
         let block_data = self.tree.get_mut(block);
         Self::replace_values_in_parameters(&mut block_data.parameters, from, to);
 
-        let terminator = self.tree.get_mut(terminator_id);
-        Self::replace_value_in_terminator(terminator, from, to);
+        let mut terminator = self.tree.get(terminator_id).clone();
+        self.replace_value_in_terminator(&mut terminator, from, to);
+        self.tree.set(terminator_id, terminator);
     }
 
     /// Replace a value in an instruction.
@@ -344,169 +345,16 @@ impl<'a> FunctionBuilder<'a> {
         if let Some(argument_slice) = argument_slice {
             let start = argument_slice.start as usize;
             let end = start + argument_slice.count as usize;
-            Self::replace_values_in_slice(
-                &mut self.tree.instruction_arguments[start..end],
-                from,
-                to,
-            );
+            Self::replace_values_in_slice(&mut self.tree.values[start..end], from, to);
         }
     }
 
     /// Replace a value in a terminator.
-    fn replace_value_in_terminator(terminator: &mut Terminator, from: Value, to: Value) {
-        // update terminator operands
-        match terminator {
-            Terminator::Error => {}
-            Terminator::Return { value } => {
-                if let Some(value) = value {
-                    Self::replace_value_in_slot(value, from, to);
-                }
-            }
-            Terminator::Jump { target } => {
-                Self::replace_values_in_slice(&mut target.arguments, from, to);
-            }
-            Terminator::Branch {
-                condition,
-                then_target,
-                else_target,
-                ..
-            } => {
-                Self::replace_value_in_slot(condition, from, to);
-                Self::replace_values_in_slice(&mut then_target.arguments, from, to);
-                Self::replace_values_in_slice(&mut else_target.arguments, from, to);
-            }
-            Terminator::Check {
-                constraint,
-                success,
-                failure,
-            } => {
-                Self::replace_values_in_check_kind(constraint, from, to);
-                Self::replace_values_in_slice(&mut success.arguments, from, to);
-                Self::replace_values_in_slice(&mut failure.arguments, from, to);
-            }
-            Terminator::NewZeroedTry {
-                success, failure, ..
-            }
-            | Terminator::NewUninitTry {
-                success, failure, ..
-            } => {
-                Self::replace_values_in_slice(&mut success.arguments, from, to);
-                Self::replace_values_in_slice(&mut failure.arguments, from, to);
-            }
-            Terminator::NewSliceZeroedTry {
-                length,
-                success,
-                failure,
-                ..
-            }
-            | Terminator::NewSliceUninitTry {
-                length,
-                success,
-                failure,
-                ..
-            } => {
-                Self::replace_value_in_slot(length, from, to);
-                Self::replace_values_in_slice(&mut success.arguments, from, to);
-                Self::replace_values_in_slice(&mut failure.arguments, from, to);
-            }
-            Terminator::Switch {
-                value,
-                default,
-                cases,
-                ..
-            } => {
-                Self::replace_value_in_slot(value, from, to);
-                Self::replace_values_in_slice(&mut default.arguments, from, to);
-                for case in cases {
-                    Self::replace_values_in_slice(&mut case.target.arguments, from, to);
-                }
-            }
-            Terminator::Yield {
-                value,
-                resume,
-                unwind,
-            } => {
-                Self::replace_value_in_slot(value, from, to);
-                Self::replace_values_in_slice(&mut resume.arguments, from, to);
-                if let Some(unwind) = unwind {
-                    Self::replace_values_in_slice(&mut unwind.arguments, from, to);
-                }
-            }
-            Terminator::Call {
-                call,
-                target,
-                unwind,
-                ..
-            } => {
-                Self::replace_values_in_slice(&mut call.arguments, from, to);
-                Self::replace_values_in_slice(&mut target.arguments, from, to);
-                if let Some(unwind) = unwind {
-                    Self::replace_values_in_slice(&mut unwind.arguments, from, to);
-                }
-            }
-            Terminator::CallIndirect {
-                callee,
-                call,
-                target,
-                unwind,
-                ..
-            } => {
-                Self::replace_value_in_slot(callee, from, to);
-                Self::replace_values_in_slice(&mut call.arguments, from, to);
-                Self::replace_values_in_slice(&mut target.arguments, from, to);
-                if let Some(unwind) = unwind {
-                    Self::replace_values_in_slice(&mut unwind.arguments, from, to);
-                }
-            }
-            Terminator::CallVirtual {
-                receiver,
-                call,
-                target,
-                unwind,
-                ..
-            } => {
-                Self::replace_value_in_slot(receiver, from, to);
-                Self::replace_values_in_slice(&mut call.arguments, from, to);
-                Self::replace_values_in_slice(&mut target.arguments, from, to);
-                if let Some(unwind) = unwind {
-                    Self::replace_values_in_slice(&mut unwind.arguments, from, to);
-                }
-            }
-            Terminator::CallDynamic {
-                receiver,
-                call,
-                target,
-                unwind,
-                ..
-            } => {
-                Self::replace_value_in_slot(receiver, from, to);
-                Self::replace_values_in_slice(&mut call.arguments, from, to);
-                Self::replace_values_in_slice(&mut target.arguments, from, to);
-                if let Some(unwind) = unwind {
-                    Self::replace_values_in_slice(&mut unwind.arguments, from, to);
-                }
-            }
-            Terminator::Panic { payload } => {
-                if let Some(payload) = payload {
-                    Self::replace_value_in_slot(payload, from, to);
-                }
-            }
-            Terminator::UnwindResume => {}
-            Terminator::Trap { .. } => {}
-            Terminator::Unreachable => {}
-            Terminator::TailCall { call, .. } => {
-                Self::replace_values_in_slice(&mut call.arguments, from, to);
-            }
-            Terminator::TailCallIndirect { callee, call, .. } => {
-                Self::replace_value_in_slot(callee, from, to);
-                Self::replace_values_in_slice(&mut call.arguments, from, to);
-            }
-            Terminator::TailCallVirtual { receiver, call, .. }
-            | Terminator::TailCallDynamic { receiver, call, .. } => {
-                Self::replace_value_in_slot(receiver, from, to);
-                Self::replace_values_in_slice(&mut call.arguments, from, to);
-            }
-        }
+    fn replace_value_in_terminator(&mut self, terminator: &mut Terminator, from: Value, to: Value) {
+        let block_map = HashMap::new();
+        let substitutions = HashMap::from([(from, to)]);
+
+        terminator_remap(self.tree, terminator, &block_map, &substitutions);
     }
 
     /// Replace a value in a slot.
@@ -517,59 +365,14 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Replace a value in a recoverable slot.
-    fn replace_value_in_slot(value: &mut ValueReference, from: Value, to: Value) {
-        if *value == ValueReference::Value(from) {
-            *value = ValueReference::Value(to);
-        }
-    }
-
-    /// Replace values referenced by a check kind.
-    fn replace_values_in_check_kind(kind: &mut CheckConstraint, from: Value, to: Value) {
-        // update values stored in the check kind
-        match kind {
-            CheckConstraint::Bounds {
-                index,
-                length,
-                collection,
-                ..
-            } => {
-                Self::replace_value_in_slot(index, from, to);
-                Self::replace_value_in_slot(length, from, to);
-                Self::replace_value_in_slot(collection, from, to);
-            }
-            CheckConstraint::Null { value } => {
-                Self::replace_value_in_slot(value, from, to);
-            }
-            CheckConstraint::DivZero { divisor } => {
-                Self::replace_value_in_slot(divisor, from, to);
-            }
-            CheckConstraint::ShiftRange { value, .. } => {
-                Self::replace_value_in_slot(value, from, to);
-            }
-            CheckConstraint::Narrow { value, .. } => {
-                Self::replace_value_in_slot(value, from, to);
-            }
-            CheckConstraint::Overflow { left, right, .. } => {
-                Self::replace_value_in_slot(left, from, to);
-                Self::replace_value_in_slot(right, from, to);
-            }
-            CheckConstraint::Type { value, .. } => {
-                Self::replace_value_in_slot(value, from, to);
-            }
-            CheckConstraint::Variant { value, .. } => {
-                Self::replace_value_in_slot(value, from, to);
-            }
-            CheckConstraint::ReceiverType { receiver, .. } => {
-                Self::replace_value_in_slot(receiver, from, to);
-            }
-            CheckConstraint::Implements { receiver, .. } => {
-                Self::replace_value_in_slot(receiver, from, to);
-            }
+    fn replace_value_in_slot(value: &mut Value, from: Value, to: Value) {
+        if *value == from {
+            *value = to;
         }
     }
 
     /// Replace values in a slice.
-    fn replace_values_in_slice(values: &mut [ValueReference], from: Value, to: Value) {
+    fn replace_values_in_slice(values: &mut [Value], from: Value, to: Value) {
         // update each value
         for value in values {
             Self::replace_value_in_slot(value, from, to);

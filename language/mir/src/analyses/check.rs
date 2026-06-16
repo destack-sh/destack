@@ -54,15 +54,11 @@ pub fn constraint_truth_value(
 
 /// Evaluate a bounds check constraint using range information.
 fn bounds_constraint_truth(
-    index: mir::ValueReference,
-    length: mir::ValueReference,
+    index: mir::Value,
+    length: mir::Value,
     is_signed: bool,
     ranges: &RangeMap,
 ) -> Option<bool> {
-    // require concrete values for range reasoning
-    let index = index.value()?;
-    let length = length.value()?;
-
     // read index and length ranges
     let index_range = integer_range_snapshot(index, ranges)?;
     let length_range = integer_range_snapshot(length, ranges)?;
@@ -92,10 +88,7 @@ fn bounds_constraint_truth(
 }
 
 /// Evaluate a division by zero constraint using range information.
-fn div_zero_constraint_truth(divisor: mir::ValueReference, ranges: &RangeMap) -> Option<bool> {
-    // require a concrete divisor value
-    let divisor = divisor.value()?;
-
+fn div_zero_constraint_truth(divisor: mir::Value, ranges: &RangeMap) -> Option<bool> {
     // read the divisor range
     let divisor_range = integer_range_snapshot(divisor, ranges)?;
 
@@ -113,14 +106,11 @@ fn div_zero_constraint_truth(divisor: mir::ValueReference, ranges: &RangeMap) ->
 
 /// Evaluate a shift range constraint using range information.
 fn shift_constraint_truth(
-    value: mir::ValueReference,
+    value: mir::Value,
     bit_width: u16,
     is_signed: bool,
     ranges: &RangeMap,
 ) -> Option<bool> {
-    // require a concrete shift amount
-    let value = value.value()?;
-
     // reject invalid widths
     let max_shift = i128::from(bit_width).checked_sub(1)?;
 
@@ -145,14 +135,11 @@ fn shift_constraint_truth(
 
 /// Evaluate a narrowing constraint using range information.
 fn narrow_constraint_truth(
-    value: mir::ValueReference,
+    value: mir::Value,
     to_width: u16,
     is_signed: bool,
     ranges: &RangeMap,
 ) -> Option<bool> {
-    // require a concrete input value
-    let value = value.value()?;
-
     // compute target bounds
     let (target_min, target_max) = integer_bounds(to_width, is_signed)?;
 
@@ -178,15 +165,11 @@ fn narrow_constraint_truth(
 /// Evaluate an overflow constraint using range information.
 fn overflow_constraint_truth(
     operator: mir::BinaryOperator,
-    left: mir::ValueReference,
-    right: mir::ValueReference,
+    left: mir::Value,
+    right: mir::Value,
     is_signed: bool,
     ranges: &RangeMap,
 ) -> Option<bool> {
-    // require concrete operands
-    let left = left.value()?;
-    let right = right.value()?;
-
     // read operand ranges
     let left_range = integer_range_snapshot(left, ranges)?;
     let right_range = integer_range_snapshot(right, ranges)?;

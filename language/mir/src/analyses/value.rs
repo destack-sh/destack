@@ -21,26 +21,20 @@ impl ValueTypeMap {
         let mut locals = HashMap::new();
         for &local_id in &function.locals {
             let local = tree.get(local_id);
-            locals.insert(local_id, local.ty.ty());
+            locals.insert(local_id, Some(local.ty));
         }
 
         Self { values, locals }
     }
 
     /// Return the type of a value.
-    pub fn value_type(
-        &self,
-        value: impl Into<mir::ValueReference>,
-    ) -> Option<mir::LocalNodeId<mir::Type>> {
-        let value = value.into().value()?;
+    pub fn value_type(&self, value: impl Into<mir::Value>) -> Option<mir::LocalNodeId<mir::Type>> {
+        let value = value.into();
         self.values.get(value.0 as usize).copied().flatten()
     }
 
     /// Return the type of a value.
-    pub fn require_value_type(
-        &self,
-        value: impl Into<mir::ValueReference>,
-    ) -> mir::LocalNodeId<mir::Type> {
+    pub fn require_value_type(&self, value: impl Into<mir::Value>) -> mir::LocalNodeId<mir::Type> {
         let value = value.into();
         match self.value_type(value) {
             Some(type_id) => type_id,
@@ -51,16 +45,16 @@ impl ValueTypeMap {
     /// Return the type of a local when available.
     pub fn local_type(
         &self,
-        local: impl Into<mir::LocalReference>,
+        local: impl Into<mir::LocalId>,
     ) -> Option<mir::LocalNodeId<mir::Type>> {
-        let local = local.into().local()?;
+        let local = local.into();
         self.locals.get(&local).copied().flatten()
     }
 
     /// Return the type of a local or panic if missing.
     pub fn require_local_type(
         &self,
-        local: impl Into<mir::LocalReference>,
+        local: impl Into<mir::LocalId>,
     ) -> mir::LocalNodeId<mir::Type> {
         let local = local.into();
         match self.local_type(local) {

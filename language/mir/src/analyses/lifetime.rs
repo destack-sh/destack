@@ -34,10 +34,7 @@ impl LifetimeAnalysis {
     }
 
     /// Resolve a return lifetime from a function signature type.
-    pub fn resolve_signature(
-        signature: impl Into<mir::TypeReference>,
-        tree: &mir::Tree,
-    ) -> mir::Lifetime {
+    pub fn resolve_signature(signature: impl Into<mir::TypeId>, tree: &mir::Tree) -> mir::Lifetime {
         let signature = signature.into();
         if let Some(lifetime) = explicit_signature_return_lifetime(&signature, tree) {
             return lifetime;
@@ -77,16 +74,15 @@ impl LifetimeAnalysis {
 
 /// Return the explicit return lifetime carried by one function signature reference.
 fn explicit_signature_return_lifetime(
-    signature: &mir::TypeReference,
+    signature: &mir::TypeId,
     tree: &mir::Tree,
 ) -> Option<mir::Lifetime> {
-    let lifetime_args = signature.lifetimes();
-    let signature = signature.ty()?;
+    let signature = *signature;
     let mir::Type::FunctionSignature { result, .. } = tree.get(signature) else {
         return None;
     };
 
-    tree.type_reference_lifetime_with_lifetimes(result, lifetime_args)
+    tree.type_lifetime(*result)
 }
 
 impl Analysis for LifetimeAnalysis {
@@ -429,12 +425,15 @@ entry:
             pointee: int_ty.into(),
             nullability: mir::Nullability::None,
         });
+        let applied_ref = program.tree.insert_type(mir::Type::WithLifetimes {
+            base: borrowed_ref,
+            lifetimes: vec![mir::Lifetime::slot(2)],
+        });
         let signature = program.tree.insert_type(mir::Type::FunctionSignature {
-            parameters: vec![borrowed_ref.into()],
-            result: borrowed_ref.into(),
+            parameters: vec![applied_ref.into()],
+            result: applied_ref.into(),
             borrow_obligations: Vec::new(),
         });
-        let signature = mir::TypeReference::new(signature, vec![mir::Lifetime::slot(2)]);
 
         let lifetime = LifetimeAnalysis::resolve_signature(signature, &program.tree);
         assert!(lifetime.includes_slot(2));

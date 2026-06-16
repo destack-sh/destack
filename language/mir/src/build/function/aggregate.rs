@@ -3,8 +3,8 @@ use crate::{
     BinaryOperator, Instruction, LocalNodeId, Projection, TensorConvertMode,
     TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
     TensorGatherDimensionNumbers, TensorIndexReduceOperator, TensorIndexTieBreak,
-    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, Type, TypeReference,
-    Value, ValueReference, VectorConvertMode, VectorReduceOperator,
+    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, Type, TypeId, Value,
+    VectorConvertMode, VectorReduceOperator,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -148,12 +148,12 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let field_values = field_values
             .into_iter()
-            .map(ValueReference::from)
+            .map(Value::from)
             .collect::<Vec<_>>();
-        let fields = self.tree.add_arguments(&field_values);
+        let fields = self.tree.add_values(&field_values);
         self.insert_instruction(Instruction::Struct {
             destination: destination.into(),
-            ty: TypeReference::from(ty),
+            ty: TypeId::from(ty),
             fields,
         });
         self.define_value(destination, ty);
@@ -167,12 +167,12 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let element_values = element_values
             .into_iter()
-            .map(ValueReference::from)
+            .map(Value::from)
             .collect::<Vec<_>>();
-        let elements = self.tree.add_arguments(&element_values);
+        let elements = self.tree.add_values(&element_values);
         self.insert_instruction(Instruction::Tuple {
             destination: destination.into(),
-            ty: TypeReference::from(ty),
+            ty: TypeId::from(ty),
             elements,
         });
         self.define_value(destination, ty);
@@ -186,12 +186,12 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let element_values = element_values
             .into_iter()
-            .map(ValueReference::from)
+            .map(Value::from)
             .collect::<Vec<_>>();
-        let elements = self.tree.add_arguments(&element_values);
+        let elements = self.tree.add_values(&element_values);
         self.insert_instruction(Instruction::Array {
             destination: destination.into(),
-            ty: TypeReference::from(ty),
+            ty: TypeId::from(ty),
             elements,
         });
         self.define_value(destination, ty);
@@ -248,6 +248,7 @@ impl<'a> FunctionBuilder<'a> {
         mask: Vec<u32>,
     ) -> Value {
         let destination = self.allocate_value();
+        let mask = self.tree.add_indices(&mask);
         self.insert_instruction(Instruction::VectorShuffle {
             destination: destination.into(),
             left: left.into(),
@@ -354,11 +355,8 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let view_type = self.expect_value_type(view, "tensor.load view");
         let element_type = self.expect_build(self.element_type_for_tensor_view(view_type));
-        let indices = indices
-            .into_iter()
-            .map(ValueReference::from)
-            .collect::<Vec<_>>();
-        let indices = self.tree.add_arguments(&indices);
+        let indices = indices.into_iter().map(Value::from).collect::<Vec<_>>();
+        let indices = self.tree.add_values(&indices);
         self.insert_instruction(Instruction::TensorLoad {
             destination: destination.into(),
             view: view.into(),
@@ -373,11 +371,8 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let tensor_type = self.expect_value_type(tensor, "tensor.extract tensor");
         let element_type = self.expect_build(self.element_type_for_tensor(tensor_type));
-        let indices = indices
-            .into_iter()
-            .map(ValueReference::from)
-            .collect::<Vec<_>>();
-        let indices = self.tree.add_arguments(&indices);
+        let indices = indices.into_iter().map(Value::from).collect::<Vec<_>>();
+        let indices = self.tree.add_values(&indices);
         self.insert_instruction(Instruction::TensorExtract {
             destination: destination.into(),
             tensor: tensor.into(),
@@ -389,11 +384,8 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Store a tensor element into a tensor reference.
     pub fn tensor_store(&mut self, view: Value, indices: Vec<Value>, value: Value) {
-        let indices = indices
-            .into_iter()
-            .map(ValueReference::from)
-            .collect::<Vec<_>>();
-        let indices = self.tree.add_arguments(&indices);
+        let indices = indices.into_iter().map(Value::from).collect::<Vec<_>>();
+        let indices = self.tree.add_values(&indices);
         self.insert_instruction(Instruction::TensorStore {
             view: view.into(),
             indices,
@@ -427,9 +419,9 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let shape = shape_values
             .into_iter()
-            .map(ValueReference::from)
+            .map(Value::from)
             .collect::<Vec<_>>();
-        let shape = self.tree.add_arguments(&shape);
+        let shape = self.tree.add_values(&shape);
         self.insert_instruction(Instruction::TensorReshape {
             destination: destination.into(),
             tensor: tensor.into(),
@@ -447,6 +439,7 @@ impl<'a> FunctionBuilder<'a> {
         dimensions: Vec<u32>,
     ) -> Value {
         let destination = self.allocate_value();
+        let dimensions = self.tree.add_indices(&dimensions);
         self.insert_instruction(Instruction::TensorBroadcast {
             destination: destination.into(),
             tensor: tensor.into(),
@@ -464,6 +457,7 @@ impl<'a> FunctionBuilder<'a> {
         permutation: Vec<u32>,
     ) -> Value {
         let destination = self.allocate_value();
+        let permutation = self.tree.add_indices(&permutation);
         self.insert_instruction(Instruction::TensorTranspose {
             destination: destination.into(),
             tensor: tensor.into(),
@@ -501,11 +495,8 @@ impl<'a> FunctionBuilder<'a> {
         values.extend_from_slice(&offsets);
         values.extend_from_slice(&sizes);
         values.extend_from_slice(&strides);
-        let arguments = values
-            .into_iter()
-            .map(ValueReference::from)
-            .collect::<Vec<_>>();
-        let arguments = self.tree.add_arguments(&arguments);
+        let arguments = values.into_iter().map(Value::from).collect::<Vec<_>>();
+        let arguments = self.tree.add_values(&arguments);
         self.insert_instruction(Instruction::TensorView {
             destination: destination.into(),
             view: view.into(),
@@ -535,11 +526,8 @@ impl<'a> FunctionBuilder<'a> {
         values.extend_from_slice(&offsets);
         values.extend_from_slice(&sizes);
         values.extend_from_slice(&strides);
-        let arguments = values
-            .into_iter()
-            .map(ValueReference::from)
-            .collect::<Vec<_>>();
-        let arguments = self.tree.add_arguments(&arguments);
+        let arguments = values.into_iter().map(Value::from).collect::<Vec<_>>();
+        let arguments = self.tree.add_values(&arguments);
         self.insert_instruction(Instruction::TensorSlice {
             destination: destination.into(),
             tensor: tensor.into(),
@@ -571,11 +559,8 @@ impl<'a> FunctionBuilder<'a> {
         values.extend_from_slice(&low);
         values.extend_from_slice(&high);
         values.extend_from_slice(&interior);
-        let arguments = values
-            .into_iter()
-            .map(ValueReference::from)
-            .collect::<Vec<_>>();
-        let arguments = self.tree.add_arguments(&arguments);
+        let arguments = values.into_iter().map(Value::from).collect::<Vec<_>>();
+        let arguments = self.tree.add_values(&arguments);
         self.insert_instruction(Instruction::TensorPad {
             destination: destination.into(),
             tensor: tensor.into(),
@@ -597,11 +582,8 @@ impl<'a> FunctionBuilder<'a> {
         axis: u32,
     ) -> Value {
         let destination = self.allocate_value();
-        let tensors = tensors
-            .into_iter()
-            .map(ValueReference::from)
-            .collect::<Vec<_>>();
-        let tensors = self.tree.add_arguments(&tensors);
+        let tensors = tensors.into_iter().map(Value::from).collect::<Vec<_>>();
+        let tensors = self.tree.add_values(&tensors);
         self.insert_instruction(Instruction::TensorConcat {
             destination: destination.into(),
             tensors,
@@ -640,6 +622,7 @@ impl<'a> FunctionBuilder<'a> {
         axes: Vec<u32>,
     ) -> Value {
         let destination = self.allocate_value();
+        let axes = self.tree.add_indices(&axes);
         self.insert_instruction(Instruction::TensorReduce {
             destination: destination.into(),
             operator,
@@ -681,11 +664,12 @@ impl<'a> FunctionBuilder<'a> {
         dimensions: TensorDotDimensionNumbers,
     ) -> Value {
         let destination = self.allocate_value();
+        let immediate = self.tree.add_tensor_dot_immediate(dimensions);
         self.insert_instruction(Instruction::TensorDot {
             destination: destination.into(),
             left: left.into(),
             right: right.into(),
-            dimensions,
+            immediate,
         });
         self.define_value(destination, result_type);
         destination
@@ -703,14 +687,17 @@ impl<'a> FunctionBuilder<'a> {
         batch_group_count: u32,
     ) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::TensorConvolution {
-            destination: destination.into(),
-            input: input.into(),
-            kernel: kernel.into(),
+        let immediate = self.tree.add_tensor_convolution_immediate(
             dimensions,
             window,
             feature_group_count,
             batch_group_count,
+        );
+        self.insert_instruction(Instruction::TensorConvolution {
+            destination: destination.into(),
+            input: input.into(),
+            kernel: kernel.into(),
+            immediate,
         });
         self.define_value(destination, result_type);
         destination
@@ -726,12 +713,14 @@ impl<'a> FunctionBuilder<'a> {
         slice_sizes: Vec<u32>,
     ) -> Value {
         let destination = self.allocate_value();
+        let immediate = self
+            .tree
+            .add_tensor_gather_immediate(dimensions, &slice_sizes);
         self.insert_instruction(Instruction::TensorGather {
             destination: destination.into(),
             operand: operand.into(),
             indices: indices.into(),
-            dimensions,
-            slice_sizes,
+            immediate,
         });
         self.define_value(destination, result_type);
         destination
@@ -748,12 +737,13 @@ impl<'a> FunctionBuilder<'a> {
         mode: TensorScatterMode,
     ) -> Value {
         let destination = self.allocate_value();
+        let immediate = self.tree.add_tensor_scatter_immediate(dimensions);
         self.insert_instruction(Instruction::TensorScatter {
             destination: destination.into(),
             operand: operand.into(),
             indices: indices.into(),
             updates: updates.into(),
-            dimensions,
+            immediate,
             mode,
         });
         self.define_value(destination, result_type);

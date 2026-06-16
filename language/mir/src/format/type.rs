@@ -1,20 +1,30 @@
-use destack_fir::format::FormatResult;
+use destack_fir::format::{Format, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
 use super::attribute::{write_attributes, write_attributes_before_anchor, write_inline_attributes};
+use super::value::format_type_id;
 
 use crate::{
     Access, Attribute, AttributeIdentifier, BorrowObligation, Copy, Field, FieldSpan,
     FormatMirNode, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, MirFormatContext,
     MirFormatter, Nullability, ReferenceKind, Space, TensorDimension, TensorDimensionOrder,
-    TensorLayout, TensorViewLayout, Type, TypeAlias, TypeDeclarationSpans, TypeReference,
+    TensorLayout, TensorViewLayout, Type, TypeAlias, TypeDeclarationSpans, TypeId,
     write_comments_before,
 };
 
 impl<'a> FormatMirNode<'a, Type> for Type {
     fn format_node(&self, id: LocalNodeId<Type>, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
         format_type_inner(f, id, self, true)
+    }
+}
+
+/// Formatter adapter for one nested type reference.
+struct FormatTypeId(TypeId);
+
+impl<'a> Format<MirFormatContext<'a>> for FormatTypeId {
+    fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+        format_type_id(self.0, f)
     }
 }
 
@@ -234,6 +244,7 @@ fn format_type_inner<'a>(
     }
 
     match ty {
+        Type::Error => write!(f, [token("<error>")]),
         Type::Void => write!(f, [token("void")]),
         Type::Boolean => write!(f, [token("boolean")]),
         Type::Int {
@@ -249,13 +260,20 @@ fn format_type_inner<'a>(
         Type::TypeDescriptor => write!(f, [token("typeDescriptor")]),
         Type::TypeId => write!(f, [token("typeId")]),
         Type::Atomic { value } => {
-            write!(f, [token("atomic"), token("<"), value, token(">")])
+            write!(f, [token("atomic"), token("<")])?;
+            format_type_id(*value, f)?;
+            write!(f, [token(">")])
         }
         Type::Dynamic { constraint } => {
-            write!(f, [token("dynamic"), token("<"), constraint, token(">")])
+            write!(f, [token("dynamic"), token("<")])?;
+            format_type_id(*constraint, f)?;
+            write!(f, [token(">")])
         }
+        Type::WithLifetimes { base, lifetimes } => format_type_application(*base, lifetimes, f),
         Type::Uninit { value } => {
-            write!(f, [token("uninit"), token("<"), value, token(">")])
+            write!(f, [token("uninit"), token("<")])?;
+            format_type_id(*value, f)?;
+            write!(f, [token(">")])
         }
         Type::Reference {
             kind,
@@ -286,7 +304,7 @@ fn format_type_inner<'a>(
                 f,
                 [
                     token("["),
-                    element,
+                    FormatTypeId(*element),
                     token(";"),
                     space(),
                     text(&length.to_string()),
@@ -302,7 +320,8 @@ fn format_type_inner<'a>(
             access,
             nullability,
         } => {
-            write!(f, [token("slice"), token("<"), element])?;
+            write!(f, [token("slice"), token("<")])?;
+            format_type_id(*element, f)?;
             format_reference_qualifiers(*kind, lifetime, space.clone(), *access, *nullability, f)?;
             write!(f, [token(">")])
         }
@@ -312,7 +331,7 @@ fn format_type_inner<'a>(
                 if i > 0 {
                     write!(f, [token(","), space()])?;
                 }
-                write!(f, [elem])?;
+                format_type_id(*elem, f)?;
             }
             write!(f, [token(")")])
         }
@@ -330,15 +349,18 @@ fn format_type_inner<'a>(
                 }
                 if let Some(name) = field.name {
                     let field_name = f.context().strings.get(name);
-                    write!(f, [text(field_name), token(":"), space(), field.ty])?;
+                    write!(f, [text(field_name), token(":"), space()])?;
+                    format_type_id(field.ty, f)?;
                 } else {
-                    write!(f, [field.ty])?;
+                    format_type_id(field.ty, f)?;
                 }
             }
             write!(f, [space(), token("}")])
         }
         Type::Newtype { inner, copy: _ } => {
-            write!(f, [token("newtype"), token("<"), inner, token(">")])
+            write!(f, [token("newtype"), token("<")])?;
+            format_type_id(*inner, f)?;
+            write!(f, [token(">")])
         }
         Type::Variant {
             tag,
@@ -351,10 +373,10 @@ fn format_type_inner<'a>(
                 [
                     token("variant"),
                     token("<"),
-                    tag,
+                    FormatTypeId(*tag),
                     token(","),
                     space(),
-                    storage
+                    FormatTypeId(*storage)
                 ]
             )?;
             write!(f, [token(">"), space(), token("{")])?;
@@ -367,7 +389,14 @@ fn format_type_inner<'a>(
                 }
                 write!(
                     f,
-                    [&case.tag, space(), token("="), space(), case.ty, token(";")]
+                    [
+                        &case.tag,
+                        space(),
+                        token("="),
+                        space(),
+                        FormatTypeId(case.ty),
+                        token(";")
+                    ]
                 )?;
             }
             if !cases.is_empty() {
@@ -385,7 +414,7 @@ fn format_type_inner<'a>(
                 [
                     token("vector"),
                     token("<"),
-                    element,
+                    FormatTypeId(*element),
                     token(","),
                     space(),
                     text(&lanes.to_string()),
@@ -401,7 +430,13 @@ fn format_type_inner<'a>(
         } => {
             write!(
                 f,
-                [token("tensor"), token("<"), element, token(","), space()]
+                [
+                    token("tensor"),
+                    token("<"),
+                    FormatTypeId(*element),
+                    token(","),
+                    space()
+                ]
             )?;
             format_shape(shape, f)?;
             if *layout != TensorLayout::dense_row_major() {
@@ -450,36 +485,35 @@ fn format_type_inner<'a>(
                 if i > 0 {
                     write!(f, [token(","), space()])?;
                 }
-                write!(f, [param])?;
+                format_type_id(*param, f)?;
             }
-            write!(f, [token(")"), space(), token("->"), space(), result])?;
+            write!(f, [token(")"), space(), token("=>"), space()])?;
+            format_type_id(*result, f)?;
             format_borrow_obligations(borrow_obligations, f)
         }
         Type::FunctionPointer { signature } | Type::Closure { signature, .. } => {
-            if let Some(signature) = signature.ty() {
-                let signature_type = f.context().tree.get(signature);
-                if let Type::FunctionSignature {
-                    parameters,
-                    result,
-                    borrow_obligations,
-                } = signature_type
-                {
-                    write!(f, [token("(")])?;
-                    for (i, param) in parameters.iter().enumerate() {
-                        if i > 0 {
-                            write!(f, [token(","), space()])?;
-                        }
-                        write!(f, [param])?;
-                    }
-                    let arrow = match ty {
-                        Type::FunctionPointer { .. } => "->",
-                        Type::Closure { .. } => "=>",
-                        _ => unreachable!(),
-                    };
-                    write!(f, [token(")"), space(), token(arrow), space(), result])?;
-                    format_borrow_obligations(borrow_obligations, f)?;
-                    return Ok(());
+            let signature_type = f.context().tree.get(*signature);
+            if let Type::FunctionSignature {
+                parameters,
+                result,
+                borrow_obligations,
+            } = signature_type
+            {
+                if matches!(ty, Type::FunctionPointer { .. }) {
+                    write!(f, [token("fn")])?;
                 }
+
+                write!(f, [token("(")])?;
+                for (i, param) in parameters.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, [token(","), space()])?;
+                    }
+                    format_type_id(*param, f)?;
+                }
+                write!(f, [token(")"), space(), token("=>"), space()])?;
+                format_type_id(*result, f)?;
+                format_borrow_obligations(borrow_obligations, f)?;
+                return Ok(());
             }
 
             write!(
@@ -562,10 +596,10 @@ fn format_view_header<'a>(
     memory_space: Space,
     access: Access,
     nullability: Nullability,
-    element: &TypeReference,
+    element: &TypeId,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    write!(f, [element])?;
+    format_type_id(*element, f)?;
     format_reference_qualifiers(kind, lifetime, memory_space, access, nullability, f)
 }
 
@@ -623,6 +657,24 @@ fn format_lifetime<'a>(lifetime: &Lifetime, f: &mut MirFormatter<'a, '_>) -> For
 
     write!(f, [token(","), space(), token("lifetime")])?;
     format_lifetime_group(lifetime, f)
+}
+
+fn format_type_application<'a>(
+    base: TypeId,
+    lifetimes: &[Lifetime],
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    format_type_id(base, f)?;
+    write!(f, [token("<")])?;
+    for (index, lifetime) in lifetimes.iter().enumerate() {
+        if index > 0 {
+            write!(f, [token(","), space()])?;
+        }
+
+        write!(f, [token("lifetime")])?;
+        format_lifetime_group(lifetime, f)?;
+    }
+    write!(f, [token(">")])
 }
 
 pub(super) fn format_borrow_obligations<'a>(
@@ -706,19 +758,7 @@ impl<'a> FormatMirNode<'a, TypeAlias> for TypeAlias {
     ) -> FormatResult<()> {
         let attributes = f.context().tree.attributes(id);
         let name = f.context().strings.get(self.name);
-        let Some(type_id) = self.ty.ty() else {
-            let previous_lifetimes = std::mem::replace(
-                &mut f.context_mut().current_lifetimes,
-                self.lifetimes.clone(),
-            );
-            write!(f, [token("type"), space(), text(name)])?;
-            format_lifetimes(&self.lifetimes, f)?;
-            let result = write!(f, [space(), token("="), space(), self.ty, token(";")]);
-            f.context_mut().current_lifetimes = previous_lifetimes;
-            result?;
-
-            return Ok(());
-        };
+        let type_id = self.ty;
         let ty = f.context().tree.get(type_id);
         format_type_declaration(name, attributes, Some(id), type_id, ty, f)
     }
@@ -727,11 +767,11 @@ impl<'a> FormatMirNode<'a, TypeAlias> for TypeAlias {
 fn format_struct_field<'a>(field: &Field, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
     if let Some(name) = field.name {
         let field_name = f.context().strings.get(name);
-        write!(
-            f,
-            [text(field_name), token(":"), space(), field.ty, token(";")]
-        )
+        write!(f, [text(field_name), token(":"), space()])?;
+        format_type_id(field.ty, f)?;
+        write!(f, [token(";")])
     } else {
-        write!(f, [field.ty, token(";")])
+        format_type_id(field.ty, f)?;
+        write!(f, [token(";")])
     }
 }

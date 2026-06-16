@@ -1,7 +1,7 @@
 use crate::build::{BuildError, BuildResult, FunctionBuilder};
 use crate::{
     Access, Global, Instruction, Lifetime, Local, LocalNodeId, Mutability, Nullability, Place,
-    ReferenceKind, Space, Type, TypeReference, Value, callable_signature, function_signature_parts,
+    ReferenceKind, Space, Type, Value, callable_signature, function_signature_parts,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -15,7 +15,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Create a reference type for inline instruction typing.
-    pub fn type_reference(
+    pub fn reference_type(
         &mut self,
         kind: ReferenceKind,
         pointee: LocalNodeId<Type>,
@@ -40,8 +40,7 @@ impl<'a> FunctionBuilder<'a> {
             destination: destination.into(),
             local: local.into(),
         });
-        let local_ty = concrete_type_reference(&self.tree.get(local).ty, "local.get local type");
-        let local_ty = self.expect_build(local_ty);
+        let local_ty = self.tree.get(local).ty;
         self.define_value(destination, local_ty);
         destination
     }
@@ -88,10 +87,9 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Load one global value through its address.
     pub fn load_global(&mut self, global: LocalNodeId<Global>) -> Value {
-        let global_ty = concrete_type_reference(&self.tree.get(global).ty, "global load type");
-        let global_ty = self.expect_build(global_ty);
+        let global_ty = self.tree.get(global).ty;
         let global_space = self.tree.get(global).space.clone();
-        let global_pointer = self.type_reference(
+        let global_pointer = self.reference_type(
             ReferenceKind::Raw,
             global_ty,
             Access::Readonly,
@@ -139,7 +137,7 @@ impl<'a> FunctionBuilder<'a> {
                     });
                 };
 
-                concrete_type_reference(&self.tree.get(*field_id).ty, "struct field type")
+                Ok(self.tree.get(*field_id).ty)
             }
             Type::Tuple { elements, .. } => {
                 let Some(element) = elements.get(index as usize) else {
@@ -149,11 +147,11 @@ impl<'a> FunctionBuilder<'a> {
                     });
                 };
 
-                concrete_type_reference(element, "tuple field type")
+                Ok(*element)
             }
             Type::Variant { tag, storage, .. } => match index {
-                0 => concrete_type_reference(tag, "variant tag type"),
-                1 => concrete_type_reference(storage, "variant storage type"),
+                0 => Ok(*tag),
+                1 => Ok(*storage),
                 _ => Err(BuildError::InvalidFieldIndex {
                     aggregate: aggregate_type,
                     index,
@@ -171,9 +169,7 @@ impl<'a> FunctionBuilder<'a> {
     ) -> BuildResult<LocalNodeId<Type>> {
         let array = self.tree.get(array_type);
         match array {
-            Type::Array { element, .. } | Type::Slice { element, .. } => {
-                concrete_type_reference(element, "array element type")
-            }
+            Type::Array { element, .. } | Type::Slice { element, .. } => Ok(*element),
             _ => Err(BuildError::InvalidElementOwner { ty: array_type }),
         }
     }
@@ -185,7 +181,7 @@ impl<'a> FunctionBuilder<'a> {
     ) -> BuildResult<LocalNodeId<Type>> {
         let vector = self.tree.get(vector_type);
         match vector {
-            Type::Vector { element, .. } => concrete_type_reference(element, "vector element type"),
+            Type::Vector { element, .. } => Ok(*element),
             _ => Err(BuildError::InvalidVectorOwner { ty: vector_type }),
         }
     }
@@ -197,7 +193,7 @@ impl<'a> FunctionBuilder<'a> {
     ) -> BuildResult<LocalNodeId<Type>> {
         let tensor_type = self.tree.get(tensor_type_id);
         match tensor_type {
-            Type::Tensor { element, .. } => concrete_type_reference(element, "tensor element type"),
+            Type::Tensor { element, .. } => Ok(*element),
             _ => Err(BuildError::InvalidTensorOwner { ty: tensor_type_id }),
         }
     }
@@ -209,9 +205,7 @@ impl<'a> FunctionBuilder<'a> {
     ) -> BuildResult<LocalNodeId<Type>> {
         let reference_type = self.tree.get(reference_type_id);
         match reference_type {
-            Type::TensorView { element, .. } => {
-                concrete_type_reference(element, "tensor view element type")
-            }
+            Type::TensorView { element, .. } => Ok(*element),
             _ => Err(BuildError::InvalidTensorViewOwner {
                 ty: reference_type_id,
             }),
@@ -233,13 +227,9 @@ impl<'a> FunctionBuilder<'a> {
     ) -> BuildResult<LocalNodeId<Type>> {
         let signature_type = self.tree.get(signature_type_id);
         match signature_type {
-            Type::FunctionSignature { result, .. } => {
-                concrete_type_reference(result, "function result")
-            }
+            Type::FunctionSignature { result, .. } => Ok(*result),
             Type::FunctionPointer { .. } | Type::Closure { .. } => {
-                let Some(signature_id) =
-                    callable_signature(signature_type).and_then(|signature| signature.ty())
-                else {
+                let Some(signature_id) = callable_signature(signature_type) else {
                     return Err(BuildError::MissingFunctionSignature {
                         ty: signature_type_id,
                     });
@@ -249,7 +239,7 @@ impl<'a> FunctionBuilder<'a> {
                     return Err(BuildError::MissingFunctionSignature { ty: signature_id });
                 };
 
-                concrete_type_reference(&result, "callable function result")
+                Ok(result)
             }
             _ => Err(BuildError::MissingFunctionSignature {
                 ty: signature_type_id,
@@ -390,20 +380,5 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::Assume {
             condition: condition.into(),
         });
-    }
-}
-
-fn concrete_type_reference(
-    reference: &TypeReference,
-    context: &str,
-) -> BuildResult<LocalNodeId<Type>> {
-    match reference {
-        TypeReference::Type { ty, .. } => Ok(*ty),
-        TypeReference::Missing => Err(BuildError::MissingTypeReference {
-            context: context.to_string(),
-        }),
-        TypeReference::Error => Err(BuildError::ErrorTypeReference {
-            context: context.to_string(),
-        }),
     }
 }

@@ -64,10 +64,7 @@ impl ScopedNoAliasAA {
         }
 
         // writable borrowed parameters are noalias in strict mode
-        let Some(parameter) = parameter.typed_value() else {
-            return false;
-        };
-
+        let parameter = parameter.typed_value();
         let ty = tree.get(parameter.ty);
         ty.is_writable_borrowed_reference()
     }

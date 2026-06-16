@@ -4,14 +4,19 @@ use std::fmt::{Debug, Formatter};
 use destack_core::{Arena, StringId};
 use destack_source::{FileId, NodeSpanType, SourceIndex, Span};
 use serde::{Deserialize, Serialize};
+use smallvec::{SmallVec, smallvec};
 
 use crate::source::{Token, TokenType};
 use crate::{
-    Access, ArgumentSlice, Attribute, Block, CommentSpan, DynamicShape, DynamicTable, Field,
-    FieldSpan, FloatType, Function, FunctionHeaderSpans, Global, Instruction, Layout, LayoutId,
-    Lifetime, LifetimeParameter, Local, LocalNodeId, Metadata, Node, NodeType, Nullability, Origin,
-    OriginTable, ReferenceKind, Space, Terminator, Type, TypeAlias, TypeDeclarationSpans,
-    TypeLineage, TypeMetadata, TypeReference, TypedValueSpan, ValueReference, Vtable,
+    Access, Attribute, Block, BlockId, BlockTarget, BorrowedPath, CommentSpan, DynamicShape,
+    DynamicTable, ExtentSlice, Field, FieldSpan, FlagSlice, FloatType, Function,
+    FunctionHeaderSpans, Global, IndexSlice, Instruction, Layout, LayoutId, Lifetime,
+    LifetimeParameter, Local, LocalNodeId, Metadata, Node, NodeType, Nullability, Origin,
+    OriginTable, Path, Projection, ReferenceKind, Space, SwitchCase, SwitchCaseSlice,
+    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
+    TensorGatherDimensionNumbers, TensorImmediate, TensorImmediateId,
+    TensorScatterDimensionNumbers, Terminator, Type, TypeAlias, TypeDeclarationSpans, TypeId,
+    TypeLineage, TypeMetadata, TypedValueSpan, Value, ValueSlice, Vtable,
 };
 
 #[inline]
@@ -139,10 +144,19 @@ pub struct Tree {
     /// Lifetime parameters keyed by type node.
     pub(crate) lifetimes_by_type: HashMap<LocalNodeId<Type>, Vec<LifetimeParameter>>,
 
-    // externalized instruction arguments
-    /// Flat buffer of instruction arguments (for Call, CallIndirect, Intrinsic).
-    /// Instructions reference slices of this buffer via ArgumentSlice.
-    pub(crate) instruction_arguments: Vec<ValueReference>,
+    // externalized instruction payloads
+    /// Flat buffer of MIR values.
+    pub(crate) values: Vec<Value>,
+    /// Flat buffer of instruction indices.
+    pub(crate) indices: Vec<u32>,
+    /// Flat buffer of instruction extents.
+    pub(crate) extents: Vec<u64>,
+    /// Flat buffer of instruction flags.
+    pub(crate) flags: Vec<u8>,
+    /// Flat buffer of switch cases.
+    pub(crate) switch_cases: Vec<SwitchCase>,
+    /// Structured tensor immediates.
+    pub(crate) tensor_immediates: Vec<TensorImmediate>,
 
     // metadata
     /// Structured MIR metadata domains.
@@ -210,7 +224,12 @@ impl Tree {
             globals: Arena::new(),
             lifetimes_by_type: HashMap::new(),
 
-            instruction_arguments: Vec::new(),
+            values: Vec::new(),
+            indices: Vec::new(),
+            extents: Vec::new(),
+            flags: Vec::new(),
+            switch_cases: Vec::new(),
+            tensor_immediates: Vec::new(),
             metadata: Metadata::default(),
         }
     }
@@ -261,11 +280,11 @@ impl Tree {
     /// Infer the return lifetime for one function signature.
     pub fn infer_function_return_lifetime(&self, function_id: LocalNodeId<Function>) -> Lifetime {
         let function = self.get(function_id);
-        if let Some(lifetime) = self.type_reference_lifetime(&function.return_type) {
+        if let Some(lifetime) = self.type_lifetime(function.return_type) {
             return lifetime;
         }
 
-        if !self.type_reference_contains_borrowed_refs(&function.return_type) {
+        if !self.type_contains_borrowed_refs(function.return_type) {
             return Lifetime::empty();
         }
 
@@ -275,7 +294,7 @@ impl Tree {
                 .iter()
                 .enumerate()
                 .filter_map(|(index, parameter)| {
-                    self.type_reference_can_source_return_borrow(&parameter.ty)
+                    self.type_can_source_return_borrow(parameter.ty)
                         .then_some(index as u32)
                 });
         let lifetime = Lifetime::slot_set(lifetime_slots);
@@ -287,18 +306,15 @@ impl Tree {
         }
     }
 
-    /// Return whether a type reference can source a returned borrow.
-    pub fn type_reference_can_source_return_borrow(&self, ty_ref: &TypeReference) -> bool {
-        let Some(ty) = ty_ref.ty() else {
-            return true;
-        };
-
-        let ty = self.get(ty);
+    /// Return whether a type can source a returned borrow.
+    pub fn type_can_source_return_borrow(&self, ty: TypeId) -> bool {
+        let ty_id = ty;
+        let ty = self.get(ty_id);
 
         matches!(
             ty.reference_kind(),
             Some(ReferenceKind::Borrowed | ReferenceKind::Managed)
-        ) || self.type_reference_contains_borrowed_refs(ty_ref)
+        ) || self.type_contains_borrowed_refs(ty_id)
     }
 
     /// Substitute type-local lifetime slots with applied lifetimes.
@@ -320,30 +336,28 @@ impl Tree {
         Lifetime::new(terms)
     }
 
-    /// Return the explicit lifetime carried by a type reference.
-    pub fn type_reference_lifetime(&self, ty: &TypeReference) -> Option<Lifetime> {
-        let lifetime_args = ty.lifetimes().to_vec();
-        let ty = ty.ty()?;
+    /// Return the explicit lifetime carried by a type.
+    pub fn type_lifetime(&self, ty: TypeId) -> Option<Lifetime> {
         let mut visited = HashSet::new();
 
-        self.type_lifetime(ty, &lifetime_args, &mut visited)
+        self.type_lifetime_inner(ty, &[], &mut visited)
     }
 
-    /// Return the explicit lifetime carried by a nested type reference.
-    pub fn type_reference_lifetime_with_lifetimes(
+    /// Return the explicit lifetime carried by a type under applied lifetimes.
+    pub fn type_lifetime_with_lifetimes(
         &self,
-        ty: &TypeReference,
+        ty: TypeId,
         lifetimes: &[Lifetime],
     ) -> Option<Lifetime> {
         let mut visited = HashSet::new();
 
-        self.type_reference_lifetime_inner(ty.clone(), lifetimes, &mut visited)
+        self.type_lifetime_inner(ty, lifetimes, &mut visited)
     }
 
     /// Return the explicit lifetime carried by a type.
-    fn type_lifetime(
+    fn type_lifetime_inner(
         &self,
-        ty: LocalNodeId<Type>,
+        ty: TypeId,
         lifetime_args: &[Lifetime],
         visited: &mut HashSet<LocalNodeId<Type>>,
     ) -> Option<Lifetime> {
@@ -370,7 +384,7 @@ impl Tree {
             Type::Struct { fields, .. } => {
                 let nested_lifetimes = fields.iter().filter_map(|field| {
                     let field = self.get(*field);
-                    self.type_reference_lifetime_inner(field.ty.clone(), lifetime_args, visited)
+                    self.type_lifetime_inner(field.ty, lifetime_args, visited)
                 });
 
                 Some(Lifetime::new(
@@ -378,27 +392,25 @@ impl Tree {
                 ))
                 .filter(|lifetime| !lifetime.is_empty())
             }
-            Type::Newtype { inner, .. } => {
-                self.type_reference_lifetime_inner(inner.clone(), lifetime_args, visited)
-            }
+            Type::Newtype { inner, .. } => self.type_lifetime_inner(*inner, lifetime_args, visited),
             Type::Dynamic { constraint } => {
-                self.type_reference_lifetime_inner(constraint.clone(), lifetime_args, visited)
+                self.type_lifetime_inner(*constraint, lifetime_args, visited)
             }
-            Type::Uninit { value } => {
-                self.type_reference_lifetime_inner(value.clone(), lifetime_args, visited)
+            Type::WithLifetimes { base, lifetimes } => {
+                self.type_lifetime_inner(*base, lifetimes, visited)
             }
+            Type::Uninit { value } => self.type_lifetime_inner(*value, lifetime_args, visited),
             Type::Variant {
                 tag,
                 storage,
                 cases,
                 ..
             } => {
-                let tag = self.type_reference_lifetime_inner(tag.clone(), lifetime_args, visited);
-                let storage =
-                    self.type_reference_lifetime_inner(storage.clone(), lifetime_args, visited);
-                let nested_lifetimes = cases.iter().filter_map(|case| {
-                    self.type_reference_lifetime_inner(case.ty.clone(), lifetime_args, visited)
-                });
+                let tag = self.type_lifetime_inner(*tag, lifetime_args, visited);
+                let storage = self.type_lifetime_inner(*storage, lifetime_args, visited);
+                let nested_lifetimes = cases
+                    .iter()
+                    .filter_map(|case| self.type_lifetime_inner(case.ty, lifetime_args, visited));
 
                 Some(Lifetime::new(
                     tag.into_iter()
@@ -410,7 +422,7 @@ impl Tree {
             }
             Type::Tuple { elements, .. } => {
                 let nested_lifetimes = elements.iter().filter_map(|element| {
-                    self.type_reference_lifetime_inner(element.clone(), lifetime_args, visited)
+                    self.type_lifetime_inner(*element, lifetime_args, visited)
                 });
 
                 Some(Lifetime::new(
@@ -424,43 +436,14 @@ impl Tree {
             | Type::Tensor { element, .. }
             | Type::TensorView { element, .. }
             | Type::Atomic { value: element } => {
-                self.type_reference_lifetime_inner(element.clone(), lifetime_args, visited)
+                self.type_lifetime_inner(*element, lifetime_args, visited)
             }
             _ => None,
         }
     }
 
-    /// Return the explicit lifetime carried by a nested type reference.
-    fn type_reference_lifetime_inner(
-        &self,
-        ty: TypeReference,
-        lifetime_args: &[Lifetime],
-        visited: &mut HashSet<LocalNodeId<Type>>,
-    ) -> Option<Lifetime> {
-        let applied_lifetimes = if ty.lifetimes().is_empty() {
-            lifetime_args.to_vec()
-        } else {
-            ty.lifetimes()
-                .iter()
-                .map(|lifetime| self.substitute_lifetime(lifetime, lifetime_args))
-                .collect()
-        };
-        let ty = ty.ty()?;
-
-        self.type_lifetime(ty, &applied_lifetimes, visited)
-    }
-
-    /// Return whether a type reference may contain borrowed references.
-    pub fn type_reference_contains_borrowed_refs(&self, ty: &TypeReference) -> bool {
-        let Some(ty) = ty.ty() else {
-            return true;
-        };
-
-        self.type_contains_borrowed_refs(ty)
-    }
-
     /// Return whether a type may contain borrowed references.
-    pub fn type_contains_borrowed_refs(&self, ty: LocalNodeId<Type>) -> bool {
+    pub fn type_contains_borrowed_refs(&self, ty: TypeId) -> bool {
         let ty = self.get(ty);
         if ty.is_borrowed_reference() {
             return true;
@@ -469,35 +452,138 @@ impl Tree {
         match ty {
             Type::Struct { fields, .. } => fields.iter().any(|field| {
                 let field = self.get(*field);
-                self.type_reference_contains_borrowed_refs(&field.ty)
+                self.type_contains_borrowed_refs(field.ty)
             }),
-            Type::Newtype { inner, .. } => self.type_reference_contains_borrowed_refs(inner),
-            Type::Dynamic { constraint } => self.type_reference_contains_borrowed_refs(constraint),
-            Type::Uninit { value } => self.type_reference_contains_borrowed_refs(value),
+            Type::Newtype { inner, .. } => self.type_contains_borrowed_refs(*inner),
+            Type::Dynamic { constraint } => self.type_contains_borrowed_refs(*constraint),
+            Type::WithLifetimes { base, .. } => self.type_contains_borrowed_refs(*base),
+            Type::Uninit { value } => self.type_contains_borrowed_refs(*value),
             Type::Variant {
                 tag,
                 storage,
                 cases,
                 ..
             } => {
-                self.type_reference_contains_borrowed_refs(tag)
-                    || self.type_reference_contains_borrowed_refs(storage)
+                self.type_contains_borrowed_refs(*tag)
+                    || self.type_contains_borrowed_refs(*storage)
                     || cases
                         .iter()
-                        .any(|case| self.type_reference_contains_borrowed_refs(&case.ty))
+                        .any(|case| self.type_contains_borrowed_refs(case.ty))
             }
             Type::Tuple { elements, .. } => elements
                 .iter()
-                .any(|element| self.type_reference_contains_borrowed_refs(element)),
+                .any(|element| self.type_contains_borrowed_refs(*element)),
             Type::Array { element, .. }
             | Type::Slice { element, .. }
             | Type::Vector { element, .. }
             | Type::Tensor { element, .. }
             | Type::TensorView { element, .. }
-            | Type::Atomic { value: element } => {
-                self.type_reference_contains_borrowed_refs(element)
-            }
+            | Type::Atomic { value: element } => self.type_contains_borrowed_refs(*element),
             _ => false,
+        }
+    }
+
+    /// Return borrowed reference-like paths carried by one type.
+    pub fn type_borrowed_paths(&self, ty: TypeId) -> Vec<BorrowedPath> {
+        self.type_borrowed_paths_with_lifetimes(ty, &[])
+    }
+
+    /// Return borrowed reference-like paths carried by one type under applied lifetimes.
+    pub fn type_borrowed_paths_with_lifetimes(
+        &self,
+        ty: TypeId,
+        lifetimes: &[Lifetime],
+    ) -> Vec<BorrowedPath> {
+        let mut borrowed_paths = Vec::new();
+
+        self.collect_type_borrowed_paths(ty, lifetimes, Path::root(), &mut borrowed_paths);
+
+        borrowed_paths
+    }
+
+    /// Collect borrowed paths carried by one type into an output vector.
+    fn collect_type_borrowed_paths(
+        &self,
+        ty: TypeId,
+        lifetimes: &[Lifetime],
+        path: Path,
+        borrowed_paths: &mut Vec<BorrowedPath>,
+    ) {
+        match self.get(ty) {
+            // record borrowed reference-like leaves
+            Type::Reference {
+                kind: ReferenceKind::Borrowed,
+                lifetime,
+                ..
+            }
+            | Type::Slice {
+                kind: ReferenceKind::Borrowed,
+                lifetime,
+                ..
+            }
+            | Type::TensorView {
+                kind: ReferenceKind::Borrowed,
+                lifetime,
+                ..
+            } => {
+                let lifetime = self.substitute_lifetime(lifetime, lifetimes);
+                if !lifetime.is_empty() {
+                    borrowed_paths.push(BorrowedPath { path, lifetime });
+                }
+            }
+            // descend into named fields
+            Type::Struct { fields, .. } => {
+                for (index, field) in fields.iter().enumerate() {
+                    let field = self.get(*field);
+                    let path = path.clone().with_projection(Projection::Field {
+                        index: index as u32,
+                    });
+
+                    self.collect_type_borrowed_paths(field.ty, lifetimes, path, borrowed_paths);
+                }
+            }
+            // descend into positional fields
+            Type::Tuple { elements, .. } => {
+                for (index, element) in elements.iter().enumerate() {
+                    let path = path.clone().with_projection(Projection::Field {
+                        index: index as u32,
+                    });
+
+                    self.collect_type_borrowed_paths(*element, lifetimes, path, borrowed_paths);
+                }
+            }
+            // substitute outer lifetime arguments
+            Type::WithLifetimes { base, lifetimes } => {
+                self.collect_type_borrowed_paths(*base, lifetimes, path, borrowed_paths);
+            }
+            // descend through transparent storage wrappers
+            Type::Newtype { inner, .. }
+            | Type::Dynamic { constraint: inner }
+            | Type::Uninit { value: inner }
+            | Type::Atomic { value: inner } => {
+                self.collect_type_borrowed_paths(*inner, lifetimes, path, borrowed_paths);
+            }
+            // descend into each variant payload shape
+            Type::Variant { cases, .. } => {
+                for case in cases {
+                    let path = path.clone().with_projection(Projection::Variant {
+                        tag: case.tag.clone(),
+                    });
+
+                    self.collect_type_borrowed_paths(case.ty, lifetimes, path, borrowed_paths);
+                }
+            }
+            // collapse indexed containers to any-element paths
+            Type::Array { element, .. }
+            | Type::Slice { element, .. }
+            | Type::Vector { element, .. }
+            | Type::Tensor { element, .. }
+            | Type::TensorView { element, .. } => {
+                let path = path.with_projection(Projection::AnyElement);
+
+                self.collect_type_borrowed_paths(*element, lifetimes, path, borrowed_paths);
+            }
+            _ => {}
         }
     }
 
@@ -864,7 +950,7 @@ impl Tree {
                     pointee,
                     nullability: Nullability::Null,
                     ..
-                } if *pointee == TypeReference::from(void_type)
+                } if *pointee == void_type
             )
         }) {
             return type_id;
@@ -895,7 +981,7 @@ impl Tree {
                     pointee,
                     nullability: crate::Nullability::Null,
                     ..
-                } if *pointee == TypeReference::from(void_type)
+                } if *pointee == void_type
             )
         }) {
             return type_id;
@@ -907,7 +993,7 @@ impl Tree {
             lifetime: Lifetime::empty(),
             space: Space::Local,
             access: Access::Mutable,
-            pointee: TypeReference::from(void_type),
+            pointee: void_type,
             nullability: crate::Nullability::Null,
         })
     }
@@ -1413,23 +1499,446 @@ impl Tree {
             })
     }
 
-    /// Add arguments to the arguments buffer and return an ArgumentSlice.
-    ///
-    /// This is used when creating Call, CallIndirect, or Intrinsic instructions.
+    /// Add values to the value buffer and return a `ValueSlice`.
     #[inline]
-    pub fn add_arguments(&mut self, args: &[ValueReference]) -> ArgumentSlice {
-        let start = self.instruction_arguments.len() as u32;
-        let count = args.len() as u16;
-        self.instruction_arguments.extend_from_slice(args);
-        ArgumentSlice::new(start, count)
+    pub fn add_values(&mut self, values: &[Value]) -> ValueSlice {
+        let start = self.values.len() as u32;
+        let count = values.len() as u16;
+        self.values.extend_from_slice(values);
+        ValueSlice::new(start, count)
     }
 
-    /// Get arguments from the arguments buffer by slice.
+    /// Get values from the value buffer by slice.
     #[inline]
-    pub fn get_arguments(&self, slice: ArgumentSlice) -> &[ValueReference] {
+    pub fn get_values(&self, slice: ValueSlice) -> &[Value] {
         let start = slice.start as usize;
         let end = start + slice.count as usize;
-        &self.instruction_arguments[start..end]
+        &self.values[start..end]
+    }
+
+    /// Add indices to the immediate buffer and return an `IndexSlice`.
+    #[inline]
+    pub fn add_indices(&mut self, values: &[u32]) -> IndexSlice {
+        let start = self.indices.len() as u32;
+        let count = values.len() as u16;
+        self.indices.extend_from_slice(values);
+        IndexSlice::new(start, count)
+    }
+
+    /// Get indices from the immediate buffer by slice.
+    #[inline]
+    pub fn get_indices(&self, slice: IndexSlice) -> &[u32] {
+        let start = slice.start as usize;
+        let end = start + slice.count as usize;
+        &self.indices[start..end]
+    }
+
+    /// Add extents to the immediate buffer and return an `ExtentSlice`.
+    #[inline]
+    pub fn add_extents(&mut self, values: &[u64]) -> ExtentSlice {
+        let start = self.extents.len() as u32;
+        let count = values.len() as u16;
+        self.extents.extend_from_slice(values);
+        ExtentSlice::new(start, count)
+    }
+
+    /// Get extents from the immediate buffer by slice.
+    #[inline]
+    pub fn get_extents(&self, slice: ExtentSlice) -> &[u64] {
+        let start = slice.start as usize;
+        let end = start + slice.count as usize;
+        &self.extents[start..end]
+    }
+
+    /// Add flags to the immediate buffer and return a `FlagSlice`.
+    #[inline]
+    pub fn add_flags(&mut self, values: &[u8]) -> FlagSlice {
+        let start = self.flags.len() as u32;
+        let count = values.len() as u16;
+        self.flags.extend_from_slice(values);
+        FlagSlice::new(start, count)
+    }
+
+    /// Get flags from the immediate buffer by slice.
+    #[inline]
+    pub fn get_flags(&self, slice: FlagSlice) -> &[u8] {
+        let start = slice.start as usize;
+        let end = start + slice.count as usize;
+        &self.flags[start..end]
+    }
+
+    /// Add switch cases to the switch case buffer and return a `SwitchCaseSlice`.
+    #[inline]
+    pub fn add_switch_cases(&mut self, cases: &[SwitchCase]) -> SwitchCaseSlice {
+        let start = self.switch_cases.len() as u32;
+        let count = cases.len() as u16;
+        self.switch_cases.extend_from_slice(cases);
+        SwitchCaseSlice::new(start, count)
+    }
+
+    /// Get switch cases from the switch case buffer by slice.
+    #[inline]
+    pub fn get_switch_cases(&self, slice: SwitchCaseSlice) -> &[SwitchCase] {
+        let start = slice.start as usize;
+        let end = start + slice.count as usize;
+        &self.switch_cases[start..end]
+    }
+
+    /// Get block target arguments from the value buffer.
+    #[inline]
+    pub fn block_target_values(&self, target: &BlockTarget) -> &[Value] {
+        self.get_values(target.arguments)
+    }
+
+    /// Get all successor block ids for a terminator.
+    pub fn terminator_successors(&self, terminator: &Terminator) -> SmallVec<[BlockId; 2]> {
+        match terminator {
+            Terminator::Error => smallvec![],
+            Terminator::Return { .. } => smallvec![],
+            Terminator::Jump { target, .. } => smallvec![target.block],
+            Terminator::Branch {
+                then_target,
+                else_target,
+                ..
+            } => smallvec![then_target.block, else_target.block],
+            Terminator::Check {
+                success, failure, ..
+            } => smallvec![success.block, failure.block],
+            Terminator::Switch { default, cases, .. } => {
+                let mut successors = smallvec![default.block];
+                successors.extend(
+                    self.get_switch_cases(*cases)
+                        .iter()
+                        .map(|case| case.target.block),
+                );
+
+                successors
+            }
+            Terminator::Yield { resume, unwind, .. } => {
+                let mut successors = smallvec![resume.block];
+                if let Some(unwind) = unwind {
+                    successors.push(unwind.block);
+                }
+
+                successors
+            }
+            Terminator::Call { target, unwind, .. }
+            | Terminator::CallIndirect { target, unwind, .. }
+            | Terminator::CallVirtual { target, unwind, .. }
+            | Terminator::CallDynamic { target, unwind, .. } => {
+                let mut successors = smallvec![target.block];
+                if let Some(unwind) = unwind {
+                    successors.push(unwind.block);
+                }
+
+                successors
+            }
+            Terminator::NewZeroedTry {
+                success, failure, ..
+            }
+            | Terminator::NewUninitTry {
+                success, failure, ..
+            }
+            | Terminator::NewSliceZeroedTry {
+                success, failure, ..
+            }
+            | Terminator::NewSliceUninitTry {
+                success, failure, ..
+            } => smallvec![success.block, failure.block],
+            Terminator::Panic { .. } => smallvec![],
+            Terminator::UnwindResume => smallvec![],
+            Terminator::Trap { .. } => smallvec![],
+            Terminator::Unreachable => smallvec![],
+            Terminator::TailCall { .. } => smallvec![],
+            Terminator::TailCallIndirect { .. } => smallvec![],
+            Terminator::TailCallVirtual { .. } => smallvec![],
+            Terminator::TailCallDynamic { .. } => smallvec![],
+        }
+    }
+
+    /// Get all SSA values used by a terminator.
+    pub fn terminator_uses(&self, terminator: &Terminator) -> SmallVec<[Value; 8]> {
+        match terminator {
+            Terminator::Error => smallvec![],
+            Terminator::Return { value } => value.iter().copied().collect(),
+            Terminator::Jump { target, .. } => {
+                self.block_target_values(target).iter().copied().collect()
+            }
+            Terminator::Branch {
+                condition,
+                then_target,
+                else_target,
+                ..
+            } => {
+                let mut uses = smallvec![*condition];
+                uses.extend(self.block_target_values(then_target).iter().copied());
+                uses.extend(self.block_target_values(else_target).iter().copied());
+
+                uses
+            }
+            Terminator::Check {
+                constraint,
+                success,
+                failure,
+            } => {
+                let mut uses = constraint
+                    .uses()
+                    .into_iter()
+                    .collect::<SmallVec<[Value; 8]>>();
+                uses.extend(self.block_target_values(success).iter().copied());
+                uses.extend(self.block_target_values(failure).iter().copied());
+
+                uses
+            }
+            Terminator::Switch {
+                value,
+                default,
+                cases,
+                ..
+            } => {
+                let mut uses = smallvec![*value];
+                uses.extend(self.block_target_values(default).iter().copied());
+                for case in self.get_switch_cases(*cases) {
+                    uses.extend(self.block_target_values(&case.target).iter().copied());
+                }
+
+                uses
+            }
+            Terminator::Yield {
+                value,
+                resume,
+                unwind,
+            } => {
+                let mut uses = smallvec![*value];
+                uses.extend(self.block_target_values(resume).iter().copied());
+                if let Some(unwind) = unwind {
+                    uses.extend(self.block_target_values(unwind).iter().copied());
+                }
+
+                uses
+            }
+            Terminator::Call {
+                call,
+                target,
+                unwind,
+                ..
+            } => {
+                let mut uses = self
+                    .get_values(call.arguments)
+                    .iter()
+                    .copied()
+                    .collect::<SmallVec<[Value; 8]>>();
+                uses.extend(self.block_target_values(target).iter().copied());
+                if let Some(unwind) = unwind {
+                    uses.extend(self.block_target_values(unwind).iter().copied());
+                }
+
+                uses
+            }
+            Terminator::CallIndirect {
+                callee,
+                call,
+                target,
+                unwind,
+                ..
+            } => {
+                let mut uses = smallvec![*callee];
+                uses.extend(self.get_values(call.arguments).iter().copied());
+                uses.extend(self.block_target_values(target).iter().copied());
+                if let Some(unwind) = unwind {
+                    uses.extend(self.block_target_values(unwind).iter().copied());
+                }
+
+                uses
+            }
+            Terminator::CallVirtual {
+                receiver,
+                call,
+                target,
+                unwind,
+                ..
+            }
+            | Terminator::CallDynamic {
+                receiver,
+                call,
+                target,
+                unwind,
+                ..
+            } => {
+                let mut uses = smallvec![*receiver];
+                uses.extend(self.get_values(call.arguments).iter().copied());
+                uses.extend(self.block_target_values(target).iter().copied());
+                if let Some(unwind) = unwind {
+                    uses.extend(self.block_target_values(unwind).iter().copied());
+                }
+
+                uses
+            }
+            Terminator::NewZeroedTry {
+                success, failure, ..
+            }
+            | Terminator::NewUninitTry {
+                success, failure, ..
+            } => {
+                let mut uses = smallvec![];
+                uses.extend(self.block_target_values(success).iter().copied());
+                uses.extend(self.block_target_values(failure).iter().copied());
+
+                uses
+            }
+            Terminator::NewSliceZeroedTry {
+                length,
+                success,
+                failure,
+                ..
+            }
+            | Terminator::NewSliceUninitTry {
+                length,
+                success,
+                failure,
+                ..
+            } => {
+                let mut uses = smallvec![*length];
+                uses.extend(self.block_target_values(success).iter().copied());
+                uses.extend(self.block_target_values(failure).iter().copied());
+
+                uses
+            }
+            Terminator::Panic { payload } => payload.iter().copied().collect(),
+            Terminator::UnwindResume => smallvec![],
+            Terminator::Trap { payload, .. } => payload.iter().copied().collect(),
+            Terminator::Unreachable => smallvec![],
+            Terminator::TailCall { call, .. } => {
+                self.get_values(call.arguments).iter().copied().collect()
+            }
+            Terminator::TailCallIndirect { callee, call, .. } => {
+                let mut uses = smallvec![*callee];
+                uses.extend(self.get_values(call.arguments).iter().copied());
+
+                uses
+            }
+            Terminator::TailCallVirtual { receiver, call, .. }
+            | Terminator::TailCallDynamic { receiver, call, .. } => {
+                let mut uses = smallvec![*receiver];
+                uses.extend(self.get_values(call.arguments).iter().copied());
+
+                uses
+            }
+        }
+    }
+
+    /// Add one tensor immediate and return its id.
+    #[inline]
+    pub fn add_tensor_immediate(&mut self, immediate: TensorImmediate) -> TensorImmediateId {
+        let id = self.tensor_immediates.len() as u32;
+        self.tensor_immediates.push(immediate);
+        TensorImmediateId::new(id)
+    }
+
+    /// Get one tensor immediate by id.
+    #[inline]
+    pub fn get_tensor_immediate(&self, id: TensorImmediateId) -> &TensorImmediate {
+        &self.tensor_immediates[id.id() as usize]
+    }
+
+    /// Store tensor dot dimension numbers as a tensor immediate.
+    pub fn add_tensor_dot_immediate(
+        &mut self,
+        dimensions: TensorDotDimensionNumbers,
+    ) -> TensorImmediateId {
+        let lhs_batch = self.add_indices(&dimensions.lhs_batch);
+        let rhs_batch = self.add_indices(&dimensions.rhs_batch);
+        let lhs_contracting = self.add_indices(&dimensions.lhs_contracting);
+        let rhs_contracting = self.add_indices(&dimensions.rhs_contracting);
+
+        self.add_tensor_immediate(TensorImmediate::Dot {
+            lhs_batch,
+            rhs_batch,
+            lhs_contracting,
+            rhs_contracting,
+        })
+    }
+
+    /// Store tensor convolution dimensions and window parameters as a tensor immediate.
+    pub fn add_tensor_convolution_immediate(
+        &mut self,
+        dimensions: TensorConvolutionDimensionNumbers,
+        window: TensorConvolutionWindow,
+        feature_group_count: u32,
+        batch_group_count: u32,
+    ) -> TensorImmediateId {
+        let input_spatial = self.add_indices(&dimensions.input_spatial);
+        let kernel_spatial = self.add_indices(&dimensions.kernel_spatial);
+        let output_spatial = self.add_indices(&dimensions.output_spatial);
+        let strides = self.add_extents(&window.strides);
+        let padding_low = self.add_extents(&window.padding_low);
+        let padding_high = self.add_extents(&window.padding_high);
+        let lhs_dilation = self.add_extents(&window.lhs_dilation);
+        let rhs_dilation = self.add_extents(&window.rhs_dilation);
+        let window_reversal = window
+            .window_reversal
+            .into_iter()
+            .map(u8::from)
+            .collect::<Vec<_>>();
+        let window_reversal = self.add_flags(&window_reversal);
+
+        self.add_tensor_immediate(TensorImmediate::Convolution {
+            input_batch: dimensions.input_batch,
+            input_feature: dimensions.input_feature,
+            input_spatial,
+            kernel_input_feature: dimensions.kernel_input_feature,
+            kernel_output_feature: dimensions.kernel_output_feature,
+            kernel_spatial,
+            output_batch: dimensions.output_batch,
+            output_feature: dimensions.output_feature,
+            output_spatial,
+            strides,
+            padding_low,
+            padding_high,
+            lhs_dilation,
+            rhs_dilation,
+            window_reversal,
+            feature_group_count,
+            batch_group_count,
+        })
+    }
+
+    /// Store tensor gather dimension numbers as a tensor immediate.
+    pub fn add_tensor_gather_immediate(
+        &mut self,
+        dimensions: TensorGatherDimensionNumbers,
+        slice_sizes: &[u32],
+    ) -> TensorImmediateId {
+        let offset_dims = self.add_indices(&dimensions.offset_dims);
+        let collapsed_slice_dims = self.add_indices(&dimensions.collapsed_slice_dims);
+        let start_index_map = self.add_indices(&dimensions.start_index_map);
+        let slice_sizes = self.add_indices(slice_sizes);
+
+        self.add_tensor_immediate(TensorImmediate::Gather {
+            offset_dims,
+            collapsed_slice_dims,
+            start_index_map,
+            index_vector_dim: dimensions.index_vector_dim,
+            slice_sizes,
+        })
+    }
+
+    /// Store tensor scatter dimension numbers as a tensor immediate.
+    pub fn add_tensor_scatter_immediate(
+        &mut self,
+        dimensions: TensorScatterDimensionNumbers,
+    ) -> TensorImmediateId {
+        let update_window_dims = self.add_indices(&dimensions.update_window_dims);
+        let inserted_window_dims = self.add_indices(&dimensions.inserted_window_dims);
+        let scatter_dims_to_operand_dims =
+            self.add_indices(&dimensions.scatter_dims_to_operand_dims);
+
+        self.add_tensor_immediate(TensorImmediate::Scatter {
+            update_window_dims,
+            inserted_window_dims,
+            scatter_dims_to_operand_dims,
+            index_vector_dim: dimensions.index_vector_dim,
+        })
     }
 
     /// Set a node in-place, preserving its source and origin.

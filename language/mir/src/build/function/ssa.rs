@@ -1,7 +1,5 @@
 use crate::build::{BuildError, FunctionBuilder, Variable};
-use crate::{
-    Block, BlockReference, LocalNodeId, Parameter, Terminator, Type, Value, ValueReference,
-};
+use crate::{Block, BlockTarget, LocalNodeId, Parameter, Terminator, Type, Value};
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
@@ -44,9 +42,7 @@ impl<'a> FunctionBuilder<'a> {
         let Some(parameter) = function.parameters.get(index) else {
             return self.expect_build(Err(BuildError::MissingConcreteFunctionParameter { index }));
         };
-        let ValueReference::Value(value) = parameter.value else {
-            return self.expect_build(Err(BuildError::MissingConcreteFunctionParameter { index }));
-        };
+        let value = parameter.value;
         value
     }
 
@@ -239,7 +235,7 @@ impl<'a> FunctionBuilder<'a> {
         if let Some(position) = block_data
             .parameters
             .iter()
-            .position(|param| param.value == ValueReference::Value(value))
+            .position(|param| param.value == value)
         {
             block_data.parameters.remove(position);
         }
@@ -253,32 +249,38 @@ impl<'a> FunctionBuilder<'a> {
         value: Value,
     ) {
         let terminator_id = self.tree.get(from_block).terminator;
-        let terminator = self.tree.get_mut(terminator_id);
+        let mut terminator = self.tree.get(terminator_id).clone();
+        let mut is_edge_found = false;
 
-        match terminator {
-            Terminator::Jump { target } if target.block == BlockReference::Block(to_block) => {
-                target.arguments.push(value.into());
+        match &mut terminator {
+            Terminator::Jump { target } if target.block == to_block => {
+                self.append_target_argument(target, value);
+                is_edge_found = true;
             }
             Terminator::Branch {
                 then_target,
                 else_target,
                 ..
             } => {
-                if then_target.block == BlockReference::Block(to_block) {
-                    then_target.arguments.push(value.into());
+                if then_target.block == to_block {
+                    self.append_target_argument(then_target, value);
+                    is_edge_found = true;
                 }
-                if else_target.block == BlockReference::Block(to_block) {
-                    else_target.arguments.push(value.into());
+                if else_target.block == to_block {
+                    self.append_target_argument(else_target, value);
+                    is_edge_found = true;
                 }
             }
             Terminator::Check {
                 success, failure, ..
             } => {
-                if success.block == BlockReference::Block(to_block) {
-                    success.arguments.push(value.into());
+                if success.block == to_block {
+                    self.append_target_argument(success, value);
+                    is_edge_found = true;
                 }
-                if failure.block == BlockReference::Block(to_block) {
-                    failure.arguments.push(value.into());
+                if failure.block == to_block {
+                    self.append_target_argument(failure, value);
+                    is_edge_found = true;
                 }
             }
             Terminator::NewZeroedTry {
@@ -293,37 +295,56 @@ impl<'a> FunctionBuilder<'a> {
             | Terminator::NewSliceUninitTry {
                 success, failure, ..
             } => {
-                if success.block == BlockReference::Block(to_block) {
-                    success.arguments.push(value.into());
+                if success.block == to_block {
+                    self.append_target_argument(success, value);
+                    is_edge_found = true;
                 }
-                if failure.block == BlockReference::Block(to_block) {
-                    failure.arguments.push(value.into());
+                if failure.block == to_block {
+                    self.append_target_argument(failure, value);
+                    is_edge_found = true;
                 }
             }
             Terminator::Switch { default, cases, .. } => {
-                if default.block == BlockReference::Block(to_block) {
-                    default.arguments.push(value.into());
+                if default.block == to_block {
+                    self.append_target_argument(default, value);
+                    is_edge_found = true;
                 }
-                for case in cases {
-                    if case.target.block == BlockReference::Block(to_block) {
-                        case.target.arguments.push(value.into());
+
+                let mut new_cases = self.tree.get_switch_cases(*cases).to_vec();
+                for case in &mut new_cases {
+                    if case.target.block == to_block {
+                        self.append_target_argument(&mut case.target, value);
+                        is_edge_found = true;
                     }
                 }
+                *cases = self.tree.add_switch_cases(&new_cases);
             }
             Terminator::Call { target, .. }
             | Terminator::CallIndirect { target, .. }
             | Terminator::CallVirtual { target, .. }
             | Terminator::CallDynamic { target, .. } => {
-                if target.block == BlockReference::Block(to_block) {
-                    target.arguments.push(value.into());
+                if target.block == to_block {
+                    self.append_target_argument(target, value);
+                    is_edge_found = true;
                 }
             }
-            _ => {
-                self.expect_build::<()>(Err(BuildError::MissingPhiPredecessorEdge {
-                    from: from_block,
-                    to: to_block,
-                }));
-            }
+            _ => {}
         }
+
+        if is_edge_found {
+            *self.tree.get_mut(terminator_id) = terminator;
+        } else {
+            self.expect_build::<()>(Err(BuildError::MissingPhiPredecessorEdge {
+                from: from_block,
+                to: to_block,
+            }));
+        }
+    }
+
+    /// Append one block argument to a target.
+    fn append_target_argument(&mut self, target: &mut BlockTarget, value: Value) {
+        let mut arguments = self.tree.get_values(target.arguments).to_vec();
+        arguments.push(value);
+        target.arguments = self.tree.add_values(&arguments);
     }
 }

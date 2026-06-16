@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::Symbol;
+use crate::{Edge, Symbol};
 
 /// Loaded profile-guided optimization data for a program.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -42,6 +42,8 @@ pub struct FunctionProfile {
     pub hash: FunctionHash,
     /// Function entry execution count.
     pub entry: Count,
+    /// Observed control-flow edge counts.
+    pub edges: HashMap<Edge, Count>,
     /// Per-counter execution counts, indexed by [`CounterId`].
     pub counts: Vec<Count>,
     /// Observed value-profiling sites, by counter.

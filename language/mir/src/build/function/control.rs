@@ -21,11 +21,13 @@ impl<'a> FunctionBuilder<'a> {
     pub fn jump(&mut self, target_block: LocalNodeId<Block>) {
         let block = self.current_block();
         self.add_predecessor(block, target_block);
+        let arguments = self.tree.add_values(&[]);
+
         let terminator_id = self.tree.get(block).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::Jump {
-            target: BlockTarget::new(target_block.into(), Vec::new()),
+            target: BlockTarget::new(target_block.into(), arguments),
         };
     }
 
@@ -39,13 +41,16 @@ impl<'a> FunctionBuilder<'a> {
         let block = self.current_block();
         self.add_predecessor(block, then_block);
         self.add_predecessor(block, else_block);
+        let then_arguments = self.tree.add_values(&[]);
+        let else_arguments = self.tree.add_values(&[]);
+
         let terminator_id = self.tree.get(block).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::Branch {
             condition: condition_value.into(),
-            then_target: BlockTarget::new(then_block.into(), Vec::new()),
-            else_target: BlockTarget::new(else_block.into(), Vec::new()),
+            then_target: BlockTarget::new(then_block.into(), then_arguments),
+            else_target: BlockTarget::new(else_block.into(), else_arguments),
         };
     }
 
@@ -59,13 +64,16 @@ impl<'a> FunctionBuilder<'a> {
         let block = self.current_block();
         self.add_predecessor(block, success_block);
         self.add_predecessor(block, failure_block);
+        let success_arguments = self.tree.add_values(&[]);
+        let failure_arguments = self.tree.add_values(&[]);
+
         let terminator_id = self.tree.get(block).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::Check {
             constraint,
-            success: BlockTarget::new(success_block.into(), Vec::new()),
-            failure: BlockTarget::new(failure_block.into(), Vec::new()),
+            success: BlockTarget::new(success_block.into(), success_arguments),
+            failure: BlockTarget::new(failure_block.into(), failure_arguments),
         };
     }
 
@@ -112,23 +120,16 @@ impl<'a> FunctionBuilder<'a> {
     ) {
         let block_id = self.current_block();
         self.add_predecessor(block_id, target_block);
+        let arguments = self.tree.add_values(&argument_values);
+        let target_arguments = self.tree.add_values(&target_arguments);
 
         let terminator_id = self.tree.get(block_id).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::Call {
             function: function.into(),
-            call: Call::new(
-                argument_values
-                    .into_iter()
-                    .map(Into::into)
-                    .collect::<Vec<_>>(),
-                signature.into(),
-            ),
-            target: BlockTarget::new(
-                target_block.into(),
-                target_arguments.into_iter().map(Into::into).collect(),
-            ),
+            call: Call::new(arguments, signature.into()),
+            target: BlockTarget::new(target_block.into(), target_arguments),
             unwind: None,
         };
     }
@@ -144,23 +145,16 @@ impl<'a> FunctionBuilder<'a> {
     ) {
         let block_id = self.current_block();
         self.add_predecessor(block_id, target_block);
+        let arguments = self.tree.add_values(&argument_values);
+        let target_arguments = self.tree.add_values(&target_arguments);
 
         let terminator_id = self.tree.get(block_id).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::CallIndirect {
             callee: callee.into(),
-            call: Call::new(
-                argument_values
-                    .into_iter()
-                    .map(Into::into)
-                    .collect::<Vec<_>>(),
-                signature.into(),
-            ),
-            target: BlockTarget::new(
-                target_block.into(),
-                target_arguments.into_iter().map(Into::into).collect(),
-            ),
+            call: Call::new(arguments, signature.into()),
+            target: BlockTarget::new(target_block.into(), target_arguments),
             unwind: None,
         };
     }
@@ -179,6 +173,8 @@ impl<'a> FunctionBuilder<'a> {
     ) {
         let block_id = self.current_block();
         self.add_predecessor(block_id, target_block);
+        let arguments = self.tree.add_values(&argument_values);
+        let target_arguments = self.tree.add_values(&target_arguments);
 
         let terminator_id = self.tree.get(block_id).terminator;
         let terminator = self.tree.get_mut(terminator_id);
@@ -187,17 +183,8 @@ impl<'a> FunctionBuilder<'a> {
             receiver: receiver.into(),
             class: class.into(),
             slot,
-            call: Call::new(
-                argument_values
-                    .into_iter()
-                    .map(Into::into)
-                    .collect::<Vec<_>>(),
-                signature.into(),
-            ),
-            target: BlockTarget::new(
-                target_block.into(),
-                target_arguments.into_iter().map(Into::into).collect(),
-            ),
+            call: Call::new(arguments, signature.into()),
+            target: BlockTarget::new(target_block.into(), target_arguments),
             unwind: None,
         };
         if let Some(target) = target {
@@ -222,6 +209,8 @@ impl<'a> FunctionBuilder<'a> {
     ) {
         let block_id = self.current_block();
         self.add_predecessor(block_id, target_block);
+        let arguments = self.tree.add_values(&argument_values);
+        let target_arguments = self.tree.add_values(&target_arguments);
 
         let terminator_id = self.tree.get(block_id).terminator;
         let terminator = self.tree.get_mut(terminator_id);
@@ -230,17 +219,8 @@ impl<'a> FunctionBuilder<'a> {
             receiver: receiver.into(),
             constraint: constraint.into(),
             slot,
-            call: Call::new(
-                argument_values
-                    .into_iter()
-                    .map(Into::into)
-                    .collect::<Vec<_>>(),
-                signature.into(),
-            ),
-            target: BlockTarget::new(
-                target_block.into(),
-                target_arguments.into_iter().map(Into::into).collect(),
-            ),
+            call: Call::new(arguments, signature.into()),
+            target: BlockTarget::new(target_block.into(), target_arguments),
             unwind: None,
         };
     }
@@ -255,18 +235,14 @@ impl<'a> FunctionBuilder<'a> {
         argument_values: Vec<Value>,
     ) {
         let block_id = self.current_block();
+        let arguments = self.tree.add_values(&argument_values);
+
         let terminator_id = self.tree.get(block_id).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::TailCall {
             function: function.into(),
-            call: Call::new(
-                argument_values
-                    .into_iter()
-                    .map(Into::into)
-                    .collect::<Vec<_>>(),
-                signature.into(),
-            ),
+            call: Call::new(arguments, signature.into()),
         };
     }
 
@@ -283,6 +259,8 @@ impl<'a> FunctionBuilder<'a> {
         argument_values: Vec<Value>,
     ) {
         let block_id = self.current_block();
+        let arguments = self.tree.add_values(&argument_values);
+
         let terminator_id = self.tree.get(block_id).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
@@ -290,13 +268,7 @@ impl<'a> FunctionBuilder<'a> {
             receiver: receiver.into(),
             class: class.into(),
             slot,
-            call: Call::new(
-                argument_values
-                    .into_iter()
-                    .map(Into::into)
-                    .collect::<Vec<_>>(),
-                signature.into(),
-            ),
+            call: Call::new(arguments, signature.into()),
         };
         if let Some(target) = target {
             self.tree
@@ -319,6 +291,8 @@ impl<'a> FunctionBuilder<'a> {
         argument_values: Vec<Value>,
     ) {
         let block_id = self.current_block();
+        let arguments = self.tree.add_values(&argument_values);
+
         let terminator_id = self.tree.get(block_id).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
@@ -326,13 +300,7 @@ impl<'a> FunctionBuilder<'a> {
             receiver: receiver.into(),
             constraint: constraint.into(),
             slot,
-            call: Call::new(
-                argument_values
-                    .into_iter()
-                    .map(Into::into)
-                    .collect::<Vec<_>>(),
-                signature.into(),
-            ),
+            call: Call::new(arguments, signature.into()),
         };
     }
 
@@ -346,18 +314,14 @@ impl<'a> FunctionBuilder<'a> {
         argument_values: Vec<Value>,
     ) {
         let block = self.current_block();
+        let arguments = self.tree.add_values(&argument_values);
+
         let terminator_id = self.tree.get(block).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::TailCallIndirect {
             callee: callee.into(),
-            call: Call::new(
-                argument_values
-                    .into_iter()
-                    .map(Into::into)
-                    .collect::<Vec<_>>(),
-                signature.into(),
-            ),
+            call: Call::new(arguments, signature.into()),
         };
     }
 }

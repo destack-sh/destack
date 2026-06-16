@@ -117,11 +117,10 @@ impl<'a> MirFormatContext<'a> {
         // collect explicit type aliases
         let type_alias_by_type: HashMap<_, _> = tree
             .iter_nodes::<TypeAlias>()
-            .filter_map(|(_, alias)| {
-                let ty = alias.ty.ty()?;
-
+            .map(|(_, alias)| {
+                let ty = alias.ty;
                 let name = strings.get(alias.name).to_string();
-                Some((ty, name))
+                (ty, name)
             })
             .collect();
 

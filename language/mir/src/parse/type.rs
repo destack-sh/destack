@@ -4,8 +4,8 @@ use destack_source::Span;
 use crate::{
     Access, Attribute, BorrowObligation, Copy, Field, FieldSpan, Lifetime, LifetimeSlot,
     LifetimeTerm, LocalNodeId, Nullability, ReferenceKind, Space, TensorDimension,
-    TensorDimensionOrder, TensorLayout, TensorViewLayout, Type, TypeDeclarationSpans,
-    TypeReference, VariantCase,
+    TensorDimensionOrder, TensorLayout, TensorViewLayout, Type, TypeDeclarationSpans, TypeId,
+    VariantCase,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -88,46 +88,44 @@ impl Parser {
         Ok((ty, span))
     }
 
-    /// Parse a type reference and return its enclosing span.
-    pub(super) fn parse_type_reference_part(&mut self) -> ParseResult<(TypeReference, Span)> {
+    /// Parse a type use and return its enclosing span.
+    pub(super) fn parse_type_use_part(&mut self) -> ParseResult<(TypeId, Span)> {
         let type_start = self.pos();
         let ty = self.parse_type()?;
-        let lifetimes = self.parse_type_reference_lifetimes()?;
+        let lifetimes = self.parse_type_lifetime_arguments()?;
+        let ty = self.apply_type_lifetimes(ty, lifetimes)?;
         let span = self.span_from_parse_start(type_start);
 
-        Ok((TypeReference::new(ty, lifetimes), span))
+        Ok((ty, span))
     }
 
-    /// Parse a type reference after one required delimiter.
-    pub(super) fn parse_type_reference_after(
+    /// Parse a type use after one required delimiter.
+    pub(super) fn parse_type_use_after(
         &mut self,
         delimiter: Token,
         expected: &'static str,
-    ) -> (TypeReference, Span) {
-        self.parse_type_reference_after_with_structural_type(delimiter, expected, true)
+    ) -> (TypeId, Span) {
+        self.parse_type_use_after_with_structural_type(delimiter, expected, true)
     }
 
-    /// Parse a return type reference after its required delimiter.
-    pub(super) fn parse_return_type_reference_after(
-        &mut self,
-        delimiter: Token,
-    ) -> (TypeReference, Span) {
+    /// Parse a return type use after its required delimiter.
+    pub(super) fn parse_return_type_use_after(&mut self, delimiter: Token) -> (TypeId, Span) {
         let is_structural_type_allowed = self.is_return_structural_type_start();
 
-        self.parse_type_reference_after_with_structural_type(
+        self.parse_type_use_after_with_structural_type(
             delimiter,
             "return type",
             is_structural_type_allowed,
         )
     }
 
-    /// Parse a type reference after one required delimiter.
-    fn parse_type_reference_after_with_structural_type(
+    /// Parse a type use after one required delimiter.
+    fn parse_type_use_after_with_structural_type(
         &mut self,
         delimiter: Token,
         expected: &'static str,
         is_structural_type_allowed: bool,
-    ) -> (TypeReference, Span) {
+    ) -> (TypeId, Span) {
         let hole_position = delimiter.span.end as usize;
 
         if self.is_missing_type_position(&delimiter, is_structural_type_allowed) {
@@ -135,33 +133,42 @@ impl Parser {
             self.diagnostics
                 .insert(error.to_diagnostic(self.content_id, self.file_id));
 
-            return (TypeReference::Missing, self.span_at(hole_position, 0));
+            let ty = self.error_type();
+
+            return (ty, self.span_at(hole_position, 0));
         }
 
         let type_start = self.pos();
         match self.parse_type() {
-            Ok(ty) => {
-                let lifetimes = match self.parse_type_reference_lifetimes() {
-                    Ok(lifetimes) => lifetimes,
-                    Err(error) => {
-                        self.diagnostics
-                            .insert(error.to_diagnostic(self.content_id, self.file_id));
+            Ok(ty) => match self.parse_type_lifetime_arguments() {
+                Ok(lifetimes) => {
+                    let ty = self
+                        .apply_type_lifetimes(ty, lifetimes)
+                        .unwrap_or_else(|error| {
+                            self.diagnostics
+                                .insert(error.to_diagnostic(self.content_id, self.file_id));
+                            self.error_type()
+                        });
+                    let span = self.span_from_parse_start(type_start);
 
-                        if self.peek().is_some() {
-                            self.bump();
-                        }
+                    (ty, span)
+                }
+                Err(error) => {
+                    self.diagnostics
+                        .insert(error.to_diagnostic(self.content_id, self.file_id));
 
-                        let error_end = self.pos();
-                        let span =
-                            self.span_at(error.position, error_end.saturating_sub(error.position));
-
-                        return (TypeReference::Error, span);
+                    if self.peek().is_some() {
+                        self.bump();
                     }
-                };
-                let span = self.span_from_parse_start(type_start);
 
-                (TypeReference::new(ty, lifetimes), span)
-            }
+                    let error_end = self.pos();
+                    let span =
+                        self.span_at(error.position, error_end.saturating_sub(error.position));
+                    let ty = self.error_type();
+
+                    return (ty, span);
+                }
+            },
             Err(error) => {
                 self.diagnostics
                     .insert(error.to_diagnostic(self.content_id, self.file_id));
@@ -172,15 +179,16 @@ impl Parser {
 
                 let error_end = self.pos();
                 let span = self.span_at(error.position, error_end.saturating_sub(error.position));
+                let ty = self.error_type();
 
-                (TypeReference::Error, span)
+                (ty, span)
             }
         }
     }
 
-    /// Parse optional lifetime arguments on a type reference.
-    pub(super) fn parse_type_reference_lifetimes(&mut self) -> ParseResult<Vec<Lifetime>> {
-        if !self.peek_type_reference_lifetimes() {
+    /// Parse optional lifetime arguments on a type use.
+    pub(super) fn parse_type_lifetime_arguments(&mut self) -> ParseResult<Vec<Lifetime>> {
+        if !self.peek_type_lifetime_arguments() {
             return Ok(Vec::new());
         }
 
@@ -202,8 +210,21 @@ impl Parser {
         Ok(lifetimes)
     }
 
-    /// Return whether the next tokens start type-reference lifetime arguments.
-    fn peek_type_reference_lifetimes(&self) -> bool {
+    /// Apply parsed lifetime arguments to one type use.
+    pub(super) fn apply_type_lifetimes(
+        &mut self,
+        base: TypeId,
+        lifetimes: Vec<Lifetime>,
+    ) -> ParseResult<TypeId> {
+        if lifetimes.is_empty() {
+            return Ok(base);
+        }
+
+        self.intern_type(Type::WithLifetimes { base, lifetimes })
+    }
+
+    /// Return whether the next tokens start type lifetime arguments.
+    fn peek_type_lifetime_arguments(&self) -> bool {
         if !self.peek_token(TokenType::LessThan) {
             return false;
         }
@@ -231,6 +252,7 @@ impl Parser {
             kind,
             TokenType::Void
                 | TokenType::Boolean
+                | TokenType::Identifier
                 | TokenType::TypeName
                 | TokenType::Ref
                 | TokenType::TensorView
@@ -256,6 +278,11 @@ impl Parser {
         let is_type_start = self.peek_type(ty);
         let is_structural_type = ty == TokenType::OpenBrace;
 
+        // recover when the next declaration starts after a type hole
+        if self.has_line_break_after(delimiter) && self.peek_identifier_label() {
+            return true;
+        }
+
         if is_type_start && (is_structural_type_allowed || !is_structural_type) {
             return false;
         }
@@ -275,6 +302,20 @@ impl Parser {
                 | TokenType::Equal
                 | TokenType::End
         )
+    }
+
+    /// Return whether the next tokens look like a label or named declaration.
+    fn peek_identifier_label(&self) -> bool {
+        let Some(name) = self.peek_nth_token(0) else {
+            return false;
+        };
+
+        let Some(delimiter) = self.peek_nth_token(1) else {
+            return false;
+        };
+
+        self.token_type(name) == TokenType::Identifier
+            && self.token_type(delimiter) == TokenType::Colon
     }
 
     /// Return whether a return type starts with a complete structural type.
@@ -380,6 +421,7 @@ impl Parser {
         }
 
         let ty = match name {
+            "fn" => self.parse_function_pointer_type()?,
             "slice" => self.parse_slice_type()?,
             "atomic" => self.parse_atomic_type()?,
             "dynamic" => self.parse_dynamic_type()?,
@@ -398,11 +440,23 @@ impl Parser {
         self.intern_type(ty)
     }
 
+    /// Parse a function pointer type.
+    fn parse_function_pointer_type(&mut self) -> ParseResult<Type> {
+        self.bump();
+        let parameters = self.parse_parenthesized_type_parameters()?;
+        self.eat_token(TokenType::FatArrow)?;
+        let signature = self.parse_function_signature(parameters)?;
+
+        Ok(Type::FunctionPointer {
+            signature: signature.into(),
+        })
+    }
+
     /// Parse a slice type.
     fn parse_slice_type(&mut self) -> ParseResult<Type> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
-        let (element, _) = self.parse_type_reference_part()?;
+        let (element, _) = self.parse_type_use_part()?;
         let (kind, lifetime, space, access, nullability) = self.parse_slice_qualifiers()?;
         self.eat_token(TokenType::GreaterThan)?;
 
@@ -420,7 +474,7 @@ impl Parser {
     fn parse_atomic_type(&mut self) -> ParseResult<Type> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
-        let (value, _) = self.parse_type_reference_part()?;
+        let (value, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::GreaterThan)?;
 
         Ok(Type::Atomic { value })
@@ -430,7 +484,7 @@ impl Parser {
     fn parse_dynamic_type(&mut self) -> ParseResult<Type> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
-        let (constraint, _) = self.parse_type_reference_part()?;
+        let (constraint, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::GreaterThan)?;
 
         Ok(Type::Dynamic { constraint })
@@ -440,7 +494,7 @@ impl Parser {
     fn parse_uninit_type(&mut self) -> ParseResult<Type> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
-        let (value, _) = self.parse_type_reference_part()?;
+        let (value, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::GreaterThan)?;
 
         Ok(Type::Uninit { value })
@@ -450,7 +504,7 @@ impl Parser {
     fn parse_vector_type(&mut self) -> ParseResult<Type> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
-        let (element, _) = self.parse_type_reference_part()?;
+        let (element, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::Comma)?;
 
         let token = self.eat_token(TokenType::Integer)?;
@@ -472,7 +526,7 @@ impl Parser {
     fn parse_newtype_type(&mut self) -> ParseResult<Type> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
-        let (inner, _) = self.parse_type_reference_part()?;
+        let (inner, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::GreaterThan)?;
 
         Ok(Type::Newtype {
@@ -481,28 +535,9 @@ impl Parser {
         })
     }
 
-    /// Parse a tuple, function pointer, or callable type.
+    /// Parse a tuple or closure type.
     fn parse_parenthesized_type(&mut self) -> ParseResult<Type> {
-        self.bump();
-        let mut parameters = Vec::new();
-
-        while !self.peek_token(TokenType::CloseParenthesis) {
-            let (parameter, _) = self.parse_type_reference_part()?;
-            parameters.push(parameter);
-            if !self.eat_token_maybe(TokenType::Comma) {
-                break;
-            }
-        }
-
-        self.eat_token(TokenType::CloseParenthesis)?;
-
-        if self.eat_token_maybe(TokenType::Arrow) {
-            let signature = self.parse_function_signature(parameters)?;
-
-            return Ok(Type::FunctionPointer {
-                signature: signature.into(),
-            });
-        }
+        let parameters = self.parse_parenthesized_type_parameters()?;
 
         if self.eat_token_maybe(TokenType::FatArrow) {
             let signature = self.parse_function_signature(parameters)?;
@@ -520,12 +555,31 @@ impl Parser {
         })
     }
 
+    /// Parse type parameters enclosed in parentheses.
+    fn parse_parenthesized_type_parameters(&mut self) -> ParseResult<Vec<TypeId>> {
+        self.eat_token(TokenType::OpenParenthesis)?;
+        let mut parameters = Vec::new();
+
+        while !self.peek_token(TokenType::CloseParenthesis) {
+            let (parameter, _) = self.parse_type_use_part()?;
+            parameters.push(parameter);
+
+            if !self.eat_token_maybe(TokenType::Comma) {
+                break;
+            }
+        }
+
+        self.eat_token(TokenType::CloseParenthesis)?;
+
+        Ok(parameters)
+    }
+
     /// Parse a function signature result after parameter types.
     fn parse_function_signature(
         &mut self,
-        parameters: Vec<TypeReference>,
+        parameters: Vec<TypeId>,
     ) -> ParseResult<LocalNodeId<Type>> {
-        let (result, _) = self.parse_type_reference_part()?;
+        let (result, _) = self.parse_type_use_part()?;
         let borrow_obligations = self.parse_borrow_obligations()?;
         self.intern_type(Type::FunctionSignature {
             parameters,
@@ -537,7 +591,7 @@ impl Parser {
     /// Parse a fixed-size array type.
     fn parse_array_type(&mut self) -> ParseResult<Type> {
         self.bump();
-        let (element, _) = self.parse_type_reference_part()?;
+        let (element, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::Semicolon)?;
 
         let length = self.parse_int_literal()?;
@@ -612,9 +666,9 @@ impl Parser {
                 .as_ref()
                 .is_some_and(|token| self.has_line_break_after(token));
             let (ty, type_span) = if let Some(type_anchor) = type_anchor {
-                self.parse_type_reference_after(type_anchor, "field type")
+                self.parse_type_use_after(type_anchor, "field type")
             } else {
-                self.parse_type_reference_part()?
+                self.parse_type_use_part()?
             };
 
             // field node
@@ -682,7 +736,7 @@ impl Parser {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
 
-        let (pointee, _) = self.parse_type_reference_part()?;
+        let (pointee, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::Comma)?;
         let qualifiers = self.parse_reference_qualifiers(Nullability::None)?;
 
@@ -703,7 +757,7 @@ impl Parser {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
 
-        let (element, _) = self.parse_type_reference_part()?;
+        let (element, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::Comma)?;
         let qualifiers = self.parse_reference_qualifiers(Nullability::None)?;
 
@@ -731,7 +785,7 @@ impl Parser {
         let tag_type = self.parse_type()?;
         let tag = tag_type.into();
         self.eat_token(TokenType::Comma)?;
-        let (storage, _) = self.parse_type_reference_part()?;
+        let (storage, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::GreaterThan)?;
         self.eat_token(TokenType::OpenBrace)?;
 
@@ -739,7 +793,7 @@ impl Parser {
         while !self.peek_token(TokenType::CloseBrace) {
             let tag = self.parse_constant_for_type(tag_type)?;
             self.eat_token(TokenType::Equal)?;
-            let (ty, _) = self.parse_type_reference_part()?;
+            let (ty, _) = self.parse_type_use_part()?;
             cases.push(VariantCase { tag, ty });
 
             if self.eat_token_maybe(TokenType::Semicolon) || self.eat_token_maybe(TokenType::Comma)
@@ -768,7 +822,7 @@ impl Parser {
     fn parse_tensor_type(&mut self) -> ParseResult<Type> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
-        let (element, _) = self.parse_type_reference_part()?;
+        let (element, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::Comma)?;
         let shape = self.parse_tensor_shape()?;
         let layout = self.parse_optional_tensor_layout()?;
@@ -1182,5 +1236,13 @@ impl Parser {
         self.type_intern.insert(key, type_id);
 
         Ok(type_id)
+    }
+
+    /// Return the canonical parse-recovery type.
+    pub(super) fn error_type(&mut self) -> LocalNodeId<Type> {
+        match self.intern_type(Type::Error) {
+            Ok(ty) => ty,
+            Err(_) => self.tree.insert_type(Type::Error),
+        }
     }
 }

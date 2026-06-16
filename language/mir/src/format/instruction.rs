@@ -3,14 +3,14 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use super::r#type::format_borrow_obligations;
-use super::value::format_constant_for_type;
+use super::value::{
+    format_constant_for_type, format_function_id, format_global_id, format_type_id,
+};
 
 use crate::{
-    AtomicAccess, CompareExchangeAccess, FenceAccess, FormatMirNode, FunctionReference,
-    GlobalReference, Instruction, LocalNodeId, LocalReference, MemoryFlags, MemoryScope,
-    MirFormatter, SpaceSet, SyncScope, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
-    TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorScatterDimensionNumbers,
-    TypeReference, ValueReference,
+    AtomicAccess, CompareExchangeAccess, FenceAccess, FormatMirNode, FunctionId, GlobalId,
+    Instruction, LocalNodeId, MemoryFlags, MemoryScope, MirFormatter, SpaceSet, SyncScope,
+    TensorImmediate, TensorImmediateId, TypeId, Value,
 };
 
 impl<'a> FormatMirNode<'a, Instruction> for Instruction {
@@ -124,10 +124,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             }
 
             Instruction::LocalGet { destination, local } => {
-                let LocalReference::Local(local) = *local else {
-                    return write!(f, [token("<error>")]);
-                };
-                let local_index = f.context().local_index(local);
+                let local_index = f.context().local_index(*local);
                 format_typed_destination(*destination, f)?;
                 write!(
                     f,
@@ -145,10 +142,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             Instruction::LocalAddr {
                 destination, local, ..
             } => {
-                let LocalReference::Local(local) = *local else {
-                    return write!(f, [token("<error>")]);
-                };
-                let local_index = f.context().local_index(local);
+                let local_index = f.context().local_index(*local);
                 format_typed_destination(*destination, f)?;
                 write!(
                     f,
@@ -164,10 +158,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             }
 
             Instruction::LocalSet { local, value } => {
-                let LocalReference::Local(local) = *local else {
-                    return write!(f, [token("<error>")]);
-                };
-                let local_index = f.context().local_index(local);
+                let local_index = f.context().local_index(*local);
                 write!(
                     f,
                     [
@@ -274,7 +265,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                     f,
                     [token("tensor.store"), space(), view, token(","), space()]
                 )?;
-                let args = f.context().tree.get_arguments(*indices);
+                let args = f.context().tree.get_values(*indices);
                 format_value_bracket_list(args, f)?;
                 write!(f, [token(","), space(), value])
             }
@@ -533,7 +524,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space()
                     ]
                 )?;
-                let args = f.context().tree.get_arguments(*fields);
+                let args = f.context().tree.get_values(*fields);
                 format_value_list(args, f)
             }
 
@@ -555,7 +546,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space()
                     ]
                 )?;
-                let args = f.context().tree.get_arguments(*elements);
+                let args = f.context().tree.get_values(*elements);
                 format_value_list(args, f)
             }
 
@@ -577,7 +568,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space()
                     ]
                 )?;
-                let args = f.context().tree.get_arguments(*elements);
+                let args = f.context().tree.get_values(*elements);
                 format_value_list(args, f)
             }
 
@@ -667,6 +658,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space()
                     ]
                 )?;
+                let mask = f.context().tree.get_indices(*mask);
                 format_u32_bracket_list(mask, f)
             }
             Instruction::VectorSelect {
@@ -797,7 +789,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space()
                     ]
                 )?;
-                let args = f.context().tree.get_arguments(*indices);
+                let args = f.context().tree.get_values(*indices);
                 format_value_bracket_list(args, f)
             }
             Instruction::TensorExtract {
@@ -819,7 +811,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space()
                     ]
                 )?;
-                let args = f.context().tree.get_arguments(*indices);
+                let args = f.context().tree.get_values(*indices);
                 format_value_bracket_list(args, f)
             }
 
@@ -840,7 +832,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         tensor
                     ]
                 )?;
-                let args = f.context().tree.get_arguments(*shape);
+                let args = f.context().tree.get_values(*shape);
                 if !args.is_empty() {
                     write!(f, [token(","), space()])?;
                     format_named_value_group("shape", args, f)?;
@@ -867,6 +859,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space()
                     ]
                 )?;
+                let dimensions = f.context().tree.get_indices(*dimensions);
                 format_named_u32_group("dimensions", dimensions, f)
             }
 
@@ -889,6 +882,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space()
                     ]
                 )?;
+                let permutation = f.context().tree.get_indices(*permutation);
                 format_named_u32_group("permutation", permutation, f)
             }
             Instruction::TensorCast {
@@ -930,7 +924,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space()
                     ]
                 )?;
-                let args = f.context().tree.get_arguments(*arguments);
+                let args = f.context().tree.get_values(*arguments);
                 let (offsets, sizes, strides) =
                     split_tensor_ranges(args, *offsets_count, *sizes_count, *strides_count);
                 format_named_value_group("offsets", offsets, f)?;
@@ -962,7 +956,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space()
                     ]
                 )?;
-                let args = f.context().tree.get_arguments(*arguments);
+                let args = f.context().tree.get_values(*arguments);
                 let (offsets, sizes, strides) =
                     split_tensor_ranges(args, *offsets_count, *sizes_count, *strides_count);
                 format_named_value_group("offsets", offsets, f)?;
@@ -997,7 +991,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )?;
                 format_named_value_group("value", &[*value], f)?;
                 write!(f, [token(","), space()])?;
-                let args = f.context().tree.get_arguments(*arguments);
+                let args = f.context().tree.get_values(*arguments);
                 let (low, high, interior) =
                     split_tensor_padding(args, *low_count, *high_count, *interior_count);
                 format_named_value_group("low", low, f)?;
@@ -1023,7 +1017,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space()
                     ]
                 )?;
-                let args = f.context().tree.get_arguments(*tensors);
+                let args = f.context().tree.get_values(*tensors);
                 format_named_value_group("tensors", args, f)?;
                 write!(
                     f,
@@ -1115,6 +1109,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space()
                     ]
                 )?;
+                let axes = f.context().tree.get_indices(*axes);
                 format_named_u32_group("axes", axes, f)
             }
 
@@ -1160,7 +1155,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 destination,
                 left,
                 right,
-                dimensions,
+                immediate,
             } => {
                 format_typed_destination(*destination, f)?;
                 write!(
@@ -1179,17 +1174,14 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space()
                     ]
                 )?;
-                format_tensor_dot_dimensions(dimensions, f)
+                format_tensor_dot_immediate(*immediate, f)
             }
 
             Instruction::TensorConvolution {
                 destination,
                 input,
                 kernel,
-                dimensions,
-                window,
-                feature_group_count,
-                batch_group_count,
+                immediate,
             } => {
                 format_typed_destination(*destination, f)?;
                 write!(
@@ -1208,17 +1200,14 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space()
                     ]
                 )?;
-                format_tensor_convolution_dimensions(dimensions, f)?;
-                format_tensor_convolution_window(window, f)?;
-                format_tensor_convolution_groups(*feature_group_count, *batch_group_count, f)
+                format_tensor_convolution_immediate(*immediate, f)
             }
 
             Instruction::TensorGather {
                 destination,
                 operand,
                 indices,
-                dimensions,
-                slice_sizes,
+                immediate,
             } => {
                 format_typed_destination(*destination, f)?;
                 write!(
@@ -1237,9 +1226,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space()
                     ]
                 )?;
-                format_tensor_gather_dimensions(dimensions, f)?;
-                write!(f, [token(","), space()])?;
-                format_named_u32_group("sliceSizes", slice_sizes, f)
+                format_tensor_gather_immediate(*immediate, f)
             }
 
             Instruction::TensorScatter {
@@ -1247,7 +1234,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 operand,
                 indices,
                 updates,
-                dimensions,
+                immediate,
                 mode,
             } => {
                 format_typed_destination(*destination, f)?;
@@ -1270,7 +1257,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space()
                     ]
                 )?;
-                format_tensor_scatter_dimensions(dimensions, f)?;
+                format_tensor_scatter_immediate(*immediate, f)?;
                 write!(
                     f,
                     [
@@ -1318,7 +1305,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 }
                 write!(f, [token("call"), space()])?;
                 format_function_reference(*function, f)?;
-                let args = f.context().tree.get_arguments(call.arguments);
+                let args = f.context().tree.get_values(call.arguments);
                 format_value_list(args, f)
             }
 
@@ -1348,7 +1335,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         text(&slot.0.to_string())
                     ]
                 )?;
-                let args = f.context().tree.get_arguments(call.arguments);
+                let args = f.context().tree.get_values(call.arguments);
                 format_value_list(args, f)?;
                 format_call_signature_suffix(&call.signature, f)
             }
@@ -1379,7 +1366,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         text(&slot.0.to_string())
                     ]
                 )?;
-                let args = f.context().tree.get_arguments(call.arguments);
+                let args = f.context().tree.get_values(call.arguments);
                 format_value_list(args, f)?;
                 format_call_signature_suffix(&call.signature, f)
             }
@@ -1395,7 +1382,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                     write!(f, [space(), token("="), space()])?;
                 }
                 write!(f, [token("call.indirect"), space(), callee])?;
-                let args = f.context().tree.get_arguments(call.arguments);
+                let args = f.context().tree.get_values(call.arguments);
                 format_value_list(args, f)?;
                 format_call_signature_suffix(&call.signature, f)
             }
@@ -1674,7 +1661,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                     write!(f, [space(), token("="), space()])?;
                 }
                 write!(f, [token("intrinsic."), token(intrinsic.to_str())])?;
-                let args = f.context().tree.get_arguments(*arguments);
+                let args = f.context().tree.get_values(*arguments);
                 format_intrinsic_args(args, f)
             }
         }
@@ -1682,35 +1669,23 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
 }
 
 fn format_typed_destination<'a>(
-    destination: ValueReference,
+    destination: Value,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    let ValueReference::Value(destination) = destination else {
-        return write!(
-            f,
-            [destination, token(":"), space(), token("<missing-type>")]
-        );
-    };
-
     let ty = f
         .context()
         .value_type(destination)
         .ok_or(FormatError::SyntaxError {
             message: "missing value type for instruction destination",
         })?;
-    write!(f, [destination, token(":"), space(), ty])
+    write!(f, [destination, token(":"), space()])?;
+    format_type_id(ty, f)
 }
 
 fn typed_destination_type<'a>(
-    destination: ValueReference,
+    destination: Value,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<LocalNodeId<crate::Type>> {
-    let ValueReference::Value(destination) = destination else {
-        return Err(FormatError::SyntaxError {
-            message: "missing value for instruction destination",
-        });
-    };
-
     f.context()
         .value_type(destination)
         .ok_or(FormatError::SyntaxError {
@@ -1720,25 +1695,22 @@ fn typed_destination_type<'a>(
 
 /// Format a function reference.
 fn format_function_reference<'a>(
-    function_id: FunctionReference,
+    function_id: FunctionId,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    write!(f, [function_id])
+    format_function_id(function_id, f)
 }
 
 /// Format a global reference.
 fn format_global_reference<'a>(
-    global_id: GlobalReference,
+    global_id: GlobalId,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    write!(f, [global_id])
+    format_global_id(global_id, f)
 }
 
 /// Format a parenthesized, comma-separated list of values.
-fn format_value_list<'a>(
-    values: &[ValueReference],
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
+fn format_value_list<'a>(values: &[Value], f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
     write!(f, [token("(")])?;
     for (i, val) in values.iter().enumerate() {
         if i > 0 {
@@ -1751,37 +1723,35 @@ fn format_value_list<'a>(
 
 /// Format a required call signature suffix.
 fn format_call_signature_suffix<'a>(
-    signature: &TypeReference,
+    signature: &TypeId,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [token(":"), space()])?;
 
-    match signature {
-        TypeReference::Type { ty: signature, .. } => match f.context().tree.get(*signature) {
-            crate::Type::FunctionSignature {
-                parameters,
-                result,
-                borrow_obligations,
-            } => {
-                write!(f, [token("(")])?;
-                for (index, parameter) in parameters.iter().enumerate() {
-                    if index > 0 {
-                        write!(f, [token(","), space()])?;
-                    }
-                    write!(f, [parameter])?;
-                }
-                write!(f, [token(")"), space(), token("->"), space(), result])?;
-                format_borrow_obligations(borrow_obligations, f)
+    if let crate::Type::FunctionSignature {
+        parameters,
+        result,
+        borrow_obligations,
+    } = f.context().tree.get(*signature)
+    {
+        write!(f, [token("(")])?;
+        for (index, parameter) in parameters.iter().enumerate() {
+            if index > 0 {
+                write!(f, [token(","), space()])?;
             }
-            _ => write!(f, [signature]),
-        },
-        TypeReference::Missing | TypeReference::Error => write!(f, [signature]),
+            format_type_id(*parameter, f)?;
+        }
+        write!(f, [token(")"), space(), token("=>"), space()])?;
+        format_type_id(*result, f)?;
+        format_borrow_obligations(borrow_obligations, f)
+    } else {
+        format_type_id(*signature, f)
     }
 }
 
 /// Format a bracketed, comma-separated list of values.
 fn format_value_bracket_list<'a>(
-    values: &[ValueReference],
+    values: &[Value],
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [token("[")])?;
@@ -1809,7 +1779,7 @@ fn format_u32_bracket_list<'a>(values: &[u32], f: &mut MirFormatter<'a, '_>) -> 
 /// Format a named value list like `name=[v0, v1]`.
 fn format_named_value_group<'a>(
     name: &str,
-    values: &[ValueReference],
+    values: &[Value],
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [text(name), token("(")])?;
@@ -1839,107 +1809,134 @@ fn format_named_u32_group<'a>(
 }
 
 /// Format tensor dot dimension numbers.
-fn format_tensor_dot_dimensions<'a>(
-    dimensions: &TensorDotDimensionNumbers,
+fn format_tensor_dot_immediate<'a>(
+    immediate: TensorImmediateId,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
+    let TensorImmediate::Dot {
+        lhs_batch,
+        rhs_batch,
+        lhs_contracting,
+        rhs_contracting,
+    } = f.context().tree.get_tensor_immediate(immediate)
+    else {
+        return Err(FormatError::SyntaxError {
+            message: "tensor.dot instruction has non-dot immediate",
+        });
+    };
+
     write!(f, [token("dims"), token("(")])?;
-    format_named_u32_group("lhsBatch", &dimensions.lhs_batch, f)?;
+    format_named_u32_group("lhsBatch", f.context().tree.get_indices(*lhs_batch), f)?;
     write!(f, [token(","), space()])?;
-    format_named_u32_group("rhsBatch", &dimensions.rhs_batch, f)?;
+    format_named_u32_group("rhsBatch", f.context().tree.get_indices(*rhs_batch), f)?;
     write!(f, [token(","), space()])?;
-    format_named_u32_group("lhsContract", &dimensions.lhs_contracting, f)?;
+    format_named_u32_group(
+        "lhsContract",
+        f.context().tree.get_indices(*lhs_contracting),
+        f,
+    )?;
     write!(f, [token(","), space()])?;
-    format_named_u32_group("rhsContract", &dimensions.rhs_contracting, f)?;
+    format_named_u32_group(
+        "rhsContract",
+        f.context().tree.get_indices(*rhs_contracting),
+        f,
+    )?;
     write!(f, [token(")")])
 }
 
 /// Format tensor convolution dimension numbers.
-fn format_tensor_convolution_dimensions<'a>(
-    dimensions: &TensorConvolutionDimensionNumbers,
+fn format_tensor_convolution_immediate<'a>(
+    immediate: TensorImmediateId,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    write!(f, [token("dims"), token("(")])?;
-    write!(
-        f,
-        [
-            token("inputBatch"),
-            token("("),
-            text(&dimensions.input_batch.to_string()),
-            token(")"),
-            token(","),
-            space(),
-            token("inputFeature"),
-            token("("),
-            text(&dimensions.input_feature.to_string()),
-            token(")"),
-            token(","),
-            space()
-        ]
-    )?;
-    format_named_u32_group("inputSpatial", &dimensions.input_spatial, f)?;
-    write!(
-        f,
-        [
-            token(","),
-            space(),
-            token("kernelInputFeature"),
-            token("("),
-            text(&dimensions.kernel_input_feature.to_string()),
-            token(")"),
-            token(","),
-            space(),
-            token("kernelOutputFeature"),
-            token("("),
-            text(&dimensions.kernel_output_feature.to_string()),
-            token(")"),
-            token(","),
-            space()
-        ]
-    )?;
-    format_named_u32_group("kernelSpatial", &dimensions.kernel_spatial, f)?;
-    write!(
-        f,
-        [
-            token(","),
-            space(),
-            token("outputBatch"),
-            token("("),
-            text(&dimensions.output_batch.to_string()),
-            token(")"),
-            token(","),
-            space(),
-            token("outputFeature"),
-            token("("),
-            text(&dimensions.output_feature.to_string()),
-            token(")"),
-            token(","),
-            space()
-        ]
-    )?;
-    format_named_u32_group("outputSpatial", &dimensions.output_spatial, f)?;
-    write!(f, [token(")")])
-}
+    let TensorImmediate::Convolution {
+        input_batch,
+        input_feature,
+        input_spatial,
+        kernel_input_feature,
+        kernel_output_feature,
+        kernel_spatial,
+        output_batch,
+        output_feature,
+        output_spatial,
+        strides,
+        padding_low,
+        padding_high,
+        lhs_dilation,
+        rhs_dilation,
+        window_reversal,
+        feature_group_count,
+        batch_group_count,
+    } = f.context().tree.get_tensor_immediate(immediate)
+    else {
+        return Err(FormatError::SyntaxError {
+            message: "tensor.convolution instruction has non-convolution immediate",
+        });
+    };
 
-/// Format tensor convolution window parameters.
-fn format_tensor_convolution_window<'a>(
-    window: &TensorConvolutionWindow,
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
+    write!(f, [token("dims"), token("(")])?;
+    format_named_u32_single("inputBatch", *input_batch, f)?;
     write!(f, [token(","), space()])?;
-    write!(f, [token("window"), token("(")])?;
-    format_named_u64_group("strides", &window.strides, f)?;
+    format_named_u32_single("inputFeature", *input_feature, f)?;
     write!(f, [token(","), space()])?;
-    format_named_u64_group("paddingLow", &window.padding_low, f)?;
+    format_named_u32_group(
+        "inputSpatial",
+        f.context().tree.get_indices(*input_spatial),
+        f,
+    )?;
     write!(f, [token(","), space()])?;
-    format_named_u64_group("paddingHigh", &window.padding_high, f)?;
+    format_named_u32_single("kernelInputFeature", *kernel_input_feature, f)?;
     write!(f, [token(","), space()])?;
-    format_named_u64_group("lhsDilation", &window.lhs_dilation, f)?;
+    format_named_u32_single("kernelOutputFeature", *kernel_output_feature, f)?;
     write!(f, [token(","), space()])?;
-    format_named_u64_group("rhsDilation", &window.rhs_dilation, f)?;
+    format_named_u32_group(
+        "kernelSpatial",
+        f.context().tree.get_indices(*kernel_spatial),
+        f,
+    )?;
     write!(f, [token(","), space()])?;
-    format_named_bool_group("windowReversal", &window.window_reversal, f)?;
-    write!(f, [token(")")])
+    format_named_u32_single("outputBatch", *output_batch, f)?;
+    write!(f, [token(","), space()])?;
+    format_named_u32_single("outputFeature", *output_feature, f)?;
+    write!(f, [token(","), space()])?;
+    format_named_u32_group(
+        "outputSpatial",
+        f.context().tree.get_indices(*output_spatial),
+        f,
+    )?;
+    write!(f, [token(")")])?;
+
+    write!(f, [token(","), space(), token("window"), token("(")])?;
+    format_named_u64_group("strides", f.context().tree.get_extents(*strides), f)?;
+    write!(f, [token(","), space()])?;
+    format_named_u64_group("paddingLow", f.context().tree.get_extents(*padding_low), f)?;
+    write!(f, [token(","), space()])?;
+    format_named_u64_group(
+        "paddingHigh",
+        f.context().tree.get_extents(*padding_high),
+        f,
+    )?;
+    write!(f, [token(","), space()])?;
+    format_named_u64_group(
+        "lhsDilation",
+        f.context().tree.get_extents(*lhs_dilation),
+        f,
+    )?;
+    write!(f, [token(","), space()])?;
+    format_named_u64_group(
+        "rhsDilation",
+        f.context().tree.get_extents(*rhs_dilation),
+        f,
+    )?;
+    write!(f, [token(","), space()])?;
+    format_named_flag_group(
+        "windowReversal",
+        f.context().tree.get_flags(*window_reversal),
+        f,
+    )?;
+    write!(f, [token(")")])?;
+
+    format_tensor_convolution_groups(*feature_group_count, *batch_group_count, f)
 }
 
 /// Format tensor convolution groups.
@@ -1968,57 +1965,95 @@ fn format_tensor_convolution_groups<'a>(
 }
 
 /// Format tensor gather dimension numbers.
-fn format_tensor_gather_dimensions<'a>(
-    dimensions: &TensorGatherDimensionNumbers,
+fn format_tensor_gather_immediate<'a>(
+    immediate: TensorImmediateId,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
+    let TensorImmediate::Gather {
+        offset_dims,
+        collapsed_slice_dims,
+        start_index_map,
+        index_vector_dim,
+        slice_sizes,
+    } = f.context().tree.get_tensor_immediate(immediate)
+    else {
+        return Err(FormatError::SyntaxError {
+            message: "tensor.gather instruction has non-gather immediate",
+        });
+    };
+
     write!(f, [token("dims"), token("(")])?;
-    format_named_u32_group("offsetDims", &dimensions.offset_dims, f)?;
+    format_named_u32_group("offsetDims", f.context().tree.get_indices(*offset_dims), f)?;
     write!(f, [token(","), space()])?;
-    format_named_u32_group("collapsedSliceDims", &dimensions.collapsed_slice_dims, f)?;
-    write!(f, [token(","), space()])?;
-    format_named_u32_group("startIndexMap", &dimensions.start_index_map, f)?;
-    write!(
+    format_named_u32_group(
+        "collapsedSliceDims",
+        f.context().tree.get_indices(*collapsed_slice_dims),
         f,
-        [
-            token(","),
-            space(),
-            token("indexVectorDim"),
-            token("("),
-            text(&dimensions.index_vector_dim.to_string()),
-            token(")")
-        ]
     )?;
-    write!(f, [token(")")])
+    write!(f, [token(","), space()])?;
+    format_named_u32_group(
+        "startIndexMap",
+        f.context().tree.get_indices(*start_index_map),
+        f,
+    )?;
+    write!(f, [token(","), space()])?;
+    format_named_u32_single("indexVectorDim", *index_vector_dim, f)?;
+    write!(f, [token(")")])?;
+
+    write!(f, [token(","), space()])?;
+    format_named_u32_group("sliceSizes", f.context().tree.get_indices(*slice_sizes), f)
 }
 
 /// Format tensor scatter dimension numbers.
-fn format_tensor_scatter_dimensions<'a>(
-    dimensions: &TensorScatterDimensionNumbers,
+fn format_tensor_scatter_immediate<'a>(
+    immediate: TensorImmediateId,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
+    let TensorImmediate::Scatter {
+        update_window_dims,
+        inserted_window_dims,
+        scatter_dims_to_operand_dims,
+        index_vector_dim,
+    } = f.context().tree.get_tensor_immediate(immediate)
+    else {
+        return Err(FormatError::SyntaxError {
+            message: "tensor.scatter instruction has non-scatter immediate",
+        });
+    };
+
     write!(f, [token("dims"), token("(")])?;
-    format_named_u32_group("updateWindowDims", &dimensions.update_window_dims, f)?;
+    format_named_u32_group(
+        "updateWindowDims",
+        f.context().tree.get_indices(*update_window_dims),
+        f,
+    )?;
     write!(f, [token(","), space()])?;
-    format_named_u32_group("insertedWindowDims", &dimensions.inserted_window_dims, f)?;
+    format_named_u32_group(
+        "insertedWindowDims",
+        f.context().tree.get_indices(*inserted_window_dims),
+        f,
+    )?;
     write!(f, [token(","), space()])?;
     format_named_u32_group(
         "scatterDimsToOperandDims",
-        &dimensions.scatter_dims_to_operand_dims,
+        f.context().tree.get_indices(*scatter_dims_to_operand_dims),
         f,
     )?;
+    write!(f, [token(","), space()])?;
+    format_named_u32_single("indexVectorDim", *index_vector_dim, f)?;
+    write!(f, [token(")")])
+}
+
+/// Format a named u32 value like `name(0)`.
+fn format_named_u32_single<'a>(
+    name: &str,
+    value: u32,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
     write!(
         f,
-        [
-            token(","),
-            space(),
-            token("indexVectorDim"),
-            token("("),
-            text(&dimensions.index_vector_dim.to_string()),
-            token(")")
-        ]
-    )?;
-    write!(f, [token(")")])
+        [text(name), token("("), text(&value.to_string()), token(")")]
+    )
 }
 
 /// Format a named u64 group like `name(0, 1)`.
@@ -2037,10 +2072,10 @@ fn format_named_u64_group<'a>(
     write!(f, [token(")")])
 }
 
-/// Format a named boolean group like `name(true, false)`.
-fn format_named_bool_group<'a>(
+/// Format a named flag group like `name(true, false)`.
+fn format_named_flag_group<'a>(
     name: &str,
-    values: &[bool],
+    values: &[u8],
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [text(name), token("(")])?;
@@ -2048,18 +2083,18 @@ fn format_named_bool_group<'a>(
         if index > 0 {
             write!(f, [token(","), space()])?;
         }
-        write!(f, [token(if *value { "true" } else { "false" })])?;
+        write!(f, [token(if *value != 0 { "true" } else { "false" })])?;
     }
     write!(f, [token(")")])
 }
 
 /// Split packed tensor range arguments.
 fn split_tensor_ranges(
-    values: &[ValueReference],
+    values: &[Value],
     offsets_count: u16,
     sizes_count: u16,
     strides_count: u16,
-) -> (&[ValueReference], &[ValueReference], &[ValueReference]) {
+) -> (&[Value], &[Value], &[Value]) {
     let offsets_end = offsets_count as usize;
     let sizes_end = offsets_end + sizes_count as usize;
     let strides_end = sizes_end + strides_count as usize;
@@ -2073,11 +2108,11 @@ fn split_tensor_ranges(
 
 /// Split packed tensor padding arguments.
 fn split_tensor_padding(
-    values: &[ValueReference],
+    values: &[Value],
     low_count: u16,
     high_count: u16,
     interior_count: u16,
-) -> (&[ValueReference], &[ValueReference], &[ValueReference]) {
+) -> (&[Value], &[Value], &[Value]) {
     let low_end = low_count as usize;
     let high_end = low_end + high_count as usize;
     let interior_end = high_end + interior_count as usize;
@@ -2090,10 +2125,7 @@ fn split_tensor_padding(
 }
 
 /// Format intrinsic arguments with optional memory ordering.
-fn format_intrinsic_args<'a>(
-    values: &[ValueReference],
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
+fn format_intrinsic_args<'a>(values: &[Value], f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
     write!(f, [token("(")])?;
     for (i, val) in values.iter().enumerate() {
         if i > 0 {

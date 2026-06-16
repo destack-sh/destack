@@ -155,7 +155,7 @@ entry(v0: int32):
 
 function test(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call.virtual v0, int32, 1(v0): (int32) -> int32
+    v1: int32 = call.virtual v0, int32, 1(v0): (int32) => int32
     return v1
 }
 "#,
@@ -182,9 +182,9 @@ entry(v0: int32):
     return v0
 }
 
-function test(v0: (int32) -> int32, v1: int32): int32 {
-entry(v0: (int32) -> int32, v1: int32):
-    v2: int32 = call.indirect v0(v1): (int32) -> int32
+function test(v0: fn(int32) => int32, v1: int32): int32 {
+entry(v0: fn(int32) => int32, v1: int32):
+    v2: int32 = call.indirect v0(v1): (int32) => int32
     return v2
 }
 "#,

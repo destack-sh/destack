@@ -95,11 +95,7 @@ impl TestProgram {
                 if let mir::Instruction::FrameAllocZeroed { destination, .. } =
                     self.tree.get(*instruction_id)
                 {
-                    Some(
-                        destination
-                            .value()
-                            .expect("stack allocation should produce a concrete value"),
-                    )
+                    Some(*destination)
                 } else {
                     None
                 }
@@ -199,12 +195,7 @@ impl TestProgram {
             panic!("expected call instruction");
         };
 
-        (
-            call_inst,
-            callee
-                .function()
-                .expect("call instruction should reference a concrete function"),
-        )
+        (call_inst, *callee)
     }
 
     /// Attach memory access metadata to an instruction.
