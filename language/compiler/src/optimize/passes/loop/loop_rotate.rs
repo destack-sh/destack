@@ -408,38 +408,49 @@ mod tests {
     #[test]
     fn test_basic_rotation() {
         let input = r#"
-function test(v0: boolean): void {
-b0(v0: boolean):
-    jump b1
-b1:
-    branch v0, b2, b3
-b2:
-    jump b1
-b3:
+function test(value0: boolean): void {
+entry0(value0: boolean):
+    jump block1()
+
+block1:
+    branch value0, block2(), block3()
+
+block2:
+    jump block1()
+
+block3:
     return
-}"#;
+}
+"#;
         // after rotation:
         // - preheader (b0) gets the guard branch
         // - latch (b2) gets the rotated branch
         // - header (b1) becomes dead and is removed by SimplifyCfg
         // - critical edges are split into jump blocks
         let expected = r#"
-function test(v0: boolean): void {
-b0(v0: boolean):
-    branch v0, b2, b1
-b1:
-    jump b6
-b2:
-    jump b3
-b3:
-    branch v0, b5, b4
-b4:
-    jump b6
-b5:
-    jump b3
-b6:
+function test(value0: boolean): void {
+entry0(value0: boolean):
+    branch value0, block2(), block1()
+
+block1:
+    jump block3()
+
+block2:
+    jump block2_1()
+
+block2_1:
+    branch value0, block5(), block4()
+
+block4:
+    jump block3()
+
+block5:
+    jump block2_1()
+
+block3:
     return
-}"#;
+}
+"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
         test.run_pass(&LoopRotate);
@@ -452,48 +463,59 @@ b6:
     fn test_rotation_with_phi() {
         // header passes all its params to body, so rotation is valid
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 0int32
-    v3: boolean = int.lt.s v2, v1
-    jump b1(v2, v3)
-b1(v4: int32, v5: boolean):
-    branch v5, b2(v4, v5), b3(v4)
-b2(v6: int32, v7: boolean):
-    v8: int32 = 1int32
-    v9: int32 = int.add v6, v8
-    v10: boolean = int.lt.s v9, v1
-    jump b1(v9, v10)
-b3(v11: int32):
-    return v11
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = 0int32
+    value3: boolean = int.lt.s value2, value1
+    jump block1(value2, value3)
+
+block1(value4: int32, value5: boolean):
+    branch value5, block2(value4, value5), block3(value4)
+
+block2(value6: int32, value7: boolean):
+    value8: int32 = 1int32
+    value9: int32 = int.add value6, value8
+    value10: boolean = int.lt.s value9, value1
+    jump block1(value9, value10)
+
+block3(value11: int32):
+    return value11
+}
+"#;
         // after rotation:
         // - b0: guard branch using initial condition v3
         // - b2: latch branch using computed condition v10
         // - b1 becomes dead and is removed
         // - critical edges are split into jump blocks
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 0int32
-    v3: boolean = int.lt.s v2, v1
-    branch v3, b2(v2, v3), b1(v2)
-b1(v4: int32):
-    jump b6(v4)
-b2(v5: int32, v6: boolean):
-    jump b3(v5, v6)
-b3(v7: int32, v8: boolean):
-    v9: int32 = 1int32
-    v10: int32 = int.add v7, v9
-    v11: boolean = int.lt.s v10, v1
-    branch v11, b5(v10, v11), b4(v10)
-b4(v12: int32):
-    jump b6(v12)
-b5(v13: int32, v14: boolean):
-    jump b3(v13, v14)
-b6(v15: int32):
-    return v15
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = 0int32
+    value3: boolean = int.lt.s value2, value1
+    branch value3, block2(value2, value3), block1(value2)
+
+block1(value14: int32):
+    jump block3(value14)
+
+block2(value12: int32, value13: boolean):
+    jump block2_1(value12, value13)
+
+block2_1(value6: int32, value7: boolean):
+    value8: int32 = 1int32
+    value9: int32 = int.add value6, value8
+    value10: boolean = int.lt.s value9, value1
+    branch value10, block5(value9, value10), block4(value9)
+
+block4(value17: int32):
+    jump block3(value17)
+
+block5(value15: int32, value16: boolean):
+    jump block2_1(value15, value16)
+
+block3(value11: int32):
+    return value11
+}
+"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
         test.run_pass(&LoopRotate);
@@ -505,35 +527,46 @@ b6(v15: int32):
     #[test]
     fn test_rotation_inverted_condition() {
         let input = r#"
-function test(v0: boolean): void {
-b0(v0: boolean):
-    jump b1
-b1:
-    branch v0, b3, b2
-b2:
-    jump b1
-b3:
+function test(value0: boolean): void {
+entry0(value0: boolean):
+    jump block1()
+
+block1:
+    branch value0, block3(), block2()
+
+block2:
+    jump block1()
+
+block3:
     return
-}"#;
+}
+"#;
         // condition false -> body, condition true -> exit
         // critical edges are split after SimplifyCfg
         let expected = r#"
-function test(v0: boolean): void {
-b0(v0: boolean):
-    branch v0, b2, b1
-b1:
-    jump b3
-b2:
-    jump b6
-b3:
-    branch v0, b5, b4
-b4:
-    jump b3
-b5:
-    jump b6
-b6:
+function test(value0: boolean): void {
+entry0(value0: boolean):
+    branch value0, block2(), block1()
+
+block1:
+    jump block2_1()
+
+block2:
+    jump block3()
+
+block2_1:
+    branch value0, block5(), block4()
+
+block4:
+    jump block2_1()
+
+block5:
+    jump block3()
+
+block3:
     return
-}"#;
+}
+"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
         test.run_pass(&LoopRotate);
@@ -545,18 +578,22 @@ b6:
     #[test]
     fn test_no_rotate_header_with_instructions() {
         let input = r#"
-function test(v0: boolean, v1: int32): int32 {
-b0(v0: boolean, v1: int32):
-    jump b1
-b1:
-    v2: int32 = 1int32
-    v3: int32 = int.add v1, v2
-    branch v0, b2, b3
-b2:
-    jump b1
-b3:
-    return v3
-}"#;
+function test(value0: boolean, value1: int32): int32 {
+entry0(value0: boolean, value1: int32):
+    jump block1()
+
+block1:
+    value2: int32 = 1int32
+    value3: int32 = int.add value1, value2
+    branch value0, block2(), block3()
+
+block2:
+    jump block1()
+
+block3:
+    return value3
+}
+"#;
         // header has instructions, don't rotate
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -569,14 +606,17 @@ b3:
     #[test]
     fn test_no_rotate_single_block() {
         let input = r#"
-function test(v0: boolean): void {
-b0(v0: boolean):
-    jump b1
-b1:
-    branch v0, b1, b2
-b2:
+function test(value0: boolean): void {
+entry0(value0: boolean):
+    jump block1()
+
+block1:
+    branch value0, block1(), block2()
+
+block2:
     return
-}"#;
+}
+"#;
         // latch == header, don't rotate
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -589,16 +629,20 @@ b2:
     #[test]
     fn test_no_rotate_unconditional_header() {
         let input = r#"
-function test(v0: boolean): void {
-b0(v0: boolean):
-    jump b1
-b1:
-    jump b2
-b2:
-    branch v0, b1, b3
-b3:
+function test(value0: boolean): void {
+entry0(value0: boolean):
+    jump block1()
+
+block1:
+    jump block2()
+
+block2:
+    branch value0, block1(), block3()
+
+block3:
     return
-}"#;
+}
+"#;
         // header ends with jump, not branch - can't rotate
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -613,18 +657,22 @@ b3:
         // header has param v2, but body doesn't receive it (body uses v2 directly)
         // rotation would make v2 undefined in body, so we skip
         let input = r#"
-function test(v0: boolean, v1: int32): int32 {
-b0(v0: boolean, v1: int32):
-    jump b1(v1)
-b1(v2: int32):
-    branch v0, b2, b3
-b2:
-    v3: int32 = 1int32
-    v4: int32 = int.add v2, v3
-    jump b1(v4)
-b3:
-    return v2
-}"#;
+function test(value0: boolean, value1: int32): int32 {
+entry0(value0: boolean, value1: int32):
+    jump block1(value1)
+
+block1(value2: int32):
+    branch value0, block2(), block3()
+
+block2:
+    value3: int32 = 1int32
+    value4: int32 = int.add value2, value3
+    jump block1(value4)
+
+block3:
+    return value2
+}
+"#;
         // header has param v2, body doesn't receive v2 as argument, skip rotation
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -637,12 +685,13 @@ b3:
     #[test]
     fn test_no_loops() {
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
-    v2: int32 = int.add v0, v1
-    return v2
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 1int32
+    value2: int32 = int.add value0, value1
+    return value2
+}
+"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopRotate);
         test.assert_unchanged(input);
@@ -655,52 +704,63 @@ b0(v0: int32):
         // condition is passed as a block parameter to enable rotation.
         // body block (block2) has same parameters as header (block1).
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 0int32
-    v3: int32 = 1int32
-    v4: boolean = int.lt.s v2, v0
-    jump b1(v2, v3, v4)
-b1(v5: int32, v6: int32, v7: boolean):
-    branch v7, b2(v5, v6, v7), b3(v5, v6)
-b2(v8: int32, v9: int32, v10: boolean):
-    v11: int32 = int.add v8, v9
-    v12: int32 = int.add v9, v3
-    v13: boolean = int.lt.s v11, v0
-    jump b1(v11, v12, v13)
-b3(v14: int32, v15: int32):
-    v16: int32 = int.add v14, v15
-    return v16
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = 0int32
+    value3: int32 = 1int32
+    value4: boolean = int.lt.s value2, value0
+    jump block1(value2, value3, value4)
+
+block1(value5: int32, value6: int32, value7: boolean):
+    branch value7, block2(value5, value6, value7), block3(value5, value6)
+
+block2(value8: int32, value9: int32, value10: boolean):
+    value11: int32 = int.add value8, value9
+    value12: int32 = int.add value9, value3
+    value13: boolean = int.lt.s value11, value0
+    jump block1(value11, value12, value13)
+
+block3(value14: int32, value15: int32):
+    value16: int32 = int.add value14, value15
+    return value16
+}
+"#;
         // after rotation:
         // - b0: guard branch using initial condition v4
         // - b2: latch branch using computed condition v13
         // - b1 becomes dead and is removed
         // - critical edges are split into jump blocks
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 0int32
-    v3: int32 = 1int32
-    v4: boolean = int.lt.s v2, v0
-    branch v4, b2(v2, v3, v4), b1(v2, v3)
-b1(v5: int32, v6: int32):
-    jump b6(v5, v6)
-b2(v7: int32, v8: int32, v9: boolean):
-    jump b3(v7, v8, v9)
-b3(v10: int32, v11: int32, v12: boolean):
-    v13: int32 = int.add v10, v11
-    v14: int32 = int.add v11, v3
-    v15: boolean = int.lt.s v13, v0
-    branch v15, b5(v13, v14, v15), b4(v13, v14)
-b4(v16: int32, v17: int32):
-    jump b6(v16, v17)
-b5(v18: int32, v19: int32, v20: boolean):
-    jump b3(v18, v19, v20)
-b6(v21: int32, v22: int32):
-    v23: int32 = int.add v21, v22
-    return v23
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = 0int32
+    value3: int32 = 1int32
+    value4: boolean = int.lt.s value2, value0
+    branch value4, block2(value2, value3, value4), block1(value2, value3)
+
+block1(value20: int32, value21: int32):
+    jump block3(value20, value21)
+
+block2(value17: int32, value18: int32, value19: boolean):
+    jump block2_1(value17, value18, value19)
+
+block2_1(value8: int32, value9: int32, value10: boolean):
+    value11: int32 = int.add value8, value9
+    value12: int32 = int.add value9, value3
+    value13: boolean = int.lt.s value11, value0
+    branch value13, block5(value11, value12, value13), block4(value11, value12)
+
+block4(value25: int32, value26: int32):
+    jump block3(value25, value26)
+
+block5(value22: int32, value23: int32, value24: boolean):
+    jump block2_1(value22, value23, value24)
+
+block3(value14: int32, value15: int32):
+    value16: int32 = int.add value14, value15
+    return value16
+}
+"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
         test.run_pass(&LoopRotate);

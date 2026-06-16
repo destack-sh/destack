@@ -930,49 +930,61 @@ mod tests {
     fn test_eliminate_loop_bounds_check() {
         // source test
         let input = r#"
-function test(v0: [int32; 4]): void {
-b0(v0: [int32; 4]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = 4uint32
-    jump b1(v1)
-b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
-    branch v5, b2, b5
-b2:
-    v6: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 -> b3, b4
-b3:
-    v7: uint32 = int.add v4, v2
-    jump b1(v7)
-b4:
+function test(value0: [int32; 4]): void {
+entry0(value0: [int32; 4]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = 4uint32
+    jump block1(value1)
+
+block1(value4: uint32):
+    value5: boolean = int.lt.u value4, value3
+    branch value5, block2(), block5()
+
+block2:
+    value6: boolean = int.lt.u value4, value3
+    check bounds.u value4, value3, value0 -> block3(), block4()
+
+block3:
+    value7: uint32 = int.add value4, value2
+    jump block1(value7)
+
+block4:
     unreachable
-b5:
+
+block5:
     return
-}"#;
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: [int32; 4]): void {
-b0(v0: [int32; 4]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = 4uint32
-    jump b1(v1)
-b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
-    branch v5, b2, b5
-b2:
-    v6: boolean = int.lt.u v4, v3
-    jump b3
-b3:
-    v7: uint32 = int.add v4, v2
-    jump b1(v7)
-b4:
+function test(value0: [int32; 4]): void {
+entry0(value0: [int32; 4]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = 4uint32
+    jump block1(value1)
+
+block1(value4: uint32):
+    value5: boolean = int.lt.u value4, value3
+    branch value5, block2(), block5()
+
+block2:
+    value6: boolean = int.lt.u value4, value3
+    jump block3()
+
+block3:
+    value7: uint32 = int.add value4, value2
+    jump block1(value7)
+
+block4:
     unreachable
-b5:
+
+block5:
     return
-}"#;
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -985,45 +997,55 @@ b5:
     fn test_preserve_pre_guard_checks() {
         // source test
         let input = r#"
-function test(v0: [int32; 4]): void {
-b0(v0: [int32; 4]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = 4uint32
-    jump b1(v1)
-b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 -> b2, b3
-b2:
-    v6: uint32 = int.add v4, v2
-    v7: boolean = int.lt.u v6, v3
-    branch v7, b1(v6), b4
-b3:
+function test(value0: [int32; 4]): void {
+entry0(value0: [int32; 4]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = 4uint32
+    jump block1(value1)
+
+block1(value4: uint32):
+    value5: boolean = int.lt.u value4, value3
+    check bounds.u value4, value3, value0 -> block2(), block3()
+
+block2:
+    value6: uint32 = int.add value4, value2
+    value7: boolean = int.lt.u value6, value3
+    branch value7, block1(value6), block4()
+
+block3:
     unreachable
-b4:
+
+block4:
     return
-}"#;
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: [int32; 4]): void {
-b0(v0: [int32; 4]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = 4uint32
-    jump b1(v1)
-b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 -> b2, b3
-b2:
-    v6: uint32 = int.add v4, v2
-    v7: boolean = int.lt.u v6, v3
-    branch v7, b1(v6), b4
-b3:
+function test(value0: [int32; 4]): void {
+entry0(value0: [int32; 4]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = 4uint32
+    jump block1(value1)
+
+block1(value4: uint32):
+    value5: boolean = int.lt.u value4, value3
+    check bounds.u value4, value3, value0 -> block2(), block3()
+
+block2:
+    value6: uint32 = int.add value4, value2
+    value7: boolean = int.lt.u value6, value3
+    branch value7, block1(value6), block4()
+
+block3:
     unreachable
-b4:
+
+block4:
     return
-}"#;
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -1036,49 +1058,61 @@ b4:
     fn test_eliminate_ge_guard_checks() {
         // source test
         let input = r#"
-function test(v0: [int32; 4]): void {
-b0(v0: [int32; 4]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = 4uint32
-    jump b1(v1)
-b1(v4: uint32):
-    v5: boolean = int.ge.u v4, v3
-    branch v5, b5, b2
-b2:
-    v6: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 -> b3, b4
-b3:
-    v7: uint32 = int.add v4, v2
-    jump b1(v7)
-b4:
+function test(value0: [int32; 4]): void {
+entry0(value0: [int32; 4]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = 4uint32
+    jump block1(value1)
+
+block1(value4: uint32):
+    value5: boolean = int.ge.u value4, value3
+    branch value5, block5(), block2()
+
+block2:
+    value6: boolean = int.lt.u value4, value3
+    check bounds.u value4, value3, value0 -> block3(), block4()
+
+block3:
+    value7: uint32 = int.add value4, value2
+    jump block1(value7)
+
+block4:
     unreachable
-b5:
+
+block5:
     return
-}"#;
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: [int32; 4]): void {
-b0(v0: [int32; 4]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = 4uint32
-    jump b1(v1)
-b1(v4: uint32):
-    v5: boolean = int.ge.u v4, v3
-    branch v5, b5, b2
-b2:
-    v6: boolean = int.lt.u v4, v3
-    jump b3
-b3:
-    v7: uint32 = int.add v4, v2
-    jump b1(v7)
-b4:
+function test(value0: [int32; 4]): void {
+entry0(value0: [int32; 4]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = 4uint32
+    jump block1(value1)
+
+block1(value4: uint32):
+    value5: boolean = int.ge.u value4, value3
+    branch value5, block5(), block2()
+
+block2:
+    value6: boolean = int.lt.u value4, value3
+    jump block3()
+
+block3:
+    value7: uint32 = int.add value4, value2
+    jump block1(value7)
+
+block4:
     unreachable
-b5:
+
+block5:
     return
-}"#;
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -1091,47 +1125,59 @@ b5:
     fn test_preserve_signed_negative_indices() {
         // source test
         let input = r#"
-function test(v0: [int32; 4], v1: int32): void {
-b0(v0: [int32; 4], v1: int32):
-    v2: int32 = 1int32
-    v3: int32 = 4int32
-    jump b1(v1)
-b1(v4: int32):
-    v5: boolean = int.lt.s v4, v3
-    branch v5, b2, b5
-b2:
-    v6: boolean = int.lt.s v4, v3
-    check bounds.s v4, v3, v0 -> b3, b4
-b3:
-    v7: int32 = int.add v4, v2
-    jump b1(v7)
-b4:
+function test(value0: [int32; 4], value1: int32): void {
+entry0(value0: [int32; 4], value1: int32):
+    value2: int32 = 1int32
+    value3: int32 = 4int32
+    jump block1(value1)
+
+block1(value4: int32):
+    value5: boolean = int.lt.s value4, value3
+    branch value5, block2(), block5()
+
+block2:
+    value6: boolean = int.lt.s value4, value3
+    check bounds.s value4, value3, value0 -> block3(), block4()
+
+block3:
+    value7: int32 = int.add value4, value2
+    jump block1(value7)
+
+block4:
     unreachable
-b5:
+
+block5:
     return
-}"#;
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: [int32; 4], v1: int32): void {
-b0(v0: [int32; 4], v1: int32):
-    v2: int32 = 1int32
-    v3: int32 = 4int32
-    jump b1(v1)
-b1(v4: int32):
-    v5: boolean = int.lt.s v4, v3
-    branch v5, b2, b5
-b2:
-    v6: boolean = int.lt.s v4, v3
-    check bounds.s v4, v3, v0 -> b3, b4
-b3:
-    v7: int32 = int.add v4, v2
-    jump b1(v7)
-b4:
+function test(value0: [int32; 4], value1: int32): void {
+entry0(value0: [int32; 4], value1: int32):
+    value2: int32 = 1int32
+    value3: int32 = 4int32
+    jump block1(value1)
+
+block1(value4: int32):
+    value5: boolean = int.lt.s value4, value3
+    branch value5, block2(), block5()
+
+block2:
+    value6: boolean = int.lt.s value4, value3
+    check bounds.s value4, value3, value0 -> block3(), block4()
+
+block3:
+    value7: int32 = int.add value4, value2
+    jump block1(value7)
+
+block4:
     unreachable
-b5:
+
+block5:
     return
-}"#;
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -1144,49 +1190,61 @@ b5:
     fn test_eliminate_forwarded_param_checks() {
         // source test
         let input = r#"
-function test(v0: [int32; 4]): void {
-b0(v0: [int32; 4]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = 4uint32
-    jump b1(v1)
-b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
-    branch v5, b2(v4), b5
-b2(v6: uint32):
-    v7: boolean = int.lt.u v6, v3
-    check bounds.u v6, v3, v0 -> b3, b4
-b3:
-    v8: uint32 = int.add v6, v2
-    jump b1(v8)
-b4:
+function test(value0: [int32; 4]): void {
+entry0(value0: [int32; 4]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = 4uint32
+    jump block1(value1)
+
+block1(value4: uint32):
+    value5: boolean = int.lt.u value4, value3
+    branch value5, block2(value4), block5()
+
+block2(value6: uint32):
+    value7: boolean = int.lt.u value6, value3
+    check bounds.u value6, value3, value0 -> block3(), block4()
+
+block3:
+    value8: uint32 = int.add value6, value2
+    jump block1(value8)
+
+block4:
     unreachable
-b5:
+
+block5:
     return
-}"#;
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: [int32; 4]): void {
-b0(v0: [int32; 4]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = 4uint32
-    jump b1(v1)
-b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
-    branch v5, b2(v4), b5
-b2(v6: uint32):
-    v7: boolean = int.lt.u v6, v3
-    jump b3
-b3:
-    v8: uint32 = int.add v6, v2
-    jump b1(v8)
-b4:
+function test(value0: [int32; 4]): void {
+entry0(value0: [int32; 4]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = 4uint32
+    jump block1(value1)
+
+block1(value4: uint32):
+    value5: boolean = int.lt.u value4, value3
+    branch value5, block2(value4), block5()
+
+block2(value6: uint32):
+    value7: boolean = int.lt.u value6, value3
+    jump block3()
+
+block3:
+    value8: uint32 = int.add value6, value2
+    jump block1(value8)
+
+block4:
     unreachable
-b5:
+
+block5:
     return
-}"#;
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -1199,55 +1257,69 @@ b5:
     fn test_eliminate_signed_bounds_with_non_negative_guard() {
         // source test
         let input = r#"
-function test(v0: [int32; 8], v1: int32): void {
-b0(v0: [int32; 8], v1: int32):
-    v2: int32 = 0int32
-    v3: int32 = 8int32
-    jump b1(v1)
-b1(v4: int32):
-    v5: boolean = int.ge.s v4, v2
-    branch v5, b2, b6
-b2:
-    v6: boolean = int.lt.s v4, v3
-    branch v6, b3, b6
-b3:
-    v7: boolean = int.lt.s v4, v3
-    check bounds.s v4, v3, v0 -> b4, b5
-b4:
-    v8: int32 = 1int32
-    v9: int32 = int.add v4, v8
-    jump b1(v9)
-b5:
+function test(value0: [int32; 8], value1: int32): void {
+entry0(value0: [int32; 8], value1: int32):
+    value2: int32 = 0int32
+    value3: int32 = 8int32
+    jump block1(value1)
+
+block1(value4: int32):
+    value5: boolean = int.ge.s value4, value2
+    branch value5, block2(), block6()
+
+block2:
+    value6: boolean = int.lt.s value4, value3
+    branch value6, block3(), block6()
+
+block3:
+    value7: boolean = int.lt.s value4, value3
+    check bounds.s value4, value3, value0 -> block4(), block5()
+
+block4:
+    value8: int32 = 1int32
+    value9: int32 = int.add value4, value8
+    jump block1(value9)
+
+block5:
     unreachable
-b6:
+
+block6:
     return
-}"#;
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: [int32; 8], v1: int32): void {
-b0(v0: [int32; 8], v1: int32):
-    v2: int32 = 0int32
-    v3: int32 = 8int32
-    jump b1(v1)
-b1(v4: int32):
-    v5: boolean = int.ge.s v4, v2
-    branch v5, b2, b6
-b2:
-    v6: boolean = int.lt.s v4, v3
-    branch v6, b3, b6
-b3:
-    v7: boolean = int.lt.s v4, v3
-    jump b4
-b4:
-    v8: int32 = 1int32
-    v9: int32 = int.add v4, v8
-    jump b1(v9)
-b5:
+function test(value0: [int32; 8], value1: int32): void {
+entry0(value0: [int32; 8], value1: int32):
+    value2: int32 = 0int32
+    value3: int32 = 8int32
+    jump block1(value1)
+
+block1(value4: int32):
+    value5: boolean = int.ge.s value4, value2
+    branch value5, block2(), block6()
+
+block2:
+    value6: boolean = int.lt.s value4, value3
+    branch value6, block3(), block6()
+
+block3:
+    value7: boolean = int.lt.s value4, value3
+    jump block4()
+
+block4:
+    value8: int32 = 1int32
+    value9: int32 = int.add value4, value8
+    jump block1(value9)
+
+block5:
     unreachable
-b6:
+
+block6:
     return
-}"#;
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -1260,55 +1332,69 @@ b6:
     fn test_eliminate_signed_bounds_with_positive_guard() {
         // source test
         let input = r#"
-function test(v0: [int32; 8], v1: int32): void {
-b0(v0: [int32; 8], v1: int32):
-    v2: int32 = 2int32
-    v3: int32 = 8int32
-    jump b1(v1)
-b1(v4: int32):
-    v5: boolean = int.ge.s v4, v2
-    branch v5, b2, b6
-b2:
-    v6: boolean = int.lt.s v4, v3
-    branch v6, b3, b6
-b3:
-    v7: boolean = int.lt.s v4, v3
-    check bounds.s v4, v3, v0 -> b4, b5
-b4:
-    v8: int32 = 1int32
-    v9: int32 = int.add v4, v8
-    jump b1(v9)
-b5:
+function test(value0: [int32; 8], value1: int32): void {
+entry0(value0: [int32; 8], value1: int32):
+    value2: int32 = 2int32
+    value3: int32 = 8int32
+    jump block1(value1)
+
+block1(value4: int32):
+    value5: boolean = int.ge.s value4, value2
+    branch value5, block2(), block6()
+
+block2:
+    value6: boolean = int.lt.s value4, value3
+    branch value6, block3(), block6()
+
+block3:
+    value7: boolean = int.lt.s value4, value3
+    check bounds.s value4, value3, value0 -> block4(), block5()
+
+block4:
+    value8: int32 = 1int32
+    value9: int32 = int.add value4, value8
+    jump block1(value9)
+
+block5:
     unreachable
-b6:
+
+block6:
     return
-}"#;
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: [int32; 8], v1: int32): void {
-b0(v0: [int32; 8], v1: int32):
-    v2: int32 = 2int32
-    v3: int32 = 8int32
-    jump b1(v1)
-b1(v4: int32):
-    v5: boolean = int.ge.s v4, v2
-    branch v5, b2, b6
-b2:
-    v6: boolean = int.lt.s v4, v3
-    branch v6, b3, b6
-b3:
-    v7: boolean = int.lt.s v4, v3
-    jump b4
-b4:
-    v8: int32 = 1int32
-    v9: int32 = int.add v4, v8
-    jump b1(v9)
-b5:
+function test(value0: [int32; 8], value1: int32): void {
+entry0(value0: [int32; 8], value1: int32):
+    value2: int32 = 2int32
+    value3: int32 = 8int32
+    jump block1(value1)
+
+block1(value4: int32):
+    value5: boolean = int.ge.s value4, value2
+    branch value5, block2(), block6()
+
+block2:
+    value6: boolean = int.lt.s value4, value3
+    branch value6, block3(), block6()
+
+block3:
+    value7: boolean = int.lt.s value4, value3
+    jump block4()
+
+block4:
+    value8: int32 = 1int32
+    value9: int32 = int.add value4, value8
+    jump block1(value9)
+
+block5:
     unreachable
-b6:
+
+block6:
     return
-}"#;
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -1321,55 +1407,69 @@ b6:
     fn test_eliminate_signed_bounds_with_flipped_guard() {
         // source test
         let input = r#"
-function test(v0: [int32; 8], v1: int32): void {
-b0(v0: [int32; 8], v1: int32):
-    v2: int32 = 0int32
-    v3: int32 = 8int32
-    jump b1(v1)
-b1(v4: int32):
-    v5: boolean = int.le.s v2, v4
-    branch v5, b2, b6
-b2:
-    v6: boolean = int.lt.s v4, v3
-    branch v6, b3, b6
-b3:
-    v7: boolean = int.lt.s v4, v3
-    check bounds.s v4, v3, v0 -> b4, b5
-b4:
-    v8: int32 = 1int32
-    v9: int32 = int.add v4, v8
-    jump b1(v9)
-b5:
+function test(value0: [int32; 8], value1: int32): void {
+entry0(value0: [int32; 8], value1: int32):
+    value2: int32 = 0int32
+    value3: int32 = 8int32
+    jump block1(value1)
+
+block1(value4: int32):
+    value5: boolean = int.le.s value2, value4
+    branch value5, block2(), block6()
+
+block2:
+    value6: boolean = int.lt.s value4, value3
+    branch value6, block3(), block6()
+
+block3:
+    value7: boolean = int.lt.s value4, value3
+    check bounds.s value4, value3, value0 -> block4(), block5()
+
+block4:
+    value8: int32 = 1int32
+    value9: int32 = int.add value4, value8
+    jump block1(value9)
+
+block5:
     unreachable
-b6:
+
+block6:
     return
-}"#;
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: [int32; 8], v1: int32): void {
-b0(v0: [int32; 8], v1: int32):
-    v2: int32 = 0int32
-    v3: int32 = 8int32
-    jump b1(v1)
-b1(v4: int32):
-    v5: boolean = int.le.s v2, v4
-    branch v5, b2, b6
-b2:
-    v6: boolean = int.lt.s v4, v3
-    branch v6, b3, b6
-b3:
-    v7: boolean = int.lt.s v4, v3
-    jump b4
-b4:
-    v8: int32 = 1int32
-    v9: int32 = int.add v4, v8
-    jump b1(v9)
-b5:
+function test(value0: [int32; 8], value1: int32): void {
+entry0(value0: [int32; 8], value1: int32):
+    value2: int32 = 0int32
+    value3: int32 = 8int32
+    jump block1(value1)
+
+block1(value4: int32):
+    value5: boolean = int.le.s value2, value4
+    branch value5, block2(), block6()
+
+block2:
+    value6: boolean = int.lt.s value4, value3
+    branch value6, block3(), block6()
+
+block3:
+    value7: boolean = int.lt.s value4, value3
+    jump block4()
+
+block4:
+    value8: int32 = 1int32
+    value9: int32 = int.add value4, value8
+    jump block1(value9)
+
+block5:
     unreachable
-b6:
+
+block6:
     return
-}"#;
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -1382,50 +1482,62 @@ b6:
     fn test_eliminate_bounds_with_negated_guard() {
         // source test
         let input = r#"
-function test(v0: [uint32; 4]): void {
-b0(v0: [uint32; 4]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = 4uint32
-    jump b1(v1)
-b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
-    v6: boolean = int.not v5
-    branch v6, b2, b3
-b2:
+function test(value0: [uint32; 4]): void {
+entry0(value0: [uint32; 4]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = 4uint32
+    jump block1(value1)
+
+block1(value4: uint32):
+    value5: boolean = int.lt.u value4, value3
+    value6: boolean = int.not value5
+    branch value6, block2(), block3()
+
+block2:
     return
-b3:
-    v7: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 -> b4, b5
-b4:
-    v8: uint32 = int.add v4, v2
-    jump b1(v8)
-b5:
+
+block3:
+    value7: boolean = int.lt.u value4, value3
+    check bounds.u value4, value3, value0 -> block4(), block5()
+
+block4:
+    value8: uint32 = int.add value4, value2
+    jump block1(value8)
+
+block5:
     unreachable
-}"#;
+}
+"#;
         // expected output
         let expected = r#"
-function test(v0: [uint32; 4]): void {
-b0(v0: [uint32; 4]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = 4uint32
-    jump b1(v1)
-b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
-    v6: boolean = int.not v5
-    branch v6, b2, b3
-b2:
+function test(value0: [uint32; 4]): void {
+entry0(value0: [uint32; 4]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = 4uint32
+    jump block1(value1)
+
+block1(value4: uint32):
+    value5: boolean = int.lt.u value4, value3
+    value6: boolean = int.not value5
+    branch value6, block2(), block3()
+
+block2:
     return
-b3:
-    v7: boolean = int.lt.u v4, v3
-    jump b4
-b4:
-    v8: uint32 = int.add v4, v2
-    jump b1(v8)
-b5:
+
+block3:
+    value7: boolean = int.lt.u value4, value3
+    jump block4()
+
+block4:
+    value8: uint32 = int.add value4, value2
+    jump block1(value8)
+
+block5:
     unreachable
-}"#;
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -1438,49 +1550,61 @@ b5:
     fn test_eliminate_bounds_guard_check() {
         // source test
         let input = r#"
-function test(v0: [int32; 4]): void {
-b0(v0: [int32; 4]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = 4uint32
-    jump b1(v1)
-b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 -> b2, b5
-b2:
-    v6: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 -> b3, b4
-b3:
-    v7: uint32 = int.add v4, v2
-    jump b1(v7)
-b4:
+function test(value0: [int32; 4]): void {
+entry0(value0: [int32; 4]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = 4uint32
+    jump block1(value1)
+
+block1(value4: uint32):
+    value5: boolean = int.lt.u value4, value3
+    check bounds.u value4, value3, value0 -> block2(), block5()
+
+block2:
+    value6: boolean = int.lt.u value4, value3
+    check bounds.u value4, value3, value0 -> block3(), block4()
+
+block3:
+    value7: uint32 = int.add value4, value2
+    jump block1(value7)
+
+block4:
     unreachable
-b5:
+
+block5:
     return
-}"#;
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: [int32; 4]): void {
-b0(v0: [int32; 4]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = 4uint32
-    jump b1(v1)
-b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 -> b2, b5
-b2:
-    v6: boolean = int.lt.u v4, v3
-    jump b3
-b3:
-    v7: uint32 = int.add v4, v2
-    jump b1(v7)
-b4:
+function test(value0: [int32; 4]): void {
+entry0(value0: [int32; 4]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = 4uint32
+    jump block1(value1)
+
+block1(value4: uint32):
+    value5: boolean = int.lt.u value4, value3
+    check bounds.u value4, value3, value0 -> block2(), block5()
+
+block2:
+    value6: boolean = int.lt.u value4, value3
+    jump block3()
+
+block3:
+    value7: uint32 = int.add value4, value2
+    jump block1(value7)
+
+block4:
     unreachable
-b5:
+
+block5:
     return
-}"#;
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -1493,47 +1617,59 @@ b5:
     fn test_preserve_mismatched_signed_guard() {
         // source test
         let input = r#"
-function test(v0: [int32; 4], v1: int32): void {
-b0(v0: [int32; 4], v1: int32):
-    v2: int32 = 0int32
-    v3: int32 = 4int32
-    jump b1(v1)
-b1(v4: int32):
-    v5: boolean = int.lt.u v4, v3
-    branch v5, b2, b5
-b2:
-    v6: boolean = int.lt.s v4, v3
-    check bounds.s v4, v3, v0 -> b3, b4
-b3:
-    v7: int32 = int.add v4, v2
-    jump b1(v7)
-b4:
+function test(value0: [int32; 4], value1: int32): void {
+entry0(value0: [int32; 4], value1: int32):
+    value2: int32 = 0int32
+    value3: int32 = 4int32
+    jump block1(value1)
+
+block1(value4: int32):
+    value5: boolean = int.lt.u value4, value3
+    branch value5, block2(), block5()
+
+block2:
+    value6: boolean = int.lt.s value4, value3
+    check bounds.s value4, value3, value0 -> block3(), block4()
+
+block3:
+    value7: int32 = int.add value4, value2
+    jump block1(value7)
+
+block4:
     unreachable
-b5:
+
+block5:
     return
-}"#;
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: [int32; 4], v1: int32): void {
-b0(v0: [int32; 4], v1: int32):
-    v2: int32 = 0int32
-    v3: int32 = 4int32
-    jump b1(v1)
-b1(v4: int32):
-    v5: boolean = int.lt.u v4, v3
-    branch v5, b2, b5
-b2:
-    v6: boolean = int.lt.s v4, v3
-    check bounds.s v4, v3, v0 -> b3, b4
-b3:
-    v7: int32 = int.add v4, v2
-    jump b1(v7)
-b4:
+function test(value0: [int32; 4], value1: int32): void {
+entry0(value0: [int32; 4], value1: int32):
+    value2: int32 = 0int32
+    value3: int32 = 4int32
+    jump block1(value1)
+
+block1(value4: int32):
+    value5: boolean = int.lt.u value4, value3
+    branch value5, block2(), block5()
+
+block2:
+    value6: boolean = int.lt.s value4, value3
+    check bounds.s value4, value3, value0 -> block3(), block4()
+
+block3:
+    value7: int32 = int.add value4, value2
+    jump block1(value7)
+
+block4:
     unreachable
-b5:
+
+block5:
     return
-}"#;
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -1546,51 +1682,63 @@ b5:
     fn test_eliminate_guard_with_positive_offset() {
         // source test
         let input = r#"
-function test(v0: [int32; 8]): void {
-b0(v0: [int32; 8]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = 8uint32
-    jump b1(v1)
-b1(v4: uint32):
-    v5: uint32 = int.add v4, v2
-    v6: boolean = int.lt.u v5, v3
-    branch v6, b2, b5
-b2:
-    v7: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 -> b3, b4
-b3:
-    v8: uint32 = int.add v4, v2
-    jump b1(v8)
-b4:
+function test(value0: [int32; 8]): void {
+entry0(value0: [int32; 8]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = 8uint32
+    jump block1(value1)
+
+block1(value4: uint32):
+    value5: uint32 = int.add value4, value2
+    value6: boolean = int.lt.u value5, value3
+    branch value6, block2(), block5()
+
+block2:
+    value7: boolean = int.lt.u value4, value3
+    check bounds.u value4, value3, value0 -> block3(), block4()
+
+block3:
+    value8: uint32 = int.add value4, value2
+    jump block1(value8)
+
+block4:
     unreachable
-b5:
+
+block5:
     return
-}"#;
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: [int32; 8]): void {
-b0(v0: [int32; 8]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = 8uint32
-    jump b1(v1)
-b1(v4: uint32):
-    v5: uint32 = int.add v4, v2
-    v6: boolean = int.lt.u v5, v3
-    branch v6, b2, b5
-b2:
-    v7: boolean = int.lt.u v4, v3
-    jump b3
-b3:
-    v8: uint32 = int.add v4, v2
-    jump b1(v8)
-b4:
+function test(value0: [int32; 8]): void {
+entry0(value0: [int32; 8]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = 8uint32
+    jump block1(value1)
+
+block1(value4: uint32):
+    value5: uint32 = int.add value4, value2
+    value6: boolean = int.lt.u value5, value3
+    branch value6, block2(), block5()
+
+block2:
+    value7: boolean = int.lt.u value4, value3
+    jump block3()
+
+block3:
+    value8: uint32 = int.add value4, value2
+    jump block1(value8)
+
+block4:
     unreachable
-b5:
+
+block5:
     return
-}"#;
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -1603,51 +1751,63 @@ b5:
     fn test_preserve_check_with_positive_offset() {
         // source test
         let input = r#"
-function test(v0: [int32; 8]): void {
-b0(v0: [int32; 8]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = 8uint32
-    jump b1(v1)
-b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
-    branch v5, b2, b5
-b2:
-    v6: uint32 = int.add v4, v2
-    v7: boolean = int.lt.u v6, v3
-    check bounds.u v6, v3, v0 -> b3, b4
-b3:
-    v8: uint32 = int.add v4, v2
-    jump b1(v8)
-b4:
+function test(value0: [int32; 8]): void {
+entry0(value0: [int32; 8]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = 8uint32
+    jump block1(value1)
+
+block1(value4: uint32):
+    value5: boolean = int.lt.u value4, value3
+    branch value5, block2(), block5()
+
+block2:
+    value6: uint32 = int.add value4, value2
+    value7: boolean = int.lt.u value6, value3
+    check bounds.u value6, value3, value0 -> block3(), block4()
+
+block3:
+    value8: uint32 = int.add value4, value2
+    jump block1(value8)
+
+block4:
     unreachable
-b5:
+
+block5:
     return
-}"#;
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: [int32; 8]): void {
-b0(v0: [int32; 8]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = 8uint32
-    jump b1(v1)
-b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
-    branch v5, b2, b5
-b2:
-    v6: uint32 = int.add v4, v2
-    v7: boolean = int.lt.u v6, v3
-    check bounds.u v6, v3, v0 -> b3, b4
-b3:
-    v8: uint32 = int.add v4, v2
-    jump b1(v8)
-b4:
+function test(value0: [int32; 8]): void {
+entry0(value0: [int32; 8]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = 8uint32
+    jump block1(value1)
+
+block1(value4: uint32):
+    value5: boolean = int.lt.u value4, value3
+    branch value5, block2(), block5()
+
+block2:
+    value6: uint32 = int.add value4, value2
+    value7: boolean = int.lt.u value6, value3
+    check bounds.u value6, value3, value0 -> block3(), block4()
+
+block3:
+    value8: uint32 = int.add value4, value2
+    jump block1(value8)
+
+block4:
     unreachable
-b5:
+
+block5:
     return
-}"#;
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -1660,51 +1820,63 @@ b5:
     fn test_eliminate_guard_with_length_offset() {
         // source test
         let input = r#"
-function test(v0: [int32; 8]): void {
-b0(v0: [int32; 8]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = 8uint32
-    jump b1(v1)
-b1(v4: uint32):
-    v5: uint32 = int.sub v3, v2
-    v6: boolean = int.lt.u v4, v5
-    branch v6, b2, b5
-b2:
-    v7: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 -> b3, b4
-b3:
-    v8: uint32 = int.add v4, v2
-    jump b1(v8)
-b4:
+function test(value0: [int32; 8]): void {
+entry0(value0: [int32; 8]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = 8uint32
+    jump block1(value1)
+
+block1(value4: uint32):
+    value5: uint32 = int.sub value3, value2
+    value6: boolean = int.lt.u value4, value5
+    branch value6, block2(), block5()
+
+block2:
+    value7: boolean = int.lt.u value4, value3
+    check bounds.u value4, value3, value0 -> block3(), block4()
+
+block3:
+    value8: uint32 = int.add value4, value2
+    jump block1(value8)
+
+block4:
     unreachable
-b5:
+
+block5:
     return
-}"#;
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: [int32; 8]): void {
-b0(v0: [int32; 8]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = 8uint32
-    jump b1(v1)
-b1(v4: uint32):
-    v5: uint32 = int.sub v3, v2
-    v6: boolean = int.lt.u v4, v5
-    branch v6, b2, b5
-b2:
-    v7: boolean = int.lt.u v4, v3
-    jump b3
-b3:
-    v8: uint32 = int.add v4, v2
-    jump b1(v8)
-b4:
+function test(value0: [int32; 8]): void {
+entry0(value0: [int32; 8]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = 8uint32
+    jump block1(value1)
+
+block1(value4: uint32):
+    value5: uint32 = int.sub value3, value2
+    value6: boolean = int.lt.u value4, value5
+    branch value6, block2(), block5()
+
+block2:
+    value7: boolean = int.lt.u value4, value3
+    jump block3()
+
+block3:
+    value8: uint32 = int.add value4, value2
+    jump block1(value8)
+
+block4:
     unreachable
-b5:
+
+block5:
     return
-}"#;
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -1717,51 +1889,63 @@ b5:
     fn test_preserve_guard_with_larger_length_offset() {
         // source test
         let input = r#"
-function test(v0: [int32; 8]): void {
-b0(v0: [int32; 8]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = 8uint32
-    jump b1(v1)
-b1(v4: uint32):
-    v5: uint32 = int.add v3, v2
-    v6: boolean = int.lt.u v4, v5
-    branch v6, b2, b5
-b2:
-    v7: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 -> b3, b4
-b3:
-    v8: uint32 = int.add v4, v2
-    jump b1(v8)
-b4:
+function test(value0: [int32; 8]): void {
+entry0(value0: [int32; 8]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = 8uint32
+    jump block1(value1)
+
+block1(value4: uint32):
+    value5: uint32 = int.add value3, value2
+    value6: boolean = int.lt.u value4, value5
+    branch value6, block2(), block5()
+
+block2:
+    value7: boolean = int.lt.u value4, value3
+    check bounds.u value4, value3, value0 -> block3(), block4()
+
+block3:
+    value8: uint32 = int.add value4, value2
+    jump block1(value8)
+
+block4:
     unreachable
-b5:
+
+block5:
     return
-}"#;
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: [int32; 8]): void {
-b0(v0: [int32; 8]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = 8uint32
-    jump b1(v1)
-b1(v4: uint32):
-    v5: uint32 = int.add v3, v2
-    v6: boolean = int.lt.u v4, v5
-    branch v6, b2, b5
-b2:
-    v7: boolean = int.lt.u v4, v3
-    check bounds.u v4, v3, v0 -> b3, b4
-b3:
-    v8: uint32 = int.add v4, v2
-    jump b1(v8)
-b4:
+function test(value0: [int32; 8]): void {
+entry0(value0: [int32; 8]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = 8uint32
+    jump block1(value1)
+
+block1(value4: uint32):
+    value5: uint32 = int.add value3, value2
+    value6: boolean = int.lt.u value4, value5
+    branch value6, block2(), block5()
+
+block2:
+    value7: boolean = int.lt.u value4, value3
+    check bounds.u value4, value3, value0 -> block3(), block4()
+
+block3:
+    value8: uint32 = int.add value4, value2
+    jump block1(value8)
+
+block4:
     unreachable
-b5:
+
+block5:
     return
-}"#;
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);

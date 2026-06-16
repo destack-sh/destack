@@ -48,7 +48,7 @@ declare_pass! {
     ///     v2 = int.add v0, v1
     ///     return v2
     /// }
-    /// function callee$spec0(): int32 {
+    /// function callee_spec0(): int32 {
     /// b0:
     ///     v0 = 2int32
     ///     v1 = 3int32
@@ -59,7 +59,7 @@ declare_pass! {
     /// b0:
     ///     v0 = 2int32
     ///     v1 = 3int32
-    ///     v2 = call callee$spec0()
+    ///     v2 = call callee_spec0()
     ///     return v2
     /// }
     /// ```
@@ -221,11 +221,11 @@ fn run_argument_specialize(
             .get(&callsite.block)
             .copied()
             .unwrap_or(0);
-        if matches!(
-            block_hotness_from_counts(block_count, entry_count),
-            CallsiteHotness::Cold
-        ) {
-            continue;
+        if ctx.profile().is_some() {
+            match block_hotness_from_counts(block_count, entry_count) {
+                CallsiteHotness::Hot => {}
+                CallsiteHotness::Unknown | CallsiteHotness::Cold => continue,
+            }
         }
 
         // compute removal indices for constant parameters
@@ -456,7 +456,7 @@ fn specialize_callee(
 
 /// Create a suffix for specialized function names.
 fn specialized_suffix(spec_index: usize) -> String {
-    format!("$spec{spec_index}")
+    format!("_spec{spec_index}")
 }
 
 /// Clone a function body for specialization.
@@ -672,18 +672,20 @@ mod tests {
     #[test]
     fn test_argument_specialize_clones_constant_call() {
         let input = r#"
-function callee(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    return v2
+function callee(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    return value2
 }
+
 function root(): int32 {
-b0:
-    v0: int32 = 2int32
-    v1: int32 = 3int32
-    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
-    return v2
-}"#;
+entry0:
+    value0: int32 = 2int32
+    value1: int32 = 3int32
+    value2: int32 = call callee(value0, value1): (int32, int32) -> int32
+    return value2
+}
+"#;
 
         let expected = r#"
 function callee(value0: int32, value1: int32): int32 {
@@ -696,15 +698,16 @@ function root(): int32 {
 entry0:
     value0: int32 = 2int32
     value1: int32 = 3int32
-    value2: int32 = call callee$spec0(): () -> int32
+    value2: int32 = call callee_spec0(): () -> int32
     return value2
 }
 
-function callee$spec0(): int32 {
+function callee_spec0(): int32 {
 entry0:
     value2: int32 = 5int32
     return value2
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&ArgumentSpecialize);
@@ -715,18 +718,20 @@ entry0:
     #[test]
     fn test_argument_specialize_updates_call_metadata() {
         let input = r#"
-function callee(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    return v2
+function callee(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    return value2
 }
+
 function root(): int32 {
-b0:
-    v0: int32 = 2int32
-    v1: int32 = 3int32
-    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
-    return v2
-}"#;
+entry0:
+    value0: int32 = 2int32
+    value1: int32 = 3int32
+    value2: int32 = call callee(value0, value1): (int32, int32) -> int32
+    return value2
+}
+"#;
 
         let expected = r#"
 function callee(value0: int32, value1: int32): int32 {
@@ -739,15 +744,16 @@ function root(): int32 {
 entry0:
     value0: int32 = 2int32
     value1: int32 = 3int32
-    value2: int32 = call callee$spec0(): () -> int32
+    value2: int32 = call callee_spec0(): () -> int32
     return value2
 }
 
-function callee$spec0(): int32 {
+function callee_spec0(): int32 {
 entry0:
     value2: int32 = 5int32
     return value2
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let root_id = test.function_id_by_name("root");
@@ -793,19 +799,22 @@ entry0:
     #[test]
     fn test_argument_specialize_remaps_memory_access_metadata() {
         let input = r#"
-function callee(v0: int32): int32 {
+function callee(value0: int32): int32 {
     local local0: int32, owned
-b0(v0: int32):
-    v1: ref<int32, borrowed, space(frame)> = local.address local0
-    v2: int32 = load v1
-    return v2
+
+entry0(value0: int32):
+    value1: ref<int32, borrowed, space(frame)> = local.address local0
+    value2: int32 = load value1
+    return value2
 }
+
 function root(): int32 {
-b0:
-    v0: int32 = 1int32
-    v1: int32 = call callee(v0): (int32) -> int32
-    return v1
-}"#;
+entry0:
+    value0: int32 = 1int32
+    value1: int32 = call callee(value0): (int32) -> int32
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
 
@@ -891,18 +900,20 @@ b0:
     #[test]
     fn test_argument_specialize_skips_cold_callsite() {
         let input = r#"
-function callee(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    return v2
+function callee(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    return value2
 }
+
 function root(): int32 {
-b0:
-    v0: int32 = 2int32
-    v1: int32 = 3int32
-    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
-    return v2
-}"#;
+entry0:
+    value0: int32 = 2int32
+    value1: int32 = 3int32
+    value2: int32 = call callee(value0, value1): (int32, int32) -> int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let root_id = test.function_id_by_name("root");
@@ -919,18 +930,20 @@ b0:
     #[test]
     fn test_argument_specialize_skips_missing_function_count() {
         let input = r#"
-function callee(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    return v2
+function callee(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    return value2
 }
+
 function root(): int32 {
-b0:
-    v0: int32 = 2int32
-    v1: int32 = 3int32
-    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
-    return v2
-}"#;
+entry0:
+    value0: int32 = 2int32
+    value1: int32 = 3int32
+    value2: int32 = call callee(value0, value1): (int32, int32) -> int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
 
@@ -945,18 +958,20 @@ b0:
     #[test]
     fn test_argument_specialize_uses_hot_callsite() {
         let input = r#"
-function callee(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    return v2
+function callee(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    return value2
 }
+
 function root(): int32 {
-b0:
-    v0: int32 = 2int32
-    v1: int32 = 3int32
-    v2: int32 = call callee(v0, v1): (int32, int32) -> int32
-    return v2
-}"#;
+entry0:
+    value0: int32 = 2int32
+    value1: int32 = 3int32
+    value2: int32 = call callee(value0, value1): (int32, int32) -> int32
+    return value2
+}
+"#;
 
         let expected = r#"
 function callee(value0: int32, value1: int32): int32 {
@@ -969,15 +984,10 @@ function root(): int32 {
 entry0:
     value0: int32 = 2int32
     value1: int32 = 3int32
-    value2: int32 = call callee$spec0(): () -> int32
+    value2: int32 = call callee(value0, value1): (int32, int32) -> int32
     return value2
 }
-
-function callee$spec0(): int32 {
-entry0:
-    value2: int32 = 5int32
-    return value2
-}"#;
+"#;
 
         let mut test = TestProgram::new(input);
         let root_id = test.function_id_by_name("root");
@@ -994,16 +1004,18 @@ entry0:
     #[test]
     fn test_argument_specialize_keeps_alloc_size_param() {
         let input = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    return v0
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    return value0
 }
+
 function root(): int32 {
-b0:
-    v0: int32 = 7int32
-    v1: int32 = call callee(v0): (int32) -> int32
-    return v1
-}"#;
+entry0:
+    value0: int32 = 7int32
+    value1: int32 = call callee(value0): (int32) -> int32
+    return value1
+}
+"#;
 
         let expected = r#"
 function callee(value0: int32): int32 {
@@ -1014,15 +1026,16 @@ entry0(value0: int32):
 function root(): int32 {
 entry0:
     value0: int32 = 7int32
-    value1: int32 = call callee$spec0(value0): (int32) -> int32
+    value1: int32 = call callee_spec0(value0): (int32) -> int32
     return value1
 }
 
-function callee$spec0(value0: int32): int32 {
+function callee_spec0(value0: int32): int32 {
 entry0(value0: int32):
     value1: int32 = 7int32
     return value1
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let callee_id = test.function_id_by_name("callee");
@@ -1040,25 +1053,29 @@ entry0(value0: int32):
     #[test]
     fn test_argument_specialize_skips_recursive() {
         let input = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
-    v2: boolean = int.lt.s v0, v1
-    branch v2, b1, b2
-b1:
-    return v0
-b2:
-    v3: int32 = 1int32
-    v4: int32 = int.sub v0, v3
-    v5: int32 = call callee(v4): (int32) -> int32
-    return v5
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 1int32
+    value2: boolean = int.lt.s value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    return value0
+
+block2:
+    value3: int32 = 1int32
+    value4: int32 = int.sub value0, value3
+    value5: int32 = call callee(value4): (int32) -> int32
+    return value5
 }
+
 function root(): int32 {
-b0:
-    v0: int32 = 9int32
-    v1: int32 = call callee(v0): (int32) -> int32
-    return v1
-}"#;
+entry0:
+    value0: int32 = 9int32
+    value1: int32 = call callee(value0): (int32) -> int32
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&ArgumentSpecialize);
@@ -1070,12 +1087,14 @@ b0:
     fn test_argument_specialize_skips_extern() {
         let input = r#"
 external function callee(int32): int32
+
 function root(): int32 {
-b0:
-    v0: int32 = 2int32
-    v1: int32 = call callee(v0): (int32) -> int32
-    return v1
-}"#;
+entry0:
+    value0: int32 = 2int32
+    value1: int32 = call callee(value0): (int32) -> int32
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&ArgumentSpecialize);
@@ -1086,24 +1105,26 @@ b0:
     #[test]
     fn test_argument_specialize_respects_function_limit() {
         let input = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    return v0
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    return value0
 }
+
 function root(): int32 {
-b0:
-    v0: int32 = 1int32
-    v1: int32 = 2int32
-    v2: int32 = 3int32
-    v3: int32 = 4int32
-    v4: int32 = 5int32
-    v5: int32 = call callee(v0): (int32) -> int32
-    v6: int32 = call callee(v1): (int32) -> int32
-    v7: int32 = call callee(v2): (int32) -> int32
-    v8: int32 = call callee(v3): (int32) -> int32
-    v9: int32 = call callee(v4): (int32) -> int32
-    return v9
-}"#;
+entry0:
+    value0: int32 = 1int32
+    value1: int32 = 2int32
+    value2: int32 = 3int32
+    value3: int32 = 4int32
+    value4: int32 = 5int32
+    value5: int32 = call callee(value0): (int32) -> int32
+    value6: int32 = call callee(value1): (int32) -> int32
+    value7: int32 = call callee(value2): (int32) -> int32
+    value8: int32 = call callee(value3): (int32) -> int32
+    value9: int32 = call callee(value4): (int32) -> int32
+    return value9
+}
+"#;
 
         let expected = r#"
 function callee(value0: int32): int32 {
@@ -1118,37 +1139,38 @@ entry0:
     value2: int32 = 3int32
     value3: int32 = 4int32
     value4: int32 = 5int32
-    value5: int32 = call callee$spec0(): () -> int32
-    value6: int32 = call callee$spec1(): () -> int32
-    value7: int32 = call callee$spec2(): () -> int32
-    value8: int32 = call callee$spec3(): () -> int32
+    value5: int32 = call callee_spec0(): () -> int32
+    value6: int32 = call callee_spec1(): () -> int32
+    value7: int32 = call callee_spec2(): () -> int32
+    value8: int32 = call callee_spec3(): () -> int32
     value9: int32 = call callee(value4): (int32) -> int32
     return value9
 }
 
-function callee$spec0(): int32 {
+function callee_spec0(): int32 {
 entry0:
     value1: int32 = 1int32
     return value1
 }
 
-function callee$spec1(): int32 {
+function callee_spec1(): int32 {
 entry0:
     value1: int32 = 2int32
     return value1
 }
 
-function callee$spec2(): int32 {
+function callee_spec2(): int32 {
 entry0:
     value1: int32 = 3int32
     return value1
 }
 
-function callee$spec3(): int32 {
+function callee_spec3(): int32 {
 entry0:
     value1: int32 = 4int32
     return value1
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&ArgumentSpecialize);

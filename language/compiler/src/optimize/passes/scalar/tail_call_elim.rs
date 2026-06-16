@@ -122,7 +122,7 @@ struct AccumulatorPattern {
 /// Transform: add accumulator parameter, accumulate before recursing.
 ///
 /// For local functions: modifies in place and updates all call sites.
-/// For exported functions: creates internal `func$impl` with accumulator,
+/// For exported functions: creates internal `func_impl` with accumulator,
 /// rewrites original as a thin wrapper that calls impl with identity.
 fn try_accumulator_transform(
     function: &mut mir::Function,
@@ -229,7 +229,7 @@ fn try_accumulator_transform(
 
 /// Transform an exported function using the wrapper approach.
 ///
-/// Creates an internal `@func$impl` with the accumulator parameter,
+/// Creates an internal `func_impl` with the accumulator parameter,
 /// and rewrites the original exported function as a thin wrapper.
 #[allow(clippy::too_many_arguments)]
 fn try_accumulator_transform_exported(
@@ -246,8 +246,8 @@ fn try_accumulator_transform_exported(
         return false;
     };
 
-    // create the impl function name: "func" -> "func$impl"
-    let impl_name_str = format!("{}$impl", strings.get(function.name));
+    // create the impl function name
+    let impl_name_str = format!("{}_impl", strings.get(function.name));
     let impl_name = strings.intern(&impl_name_str);
 
     // clone the function to create the impl version
@@ -1480,34 +1480,40 @@ mod tests {
     fn test_eliminate_basic_tail_recursion() {
         // factorial(n, acc) with accumulator style
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 0int32
-    v3: boolean = int.eq v0, v2
-    branch v3, b1, b2
-b1:
-    return v1
-b2:
-    v4: int32 = int.mul v0, v1
-    v5: int32 = 1int32
-    v6: int32 = int.sub v0, v5
-    v7: int32 = call test(v6, v4): (int32, int32) -> int32
-    return v7
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = 0int32
+    value3: boolean = int.eq value0, value2
+    branch value3, block1(), block2()
+
+block1:
+    return value1
+
+block2:
+    value4: int32 = int.mul value0, value1
+    value5: int32 = 1int32
+    value6: int32 = int.sub value0, value5
+    value7: int32 = call test(value6, value4): (int32, int32) -> int32
+    return value7
+}
+"#;
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 0int32
-    v3: boolean = int.eq v0, v2
-    branch v3, b1, b2
-b1:
-    return v1
-b2:
-    v4: int32 = int.mul v0, v1
-    v5: int32 = 1int32
-    v6: int32 = int.sub v0, v5
-    jump b0(v6, v4)
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = 0int32
+    value3: boolean = int.eq value0, value2
+    branch value3, block1(), block2()
+
+block1:
+    return value1
+
+block2:
+    value4: int32 = int.mul value0, value1
+    value5: int32 = 1int32
+    value6: int32 = int.sub value0, value5
+    jump entry0(value6, value4)
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);
@@ -1518,32 +1524,38 @@ b2:
     fn test_eliminate_void_tail_recursion() {
         // countdown to zero
         let input = r#"
-function test(v0: int32): void {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
-b1:
+function test(value0: int32): void {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: boolean = int.eq value0, value1
+    branch value2, block1(), block2()
+
+block1:
     return
-b2:
-    v3: int32 = 1int32
-    v4: int32 = int.sub v0, v3
-    call test(v4): (int32) -> void
+
+block2:
+    value3: int32 = 1int32
+    value4: int32 = int.sub value0, value3
+    call test(value4): (int32) -> void
     return
-}"#;
+}
+"#;
         let expected = r#"
-function test(v0: int32): void {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
-b1:
+function test(value0: int32): void {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: boolean = int.eq value0, value1
+    branch value2, block1(), block2()
+
+block1:
     return
-b2:
-    v3: int32 = 1int32
-    v4: int32 = int.sub v0, v3
-    jump b0(v4)
-}"#;
+
+block2:
+    value3: int32 = 1int32
+    value4: int32 = int.sub value0, value3
+    jump entry0(value4)
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);
@@ -1554,33 +1566,39 @@ b2:
     fn test_transform_factorial_with_accumulator() {
         // classic factorial: n * factorial(n-1), transformed via accumulator
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
-    v2: boolean = int.le.s v0, v1
-    branch v2, b1, b2
-b1:
-    return v1
-b2:
-    v3: int32 = int.sub v0, v1
-    v4: int32 = call test(v3): (int32) -> int32
-    v5: int32 = int.mul v0, v4
-    return v5
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 1int32
+    value2: boolean = int.le.s value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    return value1
+
+block2:
+    value3: int32 = int.sub value0, value1
+    value4: int32 = call test(value3): (int32) -> int32
+    value5: int32 = int.mul value0, value4
+    return value5
+}
+"#;
         // after accumulator transform: adds v6 param, base returns v6, recurse accumulates
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 1int32
-    v3: boolean = int.le.s v0, v2
-    branch v3, b1, b2
-b1:
-    return v1
-b2:
-    v4: int32 = int.sub v0, v2
-    v5: int32 = int.mul v1, v0
-    jump b0(v4, v5)
-}"#;
+function test(value0: int32, value6: int32): int32 {
+entry0(value0: int32, value6: int32):
+    value1: int32 = 1int32
+    value2: boolean = int.le.s value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    return value6
+
+block2:
+    value3: int32 = int.sub value0, value1
+    value7: int32 = int.mul value6, value0
+    jump entry0(value3, value7)
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);
@@ -1591,20 +1609,23 @@ b2:
     fn test_preserve_non_associative_operation() {
         // subtraction is not associative, cannot transform
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
-b1:
-    return v1
-b2:
-    v3: int32 = 1int32
-    v4: int32 = int.sub v0, v3
-    v5: int32 = call test(v4): (int32) -> int32
-    v6: int32 = int.sub v0, v5
-    return v6
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: boolean = int.eq value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    return value1
+
+block2:
+    value3: int32 = 1int32
+    value4: int32 = int.sub value0, value3
+    value5: int32 = call test(value4): (int32) -> int32
+    value6: int32 = int.sub value0, value5
+    return value6
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);
@@ -1615,24 +1636,28 @@ b2:
     fn test_transform_sibling_tail_call() {
         // sibling call (to different function) in tail position becomes tailcall
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = call other(v0): (int32) -> int32
-    return v1
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = call other(value0): (int32) -> int32
+    return value1
 }
-function other(v0: int32): int32 {
-b0(v0: int32):
-    return v0
-}"#;
+
+function other(value0: int32): int32 {
+entry0(value0: int32):
+    return value0
+}
+"#;
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    tailCall other(v0): (int32) -> int32
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    tailCall other(value0): (int32) -> int32
 }
-function other(v0: int32): int32 {
-b0(v0: int32):
-    return v0
-}"#;
+
+function other(value0: int32): int32 {
+entry0(value0: int32):
+    return value0
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);
@@ -1643,30 +1668,36 @@ b0(v0: int32):
     fn test_eliminate_gcd_recursion() {
         // euclidean gcd is naturally tail recursive
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 0int32
-    v3: boolean = int.eq v1, v2
-    branch v3, b1, b2
-b1:
-    return v0
-b2:
-    v4: int32 = int.rem.s v0, v1
-    v5: int32 = call test(v1, v4): (int32, int32) -> int32
-    return v5
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = 0int32
+    value3: boolean = int.eq value1, value2
+    branch value3, block1(), block2()
+
+block1:
+    return value0
+
+block2:
+    value4: int32 = int.rem.s value0, value1
+    value5: int32 = call test(value1, value4): (int32, int32) -> int32
+    return value5
+}
+"#;
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 0int32
-    v3: boolean = int.eq v1, v2
-    branch v3, b1, b2
-b1:
-    return v0
-b2:
-    v4: int32 = int.rem.s v0, v1
-    jump b0(v1, v4)
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = 0int32
+    value3: boolean = int.eq value1, value2
+    branch value3, block1(), block2()
+
+block1:
+    return value0
+
+block2:
+    value4: int32 = int.rem.s value0, value1
+    jump entry0(value1, value4)
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);
@@ -1678,15 +1709,17 @@ b2:
         // infinite recursion becomes infinite loop
         let input = r#"
 function test(): void {
-b0:
+entry0:
     call test(): () -> void
     return
-}"#;
+}
+"#;
         let expected = r#"
 function test(): void {
-b0:
-    jump b0
-}"#;
+entry0:
+    jump entry0()
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);
@@ -1697,12 +1730,13 @@ b0:
     fn test_preserve_return_value_mismatch() {
         // returning different value than call result
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
-    v2: int32 = call test(v0): (int32) -> int32
-    return v1
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 1int32
+    value2: int32 = call test(value0): (int32) -> int32
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);
@@ -1713,34 +1747,40 @@ b0(v0: int32):
     fn test_eliminate_fibonacci_recursion() {
         // fib(n, a, b) where a and b are accumulators
         let input = r#"
-function test(v0: int32, v1: int32, v2: int32): int32 {
-b0(v0: int32, v1: int32, v2: int32):
-    v3: int32 = 0int32
-    v4: boolean = int.eq v0, v3
-    branch v4, b1, b2
-b1:
-    return v1
-b2:
-    v5: int32 = 1int32
-    v6: int32 = int.sub v0, v5
-    v7: int32 = int.add v1, v2
-    v8: int32 = call test(v6, v2, v7): (int32, int32, int32) -> int32
-    return v8
-}"#;
+function test(value0: int32, value1: int32, value2: int32): int32 {
+entry0(value0: int32, value1: int32, value2: int32):
+    value3: int32 = 0int32
+    value4: boolean = int.eq value0, value3
+    branch value4, block1(), block2()
+
+block1:
+    return value1
+
+block2:
+    value5: int32 = 1int32
+    value6: int32 = int.sub value0, value5
+    value7: int32 = int.add value1, value2
+    value8: int32 = call test(value6, value2, value7): (int32, int32, int32) -> int32
+    return value8
+}
+"#;
         let expected = r#"
-function test(v0: int32, v1: int32, v2: int32): int32 {
-b0(v0: int32, v1: int32, v2: int32):
-    v3: int32 = 0int32
-    v4: boolean = int.eq v0, v3
-    branch v4, b1, b2
-b1:
-    return v1
-b2:
-    v5: int32 = 1int32
-    v6: int32 = int.sub v0, v5
-    v7: int32 = int.add v1, v2
-    jump b0(v6, v2, v7)
-}"#;
+function test(value0: int32, value1: int32, value2: int32): int32 {
+entry0(value0: int32, value1: int32, value2: int32):
+    value3: int32 = 0int32
+    value4: boolean = int.eq value0, value3
+    branch value4, block1(), block2()
+
+block1:
+    return value1
+
+block2:
+    value5: int32 = 1int32
+    value6: int32 = int.sub value0, value5
+    value7: int32 = int.add value1, value2
+    jump entry0(value6, value2, value7)
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);
@@ -1751,45 +1791,55 @@ b2:
     fn test_eliminate_multiple_tail_calls() {
         // function with multiple blocks that have tail calls
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: boolean = int.lt.s v0, v1
-    branch v2, b1, b2
-b1:
-    v3: int32 = int.negate v0
-    v4: int32 = call test(v3): (int32) -> int32
-    return v4
-b2:
-    v5: int32 = 10int32
-    v6: boolean = int.gt.s v0, v5
-    branch v6, b3, b4
-b3:
-    v7: int32 = int.sub v0, v5
-    v8: int32 = call test(v7): (int32) -> int32
-    return v8
-b4:
-    return v0
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: boolean = int.lt.s value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = int.negate value0
+    value4: int32 = call test(value3): (int32) -> int32
+    return value4
+
+block2:
+    value5: int32 = 10int32
+    value6: boolean = int.gt.s value0, value5
+    branch value6, block3(), block4()
+
+block3:
+    value7: int32 = int.sub value0, value5
+    value8: int32 = call test(value7): (int32) -> int32
+    return value8
+
+block4:
+    return value0
+}
+"#;
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: boolean = int.lt.s v0, v1
-    branch v2, b1, b2
-b1:
-    v3: int32 = int.negate v0
-    jump b0(v3)
-b2:
-    v4: int32 = 10int32
-    v5: boolean = int.gt.s v0, v4
-    branch v5, b3, b4
-b3:
-    v6: int32 = int.sub v0, v4
-    jump b0(v6)
-b4:
-    return v0
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: boolean = int.lt.s value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = int.negate value0
+    jump entry0(value3)
+
+block2:
+    value5: int32 = 10int32
+    value6: boolean = int.gt.s value0, value5
+    branch value6, block3(), block4()
+
+block3:
+    value7: int32 = int.sub value0, value5
+    jump entry0(value7)
+
+block4:
+    return value0
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);
@@ -1800,26 +1850,32 @@ b4:
     fn test_eliminate_reordered_args_call() {
         // swap(a, b) calls swap(b, a)
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: boolean = int.gt.s v0, v1
-    branch v2, b1, b2
-b1:
-    v3: int32 = call test(v1, v0): (int32, int32) -> int32
-    return v3
-b2:
-    return v0
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: boolean = int.gt.s value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = call test(value1, value0): (int32, int32) -> int32
+    return value3
+
+block2:
+    return value0
+}
+"#;
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: boolean = int.gt.s v0, v1
-    branch v2, b1, b2
-b1:
-    jump b0(v1, v0)
-b2:
-    return v0
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: boolean = int.gt.s value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    jump entry0(value1, value0)
+
+block2:
+    return value0
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);
@@ -1830,10 +1886,11 @@ b2:
     fn test_handle_empty_block() {
         // block with only terminator, no instructions
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    return v0
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    return value0
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);
@@ -1844,14 +1901,15 @@ b0(v0: int32):
     fn test_preserve_non_final_call() {
         // call followed by other instruction before return
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
-    v2: int32 = int.sub v0, v1
-    v3: int32 = call test(v2): (int32) -> int32
-    v4: int32 = 0int32
-    return v3
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 1int32
+    value2: int32 = int.sub value0, value1
+    value3: int32 = call test(value2): (int32) -> int32
+    value4: int32 = 0int32
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);
@@ -1862,61 +1920,73 @@ b0(v0: int32):
     fn test_transform_mutual_recursion() {
         // even/odd mutual recursion becomes sibling tail calls
         let input = r#"
-function even(v0: int32): boolean {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
-b1:
-    v3: boolean = true
-    return v3
-b2:
-    v4: int32 = 1int32
-    v5: int32 = int.sub v0, v4
-    v6: boolean = call odd(v5): (int32) -> boolean
-    return v6
+function even(value0: int32): boolean {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: boolean = int.eq value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    value3: boolean = true
+    return value3
+
+block2:
+    value4: int32 = 1int32
+    value5: int32 = int.sub value0, value4
+    value6: boolean = call odd(value5): (int32) -> boolean
+    return value6
 }
-function odd(v0: int32): boolean {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
-b1:
-    v3: boolean = false
-    return v3
-b2:
-    v4: int32 = 1int32
-    v5: int32 = int.sub v0, v4
-    v6: boolean = call even(v5): (int32) -> boolean
-    return v6
-}"#;
+
+function odd(value0: int32): boolean {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: boolean = int.eq value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    value3: boolean = false
+    return value3
+
+block2:
+    value4: int32 = 1int32
+    value5: int32 = int.sub value0, value4
+    value6: boolean = call even(value5): (int32) -> boolean
+    return value6
+}
+"#;
         let expected = r#"
-function even(v0: int32): boolean {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
-b1:
-    v3: boolean = true
-    return v3
-b2:
-    v4: int32 = 1int32
-    v5: int32 = int.sub v0, v4
-    tailCall odd(v5): (int32) -> boolean
+function even(value0: int32): boolean {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: boolean = int.eq value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    value3: boolean = true
+    return value3
+
+block2:
+    value4: int32 = 1int32
+    value5: int32 = int.sub value0, value4
+    tailCall odd(value5): (int32) -> boolean
 }
-function odd(v0: int32): boolean {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
-b1:
-    v3: boolean = false
-    return v3
-b2:
-    v4: int32 = 1int32
-    v5: int32 = int.sub v0, v4
-    tailCall even(v5): (int32) -> boolean
-}"#;
+
+function odd(value0: int32): boolean {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: boolean = int.eq value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    value3: boolean = false
+    return value3
+
+block2:
+    value4: int32 = 1int32
+    value5: int32 = int.sub value0, value4
+    tailCall even(value5): (int32) -> boolean
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);
@@ -1927,34 +1997,40 @@ b2:
     fn test_transform_sum_with_accumulator() {
         // sum(n) = n + sum(n-1), identity for add is 0
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
-b1:
-    return v1
-b2:
-    v3: int32 = 1int32
-    v4: int32 = int.sub v0, v3
-    v5: int32 = call test(v4): (int32) -> int32
-    v6: int32 = int.add v0, v5
-    return v6
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: boolean = int.eq value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    return value1
+
+block2:
+    value3: int32 = 1int32
+    value4: int32 = int.sub value0, value3
+    value5: int32 = call test(value4): (int32) -> int32
+    value6: int32 = int.add value0, value5
+    return value6
+}
+"#;
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 0int32
-    v3: boolean = int.eq v0, v2
-    branch v3, b1, b2
-b1:
-    return v1
-b2:
-    v4: int32 = 1int32
-    v5: int32 = int.sub v0, v4
-    v6: int32 = int.add v1, v0
-    jump b0(v5, v6)
-}"#;
+function test(value0: int32, value7: int32): int32 {
+entry0(value0: int32, value7: int32):
+    value1: int32 = 0int32
+    value2: boolean = int.eq value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    return value7
+
+block2:
+    value3: int32 = 1int32
+    value4: int32 = int.sub value0, value3
+    value8: int32 = int.add value7, value0
+    jump entry0(value4, value8)
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);
@@ -1965,34 +2041,40 @@ b2:
     fn test_transform_bitwise_or_accumulator() {
         // or_bits(n) = n | or_bits(n-1), identity for or is 0
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
-b1:
-    return v1
-b2:
-    v3: int32 = 1int32
-    v4: int32 = int.sub v0, v3
-    v5: int32 = call test(v4): (int32) -> int32
-    v6: int32 = int.or v0, v5
-    return v6
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: boolean = int.eq value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    return value1
+
+block2:
+    value3: int32 = 1int32
+    value4: int32 = int.sub value0, value3
+    value5: int32 = call test(value4): (int32) -> int32
+    value6: int32 = int.or value0, value5
+    return value6
+}
+"#;
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 0int32
-    v3: boolean = int.eq v0, v2
-    branch v3, b1, b2
-b1:
-    return v1
-b2:
-    v4: int32 = 1int32
-    v5: int32 = int.sub v0, v4
-    v6: int32 = int.or v1, v0
-    jump b0(v5, v6)
-}"#;
+function test(value0: int32, value7: int32): int32 {
+entry0(value0: int32, value7: int32):
+    value1: int32 = 0int32
+    value2: boolean = int.eq value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    return value7
+
+block2:
+    value3: int32 = 1int32
+    value4: int32 = int.sub value0, value3
+    value8: int32 = int.or value7, value0
+    jump entry0(value4, value8)
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);
@@ -2003,38 +2085,44 @@ b2:
     fn test_transform_non_identity_base_case() {
         // sum with non-zero base: returns 5 when n=0
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
-b1:
-    v3: int32 = 5int32
-    return v3
-b2:
-    v4: int32 = 1int32
-    v5: int32 = int.sub v0, v4
-    v6: int32 = call test(v5): (int32) -> int32
-    v7: int32 = int.add v0, v6
-    return v7
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: boolean = int.eq value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = 5int32
+    return value3
+
+block2:
+    value4: int32 = 1int32
+    value5: int32 = int.sub value0, value4
+    value6: int32 = call test(value5): (int32) -> int32
+    value7: int32 = int.add value0, value6
+    return value7
+}
+"#;
         // base case returns OP(acc, 5) since 5 is not the identity
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 0int32
-    v3: boolean = int.eq v0, v2
-    branch v3, b1, b2
-b1:
-    v4: int32 = 5int32
-    v5: int32 = int.add v1, v4
-    return v5
-b2:
-    v6: int32 = 1int32
-    v7: int32 = int.sub v0, v6
-    v8: int32 = int.add v1, v0
-    jump b0(v7, v8)
-}"#;
+function test(value0: int32, value8: int32): int32 {
+entry0(value0: int32, value8: int32):
+    value1: int32 = 0int32
+    value2: boolean = int.eq value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = 5int32
+    value10: int32 = int.add value8, value3
+    return value10
+
+block2:
+    value4: int32 = 1int32
+    value5: int32 = int.sub value0, value4
+    value9: int32 = int.add value8, value0
+    jump entry0(value5, value9)
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);
@@ -2045,20 +2133,23 @@ b2:
     fn test_preserve_call_result_used_twice() {
         // call result used in multiple places, not just the binary op
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
-    v2: boolean = int.le.s v0, v1
-    branch v2, b1, b2
-b1:
-    return v1
-b2:
-    v3: int32 = int.sub v0, v1
-    v4: int32 = call test(v3): (int32) -> int32
-    v5: int32 = int.mul v0, v4
-    v6: int32 = int.add v5, v4
-    return v6
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 1int32
+    value2: boolean = int.le.s value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    return value1
+
+block2:
+    value3: int32 = int.sub value0, value1
+    value4: int32 = call test(value3): (int32) -> int32
+    value5: int32 = int.mul value0, value4
+    value6: int32 = int.add value5, value4
+    return value6
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);
@@ -2069,27 +2160,32 @@ b2:
     fn test_preserve_mixed_operators() {
         // multiple recursive sites with different operators
         let input = r#"
-function test(v0: int32, v1: boolean): int32 {
-b0(v0: int32, v1: boolean):
-    v2: int32 = 0int32
-    v3: boolean = int.eq v0, v2
-    branch v3, b1, b2
-b1:
-    v4: int32 = 1int32
-    return v4
-b2:
-    v5: int32 = 1int32
-    v6: int32 = int.sub v0, v5
-    branch v1, b3, b4
-b3:
-    v7: int32 = call test(v6, v1): (int32, boolean) -> int32
-    v8: int32 = int.mul v0, v7
-    return v8
-b4:
-    v9: int32 = call test(v6, v1): (int32, boolean) -> int32
-    v10: int32 = int.add v0, v9
-    return v10
-}"#;
+function test(value0: int32, value1: boolean): int32 {
+entry0(value0: int32, value1: boolean):
+    value2: int32 = 0int32
+    value3: boolean = int.eq value0, value2
+    branch value3, block1(), block2()
+
+block1:
+    value4: int32 = 1int32
+    return value4
+
+block2:
+    value5: int32 = 1int32
+    value6: int32 = int.sub value0, value5
+    branch value1, block3(), block4()
+
+block3:
+    value7: int32 = call test(value6, value1): (int32, boolean) -> int32
+    value8: int32 = int.mul value0, value7
+    return value8
+
+block4:
+    value9: int32 = call test(value6, value1): (int32, boolean) -> int32
+    value10: int32 = int.add value0, value9
+    return value10
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);
@@ -2102,45 +2198,53 @@ b4:
         // factorial with accumulator pattern, called from main
         // should transform and update the call site in main to pass identity
         let input = r#"
-function factorial(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
-    v2: boolean = int.le.s v0, v1
-    branch v2, b1, b2
-b1:
-    return v1
-b2:
-    v3: int32 = int.sub v0, v1
-    v4: int32 = call factorial(v3): (int32) -> int32
-    v5: int32 = int.mul v0, v4
-    return v5
+function factorial(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 1int32
+    value2: boolean = int.le.s value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    return value1
+
+block2:
+    value3: int32 = int.sub value0, value1
+    value4: int32 = call factorial(value3): (int32) -> int32
+    value5: int32 = int.mul value0, value4
+    return value5
 }
+
 function main(): int32 {
-b0:
-    v0: int32 = 5int32
-    v1: int32 = call factorial(v0): (int32) -> int32
-    return v1
-}"#;
+entry0:
+    value0: int32 = 5int32
+    value1: int32 = call factorial(value0): (int32) -> int32
+    return value1
+}
+"#;
         // after transform: factorial gets accumulator param, main's tail call becomes tailcall
         let expected = r#"
-function factorial(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 1int32
-    v3: boolean = int.le.s v0, v2
-    branch v3, b1, b2
-b1:
-    return v1
-b2:
-    v4: int32 = int.sub v0, v2
-    v5: int32 = int.mul v1, v0
-    jump b0(v4, v5)
+function factorial(value0: int32, value6: int32): int32 {
+entry0(value0: int32, value6: int32):
+    value1: int32 = 1int32
+    value2: boolean = int.le.s value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    return value6
+
+block2:
+    value3: int32 = int.sub value0, value1
+    value7: int32 = int.mul value6, value0
+    jump entry0(value3, value7)
 }
+
 function main(): int32 {
-b0:
-    v0: int32 = 5int32
-    v1: int32 = 1int32
-    tailCall factorial(v0, v1): (int32, int32) -> int32
-}"#;
+entry0:
+    value0: int32 = 5int32
+    value2: int32 = 1int32
+    tailCall factorial(value0, value2): (int32) -> int32
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);
@@ -2151,39 +2255,46 @@ b0:
     fn test_transform_exported_with_wrapper() {
         // exported factorial: should create impl + wrapper
         let input = r#"
-export function factorial(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
-    v2: boolean = int.le.s v0, v1
-    branch v2, b1, b2
-b1:
-    return v1
-b2:
-    v3: int32 = int.sub v0, v1
-    v4: int32 = call factorial(v3): (int32) -> int32
-    v5: int32 = int.mul v0, v4
-    return v5
-}"#;
+export function factorial(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 1int32
+    value2: boolean = int.le.s value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    return value1
+
+block2:
+    value3: int32 = int.sub value0, value1
+    value4: int32 = call factorial(value3): (int32) -> int32
+    value5: int32 = int.mul value0, value4
+    return value5
+}
+"#;
         // exported wrapper tail-calls internal impl with identity
         // impl has tail-recursive structure
         let expected = r#"
-export function factorial(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
-    tailCall factorial$impl(v0, v1): (int32, int32) -> int32
+export function factorial(value0: int32): int32 {
+entry0(value0: int32):
+    value6: int32 = 1int32
+    tailCall factorial_impl(value0, value6): (int32, int32) -> int32
 }
-function factorial$impl(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 1int32
-    v3: boolean = int.le.s v0, v2
-    branch v3, b1, b2
-b1:
-    return v1
-b2:
-    v4: int32 = int.sub v0, v2
-    v5: int32 = int.mul v1, v0
-    jump b0(v4, v5)
-}"#;
+
+function factorial_impl(value0: int32, value6: int32): int32 {
+entry0(value0: int32, value6: int32):
+    value1: int32 = 1int32
+    value2: boolean = int.le.s value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    return value6
+
+block2:
+    value3: int32 = int.sub value0, value1
+    value7: int32 = int.mul value6, value0
+    jump entry0(value3, value7)
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);
@@ -2194,16 +2305,18 @@ b2:
     fn test_transform_indirect_tail_call() {
         // indirect call in tail position becomes tailCall.indirect
         let input = r#"
-function test(v0: (int32) -> int32, v1: int32): int32 {
-b0(v0: (int32) -> int32, v1: int32):
-    v2: int32 = call.indirect v0(v1): (int32) -> int32
-    return v2
-}"#;
+function test(value0: (int32) -> int32, value1: int32): int32 {
+entry0(value0: (int32) -> int32, value1: int32):
+    value2: int32 = call.indirect value0(value1): (int32) -> int32
+    return value2
+}
+"#;
         let expected = r#"
-function test(v0: (int32) -> int32, v1: int32): int32 {
-b0(v0: (int32) -> int32, v1: int32):
-    tailCall.indirect v0(v1): (int32) -> int32
-}"#;
+function test(value0: (int32) -> int32, value1: int32): int32 {
+entry0(value0: (int32) -> int32, value1: int32):
+    tailCall.indirect value0(value1): (int32) -> int32
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);
@@ -2214,24 +2327,28 @@ b0(v0: (int32) -> int32, v1: int32):
     fn test_transform_void_sibling_tail_call() {
         // void sibling tail call
         let input = r#"
-function test(v0: int32): void {
-b0(v0: int32):
-    call other(v0): (int32) -> void
+function test(value0: int32): void {
+entry0(value0: int32):
+    call other(value0): (int32) -> void
     return
 }
-function other(v0: int32): void {
-b0(v0: int32):
+
+function other(value0: int32): void {
+entry0(value0: int32):
     return
-}"#;
+}
+"#;
         let expected = r#"
-function test(v0: int32): void {
-b0(v0: int32):
-    tailCall other(v0): (int32) -> void
+function test(value0: int32): void {
+entry0(value0: int32):
+    tailCall other(value0): (int32) -> void
 }
-function other(v0: int32): void {
-b0(v0: int32):
+
+function other(value0: int32): void {
+entry0(value0: int32):
     return
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);
@@ -2243,36 +2360,42 @@ b0(v0: int32):
         // and_bits(n) = n & and_bits(n-1), identity for int.and is all-ones (-1)
         // base case returns v1 (defined in b0) to avoid leftover instruction
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: boolean = int.eq v0, v1
-    v3: int32 = -1int32
-    branch v2, b1, b2
-b1:
-    return v3
-b2:
-    v4: int32 = 1int32
-    v5: int32 = int.sub v0, v4
-    v6: int32 = call test(v5): (int32) -> int32
-    v7: int32 = int.and v0, v6
-    return v7
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: boolean = int.eq value0, value1
+    value3: int32 = -1int32
+    branch value2, block1(), block2()
+
+block1:
+    return value3
+
+block2:
+    value4: int32 = 1int32
+    value5: int32 = int.sub value0, value4
+    value6: int32 = call test(value5): (int32) -> int32
+    value7: int32 = int.and value0, value6
+    return value7
+}
+"#;
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 0int32
-    v3: boolean = int.eq v0, v2
-    v4: int32 = -1int32
-    branch v3, b1, b2
-b1:
-    return v1
-b2:
-    v5: int32 = 1int32
-    v6: int32 = int.sub v0, v5
-    v7: int32 = int.and v1, v0
-    jump b0(v6, v7)
-}"#;
+function test(value0: int32, value8: int32): int32 {
+entry0(value0: int32, value8: int32):
+    value1: int32 = 0int32
+    value2: boolean = int.eq value0, value1
+    value3: int32 = -1int32
+    branch value2, block1(), block2()
+
+block1:
+    return value8
+
+block2:
+    value4: int32 = 1int32
+    value5: int32 = int.sub value0, value4
+    value9: int32 = int.and value8, value0
+    jump entry0(value5, value9)
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);
@@ -2283,34 +2406,40 @@ b2:
     fn test_transform_bitwise_xor_accumulator() {
         // xor_bits(n) = n ^ xor_bits(n-1), identity for bxor is 0
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: boolean = int.eq v0, v1
-    branch v2, b1, b2
-b1:
-    return v1
-b2:
-    v3: int32 = 1int32
-    v4: int32 = int.sub v0, v3
-    v5: int32 = call test(v4): (int32) -> int32
-    v6: int32 = int.xor v0, v5
-    return v6
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: boolean = int.eq value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    return value1
+
+block2:
+    value3: int32 = 1int32
+    value4: int32 = int.sub value0, value3
+    value5: int32 = call test(value4): (int32) -> int32
+    value6: int32 = int.xor value0, value5
+    return value6
+}
+"#;
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 0int32
-    v3: boolean = int.eq v0, v2
-    branch v3, b1, b2
-b1:
-    return v1
-b2:
-    v4: int32 = 1int32
-    v5: int32 = int.sub v0, v4
-    v6: int32 = int.xor v1, v0
-    jump b0(v5, v6)
-}"#;
+function test(value0: int32, value7: int32): int32 {
+entry0(value0: int32, value7: int32):
+    value1: int32 = 0int32
+    value2: boolean = int.eq value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    return value7
+
+block2:
+    value3: int32 = 1int32
+    value4: int32 = int.sub value0, value3
+    value8: int32 = int.xor value7, value0
+    jump entry0(value4, value8)
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&TailCallElim);

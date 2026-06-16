@@ -1887,44 +1887,52 @@ mod tests {
     fn test_strength_reduce_multiply() {
         // source test
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: int32 = 1int32
-    v3: int32 = 4int32
-    jump b1(v1)
-b1(v4: int32):
-    v5: boolean = int.lt.s v4, v0
-    branch v5, b2, b3
-b2:
-    v6: int32 = int.mul v4, v3
-    v7: int32 = int.add v6, v2
-    v8: int32 = int.add v4, v2
-    jump b1(v8)
-b3:
-    return v4
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: int32 = 1int32
+    value3: int32 = 4int32
+    jump block1(value1)
+
+block1(value4: int32):
+    value5: boolean = int.lt.s value4, value0
+    branch value5, block2(), block3()
+
+block2:
+    value6: int32 = int.mul value4, value3
+    value7: int32 = int.add value6, value2
+    value8: int32 = int.add value4, value2
+    jump block1(value8)
+
+block3:
+    return value4
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: int32 = 1int32
-    v3: int32 = 4int32
-    jump b1(v1, v1)
-b1(v4: int32, v5: int32):
-    v6: boolean = int.lt.s v4, v0
-    branch v6, b2, b3
-b2:
-    v7: int32 = int.mul v4, v3
-    v8: int32 = int.add v5, v2
-    v9: int32 = int.add v4, v2
-    v10: int32 = int.add v5, v3
-    jump b1(v9, v10)
-b3:
-    return v4
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: int32 = 1int32
+    value3: int32 = 4int32
+    jump block1(value1, value1)
+
+block1(value4: int32, value9: int32):
+    value5: boolean = int.lt.s value4, value0
+    branch value5, block2(), block3()
+
+block2:
+    value6: int32 = int.mul value4, value3
+    value7: int32 = int.add value9, value2
+    value8: int32 = int.add value4, value2
+    value10: int32 = int.add value9, value3
+    jump block1(value8, value10)
+
+block3:
+    return value4
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -1937,42 +1945,50 @@ b3:
     fn test_strength_reduce_invariant_multiplier() {
         // source test
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 0int32
-    v3: int32 = 1int32
-    jump b1(v2)
-b1(v4: int32):
-    v5: boolean = int.lt.s v4, v0
-    branch v5, b2, b3
-b2:
-    v6: int32 = int.mul v4, v1
-    v7: int32 = int.add v6, v3
-    v8: int32 = int.add v4, v3
-    jump b1(v8)
-b3:
-    return v4
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = 0int32
+    value3: int32 = 1int32
+    jump block1(value2)
+
+block1(value4: int32):
+    value5: boolean = int.lt.s value4, value0
+    branch value5, block2(), block3()
+
+block2:
+    value6: int32 = int.mul value4, value1
+    value7: int32 = int.add value6, value3
+    value8: int32 = int.add value4, value3
+    jump block1(value8)
+
+block3:
+    return value4
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 0int32
-    v3: int32 = 1int32
-    jump b1(v2, v2)
-b1(v4: int32, v5: int32):
-    v6: boolean = int.lt.s v4, v0
-    branch v6, b2, b3
-b2:
-    v7: int32 = int.mul v4, v1
-    v8: int32 = int.add v5, v3
-    v9: int32 = int.add v4, v3
-    v10: int32 = int.add v5, v1
-    jump b1(v9, v10)
-b3:
-    return v4
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = 0int32
+    value3: int32 = 1int32
+    jump block1(value2, value2)
+
+block1(value4: int32, value9: int32):
+    value5: boolean = int.lt.s value4, value0
+    branch value5, block2(), block3()
+
+block2:
+    value6: int32 = int.mul value4, value1
+    value7: int32 = int.add value9, value3
+    value8: int32 = int.add value4, value3
+    value10: int32 = int.add value9, value1
+    jump block1(value8, value10)
+
+block3:
+    return value4
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -1985,47 +2001,55 @@ b3:
     fn test_strength_reduce_invariant_select_multiplier() {
         // source test
         let input = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = 0int32
-    v4: int32 = 1int32
-    v5: int32 = 2int32
-    jump b1(v3)
-b1(v6: int32):
-    v7: boolean = int.lt.s v6, v0
-    branch v7, b2, b3
-b2:
-    v8: int32 = select v2, v1, v5
-    v9: int32 = int.mul v6, v8
-    v10: int32 = int.add v9, v4
-    v11: int32 = int.add v6, v4
-    jump b1(v11)
-b3:
-    return v6
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    value3: int32 = 0int32
+    value4: int32 = 1int32
+    value5: int32 = 2int32
+    jump block1(value3)
+
+block1(value6: int32):
+    value7: boolean = int.lt.s value6, value0
+    branch value7, block2(), block3()
+
+block2:
+    value8: int32 = select value2, value1, value5
+    value9: int32 = int.mul value6, value8
+    value10: int32 = int.add value9, value4
+    value11: int32 = int.add value6, value4
+    jump block1(value11)
+
+block3:
+    return value6
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = 0int32
-    v4: int32 = 1int32
-    v5: int32 = 2int32
-    v6: int32 = select v2, v1, v5
-    jump b1(v3, v3)
-b1(v7: int32, v8: int32):
-    v9: boolean = int.lt.s v7, v0
-    branch v9, b2, b3
-b2:
-    v10: int32 = select v2, v1, v5
-    v11: int32 = int.mul v7, v10
-    v12: int32 = int.add v8, v4
-    v13: int32 = int.add v7, v4
-    v14: int32 = int.add v8, v6
-    jump b1(v13, v14)
-b3:
-    return v7
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    value3: int32 = 0int32
+    value4: int32 = 1int32
+    value5: int32 = 2int32
+    value12: int32 = select value2, value1, value5
+    jump block1(value3, value3)
+
+block1(value6: int32, value13: int32):
+    value7: boolean = int.lt.s value6, value0
+    branch value7, block2(), block3()
+
+block2:
+    value8: int32 = select value2, value1, value5
+    value9: int32 = int.mul value6, value8
+    value10: int32 = int.add value13, value4
+    value11: int32 = int.add value6, value4
+    value14: int32 = int.add value13, value12
+    jump block1(value11, value14)
+
+block3:
+    return value6
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -2038,51 +2062,59 @@ b3:
     fn test_strength_reduce_multiple_candidates() {
         // source test
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: int32 = 1int32
-    v3: int32 = 2int32
-    v4: int32 = 3int32
-    jump b1(v1)
-b1(v5: int32):
-    v6: boolean = int.lt.s v5, v0
-    branch v6, b2, b3
-b2:
-    v7: int32 = int.mul v5, v3
-    v8: int32 = int.add v7, v4
-    v9: int32 = int.add v5, v2
-    v10: int32 = int.mul v5, v4
-    v11: int32 = int.add v10, v2
-    jump b1(v9)
-b3:
-    return v5
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: int32 = 1int32
+    value3: int32 = 2int32
+    value4: int32 = 3int32
+    jump block1(value1)
+
+block1(value5: int32):
+    value6: boolean = int.lt.s value5, value0
+    branch value6, block2(), block3()
+
+block2:
+    value7: int32 = int.mul value5, value3
+    value8: int32 = int.add value7, value4
+    value9: int32 = int.add value5, value2
+    value10: int32 = int.mul value5, value4
+    value11: int32 = int.add value10, value2
+    jump block1(value9)
+
+block3:
+    return value5
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: int32 = 1int32
-    v3: int32 = 2int32
-    v4: int32 = 3int32
-    jump b1(v1, v1, v1)
-b1(v5: int32, v6: int32, v7: int32):
-    v8: boolean = int.lt.s v5, v0
-    branch v8, b2, b3
-b2:
-    v9: int32 = int.mul v5, v3
-    v10: int32 = int.add v6, v4
-    v11: int32 = int.add v5, v2
-    v12: int32 = int.mul v5, v4
-    v13: int32 = int.add v7, v2
-    v14: int32 = int.add v6, v3
-    v15: int32 = int.add v7, v4
-    jump b1(v11, v14, v15)
-b3:
-    return v5
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: int32 = 1int32
+    value3: int32 = 2int32
+    value4: int32 = 3int32
+    jump block1(value1, value1, value1)
+
+block1(value5: int32, value12: int32, value14: int32):
+    value6: boolean = int.lt.s value5, value0
+    branch value6, block2(), block3()
+
+block2:
+    value7: int32 = int.mul value5, value3
+    value8: int32 = int.add value12, value4
+    value9: int32 = int.add value5, value2
+    value10: int32 = int.mul value5, value4
+    value11: int32 = int.add value14, value2
+    value13: int32 = int.add value12, value3
+    value15: int32 = int.add value14, value4
+    jump block1(value9, value13, value15)
+
+block3:
+    return value5
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -2095,25 +2127,31 @@ b3:
     fn test_strength_reduce_requires_preheader() {
         // source test
         let input = r#"
-function test(v0: int32, v1: int32, v2: int32): int32 {
-b0(v0: int32, v1: int32, v2: int32):
-    v3: boolean = int.eq v0, v0
-    branch v3, b1, b2
-b1:
-    jump b3(v1)
-b2:
-    jump b3(v2)
-b3(v4: int32):
-    v5: int32 = 1int32
-    v6: boolean = int.lt.s v4, v0
-    branch v6, b4, b5
-b4:
-    v7: int32 = int.mul v4, v5
-    v8: int32 = int.add v4, v5
-    jump b3(v8)
-b5:
-    return v4
-}"#;
+function test(value0: int32, value1: int32, value2: int32): int32 {
+entry0(value0: int32, value1: int32, value2: int32):
+    value3: boolean = int.eq value0, value0
+    branch value3, block1(), block2()
+
+block1:
+    jump block3(value1)
+
+block2:
+    jump block3(value2)
+
+block3(value4: int32):
+    value5: int32 = 1int32
+    value6: boolean = int.lt.s value4, value0
+    branch value6, block4(), block5()
+
+block4:
+    value7: int32 = int.mul value4, value5
+    value8: int32 = int.add value4, value5
+    jump block3(value8)
+
+block5:
+    return value4
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -2126,50 +2164,60 @@ b5:
     fn test_strength_reduce_branch_preheader() {
         // source test
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: int32 = 1int32
-    v3: int32 = 4int32
-    v4: boolean = int.eq v0, v0
-    branch v4, b1(v1), b4
-b1(v5: int32):
-    v6: boolean = int.lt.s v5, v0
-    branch v6, b2, b3
-b2:
-    v7: int32 = int.mul v5, v3
-    v8: int32 = int.add v7, v2
-    v9: int32 = int.add v5, v2
-    jump b1(v9)
-b3:
-    return v5
-b4:
-    return v1
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: int32 = 1int32
+    value3: int32 = 4int32
+    value4: boolean = int.eq value0, value0
+    branch value4, block1(value1), block4()
+
+block1(value5: int32):
+    value6: boolean = int.lt.s value5, value0
+    branch value6, block2(), block3()
+
+block2:
+    value7: int32 = int.mul value5, value3
+    value8: int32 = int.add value7, value2
+    value9: int32 = int.add value5, value2
+    jump block1(value9)
+
+block3:
+    return value5
+
+block4:
+    return value1
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: int32 = 1int32
-    v3: int32 = 4int32
-    v4: boolean = int.eq v0, v0
-    branch v4, b1(v1, v1), b4
-b1(v5: int32, v6: int32):
-    v7: boolean = int.lt.s v5, v0
-    branch v7, b2, b3
-b2:
-    v8: int32 = int.mul v5, v3
-    v9: int32 = int.add v6, v2
-    v10: int32 = int.add v5, v2
-    v11: int32 = int.add v6, v3
-    jump b1(v10, v11)
-b3:
-    return v5
-b4:
-    return v1
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: int32 = 1int32
+    value3: int32 = 4int32
+    value4: boolean = int.eq value0, value0
+    branch value4, block1(value1, value1), block4()
+
+block1(value5: int32, value10: int32):
+    value6: boolean = int.lt.s value5, value0
+    branch value6, block2(), block3()
+
+block2:
+    value7: int32 = int.mul value5, value3
+    value8: int32 = int.add value10, value2
+    value9: int32 = int.add value5, value2
+    value11: int32 = int.add value10, value3
+    jump block1(value9, value11)
+
+block3:
+    return value5
+
+block4:
+    return value1
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -2182,46 +2230,54 @@ b4:
     fn test_strength_reduce_switch_preheader() {
         // source test
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: int32 = 1int32
-    v3: int32 = 4int32
-    v4: int32 = 0int32
-    switch v4, b3, 0 => b1(v1)
-b1(v5: int32):
-    v6: boolean = int.lt.s v5, v0
-    branch v6, b2, b3
-b2:
-    v7: int32 = int.mul v5, v3
-    v8: int32 = int.add v7, v2
-    v9: int32 = int.add v5, v2
-    jump b1(v9)
-b3:
-    return v5
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: int32 = 1int32
+    value3: int32 = 4int32
+    value4: int32 = 0int32
+    switch value4, block3(), 0 => block1(value1)
+
+block1(value5: int32):
+    value6: boolean = int.lt.s value5, value0
+    branch value6, block2(), block3()
+
+block2:
+    value7: int32 = int.mul value5, value3
+    value8: int32 = int.add value7, value2
+    value9: int32 = int.add value5, value2
+    jump block1(value9)
+
+block3:
+    return value5
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: int32 = 1int32
-    v3: int32 = 4int32
-    v4: int32 = 0int32
-    switch v4, b3, 0 => b1(v1, v1)
-b1(v5: int32, v6: int32):
-    v7: boolean = int.lt.s v5, v0
-    branch v7, b2, b3
-b2:
-    v8: int32 = int.mul v5, v3
-    v9: int32 = int.add v6, v2
-    v10: int32 = int.add v5, v2
-    v11: int32 = int.add v6, v3
-    jump b1(v10, v11)
-b3:
-    return v5
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: int32 = 1int32
+    value3: int32 = 4int32
+    value4: int32 = 0int32
+    switch value4, block3(), 0 => block1(value1, value1)
+
+block1(value5: int32, value10: int32):
+    value6: boolean = int.lt.s value5, value0
+    branch value6, block2(), block3()
+
+block2:
+    value7: int32 = int.mul value5, value3
+    value8: int32 = int.add value10, value2
+    value9: int32 = int.add value5, value2
+    value11: int32 = int.add value10, value3
+    jump block1(value9, value11)
+
+block3:
+    return value5
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -2234,42 +2290,50 @@ b3:
     fn test_strength_reduce_exit_use() {
         // source test
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: int32 = 1int32
-    v3: int32 = 4int32
-    jump b1(v1)
-b1(v4: int32):
-    v5: boolean = int.lt.s v4, v0
-    branch v5, b2, b3(v4)
-b2:
-    v6: int32 = int.mul v4, v3
-    v7: int32 = int.add v4, v2
-    branch v5, b1(v7), b3(v6)
-b3(v8: int32):
-    return v8
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: int32 = 1int32
+    value3: int32 = 4int32
+    jump block1(value1)
+
+block1(value4: int32):
+    value5: boolean = int.lt.s value4, value0
+    branch value5, block2(), block3(value4)
+
+block2:
+    value6: int32 = int.mul value4, value3
+    value7: int32 = int.add value4, value2
+    branch value5, block1(value7), block3(value6)
+
+block3(value8: int32):
+    return value8
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: int32 = 1int32
-    v3: int32 = 4int32
-    jump b1(v1, v1)
-b1(v4: int32, v5: int32):
-    v6: boolean = int.lt.s v4, v0
-    branch v6, b2, b3(v4)
-b2:
-    v7: int32 = int.mul v4, v3
-    v8: int32 = int.add v4, v2
-    v9: int32 = int.add v5, v3
-    branch v6, b1(v8, v9), b3(v5)
-b3(v10: int32):
-    return v10
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: int32 = 1int32
+    value3: int32 = 4int32
+    jump block1(value1, value1)
+
+block1(value4: int32, value9: int32):
+    value5: boolean = int.lt.s value4, value0
+    branch value5, block2(), block3(value4)
+
+block2:
+    value6: int32 = int.mul value4, value3
+    value7: int32 = int.add value4, value2
+    value10: int32 = int.add value9, value3
+    branch value5, block1(value7, value10), block3(value9)
+
+block3(value8: int32):
+    return value8
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -2282,50 +2346,60 @@ b3(v10: int32):
     fn test_strength_reduce_check_latch() {
         // source test
         let input = r#"
-function test(v0: [int32; 8]): void {
-b0(v0: [int32; 8]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = 8uint32
-    jump b1(v1)
-b1(v4: uint32):
-    v5: boolean = int.lt.u v4, v3
-    branch v5, b2, b4
-b2:
-    v6: uint32 = int.mul v4, v3
-    v7: uint32 = int.add v6, v2
-    v8: uint32 = int.add v4, v2
-    v9: boolean = int.lt.u v8, v3
-    check bounds.u v8, v3, v0 -> b1(v8), b3
-b3:
+function test(value0: [int32; 8]): void {
+entry0(value0: [int32; 8]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = 8uint32
+    jump block1(value1)
+
+block1(value4: uint32):
+    value5: boolean = int.lt.u value4, value3
+    branch value5, block2(), block4()
+
+block2:
+    value6: uint32 = int.mul value4, value3
+    value7: uint32 = int.add value6, value2
+    value8: uint32 = int.add value4, value2
+    value9: boolean = int.lt.u value8, value3
+    check bounds.u value8, value3, value0 -> block1(value8), block3()
+
+block3:
     return
-b4:
+
+block4:
     return
-}"#;
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: [int32; 8]): void {
-b0(v0: [int32; 8]):
-    v1: uint32 = 0uint32
-    v2: uint32 = 1uint32
-    v3: uint32 = 8uint32
-    jump b1(v1, v1)
-b1(v4: uint32, v5: uint32):
-    v6: boolean = int.lt.u v4, v3
-    branch v6, b2, b4
-b2:
-    v7: uint32 = int.mul v4, v3
-    v8: uint32 = int.add v5, v2
-    v9: uint32 = int.add v4, v2
-    v10: boolean = int.lt.u v9, v3
-    v11: uint32 = int.add v5, v3
-    check bounds.u v9, v3, v0 -> b1(v9, v11), b3
-b3:
+function test(value0: [int32; 8]): void {
+entry0(value0: [int32; 8]):
+    value1: uint32 = 0uint32
+    value2: uint32 = 1uint32
+    value3: uint32 = 8uint32
+    jump block1(value1, value1)
+
+block1(value4: uint32, value10: uint32):
+    value5: boolean = int.lt.u value4, value3
+    branch value5, block2(), block4()
+
+block2:
+    value6: uint32 = int.mul value4, value3
+    value7: uint32 = int.add value10, value2
+    value8: uint32 = int.add value4, value2
+    value9: boolean = int.lt.u value8, value3
+    value11: uint32 = int.add value10, value3
+    check bounds.u value8, value3, value0 -> block1(value8, value11), block3()
+
+block3:
     return
-b4:
+
+block4:
     return
-}"#;
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -2338,21 +2412,25 @@ b4:
     fn test_strength_reduce_skip_add() {
         // source test
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
-    v2: int32 = 1int32
-    jump b1(v1)
-b1(v3: int32):
-    v4: boolean = int.lt.s v3, v0
-    branch v4, b2, b3
-b2:
-    v5: int32 = int.add v3, v2
-    v6: int32 = int.add v5, v2
-    jump b1(v5)
-b3:
-    return v3
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 0int32
+    value2: int32 = 1int32
+    jump block1(value1)
+
+block1(value3: int32):
+    value4: boolean = int.lt.s value3, value0
+    branch value4, block2(), block3()
+
+block2:
+    value5: int32 = int.add value3, value2
+    value6: int32 = int.add value5, value2
+    jump block1(value5)
+
+block3:
+    return value3
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -2365,22 +2443,26 @@ b3:
     fn test_strength_reduce_skip_unsafe_division() {
         // source test
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 0int32
-    v3: int32 = 1int32
-    jump b1(v2)
-b1(v4: int32):
-    v5: boolean = int.lt.s v4, v0
-    branch v5, b2, b3
-b2:
-    v6: int32 = int.div.s v0, v1
-    v7: int32 = int.mul v4, v6
-    v8: int32 = int.add v4, v3
-    jump b1(v8)
-b3:
-    return v4
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = 0int32
+    value3: int32 = 1int32
+    jump block1(value2)
+
+block1(value4: int32):
+    value5: boolean = int.lt.s value4, value0
+    branch value5, block2(), block3()
+
+block2:
+    value6: int32 = int.div.s value0, value1
+    value7: int32 = int.mul value4, value6
+    value8: int32 = int.add value4, value3
+    jump block1(value8)
+
+block3:
+    return value4
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -2393,21 +2475,25 @@ b3:
     fn test_strength_reduce_skip_signed_divide_min_overflow() {
         // source test
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
-    v2: int32 = -1int32
-    jump b1(v0)
-b1(v3: int32):
-    v4: boolean = int.lt.s v3, v1
-    branch v4, b2, b3
-b2:
-    v5: int32 = int.div.s v3, v2
-    v6: int32 = int.add v3, v1
-    jump b1(v6)
-b3:
-    return v3
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 1int32
+    value2: int32 = -1int32
+    jump block1(value0)
+
+block1(value3: int32):
+    value4: boolean = int.lt.s value3, value1
+    branch value4, block2(), block3()
+
+block2:
+    value5: int32 = int.div.s value3, value2
+    value6: int32 = int.add value3, value1
+    jump block1(value6)
+
+block3:
+    return value3
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);

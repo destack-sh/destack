@@ -518,32 +518,40 @@ mod tests {
     fn test_hoist_simple_diamond() {
         // source test
         let input = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
-b1:
-    v3: int32 = int.add v0, v1
-    jump b3(v3)
-b2:
-    v4: int32 = int.add v0, v1
-    jump b3(v4)
-b3(v5: int32):
-    return v5
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = int.add value0, value1
+    jump block3(value3)
+
+block2:
+    value4: int32 = int.add value0, value1
+    jump block3(value4)
+
+block3(value5: int32):
+    return value5
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = int.add v0, v1
-    branch v2, b1, b2
-b1:
-    jump b3(v3)
-b2:
-    jump b3(v3)
-b3(v4: int32):
-    return v4
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    value6: int32 = int.add value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    jump block3(value6)
+
+block2:
+    jump block3(value6)
+
+block3(value5: int32):
+    return value5
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -556,18 +564,22 @@ b3(v4: int32):
     fn test_hoist_skips_division() {
         // source test
         let input = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
-b1:
-    v3: int32 = int.div.s v0, v1
-    jump b3(v3)
-b2:
-    v4: int32 = int.div.s v0, v1
-    jump b3(v4)
-b3(v5: int32):
-    return v5
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = int.div.s value0, value1
+    jump block3(value3)
+
+block2:
+    value4: int32 = int.div.s value0, value1
+    jump block3(value4)
+
+block3(value5: int32):
+    return value5
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -580,18 +592,22 @@ b3(v5: int32):
     fn test_hoist_requires_equivalence() {
         // source test
         let input = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
-b1:
-    v3: int32 = int.add v0, v1
-    jump b3(v3)
-b2:
-    v4: int32 = int.sub v0, v1
-    jump b3(v4)
-b3(v5: int32):
-    return v5
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = int.add value0, value1
+    jump block3(value3)
+
+block2:
+    value4: int32 = int.sub value0, value1
+    jump block3(value4)
+
+block3(value5: int32):
+    return value5
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -604,35 +620,43 @@ b3(v5: int32):
     fn test_hoist_common_prefix_chain() {
         // source test
         let input = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
-b1:
-    v3: int32 = int.add v0, v1
-    v4: int32 = int.add v3, v1
-    jump b3(v4)
-b2:
-    v5: int32 = int.add v0, v1
-    v6: int32 = int.add v5, v1
-    jump b3(v6)
-b3(v7: int32):
-    return v7
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = int.add value0, value1
+    value4: int32 = int.add value3, value1
+    jump block3(value4)
+
+block2:
+    value5: int32 = int.add value0, value1
+    value6: int32 = int.add value5, value1
+    jump block3(value6)
+
+block3(value7: int32):
+    return value7
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = int.add v0, v1
-    v4: int32 = int.add v3, v1
-    branch v2, b1, b2
-b1:
-    jump b3(v4)
-b2:
-    jump b3(v4)
-b3(v5: int32):
-    return v5
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    value8: int32 = int.add value0, value1
+    value9: int32 = int.add value8, value1
+    branch value2, block1(), block2()
+
+block1:
+    jump block3(value9)
+
+block2:
+    jump block3(value9)
+
+block3(value7: int32):
+    return value7
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -645,32 +669,40 @@ b3(v5: int32):
     fn test_hoist_rewrites_branch_params() {
         // source test
         let input = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1(v0, v1), b2(v0, v1)
-b1(v3: int32, v4: int32):
-    v5: int32 = int.add v3, v4
-    jump b3(v5)
-b2(v6: int32, v7: int32):
-    v8: int32 = int.add v6, v7
-    jump b3(v8)
-b3(v9: int32):
-    return v9
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    branch value2, block1(value0, value1), block2(value0, value1)
+
+block1(value3: int32, value4: int32):
+    value5: int32 = int.add value3, value4
+    jump block3(value5)
+
+block2(value6: int32, value7: int32):
+    value8: int32 = int.add value6, value7
+    jump block3(value8)
+
+block3(value9: int32):
+    return value9
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = int.add v0, v1
-    branch v2, b1(v0, v1), b2(v0, v1)
-b1(v4: int32, v5: int32):
-    jump b3(v3)
-b2(v6: int32, v7: int32):
-    jump b3(v3)
-b3(v8: int32):
-    return v8
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    value10: int32 = int.add value0, value1
+    branch value2, block1(value0, value1), block2(value0, value1)
+
+block1(value3: int32, value4: int32):
+    jump block3(value10)
+
+block2(value6: int32, value7: int32):
+    jump block3(value10)
+
+block3(value9: int32):
+    return value9
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -683,36 +715,44 @@ b3(v8: int32):
     fn test_hoist_non_prefix_match() {
         // source test
         let input = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
-b1:
-    v3: int32 = int.mul v0, v1
-    v4: int32 = int.add v0, v1
-    jump b3(v4)
-b2:
-    v5: int32 = int.sub v0, v1
-    v6: int32 = int.add v0, v1
-    jump b3(v6)
-b3(v7: int32):
-    return v7
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = int.mul value0, value1
+    value4: int32 = int.add value0, value1
+    jump block3(value4)
+
+block2:
+    value5: int32 = int.sub value0, value1
+    value6: int32 = int.add value0, value1
+    jump block3(value6)
+
+block3(value7: int32):
+    return value7
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = int.add v0, v1
-    branch v2, b1, b2
-b1:
-    v4: int32 = int.mul v0, v1
-    jump b3(v3)
-b2:
-    v5: int32 = int.sub v0, v1
-    jump b3(v3)
-b3(v6: int32):
-    return v6
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    value8: int32 = int.add value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = int.mul value0, value1
+    jump block3(value8)
+
+block2:
+    value5: int32 = int.sub value0, value1
+    jump block3(value8)
+
+block3(value7: int32):
+    return value7
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -725,20 +765,25 @@ b3(v6: int32):
     fn test_hoist_requires_single_predecessor() {
         // source test
         let input = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
-b1:
-    v3: int32 = int.add v0, v1
-    jump b3(v3)
-b2:
-    v4: int32 = int.add v0, v1
-    jump b3(v4)
-b3(v5: int32):
-    return v5
-b4:
-    jump b2
-}"#;
+function test(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = int.add value0, value1
+    jump block3(value3)
+
+block2:
+    value4: int32 = int.add value0, value1
+    jump block3(value4)
+
+block3(value5: int32):
+    return value5
+
+block4:
+    jump block2()
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);

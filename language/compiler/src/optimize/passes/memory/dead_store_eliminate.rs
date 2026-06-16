@@ -738,25 +738,27 @@ mod tests {
     fn test_remove_overwritten_store() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 1int32
-    store v0, v1
-    v2: int32 = 2int32
-    store v0, v2
-    v3: int32 = load v0
-    return v3
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = 1int32
+    store value0, value1
+    value2: int32 = 2int32
+    store value0, value2
+    value3: int32 = load value0
+    return value3
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    store v0, v2
-    v3: int32 = load v0
-    return v3
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    store value0, value2
+    value3: int32 = load value0
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&DeadStoreEliminate);
@@ -770,16 +772,17 @@ b0:
     fn test_preserve_read_store() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 1int32
-    store v0, v1
-    v2: int32 = load v0
-    v3: int32 = 2int32
-    store v0, v3
-    v4: int32 = load v0
-    return v4
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = 1int32
+    store value0, value1
+    value2: int32 = load value0
+    value3: int32 = 2int32
+    store value0, value3
+    value4: int32 = load value0
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&DeadStoreEliminate);
@@ -793,21 +796,23 @@ b0:
     fn test_remove_store_to_unused_alloc() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 42int32
-    store v0, v1
-    v2: int32 = 0int32
-    return v2
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = 42int32
+    store value0, value1
+    value2: int32 = 0int32
+    return value2
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 42int32
-    v2: int32 = 0int32
-    return v2
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = 42int32
+    value2: int32 = 0int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&DeadStoreEliminate);
@@ -819,15 +824,16 @@ b0:
     fn test_preserve_volatile_store() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 1int32
-    store v0, v1
-    v2: int32 = 2int32
-    store v0, v2
-    v3: int32 = load v0
-    return v3
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = 1int32
+    store value0, value1
+    value2: int32 = 2int32
+    store value0, value2
+    value3: int32 = load value0
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let function_id = test.entry_function_id();
@@ -850,15 +856,17 @@ b0:
     #[test]
     fn test_preserve_escaping_store() {
         let input = r#"
-external function external(ref<int32, raw>): void
+external function imported(ref<int32, raw>): void
+
 function test(): void {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 42int32
-    store v0, v1
-    call external(v0): (ref<int32, raw>) -> void
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = 42int32
+    store value0, value1
+    call imported(value0): (ref<int32, raw>) -> void
     return
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&DeadStoreEliminate);
@@ -869,26 +877,30 @@ b0:
     #[test]
     fn test_remove_store_before_nonescaping_no_memory_call() {
         let input = r#"
-external function external(ref<int32, raw>): void
+external function imported(ref<int32, raw>): void
+
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 42int32
-    store v0, v1
-    call external(v0): (ref<int32, raw>) -> void
-    v2: int32 = 0int32
-    return v2
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = 42int32
+    store value0, value1
+    call imported(value0): (ref<int32, raw>) -> void
+    value2: int32 = 0int32
+    return value2
+}
+"#;
         let expected = r#"
-external function external(ref<int32, raw>): void
+external function imported(ref<int32, raw>): void
+
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 42int32
-    call external(v0): (ref<int32, raw>) -> void
-    v2: int32 = 0int32
-    return v2
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = 42int32
+    call imported(value0): (ref<int32, raw>) -> void
+    value2: int32 = 0int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
 
@@ -918,28 +930,30 @@ b0:
     fn test_multiple_overwrites() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 1int32
-    store v0, v1
-    v2: int32 = 2int32
-    store v0, v2
-    v3: int32 = 3int32
-    store v0, v3
-    v4: int32 = load v0
-    return v4
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = 1int32
+    store value0, value1
+    value2: int32 = 2int32
+    store value0, value2
+    value3: int32 = 3int32
+    store value0, value3
+    value4: int32 = load value0
+    return value4
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    v3: int32 = 3int32
-    store v0, v3
-    v4: int32 = load v0
-    return v4
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    value3: int32 = 3int32
+    store value0, value3
+    value4: int32 = load value0
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&DeadStoreEliminate);
@@ -953,10 +967,11 @@ b0:
     fn test_no_changes() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 42int32
-    return v0
-}"#;
+entry0:
+    value0: int32 = 42int32
+    return value0
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&DeadStoreEliminate);
@@ -970,18 +985,19 @@ b0:
     fn test_different_locations() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int32 = 1int32
-    store v0, v2
-    v3: int32 = 2int32
-    store v1, v3
-    v4: int32 = load v0
-    v5: int32 = load v1
-    v6: int32 = int.add v4, v5
-    return v6
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value2: int32 = 1int32
+    store value0, value2
+    value3: int32 = 2int32
+    store value1, value3
+    value4: int32 = load value0
+    value5: int32 = load value1
+    value6: int32 = int.add value4, value5
+    return value6
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&DeadStoreEliminate);
@@ -996,14 +1012,16 @@ b0:
     fn test_preserve_store_before_call() {
         let input = r#"
 external function readValue(ref<int32, raw>): int32
+
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 42int32
-    store v0, v1
-    v2: int32 = call readValue(v0): (ref<int32, raw>) -> int32
-    return v2
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = 42int32
+    store value0, value1
+    value2: int32 = call readValue(value0): (ref<int32, raw>) -> int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&DeadStoreEliminate);
@@ -1018,29 +1036,33 @@ b0:
     fn test_remove_after_call_overwritten() {
         let input = r#"
 external function sideEffect(): void
+
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     call sideEffect(): () -> void
-    v1: int32 = 1int32
-    store v0, v1
-    v2: int32 = 2int32
-    store v0, v2
-    v3: int32 = load v0
-    return v3
-}"#;
+    value1: int32 = 1int32
+    store value0, value1
+    value2: int32 = 2int32
+    store value0, value2
+    value3: int32 = load value0
+    return value3
+}
+"#;
         let expected = r#"
 external function sideEffect(): void
+
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     call sideEffect(): () -> void
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    store v0, v2
-    v3: int32 = load v0
-    return v3
-}"#;
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    store value0, value2
+    value3: int32 = load value0
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&DeadStoreEliminate);
@@ -1054,12 +1076,13 @@ b0:
     fn test_preserve_store_to_returned() {
         let input = r#"
 function test(): ref<int32, raw> {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 42int32
-    store v0, v1
-    return v0
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = 42int32
+    store value0, value1
+    return value0
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&DeadStoreEliminate);
@@ -1071,14 +1094,15 @@ b0:
     fn test_preserve_store_returned_aggregate() {
         let input = r#"
 function test(): (ref<int32, raw>, int32) {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 42int32
-    store v0, v1
-    v2: int32 = 0int32
-    v3: (ref<int32, raw>, int32) = tuple (ref<int32, raw>, int32) (v0, v2)
-    return v3
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = 42int32
+    store value0, value1
+    value2: int32 = 0int32
+    value3: (ref<int32, raw>, int32) = tuple (ref<int32, raw>, int32) (value0, value2)
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&DeadStoreEliminate);
@@ -1093,16 +1117,18 @@ type Pair {
     int32;
     int32;
 }
-function test(v0: ref<Pair, raw>): void {
-b0(v0: ref<Pair, raw>):
-    v1: ref<int32, borrowed> = field.address v0, 0
-    v2: ref<int32, borrowed> = field.address v0, 1
-    v3: int32 = 1int32
-    v4: int32 = 2int32
-    store v1, v3
-    store v2, v4
+
+function test(value0: ref<Pair, raw>): void {
+entry0(value0: ref<Pair, raw>):
+    value1: ref<int32, borrowed> = field.address value0, 0
+    value2: ref<int32, borrowed> = field.address value0, 1
+    value3: int32 = 1int32
+    value4: int32 = 2int32
+    store value1, value3
+    store value2, value4
     return
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&DeadStoreEliminate);
@@ -1114,14 +1140,15 @@ b0(v0: ref<Pair, raw>):
     fn test_preserve_partial_overwrite() {
         let input = r#"
 function test(): ref<int64, raw> {
-b0:
-    v0: ref<int64, raw, space(frame)> = frame.alloc.zeroed int64
-    v1: int64 = 0int64
-    store v0, v1
-    v2: int32 = 1int32
-    store v0, v2
-    return v0
-}"#;
+entry0:
+    value0: ref<int64, raw, space(frame)> = frame.alloc.zeroed int64
+    value1: int64 = 0int64
+    store value0, value1
+    value2: int32 = 1int32
+    store value0, value2
+    return value0
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let function_id = test.entry_function_id();
@@ -1142,21 +1169,23 @@ b0:
     fn test_remove_dead_memset() {
         let input = r#"
 function test(): void {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int8 = 0int8
-    v2: int64 = 4int64
-    intrinsic.memory.raw.setBytes(v0, v1, v2)
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int8 = 0int8
+    value2: int64 = 4int64
+    intrinsic.memory.raw.setBytes(value0, value1, value2)
     return
-}"#;
+}
+"#;
         let expected = r#"
 function test(): void {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int8 = 0int8
-    v2: int64 = 4int64
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int8 = 0int8
+    value2: int64 = 4int64
     return
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&DeadStoreEliminate);
@@ -1168,14 +1197,15 @@ b0:
     fn test_preserve_memset_with_read() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int8 = 0int8
-    v2: int64 = 4int64
-    intrinsic.memory.raw.setBytes(v0, v1, v2)
-    v3: int32 = load v0
-    return v3
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int8 = 0int8
+    value2: int64 = 4int64
+    intrinsic.memory.raw.setBytes(value0, value1, value2)
+    value3: int32 = load value0
+    return value3
+}
+"#;
         let expected = input;
 
         let mut test = TestProgram::new(input);
@@ -1189,21 +1219,23 @@ b0:
         // input test
         let input = r#"
 function test(): void {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int64 = 4int64
-    intrinsic.memory.raw.copyBytes(v0, v1, v2)
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value2: int64 = 4int64
+    intrinsic.memory.raw.copyBytes(value0, value1, value2)
     return
-}"#;
+}
+"#;
         let expected = r#"
 function test(): void {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int64 = 4int64
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value2: int64 = 4int64
     return
-}"#;
+}
+"#;
 
         // run dse
         let mut test = TestProgram::new(input);
@@ -1217,14 +1249,15 @@ b0:
         // input test
         let input = r#"
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int64 = 4int64
-    intrinsic.memory.raw.copyBytes(v0, v1, v2)
-    v3: int32 = load v0
-    return v3
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value2: int64 = 4int64
+    intrinsic.memory.raw.copyBytes(value0, value1, value2)
+    value3: int32 = load value0
+    return value3
+}
+"#;
         let expected = input;
 
         // run dse
@@ -1239,21 +1272,23 @@ b0:
         // input test
         let input = r#"
 function test(): void {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int64 = 4int64
-    intrinsic.memory.raw.moveBytes(v0, v1, v2)
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value2: int64 = 4int64
+    intrinsic.memory.raw.moveBytes(value0, value1, value2)
     return
-}"#;
+}
+"#;
         let expected = r#"
 function test(): void {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int64 = 4int64
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value2: int64 = 4int64
     return
-}"#;
+}
+"#;
 
         // run dse
         let mut test = TestProgram::new(input);
@@ -1267,14 +1302,15 @@ b0:
         // input test
         let input = r#"
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int64 = 4int64
-    intrinsic.memory.raw.moveBytes(v0, v1, v2)
-    v3: int32 = load v0
-    return v3
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value2: int64 = 4int64
+    intrinsic.memory.raw.moveBytes(value0, value1, value2)
+    value3: int32 = load value0
+    return value3
+}
+"#;
         let expected = input;
 
         // run dse
@@ -1292,18 +1328,20 @@ type Point {
     int32;
     int32;
 }
-function test(v0: ref<Point, raw>): void {
-b0(v0: ref<Point, raw>):
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    v3: Point = struct Point (v1, v2)
-    store v0, v3
-    v4: int32 = 3int32
-    v5: int32 = 4int32
-    v6: Point = struct Point (v4, v5)
-    store v0, v6
+
+function test(value0: ref<Point, raw>): void {
+entry0(value0: ref<Point, raw>):
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    value3: Point = struct Point (value1, value2)
+    store value0, value3
+    value4: int32 = 3int32
+    value5: int32 = 4int32
+    value6: Point = struct Point (value4, value5)
+    store value0, value6
     return
-}"#;
+}
+"#;
         let expected = input;
 
         // attach unknown size metadata to both stores
@@ -1340,29 +1378,33 @@ b0(v0: ref<Point, raw>):
     fn test_cross_block_overwritten() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 1int32
-    store v0, v1
-    jump b1
-b1:
-    v2: int32 = 2int32
-    store v0, v2
-    v3: int32 = load v0
-    return v3
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = 1int32
+    store value0, value1
+    jump block1()
+
+block1:
+    value2: int32 = 2int32
+    store value0, value2
+    value3: int32 = load value0
+    return value3
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 1int32
-    jump b1
-b1:
-    v2: int32 = 2int32
-    store v0, v2
-    v3: int32 = load v0
-    return v3
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = 1int32
+    jump block1()
+
+block1:
+    value2: int32 = 2int32
+    store value0, value2
+    value3: int32 = load value0
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&DeadStoreEliminate);
@@ -1375,21 +1417,24 @@ b1:
     #[test]
     fn test_preserve_cross_block_read_on_path() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int32 = 1int32
-    store v1, v2
-    branch v0, b1, b2
-b1:
-    v3: int32 = load v1
-    return v3
-b2:
-    v4: int32 = 2int32
-    store v1, v4
-    v5: int32 = load v1
-    return v5
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value2: int32 = 1int32
+    store value1, value2
+    branch value0, block1(), block2()
+
+block1:
+    value3: int32 = load value1
+    return value3
+
+block2:
+    value4: int32 = 2int32
+    store value1, value4
+    value5: int32 = load value1
+    return value5
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&DeadStoreEliminate);
@@ -1403,17 +1448,20 @@ b2:
     #[test]
     fn test_preserve_switch_escape() {
         let input = r#"
-function test(v0: int32): void {
-b0(v0: int32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int32 = 42int32
-    store v1, v2
-    switch v0, b1(v1), 0 => b2
-b1(v3: ref<int32, raw>):
+function test(value0: int32): void {
+entry0(value0: int32):
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value2: int32 = 42int32
+    store value1, value2
+    switch value0, block1(value1), 0 => block2()
+
+block1(value3: ref<int32, raw>):
     return
-b2:
+
+block2:
     return
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&DeadStoreEliminate);

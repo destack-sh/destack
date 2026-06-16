@@ -646,34 +646,42 @@ mod tests {
     #[test]
     fn test_store_pre_inserts_edge_store() {
         let input = r#"
-function test(v0: boolean, v1: int32): void {
-b0(v0: boolean, v1: int32):
-    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    branch v0, b1, b2
-b1:
-    store v2, v1
-    jump b3
-b2:
-    jump b3
-b3:
-    store v2, v1
+function test(value0: boolean, value1: int32): void {
+entry0(value0: boolean, value1: int32):
+    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    branch value0, block1(), block2()
+
+block1:
+    store value2, value1
+    jump block3()
+
+block2:
+    jump block3()
+
+block3:
+    store value2, value1
     return
-}"#;
+}
+"#;
 
         let expected = r#"
-function test(v0: boolean, v1: int32): void {
-b0(v0: boolean, v1: int32):
-    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    branch v0, b1, b2
-b1:
-    store v2, v1
-    jump b3
-b2:
-    store v2, v1
-    jump b3
-b3:
+function test(value0: boolean, value1: int32): void {
+entry0(value0: boolean, value1: int32):
+    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    branch value0, block1(), block2()
+
+block1:
+    store value2, value1
+    jump block3()
+
+block2:
+    store value2, value1
+    jump block3()
+
+block3:
     return
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&StorePre);
@@ -684,18 +692,22 @@ b3:
     #[test]
     fn test_store_pre_requires_existing_store() {
         let input = r#"
-function test(v0: boolean, v1: int32): void {
-b0(v0: boolean, v1: int32):
-    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    branch v0, b1, b2
-b1:
-    jump b3
-b2:
-    jump b3
-b3:
-    store v2, v1
+function test(value0: boolean, value1: int32): void {
+entry0(value0: boolean, value1: int32):
+    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    branch value0, block1(), block2()
+
+block1:
+    jump block3()
+
+block2:
+    jump block3()
+
+block3:
+    store value2, value1
     return
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&StorePre);
@@ -706,19 +718,23 @@ b3:
     #[test]
     fn test_store_pre_skips_unavailable_values() {
         let input = r#"
-function test(v0: boolean): void {
-b0(v0: boolean):
-    branch v0, b1, b2
-b1:
-    jump b3
-b2:
-    jump b3
-b3:
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int32 = 1int32
-    store v1, v2
+function test(value0: boolean): void {
+entry0(value0: boolean):
+    branch value0, block1(), block2()
+
+block1:
+    jump block3()
+
+block2:
+    jump block3()
+
+block3:
+    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value2: int32 = 1int32
+    store value1, value2
     return
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&StorePre);
@@ -729,19 +745,23 @@ b3:
     #[test]
     fn test_store_pre_skips_non_speculatable_prefix() {
         let input = r#"
-function test(v0: boolean, v1: int32): void {
-b0(v0: boolean, v1: int32):
-    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    branch v0, b1, b2
-b1:
-    jump b3
-b2:
-    jump b3
-b3:
-    v3: int32 = load v2
-    store v2, v1
+function test(value0: boolean, value1: int32): void {
+entry0(value0: boolean, value1: int32):
+    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    branch value0, block1(), block2()
+
+block1:
+    jump block3()
+
+block2:
+    jump block3()
+
+block3:
+    value3: int32 = load value2
+    store value2, value1
     return
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&StorePre);

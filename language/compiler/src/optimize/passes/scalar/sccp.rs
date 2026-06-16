@@ -1357,32 +1357,39 @@ mod tests {
     fn test_constant_branch_propagates_block_param() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: boolean = true
-    branch v0, b1, b2
-b1:
-    v1: int32 = 10int32
-    jump b3(v1)
-b2:
-    v2: int32 = 20int32
-    jump b3(v2)
-b3(v3: int32):
-    v4: int32 = int.add v3, v3
-    return v4
-}"#;
+entry0:
+    value0: boolean = true
+    branch value0, block1(), block2()
+
+block1:
+    value1: int32 = 10int32
+    jump block3(value1)
+
+block2:
+    value2: int32 = 20int32
+    jump block3(value2)
+
+block3(value3: int32):
+    value4: int32 = int.add value3, value3
+    return value4
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: boolean = true
-    jump b1
-b1:
-    v1: int32 = 10int32
-    jump b2(v1)
-b2(v2: int32):
-    v3: int32 = 10int32
-    v4: int32 = 20int32
-    return v4
-}"#;
+entry0:
+    value0: boolean = true
+    jump block1()
+
+block1:
+    value1: int32 = 10int32
+    jump block3(value1)
+
+block3(value3: int32):
+    value5: int32 = 10int32
+    value4: int32 = 20int32
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SparseConditionalConstantPropagation);
@@ -1393,34 +1400,42 @@ b2(v2: int32):
     #[test]
     fn test_branch_with_same_constants_keeps_param_constant() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    branch v0, b1, b2
-b1:
-    v1: int32 = 3int32
-    jump b3(v1)
-b2:
-    v2: int32 = 3int32
-    jump b3(v2)
-b3(v3: int32):
-    v4: int32 = int.add v3, v3
-    return v4
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    branch value0, block1(), block2()
+
+block1:
+    value1: int32 = 3int32
+    jump block3(value1)
+
+block2:
+    value2: int32 = 3int32
+    jump block3(value2)
+
+block3(value3: int32):
+    value4: int32 = int.add value3, value3
+    return value4
+}
+"#;
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    branch v0, b1, b2
-b1:
-    v1: int32 = 3int32
-    jump b3(v1)
-b2:
-    v2: int32 = 3int32
-    jump b3(v2)
-b3(v3: int32):
-    v4: int32 = 3int32
-    v5: int32 = 6int32
-    return v5
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    branch value0, block1(), block2()
+
+block1:
+    value1: int32 = 3int32
+    jump block3(value1)
+
+block2:
+    value2: int32 = 3int32
+    jump block3(value2)
+
+block3(value3: int32):
+    value5: int32 = 3int32
+    value4: int32 = 6int32
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SparseConditionalConstantPropagation);
@@ -1431,19 +1446,23 @@ b3(v3: int32):
     #[test]
     fn test_branch_with_conflicting_constants_keeps_param_overdefined() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    branch v0, b1, b2
-b1:
-    v1: int32 = 3int32
-    jump b3(v1)
-b2:
-    v2: int32 = 4int32
-    jump b3(v2)
-b3(v3: int32):
-    v4: int32 = int.add v3, v3
-    return v4
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    branch value0, block1(), block2()
+
+block1:
+    value1: int32 = 3int32
+    jump block3(value1)
+
+block2:
+    value2: int32 = 4int32
+    jump block3(value2)
+
+block3(value3: int32):
+    value4: int32 = int.add value3, value3
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SparseConditionalConstantPropagation);
@@ -1454,15 +1473,17 @@ b3(v3: int32):
     #[test]
     fn test_conflicting_same_target_arguments() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    branch v0, b1(v1), b1(v2)
-b1(v3: int32):
-    v4: int32 = int.add v3, v3
-    return v4
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    branch value0, block1(value1), block1(value2)
+
+block1(value3: int32):
+    value4: int32 = int.add value3, value3
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SparseConditionalConstantPropagation);
@@ -1474,28 +1495,34 @@ b1(v3: int32):
     fn test_switch_on_constant_value() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 2int32
-    switch v0, b3, 1 => b1, 2 => b2
-b1:
-    v1: int32 = 10int32
-    return v1
-b2:
-    v2: int32 = 20int32
-    return v2
-b3:
-    v3: int32 = 30int32
-    return v3
-}"#;
+entry0:
+    value0: int32 = 2int32
+    switch value0, block3(), 1 => block1(), 2 => block2()
+
+block1:
+    value1: int32 = 10int32
+    return value1
+
+block2:
+    value2: int32 = 20int32
+    return value2
+
+block3:
+    value3: int32 = 30int32
+    return value3
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 2int32
-    jump b1
-b1:
-    v1: int32 = 20int32
-    return v1
-}"#;
+entry0:
+    value0: int32 = 2int32
+    jump block2()
+
+block2:
+    value2: int32 = 20int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SparseConditionalConstantPropagation);
@@ -1507,18 +1534,22 @@ b1:
     fn test_readonly_global_load_not_constant() {
         let input = r#"
 readonly global flag: boolean = true
+
 function test(): int32 {
-b0:
-    v0: ref<boolean, raw, readonly> = global.address flag
-    v1: boolean = load v0
-    branch v1, b1, b2
-b1:
-    v2: int32 = 1int32
-    return v2
-b2:
-    v3: int32 = 2int32
-    return v3
-}"#;
+entry0:
+    value0: ref<boolean, raw, readonly> = global.address flag
+    value1: boolean = load value0
+    branch value1, block1(), block2()
+
+block1:
+    value2: int32 = 1int32
+    return value2
+
+block2:
+    value3: int32 = 2int32
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SparseConditionalConstantPropagation);
@@ -1530,18 +1561,22 @@ b2:
     fn test_mutable_global_not_constant() {
         let input = r#"
 global flag: boolean = true
+
 function test(): int32 {
-b0:
-    v0: ref<boolean, raw> = global.address flag
-    v1: boolean = load v0
-    branch v1, b1, b2
-b1:
-    v2: int32 = 1int32
-    return v2
-b2:
-    v3: int32 = 2int32
-    return v3
-}"#;
+entry0:
+    value0: ref<boolean, raw> = global.address flag
+    value1: boolean = load value0
+    branch value1, block1(), block2()
+
+block1:
+    value2: int32 = 1int32
+    return value2
+
+block2:
+    value3: int32 = 2int32
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SparseConditionalConstantPropagation);
@@ -1553,26 +1588,32 @@ b2:
     fn test_substitute_block_param_uses() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 3int32
-    jump b1(v0)
-b1(v1: int32):
-    jump b2(v1)
-b2(v2: int32):
-    return v2
-}"#;
+entry0:
+    value0: int32 = 3int32
+    jump block1(value0)
+
+block1(value1: int32):
+    jump block2(value1)
+
+block2(value2: int32):
+    return value2
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 3int32
-    jump b1(v0)
-b1(v1: int32):
-    v2: int32 = 3int32
-    jump b2(v2)
-b2(v3: int32):
-    v4: int32 = 3int32
-    return v4
-}"#;
+entry0:
+    value0: int32 = 3int32
+    jump block1(value0)
+
+block1(value1: int32):
+    value3: int32 = 3int32
+    jump block2(value3)
+
+block2(value2: int32):
+    value4: int32 = 3int32
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SparseConditionalConstantPropagation);
@@ -1583,32 +1624,38 @@ b2(v3: int32):
     #[test]
     fn test_substitute_call_arguments() {
         let input = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    return v0
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    return value0
 }
+
 function test(): int32 {
-b0:
-    v0: int32 = 5int32
-    jump b1(v0)
-b1(v1: int32):
-    v2: int32 = call callee(v1): (int32) -> int32
-    return v2
-}"#;
+entry0:
+    value0: int32 = 5int32
+    jump block1(value0)
+
+block1(value1: int32):
+    value2: int32 = call callee(value1): (int32) -> int32
+    return value2
+}
+"#;
         let expected = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    return v0
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    return value0
 }
+
 function test(): int32 {
-b0:
-    v0: int32 = 5int32
-    jump b1(v0)
-b1(v1: int32):
-    v2: int32 = 5int32
-    v3: int32 = call callee(v2): (int32) -> int32
-    return v3
-}"#;
+entry0:
+    value0: int32 = 5int32
+    jump block1(value0)
+
+block1(value1: int32):
+    value3: int32 = 5int32
+    value2: int32 = call callee(value3): (int32) -> int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SparseConditionalConstantPropagation);
@@ -1620,25 +1667,30 @@ b1(v1: int32):
     fn test_switch_uint64_does_not_match_negative_case() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: uint64 = 18446744073709551615uint64
-    switch v0, b2, -1 => b1
-b1:
-    v1: int32 = 1int32
-    return v1
-b2:
-    v2: int32 = 2int32
-    return v2
-}"#;
+entry0:
+    value0: uint64 = 18446744073709551615uint64
+    switch value0, block2(), -1 => block1()
+
+block1:
+    value1: int32 = 1int32
+    return value1
+
+block2:
+    value2: int32 = 2int32
+    return value2
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: uint64 = 18446744073709551615uint64
-    jump b2
-b2:
-    v1: int32 = 2int32
-    return v1
-}"#;
+entry0:
+    value0: uint64 = 18446744073709551615uint64
+    jump block2()
+
+block2:
+    value2: int32 = 2int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SparseConditionalConstantPropagation);
@@ -1650,22 +1702,24 @@ b2:
     fn test_struct_field_get_constant() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 5int32
-    v1: int32 = 7int32
-    v2: { int32, int32 } = struct { int32, int32 } (v0, v1)
-    v3: int32 = field.get v2, 0
-    return v3
-}"#;
+entry0:
+    value0: int32 = 5int32
+    value1: int32 = 7int32
+    value2: { int32, int32 } = struct { int32, int32 } (value0, value1)
+    value3: int32 = field.get value2, 0
+    return value3
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 5int32
-    v1: int32 = 7int32
-    v2: { int32, int32 } = struct { int32, int32 } (v0, v1)
-    v3: int32 = 5int32
-    return v3
-}"#;
+entry0:
+    value0: int32 = 5int32
+    value1: int32 = 7int32
+    value2: { int32, int32 } = struct { int32, int32 } (value0, value1)
+    value3: int32 = 5int32
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SparseConditionalConstantPropagation);
@@ -1676,21 +1730,23 @@ b0:
     #[test]
     fn test_struct_field_get_partial_constant() {
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 4int32
-    v2: { int32, int32 } = struct { int32, int32 } (v1, v0)
-    v3: int32 = field.get v2, 0
-    return v3
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 4int32
+    value2: { int32, int32 } = struct { int32, int32 } (value1, value0)
+    value3: int32 = field.get value2, 0
+    return value3
+}
+"#;
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 4int32
-    v2: { int32, int32 } = struct { int32, int32 } (v1, v0)
-    v3: int32 = 4int32
-    return v3
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 4int32
+    value2: { int32, int32 } = struct { int32, int32 } (value1, value0)
+    value3: int32 = 4int32
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SparseConditionalConstantPropagation);
@@ -1702,26 +1758,28 @@ b0(v0: int32):
     fn test_struct_field_set_constant() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 1int32
-    v1: int32 = 2int32
-    v2: { int32, int32 } = struct { int32, int32 } (v0, v1)
-    v3: int32 = 9int32
-    v4: { int32, int32 } = field.set v2, 1, v3
-    v5: int32 = field.get v4, 1
-    return v5
-}"#;
+entry0:
+    value0: int32 = 1int32
+    value1: int32 = 2int32
+    value2: { int32, int32 } = struct { int32, int32 } (value0, value1)
+    value3: int32 = 9int32
+    value4: { int32, int32 } = field.set value2, 1, value3
+    value5: int32 = field.get value4, 1
+    return value5
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 1int32
-    v1: int32 = 2int32
-    v2: { int32, int32 } = struct { int32, int32 } (v0, v1)
-    v3: int32 = 9int32
-    v4: { int32, int32 } = field.set v2, 1, v3
-    v5: int32 = 9int32
-    return v5
-}"#;
+entry0:
+    value0: int32 = 1int32
+    value1: int32 = 2int32
+    value2: { int32, int32 } = struct { int32, int32 } (value0, value1)
+    value3: int32 = 9int32
+    value4: { int32, int32 } = field.set value2, 1, value3
+    value5: int32 = 9int32
+    return value5
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SparseConditionalConstantPropagation);
@@ -1733,26 +1791,28 @@ b0:
     fn test_array_element_get_constant_index() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 10int32
-    v1: int32 = 20int32
-    v2: int32 = 30int32
-    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
-    v4: int64 = 1int64
-    v5: int32 = element.get v3, v4
-    return v5
-}"#;
+entry0:
+    value0: int32 = 10int32
+    value1: int32 = 20int32
+    value2: int32 = 30int32
+    value3: [int32; 3] = array [int32; 3] (value0, value1, value2)
+    value4: int64 = 1int64
+    value5: int32 = element.get value3, 1
+    return value5
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 10int32
-    v1: int32 = 20int32
-    v2: int32 = 30int32
-    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
-    v4: int64 = 1int64
-    v5: int32 = 20int32
-    return v5
-}"#;
+entry0:
+    value0: int32 = 10int32
+    value1: int32 = 20int32
+    value2: int32 = 30int32
+    value3: [int32; 3] = array [int32; 3] (value0, value1, value2)
+    value4: int64 = 1int64
+    value5: int32 = 20int32
+    return value5
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SparseConditionalConstantPropagation);
@@ -1764,30 +1824,32 @@ b0:
     fn test_array_element_set_constant_index() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 1int32
-    v1: int32 = 2int32
-    v2: int32 = 3int32
-    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
-    v4: int64 = 1int64
-    v5: int32 = 9int32
-    v6: [int32; 3] = element.set v3, v4, v5
-    v7: int32 = element.get v6, v4
-    return v7
-}"#;
+entry0:
+    value0: int32 = 1int32
+    value1: int32 = 2int32
+    value2: int32 = 3int32
+    value3: [int32; 3] = array [int32; 3] (value0, value1, value2)
+    value4: int64 = 1int64
+    value5: int32 = 9int32
+    value6: [int32; 3] = element.set value3, 1, value5
+    value7: int32 = element.get value6, 1
+    return value7
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 1int32
-    v1: int32 = 2int32
-    v2: int32 = 3int32
-    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
-    v4: int64 = 1int64
-    v5: int32 = 9int32
-    v6: [int32; 3] = element.set v3, v4, v5
-    v7: int32 = 9int32
-    return v7
-}"#;
+entry0:
+    value0: int32 = 1int32
+    value1: int32 = 2int32
+    value2: int32 = 3int32
+    value3: [int32; 3] = array [int32; 3] (value0, value1, value2)
+    value4: int64 = 1int64
+    value5: int32 = 9int32
+    value6: [int32; 3] = element.set value3, 1, value5
+    value7: int32 = 9int32
+    return value7
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SparseConditionalConstantPropagation);
@@ -1799,13 +1861,15 @@ b0:
     fn test_readonly_global_struct_field_get_not_constant() {
         let input = r#"
 readonly global pair: { int32, int32 } = {1int32, 2int32}
+
 function test(): int32 {
-b0:
-    v0: ref<{ int32, int32 }, raw, readonly> = global.address pair
-    v1: { int32, int32 } = load v0
-    v2: int32 = field.get v1, 1
-    return v2
-}"#;
+entry0:
+    value0: ref<{ int32, int32 }, raw, readonly> = global.address pair
+    value1: { int32, int32 } = load value0
+    value2: int32 = field.get value1, 1
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SparseConditionalConstantPropagation);
@@ -1817,13 +1881,15 @@ b0:
     fn test_global_zero_initializer_field_get_not_constant() {
         let input = r#"
 readonly global pair: (int32, int32) = zeroInit
+
 function test(): int32 {
-b0:
-    v0: ref<(int32, int32), raw, readonly> = global.address pair
-    v1: (int32, int32) = load v0
-    v2: int32 = field.get v1, 0
-    return v2
-}"#;
+entry0:
+    value0: ref<(int32, int32), raw, readonly> = global.address pair
+    value1: (int32, int32) = load value0
+    value2: int32 = field.get value1, 0
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SparseConditionalConstantPropagation);
@@ -1835,14 +1901,16 @@ b0:
     fn test_global_bytes_element_get_not_constant() {
         let input = r#"
 readonly global data: [uint8; 4] = b"test"
+
 function test(): uint8 {
-b0:
-    v0: ref<[uint8; 4], raw, readonly> = global.address data
-    v1: [uint8; 4] = load v0
-    v2: int64 = 2int64
-    v3: uint8 = element.get v1, v2
-    return v3
-}"#;
+entry0:
+    value0: ref<[uint8; 4], raw, readonly> = global.address data
+    value1: [uint8; 4] = load value0
+    value2: int64 = 2int64
+    value3: uint8 = element.get value1, 2
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SparseConditionalConstantPropagation);
@@ -1854,22 +1922,24 @@ b0:
     fn test_fold_select_constant_condition() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: boolean = true
-    v1: int32 = 10int32
-    v2: int32 = 20int32
-    v3: int32 = select v0, v1, v2
-    return v3
-}"#;
+entry0:
+    value0: boolean = true
+    value1: int32 = 10int32
+    value2: int32 = 20int32
+    value3: int32 = select value0, value1, value2
+    return value3
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: boolean = true
-    v1: int32 = 10int32
-    v2: int32 = 20int32
-    v3: int32 = 10int32
-    return v3
-}"#;
+entry0:
+    value0: boolean = true
+    value1: int32 = 10int32
+    value2: int32 = 20int32
+    value3: int32 = 10int32
+    return value3
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SparseConditionalConstantPropagation);
@@ -1881,18 +1951,20 @@ b0:
     fn test_fold_intrinsic_constant() {
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 8int32
-    v1: int32 = intrinsic.math.bits.leadingZeroCount(v0)
-    return v1
-}"#;
+entry0:
+    value0: int32 = 8int32
+    value1: int32 = intrinsic.math.bits.leadingZeroCount(value0)
+    return value1
+}
+"#;
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 8int32
-    v1: int32 = 28int32
-    return v1
-}"#;
+entry0:
+    value0: int32 = 8int32
+    value1: int32 = 28int32
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&SparseConditionalConstantPropagation);

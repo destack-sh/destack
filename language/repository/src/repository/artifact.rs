@@ -276,7 +276,7 @@ impl<'a> ArtifactReader<'a> {
     ) -> Result<Arc<MirAnalyzed>, ProviderError> {
         self.read(
             ArtifactKey::mir_analyzed(module, profile, target),
-            ArtifactStore::mir_analyzed,
+            ArtifactCache::mir_analyzed,
         )
     }
 
@@ -288,7 +288,7 @@ impl<'a> ArtifactReader<'a> {
     ) -> Result<Arc<ProgramAnalysis>, ProviderError> {
         self.read(
             ArtifactKey::program_analysis(profile, target),
-            ArtifactStore::program_analysis,
+            ArtifactCache::program_analysis,
         )
     }
 

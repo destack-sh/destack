@@ -346,20 +346,22 @@ mod tests {
         // v1 and v2 are unused
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 1int32
-    v1: int32 = 2int32
-    v2: int32 = int.add v0, v1
-    return v0
-}"#;
+entry0:
+    value0: int32 = 1int32
+    value1: int32 = 2int32
+    value2: int32 = int.add value0, value1
+    return value0
+}
+"#;
 
         // expected output
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 1int32
-    return v0
-}"#;
+entry0:
+    value0: int32 = 1int32
+    return value0
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -373,12 +375,13 @@ b0:
         // source test
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 1int32
-    v1: int32 = 2int32
-    v2: int32 = int.add v0, v1
-    return v2
-}"#;
+entry0:
+    value0: int32 = 1int32
+    value1: int32 = 2int32
+    value2: int32 = int.add value0, value1
+    return value2
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -392,22 +395,24 @@ b0:
         // only v0 is used
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 1int32
-    v1: int32 = 2int32
-    v2: int32 = 3int32
-    v3: int32 = int.add v1, v2
-    v4: int32 = 4int32
-    return v0
-}"#;
+entry0:
+    value0: int32 = 1int32
+    value1: int32 = 2int32
+    value2: int32 = 3int32
+    value3: int32 = int.add value1, value2
+    value4: int32 = 4int32
+    return value0
+}
+"#;
 
         // expected output
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 1int32
-    return v0
-}"#;
+entry0:
+    value0: int32 = 1int32
+    return value0
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -421,15 +426,17 @@ b0:
         // source test
         let input = r#"
 function test(): void {
-b0:
-    v0: int32 = 1int32
-    v1: int32 = call sideEffect(v0): (int32) -> int32
+entry0:
+    value0: int32 = 1int32
+    value1: int32 = call sideEffect(value0): (int32) -> int32
     return
 }
-function sideEffect(v0: int32): int32 {
-b0(v0: int32):
-    return v0
-}"#;
+
+function sideEffect(value0: int32): int32 {
+entry0(value0: int32):
+    return value0
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -442,31 +449,37 @@ b0(v0: int32):
     fn test_eliminate_dead_in_multiple_blocks() {
         // v2, v3, v4, v5 are all dead
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    branch v0, b1, b2
-b1:
-    v3: int32 = 3int32
-    v4: int32 = 4int32
-    return v1
-b2:
-    v5: int32 = 5int32
-    return v1
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    branch value0, block1(), block2()
+
+block1:
+    value3: int32 = 3int32
+    value4: int32 = 4int32
+    return value1
+
+block2:
+    value5: int32 = 5int32
+    return value1
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 1int32
-    branch v0, b1, b2
-b1:
-    return v1
-b2:
-    return v1
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 1int32
+    branch value0, block1(), block2()
+
+block1:
+    return value1
+
+block2:
+    return value1
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -479,11 +492,12 @@ b2:
     fn test_preserve_volatile_load() {
         let input = r#"
 function test(): void {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = load v0
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = load value0
     return
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let function_id = test.first_function_id();
@@ -516,14 +530,15 @@ b0:
     fn test_preserve_volatile_store_overwritten() {
         let input = r#"
 function test(): void {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 1int32
-    store v0, v1
-    v2: int32 = 2int32
-    store v0, v2
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = 1int32
+    store value0, value1
+    value2: int32 = 2int32
+    store value0, value2
     return
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let function_id = test.first_function_id();
@@ -557,16 +572,19 @@ b0:
         // source test
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 1int32
-    v1: int32 = 2int32
-    v2: boolean = int.gt.s v0, v1
-    branch v2, b1, b2
-b1:
-    return v0
-b2:
-    return v1
-}"#;
+entry0:
+    value0: int32 = 1int32
+    value1: int32 = 2int32
+    value2: boolean = int.gt.s value0, value1
+    branch value2, block1(), block2()
+
+block1:
+    return value0
+
+block2:
+    return value1
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -580,22 +598,24 @@ b2:
         // v2, v3, v4 depend on each other but none used in return
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 1int32
-    v1: int32 = 2int32
-    v2: int32 = int.add v0, v1
-    v3: int32 = int.mul v2, v0
-    v4: int32 = int.sub v3, v1
-    return v0
-}"#;
+entry0:
+    value0: int32 = 1int32
+    value1: int32 = 2int32
+    value2: int32 = int.add value0, value1
+    value3: int32 = int.mul value2, value0
+    value4: int32 = int.sub value3, value1
+    return value0
+}
+"#;
 
         // expected output
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 1int32
-    return v0
-}"#;
+entry0:
+    value0: int32 = 1int32
+    return value0
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -608,26 +628,30 @@ b0:
     fn test_preserve_block_arguments() {
         // v3 is dead, but v1 and v2 are used as block arguments
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    v3: int32 = 3int32
-    branch v0, b1(v1), b1(v2)
-b1(v4: int32):
-    return v4
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    value3: int32 = 3int32
+    branch value0, block1(value1), block1(value2)
+
+block1(value4: int32):
+    return value4
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    branch v0, b1(v1), b1(v2)
-b1(v3: int32):
-    return v3
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    branch value0, block1(value1), block1(value2)
+
+block1(value4: int32):
+    return value4
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -641,19 +665,21 @@ b1(v3: int32):
         // source test
         let input = r#"
 function test(): void {
-b0:
-    v0: int32 = 1int32
-    v1: int32 = 2int32
-    v2: int32 = int.add v0, v1
+entry0:
+    value0: int32 = 1int32
+    value1: int32 = 2int32
+    value2: int32 = int.add value0, value1
     return
-}"#;
+}
+"#;
 
         // expected output
         let expected = r#"
 function test(): void {
-b0:
+entry0:
     return
-}"#;
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -667,38 +693,46 @@ b0:
         // v3, v4, v5 are all dead (none of their results are used)
         let input = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 0int32
-    v1: int32 = 100int32
-    jump b1
-b1:
-    v2: boolean = int.lt.s v0, v1
-    v3: int32 = 999int32
-    branch v2, b2, b3
-b2:
-    v4: int32 = 1int32
-    v5: int32 = int.mul v3, v3
-    jump b1
-b3:
-    return v0
-}"#;
+entry0:
+    value0: int32 = 0int32
+    value1: int32 = 100int32
+    jump block1()
+
+block1:
+    value2: boolean = int.lt.s value0, value1
+    value3: int32 = 999int32
+    branch value2, block2(), block3()
+
+block2:
+    value4: int32 = 1int32
+    value5: int32 = int.mul value3, value3
+    jump block1()
+
+block3:
+    return value0
+}
+"#;
 
         // expected output
         // v3, v4, v5 are all eliminated since their results are never used
         let expected = r#"
 function test(): int32 {
-b0:
-    v0: int32 = 0int32
-    v1: int32 = 100int32
-    jump b1
-b1:
-    v2: boolean = int.lt.s v0, v1
-    branch v2, b2, b3
-b2:
-    jump b1
-b3:
-    return v0
-}"#;
+entry0:
+    value0: int32 = 0int32
+    value1: int32 = 100int32
+    jump block1()
+
+block1:
+    value2: boolean = int.lt.s value0, value1
+    branch value2, block2(), block3()
+
+block2:
+    jump block1()
+
+block3:
+    return value0
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -711,36 +745,44 @@ b3:
     fn test_eliminate_dead_in_diamond() {
         // v2, v3, v5 are dead
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 1int32
-    branch v0, b1, b2
-b1:
-    v2: int32 = 2int32
-    v3: int32 = 3int32
-    jump b3(v1)
-b2:
-    v4: int32 = 4int32
-    v5: int32 = 5int32
-    jump b3(v4)
-b3(v6: int32):
-    return v6
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 1int32
+    branch value0, block1(), block2()
+
+block1:
+    value2: int32 = 2int32
+    value3: int32 = 3int32
+    jump block3(value1)
+
+block2:
+    value4: int32 = 4int32
+    value5: int32 = 5int32
+    jump block3(value4)
+
+block3(value6: int32):
+    return value6
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 1int32
-    branch v0, b1, b2
-b1:
-    jump b3(v1)
-b2:
-    v2: int32 = 4int32
-    jump b3(v2)
-b3(v3: int32):
-    return v3
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    value1: int32 = 1int32
+    branch value0, block1(), block2()
+
+block1:
+    jump block3(value1)
+
+block2:
+    value4: int32 = 4int32
+    jump block3(value4)
+
+block3(value6: int32):
+    return value6
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -754,17 +796,19 @@ b3(v3: int32):
         // source test
         let input = r#"
 function test(): void {
-b0:
-    v0: int32 = 1int32
-    v1: int32 = call sideEffect(v0): (int32) -> int32
-    v2: int32 = call sideEffect(v0): (int32) -> int32
-    v3: int32 = call sideEffect(v0): (int32) -> int32
+entry0:
+    value0: int32 = 1int32
+    value1: int32 = call sideEffect(value0): (int32) -> int32
+    value2: int32 = call sideEffect(value0): (int32) -> int32
+    value3: int32 = call sideEffect(value0): (int32) -> int32
     return
 }
-function sideEffect(v0: int32): int32 {
-b0(v0: int32):
-    return v0
-}"#;
+
+function sideEffect(value0: int32): int32 {
+entry0(value0: int32):
+    return value0
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -777,26 +821,30 @@ b0(v0: int32):
     fn test_remove_overwritten_local_set() {
         // source test
         let input = r#"
-function test(v0: int32): int32 {
+function test(value0: int32): int32 {
     local local0: int32, owned
-b0(v0: int32):
-    local.set local0, v0
-    v1: int32 = 3int32
-    local.set local0, v1
-    v2: int32 = local.get local0
-    return v2
-}"#;
+
+entry0(value0: int32):
+    local.set local0, value0
+    value1: int32 = 3int32
+    local.set local0, value1
+    value2: int32 = local.get local0
+    return value2
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32): int32 {
+function test(value0: int32): int32 {
     local local0: int32, owned
-b0(v0: int32):
-    v1: int32 = 3int32
-    local.set local0, v1
-    v2: int32 = local.get local0
-    return v2
-}"#;
+
+entry0(value0: int32):
+    value1: int32 = 3int32
+    local.set local0, value1
+    value2: int32 = local.get local0
+    return value2
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -809,20 +857,24 @@ b0(v0: int32):
     fn test_remove_unread_local_set() {
         // source test
         let input = r#"
-function test(v0: int32): void {
+function test(value0: int32): void {
     local local0: int32, owned
-b0(v0: int32):
-    local.set local0, v0
+
+entry0(value0: int32):
+    local.set local0, value0
     return
-}"#;
+}
+"#;
 
         // expected output
         let expected = r#"
-function test(v0: int32): void {
+function test(value0: int32): void {
     local local0: int32, owned
-b0(v0: int32):
+
+entry0(value0: int32):
     return
-}"#;
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -836,24 +888,26 @@ b0(v0: int32):
         // source test
         let input = r#"
 function test(): void {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    store v0, v1
-    store v0, v2
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    store value0, value1
+    store value0, value2
     return
-}"#;
+}
+"#;
 
         // expected output
         let expected = r#"
 function test(): void {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 2int32
-    store v0, v1
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value2: int32 = 2int32
+    store value0, value2
     return
-}"#;
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -867,15 +921,16 @@ b0:
         // source test
         let input = r#"
 function test(): int32 {
-b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 1int32
-    store v0, v1
-    v2: int32 = load v0
-    v3: int32 = 2int32
-    store v0, v3
-    return v2
-}"#;
+entry0:
+    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value1: int32 = 1int32
+    store value0, value1
+    value2: int32 = load value0
+    value3: int32 = 2int32
+    store value0, value3
+    return value2
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);

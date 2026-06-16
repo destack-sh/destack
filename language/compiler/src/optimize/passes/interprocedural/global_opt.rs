@@ -584,21 +584,25 @@ mod tests {
     fn test_global_opt_marks_unwritten_global_readonly() {
         let input = r#"
 global value: int32 = 42int32
+
 function root(): int32 {
-b0:
-    v0: ref<int32, raw> = global.address value
-    v1: int32 = load v0
-    return v1
-}"#;
+entry0:
+    value0: ref<int32, raw> = global.address value
+    value1: int32 = load value0
+    return value1
+}
+"#;
 
         let expected = r#"
 readonly global value: int32 = 42int32
+
 function root(): int32 {
-b0:
-    v0: ref<int32, raw> = global.address value
-    v1: int32 = load v0
-    return v1
-}"#;
+entry0:
+    value0: ref<int32, raw> = global.address value
+    value1: int32 = load value0
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&GlobalOpt);
@@ -610,13 +614,15 @@ b0:
     fn test_global_opt_skips_written_global() {
         let input = r#"
 global value: int32 = 0int32
+
 function root(): void {
-b0:
-    v0: ref<int32, raw> = global.address value
-    v1: int32 = 1int32
-    store v0, v1
+entry0:
+    value0: ref<int32, raw> = global.address value
+    value1: int32 = 1int32
+    store value0, value1
     return
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&GlobalOpt);
@@ -628,14 +634,16 @@ b0:
     fn test_global_opt_skips_space_cast_store() {
         let input = r#"
 global value: int32 = 0int32
+
 function root(): void {
-b0:
-    v0: ref<int32, raw> = global.address value
-    v1: ref<int32, raw> = intrinsic.space.cast(v0)
-    v2: int32 = 1int32
-    store v1, v2
+entry0:
+    value0: ref<int32, raw> = global.address value
+    value1: ref<int32, raw> = intrinsic.space.cast(value0)
+    value2: int32 = 1int32
+    store value1, value2
     return
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&GlobalOpt);
@@ -647,11 +655,13 @@ b0:
     fn test_global_opt_skips_terminator_use() {
         let input = r#"
 global value: int32 = 42int32
+
 function root(): ref<int32, raw> {
-b0:
-    v0: ref<int32, raw> = global.address value
-    return v0
-}"#;
+entry0:
+    value0: ref<int32, raw> = global.address value
+    return value0
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&GlobalOpt);
@@ -663,21 +673,26 @@ b0:
     fn test_global_opt_skips_call_terminator_global_write() {
         let input = r#"
 global value: int32 = 0int32
-function write(v0: ref<int32, raw>): void {
-b0(v0: ref<int32, raw>):
-    v1: int32 = 1int32
-    store v0, v1
+
+function write(value0: ref<int32, raw>): void {
+entry0(value0: ref<int32, raw>):
+    value1: int32 = 1int32
+    store value0, value1
     return
 }
-function root(v0: ref<void, managed, readonly>): void {
-b0(v0: ref<void, managed, readonly>):
-    v1: ref<int32, raw> = global.address value
-    call write(v1): (ref<int32, raw>) -> void -> b1
-b1:
+
+function root(value0: ref<void, managed, readonly>): void {
+entry0(value0: ref<void, managed, readonly>):
+    value1: ref<int32, raw> = global.address value
+    call write(value1): (ref<int32, raw>) -> void -> block1()
+
+block1:
     return
-b2(v2: ref<void, managed, readonly>):
-    panic v2
-}"#;
+
+block2(value2: ref<void, managed, readonly>):
+    panic value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&GlobalOpt);

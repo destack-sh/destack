@@ -796,12 +796,13 @@ fn clone_callee_blocks(
             }
         }
 
-        // create the empty cloned block
+        // create the empty cloned block with its own terminator
+        let new_terminator = tree.insert(mir::Terminator::Unreachable);
         let new_block = mir::Block {
             name: None,
             parameters: new_params,
             instructions: Vec::new(),
-            terminator: original.terminator,
+            terminator: new_terminator,
         };
         let new_block_id = tree.insert(new_block);
         block_map.insert(*block_id, new_block_id);
@@ -1425,34 +1426,40 @@ mod tests {
     #[test]
     fn test_inline_basic_call() {
         let input = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = int.add v0, v0
-    return v1
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = int.add value0, value0
+    return value1
 }
-function caller(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = call callee(v0): (int32) -> int32
-    v2: int32 = int.add v1, v0
-    return v2
-}"#;
+
+function caller(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = call callee(value0): (int32) -> int32
+    value2: int32 = int.add value1, value0
+    return value2
+}
+"#;
 
         let expected = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = int.add v0, v0
-    return v1
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = int.add value0, value0
+    return value1
 }
-function caller(v0: int32): int32 {
-b0(v0: int32):
-    jump b1(v0)
-b1(v1: int32):
-    v2: int32 = int.add v1, v1
-    jump b2(v2)
-b2(v3: int32):
-    v4: int32 = int.add v3, v0
-    return v4
-}"#;
+
+function caller(value0: int32): int32 {
+entry0(value0: int32):
+    jump block1(value0)
+
+block1(value3: int32):
+    value4: int32 = int.add value3, value3
+    jump block2(value4)
+
+block2(value5: int32):
+    value2: int32 = int.add value5, value0
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&Inline);
@@ -1463,72 +1470,105 @@ b2(v3: int32):
     #[test]
     fn test_inline_skips_recursive_call() {
         let input = r#"
-function caller(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = call caller(v0): (int32) -> int32
-    return v1
-}"#;
+function caller(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = call caller(value0): (int32) -> int32
+    return value1
+}
+"#;
+
+        let expected = r#"
+function caller(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = call caller(value0): (int32) -> int32
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&Inline);
-        test.assert_output(input);
+        test.assert_output(expected);
     }
 
     /// Tail call callees are not inlined.
     #[test]
     fn test_inline_skips_tailcall_callee() {
         let input = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    tailCall callee(v0): (int32) -> int32
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    tailCall callee(value0): (int32) -> int32
 }
-function caller(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = call callee(v0): (int32) -> int32
-    return v1
-}"#;
+
+function caller(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = call callee(value0): (int32) -> int32
+    return value1
+}
+"#;
+
+        let expected = r#"
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    tailCall callee(value0): (int32) -> int32
+}
+
+function caller(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = call callee(value0): (int32) -> int32
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&Inline);
-        test.assert_output(input);
+        test.assert_output(expected);
     }
 
     /// Locals are cloned during inlining.
     #[test]
     fn test_inline_clones_locals() {
         let input = r#"
-function callee(v0: int32): int32 {
+function callee(value0: int32): int32 {
     local local0: int32, owned
-b0(v0: int32):
-    v1: int32 = local.get local0
-    v2: int32 = int.add v1, v0
-    return v2
+
+entry0(value0: int32):
+    value1: int32 = local.get local0
+    value2: int32 = int.add value1, value0
+    return value2
 }
-function caller(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = call callee(v0): (int32) -> int32
-    return v1
-}"#;
+
+function caller(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = call callee(value0): (int32) -> int32
+    return value1
+}
+"#;
 
         let expected = r#"
-function callee(v0: int32): int32 {
+function callee(value0: int32): int32 {
     local local0: int32, owned
-b0(v0: int32):
-    v1: int32 = local.get local0
-    v2: int32 = int.add v1, v0
-    return v2
+
+entry0(value0: int32):
+    value1: int32 = local.get local0
+    value2: int32 = int.add value1, value0
+    return value2
 }
-function caller(v0: int32): int32 {
+
+function caller(value0: int32): int32 {
     local local0: int32, owned
-b0(v0: int32):
-    jump b1(v0)
-b1(v1: int32):
-    v2: int32 = local.get local0
-    v3: int32 = int.add v2, v1
-    jump b2(v3)
-b2(v4: int32):
-    return v4
-}"#;
+
+entry0(value0: int32):
+    jump block1(value0)
+
+block1(value2: int32):
+    value3: int32 = local.get local0
+    value4: int32 = int.add value3, value2
+    jump block2(value4)
+
+block2(value5: int32):
+    return value5
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&Inline);
@@ -1541,16 +1581,19 @@ b2(v4: int32):
         let input = r#"
 function callee(): int32 {
     local local0: int32, owned
-b0:
-    v0: ref<int32, borrowed, space(frame)> = local.address local0
-    v1: int32 = load v0
-    return v1
+
+entry0:
+    value0: ref<int32, borrowed, space(frame)> = local.address local0
+    value1: int32 = load value0
+    return value1
 }
+
 function caller(): int32 {
-b0:
-    v0: int32 = call callee(): () -> int32
-    return v0
-}"#;
+entry0:
+    value0: int32 = call callee(): () -> int32
+    return value0
+}
+"#;
 
         let mut test = TestProgram::new(input);
 
@@ -1646,39 +1689,45 @@ b0:
 
         let mut test = TestProgram::new(&input);
         test.run_module_pass(&Inline);
-        test.assert_output(&input);
+        test.assert_unchanged(&input);
     }
 
     /// Calls with unused return values inline without continuation arguments.
     #[test]
     fn test_inline_unused_return() {
         let input = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = int.add v0, v0
-    return v1
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = int.add value0, value0
+    return value1
 }
-function caller(v0: int32): void {
-b0(v0: int32):
-    call callee(v0): (int32) -> int32
+
+function caller(value0: int32): void {
+entry0(value0: int32):
+    call callee(value0): (int32) -> int32
     return
-}"#;
+}
+"#;
 
         let expected = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = int.add v0, v0
-    return v1
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = int.add value0, value0
+    return value1
 }
-function caller(v0: int32): void {
-b0(v0: int32):
-    jump b1(v0)
-b1(v1: int32):
-    v2: int32 = int.add v1, v1
-    jump b2
-b2:
+
+function caller(value0: int32): void {
+entry0(value0: int32):
+    jump block1(value0)
+
+block1(value1: int32):
+    value2: int32 = int.add value1, value1
+    jump block2()
+
+block2:
     return
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&Inline);
@@ -1689,24 +1738,26 @@ b2:
     #[test]
     fn test_inline_skips_cold_callsite() {
         let input = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = int.add v0, v0
-    v2: int32 = int.add v1, v0
-    v3: int32 = int.add v2, v0
-    v4: int32 = int.add v3, v0
-    v5: int32 = int.add v4, v0
-    v6: int32 = int.add v5, v0
-    v7: int32 = int.add v6, v0
-    v8: int32 = int.add v7, v0
-    v9: int32 = int.add v8, v0
-    return v9
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = int.add value0, value0
+    value2: int32 = int.add value1, value0
+    value3: int32 = int.add value2, value0
+    value4: int32 = int.add value3, value0
+    value5: int32 = int.add value4, value0
+    value6: int32 = int.add value5, value0
+    value7: int32 = int.add value6, value0
+    value8: int32 = int.add value7, value0
+    value9: int32 = int.add value8, value0
+    return value9
 }
-function caller(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = call callee(v0): (int32) -> int32
-    return v1
-}"#;
+
+function caller(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = call callee(value0): (int32) -> int32
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let caller_id = test.function_id_by_name("caller");
@@ -1716,77 +1767,75 @@ b0(v0: int32):
         test.record_function_entry(&mut profile, caller_id, 5);
 
         test.run_module_pass_with_profile(&Inline, profile);
-        test.assert_output(input);
+        test.assert_unchanged(input);
     }
 
     /// Hot callsites enable larger inlines under profile guidance.
     #[test]
     fn test_inline_uses_hot_callsite() {
         let input = r#"
-function helper(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = int.add v0, v0
-    v2: int32 = int.add v1, v0
-    v3: int32 = int.add v2, v0
-    v4: int32 = int.add v3, v0
-    v5: int32 = int.add v4, v0
-    v6: int32 = int.add v5, v0
-    v7: int32 = int.add v6, v0
-    v8: int32 = int.add v7, v0
-    v9: int32 = int.add v8, v0
-    return v9
+function helper(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = int.add value0, value0
+    value2: int32 = int.add value1, value0
+    value3: int32 = int.add value2, value0
+    value4: int32 = int.add value3, value0
+    value5: int32 = int.add value4, value0
+    value6: int32 = int.add value5, value0
+    value7: int32 = int.add value6, value0
+    value8: int32 = int.add value7, value0
+    value9: int32 = int.add value8, value0
+    return value9
 }
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = call helper(v0): (int32) -> int32
-    v2: int32 = call helper(v1): (int32) -> int32
-    v3: int32 = call helper(v2): (int32) -> int32
-    v4: int32 = call helper(v3): (int32) -> int32
-    v5: int32 = call helper(v4): (int32) -> int32
-    return v5
+
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = call helper(value0): (int32) -> int32
+    value2: int32 = call helper(value1): (int32) -> int32
+    value3: int32 = call helper(value2): (int32) -> int32
+    value4: int32 = call helper(value3): (int32) -> int32
+    value5: int32 = call helper(value4): (int32) -> int32
+    return value5
 }
-function caller(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = call callee(v0): (int32) -> int32
-    return v1
-}"#;
+
+function caller(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = call callee(value0): (int32) -> int32
+    return value1
+}
+"#;
 
         let expected = r#"
-function helper(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = int.add v0, v0
-    v2: int32 = int.add v1, v0
-    v3: int32 = int.add v2, v0
-    v4: int32 = int.add v3, v0
-    v5: int32 = int.add v4, v0
-    v6: int32 = int.add v5, v0
-    v7: int32 = int.add v6, v0
-    v8: int32 = int.add v7, v0
-    v9: int32 = int.add v8, v0
-    return v9
+function helper(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = int.add value0, value0
+    value2: int32 = int.add value1, value0
+    value3: int32 = int.add value2, value0
+    value4: int32 = int.add value3, value0
+    value5: int32 = int.add value4, value0
+    value6: int32 = int.add value5, value0
+    value7: int32 = int.add value6, value0
+    value8: int32 = int.add value7, value0
+    value9: int32 = int.add value8, value0
+    return value9
 }
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = call helper(v0): (int32) -> int32
-    v2: int32 = call helper(v1): (int32) -> int32
-    v3: int32 = call helper(v2): (int32) -> int32
-    v4: int32 = call helper(v3): (int32) -> int32
-    v5: int32 = call helper(v4): (int32) -> int32
-    return v5
+
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = call helper(value0): (int32) -> int32
+    value2: int32 = call helper(value1): (int32) -> int32
+    value3: int32 = call helper(value2): (int32) -> int32
+    value4: int32 = call helper(value3): (int32) -> int32
+    value5: int32 = call helper(value4): (int32) -> int32
+    return value5
 }
-function caller(v0: int32): int32 {
-b0(v0: int32):
-    jump b1(v0)
-b1(v1: int32):
-    v2: int32 = call helper(v1): (int32) -> int32
-    v3: int32 = call helper(v2): (int32) -> int32
-    v4: int32 = call helper(v3): (int32) -> int32
-    v5: int32 = call helper(v4): (int32) -> int32
-    v6: int32 = call helper(v5): (int32) -> int32
-    jump b2(v6)
-b2(v7: int32):
-    return v7
-}"#;
+
+function caller(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = call callee(value0): (int32) -> int32
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let caller_id = test.function_id_by_name("caller");
@@ -1805,9 +1854,10 @@ b2(v7: int32):
         let test = TestProgram::new(
             r#"
 function test(): void {
-b0:
+entry0:
     return
-}"#,
+}
+"#,
         );
         let function_id = test.entry_function_id();
         let mut profile = mir::Profile::new();
@@ -1834,47 +1884,59 @@ b0:
     #[test]
     fn test_inline_multiple_returns() {
         let input = r#"
-function callee(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
-b1:
-    v3: int32 = int.add v0, v1
-    return v3
-b2:
-    v4: int32 = int.sub v0, v1
-    return v4
+function callee(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = int.add value0, value1
+    return value3
+
+block2:
+    value4: int32 = int.sub value0, value1
+    return value4
 }
-function caller(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call callee(v0, v1, v2): (int32, int32, boolean) -> int32
-    return v3
-}"#;
+
+function caller(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    value3: int32 = call callee(value0, value1, value2): (int32, int32, boolean) -> int32
+    return value3
+}
+"#;
 
         let expected = r#"
-function callee(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
-b1:
-    v3: int32 = int.add v0, v1
-    return v3
-b2:
-    v4: int32 = int.sub v0, v1
-    return v4
+function callee(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    branch value2, block1(), block2()
+
+block1:
+    value3: int32 = int.add value0, value1
+    return value3
+
+block2:
+    value4: int32 = int.sub value0, value1
+    return value4
 }
-function caller(v0: int32, v1: int32, v2: boolean): int32 {
-b0(v0: int32, v1: int32, v2: boolean):
-    jump b1(v0, v1, v2)
-b1(v3: int32, v4: int32, v5: boolean):
-    branch v5, b2, b3
-b2:
-    v6: int32 = int.add v3, v4
-    jump b4(v6)
-b3:
-    v7: int32 = int.sub v3, v4
-    jump b4(v7)
-b4(v8: int32):
-    return v8
-}"#;
+
+function caller(value0: int32, value1: int32, value2: boolean): int32 {
+entry0(value0: int32, value1: int32, value2: boolean):
+    jump block1(value0, value1, value2)
+
+block1(value4: int32, value5: int32, value6: boolean):
+    branch value6, block2(), block3()
+
+block2:
+    value7: int32 = int.add value4, value5
+    jump block4(value7)
+
+block3:
+    value8: int32 = int.sub value4, value5
+    jump block4(value8)
+
+block4(value9: int32):
+    return value9
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&Inline);
@@ -1885,36 +1947,44 @@ b4(v8: int32):
     #[test]
     fn test_inline_continuation_argument() {
         let input = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = int.add v0, v0
-    return v1
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = int.add value0, value0
+    return value1
 }
-function caller(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = call callee(v0): (int32) -> int32
-    jump b1(v1)
-b1(v2: int32):
-    return v2
-}"#;
+
+function caller(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = call callee(value0): (int32) -> int32
+    jump block1(value1)
+
+block1(value2: int32):
+    return value2
+}
+"#;
 
         let expected = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = int.add v0, v0
-    return v1
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = int.add value0, value0
+    return value1
 }
-function caller(v0: int32): int32 {
-b0(v0: int32):
-    jump b2(v0)
-b1(v1: int32):
-    return v1
-b2(v2: int32):
-    v3: int32 = int.add v2, v2
-    jump b3(v3)
-b3(v4: int32):
-    jump b1(v4)
-}"#;
+
+function caller(value0: int32): int32 {
+entry0(value0: int32):
+    jump block2(value0)
+
+block1(value2: int32):
+    return value2
+
+block2(value3: int32):
+    value4: int32 = int.add value3, value3
+    jump block3(value4)
+
+block3(value5: int32):
+    jump block1(value5)
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&Inline);
@@ -1925,20 +1995,22 @@ b3(v4: int32):
     #[test]
     fn test_inline_skips_indirect_call() {
         let input = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = int.add v0, v0
-    return v1
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = int.add value0, value0
+    return value1
 }
-function caller(v0: (int32) -> int32, v1: int32): int32  {
-b0(v0: (int32) -> int32, v1: int32):
-    v2: int32 = call.indirect v0(v1): (int32) -> int32
-    return v2
-}"#;
+
+function caller(value0: (int32) -> int32, value1: int32): int32 {
+entry0(value0: (int32) -> int32, value1: int32):
+    value2: int32 = call.indirect value0(value1): (int32) -> int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
 
         test.run_module_pass(&Inline);
-        test.assert_output(input);
+        test.assert_unchanged(input);
     }
 }

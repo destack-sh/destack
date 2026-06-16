@@ -811,28 +811,34 @@ mod tests {
     #[test]
     fn test_cfg_layout_orders_hot_path() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    branch v0, b2, b1
-b1:
-    v1: int32 = 2int32
-    return v1
-b2:
-    v2: int32 = 1int32
-    return v2
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    branch value0, block2(), block1()
+
+block1:
+    value1: int32 = 2int32
+    return value1
+
+block2:
+    value2: int32 = 1int32
+    return value2
+}
+"#;
 
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    branch v0, b1, b2
-b1:
-    v1: int32 = 1int32
-    return v1
-b2:
-    v2: int32 = 2int32
-    return v2
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    branch value0, block2(), block1()
+
+block1:
+    value1: int32 = 2int32
+    return value1
+
+block2:
+    value2: int32 = 1int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let mut profile = mir::Profile::new();
@@ -851,16 +857,19 @@ b2:
     #[test]
     fn test_cfg_layout_skips_without_profile() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    branch v0, b2, b1
-b1:
-    v1: int32 = 2int32
-    return v1
-b2:
-    v2: int32 = 1int32
-    return v2
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    branch value0, block2(), block1()
+
+block1:
+    value1: int32 = 2int32
+    return value1
+
+block2:
+    value2: int32 = 1int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let baseline = test.format();
@@ -873,30 +882,37 @@ b2:
     #[test]
     fn test_cfg_layout_splits_cold_blocks() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    branch v0, b2, b1
-b1:
-    v1: int32 = 2int32
-    return v1
-b2:
-    v2: int32 = 1int32
-    return v2
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    branch value0, block2(), block1()
+
+block1:
+    value1: int32 = 2int32
+    return value1
+
+block2:
+    value2: int32 = 1int32
+    return value2
+}
+"#;
 
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    branch v0, b1, b3
-b1:
-    v1: int32 = 1int32
-    return v1
-b2:
-    v2: int32 = 2int32
-    return v2
-b3:
-    jump b2
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    branch value0, block3(), block1()
+
+block1:
+    value1: int32 = 2int32
+    return value1
+
+block2:
+    value2: int32 = 1int32
+    return value2
+
+block3:
+    jump block2()
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let mut profile = mir::Profile::new();
@@ -915,30 +931,37 @@ b3:
     #[test]
     fn test_cfg_layout_switch_orders_hot_blocks() {
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    switch v0, b1, 0 => b2
-b1:
-    v1: int32 = 2int32
-    return v1
-b2:
-    v2: int32 = 1int32
-    return v2
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    switch value0, block1(), 0 => block2()
+
+block1:
+    value1: int32 = 2int32
+    return value1
+
+block2:
+    value2: int32 = 1int32
+    return value2
+}
+"#;
 
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    switch v0, b3, 0 => b1
-b1:
-    v1: int32 = 1int32
-    return v1
-b2:
-    v2: int32 = 2int32
-    return v2
-b3:
-    jump b2
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    switch value0, block3(), 0 => block2()
+
+block2:
+    value2: int32 = 1int32
+    return value2
+
+block1:
+    value1: int32 = 2int32
+    return value1
+
+block3:
+    jump block1()
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let mut profile = mir::Profile::new();
@@ -957,34 +980,41 @@ b3:
     #[test]
     fn test_cfg_layout_check_orders_hot_blocks() {
         let input = r#"
-function test(v0: uint32, v1: [uint32; 8]): int32 {
-b0(v0: uint32, v1: [uint32; 8]):
-    v2: uint32 = 1uint32
-    v3: boolean = int.lt.u v0, v2
-    check bounds.u v0, v2, v1 -> b2, b1
-b1:
-    v4: int32 = 2int32
-    return v4
-b2:
-    v5: int32 = 1int32
-    return v5
-}"#;
+function test(value0: uint32, value1: [uint32; 8]): int32 {
+entry0(value0: uint32, value1: [uint32; 8]):
+    value2: uint32 = 1uint32
+    value3: boolean = int.lt.u value0, value2
+    check bounds.u value0, value2, value1 -> block2(), block1()
+
+block1:
+    value4: int32 = 2int32
+    return value4
+
+block2:
+    value5: int32 = 1int32
+    return value5
+}
+"#;
 
         let expected = r#"
-function test(v0: uint32, v1: [uint32; 8]): int32 {
-b0(v0: uint32, v1: [uint32; 8]):
-    v2: uint32 = 1uint32
-    v3: boolean = int.lt.u v0, v2
-    check bounds.u v0, v2, v1 -> b1, b3
-b1:
-    v4: int32 = 1int32
-    return v4
-b2:
-    v5: int32 = 2int32
-    return v5
-b3:
-    jump b2
-}"#;
+function test(value0: uint32, value1: [uint32; 8]): int32 {
+entry0(value0: uint32, value1: [uint32; 8]):
+    value2: uint32 = 1uint32
+    value3: boolean = int.lt.u value0, value2
+    check bounds.u value0, value2, value1 -> block2(), block3()
+
+block2:
+    value5: int32 = 1int32
+    return value5
+
+block1:
+    value4: int32 = 2int32
+    return value4
+
+block3:
+    jump block1()
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let mut profile = mir::Profile::new();
@@ -1003,28 +1033,34 @@ b3:
     #[test]
     fn test_cfg_layout_orders_by_edge_frequency() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    branch v0, b1, b2
-b1:
-    v1: int32 = 1int32
-    return v1
-b2:
-    v2: int32 = 2int32
-    return v2
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    branch value0, block1(), block2()
+
+block1:
+    value1: int32 = 1int32
+    return value1
+
+block2:
+    value2: int32 = 2int32
+    return value2
+}
+"#;
 
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    branch v0, b2, b1
-b1:
-    v1: int32 = 2int32
-    return v1
-b2:
-    v2: int32 = 1int32
-    return v2
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    branch value0, block1(), block2()
+
+block2:
+    value2: int32 = 2int32
+    return value2
+
+block1:
+    value1: int32 = 1int32
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let mut profile = mir::Profile::new();
@@ -1043,29 +1079,36 @@ b2:
     #[test]
     fn test_cfg_layout_duplicates_hot_edge() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    branch v0, b2, b1
-b1:
-    jump b2
-b2:
-    v1: int32 = 1int32
-    return v1
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    branch value0, block2(), block1()
+
+block1:
+    jump block2()
+
+block2:
+    value1: int32 = 1int32
+    return value1
+}
+"#;
 
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    branch v0, b1, b3
-b1:
-    v1: int32 = 1int32
-    return v1
-b2:
-    v2: int32 = 1int32
-    return v2
-b3:
-    jump b2
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    branch value0, block3(), block1()
+
+block1:
+    jump block2()
+
+block2:
+    value1: int32 = 1int32
+    return value1
+
+block3:
+    value2: int32 = 1int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let mut profile = mir::Profile::new();
@@ -1084,34 +1127,42 @@ b3:
     #[test]
     fn test_cfg_layout_preserves_unreachable_order() {
         let input = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    branch v0, b1, b3
-b1:
-    v1: int32 = 1int32
-    return v1
-b2:
-    v2: int32 = 3int32
-    return v2
-b3:
-    v3: int32 = 2int32
-    return v3
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    branch value0, block1(), block3()
+
+block1:
+    value1: int32 = 1int32
+    return value1
+
+block2:
+    value2: int32 = 3int32
+    return value2
+
+block3:
+    value3: int32 = 2int32
+    return value3
+}
+"#;
 
         let expected = r#"
-function test(v0: boolean): int32 {
-b0(v0: boolean):
-    branch v0, b1, b2
-b1:
-    v1: int32 = 1int32
-    return v1
-b2:
-    v2: int32 = 2int32
-    return v2
-b3:
-    v3: int32 = 3int32
-    return v3
-}"#;
+function test(value0: boolean): int32 {
+entry0(value0: boolean):
+    branch value0, block1(), block3()
+
+block1:
+    value1: int32 = 1int32
+    return value1
+
+block3:
+    value3: int32 = 2int32
+    return value3
+
+block2:
+    value2: int32 = 3int32
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         let mut profile = mir::Profile::new();

@@ -569,29 +569,37 @@ mod tests {
     #[test]
     fn test_propagate_uniform_incoming_value() {
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    branch v0, b1, b2
-b1:
-    jump b3(v0)
-b2:
-    jump b3(v0)
-b3(v1: int32):
-    return v1
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    branch value0, block1(), block2()
+
+block1:
+    jump block3(value0)
+
+block2:
+    jump block3(value0)
+
+block3(value1: int32):
+    return value1
+}
+"#;
 
         // v1 is always v0, so replace uses of v1 with v0 and remove the parameter
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    branch v0, b1, b2
-b1:
-    jump b3
-b2:
-    jump b3
-b3:
-    return v0
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    branch value0, block1(), block2()
+
+block1:
+    jump block3()
+
+block2:
+    jump block3()
+
+block3:
+    return value0
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&CopyPropagate);
@@ -602,17 +610,21 @@ b3:
     #[test]
     fn test_preserve_varying_incoming_values() {
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
-    branch v0, b1, b2
-b1:
-    jump b3(v0)
-b2:
-    jump b3(v1)
-b3(v2: int32):
-    return v2
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 1int32
+    branch value0, block1(), block2()
+
+block1:
+    jump block3(value0)
+
+block2:
+    jump block3(value1)
+
+block3(value2: int32):
+    return value2
+}
+"#;
 
         // v2 gets different values from different predecessors, so no change
 
@@ -625,20 +637,24 @@ b3(v2: int32):
     #[test]
     fn test_propagate_single_predecessor() {
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    jump b1(v0)
-b1(v1: int32):
-    return v1
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    jump block1(value0)
+
+block1(value1: int32):
+    return value1
+}
+"#;
 
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    jump b1
-b1:
-    return v0
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    jump block1()
+
+block1:
+    return value0
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&CopyPropagate);
@@ -649,25 +665,31 @@ b1:
     #[test]
     fn test_propagate_through_chain() {
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    jump b1(v0)
-b1(v1: int32):
-    jump b2(v1)
-b2(v2: int32):
-    return v2
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    jump block1(value0)
+
+block1(value1: int32):
+    jump block2(value1)
+
+block2(value2: int32):
+    return value2
+}
+"#;
 
         // v1 = v0, v2 = v1 = v0
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    jump b1
-b1:
-    jump b2
-b2:
-    return v0
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    jump block1()
+
+block1:
+    jump block2()
+
+block2:
+    return value0
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&CopyPropagate);
@@ -678,35 +700,43 @@ b2:
     #[test]
     fn test_propagate_partial_copies() {
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    branch v0, b1, b2
-b1:
-    v2: int32 = 10int32
-    jump b3(v0, v2)
-b2:
-    v3: int32 = 20int32
-    jump b3(v0, v3)
-b3(v4: int32, v5: int32):
-    v6: int32 = int.add v4, v5
-    return v6
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    branch value0, block1(), block2()
+
+block1:
+    value2: int32 = 10int32
+    jump block3(value0, value2)
+
+block2:
+    value3: int32 = 20int32
+    jump block3(value0, value3)
+
+block3(value4: int32, value5: int32):
+    value6: int32 = int.add value4, value5
+    return value6
+}
+"#;
 
         // v4 is always v0 (copy), but v5 differs between predecessors
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    branch v0, b1, b2
-b1:
-    v2: int32 = 10int32
-    jump b3(v2)
-b2:
-    v3: int32 = 20int32
-    jump b3(v3)
-b3(v4: int32):
-    v5: int32 = int.add v0, v4
-    return v5
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    branch value0, block1(), block2()
+
+block1:
+    value2: int32 = 10int32
+    jump block3(value2)
+
+block2:
+    value3: int32 = 20int32
+    jump block3(value3)
+
+block3(value5: int32):
+    value6: int32 = int.add value0, value5
+    return value6
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&CopyPropagate);
@@ -717,12 +747,13 @@ b3(v4: int32):
     #[test]
     fn test_preserve_without_copies() {
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
-    v2: int32 = int.add v0, v1
-    return v2
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 1int32
+    value2: int32 = int.add value0, value1
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&CopyPropagate);
@@ -733,17 +764,19 @@ b0(v0: int32):
     #[test]
     fn test_remove_redundant_select() {
         let input = r#"
-function test(v0: boolean, v1: int32): int32 {
-b0(v0: boolean, v1: int32):
-    v2: int32 = select v0, v1, v1
-    return v2
-}"#;
+function test(value0: boolean, value1: int32): int32 {
+entry0(value0: boolean, value1: int32):
+    value2: int32 = select value0, value1, value1
+    return value2
+}
+"#;
 
         let expected = r#"
-function test(v0: boolean, v1: int32): int32 {
-b0(v0: boolean, v1: int32):
-    return v1
-}"#;
+function test(value0: boolean, value1: int32): int32 {
+entry0(value0: boolean, value1: int32):
+    return value1
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&CopyPropagate);

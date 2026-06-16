@@ -148,18 +148,21 @@ mod tests {
         let mut test = TestProgram::new(
             r#"
 export function root(): void {
-b0:
+entry0:
     call live(): () -> void
     return
 }
+
 function live(): void {
-b0:
+entry0:
     return
 }
+
 function dead(): void {
-b0:
+entry0:
     return
-}"#,
+}
+"#,
         );
         let root_id = test.function_id_by_name("root");
         let live_id = test.function_id_by_name("live");

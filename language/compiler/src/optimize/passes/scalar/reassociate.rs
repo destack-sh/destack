@@ -602,24 +602,26 @@ mod tests {
     #[test]
     fn test_reassociate_add_constants() {
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    v3: int32 = int.add v0, v1
-    v4: int32 = int.add v3, v2
-    return v4
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    value3: int32 = int.add value0, value1
+    value4: int32 = int.add value3, value2
+    return value4
+}
+"#;
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    v3: int32 = int.add v0, v1
-    v4: int32 = 3int32
-    v5: int32 = int.add v0, v4
-    return v5
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    value3: int32 = int.add value0, value1
+    value5: int32 = 3int32
+    value4: int32 = int.add value0, value5
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&Reassociate);
@@ -630,14 +632,15 @@ b0(v0: int32):
     #[test]
     fn test_reassociate_skips_float() {
         let input = r#"
-function test(v0: float64): float64 {
-b0(v0: float64):
-    v1: float64 = 1float64
-    v2: float64 = 2float64
-    v3: float64 = float.add v0, v1
-    v4: float64 = float.add v3, v2
-    return v4
-}"#;
+function test(value0: float64): float64 {
+entry0(value0: float64):
+    value1: float64 = 1float64
+    value2: float64 = 2float64
+    value3: float64 = float.add value0, value1
+    value4: float64 = float.add value3, value2
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&Reassociate);
@@ -648,24 +651,26 @@ b0(v0: float64):
     #[test]
     fn test_reassociate_float_policy() {
         let input = r#"
-function test(v0: float64): float64 {
-b0(v0: float64):
-    v1: float64 = 1float64
-    v2: float64 = 2float64
-    v3: float64 = float.add v0, v1
-    v4: float64 = float.add v3, v2
-    return v4
-}"#;
+function test(value0: float64): float64 {
+entry0(value0: float64):
+    value1: float64 = 1float64
+    value2: float64 = 2float64
+    value3: float64 = float.add value0, value1
+    value4: float64 = float.add value3, value2
+    return value4
+}
+"#;
         let expected = r#"
-function test(v0: float64): float64 {
-b0(v0: float64):
-    v1: float64 = 1float64
-    v2: float64 = 2float64
-    v3: float64 = float.add v0, v1
-    v4: float64 = 3float64
-    v5: float64 = float.add v0, v4
-    return v5
-}"#;
+function test(value0: float64): float64 {
+entry0(value0: float64):
+    value1: float64 = 1float64
+    value2: float64 = 2float64
+    value3: float64 = float.add value0, value1
+    value5: float64 = 3float64
+    value4: float64 = float.add value0, value5
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass_with_options(
@@ -682,12 +687,13 @@ b0(v0: float64):
     #[test]
     fn test_reassociate_requires_constant() {
         let input = r#"
-function test(v0: int32, v1: int32, v2: int32): int32 {
-b0(v0: int32, v1: int32, v2: int32):
-    v3: int32 = int.add v0, v1
-    v4: int32 = int.add v3, v2
-    return v4
-}"#;
+function test(value0: int32, value1: int32, value2: int32): int32 {
+entry0(value0: int32, value1: int32, value2: int32):
+    value3: int32 = int.add value0, value1
+    value4: int32 = int.add value3, value2
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&Reassociate);
@@ -699,29 +705,31 @@ b0(v0: int32, v1: int32, v2: int32):
     fn test_reassociate_combines_multiple_constants() {
         // source test
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    v3: int32 = 3int32
-    v4: int32 = int.add v0, v1
-    v5: int32 = int.add v4, v2
-    v6: int32 = int.add v5, v3
-    return v6
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    value3: int32 = 3int32
+    value4: int32 = int.add value0, value1
+    value5: int32 = int.add value4, value2
+    value6: int32 = int.add value5, value3
+    return value6
+}
+"#;
         // expected output
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    v3: int32 = 3int32
-    v4: int32 = int.add v0, v1
-    v5: int32 = int.add v0, v3
-    v6: int32 = 6int32
-    v7: int32 = int.add v0, v6
-    return v7
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    value3: int32 = 3int32
+    value4: int32 = int.add value0, value1
+    value5: int32 = int.add value0, value3
+    value7: int32 = 6int32
+    value6: int32 = int.add value0, value7
+    return value6
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -734,27 +742,29 @@ b0(v0: int32):
     fn test_reassociate_combines_constants_with_nonconstant_subtree() {
         // source test
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 4int32
-    v3: int32 = 5int32
-    v4: int32 = int.add v0, v1
-    v5: int32 = int.add v4, v2
-    v6: int32 = int.add v5, v3
-    return v6
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = 4int32
+    value3: int32 = 5int32
+    value4: int32 = int.add value0, value1
+    value5: int32 = int.add value4, value2
+    value6: int32 = int.add value5, value3
+    return value6
+}
+"#;
         // expected output
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 4int32
-    v3: int32 = 5int32
-    v4: int32 = int.add v0, v1
-    v5: int32 = int.add v4, v2
-    v6: int32 = 9int32
-    v7: int32 = int.add v4, v6
-    return v7
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = 4int32
+    value3: int32 = 5int32
+    value4: int32 = int.add value0, value1
+    value5: int32 = int.add value4, value2
+    value7: int32 = 9int32
+    value6: int32 = int.add value4, value7
+    return value6
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -767,28 +777,30 @@ b0(v0: int32, v1: int32):
     fn test_reassociate_rebuilds_chain_with_multiple_operands() {
         // source test
         let input = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 1int32
-    v3: int32 = 2int32
-    v4: int32 = int.add v0, v2
-    v5: int32 = int.add v1, v3
-    v6: int32 = int.add v4, v5
-    return v6
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = 1int32
+    value3: int32 = 2int32
+    value4: int32 = int.add value0, value2
+    value5: int32 = int.add value1, value3
+    value6: int32 = int.add value4, value5
+    return value6
+}
+"#;
         // expected output
         let expected = r#"
-function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 1int32
-    v3: int32 = 2int32
-    v4: int32 = int.add v0, v2
-    v5: int32 = int.add v1, v3
-    v6: int32 = 3int32
-    v7: int32 = int.add v0, v1
-    v8: int32 = int.add v7, v6
-    return v8
-}"#;
+function test(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = 1int32
+    value3: int32 = 2int32
+    value4: int32 = int.add value0, value2
+    value5: int32 = int.add value1, value3
+    value7: int32 = 3int32
+    value8: int32 = int.add value0, value1
+    value6: int32 = int.add value8, value7
+    return value6
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -801,25 +813,27 @@ b0(v0: int32, v1: int32):
     fn test_reassociate_multiply_constants() {
         // source test
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 2int32
-    v2: int32 = 3int32
-    v3: int32 = int.mul v0, v1
-    v4: int32 = int.mul v3, v2
-    return v4
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 2int32
+    value2: int32 = 3int32
+    value3: int32 = int.mul value0, value1
+    value4: int32 = int.mul value3, value2
+    return value4
+}
+"#;
         // expected output
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 2int32
-    v2: int32 = 3int32
-    v3: int32 = int.mul v0, v1
-    v4: int32 = 6int32
-    v5: int32 = int.mul v0, v4
-    return v5
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 2int32
+    value2: int32 = 3int32
+    value3: int32 = int.mul value0, value1
+    value5: int32 = 6int32
+    value4: int32 = int.mul value0, value5
+    return value4
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);
@@ -832,25 +846,27 @@ b0(v0: int32):
     fn test_reassociate_bitwise_constants() {
         // source test
         let input = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    v3: int32 = int.and v0, v1
-    v4: int32 = int.and v3, v2
-    return v4
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    value3: int32 = int.and value0, value1
+    value4: int32 = int.and value3, value2
+    return value4
+}
+"#;
         // expected output
         let expected = r#"
-function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
-    v2: int32 = 2int32
-    v3: int32 = int.and v0, v1
-    v4: int32 = 0int32
-    v5: int32 = int.and v0, v4
-    return v5
-}"#;
+function test(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 1int32
+    value2: int32 = 2int32
+    value3: int32 = int.and value0, value1
+    value5: int32 = 0int32
+    value4: int32 = int.and value0, value5
+    return value4
+}
+"#;
 
         // run the pass and verify output
         let mut test = TestProgram::new(input);

@@ -8,6 +8,9 @@ use destack_mir::{
     Mutation, RangeAnalysis, RangeMap, ValueRange, ValueTypeMap, is_comparison_operator,
 };
 
+/// Integer widths supported by the textual MIR primitive type grammar.
+const SUPPORTED_INTEGER_WIDTHS: [u16; 6] = [8, 16, 32, 64, 128, 256];
+
 declare_pass! {
     /// Narrow integer operands for comparisons and bounds checks.
     ///
@@ -245,7 +248,7 @@ fn required_integer_width(
         } else {
             (128 - max.leading_zeros()) as u16
         };
-        return Some(width.min(original_width));
+        return supported_integer_width(width, original_width);
     }
 
     // find the smallest signed width that contains the range
@@ -253,11 +256,18 @@ fn required_integer_width(
         let min_bound = -(1i128 << (width - 1));
         let max_bound = (1i128 << (width - 1)) - 1;
         if min >= min_bound && max <= max_bound {
-            return Some(width);
+            return supported_integer_width(width, original_width);
         }
     }
 
     None
+}
+
+/// Return the smallest MIR-supported integer width for one required width.
+fn supported_integer_width(required_width: u16, original_width: u16) -> Option<u16> {
+    SUPPORTED_INTEGER_WIDTHS
+        .into_iter()
+        .find(|width| *width >= required_width && *width <= original_width)
 }
 
 /// Return integer range and type details needed for narrowing.
@@ -428,27 +438,29 @@ mod tests {
     fn test_narrow_comparison_operands() {
         let input = r#"
 function test(): boolean {
-b0:
-    v0: uint32 = 3uint32
-    v1: uint32 = 4uint32
-    v2: boolean = int.lt.u v0, v1
-    v3: boolean = int.lt.u v0, v0
-    v4: boolean = int.and v2, v3
-    return v4
-}"#;
+entry0:
+    value0: uint32 = 3uint32
+    value1: uint32 = 4uint32
+    value2: boolean = int.lt.u value0, value1
+    value3: boolean = int.lt.u value0, value0
+    value4: boolean = int.and value2, value3
+    return value4
+}
+"#;
 
         let expected = r#"
 function test(): boolean {
-b0:
-    v0: uint32 = 3uint32
-    v1: uint32 = 4uint32
-    v2: u3 = cast.truncate v0 -> u3
-    v3: u3 = cast.truncate v1 -> u3
-    v4: boolean = int.lt.u v2, v3
-    v5: boolean = int.lt.u v2, v2
-    v6: boolean = int.and v4, v5
-    return v6
-}"#;
+entry0:
+    value0: uint32 = 3uint32
+    value1: uint32 = 4uint32
+    value5: uint8 = cast.truncate value0 -> uint8
+    value6: uint8 = cast.truncate value1 -> uint8
+    value2: boolean = int.lt.u value5, value6
+    value3: boolean = int.lt.u value5, value5
+    value4: boolean = int.and value2, value3
+    return value4
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&Narrow);
@@ -460,23 +472,25 @@ b0:
     fn test_narrow_signed_comparison() {
         let input = r#"
 function test(): boolean {
-b0:
-    v0: int32 = 0int32
-    v1: int32 = 1int32
-    v2: boolean = int.lt.s v0, v1
-    return v2
-}"#;
+entry0:
+    value0: int32 = 0int32
+    value1: int32 = 1int32
+    value2: boolean = int.lt.s value0, value1
+    return value2
+}
+"#;
 
         let expected = r#"
 function test(): boolean {
-b0:
-    v0: int32 = 0int32
-    v1: int32 = 1int32
-    v2: i2 = cast.truncate v0 -> i2
-    v3: i2 = cast.truncate v1 -> i2
-    v4: boolean = int.lt.s v2, v3
-    return v4
-}"#;
+entry0:
+    value0: int32 = 0int32
+    value1: int32 = 1int32
+    value3: int8 = cast.truncate value0 -> int8
+    value4: int8 = cast.truncate value1 -> int8
+    value2: boolean = int.lt.s value3, value4
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&Narrow);
@@ -487,34 +501,40 @@ b0:
     #[test]
     fn test_narrow_bounds_check_operands() {
         let input = r#"
-function test(v0: [uint8; 8]): uint8 {
-b0(v0: [uint8; 8]):
-    v1: uint32 = 2uint32
-    v2: uint32 = 4uint32
-    v3: boolean = int.lt.u v1, v2
-    check bounds.u v1, v2, v0 -> b1, b2
-b1:
-    v4: uint8 = element.get v0, v1
-    return v4
-b2:
+function test(value0: [uint8; 8]): uint8 {
+entry0(value0: [uint8; 8]):
+    value1: uint32 = 2uint32
+    value2: uint32 = 4uint32
+    value3: boolean = int.lt.u value1, value2
+    check bounds.u value1, value2, value0 -> block1(), block2()
+
+block1:
+    value4: uint8 = element.get value0, 0
+    return value4
+
+block2:
     unreachable
-}"#;
+}
+"#;
 
         let expected = r#"
-function test(v0: [uint8; 8]): uint8 {
-b0(v0: [uint8; 8]):
-    v1: uint32 = 2uint32
-    v2: uint32 = 4uint32
-    v3: u3 = cast.truncate v1 -> u3
-    v4: u3 = cast.truncate v2 -> u3
-    v5: boolean = int.lt.u v3, v4
-    check bounds.u v3, v4, v0 -> b1, b2
-b1:
-    v6: uint8 = element.get v0, v1
-    return v6
-b2:
+function test(value0: [uint8; 8]): uint8 {
+entry0(value0: [uint8; 8]):
+    value1: uint32 = 2uint32
+    value2: uint32 = 4uint32
+    value5: uint8 = cast.truncate value1 -> uint8
+    value6: uint8 = cast.truncate value2 -> uint8
+    value3: boolean = int.lt.u value5, value6
+    check bounds.u value5, value6, value0 -> block1(), block2()
+
+block1:
+    value4: uint8 = element.get value0, 0
+    return value4
+
+block2:
     unreachable
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&Narrow);
@@ -525,11 +545,12 @@ b2:
     #[test]
     fn test_narrow_skips_unknown_ranges() {
         let input = r#"
-function test(v0: uint32, v1: uint32): boolean {
-b0(v0: uint32, v1: uint32):
-    v2: boolean = int.lt.u v0, v1
-    return v2
-}"#;
+function test(value0: uint32, value1: uint32): boolean {
+entry0(value0: uint32, value1: uint32):
+    value2: boolean = int.lt.u value0, value1
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&Narrow);
@@ -540,17 +561,20 @@ b0(v0: uint32, v1: uint32):
     #[test]
     fn test_narrow_skips_mismatched_widths() {
         let input = r#"
-function test(v0: [uint8; 8]): void {
-b0(v0: [uint8; 8]):
-    v1: uint32 = 2uint32
-    v2: uint64 = 4uint64
-    v3: boolean = int.lt.u v1, v2
-    check bounds.u v1, v2, v0 -> b1, b2
-b1:
+function test(value0: [uint8; 8]): void {
+entry0(value0: [uint8; 8]):
+    value1: uint32 = 2uint32
+    value2: uint64 = 4uint64
+    value3: boolean = int.lt.u value1, value2
+    check bounds.u value1, value2, value0 -> block1(), block2()
+
+block1:
     return
-b2:
+
+block2:
     unreachable
-}"#;
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&Narrow);
@@ -562,12 +586,13 @@ b2:
     fn test_narrow_skips_full_range_signed() {
         let input = r#"
 function test(): boolean {
-b0:
-    v0: int32 = -2147483648int32
-    v1: int32 = 2147483647int32
-    v2: boolean = int.lt.s v0, v1
-    return v2
-}"#;
+entry0:
+    value0: int32 = -2147483648int32
+    value1: int32 = 2147483647int32
+    value2: boolean = int.lt.s value0, value1
+    return value2
+}
+"#;
 
         let mut test = TestProgram::new(input);
         test.run_pass(&Narrow);
