@@ -3,11 +3,11 @@ use destack_mir as mir;
 pub(super) fn instruction_uses(
     instruction: &mir::Instruction,
     tree: &mir::Tree,
-) -> Vec<mir::ValueReference> {
+) -> Vec<mir::Value> {
     let mut values = instruction.uses().to_vec();
 
     if let Some(arguments) = instruction.argument_slice() {
-        push_arguments(&mut values, tree.get_arguments(arguments));
+        push_arguments(&mut values, tree.get_values(arguments));
     }
 
     values
@@ -17,7 +17,7 @@ pub(super) fn instruction_uses(
 pub(super) fn instruction_consumes(
     instruction: &mir::Instruction,
     tree: &mir::Tree,
-) -> Vec<mir::ValueReference> {
+) -> Vec<mir::Value> {
     let mut values = Vec::new();
 
     match instruction {
@@ -104,27 +104,27 @@ pub(super) fn instruction_consumes(
         | mir::Instruction::Array { .. }
         | mir::Instruction::TensorConcat { .. } => {
             if let Some(arguments) = instruction.argument_slice() {
-                push_arguments(&mut values, tree.get_arguments(arguments));
+                push_arguments(&mut values, tree.get_values(arguments));
             }
         }
         mir::Instruction::Call { call, .. } => {
-            push_arguments(&mut values, tree.get_arguments(call.arguments));
+            push_arguments(&mut values, tree.get_values(call.arguments));
         }
         mir::Instruction::CallVirtual { receiver, call, .. }
         | mir::Instruction::CallDynamic { receiver, call, .. } => {
             values.push(*receiver);
-            push_arguments(&mut values, tree.get_arguments(call.arguments));
+            push_arguments(&mut values, tree.get_values(call.arguments));
         }
         mir::Instruction::CallIndirect { callee, call, .. } => {
             values.push(*callee);
-            push_arguments(&mut values, tree.get_arguments(call.arguments));
+            push_arguments(&mut values, tree.get_values(call.arguments));
         }
         mir::Instruction::Intrinsic {
             intrinsic,
             arguments,
             ..
         } => {
-            let arguments = tree.get_arguments(*arguments);
+            let arguments = tree.get_values(*arguments);
             for &index in intrinsic.consumed_arguments() {
                 let Some(&value) = arguments.get(index as usize) else {
                     continue;
@@ -140,7 +140,10 @@ pub(super) fn instruction_consumes(
 }
 
 /// Return values consumed by one terminator.
-pub(super) fn terminator_consumes(terminator: &mir::Terminator) -> Vec<mir::ValueReference> {
+pub(super) fn terminator_consumes(
+    tree: &mir::Tree,
+    terminator: &mir::Terminator,
+) -> Vec<mir::Value> {
     let mut values = Vec::new();
 
     match terminator {
@@ -148,22 +151,22 @@ pub(super) fn terminator_consumes(terminator: &mir::Terminator) -> Vec<mir::Valu
             values.push(*value)
         }
         mir::Terminator::Call { call, .. } | mir::Terminator::TailCall { call, .. } => {
-            push_arguments(&mut values, &call.arguments);
+            push_arguments(&mut values, tree.get_values(call.arguments));
         }
         mir::Terminator::CallIndirect { callee, call, .. } => {
             values.push(*callee);
-            push_arguments(&mut values, &call.arguments);
+            push_arguments(&mut values, tree.get_values(call.arguments));
         }
         mir::Terminator::CallVirtual { receiver, call, .. }
         | mir::Terminator::CallDynamic { receiver, call, .. }
         | mir::Terminator::TailCallVirtual { receiver, call, .. }
         | mir::Terminator::TailCallDynamic { receiver, call, .. } => {
             values.push(*receiver);
-            push_arguments(&mut values, &call.arguments);
+            push_arguments(&mut values, tree.get_values(call.arguments));
         }
         mir::Terminator::TailCallIndirect { callee, call, .. } => {
             values.push(*callee);
-            push_arguments(&mut values, &call.arguments);
+            push_arguments(&mut values, tree.get_values(call.arguments));
         }
         _ => {}
     }
@@ -172,6 +175,6 @@ pub(super) fn terminator_consumes(terminator: &mir::Terminator) -> Vec<mir::Valu
 }
 
 /// Append SSA values as value references.
-fn push_arguments(values: &mut Vec<mir::ValueReference>, arguments: &[mir::ValueReference]) {
+fn push_arguments(values: &mut Vec<mir::Value>, arguments: &[mir::Value]) {
     values.extend(arguments.iter().copied());
 }

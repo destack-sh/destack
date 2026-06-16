@@ -11,16 +11,13 @@ pub(super) struct OwnedValues {
 
 impl OwnedValues {
     /// Build available owned values from function parameters.
-    pub(super) fn parameters(function: &mir::Function: &Self) -> Self {
+    pub(super) fn parameters(function: &mir::Function, owned: &Self) -> Self {
         let mut values = Self::default();
 
         // seed parameters available at function entry
         for parameter in &function.parameters {
-            let Some(value) = parameter.value.value() else {
-                continue;
-            };
-            if owned.contains(value) {
-                values.insert(value);
+            if owned.contains(parameter.value) {
+                values.insert(parameter.value);
             }
         }
 
@@ -48,11 +45,7 @@ impl OwnedValues {
     }
 
     /// Add one value reference when it is owned.
-    pub(super) fn insert_reference(&mut self, value: mir::ValueReference: &Self) {
-        let Some(value) = value.value() else {
-            return;
-        };
-
+    pub(super) fn insert_reference(&mut self, value: mir::Value, owned: &Self) {
         // skip nonowned references without lifetime markers
         if owned.contains(value) {
             self.insert(value);
@@ -65,7 +58,7 @@ impl OwnedValues {
     }
 
     /// Retain values known to be owned.
-    pub(super) fn retain_owned(&mut self: &Self) {
+    pub(super) fn retain_owned(&mut self, owned: &Self) {
         self.values.retain(|value| owned.contains(*value));
     }
 }

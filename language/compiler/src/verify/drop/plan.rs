@@ -72,9 +72,7 @@ impl<'a> DropPlan<'a> {
 
         // seed parameters owned at function entry
         for parameter in &self.function.parameters {
-            let Some(value) = parameter.value.value() else {
-                continue;
-            };
+            let value = parameter.value;
             if self.is_owned_value(value) {
                 owned.insert(value);
             }
@@ -124,10 +122,7 @@ impl<'a> DropPlan<'a> {
             // revisit successors after changed exits
             let block = self.tree.get(block_id);
             let terminator = self.tree.get(block.terminator);
-            for successor in terminator.successors() {
-                let Some(successor) = successor.block() else {
-                    continue;
-                };
+            for successor in self.tree.terminator_successors(terminator) {
                 if !worklist.contains(&successor) {
                     worklist.push_back(successor);
                 }
@@ -222,20 +217,17 @@ impl<'a> DropPlan<'a> {
     ) -> DropState {
         let predecessor = self.tree.get(predecessor);
         let terminator = self.tree.get(predecessor.terminator);
-        let arguments = terminator_arguments_for_successor(terminator, successor);
+        let arguments = terminator_arguments_for_successor(self.tree, terminator, successor);
         let successor_block = self.tree.get(successor);
 
         // transfer ownership to matching successor parameters
         for (parameter, argument) in successor_block.parameters.iter().zip(arguments) {
-            let (Some(parameter), Some(argument)) = (parameter.value.value(), argument.value())
-            else {
-                continue;
-            };
-            if !available.contains(argument) || !self.owned.contains(parameter) {
+            let parameter = parameter.value;
+            if !available.contains(*argument) || !self.owned.contains(parameter) {
                 continue;
             }
 
-            available.move_place(mir::Place::value(argument.into()));
+            available.move_place(mir::Place::value(*argument));
             available.owned.insert(parameter);
         }
 
@@ -374,7 +366,7 @@ impl<'a> DropPlan<'a> {
     fn consumed_by_terminator(&self, terminator: &mir::Terminator) -> OwnedValues {
         let mut values = OwnedValues::default();
 
-        for value in terminator_consumes(terminator) {
+        for value in terminator_consumes(self.tree, terminator) {
             values.insert_reference(value, &self.owned);
         }
 
@@ -390,20 +382,14 @@ impl<'a> DropPlan<'a> {
         let mut carried = OwnedValues::default();
 
         // keep edge argument ownership alive in successor parameters
-        for successor in terminator.successors() {
-            let Some(successor) = successor.block() else {
-                continue;
-            };
-            let arguments = terminator_arguments_for_successor(terminator, successor);
+        for successor in self.tree.terminator_successors(terminator) {
+            let arguments = terminator_arguments_for_successor(self.tree, terminator, successor);
             let successor_block = self.tree.get(successor);
 
             // keep each carried value alive in successor parameters
-            for (parameter, argument) in successor_block.parameters.iter().zip(arguments) {
-                let (Some(_), Some(argument)) = (parameter.value.value(), argument.value()) else {
-                    continue;
-                };
-                if available.contains(argument) {
-                    carried.insert(argument);
+            for (_, argument) in successor_block.parameters.iter().zip(arguments) {
+                if available.contains(*argument) {
+                    carried.insert(*argument);
                 }
             }
         }
@@ -465,18 +451,14 @@ impl<'a> DropPlan<'a> {
     }
 
     /// Return whether one value reference has move-only ownership.
-    fn is_owned_reference(&self, value: mir::ValueReference) -> bool {
-        let Some(value) = value.value() else {
-            return false;
-        };
-
+    fn is_owned_reference(&self, value: mir::Value) -> bool {
         self.is_owned_value(value)
     }
 
     /// Return the moved place for one projection.
     fn place_moved_by_projection(
         &self,
-        value: mir::ValueReference,
+        value: mir::Value,
         projection: mir::Projection,
     ) -> mir::Place {
         let place = self.place_for_value(value);
@@ -488,8 +470,8 @@ impl<'a> DropPlan<'a> {
     }
 
     /// Return whether one value has a union type.
-    fn is_union_value(&self, value: mir::ValueReference) -> bool {
-        let Some(ty) = value.value().and_then(|value| self.type_for_value(value)) else {
+    fn is_union_value(&self, value: mir::Value) -> bool {
+        let Some(ty) = self.type_for_value(value) else {
             return false;
         };
 
@@ -505,9 +487,6 @@ impl<'a> DropPlan<'a> {
             return DropRelease::None;
         }
 
-        let Some(value) = value.value() else {
-            return DropRelease::None;
-        };
         let ty = self
             .type_for_value(value)
             .expect("owned value must have a type");
@@ -520,15 +499,11 @@ impl<'a> DropPlan<'a> {
     }
 
     /// Return the best known place for one value.
-    fn place_for_value(&self, value: mir::ValueReference) -> mir::Place {
-        let Some(value) = value.value() else {
-            return mir::Place::value(value);
-        };
-
+    fn place_for_value(&self, value: mir::Value) -> mir::Place {
         self.function
             .value_place(value)
             .cloned()
-            .unwrap_or_else(|| mir::Place::value(value.into()))
+            .unwrap_or_else(|| mir::Place::value(value))
     }
 
     /// Return minimal initialized places that need drops.
@@ -619,12 +594,9 @@ impl<'a> DropPlan<'a> {
         &self,
         parent: &mir::Place,
         projection: mir::Projection,
-        ty: mir::TypeReference,
+        ty: mir::TypeId,
         moved: &[mir::Place],
     ) -> Vec<mir::Place> {
-        let Some(ty) = ty.ty() else {
-            panic!("partial drop requires a concrete child type")
-        };
         if self.tree.get(ty).copy().is_yes() {
             return Vec::new();
         }
@@ -643,7 +615,7 @@ impl<'a> DropPlan<'a> {
         self.function
             .parameters
             .iter()
-            .find(|parameter| parameter.value.value() == Some(value))
-            .and_then(|parameter| parameter.ty.ty())
+            .find(|parameter| parameter.value == value)
+            .map(|parameter| parameter.ty)
     }
 }
