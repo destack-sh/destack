@@ -9,7 +9,7 @@ export {
     Partial,
     Pick,
     PropertyKey,
-    ReadonlyFields,
+    Readonly,
     Record,
     Required,
 } from "./object.ds";

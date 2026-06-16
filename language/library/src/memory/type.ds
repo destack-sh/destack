@@ -1,4 +1,4 @@
-import { Access, Readonly } from "./access.ds";
+import { Access } from "./access.ds";
 import { Borrowed, ExclusiveBorrowed, ReadonlyBorrowed } from "./borrow.ds";
 import { Lifetime } from "./lifetime.ds";
 import { Managed } from "./managed.ds";
