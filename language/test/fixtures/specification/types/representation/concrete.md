@@ -1,4 +1,4 @@
-# Concreteness
+# Concrete
 
 `Concrete` is the capability trait for types that have a concrete representation.
 

@@ -42,15 +42,26 @@ value satisfies boolean;
 
 ## membership
 
-### in folds known property presence
+### in checks known property presence
 
-Known property membership is a static boolean.
+Known property membership produces a boolean.
 
 ```ds
 const point = { x: 1, y: 2 };
 
 const hasX = "x" in point;
-hasX satisfies true;
+hasX satisfies boolean;
+```
+
+### in checks known missing property
+
+Known missing-property membership still produces a boolean.
+
+```ds
+const point = { x: 1, y: 2 };
+
+const hasName = "name" in point;
+hasName satisfies boolean;
 ```
 
 ### in narrows object unions by property
@@ -67,6 +78,40 @@ if ("name" in value) {
     value.name satisfies string;
 }
 ```
+
+### in rejects primitive receivers
+
+The right operand must be an object.
+
+```ds
+"x" in 1;
+```
+
+- contains: object
+
+### in rejects non-key operands
+
+The left operand must be a property key.
+
+```ds
+const point = { x: 1 };
+
+true in point;
+```
+
+- contains: property key
+
+### in rejects unknown receivers
+
+Unknown values need an object guard before property membership.
+
+```ds
+declare const value: unknown;
+
+"name" in value;
+```
+
+- contains: object
 
 ## overloads
 

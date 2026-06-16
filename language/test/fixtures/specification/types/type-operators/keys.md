@@ -1,6 +1,6 @@
 # Keys
 
-`keyof` and static `in` work over the apparent keys of a type.
+`keyof` and conditional key membership work over the apparent keys of a type.
 
 ## keyof
 
@@ -94,19 +94,19 @@ key satisfies "a" | "b";
 
 ## index signatures
 
-### string indexes contribute string and number keys
+### string indexes contribute string and usize keys
 
-A string index admits every string key.
+A string index admits string keys and `usize` keys.
 
 ```ds
 interface Bag {
-    [key: string]: number;
+    [key: string]: int32;
 }
 
 type Keys = keyof Bag;
 
 const okString: Keys = "a";
-const okNumber: Keys = 1;
+const okIndex: Keys = 1;
 ```
 
 ### string indexes reject boolean keys
@@ -115,7 +115,7 @@ Only key types participate.
 
 ```ds
 interface Bag {
-    [key: string]: number;
+    [key: string]: int32;
 }
 
 type Keys = keyof Bag;
@@ -125,30 +125,30 @@ const bad: Keys = true;
 
 - contains: not assignable
 
-### number indexes contribute number keys
+### usize indexes contribute usize keys
 
-A number index admits number keys.
+A usize index admits usize keys.
 
 ```ds
-interface NumberBag {
-    [key: number]: string;
+interface SlotBag {
+    [key: usize]: string;
 }
 
-type Keys = keyof NumberBag;
+type Keys = keyof SlotBag;
 
 const ok: Keys = 1;
 ```
 
-### number indexes reject string keys
+### usize indexes reject string keys
 
-Number indexes do not admit strings.
+Usize indexes do not admit strings.
 
 ```ds
-interface NumberBag {
-    [key: number]: string;
+interface SlotBag {
+    [key: usize]: string;
 }
 
-type Keys = keyof NumberBag;
+type Keys = keyof SlotBag;
 
 const bad: Keys = "name";
 ```

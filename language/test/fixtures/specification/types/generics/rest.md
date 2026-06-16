@@ -41,9 +41,9 @@ tail(true, 1);
 
 ## rest inference
 
-### const rest inference preserves literal tuple elements
+### const type-parameter rest inference preserves literal tuple elements
 
-Rest inference from const tuple inputs keeps literal element types.
+Rest inference through a const type parameter keeps literal element types.
 
 ```ds
 declare function collect<const T: readonly unknown[]>(...values: T): T;

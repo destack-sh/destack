@@ -28,9 +28,9 @@ type Missing = User["missing"];
 
 - contains: does not exist
 
-### numeric keys on object types stay indexed access
+### usize keys on object types stay indexed access
 
-Numeric literal keys project like string keys.
+Static usize keys project like string keys.
 
 ```ds
 type Pair = { 0: string; 1: int32 };
@@ -40,9 +40,9 @@ declare const value: Right;
 value satisfies int32;
 ```
 
-### missing numeric object keys are rejected
+### missing usize object keys are rejected
 
-Numeric keys must exist too.
+Static usize keys must exist too.
 
 ```ds
 type ObjectLike = { label: string };
@@ -105,6 +105,26 @@ declare const value: ValueAt<User, "name">;
 value satisfies string;
 ```
 
+### generic keys can index matching values
+
+`K: keyof User` ties the value access to the indexed access return type.
+
+```ds
+type User = {
+    readonly name: string;
+    readonly age: int32;
+};
+
+function get<K: keyof User>(user: User, key: K): User[K] {
+    return user[key];
+}
+
+declare const user: User;
+
+get(user, "name") satisfies string;
+get(user, "age") satisfies int32;
+```
+
 ### unconstrained generic indexed access is rejected
 
 An arbitrary `K` may not index `T`.
@@ -131,10 +151,10 @@ first satisfies string;
 
 ### dynamic array indexing yields element types
 
-`T[number]` projects the element type.
+`T[usize]` projects the element type.
 
 ```ds
-type Element<T: string[]> = T[number];
+type Element<T: string[]> = T[usize];
 
 declare const value: Element<string[]>;
 value satisfies string;

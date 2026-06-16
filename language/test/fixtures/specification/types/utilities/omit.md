@@ -101,4 +101,4 @@ const person: NameOnly = { name: "Ada" };
 person.name = "Grace";
 ```
 
-- contains: read-only
+- contains: readonly

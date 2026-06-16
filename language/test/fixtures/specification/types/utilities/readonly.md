@@ -1,6 +1,6 @@
 # Readonly
 
-`Readonly<T>` is the named utility form for `readonly T`.
+`Readonly<T>` is the standard mapped utility for shallow readonly fields.
 
 ## properties
 
@@ -51,11 +51,11 @@ const frozen: Frozen = { name: "Ada", age: 42 };
 frozen.name = "Grace";
 ```
 
-- contains: read-only
+- contains: readonly
 
-### readonly rejects nested property writes
+### readonly keeps nested object fields mutable
 
-The utility maps one level; nesting freezes through the view.
+The mapped utility follows TypeScript and only changes immediate fields.
 
 ```ds
 interface Person {
@@ -68,6 +68,5 @@ type Frozen = Readonly<Person>;
 
 const frozen: Frozen = { profile: { name: "Ada" } };
 frozen.profile.name = "Grace";
+frozen.profile.name satisfies string;
 ```
-
-- contains: read-only

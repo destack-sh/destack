@@ -60,18 +60,20 @@ class Counter {
 
 ## overloads
 
-### constructor overloads share one implementation
+### constructor overloads use real implementations
 
-Overload signatures sit above one body.
+Each overload has its own body.
 
 ```ds
 class Box {
     value: string | number;
 
-    constructor(value: string);
-    constructor(value: number);
-    constructor(value: string | number) {
-        this.value = value;
+    constructor(value: string) {
+        this.value = value as string | number;
+    }
+
+    constructor(value: number) {
+        this.value = value as string | number;
     }
 }
 
@@ -82,56 +84,48 @@ fromString.value satisfies string | number;
 fromNumber.value satisfies string | number;
 ```
 
-### constructor overloads reject multiple implementations
+### constructor declarations need declaration context
 
-Only one body is allowed.
+Bodyless constructor declarations belong in declaration contexts.
+
+```ds
+declare class Box {
+    value: string | number;
+
+    constructor(value: string);
+    constructor(value: number);
+}
+```
+
+### concrete constructors require bodies
+
+Concrete classes cannot use TypeScript-style hidden implementation signatures.
+
+```ds
+class Box {
+    value: string | number;
+
+    constructor(value: string);
+    constructor(value: number);
+}
+```
+
+- contains: constructor
+
+### constructor calls use overload implementations
+
+Calls resolve against the overload bodies.
 
 ```ds
 class Box {
     value: string | number;
 
     constructor(value: string) {
-        this.value = value;
+        this.value = value as string | number;
     }
 
     constructor(value: number) {
-        this.value = value;
-    }
-}
-```
-
-- contains: constructor
-
-### constructor overloads require a compatible implementation
-
-The body must serve every signature.
-
-```ds
-class Box {
-    value: string | number;
-
-    constructor(value: string);
-    constructor(value: number);
-    constructor(value: boolean) {
-        this.value = value ? 1 : 0;
-    }
-}
-```
-
-- contains: overload
-
-### constructor calls use overload signatures
-
-Calls resolve against the signatures, not the body.
-
-```ds
-class Box {
-    value: string | number;
-
-    constructor(value: string);
-    constructor(value: number);
-    constructor(value: string | number) {
-        this.value = value;
+        this.value = value as string | number;
     }
 }
 

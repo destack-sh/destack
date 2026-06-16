@@ -16,9 +16,9 @@ for (const value of [1, 2, 3]) {
 
 ## for in
 
-### for in loops over object keys
+### for in loops over object-shaped fields
 
-For-in loops iterate over object keys.
+For-in loops iterate over field/property names on object-shaped receivers.
 
 ```ds
 let target = { a: 1, b: 2 };
@@ -39,16 +39,19 @@ for (const value of 1) {
 
 - contains: not iterable
 
-### for in keys are strings
+### for in keys stay strings for finite fields
 
-For-in loop keys are typed as strings.
+For-in loop keys are typed as strings, not as the static field-key union.
 
 ```ds
 let target = { a: 1, b: 2 };
 for (const key in target) {
     key satisfies string;
+    const exact: "a" | "b" = key;
 }
 ```
+
+- contains: not assignable
 
 ### for of values preserve array element types
 
@@ -121,7 +124,33 @@ for (const key in 1) {
 }
 ```
 
-- contains: not iterable
+- contains: for-in requires an object
+
+### for in rejects unknown receivers
+
+For-in loops require a narrowed object receiver.
+
+```ds
+declare const target: unknown;
+
+for (const key in target) {
+    key;
+}
+```
+
+- contains: for-in requires an object
+
+### for in rejects array receivers
+
+Arrays use value iteration or explicit key APIs instead of property enumeration.
+
+```ds
+for (const key in [1, 2, 3]) {
+    key;
+}
+```
+
+- contains: for-in requires an object
 
 ### for in keys stay string typed across union object sources
 

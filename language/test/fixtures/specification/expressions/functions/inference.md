@@ -19,18 +19,18 @@ greet satisfies (name: string) => string;
 
 ## contextual typing
 
-### contextual lambda from annotation
+### contextual closure from annotation
 
-Lambda parameter types are inferred from annotations.
+Closure parameter types are inferred from annotations.
 
 ```ds
 const add: (a: number, b: number) => number = (a, b) => a + b;
 add satisfies (a: number, b: number) => number;
 ```
 
-### contextual lambda from annotation mismatch
+### contextual closure from annotation mismatch
 
-Lambda return type must satisfy the contextual return type.
+Closure return type must satisfy the contextual return type.
 
 ```ds
 const add: (a: number, b: number) => number = (a, b) => "hi";
@@ -38,9 +38,9 @@ const add: (a: number, b: number) => number = (a, b) => "hi";
 
 - contains: not assignable
 
-### contextual lambda from argument
+### contextual closure from argument
 
-Lambda parameter types are inferred from parameter types.
+Closure parameter types are inferred from parameter types.
 
 ```ds
 function apply(transform: (value: number) => number) {
@@ -49,9 +49,9 @@ function apply(transform: (value: number) => number) {
 apply((value) => value + 1);
 ```
 
-### contextual lambda from argument mismatch
+### contextual closure from argument mismatch
 
-Lambda return type must satisfy the contextual return type.
+Closure return type must satisfy the contextual return type.
 
 ```ds
 function apply(transform: (value: number) => number) {

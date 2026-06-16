@@ -42,9 +42,9 @@ class Counter {
 }
 ```
 
-### method lambdas capture this
+### method closures capture this
 
-Lambdas inside methods capture the lexical `this`.
+Closures inside methods capture the lexical `this`.
 
 ```ds
 class Counter {
@@ -56,9 +56,9 @@ class Counter {
 }
 ```
 
-### non-member lambdas reject implicit this
+### non-member closures reject implicit this
 
-Lambdas outside methods require an explicit `this` parameter to use `this`.
+Closures outside methods require an explicit `this` parameter to use `this`.
 
 ```ds
 function make() {
