@@ -226,7 +226,7 @@ function use(): void {
 entry0:
     // first
     value0: int32 = 1int32 // tail
-    jump block1
+    jump block1()
 
 // next
 block1:

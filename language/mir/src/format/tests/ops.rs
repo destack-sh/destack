@@ -54,7 +54,7 @@ entry0(value0: uint32, value1: uint32, value2: [int32; 4]):
     assume value3
     profile.increment counter(0)
     profile.value counter(1), value3
-    check bounds.u value0, value1, value2 -> block1(value0), block2
+    check bounds.u value0, value1, value2 -> block1(value0), block2()
 
 block1(value4: uint32):
     value5: int32 = 0int32

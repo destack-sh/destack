@@ -116,6 +116,8 @@ pub struct MirFormatContext<'a> {
     pub local_indices: HashMap<LocalNodeId<Local>, usize>,
     /// Map from function ID to its unique display name.
     pub function_names: HashMap<LocalNodeId<Function>, String>,
+    /// Map from block ID to its unique display name.
+    pub block_names: HashMap<LocalNodeId<Block>, String>,
     /// Map from global ID to its unique display name.
     pub global_names: HashMap<LocalNodeId<Global>, String>,
     /// Map from type ID to its alias name (if any).
@@ -161,6 +163,7 @@ impl<'a> MirFormatContext<'a> {
 
         // assign unique function and global names
         let function_names = build_unique_function_names(tree, strings, options.use_local_names);
+        let block_names = build_unique_block_names(tree, strings);
         let global_names = build_unique_global_names(tree, strings, options.use_local_names);
 
         // include synthetic aliases when configured
@@ -186,6 +189,7 @@ impl<'a> MirFormatContext<'a> {
             file: File::empty_text(FileType::Destack),
             local_indices: HashMap::new(),
             function_names,
+            block_names,
             global_names,
             type_alias_by_type,
             synthetic_aliases,
@@ -206,21 +210,10 @@ impl<'a> MirFormatContext<'a> {
 
     /// Get the display name of a block in the current function.
     pub fn block_name(&self, id: LocalNodeId<Block>) -> String {
-        let block = self.tree.get(id);
-        if let Some(name) = block.name {
-            self.strings.get(name).to_string()
-        } else if let Some(function_id) = self.current_function {
-            let function = self.tree.get(function_id);
-            let index = function
-                .blocks
-                .iter()
-                .position(|block_id| *block_id == id)
-                .unwrap_or(id.id as usize);
-            let prefix = if index == 0 { "entry" } else { "block" };
-            format!("{prefix}{index}")
-        } else {
-            format!("block{}", id.id)
-        }
+        self.block_names
+            .get(&id)
+            .cloned()
+            .unwrap_or_else(|| format!("block{}", id.id))
     }
 
     /// Get the index of a local in the current function.
@@ -314,6 +307,33 @@ fn build_unique_function_names(
     }
 }
 
+/// Build unique display names for blocks.
+fn build_unique_block_names(
+    tree: &Tree,
+    strings: &StringPool,
+) -> HashMap<LocalNodeId<Block>, String> {
+    let mut names_by_id = HashMap::new();
+
+    // build names independently per function
+    for (_, function) in tree.iter_nodes::<Function>() {
+        let names = function.blocks.iter().enumerate().map(|(index, block_id)| {
+            let block = tree.get(*block_id);
+            let name = if let Some(name) = block.name {
+                strings.get(name).to_string()
+            } else {
+                let prefix = if index == 0 { "entry" } else { "block" };
+                format!("{prefix}{index}")
+            };
+
+            (*block_id, name)
+        });
+
+        names_by_id.extend(build_unique_names(names));
+    }
+
+    names_by_id
+}
+
 /// Build unique display names for globals.
 fn build_unique_global_names(
     tree: &Tree,
@@ -355,7 +375,7 @@ where
 
             // find the next available suffix
             loop {
-                let candidate = format!("{base}#{entry}");
+                let candidate = format!("{base}_{entry}");
                 *entry += 1;
                 if !used_names.contains(&candidate) {
                     break candidate;
