@@ -268,14 +268,15 @@ pub(crate) fn repr_type(
     mut ty: mir::LocalNodeId<mir::Type>,
 ) -> mir::LocalNodeId<mir::Type> {
     loop {
-        let mir::Type::Newtype { inner, .. } = tree.get(ty) else {
-            return ty;
+        match tree.get(ty) {
+            mir::Type::Newtype { inner, .. } => {
+                ty = *inner;
+            }
+            mir::Type::WithLifetimes { base, .. } => {
+                ty = *base;
+            }
+            _ => return ty,
         };
-
-        let Some(inner) = inner.ty() else {
-            return ty;
-        };
-        ty = inner;
     }
 }
 
@@ -285,13 +286,18 @@ fn concrete_repr_type(
     mut ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<mir::LocalNodeId<mir::Type>> {
     loop {
-        let mir::Type::Newtype { inner, .. } = tree.get(ty) else {
-            return Ok(ty);
+        match tree.get(ty) {
+            mir::Type::Newtype { inner, .. } => {
+                ty = *inner;
+            }
+            mir::Type::WithLifetimes { base, .. } => {
+                ty = *base;
+            }
+            mir::Type::Error => {
+                return Err(Error::invalid_program("error type"));
+            }
+            _ => return Ok(ty),
         };
-
-        ty = (*inner)
-            .ty()
-            .ok_or_else(|| Error::invalid_program("repr newtype inner"))?;
     }
 }
 
@@ -350,10 +356,7 @@ fn build_layout(
         | mir::Type::FunctionPointer { .. }
         | mir::Type::Float { .. } => raw_scalar_layout(tree, ty, layout_id),
         mir::Type::Uninit { value } => {
-            let value = value
-                .ty()
-                .ok_or_else(|| Error::invalid_program("uninit value type"))?;
-            let mut layout = build_layout(tree, layout_id_by_type, layouts, value)?;
+            let mut layout = build_layout(tree, layout_id_by_type, layouts, *value)?;
             layout.layout_id = layout_id;
 
             layout
@@ -361,11 +364,7 @@ fn build_layout(
         mir::Type::TensorView { shape, .. } => build_tensor_view_layout(shape, layout_id)?,
         mir::Type::FunctionSignature { .. } => scalar_layout(0, 1, layout_id),
         mir::Type::Atomic { value } => {
-            let value = value
-                .ty()
-                .ok_or_else(|| Error::invalid_program("atomic value type"))?;
-
-            let mut layout = build_layout(tree, layout_id_by_type, layouts, value)?;
+            let mut layout = build_layout(tree, layout_id_by_type, layouts, *value)?;
             layout.layout_id = layout_id;
 
             layout
@@ -376,17 +375,15 @@ fn build_layout(
                 .ok_or_else(|| Error::invalid_program("dynamic layout"))?;
             build_mir_layout(tree, layout_id_by_type, layouts, layout_id, layout)?
         }
-        mir::Type::Newtype { .. } => unreachable!("repr_type must peel newtypes"),
+        mir::Type::Newtype { .. } | mir::Type::WithLifetimes { .. } => {
+            unreachable!("repr_type must peel transparent type wrappers")
+        }
+        mir::Type::Error => return Err(Error::invalid_program("error type")),
         mir::Type::Struct { fields, .. } => {
             let field_types = fields
                 .iter()
-                .map(|field_id| {
-                    let field = tree.get(*field_id);
-                    (field.ty)
-                        .ty()
-                        .ok_or_else(|| Error::invalid_program("struct field type"))
-                })
-                .collect::<Result<Vec<_>>>()?;
+                .map(|field_id| tree.get(*field_id).ty)
+                .collect::<Vec<_>>();
             build_record_layout(tree, layout_id_by_type, layouts, layout_id, ty, field_types)?
         }
         mir::Type::Variant { .. } => {
@@ -396,14 +393,7 @@ fn build_layout(
             build_mir_layout(tree, layout_id_by_type, layouts, layout_id, layout)?
         }
         mir::Type::Tuple { elements, .. } => {
-            let element_types = elements
-                .iter()
-                .map(|element| {
-                    (*element)
-                        .ty()
-                        .ok_or_else(|| Error::invalid_program("tuple element type"))
-                })
-                .collect::<Result<Vec<_>>>()?;
+            let element_types = elements.iter().copied().collect::<Vec<_>>();
             build_record_layout(
                 tree,
                 layout_id_by_type,
@@ -421,9 +411,7 @@ fn build_layout(
             layouts,
             layout_id,
             ty,
-            (*element)
-                .ty()
-                .ok_or_else(|| Error::invalid_program("array element type"))?,
+            *element,
             *length as usize,
         )?,
         mir::Type::Slice {
@@ -450,9 +438,7 @@ fn build_layout(
                 layouts,
                 layout_id,
                 ty,
-                (*element)
-                    .ty()
-                    .ok_or_else(|| Error::invalid_program("vector element type"))?,
+                *element,
                 element_count,
             )?
         }
@@ -467,9 +453,7 @@ fn build_layout(
             layouts,
             layout_id,
             ty,
-            (*element)
-                .ty()
-                .ok_or_else(|| Error::invalid_program("tensor element type"))?,
+            *element,
             shape,
             layout,
         )?,
@@ -891,11 +875,7 @@ fn contains_closure(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Result
         mir::Type::Closure { .. } => Ok(true),
         mir::Type::Struct { fields, .. } => {
             for field_id in fields {
-                let field_type = tree
-                    .get(*field_id)
-                    .ty
-                    .ty()
-                    .ok_or_else(|| Error::invalid_program("struct field type"))?;
+                let field_type = tree.get(*field_id).ty;
                 if contains_closure(tree, field_type)? {
                     return Ok(true);
                 }
@@ -904,10 +884,7 @@ fn contains_closure(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Result
             Ok(false)
         }
         mir::Type::Tuple { elements, .. } => {
-            for element_type in elements {
-                let element_type = (*element_type)
-                    .ty()
-                    .ok_or_else(|| Error::invalid_program("tuple element type"))?;
+            for element_type in elements.iter().copied() {
                 if contains_closure(tree, element_type)? {
                     return Ok(true);
                 }
@@ -917,12 +894,7 @@ fn contains_closure(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Result
         }
         mir::Type::Array { element, .. }
         | mir::Type::Vector { element, .. }
-        | mir::Type::Tensor { element, .. } => contains_closure(
-            tree,
-            (*element)
-                .ty()
-                .ok_or_else(|| Error::invalid_program("element type"))?,
-        ),
+        | mir::Type::Tensor { element, .. } => contains_closure(tree, *element),
         _ => Ok(false),
     }
 }
@@ -1095,21 +1067,14 @@ fn build_variant_trace_map(
     else {
         return Err(Error::internal("trace map requested for non-variant type"));
     };
-    let tag_type = tag
-        .ty()
-        .ok_or_else(|| Error::internal("variant tag type is not concrete"))?;
-    let storage_type = storage
-        .ty()
-        .ok_or_else(|| Error::internal("variant storage type is not concrete"))?;
+    let tag_type = *tag;
+    let storage_type = *storage;
 
     let tag_bytes = variant_tag_bytes(tree, tag_type)?;
     let mut trace_variants = Vec::with_capacity(cases.len());
 
     for case in cases.iter() {
-        let element_type = case
-            .ty
-            .ty()
-            .ok_or_else(|| Error::internal("variant value type is not concrete"))?;
+        let element_type = case.ty;
         let map = variant_trace_map(layouts, storage_type, element_type)?;
         trace_variants.push(mir::TraceVariant {
             tag: variant_tag_bits(tree, tag_type, &case.tag)?,
@@ -1374,10 +1339,7 @@ mod tests {
     fn lookup_type_alias(tree: &Tree, strings: &StringPool, name: &str) -> mir::LocalNodeId<Type> {
         for (_, type_alias) in tree.iter_nodes::<TypeAlias>() {
             if strings.get(type_alias.name) == name {
-                return type_alias
-                    .ty
-                    .ty()
-                    .expect("type alias should be concrete after parsing");
+                return type_alias.ty;
             }
         }
 

@@ -23,15 +23,9 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one local get.
     pub(super) fn lower_local_get(
         &self,
-        destination: mir::ValueReference,
-        local: mir::LocalReference,
+        destination: mir::Value,
+        local: mir::LocalId,
     ) -> Result<Instruction> {
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("local get destination"))?;
-        let local = local
-            .local()
-            .ok_or_else(|| Error::invalid_program("local get source"))?;
         let destination_slot = frame_value_slot(self, destination)?;
         let local_slot = frame_local_slot(self, local)?;
 
@@ -64,15 +58,9 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one local address.
     pub(super) fn lower_local_addr(
         &self,
-        destination: mir::ValueReference,
-        local: mir::LocalReference,
+        destination: mir::Value,
+        local: mir::LocalId,
     ) -> Result<Instruction> {
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("local address destination"))?;
-        let local = local
-            .local()
-            .ok_or_else(|| Error::invalid_program("local address local"))?;
         let local = self.local_index(local)?;
 
         Ok(Instruction::new(
@@ -87,15 +75,9 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one local set.
     pub(super) fn lower_local_set(
         &self,
-        local: mir::LocalReference,
-        value: mir::ValueReference,
+        local: mir::LocalId,
+        value: mir::Value,
     ) -> Result<Instruction> {
-        let local = local
-            .local()
-            .ok_or_else(|| Error::invalid_program("local set destination"))?;
-        let value = value
-            .value()
-            .ok_or_else(|| Error::invalid_program("local set value"))?;
         let local_slot = frame_local_slot(self, local)?;
         let value_slot = frame_value_slot(self, value)?;
 
@@ -128,16 +110,9 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one static address.
     pub(super) fn lower_static_addr(
         &self,
-        destination: mir::ValueReference,
-        global: mir::GlobalReference,
+        destination: mir::Value,
+        global: mir::GlobalId,
     ) -> Result<Instruction> {
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("static address destination"))?;
-        let global = global
-            .global()
-            .ok_or_else(|| Error::invalid_program("static address global"))?;
-
         Ok(Instruction::new(
             Op::AddressStatic,
             cell_offset(self, destination)?,
@@ -150,16 +125,9 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one function address.
     pub(super) fn lower_function_addr(
         &self,
-        destination: mir::ValueReference,
-        function: mir::FunctionReference,
+        destination: mir::Value,
+        function: mir::FunctionId,
     ) -> Result<Instruction> {
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("function address destination"))?;
-        let function = function
-            .function()
-            .ok_or_else(|| Error::invalid_program("function address callee"))?;
-
         Ok(Instruction::new(
             Op::AddressFunction,
             cell_offset(self, destination)?,
@@ -173,15 +141,9 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_load(
         &self,
         pool: &mut Pool<'_, '_>,
-        destination: mir::ValueReference,
-        pointer: mir::ValueReference,
+        destination: mir::Value,
+        pointer: mir::Value,
     ) -> Result<Instruction> {
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("load destination"))?;
-        let pointer = pointer
-            .value()
-            .ok_or_else(|| Error::invalid_program("load pointer"))?;
         let access = self.pointee_projection_for_value(pointer)?;
         let address_space = address_space_for_value(self.value_shape_map(), pointer)?;
         let op = select_load_op(address_space, access)?;
@@ -210,15 +172,9 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_store(
         &self,
         pool: &mut Pool<'_, '_>,
-        pointer: mir::ValueReference,
-        value: mir::ValueReference,
+        pointer: mir::Value,
+        value: mir::Value,
     ) -> Result<Instruction> {
-        let pointer = pointer
-            .value()
-            .ok_or_else(|| Error::invalid_program("store pointer"))?;
-        let value = value
-            .value()
-            .ok_or_else(|| Error::invalid_program("store value"))?;
         let access = self.pointee_projection_for_value(pointer)?;
         let address_space = address_space_for_value(self.value_shape_map(), pointer)?;
         let op = select_store_op(address_space, access)?;

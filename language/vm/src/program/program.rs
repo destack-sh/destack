@@ -415,7 +415,7 @@ fn scalar_initializer_bytes(
 
 /// Encode one function address initializer as bytes.
 fn function_address_initializer_bytes(
-    function: mir::FunctionReference,
+    function: mir::FunctionId,
     byte_len: usize,
 ) -> Result<Vec<u8>> {
     if byte_len > Cell::BYTE_LEN {
@@ -425,9 +425,6 @@ fn function_address_initializer_bytes(
         ));
     }
 
-    let Some(function) = function.function() else {
-        return Err(Error::invalid_program("function address initializer"));
-    };
     let function = FunctionPointer::from_bits(function.id as usize);
     let raw = function.bits() as u64;
     let bytes = raw.to_le_bytes();
@@ -723,9 +720,7 @@ impl ProgramBuilder {
                 continue;
             }
 
-            let Some(ty) = global.ty.ty() else {
-                return Err(Error::invalid_program("global type"));
-            };
+            let ty = global.ty;
             let layout = layouts
                 .get(&ty)
                 .ok_or_else(|| Error::type_mismatch("compiled global layout", format!("{ty:?}")))?;
@@ -821,12 +816,7 @@ impl ProgramBuilder {
         for (type_id, layout) in layouts {
             let module_layout = match self.tree.get(*type_id) {
                 mir::Type::Closure { environment, .. } => {
-                    let environment = environment.ty().ok_or_else(|| {
-                        Error::internal(format!(
-                            "closure environment type is not concrete: {type_id:?}"
-                        ))
-                    })?;
-                    let environment_layout = cell_layout_from_type(&self.tree, environment)
+                    let environment_layout = cell_layout_from_type(&self.tree, *environment)
                         .ok_or_else(|| {
                             Error::internal(format!(
                                 "closure environment type is not a cell: {type_id:?}"
@@ -1007,13 +997,7 @@ impl ProgramBuilder {
             mir::Instruction::Call { destination, .. }
             | mir::Instruction::CallVirtual { destination, .. }
             | mir::Instruction::CallDynamic { destination, .. }
-            | mir::Instruction::CallIndirect { destination, .. } => (*destination)
-                .map(|value| {
-                    value
-                        .value()
-                        .ok_or_else(|| Error::invalid_program("call destination"))
-                })
-                .transpose(),
+            | mir::Instruction::CallIndirect { destination, .. } => Ok(*destination),
             _ => Ok(None),
         }
     }
@@ -1046,9 +1030,7 @@ impl ProgramBuilder {
         let value_count = slot_id;
         for local_id in &function.locals {
             let local = self.tree.get(*local_id);
-            let local_type = (local.ty)
-                .ty()
-                .ok_or_else(|| Error::invalid_program("frame local type"))?;
+            let local_type = local.ty;
             let slot = self.frame_slot(
                 engine::FrameSlotId(slot_id),
                 layouts,
@@ -1063,13 +1045,11 @@ impl ProgramBuilder {
         let environment_slot = function
             .environment
             .as_ref()
-            .map(|ty| ty.ty().ok_or_else(|| Error::invalid_program("environment")))
-            .transpose()?
             .map(|environment| {
                 self.frame_slot(
                     engine::FrameSlotId(slot_id),
                     layouts,
-                    environment,
+                    *environment,
                     &mut byte_len,
                 )
             })
@@ -1149,20 +1129,9 @@ impl ProgramBuilder {
                 let terminator = self.tree.get(block.terminator);
 
                 match terminator {
-                    mir::Terminator::Yield { resume, .. } => Some((
-                        (resume.block)
-                            .block()
-                            .ok_or_else(|| Error::invalid_program("yield resume target"))?,
-                        resume
-                            .arguments
-                            .iter()
-                            .map(|argument| {
-                                (*argument)
-                                    .value()
-                                    .ok_or_else(|| Error::invalid_program("yield resume argument"))
-                            })
-                            .collect::<Result<Vec<_>>>()?,
-                    )),
+                    mir::Terminator::Yield { resume, .. } => {
+                        Some((resume.block, self.tree.block_target_values(resume).to_vec()))
+                    }
                     _ => None,
                 }
             };
@@ -1191,20 +1160,9 @@ impl ProgramBuilder {
                     mir::Terminator::Call { target, .. }
                     | mir::Terminator::CallIndirect { target, .. }
                     | mir::Terminator::CallVirtual { target, .. }
-                    | mir::Terminator::CallDynamic { target, .. } => Some((
-                        (target.block)
-                            .block()
-                            .ok_or_else(|| Error::invalid_program("call target"))?,
-                        target
-                            .arguments
-                            .iter()
-                            .map(|argument| {
-                                (*argument)
-                                    .value()
-                                    .ok_or_else(|| Error::invalid_program("call argument"))
-                            })
-                            .collect::<Result<Vec<_>>>()?,
-                    )),
+                    | mir::Terminator::CallDynamic { target, .. } => {
+                        Some((target.block, self.tree.block_target_values(target).to_vec()))
+                    }
                     _ => None,
                 }
             };
@@ -1238,15 +1196,10 @@ impl ProgramBuilder {
 
         // block edges bind the received value after explicit arguments
         if entry_block.parameters.len() == explicit_argument_count + 1 {
-            return entry_block
+            return Ok(entry_block
                 .parameters
                 .last()
-                .map(|parameter| {
-                    (parameter.value)
-                        .value()
-                        .ok_or_else(|| Error::invalid_program("resume parameter"))
-                })
-                .transpose();
+                .map(|parameter| parameter.value));
         }
 
         Ok(None)
@@ -1272,9 +1225,7 @@ impl ProgramBuilder {
             .iter()
             .zip(arguments.iter())
             .map(|(parameter, argument)| {
-                let destination = (parameter.value)
-                    .value()
-                    .ok_or_else(|| Error::invalid_program("resume parameter"))?;
+                let destination = parameter.value;
 
                 let source = frame_layout
                     .value_slot_id(argument.0)
@@ -1410,12 +1361,8 @@ impl ProgramBuilder {
         let parameter_values: HashSet<mir::Value> = entry_block
             .parameters
             .iter()
-            .map(|parameter| {
-                (parameter.value)
-                    .value()
-                    .ok_or_else(|| Error::invalid_program("entry block parameter"))
-            })
-            .collect::<Result<HashSet<_>>>()?;
+            .map(|parameter| parameter.value)
+            .collect::<HashSet<_>>();
         let mut values: HashSet<mir::Value> =
             live_in.difference(&parameter_values).copied().collect();
 

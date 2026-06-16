@@ -27,18 +27,12 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_new(
         &self,
         pool: &mut Pool<'_, '_>,
-        destination: mir::ValueReference,
-        layout: mir::TypeReference,
+        destination: mir::Value,
+        layout: mir::TypeId,
         initialization: AllocationInitialization,
     ) -> Result<Instruction> {
         // resolve allocation target and layout
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("new destination"))?;
-        let allocation_type = layout
-            .ty()
-            .ok_or_else(|| Error::invalid_program("new layout"))?;
-        let layout = self.layout_for_type(allocation_type)?;
+        let layout = self.layout_for_type(layout)?;
         let address_space = address_space_for_value(self.value_shape_map(), destination)?;
 
         // precompute the heap allocation shape
@@ -85,17 +79,14 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_new_try(
         &self,
         pool: &mut Pool<'_, '_>,
-        layout: mir::TypeReference,
+        layout: mir::TypeId,
         success: &mir::BlockTarget,
         failure: &mir::BlockTarget,
         initialization: AllocationInitialization,
     ) -> Result<Instruction> {
-        let allocation_type = layout
-            .ty()
-            .ok_or_else(|| Error::invalid_program("new.try layout"))?;
         let (result, success) = self.lower_allocation_success(pool, success)?;
 
-        let layout = self.layout_for_type(allocation_type)?;
+        let layout = self.layout_for_type(layout)?;
         let address_space = address_space_for_value(self.value_shape_map(), result)?;
         let (allocation, _) = allocation_site(
             pool,
@@ -105,7 +96,7 @@ impl<'a> BlockLowerer<'a> {
             self.shared_heap_options,
         )?;
         let allocation = pool.allocation_site(allocation);
-        let failure = self.lower_block_edge(pool, failure, "new.try failure")?;
+        let failure = self.lower_block_edge(pool, failure)?;
         let record = AllocationBranch {
             destination: cell_offset(self, result)?,
             allocation,
@@ -120,15 +111,9 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one heap allocation completion.
     pub(super) fn lower_new_complete(
         &self,
-        destination: mir::ValueReference,
-        value: mir::ValueReference,
+        destination: mir::Value,
+        value: mir::Value,
     ) -> Result<Instruction> {
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("new.complete destination"))?;
-        let value = value
-            .value()
-            .ok_or_else(|| Error::invalid_program("new.complete value"))?;
         let destination_slot = frame_value_slot(self, destination)?;
         let value_slot = frame_value_slot(self, value)?;
 
@@ -159,28 +144,15 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_new_slice(
         &self,
         pool: &mut Pool<'_, '_>,
-        destination: mir::ValueReference,
-        element: mir::TypeReference,
-        length: mir::ValueReference,
-        result_type: mir::TypeReference,
+        destination: mir::Value,
+        element: mir::TypeId,
+        length: mir::Value,
+        result_type: mir::TypeId,
         initialization: AllocationInitialization,
     ) -> Result<Instruction> {
         // resolve descriptor, backing element, and dynamic length
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("new.slice destination"))?;
-        let element_type = element
-            .ty()
-            .ok_or_else(|| Error::invalid_program("new.slice element type"))?;
-        let result_type = result_type
-            .ty()
-            .ok_or_else(|| Error::invalid_program("new.slice result type"))?;
-        let length = length
-            .value()
-            .ok_or_else(|| Error::invalid_program("new.slice length"))?;
-
         // compile the backing element shape
-        let element_layout = self.layout_for_type(element_type)?;
+        let element_layout = self.layout_for_type(element)?;
         let address_space = slice_backing_address_space(self.tree, result_type)?;
         let (element, _) = allocation_site(
             pool,
@@ -220,22 +192,16 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_new_slice_try(
         &self,
         pool: &mut Pool<'_, '_>,
-        element: mir::TypeReference,
-        length: mir::ValueReference,
+        element: mir::TypeId,
+        length: mir::Value,
         success: &mir::BlockTarget,
         failure: &mir::BlockTarget,
         initialization: AllocationInitialization,
     ) -> Result<Instruction> {
-        let element_type = element
-            .ty()
-            .ok_or_else(|| Error::invalid_program("new.slice.try element type"))?;
         let (result, success) = self.lower_allocation_success(pool, success)?;
         let result_type = self.value_type_for_value(result)?;
-        let length = length
-            .value()
-            .ok_or_else(|| Error::invalid_program("new.slice.try length"))?;
 
-        let element_layout = self.layout_for_type(element_type)?;
+        let element_layout = self.layout_for_type(element)?;
         let address_space = slice_backing_address_space(self.tree, result_type)?;
         let (element, _) = allocation_site(
             pool,
@@ -247,7 +213,7 @@ impl<'a> BlockLowerer<'a> {
         let element = pool.allocation_site(element);
         let access = slice_projection(self.tree, self.layouts(), result_type)
             .ok_or(Error::invalid_instruction())?;
-        let failure = self.lower_block_edge(pool, failure, "new.slice.try failure")?;
+        let failure = self.lower_block_edge(pool, failure)?;
         let record = SliceAllocationBranch {
             destination: value_offset(self, result)?,
             length: cell_offset(self, length)?,
@@ -267,24 +233,14 @@ impl<'a> BlockLowerer<'a> {
         pool: &mut Pool<'_, '_>,
         target: &mir::BlockTarget,
     ) -> Result<(mir::Value, Edge)> {
-        let target_block = (target.block)
-            .block()
-            .ok_or_else(|| Error::invalid_program("allocation success target"))?;
+        let target_block = target.block;
         let target_index = self.block_index_by_id[&target_block];
         let target_parameters = self.block_parameter[target_index].as_slice();
         let Some((&result, remaining_parameters)) = target_parameters.split_first() else {
             return Err(Error::invalid_program("allocation success parameter"));
         };
-        let arguments = target
-            .arguments
-            .iter()
-            .map(|argument| {
-                (*argument)
-                    .value()
-                    .ok_or_else(|| Error::invalid_program("allocation success argument"))
-            })
-            .collect::<Result<Vec<_>>>()?;
-        let moves = pool.edge_moves(remaining_parameters, &arguments)?;
+        let arguments = self.target_values(target);
+        let moves = pool.edge_moves(remaining_parameters, arguments)?;
         let edge = Edge {
             target: target_index as u32,
             moves,
@@ -294,27 +250,12 @@ impl<'a> BlockLowerer<'a> {
     }
 
     /// Lower one normal block edge.
-    fn lower_block_edge(
-        &self,
-        pool: &mut Pool<'_, '_>,
-        target: &mir::BlockTarget,
-        context: &str,
-    ) -> Result<Edge> {
-        let target_block = (target.block)
-            .block()
-            .ok_or_else(|| Error::invalid_program(context))?;
+    fn lower_block_edge(&self, pool: &mut Pool<'_, '_>, target: &mir::BlockTarget) -> Result<Edge> {
+        let target_block = target.block;
         let target_index = self.block_index_by_id[&target_block];
         let target_parameters = self.block_parameter[target_index].as_slice();
-        let arguments = target
-            .arguments
-            .iter()
-            .map(|argument| {
-                (*argument)
-                    .value()
-                    .ok_or_else(|| Error::invalid_program(context))
-            })
-            .collect::<Result<Vec<_>>>()?;
-        let moves = pool.edge_moves(target_parameters, &arguments)?;
+        let arguments = self.target_values(target);
+        let moves = pool.edge_moves(target_parameters, arguments)?;
 
         Ok(Edge {
             target: target_index as u32,
@@ -325,18 +266,11 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one frame allocation.
     pub(super) fn lower_frame_alloc(
         &self,
-        destination: mir::ValueReference,
-        layout: mir::TypeReference,
+        destination: mir::Value,
+        layout: mir::TypeId,
         initialization: AllocationInitialization,
     ) -> Result<Instruction> {
         // resolve stack destination and compiled type
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("frame alloc destination"))?;
-        let allocation_type = layout
-            .ty()
-            .ok_or_else(|| Error::invalid_program("frame alloc layout"))?;
-
         // frame allocation must produce a frame allocation pointer
         let address_space = address_space_for_value(self.value_shape_map(), destination)?;
         if !matches!(address_space, AddressSpace::Stack) {
@@ -344,7 +278,7 @@ impl<'a> BlockLowerer<'a> {
         }
 
         // encode the exact layout into the instruction
-        let layout = self.layout_for_type(allocation_type)?;
+        let layout = self.layout_for_type(layout)?;
         let byte_len = layout.byte_len as u64;
         let alignment = encode_alignment_log2(layout.alignment());
 
@@ -363,17 +297,9 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one heap pin.
     pub(super) fn lower_pin(
         &self,
-        destination: mir::ValueReference,
-        value: mir::ValueReference,
+        destination: mir::Value,
+        value: mir::Value,
     ) -> Result<Instruction> {
-        // resolve value ids
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("pin destination"))?;
-        let value = value
-            .value()
-            .ok_or_else(|| Error::invalid_program("pin value"))?;
-
         // select the heap family from value shape
         let op = match address_space_for_value(self.value_shape_map(), value)? {
             AddressSpace::Local => Op::PinHeap,
@@ -393,12 +319,7 @@ impl<'a> BlockLowerer<'a> {
     }
 
     /// Lower one heap unpin.
-    pub(super) fn lower_unpin(&self, value: mir::ValueReference) -> Result<Instruction> {
-        // resolve value id
-        let value = value
-            .value()
-            .ok_or_else(|| Error::invalid_program("unpin value"))?;
-
+    pub(super) fn lower_unpin(&self, value: mir::Value) -> Result<Instruction> {
         // select the heap family from value shape
         let op = match address_space_for_value(self.value_shape_map(), value)? {
             AddressSpace::Local => Op::UnpinHeap,
@@ -412,10 +333,7 @@ impl<'a> BlockLowerer<'a> {
     }
 
     /// Lower one unique heap free.
-    pub(super) fn lower_free(&self, value: mir::ValueReference) -> Result<Instruction> {
-        let value = value
-            .value()
-            .ok_or_else(|| Error::invalid_program("free value"))?;
+    pub(super) fn lower_free(&self, value: mir::Value) -> Result<Instruction> {
         let value_type = self.value_type_for_value(value)?;
         let op = unique_free_op(self.tree, value_type)?;
 

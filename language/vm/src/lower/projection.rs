@@ -117,7 +117,7 @@ pub(super) fn slice_projection(
     else {
         return None;
     };
-    let element_type = element.ty()?;
+    let element_type = *element;
     let layout = layouts.get(&slice_type)?;
     if !layout.is_slice() {
         return None;
@@ -231,7 +231,7 @@ pub(super) fn tensor_element_type(
     let ty = repr_type(tree, ty);
 
     match tree.get(ty) {
-        mir::Type::Tensor { element, .. } | mir::Type::TensorView { element, .. } => element.ty(),
+        mir::Type::Tensor { element, .. } | mir::Type::TensorView { element, .. } => Some(*element),
         _ => None,
     }
 }

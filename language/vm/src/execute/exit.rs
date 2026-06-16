@@ -18,12 +18,7 @@ impl Activation<'_> {
             .frames
             .last()
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
-        let return_type = program
-            .tree
-            .get(callee.function())
-            .return_type
-            .ty()
-            .ok_or_else(|| Error::invalid_program("return call type"))?;
+        let return_type = program.tree.get(callee.function()).return_type;
         let returned =
             frame_value_from_cell(program, self.machine.frames.as_slice(), return_type, value)
                 .map_err(RuntimeError::new)?;

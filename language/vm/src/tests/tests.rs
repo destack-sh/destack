@@ -173,8 +173,6 @@ impl TestMachine {
             .get(argument_index)
             .unwrap_or_else(|| panic!("missing argument {argument_index} for '{function}'"))
             .ty
-            .ty()
-            .expect("function parameter type should be concrete after parsing")
     }
 
     /// Materialize one value for the given MIR type.
@@ -635,7 +633,7 @@ entry(v0: ref<Box, managed, readonly>):
 #[test]
 fn test_stored_closure_roundtrips() {
     let mir_text = r#"
-type Fn = () -> int32;
+type Fn = fn() => int32;
 
 type Holder {
     action: Fn;
@@ -655,7 +653,7 @@ entry:
     store v1, v2
     v3: ref<Fn, managed, readonly> = field.address v1, 0
     v4: Fn = load v3
-    v5: int32 = call.indirect v4(): () -> int32
+    v5: int32 = call.indirect v4(): () => int32
     return v5
 }
 "#;
@@ -691,7 +689,7 @@ external function Greeter.greet(Greeter#object): int32
 function callInterface(v0: Greeter): int32 {
 entry(v0: Greeter):
     v1: ref<void, managed, readonly> = field.get v0, 0
-    v2: int32 = call.dynamic v0, Greeter#object, 1(v1): (Greeter#object) -> int32
+    v2: int32 = call.dynamic v0, Greeter#object, 1(v1): (Greeter#object) => int32
     return v2
 }
 

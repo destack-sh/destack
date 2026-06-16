@@ -12,7 +12,7 @@ fn test_yield_resume_value() {
 function yieldOnce(v0: int32): int32 {
 b0(v0: int32):
     v1: int32 = 5int32
-    yield v1, b1(v0)
+    yield v1 => b1(v0)
 b1(v2: int32, v3: int32):
     v4: int32 = int.add v2, v3
     return v4
@@ -33,7 +33,7 @@ fn test_yield_resume_value_ignored() {
 function yieldIgnore(v0: int32): int32 {
 b0(v0: int32):
     v1: int32 = 1int32
-    yield v1, b1(v0)
+    yield v1 => b1(v0)
 b1(v2: int32, v3: int32):
     return v2
 }"#;
@@ -53,10 +53,10 @@ fn test_yield_multiple() {
 function yieldTwice(v0: int32): int32 {
 b0(v0: int32):
     v1: int32 = 2int32
-    yield v1, b1(v0)
+    yield v1 => b1(v0)
 b1(v2: int32, v3: int32):
     v4: int32 = int.add v2, v3
-    yield v4, b2(v4)
+    yield v4 => b2(v4)
 b2(v5: int32, v6: int32):
     v7: int32 = int.add v5, v6
     return v7
@@ -80,7 +80,7 @@ fn test_yield_resume_no_args() {
 function yieldNoArgs(v0: int32): int32 {
 b0(v0: int32):
     v1: int32 = 4int32
-    yield v1, b1
+    yield v1 => b1
 b1(v2: int32):
     return v2
 }"#;
@@ -102,7 +102,7 @@ function yieldWithLocal(v0: int32): int32 {
 b0(v0: int32):
     v1: int32 = 4int32
     local.set l0, v1
-    yield v1, b1
+    yield v1 => b1
 b1(v2: int32):
     v3: int32 = local.get l0
     v4: int32 = int.add v3, v2
@@ -125,7 +125,7 @@ function yieldPrefix(v0: int32): int32 {
 b0(v0: int32):
     v1: int32 = 10int32
     v2: int32 = 20int32
-    yield v1, b1(v0, v2)
+    yield v1 => b1(v0, v2)
 b1(v3: int32, v4: int32, v5: int32):
     v6: int32 = int.add v3, v4
     v7: int32 = int.add v6, v5
@@ -155,7 +155,7 @@ b1(v3: int32, v4: int32, v5: int32):
     branch v7, b3(v5), b2(v3, v4, v5)
 b2(v8: int32, v9: int32, v10: int32):
     v11: int32 = int.add v8, v9
-    yield v11, b1(v8, v9)
+    yield v11 => b1(v8, v9)
 b3(v12: int32):
     return v12
 }"#;
@@ -174,7 +174,7 @@ fn test_yield_nested_call() {
     let mir = r#"
 function yieldInner(v0: int32): int32 {
 b0(v0: int32):
-    yield v0, b1
+    yield v0 => b1
 b1(v1: int32):
     v2: int32 = 1int32
     v3: int32 = int.add v1, v2
@@ -182,7 +182,7 @@ b1(v1: int32):
 }
 function outer(v0: int32): int32 {
 b0(v0: int32):
-    v1: int32 = call yieldInner(v0): (int32) -> int32
+    v1: int32 = call yieldInner(v0): (int32) => int32
     v2: int32 = int.add v1, v0
     return v2
 }"#;
@@ -202,7 +202,7 @@ fn test_yield_preserves_call_terminator_continuation() {
 function worker(v0: int32): int32 {
 b0(v0: int32):
     v1: int32 = 5int32
-    yield v1, b1(v0)
+    yield v1 => b1(v0)
 b1(v2: int32, v3: int32):
     v4: int32 = int.add v2, v3
     return v4
@@ -211,7 +211,7 @@ b1(v2: int32, v3: int32):
 function caller(v0: int32): int32 {
 b0(v0: int32):
     v1: int32 = 10int32
-    call worker(v0): (int32) -> int32 -> b1(v1)
+    call worker(v0): (int32) => int32 => b1(v1)
 b1(v2: int32, v3: int32):
     v4: int32 = int.add v2, v3
     return v4
@@ -233,7 +233,7 @@ function yieldStackLocal(): int32 {
 b0:
     v0: ref<int32, raw, readonly, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 1int32
-    yield v1, b1
+    yield v1 => b1
 b1(v2: int32):
     return v2
 }"#;
@@ -254,7 +254,7 @@ function yieldRetiredStackLocal(): int32 {
 b0:
     v0: ref<int32, raw, readonly, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 1int32
-    yield v1, b1
+    yield v1 => b1
 b1(v2: int32):
     return v2
 }"#;
@@ -271,14 +271,14 @@ fn test_yield_preserves_frame_alloc_in_caller_frame() {
     let mir = r#"
 function yieldInner(v0: int32): int32 {
 b0(v0: int32):
-    yield v0, b1
+    yield v0 => b1
 b1(v1: int32):
     return v1
 }
 function outerWithStackLocal(v0: int32): int32 {
 b0(v0: int32):
     v1: ref<int32, raw, readonly, space(frame)> = frame.alloc.zeroed int32
-    v2: int32 = call yieldInner(v0): (int32) -> int32
+    v2: int32 = call yieldInner(v0): (int32) => int32
     return v2
 }"#;
     let mut machine = create_machine(mir);
@@ -302,7 +302,7 @@ b0:
     local.set l0, v0
     v1: ref<int32, borrowed, space(frame)> = local.address l0
     v2: int32 = 2int32
-    yield v2, b1
+    yield v2 => b1
 b1(v3: int32):
     v4: int32 = load v1
     return v4
@@ -323,7 +323,7 @@ fn test_run_function_rejects_yield() {
 function yieldOnce(v0: int32): int32 {
 b0(v0: int32):
     v1: int32 = 5int32
-    yield v1, b1(v0)
+    yield v1 => b1(v0)
 b1(v2: int32, v3: int32):
     v4: int32 = int.add v2, v3
     return v4
@@ -345,7 +345,7 @@ fn test_resume_invalid_continuation() {
 function yieldOnce(v0: int32): int32 {
 b0(v0: int32):
     v1: int32 = 5int32
-    yield v1, b1(v0)
+    yield v1 => b1(v0)
 b1(v2: int32, v3: int32):
     v4: int32 = int.add v2, v3
     return v4
@@ -371,7 +371,7 @@ fn test_fork_continuation() {
 function yieldOnce(): int32 {
 b0:
     v0: int32 = 1int32
-    yield v0, b1
+    yield v0 => b1
 b1(v1: int32):
     return v1
 }"#;
@@ -400,7 +400,7 @@ b0:
     v1: int32 = 1int32
     store v0, v1
     v2: Pair = struct Pair (v0)
-    yield v1, b1(v2)
+    yield v1 => b1(v2)
 b1(v3: Pair, v4: int32):
     v5: ref<int32, managed, readonly> = field.get v3, 0
     v6: int32 = load v5
@@ -431,7 +431,7 @@ b0:
     v1: int32 = 1int32
     store v0, v1
     v2: Pair = struct Pair (v0)
-    yield v1, b1(v2)
+    yield v1 => b1(v2)
 b1(v3: Pair, v4: int32):
     v5: ref<int32, managed, readonly> = field.get v3, 0
     v6: int32 = load v5

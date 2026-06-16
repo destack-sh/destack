@@ -90,12 +90,8 @@ impl<'a> ValueShapeMapBuilder<'a> {
 
         // seed function parameter shapes
         for param in &self.func.parameters {
-            let Some(value) = param.value.value() else {
-                continue;
-            };
-            let Some(ty) = param.ty.ty() else {
-                continue;
-            };
+            let value = param.value;
+            let ty = param.ty;
 
             if let Some(shape) = value_shape_from_type(self.tree, ty) {
                 self.value_shape_map.set(value, shape);
@@ -106,12 +102,8 @@ impl<'a> ValueShapeMapBuilder<'a> {
         for block_id in self.mir_block {
             let block = self.tree.get(*block_id);
             for param in &block.parameters {
-                let Some(value) = param.value.value() else {
-                    continue;
-                };
-                let Some(ty) = param.ty.ty() else {
-                    continue;
-                };
+                let value = param.value;
+                let ty = param.ty;
                 let Some(shape) = value_shape_from_type(self.tree, ty) else {
                     continue;
                 };
@@ -147,9 +139,6 @@ impl<'a> ValueShapeMapBuilder<'a> {
                 for inst_id in &block.instructions {
                     let inst = self.tree.get(*inst_id);
                     let Some(destination) = inst.destination() else {
-                        continue;
-                    };
-                    let Some(destination) = destination.value() else {
                         continue;
                     };
                     let Some(shape) = infer_instruction_shape(
@@ -253,7 +242,7 @@ pub(super) fn heap_pointee_type_for_value(
             AddressSpace::Local | AddressSpace::Shared
         ) =>
         {
-            pointee.ty()
+            Some(*pointee)
         }
         _ => None,
     }
@@ -278,7 +267,7 @@ pub(super) fn raw_pointee_type_for_value(
             AddressSpace::Raw | AddressSpace::Stack | AddressSpace::Frame
         ) =>
         {
-            pointee.ty()
+            Some(*pointee)
         }
         _ => None,
     }
@@ -354,7 +343,7 @@ fn propagate_block_parameter_shapes(
             mir::Terminator::Switch { default, cases, .. } => {
                 is_changed |= propagate_target_edge(tree, value_shape_map, default);
 
-                for case in cases {
+                for case in tree.get_switch_cases(*cases) {
                     is_changed |= propagate_target_edge(tree, value_shape_map, &case.target);
                 }
             }
@@ -392,44 +381,26 @@ fn propagate_allocation_target_edge(
     value_shape_map: &mut ValueShapeMap,
     target: &mir::BlockTarget,
 ) -> bool {
-    let Some(target_block) = target.block.block() else {
-        return false;
-    };
-
     let mut is_changed = false;
-    let block = tree.get(target_block);
+    let block = tree.get(target.block);
     let Some(result_parameter) = block.parameters.first() else {
         return false;
     };
-    let Some(result_value) = result_parameter.value.value() else {
-        return false;
-    };
-    let Some(result_type) = result_parameter.ty.ty() else {
-        return false;
-    };
+    let result_value = result_parameter.value;
+    let result_type = result_parameter.ty;
     let result_shape = value_shape_from_type(tree, result_type);
     if value_shape_map.get(result_value) != result_shape {
         value_shape_map.replace(result_value, result_shape);
         is_changed = true;
     }
 
-    let arguments = target
-        .arguments
-        .iter()
-        .map(|argument| argument.value())
-        .collect::<Option<Vec<_>>>();
-    let Some(arguments) = arguments else {
-        return is_changed;
-    };
     let parameters = block.parameters.iter().skip(1);
 
-    for (parameter, argument) in parameters.zip(arguments.iter()) {
+    for (parameter, argument) in parameters.zip(tree.block_target_values(target).iter()) {
         let Some(argument_shape) = value_shape_map.get(*argument) else {
             continue;
         };
-        let Some(parameter_value) = parameter.value.value() else {
-            continue;
-        };
+        let parameter_value = parameter.value;
         let existing = value_shape_map.get(parameter_value);
         let next_shape = match existing {
             Some(shape) => merge_block_parameter_shape(shape, argument_shape),
@@ -451,39 +422,15 @@ fn propagate_target_edge(
     value_shape_map: &mut ValueShapeMap,
     target: &mir::BlockTarget,
 ) -> bool {
-    let Some(target_block) = target.block.block() else {
-        return false;
-    };
-
-    let arguments = target
-        .arguments
-        .iter()
-        .map(|argument| argument.value())
-        .collect::<Option<Vec<_>>>();
-    let Some(arguments) = arguments else {
-        return false;
-    };
-
-    propagate_target_shape(tree, value_shape_map, target_block, &arguments)
-}
-
-/// Update one target block from incoming argument shapes.
-fn propagate_target_shape(
-    tree: &mir::Tree,
-    value_shape_map: &mut ValueShapeMap,
-    target: mir::LocalNodeId<mir::Block>,
-    arguments: &[mir::Value],
-) -> bool {
     let mut is_changed = false;
-    let target_block = tree.get(target);
+    let target_block = tree.get(target.block);
+    let arguments = tree.block_target_values(target);
 
     for (parameter, argument) in target_block.parameters.iter().zip(arguments.iter()) {
         let Some(argument_shape) = value_shape_map.get(*argument) else {
             continue;
         };
-        let Some(parameter_value) = parameter.value.value() else {
-            continue;
-        };
+        let parameter_value = parameter.value;
         let existing = value_shape_map.get(parameter_value);
         let next_shape = match existing {
             Some(shape) => merge_block_parameter_shape(shape, argument_shape),
@@ -510,8 +457,7 @@ fn infer_instruction_shape(
         mir::Instruction::Error => None,
         mir::Instruction::Const { destination, value } => {
             if matches!(value, mir::Constant::Null) {
-                let destination = destination.value()?;
-                let ty = value_type_for_value(destination, value_types)?;
+                let ty = value_type_for_value(*destination, value_types)?;
                 return value_shape_from_type(tree, ty);
             }
 
@@ -523,14 +469,12 @@ fn infer_instruction_shape(
             right,
             ..
         } => {
-            let left = left.value()?;
-            let right = right.value()?;
             if operator.is_comparison() {
                 return Some(ValueShape::Bool);
             }
 
-            let left_shape = value_shape_map.get(left);
-            let right_shape = value_shape_map.get(right);
+            let left_shape = value_shape_map.get(*left);
+            let right_shape = value_shape_map.get(*right);
             let input_shape = left_shape.or(right_shape);
 
             match (operator.is_float(), input_shape) {
@@ -551,21 +495,17 @@ fn infer_instruction_shape(
                 _ => None,
             }
         }
-        mir::Instruction::Unary { argument, .. } => value_shape_map.get(argument.value()?),
-        mir::Instruction::Cast { to_type, .. } => {
-            let to_type = to_type.ty()?;
-
-            value_shape_from_type(tree, to_type)
-        }
-        mir::Instruction::Select { then_value, .. } => value_shape_map.get(then_value.value()?),
+        mir::Instruction::Unary { argument, .. } => value_shape_map.get(*argument),
+        mir::Instruction::Cast { to_type, .. } => value_shape_from_type(tree, *to_type),
+        mir::Instruction::Select { then_value, .. } => value_shape_map.get(*then_value),
         mir::Instruction::Call {
             destination,
             function,
             ..
         } => {
-            (*destination)?.value()?;
-            let function = tree.get(function.function()?);
-            value_shape_from_type(tree, function.return_type.ty()?)
+            destination.as_ref()?;
+            let function = tree.get(*function);
+            value_shape_from_type(tree, function.return_type)
         }
         mir::Instruction::CallVirtual {
             destination, call, ..
@@ -576,20 +516,20 @@ fn infer_instruction_shape(
         | mir::Instruction::CallIndirect {
             destination, call, ..
         } => {
-            (*destination)?.value()?;
-            let signature = call.signature.ty()?;
+            destination.as_ref()?;
+            let signature = call.signature;
             let mir::Type::FunctionSignature { result, .. } = tree.get(signature) else {
                 return None;
             };
 
-            value_shape_from_type(tree, result.ty()?)
+            value_shape_from_type(tree, *result)
         }
         mir::Instruction::LocalGet { local, .. } => {
-            let local = tree.get(local.local()?);
-            value_shape_from_type(tree, local.ty.ty()?)
+            let local = tree.get(*local);
+            value_shape_from_type(tree, local.ty)
         }
         mir::Instruction::LocalAddr { result_type, .. } => {
-            let mut shape = value_shape_from_type(tree, result_type.ty()?)?;
+            let mut shape = value_shape_from_type(tree, *result_type)?;
             let ValueShape::Pointer { address_space, .. } = &mut shape else {
                 return None;
             };
@@ -597,7 +537,7 @@ fn infer_instruction_shape(
             Some(shape)
         }
         mir::Instruction::GlobalAddr { result_type, .. } => {
-            let mut shape = value_shape_from_type(tree, result_type.ty()?)?;
+            let mut shape = value_shape_from_type(tree, *result_type)?;
             let ValueShape::Pointer { address_space, .. } = &mut shape else {
                 return None;
             };
@@ -605,28 +545,23 @@ fn infer_instruction_shape(
             Some(shape)
         }
         mir::Instruction::FunctionAddr { function, .. } => {
-            let function = tree.get(function.function()?);
+            let function = tree.get(*function);
             Some(ValueShape::FunctionPointer {
-                result: function.return_type.ty()?,
+                result: function.return_type,
             })
         }
         mir::Instruction::ClosureBind { destination, .. } => {
-            let destination = destination.value()?;
-            let ty = value_type_for_value(destination, value_types)?;
+            let ty = value_type_for_value(*destination, value_types)?;
             value_shape_from_type(tree, ty)
         }
-        mir::Instruction::ClosureEnvironment { destination } => {
-            value_shape_map.get(destination.value()?)
-        }
-        mir::Instruction::Load { result_type, .. } => {
-            value_shape_from_type(tree, result_type.ty()?)
-        }
+        mir::Instruction::ClosureEnvironment { destination } => value_shape_map.get(*destination),
+        mir::Instruction::Load { result_type, .. } => value_shape_from_type(tree, *result_type),
         mir::Instruction::FieldGet {
             aggregate: base,
             index,
             ..
         } => {
-            let base_shape = value_shape_map.get(base.value()?)?;
+            let base_shape = value_shape_map.get(*base)?;
             shape_from_field(tree, base_shape, *index)
         }
         mir::Instruction::FieldAddr {
@@ -634,32 +569,29 @@ fn infer_instruction_shape(
             result_type,
             ..
         } => {
-            let source_shape = value_shape_map.get(base.value()?)?;
-            pointer_result_shape_from_source(tree, result_type.ty()?, source_shape)
+            let source_shape = value_shape_map.get(*base)?;
+            pointer_result_shape_from_source(tree, *result_type, source_shape)
         }
         mir::Instruction::FieldSet {
             aggregate: base, ..
-        } => value_shape_map.get(base.value()?),
+        } => value_shape_map.get(*base),
         mir::Instruction::ElementGet { array, .. } => {
-            let array_shape = value_shape_map.get(array.value()?)?;
+            let array_shape = value_shape_map.get(*array)?;
             shape_from_element(tree, array_shape)
         }
         mir::Instruction::ElementAddr {
             array, result_type, ..
         } => {
-            let source_shape = value_shape_map.get(array.value()?)?;
-            pointer_result_shape_from_source(tree, result_type.ty()?, source_shape)
+            let source_shape = value_shape_map.get(*array)?;
+            pointer_result_shape_from_source(tree, *result_type, source_shape)
         }
-        mir::Instruction::ElementSet { array, .. } => value_shape_map.get(array.value()?),
+        mir::Instruction::ElementSet { array, .. } => value_shape_map.get(*array),
         mir::Instruction::Struct { ty, .. }
         | mir::Instruction::Tuple { ty, .. }
-        | mir::Instruction::Array { ty, .. } => value_shape_from_type(tree, ty.ty()?),
-        mir::Instruction::Slice { result_type, .. } => {
-            value_shape_from_type(tree, result_type.ty()?)
-        }
+        | mir::Instruction::Array { ty, .. } => value_shape_from_type(tree, *ty),
+        mir::Instruction::Slice { result_type, .. } => value_shape_from_type(tree, *result_type),
         mir::Instruction::TensorExtract { destination, .. } => {
-            let destination = destination.value()?;
-            let ty = value_type_for_value(destination, value_types)?;
+            let ty = value_type_for_value(*destination, value_types)?;
             value_shape_from_type(tree, ty)
         }
         mir::Instruction::VectorSplat { .. }
@@ -694,7 +626,7 @@ fn infer_instruction_shape(
         | mir::Instruction::TensorConvert { .. } => None,
         mir::Instruction::FrameAllocZeroed { result_type, .. }
         | mir::Instruction::FrameAllocUninit { result_type, .. } => {
-            let mut shape = value_shape_from_type(tree, result_type.ty()?)?;
+            let mut shape = value_shape_from_type(tree, *result_type)?;
             let ValueShape::Pointer { address_space, .. } = &mut shape else {
                 return None;
             };
@@ -707,12 +639,11 @@ fn infer_instruction_shape(
         | mir::Instruction::NewSliceZeroed { result_type, .. }
         | mir::Instruction::NewSliceUninit { result_type, .. }
         | mir::Instruction::AtomicLoad { result_type, .. } => {
-            value_shape_from_type(tree, result_type.ty()?)
+            value_shape_from_type(tree, *result_type)
         }
         mir::Instruction::AtomicCompareExchange { destination, .. }
         | mir::Instruction::AtomicRmw { destination, .. } => {
-            let destination = destination.value()?;
-            let ty = value_type_for_value(destination, value_types)?;
+            let ty = value_type_for_value(*destination, value_types)?;
             value_shape_from_type(tree, ty)
         }
         mir::Instruction::Intrinsic {
@@ -739,10 +670,10 @@ fn infer_instruction_shape(
 fn infer_intrinsic_shape(
     tree: &mir::Tree,
     intrinsic: mir::Intrinsic,
-    arguments: mir::ArgumentSlice,
+    arguments: mir::ValueSlice,
     value_shape_map: &ValueShapeMap,
 ) -> Option<ValueShape> {
-    let argument = tree.get_arguments(arguments);
+    let argument = tree.get_values(arguments);
 
     match intrinsic.result_type() {
         mir::IntrinsicResultType::Void => None,
@@ -761,11 +692,11 @@ fn infer_intrinsic_shape(
         }),
         mir::IntrinsicResultType::SameAsArgument(index) => {
             let argument = argument.get(index as usize)?;
-            value_shape_map.get(argument.value()?)
+            value_shape_map.get(*argument)
         }
         mir::IntrinsicResultType::Pointee(index) => {
             let argument = argument.get(index as usize)?;
-            let pointer_shape = value_shape_map.get(argument.value()?)?;
+            let pointer_shape = value_shape_map.get(*argument)?;
             shape_from_pointer(tree, pointer_shape)
         }
         mir::IntrinsicResultType::OverflowingArithmetic
@@ -813,11 +744,11 @@ fn shape_from_field(tree: &mir::Tree, shape: ValueShape, index: u32) -> Option<V
         mir::Type::Struct { fields, copy: _ } => {
             let field = fields.get(index as usize)?;
             let field = tree.get(*field);
-            value_shape_from_type(tree, field.ty.ty()?)
+            value_shape_from_type(tree, field.ty)
         }
         mir::Type::Tuple { elements, copy: _ } => {
             let field = elements.get(index as usize)?;
-            value_shape_from_type(tree, field.ty()?)
+            value_shape_from_type(tree, *field)
         }
         _ => None,
     }
@@ -828,7 +759,7 @@ fn shape_from_element(tree: &mir::Tree, shape: ValueShape) -> Option<ValueShape>
     match shape {
         ValueShape::Array { element, .. } => value_shape_from_type(tree, element),
         ValueShape::FrameBytes { ty } => match tree.get(ty) {
-            mir::Type::Array { element, .. } => value_shape_from_type(tree, element.ty()?),
+            mir::Type::Array { element, .. } => value_shape_from_type(tree, *element),
             _ => None,
         },
         _ => None,

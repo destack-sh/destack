@@ -249,6 +249,8 @@ pub(crate) fn value_shape_from_type(
 ) -> Option<ValueShape> {
     // map mir type to value shape
     match tree.get(ty) {
+        mir::Type::Error => None,
+        mir::Type::WithLifetimes { base, .. } => value_shape_from_type(tree, *base),
         mir::Type::Void => Some(ValueShape::Void),
         mir::Type::Boolean => Some(ValueShape::Bool),
         mir::Type::Int { width, is_signed } => Some(ValueShape::Int {
@@ -278,49 +280,36 @@ pub(crate) fn value_shape_from_type(
             nullability,
             ..
         } => {
-            let pointee = pointee.ty()?;
             let address_space = address_space_from_reference(space.clone(), *kind);
 
             Some(ValueShape::Pointer {
-                pointee,
+                pointee: *pointee,
                 address_space,
                 reference: ReferenceMeta::new(*kind, space.clone(), *access, *nullability),
             })
         }
-        mir::Type::FunctionSignature { result, .. } => result
-            .ty()
-            .map(|result| ValueShape::FunctionPointer { result }),
-        mir::Type::FunctionPointer { signature } => match signature.ty() {
-            Some(signature) => match tree.get(signature) {
-                mir::Type::FunctionSignature { result, .. } => result
-                    .ty()
-                    .map(|result| ValueShape::FunctionPointer { result }),
-                _ => None,
-            },
-            None => None,
+        mir::Type::FunctionSignature { result, .. } => {
+            Some(ValueShape::FunctionPointer { result: *result })
+        }
+        mir::Type::FunctionPointer { signature } => match tree.get(*signature) {
+            mir::Type::FunctionSignature { result, .. } => {
+                Some(ValueShape::FunctionPointer { result: *result })
+            }
+            _ => None,
         },
         mir::Type::Array {
             element,
             length,
             copy: _,
-        } => element.ty().map(|element| ValueShape::Array {
-            element,
+        } => Some(ValueShape::Array {
+            element: *element,
             length: *length,
         }),
         mir::Type::Slice { .. } => Some(ValueShape::FrameBytes { ty }),
-        mir::Type::Uninit { value } => match value.ty() {
-            Some(value) => value_shape_from_type(tree, value),
-            None => None,
-        },
+        mir::Type::Uninit { value } => value_shape_from_type(tree, *value),
         mir::Type::Dynamic { .. } => Some(ValueShape::FrameBytes { ty }),
-        mir::Type::Atomic { value } => match value.ty() {
-            Some(value) => value_shape_from_type(tree, value),
-            None => None,
-        },
-        mir::Type::Newtype { inner, .. } => match inner.ty() {
-            Some(inner) => value_shape_from_type(tree, inner),
-            None => None,
-        },
+        mir::Type::Atomic { value } => value_shape_from_type(tree, *value),
+        mir::Type::Newtype { inner, .. } => value_shape_from_type(tree, *inner),
         mir::Type::Closure { .. } => Some(ValueShape::Closure { ty }),
         mir::Type::Tuple { .. }
         | mir::Type::Struct { .. }
@@ -367,12 +356,12 @@ pub(crate) fn cell_layout_from_type(
 
             cell_layout_from_address_space(address_space)
         }
-        mir::Type::Uninit { value } => cell_layout_from_type(tree, value.ty()?),
+        mir::Type::Uninit { value } => cell_layout_from_type(tree, *value),
         mir::Type::Closure { .. } => Some(CellLayout::HeapReference),
         mir::Type::FunctionSignature { .. } | mir::Type::FunctionPointer { .. } => {
             Some(CellLayout::FunctionPointer)
         }
-        mir::Type::Atomic { value } => cell_layout_from_type(tree, value.ty()?),
+        mir::Type::Atomic { value } => cell_layout_from_type(tree, *value),
         _ => None,
     }
 }

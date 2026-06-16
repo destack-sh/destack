@@ -15,13 +15,10 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_const(
         &self,
         pool: &mut Pool<'_, '_>,
-        destination: mir::ValueReference,
+        destination: mir::Value,
         value: &mir::Constant,
     ) -> Result<Instruction> {
         // resolve the destination frame layout
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("const destination"))?;
         let destination_type = self.value_type_for_value(destination)?;
         let layout = self.layout_for_type(destination_type)?;
 

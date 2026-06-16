@@ -75,9 +75,7 @@ impl TensorLayout {
                 return Err(Error::type_mismatch("tensor type", format!("{ty:?}")));
             }
         };
-        let element = element
-            .ty()
-            .ok_or_else(|| Error::invalid_program("tensor element type"))?;
+        let element = *element;
 
         // compile shape
         let shape = static_shape(shape)?;

@@ -16,14 +16,10 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_atomic_load(
         &self,
         _pool: &mut Pool<'_, '_>,
-        destination: mir::ValueReference,
-        pointer: mir::ValueReference,
+        destination: mir::Value,
+        pointer: mir::Value,
         access: mir::AtomicAccess,
     ) -> Result<Instruction> {
-        // resolve SSA operands
-        let destination = atomic_value(destination, "atomic load destination")?;
-        let pointer = atomic_value(pointer, "atomic load pointer")?;
-
         // derive the concrete atomic shape
         let (layout, address) = require_atomic_pointer(self.tree, self.value_type(), pointer)?;
         let pointer_bytes = self.tree.pointer_bytes() as usize;
@@ -43,14 +39,10 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_atomic_store(
         &self,
         _pool: &mut Pool<'_, '_>,
-        pointer: mir::ValueReference,
-        value: mir::ValueReference,
+        pointer: mir::Value,
+        value: mir::Value,
         access: mir::AtomicAccess,
     ) -> Result<Instruction> {
-        // resolve SSA operands
-        let pointer = atomic_value(pointer, "atomic store pointer")?;
-        let value = atomic_value(value, "atomic store value")?;
-
         // derive the concrete atomic shape
         let (layout, address) = require_atomic_pointer(self.tree, self.value_type(), pointer)?;
         let pointer_bytes = self.tree.pointer_bytes() as usize;
@@ -70,19 +62,13 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_atomic_compare_exchange(
         &self,
         pool: &mut Pool<'_, '_>,
-        destination: mir::ValueReference,
-        pointer: mir::ValueReference,
-        expected: mir::ValueReference,
-        new_value: mir::ValueReference,
+        destination: mir::Value,
+        pointer: mir::Value,
+        expected: mir::Value,
+        new_value: mir::Value,
         is_weak: bool,
         access: mir::CompareExchangeAccess,
     ) -> Result<Instruction> {
-        // resolve SSA operands
-        let destination = atomic_value(destination, "atomic compare exchange destination")?;
-        let pointer = atomic_value(pointer, "atomic compare exchange pointer")?;
-        let expected = atomic_value(expected, "atomic compare exchange expected")?;
-        let new_value = atomic_value(new_value, "atomic compare exchange new value")?;
-
         // derive the concrete atomic shape
         let (layout, address) = require_atomic_pointer(self.tree, self.value_type(), pointer)?;
         let failure_order = AtomicOrder::from_mir(access.failure_ordering);
@@ -109,17 +95,12 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_atomic_rmw(
         &self,
         _pool: &mut Pool<'_, '_>,
-        destination: mir::ValueReference,
+        destination: mir::Value,
         operator: mir::AtomicRmwOperator,
-        pointer: mir::ValueReference,
-        value: mir::ValueReference,
+        pointer: mir::Value,
+        value: mir::Value,
         access: mir::AtomicAccess,
     ) -> Result<Instruction> {
-        // resolve SSA operands
-        let destination = atomic_value(destination, "atomic read modify write destination")?;
-        let pointer = atomic_value(pointer, "atomic read modify write pointer")?;
-        let value = atomic_value(value, "atomic read modify write value")?;
-
         // derive the concrete atomic shape
         let (layout, address) = require_atomic_pointer(self.tree, self.value_type(), pointer)?;
         let pointer_bytes = self.tree.pointer_bytes() as usize;
@@ -160,13 +141,6 @@ impl<'a> BlockLowerer<'a> {
 
         Instruction::new(Op::AtomicFence, 0, 0, 0, order.encode())
     }
-}
-
-/// Return the value carried by one atomic operand reference.
-fn atomic_value(reference: mir::ValueReference, context: &str) -> Result<mir::Value> {
-    reference
-        .value()
-        .ok_or_else(|| Error::invalid_program(context))
 }
 
 /// Build the compact shape for one atomic memory operation.
@@ -284,9 +258,7 @@ fn require_atomic_pointer(
     let address = atomic_address(address_space)?;
 
     // require atomic storage
-    let pointee = pointee
-        .ty()
-        .ok_or_else(|| Error::invalid_pointer_type(format!("{pointer:?}")))?;
+    let pointee = *pointee;
     let pointee = repr_type(tree, pointee);
     let mir::Type::Atomic { value } = tree.get(pointee) else {
         return Err(Error::invalid_pointer_type(format!(
@@ -296,9 +268,7 @@ fn require_atomic_pointer(
     };
 
     // require a cell-sized atomic payload
-    let value = value
-        .ty()
-        .ok_or_else(|| Error::invalid_pointer_type(format!("{:?}", tree.get(pointee))))?;
+    let value = *value;
     let layout = cell_layout_from_type(tree, value).ok_or_else(|| {
         Error::type_mismatch("cell atomic pointee", format!("{:?}", tree.get(value)))
     })?;

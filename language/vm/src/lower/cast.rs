@@ -15,22 +15,16 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one cast instruction.
     pub(super) fn lower_cast(
         &self,
-        destination: mir::ValueReference,
+        destination: mir::Value,
         operator: mir::CastOperator,
-        argument: mir::ValueReference,
-        to_type: mir::TypeReference,
+        argument: mir::Value,
+        to_type: mir::TypeId,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         // require SSA values and the target type
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("cast destination"))?;
-        let argument = argument
-            .value()
-            .ok_or_else(|| Error::invalid_program("cast argument"))?;
-        let to_type = to_type
-            .ty()
-            .ok_or_else(|| Error::invalid_program("cast destination type"))?;
+        let destination = destination;
+        let argument = argument;
+        let to_type = to_type;
         let destination_type = self.value_type_for_value(destination)?;
         let argument_type = self.value_type_for_value(argument)?;
 
@@ -108,24 +102,16 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_select(
         &self,
         pool: &mut Pool<'_, '_>,
-        destination: mir::ValueReference,
-        condition: mir::ValueReference,
-        then_value: mir::ValueReference,
-        else_value: mir::ValueReference,
+        destination: mir::Value,
+        condition: mir::Value,
+        then_value: mir::Value,
+        else_value: mir::Value,
     ) -> Result<Instruction> {
         // require SSA values
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("select destination"))?;
-        let condition = condition
-            .value()
-            .ok_or_else(|| Error::invalid_program("select condition"))?;
-        let then_value = then_value
-            .value()
-            .ok_or_else(|| Error::invalid_program("select then value"))?;
-        let else_value = else_value
-            .value()
-            .ok_or_else(|| Error::invalid_program("select else value"))?;
+        let destination = destination;
+        let condition = condition;
+        let then_value = then_value;
+        let else_value = else_value;
 
         // select cell values without touching frame bytes
         let destination_type = self.value_type_for_value(destination)?;

@@ -217,7 +217,7 @@ impl<'a> BlockLowerer<'a> {
                 left,
                 right,
                 mask,
-            } => self.lower_vector_shuffle(pool, *destination, *left, *right, mask)?,
+            } => self.lower_vector_shuffle(pool, *destination, *left, *right, *mask)?,
             mir::Instruction::VectorSelect {
                 destination,
                 mask,

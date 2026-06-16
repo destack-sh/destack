@@ -42,41 +42,21 @@ impl BlockOrder {
             let terminator = tree.get(mir_block.terminator);
             match terminator {
                 mir::Terminator::Jump { target, .. } => {
-                    queue.push(
-                        (target.block)
-                            .block()
-                            .ok_or_else(|| Error::invalid_program("jump target"))?,
-                    );
+                    queue.push(target.block);
                 }
                 mir::Terminator::Branch {
                     then_target,
                     else_target,
                     ..
                 } => {
-                    queue.push(
-                        (then_target.block)
-                            .block()
-                            .ok_or_else(|| Error::invalid_program("branch then target"))?,
-                    );
-                    queue.push(
-                        (else_target.block)
-                            .block()
-                            .ok_or_else(|| Error::invalid_program("branch else target"))?,
-                    );
+                    queue.push(then_target.block);
+                    queue.push(else_target.block);
                 }
                 mir::Terminator::Check {
                     success, failure, ..
                 } => {
-                    queue.push(
-                        (success.block)
-                            .block()
-                            .ok_or_else(|| Error::invalid_program("check success target"))?,
-                    );
-                    queue.push(
-                        (failure.block)
-                            .block()
-                            .ok_or_else(|| Error::invalid_program("check failure target"))?,
-                    );
+                    queue.push(success.block);
+                    queue.push(failure.block);
                 }
                 mir::Terminator::NewZeroedTry {
                     success, failure, ..
@@ -90,53 +70,25 @@ impl BlockOrder {
                 | mir::Terminator::NewSliceUninitTry {
                     success, failure, ..
                 } => {
-                    queue.push(
-                        (success.block)
-                            .block()
-                            .ok_or_else(|| Error::invalid_program("allocation success target"))?,
-                    );
-                    queue.push(
-                        (failure.block)
-                            .block()
-                            .ok_or_else(|| Error::invalid_program("allocation failure target"))?,
-                    );
+                    queue.push(success.block);
+                    queue.push(failure.block);
                 }
                 mir::Terminator::Switch { cases, default, .. } => {
-                    for case in cases {
-                        queue.push(
-                            (case.target.block)
-                                .block()
-                                .ok_or_else(|| Error::invalid_program("switch case target"))?,
-                        );
+                    for case in tree.get_switch_cases(*cases) {
+                        queue.push(case.target.block);
                     }
-                    queue.push(
-                        (default.block)
-                            .block()
-                            .ok_or_else(|| Error::invalid_program("switch default target"))?,
-                    );
+                    queue.push(default.block);
                 }
                 mir::Terminator::Yield { resume, .. } => {
-                    queue.push(
-                        (resume.block)
-                            .block()
-                            .ok_or_else(|| Error::invalid_program("yield resume target"))?,
-                    );
+                    queue.push(resume.block);
                 }
                 mir::Terminator::Call { target, unwind, .. }
                 | mir::Terminator::CallIndirect { target, unwind, .. }
                 | mir::Terminator::CallVirtual { target, unwind, .. }
                 | mir::Terminator::CallDynamic { target, unwind, .. } => {
-                    queue.push(
-                        (target.block)
-                            .block()
-                            .ok_or_else(|| Error::invalid_program("call target"))?,
-                    );
+                    queue.push(target.block);
                     if let Some(unwind) = unwind {
-                        queue.push(
-                            (unwind.block)
-                                .block()
-                                .ok_or_else(|| Error::invalid_program("call unwind target"))?,
-                        );
+                        queue.push(unwind.block);
                     }
                 }
                 mir::Terminator::Error => {
@@ -199,4 +151,30 @@ pub(super) struct FunctionContext<'a> {
     pub(super) local_index_by_id: HashMap<mir::LocalNodeId<mir::Local>, u32>,
     /// The lowered SSA value use count by SSA value id.
     pub(super) value_use_count: Vec<u32>,
+}
+
+impl<'a> FunctionContext<'a> {
+    /// Return values stored in one MIR value slice.
+    #[inline]
+    pub(super) fn values(&self, slice: mir::ValueSlice) -> &'a [mir::Value] {
+        self.tree.get_values(slice)
+    }
+
+    /// Return indices stored in one MIR index slice.
+    #[inline]
+    pub(super) fn indices(&self, slice: mir::IndexSlice) -> &'a [u32] {
+        self.tree.get_indices(slice)
+    }
+
+    /// Return switch cases stored in one MIR switch slice.
+    #[inline]
+    pub(super) fn switch_cases(&self, slice: mir::SwitchCaseSlice) -> &'a [mir::SwitchCase] {
+        self.tree.get_switch_cases(slice)
+    }
+
+    /// Return arguments stored on one MIR block target.
+    #[inline]
+    pub(super) fn target_values(&self, target: &mir::BlockTarget) -> &'a [mir::Value] {
+        self.tree.block_target_values(target)
+    }
 }

@@ -11,35 +11,30 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one intrinsic call.
     pub(super) fn lower_intrinsic(
         &self,
-        destination: Option<mir::ValueReference>,
+        destination: Option<mir::Value>,
         intrinsic: mir::Intrinsic,
-        arguments: mir::ArgumentSlice,
+        arguments: mir::ValueSlice,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         // collect argument values and static layouts
-        let argument_values = self.tree.get_arguments(arguments);
+        let argument_values = self.tree.get_values(arguments);
         let mut layouts = Vec::with_capacity(argument_values.len());
         for argument in argument_values {
-            let argument = argument
-                .value()
-                .ok_or_else(|| Error::invalid_program("intrinsic argument"))?;
             let layout = self
                 .value_shape_map()
-                .get(argument)
+                .get(*argument)
                 .ok_or(Error::invalid_instruction())?;
 
             layouts.push(layout);
         }
 
         // intern the argument range
-        let arguments = pool.argument_reference_range(argument_values, "intrinsic argument")?;
+        let arguments = pool.argument_range(argument_values);
 
         // resolve the optional destination
         let dest = match destination {
             Some(destination) => {
-                let destination = destination
-                    .value()
-                    .ok_or_else(|| Error::invalid_program("intrinsic destination"))?;
+                let destination = destination;
                 let slot = self
                     .frame_layout
                     .value(destination.0)

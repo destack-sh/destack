@@ -68,29 +68,19 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one direct call.
     pub(super) fn lower_call(
         &self,
-        _destination: Option<mir::ValueReference>,
-        function: mir::FunctionReference,
-        call: &mir::Call<mir::ArgumentSlice>,
+        _destination: Option<mir::Value>,
+        function: mir::FunctionId,
+        call: &mir::Call<mir::ValueSlice>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         // resolve callee and arguments
-        let function = function
-            .function()
-            .ok_or_else(|| Error::invalid_program("call callee"))?;
-        let arguments = self.tree.get_arguments(call.arguments);
-        let argument_range = pool.argument_reference_range(arguments, "call argument")?;
+        let function = function;
+        let arguments = self.tree.get_values(call.arguments);
+        let argument_range = pool.argument_range(arguments);
 
         // compute frame moves once during lowering
-        let argument_value = arguments
-            .iter()
-            .map(|argument| {
-                argument
-                    .value()
-                    .ok_or_else(|| Error::invalid_program("call argument"))
-            })
-            .collect::<Result<Vec<_>>>()?;
         let callee = self.tree.get(function);
-        let moves = pool.parameter_move_range(&callee.parameters, &argument_value)?;
+        let moves = pool.parameter_move_range(&callee.parameters, arguments)?;
         let target = self.call_target(function)?;
 
         // emit the compact call instruction
@@ -108,20 +98,15 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one virtual call.
     pub(super) fn lower_virtual_call(
         &self,
-        _destination: Option<mir::ValueReference>,
-        receiver: mir::ValueReference,
+        _destination: Option<mir::Value>,
+        receiver: mir::Value,
         method: mir::DispatchSlot,
-        call: &mir::Call<mir::ArgumentSlice>,
+        call: &mir::Call<mir::ValueSlice>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         // resolve arguments and receiver
-        let arguments = pool.argument_reference_range(
-            self.tree.get_arguments(call.arguments),
-            "virtual call argument",
-        )?;
-        let receiver = receiver
-            .value()
-            .ok_or_else(|| Error::invalid_program("virtual call receiver"))?;
+        let arguments = pool.argument_range(self.tree.get_values(call.arguments));
+        let receiver = receiver;
 
         // compile the receiver table access
         let address_space = address_space_for_value(self.value_shape_map(), receiver)?;
@@ -148,20 +133,15 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one dynamic call.
     pub(super) fn lower_dynamic_call(
         &self,
-        _destination: Option<mir::ValueReference>,
-        receiver: mir::ValueReference,
+        _destination: Option<mir::Value>,
+        receiver: mir::Value,
         method: mir::DispatchSlot,
-        call: &mir::Call<mir::ArgumentSlice>,
+        call: &mir::Call<mir::ValueSlice>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         // resolve arguments and receiver
-        let arguments = pool.argument_reference_range(
-            self.tree.get_arguments(call.arguments),
-            "dynamic call argument",
-        )?;
-        let receiver = receiver
-            .value()
-            .ok_or_else(|| Error::invalid_program("dynamic call receiver"))?;
+        let arguments = pool.argument_range(self.tree.get_values(call.arguments));
+        let receiver = receiver;
 
         // compile the receiver table access
         let address_space = address_space_for_value(self.value_shape_map(), receiver)?;
@@ -188,21 +168,16 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one indirect call.
     pub(super) fn lower_indirect_call(
         &self,
-        _destination: Option<mir::ValueReference>,
-        callee: mir::ValueReference,
-        call: &mir::Call<mir::ArgumentSlice>,
+        _destination: Option<mir::Value>,
+        callee: mir::Value,
+        call: &mir::Call<mir::ValueSlice>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         // resolve call arguments
-        let arguments = pool.argument_reference_range(
-            self.tree.get_arguments(call.arguments),
-            "indirect call argument",
-        )?;
+        let arguments = pool.argument_range(self.tree.get_values(call.arguments));
 
         // resolve closure shape
-        let callee = callee
-            .value()
-            .ok_or_else(|| Error::invalid_program("indirect call callee"))?;
+        let callee = callee;
         let callee = self.indirect_callee(callee)?;
 
         // emit the function pointer or closure opcode
@@ -220,20 +195,14 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_closure_bind(
         &self,
         pool: &mut Pool<'_, '_>,
-        destination: mir::ValueReference,
-        function: mir::FunctionReference,
-        environment: mir::ValueReference,
+        destination: mir::Value,
+        function: mir::FunctionId,
+        environment: mir::Value,
     ) -> Result<Instruction> {
         // resolve closure operands
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("closure.bind destination"))?;
-        let function = function
-            .function()
-            .ok_or_else(|| Error::invalid_program("closure.bind callee"))?;
-        let environment = environment
-            .value()
-            .ok_or_else(|| Error::invalid_program("closure.bind environment"))?;
+        let destination = destination;
+        let function = function;
+        let environment = environment;
 
         // select the environment representation
         let destination_type = self.value_type_for_value(destination)?;
@@ -274,13 +243,8 @@ impl<'a> BlockLowerer<'a> {
     }
 
     /// Lower one closure environment read.
-    pub(super) fn lower_closure_environment(
-        &self,
-        destination: mir::ValueReference,
-    ) -> Result<Instruction> {
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("closure environment destination"))?;
+    pub(super) fn lower_closure_environment(&self, destination: mir::Value) -> Result<Instruction> {
+        let destination = destination;
 
         Ok(Instruction::new(
             Op::LoadClosureEnvironment,
@@ -311,16 +275,8 @@ impl<'a> BlockLowerer<'a> {
 
         // function pointers carry only the target function id
         let (signature, has_environment) = match self.tree.get(callee_type) {
-            mir::Type::FunctionPointer { signature } => {
-                let signature = signature.ty().ok_or(Error::invalid_instruction())?;
-
-                (signature, false)
-            }
-            mir::Type::Closure { signature, .. } => {
-                let signature = signature.ty().ok_or(Error::invalid_instruction())?;
-
-                (signature, true)
-            }
+            mir::Type::FunctionPointer { signature } => (*signature, false),
+            mir::Type::Closure { signature, .. } => (*signature, true),
             _ => return Err(Error::invalid_instruction()),
         };
 
@@ -336,15 +292,13 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one direct call terminator.
     fn lower_call_branch(
         &self,
-        function: mir::FunctionReference,
-        call: &mir::Call<Vec<mir::ValueReference>>,
+        function: mir::FunctionId,
+        call: &mir::Call<mir::ValueSlice>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
-        let function = function
-            .function()
-            .ok_or_else(|| Error::invalid_program("call callee"))?;
-        let arguments =
-            pool.argument_reference_range(call.arguments.as_slice(), "call argument")?;
+        let function = function;
+        let arguments = self.values(call.arguments);
+        let arguments = pool.argument_range(arguments);
         let target_state = self.call_target_state()?;
 
         Ok(pool.instruction_with_side(
@@ -361,15 +315,13 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one indirect call terminator.
     fn lower_indirect_call_branch(
         &self,
-        callee: mir::ValueReference,
-        call: &mir::Call<Vec<mir::ValueReference>>,
+        callee: mir::Value,
+        call: &mir::Call<mir::ValueSlice>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
-        let callee = callee
-            .value()
-            .ok_or_else(|| Error::invalid_program("call indirect callee"))?;
-        let arguments =
-            pool.argument_reference_range(call.arguments.as_slice(), "call indirect argument")?;
+        let callee = callee;
+        let arguments = self.values(call.arguments);
+        let arguments = pool.argument_range(arguments);
         let target_state = self.call_target_state()?;
         let callee = self.indirect_callee(callee)?;
 
@@ -387,16 +339,14 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one virtual call terminator.
     fn lower_virtual_call_branch(
         &self,
-        receiver: mir::ValueReference,
+        receiver: mir::Value,
         method: mir::DispatchSlot,
-        call: &mir::Call<Vec<mir::ValueReference>>,
+        call: &mir::Call<mir::ValueSlice>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
-        let receiver = receiver
-            .value()
-            .ok_or_else(|| Error::invalid_program("call virtual receiver"))?;
-        let arguments =
-            pool.argument_reference_range(call.arguments.as_slice(), "call virtual argument")?;
+        let receiver = receiver;
+        let arguments = self.values(call.arguments);
+        let arguments = pool.argument_range(arguments);
         let target_state = self.call_target_state()?;
         let address_space = address_space_for_value(self.value_shape_map(), receiver)?;
         let table_field = virtual_table_projection(
@@ -422,16 +372,14 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one dynamic call terminator.
     fn lower_dynamic_call_branch(
         &self,
-        receiver: mir::ValueReference,
+        receiver: mir::Value,
         method: mir::DispatchSlot,
-        call: &mir::Call<Vec<mir::ValueReference>>,
+        call: &mir::Call<mir::ValueSlice>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
-        let receiver = receiver
-            .value()
-            .ok_or_else(|| Error::invalid_program("call dynamic receiver"))?;
-        let arguments =
-            pool.argument_reference_range(call.arguments.as_slice(), "call dynamic argument")?;
+        let receiver = receiver;
+        let arguments = self.values(call.arguments);
+        let arguments = pool.argument_range(arguments);
         let target_state = self.call_target_state()?;
         let address_space = address_space_for_value(self.value_shape_map(), receiver)?;
         let table_field = dynamic_table_projection(
@@ -457,16 +405,14 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one direct tail call.
     fn lower_tail_call(
         &self,
-        function: mir::FunctionReference,
-        call: &mir::Call<Vec<mir::ValueReference>>,
+        function: mir::FunctionId,
+        call: &mir::Call<mir::ValueSlice>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
-        let function = function
-            .function()
-            .ok_or_else(|| Error::invalid_program("tail call callee"))?;
+        let function = function;
+        let arguments = self.values(call.arguments);
         if function == self.function_id {
-            let arguments =
-                pool.argument_reference_range(call.arguments.as_slice(), "tail call argument")?;
+            let arguments = pool.argument_range(arguments);
 
             return Ok(Instruction::new(
                 Op::TailCallSelf,
@@ -478,16 +424,7 @@ impl<'a> BlockLowerer<'a> {
         }
 
         let callee = self.tree.get(function);
-        let arguments = call
-            .arguments
-            .iter()
-            .map(|argument| {
-                (*argument)
-                    .value()
-                    .ok_or_else(|| Error::invalid_program("tail call argument"))
-            })
-            .collect::<Result<Vec<_>>>()?;
-        let moves = pool.parameter_move_range(&callee.parameters, &arguments)?;
+        let moves = pool.parameter_move_range(&callee.parameters, arguments)?;
         let target = self.call_target(function)?;
 
         Ok(pool.instruction_with_side(
@@ -503,15 +440,13 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one indirect tail call.
     fn lower_indirect_tail_call(
         &self,
-        callee: mir::ValueReference,
-        call: &mir::Call<Vec<mir::ValueReference>>,
+        callee: mir::Value,
+        call: &mir::Call<mir::ValueSlice>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
-        let callee = callee
-            .value()
-            .ok_or_else(|| Error::invalid_program("tail indirect callee"))?;
-        let arguments =
-            pool.argument_reference_range(call.arguments.as_slice(), "tail indirect argument")?;
+        let callee = callee;
+        let arguments = self.values(call.arguments);
+        let arguments = pool.argument_range(arguments);
         let callee = self.indirect_callee(callee)?;
 
         Ok(pool.instruction_with_side(
@@ -527,16 +462,14 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one virtual tail call.
     fn lower_virtual_tail_call(
         &self,
-        receiver: mir::ValueReference,
+        receiver: mir::Value,
         method: mir::DispatchSlot,
-        call: &mir::Call<Vec<mir::ValueReference>>,
+        call: &mir::Call<mir::ValueSlice>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
-        let receiver = receiver
-            .value()
-            .ok_or_else(|| Error::invalid_program("tail virtual receiver"))?;
-        let arguments =
-            pool.argument_reference_range(call.arguments.as_slice(), "tail virtual argument")?;
+        let receiver = receiver;
+        let arguments = self.values(call.arguments);
+        let arguments = pool.argument_range(arguments);
         let address_space = address_space_for_value(self.value_shape_map(), receiver)?;
         let table_field = virtual_table_projection(
             self.tree,
@@ -560,16 +493,14 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one dynamic tail call.
     fn lower_dynamic_tail_call(
         &self,
-        receiver: mir::ValueReference,
+        receiver: mir::Value,
         method: mir::DispatchSlot,
-        call: &mir::Call<Vec<mir::ValueReference>>,
+        call: &mir::Call<mir::ValueSlice>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
-        let receiver = receiver
-            .value()
-            .ok_or_else(|| Error::invalid_program("tail dynamic receiver"))?;
-        let arguments =
-            pool.argument_reference_range(call.arguments.as_slice(), "tail dynamic argument")?;
+        let receiver = receiver;
+        let arguments = self.values(call.arguments);
+        let arguments = pool.argument_range(arguments);
         let address_space = address_space_for_value(self.value_shape_map(), receiver)?;
         let table_field = dynamic_table_projection(
             self.tree,
