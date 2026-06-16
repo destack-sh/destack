@@ -1509,7 +1509,7 @@ pub(crate) enum OomOrDynErrorMut<'a> {
 #[repr(transparent)]
 pub(crate) struct OomOrDynError {
     // Safety: this must always be the casted-to-`u8` version of either (a)
-    // `0x1`, or (b) a valid, owned `DynError` pointer. (Note that these cases
+    // `0x1`, or (b) a valid `DynError` pointer. (Note that these cases
     // cannot overlap because `DynError`'s alignment is greater than `0x1`.)
     inner: NonNull<u8>,
 }

@@ -871,14 +871,14 @@ function %sample(i32, i32) system_v {
     sig0 = (i32) system_v
     fn0 = colocated u0:0 sig0
 
-block0(v0: i32, v1: i32):
+b0(v0: i32, v1: i32):
     stack_store v0, ss0
     stack_store v1, ss1
     v4 = stack_load.i32 ss0
     call fn0(v4), stack_map=[i32 @ ss0+0, i32 @ ss1+0]
     v2 = stack_load.i32 ss0
     v3 = stack_load.i32 ss1
-    jump block0(v2, v3)
+    jump b0(v2, v3)
 }
             "#
         );
@@ -957,7 +957,7 @@ function %sample() system_v {
     sig0 = (i32) system_v
     fn0 = colocated u0:0 sig0
 
-block0:
+b0:
     v0 = iconst.i32 0
     stack_store v0, ss2  ; v0 = 0
     v1 = iconst.i32 1
@@ -1062,18 +1062,18 @@ function %sample(i32) system_v {
     sig0 = () system_v
     fn0 = colocated u0:0 sig0
 
-block0(v0: i32):
-    brif v0, block1, block2
+b0(v0: i32):
+    brif v0, b1, b2
 
-block1:
+b1:
     v1 = iconst.i64 0x1234_5678
-    jump block3
+    jump b3
 
-block2:
+b2:
     call fn0()
     return
 
-block3:
+b3:
     v2 = iadd_imm.i64 v1, 0  ; v1 = 0x1234_5678
     return
 }
@@ -1153,15 +1153,15 @@ function %sample(i32) system_v {
     sig0 = () system_v
     fn0 = colocated u0:0 sig0
 
-block0(v0: i32):
+b0(v0: i32):
     v1 = iconst.i64 0x1234_5678
-    brif v0, block1, block2
+    brif v0, b1, b2
 
-block1:
+b1:
     call fn0()
     return
 
-block2:
+b2:
     v2 = iadd_imm.i64 v1, 0  ; v1 = 0x1234_5678
     return
 }
@@ -1225,15 +1225,15 @@ function u0:0(i32) system_v {
     sig0 = () system_v
     fn0 = colocated u0:0 sig0
 
-block0(v0: i32):
+b0(v0: i32):
     v1 = iconst.i64 0x1234_5678
-    brif v0, block1, block2
+    brif v0, b1, b2
 
-block1:
+b1:
     v2 = iadd_imm.i64 v1, 0  ; v1 = 0x1234_5678
     return
 
-block2:
+b2:
     call fn0()
     return
 }
@@ -1312,14 +1312,14 @@ function %sample(i32) system_v {
     sig0 = () system_v
     fn0 = colocated u0:0 sig0
 
-block0(v0: i32):
+b0(v0: i32):
     v1 = iconst.i64 0x1234_5678
-    brif v0, block1, block2
+    brif v0, b1, b2
 
-block1:
+b1:
     return_call fn0()
 
-block2:
+b2:
     v2 = iadd_imm.i64 v1, 0  ; v1 = 0x1234_5678
     return
 }
@@ -1382,15 +1382,15 @@ function u0:0(i32) system_v {
     sig0 = () system_v
     fn0 = colocated u0:0 sig0
 
-block0(v0: i32):
+b0(v0: i32):
     v1 = iconst.i64 0x1234_5678
-    brif v0, block1, block2
+    brif v0, b1, b2
 
-block1:
+b1:
     v2 = iadd_imm.i64 v1, 0  ; v1 = 0x1234_5678
     return
 
-block2:
+b2:
     return_call fn0()
 }
             "#
@@ -1492,10 +1492,10 @@ function %sample(i32) system_v {
     sig0 = () system_v
     fn0 = colocated u0:0 sig0
 
-block0(v0: i32):
-    brif v0, block1, block2
+b0(v0: i32):
+    brif v0, b1, b2
 
-block1:
+b1:
     v1 = iconst.i64 1
     stack_store v1, ss0  ; v1 = 1
     v2 = iconst.i64 2
@@ -1503,18 +1503,18 @@ block1:
     call fn0(), stack_map=[i64 @ ss0+0, i64 @ ss1+0]
     v9 = stack_load.i64 ss0
     v10 = stack_load.i64 ss1
-    jump block3(v9, v10)
+    jump b3(v9, v10)
 
-block2:
+b2:
     v3 = iconst.i64 3
     stack_store v3, ss0  ; v3 = 3
     v4 = iconst.i64 4
     call fn0(), stack_map=[i64 @ ss0+0, i64 @ ss0+0]
     v11 = stack_load.i64 ss0
     v12 = stack_load.i64 ss0
-    jump block3(v11, v12)
+    jump b3(v11, v12)
 
-block3(v5: i64, v6: i64):
+b3(v5: i64, v6: i64):
     call fn0(), stack_map=[i64 @ ss0+0]
     v8 = stack_load.i64 ss0
     v7 = iadd_imm v8, 0
@@ -1600,7 +1600,7 @@ function %sample(i8, i16, i32, i64, i128, f32, f64, i8x16, i16x8) -> i8, i16, i3
     sig0 = () system_v
     fn0 = colocated u0:0 sig0
 
-block0(v0: i8, v1: i16, v2: i32, v3: i64, v4: i128, v5: f32, v6: f64, v7: i8x16, v8: i16x8):
+b0(v0: i8, v1: i16, v2: i32, v3: i64, v4: i128, v5: f32, v6: f64, v7: i8x16, v8: i16x8):
     stack_store v0, ss0
     stack_store v1, ss1
     stack_store v2, ss2
@@ -1717,7 +1717,7 @@ function %sample() system_v {
     fn0 = colocated u0:0 sig0
     fn1 = colocated u0:1 sig1
 
-block0:
+b0:
     v0 = iconst.i32 0
     stack_store v0, ss0  ; v0 = 0
     call fn0(), stack_map=[i32 @ ss0+0]
@@ -1860,16 +1860,16 @@ function %sample(i32) -> i32 system_v {
     sig0 = (i32) system_v
     fn0 = colocated u0:0 sig0
 
-block0(v0: i32):
+b0(v0: i32):
     v1 = iconst.i32 42
     v2 -> v1
     v4 -> v1
     stack_store v1, ss0  ; v1 = 42
     v17 = stack_load.i32 ss0
     call fn0(v17), stack_map=[i32 @ ss0+0]
-    brif v0, block1, block2
+    brif v0, b1, b2
 
-block1:
+b1:
     v12 = stack_load.i32 ss0
     call fn0(v12), stack_map=[i32 @ ss0+0]
     v11 = stack_load.i32 ss0
@@ -1879,9 +1879,9 @@ block1:
     v10 = stack_load.i32 ss0
     call fn0(v10), stack_map=[i32 @ ss0+0]
     v9 = stack_load.i32 ss0
-    jump block3(v9)
+    jump b3(v9)
 
-block2:
+b2:
     v16 = stack_load.i32 ss0
     call fn0(v16), stack_map=[i32 @ ss0+0]
     v15 = stack_load.i32 ss0
@@ -1891,9 +1891,9 @@ block2:
     v14 = stack_load.i32 ss1
     call fn0(v14), stack_map=[i32 @ ss1+0]
     v13 = stack_load.i32 ss1
-    jump block3(v13)
+    jump b3(v13)
 
-block3(v6: i32):
+b3(v6: i32):
     stack_store v6, ss0
     v8 = stack_load.i32 ss0
     call fn0(v8), stack_map=[i32 @ ss0+0]
@@ -1958,7 +1958,7 @@ function %sample(i32) -> i32 system_v {
     sig0 = () system_v
     fn0 = colocated u0:0 sig0
 
-block0(v0: i32):
+b0(v0: i32):
     stack_store v0, ss0
     call fn0(), stack_map=[i32 @ ss0+0]
     v1 = stack_load.i32 ss0
@@ -2035,7 +2035,7 @@ function %sample(i32) -> i32, i32 system_v {
     sig0 = () system_v
     fn0 = colocated u0:0 sig0
 
-block0(v0: i32):
+b0(v0: i32):
     stack_store v0, ss0
     v1 = iconst.i32 42
     stack_store v1, ss1  ; v1 = 42
@@ -2134,16 +2134,16 @@ function %sample(i32) system_v {
     fn0 = colocated u0:0 sig0
     fn1 = colocated u1:1 sig1
 
-block0(v0: i32):
+b0(v0: i32):
     stack_store v0, ss0
-    jump block1
+    jump b1
 
-block1:
+b1:
     call fn0(), stack_map=[i32 @ ss0+0]
     v1 = stack_load.i32 ss0
     call fn1(v1), stack_map=[i32 @ ss0+0]
     call fn0(), stack_map=[i32 @ ss0+0]
-    jump block1
+    jump b1
 }
             "#,
         );
@@ -2260,29 +2260,29 @@ function %sample(i32, i32) system_v {
     fn0 = colocated u0:0 sig0
     fn1 = colocated u1:1 sig1
 
-block0(v0: i32, v1: i32):
+b0(v0: i32, v1: i32):
     stack_store v1, ss0
-    brif v0, block1, block2
+    brif v0, b1, b2
 
-block1:
-    jump block3
+b1:
+    jump b3
 
-block2:
-    jump block4
+b2:
+    jump b4
 
-block3:
+b3:
     call fn0(), stack_map=[i32 @ ss0+0]
     v3 = stack_load.i32 ss0
     call fn1(v3), stack_map=[i32 @ ss0+0]
     call fn0(), stack_map=[i32 @ ss0+0]
-    jump block2
+    jump b2
 
-block4:
+b4:
     call fn0(), stack_map=[i32 @ ss0+0]
     v2 = stack_load.i32 ss0
     call fn1(v2), stack_map=[i32 @ ss0+0]
     call fn0(), stack_map=[i32 @ ss0+0]
-    jump block1
+    jump b1
 }
             "#,
         );
@@ -2414,33 +2414,33 @@ function %sample(i32, i32, i32, i32) system_v {
     fn0 = colocated u0:0 sig0
     fn1 = colocated u1:1 sig1
 
-block0(v0: i32, v1: i32, v2: i32, v3: i32):
+b0(v0: i32, v1: i32, v2: i32, v3: i32):
     stack_store v0, ss0
     stack_store v1, ss1
     stack_store v2, ss2
-    jump block1(v3)
+    jump b1(v3)
 
-block1(v4: i32):
+b1(v4: i32):
     call fn0(), stack_map=[i32 @ ss0+0, i32 @ ss1+0, i32 @ ss2+0]
     v8 = stack_load.i32 ss0
     call fn1(v8), stack_map=[i32 @ ss0+0, i32 @ ss1+0, i32 @ ss2+0]
     call fn0(), stack_map=[i32 @ ss0+0, i32 @ ss1+0, i32 @ ss2+0]
-    jump block2
+    jump b2
 
-block2:
+b2:
     call fn0(), stack_map=[i32 @ ss0+0, i32 @ ss1+0, i32 @ ss2+0]
     v7 = stack_load.i32 ss1
     call fn1(v7), stack_map=[i32 @ ss0+0, i32 @ ss1+0, i32 @ ss2+0]
     call fn0(), stack_map=[i32 @ ss0+0, i32 @ ss1+0, i32 @ ss2+0]
     v5 = iadd_imm.i32 v4, -1
-    brif.i32 v4, block1(v5), block3
+    brif.i32 v4, b1(v5), b3
 
-block3:
+b3:
     call fn0(), stack_map=[i32 @ ss0+0, i32 @ ss1+0, i32 @ ss2+0]
     v6 = stack_load.i32 ss2
     call fn1(v6), stack_map=[i32 @ ss0+0, i32 @ ss1+0, i32 @ ss2+0]
     call fn0(), stack_map=[i32 @ ss0+0, i32 @ ss1+0, i32 @ ss2+0]
-    jump block2
+    jump b2
 }
             "#,
         );
@@ -2727,11 +2727,11 @@ function %f() system_v {
     fn7 = colocated u0:7 sig7
     fn8 = colocated u0:8 sig8
 
-block0:
+b0:
     v0 = call fn0()
-    jump block1(v0)
+    jump b1(v0)
 
-block1(v22: i32):
+b1(v22: i32):
     v21 -> v22
     stack_store v22, ss1
     v1 = call fn1(), stack_map=[i32 @ ss1+0]
@@ -2739,61 +2739,61 @@ block1(v22: i32):
     v18 -> v1
     stack_store v1, ss0
     v2 = iconst.i32 0
-    jump block2(v2)  ; v2 = 0
+    jump b2(v2)  ; v2 = 0
 
-block2(v3: i32):
+b2(v3: i32):
     v4 = iconst.i32 1
     v5 = icmp ult v3, v4  ; v4 = 1
-    brif v5, block3, block4
+    brif v5, b3, b4
 
-block3:
+b3:
     v24 = stack_load.i32 ss0
     call fn2(v24, v4), stack_map=[i32 @ ss0+0, i32 @ ss1+0]  ; v4 = 1
     v6 = iconst.i32 1
     v7 = iadd.i32 v4, v6  ; v4 = 1, v6 = 1
-    jump block2(v7)
+    jump b2(v7)
 
-block4:
+b4:
     v32 = stack_load.i32 ss1
-    jump block5(v32)
+    jump b5(v32)
 
-block5(v20: i32):
+b5(v20: i32):
     v19 -> v20
     stack_store v20, ss2
     v9 = iconst.i32 0
     v31 = stack_load.i32 ss0
     v10 = icmp eq v31, v9  ; v9 = 0
-    brif v10, block8(v9), block6  ; v9 = 0
+    brif v10, b8(v9), b6  ; v9 = 0
 
-block6:
+b6:
     v30 = stack_load.i32 ss0
     v11 = call fn3(v30), stack_map=[i32 @ ss0+0, i32 @ ss2+0]
     v12 = iconst.i32 -1091584273
     v13 = icmp eq v11, v12  ; v12 = -1091584273
     v14 = iconst.i32 1
-    brif v13, block8(v14), block7  ; v14 = 1
+    brif v13, b8(v14), b7  ; v14 = 1
 
-block7:
+b7:
     v29 = stack_load.i32 ss0
     v15 = call fn4(v29, v12), stack_map=[i32 @ ss0+0, i32 @ ss2+0]  ; v12 = -1091584273
-    jump block8(v15)
+    jump b8(v15)
 
-block8(v16: i32):
+b8(v16: i32):
     trapz v16, user1
     v28 = stack_load.i32 ss0
     call fn5(v28), stack_map=[i32 @ ss0+0, i32 @ ss2+0]
     v17 = call fn6(), stack_map=[i32 @ ss0+0, i32 @ ss2+0]
     v27 = stack_load.i32 ss2
-    brif v17, block5(v27), block9
+    brif v17, b5(v27), b9
 
-block9:
+b9:
     v26 = stack_load.i32 ss2
     call fn7(v26), stack_map=[i32 @ ss2+0]
     v23 = call fn8(), stack_map=[i32 @ ss2+0]
     v25 = stack_load.i32 ss2
-    brif v23, block10, block1(v25)
+    brif v23, b10, b1(v25)
 
-block10:
+b10:
     return
 }
             "#,
@@ -2996,16 +2996,16 @@ function %sample(i32) system_v {
     fn0 = colocated u0:0 sig0
     fn1 = colocated u0:1 sig1
 
-block0(v0: i32):
+b0(v0: i32):
     v1 = call fn0()
     v2 -> v1
     stack_store v1, ss0
-    brif v0, block1, block2
+    brif v0, b1, b2
 
-block1:
-    jump block2
+b1:
+    jump b2
 
-block2:
+b2:
     v4 = stack_load.i32 ss0
     call fn1(v4), stack_map=[i32 @ ss0+0]
     v3 = stack_load.i32 ss0
