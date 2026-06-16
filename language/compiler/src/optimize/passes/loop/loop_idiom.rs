@@ -1351,50 +1351,50 @@ mod tests {
     #[test]
     fn test_loop_idiom_memset() {
         let input = r#"
-function test(value0: [uint8; 8], value1: uint32): void {
-entry0(value0: [uint8; 8], value1: uint32):
-    value2: uint32 = 0uint32
-    value3: uint32 = 1uint32
-    jump block1(value2)
+function test(v0: [uint8; 8], v1: uint32): void {
+entry(v0: [uint8; 8], v1: uint32):
+    v2: uint32 = 0
+    v3: uint32 = 1
+    jump b1(v2)
 
-block1(value4: uint32):
-    value5: boolean = int.lt.u value4, value1
-    branch value5, block2(), block3()
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v1
+    branch v5, b2, b3
 
-block2:
-    value6: ref<uint8, borrowed> = element.address value0, value4
-    value7: uint8 = 0uint8
-    store value6, value7
-    value8: uint32 = int.add value4, value3
-    jump block1(value8)
+b2:
+    v6: ref<uint8, borrowed> = element.address v0, v4
+    v7: uint8 = 0
+    store v6, v7
+    v8: uint32 = int.add v4, v3
+    jump b1(v8)
 
-block3:
+b3:
     return
 }
 "#;
 
         let expected = r#"
-function test(value0: [uint8; 8], value1: uint32): void {
-entry0(value0: [uint8; 8], value1: uint32):
-    value2: uint32 = 0uint32
-    value3: uint32 = 1uint32
-    value9: uint8 = 0uint8
-    value10: ref<uint8, borrowed> = element.address value0, value2
-    intrinsic.memory.raw.setBytes(value10, value9, value1)
-    jump block3()
+function test(v0: [uint8; 8], v1: uint32): void {
+entry(v0: [uint8; 8], v1: uint32):
+    v2: uint32 = 0
+    v3: uint32 = 1
+    v9: uint8 = 0
+    v10: ref<uint8, borrowed> = element.address v0, v2
+    intrinsic.memory.raw.setBytes(v10, v9, v1)
+    jump b3
 
-block1(value4: uint32):
-    value5: boolean = int.lt.u value4, value1
-    branch value5, block2(), block3()
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v1
+    branch v5, b2, b3
 
-block2:
-    value6: ref<uint8, borrowed> = element.address value0, value4
-    value7: uint8 = 0uint8
-    store value6, value7
-    value8: uint32 = int.add value4, value3
-    jump block1(value8)
+b2:
+    v6: ref<uint8, borrowed> = element.address v0, v4
+    v7: uint8 = 0
+    store v6, v7
+    v8: uint32 = int.add v4, v3
+    jump b1(v8)
 
-block3:
+b3:
     return
 }
 "#;
@@ -1408,56 +1408,56 @@ block3:
     #[test]
     fn test_loop_idiom_memset_multi_block() {
         let input = r#"
-function test(value0: [uint8; 8], value1: uint32): void {
-entry0(value0: [uint8; 8], value1: uint32):
-    value2: uint32 = 0uint32
-    value3: uint32 = 1uint32
-    jump block1(value2)
+function test(v0: [uint8; 8], v1: uint32): void {
+entry(v0: [uint8; 8], v1: uint32):
+    v2: uint32 = 0
+    v3: uint32 = 1
+    jump b1(v2)
 
-block1(value4: uint32):
-    value5: boolean = int.lt.u value4, value1
-    branch value5, block2(), block4()
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v1
+    branch v5, b2, b4
 
-block2:
-    value6: ref<uint8, borrowed> = element.address value0, value4
-    value7: uint8 = 0uint8
-    store value6, value7
-    jump block3(value4)
+b2:
+    v6: ref<uint8, borrowed> = element.address v0, v4
+    v7: uint8 = 0
+    store v6, v7
+    jump b3(v4)
 
-block3(value8: uint32):
-    value9: uint32 = int.add value8, value3
-    jump block1(value9)
+b3(v8: uint32):
+    v9: uint32 = int.add v8, v3
+    jump b1(v9)
 
-block4:
+b4:
     return
 }
 "#;
 
         let expected = r#"
-function test(value0: [uint8; 8], value1: uint32): void {
-entry0(value0: [uint8; 8], value1: uint32):
-    value2: uint32 = 0uint32
-    value3: uint32 = 1uint32
-    value10: uint8 = 0uint8
-    value11: ref<uint8, borrowed> = element.address value0, value2
-    intrinsic.memory.raw.setBytes(value11, value10, value1)
-    jump block4()
+function test(v0: [uint8; 8], v1: uint32): void {
+entry(v0: [uint8; 8], v1: uint32):
+    v2: uint32 = 0
+    v3: uint32 = 1
+    v10: uint8 = 0
+    v11: ref<uint8, borrowed> = element.address v0, v2
+    intrinsic.memory.raw.setBytes(v11, v10, v1)
+    jump b4
 
-block1(value4: uint32):
-    value5: boolean = int.lt.u value4, value1
-    branch value5, block2(), block4()
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v1
+    branch v5, b2, b4
 
-block2:
-    value6: ref<uint8, borrowed> = element.address value0, value4
-    value7: uint8 = 0uint8
-    store value6, value7
-    jump block3(value4)
+b2:
+    v6: ref<uint8, borrowed> = element.address v0, v4
+    v7: uint8 = 0
+    store v6, v7
+    jump b3(v4)
 
-block3(value8: uint32):
-    value9: uint32 = int.add value8, value3
-    jump block1(value9)
+b3(v8: uint32):
+    v9: uint32 = int.add v8, v3
+    jump b1(v9)
 
-block4:
+b4:
     return
 }
 "#;
@@ -1471,24 +1471,24 @@ block4:
     #[test]
     fn test_loop_idiom_skips_volatile_store() {
         let input = r#"
-function test(value0: [uint8; 8], value1: uint32): void {
-entry0(value0: [uint8; 8], value1: uint32):
-    value2: uint32 = 0uint32
-    value3: uint32 = 1uint32
-    jump block1(value2)
+function test(v0: [uint8; 8], v1: uint32): void {
+entry(v0: [uint8; 8], v1: uint32):
+    v2: uint32 = 0
+    v3: uint32 = 1
+    jump b1(v2)
 
-block1(value4: uint32):
-    value5: boolean = int.lt.u value4, value1
-    branch value5, block2(), block3()
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v1
+    branch v5, b2, b3
 
-block2:
-    value6: ref<uint8, borrowed> = element.address value0, value4
-    value7: uint8 = 0uint8
-    store value6, value7
-    value8: uint32 = int.add value4, value3
-    jump block1(value8)
+b2:
+    v6: ref<uint8, borrowed> = element.address v0, v4
+    v7: uint8 = 0
+    store v6, v7
+    v8: uint32 = int.add v4, v3
+    jump b1(v8)
 
-block3:
+b3:
     return
 }
 "#;
@@ -1535,52 +1535,52 @@ block3:
     #[test]
     fn test_loop_idiom_memcpy() {
         let input = r#"
-function test(value0: [uint8; 8], value1: [uint8; 8], value2: uint32): void {
-entry0(value0: [uint8; 8], value1: [uint8; 8], value2: uint32):
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    jump block1(value3)
+function test(v0: [uint8; 8], v1: [uint8; 8], v2: uint32): void {
+entry(v0: [uint8; 8], v1: [uint8; 8], v2: uint32):
+    v3: uint32 = 0
+    v4: uint32 = 1
+    jump b1(v3)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value2
-    branch value6, block2(), block3()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v2
+    branch v6, b2, b3
 
-block2:
-    value7: ref<uint8, borrowed> = element.address value0, value5
-    value8: ref<uint8, borrowed> = element.address value1, value5
-    value9: uint8 = load value8
-    store value7, value9
-    value10: uint32 = int.add value5, value4
-    jump block1(value10)
+b2:
+    v7: ref<uint8, borrowed> = element.address v0, v5
+    v8: ref<uint8, borrowed> = element.address v1, v5
+    v9: uint8 = load v8
+    store v7, v9
+    v10: uint32 = int.add v5, v4
+    jump b1(v10)
 
-block3:
+b3:
     return
 }
 "#;
 
         let expected = r#"
-function test(value0: [uint8; 8], value1: [uint8; 8], value2: uint32): void {
-entry0(value0: [uint8; 8], value1: [uint8; 8], value2: uint32):
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    value11: ref<uint8, borrowed> = element.address value0, value3
-    value12: ref<uint8, borrowed> = element.address value1, value3
-    intrinsic.memory.raw.copyBytes(value11, value12, value2)
-    jump block3()
+function test(v0: [uint8; 8], v1: [uint8; 8], v2: uint32): void {
+entry(v0: [uint8; 8], v1: [uint8; 8], v2: uint32):
+    v3: uint32 = 0
+    v4: uint32 = 1
+    v11: ref<uint8, borrowed> = element.address v0, v3
+    v12: ref<uint8, borrowed> = element.address v1, v3
+    intrinsic.memory.raw.copyBytes(v11, v12, v2)
+    jump b3
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value2
-    branch value6, block2(), block3()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v2
+    branch v6, b2, b3
 
-block2:
-    value7: ref<uint8, borrowed> = element.address value0, value5
-    value8: ref<uint8, borrowed> = element.address value1, value5
-    value9: uint8 = load value8
-    store value7, value9
-    value10: uint32 = int.add value5, value4
-    jump block1(value10)
+b2:
+    v7: ref<uint8, borrowed> = element.address v0, v5
+    v8: ref<uint8, borrowed> = element.address v1, v5
+    v9: uint8 = load v8
+    store v7, v9
+    v10: uint32 = int.add v5, v4
+    jump b1(v10)
 
-block3:
+b3:
     return
 }
 "#;
@@ -1594,50 +1594,50 @@ block3:
     #[test]
     fn test_loop_idiom_memmove_aliasing() {
         let input = r#"
-function test(value0: [uint8; 8], value1: uint32): void {
-entry0(value0: [uint8; 8], value1: uint32):
-    value2: uint32 = 0uint32
-    value3: uint32 = 1uint32
-    jump block1(value2)
+function test(v0: [uint8; 8], v1: uint32): void {
+entry(v0: [uint8; 8], v1: uint32):
+    v2: uint32 = 0
+    v3: uint32 = 1
+    jump b1(v2)
 
-block1(value4: uint32):
-    value5: boolean = int.lt.u value4, value1
-    branch value5, block2(), block3()
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v1
+    branch v5, b2, b3
 
-block2:
-    value6: ref<uint8, borrowed> = element.address value0, value4
-    value7: uint8 = load value6
-    store value6, value7
-    value8: uint32 = int.add value4, value3
-    jump block1(value8)
+b2:
+    v6: ref<uint8, borrowed> = element.address v0, v4
+    v7: uint8 = load v6
+    store v6, v7
+    v8: uint32 = int.add v4, v3
+    jump b1(v8)
 
-block3:
+b3:
     return
 }
 "#;
 
         let expected = r#"
-function test(value0: [uint8; 8], value1: uint32): void {
-entry0(value0: [uint8; 8], value1: uint32):
-    value2: uint32 = 0uint32
-    value3: uint32 = 1uint32
-    value9: ref<uint8, borrowed> = element.address value0, value2
-    value10: ref<uint8, borrowed> = element.address value0, value2
-    intrinsic.memory.raw.moveBytes(value9, value10, value1)
-    jump block3()
+function test(v0: [uint8; 8], v1: uint32): void {
+entry(v0: [uint8; 8], v1: uint32):
+    v2: uint32 = 0
+    v3: uint32 = 1
+    v9: ref<uint8, borrowed> = element.address v0, v2
+    v10: ref<uint8, borrowed> = element.address v0, v2
+    intrinsic.memory.raw.moveBytes(v9, v10, v1)
+    jump b3
 
-block1(value4: uint32):
-    value5: boolean = int.lt.u value4, value1
-    branch value5, block2(), block3()
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v1
+    branch v5, b2, b3
 
-block2:
-    value6: ref<uint8, borrowed> = element.address value0, value4
-    value7: uint8 = load value6
-    store value6, value7
-    value8: uint32 = int.add value4, value3
-    jump block1(value8)
+b2:
+    v6: ref<uint8, borrowed> = element.address v0, v4
+    v7: uint8 = load v6
+    store v6, v7
+    v8: uint32 = int.add v4, v3
+    jump b1(v8)
 
-block3:
+b3:
     return
 }
 "#;
@@ -1651,56 +1651,56 @@ block3:
     #[test]
     fn test_loop_idiom_memcpy_multiplies_length() {
         let input = r#"
-function test(value0: [uint32; 8], value1: [uint32; 8]): void {
-entry0(value0: [uint32; 8], value1: [uint32; 8]):
-    value2: uint32 = 0uint32
-    value3: uint32 = 1uint32
-    value4: uint32 = 4uint32
-    jump block1(value2)
+function test(v0: [uint32; 8], v1: [uint32; 8]): void {
+entry(v0: [uint32; 8], v1: [uint32; 8]):
+    v2: uint32 = 0
+    v3: uint32 = 1
+    v4: uint32 = 4
+    jump b1(v2)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value4
-    branch value6, block2(), block3()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v4
+    branch v6, b2, b3
 
-block2:
-    value7: ref<uint32, borrowed> = element.address value0, value5
-    value8: ref<uint32, borrowed> = element.address value1, value5
-    value9: uint32 = load value8
-    store value7, value9
-    value10: uint32 = int.add value5, value3
-    jump block1(value10)
+b2:
+    v7: ref<uint32, borrowed> = element.address v0, v5
+    v8: ref<uint32, borrowed> = element.address v1, v5
+    v9: uint32 = load v8
+    store v7, v9
+    v10: uint32 = int.add v5, v3
+    jump b1(v10)
 
-block3:
+b3:
     return
 }
 "#;
 
         let expected = r#"
-function test(value0: [uint32; 8], value1: [uint32; 8]): void {
-entry0(value0: [uint32; 8], value1: [uint32; 8]):
-    value2: uint32 = 0uint32
-    value3: uint32 = 1uint32
-    value4: uint32 = 4uint32
-    value11: uint32 = 4uint32
-    value12: uint32 = int.mul value4, value11
-    value13: ref<uint32, borrowed> = element.address value0, value2
-    value14: ref<uint32, borrowed> = element.address value1, value2
-    intrinsic.memory.raw.copyBytes(value13, value14, value12)
-    jump block3()
+function test(v0: [uint32; 8], v1: [uint32; 8]): void {
+entry(v0: [uint32; 8], v1: [uint32; 8]):
+    v2: uint32 = 0
+    v3: uint32 = 1
+    v4: uint32 = 4
+    v11: uint32 = 4
+    v12: uint32 = int.mul v4, v11
+    v13: ref<uint32, borrowed> = element.address v0, v2
+    v14: ref<uint32, borrowed> = element.address v1, v2
+    intrinsic.memory.raw.copyBytes(v13, v14, v12)
+    jump b3
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value4
-    branch value6, block2(), block3()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v4
+    branch v6, b2, b3
 
-block2:
-    value7: ref<uint32, borrowed> = element.address value0, value5
-    value8: ref<uint32, borrowed> = element.address value1, value5
-    value9: uint32 = load value8
-    store value7, value9
-    value10: uint32 = int.add value5, value3
-    jump block1(value10)
+b2:
+    v7: ref<uint32, borrowed> = element.address v0, v5
+    v8: ref<uint32, borrowed> = element.address v1, v5
+    v9: uint32 = load v8
+    store v7, v9
+    v10: uint32 = int.add v5, v3
+    jump b1(v10)
 
-block3:
+b3:
     return
 }
 "#;
@@ -1714,57 +1714,57 @@ block3:
     #[test]
     fn test_loop_idiom_memcpy_non_zero_start_multiplies_length() {
         let input = r#"
-function test(value0: [uint32; 8], value1: [uint32; 8]): void {
-entry0(value0: [uint32; 8], value1: [uint32; 8]):
-    value2: uint32 = 2uint32
-    value3: uint32 = 1uint32
-    value4: uint32 = 8uint32
-    jump block1(value2)
+function test(v0: [uint32; 8], v1: [uint32; 8]): void {
+entry(v0: [uint32; 8], v1: [uint32; 8]):
+    v2: uint32 = 2
+    v3: uint32 = 1
+    v4: uint32 = 8
+    jump b1(v2)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value4
-    branch value6, block2(), block3()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v4
+    branch v6, b2, b3
 
-block2:
-    value7: ref<uint32, borrowed> = element.address value0, value5
-    value8: ref<uint32, borrowed> = element.address value1, value5
-    value9: uint32 = load value8
-    store value7, value9
-    value10: uint32 = int.add value5, value3
-    jump block1(value10)
+b2:
+    v7: ref<uint32, borrowed> = element.address v0, v5
+    v8: ref<uint32, borrowed> = element.address v1, v5
+    v9: uint32 = load v8
+    store v7, v9
+    v10: uint32 = int.add v5, v3
+    jump b1(v10)
 
-block3:
+b3:
     return
 }
 "#;
 
         let expected = r#"
-function test(value0: [uint32; 8], value1: [uint32; 8]): void {
-entry0(value0: [uint32; 8], value1: [uint32; 8]):
-    value2: uint32 = 2uint32
-    value3: uint32 = 1uint32
-    value4: uint32 = 8uint32
-    value11: uint32 = int.sub value4, value2
-    value12: uint32 = 4uint32
-    value13: uint32 = int.mul value11, value12
-    value14: ref<uint32, borrowed> = element.address value0, value2
-    value15: ref<uint32, borrowed> = element.address value1, value2
-    intrinsic.memory.raw.copyBytes(value14, value15, value13)
-    jump block3()
+function test(v0: [uint32; 8], v1: [uint32; 8]): void {
+entry(v0: [uint32; 8], v1: [uint32; 8]):
+    v2: uint32 = 2
+    v3: uint32 = 1
+    v4: uint32 = 8
+    v11: uint32 = int.sub v4, v2
+    v12: uint32 = 4
+    v13: uint32 = int.mul v11, v12
+    v14: ref<uint32, borrowed> = element.address v0, v2
+    v15: ref<uint32, borrowed> = element.address v1, v2
+    intrinsic.memory.raw.copyBytes(v14, v15, v13)
+    jump b3
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value4
-    branch value6, block2(), block3()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v4
+    branch v6, b2, b3
 
-block2:
-    value7: ref<uint32, borrowed> = element.address value0, value5
-    value8: ref<uint32, borrowed> = element.address value1, value5
-    value9: uint32 = load value8
-    store value7, value9
-    value10: uint32 = int.add value5, value3
-    jump block1(value10)
+b2:
+    v7: ref<uint32, borrowed> = element.address v0, v5
+    v8: ref<uint32, borrowed> = element.address v1, v5
+    v9: uint32 = load v8
+    store v7, v9
+    v10: uint32 = int.add v5, v3
+    jump b1(v10)
 
-block3:
+b3:
     return
 }
 "#;
@@ -1778,56 +1778,56 @@ block3:
     #[test]
     fn test_loop_idiom_guards_non_zero_start() {
         let input = r#"
-function test(value0: [uint8; 8], value1: uint32): void {
-entry0(value0: [uint8; 8], value1: uint32):
-    value2: uint32 = 1uint32
-    value3: uint32 = 1uint32
-    jump block1(value2)
+function test(v0: [uint8; 8], v1: uint32): void {
+entry(v0: [uint8; 8], v1: uint32):
+    v2: uint32 = 1
+    v3: uint32 = 1
+    jump b1(v2)
 
-block1(value4: uint32):
-    value5: boolean = int.lt.u value4, value1
-    branch value5, block2(), block3()
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v1
+    branch v5, b2, b3
 
-block2:
-    value6: ref<uint8, borrowed> = element.address value0, value4
-    value7: uint8 = 0uint8
-    store value6, value7
-    value8: uint32 = int.add value4, value3
-    jump block1(value8)
+b2:
+    v6: ref<uint8, borrowed> = element.address v0, v4
+    v7: uint8 = 0
+    store v6, v7
+    v8: uint32 = int.add v4, v3
+    jump b1(v8)
 
-block3:
+b3:
     return
 }
 "#;
 
         let expected = r#"
-function test(value0: [uint8; 8], value1: uint32): void {
-entry0(value0: [uint8; 8], value1: uint32):
-    value2: uint32 = 1uint32
-    value3: uint32 = 1uint32
-    value12: boolean = int.le.u value2, value1
-    branch value12, block4(), block3()
+function test(v0: [uint8; 8], v1: uint32): void {
+entry(v0: [uint8; 8], v1: uint32):
+    v2: uint32 = 1
+    v3: uint32 = 1
+    v12: boolean = int.le.u v2, v1
+    branch v12, b4, b3
 
-block1(value4: uint32):
-    value5: boolean = int.lt.u value4, value1
-    branch value5, block2(), block3()
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v1
+    branch v5, b2, b3
 
-block2:
-    value6: ref<uint8, borrowed> = element.address value0, value4
-    value7: uint8 = 0uint8
-    store value6, value7
-    value8: uint32 = int.add value4, value3
-    jump block1(value8)
+b2:
+    v6: ref<uint8, borrowed> = element.address v0, v4
+    v7: uint8 = 0
+    store v6, v7
+    v8: uint32 = int.add v4, v3
+    jump b1(v8)
 
-block3:
+b3:
     return
 
-block4:
-    value9: uint32 = int.sub value1, value2
-    value10: uint8 = 0uint8
-    value11: ref<uint8, borrowed> = element.address value0, value2
-    intrinsic.memory.raw.setBytes(value11, value10, value9)
-    jump block3()
+b4:
+    v9: uint32 = int.sub v1, v2
+    v10: uint8 = 0
+    v11: ref<uint8, borrowed> = element.address v0, v2
+    intrinsic.memory.raw.setBytes(v11, v10, v9)
+    jump b3
 }
 "#;
 
@@ -1840,56 +1840,56 @@ block4:
     #[test]
     fn test_loop_idiom_memcpy_guards_non_zero_start() {
         let input = r#"
-function test(value0: [uint8; 8], value1: [uint8; 8], value2: uint32, value3: uint32): void {
-entry0(value0: [uint8; 8], value1: [uint8; 8], value2: uint32, value3: uint32):
-    value4: uint32 = 1uint32
-    jump block1(value2)
+function test(v0: [uint8; 8], v1: [uint8; 8], v2: uint32, v3: uint32): void {
+entry(v0: [uint8; 8], v1: [uint8; 8], v2: uint32, v3: uint32):
+    v4: uint32 = 1
+    jump b1(v2)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value3
-    branch value6, block2(), block3()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v3
+    branch v6, b2, b3
 
-block2:
-    value7: ref<uint8, borrowed> = element.address value0, value5
-    value8: ref<uint8, borrowed> = element.address value1, value5
-    value9: uint8 = load value8
-    store value7, value9
-    value10: uint32 = int.add value5, value4
-    jump block1(value10)
+b2:
+    v7: ref<uint8, borrowed> = element.address v0, v5
+    v8: ref<uint8, borrowed> = element.address v1, v5
+    v9: uint8 = load v8
+    store v7, v9
+    v10: uint32 = int.add v5, v4
+    jump b1(v10)
 
-block3:
+b3:
     return
 }
 "#;
 
         let expected = r#"
-function test(value0: [uint8; 8], value1: [uint8; 8], value2: uint32, value3: uint32): void {
-entry0(value0: [uint8; 8], value1: [uint8; 8], value2: uint32, value3: uint32):
-    value4: uint32 = 1uint32
-    value14: boolean = int.le.u value2, value3
-    branch value14, block4(), block3()
+function test(v0: [uint8; 8], v1: [uint8; 8], v2: uint32, v3: uint32): void {
+entry(v0: [uint8; 8], v1: [uint8; 8], v2: uint32, v3: uint32):
+    v4: uint32 = 1
+    v14: boolean = int.le.u v2, v3
+    branch v14, b4, b3
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value3
-    branch value6, block2(), block3()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v3
+    branch v6, b2, b3
 
-block2:
-    value7: ref<uint8, borrowed> = element.address value0, value5
-    value8: ref<uint8, borrowed> = element.address value1, value5
-    value9: uint8 = load value8
-    store value7, value9
-    value10: uint32 = int.add value5, value4
-    jump block1(value10)
+b2:
+    v7: ref<uint8, borrowed> = element.address v0, v5
+    v8: ref<uint8, borrowed> = element.address v1, v5
+    v9: uint8 = load v8
+    store v7, v9
+    v10: uint32 = int.add v5, v4
+    jump b1(v10)
 
-block3:
+b3:
     return
 
-block4:
-    value11: uint32 = int.sub value3, value2
-    value12: ref<uint8, borrowed> = element.address value0, value2
-    value13: ref<uint8, borrowed> = element.address value1, value2
-    intrinsic.memory.raw.copyBytes(value12, value13, value11)
-    jump block3()
+b4:
+    v11: uint32 = int.sub v3, v2
+    v12: ref<uint8, borrowed> = element.address v0, v2
+    v13: ref<uint8, borrowed> = element.address v1, v2
+    intrinsic.memory.raw.copyBytes(v12, v13, v11)
+    jump b3
 }
 "#;
 
@@ -1902,54 +1902,54 @@ block4:
     #[test]
     fn test_loop_idiom_memmove_guards_non_zero_start() {
         let input = r#"
-function test(value0: [uint8; 8], value1: uint32, value2: uint32): void {
-entry0(value0: [uint8; 8], value1: uint32, value2: uint32):
-    value3: uint32 = 1uint32
-    jump block1(value2)
+function test(v0: [uint8; 8], v1: uint32, v2: uint32): void {
+entry(v0: [uint8; 8], v1: uint32, v2: uint32):
+    v3: uint32 = 1
+    jump b1(v2)
 
-block1(value4: uint32):
-    value5: boolean = int.lt.u value4, value1
-    branch value5, block2(), block3()
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v1
+    branch v5, b2, b3
 
-block2:
-    value6: ref<uint8, borrowed> = element.address value0, value4
-    value7: uint8 = load value6
-    store value6, value7
-    value8: uint32 = int.add value4, value3
-    jump block1(value8)
+b2:
+    v6: ref<uint8, borrowed> = element.address v0, v4
+    v7: uint8 = load v6
+    store v6, v7
+    v8: uint32 = int.add v4, v3
+    jump b1(v8)
 
-block3:
+b3:
     return
 }
 "#;
 
         let expected = r#"
-function test(value0: [uint8; 8], value1: uint32, value2: uint32): void {
-entry0(value0: [uint8; 8], value1: uint32, value2: uint32):
-    value3: uint32 = 1uint32
-    value12: boolean = int.le.u value2, value1
-    branch value12, block4(), block3()
+function test(v0: [uint8; 8], v1: uint32, v2: uint32): void {
+entry(v0: [uint8; 8], v1: uint32, v2: uint32):
+    v3: uint32 = 1
+    v12: boolean = int.le.u v2, v1
+    branch v12, b4, b3
 
-block1(value4: uint32):
-    value5: boolean = int.lt.u value4, value1
-    branch value5, block2(), block3()
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v1
+    branch v5, b2, b3
 
-block2:
-    value6: ref<uint8, borrowed> = element.address value0, value4
-    value7: uint8 = load value6
-    store value6, value7
-    value8: uint32 = int.add value4, value3
-    jump block1(value8)
+b2:
+    v6: ref<uint8, borrowed> = element.address v0, v4
+    v7: uint8 = load v6
+    store v6, v7
+    v8: uint32 = int.add v4, v3
+    jump b1(v8)
 
-block3:
+b3:
     return
 
-block4:
-    value9: uint32 = int.sub value1, value2
-    value10: ref<uint8, borrowed> = element.address value0, value2
-    value11: ref<uint8, borrowed> = element.address value0, value2
-    intrinsic.memory.raw.moveBytes(value10, value11, value9)
-    jump block3()
+b4:
+    v9: uint32 = int.sub v1, v2
+    v10: ref<uint8, borrowed> = element.address v0, v2
+    v11: ref<uint8, borrowed> = element.address v0, v2
+    intrinsic.memory.raw.moveBytes(v10, v11, v9)
+    jump b3
 }
 "#;
 
@@ -1962,24 +1962,24 @@ block4:
     #[test]
     fn test_loop_idiom_skips_non_unit_stride() {
         let input = r#"
-function test(value0: [uint8; 8], value1: uint32): void {
-entry0(value0: [uint8; 8], value1: uint32):
-    value2: uint32 = 0uint32
-    value3: uint32 = 2uint32
-    jump block1(value2)
+function test(v0: [uint8; 8], v1: uint32): void {
+entry(v0: [uint8; 8], v1: uint32):
+    v2: uint32 = 0
+    v3: uint32 = 2
+    jump b1(v2)
 
-block1(value4: uint32):
-    value5: boolean = int.lt.u value4, value1
-    branch value5, block2(), block3()
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v1
+    branch v5, b2, b3
 
-block2:
-    value6: ref<uint8, borrowed> = element.address value0, value4
-    value7: uint8 = 0uint8
-    store value6, value7
-    value8: uint32 = int.add value4, value3
-    jump block1(value8)
+b2:
+    v6: ref<uint8, borrowed> = element.address v0, v4
+    v7: uint8 = 0
+    store v6, v7
+    v8: uint32 = int.add v4, v3
+    jump b1(v8)
 
-block3:
+b3:
     return
 }
 "#;
@@ -1993,30 +1993,30 @@ block3:
     #[test]
     fn test_loop_idiom_skips_conditional_store() {
         let input = r#"
-function test(value0: [uint8; 8], value1: uint32, value2: boolean): void {
-entry0(value0: [uint8; 8], value1: uint32, value2: boolean):
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    jump block1(value3)
+function test(v0: [uint8; 8], v1: uint32, v2: boolean): void {
+entry(v0: [uint8; 8], v1: uint32, v2: boolean):
+    v3: uint32 = 0
+    v4: uint32 = 1
+    jump b1(v3)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value1
-    branch value6, block2(value5), block5()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v1
+    branch v6, b2(v5), b5
 
-block2(value7: uint32):
-    branch value2, block3(value7), block4(value7)
+b2(v7: uint32):
+    branch v2, b3(v7), b4(v7)
 
-block3(value8: uint32):
-    value9: ref<uint8, borrowed> = element.address value0, value8
-    value10: uint8 = 0uint8
-    store value9, value10
-    jump block4(value8)
+b3(v8: uint32):
+    v9: ref<uint8, borrowed> = element.address v0, v8
+    v10: uint8 = 0
+    store v9, v10
+    jump b4(v8)
 
-block4(value11: uint32):
-    value12: uint32 = int.add value11, value4
-    jump block1(value12)
+b4(v11: uint32):
+    v12: uint32 = int.add v11, v4
+    jump b1(v12)
 
-block5:
+b5:
     return
 }
 "#;
@@ -2030,37 +2030,37 @@ block5:
     #[test]
     fn test_loop_idiom_skips_nested_store() {
         let input = r#"
-function test(value0: [uint8; 8], value1: uint32): void {
-entry0(value0: [uint8; 8], value1: uint32):
-    value2: uint32 = 0uint32
-    value3: uint32 = 1uint32
-    value4: uint32 = 2uint32
-    jump block1(value2)
+function test(v0: [uint8; 8], v1: uint32): void {
+entry(v0: [uint8; 8], v1: uint32):
+    v2: uint32 = 0
+    v3: uint32 = 1
+    v4: uint32 = 2
+    jump b1(v2)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value1
-    branch value6, block2(), block6()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v1
+    branch v6, b2, b6
 
-block2:
-    value7: uint32 = 0uint32
-    jump block3(value7)
+b2:
+    v7: uint32 = 0
+    jump b3(v7)
 
-block3(value8: uint32):
-    value9: ref<uint8, borrowed> = element.address value0, value5
-    value10: uint8 = 0uint8
-    store value9, value10
-    value11: boolean = int.lt.u value8, value4
-    branch value11, block4(value8), block5()
+b3(v8: uint32):
+    v9: ref<uint8, borrowed> = element.address v0, v5
+    v10: uint8 = 0
+    store v9, v10
+    v11: boolean = int.lt.u v8, v4
+    branch v11, b4(v8), b5
 
-block4(value12: uint32):
-    value13: uint32 = int.add value12, value3
-    jump block3(value13)
+b4(v12: uint32):
+    v13: uint32 = int.add v12, v3
+    jump b3(v13)
 
-block5:
-    value14: uint32 = int.add value5, value3
-    jump block1(value14)
+b5:
+    v14: uint32 = int.add v5, v3
+    jump b1(v14)
 
-block6:
+b6:
     return
 }
 "#;
@@ -2074,25 +2074,25 @@ block6:
     #[test]
     fn test_loop_idiom_skips_variant_array() {
         let input = r#"
-function test(value0: [uint8; 8], value1: uint32): void {
-entry0(value0: [uint8; 8], value1: uint32):
-    value2: uint32 = 0uint32
-    value3: uint32 = 1uint32
-    jump block1(value2, value0)
+function test(v0: [uint8; 8], v1: uint32): void {
+entry(v0: [uint8; 8], v1: uint32):
+    v2: uint32 = 0
+    v3: uint32 = 1
+    jump b1(v2, v0)
 
-block1(value4: uint32, value5: [uint8; 8]):
-    value6: boolean = int.lt.u value4, value1
-    branch value6, block2(), block3()
+b1(v4: uint32, v5: [uint8; 8]):
+    v6: boolean = int.lt.u v4, v1
+    branch v6, b2, b3
 
-block2:
-    value7: ref<uint8, borrowed> = element.address value5, value4
-    value8: uint8 = 0uint8
-    store value7, value8
-    value9: [uint8; 8] = element.set value5, 0, value8
-    value10: uint32 = int.add value4, value3
-    jump block1(value10, value9)
+b2:
+    v7: ref<uint8, borrowed> = element.address v5, v4
+    v8: uint8 = 0
+    store v7, v8
+    v9: [uint8; 8] = element.set v5, 0, v8
+    v10: uint32 = int.add v4, v3
+    jump b1(v10, v9)
 
-block3:
+b3:
     return
 }
 "#;
@@ -2106,23 +2106,23 @@ block3:
     #[test]
     fn test_loop_idiom_skips_non_constant_store() {
         let input = r#"
-function test(value0: [uint8; 8], value1: uint8, value2: uint32): void {
-entry0(value0: [uint8; 8], value1: uint8, value2: uint32):
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    jump block1(value3)
+function test(v0: [uint8; 8], v1: uint8, v2: uint32): void {
+entry(v0: [uint8; 8], v1: uint8, v2: uint32):
+    v3: uint32 = 0
+    v4: uint32 = 1
+    jump b1(v3)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value2
-    branch value6, block2(), block3()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v2
+    branch v6, b2, b3
 
-block2:
-    value7: ref<uint8, borrowed> = element.address value0, value5
-    store value7, value1
-    value8: uint32 = int.add value5, value4
-    jump block1(value8)
+b2:
+    v7: ref<uint8, borrowed> = element.address v0, v5
+    store v7, v1
+    v8: uint32 = int.add v5, v4
+    jump b1(v8)
 
-block3:
+b3:
     return
 }
 "#;
@@ -2136,30 +2136,30 @@ block3:
     #[test]
     fn test_loop_idiom_skips_side_effects() {
         let input = r#"
-function test(value0: [uint8; 8], value1: uint32): void {
-entry0(value0: [uint8; 8], value1: uint32):
-    value2: uint32 = 0uint32
-    value3: uint32 = 1uint32
-    jump block1(value2)
+function test(v0: [uint8; 8], v1: uint32): void {
+entry(v0: [uint8; 8], v1: uint32):
+    v2: uint32 = 0
+    v3: uint32 = 1
+    jump b1(v2)
 
-block1(value4: uint32):
-    value5: boolean = int.lt.u value4, value1
-    branch value5, block2(), block3()
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v1
+    branch v5, b2, b3
 
-block2:
-    call touch(value4): (uint32) -> void
-    value6: ref<uint8, borrowed> = element.address value0, value4
-    value7: uint8 = 0uint8
-    store value6, value7
-    value8: uint32 = int.add value4, value3
-    jump block1(value8)
+b2:
+    call touch(v4)
+    v6: ref<uint8, borrowed> = element.address v0, v4
+    v7: uint8 = 0
+    store v6, v7
+    v8: uint32 = int.add v4, v3
+    jump b1(v8)
 
-block3:
+b3:
     return
 }
 
-function touch(value0: uint32): void {
-entry0(value0: uint32):
+function touch(v0: uint32): void {
+entry(v0: uint32):
     return
 }
 "#;
@@ -2173,26 +2173,26 @@ entry0(value0: uint32):
     #[test]
     fn test_loop_idiom_skips_multiple_stores() {
         let input = r#"
-function test(value0: [uint8; 8], value1: [uint8; 8], value2: uint32): void {
-entry0(value0: [uint8; 8], value1: [uint8; 8], value2: uint32):
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    jump block1(value3)
+function test(v0: [uint8; 8], v1: [uint8; 8], v2: uint32): void {
+entry(v0: [uint8; 8], v1: [uint8; 8], v2: uint32):
+    v3: uint32 = 0
+    v4: uint32 = 1
+    jump b1(v3)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value2
-    branch value6, block2(), block3()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v2
+    branch v6, b2, b3
 
-block2:
-    value7: ref<uint8, borrowed> = element.address value0, value5
-    value8: uint8 = 0uint8
-    store value7, value8
-    value9: ref<uint8, borrowed> = element.address value1, value5
-    store value9, value8
-    value10: uint32 = int.add value5, value4
-    jump block1(value10)
+b2:
+    v7: ref<uint8, borrowed> = element.address v0, v5
+    v8: uint8 = 0
+    store v7, v8
+    v9: ref<uint8, borrowed> = element.address v1, v5
+    store v9, v8
+    v10: uint32 = int.add v5, v4
+    jump b1(v10)
 
-block3:
+b3:
     return
 }
 "#;

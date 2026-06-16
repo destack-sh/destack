@@ -25,10 +25,10 @@ ${string_alias}
 readonly global ${string_name}: ref<String, managed, readonly> = "Hello, VM"
 
 function greet(): ref<String, managed, readonly> {
-entry0:
-    value0: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${string_name}
-    value1: ref<String, managed, readonly> = load value0
-    return value1
+entry:
+    v0: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${string_name}
+    v1: ref<String, managed, readonly> = load v0
+    return v1
 }"#;
     let expected = expected.replace("${string_alias}", string_alias);
     let expected = expected.replace("${string_name}", &string_name);

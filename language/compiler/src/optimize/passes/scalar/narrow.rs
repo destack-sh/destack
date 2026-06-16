@@ -438,27 +438,27 @@ mod tests {
     fn test_narrow_comparison_operands() {
         let input = r#"
 function test(): boolean {
-entry0:
-    value0: uint32 = 3uint32
-    value1: uint32 = 4uint32
-    value2: boolean = int.lt.u value0, value1
-    value3: boolean = int.lt.u value0, value0
-    value4: boolean = int.and value2, value3
-    return value4
+entry:
+    v0: uint32 = 3
+    v1: uint32 = 4
+    v2: boolean = int.lt.u v0, v1
+    v3: boolean = int.lt.u v0, v0
+    v4: boolean = int.and v2, v3
+    return v4
 }
 "#;
 
         let expected = r#"
 function test(): boolean {
-entry0:
-    value0: uint32 = 3uint32
-    value1: uint32 = 4uint32
-    value5: uint8 = cast.truncate value0 -> uint8
-    value6: uint8 = cast.truncate value1 -> uint8
-    value2: boolean = int.lt.u value5, value6
-    value3: boolean = int.lt.u value5, value5
-    value4: boolean = int.and value2, value3
-    return value4
+entry:
+    v0: uint32 = 3
+    v1: uint32 = 4
+    v5: uint8 = cast.truncate v0 -> uint8
+    v6: uint8 = cast.truncate v1 -> uint8
+    v2: boolean = int.lt.u v5, v6
+    v3: boolean = int.lt.u v5, v5
+    v4: boolean = int.and v2, v3
+    return v4
 }
 "#;
 
@@ -472,23 +472,23 @@ entry0:
     fn test_narrow_signed_comparison() {
         let input = r#"
 function test(): boolean {
-entry0:
-    value0: int32 = 0int32
-    value1: int32 = 1int32
-    value2: boolean = int.lt.s value0, value1
-    return value2
+entry:
+    v0: int32 = 0
+    v1: int32 = 1
+    v2: boolean = int.lt.s v0, v1
+    return v2
 }
 "#;
 
         let expected = r#"
 function test(): boolean {
-entry0:
-    value0: int32 = 0int32
-    value1: int32 = 1int32
-    value3: int8 = cast.truncate value0 -> int8
-    value4: int8 = cast.truncate value1 -> int8
-    value2: boolean = int.lt.s value3, value4
-    return value2
+entry:
+    v0: int32 = 0
+    v1: int32 = 1
+    v3: int8 = cast.truncate v0 -> int8
+    v4: int8 = cast.truncate v1 -> int8
+    v2: boolean = int.lt.s v3, v4
+    return v2
 }
 "#;
 
@@ -501,37 +501,37 @@ entry0:
     #[test]
     fn test_narrow_bounds_check_operands() {
         let input = r#"
-function test(value0: [uint8; 8]): uint8 {
-entry0(value0: [uint8; 8]):
-    value1: uint32 = 2uint32
-    value2: uint32 = 4uint32
-    value3: boolean = int.lt.u value1, value2
-    check bounds.u value1, value2, value0 -> block1(), block2()
+function test(v0: [uint8; 8]): uint8 {
+entry(v0: [uint8; 8]):
+    v1: uint32 = 2
+    v2: uint32 = 4
+    v3: boolean = int.lt.u v1, v2
+    check bounds.u v1, v2, v0 -> b1, b2
 
-block1:
-    value4: uint8 = element.get value0, 0
-    return value4
+b1:
+    v4: uint8 = element.get v0, 0
+    return v4
 
-block2:
+b2:
     unreachable
 }
 "#;
 
         let expected = r#"
-function test(value0: [uint8; 8]): uint8 {
-entry0(value0: [uint8; 8]):
-    value1: uint32 = 2uint32
-    value2: uint32 = 4uint32
-    value5: uint8 = cast.truncate value1 -> uint8
-    value6: uint8 = cast.truncate value2 -> uint8
-    value3: boolean = int.lt.u value5, value6
-    check bounds.u value5, value6, value0 -> block1(), block2()
+function test(v0: [uint8; 8]): uint8 {
+entry(v0: [uint8; 8]):
+    v1: uint32 = 2
+    v2: uint32 = 4
+    v5: uint8 = cast.truncate v1 -> uint8
+    v6: uint8 = cast.truncate v2 -> uint8
+    v3: boolean = int.lt.u v5, v6
+    check bounds.u v5, v6, v0 -> b1, b2
 
-block1:
-    value4: uint8 = element.get value0, 0
-    return value4
+b1:
+    v4: uint8 = element.get v0, 0
+    return v4
 
-block2:
+b2:
     unreachable
 }
 "#;
@@ -545,10 +545,10 @@ block2:
     #[test]
     fn test_narrow_skips_unknown_ranges() {
         let input = r#"
-function test(value0: uint32, value1: uint32): boolean {
-entry0(value0: uint32, value1: uint32):
-    value2: boolean = int.lt.u value0, value1
-    return value2
+function test(v0: uint32, v1: uint32): boolean {
+entry(v0: uint32, v1: uint32):
+    v2: boolean = int.lt.u v0, v1
+    return v2
 }
 "#;
 
@@ -561,17 +561,17 @@ entry0(value0: uint32, value1: uint32):
     #[test]
     fn test_narrow_skips_mismatched_widths() {
         let input = r#"
-function test(value0: [uint8; 8]): void {
-entry0(value0: [uint8; 8]):
-    value1: uint32 = 2uint32
-    value2: uint64 = 4uint64
-    value3: boolean = int.lt.u value1, value2
-    check bounds.u value1, value2, value0 -> block1(), block2()
+function test(v0: [uint8; 8]): void {
+entry(v0: [uint8; 8]):
+    v1: uint32 = 2
+    v2: uint64 = 4
+    v3: boolean = int.lt.u v1, v2
+    check bounds.u v1, v2, v0 -> b1, b2
 
-block1:
+b1:
     return
 
-block2:
+b2:
     unreachable
 }
 "#;
@@ -586,11 +586,11 @@ block2:
     fn test_narrow_skips_full_range_signed() {
         let input = r#"
 function test(): boolean {
-entry0:
-    value0: int32 = -2147483648int32
-    value1: int32 = 2147483647int32
-    value2: boolean = int.lt.s value0, value1
-    return value2
+entry:
+    v0: int32 = -2147483648
+    v1: int32 = 2147483647
+    v2: boolean = int.lt.s v0, v1
+    return v2
 }
 "#;
 

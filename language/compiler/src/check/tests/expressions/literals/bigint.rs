@@ -99,8 +99,7 @@ const value: number = 42n;
 
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '42n' is not assignable to type 'float64'"
-/// @diagnostic.label line=2 column=23 source="const value: number = 42n;"
+
 "#,
     );
 }

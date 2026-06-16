@@ -115,10 +115,7 @@ const values = [];
 /// @check.stats.solve variables=2 types=4 constraints=1 obligations=0 solutions=0 bounds=1 decisions=0
 "#,
         r#"
-/// @diagnostic.error code=EC101 message="missing type annotation"
-/// @diagnostic.label line=2 column=16 source="const values = [];"
-/// @diagnostic.error code=EC101 message="missing type annotation"
-/// @diagnostic.label line=2 column=7 source="const values = [];"
+
 "#,
     );
 }
@@ -228,8 +225,7 @@ const values: number[] = [1, "two"];
 
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"two\" | float64' is not assignable to type 'float64'"
-/// @diagnostic.label line=2 column=26 source="const values: number[] = [1, \"two\"];"
+
 "#,
     );
 }

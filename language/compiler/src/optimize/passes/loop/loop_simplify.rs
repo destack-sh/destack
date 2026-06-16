@@ -691,36 +691,36 @@ mod tests {
     fn test_insert_preheader_for_multiple_entries() {
         // b0 and b1 both enter b2, so preheader needed
         let input = r#"
-function test(value0: boolean, value1: boolean): void {
-entry0(value0: boolean, value1: boolean):
-    branch value0, block1(), block2()
+function test(v0: boolean, v1: boolean): void {
+entry(v0: boolean, v1: boolean):
+    branch v0, b1, b2
 
-block1:
-    jump block2()
+b1:
+    jump b2
 
-block2:
-    branch value1, block2(), block3()
+b2:
+    branch v1, b2, b3
 
-block3:
+b3:
     return
 }
 "#;
         let expected = r#"
-function test(value0: boolean, value1: boolean): void {
-entry0(value0: boolean, value1: boolean):
-    branch value0, block1(), block4()
+function test(v0: boolean, v1: boolean): void {
+entry(v0: boolean, v1: boolean):
+    branch v0, b1, b4
 
-block1:
-    jump block4()
+b1:
+    jump b4
 
-block2:
-    branch value1, block2(), block3()
+b2:
+    branch v1, b2, b3
 
-block3:
+b3:
     return
 
-block4:
-    jump block2()
+b4:
+    jump b2
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -732,17 +732,17 @@ block4:
     #[test]
     fn test_preserve_already_canonical() {
         let input = r#"
-function test(value0: boolean): void {
-entry0(value0: boolean):
-    jump block1()
+function test(v0: boolean): void {
+entry(v0: boolean):
+    jump b1
 
-block1:
-    branch value0, block2(), block3()
+b1:
+    branch v0, b2, b3
 
-block2:
-    jump block1()
+b2:
+    jump b1
 
-block3:
+b3:
     return
 }
 "#;
@@ -756,24 +756,24 @@ block3:
     fn test_insert_preheader_for_entry_loop() {
         // b0 is entry and has self-loop, needs preheader
         let input = r#"
-function test(value0: boolean): void {
-entry0(value0: boolean):
-    branch value0, entry0(value0), block1()
+function test(v0: boolean): void {
+entry(v0: boolean):
+    branch v0, entry(v0), b1
 
-block1:
+b1:
     return
 }
 "#;
         // preheader (block2) becomes new entry with fresh param v1
         let expected = r#"
-function test(value0: boolean): void {
-entry0(value0: boolean):
-    jump entry0_1(value0)
+function test(v0: boolean): void {
+entry(v0: boolean):
+    jump entry0_1(v0)
 
-entry0_1(value1: boolean):
-    branch value1, entry0_1(value1), block1()
+entry0_1(v1: boolean):
+    branch v1, entry0_1(v1), b2
 
-block1:
+b2:
     return
 }
 "#;
@@ -793,35 +793,35 @@ block1:
     fn test_insert_preheader_for_branch_predecessor() {
         // b0 branches to b1, not a dedicated entry
         let input = r#"
-function test(value0: boolean, value1: boolean): void {
-entry0(value0: boolean, value1: boolean):
-    branch value0, block1(), block2()
+function test(v0: boolean, v1: boolean): void {
+entry(v0: boolean, v1: boolean):
+    branch v0, b1, b2
 
-block1:
-    branch value1, block1(), block2()
+b1:
+    branch v1, b1, b2
 
-block2:
+b2:
     return
 }
 "#;
         // b3 = preheader for b1's loop
         // b4 = dedicated exit (b2 has outside predecessor b0)
         let expected = r#"
-function test(value0: boolean, value1: boolean): void {
-entry0(value0: boolean, value1: boolean):
-    branch value0, block3(), block2()
+function test(v0: boolean, v1: boolean): void {
+entry(v0: boolean, v1: boolean):
+    branch v0, b3, b2
 
-block1:
-    branch value1, block1(), block4()
+b1:
+    branch v1, b1, b4
 
-block2:
+b2:
     return
 
-block3:
-    jump block1()
+b3:
+    jump b1
 
-block4:
-    jump block2()
+b4:
+    jump b2
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -833,17 +833,17 @@ block4:
     #[test]
     fn test_preserve_while_loop_with_preheader() {
         let input = r#"
-function test(value0: boolean): void {
-entry0(value0: boolean):
-    jump block1()
+function test(v0: boolean): void {
+entry(v0: boolean):
+    jump b1
 
-block1:
-    branch value0, block2(), block3()
+b1:
+    branch v0, b2, b3
 
-block2:
-    jump block1()
+b2:
+    jump b1
 
-block3:
+b3:
     return
 }
 "#;
@@ -857,37 +857,37 @@ block3:
     fn test_preserve_header_parameters() {
         // block2 has parameter v3, preheader must forward it
         let input = r#"
-function test(value0: boolean, value1: int32): int32 {
-entry0(value0: boolean, value1: int32):
-    branch value0, block1(value1), block2(value1)
+function test(v0: boolean, v1: int32): int32 {
+entry(v0: boolean, v1: int32):
+    branch v0, b1(v1), b2(v1)
 
-block1(value2: int32):
-    jump block2(value2)
+b1(v2: int32):
+    jump b2(v2)
 
-block2(value3: int32):
-    branch value0, block2(value3), block3()
+b2(v3: int32):
+    branch v0, b2(v3), b3
 
-block3:
-    return value3
+b3:
+    return v3
 }
 "#;
         // preheader (block4) has parameter v4 and forwards to block2
         let expected = r#"
-function test(value0: boolean, value1: int32): int32 {
-entry0(value0: boolean, value1: int32):
-    branch value0, block1(value1), block4(value1)
+function test(v0: boolean, v1: int32): int32 {
+entry(v0: boolean, v1: int32):
+    branch v0, b1(v1), b4(v1)
 
-block1(value2: int32):
-    jump block4(value2)
+b1(v2: int32):
+    jump b4(v2)
 
-block2(value3: int32):
-    branch value0, block2(value3), block3()
+b2(v3: int32):
+    branch v0, b2(v3), b3
 
-block3:
-    return value3
+b3:
+    return v3
 
-block4(value4: int32):
-    jump block2(value4)
+b4(v4: int32):
+    jump b2(v4)
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -900,34 +900,34 @@ block4(value4: int32):
     fn test_switch_entry_to_loop() {
         // switch default and case 0 both go to block1
         let input = r#"
-function test(value0: int32, value1: boolean): void {
-entry0(value0: int32, value1: boolean):
-    switch value0, block1(), 0 => block1(), 1 => block2()
+function test(v0: int32, v1: boolean): void {
+entry(v0: int32, v1: boolean):
+    switch v0, b1, 0 -> b1, 1 -> b2
 
-block1:
-    branch value1, block1(), block2()
+b1:
+    branch v1, b1, b2
 
-block2:
+b2:
     return
 }
 "#;
         // block3 = preheader, block4 = dedicated exit
         let expected = r#"
-function test(value0: int32, value1: boolean): void {
-entry0(value0: int32, value1: boolean):
-    switch value0, block3(), 0 => block3(), 1 => block2()
+function test(v0: int32, v1: boolean): void {
+entry(v0: int32, v1: boolean):
+    switch v0, b3, 0 -> b3, 1 -> b2
 
-block1:
-    branch value1, block1(), block4()
+b1:
+    branch v1, b1, b4
 
-block2:
+b2:
     return
 
-block3:
-    jump block1()
+b3:
+    jump b1
 
-block4:
-    jump block2()
+b4:
+    jump b2
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -940,19 +940,19 @@ block4:
     fn test_infinite_loop_from_entry() {
         // b0 is entry and only jumps to itself
         let input = r#"
-function test(value0: boolean): void {
-entry0(value0: boolean):
-    jump entry0(value0)
+function test(v0: boolean): void {
+entry(v0: boolean):
+    jump entry(v0)
 }
 "#;
         // preheader (block1) becomes entry with fresh param v1
         let expected = r#"
-function test(value0: boolean): void {
-entry0(value0: boolean):
-    jump entry0_1(value0)
+function test(v0: boolean): void {
+entry(v0: boolean):
+    jump entry0_1(v0)
 
-entry0_1(value1: boolean):
-    jump entry0_1(value1)
+entry0_1(v1: boolean):
+    jump entry0_1(v1)
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -971,43 +971,43 @@ entry0_1(value1: boolean):
     fn test_merge_multiple_latches() {
         // block2 and block3 both jump to block1 (two latches)
         let input = r#"
-function test(value0: boolean, value1: boolean): void {
-entry0(value0: boolean, value1: boolean):
-    jump block1()
+function test(v0: boolean, v1: boolean): void {
+entry(v0: boolean, v1: boolean):
+    jump b1
 
-block1:
-    branch value0, block2(), block3()
+b1:
+    branch v0, b2, b3
 
-block2:
-    jump block1()
+b2:
+    jump b1
 
-block3:
-    branch value1, block1(), block4()
+b3:
+    branch v1, b1, b4
 
-block4:
+b4:
     return
 }
 "#;
         // merged latch (block5) inserted, block2 and block3 redirect to it
         let expected = r#"
-function test(value0: boolean, value1: boolean): void {
-entry0(value0: boolean, value1: boolean):
-    jump block1()
+function test(v0: boolean, v1: boolean): void {
+entry(v0: boolean, v1: boolean):
+    jump b1
 
-block1:
-    branch value0, block2(), block3()
+b1:
+    branch v0, b2, b3
 
-block2:
-    jump block5()
+b2:
+    jump b5
 
-block3:
-    branch value1, block5(), block4()
+b3:
+    branch v1, b5, b4
 
-block4:
+b4:
     return
 
-block5:
-    jump block1()
+b5:
+    jump b1
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -1020,59 +1020,59 @@ block5:
     fn test_merge_latches_with_different_arguments() {
         // block2 jumps to block1(v5), block4 jumps to block1(v7)
         let input = r#"
-function test(value0: boolean, value1: boolean): int32 {
-entry0(value0: boolean, value1: boolean):
-    value2: int32 = 0int32
-    jump block1(value2)
+function test(v0: boolean, v1: boolean): int32 {
+entry(v0: boolean, v1: boolean):
+    v2: int32 = 0
+    jump b1(v2)
 
-block1(value3: int32):
-    branch value0, block2(), block3()
+b1(v3: int32):
+    branch v0, b2, b3
 
-block2:
-    value4: int32 = 1int32
-    value5: int32 = int.add value3, value4
-    jump block1(value5)
+b2:
+    v4: int32 = 1
+    v5: int32 = int.add v3, v4
+    jump b1(v5)
 
-block3:
-    branch value1, block4(), block5()
+b3:
+    branch v1, b4, b5
 
-block4:
-    value6: int32 = 10int32
-    value7: int32 = int.add value3, value6
-    jump block1(value7)
+b4:
+    v6: int32 = 10
+    v7: int32 = int.add v3, v6
+    jump b1(v7)
 
-block5:
-    return value3
+b5:
+    return v3
 }
 "#;
         // merged latch (block6) receives parameter v8 and forwards to header
         let expected = r#"
-function test(value0: boolean, value1: boolean): int32 {
-entry0(value0: boolean, value1: boolean):
-    value2: int32 = 0int32
-    jump block1(value2)
+function test(v0: boolean, v1: boolean): int32 {
+entry(v0: boolean, v1: boolean):
+    v2: int32 = 0
+    jump b1(v2)
 
-block1(value3: int32):
-    branch value0, block2(), block3()
+b1(v3: int32):
+    branch v0, b2, b3
 
-block2:
-    value4: int32 = 1int32
-    value5: int32 = int.add value3, value4
-    jump block6(value5)
+b2:
+    v4: int32 = 1
+    v5: int32 = int.add v3, v4
+    jump b6(v5)
 
-block3:
-    branch value1, block4(), block5()
+b3:
+    branch v1, b4, b5
 
-block4:
-    value6: int32 = 10int32
-    value7: int32 = int.add value3, value6
-    jump block6(value7)
+b4:
+    v6: int32 = 10
+    v7: int32 = int.add v3, v6
+    jump b6(v7)
 
-block5:
-    return value3
+b5:
+    return v3
 
-block6(value8: int32):
-    jump block1(value8)
+b6(v8: int32):
+    jump b1(v8)
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -1085,35 +1085,35 @@ block6(value8: int32):
     fn test_insert_dedicated_exit() {
         // b2 is exit block, reachable from both b1 (in loop) and b0 (outside)
         let input = r#"
-function test(value0: boolean, value1: boolean): void {
-entry0(value0: boolean, value1: boolean):
-    branch value0, block1(), block2()
+function test(v0: boolean, v1: boolean): void {
+entry(v0: boolean, v1: boolean):
+    branch v0, b1, b2
 
-block1:
-    branch value1, block1(), block2()
+b1:
+    branch v1, b1, b2
 
-block2:
+b2:
     return
 }
 "#;
         // block3 = preheader for loop
         // block4 = dedicated exit for block2
         let expected = r#"
-function test(value0: boolean, value1: boolean): void {
-entry0(value0: boolean, value1: boolean):
-    branch value0, block3(), block2()
+function test(v0: boolean, v1: boolean): void {
+entry(v0: boolean, v1: boolean):
+    branch v0, b3, b2
 
-block1:
-    branch value1, block1(), block4()
+b1:
+    branch v1, b1, b4
 
-block2:
+b2:
     return
 
-block3:
-    jump block1()
+b3:
+    jump b1
 
-block4:
-    jump block2()
+b4:
+    jump b2
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -1125,40 +1125,40 @@ block4:
     #[test]
     fn test_dedicated_exit_with_parameters() {
         let input = r#"
-function test(value0: boolean, value1: boolean): int32 {
-entry0(value0: boolean, value1: boolean):
-    value2: int32 = 0int32
-    branch value0, block1(value2), block2(value2)
+function test(v0: boolean, v1: boolean): int32 {
+entry(v0: boolean, v1: boolean):
+    v2: int32 = 0
+    branch v0, b1(v2), b2(v2)
 
-block1(value3: int32):
-    value4: int32 = 1int32
-    value5: int32 = int.add value3, value4
-    branch value1, block1(value5), block2(value5)
+b1(v3: int32):
+    v4: int32 = 1
+    v5: int32 = int.add v3, v4
+    branch v1, b1(v5), b2(v5)
 
-block2(value6: int32):
-    return value6
+b2(v6: int32):
+    return v6
 }
 "#;
         // block3 = preheader, block4 = dedicated exit
         let expected = r#"
-function test(value0: boolean, value1: boolean): int32 {
-entry0(value0: boolean, value1: boolean):
-    value2: int32 = 0int32
-    branch value0, block3(value2), block2(value2)
+function test(v0: boolean, v1: boolean): int32 {
+entry(v0: boolean, v1: boolean):
+    v2: int32 = 0
+    branch v0, b3(v2), b2(v2)
 
-block1(value3: int32):
-    value4: int32 = 1int32
-    value5: int32 = int.add value3, value4
-    branch value1, block1(value5), block4(value5)
+b1(v3: int32):
+    v4: int32 = 1
+    v5: int32 = int.add v3, v4
+    branch v1, b1(v5), b4(v5)
 
-block2(value6: int32):
-    return value6
+b2(v6: int32):
+    return v6
 
-block3(value7: int32):
-    jump block1(value7)
+b3(v7: int32):
+    jump b1(v7)
 
-block4(value8: int32):
-    jump block2(value8)
+b4(v8: int32):
+    jump b2(v8)
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -1171,17 +1171,17 @@ block4(value8: int32):
     fn test_preserve_dedicated_exit() {
         // block3 is only reachable from block2 (in the loop)
         let input = r#"
-function test(value0: boolean): void {
-entry0(value0: boolean):
-    jump block1()
+function test(v0: boolean): void {
+entry(v0: boolean):
+    jump b1
 
-block1:
-    branch value0, block2(), block3()
+b1:
+    branch v0, b2, b3
 
-block2:
-    jump block1()
+b2:
+    jump b1
 
-block3:
+b3:
     return
 }
 "#;
@@ -1196,20 +1196,20 @@ block3:
         // outer loop: header=block1, latches={block2, block3}
         // inner loop: header=block2, latch={block2} (self-loop)
         let input = r#"
-function test(value0: boolean, value1: boolean, value2: boolean): void {
-entry0(value0: boolean, value1: boolean, value2: boolean):
-    branch value0, block1(), block4()
+function test(v0: boolean, v1: boolean, v2: boolean): void {
+entry(v0: boolean, v1: boolean, v2: boolean):
+    branch v0, b1, b4
 
-block1:
-    branch value1, block2(), block3()
+b1:
+    branch v1, b2, b3
 
-block2:
-    branch value2, block2(), block1()
+b2:
+    branch v2, b2, b1
 
-block3:
-    jump block1()
+b3:
+    jump b1
 
-block4:
+b4:
     return
 }
 "#;
@@ -1219,30 +1219,30 @@ block4:
         // Note: no dedicated exit needed (block4 has no preds from inside loop,
         // and block1 is a loop header so gets preheader instead)
         let expected = r#"
-function test(value0: boolean, value1: boolean, value2: boolean): void {
-entry0(value0: boolean, value1: boolean, value2: boolean):
-    branch value0, block5(), block4()
+function test(v0: boolean, v1: boolean, v2: boolean): void {
+entry(v0: boolean, v1: boolean, v2: boolean):
+    branch v0, b5, b4
 
-block1:
-    branch value1, block6(), block3()
+b1:
+    branch v1, b6, b3
 
-block2:
-    branch value2, block2(), block7()
+b2:
+    branch v2, b2, b7
 
-block3:
-    jump block7()
+b3:
+    jump b7
 
-block4:
+b4:
     return
 
-block5:
-    jump block1()
+b5:
+    jump b1
 
-block6:
-    jump block2()
+b6:
+    jump b2
 
-block7:
-    jump block1()
+b7:
+    jump b1
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -1255,20 +1255,20 @@ block7:
     fn test_simplify_triple_nested_loops() {
         // outer: header=block1, inner: header=block2, innermost: header=block3
         let input = r#"
-function test(value0: boolean, value1: boolean, value2: boolean, value3: boolean): void {
-entry0(value0: boolean, value1: boolean, value2: boolean, value3: boolean):
-    branch value0, block1(), block4()
+function test(v0: boolean, v1: boolean, v2: boolean, v3: boolean): void {
+entry(v0: boolean, v1: boolean, v2: boolean, v3: boolean):
+    branch v0, b1, b4
 
-block1:
-    branch value1, block2(), block4()
+b1:
+    branch v1, b2, b4
 
-block2:
-    branch value2, block3(), block1()
+b2:
+    branch v2, b3, b1
 
-block3:
-    branch value3, block3(), block2()
+b3:
+    branch v3, b3, b2
 
-block4:
+b4:
     return
 }
 "#;
@@ -1277,33 +1277,33 @@ block4:
         // b7 = innermost preheader
         // b8 = dedicated exit for outer loop (b4 has outside pred b0)
         let expected = r#"
-function test(value0: boolean, value1: boolean, value2: boolean, value3: boolean): void {
-entry0(value0: boolean, value1: boolean, value2: boolean, value3: boolean):
-    branch value0, block5(), block4()
+function test(v0: boolean, v1: boolean, v2: boolean, v3: boolean): void {
+entry(v0: boolean, v1: boolean, v2: boolean, v3: boolean):
+    branch v0, b5, b4
 
-block1:
-    branch value1, block6(), block8()
+b1:
+    branch v1, b6, b8
 
-block2:
-    branch value2, block7(), block1()
+b2:
+    branch v2, b7, b1
 
-block3:
-    branch value3, block3(), block2()
+b3:
+    branch v3, b3, b2
 
-block4:
+b4:
     return
 
-block5:
-    jump block1()
+b5:
+    jump b1
 
-block6:
-    jump block2()
+b6:
+    jump b2
 
-block7:
-    jump block3()
+b7:
+    jump b3
 
-block8:
-    jump block4()
+b8:
+    jump b4
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -1317,49 +1317,49 @@ block8:
         // b0 branches to loop (needs preheader)
         // b2 and b3 both back to header (needs latch merge)
         let input = r#"
-function test(value0: boolean, value1: boolean, value2: boolean): void {
-entry0(value0: boolean, value1: boolean, value2: boolean):
-    branch value0, block1(), block4()
+function test(v0: boolean, v1: boolean, v2: boolean): void {
+entry(v0: boolean, v1: boolean, v2: boolean):
+    branch v0, b1, b4
 
-block1:
-    branch value1, block2(), block3()
+b1:
+    branch v1, b2, b3
 
-block2:
-    jump block1()
+b2:
+    jump b1
 
-block3:
-    branch value2, block1(), block4()
+b3:
+    branch v2, b1, b4
 
-block4:
+b4:
     return
 }
 "#;
         // block5 = preheader, block6 = merged latch, block7 = dedicated exit
         let expected = r#"
-function test(value0: boolean, value1: boolean, value2: boolean): void {
-entry0(value0: boolean, value1: boolean, value2: boolean):
-    branch value0, block5(), block4()
+function test(v0: boolean, v1: boolean, v2: boolean): void {
+entry(v0: boolean, v1: boolean, v2: boolean):
+    branch v0, b5, b4
 
-block1:
-    branch value1, block2(), block3()
+b1:
+    branch v1, b2, b3
 
-block2:
-    jump block6()
+b2:
+    jump b6
 
-block3:
-    branch value2, block6(), block7()
+b3:
+    branch v2, b6, b7
 
-block4:
+b4:
     return
 
-block5:
-    jump block1()
+b5:
+    jump b1
 
-block6:
-    jump block1()
+b6:
+    jump b1
 
-block7:
-    jump block4()
+b7:
+    jump b4
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -1373,49 +1373,49 @@ block7:
         // needs preheader (b0 branches), latch merge (b2, b3),
         // and dedicated exit (b4 reachable from outside too)
         let input = r#"
-function test(value0: boolean, value1: boolean, value2: boolean, value3: boolean): void {
-entry0(value0: boolean, value1: boolean, value2: boolean, value3: boolean):
-    branch value0, block1(), block4()
+function test(v0: boolean, v1: boolean, v2: boolean, v3: boolean): void {
+entry(v0: boolean, v1: boolean, v2: boolean, v3: boolean):
+    branch v0, b1, b4
 
-block1:
-    branch value1, block2(), block3()
+b1:
+    branch v1, b2, b3
 
-block2:
-    branch value2, block1(), block4()
+b2:
+    branch v2, b1, b4
 
-block3:
-    branch value3, block1(), block4()
+b3:
+    branch v3, b1, b4
 
-block4:
+b4:
     return
 }
 "#;
         // block5 = preheader, block6 = merged latch, block7 = dedicated exit
         let expected = r#"
-function test(value0: boolean, value1: boolean, value2: boolean, value3: boolean): void {
-entry0(value0: boolean, value1: boolean, value2: boolean, value3: boolean):
-    branch value0, block5(), block4()
+function test(v0: boolean, v1: boolean, v2: boolean, v3: boolean): void {
+entry(v0: boolean, v1: boolean, v2: boolean, v3: boolean):
+    branch v0, b5, b4
 
-block1:
-    branch value1, block2(), block3()
+b1:
+    branch v1, b2, b3
 
-block2:
-    branch value2, block6(), block7()
+b2:
+    branch v2, b6, b7
 
-block3:
-    branch value3, block6(), block7()
+b3:
+    branch v3, b6, b7
 
-block4:
+b4:
     return
 
-block5:
-    jump block1()
+b5:
+    jump b1
 
-block6:
-    jump block1()
+b6:
+    jump b1
 
-block7:
-    jump block4()
+b7:
+    jump b4
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -1427,17 +1427,17 @@ block7:
     #[test]
     fn test_preserve_no_loops() {
         let input = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    value1: int32 = 1int32
-    value2: int32 = 2int32
-    branch value0, block1(), block2()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    v1: int32 = 1
+    v2: int32 = 2
+    branch v0, b1, b2
 
-block1:
-    return value1
+b1:
+    return v1
 
-block2:
-    return value2
+b2:
+    return v2
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -1451,17 +1451,17 @@ block2:
         // two entry points to the "loop" region - not a natural loop
         // block1 and block2 can both be entered from outside and from each other
         let input = r#"
-function test(value0: boolean, value1: boolean): void {
-entry0(value0: boolean, value1: boolean):
-    branch value0, block1(), block2()
+function test(v0: boolean, v1: boolean): void {
+entry(v0: boolean, v1: boolean):
+    branch v0, b1, b2
 
-block1:
-    branch value1, block2(), block3()
+b1:
+    branch v1, b2, b3
 
-block2:
-    branch value1, block1(), block3()
+b2:
+    branch v1, b1, b3
 
-block3:
+b3:
     return
 }
 "#;
@@ -1476,20 +1476,20 @@ block3:
     fn test_simplify_multiple_independent_loops() {
         // two separate loops with no nesting
         let input = r#"
-function test(value0: boolean, value1: boolean, value2: boolean): void {
-entry0(value0: boolean, value1: boolean, value2: boolean):
-    branch value0, block1(), block3()
+function test(v0: boolean, v1: boolean, v2: boolean): void {
+entry(v0: boolean, v1: boolean, v2: boolean):
+    branch v0, b1, b3
 
-block1:
-    branch value1, block1(), block2()
+b1:
+    branch v1, b1, b2
 
-block2:
-    branch value2, block3(), block4()
+b2:
+    branch v2, b3, b4
 
-block3:
-    branch value1, block3(), block4()
+b3:
+    branch v1, b3, b4
 
-block4:
+b4:
     return
 }
 "#;
@@ -1498,30 +1498,30 @@ block4:
         // b7 = dedicated exit for b3 (b4 has outside pred b2)
         // Note: b2 doesn't need dedicated exit (only pred is b1 which is in loop1)
         let expected = r#"
-function test(value0: boolean, value1: boolean, value2: boolean): void {
-entry0(value0: boolean, value1: boolean, value2: boolean):
-    branch value0, block5(), block6()
+function test(v0: boolean, v1: boolean, v2: boolean): void {
+entry(v0: boolean, v1: boolean, v2: boolean):
+    branch v0, b5, b6
 
-block1:
-    branch value1, block1(), block2()
+b1:
+    branch v1, b1, b2
 
-block2:
-    branch value2, block6(), block4()
+b2:
+    branch v2, b6, b4
 
-block3:
-    branch value1, block3(), block7()
+b3:
+    branch v1, b3, b7
 
-block4:
+b4:
     return
 
-block5:
-    jump block1()
+b5:
+    jump b1
 
-block6:
-    jump block3()
+b6:
+    jump b3
 
-block7:
-    jump block4()
+b7:
+    jump b4
 }
 "#;
         let mut test = TestProgram::new(input);

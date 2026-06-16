@@ -659,78 +659,78 @@ mod tests {
     #[test]
     fn test_loop_versioning_bounds_guard() {
         let input = r#"
-function test(value0: [uint8; 8], value1: uint32, value2: uint32): void {
-entry0(value0: [uint8; 8], value1: uint32, value2: uint32):
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    jump block1(value3)
+function test(v0: [uint8; 8], v1: uint32, v2: uint32): void {
+entry(v0: [uint8; 8], v1: uint32, v2: uint32):
+    v3: uint32 = 0
+    v4: uint32 = 1
+    jump b1(v3)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value2
-    branch value6, block2(), block5()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v2
+    branch v6, b2, b5
 
-block2:
-    value7: boolean = int.lt.u value5, value1
-    check bounds.u value5, value1, value0 -> block3(), block4()
+b2:
+    v7: boolean = int.lt.u v5, v1
+    check bounds.u v5, v1, v0 -> b3, b4
 
-block3:
-    value8: ref<uint8, borrowed> = element.address value0, value5
-    value9: uint8 = 1uint8
-    store value8, value9
-    value10: uint32 = int.add value5, value4
-    jump block1(value10)
+b3:
+    v8: ref<uint8, borrowed> = element.address v0, v5
+    v9: uint8 = 1
+    store v8, v9
+    v10: uint32 = int.add v5, v4
+    jump b1(v10)
 
-block4:
+b4:
     unreachable
 
-block5:
+b5:
     return
 }
 "#;
 
         let expected = r#"
-function test(value0: [uint8; 8], value1: uint32, value2: uint32): void {
-entry0(value0: [uint8; 8], value1: uint32, value2: uint32):
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    value11: boolean = int.le.u value2, value1
-    branch value11, block6(value3), block1(value3)
+function test(v0: [uint8; 8], v1: uint32, v2: uint32): void {
+entry(v0: [uint8; 8], v1: uint32, v2: uint32):
+    v3: uint32 = 0
+    v4: uint32 = 1
+    v11: boolean = int.le.u v2, v1
+    branch v11, b6(v3), b1(v3)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value2
-    branch value6, block2(), block5()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v2
+    branch v6, b2, b5
 
-block2:
-    value7: boolean = int.lt.u value5, value1
-    check bounds.u value5, value1, value0 -> block3(), block4()
+b2:
+    v7: boolean = int.lt.u v5, v1
+    check bounds.u v5, v1, v0 -> b3, b4
 
-block3:
-    value8: ref<uint8, borrowed> = element.address value0, value5
-    value9: uint8 = 1uint8
-    store value8, value9
-    value10: uint32 = int.add value5, value4
-    jump block1(value10)
+b3:
+    v8: ref<uint8, borrowed> = element.address v0, v5
+    v9: uint8 = 1
+    store v8, v9
+    v10: uint32 = int.add v5, v4
+    jump b1(v10)
 
-block4:
+b4:
     unreachable
 
-block5:
+b5:
     return
 
-block6(value12: uint32):
-    value13: boolean = int.lt.u value12, value2
-    branch value13, block7(), block5()
+b6(v12: uint32):
+    v13: boolean = int.lt.u v12, v2
+    branch v13, b7, b5
 
-block7:
-    value14: boolean = int.lt.u value12, value1
-    jump block8()
+b7:
+    v14: boolean = int.lt.u v12, v1
+    jump b8
 
-block8:
-    value15: ref<uint8, borrowed> = element.address value0, value12
-    value16: uint8 = 1uint8
-    store value15, value16
-    value17: uint32 = int.add value12, value4
-    jump block6(value17)
+b8:
+    v15: ref<uint8, borrowed> = element.address v0, v12
+    v16: uint8 = 1
+    store v15, v16
+    v17: uint32 = int.add v12, v4
+    jump b6(v17)
 }
 "#;
 
@@ -743,78 +743,78 @@ block8:
     #[test]
     fn test_loop_versioning_non_zero_start() {
         let input = r#"
-function test(value0: [uint8; 8], value1: uint32, value2: uint32): void {
-entry0(value0: [uint8; 8], value1: uint32, value2: uint32):
-    value3: uint32 = 2uint32
-    value4: uint32 = 1uint32
-    jump block1(value3)
+function test(v0: [uint8; 8], v1: uint32, v2: uint32): void {
+entry(v0: [uint8; 8], v1: uint32, v2: uint32):
+    v3: uint32 = 2
+    v4: uint32 = 1
+    jump b1(v3)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value2
-    branch value6, block2(), block5()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v2
+    branch v6, b2, b5
 
-block2:
-    value7: boolean = int.lt.u value5, value1
-    check bounds.u value5, value1, value0 -> block3(), block4()
+b2:
+    v7: boolean = int.lt.u v5, v1
+    check bounds.u v5, v1, v0 -> b3, b4
 
-block3:
-    value8: ref<uint8, borrowed> = element.address value0, value5
-    value9: uint8 = 1uint8
-    store value8, value9
-    value10: uint32 = int.add value5, value4
-    jump block1(value10)
+b3:
+    v8: ref<uint8, borrowed> = element.address v0, v5
+    v9: uint8 = 1
+    store v8, v9
+    v10: uint32 = int.add v5, v4
+    jump b1(v10)
 
-block4:
+b4:
     unreachable
 
-block5:
+b5:
     return
 }
 "#;
 
         let expected = r#"
-function test(value0: [uint8; 8], value1: uint32, value2: uint32): void {
-entry0(value0: [uint8; 8], value1: uint32, value2: uint32):
-    value3: uint32 = 2uint32
-    value4: uint32 = 1uint32
-    value11: boolean = int.le.u value2, value1
-    branch value11, block6(value3), block1(value3)
+function test(v0: [uint8; 8], v1: uint32, v2: uint32): void {
+entry(v0: [uint8; 8], v1: uint32, v2: uint32):
+    v3: uint32 = 2
+    v4: uint32 = 1
+    v11: boolean = int.le.u v2, v1
+    branch v11, b6(v3), b1(v3)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value2
-    branch value6, block2(), block5()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v2
+    branch v6, b2, b5
 
-block2:
-    value7: boolean = int.lt.u value5, value1
-    check bounds.u value5, value1, value0 -> block3(), block4()
+b2:
+    v7: boolean = int.lt.u v5, v1
+    check bounds.u v5, v1, v0 -> b3, b4
 
-block3:
-    value8: ref<uint8, borrowed> = element.address value0, value5
-    value9: uint8 = 1uint8
-    store value8, value9
-    value10: uint32 = int.add value5, value4
-    jump block1(value10)
+b3:
+    v8: ref<uint8, borrowed> = element.address v0, v5
+    v9: uint8 = 1
+    store v8, v9
+    v10: uint32 = int.add v5, v4
+    jump b1(v10)
 
-block4:
+b4:
     unreachable
 
-block5:
+b5:
     return
 
-block6(value12: uint32):
-    value13: boolean = int.lt.u value12, value2
-    branch value13, block7(), block5()
+b6(v12: uint32):
+    v13: boolean = int.lt.u v12, v2
+    branch v13, b7, b5
 
-block7:
-    value14: boolean = int.lt.u value12, value1
-    jump block8()
+b7:
+    v14: boolean = int.lt.u v12, v1
+    jump b8
 
-block8:
-    value15: ref<uint8, borrowed> = element.address value0, value12
-    value16: uint8 = 1uint8
-    store value15, value16
-    value17: uint32 = int.add value12, value4
-    jump block6(value17)
+b8:
+    v15: ref<uint8, borrowed> = element.address v0, v12
+    v16: uint8 = 1
+    store v15, v16
+    v17: uint32 = int.add v12, v4
+    jump b6(v17)
 }
 "#;
 
@@ -827,31 +827,31 @@ block8:
     #[test]
     fn test_loop_versioning_skips_signed_bounds() {
         let input = r#"
-function test(value0: [int32; 8], value1: int32, value2: int32): void {
-entry0(value0: [int32; 8], value1: int32, value2: int32):
-    value3: int32 = 0int32
-    value4: int32 = 1int32
-    jump block1(value3)
+function test(v0: [int32; 8], v1: int32, v2: int32): void {
+entry(v0: [int32; 8], v1: int32, v2: int32):
+    v3: int32 = 0
+    v4: int32 = 1
+    jump b1(v3)
 
-block1(value5: int32):
-    value6: boolean = int.lt.s value5, value2
-    branch value6, block2(), block3()
+b1(v5: int32):
+    v6: boolean = int.lt.s v5, v2
+    branch v6, b2, b3
 
-block2:
-    value7: boolean = int.lt.s value5, value1
-    check bounds.s value5, value1, value0 -> block4(), block5()
+b2:
+    v7: boolean = int.lt.s v5, v1
+    check bounds.s v5, v1, v0 -> b4, b5
 
-block3:
+b3:
     return
 
-block4:
-    value8: ref<int32, borrowed> = element.address value0, value5
-    value9: int32 = 1int32
-    store value8, value9
-    value10: int32 = int.add value5, value4
-    jump block1(value10)
+b4:
+    v8: ref<int32, borrowed> = element.address v0, v5
+    v9: int32 = 1
+    store v8, v9
+    v10: int32 = int.add v5, v4
+    jump b1(v10)
 
-block5:
+b5:
     unreachable
 }
 "#;
@@ -865,31 +865,31 @@ block5:
     #[test]
     fn test_loop_versioning_skips_type_mismatch() {
         let input = r#"
-function test(value0: [uint8; 8], value1: int32, value2: uint32): void {
-entry0(value0: [uint8; 8], value1: int32, value2: uint32):
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    jump block1(value3)
+function test(v0: [uint8; 8], v1: int32, v2: uint32): void {
+entry(v0: [uint8; 8], v1: int32, v2: uint32):
+    v3: uint32 = 0
+    v4: uint32 = 1
+    jump b1(v3)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value2
-    branch value6, block2(), block3()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v2
+    branch v6, b2, b3
 
-block2:
-    value7: boolean = int.lt.u value5, value2
-    check bounds.u value5, value1, value0 -> block4(), block5()
+b2:
+    v7: boolean = int.lt.u v5, v2
+    check bounds.u v5, v1, v0 -> b4, b5
 
-block3:
+b3:
     return
 
-block4:
-    value8: ref<uint8, borrowed> = element.address value0, value5
-    value9: uint8 = 1uint8
-    store value8, value9
-    value10: uint32 = int.add value5, value4
-    jump block1(value10)
+b4:
+    v8: ref<uint8, borrowed> = element.address v0, v5
+    v9: uint8 = 1
+    store v8, v9
+    v10: uint32 = int.add v5, v4
+    jump b1(v10)
 
-block5:
+b5:
     unreachable
 }
 "#;
@@ -903,78 +903,78 @@ block5:
     #[test]
     fn test_loop_versioning_handles_non_unit_stride() {
         let input = r#"
-function test(value0: [uint8; 8], value1: uint32, value2: uint32): void {
-entry0(value0: [uint8; 8], value1: uint32, value2: uint32):
-    value3: uint32 = 0uint32
-    value4: uint32 = 2uint32
-    jump block1(value3)
+function test(v0: [uint8; 8], v1: uint32, v2: uint32): void {
+entry(v0: [uint8; 8], v1: uint32, v2: uint32):
+    v3: uint32 = 0
+    v4: uint32 = 2
+    jump b1(v3)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value2
-    branch value6, block2(), block5()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v2
+    branch v6, b2, b5
 
-block2:
-    value7: boolean = int.lt.u value5, value1
-    check bounds.u value5, value1, value0 -> block3(), block4()
+b2:
+    v7: boolean = int.lt.u v5, v1
+    check bounds.u v5, v1, v0 -> b3, b4
 
-block3:
-    value8: ref<uint8, borrowed> = element.address value0, value5
-    value9: uint8 = 1uint8
-    store value8, value9
-    value10: uint32 = int.add value5, value4
-    jump block1(value10)
+b3:
+    v8: ref<uint8, borrowed> = element.address v0, v5
+    v9: uint8 = 1
+    store v8, v9
+    v10: uint32 = int.add v5, v4
+    jump b1(v10)
 
-block4:
+b4:
     unreachable
 
-block5:
+b5:
     return
 }
 "#;
 
         let expected = r#"
-function test(value0: [uint8; 8], value1: uint32, value2: uint32): void {
-entry0(value0: [uint8; 8], value1: uint32, value2: uint32):
-    value3: uint32 = 0uint32
-    value4: uint32 = 2uint32
-    value11: boolean = int.le.u value2, value1
-    branch value11, block6(value3), block1(value3)
+function test(v0: [uint8; 8], v1: uint32, v2: uint32): void {
+entry(v0: [uint8; 8], v1: uint32, v2: uint32):
+    v3: uint32 = 0
+    v4: uint32 = 2
+    v11: boolean = int.le.u v2, v1
+    branch v11, b6(v3), b1(v3)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value2
-    branch value6, block2(), block5()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v2
+    branch v6, b2, b5
 
-block2:
-    value7: boolean = int.lt.u value5, value1
-    check bounds.u value5, value1, value0 -> block3(), block4()
+b2:
+    v7: boolean = int.lt.u v5, v1
+    check bounds.u v5, v1, v0 -> b3, b4
 
-block3:
-    value8: ref<uint8, borrowed> = element.address value0, value5
-    value9: uint8 = 1uint8
-    store value8, value9
-    value10: uint32 = int.add value5, value4
-    jump block1(value10)
+b3:
+    v8: ref<uint8, borrowed> = element.address v0, v5
+    v9: uint8 = 1
+    store v8, v9
+    v10: uint32 = int.add v5, v4
+    jump b1(v10)
 
-block4:
+b4:
     unreachable
 
-block5:
+b5:
     return
 
-block6(value12: uint32):
-    value13: boolean = int.lt.u value12, value2
-    branch value13, block7(), block5()
+b6(v12: uint32):
+    v13: boolean = int.lt.u v12, v2
+    branch v13, b7, b5
 
-block7:
-    value14: boolean = int.lt.u value12, value1
-    jump block8()
+b7:
+    v14: boolean = int.lt.u v12, v1
+    jump b8
 
-block8:
-    value15: ref<uint8, borrowed> = element.address value0, value12
-    value16: uint8 = 1uint8
-    store value15, value16
-    value17: uint32 = int.add value12, value4
-    jump block6(value17)
+b8:
+    v15: ref<uint8, borrowed> = element.address v0, v12
+    v16: uint8 = 1
+    store v15, v16
+    v17: uint32 = int.add v12, v4
+    jump b6(v17)
 }
 "#;
 
@@ -987,31 +987,31 @@ block8:
     #[test]
     fn test_loop_versioning_skips_non_strict_guard() {
         let input = r#"
-function test(value0: [uint8; 8], value1: uint32, value2: uint32): void {
-entry0(value0: [uint8; 8], value1: uint32, value2: uint32):
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    jump block1(value3)
+function test(v0: [uint8; 8], v1: uint32, v2: uint32): void {
+entry(v0: [uint8; 8], v1: uint32, v2: uint32):
+    v3: uint32 = 0
+    v4: uint32 = 1
+    jump b1(v3)
 
-block1(value5: uint32):
-    value6: boolean = int.le.u value5, value2
-    branch value6, block2(), block5()
+b1(v5: uint32):
+    v6: boolean = int.le.u v5, v2
+    branch v6, b2, b5
 
-block2:
-    value7: boolean = int.lt.u value5, value1
-    check bounds.u value5, value1, value0 -> block3(), block4()
+b2:
+    v7: boolean = int.lt.u v5, v1
+    check bounds.u v5, v1, v0 -> b3, b4
 
-block3:
-    value8: ref<uint8, borrowed> = element.address value0, value5
-    value9: uint8 = 1uint8
-    store value8, value9
-    value10: uint32 = int.add value5, value4
-    jump block1(value10)
+b3:
+    v8: ref<uint8, borrowed> = element.address v0, v5
+    v9: uint8 = 1
+    store v8, v9
+    v10: uint32 = int.add v5, v4
+    jump b1(v10)
 
-block4:
+b4:
     unreachable
 
-block5:
+b5:
     return
 }
 "#;

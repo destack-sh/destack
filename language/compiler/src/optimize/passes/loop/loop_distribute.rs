@@ -771,66 +771,66 @@ mod tests {
     #[test]
     fn test_loop_distribute_splits_stores() {
         let input = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    jump block1(value3)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: uint32 = 0
+    v4: uint32 = 1
+    jump b1(v3)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value0
-    branch value6, block2(value5), block3()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v0
+    branch v6, b2(v5), b3
 
-block2(value7: uint32):
-    value8: ref<int32, raw, space(frame)> = element.address value1, value7
-    value9: int32 = 1int32
-    store value8, value9
-    value10: ref<int32, raw, space(frame)> = element.address value2, value7
-    value11: int32 = 2int32
-    store value10, value11
-    value12: uint32 = int.add value7, value4
-    jump block1(value12)
+b2(v7: uint32):
+    v8: ref<int32, raw, space(frame)> = element.address v1, v7
+    v9: int32 = 1
+    store v8, v9
+    v10: ref<int32, raw, space(frame)> = element.address v2, v7
+    v11: int32 = 2
+    store v10, v11
+    v12: uint32 = int.add v7, v4
+    jump b1(v12)
 
-block3:
+b3:
     return
 }
 "#;
 
         let expected = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    jump block1(value3)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: uint32 = 0
+    v4: uint32 = 1
+    jump b1(v3)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value0
-    branch value6, block2(value5), block4(value3)
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v0
+    branch v6, b2(v5), b4(v3)
 
-block2(value7: uint32):
-    value8: ref<int32, raw, space(frame)> = element.address value1, value7
-    value9: int32 = 1int32
-    store value8, value9
-    value12: uint32 = int.add value7, value4
-    jump block1(value12)
+b2(v7: uint32):
+    v8: ref<int32, raw, space(frame)> = element.address v1, v7
+    v9: int32 = 1
+    store v8, v9
+    v12: uint32 = int.add v7, v4
+    jump b1(v12)
 
-block3:
+b3:
     return
 
-block4(value13: uint32):
-    value14: boolean = int.lt.u value13, value0
-    branch value14, block5(value13), block3()
+b4(v13: uint32):
+    v14: boolean = int.lt.u v13, v0
+    branch v14, b5(v13), b3
 
-block5(value15: uint32):
-    value18: ref<int32, raw, space(frame)> = element.address value2, value15
-    value19: int32 = 2int32
-    store value18, value19
-    value20: uint32 = int.add value15, value4
-    jump block4(value20)
+b5(v15: uint32):
+    v18: ref<int32, raw, space(frame)> = element.address v2, v15
+    v19: int32 = 2
+    store v18, v19
+    v20: uint32 = int.add v15, v4
+    jump b4(v20)
 }
 "#;
 
@@ -843,28 +843,28 @@ block5(value15: uint32):
     #[test]
     fn test_loop_distribute_skips_aliasing() {
         let input = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: uint32 = 0uint32
-    value3: uint32 = 1uint32
-    jump block1(value2)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: uint32 = 0
+    v3: uint32 = 1
+    jump b1(v2)
 
-block1(value4: uint32):
-    value5: boolean = int.lt.u value4, value0
-    branch value5, block2(value4), block3()
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v0
+    branch v5, b2(v4), b3
 
-block2(value6: uint32):
-    value7: ref<int32, raw, space(frame)> = element.address value1, value6
-    value8: int32 = 1int32
-    store value7, value8
-    value9: ref<int32, raw, space(frame)> = element.address value1, value6
-    value10: int32 = 2int32
-    store value9, value10
-    value11: uint32 = int.add value6, value3
-    jump block1(value11)
+b2(v6: uint32):
+    v7: ref<int32, raw, space(frame)> = element.address v1, v6
+    v8: int32 = 1
+    store v7, v8
+    v9: ref<int32, raw, space(frame)> = element.address v1, v6
+    v10: int32 = 2
+    store v9, v10
+    v11: uint32 = int.add v6, v3
+    jump b1(v11)
 
-block3:
+b3:
     return
 }
 "#;
@@ -878,31 +878,31 @@ block3:
     #[test]
     fn test_loop_distribute_skips_side_effects() {
         let input = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: uint32 = 0uint32
-    value3: uint32 = 1uint32
-    jump block1(value2)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: uint32 = 0
+    v3: uint32 = 1
+    jump b1(v2)
 
-block1(value4: uint32):
-    value5: boolean = int.lt.u value4, value0
-    branch value5, block2(value4), block3()
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v0
+    branch v5, b2(v4), b3
 
-block2(value6: uint32):
-    call touch(value6): (uint32) -> void
-    value7: ref<int32, raw, space(frame)> = element.address value1, value6
-    value8: int32 = 1int32
-    store value7, value8
-    value9: uint32 = int.add value6, value3
-    jump block1(value9)
+b2(v6: uint32):
+    call touch(v6)
+    v7: ref<int32, raw, space(frame)> = element.address v1, v6
+    v8: int32 = 1
+    store v7, v8
+    v9: uint32 = int.add v6, v3
+    jump b1(v9)
 
-block3:
+b3:
     return
 }
 
-function touch(value0: uint32): void {
-entry0(value0: uint32):
+function touch(v0: uint32): void {
+entry(v0: uint32):
     return
 }
 "#;
@@ -916,70 +916,70 @@ entry0(value0: uint32):
     #[test]
     fn test_loop_distribute_splits_load_store_groups() {
         let input = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value3: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value4: uint32 = 0uint32
-    value5: uint32 = 1uint32
-    jump block1(value4)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v4: uint32 = 0
+    v5: uint32 = 1
+    jump b1(v4)
 
-block1(value6: uint32):
-    value7: boolean = int.lt.u value6, value0
-    branch value7, block2(value6), block3()
+b1(v6: uint32):
+    v7: boolean = int.lt.u v6, v0
+    branch v7, b2(v6), b3
 
-block2(value8: uint32):
-    value9: ref<int32, raw, space(frame)> = element.address value1, value8
-    value10: int32 = load value9
-    value11: ref<int32, raw, space(frame)> = element.address value2, value8
-    store value11, value10
-    value12: ref<int32, raw, space(frame)> = element.address value3, value8
-    value13: int32 = 1int32
-    store value12, value13
-    value14: uint32 = int.add value8, value5
-    jump block1(value14)
+b2(v8: uint32):
+    v9: ref<int32, raw, space(frame)> = element.address v1, v8
+    v10: int32 = load v9
+    v11: ref<int32, raw, space(frame)> = element.address v2, v8
+    store v11, v10
+    v12: ref<int32, raw, space(frame)> = element.address v3, v8
+    v13: int32 = 1
+    store v12, v13
+    v14: uint32 = int.add v8, v5
+    jump b1(v14)
 
-block3:
+b3:
     return
 }
 "#;
 
         let expected = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value3: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value4: uint32 = 0uint32
-    value5: uint32 = 1uint32
-    jump block1(value4)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v4: uint32 = 0
+    v5: uint32 = 1
+    jump b1(v4)
 
-block1(value6: uint32):
-    value7: boolean = int.lt.u value6, value0
-    branch value7, block2(value6), block4(value4)
+b1(v6: uint32):
+    v7: boolean = int.lt.u v6, v0
+    branch v7, b2(v6), b4(v4)
 
-block2(value8: uint32):
-    value9: ref<int32, raw, space(frame)> = element.address value1, value8
-    value10: int32 = load value9
-    value11: ref<int32, raw, space(frame)> = element.address value2, value8
-    store value11, value10
-    value14: uint32 = int.add value8, value5
-    jump block1(value14)
+b2(v8: uint32):
+    v9: ref<int32, raw, space(frame)> = element.address v1, v8
+    v10: int32 = load v9
+    v11: ref<int32, raw, space(frame)> = element.address v2, v8
+    store v11, v10
+    v14: uint32 = int.add v8, v5
+    jump b1(v14)
 
-block3:
+b3:
     return
 
-block4(value15: uint32):
-    value16: boolean = int.lt.u value15, value0
-    branch value16, block5(value15), block3()
+b4(v15: uint32):
+    v16: boolean = int.lt.u v15, v0
+    branch v16, b5(v15), b3
 
-block5(value17: uint32):
-    value21: ref<int32, raw, space(frame)> = element.address value3, value17
-    value22: int32 = 1int32
-    store value21, value22
-    value23: uint32 = int.add value17, value5
-    jump block4(value23)
+b5(v17: uint32):
+    v21: ref<int32, raw, space(frame)> = element.address v3, v17
+    v22: int32 = 1
+    store v21, v22
+    v23: uint32 = int.add v17, v5
+    jump b4(v23)
 }
 "#;
 
@@ -992,64 +992,64 @@ block5(value17: uint32):
     #[test]
     fn test_loop_distribute_splits_local_sets() {
         let input = r#"
-function test(value0: uint32): void {
-    local local0: int32, owned
-    local local1: int32, owned
+function test(v0: uint32): void {
+    local l0: int32
+    local l1: int32
 
-entry0(value0: uint32):
-    value1: uint32 = 0uint32
-    value2: uint32 = 1uint32
-    jump block1(value1)
+entry(v0: uint32):
+    v1: uint32 = 0
+    v2: uint32 = 1
+    jump b1(v1)
 
-block1(value3: uint32):
-    value4: boolean = int.lt.u value3, value0
-    branch value4, block2(value3), block3()
+b1(v3: uint32):
+    v4: boolean = int.lt.u v3, v0
+    branch v4, b2(v3), b3
 
-block2(value5: uint32):
-    value6: int32 = 10int32
-    local.set local0, value6
-    value7: int32 = 20int32
-    local.set local1, value7
-    value8: uint32 = int.add value5, value2
-    jump block1(value8)
+b2(v5: uint32):
+    v6: int32 = 10
+    local.set l0, v6
+    v7: int32 = 20
+    local.set l1, v7
+    v8: uint32 = int.add v5, v2
+    jump b1(v8)
 
-block3:
+b3:
     return
 }
 "#;
 
         let expected = r#"
-function test(value0: uint32): void {
-    local local0: int32, owned
-    local local1: int32, owned
+function test(v0: uint32): void {
+    local l0: int32
+    local l1: int32
 
-entry0(value0: uint32):
-    value1: uint32 = 0uint32
-    value2: uint32 = 1uint32
-    jump block1(value1)
+entry(v0: uint32):
+    v1: uint32 = 0
+    v2: uint32 = 1
+    jump b1(v1)
 
-block1(value3: uint32):
-    value4: boolean = int.lt.u value3, value0
-    branch value4, block2(value3), block4(value1)
+b1(v3: uint32):
+    v4: boolean = int.lt.u v3, v0
+    branch v4, b2(v3), b4(v1)
 
-block2(value5: uint32):
-    value6: int32 = 10int32
-    local.set local0, value6
-    value8: uint32 = int.add value5, value2
-    jump block1(value8)
+b2(v5: uint32):
+    v6: int32 = 10
+    local.set l0, v6
+    v8: uint32 = int.add v5, v2
+    jump b1(v8)
 
-block3:
+b3:
     return
 
-block4(value9: uint32):
-    value10: boolean = int.lt.u value9, value0
-    branch value10, block5(value9), block3()
+b4(v9: uint32):
+    v10: boolean = int.lt.u v9, v0
+    branch v10, b5(v9), b3
 
-block5(value11: uint32):
-    value13: int32 = 20int32
-    local.set local1, value13
-    value14: uint32 = int.add value11, value2
-    jump block4(value14)
+b5(v11: uint32):
+    v13: int32 = 20
+    local.set l1, v13
+    v14: uint32 = int.add v11, v2
+    jump b4(v14)
 }
 "#;
 
@@ -1062,26 +1062,26 @@ block5(value11: uint32):
     #[test]
     fn test_loop_distribute_skips_header_load() {
         let input = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: uint32 = 0uint32
-    value3: uint32 = 1uint32
-    jump block1(value2)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: uint32 = 0
+    v3: uint32 = 1
+    jump b1(v2)
 
-block1(value4: uint32):
-    value5: int32 = load value1
-    value6: boolean = int.lt.u value4, value0
-    branch value6, block2(value4), block3()
+b1(v4: uint32):
+    v5: int32 = load v1
+    v6: boolean = int.lt.u v4, v0
+    branch v6, b2(v4), b3
 
-block2(value7: uint32):
-    value8: ref<int32, raw, space(frame)> = element.address value1, value7
-    value9: int32 = 1int32
-    store value8, value9
-    value10: uint32 = int.add value7, value3
-    jump block1(value10)
+b2(v7: uint32):
+    v8: ref<int32, raw, space(frame)> = element.address v1, v7
+    v9: int32 = 1
+    store v8, v9
+    v10: uint32 = int.add v7, v3
+    jump b1(v10)
 
-block3:
+b3:
     return
 }
 "#;
@@ -1095,25 +1095,25 @@ block3:
     #[test]
     fn test_loop_distribute_skips_single_group() {
         let input = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: uint32 = 0uint32
-    value3: uint32 = 1uint32
-    jump block1(value2)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: uint32 = 0
+    v3: uint32 = 1
+    jump b1(v2)
 
-block1(value4: uint32):
-    value5: boolean = int.lt.u value4, value0
-    branch value5, block2(value4), block3()
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v0
+    branch v5, b2(v4), b3
 
-block2(value6: uint32):
-    value7: ref<int32, raw, space(frame)> = element.address value1, value6
-    value8: int32 = 1int32
-    store value7, value8
-    value9: uint32 = int.add value6, value3
-    jump block1(value9)
+b2(v6: uint32):
+    v7: ref<int32, raw, space(frame)> = element.address v1, v6
+    v8: int32 = 1
+    store v7, v8
+    v9: uint32 = int.add v6, v3
+    jump b1(v9)
 
-block3:
+b3:
     return
 }
 "#;
@@ -1127,55 +1127,55 @@ block3:
     #[test]
     fn test_loop_distribute_skips_missing_preheader() {
         let input = r#"
-function test(value0: boolean, value1: uint32): void {
-entry0(value0: boolean, value1: uint32):
-    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    branch value0, block2(value3), block1(value3)
+function test(v0: boolean, v1: uint32): void {
+entry(v0: boolean, v1: uint32):
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: uint32 = 0
+    v4: uint32 = 1
+    branch v0, b2(v3), b1(v3)
 
-block1(value5: uint32):
-    jump block2(value5)
+b1(v5: uint32):
+    jump b2(v5)
 
-block2(value6: uint32):
-    value7: boolean = int.lt.u value6, value1
-    branch value7, block3(value6), block4()
+b2(v6: uint32):
+    v7: boolean = int.lt.u v6, v1
+    branch v7, b3(v6), b4
 
-block3(value8: uint32):
-    value9: ref<int32, raw, space(frame)> = element.address value2, value8
-    value10: int32 = 1int32
-    store value9, value10
-    value11: uint32 = int.add value8, value4
-    jump block2(value11)
+b3(v8: uint32):
+    v9: ref<int32, raw, space(frame)> = element.address v2, v8
+    v10: int32 = 1
+    store v9, v10
+    v11: uint32 = int.add v8, v4
+    jump b2(v11)
 
-block4:
+b4:
     return
 }
 "#;
 
         let expected = r#"
-function test(value0: boolean, value1: uint32): void {
-entry0(value0: boolean, value1: uint32):
-    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    branch value0, block2(value3), block1(value3)
+function test(v0: boolean, v1: uint32): void {
+entry(v0: boolean, v1: uint32):
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: uint32 = 0
+    v4: uint32 = 1
+    branch v0, b2(v3), b1(v3)
 
-block1(value5: uint32):
-    jump block2(value5)
+b1(v5: uint32):
+    jump b2(v5)
 
-block2(value6: uint32):
-    value7: boolean = int.lt.u value6, value1
-    branch value7, block3(value6), block4()
+b2(v6: uint32):
+    v7: boolean = int.lt.u v6, v1
+    branch v7, b3(v6), b4
 
-block3(value8: uint32):
-    value9: ref<int32, raw, space(frame)> = element.address value2, value8
-    value10: int32 = 1int32
-    store value9, value10
-    value11: uint32 = int.add value8, value4
-    jump block2(value11)
+b3(v8: uint32):
+    v9: ref<int32, raw, space(frame)> = element.address v2, v8
+    v10: int32 = 1
+    store v9, v10
+    v11: uint32 = int.add v8, v4
+    jump b2(v11)
 
-block4:
+b4:
     return
 }
 "#;
@@ -1189,30 +1189,30 @@ block4:
     #[test]
     fn test_loop_distribute_skips_unassigned_instruction() {
         let input = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    jump block1(value3)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: uint32 = 0
+    v4: uint32 = 1
+    jump b1(v3)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value0
-    branch value6, block2(value5), block3()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v0
+    branch v6, b2(v5), b3
 
-block2(value7: uint32):
-    value8: ref<int32, raw, space(frame)> = element.address value1, value7
-    value9: int32 = 1int32
-    store value8, value9
-    value10: ref<int32, raw, space(frame)> = element.address value2, value7
-    value11: int32 = 2int32
-    store value10, value11
-    value12: uint32 = int.add value7, value4
-    value13: uint32 = int.add value12, value4
-    jump block1(value12)
+b2(v7: uint32):
+    v8: ref<int32, raw, space(frame)> = element.address v1, v7
+    v9: int32 = 1
+    store v8, v9
+    v10: ref<int32, raw, space(frame)> = element.address v2, v7
+    v11: int32 = 2
+    store v10, v11
+    v12: uint32 = int.add v7, v4
+    v13: uint32 = int.add v12, v4
+    jump b1(v12)
 
-block3:
+b3:
     return
 }
 "#;
@@ -1226,28 +1226,28 @@ block3:
     #[test]
     fn test_loop_distribute_skips_shared_group_instructions() {
         let input = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    jump block1(value3)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: uint32 = 0
+    v4: uint32 = 1
+    jump b1(v3)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value0
-    branch value6, block2(value5), block3()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v0
+    branch v6, b2(v5), b3
 
-block2(value7: uint32):
-    value8: ref<int32, raw, space(frame)> = element.address value1, value7
-    value9: uint32 = int.add value7, value4
-    store value8, value9
-    value10: ref<int32, raw, space(frame)> = element.address value2, value7
-    store value10, value9
-    value11: uint32 = int.add value7, value4
-    jump block1(value11)
+b2(v7: uint32):
+    v8: ref<int32, raw, space(frame)> = element.address v1, v7
+    v9: uint32 = int.add v7, v4
+    store v8, v9
+    v10: ref<int32, raw, space(frame)> = element.address v2, v7
+    store v10, v9
+    v11: uint32 = int.add v7, v4
+    jump b1(v11)
 
-block3:
+b3:
     return
 }
 "#;
@@ -1261,25 +1261,25 @@ block3:
     #[test]
     fn test_loop_distribute_skips_exit_arguments() {
         let input = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: uint32 = 0uint32
-    value3: uint32 = 1uint32
-    jump block1(value2)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: uint32 = 0
+    v3: uint32 = 1
+    jump b1(v2)
 
-block1(value4: uint32):
-    value5: boolean = int.lt.u value4, value0
-    branch value5, block2(value4), block3(value4)
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v0
+    branch v5, b2(v4), b3(v4)
 
-block2(value6: uint32):
-    value7: ref<int32, raw, space(frame)> = element.address value1, value6
-    value8: int32 = 1int32
-    store value7, value8
-    value9: uint32 = int.add value6, value3
-    jump block1(value9)
+b2(v6: uint32):
+    v7: ref<int32, raw, space(frame)> = element.address v1, v6
+    v8: int32 = 1
+    store v7, v8
+    v9: uint32 = int.add v6, v3
+    jump b1(v9)
 
-block3(value10: uint32):
+b3(v10: uint32):
     return
 }
 "#;
@@ -1293,28 +1293,28 @@ block3(value10: uint32):
     #[test]
     fn test_loop_distribute_skips_multi_block_loop() {
         let input = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: uint32 = 0uint32
-    value3: uint32 = 1uint32
-    jump block1(value2)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: uint32 = 0
+    v3: uint32 = 1
+    jump b1(v2)
 
-block1(value4: uint32):
-    value5: boolean = int.lt.u value4, value0
-    branch value5, block2(value4), block4()
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v0
+    branch v5, b2(v4), b4
 
-block2(value6: uint32):
-    value7: ref<int32, raw, space(frame)> = element.address value1, value6
-    value8: int32 = 1int32
-    store value7, value8
-    jump block3(value6)
+b2(v6: uint32):
+    v7: ref<int32, raw, space(frame)> = element.address v1, v6
+    v8: int32 = 1
+    store v7, v8
+    jump b3(v6)
 
-block3(value9: uint32):
-    value10: uint32 = int.add value9, value3
-    jump block1(value10)
+b3(v9: uint32):
+    v10: uint32 = int.add v9, v3
+    jump b1(v10)
 
-block4:
+b4:
     return
 }
 "#;
@@ -1328,25 +1328,25 @@ block4:
     #[test]
     fn test_loop_distribute_skips_non_jump_latch() {
         let input = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: uint32 = 0uint32
-    value3: uint32 = 1uint32
-    jump block1(value2)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: uint32 = 0
+    v3: uint32 = 1
+    jump b1(v2)
 
-block1(value4: uint32):
-    value5: boolean = int.lt.u value4, value0
-    branch value5, block2(value4), block3()
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v0
+    branch v5, b2(v4), b3
 
-block2(value6: uint32):
-    value7: ref<int32, raw, space(frame)> = element.address value1, value6
-    value8: int32 = 1int32
-    store value7, value8
-    value9: boolean = int.lt.u value6, value0
-    branch value9, block1(value6), block3()
+b2(v6: uint32):
+    v7: ref<int32, raw, space(frame)> = element.address v1, v6
+    v8: int32 = 1
+    store v7, v8
+    v9: boolean = int.lt.u v6, v0
+    branch v9, b1(v6), b3
 
-block3:
+b3:
     return
 }
 "#;

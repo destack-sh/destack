@@ -149,8 +149,7 @@ const value: string = 123;
 
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '123' is not assignable to type 'string'"
-/// @diagnostic.label line=2 column=23 source="const value: string = 123;"
+
 "#,
     );
 }

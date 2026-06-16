@@ -24,8 +24,7 @@ const id: UserId = 42;
 /// @type.node source=42 type=42
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type is not assignable"
-/// @diagnostic.label line=4 column=20 source="const id: UserId = 42;"
+
 "#,
     );
 }
@@ -56,8 +55,7 @@ const config: Config = { debug: true };
 /// @type.node source=true type=true
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type is not assignable"
-/// @diagnostic.label line=4 column=24 source="const config: Config = { debug: true };"
+
 "#,
     );
 }

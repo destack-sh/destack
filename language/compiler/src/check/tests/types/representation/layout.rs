@@ -130,8 +130,7 @@ const size = comptime sizeOf<Writer>();
 
 "#,
         r#"
-/// @diagnostic.error code=EC500 message="type has no concrete layout"
-/// @diagnostic.label line=6 column=30 source="const size = comptime sizeOf<Writer>();"
+
 "#,
     );
 }

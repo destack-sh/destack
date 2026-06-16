@@ -25,30 +25,30 @@ function fibonacci(n: number): number {
         module_id,
         "native",
         r#"
-function fibonacci(value0: float64): float64 {
-entry0(value0: float64):
-    value1: int32 = 2int32
-    value2: float64 = cast.intToFloat.s value1 -> float64
-    value3: boolean = float.lt value0, value2
-    branch value3, block1, block2
+function fibonacci(v0: float64): float64 {
+entry(v0: float64):
+    v1: int32 = 2
+    v2: float64 = cast.intToFloat.s v1 -> float64
+    v3: boolean = float.lt v0, v2
+    branch v3, b1, b2
 
-block1:
-    return value0
+b1:
+    return v0
 
-block2:
-    jump block3
+b2:
+    jump b3
 
-block3:
-    value6: int32 = 1int32
-    value7: float64 = cast.intToFloat.s value6 -> float64
-    value8: float64 = float.sub value0, value7
-    value9: float64 = call fibonacci(value8): (float64) -> float64
-    value10: int32 = 2int32
-    value11: float64 = cast.intToFloat.s value10 -> float64
-    value12: float64 = float.sub value0, value11
-    value13: float64 = call fibonacci(value12): (float64) -> float64
-    value14: float64 = float.add value9, value13
-    return value14
+b3:
+    v6: int32 = 1
+    v7: float64 = cast.intToFloat.s v6 -> float64
+    v8: float64 = float.sub v0, v7
+    v9: float64 = call fibonacci(v8)
+    v10: int32 = 2
+    v11: float64 = cast.intToFloat.s v10 -> float64
+    v12: float64 = float.sub v0, v11
+    v13: float64 = call fibonacci(v12)
+    v14: float64 = float.add v9, v13
+    return v14
 }
 "#,
     );

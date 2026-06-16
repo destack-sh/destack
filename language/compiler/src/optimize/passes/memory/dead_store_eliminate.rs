@@ -738,25 +738,25 @@ mod tests {
     fn test_remove_overwritten_store() {
         let input = r#"
 function test(): int32 {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: int32 = 1int32
-    store value0, value1
-    value2: int32 = 2int32
-    store value0, value2
-    value3: int32 = load value0
-    return value3
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: int32 = 1
+    store v0, v1
+    v2: int32 = 2
+    store v0, v2
+    v3: int32 = load v0
+    return v3
 }
 "#;
         let expected = r#"
 function test(): int32 {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: int32 = 1int32
-    value2: int32 = 2int32
-    store value0, value2
-    value3: int32 = load value0
-    return value3
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: int32 = 1
+    v2: int32 = 2
+    store v0, v2
+    v3: int32 = load v0
+    return v3
 }
 "#;
 
@@ -772,15 +772,15 @@ entry0:
     fn test_preserve_read_store() {
         let input = r#"
 function test(): int32 {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: int32 = 1int32
-    store value0, value1
-    value2: int32 = load value0
-    value3: int32 = 2int32
-    store value0, value3
-    value4: int32 = load value0
-    return value4
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: int32 = 1
+    store v0, v1
+    v2: int32 = load v0
+    v3: int32 = 2
+    store v0, v3
+    v4: int32 = load v0
+    return v4
 }
 "#;
 
@@ -796,21 +796,21 @@ entry0:
     fn test_remove_store_to_unused_alloc() {
         let input = r#"
 function test(): int32 {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: int32 = 42int32
-    store value0, value1
-    value2: int32 = 0int32
-    return value2
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: int32 = 42
+    store v0, v1
+    v2: int32 = 0
+    return v2
 }
 "#;
         let expected = r#"
 function test(): int32 {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: int32 = 42int32
-    value2: int32 = 0int32
-    return value2
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: int32 = 42
+    v2: int32 = 0
+    return v2
 }
 "#;
 
@@ -824,14 +824,14 @@ entry0:
     fn test_preserve_volatile_store() {
         let input = r#"
 function test(): int32 {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: int32 = 1int32
-    store value0, value1
-    value2: int32 = 2int32
-    store value0, value2
-    value3: int32 = load value0
-    return value3
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: int32 = 1
+    store v0, v1
+    v2: int32 = 2
+    store v0, v2
+    v3: int32 = load v0
+    return v3
 }
 "#;
 
@@ -859,11 +859,11 @@ entry0:
 external function imported(ref<int32, raw>): void
 
 function test(): void {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: int32 = 42int32
-    store value0, value1
-    call imported(value0): (ref<int32, raw>) -> void
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: int32 = 42
+    store v0, v1
+    call imported(v0)
     return
 }
 "#;
@@ -880,25 +880,25 @@ entry0:
 external function imported(ref<int32, raw>): void
 
 function test(): int32 {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: int32 = 42int32
-    store value0, value1
-    call imported(value0): (ref<int32, raw>) -> void
-    value2: int32 = 0int32
-    return value2
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: int32 = 42
+    store v0, v1
+    call imported(v0)
+    v2: int32 = 0
+    return v2
 }
 "#;
         let expected = r#"
 external function imported(ref<int32, raw>): void
 
 function test(): int32 {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: int32 = 42int32
-    call imported(value0): (ref<int32, raw>) -> void
-    value2: int32 = 0int32
-    return value2
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: int32 = 42
+    call imported(v0)
+    v2: int32 = 0
+    return v2
 }
 "#;
 
@@ -930,28 +930,28 @@ entry0:
     fn test_multiple_overwrites() {
         let input = r#"
 function test(): int32 {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: int32 = 1int32
-    store value0, value1
-    value2: int32 = 2int32
-    store value0, value2
-    value3: int32 = 3int32
-    store value0, value3
-    value4: int32 = load value0
-    return value4
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: int32 = 1
+    store v0, v1
+    v2: int32 = 2
+    store v0, v2
+    v3: int32 = 3
+    store v0, v3
+    v4: int32 = load v0
+    return v4
 }
 "#;
         let expected = r#"
 function test(): int32 {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: int32 = 1int32
-    value2: int32 = 2int32
-    value3: int32 = 3int32
-    store value0, value3
-    value4: int32 = load value0
-    return value4
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: int32 = 1
+    v2: int32 = 2
+    v3: int32 = 3
+    store v0, v3
+    v4: int32 = load v0
+    return v4
 }
 "#;
 
@@ -967,9 +967,9 @@ entry0:
     fn test_no_changes() {
         let input = r#"
 function test(): int32 {
-entry0:
-    value0: int32 = 42int32
-    return value0
+entry:
+    v0: int32 = 42
+    return v0
 }
 "#;
 
@@ -985,17 +985,17 @@ entry0:
     fn test_different_locations() {
         let input = r#"
 function test(): int32 {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: int32 = 1int32
-    store value0, value2
-    value3: int32 = 2int32
-    store value1, value3
-    value4: int32 = load value0
-    value5: int32 = load value1
-    value6: int32 = int.add value4, value5
-    return value6
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: int32 = 1
+    store v0, v2
+    v3: int32 = 2
+    store v1, v3
+    v4: int32 = load v0
+    v5: int32 = load v1
+    v6: int32 = int.add v4, v5
+    return v6
 }
 "#;
 
@@ -1014,12 +1014,12 @@ entry0:
 external function readValue(ref<int32, raw>): int32
 
 function test(): int32 {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: int32 = 42int32
-    store value0, value1
-    value2: int32 = call readValue(value0): (ref<int32, raw>) -> int32
-    return value2
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: int32 = 42
+    store v0, v1
+    v2: int32 = call readValue(v0)
+    return v2
 }
 "#;
 
@@ -1038,29 +1038,29 @@ entry0:
 external function sideEffect(): void
 
 function test(): int32 {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    call sideEffect(): () -> void
-    value1: int32 = 1int32
-    store value0, value1
-    value2: int32 = 2int32
-    store value0, value2
-    value3: int32 = load value0
-    return value3
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    call sideEffect()
+    v1: int32 = 1
+    store v0, v1
+    v2: int32 = 2
+    store v0, v2
+    v3: int32 = load v0
+    return v3
 }
 "#;
         let expected = r#"
 external function sideEffect(): void
 
 function test(): int32 {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    call sideEffect(): () -> void
-    value1: int32 = 1int32
-    value2: int32 = 2int32
-    store value0, value2
-    value3: int32 = load value0
-    return value3
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    call sideEffect()
+    v1: int32 = 1
+    v2: int32 = 2
+    store v0, v2
+    v3: int32 = load v0
+    return v3
 }
 "#;
 
@@ -1076,11 +1076,11 @@ entry0:
     fn test_preserve_store_to_returned() {
         let input = r#"
 function test(): ref<int32, raw> {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: int32 = 42int32
-    store value0, value1
-    return value0
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: int32 = 42
+    store v0, v1
+    return v0
 }
 "#;
 
@@ -1094,13 +1094,13 @@ entry0:
     fn test_preserve_store_returned_aggregate() {
         let input = r#"
 function test(): (ref<int32, raw>, int32) {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: int32 = 42int32
-    store value0, value1
-    value2: int32 = 0int32
-    value3: (ref<int32, raw>, int32) = tuple (ref<int32, raw>, int32) (value0, value2)
-    return value3
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: int32 = 42
+    store v0, v1
+    v2: int32 = 0
+    v3: (ref<int32, raw>, int32) = tuple (ref<int32, raw>, int32) (v0, v2)
+    return v3
 }
 "#;
 
@@ -1118,14 +1118,14 @@ type Pair {
     int32;
 }
 
-function test(value0: ref<Pair, raw>): void {
-entry0(value0: ref<Pair, raw>):
-    value1: ref<int32, borrowed> = field.address value0, 0
-    value2: ref<int32, borrowed> = field.address value0, 1
-    value3: int32 = 1int32
-    value4: int32 = 2int32
-    store value1, value3
-    store value2, value4
+function test(v0: ref<Pair, raw>): void {
+entry(v0: ref<Pair, raw>):
+    v1: ref<int32, borrowed> = field.address v0, 0
+    v2: ref<int32, borrowed> = field.address v0, 1
+    v3: int32 = 1
+    v4: int32 = 2
+    store v1, v3
+    store v2, v4
     return
 }
 "#;
@@ -1140,13 +1140,13 @@ entry0(value0: ref<Pair, raw>):
     fn test_preserve_partial_overwrite() {
         let input = r#"
 function test(): ref<int64, raw> {
-entry0:
-    value0: ref<int64, raw, space(frame)> = frame.alloc.zeroed int64
-    value1: int64 = 0int64
-    store value0, value1
-    value2: int32 = 1int32
-    store value0, value2
-    return value0
+entry:
+    v0: ref<int64, raw, space(frame)> = frame.alloc.zeroed int64
+    v1: int64 = 0
+    store v0, v1
+    v2: int32 = 1
+    store v0, v2
+    return v0
 }
 "#;
 
@@ -1169,20 +1169,20 @@ entry0:
     fn test_remove_dead_memset() {
         let input = r#"
 function test(): void {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: int8 = 0int8
-    value2: int64 = 4int64
-    intrinsic.memory.raw.setBytes(value0, value1, value2)
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: int8 = 0
+    v2: int64 = 4
+    intrinsic.memory.raw.setBytes(v0, v1, v2)
     return
 }
 "#;
         let expected = r#"
 function test(): void {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: int8 = 0int8
-    value2: int64 = 4int64
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: int8 = 0
+    v2: int64 = 4
     return
 }
 "#;
@@ -1197,13 +1197,13 @@ entry0:
     fn test_preserve_memset_with_read() {
         let input = r#"
 function test(): int32 {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: int8 = 0int8
-    value2: int64 = 4int64
-    intrinsic.memory.raw.setBytes(value0, value1, value2)
-    value3: int32 = load value0
-    return value3
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: int8 = 0
+    v2: int64 = 4
+    intrinsic.memory.raw.setBytes(v0, v1, v2)
+    v3: int32 = load v0
+    return v3
 }
 "#;
         let expected = input;
@@ -1219,20 +1219,20 @@ entry0:
         // input test
         let input = r#"
 function test(): void {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: int64 = 4int64
-    intrinsic.memory.raw.copyBytes(value0, value1, value2)
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: int64 = 4
+    intrinsic.memory.raw.copyBytes(v0, v1, v2)
     return
 }
 "#;
         let expected = r#"
 function test(): void {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: int64 = 4int64
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: int64 = 4
     return
 }
 "#;
@@ -1249,13 +1249,13 @@ entry0:
         // input test
         let input = r#"
 function test(): int32 {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: int64 = 4int64
-    intrinsic.memory.raw.copyBytes(value0, value1, value2)
-    value3: int32 = load value0
-    return value3
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: int64 = 4
+    intrinsic.memory.raw.copyBytes(v0, v1, v2)
+    v3: int32 = load v0
+    return v3
 }
 "#;
         let expected = input;
@@ -1272,20 +1272,20 @@ entry0:
         // input test
         let input = r#"
 function test(): void {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: int64 = 4int64
-    intrinsic.memory.raw.moveBytes(value0, value1, value2)
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: int64 = 4
+    intrinsic.memory.raw.moveBytes(v0, v1, v2)
     return
 }
 "#;
         let expected = r#"
 function test(): void {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: int64 = 4int64
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: int64 = 4
     return
 }
 "#;
@@ -1302,13 +1302,13 @@ entry0:
         // input test
         let input = r#"
 function test(): int32 {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: int64 = 4int64
-    intrinsic.memory.raw.moveBytes(value0, value1, value2)
-    value3: int32 = load value0
-    return value3
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: int64 = 4
+    intrinsic.memory.raw.moveBytes(v0, v1, v2)
+    v3: int32 = load v0
+    return v3
 }
 "#;
         let expected = input;
@@ -1329,16 +1329,16 @@ type Point {
     int32;
 }
 
-function test(value0: ref<Point, raw>): void {
-entry0(value0: ref<Point, raw>):
-    value1: int32 = 1int32
-    value2: int32 = 2int32
-    value3: Point = struct Point (value1, value2)
-    store value0, value3
-    value4: int32 = 3int32
-    value5: int32 = 4int32
-    value6: Point = struct Point (value4, value5)
-    store value0, value6
+function test(v0: ref<Point, raw>): void {
+entry(v0: ref<Point, raw>):
+    v1: int32 = 1
+    v2: int32 = 2
+    v3: Point = struct Point (v1, v2)
+    store v0, v3
+    v4: int32 = 3
+    v5: int32 = 4
+    v6: Point = struct Point (v4, v5)
+    store v0, v6
     return
 }
 "#;
@@ -1378,31 +1378,31 @@ entry0(value0: ref<Point, raw>):
     fn test_cross_block_overwritten() {
         let input = r#"
 function test(): int32 {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: int32 = 1int32
-    store value0, value1
-    jump block1()
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: int32 = 1
+    store v0, v1
+    jump b1
 
-block1:
-    value2: int32 = 2int32
-    store value0, value2
-    value3: int32 = load value0
-    return value3
+b1:
+    v2: int32 = 2
+    store v0, v2
+    v3: int32 = load v0
+    return v3
 }
 "#;
         let expected = r#"
 function test(): int32 {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: int32 = 1int32
-    jump block1()
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: int32 = 1
+    jump b1
 
-block1:
-    value2: int32 = 2int32
-    store value0, value2
-    value3: int32 = load value0
-    return value3
+b1:
+    v2: int32 = 2
+    store v0, v2
+    v3: int32 = load v0
+    return v3
 }
 "#;
 
@@ -1417,22 +1417,22 @@ block1:
     #[test]
     fn test_preserve_cross_block_read_on_path() {
         let input = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: int32 = 1int32
-    store value1, value2
-    branch value0, block1(), block2()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: int32 = 1
+    store v1, v2
+    branch v0, b1, b2
 
-block1:
-    value3: int32 = load value1
-    return value3
+b1:
+    v3: int32 = load v1
+    return v3
 
-block2:
-    value4: int32 = 2int32
-    store value1, value4
-    value5: int32 = load value1
-    return value5
+b2:
+    v4: int32 = 2
+    store v1, v4
+    v5: int32 = load v1
+    return v5
 }
 "#;
 
@@ -1448,17 +1448,17 @@ block2:
     #[test]
     fn test_preserve_switch_escape() {
         let input = r#"
-function test(value0: int32): void {
-entry0(value0: int32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: int32 = 42int32
-    store value1, value2
-    switch value0, block1(value1), 0 => block2()
+function test(v0: int32): void {
+entry(v0: int32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: int32 = 42
+    store v1, v2
+    switch v0, b1(v1), 0 -> b2
 
-block1(value3: ref<int32, raw>):
+b1(v3: ref<int32, raw>):
     return
 
-block2:
+b2:
     return
 }
 "#;

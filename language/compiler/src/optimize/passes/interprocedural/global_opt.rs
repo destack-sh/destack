@@ -583,24 +583,24 @@ mod tests {
     #[test]
     fn test_global_opt_marks_unwritten_global_readonly() {
         let input = r#"
-global value: int32 = 42int32
+global value: int32 = 42
 
 function root(): int32 {
-entry0:
-    value0: ref<int32, raw> = global.address value
-    value1: int32 = load value0
-    return value1
+entry:
+    v0: ref<int32, raw> = global.address value
+    v1: int32 = load v0
+    return v1
 }
 "#;
 
         let expected = r#"
-readonly global value: int32 = 42int32
+readonly global value: int32 = 42
 
 function root(): int32 {
-entry0:
-    value0: ref<int32, raw> = global.address value
-    value1: int32 = load value0
-    return value1
+entry:
+    v0: ref<int32, raw> = global.address value
+    v1: int32 = load v0
+    return v1
 }
 "#;
 
@@ -613,13 +613,13 @@ entry0:
     #[test]
     fn test_global_opt_skips_written_global() {
         let input = r#"
-global value: int32 = 0int32
+global value: int32 = 0
 
 function root(): void {
-entry0:
-    value0: ref<int32, raw> = global.address value
-    value1: int32 = 1int32
-    store value0, value1
+entry:
+    v0: ref<int32, raw> = global.address value
+    v1: int32 = 1
+    store v0, v1
     return
 }
 "#;
@@ -633,14 +633,14 @@ entry0:
     #[test]
     fn test_global_opt_skips_space_cast_store() {
         let input = r#"
-global value: int32 = 0int32
+global value: int32 = 0
 
 function root(): void {
-entry0:
-    value0: ref<int32, raw> = global.address value
-    value1: ref<int32, raw> = intrinsic.space.cast(value0)
-    value2: int32 = 1int32
-    store value1, value2
+entry:
+    v0: ref<int32, raw> = global.address value
+    v1: ref<int32, raw> = intrinsic.space.cast(v0)
+    v2: int32 = 1
+    store v1, v2
     return
 }
 "#;
@@ -654,12 +654,12 @@ entry0:
     #[test]
     fn test_global_opt_skips_terminator_use() {
         let input = r#"
-global value: int32 = 42int32
+global value: int32 = 42
 
 function root(): ref<int32, raw> {
-entry0:
-    value0: ref<int32, raw> = global.address value
-    return value0
+entry:
+    v0: ref<int32, raw> = global.address value
+    return v0
 }
 "#;
 
@@ -672,25 +672,25 @@ entry0:
     #[test]
     fn test_global_opt_skips_call_terminator_global_write() {
         let input = r#"
-global value: int32 = 0int32
+global value: int32 = 0
 
-function write(value0: ref<int32, raw>): void {
-entry0(value0: ref<int32, raw>):
-    value1: int32 = 1int32
-    store value0, value1
+function write(v0: ref<int32, raw>): void {
+entry(v0: ref<int32, raw>):
+    v1: int32 = 1
+    store v0, v1
     return
 }
 
-function root(value0: ref<void, managed, readonly>): void {
-entry0(value0: ref<void, managed, readonly>):
-    value1: ref<int32, raw> = global.address value
-    call write(value1): (ref<int32, raw>) -> void -> block1()
+function root(v0: ref<void, managed, readonly>): void {
+entry(v0: ref<void, managed, readonly>):
+    v1: ref<int32, raw> = global.address value
+    call write(v1) -> b1
 
-block1:
+b1:
     return
 
-block2(value2: ref<void, managed, readonly>):
-    panic value2
+b2(v2: ref<void, managed, readonly>):
+    panic v2
 }
 "#;
 

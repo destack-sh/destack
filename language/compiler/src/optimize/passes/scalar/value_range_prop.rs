@@ -141,20 +141,20 @@ mod tests {
     fn test_value_range_prop_constant_comparison() {
         let input = r#"
 function test(): boolean {
-entry0:
-    value0: int32 = 1int32
-    value1: int32 = 2int32
-    value2: boolean = int.lt.s value0, value1
-    return value2
+entry:
+    v0: int32 = 1
+    v1: int32 = 2
+    v2: boolean = int.lt.s v0, v1
+    return v2
 }
 "#;
         let expected = r#"
 function test(): boolean {
-entry0:
-    value0: int32 = 1int32
-    value1: int32 = 2int32
-    value2: boolean = true
-    return value2
+entry:
+    v0: int32 = 1
+    v1: int32 = 2
+    v2: boolean = true
+    return v2
 }
 "#;
 
@@ -168,20 +168,20 @@ entry0:
     fn test_value_range_prop_constant_equals() {
         let input = r#"
 function test(): boolean {
-entry0:
-    value0: int32 = 4int32
-    value1: int32 = 4int32
-    value2: boolean = int.eq value0, value1
-    return value2
+entry:
+    v0: int32 = 4
+    v1: int32 = 4
+    v2: boolean = int.eq v0, v1
+    return v2
 }
 "#;
         let expected = r#"
 function test(): boolean {
-entry0:
-    value0: int32 = 4int32
-    value1: int32 = 4int32
-    value2: boolean = true
-    return value2
+entry:
+    v0: int32 = 4
+    v1: int32 = 4
+    v2: boolean = true
+    return v2
 }
 "#;
 
@@ -194,10 +194,10 @@ entry0:
     #[test]
     fn test_value_range_prop_preserves_non_constant() {
         let input = r#"
-function test(value0: int32, value1: int32): boolean {
-entry0(value0: int32, value1: int32):
-    value2: boolean = int.lt.s value0, value1
-    return value2
+function test(v0: int32, v1: int32): boolean {
+entry(v0: int32, v1: int32):
+    v2: boolean = int.lt.s v0, v1
+    return v2
 }
 "#;
 

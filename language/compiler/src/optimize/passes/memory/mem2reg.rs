@@ -22,12 +22,12 @@ declare_pass! {
     ///
     /// ```mir
     /// function before(v0: int32): int32 {
-    ///     local local0: int32, owned
+    ///     local l0: int32
     /// b0(v0: int32):
-    ///     local.set local0, v0
+    ///     local.set l0, v0
     ///     jump b1
     /// b1:
-    ///     v1 = local.get local0
+    ///     v1 = local.get l0
     ///     return v1
     /// }
     /// ```
@@ -1047,7 +1047,7 @@ fn update_terminator_arguments(
         mir::Terminator::Panic { payload } => mir::Terminator::Panic {
             payload: payload.map(|value| remap_value_reference(value, substitutions)),
         },
-        mir::Terminator::ResumeUnwind => mir::Terminator::ResumeUnwind,
+        mir::Terminator::UnwindResume => mir::Terminator::UnwindResume,
         mir::Terminator::Unreachable => mir::Terminator::Unreachable,
         mir::Terminator::TailCall { function, call } => mir::Terminator::TailCall {
             function: *function,
@@ -1168,19 +1168,19 @@ mod tests {
     #[test]
     fn test_promote_simple_local() {
         let input = r#"
-function test(value0: int32): int32 {
-    local local0: int32, owned
+function test(v0: int32): int32 {
+    local l0: int32
 
-entry0(value0: int32):
-    local.set local0, value0
-    value1: int32 = local.get local0
-    return value1
+entry(v0: int32):
+    local.set l0, v0
+    v1: int32 = local.get l0
+    return v1
 }
 "#;
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function test(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 "#;
 
@@ -1193,25 +1193,25 @@ entry0(value0: int32):
     #[test]
     fn test_promote_across_blocks() {
         let input = r#"
-function test(value0: int32): int32 {
-    local local0: int32, owned
+function test(v0: int32): int32 {
+    local l0: int32
 
-entry0(value0: int32):
-    local.set local0, value0
-    jump block1()
+entry(v0: int32):
+    local.set l0, v0
+    jump b1
 
-block1:
-    value1: int32 = local.get local0
-    return value1
+b1:
+    v1: int32 = local.get l0
+    return v1
 }
 "#;
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    jump block1()
+function test(v0: int32): int32 {
+entry(v0: int32):
+    jump b1
 
-block1:
-    return value0
+b1:
+    return v0
 }
 "#;
 
@@ -1224,45 +1224,45 @@ block1:
     #[test]
     fn test_promote_in_diamond_cfg() {
         let input = r#"
-function test(value0: boolean, value1: int32): int32 {
-    local local0: int32, owned
+function test(v0: boolean, v1: int32): int32 {
+    local l0: int32
 
-entry0(value0: boolean, value1: int32):
-    local.set local0, value1
-    branch value0, block1(), block2()
+entry(v0: boolean, v1: int32):
+    local.set l0, v1
+    branch v0, b1, b2
 
-block1:
-    value2: int32 = 1int32
-    local.set local0, value2
-    jump block3()
+b1:
+    v2: int32 = 1
+    local.set l0, v2
+    jump b3
 
-block2:
-    value3: int32 = 2int32
-    local.set local0, value3
-    jump block3()
+b2:
+    v3: int32 = 2
+    local.set l0, v3
+    jump b3
 
-block3:
-    value4: int32 = local.get local0
-    return value4
+b3:
+    v4: int32 = local.get l0
+    return v4
 }
 "#;
         // block3 needs a block parameter for the different values from block1/block2
         // v4 is the new block parameter value allocated by the pass
         let expected = r#"
-function test(value0: boolean, value1: int32): int32 {
-entry0(value0: boolean, value1: int32):
-    branch value0, block1(), block2()
+function test(v0: boolean, v1: int32): int32 {
+entry(v0: boolean, v1: int32):
+    branch v0, b1, b2
 
-block1:
-    value2: int32 = 1int32
-    jump block3(value2)
+b1:
+    v2: int32 = 1
+    jump b3(v2)
 
-block2:
-    value3: int32 = 2int32
-    jump block3(value3)
+b2:
+    v3: int32 = 2
+    jump b3(v3)
 
-block3(value5: int32):
-    return value5
+b3(v5: int32):
+    return v5
 }
 "#;
 
@@ -1275,24 +1275,24 @@ block3(value5: int32):
     #[test]
     fn test_promote_multiple_locals() {
         let input = r#"
-function test(value0: int32, value1: int32): int32 {
-    local local0: int32, owned
-    local local1: int32, owned
+function test(v0: int32, v1: int32): int32 {
+    local l0: int32
+    local l1: int32
 
-entry0(value0: int32, value1: int32):
-    local.set local0, value0
-    local.set local1, value1
-    value2: int32 = local.get local0
-    value3: int32 = local.get local1
-    value4: int32 = int.add value2, value3
-    return value4
+entry(v0: int32, v1: int32):
+    local.set l0, v0
+    local.set l1, v1
+    v2: int32 = local.get l0
+    v3: int32 = local.get l1
+    v4: int32 = int.add v2, v3
+    return v4
 }
 "#;
         let expected = r#"
-function test(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value4: int32 = int.add value0, value1
-    return value4
+function test(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v4: int32 = int.add v0, v1
+    return v4
 }
 "#;
 
@@ -1305,9 +1305,9 @@ entry0(value0: int32, value1: int32):
     #[test]
     fn test_preserve_without_locals() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function test(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 "#;
 
@@ -1322,11 +1322,11 @@ entry0(value0: int32):
     fn test_panic_on_undefined_read() {
         let input = r#"
 function test(): int32 {
-    local local0: int32, owned
+    local l0: int32
 
-entry0:
-    value0: int32 = local.get local0
-    return value0
+entry:
+    v0: int32 = local.get l0
+    return v0
 }
 "#;
         // reading a local before writing is a bug in the MIR
@@ -1338,49 +1338,49 @@ entry0:
     #[test]
     fn test_promote_in_loop() {
         let input = r#"
-function test(value0: int32): int32 {
-    local local0: int32, owned
+function test(v0: int32): int32 {
+    local l0: int32
 
-entry0(value0: int32):
-    value1: int32 = 0int32
-    local.set local0, value1
-    jump block1()
+entry(v0: int32):
+    v1: int32 = 0
+    local.set l0, v1
+    jump b1
 
-block1:
-    value2: int32 = local.get local0
-    value3: boolean = int.lt.s value2, value0
-    branch value3, block2(), block3()
+b1:
+    v2: int32 = local.get l0
+    v3: boolean = int.lt.s v2, v0
+    branch v3, b2, b3
 
-block2:
-    value4: int32 = 1int32
-    value5: int32 = int.add value2, value4
-    local.set local0, value5
-    jump block1()
+b2:
+    v4: int32 = 1
+    v5: int32 = int.add v2, v4
+    local.set l0, v5
+    jump b1
 
-block3:
-    value6: int32 = local.get local0
-    return value6
+b3:
+    v6: int32 = local.get l0
+    return v6
 }
 "#;
         // b1 is at dominance frontier (join point from b0 and b2)
         // v0-v6 exist in input -> next_value_id = 7
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    jump block1(value1)
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    jump b1(v1)
 
-block1(value7: int32):
-    value3: boolean = int.lt.s value7, value0
-    branch value3, block2(), block3()
+b1(v7: int32):
+    v3: boolean = int.lt.s v7, v0
+    branch v3, b2, b3
 
-block2:
-    value4: int32 = 1int32
-    value5: int32 = int.add value7, value4
-    jump block1(value5)
+b2:
+    v4: int32 = 1
+    v5: int32 = int.add v7, v4
+    jump b1(v5)
 
-block3:
-    return value7
+b3:
+    return v7
 }
 "#;
 
@@ -1393,22 +1393,22 @@ block3:
     #[test]
     fn test_promote_with_multiple_defs() {
         let input = r#"
-function test(value0: int32): int32 {
-    local local0: int32, owned
+function test(v0: int32): int32 {
+    local l0: int32
 
-entry0(value0: int32):
-    local.set local0, value0
-    value1: int32 = 42int32
-    local.set local0, value1
-    value2: int32 = local.get local0
-    return value2
+entry(v0: int32):
+    local.set l0, v0
+    v1: int32 = 42
+    local.set l0, v1
+    v2: int32 = local.get l0
+    return v2
 }
 "#;
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 42int32
-    return value1
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 42
+    return v1
 }
 "#;
 
@@ -1421,28 +1421,28 @@ entry0(value0: int32):
     #[test]
     fn test_preserve_existing_block_params() {
         let input = r#"
-function test(value0: int32, value1: int32): int32 {
-    local local0: int32, owned
+function test(v0: int32, v1: int32): int32 {
+    local l0: int32
 
-entry0(value0: int32, value1: int32):
-    local.set local0, value0
-    jump block1(value1)
+entry(v0: int32, v1: int32):
+    local.set l0, v0
+    jump b1(v1)
 
-block1(value2: int32):
-    value3: int32 = local.get local0
-    value4: int32 = int.add value2, value3
-    return value4
+b1(v2: int32):
+    v3: int32 = local.get l0
+    v4: int32 = int.add v2, v3
+    return v4
 }
 "#;
-        // block1 keeps its existing parameter, local0 value is dominated by entry
+        // block1 keeps its existing parameter, l0 value is dominated by entry
         let expected = r#"
-function test(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    jump block1(value1)
+function test(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    jump b1(v1)
 
-block1(value2: int32):
-    value4: int32 = int.add value2, value0
-    return value4
+b1(v2: int32):
+    v4: int32 = int.add v2, v0
+    return v4
 }
 "#;
 
@@ -1455,48 +1455,48 @@ block1(value2: int32):
     #[test]
     fn test_promote_with_switch() {
         let input = r#"
-function test(value0: int32): int32 {
-    local local0: int32, owned
+function test(v0: int32): int32 {
+    local l0: int32
 
-entry0(value0: int32):
-    value1: int32 = 10int32
-    local.set local0, value1
-    switch value0, block3(), 0 => block1(), 1 => block2()
+entry(v0: int32):
+    v1: int32 = 10
+    local.set l0, v1
+    switch v0, b3, 0 -> b1, 1 -> b2
 
-block1:
-    value2: int32 = 100int32
-    local.set local0, value2
-    jump block3()
+b1:
+    v2: int32 = 100
+    local.set l0, v2
+    jump b3
 
-block2:
-    value3: int32 = 200int32
-    local.set local0, value3
-    jump block3()
+b2:
+    v3: int32 = 200
+    local.set l0, v3
+    jump b3
 
-block3:
-    value4: int32 = local.get local0
-    return value4
+b3:
+    v4: int32 = local.get l0
+    return v4
 }
 "#;
         // b3 is join point with 3 predecessors (b0, b1, b2)
         // v0-v4 exist in input -> next_value_id = 5
         // new block parameter is v5
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 10int32
-    switch value0, block3(value1), 0 => block1(), 1 => block2()
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 10
+    switch v0, b3(v1), 0 -> b1, 1 -> b2
 
-block1:
-    value2: int32 = 100int32
-    jump block3(value2)
+b1:
+    v2: int32 = 100
+    jump b3(v2)
 
-block2:
-    value3: int32 = 200int32
-    jump block3(value3)
+b2:
+    v3: int32 = 200
+    jump b3(v3)
 
-block3(value5: int32):
-    return value5
+b3(v5: int32):
+    return v5
 }
 "#;
 
@@ -1512,13 +1512,13 @@ block3(value5: int32):
 external function sink(int32): void
 
 function test(): void {
-    local local0: int32, owned
+    local l0: int32
 
-entry0:
-    value0: int32 = 7int32
-    local.set local0, value0
-    value1: int32 = local.get local0
-    call sink(value1): (int32) -> void
+entry:
+    v0: int32 = 7
+    local.set l0, v0
+    v1: int32 = local.get l0
+    call sink(v1)
     return
 }
 "#;
@@ -1526,9 +1526,9 @@ entry0:
 external function sink(int32): void
 
 function test(): void {
-entry0:
-    value0: int32 = 7int32
-    call sink(value0): (int32) -> void
+entry:
+    v0: int32 = 7
+    call sink(v0)
     return
 }
 "#;

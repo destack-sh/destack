@@ -373,36 +373,36 @@ mod tests {
     #[test]
     fn test_ip_constant_prop_inserts_constants() {
         let input = r#"
-function callee(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    return value2
+function callee(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    return v2
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 40int32
-    value1: int32 = 2int32
-    value2: int32 = call callee(value0, value1): (int32, int32) -> int32
-    return value2
+entry:
+    v0: int32 = 40
+    v1: int32 = 2
+    v2: int32 = call callee(v0, v1)
+    return v2
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value3: int32 = 40int32
-    value4: int32 = 2int32
-    value2: int32 = int.add value3, value4
-    return value2
+function callee(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v3: int32 = 40
+    v4: int32 = 2
+    v2: int32 = int.add v3, v4
+    return v2
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 40int32
-    value1: int32 = 2int32
-    value2: int32 = call callee(value0, value1): (int32, int32) -> int32
-    return value2
+entry:
+    v0: int32 = 40
+    v1: int32 = 2
+    v2: int32 = call callee(v0, v1)
+    return v2
 }
 "#;
 
@@ -415,46 +415,46 @@ entry0:
     #[test]
     fn test_ip_constant_prop_skips_mismatched_constants() {
         let input = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = int.add value0, value0
-    return value1
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = int.add v0, v0
+    return v1
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 1int32
-    value1: int32 = call callee(value0): (int32) -> int32
-    return value1
+entry:
+    v0: int32 = 1
+    v1: int32 = call callee(v0)
+    return v1
 }
 
 function other(): int32 {
-entry0:
-    value0: int32 = 2int32
-    value1: int32 = call callee(value0): (int32) -> int32
-    return value1
+entry:
+    v0: int32 = 2
+    v1: int32 = call callee(v0)
+    return v1
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = int.add value0, value0
-    return value1
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = int.add v0, v0
+    return v1
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 1int32
-    value1: int32 = call callee(value0): (int32) -> int32
-    return value1
+entry:
+    v0: int32 = 1
+    v1: int32 = call callee(v0)
+    return v1
 }
 
 function other(): int32 {
-entry0:
-    value0: int32 = 2int32
-    value1: int32 = call callee(value0): (int32) -> int32
-    return value1
+entry:
+    v0: int32 = 2
+    v1: int32 = call callee(v0)
+    return v1
 }
 "#;
 
@@ -467,34 +467,34 @@ entry0:
     #[test]
     fn test_ip_constant_prop_skips_indirect_signature() {
         let input = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = int.add value0, value0
-    return value1
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = int.add v0, v0
+    return v1
 }
 
-function root(value0: (int32) -> int32, value1: int32): int32 {
-entry0(value0: (int32) -> int32, value1: int32):
-    value2: int32 = call.indirect value0(value1): (int32) -> int32
-    value3: int32 = 4int32
-    value4: int32 = call callee(value3): (int32) -> int32
-    return value4
+function root(v0: (int32) -> int32, v1: int32): int32 {
+entry(v0: (int32) -> int32, v1: int32):
+    v2: int32 = call.indirect v0(v1): (int32) -> int32
+    v3: int32 = 4
+    v4: int32 = call callee(v3)
+    return v4
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = int.add value0, value0
-    return value1
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = int.add v0, v0
+    return v1
 }
 
-function root(value0: (int32) -> int32, value1: int32): int32 {
-entry0(value0: (int32) -> int32, value1: int32):
-    value2: int32 = call.indirect value0(value1): (int32) -> int32
-    value3: int32 = 4int32
-    value4: int32 = call callee(value3): (int32) -> int32
-    return value4
+function root(v0: (int32) -> int32, v1: int32): int32 {
+entry(v0: (int32) -> int32, v1: int32):
+    v2: int32 = call.indirect v0(v1): (int32) -> int32
+    v3: int32 = 4
+    v4: int32 = call callee(v3)
+    return v4
 }
 "#;
 
@@ -507,36 +507,36 @@ entry0(value0: (int32) -> int32, value1: int32):
     #[test]
     fn test_ip_constant_prop_skips_global_load() {
         let input = r#"
-readonly global value: int32 = 7int32
+readonly global value: int32 = 7
 
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 
 function root(): int32 {
-entry0:
-    value0: ref<int32, raw, readonly> = global.address value
-    value1: int32 = load value0
-    value2: int32 = call callee(value1): (int32) -> int32
-    return value2
+entry:
+    v0: ref<int32, raw, readonly> = global.address value
+    v1: int32 = load v0
+    v2: int32 = call callee(v1)
+    return v2
 }
 "#;
 
         let expected = r#"
-readonly global value: int32 = 7int32
+readonly global value: int32 = 7
 
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 
 function root(): int32 {
-entry0:
-    value0: ref<int32, raw, readonly> = global.address value
-    value1: int32 = load value0
-    value2: int32 = call callee(value1): (int32) -> int32
-    return value2
+entry:
+    v0: ref<int32, raw, readonly> = global.address value
+    v1: int32 = load v0
+    v2: int32 = call callee(v1)
+    return v2
 }
 "#;
 
@@ -549,41 +549,41 @@ entry0:
     #[test]
     fn test_ip_constant_prop_propagates_call_terminator() {
         let input = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 4int32
-    call callee(value0): (int32) -> int32 -> block1()
+entry:
+    v0: int32 = 4
+    call callee(v0) -> b1
 
-block1(value1: int32):
-    return value1
+b1(v1: int32):
+    return v1
 
-block2(value2: ref<int32, managed, readonly>):
-    panic value2
+b2(v2: ref<int32, managed, readonly>):
+    panic v2
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 4int32
-    return value1
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 4
+    return v1
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 4int32
-    call callee(value0): (int32) -> int32 -> block1()
+entry:
+    v0: int32 = 4
+    call callee(v0) -> b1
 
-block1(value1: int32):
-    return value1
+b1(v1: int32):
+    return v1
 
-block2(value2: ref<int32, managed, readonly>):
-    panic value2
+b2(v2: ref<int32, managed, readonly>):
+    panic v2
 }
 "#;
 
@@ -596,29 +596,29 @@ block2(value2: ref<int32, managed, readonly>):
     #[test]
     fn test_ip_constant_prop_propagates_tailcall() {
         let input = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 9int32
-    tailCall callee(value0): (int32) -> int32
+entry:
+    v0: int32 = 9
+    tail.call callee(v0)
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 9int32
-    return value1
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 9
+    return v1
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 9int32
-    tailCall callee(value0): (int32) -> int32
+entry:
+    v0: int32 = 9
+    tail.call callee(v0)
 }
 "#;
 

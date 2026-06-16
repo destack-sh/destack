@@ -36,7 +36,8 @@ type String {
     lengthUtf16: uint32;
     lengthBytes: uint32;
     data: ref<uint8, raw, readonly>;
-}"#
+}
+"#
     }
 
     /// Collect virtual dispatch tables from a MIR tree.

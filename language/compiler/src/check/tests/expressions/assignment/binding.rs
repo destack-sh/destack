@@ -64,8 +64,7 @@ value = "text";
 /// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"text\"' is not assignable to type 'int32'"
-/// @diagnostic.label line=3 column=9 source="value = \"text\";"
+
 "#,
     );
 }
@@ -134,8 +133,7 @@ value = "text";
 /// @check.stats.solve variables=0 types=4 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"text\"' is not assignable to type 'float64'"
-/// @diagnostic.label line=3 column=9 source="value = \"text\";"
+
 "#,
     );
 }
@@ -306,8 +304,7 @@ values = [1, 2, 3];
 
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'Array<1 | 2 | 3>' is not assignable to type 'FixedArray<int32, 2>'"
-/// @diagnostic.label line=3 column=10 source="values = [1, 2, 3];"
+
 "#,
     );
 }

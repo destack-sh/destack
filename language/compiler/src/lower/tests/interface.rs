@@ -50,9 +50,9 @@ type Drawable.object {
 external function Drawable.draw(Drawable.object): int32
 
 function Circle.draw(this0: Circle): int32 {
-entry0(this0: Circle):
-    value1: int32 = field.get this0, 0
-    return value1
+entry(this0: Circle):
+    v1: int32 = field.get this0, 0
+    return v1
 }
 "#,
     );
@@ -116,6 +116,7 @@ type Drawable.object {
     draw: Drawable.function;
     color: int32;
 }
+
 type Drawable {
     value: ref<void, managed, readonly>;
     table: ref<void, raw, readonly, space(static)>;
@@ -123,15 +124,15 @@ type Drawable {
 
 external function Drawable.draw(Drawable.object): int32
 
-function keep(value0: Drawable): Drawable {
-entry0(value0: Drawable):
-    return value0
+function keep(v0: Drawable): Drawable {
+entry(v0: Drawable):
+    return v0
 }
 
 function Circle.draw(this0: Circle): int32 {
-entry0(this0: Circle):
-    value1: int32 = field.get this0, 0
-    return value1
+entry(this0: Circle):
+    v1: int32 = field.get this0, 0
+    return v1
 }
 "#,
     );
@@ -349,15 +350,15 @@ external function Shape.area(Shape.object): int32
 external function Paint.paint(Paint.object): int32
 
 function Widget.area(this0: Widget): int32 {
-entry0(this0: Widget):
-    value1: int32 = field.get this0, 0
-    return value1
+entry(this0: Widget):
+    v1: int32 = field.get this0, 0
+    return v1
 }
 
 function Widget.paint(this0: Widget): int32 {
-entry0(this0: Widget):
-    value1: int32 = field.get this0, 1
-    return value1
+entry(this0: Widget):
+    v1: int32 = field.get this0, 1
+    return v1
 }
 "#,
     );
@@ -463,14 +464,17 @@ function useDrawable(d: Drawable): int32 {
         "native",
         r#"
 type Drawable.function = () => int32;
+
 type Circle {
     color: int32;
     radius: int32;
 }
+
 type Drawable.object {
     draw: Drawable.function;
     color: int32;
 }
+
 type Drawable {
     value: ref<void, managed, readonly>;
     table: ref<void, raw, readonly, space(static)>;
@@ -478,19 +482,19 @@ type Drawable {
 
 external function Drawable.draw(Drawable.object): int32
 
-function useDrawable(value0: Drawable): int32 {
-entry0(value0: Drawable):
-    value1: ref<void, managed, readonly> = field.get value0, 0
-    value2: int32 = call.dynamic value0, Drawable.object, 2(value1): (Drawable.object) -> int32
-    return value2
+function useDrawable(v0: Drawable): int32 {
+entry(v0: Drawable):
+    v1: ref<void, managed, readonly> = field.get v0, 0
+    v2: int32 = call.dynamic v0, Drawable.object, 2(v1): (Drawable.object) -> int32
+    return v2
 }
 
 function Circle.draw(this0: Circle): int32 {
-entry0(this0: Circle):
-    value1: int32 = field.get this0, 0
-    return value1
+entry(this0: Circle):
+    v1: int32 = field.get this0, 0
+    return v1
 }
-        "#,
+"#,
     );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
@@ -553,22 +557,22 @@ type Sprite {
 
 external function Renderable.draw(Renderable.object): int32
 
-function castRenderable(value0: int32): Renderable {
-entry0(value0: int32):
-    value1: Sprite = struct Sprite (value0)
-    value2: ref<Sprite, managed, readonly> = new.zeroed Sprite
-    store value2, value1
-    value3: ref<void, managed, readonly> = cast.bit value2 -> ref<void, managed, readonly>
-    value4: ref<[usize; 2], raw, readonly, space(static)> = global.address Sprite#as#Renderable#dynamic_table
-    value5: ref<void, raw, readonly, space(static)> = cast.bit value4 -> ref<void, raw, readonly, space(static)>
-    value6: Renderable = struct Renderable (value3, value5)
-    return value6
+function castRenderable(v0: int32): Renderable {
+entry(v0: int32):
+    v1: Sprite = struct Sprite (v0)
+    v2: ref<Sprite, managed, readonly> = new.zeroed Sprite
+    store v2, v1
+    v3: ref<void, managed, readonly> = cast.bit v2 -> ref<void, managed, readonly>
+    v4: ref<[usize; 2], raw, readonly, space(static)> = global.address Sprite#as#Renderable#dynamic_table
+    v5: ref<void, raw, readonly, space(static)> = cast.bit v4 -> ref<void, raw, readonly, space(static)>
+    v6: Renderable = struct Renderable (v3, v5)
+    return v6
 }
 
 function Sprite.draw(this0: Sprite): int32 {
-entry0(this0: Sprite):
-    value1: int32 = field.get this0, 0
-    return value1
+entry(this0: Sprite):
+    v1: int32 = field.get this0, 0
+    return v1
 }
 "#,
     );

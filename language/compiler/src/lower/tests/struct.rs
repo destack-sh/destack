@@ -92,13 +92,13 @@ type Point {
     y: int32;
 }
 
-function sumPoint(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: Point = struct Point (value0, value1)
-    value3: int32 = field.get value2, 0
-    value4: int32 = field.get value2, 1
-    value5: int32 = int.add value3, value4
-    return value5
+function sumPoint(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: Point = struct Point (v0, v1)
+    v3: int32 = field.get v2, 0
+    v4: int32 = field.get v2, 1
+    v5: int32 = int.add v3, v4
+    return v5
 }
 "#,
     );
@@ -275,10 +275,10 @@ type FieldMapBox {
     rightFieldMap: int32;
 }
 
-function readField(value0: FieldMapBox): int32 {
-entry0(value0: FieldMapBox):
-    value1: int32 = field.get value0, 0
-    return value1
+function readField(v0: FieldMapBox): int32 {
+entry(v0: FieldMapBox):
+    v1: int32 = field.get v0, 0
+    return v1
 }
 "#,
     );
@@ -336,17 +336,17 @@ type Box {
     value: int32;
 }
 
-function readValue(value0: int32): int32 {
-entry0(value0: int32):
-    value1: Box = struct Box (value0)
-    value2: int32 = call Box.get(value1): (Box) -> int32
-    return value2
+function readValue(v0: int32): int32 {
+entry(v0: int32):
+    v1: Box = struct Box (v0)
+    v2: int32 = call Box.get(v1)
+    return v2
 }
 
 function Box.get(this0: Box): int32 {
-entry0(this0: Box):
-    value1: int32 = field.get this0, 0
-    return value1
+entry(this0: Box):
+    v1: int32 = field.get this0, 0
+    return v1
 }
 "#,
     );

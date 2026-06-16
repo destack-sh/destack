@@ -1601,18 +1601,18 @@ mod tests {
     fn test_preserve_constant_bounds_branch() {
         // source test
         let input = r#"
-function test(value0: [int32; 4]): int32 {
-entry0(value0: [int32; 4]):
-    value1: uint32 = 2uint32
-    value2: uint32 = 4uint32
-    value3: boolean = int.lt.u value1, value2
-    branch value3, block1(), block2()
+function test(v0: [int32; 4]): int32 {
+entry(v0: [int32; 4]):
+    v1: uint32 = 2
+    v2: uint32 = 4
+    v3: boolean = int.lt.u v1, v2
+    branch v3, b1, b2
 
-block1:
-    value4: int32 = element.get value0, 0
-    return value4
+b1:
+    v4: int32 = element.get v0, 0
+    return v4
 
-block2:
+b2:
     unreachable
 }
 "#;
@@ -1630,36 +1630,36 @@ block2:
     fn test_eliminate_constant_check_bounds() {
         // source test
         let input = r#"
-function test(value0: [int32; 4]): int32 {
-entry0(value0: [int32; 4]):
-    value1: uint32 = 2uint32
-    value2: uint32 = 4uint32
-    value3: boolean = int.lt.u value1, value2
-    check bounds.u value1, value2, value0 -> block1(), block2()
+function test(v0: [int32; 4]): int32 {
+entry(v0: [int32; 4]):
+    v1: uint32 = 2
+    v2: uint32 = 4
+    v3: boolean = int.lt.u v1, v2
+    check bounds.u v1, v2, v0 -> b1, b2
 
-block1:
-    value4: int32 = element.get value0, 0
-    return value4
+b1:
+    v4: int32 = element.get v0, 0
+    return v4
 
-block2:
+b2:
     unreachable
 }
 "#;
 
         // expected output
         let expected = r#"
-function test(value0: [int32; 4]): int32 {
-entry0(value0: [int32; 4]):
-    value1: uint32 = 2uint32
-    value2: uint32 = 4uint32
-    value3: boolean = int.lt.u value1, value2
-    jump block1()
+function test(v0: [int32; 4]): int32 {
+entry(v0: [int32; 4]):
+    v1: uint32 = 2
+    v2: uint32 = 4
+    v3: boolean = int.lt.u v1, v2
+    jump b1
 
-block1:
-    value4: int32 = element.get value0, 0
-    return value4
+b1:
+    v4: int32 = element.get v0, 0
+    return v4
 
-block2:
+b2:
     unreachable
 }
 "#;
@@ -1675,22 +1675,22 @@ block2:
     fn test_preserve_redundant_bounds_branch() {
         // source test
         let input = r#"
-function test(value0: [int32; 4], value1: uint32): int32 {
-entry0(value0: [int32; 4], value1: uint32):
-    value2: uint32 = 4uint32
-    value3: boolean = int.lt.u value1, value2
-    branch value3, block1(), block2()
+function test(v0: [int32; 4], v1: uint32): int32 {
+entry(v0: [int32; 4], v1: uint32):
+    v2: uint32 = 4
+    v3: boolean = int.lt.u v1, v2
+    branch v3, b1, b2
 
-block1:
-    value4: boolean = int.lt.u value1, value2
-    branch value4, block3(), block2()
+b1:
+    v4: boolean = int.lt.u v1, v2
+    branch v4, b3, b2
 
-block2:
+b2:
     unreachable
 
-block3:
-    value5: int32 = element.get value0, 0
-    return value5
+b3:
+    v5: int32 = element.get v0, 0
+    return v5
 }
 "#;
 
@@ -1707,43 +1707,43 @@ block3:
     fn test_eliminate_redundant_check_bounds() {
         // source test
         let input = r#"
-function test(value0: [int32; 4], value1: uint32): int32 {
-entry0(value0: [int32; 4], value1: uint32):
-    value2: uint32 = 4uint32
-    value3: boolean = int.lt.u value1, value2
-    check bounds.u value1, value2, value0 -> block1(), block2()
+function test(v0: [int32; 4], v1: uint32): int32 {
+entry(v0: [int32; 4], v1: uint32):
+    v2: uint32 = 4
+    v3: boolean = int.lt.u v1, v2
+    check bounds.u v1, v2, v0 -> b1, b2
 
-block1:
-    value4: boolean = int.lt.u value1, value2
-    check bounds.u value1, value2, value0 -> block3(), block2()
+b1:
+    v4: boolean = int.lt.u v1, v2
+    check bounds.u v1, v2, v0 -> b3, b2
 
-block2:
+b2:
     unreachable
 
-block3:
-    value5: int32 = element.get value0, 0
-    return value5
+b3:
+    v5: int32 = element.get v0, 0
+    return v5
 }
 "#;
 
         // expected output
         let expected = r#"
-function test(value0: [int32; 4], value1: uint32): int32 {
-entry0(value0: [int32; 4], value1: uint32):
-    value2: uint32 = 4uint32
-    value3: boolean = int.lt.u value1, value2
-    check bounds.u value1, value2, value0 -> block1(), block2()
+function test(v0: [int32; 4], v1: uint32): int32 {
+entry(v0: [int32; 4], v1: uint32):
+    v2: uint32 = 4
+    v3: boolean = int.lt.u v1, v2
+    check bounds.u v1, v2, v0 -> b1, b2
 
-block1:
-    value4: boolean = int.lt.u value1, value2
-    jump block3()
+b1:
+    v4: boolean = int.lt.u v1, v2
+    jump b3
 
-block2:
+b2:
     unreachable
 
-block3:
-    value5: int32 = element.get value0, 0
-    return value5
+b3:
+    v5: int32 = element.get v0, 0
+    return v5
 }
 "#;
 
@@ -1758,17 +1758,17 @@ block3:
     fn test_preserve_unknown_bounds_check() {
         // source test
         let input = r#"
-function test(value0: [int32; 4], value1: uint32): int32 {
-entry0(value0: [int32; 4], value1: uint32):
-    value2: uint32 = 4uint32
-    value3: boolean = int.lt.u value1, value2
-    branch value3, block1(), block2()
+function test(v0: [int32; 4], v1: uint32): int32 {
+entry(v0: [int32; 4], v1: uint32):
+    v2: uint32 = 4
+    v3: boolean = int.lt.u v1, v2
+    branch v3, b1, b2
 
-block1:
-    value4: int32 = element.get value0, 0
-    return value4
+b1:
+    v4: int32 = element.get v0, 0
+    return v4
 
-block2:
+b2:
     unreachable
 }
 "#;
@@ -1784,21 +1784,21 @@ block2:
     fn test_preserve_conjoined_bounds_branch() {
         // source test
         let input = r#"
-function test(value0: [int32; 8]): int32 {
-entry0(value0: [int32; 8]):
-    value1: int32 = 3int32
-    value2: int32 = 0int32
-    value3: int32 = 8int32
-    value4: boolean = int.ge.s value1, value2
-    value5: boolean = int.lt.s value1, value3
-    value6: boolean = int.and value4, value5
-    branch value6, block1(), block2()
+function test(v0: [int32; 8]): int32 {
+entry(v0: [int32; 8]):
+    v1: int32 = 3
+    v2: int32 = 0
+    v3: int32 = 8
+    v4: boolean = int.ge.s v1, v2
+    v5: boolean = int.lt.s v1, v3
+    v6: boolean = int.and v4, v5
+    branch v6, b1, b2
 
-block1:
-    value7: int32 = element.get value0, 0
-    return value7
+b1:
+    v7: int32 = element.get v0, 0
+    return v7
 
-block2:
+b2:
     unreachable
 }
 "#;
@@ -1816,38 +1816,38 @@ block2:
     fn test_assume_implies_bounds_check() {
         // source test
         let input = r#"
-function test(value0: [int32; 16], value1: uint32): int32 {
-entry0(value0: [int32; 16], value1: uint32):
-    value2: uint32 = 16uint32
-    value3: boolean = int.lt.u value1, value2
-    assume value3
-    value4: boolean = int.lt.u value1, value2
-    check bounds.u value1, value2, value0 -> block1(), block2()
+function test(v0: [int32; 16], v1: uint32): int32 {
+entry(v0: [int32; 16], v1: uint32):
+    v2: uint32 = 16
+    v3: boolean = int.lt.u v1, v2
+    assume v3
+    v4: boolean = int.lt.u v1, v2
+    check bounds.u v1, v2, v0 -> b1, b2
 
-block1:
-    value5: int32 = element.get value0, 0
-    return value5
+b1:
+    v5: int32 = element.get v0, 0
+    return v5
 
-block2:
+b2:
     unreachable
 }
 "#;
 
         // expected output
         let expected = r#"
-function test(value0: [int32; 16], value1: uint32): int32 {
-entry0(value0: [int32; 16], value1: uint32):
-    value2: uint32 = 16uint32
-    value3: boolean = int.lt.u value1, value2
-    assume value3
-    value4: boolean = int.lt.u value1, value2
-    jump block1()
+function test(v0: [int32; 16], v1: uint32): int32 {
+entry(v0: [int32; 16], v1: uint32):
+    v2: uint32 = 16
+    v3: boolean = int.lt.u v1, v2
+    assume v3
+    v4: boolean = int.lt.u v1, v2
+    jump b1
 
-block1:
-    value5: int32 = element.get value0, 0
-    return value5
+b1:
+    v5: int32 = element.get v0, 0
+    return v5
 
-block2:
+b2:
     unreachable
 }
 "#;
@@ -1863,47 +1863,47 @@ block2:
     fn test_signed_bounds_constraints() {
         // source test
         let input = r#"
-function test(value0: [int32; 8], value1: int32): int32 {
-entry0(value0: [int32; 8], value1: int32):
-    value2: int32 = 0int32
-    value3: int32 = 8int32
-    value4: boolean = int.ge.s value1, value2
-    value5: boolean = int.lt.s value1, value3
-    value6: boolean = int.and value4, value5
-    branch value6, block1(), block2()
+function test(v0: [int32; 8], v1: int32): int32 {
+entry(v0: [int32; 8], v1: int32):
+    v2: int32 = 0
+    v3: int32 = 8
+    v4: boolean = int.ge.s v1, v2
+    v5: boolean = int.lt.s v1, v3
+    v6: boolean = int.and v4, v5
+    branch v6, b1, b2
 
-block1:
-    check bounds.s value1, value3, value0 -> block3(), block2()
+b1:
+    check bounds.s v1, v3, v0 -> b3, b2
 
-block2:
+b2:
     unreachable
 
-block3:
-    value7: int32 = element.get value0, 0
-    return value7
+b3:
+    v7: int32 = element.get v0, 0
+    return v7
 }
 "#;
 
         // expected output
         let expected = r#"
-function test(value0: [int32; 8], value1: int32): int32 {
-entry0(value0: [int32; 8], value1: int32):
-    value2: int32 = 0int32
-    value3: int32 = 8int32
-    value4: boolean = int.ge.s value1, value2
-    value5: boolean = int.lt.s value1, value3
-    value6: boolean = int.and value4, value5
-    branch value6, block1(), block2()
+function test(v0: [int32; 8], v1: int32): int32 {
+entry(v0: [int32; 8], v1: int32):
+    v2: int32 = 0
+    v3: int32 = 8
+    v4: boolean = int.ge.s v1, v2
+    v5: boolean = int.lt.s v1, v3
+    v6: boolean = int.and v4, v5
+    branch v6, b1, b2
 
-block1:
-    jump block3()
+b1:
+    jump b3
 
-block2:
+b2:
     unreachable
 
-block3:
-    value7: int32 = element.get value0, 0
-    return value7
+b3:
+    v7: int32 = element.get v0, 0
+    return v7
 }
 "#;
 
@@ -1918,49 +1918,49 @@ block3:
     fn test_eliminate_dominated_bounds_check() {
         // source test
         let input = r#"
-function test(value0: [int32; 4], value1: uint32): int32 {
-entry0(value0: [int32; 4], value1: uint32):
-    value2: uint32 = 4uint32
-    value3: boolean = int.lt.u value1, value2
-    branch value3, block1(), block2()
+function test(v0: [int32; 4], v1: uint32): int32 {
+entry(v0: [int32; 4], v1: uint32):
+    v2: uint32 = 4
+    v3: boolean = int.lt.u v1, v2
+    branch v3, b1, b2
 
-block1:
-    jump block3()
+b1:
+    jump b3
 
-block2:
+b2:
     unreachable
 
-block3:
-    value4: boolean = int.lt.u value1, value2
-    check bounds.u value1, value2, value0 -> block4(), block2()
+b3:
+    v4: boolean = int.lt.u v1, v2
+    check bounds.u v1, v2, v0 -> b4, b2
 
-block4:
-    value5: int32 = element.get value0, 0
-    return value5
+b4:
+    v5: int32 = element.get v0, 0
+    return v5
 }
 "#;
 
         // expected output
         let expected = r#"
-function test(value0: [int32; 4], value1: uint32): int32 {
-entry0(value0: [int32; 4], value1: uint32):
-    value2: uint32 = 4uint32
-    value3: boolean = int.lt.u value1, value2
-    branch value3, block1(), block2()
+function test(v0: [int32; 4], v1: uint32): int32 {
+entry(v0: [int32; 4], v1: uint32):
+    v2: uint32 = 4
+    v3: boolean = int.lt.u v1, v2
+    branch v3, b1, b2
 
-block1:
-    jump block3()
+b1:
+    jump b3
 
-block2:
+b2:
     unreachable
 
-block3:
-    value4: boolean = int.lt.u value1, value2
-    jump block4()
+b3:
+    v4: boolean = int.lt.u v1, v2
+    jump b4
 
-block4:
-    value5: int32 = element.get value0, 0
-    return value5
+b4:
+    v5: int32 = element.get v0, 0
+    return v5
 }
 "#;
 
@@ -1975,43 +1975,43 @@ block4:
     fn test_eliminate_bounds_check_with_block_param() {
         // source test
         let input = r#"
-function test(value0: [int32; 4], value1: uint32): int32 {
-entry0(value0: [int32; 4], value1: uint32):
-    value2: uint32 = 4uint32
-    value3: boolean = int.lt.u value1, value2
-    branch value3, block1(value1), block2()
+function test(v0: [int32; 4], v1: uint32): int32 {
+entry(v0: [int32; 4], v1: uint32):
+    v2: uint32 = 4
+    v3: boolean = int.lt.u v1, v2
+    branch v3, b1(v1), b2
 
-block1(value4: uint32):
-    value5: boolean = int.lt.u value4, value2
-    check bounds.u value4, value2, value0 -> block3(), block2()
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v2
+    check bounds.u v4, v2, v0 -> b3, b2
 
-block2:
+b2:
     unreachable
 
-block3:
-    value6: int32 = element.get value0, 0
-    return value6
+b3:
+    v6: int32 = element.get v0, 0
+    return v6
 }
 "#;
 
         // expected output
         let expected = r#"
-function test(value0: [int32; 4], value1: uint32): int32 {
-entry0(value0: [int32; 4], value1: uint32):
-    value2: uint32 = 4uint32
-    value3: boolean = int.lt.u value1, value2
-    branch value3, block1(value1), block2()
+function test(v0: [int32; 4], v1: uint32): int32 {
+entry(v0: [int32; 4], v1: uint32):
+    v2: uint32 = 4
+    v3: boolean = int.lt.u v1, v2
+    branch v3, b1(v1), b2
 
-block1(value4: uint32):
-    value5: boolean = int.lt.u value4, value2
-    jump block3()
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v2
+    jump b3
 
-block2:
+b2:
     unreachable
 
-block3:
-    value6: int32 = element.get value0, 0
-    return value6
+b3:
+    v6: int32 = element.get v0, 0
+    return v6
 }
 "#;
 
@@ -2026,18 +2026,18 @@ block3:
     fn test_preserve_bounds_branch_with_trap_then_target() {
         // source test
         let input = r#"
-function test(value0: [int32; 4], value1: uint32): int32 {
-entry0(value0: [int32; 4], value1: uint32):
-    value2: uint32 = 2uint32
-    value3: uint32 = 4uint32
-    value4: boolean = int.ge.u value2, value3
-    branch value4, block2(), block1()
+function test(v0: [int32; 4], v1: uint32): int32 {
+entry(v0: [int32; 4], v1: uint32):
+    v2: uint32 = 2
+    v3: uint32 = 4
+    v4: boolean = int.ge.u v2, v3
+    branch v4, b2, b1
 
-block1:
-    value5: int32 = element.get value0, 0
-    return value5
+b1:
+    v5: int32 = element.get v0, 0
+    return v5
 
-block2:
+b2:
     unreachable
 }
 "#;
@@ -2055,44 +2055,44 @@ block2:
     fn test_assume_in_predecessor_implies_bounds_check() {
         // source test
         let input = r#"
-function test(value0: [int32; 4], value1: uint32): int32 {
-entry0(value0: [int32; 4], value1: uint32):
-    value2: uint32 = 4uint32
-    value3: boolean = int.lt.u value1, value2
-    assume value3
-    jump block1()
+function test(v0: [int32; 4], v1: uint32): int32 {
+entry(v0: [int32; 4], v1: uint32):
+    v2: uint32 = 4
+    v3: boolean = int.lt.u v1, v2
+    assume v3
+    jump b1
 
-block1:
-    value4: boolean = int.lt.u value1, value2
-    check bounds.u value1, value2, value0 -> block2(), block3()
+b1:
+    v4: boolean = int.lt.u v1, v2
+    check bounds.u v1, v2, v0 -> b2, b3
 
-block2:
-    value5: int32 = element.get value0, 0
-    return value5
+b2:
+    v5: int32 = element.get v0, 0
+    return v5
 
-block3:
+b3:
     unreachable
 }
 "#;
 
         // expected output
         let expected = r#"
-function test(value0: [int32; 4], value1: uint32): int32 {
-entry0(value0: [int32; 4], value1: uint32):
-    value2: uint32 = 4uint32
-    value3: boolean = int.lt.u value1, value2
-    assume value3
-    jump block1()
+function test(v0: [int32; 4], v1: uint32): int32 {
+entry(v0: [int32; 4], v1: uint32):
+    v2: uint32 = 4
+    v3: boolean = int.lt.u v1, v2
+    assume v3
+    jump b1
 
-block1:
-    value4: boolean = int.lt.u value1, value2
-    jump block2()
+b1:
+    v4: boolean = int.lt.u v1, v2
+    jump b2
 
-block2:
-    value5: int32 = element.get value0, 0
-    return value5
+b2:
+    v5: int32 = element.get v0, 0
+    return v5
 
-block3:
+b3:
     unreachable
 }
 "#;
@@ -2108,24 +2108,24 @@ block3:
     fn test_preserve_bounds_check_when_else_reaches_target() {
         // source test
         let input = r#"
-function test(value0: [int32; 4], value1: uint32): int32 {
-entry0(value0: [int32; 4], value1: uint32):
-    value2: uint32 = 4uint32
-    value3: boolean = int.lt.u value1, value2
-    branch value3, block1(value1), block2()
+function test(v0: [int32; 4], v1: uint32): int32 {
+entry(v0: [int32; 4], v1: uint32):
+    v2: uint32 = 4
+    v3: boolean = int.lt.u v1, v2
+    branch v3, b1(v1), b2
 
-block1(value4: uint32):
-    value5: boolean = int.lt.u value4, value2
-    check bounds.u value4, value2, value0 -> block3(), block4()
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v2
+    check bounds.u v4, v2, v0 -> b3, b4
 
-block2:
-    jump block1(value1)
+b2:
+    jump b1(v1)
 
-block3:
-    value6: int32 = element.get value0, 0
-    return value6
+b3:
+    v6: int32 = element.get v0, 0
+    return v6
 
-block4:
+b4:
     unreachable
 }
 "#;
@@ -2141,25 +2141,25 @@ block4:
     fn test_preserve_bounds_check_with_conflicting_block_param() {
         // source test
         let input = r#"
-function test(value0: [int32; 4], value1: uint32): int32 {
-entry0(value0: [int32; 4], value1: uint32):
-    value2: uint32 = 4uint32
-    value3: boolean = int.lt.u value1, value2
-    branch value3, block1(value1), block2()
+function test(v0: [int32; 4], v1: uint32): int32 {
+entry(v0: [int32; 4], v1: uint32):
+    v2: uint32 = 4
+    v3: boolean = int.lt.u v1, v2
+    branch v3, b1(v1), b2
 
-block1(value4: uint32):
-    value5: boolean = int.lt.u value4, value2
-    check bounds.u value4, value2, value0 -> block3(), block4()
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v2
+    check bounds.u v4, v2, v0 -> b3, b4
 
-block2:
-    value6: uint32 = 1uint32
-    jump block1(value6)
+b2:
+    v6: uint32 = 1
+    jump b1(v6)
 
-block3:
-    value7: int32 = element.get value0, 0
-    return value7
+b3:
+    v7: int32 = element.get v0, 0
+    return v7
 
-block4:
+b4:
     unreachable
 }
 "#;
@@ -2175,18 +2175,18 @@ block4:
     fn test_preserve_non_trap_branch() {
         // source test
         let input = r#"
-function test(value0: [int32; 4], value1: uint32): int32 {
-entry0(value0: [int32; 4], value1: uint32):
-    value2: uint32 = 4uint32
-    value3: boolean = int.lt.u value1, value2
-    branch value3, block1(), block2()
+function test(v0: [int32; 4], v1: uint32): int32 {
+entry(v0: [int32; 4], v1: uint32):
+    v2: uint32 = 4
+    v3: boolean = int.lt.u v1, v2
+    branch v3, b1, b2
 
-block1:
-    value4: int32 = element.get value0, 0
-    return value4
+b1:
+    v4: int32 = element.get v0, 0
+    return v4
 
-block2:
-    value5: uint32 = 0uint32
+b2:
+    v5: uint32 = 0
     unreachable
 }
 "#;
@@ -2202,45 +2202,45 @@ block2:
     fn test_eliminate_upper_inclusive_guard() {
         // source test
         let input = r#"
-function test(value0: [int32; 4], value1: uint32): int32 {
-entry0(value0: [int32; 4], value1: uint32):
-    value2: uint32 = 3uint32
-    value3: uint32 = 4uint32
-    value4: boolean = int.le.u value1, value2
-    branch value4, block1(), block2()
+function test(v0: [int32; 4], v1: uint32): int32 {
+entry(v0: [int32; 4], v1: uint32):
+    v2: uint32 = 3
+    v3: uint32 = 4
+    v4: boolean = int.le.u v1, v2
+    branch v4, b1, b2
 
-block1:
-    value5: boolean = int.lt.u value1, value3
-    check bounds.u value1, value3, value0 -> block3(), block2()
+b1:
+    v5: boolean = int.lt.u v1, v3
+    check bounds.u v1, v3, v0 -> b3, b2
 
-block2:
+b2:
     unreachable
 
-block3:
-    value6: int32 = element.get value0, 0
-    return value6
+b3:
+    v6: int32 = element.get v0, 0
+    return v6
 }
 "#;
 
         // expected output
         let expected = r#"
-function test(value0: [int32; 4], value1: uint32): int32 {
-entry0(value0: [int32; 4], value1: uint32):
-    value2: uint32 = 3uint32
-    value3: uint32 = 4uint32
-    value4: boolean = int.le.u value1, value2
-    branch value4, block1(), block2()
+function test(v0: [int32; 4], v1: uint32): int32 {
+entry(v0: [int32; 4], v1: uint32):
+    v2: uint32 = 3
+    v3: uint32 = 4
+    v4: boolean = int.le.u v1, v2
+    branch v4, b1, b2
 
-block1:
-    value5: boolean = int.lt.u value1, value3
-    jump block3()
+b1:
+    v5: boolean = int.lt.u v1, v3
+    jump b3
 
-block2:
+b2:
     unreachable
 
-block3:
-    value6: int32 = element.get value0, 0
-    return value6
+b3:
+    v6: int32 = element.get v0, 0
+    return v6
 }
 "#;
 

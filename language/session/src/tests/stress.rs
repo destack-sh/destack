@@ -47,7 +47,7 @@ fn test_reload_reports_one_update_in_large_tree() {
 
     test.write(
         "src/generated/file-500.ds",
-        r#"export const value500 = 999;
+        r#"export const v500 = 999;
 "#,
     );
     let updates = test.reload();

@@ -933,68 +933,68 @@ mod tests {
     #[test]
     fn test_loop_fusion_merges_adjacent_loops() {
         let input = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    jump block1(value3)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: uint32 = 0
+    v4: uint32 = 1
+    jump b1(v3)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value0
-    branch value6, block2(value5), block3()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v0
+    branch v6, b2(v5), b3
 
-block2(value7: uint32):
-    value8: ref<int32, raw, space(frame)> = element.address value1, value7
-    value9: int32 = 1int32
-    store value8, value9
-    value10: uint32 = int.add value7, value4
-    jump block1(value10)
+b2(v7: uint32):
+    v8: ref<int32, raw, space(frame)> = element.address v1, v7
+    v9: int32 = 1
+    store v8, v9
+    v10: uint32 = int.add v7, v4
+    jump b1(v10)
 
-block3:
-    jump block4(value3)
+b3:
+    jump b4(v3)
 
-block4(value11: uint32):
-    value12: boolean = int.lt.u value11, value0
-    branch value12, block5(value11), block6()
+b4(v11: uint32):
+    v12: boolean = int.lt.u v11, v0
+    branch v12, b5(v11), b6
 
-block5(value13: uint32):
-    value14: ref<int32, raw, space(frame)> = element.address value2, value13
-    value15: int32 = 2int32
-    store value14, value15
-    value16: uint32 = int.add value13, value4
-    jump block4(value16)
+b5(v13: uint32):
+    v14: ref<int32, raw, space(frame)> = element.address v2, v13
+    v15: int32 = 2
+    store v14, v15
+    v16: uint32 = int.add v13, v4
+    jump b4(v16)
 
-block6:
+b6:
     return
 }
 "#;
 
         let expected = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    jump block1(value3)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: uint32 = 0
+    v4: uint32 = 1
+    jump b1(v3)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value0
-    branch value6, block2(value5), block6()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v0
+    branch v6, b2(v5), b3
 
-block2(value7: uint32):
-    value8: ref<int32, raw, space(frame)> = element.address value1, value7
-    value9: int32 = 1int32
-    store value8, value9
-    value17: ref<int32, raw, space(frame)> = element.address value2, value7
-    value18: int32 = 2int32
-    store value17, value18
-    value10: uint32 = int.add value7, value4
-    jump block1(value10)
+b2(v7: uint32):
+    v8: ref<int32, raw, space(frame)> = element.address v1, v7
+    v9: int32 = 1
+    store v8, v9
+    v17: ref<int32, raw, space(frame)> = element.address v2, v7
+    v18: int32 = 2
+    store v17, v18
+    v10: uint32 = int.add v7, v4
+    jump b1(v10)
 
-block6:
+b3:
     return
 }
 "#;
@@ -1008,66 +1008,66 @@ block6:
     #[test]
     fn test_loop_fusion_merges_with_carry_args() {
         let input = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    value5: uint32 = 7uint32
-    jump block1(value3, value5)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: uint32 = 0
+    v4: uint32 = 1
+    v5: uint32 = 7
+    jump b1(v3, v5)
 
-block1(value6: uint32, value7: uint32):
-    value8: boolean = int.lt.u value6, value0
-    branch value8, block2(value6, value7), block3()
+b1(v6: uint32, v7: uint32):
+    v8: boolean = int.lt.u v6, v0
+    branch v8, b2(v6, v7), b3
 
-block2(value9: uint32, value10: uint32):
-    value11: ref<int32, raw, space(frame)> = element.address value1, value9
-    store value11, value10
-    value12: uint32 = int.add value9, value4
-    jump block1(value12, value10)
+b2(v9: uint32, v10: uint32):
+    v11: ref<int32, raw, space(frame)> = element.address v1, v9
+    store v11, v10
+    v12: uint32 = int.add v9, v4
+    jump b1(v12, v10)
 
-block3:
-    jump block4(value3, value5)
+b3:
+    jump b4(v3, v5)
 
-block4(value13: uint32, value14: uint32):
-    value15: boolean = int.lt.u value13, value0
-    branch value15, block5(value13, value14), block6()
+b4(v13: uint32, v14: uint32):
+    v15: boolean = int.lt.u v13, v0
+    branch v15, b5(v13, v14), b6
 
-block5(value16: uint32, value17: uint32):
-    value18: ref<int32, raw, space(frame)> = element.address value2, value16
-    store value18, value17
-    value19: uint32 = int.add value16, value4
-    jump block4(value19, value17)
+b5(v16: uint32, v17: uint32):
+    v18: ref<int32, raw, space(frame)> = element.address v2, v16
+    store v18, v17
+    v19: uint32 = int.add v16, v4
+    jump b4(v19, v17)
 
-block6:
+b6:
     return
 }
 "#;
 
         let expected = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    value5: uint32 = 7uint32
-    jump block1(value3, value5)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: uint32 = 0
+    v4: uint32 = 1
+    v5: uint32 = 7
+    jump b1(v3, v5)
 
-block1(value6: uint32, value7: uint32):
-    value8: boolean = int.lt.u value6, value0
-    branch value8, block2(value6, value7), block6()
+b1(v6: uint32, v7: uint32):
+    v8: boolean = int.lt.u v6, v0
+    branch v8, b2(v6, v7), b3
 
-block2(value9: uint32, value10: uint32):
-    value11: ref<int32, raw, space(frame)> = element.address value1, value9
-    store value11, value10
-    value20: ref<int32, raw, space(frame)> = element.address value2, value9
-    store value20, value10
-    value12: uint32 = int.add value9, value4
-    jump block1(value12, value10)
+b2(v9: uint32, v10: uint32):
+    v11: ref<int32, raw, space(frame)> = element.address v1, v9
+    store v11, v10
+    v20: ref<int32, raw, space(frame)> = element.address v2, v9
+    store v20, v10
+    v12: uint32 = int.add v9, v4
+    jump b1(v12, v10)
 
-block6:
+b3:
     return
 }
 "#;
@@ -1081,39 +1081,39 @@ block6:
     #[test]
     fn test_loop_fusion_skips_aliasing() {
         let input = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: uint32 = 0uint32
-    value3: uint32 = 1uint32
-    jump block1(value2)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: uint32 = 0
+    v3: uint32 = 1
+    jump b1(v2)
 
-block1(value4: uint32):
-    value5: boolean = int.lt.u value4, value0
-    branch value5, block2(value4), block3()
+b1(v4: uint32):
+    v5: boolean = int.lt.u v4, v0
+    branch v5, b2(v4), b3
 
-block2(value6: uint32):
-    value7: ref<int32, raw, space(frame)> = element.address value1, value6
-    value8: int32 = 1int32
-    store value7, value8
-    value9: uint32 = int.add value6, value3
-    jump block1(value9)
+b2(v6: uint32):
+    v7: ref<int32, raw, space(frame)> = element.address v1, v6
+    v8: int32 = 1
+    store v7, v8
+    v9: uint32 = int.add v6, v3
+    jump b1(v9)
 
-block3:
-    jump block4(value2)
+b3:
+    jump b4(v2)
 
-block4(value10: uint32):
-    value11: boolean = int.lt.u value10, value0
-    branch value11, block5(value10), block6()
+b4(v10: uint32):
+    v11: boolean = int.lt.u v10, v0
+    branch v11, b5(v10), b6
 
-block5(value12: uint32):
-    value13: ref<int32, raw, space(frame)> = element.address value1, value12
-    value14: int32 = 2int32
-    store value13, value14
-    value15: uint32 = int.add value12, value3
-    jump block4(value15)
+b5(v12: uint32):
+    v13: ref<int32, raw, space(frame)> = element.address v1, v12
+    v14: int32 = 2
+    store v13, v14
+    v15: uint32 = int.add v12, v3
+    jump b4(v15)
 
-block6:
+b6:
     return
 }
 "#;
@@ -1127,41 +1127,41 @@ block6:
     #[test]
     fn test_loop_fusion_skips_non_empty_preheader() {
         let input = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    jump block1(value3)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: uint32 = 0
+    v4: uint32 = 1
+    jump b1(v3)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value0
-    branch value6, block2(value5), block3()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v0
+    branch v6, b2(v5), b3
 
-block2(value7: uint32):
-    value8: ref<int32, raw, space(frame)> = element.address value1, value7
-    value9: int32 = 1int32
-    store value8, value9
-    value10: uint32 = int.add value7, value4
-    jump block1(value10)
+b2(v7: uint32):
+    v8: ref<int32, raw, space(frame)> = element.address v1, v7
+    v9: int32 = 1
+    store v8, v9
+    v10: uint32 = int.add v7, v4
+    jump b1(v10)
 
-block3:
-    value11: uint32 = 0uint32
-    jump block4(value3)
+b3:
+    v11: uint32 = 0
+    jump b4(v3)
 
-block4(value12: uint32):
-    value13: boolean = int.lt.u value12, value0
-    branch value13, block5(value12), block6()
+b4(v12: uint32):
+    v13: boolean = int.lt.u v12, v0
+    branch v13, b5(v12), b6
 
-block5(value14: uint32):
-    value15: ref<int32, raw, space(frame)> = element.address value2, value14
-    value16: int32 = 2int32
-    store value15, value16
-    value17: uint32 = int.add value14, value4
-    jump block4(value17)
+b5(v14: uint32):
+    v15: ref<int32, raw, space(frame)> = element.address v2, v14
+    v16: int32 = 2
+    store v15, v16
+    v17: uint32 = int.add v14, v4
+    jump b4(v17)
 
-block6:
+b6:
     return
 }
 "#;
@@ -1175,40 +1175,40 @@ block6:
     #[test]
     fn test_loop_fusion_skips_mismatched_bounds() {
         let input = r#"
-function test(value0: uint32, value1: uint32): void {
-entry0(value0: uint32, value1: uint32):
-    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value3: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value4: uint32 = 0uint32
-    value5: uint32 = 1uint32
-    jump block1(value4)
+function test(v0: uint32, v1: uint32): void {
+entry(v0: uint32, v1: uint32):
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v4: uint32 = 0
+    v5: uint32 = 1
+    jump b1(v4)
 
-block1(value6: uint32):
-    value7: boolean = int.lt.u value6, value0
-    branch value7, block2(value6), block3()
+b1(v6: uint32):
+    v7: boolean = int.lt.u v6, v0
+    branch v7, b2(v6), b3
 
-block2(value8: uint32):
-    value9: ref<int32, raw, space(frame)> = element.address value2, value8
-    value10: int32 = 1int32
-    store value9, value10
-    value11: uint32 = int.add value8, value5
-    jump block1(value11)
+b2(v8: uint32):
+    v9: ref<int32, raw, space(frame)> = element.address v2, v8
+    v10: int32 = 1
+    store v9, v10
+    v11: uint32 = int.add v8, v5
+    jump b1(v11)
 
-block3:
-    jump block4(value4)
+b3:
+    jump b4(v4)
 
-block4(value12: uint32):
-    value13: boolean = int.lt.u value12, value1
-    branch value13, block5(value12), block6()
+b4(v12: uint32):
+    v13: boolean = int.lt.u v12, v1
+    branch v13, b5(v12), b6
 
-block5(value14: uint32):
-    value15: ref<int32, raw, space(frame)> = element.address value3, value14
-    value16: int32 = 2int32
-    store value15, value16
-    value17: uint32 = int.add value14, value5
-    jump block4(value17)
+b5(v14: uint32):
+    v15: ref<int32, raw, space(frame)> = element.address v3, v14
+    v16: int32 = 2
+    store v15, v16
+    v17: uint32 = int.add v14, v5
+    jump b4(v17)
 
-block6:
+b6:
     return
 }
 "#;
@@ -1222,41 +1222,41 @@ block6:
     #[test]
     fn test_loop_fusion_skips_header_reads() {
         let input = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    jump block1(value3)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: uint32 = 0
+    v4: uint32 = 1
+    jump b1(v3)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value0
-    branch value6, block2(value5), block3()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v0
+    branch v6, b2(v5), b3
 
-block2(value7: uint32):
-    value8: ref<int32, raw, space(frame)> = element.address value1, value7
-    value9: int32 = 1int32
-    store value8, value9
-    value10: uint32 = int.add value7, value4
-    jump block1(value10)
+b2(v7: uint32):
+    v8: ref<int32, raw, space(frame)> = element.address v1, v7
+    v9: int32 = 1
+    store v8, v9
+    v10: uint32 = int.add v7, v4
+    jump b1(v10)
 
-block3:
-    jump block4(value3)
+b3:
+    jump b4(v3)
 
-block4(value11: uint32):
-    value12: int32 = load value2
-    value13: boolean = int.lt.u value11, value0
-    branch value13, block5(value11), block6()
+b4(v11: uint32):
+    v12: int32 = load v2
+    v13: boolean = int.lt.u v11, v0
+    branch v13, b5(v11), b6
 
-block5(value14: uint32):
-    value15: ref<int32, raw, space(frame)> = element.address value2, value14
-    value16: int32 = 2int32
-    store value15, value16
-    value17: uint32 = int.add value14, value4
-    jump block4(value17)
+b5(v14: uint32):
+    v15: ref<int32, raw, space(frame)> = element.address v2, v14
+    v16: int32 = 2
+    store v15, v16
+    v17: uint32 = int.add v14, v4
+    jump b4(v17)
 
-block6:
+b6:
     return
 }
 "#;
@@ -1270,41 +1270,41 @@ block6:
     #[test]
     fn test_loop_fusion_skips_header_latch_dependency() {
         let input = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    jump block1(value3)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: uint32 = 0
+    v4: uint32 = 1
+    jump b1(v3)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value0
-    branch value6, block2(value5), block3()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v0
+    branch v6, b2(v5), b3
 
-block2(value7: uint32):
-    value8: ref<int32, raw, space(frame)> = element.address value1, value7
-    value9: int32 = 1int32
-    store value8, value9
-    value10: uint32 = int.add value7, value4
-    jump block1(value10)
+b2(v7: uint32):
+    v8: ref<int32, raw, space(frame)> = element.address v1, v7
+    v9: int32 = 1
+    store v8, v9
+    v10: uint32 = int.add v7, v4
+    jump b1(v10)
 
-block3:
-    jump block4(value3)
+b3:
+    jump b4(v3)
 
-block4(value11: uint32):
-    value12: uint32 = int.add value11, value4
-    value13: boolean = int.lt.u value11, value0
-    branch value13, block5(value11), block6()
+b4(v11: uint32):
+    v12: uint32 = int.add v11, v4
+    v13: boolean = int.lt.u v11, v0
+    branch v13, b5(v11), b6
 
-block5(value14: uint32):
-    value15: ref<int32, raw, space(frame)> = element.address value2, value14
-    value16: int32 = 2int32
-    store value15, value16
-    value17: uint32 = int.add value12, value4
-    jump block4(value17)
+b5(v14: uint32):
+    v15: ref<int32, raw, space(frame)> = element.address v2, v14
+    v16: int32 = 2
+    store v15, v16
+    v17: uint32 = int.add v12, v4
+    jump b4(v17)
 
-block6:
+b6:
     return
 }
 "#;
@@ -1318,46 +1318,46 @@ block6:
     #[test]
     fn test_loop_fusion_skips_side_effects() {
         let input = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    jump block1(value3)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: uint32 = 0
+    v4: uint32 = 1
+    jump b1(v3)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value0
-    branch value6, block2(value5), block3()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v0
+    branch v6, b2(v5), b3
 
-block2(value7: uint32):
-    value8: ref<int32, raw, space(frame)> = element.address value1, value7
-    value9: int32 = 1int32
-    store value8, value9
-    value10: uint32 = int.add value7, value4
-    jump block1(value10)
+b2(v7: uint32):
+    v8: ref<int32, raw, space(frame)> = element.address v1, v7
+    v9: int32 = 1
+    store v8, v9
+    v10: uint32 = int.add v7, v4
+    jump b1(v10)
 
-block3:
-    jump block4(value3)
+b3:
+    jump b4(v3)
 
-block4(value11: uint32):
-    value12: boolean = int.lt.u value11, value0
-    branch value12, block5(value11), block6()
+b4(v11: uint32):
+    v12: boolean = int.lt.u v11, v0
+    branch v12, b5(v11), b6
 
-block5(value13: uint32):
-    call touch(value13): (uint32) -> void
-    value14: ref<int32, raw, space(frame)> = element.address value2, value13
-    value15: int32 = 2int32
-    store value14, value15
-    value16: uint32 = int.add value13, value4
-    jump block4(value16)
+b5(v13: uint32):
+    call touch(v13)
+    v14: ref<int32, raw, space(frame)> = element.address v2, v13
+    v15: int32 = 2
+    store v14, v15
+    v16: uint32 = int.add v13, v4
+    jump b4(v16)
 
-block6:
+b6:
     return
 }
 
-function touch(value0: uint32): void {
-entry0(value0: uint32):
+function touch(v0: uint32): void {
+entry(v0: uint32):
     return
 }
 "#;
@@ -1371,43 +1371,43 @@ entry0(value0: uint32):
     #[test]
     fn test_loop_fusion_skips_non_adjacent_loops() {
         let input = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    jump block1(value3)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: uint32 = 0
+    v4: uint32 = 1
+    jump b1(v3)
 
-block1(value5: uint32):
-    value6: boolean = int.lt.u value5, value0
-    branch value6, block2(value5), block3()
+b1(v5: uint32):
+    v6: boolean = int.lt.u v5, v0
+    branch v6, b2(v5), b3
 
-block2(value7: uint32):
-    value8: ref<int32, raw, space(frame)> = element.address value1, value7
-    value9: int32 = 1int32
-    store value8, value9
-    value10: uint32 = int.add value7, value4
-    jump block1(value10)
+b2(v7: uint32):
+    v8: ref<int32, raw, space(frame)> = element.address v1, v7
+    v9: int32 = 1
+    store v8, v9
+    v10: uint32 = int.add v7, v4
+    jump b1(v10)
 
-block3:
-    jump block4(value3)
+b3:
+    jump b4(v3)
 
-block4(value11: uint32):
-    jump block5(value11)
+b4(v11: uint32):
+    jump b5(v11)
 
-block5(value12: uint32):
-    value13: boolean = int.lt.u value12, value0
-    branch value13, block6(value12), block7()
+b5(v12: uint32):
+    v13: boolean = int.lt.u v12, v0
+    branch v13, b6(v12), b7
 
-block6(value14: uint32):
-    value15: ref<int32, raw, space(frame)> = element.address value2, value14
-    value16: int32 = 2int32
-    store value15, value16
-    value17: uint32 = int.add value14, value4
-    jump block5(value17)
+b6(v14: uint32):
+    v15: ref<int32, raw, space(frame)> = element.address v2, v14
+    v16: int32 = 2
+    store v15, v16
+    v17: uint32 = int.add v14, v4
+    jump b5(v17)
 
-block7:
+b7:
     return
 }
 "#;
@@ -1421,42 +1421,42 @@ block7:
     #[test]
     fn test_loop_fusion_skips_mismatched_carry_args() {
         let input = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    value5: uint32 = 10uint32
-    value6: uint32 = 20uint32
-    jump block1(value3, value5)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: uint32 = 0
+    v4: uint32 = 1
+    v5: uint32 = 10
+    v6: uint32 = 20
+    jump b1(v3, v5)
 
-block1(value7: uint32, value8: uint32):
-    value9: boolean = int.lt.u value7, value0
-    branch value9, block2(value7, value8), block3()
+b1(v7: uint32, v8: uint32):
+    v9: boolean = int.lt.u v7, v0
+    branch v9, b2(v7, v8), b3
 
-block2(value10: uint32, value11: uint32):
-    value12: ref<int32, raw, space(frame)> = element.address value1, value10
-    value13: int32 = 1int32
-    store value12, value13
-    value14: uint32 = int.add value10, value4
-    jump block1(value14, value11)
+b2(v10: uint32, v11: uint32):
+    v12: ref<int32, raw, space(frame)> = element.address v1, v10
+    v13: int32 = 1
+    store v12, v13
+    v14: uint32 = int.add v10, v4
+    jump b1(v14, v11)
 
-block3:
-    jump block4(value3, value6)
+b3:
+    jump b4(v3, v6)
 
-block4(value15: uint32, value16: uint32):
-    value17: boolean = int.lt.u value15, value0
-    branch value17, block5(value15, value16), block6()
+b4(v15: uint32, v16: uint32):
+    v17: boolean = int.lt.u v15, v0
+    branch v17, b5(v15, v16), b6
 
-block5(value18: uint32, value19: uint32):
-    value20: ref<int32, raw, space(frame)> = element.address value2, value18
-    value21: int32 = 2int32
-    store value20, value21
-    value22: uint32 = int.add value18, value4
-    jump block4(value22, value19)
+b5(v18: uint32, v19: uint32):
+    v20: ref<int32, raw, space(frame)> = element.address v2, v18
+    v21: int32 = 2
+    store v20, v21
+    v22: uint32 = int.add v18, v4
+    jump b4(v22, v19)
 
-block6:
+b6:
     return
 }
 "#;
@@ -1470,41 +1470,41 @@ block6:
     #[test]
     fn test_loop_fusion_skips_step_mismatch() {
         let input = r#"
-function test(value0: uint32): void {
-entry0(value0: uint32):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value3: uint32 = 0uint32
-    value4: uint32 = 1uint32
-    value5: uint32 = 2uint32
-    jump block1(value3)
+function test(v0: uint32): void {
+entry(v0: uint32):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: uint32 = 0
+    v4: uint32 = 1
+    v5: uint32 = 2
+    jump b1(v3)
 
-block1(value6: uint32):
-    value7: boolean = int.lt.u value6, value0
-    branch value7, block2(value6), block3()
+b1(v6: uint32):
+    v7: boolean = int.lt.u v6, v0
+    branch v7, b2(v6), b3
 
-block2(value8: uint32):
-    value9: ref<int32, raw, space(frame)> = element.address value1, value8
-    value10: int32 = 1int32
-    store value9, value10
-    value11: uint32 = int.add value8, value4
-    jump block1(value11)
+b2(v8: uint32):
+    v9: ref<int32, raw, space(frame)> = element.address v1, v8
+    v10: int32 = 1
+    store v9, v10
+    v11: uint32 = int.add v8, v4
+    jump b1(v11)
 
-block3:
-    jump block4(value3)
+b3:
+    jump b4(v3)
 
-block4(value12: uint32):
-    value13: boolean = int.lt.u value12, value0
-    branch value13, block5(value12), block6()
+b4(v12: uint32):
+    v13: boolean = int.lt.u v12, v0
+    branch v13, b5(v12), b6
 
-block5(value14: uint32):
-    value15: ref<int32, raw, space(frame)> = element.address value2, value14
-    value16: int32 = 2int32
-    store value15, value16
-    value17: uint32 = int.add value14, value5
-    jump block4(value17)
+b5(v14: uint32):
+    v15: ref<int32, raw, space(frame)> = element.address v2, v14
+    v16: int32 = 2
+    store v15, v16
+    v17: uint32 = int.add v14, v5
+    jump b4(v17)
 
-block6:
+b6:
     return
 }
 "#;

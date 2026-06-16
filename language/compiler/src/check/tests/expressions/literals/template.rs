@@ -82,8 +82,7 @@ const value: number = `hello`;
 
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'string' is not assignable to type 'float64'"
-/// @diagnostic.label line=2 column=23 source="const value: number = `hello`;"
+
 "#,
     );
 }

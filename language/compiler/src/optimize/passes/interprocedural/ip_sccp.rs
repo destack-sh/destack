@@ -765,31 +765,31 @@ mod tests {
     #[test]
     fn test_ip_sccp_inserts_constants() {
         let input = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 7int32
-    value1: int32 = call callee(value0): (int32) -> int32
-    return value1
+entry:
+    v0: int32 = 7
+    v1: int32 = call callee(v0)
+    return v1
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 7int32
-    return value1
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 7
+    return v1
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 7int32
-    value1: int32 = call callee(value0): (int32) -> int32
-    return value1
+entry:
+    v0: int32 = 7
+    v1: int32 = call callee(v0)
+    return v1
 }
 "#;
 
@@ -803,29 +803,29 @@ entry0:
     fn test_ip_sccp_replaces_pure_call() {
         let input = r#"
 function pure(): int32 {
-entry0:
-    value0: int32 = 9int32
-    return value0
+entry:
+    v0: int32 = 9
+    return v0
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = call pure(): () -> int32
-    return value0
+entry:
+    v0: int32 = call pure()
+    return v0
 }
 "#;
 
         let expected = r#"
 function pure(): int32 {
-entry0:
-    value0: int32 = 9int32
-    return value0
+entry:
+    v0: int32 = 9
+    return v0
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 9int32
-    return value0
+entry:
+    v0: int32 = 9
+    return v0
 }
 "#;
 
@@ -843,44 +843,44 @@ entry0:
     #[test]
     fn test_ip_sccp_skips_mismatched_constants() {
         let input = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 
 function first(): int32 {
-entry0:
-    value0: int32 = 1int32
-    value1: int32 = call callee(value0): (int32) -> int32
-    return value1
+entry:
+    v0: int32 = 1
+    v1: int32 = call callee(v0)
+    return v1
 }
 
 function second(): int32 {
-entry0:
-    value0: int32 = 2int32
-    value1: int32 = call callee(value0): (int32) -> int32
-    return value1
+entry:
+    v0: int32 = 2
+    v1: int32 = call callee(v0)
+    return v1
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 
 function first(): int32 {
-entry0:
-    value0: int32 = 1int32
-    value1: int32 = call callee(value0): (int32) -> int32
-    return value1
+entry:
+    v0: int32 = 1
+    v1: int32 = call callee(v0)
+    return v1
 }
 
 function second(): int32 {
-entry0:
-    value0: int32 = 2int32
-    value1: int32 = call callee(value0): (int32) -> int32
-    return value1
+entry:
+    v0: int32 = 2
+    v1: int32 = call callee(v0)
+    return v1
 }
 "#;
 
@@ -893,17 +893,17 @@ entry0:
     #[test]
     fn test_ip_sccp_skips_non_constant_callsite() {
         let input = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 
-function root(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 1int32
-    value2: int32 = call callee(value1): (int32) -> int32
-    value3: int32 = call callee(value0): (int32) -> int32
-    return value2
+function root(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 1
+    v2: int32 = call callee(v1)
+    v3: int32 = call callee(v0)
+    return v2
 }
 "#;
 
@@ -916,29 +916,29 @@ entry0(value0: int32):
     #[test]
     fn test_ip_sccp_propagates_tailcall() {
         let input = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 9int32
-    tailCall callee(value0): (int32) -> int32
+entry:
+    v0: int32 = 9
+    tail.call callee(v0)
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 9int32
-    return value1
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 9
+    return v1
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 9int32
-    tailCall callee(value0): (int32) -> int32
+entry:
+    v0: int32 = 9
+    tail.call callee(v0)
 }
 "#;
 
@@ -951,41 +951,41 @@ entry0:
     #[test]
     fn test_ip_sccp_propagates_call_terminator() {
         let input = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 9int32
-    call callee(value0): (int32) -> int32 -> block1()
+entry:
+    v0: int32 = 9
+    call callee(v0) -> b1
 
-block1(value1: int32):
-    return value1
+b1(v1: int32):
+    return v1
 
-block2(value2: ref<int32, managed, readonly>):
-    panic value2
+b2(v2: ref<int32, managed, readonly>):
+    panic v2
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 9int32
-    return value1
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 9
+    return v1
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 9int32
-    call callee(value0): (int32) -> int32 -> block1()
+entry:
+    v0: int32 = 9
+    call callee(v0) -> b1
 
-block1(value1: int32):
-    return value1
+b1(v1: int32):
+    return v1
 
-block2(value2: ref<int32, managed, readonly>):
-    panic value2
+b2(v2: ref<int32, managed, readonly>):
+    panic v2
 }
 "#;
 
@@ -999,15 +999,15 @@ block2(value2: ref<int32, managed, readonly>):
     fn test_ip_sccp_skips_call_without_metadata() {
         let input = r#"
 function pure(): int32 {
-entry0:
-    value0: int32 = 9int32
-    return value0
+entry:
+    v0: int32 = 9
+    return v0
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = call pure(): () -> int32
-    return value0
+entry:
+    v0: int32 = call pure()
+    return v0
 }
 "#;
 
@@ -1020,17 +1020,17 @@ entry0:
     #[test]
     fn test_ip_sccp_skips_exposed_by_indirect_signature() {
         let input = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 
-function root(value0: (int32) -> int32): int32 {
-entry0(value0: (int32) -> int32):
-    value1: int32 = 7int32
-    value2: int32 = call callee(value1): (int32) -> int32
-    value3: int32 = call.indirect value0(value1): (int32) -> int32
-    return value2
+function root(v0: (int32) -> int32): int32 {
+entry(v0: (int32) -> int32):
+    v1: int32 = 7
+    v2: int32 = call callee(v1)
+    v3: int32 = call.indirect v0(v1): (int32) -> int32
+    return v2
 }
 "#;
 

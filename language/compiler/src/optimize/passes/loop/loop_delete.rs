@@ -420,24 +420,24 @@ mod tests {
     fn test_delete_empty_loop() {
         let input = r#"
 function test(): void {
-entry0:
-    value0: boolean = false
-    jump block1()
+entry:
+    v0: boolean = false
+    jump b1
 
-block1:
-    branch value0, block1(), block2()
+b1:
+    branch v0, b1, b2
 
-block2:
+b2:
     return
 }
 "#;
         let expected = r#"
 function test(): void {
-entry0:
-    value0: boolean = false
-    jump block2()
+entry:
+    v0: boolean = false
+    jump b1
 
-block2:
+b1:
     return
 }
 "#;
@@ -451,29 +451,29 @@ block2:
     #[test]
     fn test_delete_unused_computation() {
         let input = r#"
-function test(value0: int32): void {
-entry0(value0: int32):
-    value1: boolean = false
-    value2: int32 = 0int32
-    jump block1(value2)
+function test(v0: int32): void {
+entry(v0: int32):
+    v1: boolean = false
+    v2: int32 = 0
+    jump b1(v2)
 
-block1(value3: int32):
-    value4: int32 = 1int32
-    value5: int32 = int.add value3, value4
-    branch value1, block1(value5), block2()
+b1(v3: int32):
+    v4: int32 = 1
+    v5: int32 = int.add v3, v4
+    branch v1, b1(v5), b2
 
-block2:
+b2:
     return
 }
 "#;
         let expected = r#"
-function test(value0: int32): void {
-entry0(value0: int32):
-    value1: boolean = false
-    value2: int32 = 0int32
-    jump block2()
+function test(v0: int32): void {
+entry(v0: int32):
+    v1: boolean = false
+    v2: int32 = 0
+    jump b1
 
-block2:
+b1:
     return
 }
 "#;
@@ -488,22 +488,22 @@ block2:
     fn test_preserve_call_side_effects() {
         let input = r#"
 function test(): void {
-entry0:
-    value0: boolean = false
-    jump block1()
+entry:
+    v0: boolean = false
+    jump b1
 
-block1:
-    call sideEffect(): () -> int32
-    branch value0, block1(), block2()
+b1:
+    call sideEffect()
+    branch v0, b1, b2
 
-block2:
+b2:
     return
 }
 
 function sideEffect(): int32 {
-entry0:
-    value0: int32 = 42int32
-    return value0
+entry:
+    v0: int32 = 42
+    return v0
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -517,16 +517,16 @@ entry0:
     #[test]
     fn test_preserve_store_side_effects() {
         let input = r#"
-function test(value0: ref<int32, raw>, value1: int32): void {
-entry0(value0: ref<int32, raw>, value1: int32):
-    value2: boolean = false
-    jump block1()
+function test(v0: ref<int32, raw>, v1: int32): void {
+entry(v0: ref<int32, raw>, v1: int32):
+    v2: boolean = false
+    jump b1
 
-block1:
-    store value0, value1
-    branch value2, block1(), block2()
+b1:
+    store v0, v1
+    branch v2, b1, b2
 
-block2:
+b2:
     return
 }
 "#;
@@ -542,16 +542,16 @@ block2:
     fn test_preserve_live_out() {
         let input = r#"
 function test(): int32 {
-entry0:
-    value0: boolean = false
-    jump block1()
+entry:
+    v0: boolean = false
+    jump b1
 
-block1:
-    value1: int32 = 1int32
-    branch value0, block1(), block2(value1)
+b1:
+    v1: int32 = 1
+    branch v0, b1, b2(v1)
 
-block2(value2: int32):
-    return value2
+b2(v2: int32):
+    return v2
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -566,17 +566,17 @@ block2(value2: int32):
     fn test_preserve_live_out_via_direct_use() {
         let input = r#"
 function test(): int32 {
-entry0:
-    value0: boolean = false
-    jump block1()
+entry:
+    v0: boolean = false
+    jump b1
 
-block1:
-    value1: int32 = 1int32
-    branch value0, block1(), block2()
+b1:
+    v1: int32 = 1
+    branch v0, b1, b2
 
-block2:
-    value2: int32 = int.add value1, value1
-    return value2
+b2:
+    v2: int32 = int.add v1, v1
+    return v2
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -590,34 +590,34 @@ block2:
     #[test]
     fn test_delete_multiple_parameterless_exits() {
         let input = r#"
-function test(value0: boolean): void {
-entry0(value0: boolean):
-    value1: boolean = false
-    jump block1()
+function test(v0: boolean): void {
+entry(v0: boolean):
+    v1: boolean = false
+    jump b1
 
-block1:
-    branch value1, block2(), block3()
+b1:
+    branch v1, b2, b3
 
-block2:
-    branch value0, block1(), block4()
+b2:
+    branch v0, b1, b4
 
-block3:
+b3:
     return
 
-block4:
+b4:
     return
 }
 "#;
         let expected = r#"
-function test(value0: boolean): void {
-entry0(value0: boolean):
-    value1: boolean = false
-    jump block3()
+function test(v0: boolean): void {
+entry(v0: boolean):
+    v1: boolean = false
+    jump b1
 
-block3:
+b1:
     return
 
-block4:
+b2:
     return
 }
 "#;
@@ -632,14 +632,14 @@ block4:
     fn test_preserve_constant_backedge() {
         let input = r#"
 function test(): void {
-entry0:
-    value0: boolean = true
-    jump block1()
+entry:
+    v0: boolean = true
+    jump b1
 
-block1:
-    branch value0, block1(), block2()
+b1:
+    branch v0, b1, b2
 
-block2:
+b2:
     return
 }
 "#;
@@ -654,11 +654,11 @@ block2:
     #[test]
     fn test_preserve_no_loops() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 1int32
-    value2: int32 = int.add value0, value1
-    return value2
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 1
+    v2: int32 = int.add v0, v1
+    return v2
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -670,44 +670,44 @@ entry0(value0: int32):
     #[test]
     fn test_delete_inner_loop_preserve_outer() {
         let input = r#"
-function test(value0: boolean, value1: boolean): int32 {
-entry0(value0: boolean, value1: boolean):
-    value2: int32 = 0int32
-    jump block1(value2)
+function test(v0: boolean, v1: boolean): int32 {
+entry(v0: boolean, v1: boolean):
+    v2: int32 = 0
+    jump b1(v2)
 
-block1(value3: int32):
-    value4: boolean = false
-    jump block2()
+b1(v3: int32):
+    v4: boolean = false
+    jump b2
 
-block2:
-    branch value4, block2(), block3()
+b2:
+    branch v4, b2, b3
 
-block3:
-    value5: int32 = 1int32
-    value6: int32 = int.add value3, value5
-    branch value0, block1(value6), block4(value6)
+b3:
+    v5: int32 = 1
+    v6: int32 = int.add v3, v5
+    branch v0, b1(v6), b4(v6)
 
-block4(value7: int32):
-    return value7
+b4(v7: int32):
+    return v7
 }
 "#;
         let expected = r#"
-function test(value0: boolean, value1: boolean): int32 {
-entry0(value0: boolean, value1: boolean):
-    value2: int32 = 0int32
-    jump block1(value2)
+function test(v0: boolean, v1: boolean): int32 {
+entry(v0: boolean, v1: boolean):
+    v2: int32 = 0
+    jump b1(v2)
 
-block1(value3: int32):
-    value4: boolean = false
-    jump block3()
+b1(v3: int32):
+    v4: boolean = false
+    jump b2
 
-block3:
-    value5: int32 = 1int32
-    value6: int32 = int.add value3, value5
-    branch value0, block1(value6), block4(value6)
+b2:
+    v5: int32 = 1
+    v6: int32 = int.add v3, v5
+    branch v0, b1(v6), b3(v6)
 
-block4(value7: int32):
-    return value7
+b3(v7: int32):
+    return v7
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -720,30 +720,30 @@ block4(value7: int32):
     #[test]
     fn test_delete_pass_initial_values_to_exit() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: boolean = false
-    value2: int32 = 0int32
-    jump block1(value2)
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: boolean = false
+    v2: int32 = 0
+    jump b1(v2)
 
-block1(value3: int32):
-    value4: int32 = 1int32
-    value5: int32 = int.add value3, value4
-    branch value1, block1(value5), block2(value3)
+b1(v3: int32):
+    v4: int32 = 1
+    v5: int32 = int.add v3, v4
+    branch v1, b1(v5), b2(v3)
 
-block2(value6: int32):
-    return value6
+b2(v6: int32):
+    return v6
 }
 "#;
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: boolean = false
-    value2: int32 = 0int32
-    jump block2(value2)
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: boolean = false
+    v2: int32 = 0
+    jump b1(v2)
 
-block2(value6: int32):
-    return value6
+b1(v6: int32):
+    return v6
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -756,16 +756,16 @@ block2(value6: int32):
     #[test]
     fn test_preserve_drop_side_effects() {
         let input = r#"
-function test(value0: int32): void {
-entry0(value0: int32):
-    value1: boolean = false
-    jump block1()
+function test(v0: int32): void {
+entry(v0: int32):
+    v1: boolean = false
+    jump b1
 
-block1:
-    drop value0
-    branch value1, block1(), block2()
+b1:
+    drop v0
+    branch v1, b1, b2
 
-block2:
+b2:
     return
 }
 "#;

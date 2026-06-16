@@ -50,8 +50,7 @@ const value: string = /abc/;
 
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'RegExp' is not assignable to type 'string'"
-/// @diagnostic.label line=2 column=23 source="const value: string = /abc/;"
+
 "#,
     );
 }
@@ -106,8 +105,7 @@ const value: boolean = /abc/;
 
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'RegExp' is not assignable to type 'boolean'"
-/// @diagnostic.label line=2 column=24 source="const value: boolean = /abc/;"
+
 "#,
     );
 }

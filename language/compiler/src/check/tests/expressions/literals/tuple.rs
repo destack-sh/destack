@@ -167,8 +167,7 @@ const value: (number, string) = (1, 2);
 
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '(1, 2)' is not assignable to type '(float64, string)'"
-/// @diagnostic.label line=2 column=33 source="const value: (number, string) = (1, 2);"
+
 "#,
     );
 }

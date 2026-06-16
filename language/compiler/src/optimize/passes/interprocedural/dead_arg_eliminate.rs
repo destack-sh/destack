@@ -402,28 +402,28 @@ mod tests {
     #[test]
     fn test_dead_arg_eliminate_removes_unused_param() {
         let input = r#"
-function callee(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    return value0
+function callee(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    return v0
 }
 
-function root(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = call callee(value0, value1): (int32, int32) -> int32
-    return value2
+function root(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = call callee(v0, v1)
+    return v2
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 
-function root(value0: int32): int32 {
-entry0(value0: int32):
-    value2: int32 = call callee(value0): (int32) -> int32
-    return value2
+function root(v0: int32): int32 {
+entry(v0: int32):
+    v2: int32 = call callee(v0)
+    return v2
 }
 "#;
 
@@ -436,26 +436,26 @@ entry0(value0: int32):
     #[test]
     fn test_dead_arg_eliminate_updates_tailcall() {
         let input = r#"
-function callee(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    return value0
+function callee(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    return v0
 }
 
-function root(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    tailCall callee(value0, value1): (int32, int32) -> int32
+function root(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    tail.call callee(v0, v1)
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 
-function root(value0: int32): int32 {
-entry0(value0: int32):
-    tailCall callee(value0): (int32, int32) -> int32
+function root(v0: int32): int32 {
+entry(v0: int32):
+    tail.call callee(v0)
 }
 "#;
 
@@ -468,38 +468,38 @@ entry0(value0: int32):
     #[test]
     fn test_dead_arg_eliminate_updates_call_terminator() {
         let input = r#"
-function callee(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    return value0
+function callee(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    return v0
 }
 
-function root(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    call callee(value0, value1): (int32, int32) -> int32 -> block1()
+function root(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    call callee(v0, v1) -> b1
 
-block1(value2: int32):
-    return value2
+b1(v2: int32):
+    return v2
 
-block2(value3: ref<int32, managed, readonly>):
-    panic value3
+b2(v3: ref<int32, managed, readonly>):
+    panic v3
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 
-function root(value0: int32): int32 {
-entry0(value0: int32):
-    call callee(value0): (int32, int32) -> int32 -> block1()
+function root(v0: int32): int32 {
+entry(v0: int32):
+    call callee(v0) -> b1
 
-block1(value2: int32):
-    return value2
+b1(v2: int32):
+    return v2
 
-block2(value3: ref<int32, managed, readonly>):
-    panic value3
+b2(v3: ref<int32, managed, readonly>):
+    panic v3
 }
 "#;
 
@@ -512,15 +512,15 @@ block2(value3: ref<int32, managed, readonly>):
     #[test]
     fn test_dead_arg_eliminate_skips_exports() {
         let input = r#"
-export function callee(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    return value0
+export function callee(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    return v0
 }
 
-function root(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = call callee(value0, value1): (int32, int32) -> int32
-    return value2
+function root(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = call callee(v0, v1)
+    return v2
 }
 "#;
 
@@ -533,16 +533,16 @@ entry0(value0: int32, value1: int32):
     #[test]
     fn test_dead_arg_eliminate_skips_indirect_signature() {
         let input = r#"
-function callee(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    return value0
+function callee(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    return v0
 }
 
-function root(value0: (int32, int32) -> int32, value1: int32, value2: int32): int32 {
-entry0(value0: (int32, int32) -> int32, value1: int32, value2: int32):
-    value3: int32 = call.indirect value0(value1, value2): (int32, int32) -> int32
-    value4: int32 = call callee(value1, value2): (int32, int32) -> int32
-    return value4
+function root(v0: (int32, int32) -> int32, v1: int32, v2: int32): int32 {
+entry(v0: (int32, int32) -> int32, v1: int32, v2: int32):
+    v3: int32 = call.indirect v0(v1, v2): (int32, int32) -> int32
+    v4: int32 = call callee(v1, v2)
+    return v4
 }
 "#;
 
@@ -555,28 +555,28 @@ entry0(value0: (int32, int32) -> int32, value1: int32, value2: int32):
     #[test]
     fn test_dead_arg_eliminate_updates_call_metadata() {
         let input = r#"
-function callee(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    return value0
+function callee(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    return v0
 }
 
-function root(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = call callee(value0, value1): (int32, int32) -> int32
-    return value2
+function root(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = call callee(v0, v1)
+    return v2
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 
-function root(value0: int32): int32 {
-entry0(value0: int32):
-    value2: int32 = call callee(value0): (int32) -> int32
-    return value2
+function root(v0: int32): int32 {
+entry(v0: int32):
+    v2: int32 = call callee(v0)
+    return v2
 }
 "#;
 
@@ -615,28 +615,28 @@ entry0(value0: int32):
     #[test]
     fn test_dead_arg_eliminate_remaps_metadata_indices() {
         let input = r#"
-function callee(value0: int32, value1: int32, value2: int32): int32 {
-entry0(value0: int32, value1: int32, value2: int32):
-    return value0
+function callee(v0: int32, v1: int32, v2: int32): int32 {
+entry(v0: int32, v1: int32, v2: int32):
+    return v0
 }
 
-function root(value0: int32, value1: int32, value2: int32): int32 {
-entry0(value0: int32, value1: int32, value2: int32):
-    value3: int32 = call callee(value0, value1, value2): (int32, int32, int32) -> int32
-    return value3
+function root(v0: int32, v1: int32, v2: int32): int32 {
+entry(v0: int32, v1: int32, v2: int32):
+    v3: int32 = call callee(v0, v1, v2)
+    return v3
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32, value2: int32): int32 {
-entry0(value0: int32, value2: int32):
-    return value0
+function callee(v0: int32, v2: int32): int32 {
+entry(v0: int32, v2: int32):
+    return v0
 }
 
-function root(value0: int32, value2: int32): int32 {
-entry0(value0: int32, value2: int32):
-    value3: int32 = call callee(value0, value2): (int32, int32) -> int32
-    return value3
+function root(v0: int32, v2: int32): int32 {
+entry(v0: int32, v2: int32):
+    v3: int32 = call callee(v0, v2)
+    return v3
 }
 "#;
 
@@ -667,9 +667,9 @@ entry0(value0: int32, value2: int32):
     #[test]
     fn test_dead_arg_eliminate_preserves_alloc_size_param() {
         let input = r#"
-function callee(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    return value0
+function callee(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    return v0
 }
 "#;
 
@@ -699,28 +699,28 @@ entry0(value0: int32, value1: int32):
     #[test]
     fn test_dead_arg_eliminate_remaps_call_allocation_size() {
         let input = r#"
-function callee(value0: int32, value1: int32, value2: int32): int32 {
-entry0(value0: int32, value1: int32, value2: int32):
-    return value0
+function callee(v0: int32, v1: int32, v2: int32): int32 {
+entry(v0: int32, v1: int32, v2: int32):
+    return v0
 }
 
-function root(value0: int32, value1: int32, value2: int32): int32 {
-entry0(value0: int32, value1: int32, value2: int32):
-    value3: int32 = call callee(value0, value1, value2): (int32, int32, int32) -> int32
-    return value3
+function root(v0: int32, v1: int32, v2: int32): int32 {
+entry(v0: int32, v1: int32, v2: int32):
+    v3: int32 = call callee(v0, v1, v2)
+    return v3
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 
-function root(value0: int32): int32 {
-entry0(value0: int32):
-    value3: int32 = call callee(value0): (int32) -> int32
-    return value3
+function root(v0: int32): int32 {
+entry(v0: int32):
+    v3: int32 = call callee(v0)
+    return v3
 }
 "#;
 

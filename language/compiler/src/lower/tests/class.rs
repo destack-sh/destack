@@ -69,16 +69,16 @@ type Box {
     value: int32;
 }
 
-function sumBox(value0: int32): int32 {
-entry0(value0: int32):
-    value1: Box = struct Box (value0)
-    value2: ref<Box, managed, readonly> = new.zeroed Box
-    store value2, value1
-    value3: Box = load value2
-    value4: int32 = field.get value3, 0
-    value5: int32 = 1int32
-    value6: int32 = int.add value4, value5
-    return value6
+function sumBox(v0: int32): int32 {
+entry(v0: int32):
+    v1: Box = struct Box (v0)
+    v2: ref<Box, managed, readonly> = new.zeroed Box
+    store v2, v1
+    v3: Box = load v2
+    v4: int32 = field.get v3, 0
+    v5: int32 = 1
+    v6: int32 = int.add v4, v5
+    return v6
 }
 "#,
     );
@@ -131,25 +131,26 @@ type PacketHeader {
     packetSize: int32;
 }
 
-readonly global PacketHeader#vtable: [ref<void, raw, readonly, space(static), nullable>; 2], space(static) = zeroInit
-readonly global MessageHeader#vtable: [ref<void, raw, readonly, space(static), nullable>; 3], space(static) = zeroInit
+readonly global PacketHeader#vtable: [ref<void, raw, readonly, nullable, space(static)>; 2], space(static) = zeroInit
 
-function readPacketSize(value0: int32): int32 {
-entry0(value0: int32):
-    value1: ref<[ref<void, raw, readonly, space(static), nullable>; 2], raw, readonly, space(static)> = global.address PacketHeader#vtable
-    value2: ref<void, raw, readonly, space(static)> = cast.bit value1 -> ref<void, raw, readonly, space(static)>
-    value3: PacketHeader = struct PacketHeader (value2, value0)
-    value4: ref<PacketHeader, managed, readonly> = new.zeroed PacketHeader
-    store value4, value3
-    value5: PacketHeader = load value4
-    value6: int32 = field.get value5, 1
-    return value6
+readonly global MessageHeader#vtable: [ref<void, raw, readonly, nullable, space(static)>; 3], space(static) = zeroInit
+
+function readPacketSize(v0: int32): int32 {
+entry(v0: int32):
+    v1: ref<[ref<void, raw, readonly, nullable, space(static)>; 2], raw, readonly, space(static)> = global.address PacketHeader#vtable
+    v2: ref<void, raw, readonly, space(static)> = cast.bit v1 -> ref<void, raw, readonly, space(static)>
+    v3: PacketHeader = struct PacketHeader (v2, v0)
+    v4: ref<PacketHeader, managed, readonly> = new.zeroed PacketHeader
+    store v4, v3
+    v5: PacketHeader = load v4
+    v6: int32 = field.get v5, 1
+    return v6
 }
 
 function MessageHeader.ping(this0: ref<PacketHeader, managed, readonly>): int32 {
-entry0(this0: ref<PacketHeader, managed, readonly>):
-    value1: int32 = 1int32
-    return value1
+entry(this0: ref<PacketHeader, managed, readonly>):
+    v1: int32 = 1
+    return v1
 }
 "#,
     );
@@ -299,31 +300,33 @@ type Animal {
     vtable: ref<void, raw, readonly, space(static)>;
     name: int32;
 }
+
 type Dog {
     vtable: ref<void, raw, readonly, space(static)>;
     name: int32;
     breed: int32;
 }
 
-readonly global Animal#vtable: [ref<void, raw, readonly, space(static), nullable>; 3], space(static) = zeroInit
-readonly global Dog#vtable: [ref<void, raw, readonly, space(static), nullable>; 3], space(static) = zeroInit
+readonly global Animal#vtable: [ref<void, raw, readonly, nullable, space(static)>; 3], space(static) = zeroInit
 
-function useDog(value0: ref<Dog, managed, readonly>): int32 {
-entry0(value0: ref<Dog, managed, readonly>):
-    value1: int32 = call.virtual value0, Dog, 2(value0): (ref<Dog, managed, readonly>) -> int32
-    return value1
+readonly global Dog#vtable: [ref<void, raw, readonly, nullable, space(static)>; 3], space(static) = zeroInit
+
+function useDog(v0: ref<Dog, managed, readonly>): int32 {
+entry(v0: ref<Dog, managed, readonly>):
+    v1: int32 = call.virtual v0, Dog, 2(v0): (ref<Dog, managed, readonly>) -> int32
+    return v1
 }
 
 function Animal.speak(this0: ref<Animal, managed, readonly>): int32 {
-entry0(this0: ref<Animal, managed, readonly>):
-    value1: int32 = 1int32
-    return value1
+entry(this0: ref<Animal, managed, readonly>):
+    v1: int32 = 1
+    return v1
 }
 
 function Dog.speak(this0: ref<Dog, managed, readonly>): int32 {
-entry0(this0: ref<Dog, managed, readonly>):
-    value1: int32 = 2int32
-    return value1
+entry(this0: ref<Dog, managed, readonly>):
+    v1: int32 = 2
+    return v1
 }
 "#,
     );
@@ -384,31 +387,32 @@ type Vehicle {
     vtable: ref<void, raw, readonly, space(static)>;
 }
 
-readonly global Vehicle#vtable: [ref<void, raw, readonly, space(static), nullable>; 4], space(static) = zeroInit
-readonly global Car#vtable: [ref<void, raw, readonly, space(static), nullable>; 5], space(static) = zeroInit
+readonly global Vehicle#vtable: [ref<void, raw, readonly, nullable, space(static)>; 4], space(static) = zeroInit
+
+readonly global Car#vtable: [ref<void, raw, readonly, nullable, space(static)>; 5], space(static) = zeroInit
 
 function Vehicle.start(this0: ref<Vehicle, managed, readonly>): int32 {
-entry0(this0: ref<Vehicle, managed, readonly>):
-    value1: int32 = 1int32
-    return value1
+entry(this0: ref<Vehicle, managed, readonly>):
+    v1: int32 = 1
+    return v1
 }
 
 function Vehicle.stop(this0: ref<Vehicle, managed, readonly>): int32 {
-entry0(this0: ref<Vehicle, managed, readonly>):
-    value1: int32 = 2int32
-    return value1
+entry(this0: ref<Vehicle, managed, readonly>):
+    v1: int32 = 2
+    return v1
 }
 
 function Car.start(this0: ref<Vehicle, managed, readonly>): int32 {
-entry0(this0: ref<Vehicle, managed, readonly>):
-    value1: int32 = 3int32
-    return value1
+entry(this0: ref<Vehicle, managed, readonly>):
+    v1: int32 = 3
+    return v1
 }
 
 function Car.honk(this0: ref<Vehicle, managed, readonly>): int32 {
-entry0(this0: ref<Vehicle, managed, readonly>):
-    value1: int32 = 4int32
-    return value1
+entry(this0: ref<Vehicle, managed, readonly>):
+    v1: int32 = 4
+    return v1
 }
 "#,
     );
@@ -475,31 +479,33 @@ type Logger {
     vtable: ref<void, raw, readonly, space(static)>;
     logLevel: int32;
 }
+
 type FileLogger {
     vtable: ref<void, raw, readonly, space(static)>;
     logLevel: int32;
     fileMode: int32;
 }
 
-readonly global Logger#vtable: [ref<void, raw, readonly, space(static), nullable>; 3], space(static) = zeroInit
-readonly global FileLogger#vtable: [ref<void, raw, readonly, space(static), nullable>; 3], space(static) = zeroInit
+readonly global Logger#vtable: [ref<void, raw, readonly, nullable, space(static)>; 3], space(static) = zeroInit
 
-function callLogger(value0: ref<Logger, managed, readonly>): int32 {
-entry0(value0: ref<Logger, managed, readonly>):
-    value1: int32 = call.virtual value0, Logger, 2(value0): (ref<Logger, managed, readonly>) -> int32
-    return value1
+readonly global FileLogger#vtable: [ref<void, raw, readonly, nullable, space(static)>; 3], space(static) = zeroInit
+
+function callLogger(v0: ref<Logger, managed, readonly>): int32 {
+entry(v0: ref<Logger, managed, readonly>):
+    v1: int32 = call.virtual v0, Logger, 2(v0): (ref<Logger, managed, readonly>) -> int32
+    return v1
 }
 
 function Logger.log(this0: ref<Logger, managed, readonly>): int32 {
-entry0(this0: ref<Logger, managed, readonly>):
-    value1: int32 = 1int32
-    return value1
+entry(this0: ref<Logger, managed, readonly>):
+    v1: int32 = 1
+    return v1
 }
 
 function FileLogger.log(this0: ref<FileLogger, managed, readonly>): int32 {
-entry0(this0: ref<FileLogger, managed, readonly>):
-    value1: int32 = 2int32
-    return value1
+entry(this0: ref<FileLogger, managed, readonly>):
+    v1: int32 = 2
+    return v1
 }
 "#,
     );
@@ -551,25 +557,26 @@ type Logger {
     vtable: ref<void, raw, readonly, space(static)>;
 }
 
-readonly global Logger#vtable: [ref<void, raw, readonly, space(static), nullable>; 3], space(static) = zeroInit
-readonly global FileLogger#vtable: [ref<void, raw, readonly, space(static), nullable>; 3], space(static) = zeroInit
+readonly global Logger#vtable: [ref<void, raw, readonly, nullable, space(static)>; 3], space(static) = zeroInit
 
-function callLogger(value0: ref<Logger, managed, readonly>): int32 {
-entry0(value0: ref<Logger, managed, readonly>):
-    value1: int32 = call.virtual value0, Logger, 2(value0): (ref<Logger, managed, readonly>) -> int32
-    return value1
+readonly global FileLogger#vtable: [ref<void, raw, readonly, nullable, space(static)>; 3], space(static) = zeroInit
+
+function callLogger(v0: ref<Logger, managed, readonly>): int32 {
+entry(v0: ref<Logger, managed, readonly>):
+    v1: int32 = call.virtual v0, Logger, 2(v0): (ref<Logger, managed, readonly>) -> int32
+    return v1
 }
 
 function Logger.log(this0: ref<Logger, managed, readonly>): int32 {
-entry0(this0: ref<Logger, managed, readonly>):
-    value1: int32 = 1int32
-    return value1
+entry(this0: ref<Logger, managed, readonly>):
+    v1: int32 = 1
+    return v1
 }
 
 function FileLogger.log(this0: ref<Logger, managed, readonly>): int32 {
-entry0(this0: ref<Logger, managed, readonly>):
-    value1: int32 = 2int32
-    return value1
+entry(this0: ref<Logger, managed, readonly>):
+    v1: int32 = 2
+    return v1
 }
 "#,
     );

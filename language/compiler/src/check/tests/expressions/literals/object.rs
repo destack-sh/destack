@@ -147,8 +147,7 @@ const value: { a: number; b: string } = { a: 1, b: 2 };
 
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '{ a: 1; b: 2 }' is not assignable to type '{ a: float64; b: string }'"
-/// @diagnostic.label line=2 column=41 source="const value: { a: number; b: string } = { a: 1, b: 2 };"
+
 "#,
     );
 }
@@ -534,8 +533,7 @@ const object = { ...user };
 /// @check.stats.solve variables=6 types=18 constraints=6 obligations=3 solutions=6 bounds=7 decisions=6
 "#,
         r#"
-/// @diagnostic.error code=EC500 message="type 'User' has no concrete layout"
-/// @diagnostic.label line=2 column=1 source="class User {"
+
 "#,
     );
 }

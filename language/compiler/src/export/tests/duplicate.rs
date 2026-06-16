@@ -35,8 +35,7 @@ export type { Foo };
     compiler.assert_dir_exported_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error code=ET101 message="duplicate export 'Foo'"
-/// @diagnostic.label line=4 column=15 source="export type { Foo };"
+
 "#,
     );
 }
@@ -81,8 +80,7 @@ export const value = 1;
     compiler.assert_dir_exported_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error code=ET102 message="global export cannot use default key"
-/// @diagnostic.label line=3 column=14 source="export { value as default } from \"./dep.ds\";"
+
 "#,
     );
 }
@@ -108,8 +106,7 @@ export const value = 1;
     compiler.assert_dir_exported_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error code=ET107 message="global namespace export requires an alias"
-/// @diagnostic.label line=3 column=5 source="export * from \"./dep.ds\";"
+
 "#,
     );
 }

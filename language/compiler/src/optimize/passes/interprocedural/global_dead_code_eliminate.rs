@@ -131,28 +131,28 @@ mod tests {
     #[test]
     fn test_global_dead_code_eliminate_unused_global() {
         let input = r#"
-readonly global live: int32 = 1int32
+readonly global live: int32 = 1
 
-readonly global dead: int32 = 2int32
+readonly global dead: int32 = 2
 
 function root(): int32 {
-entry0:
-    value0: ref<int32, raw, readonly> = global.address live
-    value1: int32 = load value0
-    return value1
+entry:
+    v0: ref<int32, raw, readonly> = global.address live
+    v1: int32 = load v0
+    return v1
 }
 "#;
 
         let expected = r#"
-readonly global live: int32 = 1int32
+readonly global live: int32 = 1
 
 external readonly global dead: int32
 
 function root(): int32 {
-entry0:
-    value0: ref<int32, raw, readonly> = global.address live
-    value1: int32 = load value0
-    return value1
+entry:
+    v0: ref<int32, raw, readonly> = global.address live
+    v1: int32 = load v0
+    return v1
 }
 "#;
 
@@ -165,26 +165,26 @@ entry0:
     #[test]
     fn test_global_dead_code_eliminate_keeps_global_addr() {
         let input = r#"
-readonly global live: int32 = 1int32
+readonly global live: int32 = 1
 
-readonly global dead: int32 = 2int32
+readonly global dead: int32 = 2
 
 function root(): ref<int32, raw, readonly> {
-entry0:
-    value0: ref<int32, raw, readonly> = global.address live
-    return value0
+entry:
+    v0: ref<int32, raw, readonly> = global.address live
+    return v0
 }
 "#;
 
         let expected = r#"
-readonly global live: int32 = 1int32
+readonly global live: int32 = 1
 
 external readonly global dead: int32
 
 function root(): ref<int32, raw, readonly> {
-entry0:
-    value0: ref<int32, raw, readonly> = global.address live
-    return value0
+entry:
+    v0: ref<int32, raw, readonly> = global.address live
+    return v0
 }
 "#;
 

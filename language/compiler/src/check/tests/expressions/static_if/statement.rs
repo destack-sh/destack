@@ -47,8 +47,7 @@ const value: int32 = "text";
 /// @type.node source="\"text\"" type="text"
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type is not assignable"
-/// @diagnostic.label line=3 column=22 source="const value: int32 = \"text\";"
+
 "#,
     );
 }

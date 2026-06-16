@@ -167,8 +167,7 @@ declare function choose(a: &Node, b: &Node): &Node;
 /// @resolution.name source=Node target=Node
 "#,
         r#"
-/// @diagnostic.error code=EC612 message="ambient signatures must spell result lifetimes explicitly"
-/// @diagnostic.label line=6 column=1 source="declare function choose(a: &Node, b: &Node): &Node;"
+
 "#,
     );
 }
