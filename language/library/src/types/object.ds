@@ -1,5 +1,5 @@
 /// Type of valid object property keys.
-export type PropertyKey = string | number | symbol;
+export type PropertyKey = string | usize | symbol;
 
 /// Object type with keys `K` and values `V`.
 @languageItem("types.Record")
@@ -18,7 +18,7 @@ export type Required<T> = {
 };
 
 /// Make each field of `T` readonly.
-export type ReadonlyFields<T> = {
+export type Readonly<T> = {
     readonly [K in keyof T]: T[K];
 };
 
