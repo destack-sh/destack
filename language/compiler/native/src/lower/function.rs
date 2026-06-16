@@ -76,8 +76,7 @@ impl<'a> FunctionLowerer<'a> {
         let mut local_map: HashMap<mir::LocalNodeId<mir::Local>, cir::StackSlot> = HashMap::new();
 
         // capture closure environment type before lowering
-        self.environment_type =
-            self.optional_type_id(&self.function.environment, "closure environment type")?;
+        self.environment_type = self.function.environment;
 
         // phase 0.5: pre-declare all referenced functions in the current function
         // (must be done before creating the FunctionBuilder)
@@ -129,7 +128,7 @@ impl<'a> FunctionLowerer<'a> {
                 let inst = self.tree.get(inst_id);
                 // direct call declarations
                 if let mir::Instruction::Call { function, .. } = inst {
-                    let function = self.function_id(*function, "direct call callee")?;
+                    let function = *function;
                     if !self.function_ref_map.contains_key(&function) {
                         self.declare_function_ref(function, target)?;
                     }
@@ -138,7 +137,7 @@ impl<'a> FunctionLowerer<'a> {
                 if let mir::Instruction::FunctionAddr { function, .. }
                 | mir::Instruction::ClosureBind { function, .. } = inst
                 {
-                    let function = self.function_id(*function, "addressable callee")?;
+                    let function = *function;
                     if !self.function_ref_map.contains_key(&function) {
                         self.declare_function_ref(function, target)?;
                     }
@@ -151,7 +150,7 @@ impl<'a> FunctionLowerer<'a> {
             match terminator {
                 mir::Terminator::Call { function, .. }
                 | mir::Terminator::TailCall { function, .. } => {
-                    let function = self.function_id(*function, "terminator callee")?;
+                    let function = *function;
                     if !self.function_ref_map.contains_key(&function) {
                         self.declare_function_ref(function, target)?;
                     }
@@ -190,11 +189,7 @@ impl<'a> FunctionLowerer<'a> {
     ) -> CodegenCraneliftResult<()> {
         for &local_id in &self.function.locals {
             let local = self.tree.get(local_id);
-            let ty = lower_type(
-                self.tree,
-                self.type_id(&local.ty, "local type")?,
-                self.pointer_bytes,
-            )?;
+            let ty = lower_type(self.tree, local.ty, self.pointer_bytes)?;
             let size = ty.bytes();
 
             let slot = builder.create_sized_stack_slot(cir::StackSlotData::new(
@@ -236,13 +231,9 @@ impl<'a> FunctionLowerer<'a> {
 
         // function parameters become entry block parameters in Cranelift
         for param in &self.function.parameters {
-            let ty = lower_type(
-                self.tree,
-                self.type_id(&param.ty, "function parameter type")?,
-                self.pointer_bytes,
-            )?;
+            let ty = lower_type(self.tree, param.ty, self.pointer_bytes)?;
             let value = builder.append_block_param(entry_block, ty);
-            let parameter = self.value_id(param.value, "function parameter value")?;
+            let parameter = param.value;
             value_map.insert(parameter, value);
         }
 
@@ -265,13 +256,9 @@ impl<'a> FunctionLowerer<'a> {
 
             // add block parameters (these are for phi nodes / join points)
             for param in &mir_block.parameters {
-                let ty = lower_type(
-                    self.tree,
-                    self.type_id(&param.ty, "block parameter type")?,
-                    self.pointer_bytes,
-                )?;
+                let ty = lower_type(self.tree, param.ty, self.pointer_bytes)?;
                 let value = builder.append_block_param(target_block, ty);
-                let parameter = self.value_id(param.value, "block parameter value")?;
+                let parameter = param.value;
                 value_map.insert(parameter, value);
             }
         }
@@ -345,20 +332,10 @@ impl<'a> FunctionLowerer<'a> {
                 // turn null into null pointer
                 if matches!(value, mir::Constant::Null) {
                     let null_ptr = builder.ins().iconst(self.pointer_type(), 0);
-                    self.insert_lowered_value(
-                        value_map,
-                        *destination,
-                        null_ptr,
-                        "const destination",
-                    )?;
+                    self.insert_lowered_value(value_map, *destination, null_ptr);
                 } else {
                     let result = self.lower_constant(instruction_id.into_any(), value, builder)?;
-                    self.insert_lowered_value(
-                        value_map,
-                        *destination,
-                        result,
-                        "const destination",
-                    )?;
+                    self.insert_lowered_value(value_map, *destination, result);
                 }
             }
 
@@ -372,7 +349,7 @@ impl<'a> FunctionLowerer<'a> {
                 let left_value = self.lowered_value(*left, value_map, "binary left operand")?;
                 let right_value = self.lowered_value(*right, value_map, "binary right operand")?;
                 let result = self.lower_binary_op(*operator, left_value, right_value, builder)?;
-                self.insert_lowered_value(value_map, *destination, result, "binary destination")?;
+                self.insert_lowered_value(value_map, *destination, result);
             }
 
             // unary: ineg/fneg/bnot (type-specific unary operation)
@@ -383,7 +360,7 @@ impl<'a> FunctionLowerer<'a> {
             } => {
                 let argument_value = self.lowered_value(*argument, value_map, "unary argument")?;
                 let result = self.lower_unary_op(*operator, argument_value, builder)?;
-                self.insert_lowered_value(value_map, *destination, result, "unary destination")?;
+                self.insert_lowered_value(value_map, *destination, result);
             }
 
             // cast: sextend/uextend/ireduce/bitcast/etc (type conversion)
@@ -394,11 +371,7 @@ impl<'a> FunctionLowerer<'a> {
                 to_type,
             } => {
                 let argument_value = self.lowered_value(*argument, value_map, "cast argument")?;
-                let target_type = lower_type(
-                    self.tree,
-                    self.type_id(to_type, "cast destination type")?,
-                    self.pointer_bytes,
-                )?;
+                let target_type = lower_type(self.tree, *to_type, self.pointer_bytes)?;
                 let result = self.lower_cast(
                     instruction_id.into_any(),
                     *operator,
@@ -406,7 +379,7 @@ impl<'a> FunctionLowerer<'a> {
                     target_type,
                     builder,
                 )?;
-                self.insert_lowered_value(value_map, *destination, result, "cast destination")?;
+                self.insert_lowered_value(value_map, *destination, result);
             }
 
             // select: conditional value selection
@@ -420,31 +393,22 @@ impl<'a> FunctionLowerer<'a> {
                 let t_val = self.lowered_value(*then_value, value_map, "select then value")?;
                 let f_val = self.lowered_value(*else_value, value_map, "select else value")?;
                 let result = builder.ins().select(cond, t_val, f_val);
-                self.insert_lowered_value(value_map, *destination, result, "select destination")?;
+                self.insert_lowered_value(value_map, *destination, result);
             }
 
             // local_get: stack_load (load from stack slot)
             mir::Instruction::LocalGet { destination, local } => {
-                let local = self.local_id(*local, "local get local")?;
+                let local = *local;
                 let slot = local_map[&local];
                 let local_data = self.tree.get(local);
-                let ty = lower_type(
-                    self.tree,
-                    self.type_id(&local_data.ty, "local type")?,
-                    self.pointer_bytes,
-                )?;
+                let ty = lower_type(self.tree, local_data.ty, self.pointer_bytes)?;
                 let result = builder.ins().stack_load(ty, slot, 0);
-                self.insert_lowered_value(
-                    value_map,
-                    *destination,
-                    result,
-                    "local get destination",
-                )?;
+                self.insert_lowered_value(value_map, *destination, result);
             }
 
             // local_set: stack_store (store to stack slot)
             mir::Instruction::LocalSet { local, value } => {
-                let local = self.local_id(*local, "local set local")?;
+                let local = *local;
                 let slot = local_map[&local];
                 let store_value = self.lowered_value(*value, value_map, "local set value")?;
                 builder.ins().stack_store(store_value, slot, 0);
@@ -454,15 +418,10 @@ impl<'a> FunctionLowerer<'a> {
             mir::Instruction::LocalAddr {
                 destination, local, ..
             } => {
-                let local = self.local_id(*local, "local address local")?;
+                let local = *local;
                 let slot = local_map[&local];
                 let result = builder.ins().stack_addr(self.pointer_type(), slot, 0);
-                self.insert_lowered_value(
-                    value_map,
-                    *destination,
-                    result,
-                    "local address destination",
-                )?;
+                self.insert_lowered_value(value_map, *destination, result);
             }
 
             // global_addr: symbol_value (get address of mutable global)
@@ -471,17 +430,12 @@ impl<'a> FunctionLowerer<'a> {
                 global,
                 ..
             } => {
-                let global = self.global_id(*global, "global address global")?;
+                let global = *global;
                 let global_value = self.get_or_declare_global(global, builder)?;
                 let ptr = builder
                     .ins()
                     .global_value(self.pointer_type(), global_value);
-                self.insert_lowered_value(
-                    value_map,
-                    *destination,
-                    ptr,
-                    "global address destination",
-                )?;
+                self.insert_lowered_value(value_map, *destination, ptr);
             }
 
             // function_addr: get a function pointer for indirect calls
@@ -489,26 +443,21 @@ impl<'a> FunctionLowerer<'a> {
                 destination,
                 function,
             } => {
-                let function = self.function_id(*function, "function address callee")?;
+                let function = *function;
                 let function_ref = self.function_ref_map.get(&function).ok_or_else(|| {
                     CodegenCraneliftError::Internal {
                         message: format!("function {function:?} not declared"),
                     }
                 })?;
                 let address = builder.ins().func_addr(self.pointer_type(), *function_ref);
-                self.insert_lowered_value(
-                    value_map,
-                    *destination,
-                    address,
-                    "function address destination",
-                )?;
+                self.insert_lowered_value(value_map, *destination, address);
             }
             mir::Instruction::ClosureBind {
                 destination,
                 function,
                 environment,
             } => {
-                let destination = self.value_id(*destination, "closure.bind destination")?;
+                let destination = *destination;
                 let destination_type =
                     self.value_type_or_error(destination, instruction_id.into_any())?;
                 let mir::Type::Closure { .. } = self.tree.get(destination_type) else {
@@ -517,7 +466,7 @@ impl<'a> FunctionLowerer<'a> {
                     });
                 };
 
-                let function = self.function_id(*function, "closure.bind callee")?;
+                let function = *function;
                 let function_ref = self.function_ref_map.get(&function).ok_or_else(|| {
                     CodegenCraneliftError::Internal {
                         message: format!("function {function:?} not declared"),
@@ -576,7 +525,7 @@ impl<'a> FunctionLowerer<'a> {
                             message: "closure.environment used without environment parameter"
                                 .to_string(),
                         })?;
-                let destination = self.value_id(*destination, "closure environment destination")?;
+                let destination = *destination;
                 let destination_type =
                     self.value_type_or_error(destination, instruction_id.into_any())?;
                 let destination_ty = lower_type(self.tree, destination_type, self.pointer_bytes)?;
@@ -597,16 +546,12 @@ impl<'a> FunctionLowerer<'a> {
                 result_type,
             } => {
                 let ptr_value = self.lowered_value(*pointer, value_map, "load pointer")?;
-                let loaded_type = lower_type(
-                    self.tree,
-                    self.type_id(result_type, "load result type")?,
-                    self.pointer_bytes,
-                )?;
+                let loaded_type = lower_type(self.tree, *result_type, self.pointer_bytes)?;
 
                 let result = builder
                     .ins()
                     .load(loaded_type, cir::MemFlags::new(), ptr_value, 0);
-                self.insert_lowered_value(value_map, *destination, result, "load destination")?;
+                self.insert_lowered_value(value_map, *destination, result);
             }
 
             // store: memory write through pointer
@@ -646,8 +591,8 @@ impl<'a> FunctionLowerer<'a> {
                 aggregate,
                 index,
             } => {
-                let destination = self.value_id(*destination, "field get destination")?;
-                let aggregate = self.value_id(*aggregate, "field get aggregate")?;
+                let destination = *destination;
+                let aggregate = *aggregate;
 
                 // aggregate type
                 let aggregate_type_id =
@@ -678,17 +623,15 @@ impl<'a> FunctionLowerer<'a> {
                 index,
                 ..
             } => {
-                let destination = self.value_id(*destination, "field address destination")?;
-                let aggregate = self.value_id(*aggregate, "field address aggregate")?;
+                let destination = *destination;
+                let aggregate = *aggregate;
 
                 // aggregate type
                 let aggregate_type_id =
                     self.value_type_or_error(aggregate, instruction_id.into_any())?;
                 let aggregate_type = self.tree.get(aggregate_type_id);
                 let aggregate_layout_type_id = match aggregate_type {
-                    mir::Type::Reference { pointee, .. } => {
-                        self.type_id(pointee, "field address pointee type")?
-                    }
+                    mir::Type::Reference { pointee, .. } => *pointee,
                     _ => aggregate_type_id,
                 };
 
@@ -716,18 +659,16 @@ impl<'a> FunctionLowerer<'a> {
                 index,
                 value,
             } => {
-                let destination = self.value_id(*destination, "field set destination")?;
-                let aggregate = self.value_id(*aggregate, "field set aggregate")?;
-                let value = self.value_id(*value, "field set value")?;
+                let destination = *destination;
+                let aggregate = *aggregate;
+                let value = *value;
 
                 // aggregate type
                 let aggregate_type_id =
                     self.value_type_or_error(aggregate, instruction_id.into_any())?;
                 let aggregate_type = self.tree.get(aggregate_type_id);
                 let aggregate_layout_type_id = match aggregate_type {
-                    mir::Type::Reference { pointee, .. } => {
-                        self.type_id(pointee, "field set pointee type")?
-                    }
+                    mir::Type::Reference { pointee, .. } => *pointee,
                     _ => aggregate_type_id,
                 };
 
@@ -757,8 +698,8 @@ impl<'a> FunctionLowerer<'a> {
                 array,
                 index,
             } => {
-                let destination = self.value_id(*destination, "element get destination")?;
-                let array = self.value_id(*array, "element get array")?;
+                let destination = *destination;
+                let array = *array;
 
                 // array type
                 let array_type_id = self.value_type_or_error(array, instruction_id.into_any())?;
@@ -766,9 +707,7 @@ impl<'a> FunctionLowerer<'a> {
 
                 // element type
                 let element_type_id = match array_type {
-                    mir::Type::Array { element, .. } => {
-                        self.type_id(element, "array element type")?
-                    }
+                    mir::Type::Array { element, .. } => *element,
                     _ => {
                         return Err(CodegenCraneliftError::Internal {
                             message: "ElementGet on non-array type".into(),
@@ -797,25 +736,21 @@ impl<'a> FunctionLowerer<'a> {
                 index,
                 ..
             } => {
-                let destination = self.value_id(*destination, "element address destination")?;
-                let array = self.value_id(*array, "element address array")?;
-                let index = self.value_id(*index, "element address index")?;
+                let destination = *destination;
+                let array = *array;
+                let index = *index;
 
                 // array type
                 let array_type_id = self.value_type_or_error(array, instruction_id.into_any())?;
                 let array_type = self.tree.get(array_type_id);
                 let array_layout = match array_type {
-                    mir::Type::Reference { pointee, .. } => self
-                        .tree
-                        .get(self.type_id(pointee, "element address pointee type")?),
+                    mir::Type::Reference { pointee, .. } => self.tree.get(*pointee),
                     _ => array_type,
                 };
 
                 // element type
                 let element_type_id = match array_layout {
-                    mir::Type::Array { element, .. } => {
-                        self.type_id(element, "array element type")?
-                    }
+                    mir::Type::Array { element, .. } => *element,
                     _ => {
                         return Err(CodegenCraneliftError::Internal {
                             message: "ElementAddr on non-array type".into(),
@@ -840,9 +775,9 @@ impl<'a> FunctionLowerer<'a> {
                 index,
                 value,
             } => {
-                let destination = self.value_id(*destination, "element set destination")?;
-                let array = self.value_id(*array, "element set array")?;
-                let value = self.value_id(*value, "element set value")?;
+                let destination = *destination;
+                let array = *array;
+                let value = *value;
 
                 // array type
                 let array_type_id = self.value_type_or_error(array, instruction_id.into_any())?;
@@ -850,9 +785,7 @@ impl<'a> FunctionLowerer<'a> {
 
                 // element type
                 let element_type_id = match array_type {
-                    mir::Type::Array { element, .. } => {
-                        self.type_id(element, "array element type")?
-                    }
+                    mir::Type::Array { element, .. } => *element,
                     _ => {
                         return Err(CodegenCraneliftError::Internal {
                             message: "ElementSet on non-array type".into(),
@@ -883,7 +816,7 @@ impl<'a> FunctionLowerer<'a> {
                 call,
                 ..
             } => {
-                let function = self.function_id(*function, "direct call callee")?;
+                let function = *function;
                 let callee = self.tree.get(function);
                 if callee.environment.is_some() {
                     return Err(CodegenCraneliftError::Internal {
@@ -897,11 +830,11 @@ impl<'a> FunctionLowerer<'a> {
                 })?;
 
                 // gather argument values
-                let args = self.tree.get_arguments(call.arguments);
+                let args = self.tree.get_values(call.arguments);
                 let argument_values: Vec<cir::Value> = args
                     .iter()
                     .map(|value| {
-                        let value = self.value_id(*value, "direct call argument")?;
+                        let value = *value;
                         Ok(value_map[&value])
                     })
                     .collect::<CodegenCraneliftResult<_>>()?;
@@ -910,9 +843,7 @@ impl<'a> FunctionLowerer<'a> {
                 let call_instruction = builder.ins().call(*function_ref, &argument_values);
 
                 // get return value if any
-                if let Some(dest) =
-                    self.optional_value_id(*destination, "direct call destination")?
-                {
+                if let Some(dest) = *destination {
                     let results = builder.inst_results(call_instruction);
                     if !results.is_empty() {
                         value_map.insert(dest, results[0]);
@@ -927,23 +858,16 @@ impl<'a> FunctionLowerer<'a> {
                 call,
                 ..
             } => {
-                let callee = self.value_id(*callee, "indirect call callee")?;
-                let sig_ref = self.build_indirect_call_signature(
-                    self.type_id(&call.signature, "indirect call signature")?,
-                    builder,
-                    "indirect call",
-                )?;
-                let (callee_value, environment_value) = self.lower_indirect_callee(
-                    callee,
-                    self.type_id(&call.signature, "indirect call signature")?,
-                    value_map,
-                    builder,
-                )?;
-                let args = self.tree.get_arguments(call.arguments);
+                let callee = *callee;
+                let sig_ref =
+                    self.build_indirect_call_signature(call.signature, builder, "indirect call")?;
+                let (callee_value, environment_value) =
+                    self.lower_indirect_callee(callee, call.signature, value_map, builder)?;
+                let args = self.tree.get_values(call.arguments);
                 let mut argument_values: Vec<cir::Value> = args
                     .iter()
                     .map(|value| {
-                        let value = self.value_id(*value, "indirect call argument")?;
+                        let value = *value;
                         Ok(value_map[&value])
                     })
                     .collect::<CodegenCraneliftResult<_>>()?;
@@ -958,9 +882,7 @@ impl<'a> FunctionLowerer<'a> {
                         .call_indirect(sig_ref, callee_value, &argument_values);
 
                 // get return value if any
-                if let Some(dest) =
-                    self.optional_value_id(*destination, "indirect call destination")?
-                {
+                if let Some(dest) = *destination {
                     let results = builder.inst_results(call_inst);
                     if !results.is_empty() {
                         value_map.insert(dest, results[0]);
@@ -985,8 +907,8 @@ impl<'a> FunctionLowerer<'a> {
                 layout,
                 ..
             } => {
-                let destination = self.value_id(*destination, "frame alloc destination")?;
-                let layout = self.type_id(layout, "frame alloc layout")?;
+                let destination = *destination;
+                let layout = *layout;
                 let ty = lower_type(self.tree, layout, self.pointer_bytes)?;
                 let size = ty.bytes();
 
@@ -1026,9 +948,9 @@ impl<'a> FunctionLowerer<'a> {
                 ty,
                 fields,
             } => {
-                let destination = self.value_id(*destination, "struct destination")?;
-                let ty = self.type_id(ty, "struct type")?;
-                let field_values = self.tree.get_arguments(*fields);
+                let destination = *destination;
+                let ty = *ty;
+                let field_values = self.tree.get_values(*fields);
                 let field_count = match self.tree.get(ty) {
                     mir::Type::Struct { fields, .. } => fields.len(),
                     mir::Type::Closure { .. } => 2,
@@ -1078,23 +1000,20 @@ impl<'a> FunctionLowerer<'a> {
                 ty,
                 elements,
             } => {
-                let destination = self.value_id(*destination, "tuple destination")?;
-                let ty = self.type_id(ty, "tuple type")?;
+                let destination = *destination;
+                let ty = *ty;
                 let tuple_type = self.tree.get(ty);
 
                 // get element type definitions
                 let element_types = match tuple_type {
-                    mir::Type::Tuple { elements, .. } => elements
-                        .iter()
-                        .map(|element| self.type_id(element, "tuple element type"))
-                        .collect::<CodegenCraneliftResult<Vec<_>>>()?,
+                    mir::Type::Tuple { elements, .. } => elements.clone(),
                     _ => {
                         return Err(CodegenCraneliftError::Internal {
                             message: "Tuple instruction with non-tuple type".into(),
                         });
                     }
                 };
-                let element_values = self.tree.get_arguments(*elements);
+                let element_values = self.tree.get_values(*elements);
 
                 // compute layout and allocate stack slot
                 let layout = compute_type_layout(self.tree, ty, self.pointer_bytes)?;
@@ -1130,22 +1049,20 @@ impl<'a> FunctionLowerer<'a> {
                 ty,
                 elements,
             } => {
-                let destination = self.value_id(*destination, "array destination")?;
-                let ty = self.type_id(ty, "array type")?;
+                let destination = *destination;
+                let ty = *ty;
                 let array_type = self.tree.get(ty);
 
                 // get element type
                 let element_type_id = match array_type {
-                    mir::Type::Array { element, .. } => {
-                        self.type_id(element, "array element type")?
-                    }
+                    mir::Type::Array { element, .. } => *element,
                     _ => {
                         return Err(CodegenCraneliftError::Internal {
                             message: "Array instruction with non-array type".into(),
                         });
                     }
                 };
-                let element_values = self.tree.get_arguments(*elements);
+                let element_values = self.tree.get_values(*elements);
 
                 // compute layout and allocate stack slot
                 let layout = compute_type_layout(self.tree, ty, self.pointer_bytes)?;
@@ -1249,7 +1166,7 @@ impl<'a> FunctionLowerer<'a> {
             }
             // return: function exit with optional value
             mir::Terminator::Return { value } => {
-                if let Some(value) = self.optional_value_id(*value, "return value")? {
+                if let Some(value) = *value {
                     let return_value = value_map[&value];
                     builder.ins().return_(&[return_value]);
                 } else {
@@ -1259,13 +1176,14 @@ impl<'a> FunctionLowerer<'a> {
 
             // jump: unconditional branch with block args
             mir::Terminator::Jump { target } => {
-                let target_id = self.block_id(target.block, "jump target")?;
+                let target_id = target.block;
                 let target_block = block_map[&target_id];
-                let arguments: Vec<cir::BlockArg> = target
-                    .arguments
+                let arguments: Vec<cir::BlockArg> = self
+                    .tree
+                    .block_target_values(target)
                     .iter()
                     .map(|value| {
-                        let value = self.value_id(*value, "jump argument")?;
+                        let value = *value;
                         Ok(cir::BlockArg::from(value_map[&value]))
                     })
                     .collect::<CodegenCraneliftResult<_>>()?;
@@ -1278,25 +1196,27 @@ impl<'a> FunctionLowerer<'a> {
                 then_target,
                 else_target,
             } => {
-                let condition = self.value_id(*condition, "branch condition")?;
+                let condition = *condition;
                 let cond_value = value_map[&condition];
-                let then_block_id = self.block_id(then_target.block, "branch then target")?;
-                let else_block_id = self.block_id(else_target.block, "branch else target")?;
+                let then_block_id = then_target.block;
+                let else_block_id = else_target.block;
                 let then_block = block_map[&then_block_id];
                 let else_block = block_map[&else_block_id];
-                let then_arguments: Vec<cir::BlockArg> = then_target
-                    .arguments
+                let then_arguments: Vec<cir::BlockArg> = self
+                    .tree
+                    .block_target_values(then_target)
                     .iter()
                     .map(|value| {
-                        let value = self.value_id(*value, "branch then argument")?;
+                        let value = *value;
                         Ok(cir::BlockArg::from(value_map[&value]))
                     })
                     .collect::<CodegenCraneliftResult<_>>()?;
-                let else_arguments: Vec<cir::BlockArg> = else_target
-                    .arguments
+                let else_arguments: Vec<cir::BlockArg> = self
+                    .tree
+                    .block_target_values(else_target)
                     .iter()
                     .map(|value| {
-                        let value = self.value_id(*value, "branch else argument")?;
+                        let value = *value;
                         Ok(cir::BlockArg::from(value_map[&value]))
                     })
                     .collect::<CodegenCraneliftResult<_>>()?;
@@ -1333,13 +1253,13 @@ impl<'a> FunctionLowerer<'a> {
                 default,
                 cases,
             } => {
-                let value = self.value_id(*value, "switch value")?;
-                let default_block_id = self.block_id(default.block, "switch default")?;
+                let value = *value;
+                let default_block_id = default.block;
                 self.lower_switch(
                     value_map[&value],
                     block_map[&default_block_id],
-                    &default.arguments,
-                    cases,
+                    self.tree.block_target_values(default),
+                    self.tree.get_switch_cases(*cases),
                     builder,
                     value_map,
                     block_map,
@@ -1383,7 +1303,7 @@ impl<'a> FunctionLowerer<'a> {
 
             // tail call: return_call (direct tail call)
             mir::Terminator::TailCall { function, call } => {
-                let function = self.function_id(*function, "tail call callee")?;
+                let function = *function;
                 let callee = self.tree.get(function);
                 if callee.environment.is_some() {
                     return Err(CodegenCraneliftError::Internal {
@@ -1397,11 +1317,12 @@ impl<'a> FunctionLowerer<'a> {
                 })?;
 
                 // gather argument values
-                let argument_values: Vec<cir::Value> = call
-                    .arguments
+                let argument_values: Vec<cir::Value> = self
+                    .tree
+                    .get_values(call.arguments)
                     .iter()
                     .map(|value| {
-                        let value = self.value_id(*value, "tail call argument")?;
+                        let value = *value;
                         Ok(value_map[&value])
                     })
                     .collect::<CodegenCraneliftResult<_>>()?;
@@ -1412,17 +1333,18 @@ impl<'a> FunctionLowerer<'a> {
 
             // tail call indirect: return_call_indirect (indirect tail call)
             mir::Terminator::TailCallIndirect { callee, call } => {
-                let callee = self.value_id(*callee, "tail indirect callee")?;
-                let signature = self.type_id(&call.signature, "tail indirect signature")?;
+                let callee = *callee;
+                let signature = call.signature;
                 let sig_ref =
                     self.build_indirect_call_signature(signature, builder, "tail call")?;
                 let (callee_value, environment_value) =
                     self.lower_indirect_callee(callee, signature, value_map, builder)?;
-                let mut argument_values: Vec<cir::Value> = call
-                    .arguments
+                let mut argument_values: Vec<cir::Value> = self
+                    .tree
+                    .get_values(call.arguments)
                     .iter()
                     .map(|value| {
-                        let value = self.value_id(*value, "tail indirect argument")?;
+                        let value = *value;
                         Ok(value_map[&value])
                     })
                     .collect::<CodegenCraneliftResult<_>>()?;
@@ -1448,7 +1370,7 @@ impl<'a> FunctionLowerer<'a> {
         &self,
         switch_value: cir::Value,
         default_block: cir::Block,
-        default_arguments: &[mir::ValueReference],
+        default_arguments: &[mir::Value],
         cases: &[mir::SwitchCase],
         builder: &mut FunctionBuilder<'_>,
         value_map: &HashMap<mir::Value, cir::Value>,
@@ -1459,7 +1381,7 @@ impl<'a> FunctionLowerer<'a> {
             let default_arguments: Vec<cir::BlockArg> = default_arguments
                 .iter()
                 .map(|value| {
-                    let value = self.value_id(*value, "switch default argument")?;
+                    let value = *value;
                     Ok(cir::BlockArg::from(value_map[&value]))
                 })
                 .collect::<CodegenCraneliftResult<_>>()?;
@@ -1470,8 +1392,10 @@ impl<'a> FunctionLowerer<'a> {
         // check if any cases have block arguments
         // (Cranelift's Switch doesn't support block arguments directly,
         //  so we need to create intermediate blocks for cases with arguments)
-        let has_block_arguments =
-            !default_arguments.is_empty() || cases.iter().any(|c| !c.target.arguments.is_empty());
+        let has_block_arguments = !default_arguments.is_empty()
+            || cases
+                .iter()
+                .any(|case| !self.tree.block_target_values(&case.target).is_empty());
         // fall back to chain of brif for cases with arguments
         if has_block_arguments {
             self.lower_switch_with_arguments(
@@ -1488,9 +1412,9 @@ impl<'a> FunctionLowerer<'a> {
         else {
             let mut switch = Switch::new();
             for case in cases {
-                let case_block_id = self.block_id(case.target.block, "switch case target")?;
+                let case_block_id = case.target.block;
                 let case_block = block_map[&case_block_id];
-                let case_value = self.integer_value(case.value, "switch case value")?;
+                let case_value = case.value;
                 switch.set_entry(case_value as u128, case_block);
             }
             switch.emit(builder, switch_value, default_block);
@@ -1503,7 +1427,7 @@ impl<'a> FunctionLowerer<'a> {
         &self,
         switch_value: cir::Value,
         default_block: cir::Block,
-        default_arguments: &[mir::ValueReference],
+        default_arguments: &[mir::Value],
         cases: &[mir::SwitchCase],
         builder: &mut FunctionBuilder<'_>,
         value_map: &HashMap<mir::Value, cir::Value>,
@@ -1512,14 +1436,14 @@ impl<'a> FunctionLowerer<'a> {
         let default_arguments: Vec<cir::BlockArg> = default_arguments
             .iter()
             .map(|value| {
-                let value = self.value_id(*value, "switch default argument")?;
+                let value = *value;
                 Ok(cir::BlockArg::from(value_map[&value]))
             })
             .collect::<CodegenCraneliftResult<_>>()?;
 
         for case in cases {
             // case condition
-            let case_value = self.integer_value(case.value, "switch case value")?;
+            let case_value = case.value;
             let case_value =
                 i64::try_from(case_value).map_err(|_| CodegenCraneliftError::Internal {
                     message: "wide switch case with block arguments".to_string(),
@@ -1529,14 +1453,14 @@ impl<'a> FunctionLowerer<'a> {
                 builder
                     .ins()
                     .icmp(cir::condcodes::IntCC::Equal, switch_value, case_const);
-            let case_block_id = self.block_id(case.target.block, "switch case target")?;
+            let case_block_id = case.target.block;
             let case_block = block_map[&case_block_id];
-            let case_arguments: Vec<cir::BlockArg> = case
-                .target
-                .arguments
+            let case_arguments: Vec<cir::BlockArg> = self
+                .tree
+                .block_target_values(&case.target)
                 .iter()
                 .map(|value| {
-                    let value = self.value_id(*value, "switch case argument")?;
+                    let value = *value;
                     Ok(cir::BlockArg::from(value_map[&value]))
                 })
                 .collect::<CodegenCraneliftResult<_>>()?;
@@ -1580,13 +1504,8 @@ impl<'a> FunctionLowerer<'a> {
         // closure abi
         let (signature, has_environment) = match self.tree.get(signature) {
             mir::Type::FunctionSignature { .. } => (signature, false),
-            mir::Type::FunctionPointer { signature } => (
-                self.type_id(signature, "function pointer signature")?,
-                false,
-            ),
-            mir::Type::Closure { signature, .. } => {
-                (self.type_id(signature, "closure signature")?, true)
-            }
+            mir::Type::FunctionPointer { signature } => (*signature, false),
+            mir::Type::Closure { signature, .. } => (*signature, true),
             _ => {
                 return Err(CodegenCraneliftError::Internal {
                     message: format!("{error_context} signature is not a function type"),
@@ -1608,11 +1527,7 @@ impl<'a> FunctionLowerer<'a> {
         let call_conv = self.isa.default_call_conv();
         let mut signature = cir::Signature::new(call_conv);
         for param_ty in parameters {
-            let ty = lower_type(
-                self.tree,
-                self.type_id(param_ty, "indirect call parameter type")?,
-                self.pointer_bytes,
-            )?;
+            let ty = lower_type(self.tree, *param_ty, self.pointer_bytes)?;
             signature.params.push(cir::AbiParam::new(ty));
         }
         if has_environment {
@@ -1620,7 +1535,7 @@ impl<'a> FunctionLowerer<'a> {
                 .params
                 .push(cir::AbiParam::new(self.pointer_type()));
         }
-        let result = self.type_id(result, "indirect call result type")?;
+        let result = *result;
         let result_type = self.tree.get(result);
         if !matches!(result_type, mir::Type::Void) {
             let ty = lower_type(self.tree, result, self.pointer_bytes)?;
@@ -1654,7 +1569,7 @@ impl<'a> FunctionLowerer<'a> {
                 message: "indirect call signature is not a function type".into(),
             });
         };
-        let environment = self.type_id(environment, "closure environment type")?;
+        let environment = *environment;
 
         let callee_value = value_map[&callee];
         let signature_node = signature.into_any();
@@ -1663,7 +1578,7 @@ impl<'a> FunctionLowerer<'a> {
         let (environment_offset, environment_field_type) =
             self.aggregate_field_offset_and_type(signature, 1, signature_node)?;
 
-        let function_type = self.type_id(function_type, "closure function type")?;
+        let function_type = *function_type;
 
         if function_field_type != function_type {
             return Err(CodegenCraneliftError::Internal {
@@ -1803,122 +1718,14 @@ impl<'a> FunctionLowerer<'a> {
         }
     }
 
-    /// Return one concrete MIR value from a recoverable reference.
-    fn value_id(
-        &self,
-        value: mir::ValueReference,
-        context: &str,
-    ) -> CodegenCraneliftResult<mir::Value> {
-        value
-            .value()
-            .ok_or_else(|| CodegenCraneliftError::Internal {
-                message: format!("missing or malformed MIR value in native lowering: {context}"),
-            })
-    }
-
-    /// Return one optional concrete MIR value from a recoverable reference.
-    fn optional_value_id(
-        &self,
-        value: Option<mir::ValueReference>,
-        context: &str,
-    ) -> CodegenCraneliftResult<Option<mir::Value>> {
-        value.map(|value| self.value_id(value, context)).transpose()
-    }
-
-    /// Return one concrete MIR type from a recoverable reference.
-    fn type_id(
-        &self,
-        ty: &mir::TypeReference,
-        context: &str,
-    ) -> CodegenCraneliftResult<mir::LocalNodeId<mir::Type>> {
-        ty.ty().ok_or_else(|| CodegenCraneliftError::Internal {
-            message: format!("missing or malformed MIR type in native lowering: {context}"),
-        })
-    }
-
-    /// Return one optional concrete MIR type from a recoverable reference.
-    fn optional_type_id(
-        &self,
-        ty: &Option<mir::TypeReference>,
-        context: &str,
-    ) -> CodegenCraneliftResult<Option<mir::LocalNodeId<mir::Type>>> {
-        ty.as_ref().map(|ty| self.type_id(ty, context)).transpose()
-    }
-
-    /// Return one concrete MIR function from a recoverable reference.
-    fn function_id(
-        &self,
-        function: mir::FunctionReference,
-        context: &str,
-    ) -> CodegenCraneliftResult<mir::LocalNodeId<mir::Function>> {
-        function
-            .function()
-            .ok_or_else(|| CodegenCraneliftError::Internal {
-                message: format!("missing or malformed MIR function in native lowering: {context}"),
-            })
-    }
-
-    /// Return one concrete MIR block from a recoverable reference.
-    fn block_id(
-        &self,
-        block: mir::BlockReference,
-        context: &str,
-    ) -> CodegenCraneliftResult<mir::LocalNodeId<mir::Block>> {
-        block
-            .block()
-            .ok_or_else(|| CodegenCraneliftError::Internal {
-                message: format!("missing or malformed MIR block in native lowering: {context}"),
-            })
-    }
-
-    /// Return one concrete MIR local from a recoverable reference.
-    fn local_id(
-        &self,
-        local: mir::LocalReference,
-        context: &str,
-    ) -> CodegenCraneliftResult<mir::LocalNodeId<mir::Local>> {
-        local
-            .local()
-            .ok_or_else(|| CodegenCraneliftError::Internal {
-                message: format!("missing or malformed MIR local in native lowering: {context}"),
-            })
-    }
-
-    /// Return one concrete MIR global from a recoverable reference.
-    fn global_id(
-        &self,
-        global: mir::GlobalReference,
-        context: &str,
-    ) -> CodegenCraneliftResult<mir::LocalNodeId<mir::Global>> {
-        global
-            .global()
-            .ok_or_else(|| CodegenCraneliftError::Internal {
-                message: format!("missing or malformed MIR global in native lowering: {context}"),
-            })
-    }
-
-    /// Return one concrete MIR integer from a recoverable reference.
-    fn integer_value(
-        &self,
-        value: mir::IntegerReference,
-        context: &str,
-    ) -> CodegenCraneliftResult<i128> {
-        value
-            .integer()
-            .ok_or_else(|| CodegenCraneliftError::Internal {
-                message: format!("missing or malformed MIR integer in native lowering: {context}"),
-            })
-    }
-
-    /// Return one lowered Cranelift value for a MIR value reference.
+    /// Return one MIR value.
+    /// Return one lowered Cranelift value for a MIR value.
     fn lowered_value(
         &self,
-        value: mir::ValueReference,
+        value: mir::Value,
         value_map: &HashMap<mir::Value, cir::Value>,
         context: &str,
     ) -> CodegenCraneliftResult<cir::Value> {
-        let value = self.value_id(value, context)?;
-
         value_map
             .get(&value)
             .copied()
@@ -1931,14 +1738,10 @@ impl<'a> FunctionLowerer<'a> {
     fn insert_lowered_value(
         &self,
         value_map: &mut HashMap<mir::Value, cir::Value>,
-        destination: mir::ValueReference,
+        destination: mir::Value,
         value: cir::Value,
-        context: &str,
-    ) -> CodegenCraneliftResult<()> {
-        let destination = self.value_id(destination, context)?;
+    ) {
         value_map.insert(destination, value);
-
-        Ok(())
     }
 
     /// Return the MIR type for a value or report a missing type.
@@ -1990,7 +1793,7 @@ impl<'a> FunctionLowerer<'a> {
             }
         };
 
-        let field_type = self.type_id(&field_type, "aggregate field type")?;
+        let field_type = field_type;
 
         let layout = self.tree.type_layout(aggregate_type).ok_or_else(|| {
             CodegenCraneliftError::unsupported_type("missing aggregate layout metadata", node)
