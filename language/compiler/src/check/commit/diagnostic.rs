@@ -40,7 +40,7 @@ impl CheckState<'_> {
         for origin in unresolved_origins {
             let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
             if reported.insert((module, anchor.clone())) {
-                errors.push(CheckError::CannotSolve { anchor, module }.into());
+                errors.push(CheckError::CannotInferType { anchor, module }.into());
             }
         }
 

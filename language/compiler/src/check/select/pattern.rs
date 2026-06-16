@@ -200,11 +200,7 @@ impl CheckState<'_> {
             ),
             // non-literal comparisons match through their value types
             None => {
-                self.report_invalid_control_flow(
-                    module,
-                    node.local_id.into_any(),
-                    "expression pattern does not close to a literal",
-                );
+                self.report_expression_pattern_not_literal(module, node.local_id.into_any());
 
                 self.record_pattern(node, dir::PatternResolution::Wildcard)
             }

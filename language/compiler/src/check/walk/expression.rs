@@ -258,11 +258,8 @@ impl WalkState<'_, '_> {
                         self.declare_node_type(id, receiver.ty)?;
                     }
                     None => {
-                        self.check.report_invalid_control_flow(
-                            self.module,
-                            id.into_any(),
-                            "this has no receiver",
-                        );
+                        self.check
+                            .report_this_outside_receiver(self.module, id.into_any());
                         let error = self.push_type(dir::Type::Error, id.into_any())?;
                         self.declare_node_type(id, error)?;
                     }
@@ -296,11 +293,8 @@ impl WalkState<'_, '_> {
                         self.declare_node_type(id, super_ty)?;
                     }
                     None => {
-                        self.check.report_invalid_control_flow(
-                            self.module,
-                            id.into_any(),
-                            "super has no superclass",
-                        );
+                        self.check
+                            .report_super_outside_class(self.module, id.into_any());
                         let error = self.push_type(dir::Type::Error, id.into_any())?;
                         self.declare_node_type(id, error)?;
                     }
@@ -890,11 +884,8 @@ impl WalkState<'_, '_> {
 
         // the fallback must leave the binding scope
         if self.expression_can_complete_normally(else_branch) {
-            self.check.report_invalid_control_flow(
-                self.module,
-                else_branch.into_any(),
-                "let else fallback must diverge",
-            );
+            self.check
+                .report_let_else_branch_can_complete(self.module, else_branch.into_any());
         }
 
         // continue with the matched bindings assigned

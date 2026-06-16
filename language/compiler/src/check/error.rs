@@ -15,7 +15,7 @@ pub enum CheckError {
     /// const value = _;
     /// ```
     #[diagnostic(code = "EC100", message = "cannot infer a type here")]
-    CannotSolve {
+    CannotInferType {
         /// Report the node that requires the solution.
         anchor: DiagnosticAnchor,
         /// The module being checked.
@@ -145,42 +145,93 @@ pub enum CheckError {
         target: String,
     },
 
-    /// Type does not implement a required contract.
+    /// Type does not implement a required interface.
     ///
     /// ```ds
     /// class User implements Serializable {}
     /// ```
     #[diagnostic(
         code = "EC203",
-        message = "type '{source}' does not implement '{target}'"
+        message = "type '{source}' does not implement interface '{target}'"
     )]
-    DoesNotImplement {
+    InterfaceNotImplemented {
         /// Report the implements clause or constrained type.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
         /// The implementing source type.
         source: String,
-        /// The required contract.
+        /// The required interface.
         target: String,
     },
 
-    /// Assignment writes through a target that is not writable.
+    /// Assignment target does not designate storage.
+    ///
+    /// ```ds
+    /// (value + 1) = 2;
+    /// ```
+    #[diagnostic(
+        code = "EC204",
+        message = "assignment target is not a storage location"
+    )]
+    InvalidAssignmentTarget {
+        /// Report the assignment target.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Assignment writes to an immutable binding.
     ///
     /// ```ds
     /// const value = 1;
     /// value = 2;
     /// ```
-    #[diagnostic(code = "EC204", message = "cannot assign to '{place}': {reason}")]
-    NotWritable {
+    #[diagnostic(
+        code = "EC212",
+        message = "cannot assign to immutable binding '{name}'"
+    )]
+    CannotAssignImmutableBinding {
         /// Report the mutation.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
-        /// The written place written form.
-        place: String,
-        /// Why the place rejects writes.
-        reason: String,
+        /// The written binding name.
+        name: String,
+    },
+
+    /// Assignment writes to an imported binding.
+    ///
+    /// ```ds
+    /// import { value } from "./value.ds";
+    /// value = 2;
+    /// ```
+    #[diagnostic(code = "EC213", message = "cannot assign to imported binding '{name}'")]
+    CannotAssignImportedBinding {
+        /// Report the mutation.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The written binding name.
+        name: String,
+    },
+
+    /// Assignment writes to a readonly member.
+    ///
+    /// ```ds
+    /// value.readonly = 2;
+    /// ```
+    #[diagnostic(
+        code = "EC214",
+        message = "cannot assign to readonly member '{member}'"
+    )]
+    CannotAssignReadonlyMember {
+        /// Report the mutation.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The written member key.
+        member: String,
     },
 
     /// Fresh object literal contains a property that the target cannot accept.
@@ -544,7 +595,10 @@ pub enum CheckError {
     /// function pair(a: int32, b: int32) {}
     /// pair(1);
     /// ```
-    #[diagnostic(code = "EC314", message = "expected {expected}, but got {supplied}")]
+    #[diagnostic(
+        code = "EC314",
+        message = "expected {expected}, but got {supplied} argument(s)"
+    )]
     WrongArgumentCount {
         /// Report the call expression.
         anchor: DiagnosticAnchor,
@@ -594,19 +648,17 @@ pub enum CheckError {
         module: ModuleId,
     },
 
-    /// Control flow construct is not valid in its current scope.
+    /// Break expression has no target.
     ///
     /// ```ds
     /// break;
     /// ```
-    #[diagnostic(code = "EC402", message = "invalid control flow: {message}")]
-    InvalidControlFlow {
-        /// Report the control flow construct.
+    #[diagnostic(code = "EC402", message = "break statement has no target")]
+    BreakOutsideControlTarget {
+        /// Report the break expression.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
-        /// Describe the invalid control flow.
-        message: String,
     },
 
     /// Pattern matching does not cover every possible value.
@@ -663,34 +715,30 @@ pub enum CheckError {
         missing: String,
     },
 
-    /// Await expression has an invalid shape for its context.
+    /// Await expression appears outside an async context.
     ///
     /// ```ds
     /// const value = await promise;
     /// ```
-    #[diagnostic(code = "EC407", message = "invalid await expression: {message}")]
-    InvalidAwait {
+    #[diagnostic(code = "EC407", message = "await expression requires an async context")]
+    AwaitOutsideAsyncContext {
         /// Report the await expression.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
-        /// Describe why the await expression is invalid.
-        message: String,
     },
 
-    /// Yield expression has an invalid shape for its context.
+    /// Yield expression appears outside a generator.
     ///
     /// ```ds
     /// yield value;
     /// ```
-    #[diagnostic(code = "EC408", message = "invalid yield expression: {message}")]
-    InvalidYield {
+    #[diagnostic(code = "EC408", message = "yield expression requires a generator")]
+    YieldOutsideGenerator {
         /// Report the yield expression.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
-        /// Describe why the yield expression is invalid.
-        message: String,
     },
 
     /// Static operation could not be evaluated.
@@ -743,6 +791,154 @@ pub enum CheckError {
         module: ModuleId,
         /// The non-nominal tag type.
         ty: String,
+    },
+
+    /// Continue expression has no target loop.
+    ///
+    /// ```ds
+    /// continue;
+    /// ```
+    #[diagnostic(code = "EC412", message = "continue statement has no target")]
+    ContinueOutsideLoop {
+        /// Report the continue expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Return expression appears outside a function body.
+    ///
+    /// ```ds
+    /// return value;
+    /// ```
+    #[diagnostic(code = "EC413", message = "return statement is outside a function")]
+    ReturnOutsideFunction {
+        /// Report the return expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// This expression appears where no receiver is available.
+    ///
+    /// ```ds
+    /// const value = this;
+    /// ```
+    #[diagnostic(code = "EC414", message = "'this' is not available here")]
+    ThisOutsideReceiver {
+        /// Report the this expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Super expression appears where no superclass receiver is available.
+    ///
+    /// ```ds
+    /// const value = super;
+    /// ```
+    #[diagnostic(code = "EC415", message = "'super' is not available here")]
+    SuperOutsideClass {
+        /// Report the super expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Let-else fallback can complete normally.
+    ///
+    /// ```ds
+    /// let Some(value) = option else { 0 };
+    /// ```
+    #[diagnostic(code = "EC416", message = "else branch of let-else must diverge")]
+    LetElseBranchCanComplete {
+        /// Report the else branch.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Tree expression is not valid in checked expressions.
+    ///
+    /// ```ds
+    /// tree { value }
+    /// ```
+    #[diagnostic(code = "EC417", message = "tree expression is not supported here")]
+    UnsupportedTreeExpression {
+        /// Report the tree expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Expression pattern did not close to a literal.
+    ///
+    /// ```ds
+    /// match (value) {
+    ///     other => 1,
+    /// }
+    /// ```
+    #[diagnostic(code = "EC418", message = "expression pattern must close to a literal")]
+    ExpressionPatternNotLiteral {
+        /// Report the expression pattern.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Yield delegation has no delegated value.
+    ///
+    /// ```ds
+    /// yield*;
+    /// ```
+    #[diagnostic(code = "EC419", message = "yield* expression requires a value")]
+    YieldDelegateMissingValue {
+        /// Report the yield expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Try propagation appears outside a function body.
+    ///
+    /// ```ds
+    /// value?;
+    /// ```
+    #[diagnostic(
+        code = "EC420",
+        message = "'?' can only propagate from a function body"
+    )]
+    TryOutsideFunction {
+        /// Report the try expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// For-of source is not iterable.
+    ///
+    /// ```ds
+    /// for (const value of 1) {}
+    /// ```
+    #[diagnostic(code = "EC421", message = "for-of source must be iterable")]
+    ForOfSourceNotIterable {
+        /// Report the for-of expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// For-in source is not object-shaped.
+    ///
+    /// ```ds
+    /// for (const key in 1) {}
+    /// ```
+    #[diagnostic(code = "EC422", message = "for-in source must be object-shaped")]
+    ForInSourceNotObjectShaped {
+        /// Report the for-in expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
     },
 
     // -------------------------------------------------------------------------
@@ -845,15 +1041,15 @@ pub enum CheckError {
     ///     name() {}
     /// }
     /// ```
-    #[diagnostic(code = "EC603", message = "method receiver is implicit")]
-    ImplicitReceiver {
+    #[diagnostic(code = "EC603", message = "method must spell its receiver explicitly")]
+    MissingExplicitReceiver {
         /// Report the method declaration.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
     },
 
-    /// Two implementations claim the same contract for the same type.
+    /// Two implementations claim the same interface for the same type.
     ///
     /// ```ds
     /// extension of User implements Show {}
@@ -861,36 +1057,36 @@ pub enum CheckError {
     /// ```
     #[diagnostic(
         code = "EC604",
-        message = "conflicting implementations of '{contract}' for type '{ty}'"
+        message = "conflicting implementations of interface '{interface}' for type '{ty}'"
     )]
     ConflictingImplementation {
         /// Report the later implementation.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
-        /// The implemented contract.
-        contract: String,
+        /// The implemented interface.
+        interface: String,
         /// The implementing type.
         ty: String,
     },
 
     /// Blanket implementation over a bare parameter is declared outside
-    /// the contract's package.
+    /// the interface's package.
     ///
     /// ```ds
     /// extension<T: Equal> of T implements PartialEqual {}
     /// ```
     #[diagnostic(
         code = "EC605",
-        message = "blanket implementation over a bare parameter must live in the package declaring '{contract}'"
+        message = "blanket implementation over a bare parameter must live in the package declaring interface '{interface}'"
     )]
     ForeignBlanketImplementation {
         /// Report the blanket implementation.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
-        /// The implemented contract.
-        contract: String,
+        /// The implemented interface.
+        interface: String,
     },
 
     /// Member shadows an inherited member without the override modifier.
@@ -997,14 +1193,14 @@ pub enum CheckError {
     /// ```ds
     /// function parse(input: string): int32;
     /// ```
-    #[diagnostic(code = "EC611", message = "'{member}' requires a body")]
+    #[diagnostic(code = "EC611", message = "declaration '{name}' requires a body")]
     MissingDeclarationBody {
         /// Report the bodyless declaration.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
         /// The bodyless declaration name.
-        member: String,
+        name: String,
     },
 
     /// Ambient signature elides a result lifetime.

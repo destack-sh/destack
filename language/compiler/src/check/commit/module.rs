@@ -142,15 +142,17 @@ impl CheckState<'_> {
 
                     self.ty(solved)?.clone()
                 }
-                // unsolved variables demand an annotation loudly
+                // rejected nodes already reported the primary error
                 None => {
                     let origin = self.variables.get(representative)?.origin;
-                    let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-                    if self.modules.contains_key(&module)
-                        && reported.insert((module, anchor.clone()))
-                    {
-                        let error = CheckError::MissingTypeAnnotation { anchor, module };
-                        self.module_mut(module).diagnostics.push(error.into());
+                    if !self.origin_has_rejected_decision(origin) {
+                        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+                        if self.modules.contains_key(&module)
+                            && reported.insert((module, anchor.clone()))
+                        {
+                            let error = CheckError::MissingTypeAnnotation { anchor, module };
+                            self.module_mut(module).diagnostics.push(error.into());
+                        }
                     }
 
                     dir::Type::Error
@@ -160,6 +162,15 @@ impl CheckState<'_> {
         }
 
         Ok(patches)
+    }
+
+    /// Return whether one origin already has a primary rejection diagnostic.
+    fn origin_has_rejected_decision(&self, origin: Origin) -> bool {
+        let Origin::Node(node) = origin else {
+            return false;
+        };
+
+        matches!(self.decisions.get(node), Some(Decision::Rejected))
     }
 
     /// Resolve one module's recorded node types.

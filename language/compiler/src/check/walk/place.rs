@@ -157,7 +157,8 @@ impl WalkState<'_, '_> {
             }
             // not writable place syntax
             _ => {
-                self.check.report_not_writable(module, id.into_any());
+                self.check
+                    .report_invalid_assignment_target(module, id.into_any());
 
                 Ok(None)
             }

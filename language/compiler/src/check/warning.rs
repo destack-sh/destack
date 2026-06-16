@@ -54,22 +54,22 @@ pub enum CheckWarning {
         key: String,
     },
 
-    /// Implementation pairs a foreign contract with a foreign type.
+    /// Implementation pairs a foreign interface with a foreign type.
     ///
     /// ```ds
-    /// extension of ForeignType implements ForeignContract {}
+    /// extension of ForeignType implements ForeignInterface {}
     /// ```
     #[diagnostic(
         code = "WC103",
-        message = "implementing foreign contract '{contract}' for foreign type '{ty}' risks program-wide conflicts"
+        message = "implementation of foreign interface '{interface}' for foreign type '{ty}' is not local to this package"
     )]
-    ForeignImplementation {
+    NonLocalImplementation {
         /// Report the implementation.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
-        /// The implemented contract.
-        contract: String,
+        /// The implemented interface.
+        interface: String,
         /// The implementing type.
         ty: String,
     },
@@ -102,20 +102,5 @@ pub enum CheckWarning {
         module: ModuleId,
         /// The statically known value.
         value: bool,
-    },
-
-    /// Declaration sits in a module block, which is pointless nesting.
-    ///
-    /// ```ds
-    /// module {
-    ///     const role = "server";
-    /// }
-    /// ```
-    #[diagnostic(code = "WC106", message = "pointless declaration in module block")]
-    PointlessModuleDeclaration {
-        /// Report the pointless declaration.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
     },
 }

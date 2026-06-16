@@ -846,7 +846,7 @@ impl WalkState<'_, '_> {
         };
         if self.check.module(self.module).profile.no_implicit_receivers {
             self.check
-                .report_implicit_receiver(self.module, id.into_any());
+                .report_missing_explicit_receiver(self.module, id.into_any());
         }
 
         Ok(Some(ReceiverBinding {

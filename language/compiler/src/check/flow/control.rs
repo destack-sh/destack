@@ -119,7 +119,7 @@ impl WalkState<'_, '_> {
         // resolve the selected control target
         let Some(index) = self.flow().break_target_index(label) else {
             self.check
-                .report_invalid_control_flow(self.module, source, "break has no target");
+                .report_break_outside_control_target(self.module, source);
             // recovered jumps complete normally instead of diverging
             self.flow_mut().record_unbound_jump(source);
 
@@ -147,8 +147,7 @@ impl WalkState<'_, '_> {
     ) {
         // resolve the selected loop target
         let Some(index) = self.flow().continue_target_index(label) else {
-            self.check
-                .report_invalid_control_flow(self.module, source, "continue has no target");
+            self.check.report_continue_outside_loop(self.module, source);
 
             // recovered jumps complete normally instead of diverging
             self.flow_mut().record_unbound_jump(source);

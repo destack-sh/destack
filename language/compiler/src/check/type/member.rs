@@ -538,7 +538,7 @@ impl CheckState<'_> {
     }
 
     /// Check one freshly walked extension against the coherence rules:
-    /// blanket implementations stay in the contract's package, duplicate
+    /// blanket implementations stay in the interface's package, duplicate
     /// implementations conflict, and fully foreign implementations warn.
     /// Each conflict reports once, at the later declaration.
     pub(in crate::check) fn check_extension_coherence(
@@ -563,16 +563,16 @@ impl CheckState<'_> {
         let (module, anchor) = self.source_anchor(source);
 
         match target {
-            // blanket implementations must live beside their contract
+            // keep blanket implementations beside their interface
             dir::ExtensionTarget::Nominal { root, ty } => {
-                // a fully foreign implementation risks program-wide conflicts
+                // report non-local implementation pairs
                 let foreign_target = root.module_id.package_id != package;
-                for contract in implements.iter().copied() {
-                    if foreign_target && contract.module_id.package_id != package {
-                        let warning = CheckWarning::ForeignImplementation {
+                for interface in implements.iter().copied() {
+                    if foreign_target && interface.module_id.package_id != package {
+                        let warning = CheckWarning::NonLocalImplementation {
                             anchor: anchor.clone(),
                             module,
-                            contract: self.format_symbol(contract),
+                            interface: self.format_symbol(interface),
                             ty: self.format_symbol(root),
                         };
                         self.module_mut(module).warnings.push(warning.into());
@@ -590,12 +590,12 @@ impl CheckState<'_> {
                 )?;
             }
             _ => {
-                for contract in implements.iter().copied() {
-                    if contract.module_id.package_id != package {
+                for interface in implements.iter().copied() {
+                    if interface.module_id.package_id != package {
                         let error = CheckError::ForeignBlanketImplementation {
                             anchor: anchor.clone(),
                             module,
-                            contract: self.format_symbol(contract),
+                            interface: self.format_symbol(interface),
                         };
                         self.module_mut(module).diagnostics.push(error.into());
                     }
@@ -645,15 +645,15 @@ impl CheckState<'_> {
                 .implements
                 .iter()
                 .map(|heritage| heritage.symbol)
-                .find(|contract| implements.contains(contract));
-            if let Some(contract) = shared {
-                candidates.push((other_ty, contract));
+                .find(|interface| implements.contains(interface));
+            if let Some(interface) = shared {
+                candidates.push((other_ty, interface));
             }
         }
 
         // distinct closed receivers do not conflict
         let origin = Origin::Node(source);
-        for (other_ty, contract) in candidates {
+        for (other_ty, interface) in candidates {
             if self.decide_relation(origin, Relation::Equal, ty, other_ty)? != Answer::Ready(true) {
                 continue;
             }
@@ -661,7 +661,7 @@ impl CheckState<'_> {
             let error = CheckError::ConflictingImplementation {
                 anchor: anchor.clone(),
                 module,
-                contract: self.format_symbol(contract),
+                interface: self.format_symbol(interface),
                 ty: self.format_type(ty),
             };
             self.module_mut(module).diagnostics.push(error.into());

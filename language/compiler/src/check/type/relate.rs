@@ -565,7 +565,7 @@ impl CheckState<'_> {
                 source,
                 target,
             },
-            (Relation::Implements, _) => CheckError::DoesNotImplement {
+            (Relation::Implements, _) => CheckError::InterfaceNotImplemented {
                 anchor,
                 module,
                 source,
