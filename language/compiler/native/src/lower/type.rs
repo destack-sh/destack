@@ -57,13 +57,13 @@ pub(crate) fn lower_type(
             mir::FloatType::Float64 => Ok(cir::types::F64),
         },
 
-        mir::Type::Atomic { value } => {
-            let value = value.ty().ok_or_else(|| CodegenCraneliftError::Internal {
-                message: "missing or malformed MIR type in native lowering: atomic value type"
-                    .into(),
-            })?;
+        mir::Type::Error => Err(CodegenCraneliftError::unsupported_type(
+            "error types do not lower to runtime values",
+            type_id.into_any(),
+        )),
 
-            lower_type(tree, value, pointer_bytes)
+        mir::Type::WithLifetimes { base, .. } | mir::Type::Atomic { value: base } => {
+            lower_type(tree, *base, pointer_bytes)
         }
 
         mir::Type::TypeDescriptor
@@ -120,26 +120,14 @@ pub(crate) fn lower_type(
             type_id.into_any(),
         )),
 
-        mir::Type::Uninit { value } => {
-            let value = value.ty().ok_or_else(|| CodegenCraneliftError::Internal {
-                message: "missing or malformed MIR type in native lowering: uninit value type"
-                    .into(),
-            })?;
-            lower_type(tree, value, pointer_bytes)
-        }
+        mir::Type::Uninit { value } => lower_type(tree, *value, pointer_bytes),
 
         mir::Type::Closure { .. } => Err(CodegenCraneliftError::unsupported_type(
             "closures must be lowered to aggregate operations",
             type_id.into_any(),
         )),
 
-        mir::Type::Newtype { inner, .. } => {
-            let inner = inner.ty().ok_or_else(|| CodegenCraneliftError::Internal {
-                message: "missing or malformed MIR type in native lowering: newtype inner type"
-                    .into(),
-            })?;
-            lower_type(tree, inner, pointer_bytes)
-        }
+        mir::Type::Newtype { inner, .. } => lower_type(tree, *inner, pointer_bytes),
 
         mir::Type::Vector { .. } => Err(CodegenCraneliftError::unsupported_type(
             "vector types are not yet supported by the native backend",

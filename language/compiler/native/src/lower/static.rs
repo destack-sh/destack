@@ -55,12 +55,7 @@ pub(crate) fn lower_static_data(
         }
         mir::GlobalInitializer::FunctionAddress(function) => {
             // function addresses are linker relocations
-            let Some(target) = function.function() else {
-                return Err(CodegenCraneliftError::unsupported_type(
-                    "missing function address initializer target",
-                    ty.into_any(),
-                ));
-            };
+            let target = *function;
 
             Ok(StaticData {
                 bytes: vec![0u8; pointer_bytes as usize],
@@ -128,7 +123,7 @@ fn static_elements(
             element,
             length,
             copy: _,
-        } => array_static_elements(tree, ty, element, *length, expected_len, pointer_bytes),
+        } => array_static_elements(tree, ty, *element, *length, expected_len, pointer_bytes),
         mir_type => Err(CodegenCraneliftError::unsupported_type(
             format!("aggregate initializer for non-aggregate type: {mir_type:?}"),
             ty.into_any(),
@@ -170,13 +165,11 @@ fn record_static_elements(
 fn array_static_elements(
     tree: &mir::Tree,
     array: mir::LocalNodeId<mir::Type>,
-    element: &mir::TypeReference,
+    element: mir::TypeId,
     length: u64,
     expected_len: usize,
     pointer_bytes: u8,
 ) -> CodegenCraneliftResult<Vec<StaticElement>> {
-    // arrays repeat one element layout
-    let element = type_id(element, "array element type")?;
     let count = length as usize;
     if count != expected_len {
         return Err(CodegenCraneliftError::Internal {
@@ -294,16 +287,6 @@ fn align_to(offset: u32, alignment: u32) -> u32 {
     offset + (alignment - remainder)
 }
 
-/// Return one concrete MIR type from a recoverable reference.
-fn type_id(
-    ty: &mir::TypeReference,
-    context: &str,
-) -> CodegenCraneliftResult<mir::LocalNodeId<mir::Type>> {
-    ty.ty().ok_or_else(|| CodegenCraneliftError::Internal {
-        message: format!("missing or malformed MIR type in native static lowering: {context}"),
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use destack_source::FileId;
@@ -321,7 +304,7 @@ readonly global padded: { int8, int32, int16 }, space(static) = {1int8, 100int32
         let (tree, global) = parse_global(source, "padded");
 
         let initializer = global.initializer.as_ref().expect("missing initializer");
-        let ty = global.ty.ty().expect("missing global type");
+        let ty = global.ty;
         let data = lower_static_data(&tree, initializer, ty, POINTER_BYTES)
             .expect("failed to lower static data");
 
@@ -344,7 +327,7 @@ readonly global table: [ref<void, raw, readonly, nullable, space(static)>; 2], s
         let (tree, global) = parse_global(source, "table");
 
         let initializer = global.initializer.as_ref().expect("missing initializer");
-        let ty = global.ty.ty().expect("missing global type");
+        let ty = global.ty;
         let data = lower_static_data(&tree, initializer, ty, POINTER_BYTES)
             .expect("failed to lower static data");
 
