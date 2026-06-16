@@ -13,9 +13,9 @@ pub(super) struct DropState {
 
 impl DropState {
     /// Build function entry state.
-    pub(super) fn parameters(function: &mir::Function: &OwnedValues) -> Self {
+    pub(super) fn parameters(function: &mir::Function, owned: &OwnedValues) -> Self {
         Self {
-            owned: OwnedValues::parameters(function),
+            owned: OwnedValues::parameters(function, owned),
             moved: Vec::new(),
         }
     }
@@ -34,7 +34,7 @@ impl DropState {
     }
 
     /// Retain values known to be owned.
-    pub(super) fn retain_owned(&mut self: &OwnedValues) {
+    pub(super) fn retain_owned(&mut self, owned: &OwnedValues) {
         self.owned.retain_owned(owned);
         self.retain_owned_moved();
     }
@@ -57,10 +57,7 @@ impl DropState {
         instruction: &mir::Instruction,
         owned: &OwnedValues,
     ) {
-        let Some(destination) = instruction
-            .destination()
-            .and_then(mir::ValueReference::value)
-        else {
+        let Some(destination) = instruction.destination() else {
             return;
         };
         if !owned.contains(destination) {
@@ -68,17 +65,14 @@ impl DropState {
         }
 
         self.owned.insert(destination);
-        self.moved.retain(|moved| {
-            !matches!(moved.origin, mir::PlaceOrigin::Value(value) if value.value() == Some(destination))
-        });
+        self.moved.retain(
+            |moved| !matches!(moved.origin, mir::PlaceOrigin::Value(value) if value == destination),
+        );
     }
 
     /// Mark one place as moved.
     pub(super) fn move_place(&mut self, place: mir::Place) {
         let mir::PlaceOrigin::Value(value) = place.origin else {
-            return;
-        };
-        let Some(value) = value.value() else {
             return;
         };
         if !self.owned.contains(value) {
@@ -103,17 +97,15 @@ impl DropState {
     /// Mark one whole value as moved.
     fn move_value(&mut self, value: mir::Value) {
         self.owned.remove(value);
-        self.moved.retain(|moved| {
-            !matches!(moved.origin, mir::PlaceOrigin::Value(origin) if origin.value() == Some(value))
-        });
+        self.moved.retain(
+            |moved| !matches!(moved.origin, mir::PlaceOrigin::Value(origin) if origin == value),
+        );
     }
 
     /// Remove moved places outside the surviving owned values.
     fn retain_owned_moved(&mut self) {
         self.moved.retain(|moved| match moved.origin {
-            mir::PlaceOrigin::Value(value) => value
-                .value()
-                .is_some_and(|value| self.owned.contains(value)),
+            mir::PlaceOrigin::Value(value) => self.owned.contains(value),
             mir::PlaceOrigin::Local(_) | mir::PlaceOrigin::Global(_) => false,
         });
     }

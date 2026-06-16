@@ -837,7 +837,7 @@ function test(v0: ref<User, managed>): int32 {
 b0(v0: ref<User, managed>):
     v1: ref<int32, borrowed, readonly> = field.address v0, 0
     v2: int32 = 0int32
-    yield v2, b1(v0, v1)
+    yield v2 => b1(v0, v1)
 b1(v3: ref<User, managed>, v4: ref<int32, borrowed, readonly>):
     v5: int32 = load v4
     return v5
@@ -858,7 +858,7 @@ type User {
 function test(v0: ref<User, managed>): int32 {
 b0(v0: ref<User, managed>):
     v1: ref<int32, borrowed, readonly> = field.address v0, 0
-    yield v1, b1(v0)
+    yield v1 => b1(v0)
 b1(v2: ref<User, managed>):
     v3: int32 = 0int32
     return v3
@@ -920,7 +920,7 @@ function test(v0: ref<User, managed, space(shared)>): int32 {
 b0(v0: ref<User, managed, space(shared)>):
     v1: ref<int32, borrowed, readonly, space(shared)> = field.address v0, 0
     v2: int32 = 0int32
-    yield v2, b1(v0, v1)
+    yield v2 => b1(v0, v1)
 b1(v3: ref<User, managed, space(shared)>, v4: ref<int32, borrowed, readonly, space(shared)>):
     v5: int32 = load v4
     return v5
@@ -942,7 +942,7 @@ function test(v0: ref<User, unique, space(shared)>): int32 {
 b0(v0: ref<User, unique, space(shared)>):
     v1: ref<int32, borrowed, readonly, space(shared)> = field.address v0, 0
     v2: int32 = 0int32
-    yield v2, b1(v0, v1)
+    yield v2 => b1(v0, v1)
 b1(v3: ref<User, unique, space(shared)>, v4: ref<int32, borrowed, readonly, space(shared)>):
     v5: int32 = load v4
     return v5
@@ -1110,7 +1110,7 @@ function test(v0: int32): int32 {
 entry(v0: int32):
     local.set l0, v0
     v1: ref<int32, borrowed, space(frame)> = local.address l0
-    yield v0, b1(v1)
+    yield v0 => b1(v1)
 b1(v2: int32, v3: ref<int32, borrowed, space(frame)>):
     v4: int32 = load v3
     return v4
@@ -1126,7 +1126,7 @@ fn test_require_mutable_parameter_borrow_source_across_yield() {
         r#"
 function test(v0: ref<int32, borrowed>): int32 {
 entry(v0: ref<int32, borrowed>):
-    yield v0, b1(v0)
+    yield v0 => b1(v0)
 b1(v1: ref<int32, borrowed>):
     v2: int32 = load v1
     return v2
@@ -1142,7 +1142,7 @@ fn test_require_readonly_parameter_borrow_source_across_yield() {
         r#"
 function test(v0: ref<int32, borrowed, readonly>): int32 {
 entry(v0: ref<int32, borrowed, readonly>):
-    yield v0, b1(v0)
+    yield v0 => b1(v0)
 b1(v1: ref<int32, borrowed, readonly>):
     v2: int32 = load v1
     return v2
@@ -1163,7 +1163,7 @@ type Holder<L: lifetime> {
 function test(v0: ref<int32, borrowed, readonly>, v1: ref<int32, borrowed, readonly>, v2: Holder<lifetime(1)>): int32 {
 entry(v0: ref<int32, borrowed, readonly>, v1: ref<int32, borrowed, readonly>, v2: Holder<lifetime(1)>):
     v3: ref<int32, borrowed, readonly, lifetime(1)> = field.get v2, 0
-    yield v3, b1(v3)
+    yield v3 => b1(v3)
 b1(v4: ref<int32, borrowed, readonly, lifetime(1)>):
     v5: int32 = load v4
     return v5
@@ -1179,7 +1179,7 @@ fn test_allow_static_borrow_across_yield() {
         r#"
 function test(v0: ref<int32, borrowed, readonly, lifetime(static)>): int32 {
 entry(v0: ref<int32, borrowed, readonly, lifetime(static)>):
-    yield v0, b1(v0)
+    yield v0 => b1(v0)
 b1(v1: ref<int32, borrowed, readonly, lifetime(static)>):
     v2: int32 = load v1
     return v2
@@ -1200,7 +1200,7 @@ type User {
 function callee(v0: ref<int32, borrowed, readonly>): int32 {
 b0(v0: ref<int32, borrowed, readonly>):
     v1: int32 = 0int32
-    yield v1, b1(v0)
+    yield v1 => b1(v0)
 b1(v2: ref<int32, borrowed, readonly>):
     v3: int32 = load v2
     return v3
@@ -1209,7 +1209,7 @@ b1(v2: ref<int32, borrowed, readonly>):
 function caller(v0: ref<User, managed>): int32 {
 b2(v0: ref<User, managed>):
     v1: ref<int32, borrowed, readonly> = field.address v0, 0
-    v2: int32 = call callee(v1): (ref<int32, borrowed, readonly>) -> int32
+    v2: int32 = call callee(v1): (ref<int32, borrowed, readonly>) => int32
     return v2
 }"#,
     );
@@ -1233,9 +1233,9 @@ b0(v0: ref<User, managed>):
 
 function caller(v0: ref<User, managed>): int32 {
 b1(v0: ref<User, managed>):
-    v1: ref<int32, borrowed, readonly> = call callee(v0): (ref<User, managed>) -> ref<int32, borrowed, readonly>
+    v1: ref<int32, borrowed, readonly> = call callee(v0): (ref<User, managed>) => ref<int32, borrowed, readonly>
     v2: int32 = 0int32
-    yield v2, b2(v0, v1)
+    yield v2 => b2(v0, v1)
 b2(v3: ref<User, managed>, v4: ref<int32, borrowed, readonly>):
     v5: int32 = load v4
     return v5
@@ -1261,14 +1261,14 @@ b0(v0: ref<User, managed>):
 
 function caller(v0: ref<User, managed>): ref<int32, borrowed, readonly> {
 b1(v0: ref<User, managed>):
-    tail.call callee(v0): (ref<User, managed>) -> ref<int32, borrowed, readonly>
+    tail.call callee(v0): (ref<User, managed>) => ref<int32, borrowed, readonly>
 }
 
 function outer(v0: ref<User, managed>): int32 {
 b2(v0: ref<User, managed>):
-    v1: ref<int32, borrowed, readonly> = call caller(v0): (ref<User, managed>) -> ref<int32, borrowed, readonly>
+    v1: ref<int32, borrowed, readonly> = call caller(v0): (ref<User, managed>) => ref<int32, borrowed, readonly>
     v2: int32 = 0int32
-    yield v2, b3(v0, v1)
+    yield v2 => b3(v0, v1)
 b3(v3: ref<User, managed>, v4: ref<int32, borrowed, readonly>):
     v5: int32 = load v4
     return v5
@@ -1285,7 +1285,7 @@ fn test_propagate_call_obligation_from_borrowed_parameter() {
 function callee(v0: ref<int32, borrowed, readonly>): int32 {
 b0(v0: ref<int32, borrowed, readonly>):
     v1: int32 = 0int32
-    yield v1, b1(v0)
+    yield v1 => b1(v0)
 b1(v2: ref<int32, borrowed, readonly>):
     v3: int32 = load v2
     return v3
@@ -1293,7 +1293,7 @@ b1(v2: ref<int32, borrowed, readonly>):
 
 function caller(v0: ref<int32, borrowed, readonly>): int32 {
 b2(v0: ref<int32, borrowed, readonly>):
-    v1: int32 = call callee(v0): (ref<int32, borrowed, readonly>) -> int32
+    v1: int32 = call callee(v0): (ref<int32, borrowed, readonly>) => int32
     return v1
 }"#,
     );
@@ -1317,10 +1317,10 @@ type User {
     int32;
 }
 
-function caller(v0: (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0), v1: ref<User, managed>): int32 {
-entry(v0: (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0), v1: ref<User, managed>):
+function caller(v0: (ref<int32, borrowed, readonly>) => int32 @suspensionSafe(0), v1: ref<User, managed>): int32 {
+entry(v0: (ref<int32, borrowed, readonly>) => int32 @suspensionSafe(0), v1: ref<User, managed>):
     v2: ref<int32, borrowed, readonly> = field.address v1, 0
-    v3: int32 = call.indirect v0(v2): (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0)
+    v3: int32 = call.indirect v0(v2): (ref<int32, borrowed, readonly>) => int32 @suspensionSafe(0)
     return v3
 }
 "#,
@@ -1333,9 +1333,9 @@ entry(v0: (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0), v1: ref<
 fn test_propagate_indirect_call_obligation_from_borrowed_parameter() {
     let mut program = TestProgram::mir(
         r#"
-function caller(v0: (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0), v1: ref<int32, borrowed, readonly>): int32 {
-entry(v0: (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0), v1: ref<int32, borrowed, readonly>):
-    v2: int32 = call.indirect v0(v1): (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0)
+function caller(v0: (ref<int32, borrowed, readonly>) => int32 @suspensionSafe(0), v1: ref<int32, borrowed, readonly>): int32 {
+entry(v0: (ref<int32, borrowed, readonly>) => int32 @suspensionSafe(0), v1: ref<int32, borrowed, readonly>):
+    v2: int32 = call.indirect v0(v1): (ref<int32, borrowed, readonly>) => int32 @suspensionSafe(0)
     return v2
 }
 "#,
@@ -1355,9 +1355,9 @@ b0(v0: ref<int32, borrowed, readonly>):
 
 function caller(v0: ref<int32, borrowed, readonly>): int32 {
 b1(v0: ref<int32, borrowed, readonly>):
-    v1: ref<int32, borrowed, readonly> = call callee(v0): (ref<int32, borrowed, readonly>) -> ref<int32, borrowed, readonly>
+    v1: ref<int32, borrowed, readonly> = call callee(v0): (ref<int32, borrowed, readonly>) => ref<int32, borrowed, readonly>
     v2: int32 = 0int32
-    yield v2, b2(v1)
+    yield v2 => b2(v1)
 b2(v3: ref<int32, borrowed, readonly>):
     v4: int32 = load v3
     return v4
@@ -1376,7 +1376,7 @@ function test(v0: int32): int32 {
 entry(v0: int32):
     local.set l0, v0
     v1: ref<int32, borrowed, exclusive, space(frame)> = local.address l0
-    yield v0, b1(v1)
+    yield v0 => b1(v1)
 b1(v2: int32, v3: ref<int32, borrowed, exclusive, space(frame)>):
     v4: int32 = load v3
     return v4
@@ -1392,7 +1392,7 @@ fn test_require_exclusive_parameter_source_across_yield() {
         r#"
 function test(v0: ref<int32, borrowed, exclusive>): int32 {
 entry(v0: ref<int32, borrowed, exclusive>):
-    yield v0, b1(v0)
+    yield v0 => b1(v0)
 b1(v1: ref<int32, borrowed, exclusive>):
     v2: int32 = load v1
     return v2
@@ -1412,7 +1412,7 @@ entry(v0: int32):
     local.set l0, v0
     v1: ref<int32, borrowed, space(frame)> = local.address l0
     v2: int32 = load v1
-    yield v2, b1(v2)
+    yield v2 => b1(v2)
 b1(v3: int32, v4: int32):
     return v4
 }"#,

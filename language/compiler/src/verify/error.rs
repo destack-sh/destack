@@ -115,7 +115,7 @@ pub enum VerifyError {
     ///
     /// ```mir
     /// v1: ref<int32, borrowed, readonly> = field.address v0, 0
-    /// yield v2, b1(v1) // v0 is managed
+    /// yield v2 => b1(v1) // v0 is managed
     /// ```
     #[diagnostic(code = "EV205", message = "managed borrow cannot cross suspension")]
     ManagedBorrowAcrossSuspension {

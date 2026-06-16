@@ -96,9 +96,7 @@ impl PlaceAlias {
     }
 
     /// Return the integer constant behind one value reference.
-    fn constant_index(&self, value: mir::ValueReference) -> Option<u128> {
-        let value = value.value()?;
-
+    fn constant_index(&self, value: mir::Value) -> Option<u128> {
         self.constants.get(&value).copied()
     }
 
@@ -114,14 +112,11 @@ impl PlaceAlias {
                 else {
                     continue;
                 };
-                let Some(destination) = destination.value() else {
-                    continue;
-                };
                 let Some(value) = Self::integer_constant(value) else {
                     continue;
                 };
 
-                constants.insert(destination, value);
+                constants.insert(*destination, value);
             }
         }
 
