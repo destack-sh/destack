@@ -313,7 +313,7 @@ readonly global Dog#vtable: [ref<void, raw, readonly, nullable, space(static)>; 
 
 function useDog(v0: ref<Dog, managed, readonly>): int32 {
 entry(v0: ref<Dog, managed, readonly>):
-    v1: int32 = call.virtual v0, Dog, 2(v0): (ref<Dog, managed, readonly>) -> int32
+    v1: int32 = call.virtual v0, Dog, 2(v0): (ref<Dog, managed, readonly>) => int32
     return v1
 }
 
@@ -492,7 +492,7 @@ readonly global FileLogger#vtable: [ref<void, raw, readonly, nullable, space(sta
 
 function callLogger(v0: ref<Logger, managed, readonly>): int32 {
 entry(v0: ref<Logger, managed, readonly>):
-    v1: int32 = call.virtual v0, Logger, 2(v0): (ref<Logger, managed, readonly>) -> int32
+    v1: int32 = call.virtual v0, Logger, 2(v0): (ref<Logger, managed, readonly>) => int32
     return v1
 }
 
@@ -563,7 +563,7 @@ readonly global FileLogger#vtable: [ref<void, raw, readonly, nullable, space(sta
 
 function callLogger(v0: ref<Logger, managed, readonly>): int32 {
 entry(v0: ref<Logger, managed, readonly>):
-    v1: int32 = call.virtual v0, Logger, 2(v0): (ref<Logger, managed, readonly>) -> int32
+    v1: int32 = call.virtual v0, Logger, 2(v0): (ref<Logger, managed, readonly>) => int32
     return v1
 }
 

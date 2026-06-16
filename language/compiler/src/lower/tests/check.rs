@@ -33,7 +33,7 @@ entry(v0: int32, v1: int32):
     v2: (int32, boolean) = intrinsic.math.arithmetic.overflowing.add(v0, v1)
     v3: int32 = field.get v2, 0
     v4: boolean = field.get v2, 1
-    check int.add.overflow.s v0, v1 -> b2, b1
+    check int.add.overflow.s v0, v1 => b2, b1
 b1:
     v5: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${integer_overflow}
     v6: ref<String, managed, readonly> = load v5
@@ -76,7 +76,7 @@ entry(v0: int32, v1: int32):
     v2: (int32, boolean) = intrinsic.math.arithmetic.overflowing.add(v0, v1)
     v3: int32 = field.get v2, 0
     v4: boolean = field.get v2, 1
-    check int.add.overflow.s v0, v1 -> b2, b1
+    check int.add.overflow.s v0, v1 => b2, b1
 
 b1:
     trap.abort
@@ -118,7 +118,7 @@ entry(v0: uint32, v1: uint32):
     v2: (uint32, boolean) = intrinsic.math.arithmetic.overflowing.add(v0, v1)
     v3: uint32 = field.get v2, 0
     v4: boolean = field.get v2, 1
-    check int.add.overflow.u v0, v1 -> b2, b1
+    check int.add.overflow.u v0, v1 => b2, b1
 b1:
     v5: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${integer_overflow}
     v6: ref<String, managed, readonly> = load v5
@@ -194,13 +194,13 @@ readonly global ${division_by_zero}: ref<String, managed, readonly> = "division 
 readonly global ${division_overflow}: ref<String, managed, readonly> = "division overflow"
 function quotient(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    check div.zero v1 -> b2, b1
+    check div.zero v1 => b2, b1
 b1:
     v2: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${division_by_zero}
     v3: ref<String, managed, readonly> = load v2
     panic v3
 b2:
-    check int.div.overflow.s v0, v1 -> b4, b3
+    check int.div.overflow.s v0, v1 => b4, b3
 b3:
     v4: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${division_overflow}
     v5: ref<String, managed, readonly> = load v4
@@ -243,13 +243,13 @@ function quotient(a: int32, b: int32): int32 {
         r#"
 function quotient(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    check div.zero v1 -> b2, b1
+    check div.zero v1 => b2, b1
 
 b1:
     trap.abort
 
 b2:
-    check int.div.overflow.s v0, v1 -> b4, b3
+    check int.div.overflow.s v0, v1 => b4, b3
 
 b3:
     trap.abort
@@ -291,7 +291,7 @@ readonly global ${division_by_zero}: ref<String, managed, readonly> = "division 
 readonly global ${division_overflow}: ref<String, managed, readonly> = "division overflow"
 function quotient(v0: uint32, v1: uint32): uint32 {
 entry(v0: uint32, v1: uint32):
-    check div.zero v1 -> b2, b1
+    check div.zero v1 => b2, b1
 b1:
     v2: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${division_by_zero}
     v3: ref<String, managed, readonly> = load v2
@@ -335,7 +335,7 @@ ${string_alias}
 readonly global ${shift_out_of_range}: ref<String, managed, readonly> = "shift out of range"
 function shift(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    check shift.range.s v1, 32 -> b2, b1
+    check shift.range.s v1, 32 => b2, b1
 b1:
     v2: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${shift_out_of_range}
     v3: ref<String, managed, readonly> = load v2
@@ -376,7 +376,7 @@ function shift(value: int32, amount: int32): int32 {
         r#"
 function shift(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    check shift.range.s v1, 32 -> b2, b1
+    check shift.range.s v1, 32 => b2, b1
 
 b1:
     trap.abort
@@ -416,7 +416,7 @@ ${string_alias}
 readonly global ${shift_out_of_range}: ref<String, managed, readonly> = "shift out of range"
 function shift(v0: uint32, v1: uint32): uint32 {
 entry(v0: uint32, v1: uint32):
-    check shift.range.u v1, 32 -> b2, b1
+    check shift.range.u v1, 32 => b2, b1
 b1:
     v2: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${shift_out_of_range}
     v3: ref<String, managed, readonly> = load v2
@@ -459,7 +459,7 @@ readonly global ${bounds_check_failed}: ref<String, managed, readonly> = "bounds
 function element(v0: [int32; 4], v1: int32): int32 {
 entry(v0: [int32; 4], v1: int32):
     v2: int32 = 4int32
-    check bounds.s v1, v2, v0 -> b2, b1
+    check bounds.s v1, v2, v0 => b2, b1
 b1:
     v3: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${bounds_check_failed}
     v4: ref<String, managed, readonly> = load v3
@@ -501,7 +501,7 @@ function element(values: [int32; 4], index: int32): int32 {
 function element(v0: [int32; 4], v1: int32): int32 {
 entry(v0: [int32; 4], v1: int32):
     v2: int32 = 4int32
-    check bounds.s v1, v2, v0 -> b2, b1
+    check bounds.s v1, v2, v0 => b2, b1
 
 b1:
     trap.abort
@@ -542,7 +542,7 @@ readonly global ${bounds_check_failed}: ref<String, managed, readonly> = "bounds
 function element(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4uint32
-    check bounds.u v1, v2, v0 -> b2, b1
+    check bounds.u v1, v2, v0 => b2, b1
 b1:
     v3: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${bounds_check_failed}
     v4: ref<String, managed, readonly> = load v3
