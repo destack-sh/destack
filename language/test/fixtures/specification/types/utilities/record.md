@@ -37,9 +37,9 @@ const bad: Flags = { a: true };
 
 - contains: not assignable
 
-### record supports numeric keys
+### record supports usize literal keys
 
-Numeric literal keys work.
+Static usize literal keys work.
 
 ```ds
 type NumericFlags = Record<1 | 2, string>;
@@ -74,9 +74,9 @@ const ok: Flags = { [key]: true };
 ok[key] satisfies boolean;
 ```
 
-### record rejects missing numeric keys
+### record rejects missing usize literal keys
 
-Numeric records are exhaustive too.
+Static usize records are exhaustive too.
 
 ```ds
 type NumericFlags = Record<1 | 2, string>;

@@ -90,7 +90,7 @@ function escaped(b: &Node): &Node {
 }
 ```
 
-- borrow does not live long enough
+- contains: borrow does not live long enough
 
 ### conditional borrow result joins lifetimes
 
@@ -129,7 +129,7 @@ function escaped(b: &Node, flag: bool): &Node {
 }
 ```
 
-- borrow does not live long enough
+- contains: borrow does not live long enough
 
 ### conditional borrow cannot return local false branch
 
@@ -150,7 +150,7 @@ function escaped(a: &Node, flag: bool): &Node {
 }
 ```
 
-- borrow does not live long enough
+- contains: borrow does not live long enough
 
 ### declarations reject elided returned borrow lifetimes
 
@@ -164,7 +164,7 @@ struct Node {
 declare function only(value: &Node): &Node;
 ```
 
-- declaration-only borrowed return needs an explicit lifetime relationship
+- contains: declaration-only borrowed return needs an explicit lifetime relationship
 
 ### multi-input declarations need a lifetime relationship
 
@@ -178,7 +178,7 @@ struct Node {
 declare function choose(a: &Node, b: &Node): &Node;
 ```
 
-- declaration-only borrowed return needs an explicit lifetime relationship
+- contains: declaration-only borrowed return needs an explicit lifetime relationship
 
 ### struct can return a borrowed field from input
 
@@ -217,7 +217,7 @@ function escaped(): EngineBorrow {
 }
 ```
 
-- borrow does not live long enough
+- contains: borrow does not live long enough
 
 ### struct can store several input borrows
 
@@ -266,7 +266,7 @@ function escaped(engine: &Engine): WorldBorrow {
 }
 ```
 
-- borrow does not live long enough
+- contains: borrow does not live long enough
 
 ### explicit field lifetime uses a named parameter
 
@@ -305,7 +305,7 @@ function escaped<comptime L: Lifetime>(): NodeBorrow<L> {
 }
 ```
 
-- borrow does not live long enough
+- contains: borrow does not live long enough
 
 ### elided stored fields induce distinct lifetimes
 
@@ -456,7 +456,7 @@ function pick<comptime A: Lifetime, comptime B: Lifetime>(
 }
 ```
 
-- contains: lifetime
+- contains: does not live long enough
 
 ## suspension
 
@@ -579,7 +579,7 @@ async function read(): Promise<&readonly string> {
 }
 ```
 
-- contains: lifetime
+- contains: does not live long enough
 
 ### borrow can begin after await
 

@@ -5,9 +5,9 @@ It does not widen away useful literal information when a const context is presen
 
 ## contextual typing
 
-### satisfies provides contextual typing for lambdas
+### satisfies provides contextual typing for closures
 
-The target type types the lambda parameters.
+The target type types the closure parameters.
 
 ```ds
 type Handler = { run: (value: number) => number };
@@ -19,7 +19,7 @@ const handler = {
 handler.run(1) satisfies number;
 ```
 
-### satisfies rejects incompatible lambda calls
+### satisfies rejects incompatible closure calls
 
 Contextual parameters keep their target types.
 

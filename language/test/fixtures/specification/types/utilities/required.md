@@ -67,4 +67,4 @@ const person: FullPerson = { name: "Ada" };
 person.name = "Grace";
 ```
 
-- contains: read-only
+- contains: readonly

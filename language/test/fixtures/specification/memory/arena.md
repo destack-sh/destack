@@ -41,7 +41,7 @@ function escaped<comptime L: Lifetime>(): ReadonlyBorrowed<Node, L> {
 }
 ```
 
-- contains: lifetime
+- contains: does not live long enough
 
 ## bump
 

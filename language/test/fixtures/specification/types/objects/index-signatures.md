@@ -12,10 +12,14 @@ Readonly index signatures can view finite object fields.
 ```ds
 type Bag = { readonly [key: string]: int32 };
 
-const point = { x: 1, y: 2 };
-const bag: Bag = point;
+function read(bag: Bag): int32 | undefined {
+    return bag["x"];
+}
 
-bag["x"] satisfies int32 | undefined;
+const point: { x: int32; y: int32 } = { x: 1, y: 2 };
+const x = read(point);
+
+x satisfies int32 | undefined;
 ```
 
 ### readonly string index signature rejects incompatible fields
@@ -25,8 +29,10 @@ Every visible string field must fit the indexed value type.
 ```ds
 type Bag = { readonly [key: string]: int32 };
 
-const mixed = { x: 1, y: "two" };
-const bag: Bag = mixed;
+declare function read(bag: Bag): int32 | undefined;
+
+const mixed: { x: int32; y: string } = { x: 1, y: "two" };
+const value = read(mixed);
 ```
 
 - contains: not assignable
@@ -53,8 +59,10 @@ Finite object shapes do not provide open writable index access.
 ```ds
 type Bag = { [key: string]: int32 };
 
-const point = { x: 1, y: 2 };
-const bag: Bag = point;
+declare function write(bag: Bag): void;
+
+const point: { x: int32; y: int32 } = { x: 1, y: 2 };
+write(point);
 ```
 
 - contains: not assignable
@@ -67,10 +75,9 @@ Maps provide indexed reads and writes.
 type Bag = { [key: string]: int32 };
 
 declare const map: Map<string, int32>;
-const bag: Bag = map;
+declare function write(bag: Bag): void;
 
-bag["x"] = 1;
-bag["x"] satisfies int32 | undefined;
+write(map);
 ```
 
 ### writable index signature accepts operator implementations
@@ -86,10 +93,10 @@ extension of Bag implements Index<string>, IndexSet<string, int32> {
     type Output = int32 | undefined;
 
     index(key: string): this.Output {
-        this.storage[key]
+        return this.storage[key];
     }
 
-    indexSet(this: &exclusive Bag, key: string, value: int32): void {
+    indexSet(&exclusive this, key: string, value: int32): void {
         this.storage[key] = value;
     }
 }
@@ -120,11 +127,26 @@ A broad string `Record` cannot be satisfied by a finite object shape.
 ```ds
 type Bag = Record<string, int32>;
 
-const point = { x: 1 };
-const bag: Bag = point;
+declare function read(bag: Bag): int32 | undefined;
+
+const point: { x: int32 } = { x: 1 };
+const value = read(point);
 ```
 
 - contains: not assignable
+
+### record with usize keys uses usize index access
+
+Broad indexed records use `usize` keys.
+
+```ds
+type Bag = Record<usize, int32>;
+
+declare const bag: Bag;
+const value = bag[1 as usize];
+
+value satisfies int32 | undefined;
+```
 
 ## property access
 

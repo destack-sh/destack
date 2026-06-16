@@ -14,9 +14,9 @@ const value = { env: { mode: "dev" } } as const satisfies { env: { mode: string 
 value.env.mode satisfies "dev";
 ```
 
-### generic const wrappers preserve literal precision
+### const type-parameter wrappers preserve literal precision
 
-Generic wrappers over readonly inputs preserve literal precision when the value is assigned.
+Const type-parameter wrappers preserve literal precision when the value is assigned.
 
 ```ds
 declare function freeze<const T>(value: T): T;

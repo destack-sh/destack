@@ -9,8 +9,8 @@
 `Option<T>` is the nominal `T | null`.
 
 ```ds
-const some: Option<int32> = 1;
-const none: Option<int32> = null;
+const some: Option<int32> = 1 as Option<int32>;
+const none: Option<int32> = null as Option<int32>;
 
 some satisfies Option<int32>;
 none satisfies Option<int32>;
@@ -35,7 +35,7 @@ An option reads back as its nullable union.
 ```ds
 declare const option: Option<string>;
 
-const raw: string | null = option;
+const raw: string | null = option as string | null;
 raw satisfies string | null;
 ```
 
@@ -65,7 +65,7 @@ const value: Option<int32> = undefined;
 Each layer keeps its own presence.
 
 ```ds
-const outerNone: Option<Option<int32>> = null;
+const outerNone: Option<Option<int32>> = null as Option<Option<int32>>;
 const innerNone = Option.some(Option<int32>.none());
 const innerSome = Option.some(Option.some(1));
 
@@ -149,7 +149,7 @@ value satisfies Result<int32, string>;
 
 ```ds
 const nested = Option.some(Option.some(1));
-const fallible: Option<Result<int32, string>> = Result.ok(1);
+const fallible: Option<Result<int32, string>> = Result.ok(1) as Option<Result<int32, string>>;
 const pair = Option.some((1, "one"));
 
 nested.flatten() satisfies Option<int32>;

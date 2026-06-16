@@ -40,7 +40,7 @@ box[Symbol.for("token")] satisfies string;
 Unique symbols can be used as object keys.
 
 ```ds
-const token: unique symbol = Symbol("token");
+declare const token: unique symbol;
 
 interface TokenBox {
     [token]: int32;
@@ -55,7 +55,7 @@ box[token] satisfies int32;
 Keyof preserves the unique symbol key.
 
 ```ds
-const token: unique symbol = Symbol("token");
+declare const token: unique symbol;
 
 interface TokenBox {
     [token]: int32;
@@ -71,7 +71,8 @@ const ok: Keys = token;
 Keyof does not accept unrelated symbols.
 
 ```ds
-const token: unique symbol = Symbol("token");
+declare const token: unique symbol;
+declare const other: unique symbol;
 
 interface TokenBox {
     [token]: int32;
@@ -79,7 +80,7 @@ interface TokenBox {
 
 type Keys = keyof TokenBox;
 
-const bad: Keys = Symbol("other");
+const bad: Keys = other;
 ```
 
 - contains: not assignable

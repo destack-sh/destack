@@ -48,7 +48,7 @@ Fixed array element holes infer the best common widened element type.
 
 ```ds
 const values: [_; 3] = [1, 2, 3];
-values satisfies [int32; 3];
+values satisfies [number; 3];
 ```
 
 ### fixed array full holes infer widened element type and length
@@ -57,7 +57,7 @@ Fixed array element and length holes infer a homogeneous fixed array type.
 
 ```ds
 const values: [_; _] = [1, 2, 3, 4];
-values satisfies [int32; 4];
+values satisfies [number; 4];
 ```
 
 ### explicit literal union elements preserve literal union context
@@ -75,7 +75,7 @@ Fixed array casts provide the same context as fixed array annotations.
 
 ```ds
 const values = [1, 2, 3] as [_; _];
-values satisfies [int32; 3];
+values satisfies [number; 3];
 ```
 
 ### slice casts infer widened element type
@@ -84,7 +84,7 @@ Slice casts infer the widened element type but not a fixed length.
 
 ```ds
 const values = [1, 2, 3] as Slice<_>;
-values satisfies Slice<int32>;
+values satisfies Slice<number>;
 ```
 
 ### bracket slice casts infer widened element type
@@ -93,7 +93,7 @@ Bracket slice casts infer the widened element type just like `Slice<_>`.
 
 ```ds
 const values = [1, 2, 3] as [_];
-values satisfies Slice<int32>;
+values satisfies Slice<number>;
 ```
 
 ### fixed array annotations reject mismatched literal lengths

@@ -1,12 +1,12 @@
-# Type Parameter Modifiers
+# Generic Parameter Modifiers
 
 Modifiers on type parameters tune inference.
 
-## const type parameters
+## const inference
 
-### const modifiers are not allowed on type aliases
+### const type parameters are not allowed on type aliases
 
-Type alias parameters cannot use the const modifier.
+Type alias parameters have no call-site inference to tune.
 
 ```ds
 type Bad<const T> = T;
@@ -36,9 +36,9 @@ declare const source: Source<string>;
 source() satisfies string;
 ```
 
-### const modifiers are allowed on functions
+### const type parameters preserve scalar literals
 
-Function type parameters can use the const modifier.
+The `const` modifier asks call inference to keep literal precision.
 
 ```ds
 declare function id<const T>(value: T): T;
@@ -47,9 +47,9 @@ const value = id("ready");
 value satisfies "ready";
 ```
 
-### const function parameters preserve array literal precision
+### const type parameters preserve array literal precision
 
-Const generic function parameters preserve array literal precision.
+Const type parameters preserve array literal precision.
 
 ```ds
 declare function id<const T>(value: T): T;
@@ -58,9 +58,9 @@ const values = id([1, 2]);
 values[0] satisfies 1;
 ```
 
-### non-const function parameters widen array literal arguments
+### plain type parameters widen array literal arguments
 
-Non-const generic parameters do not preserve array literal element precision.
+Plain type parameters widen array literal element precision.
 
 ```ds
 declare function id<T>(value: T): T;
@@ -71,9 +71,9 @@ values[0] satisfies 1;
 
 - contains: not assignable
 
-### const function parameters preserve array literal precision through renamed re-exports
+### const type parameters preserve array literal precision through renamed re-exports
 
-Renamed re-exports preserve const generic array literal precision.
+Renamed re-exports preserve const type-parameter inference.
 
 ```ds:helper.ds
 export declare function id<const T>(value: T): T;
@@ -90,9 +90,9 @@ const values = stableId([1, 2]);
 values[0] satisfies 1;
 ```
 
-### const function parameters preserve array literal precision through export-star barrels
+### const type parameters preserve array literal precision through export-star barrels
 
-Export-star barrels preserve const generic array literal precision.
+Export-star barrels preserve const type-parameter inference.
 
 ```ds:helper.ds
 export declare function id<const T>(value: T): T;
@@ -109,9 +109,9 @@ const values = id([1, 2]);
 values[0] satisfies 1;
 ```
 
-### const function parameters preserve object literal property precision
+### const type parameters preserve object literal property precision
 
-Const generic function parameters preserve object literal property precision.
+Const type parameters preserve object literal property precision.
 
 ```ds
 declare function id<const T>(value: T): T;
@@ -121,9 +121,9 @@ value.kind satisfies "ready";
 value.level satisfies 1;
 ```
 
-### non-const function parameters widen object literal property precision
+### plain type parameters widen object literal property precision
 
-Non-const generic function parameters widen object literal property precision.
+Plain type parameters widen object literal property precision.
 
 ```ds
 declare function id<T>(value: T): T;
@@ -171,9 +171,9 @@ value[0] satisfies number;
 value[1] satisfies string;
 ```
 
-### const generic precision survives multi-hop generic forwarding
+### const type-parameter precision survives multi-hop forwarding
 
-Const generic precision survives forwarding through multiple generic wrappers.
+Const type-parameter precision survives forwarding through multiple generic wrappers.
 
 ```ds
 declare function hold<const T>(value: T): T;
