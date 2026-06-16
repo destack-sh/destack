@@ -66,10 +66,11 @@ fn read_shared_heap_bytes(
 fn test_new_allocates_heap_reference() {
     let mir = r#"
 function alloc(): ref<int32, managed, readonly> {
-b0:
+entry:
     v0: ref<int32, managed, readonly> = new.zeroed int32
     return v0
-}"#;
+}
+"#;
     let output = run_mir_ok(mir, "alloc", &[]);
     assert!(matches!(output, Value::HeapReference(_)));
 }
@@ -79,10 +80,11 @@ b0:
 fn test_new_allocates_shared_heap_reference() {
     let mir = r#"
 function alloc(): ref<int32, managed, readonly, space(shared)> {
-b0:
+entry:
     v0: ref<int32, managed, readonly, space(shared)> = new.zeroed int32
     return v0
-}"#;
+}
+"#;
     let mut machine = create_machine(mir);
     let output = machine
         .run_function_by_name("alloc", &[])
@@ -100,12 +102,13 @@ b0:
 fn test_free_releases_unique_heap_allocation() {
     let mir = r#"
 function freeUnique(): int32 {
-b0:
+entry:
     v0: ref<int32, unique, readonly> = new.zeroed int32
     free v0
-    v1: int32 = 7int32
+    v1: int32 = 7
     return v1
-}"#;
+}
+"#;
     let mut machine = create_machine(mir);
     let output = machine
         .run_function_by_name("freeUnique", &[])
@@ -120,12 +123,13 @@ b0:
 fn test_free_releases_unique_shared_heap_allocation() {
     let mir = r#"
 function freeUnique(): int32 {
-b0:
+entry:
     v0: ref<int32, unique, readonly, space(shared)> = new.zeroed int32
     free v0
-    v1: int32 = 7int32
+    v1: int32 = 7
     return v1
-}"#;
+}
+"#;
     let mut machine = create_machine(mir);
     let output = machine
         .run_function_by_name("freeUnique", &[])
@@ -140,13 +144,14 @@ b0:
 fn test_load_store() {
     let mir = r#"
 function loadStore(): int32 {
-b0:
+entry:
     v0: ref<int32, managed, readonly> = new.zeroed int32
-    v1: int32 = 42int32
+    v1: int32 = 42
     store v0, v1
     v2: int32 = load v0
     return v2
-}"#;
+}
+"#;
     run_mir_expect(mir, "loadStore", &[], Value::int32(42));
 }
 
@@ -155,14 +160,15 @@ b0:
 fn test_new_uninit_completes_heap_reference() {
     let mir = r#"
 function loadStore(): int32 {
-b0:
+entry:
     v0: uninit<ref<int32, managed, readonly>> = new.uninit int32
-    v1: int32 = 42int32
+    v1: int32 = 42
     store v0, v1
     v2: ref<int32, managed, readonly> = new.complete v0
     v3: int32 = load v2
     return v3
-}"#;
+}
+"#;
     run_mir_expect(mir, "loadStore", &[], Value::int32(42));
 }
 
@@ -171,13 +177,14 @@ b0:
 fn test_frame_alloc_uninit_load_store() {
     let mir = r#"
 function frameUninit(): int32 {
-b0:
+entry:
     v0: ref<int32, raw, readonly, space(frame)> = frame.alloc.uninit int32
-    v1: int32 = 42int32
+    v1: int32 = 42
     store v0, v1
     v2: int32 = load v0
     return v2
-}"#;
+}
+"#;
     run_mir_expect(mir, "frameUninit", &[], Value::int32(42));
 }
 
@@ -196,11 +203,12 @@ fn test_shared_heap_reference_value_roundtrip() {
 fn test_new_slice_allocates_slice_value() {
     let mir = r#"
 function allocArray(): slice<int32, managed> {
-b0:
-    v0: int64 = 10int64
+entry:
+    v0: int64 = 10
     v1: slice<int32, managed> = new.slice.zeroed int32, v0
     return v1
-}"#;
+}
+"#;
     let mut machine = create_machine(mir);
     let output = machine
         .run_function_by_name("allocArray", &[])
@@ -221,11 +229,12 @@ b0:
 fn test_new_slice_allocates_shared_slice_value() {
     let mir = r#"
 function allocArray(): slice<int32, managed, readonly, space(shared)> {
-b0:
-    v0: int64 = 10int64
+entry:
+    v0: int64 = 10
     v1: slice<int32, managed, readonly, space(shared)> = new.slice.zeroed int32, v0
     return v1
-}"#;
+}
+"#;
     let mut machine = create_machine(mir);
     let output = machine
         .run_function_by_name("allocArray", &[])
@@ -250,16 +259,17 @@ b0:
 fn test_slice_element_address_loads_and_stores() {
     let mir = r#"
 function accessSlice(): int32 {
-b0:
-    v0: int64 = 3int64
+entry:
+    v0: int64 = 3
     v1: slice<int32, managed> = new.slice.zeroed int32, v0
-    v2: int64 = 1int64
+    v2: int64 = 1
     v3: ref<int32, managed> = element.address v1, v2
-    v4: int32 = 42int32
+    v4: int32 = 42
     store v3, v4
     v5: int32 = load v3
     return v5
-}"#;
+}
+"#;
 
     run_mir_expect(mir, "accessSlice", &[], Value::int32(42));
 }
@@ -269,10 +279,11 @@ b0:
 fn test_field_get_reads_tuple_field() {
     let mir = r#"
 function getFirst(v0: (int32, int32)): int32 {
-b0(v0: (int32, int32)):
+entry(v0: (int32, int32)):
     v1: int32 = field.get v0, 0
     return v1
-}"#;
+}
+"#;
     let output = run_mir_with_frame_ok(mir, "getFirst", |interp| {
         let ty = interp.parameter_type("getFirst", 0);
         let agg = interp.materialize_value_for_type(ty, vec![Cell::int32(10), Cell::int32(20)]);
@@ -286,11 +297,12 @@ b0(v0: (int32, int32)):
 fn test_field_set_replaces_tuple_field() {
     let mir = r#"
 function setAndGet(v0: (int32, int32), v1: int32): int32 {
-b0(v0: (int32, int32), v1: int32):
+entry(v0: (int32, int32), v1: int32):
     v2: (int32, int32) = field.set v0, 0, v1
     v3: int32 = field.get v2, 0
     return v3
-}"#;
+}
+"#;
     let output = run_mir_with_frame_ok(mir, "setAndGet", |interp| {
         let ty = interp.parameter_type("setAndGet", 0);
         let agg = interp.materialize_value_for_type(ty, vec![Cell::int32(10), Cell::int32(20)]);
@@ -304,13 +316,14 @@ b0(v0: (int32, int32), v1: int32):
 fn test_field_set_preserves_source_tuple() {
     let mir = r#"
 function setWithoutAlias(v0: (int32, int32), v1: int32): int32 {
-b0(v0: (int32, int32), v1: int32):
+entry(v0: (int32, int32), v1: int32):
     v2: (int32, int32) = field.set v0, 0, v1
     v3: int32 = field.get v0, 0
     v4: int32 = field.get v2, 0
     v5: int32 = int.add v3, v4
     return v5
-}"#;
+}
+"#;
     let output = run_mir_with_frame_ok(mir, "setWithoutAlias", |interp| {
         let ty = interp.parameter_type("setWithoutAlias", 0);
         let tuple = interp.materialize_value_for_type(ty, vec![Cell::int32(10), Cell::int32(20)]);
@@ -326,16 +339,17 @@ b0(v0: (int32, int32), v1: int32):
 fn test_field_get_copies_nested_aggregate() {
     let mir = r#"
 function getNested(): int32 {
-b0:
-    v0: int32 = 10int32
-    v1: int32 = 20int32
+entry:
+    v0: int32 = 10
+    v1: int32 = 20
     v2: (int32, int32) = tuple (int32, int32) (v0, v1)
-    v3: int32 = 30int32
+    v3: int32 = 30
     v4: ((int32, int32), int32) = tuple ((int32, int32), int32) (v2, v3)
     v5: (int32, int32) = field.get v4, 0
     v6: int32 = field.get v5, 1
     return v6
-}"#;
+}
+"#;
     run_mir_expect(mir, "getNested", &[], Value::int32(20));
 }
 
@@ -344,20 +358,21 @@ b0:
 fn test_field_set_copies_nested_aggregate() {
     let mir = r#"
 function setNested(): int32 {
-b0:
-    v0: int32 = 10int32
-    v1: int32 = 20int32
+entry:
+    v0: int32 = 10
+    v1: int32 = 20
     v2: (int32, int32) = tuple (int32, int32) (v0, v1)
-    v3: int32 = 30int32
+    v3: int32 = 30
     v4: ((int32, int32), int32) = tuple ((int32, int32), int32) (v2, v3)
-    v5: int32 = 40int32
-    v6: int32 = 50int32
+    v5: int32 = 40
+    v6: int32 = 50
     v7: (int32, int32) = tuple (int32, int32) (v5, v6)
     v8: ((int32, int32), int32) = field.set v4, 0, v7
     v9: (int32, int32) = field.get v8, 0
     v10: int32 = field.get v9, 1
     return v10
-}"#;
+}
+"#;
     run_mir_expect(mir, "setNested", &[], Value::int32(50));
 }
 
@@ -366,10 +381,11 @@ b0:
 fn test_element_get_reads_array_element() {
     let mir = r#"
 function getElem(v0: [int32; 3]): int32 {
-b0(v0: [int32; 3]):
+entry(v0: [int32; 3]):
     v1: int32 = element.get v0, 1
     return v1
-}"#;
+}
+"#;
     let output = run_mir_with_frame_ok(mir, "getElem", |interp| {
         let ty = interp.parameter_type("getElem", 0);
         let array = interp.materialize_value_for_type(
@@ -388,14 +404,15 @@ b0(v0: [int32; 3]):
 fn test_element_get_reads_constructed_array() {
     let mir = r#"
 function getLocalElem(): int32 {
-b0:
-    v0: int32 = 10int32
-    v1: int32 = 20int32
-    v2: int32 = 30int32
+entry:
+    v0: int32 = 10
+    v1: int32 = 20
+    v2: int32 = 30
     v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
     v4: int32 = element.get v3, 2
     return v4
-}"#;
+}
+"#;
 
     run_mir_expect(mir, "getLocalElem", &[], Value::int32(30));
 }
@@ -405,13 +422,14 @@ b0:
 fn test_element_set_preserves_source_array() {
     let mir = r#"
 function setWithoutAlias(v0: [int32; 3], v1: int32): int32 {
-b0(v0: [int32; 3], v1: int32):
+entry(v0: [int32; 3], v1: int32):
     v2: [int32; 3] = element.set v0, 1, v1
     v3: int32 = element.get v0, 1
     v4: int32 = element.get v2, 1
     v5: int32 = int.add v3, v4
     return v5
-}"#;
+}
+"#;
     let output = run_mir_with_frame_ok(mir, "setWithoutAlias", |interp| {
         let ty = interp.parameter_type("setWithoutAlias", 0);
         let array = interp.materialize_value_for_type(
@@ -430,11 +448,12 @@ b0(v0: [int32; 3], v1: int32):
 fn test_element_set_replaces_array_element() {
     let mir = r#"
 function setAndGet(v0: [int32; 3], v1: int32): int32 {
-b0(v0: [int32; 3], v1: int32):
+entry(v0: [int32; 3], v1: int32):
     v2: [int32; 3] = element.set v0, 1, v1
     v3: int32 = element.get v2, 1
     return v3
-}"#;
+}
+"#;
     let output = run_mir_with_frame_ok(mir, "setAndGet", |interp| {
         let ty = interp.parameter_type("setAndGet", 0);
         let arr = interp.materialize_value_for_type(
@@ -451,17 +470,18 @@ b0(v0: [int32; 3], v1: int32):
 fn test_element_set_replaces_constructed_array_element() {
     let mir = r#"
 function setLocalAndGet(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 10int32
-    v2: int32 = 20int32
-    v3: int32 = 30int32
+entry(v0: int32):
+    v1: int32 = 10
+    v2: int32 = 20
+    v3: int32 = 30
     v4: [int32; 3] = array [int32; 3] (v1, v2, v3)
     v5: [int32; 3] = element.set v4, 1, v0
     v6: int32 = element.get v4, 1
     v7: int32 = element.get v5, 1
     v8: int32 = int.add v6, v7
     return v8
-}"#;
+}
+"#;
 
     run_mir_expect(
         mir,
@@ -476,18 +496,19 @@ b0(v0: int32):
 fn test_element_get_copies_nested_aggregate() {
     let mir = r#"
 function getNested(): int32 {
-b0:
-    v0: int32 = 10int32
-    v1: int32 = 20int32
+entry:
+    v0: int32 = 10
+    v1: int32 = 20
     v2: (int32, int32) = tuple (int32, int32) (v0, v1)
-    v3: int32 = 30int32
-    v4: int32 = 40int32
+    v3: int32 = 30
+    v4: int32 = 40
     v5: (int32, int32) = tuple (int32, int32) (v3, v4)
     v6: [(int32, int32); 2] = array [(int32, int32); 2] (v2, v5)
     v7: (int32, int32) = element.get v6, 1
     v8: int32 = field.get v7, 0
     return v8
-}"#;
+}
+"#;
     run_mir_expect(mir, "getNested", &[], Value::int32(30));
 }
 
@@ -496,22 +517,23 @@ b0:
 fn test_element_set_copies_nested_aggregate() {
     let mir = r#"
 function setNested(): int32 {
-b0:
-    v0: int32 = 10int32
-    v1: int32 = 20int32
+entry:
+    v0: int32 = 10
+    v1: int32 = 20
     v2: (int32, int32) = tuple (int32, int32) (v0, v1)
-    v3: int32 = 30int32
-    v4: int32 = 40int32
+    v3: int32 = 30
+    v4: int32 = 40
     v5: (int32, int32) = tuple (int32, int32) (v3, v4)
     v6: [(int32, int32); 2] = array [(int32, int32); 2] (v2, v5)
-    v7: int32 = 50int32
-    v8: int32 = 60int32
+    v7: int32 = 50
+    v8: int32 = 60
     v9: (int32, int32) = tuple (int32, int32) (v7, v8)
     v10: [(int32, int32); 2] = element.set v6, 1, v9
     v11: (int32, int32) = element.get v10, 1
     v12: int32 = field.get v11, 1
     return v12
-}"#;
+}
+"#;
     run_mir_expect(mir, "setNested", &[], Value::int32(60));
 }
 
@@ -520,14 +542,15 @@ b0:
 fn test_field_address_loads_heap_field() {
     let mir = r#"
 function heapField(): int32 {
-b0:
+entry:
     v0: ref<(int32, int32), managed, readonly> = new.zeroed (int32, int32)
-    v1: int32 = 42int32
+    v1: int32 = 42
     v2: ref<int32, managed, readonly> = field.address v0, 0
     store v2, v1
     v3: int32 = load v2
     return v3
-}"#;
+}
+"#;
     run_mir_expect(mir, "heapField", &[], Value::int32(42));
 }
 
@@ -536,14 +559,15 @@ b0:
 fn test_heap_borrowed_field_access() {
     let mir = r#"
 function heapBorrowedField(): int32 {
-b0:
+entry:
     v0: ref<(int32, int32), managed, readonly> = new.zeroed (int32, int32)
-    v1: int32 = 42int32
+    v1: int32 = 42
     v2: ref<int32, borrowed, readonly> = field.address v0, 0
     store v2, v1
     v3: int32 = load v2
     return v3
-}"#;
+}
+"#;
     run_mir_expect(mir, "heapBorrowedField", &[], Value::int32(42));
 }
 
@@ -556,11 +580,12 @@ type Box {
 }
 
 function readBox(v0: int32): int32 {
-b0(v0: int32):
+entry(v0: int32):
     v1: Box = struct Box (v0)
     v2: int32 = field.get v1, 0
     return v2
-}"#;
+}
+"#;
 
     run_mir_expect(mir, "readBox", &[Value::int32(9)], Value::int32(9));
 }
@@ -574,10 +599,11 @@ type Box {
 }
 
 function allocBox(): ref<Box, managed, readonly> {
-b0:
+entry:
     v0: ref<Box, managed, readonly> = new.zeroed Box
     return v0
-}"#;
+}
+"#;
 
     let mut machine = create_machine(mir);
     let output = machine
@@ -604,12 +630,13 @@ type Box {
 }
 
 function makeBox(v0: int32): ref<Box, managed, readonly> {
-b0(v0: int32):
+entry(v0: int32):
     v1: Box = struct Box (v0)
     v2: ref<Box, managed, readonly> = new.zeroed Box
     store v2, v1
     return v2
-}"#;
+}
+"#;
 
     let mut machine = create_machine(mir);
     let output = machine
@@ -632,11 +659,13 @@ type Packed {
     inner: ref<int32, managed, readonly>;
     third: uint8;
 }
+
 function allocPacked(): ref<Packed, managed, readonly> {
-b0:
+entry:
     v0: ref<Packed, managed, readonly> = new.zeroed Packed
     return v0
-}"#;
+}
+"#;
     let data_layout = DataLayout { pointer_bytes: 8 };
 
     let mut machine = create_machine_with_data_layout(mir, data_layout);
@@ -663,11 +692,12 @@ b0:
 fn test_new_slice_uses_pointer_stride_for_heap_references() {
     let mir = r#"
 function allocArray(): slice<ref<int32, managed, readonly>, managed> {
-b0:
-    v0: int64 = 2int64
+entry:
+    v0: int64 = 2
     v1: slice<ref<int32, managed, readonly>, managed> = new.slice.zeroed ref<int32, managed, readonly>, v0
     return v1
-}"#;
+}
+"#;
     let data_layout = DataLayout { pointer_bytes: 8 };
 
     let mut machine = create_machine_with_data_layout(mir, data_layout);
@@ -700,9 +730,9 @@ type Holder {
 }
 
 function comparePaths(): int32 {
-b0:
+entry:
     v0: ref<int32, managed, readonly> = new.zeroed int32
-    v1: int32 = 41int32
+    v1: int32 = 41
     store v0, v1
     v2: Holder = struct Holder (v0)
     v3: ref<Holder, managed, readonly> = new.zeroed Holder
@@ -711,7 +741,8 @@ b0:
     v5: ref<int32, managed, readonly> = load v4
     v6: int32 = load v5
     return v6
-}"#;
+}
+"#;
     let mut machine = create_machine(mir);
     let output = machine
         .run_function_by_name("comparePaths", &[])
@@ -725,13 +756,14 @@ b0:
 fn test_frame_allocate() {
     let mir = r#"
 function stackAlloc(): int32 {
-b0:
+entry:
     v0: ref<int32, raw, readonly, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 99int32
+    v1: int32 = 99
     store v0, v1
     v2: int32 = load v0
     return v2
-}"#;
+}
+"#;
     run_mir_expect(mir, "stackAlloc", &[], Value::int32(99));
 }
 
@@ -740,14 +772,15 @@ b0:
 fn test_frame_allocate_struct() {
     let mir = r#"
 function stackStruct(): int32 {
-b0:
+entry:
     v0: ref<(int32, int32), raw, readonly, space(frame)> = frame.alloc.zeroed (int32, int32)
-    v1: int32 = 10int32
+    v1: int32 = 10
     v2: ref<int32, borrowed, readonly, space(frame)> = field.address v0, 0
     store v2, v1
     v3: int32 = load v2
     return v3
-}"#;
+}
+"#;
     run_mir_expect(mir, "stackStruct", &[], Value::int32(10));
 }
 
@@ -760,10 +793,11 @@ type Packed {
     inner: ref<int32, managed, readonly>;
     third: uint8;
 }
+
 function stackPacked(): int32 {
-b0:
+entry:
     v0: ref<int32, managed, readonly> = new.zeroed int32
-    v1: int32 = 77int32
+    v1: int32 = 77
     store v0, v1
     v2: ref<Packed, raw, readonly, space(frame)> = frame.alloc.zeroed Packed
     v3: ref<ref<int32, managed, readonly>, borrowed, readonly, space(frame)> = field.address v2, 1
@@ -771,7 +805,8 @@ b0:
     v4: ref<int32, managed, readonly> = load v3
     v5: int32 = load v4
     return v5
-}"#;
+}
+"#;
     let data_layout = DataLayout { pointer_bytes: 4 };
     let error = match std::panic::catch_unwind(|| create_machine_with_data_layout(mir, data_layout))
     {

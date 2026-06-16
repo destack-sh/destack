@@ -11,15 +11,18 @@ use destack_engine::Value;
 fn test_branch_true() {
     let mir = r#"
 function select(v0: boolean): int32 {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: int32 = 1int32
+    v1: int32 = 1
     return v1
+
 b2:
-    v2: int32 = 0int32
+    v2: int32 = 0
     return v2
-}"#;
+}
+"#;
     run_mir_expect(mir, "select", &[Value::bool(true)], Value::int32(1));
 }
 
@@ -28,15 +31,18 @@ b2:
 fn test_branch_false() {
     let mir = r#"
 function select(v0: boolean): int32 {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: int32 = 1int32
+    v1: int32 = 1
     return v1
+
 b2:
-    v2: int32 = 0int32
+    v2: int32 = 0
     return v2
-}"#;
+}
+"#;
     run_mir_expect(mir, "select", &[Value::bool(false)], Value::int32(0));
 }
 
@@ -45,15 +51,18 @@ b2:
 fn test_check_bounds_accepts_in_range_index() {
     let mir = r#"
 function bounds(v0: int64, v1: int64): int32 {
-b0(v0: int64, v1: int64):
+entry(v0: int64, v1: int64):
     check bounds.s v0, v1, v0 -> b1, b2
+
 b1:
-    v2: int32 = 1int32
+    v2: int32 = 1
     return v2
+
 b2:
-    v3: int32 = 0int32
+    v3: int32 = 0
     return v3
-}"#;
+}
+"#;
 
     run_mir_expect(
         mir,
@@ -68,15 +77,18 @@ b2:
 fn test_check_bounds_rejects_out_of_range_index() {
     let mir = r#"
 function bounds(v0: int64, v1: int64): int32 {
-b0(v0: int64, v1: int64):
+entry(v0: int64, v1: int64):
     check bounds.s v0, v1, v0 -> b1, b2
+
 b1:
-    v2: int32 = 1int32
+    v2: int32 = 1
     return v2
+
 b2:
-    v3: int32 = 0int32
+    v3: int32 = 0
     return v3
-}"#;
+}
+"#;
 
     run_mir_expect(
         mir,
@@ -91,12 +103,14 @@ b2:
 fn test_jump() {
     let mir = r#"
 function jumpTest(): int32 {
-b0:
-    v0: int32 = 42int32
+entry:
+    v0: int32 = 42
     jump b1
+
 b1:
     return v0
-}"#;
+}
+"#;
     run_mir_expect(mir, "jumpTest", &[], Value::int32(42));
 }
 
@@ -105,18 +119,22 @@ b1:
 fn test_switch() {
     let mir = r#"
 function switchTest(v0: int32): int32 {
-b0(v0: int32):
-    switch v0, b3, 0 => b1, 1 => b2
+entry(v0: int32):
+    switch v0, b3, 0 -> b1, 1 -> b2
+
 b1:
-    v1: int32 = 100int32
+    v1: int32 = 100
     return v1
+
 b2:
-    v2: int32 = 200int32
+    v2: int32 = 200
     return v2
+
 b3:
-    v3: int32 = 0int32
+    v3: int32 = 0
     return v3
-}"#;
+}
+"#;
     run_mir_expect(mir, "switchTest", &[Value::int32(0)], Value::int32(100));
     run_mir_expect(mir, "switchTest", &[Value::int32(1)], Value::int32(200));
     run_mir_expect(mir, "switchTest", &[Value::int32(99)], Value::int32(0));
@@ -127,17 +145,19 @@ b3:
 fn test_simple_call() {
     let mir = r#"
 function add(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
+entry(v0: int32, v1: int32):
     v2: int32 = int.add v0, v1
     return v2
 }
+
 function caller(): int32 {
-b0:
-    v0: int32 = 10int32
-    v1: int32 = 20int32
-    v2: int32 = call add(v0, v1): (int32, int32) -> int32
+entry:
+    v0: int32 = 10
+    v1: int32 = 20
+    v2: int32 = call add(v0, v1)
     return v2
-}"#;
+}
+"#;
     run_mir_expect(mir, "caller", &[], Value::int32(30));
 }
 
@@ -166,10 +186,11 @@ b2:
 fn test_stack_overflow() {
     let mir = r#"
 function infinite(): int32 {
-b0:
-    v0: int32 = call infinite(): () -> int32
+entry:
+    v0: int32 = call infinite()
     return v0
-}"#;
+}
+"#;
     let result = run_mir(mir, "infinite", &[]);
 
     assert_runtime_error(result, Error::stack_overflow());
@@ -180,10 +201,11 @@ b0:
 fn test_step_limit() {
     let mir = r#"
 function infiniteLoop(): int32 {
-b0:
-    v0: int32 = 0int32
-    jump b0
-}"#;
+entry:
+    v0: int32 = 0
+    jump entry
+}
+"#;
     let result = run_mir(mir, "infiniteLoop", &[]);
 
     assert_runtime_error(result, Error::step_limit_exceeded());
@@ -194,9 +216,10 @@ b0:
 fn test_void_return() {
     let mir = r#"
 function noop(): void {
-b0:
+entry:
     return
-}"#;
+}
+"#;
     run_mir_expect(mir, "noop", &[], Value::Void);
 }
 
@@ -205,18 +228,19 @@ b0:
 fn test_call_stack_preserved() {
     let mir = r#"
 function inner(): int32 {
-b0:
-    v0: int32 = 10int32
+entry:
+    v0: int32 = 10
     return v0
 }
 
 function outer(): int32 {
-b0:
-    v0: int32 = 5int32
-    v1: int32 = call inner(): () -> int32
+entry:
+    v0: int32 = 5
+    v1: int32 = call inner()
     v2: int32 = int.add v0, v1
     return v2
-}"#;
+}
+"#;
     run_mir_expect(mir, "outer", &[], Value::int32(15));
 }
 
@@ -281,16 +305,17 @@ b0(v0: (int32) -> int32, v1: int32):
 fn test_call_indirect_type_mismatch() {
     let mir_text = r#"
 function wrong(v0: int64): int32 {
-b0(v0: int64):
-    v1: int32 = 0int32
+entry(v0: int64):
+    v1: int32 = 0
     return v1
 }
 
 function caller(v0: (int32) -> int32, v1: int32): int32 {
-b0(v0: (int32) -> int32, v1: int32):
+entry(v0: (int32) -> int32, v1: int32):
     v2: int32 = call.indirect v0(v1): (int32) -> int32
     return v2
-}"#;
+}
+"#;
 
     let mut machine = create_machine(mir_text);
     let wrong_id = machine
@@ -326,7 +351,7 @@ b1:
     v4: int32 = 1int32
     v5: int32 = int.sub v0, v4
     v6: int32 = int.add v1, v4
-    tailCall countdown(v5, v6): (int32, int32) -> int32
+    tail.call countdown(v5, v6): (int32, int32) -> int32
 b2:
     return v1
 }
@@ -334,7 +359,7 @@ b2:
 function entry(v0: int32): int32 {
 b0(v0: int32):
     v1: int32 = 0int32
-    tailCall countdown(v0, v1): (int32, int32) -> int32
+    tail.call countdown(v0, v1): (int32, int32) -> int32
 }"#;
     let output = run_mir_ok(mir, "entry", &[Value::int32(200)]);
     assert_eq!(output, Value::int32(200));
@@ -345,18 +370,21 @@ b0(v0: int32):
 fn test_tail_call_self_releases_frame_allocations() {
     let mir = r#"
 function countdown(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 0int32
+entry(v0: int32):
+    v1: int32 = 0
     v2: boolean = int.eq v0, v1
     branch v2, b2, b1
+
 b1:
-    v3: int32 = 1int32
+    v3: int32 = 1
     v4: ref<[int32; 512], raw, space(frame)> = frame.alloc.zeroed [int32; 512]
     v5: int32 = int.sub v0, v3
-    tailCall countdown(v5): (int32) -> int32
+    tail.call countdown(v5)
+
 b2:
     return v0
-}"#;
+}
+"#;
     let output = run_mir_ok(mir, "countdown", &[Value::int32(600)]);
     assert_eq!(output, Value::int32(0));
 }
@@ -366,24 +394,27 @@ b2:
 fn test_tail_call_indirect() {
     let mir_text = r#"
 function countdown(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = 0int32
+entry(v0: int32, v1: int32):
+    v2: int32 = 0
     v3: boolean = int.eq v0, v2
     branch v3, b2, b1
+
 b1:
-    v4: int32 = 1int32
+    v4: int32 = 1
     v5: int32 = int.sub v0, v4
     v6: int32 = int.add v1, v4
-    tailCall countdown(v5, v6): (int32, int32) -> int32
+    tail.call countdown(v5, v6)
+
 b2:
     return v1
 }
 
 function entry(v0: int32, v1: (int32, int32) -> int32): int32 {
-b0(v0: int32, v1: (int32, int32) -> int32):
-    v2: int32 = 0int32
-    tailCall.indirect v1(v0, v2): (int32, int32) -> int32
-}"#;
+entry(v0: int32, v1: (int32, int32) -> int32):
+    v2: int32 = 0
+    tail.call.indirect v1(v0, v2): (int32, int32) -> int32
+}
+"#;
 
     let mut machine = create_machine(mir_text);
     let countdown_id = machine
@@ -408,14 +439,16 @@ b0(v0: int32, v1: (int32, int32) -> int32):
 fn test_block_parameters_jump() {
     let mir = r#"
 function blockParams(): int32 {
-b0:
-    v0: int32 = 10int32
-    v1: int32 = 20int32
+entry:
+    v0: int32 = 10
+    v1: int32 = 20
     jump b1(v0, v1)
+
 b1(v2: int32, v3: int32):
     v4: int32 = int.add v2, v3
     return v4
-}"#;
+}
+"#;
     run_mir_expect(mir, "blockParams", &[], Value::int32(30));
 }
 
@@ -424,13 +457,15 @@ b1(v2: int32, v3: int32):
 fn test_block_parameters_branch() {
     let mir = r#"
 function branchParams(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 100int32
-    v2: int32 = 200int32
+entry(v0: boolean):
+    v1: int32 = 100
+    v2: int32 = 200
     branch v0, b1(v1), b1(v2)
+
 b1(v3: int32):
     return v3
-}"#;
+}
+"#;
     run_mir_expect(mir, "branchParams", &[Value::bool(true)], Value::int32(100));
     run_mir_expect(
         mir,
@@ -445,16 +480,18 @@ b1(v3: int32):
 fn test_block_parameters_jump_array() {
     let mir = r#"
 function arrayParams(): int32 {
-b0:
-    v0: int32 = 10int32
-    v1: int32 = 20int32
-    v2: int32 = 30int32
+entry:
+    v0: int32 = 10
+    v1: int32 = 20
+    v2: int32 = 30
     v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
     jump b1(v3)
+
 b1(v4: [int32; 3]):
     v5: int32 = element.get v4, 2
     return v5
-}"#;
+}
+"#;
     run_mir_expect(mir, "arrayParams", &[], Value::int32(30));
 }
 
@@ -463,17 +500,19 @@ b1(v4: [int32; 3]):
 fn test_block_parameters_jump_updated_array() {
     let mir = r#"
 function updatedArrayParams(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 10int32
-    v2: int32 = 20int32
-    v3: int32 = 30int32
+entry(v0: int32):
+    v1: int32 = 10
+    v2: int32 = 20
+    v3: int32 = 30
     v4: [int32; 3] = array [int32; 3] (v1, v2, v3)
     v5: [int32; 3] = element.set v4, 2, v0
     jump b1(v5)
+
 b1(v6: [int32; 3]):
     v7: int32 = element.get v6, 2
     return v7
-}"#;
+}
+"#;
 
     run_mir_expect(
         mir,
@@ -488,9 +527,10 @@ b1(v6: [int32; 3]):
 fn test_unreachable() {
     let mir = r#"
 function unreachableFunction(): int32 {
-b0:
+entry:
     unreachable
-}"#;
+}
+"#;
     let result = run_mir(mir, "unreachableFunction", &[]);
 
     assert_runtime_error(result, Error::unreachable());

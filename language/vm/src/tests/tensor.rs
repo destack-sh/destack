@@ -65,14 +65,15 @@ where
 fn test_tensor_splat() {
     let mir = r#"
 function tensorSplat(): int32 {
-b0:
-    v0: int32 = 7int32
+entry:
+    v0: int32 = 7
     v1: tensor<int32, (2, 2)> = tensor.splat v0
-    v2: int32 = 1int32
-    v3: int32 = 0int32
+    v2: int32 = 1
+    v3: int32 = 0
     v4: int32 = tensor.extract v1, [v2, v3]
     return v4
-}"#;
+}
+"#;
     run_mir_expect(mir, "tensorSplat", &[], Value::int32(7));
 }
 
@@ -81,13 +82,14 @@ b0:
 fn test_tensor_binary() {
     let mir = r#"
 function tensorBinary(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>): int32 {
-b0(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>):
+entry(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>):
     v2: tensor<int32, (2, 2)> = int.add v0, v1
-    v3: int64 = 1int64
-    v4: int64 = 0int64
+    v3: int64 = 1
+    v4: int64 = 0
     v5: int32 = tensor.extract v2, [v3, v4]
     return v5
-}"#;
+}
+"#;
     run_tensor_expect(
         mir,
         "tensorBinary",
@@ -106,13 +108,14 @@ b0(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>):
 fn test_tensor_float16_binary() {
     let mir = r#"
 function tensorFloat16(v0: tensor<float16, (2, 2)>, v1: tensor<float16, (2, 2)>): float16 {
-b0(v0: tensor<float16, (2, 2)>, v1: tensor<float16, (2, 2)>):
+entry(v0: tensor<float16, (2, 2)>, v1: tensor<float16, (2, 2)>):
     v2: tensor<float16, (2, 2)> = float.add v0, v1
-    v3: int64 = 1int64
-    v4: int64 = 0int64
+    v3: int64 = 1
+    v4: int64 = 0
     v5: float16 = tensor.extract v2, [v3, v4]
     return v5
-}"#;
+}
+"#;
     run_tensor_expect(
         mir,
         "tensorFloat16",
@@ -131,16 +134,17 @@ b0(v0: tensor<float16, (2, 2)>, v1: tensor<float16, (2, 2)>):
 fn test_tensor_load_store() {
     let mir = r#"
 function tensorLoadStore(): int32 {
-b0:
+entry:
     v0: ref<[int32; 4], raw, space(frame)> = frame.alloc.zeroed [int32; 4]
     v1: tensorView<int32, raw, space(frame), (2, 2)> = cast.bit v0 -> tensorView<int32, raw, space(frame), (2, 2)>
-    v2: int32 = 42int32
-    v3: int32 = 1int32
-    v4: int32 = 0int32
+    v2: int32 = 42
+    v3: int32 = 1
+    v4: int32 = 0
     tensor.store v1, [v3, v4], v2
     v5: int32 = tensor.load v1, [v3, v4]
     return v5
-}"#;
+}
+"#;
     run_mir_expect(mir, "tensorLoadStore", &[], Value::int32(42));
 }
 
@@ -149,19 +153,20 @@ b0:
 fn test_tensor_fill_copy() {
     let mir = r#"
 function tensorFillCopy(): int32 {
-b0:
+entry:
     v0: ref<[int32; 4], raw, space(frame)> = frame.alloc.zeroed [int32; 4]
     v1: ref<[int32; 4], raw, space(frame)> = frame.alloc.zeroed [int32; 4]
     v2: tensorView<int32, raw, space(frame), (2, 2)> = cast.bit v0 -> tensorView<int32, raw, space(frame), (2, 2)>
     v3: tensorView<int32, raw, space(frame), (2, 2)> = cast.bit v1 -> tensorView<int32, raw, space(frame), (2, 2)>
-    v4: int32 = 5int32
+    v4: int32 = 5
     tensor.fill v2, v4
     tensor.copy v3, v2
-    v5: int32 = 1int32
-    v6: int32 = 1int32
+    v5: int32 = 1
+    v6: int32 = 1
     v7: int32 = tensor.load v3, [v5, v6]
     return v7
-}"#;
+}
+"#;
     run_mir_expect(mir, "tensorFillCopy", &[], Value::int32(5));
 }
 
@@ -170,15 +175,16 @@ b0:
 fn test_tensor_reshape() {
     let mir = r#"
 function tensorReshape(v0: tensor<int32, (2, 2)>): int32 {
-b0(v0: tensor<int32, (2, 2)>):
-    v1: int32 = 4int32
-    v2: int32 = 1int32
+entry(v0: tensor<int32, (2, 2)>):
+    v1: int32 = 4
+    v2: int32 = 1
     v3: tensor<int32, (4, 1)> = tensor.reshape v0, shape(v1, v2)
-    v4: int64 = 3int64
-    v5: int64 = 0int64
+    v4: int64 = 3
+    v5: int64 = 0
     v6: int32 = tensor.extract v3, [v4, v5]
     return v6
-}"#;
+}
+"#;
     run_tensor_expect(
         mir,
         "tensorReshape",
@@ -199,12 +205,13 @@ b0(v0: tensor<int32, (2, 2)>):
 fn test_tensor_broadcast() {
     let mir = r#"
 function tensorBroadcast(v0: tensor<int32, (2, 2)>): int32 {
-b0(v0: tensor<int32, (2, 2)>):
+entry(v0: tensor<int32, (2, 2)>):
     v1: tensor<int32, (2, 2)> = tensor.broadcast v0, dimensions(0, 1)
-    v2: int64 = 1int64
+    v2: int64 = 1
     v3: int32 = tensor.extract v1, [v2, v2]
     return v3
-}"#;
+}
+"#;
     run_tensor_expect(
         mir,
         "tensorBroadcast",
@@ -225,13 +232,14 @@ b0(v0: tensor<int32, (2, 2)>):
 fn test_tensor_transpose() {
     let mir = r#"
 function tensorTranspose(v0: tensor<int32, (2, 2)>): int32 {
-b0(v0: tensor<int32, (2, 2)>):
+entry(v0: tensor<int32, (2, 2)>):
     v1: tensor<int32, (2, 2)> = tensor.transpose v0, permutation(1, 0)
-    v2: int64 = 0int64
-    v3: int64 = 1int64
+    v2: int64 = 0
+    v3: int64 = 1
     v4: int32 = tensor.extract v1, [v2, v3]
     return v4
-}"#;
+}
+"#;
     run_tensor_expect(
         mir,
         "tensorTranspose",
@@ -252,16 +260,17 @@ b0(v0: tensor<int32, (2, 2)>):
 fn test_tensor_slice() {
     let mir = r#"
 function tensorSlice(v0: tensor<int32, (2, 2)>): int32 {
-b0(v0: tensor<int32, (2, 2)>):
-    v1: int32 = 0int32
-    v2: int32 = 1int32
-    v3: int32 = 2int32
+entry(v0: tensor<int32, (2, 2)>):
+    v1: int32 = 0
+    v2: int32 = 1
+    v3: int32 = 2
     v4: tensor<int32, (2, 1)> = tensor.slice v0, offsets(v1, v2), sizes(v3, v2), strides(v2, v2)
-    v5: int64 = 1int64
-    v6: int64 = 0int64
+    v5: int64 = 1
+    v6: int64 = 0
     v7: int32 = tensor.extract v4, [v5, v6]
     return v7
-}"#;
+}
+"#;
     run_tensor_expect(
         mir,
         "tensorSlice",
@@ -275,14 +284,15 @@ b0(v0: tensor<int32, (2, 2)>):
 fn test_tensor_pad() {
     let mir = r#"
 function tensorPad(v0: tensor<int32, (1, 1)>): int32 {
-b0(v0: tensor<int32, (1, 1)>):
-    v1: int32 = 0int32
-    v2: int32 = 1int32
+entry(v0: tensor<int32, (1, 1)>):
+    v1: int32 = 0
+    v2: int32 = 1
     v3: tensor<int32, (2, 2)> = tensor.pad v0, value(v1), low(v1, v1), high(v2, v2), interior(v1, v1)
-    v4: int64 = 0int64
+    v4: int64 = 0
     v5: int32 = tensor.extract v3, [v4, v4]
     return v5
-}"#;
+}
+"#;
     run_tensor_expect(
         mir,
         "tensorPad",
@@ -296,12 +306,13 @@ b0(v0: tensor<int32, (1, 1)>):
 fn test_tensor_concat() {
     let mir = r#"
 function tensorConcat(v0: tensor<int32, (1, 2)>, v1: tensor<int32, (1, 2)>): int32 {
-b0(v0: tensor<int32, (1, 2)>, v1: tensor<int32, (1, 2)>):
+entry(v0: tensor<int32, (1, 2)>, v1: tensor<int32, (1, 2)>):
     v2: tensor<int32, (2, 2)> = tensor.concat tensors(v0, v1), axis(0)
-    v3: int64 = 1int64
+    v3: int64 = 1
     v4: int32 = tensor.extract v2, [v3, v3]
     return v4
-}"#;
+}
+"#;
     run_tensor_expect(
         mir,
         "tensorConcat",
@@ -320,13 +331,14 @@ b0(v0: tensor<int32, (1, 2)>, v1: tensor<int32, (1, 2)>):
 fn test_tensor_reduce() {
     let mir = r#"
 function tensorReduce(v0: tensor<int32, (2, 2)>): int32 {
-b0(v0: tensor<int32, (2, 2)>):
-    v1: int32 = 0int32
+entry(v0: tensor<int32, (2, 2)>):
+    v1: int32 = 0
     v2: tensor<int32, (2)> = tensor.reduce add, v0, v1, axes(1)
-    v3: int64 = 1int64
+    v3: int64 = 1
     v4: int32 = tensor.extract v2, [v3]
     return v4
-}"#;
+}
+"#;
     run_tensor_expect(
         mir,
         "tensorReduce",
@@ -340,13 +352,14 @@ b0(v0: tensor<int32, (2, 2)>):
 fn test_tensor_reduce_rejects_wrong_destination_shape() {
     let mir = r#"
 function tensorReduce(v0: tensor<int32, (2, 2)>): int32 {
-b0(v0: tensor<int32, (2, 2)>):
-    v1: int32 = 0int32
+entry(v0: tensor<int32, (2, 2)>):
+    v1: int32 = 0
     v2: tensor<int32, (2, 2)> = tensor.reduce add, v0, v1, axes(1)
-    v3: int64 = 0int64
+    v3: int64 = 0
     v4: int32 = tensor.extract v2, [v3, v3]
     return v4
-}"#;
+}
+"#;
     let result = run_mir_with_frame(mir, "tensorReduce", |interp| {
         vec![tensor_from_values(interp, "tensorReduce", 0, &[1, 2, 3, 4])]
     });
@@ -364,12 +377,13 @@ b0(v0: tensor<int32, (2, 2)>):
 fn test_tensor_index_reduce() {
     let mir = r#"
 function tensorIndexReduce(v0: tensor<int32, (2, 3)>): uint64 {
-b0(v0: tensor<int32, (2, 3)>):
+entry(v0: tensor<int32, (2, 3)>):
     v1: tensor<uint64, (2)> = tensor.indexReduce max, v0, axis(1), tieBreak(first)
-    v2: int64 = 1int64
+    v2: int64 = 1
     v3: uint64 = tensor.extract v1, [v2]
     return v3
-}"#;
+}
+"#;
     run_tensor_expect(
         mir,
         "tensorIndexReduce",
@@ -390,12 +404,13 @@ b0(v0: tensor<int32, (2, 3)>):
 fn test_tensor_index_reduce_rejects_signed_index_result() {
     let mir = r#"
 function tensorIndexReduce(v0: tensor<int32, (2, 3)>): int64 {
-b0(v0: tensor<int32, (2, 3)>):
+entry(v0: tensor<int32, (2, 3)>):
     v1: tensor<int64, (2)> = tensor.indexReduce max, v0, axis(1), tieBreak(first)
-    v2: int64 = 0int64
+    v2: int64 = 0
     v3: int64 = tensor.extract v1, [v2]
     return v3
-}"#;
+}
+"#;
     let result = run_mir_with_frame(mir, "tensorIndexReduce", |interp| {
         vec![tensor_from_values(
             interp,
@@ -418,12 +433,13 @@ b0(v0: tensor<int32, (2, 3)>):
 fn test_tensor_index_reduce_tie_break_last() {
     let mir = r#"
 function tensorIndexReduceLast(v0: tensor<int32, (2, 3)>): uint64 {
-b0(v0: tensor<int32, (2, 3)>):
+entry(v0: tensor<int32, (2, 3)>):
     v1: tensor<uint64, (2)> = tensor.indexReduce max, v0, axis(1), tieBreak(last)
-    v2: int64 = 1int64
+    v2: int64 = 1
     v3: uint64 = tensor.extract v1, [v2]
     return v3
-}"#;
+}
+"#;
     run_tensor_expect(
         mir,
         "tensorIndexReduceLast",
@@ -444,13 +460,14 @@ b0(v0: tensor<int32, (2, 3)>):
 fn test_tensor_dot() {
     let mir = r#"
 function tensorDot(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>): int32 {
-b0(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>):
+entry(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>):
     v2: tensor<int32, (2, 2)> = tensor.dot v0, v1, dims(lhsBatch(), rhsBatch(), lhsContract(1), rhsContract(0))
-    v3: int64 = 1int64
-    v4: int64 = 0int64
+    v3: int64 = 1
+    v4: int64 = 0
     v5: int32 = tensor.extract v2, [v3, v4]
     return v5
-}"#;
+}
+"#;
     run_tensor_expect(
         mir,
         "tensorDot",
@@ -469,12 +486,13 @@ b0(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>):
 fn test_tensor_convolution() {
     let mir = r#"
 function tensorConvolution(v0: tensor<int32, (1, 1, 1, 1)>, v1: tensor<int32, (1, 1, 1, 1)>): int32 {
-b0(v0: tensor<int32, (1, 1, 1, 1)>, v1: tensor<int32, (1, 1, 1, 1)>):
+entry(v0: tensor<int32, (1, 1, 1, 1)>, v1: tensor<int32, (1, 1, 1, 1)>):
     v2: tensor<int32, (1, 1, 1, 1)> = tensor.convolution v0, v1, dims(inputBatch(0), inputFeature(1), inputSpatial(2, 3), kernelInputFeature(0), kernelOutputFeature(1), kernelSpatial(2, 3), outputBatch(0), outputFeature(1), outputSpatial(2, 3)), window(strides(1, 1), paddingLow(0, 0), paddingHigh(0, 0), lhsDilation(1, 1), rhsDilation(1, 1), windowReversal(false, false)), groups(feature(1), batch(1))
-    v3: int64 = 0int64
+    v3: int64 = 0
     v4: int32 = tensor.extract v2, [v3, v3, v3, v3]
     return v4
-}"#;
+}
+"#;
     run_tensor_expect(
         mir,
         "tensorConvolution",
@@ -493,12 +511,13 @@ b0(v0: tensor<int32, (1, 1, 1, 1)>, v1: tensor<int32, (1, 1, 1, 1)>):
 fn test_tensor_gather() {
     let mir = r#"
 function tensorGather(v0: tensor<int32, (1, 1)>, v1: tensor<int32, (1, 1)>): int32 {
-b0(v0: tensor<int32, (1, 1)>, v1: tensor<int32, (1, 1)>):
+entry(v0: tensor<int32, (1, 1)>, v1: tensor<int32, (1, 1)>):
     v2: tensor<int32, (1, 1)> = tensor.gather v0, v1, dims(offsetDims(0), collapsedSliceDims(1), startIndexMap(0), indexVectorDim(1)), sliceSizes(1, 1)
-    v3: int64 = 0int64
+    v3: int64 = 0
     v4: int32 = tensor.extract v2, [v3, v3]
     return v4
-}"#;
+}
+"#;
     run_tensor_expect(
         mir,
         "tensorGather",
@@ -569,13 +588,14 @@ b0(v0: tensor<int32, (2, 2)>):
 fn test_tensor_compare() {
     let mir = r#"
 function tensorCompare(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>): boolean {
-b0(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>):
+entry(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>):
     v2: tensor<boolean, (2, 2)> = tensor.compare int.eq, v0, v1
-    v3: int64 = 0int64
-    v4: int64 = 1int64
+    v3: int64 = 0
+    v4: int64 = 1
     v5: boolean = tensor.extract v2, [v3, v4]
     return v5
-}"#;
+}
+"#;
     run_tensor_expect(
         mir,
         "tensorCompare",
@@ -594,13 +614,14 @@ b0(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>):
 fn test_tensor_convert_rounding() {
     let mir = r#"
 function tensorConvertRounding(v0: tensor<float64, (2, 2)>): int32 {
-b0(v0: tensor<float64, (2, 2)>):
+entry(v0: tensor<float64, (2, 2)>):
     v1: tensor<int32, (2, 2)> = tensor.convert roundTowardZero, v0
-    v2: int64 = 0int64
-    v3: int64 = 1int64
+    v2: int64 = 0
+    v3: int64 = 1
     v4: int32 = tensor.extract v1, [v2, v3]
     return v4
-}"#;
+}
+"#;
     run_tensor_expect(
         mir,
         "tensorConvertRounding",
@@ -621,12 +642,13 @@ b0(v0: tensor<float64, (2, 2)>):
 fn test_tensor_cast() {
     let mir = r#"
 function tensorCast(v0: tensor<int32, (2, 2)>): int32 {
-b0(v0: tensor<int32, (2, 2)>):
+entry(v0: tensor<int32, (2, 2)>):
     v1: tensor<int32, (2, 2)> = tensor.cast v0
-    v2: int64 = 1int64
+    v2: int64 = 1
     v3: int32 = tensor.extract v1, [v2, v2]
     return v3
-}"#;
+}
+"#;
     run_tensor_expect(
         mir,
         "tensorCast",
@@ -640,13 +662,13 @@ b0(v0: tensor<int32, (2, 2)>):
 fn test_tensor_view() {
     let mir = r#"
 function tensorViewValue(): int32 {
-b0:
+entry:
     v0: ref<[int32; 4], raw, space(frame)> = frame.alloc.zeroed [int32; 4]
     v1: tensorView<int32, raw, space(frame), (2, 2)> = cast.bit v0 -> tensorView<int32, raw, space(frame), (2, 2)>
-    v2: int32 = 0int32
-    v3: int32 = 1int32
-    v4: int32 = 2int32
-    v5: int32 = 3int32
+    v2: int32 = 0
+    v3: int32 = 1
+    v4: int32 = 2
+    v5: int32 = 3
     tensor.store v1, [v2, v2], v3
     tensor.store v1, [v2, v3], v4
     tensor.store v1, [v3, v2], v5
@@ -654,7 +676,8 @@ b0:
     v6: tensorView<int32, raw, space(frame), (2, 1)> = tensor.view v1, offsets(v2, v3), sizes(v4, v3), strides(v3, v3)
     v7: int32 = tensor.load v6, [v2, v2]
     return v7
-}"#;
+}
+"#;
     run_mir_expect(mir, "tensorViewValue", &[], Value::int32(2));
 }
 
@@ -663,16 +686,16 @@ b0:
 fn test_tensor_view_strided() {
     let mir = r#"
 function tensorViewStrided(): int32 {
-b0:
+entry:
     v0: ref<[int32; 6], raw, space(frame)> = frame.alloc.zeroed [int32; 6]
     v1: tensorView<int32, raw, space(frame), (2, 3)> = cast.bit v0 -> tensorView<int32, raw, space(frame), (2, 3)>
-    v2: int32 = 0int32
-    v3: int32 = 1int32
-    v4: int32 = 2int32
-    v5: int32 = 3int32
-    v6: int32 = 4int32
-    v7: int32 = 5int32
-    v8: int32 = 6int32
+    v2: int32 = 0
+    v3: int32 = 1
+    v4: int32 = 2
+    v5: int32 = 3
+    v6: int32 = 4
+    v7: int32 = 5
+    v8: int32 = 6
     tensor.store v1, [v2, v2], v3
     tensor.store v1, [v2, v3], v4
     tensor.store v1, [v2, v4], v5
@@ -682,6 +705,7 @@ b0:
     v9: tensorView<int32, raw, space(frame), (2, 2), layout(strided)> = tensor.view v1, offsets(v2, v2), sizes(v4, v4), strides(v3, v4)
     v10: int32 = tensor.load v9, [v3, v3]
     return v10
-}"#;
+}
+"#;
     run_mir_expect(mir, "tensorViewStrided", &[], Value::int32(6));
 }

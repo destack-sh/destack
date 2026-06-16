@@ -972,7 +972,7 @@ pub(crate) fn execute_panic(
         return Transfer::Error(Error::panic("panic"));
     }
 
-    if instruction.op == Op::ResumeUnwind {
+    if instruction.op == Op::UnwindResume {
         return Transfer::Error(Error::panic("panic resumed"));
     }
 

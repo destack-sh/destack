@@ -144,7 +144,7 @@ impl BlockOrder {
                 }
                 mir::Terminator::Return { .. }
                 | mir::Terminator::Panic { .. }
-                | mir::Terminator::ResumeUnwind
+                | mir::Terminator::UnwindResume
                 | mir::Terminator::Trap { .. }
                 | mir::Terminator::Unreachable
                 | mir::Terminator::TailCall { .. }

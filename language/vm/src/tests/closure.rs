@@ -14,12 +14,12 @@ type Env {
 
 @environment(ref<Env, managed>)
 function step(): int32 {
-b0:
+entry:
     v0: ref<Env, managed> = closure.environment
     v1: ref<ref<int32, managed>, managed> = field.address v0, 0
     v2: ref<int32, managed> = load v1
     v3: int32 = load v2
-    v4: int32 = 1int32
+    v4: int32 = 1
     v5: int32 = int.add v3, v4
     store v2, v5
     v6: ref<int32, managed> = field.address v0, 1
@@ -29,25 +29,26 @@ b0:
 }
 
 function makeEnv(): ref<Env, managed> {
-b0:
+entry:
     v0: ref<int32, managed> = new.zeroed int32
-    v1: int32 = 0int32
+    v1: int32 = 0
     store v0, v1
     v2: ref<Env, managed> = new.zeroed Env
     v3: ref<ref<int32, managed>, managed> = field.address v2, 0
     store v3, v0
     v4: ref<int32, managed> = field.address v2, 1
-    v5: int32 = 10int32
+    v5: int32 = 10
     store v4, v5
     return v2
 }
 
 function callOnce(v0: ref<Env, managed>): int32 {
-b0(v0: ref<Env, managed>):
+entry(v0: ref<Env, managed>):
     v1: () => int32 = closure.bind step, v0
     v2: int32 = call.indirect v1(): () -> int32
     return v2
-}"#;
+}
+"#;
 
     let mut machine = create_machine(mir);
     let env = machine
@@ -70,22 +71,23 @@ fn test_call_indirect_environment() {
     let mir = r#"
 @environment(ref<int32, raw, readonly, space(frame)>)
 function readEnv(): int32 {
-b0:
+entry:
     v0: ref<int32, raw, readonly, space(frame)> = closure.environment
     v1: int32 = load v0
     return v1
 }
 
 function caller(): int32 {
-b0:
+entry:
     v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 41int32
+    v1: int32 = 41
     store v0, v1
     v2: ref<int32, raw, readonly, space(frame)> = cast.bit v0 -> ref<int32, raw, readonly, space(frame)>
     v3: () => int32 = closure.bind readEnv, v2
     v4: int32 = call.indirect v3(): () -> int32
     return v4
-}"#;
+}
+"#;
 
     run_mir_expect(mir, "caller", &[], Value::int32(41));
 }
@@ -108,7 +110,7 @@ b0:
     v1: int32 = 99int32
     store v0, v1
     v2: () => int32 = closure.bind readEnv, v0
-    tailCall.indirect v2(): () -> int32
+    tail.call.indirect v2(): () -> int32
 }"#;
 
     run_mir_expect(mir, "caller", &[], Value::int32(99));
@@ -277,12 +279,14 @@ fn test_environment_loaded_from_struct() {
 type Env {
     value: int32;
 }
+
 type Holder {
     fun: () => int32;
 }
+
 @environment(ref<Env, managed>)
 function readEnv(): int32 {
-b0:
+entry:
     v0: ref<Env, managed> = closure.environment
     v1: ref<int32, managed> = field.address v0, 0
     v2: int32 = load v1
@@ -290,7 +294,7 @@ b0:
 }
 
 function makeEnv(v0: int32): ref<Env, managed> {
-b0(v0: int32):
+entry(v0: int32):
     v1: ref<Env, managed> = new.zeroed Env
     v2: ref<int32, managed> = field.address v1, 0
     store v2, v0
@@ -298,8 +302,8 @@ b0(v0: int32):
 }
 
 function caller(v0: int32): int32 {
-b0(v0: int32):
-    v1: ref<Env, managed> = call makeEnv(v0): (int32) -> ref<Env, managed>
+entry(v0: int32):
+    v1: ref<Env, managed> = call makeEnv(v0)
     v2: ref<Holder, managed> = new.zeroed Holder
     v3: ref<() => int32, managed> = field.address v2, 0
     v4: () => int32 = closure.bind readEnv, v1
@@ -307,7 +311,8 @@ b0(v0: int32):
     v5: () => int32 = load v3
     v6: int32 = call.indirect v5(): () -> int32
     return v6
-}"#;
+}
+"#;
 
     run_mir_expect(mir, "caller", &[Value::int32(42)], Value::int32(42));
 }
