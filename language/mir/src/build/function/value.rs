@@ -2,7 +2,6 @@ use crate::build::{BuildError, FunctionBuilder};
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, CastOperator, CompareExchangeAccess, Constant,
     FenceAccess, FloatType, Instruction, Intrinsic, LocalNodeId, Type, UnaryOperator, Value,
-    ValueReference,
 };
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
@@ -302,11 +301,8 @@ impl<'a> FunctionBuilder<'a> {
         args: Vec<Value>,
     ) -> Value {
         let destination = self.allocate_value();
-        let arguments = args
-            .into_iter()
-            .map(ValueReference::from)
-            .collect::<Vec<_>>();
-        let arguments = self.tree.add_arguments(&arguments);
+        let arguments = args.into_iter().map(Value::from).collect::<Vec<_>>();
+        let arguments = self.tree.add_values(&arguments);
         self.insert_instruction(Instruction::Intrinsic {
             destination: Some(destination.into()),
             intrinsic,
@@ -318,11 +314,8 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Call an intrinsic with no return value.
     pub fn intrinsic_void(&mut self, intrinsic: Intrinsic, args: Vec<Value>) {
-        let arguments = args
-            .into_iter()
-            .map(ValueReference::from)
-            .collect::<Vec<_>>();
-        let arguments = self.tree.add_arguments(&arguments);
+        let arguments = args.into_iter().map(Value::from).collect::<Vec<_>>();
+        let arguments = self.tree.add_values(&arguments);
         self.insert_instruction(Instruction::Intrinsic {
             destination: None,
             intrinsic,
@@ -409,9 +402,9 @@ impl<'a> FunctionBuilder<'a> {
     /// Record a managed reference write for the collector.
     pub fn barrier_write(
         &mut self,
-        object: impl Into<ValueReference>,
-        offset: impl Into<ValueReference>,
-        byte_len: impl Into<ValueReference>,
+        object: impl Into<Value>,
+        offset: impl Into<Value>,
+        byte_len: impl Into<Value>,
     ) {
         self.insert_instruction(Instruction::BarrierWrite {
             object: object.into(),

@@ -307,9 +307,7 @@ impl BasicAA {
 
         match inst {
             mir::Instruction::Load { pointer, .. } => {
-                let Some(pointer) = pointer.value() else {
-                    return ModRefInfo::NO_MOD_REF;
-                };
+                let pointer = *pointer;
 
                 let load_loc = MemoryLocation::from_ptr(pointer);
                 if self.alias(&load_loc, loc, tree) == AliasResult::NoAlias {
@@ -320,9 +318,7 @@ impl BasicAA {
             }
 
             mir::Instruction::Store { pointer, .. } => {
-                let Some(pointer) = pointer.value() else {
-                    return ModRefInfo::NO_MOD_REF;
-                };
+                let pointer = *pointer;
 
                 let store_loc = MemoryLocation::from_ptr(pointer);
                 if self.alias(&store_loc, loc, tree) == AliasResult::NoAlias {
@@ -332,9 +328,7 @@ impl BasicAA {
                 }
             }
             mir::Instruction::AtomicLoad { pointer, .. } => {
-                let Some(pointer) = pointer.value() else {
-                    return ModRefInfo::NO_MOD_REF;
-                };
+                let pointer = *pointer;
 
                 let load_loc = MemoryLocation::from_ptr(pointer);
                 if self.alias(&load_loc, loc, tree) == AliasResult::NoAlias {
@@ -344,9 +338,7 @@ impl BasicAA {
                 }
             }
             mir::Instruction::AtomicStore { pointer, .. } => {
-                let Some(pointer) = pointer.value() else {
-                    return ModRefInfo::NO_MOD_REF;
-                };
+                let pointer = *pointer;
 
                 let store_loc = MemoryLocation::from_ptr(pointer);
                 if self.alias(&store_loc, loc, tree) == AliasResult::NoAlias {
@@ -357,9 +349,7 @@ impl BasicAA {
             }
             mir::Instruction::AtomicCompareExchange { pointer, .. }
             | mir::Instruction::AtomicRmw { pointer, .. } => {
-                let Some(pointer) = pointer.value() else {
-                    return ModRefInfo::NO_MOD_REF;
-                };
+                let pointer = *pointer;
 
                 let access_loc = MemoryLocation::from_ptr(pointer);
                 if self.alias(&access_loc, loc, tree) == AliasResult::NoAlias {
@@ -394,9 +384,7 @@ impl BasicAA {
 
             // deallocation only affects the freed memory
             mir::Instruction::Free { value: pointer } => {
-                let Some(pointer) = pointer.value() else {
-                    return ModRefInfo::NO_MOD_REF;
-                };
+                let pointer = *pointer;
 
                 let free_loc = MemoryLocation::from_ptr(pointer);
                 if self.alias(&free_loc, loc, tree) == AliasResult::NoAlias {
@@ -592,7 +580,7 @@ impl BasicAA {
         tree: &mir::Tree,
     ) -> Option<mir::MemoryEffect> {
         // resolve direct callee metadata when available
-        let function = inst.call_direct_target()?.function()?;
+        let function = inst.call_direct_target()?;
         tree.metadata
             .functions
             .function(function)
@@ -812,11 +800,7 @@ entry:
 
         let function = program.tree.get(function_id);
         let aa = build_basic_aa(function, &program, false);
-        let loc = MemoryLocation::from_ptr(
-            pointer_value
-                .value()
-                .expect("pointer value should be concrete"),
-        );
+        let loc = MemoryLocation::from_ptr(pointer_value);
         let mod_ref = aa.get_mod_ref_info(memset_inst, &loc, &program.tree);
 
         assert!(mod_ref.is_mod());

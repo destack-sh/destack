@@ -50,20 +50,10 @@ pub fn loop_guard_branch(
         return None;
     };
 
-    let then_block = then_target.block.block()?;
-    let else_block = else_target.block.block()?;
-    let then_arguments: Vec<_> = then_target
-        .arguments
-        .iter()
-        .copied()
-        .map(|argument| argument.value())
-        .collect::<Option<_>>()?;
-    let else_arguments: Vec<_> = else_target
-        .arguments
-        .iter()
-        .copied()
-        .map(|argument| argument.value())
-        .collect::<Option<_>>()?;
+    let then_block = then_target.block;
+    let else_block = else_target.block;
+    let then_arguments = tree.block_target_values(then_target).to_vec();
+    let else_arguments = tree.block_target_values(else_target).to_vec();
 
     // reject non loop in loop target
     if !loop_blocks.contains(&in_loop) {
@@ -163,12 +153,9 @@ pub fn loop_preheader(
     let preheader_block = tree.get(preheader);
     let preheader_terminator = tree.get(preheader_block.terminator);
     let arguments = match preheader_terminator {
-        mir::Terminator::Jump { target } if target.block.block()? == header => target
-            .arguments
-            .iter()
-            .copied()
-            .map(|argument| argument.value())
-            .collect::<Option<_>>()?,
+        mir::Terminator::Jump { target } if target.block == header => {
+            tree.block_target_values(target).to_vec()
+        }
         _ => return None,
     };
 
@@ -188,26 +175,15 @@ pub fn control_instructions_for_latch(
     let header_block = tree.get(header);
     for instruction_id in &header_block.instructions {
         let instruction = tree.get(*instruction_id);
-        control_values.extend(
-            instruction
-                .uses()
-                .into_iter()
-                .filter_map(|value| value.value()),
-        );
+        control_values.extend(instruction.uses().into_iter());
     }
     let header_terminator = tree.get(header_block.terminator);
-    control_values.extend(terminator_used_values(header_terminator));
+    control_values.extend(terminator_used_values(tree, header_terminator));
 
     let latch_block = tree.get(latch);
     let latch_terminator = tree.get(latch_block.terminator);
     if let mir::Terminator::Jump { target } = latch_terminator {
-        control_values.extend(
-            target
-                .arguments
-                .iter()
-                .copied()
-                .filter_map(|argument| argument.value()),
-        );
+        control_values.extend(tree.block_target_values(target).iter().copied());
     }
 
     // walk backward from control values to latch definitions
@@ -227,12 +203,7 @@ pub fn control_instructions_for_latch(
         }
 
         let instruction = tree.get(*definition);
-        worklist.extend(
-            instruction
-                .uses()
-                .into_iter()
-                .filter_map(|value| value.value()),
-        );
+        worklist.extend(instruction.uses().into_iter());
     }
 
     control_instructions
@@ -366,7 +337,7 @@ fn clone_loop_blocks_internal(
         let new_params: Vec<mir::Parameter> = original
             .parameters
             .iter()
-            .map(|param| match (param.value.value(), param.ty.ty()) {
+            .map(|param| match (Some(param.value), Some(param.ty)) {
                 (Some(value), Some(ty)) => {
                     let new_value = function.next_typed_value(ty);
                     value_map.insert(value, new_value);
@@ -383,7 +354,7 @@ fn clone_loop_blocks_internal(
         // allocate new values for instruction destinations
         for &instruction_id in &original.instructions {
             let instruction = tree.get(instruction_id);
-            if let Some(destination) = instruction.destination().and_then(|value| value.value()) {
+            if let Some(destination) = instruction.destination() {
                 let new_value = function.next_typed_value_like(destination);
                 value_map.insert(destination, new_value);
             }

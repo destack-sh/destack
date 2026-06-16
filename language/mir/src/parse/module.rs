@@ -4,7 +4,7 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use crate::{
     AllocationMode, Attribute, AttributeArgs, AttributeIdentifier, Copy, Function, Global,
     GlobalInitializer, Linkage, LocalNodeId, Mutability, Symbol, Type, TypeAlias,
-    TypeDeclarationSpans, TypeReference, Value, ValueReference,
+    TypeDeclarationSpans, TypeId, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -143,7 +143,7 @@ impl Parser {
                         value_names: Vec::new(),
                         value_types: Vec::new(),
                         value_places: Vec::new(),
-                        return_type: TypeReference::from(void_type),
+                        return_type: TypeId::from(void_type),
                         borrow_obligations: Vec::new(),
                         linkage: Linkage::Local,
                         allocation: AllocationMode::Any,
@@ -246,11 +246,11 @@ impl Parser {
         self.eat_token(TokenType::Colon)?;
         let return_type =
             if self.peek_token(TokenType::OpenBrace) && !self.is_return_structural_type_start() {
-                TypeReference::Missing
+                self.error_type()
             } else {
                 let return_type = self.parse_type()?;
-                let return_lifetimes = self.parse_type_reference_lifetimes()?;
-                TypeReference::new(return_type, return_lifetimes)
+                let lifetimes = self.parse_type_lifetime_arguments()?;
+                self.apply_type_lifetimes(return_type, lifetimes)?
             };
 
         // seed the placeholder signature now so forward calls can resolve immediately
@@ -289,8 +289,9 @@ impl Parser {
             let mut parameter_types = Vec::new();
             while !self.peek_token(TokenType::CloseParenthesis) {
                 let ty = self.parse_type()?;
-                let lifetimes = self.parse_type_reference_lifetimes()?;
-                parameter_types.push(TypeReference::new(ty, lifetimes));
+                let lifetimes = self.parse_type_lifetime_arguments()?;
+                let ty = self.apply_type_lifetimes(ty, lifetimes)?;
+                parameter_types.push(ty);
                 if !self.eat_token_maybe(TokenType::Comma) {
                     break;
                 }
@@ -300,7 +301,7 @@ impl Parser {
                 .into_iter()
                 .enumerate()
                 .map(|(index, ty)| crate::Parameter {
-                    value: ValueReference::Value(crate::Value::new(index as u32)),
+                    value: Value::new(index as u32),
                     ty,
                 })
                 .collect()
@@ -312,11 +313,9 @@ impl Parser {
                 let value = self.scan_function_placeholder_value(&mut next_value_id)?;
                 self.eat_token(TokenType::Colon)?;
                 let ty = self.parse_type()?;
-                let lifetimes = self.parse_type_reference_lifetimes()?;
-                parameters.push(crate::Parameter {
-                    value: ValueReference::Value(value),
-                    ty: TypeReference::new(ty, lifetimes),
-                });
+                let lifetimes = self.parse_type_lifetime_arguments()?;
+                let ty = self.apply_type_lifetimes(ty, lifetimes)?;
+                parameters.push(crate::Parameter { value, ty });
                 if !self.eat_token_maybe(TokenType::Comma) {
                     break;
                 }
@@ -432,7 +431,7 @@ impl Parser {
         let alias = TypeAlias {
             name: name_id,
             lifetimes: lifetimes.clone(),
-            ty: TypeReference::from(placeholder_id),
+            ty: TypeId::from(placeholder_id),
         };
         let id = self.tree.insert(alias);
         self.tree
@@ -533,7 +532,7 @@ impl Parser {
 
         // type
         let colon_token = self.eat_token(TokenType::Colon)?;
-        let (ty, type_span) = self.parse_type_reference_after(colon_token, "global type");
+        let (ty, type_span) = self.parse_type_use_after(colon_token, "global type");
 
         // trailing qualifiers
         let mut space = crate::Space::Local;
@@ -571,13 +570,12 @@ impl Parser {
         }
 
         // initializer
-        let initializer =
-            if linkage.is_import() || (ty.ty().is_none() && !self.peek_token(TokenType::Equal)) {
-                None
-            } else {
-                self.eat_token(TokenType::Equal)?;
-                Some(self.parse_data_init(ty.ty())?)
-            };
+        let initializer = if linkage.is_import() || !self.peek_token(TokenType::Equal) {
+            None
+        } else {
+            self.eat_token(TokenType::Equal)?;
+            Some(self.parse_data_init(Some(ty))?)
+        };
 
         // record global
         let name_id = self.strings.intern(&name);
@@ -712,12 +710,10 @@ impl Parser {
         match self.tree.get(expected_type) {
             Type::Array { element, .. }
             | Type::Vector { element, .. }
-            | Type::Tensor { element, .. } => element.ty(),
-            Type::Tuple { elements, .. } => elements.get(index).and_then(|element| element.ty()),
-            Type::Struct { fields, .. } => fields
-                .get(index)
-                .and_then(|field| self.tree.get(*field).ty.ty()),
-            Type::Newtype { inner, .. } => self.data_init_element_type(inner.ty(), index),
+            | Type::Tensor { element, .. } => Some(*element),
+            Type::Tuple { elements, .. } => elements.get(index).copied(),
+            Type::Struct { fields, .. } => fields.get(index).map(|field| self.tree.get(*field).ty),
+            Type::Newtype { inner, .. } => self.data_init_element_type(Some(*inner), index),
             _ => None,
         }
     }

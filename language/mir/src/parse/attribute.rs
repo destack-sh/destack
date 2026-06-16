@@ -3,7 +3,7 @@ use destack_source::Span;
 
 use crate::{
     Attribute, AttributeArgs, AttributeIdentifier, AttributeKeyValue, AttributeValue, FloatValue,
-    IntegerReference, TypeReference,
+    TypeId,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -115,7 +115,7 @@ impl Parser {
         // type values
         if self.peek_type(kind) {
             let ty = self.parse_type()?;
-            return Ok(AttributeValue::Type(TypeReference::from(ty)));
+            return Ok(AttributeValue::Type(TypeId::from(ty)));
         }
 
         // scalar and list values
@@ -133,7 +133,7 @@ impl Parser {
             }
             TokenType::Integer => {
                 let value = self.parse_int_literal()?;
-                Ok(AttributeValue::Integer(IntegerReference::Integer(value)))
+                Ok(AttributeValue::Integer(value))
             }
             TokenType::Float => {
                 self.bump();

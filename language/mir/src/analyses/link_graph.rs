@@ -464,9 +464,9 @@ fn function_inline_cost(function: &Function, tree: &Tree) -> u32 {
 fn address_target(instruction: &Instruction, tree: &Tree) -> Option<Symbol> {
     match instruction {
         Instruction::FunctionAddr { function, .. } | Instruction::ClosureBind { function, .. } => {
-            function.function().map(|id| tree.get(id).symbol)
+            Some(tree.get(*function).symbol)
         }
-        Instruction::GlobalAddr { global, .. } => global.global().map(|id| tree.get(id).symbol),
+        Instruction::GlobalAddr { global, .. } => Some(tree.get(*global).symbol),
         _ => None,
     }
 }
@@ -480,15 +480,13 @@ fn collect_initializer_addresses(
 ) {
     match initializer {
         GlobalInitializer::FunctionAddress(function) => {
-            if let Some(id) = function.function() {
-                graph.add_edge(
-                    source,
-                    LinkEdge {
-                        target: tree.get(id).symbol,
-                        kind: LinkEdgeKind::Address,
-                    },
-                );
-            }
+            graph.add_edge(
+                source,
+                LinkEdge {
+                    target: tree.get(*function).symbol,
+                    kind: LinkEdgeKind::Address,
+                },
+            );
         }
         GlobalInitializer::Aggregate(elements) => {
             for element in elements {

@@ -3,7 +3,7 @@ use destack_core::StringId;
 use crate::{
     Access, Attribute, BorrowObligation, Copy, Field, FloatType, Lifetime, LocalNodeId,
     Nullability, ReferenceKind, Space, TensorDimension, TensorLayout, TensorViewLayout, Type,
-    TypeReference, VariantCase,
+    TypeId, VariantCase,
 };
 
 /// Interning key for struct fields.
@@ -13,7 +13,7 @@ pub(super) struct FieldKey {
     /// Optional field name.
     name: Option<StringId>,
     /// Field type.
-    ty: TypeReference,
+    ty: TypeId,
     /// Attributes attached to the field.
     attributes: Vec<Attribute>,
 }
@@ -33,6 +33,8 @@ impl FieldKey {
 /// Captures the structural identity of a type for deduplication during parsing.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(super) enum TypeKey {
+    /// Invalid recovered type.
+    Error,
     /// Unit type.
     Void,
     /// Boolean type.
@@ -50,23 +52,28 @@ pub(super) enum TypeKey {
     /// Runtime type id.
     TypeId,
     /// Atomic storage cell type.
-    Atomic { value: TypeReference },
+    Atomic { value: TypeId },
     /// Runtime-erased dynamic value.
-    Dynamic { constraint: TypeReference },
+    Dynamic { constraint: TypeId },
+    /// Type use with applied lifetime arguments.
+    WithLifetimes {
+        base: TypeId,
+        lifetimes: Vec<Lifetime>,
+    },
     /// Linear uninitialized allocation token.
-    Uninit { value: TypeReference },
+    Uninit { value: TypeId },
     /// Reference/pointer type.
     Reference {
         kind: ReferenceKind,
         lifetime: Lifetime,
         space: Space,
         access: Access,
-        pointee: TypeReference,
+        pointee: TypeId,
         nullability: Nullability,
     },
     /// Fixed-length array.
     Array {
-        element: TypeReference,
+        element: TypeId,
         length: u64,
         copy: Copy,
     },
@@ -74,39 +81,36 @@ pub(super) enum TypeKey {
     Slice {
         kind: ReferenceKind,
         lifetime: Lifetime,
-        element: TypeReference,
+        element: TypeId,
         space: Space,
         access: Access,
         nullability: Nullability,
     },
     /// Tuple of heterogeneous elements.
-    Tuple {
-        elements: Vec<TypeReference>,
-        copy: Copy,
-    },
+    Tuple { elements: Vec<TypeId>, copy: Copy },
     /// Struct with named or positional fields.
     Struct {
         fields: Vec<LocalNodeId<Field>>,
         copy: Copy,
     },
     /// Nominal newtype wrapper.
-    Newtype { inner: TypeReference, copy: Copy },
+    Newtype { inner: TypeId, copy: Copy },
     /// Physical tagged sum.
     Variant {
-        tag: TypeReference,
-        storage: TypeReference,
+        tag: TypeId,
+        storage: TypeId,
         cases: Vec<VariantCase>,
         copy: Copy,
     },
     /// Fixed-width vector value.
     Vector {
-        element: TypeReference,
+        element: TypeId,
         lanes: u32,
         copy: Copy,
     },
     /// Tensor value type.
     Tensor {
-        element: TypeReference,
+        element: TypeId,
         shape: Vec<TensorDimension>,
         layout: TensorLayout,
         copy: Copy,
@@ -117,23 +121,23 @@ pub(super) enum TypeKey {
         lifetime: Lifetime,
         space: Space,
         access: Access,
-        element: TypeReference,
+        element: TypeId,
         shape: Vec<TensorDimension>,
         layout: TensorViewLayout,
         nullability: Nullability,
     },
     /// Bare function signature.
     FunctionSignature {
-        parameters: Vec<TypeReference>,
-        result: TypeReference,
+        parameters: Vec<TypeId>,
+        result: TypeId,
         borrow_obligations: Vec<BorrowObligation>,
     },
     /// Function pointer type.
-    FunctionPointer { signature: TypeReference },
+    FunctionPointer { signature: TypeId },
     /// Closure value.
     Closure {
-        signature: TypeReference,
-        environment: TypeReference,
+        signature: TypeId,
+        environment: TypeId,
     },
 }
 
@@ -141,6 +145,7 @@ impl TypeKey {
     /// Create a key from a type definition.
     pub(super) fn from_type(ty: &Type) -> Self {
         match ty {
+            Type::Error => TypeKey::Error,
             Type::Void => TypeKey::Void,
             Type::Boolean => TypeKey::Boolean,
             Type::Int { width, is_signed } => TypeKey::Int {
@@ -157,6 +162,10 @@ impl TypeKey {
             },
             Type::Dynamic { constraint } => TypeKey::Dynamic {
                 constraint: constraint.clone(),
+            },
+            Type::WithLifetimes { base, lifetimes } => TypeKey::WithLifetimes {
+                base: *base,
+                lifetimes: lifetimes.clone(),
             },
             Type::Uninit { value } => TypeKey::Uninit {
                 value: value.clone(),

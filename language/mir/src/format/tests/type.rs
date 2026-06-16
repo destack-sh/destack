@@ -108,9 +108,9 @@ entry(v0: ref<Player<lifetime(LWorld), lifetime(LMesh)>, borrowed, lifetime(LPla
 fn test_format_callable_suspension_contract() {
     assert_format(
         r#"
-function callContract(v0: (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0), v1: ref<int32, borrowed, readonly>): int32 {
-entry(v0: (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0), v1: ref<int32, borrowed, readonly>):
-    v2: int32 = call.indirect v0(v1): (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0)
+function callContract(v0: (ref<int32, borrowed, readonly>) => int32 @suspensionSafe(0), v1: ref<int32, borrowed, readonly>): int32 {
+entry(v0: (ref<int32, borrowed, readonly>) => int32 @suspensionSafe(0), v1: ref<int32, borrowed, readonly>):
+    v2: int32 = call.indirect v0(v1): (ref<int32, borrowed, readonly>) => int32 @suspensionSafe(0)
     return v2
 }
 "#,
@@ -161,8 +161,8 @@ entry(v0: (int32, float64, boolean), v1: [int32; 10]):
 fn test_format_callable_types() {
     assert_format(
         r#"
-function callbacks(v0: (int32, int32) -> int64, v1: (int32) => int32): (int32) => int32 {
-entry(v0: (int32, int32) -> int64, v1: (int32) => int32):
+function callbacks(v0: fn(int32, int32) => int64, v1: (int32) => int32): (int32) => int32 {
+entry(v0: fn(int32, int32) => int64, v1: (int32) => int32):
     return v1
 }
 "#,
@@ -188,7 +188,7 @@ fn test_format_dynamic_types() {
     assert_format(
         r#"
 type Writer {
-    write: () -> uint32;
+    write: fn() => uint32;
 }
 
 function erased(v0: dynamic<Writer>): dynamic<Writer> {

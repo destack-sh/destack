@@ -4,14 +4,13 @@ use std::str::FromStr;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
-    ArgumentSlice, AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CastOperator,
-    CompareExchangeAccess, CounterId, DispatchSlot, FenceAccess, FunctionReference, Instruction,
-    LocalNodeId, MemoryFlags, MemoryOrdering, MemoryScope, Place, PlaceOrigin, Projection,
-    SpaceSet, SyncScope, TensorConvertMode, TensorConvolutionDimensionNumbers,
-    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
-    TensorIndexReduceOperator, TensorIndexTieBreak, TensorReduceOperator,
-    TensorScatterDimensionNumbers, TensorScatterMode, Type, TypeReference, UnaryOperator,
-    ValueReference, VectorConvertMode, VectorReduceOperator,
+    AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CastOperator, CompareExchangeAccess,
+    CounterId, DispatchSlot, FenceAccess, FunctionId, Instruction, LocalNodeId, MemoryFlags,
+    MemoryOrdering, MemoryScope, Place, PlaceOrigin, Projection, SpaceSet, SyncScope,
+    TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
+    TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorIndexReduceOperator,
+    TensorIndexTieBreak, TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode,
+    Type, TypeId, UnaryOperator, Value, ValueSlice, VectorConvertMode, VectorReduceOperator,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -25,7 +24,7 @@ impl Parser {
         let instruction_start = self.pos();
 
         // optional destination
-        let mut destination: Option<ValueReference> = None;
+        let mut destination: Option<Value> = None;
         let mut destination_type = None;
         let mut destination_span = None;
         let mut destination_type_span = None;
@@ -191,7 +190,7 @@ impl Parser {
                 let indices = self.parse_value_bracket_list_segments(&mut segment_spans)?;
                 self.eat_token(TokenType::Comma)?;
                 let value = self.parse_value_segment(&mut segment_spans)?;
-                let indices = self.tree.add_arguments(&indices);
+                let indices = self.tree.add_values(&indices);
                 Instruction::TensorStore {
                     view,
                     indices,
@@ -215,7 +214,7 @@ impl Parser {
             "call" => {
                 let (function, arguments, signature) =
                     self.parse_direct_call_target_segments(&mut segment_spans)?;
-                let arguments = self.tree.add_arguments(&arguments);
+                let arguments = self.tree.add_values(&arguments);
 
                 Instruction::Call {
                     destination,
@@ -226,7 +225,7 @@ impl Parser {
             "call.virtual" => {
                 let (receiver, class, slot, arguments, signature) =
                     self.parse_class_call_target_segments(&mut segment_spans)?;
-                let arguments = self.tree.add_arguments(&arguments);
+                let arguments = self.tree.add_values(&arguments);
                 Instruction::CallVirtual {
                     destination,
                     receiver,
@@ -238,7 +237,7 @@ impl Parser {
             "call.dynamic" => {
                 let (receiver, constraint, slot, arguments, signature) =
                     self.parse_dynamic_call_target_segments(&mut segment_spans)?;
-                let arguments = self.tree.add_arguments(&arguments);
+                let arguments = self.tree.add_values(&arguments);
                 Instruction::CallDynamic {
                     destination,
                     receiver,
@@ -250,7 +249,7 @@ impl Parser {
             "call.indirect" => {
                 let (callee, arguments, signature) =
                     self.parse_indirect_call_target_segments(&mut segment_spans)?;
-                let arguments = self.tree.add_arguments(&arguments);
+                let arguments = self.tree.add_values(&arguments);
                 Instruction::CallIndirect {
                     destination,
                     callee,
@@ -260,7 +259,7 @@ impl Parser {
             _ if opcode_text.starts_with("intrinsic.") => {
                 let intrinsic = self.parse_intrinsic_name(opcode_text, opcode_start)?;
                 let arguments = self.parse_call_argument_segments(&mut segment_spans)?;
-                let arguments = self.tree.add_arguments(&arguments);
+                let arguments = self.tree.add_values(&arguments);
                 Instruction::Intrinsic {
                     destination,
                     intrinsic,
@@ -494,7 +493,7 @@ impl Parser {
                     "struct" => {
                         let ty = self.parse_type_segment(&mut segment_spans)?;
                         let fields = self.parse_call_argument_segments(&mut segment_spans)?;
-                        let fields = self.tree.add_arguments(&fields);
+                        let fields = self.tree.add_values(&fields);
                         Instruction::Struct {
                             destination,
                             ty: ty.into(),
@@ -504,7 +503,7 @@ impl Parser {
                     "tuple" => {
                         let ty = self.parse_type_segment(&mut segment_spans)?;
                         let elements = self.parse_call_argument_segments(&mut segment_spans)?;
-                        let elements = self.tree.add_arguments(&elements);
+                        let elements = self.tree.add_values(&elements);
                         Instruction::Tuple {
                             destination,
                             ty: ty.into(),
@@ -514,7 +513,7 @@ impl Parser {
                     "array" => {
                         let ty = self.parse_type_segment(&mut segment_spans)?;
                         let elements = self.parse_call_argument_segments(&mut segment_spans)?;
-                        let elements = self.tree.add_arguments(&elements);
+                        let elements = self.tree.add_values(&elements);
                         Instruction::Array {
                             destination,
                             ty: ty.into(),
@@ -555,6 +554,7 @@ impl Parser {
                         let right = self.parse_value()?;
                         self.eat_token(TokenType::Comma)?;
                         let mask = self.parse_u32_bracket_list()?;
+                        let mask = self.tree.add_indices(&mask);
                         Instruction::VectorShuffle {
                             destination,
                             left,
@@ -618,7 +618,7 @@ impl Parser {
                         let view = self.parse_value()?;
                         self.eat_token(TokenType::Comma)?;
                         let indices = self.parse_value_bracket_list()?;
-                        let indices = self.tree.add_arguments(&indices);
+                        let indices = self.tree.add_values(&indices);
                         Instruction::TensorLoad {
                             destination,
                             view,
@@ -629,7 +629,7 @@ impl Parser {
                         let tensor = self.parse_value()?;
                         self.eat_token(TokenType::Comma)?;
                         let indices = self.parse_value_bracket_list()?;
-                        let indices = self.tree.add_arguments(&indices);
+                        let indices = self.tree.add_values(&indices);
                         Instruction::TensorExtract {
                             destination,
                             tensor,
@@ -640,9 +640,9 @@ impl Parser {
                         let tensor = self.parse_value()?;
                         let shape = if self.eat_token_maybe(TokenType::Comma) {
                             let values = self.parse_named_value_group("shape")?;
-                            self.tree.add_arguments(&values)
+                            self.tree.add_values(&values)
                         } else {
-                            ArgumentSlice::default()
+                            ValueSlice::default()
                         };
                         Instruction::TensorReshape {
                             destination,
@@ -654,6 +654,7 @@ impl Parser {
                         let tensor = self.parse_value()?;
                         self.eat_token(TokenType::Comma)?;
                         let dimensions = self.parse_named_u32_group("dimensions")?;
+                        let dimensions = self.tree.add_indices(&dimensions);
                         Instruction::TensorBroadcast {
                             destination,
                             tensor,
@@ -664,6 +665,7 @@ impl Parser {
                         let tensor = self.parse_value()?;
                         self.eat_token(TokenType::Comma)?;
                         let permutation = self.parse_named_u32_group("permutation")?;
+                        let permutation = self.tree.add_indices(&permutation);
                         Instruction::TensorTranspose {
                             destination,
                             tensor,
@@ -692,7 +694,7 @@ impl Parser {
                         arguments.extend_from_slice(&offsets);
                         arguments.extend_from_slice(&sizes);
                         arguments.extend_from_slice(&strides);
-                        let arguments = self.tree.add_arguments(&arguments);
+                        let arguments = self.tree.add_values(&arguments);
 
                         // range counts
                         let offsets_count = u16::try_from(offsets.len())
@@ -726,7 +728,7 @@ impl Parser {
                         arguments.extend_from_slice(&offsets);
                         arguments.extend_from_slice(&sizes);
                         arguments.extend_from_slice(&strides);
-                        let arguments = self.tree.add_arguments(&arguments);
+                        let arguments = self.tree.add_values(&arguments);
 
                         // range counts
                         let offsets_count = u16::try_from(offsets.len())
@@ -762,7 +764,7 @@ impl Parser {
                         arguments.extend_from_slice(&low);
                         arguments.extend_from_slice(&high);
                         arguments.extend_from_slice(&interior);
-                        let arguments = self.tree.add_arguments(&arguments);
+                        let arguments = self.tree.add_values(&arguments);
 
                         // padding counts
                         let low_count = u16::try_from(low.len())
@@ -787,7 +789,7 @@ impl Parser {
                         let tensors = self.parse_named_value_group("tensors")?;
                         self.eat_token(TokenType::Comma)?;
                         let axis = self.parse_named_single_u32_group("axis")?;
-                        let tensors = self.tree.add_arguments(&tensors);
+                        let tensors = self.tree.add_values(&tensors);
                         Instruction::TensorConcat {
                             destination,
                             tensors,
@@ -828,6 +830,7 @@ impl Parser {
                         let initial = self.parse_value()?;
                         self.eat_token(TokenType::Comma)?;
                         let axes = self.parse_named_u32_group("axes")?;
+                        let axes = self.tree.add_indices(&axes);
                         Instruction::TensorReduce {
                             destination,
                             operator,
@@ -859,11 +862,12 @@ impl Parser {
                         let right = self.parse_value()?;
                         self.eat_token(TokenType::Comma)?;
                         let dimensions = self.parse_tensor_dot_dimensions()?;
+                        let immediate = self.tree.add_tensor_dot_immediate(dimensions);
                         Instruction::TensorDot {
                             destination,
                             left,
                             right,
-                            dimensions,
+                            immediate,
                         }
                     }
                     "tensor.convolution" => {
@@ -875,14 +879,17 @@ impl Parser {
                         let window = self.parse_tensor_convolution_window(&dimensions)?;
                         let (feature_group_count, batch_group_count) =
                             self.parse_tensor_convolution_group_counts()?;
-                        Instruction::TensorConvolution {
-                            destination,
-                            input,
-                            kernel,
+                        let immediate = self.tree.add_tensor_convolution_immediate(
                             dimensions,
                             window,
                             feature_group_count,
                             batch_group_count,
+                        );
+                        Instruction::TensorConvolution {
+                            destination,
+                            input,
+                            kernel,
+                            immediate,
                         }
                     }
                     "tensor.gather" => {
@@ -893,12 +900,14 @@ impl Parser {
                         let dimensions = self.parse_tensor_gather_dimensions()?;
                         self.eat_token(TokenType::Comma)?;
                         let slice_sizes = self.parse_named_u32_group("sliceSizes")?;
+                        let immediate = self
+                            .tree
+                            .add_tensor_gather_immediate(dimensions, &slice_sizes);
                         Instruction::TensorGather {
                             destination,
                             operand,
                             indices,
-                            dimensions,
-                            slice_sizes,
+                            immediate,
                         }
                     }
                     "tensor.scatter" => {
@@ -912,12 +921,13 @@ impl Parser {
                         let mode = self
                             .parse_optional_scatter_mode()?
                             .unwrap_or(TensorScatterMode::Replace);
+                        let immediate = self.tree.add_tensor_scatter_immediate(dimensions);
                         Instruction::TensorScatter {
                             destination,
                             operand,
                             indices,
                             updates,
-                            dimensions,
+                            immediate,
                             mode,
                         }
                     }
@@ -1093,7 +1103,7 @@ impl Parser {
     }
 
     /// Parse a bracketed list of values and append each element as one source segment.
-    fn parse_value_bracket_list(&mut self) -> ParseResult<Vec<ValueReference>> {
+    fn parse_value_bracket_list(&mut self) -> ParseResult<Vec<Value>> {
         self.eat_token(TokenType::OpenBracket)?;
         let mut values = Vec::new();
 
@@ -1112,7 +1122,7 @@ impl Parser {
     fn parse_value_bracket_list_segments(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<Vec<ValueReference>> {
+    ) -> ParseResult<Vec<Value>> {
         self.eat_token(TokenType::OpenBracket)?;
         let mut values = Vec::new();
 
@@ -1156,7 +1166,7 @@ impl Parser {
     }
 
     /// Parse a parenthesized list of values.
-    fn parse_value_paren_list(&mut self) -> ParseResult<Vec<ValueReference>> {
+    fn parse_value_paren_list(&mut self) -> ParseResult<Vec<Value>> {
         self.eat_token(TokenType::OpenParenthesis)?;
         let mut values = Vec::new();
 
@@ -1260,13 +1270,13 @@ impl Parser {
     }
 
     /// Parse one named value group like `name(v0, v1)`.
-    fn parse_named_value_group(&mut self, name: &str) -> ParseResult<Vec<ValueReference>> {
+    fn parse_named_value_group(&mut self, name: &str) -> ParseResult<Vec<Value>> {
         self.eat_named_group(name)?;
         self.parse_value_paren_list()
     }
 
     /// Parse one named single value group like `name(v0)`.
-    fn parse_named_single_value_group(&mut self, name: &str) -> ParseResult<ValueReference> {
+    fn parse_named_single_value_group(&mut self, name: &str) -> ParseResult<Value> {
         let values = self.parse_named_value_group(name)?;
         let [value] = values.as_slice() else {
             return Err(ParseError::invalid(name, self.pos()));
@@ -1886,7 +1896,7 @@ impl Parser {
     /// Parse one direct call target and arguments.
     pub(super) fn parse_direct_call_target(
         &mut self,
-    ) -> ParseResult<(FunctionReference, Vec<ValueReference>, TypeReference)> {
+    ) -> ParseResult<(FunctionId, Vec<Value>, TypeId)> {
         let mut segment_spans = Vec::new();
         self.parse_direct_call_target_segments(&mut segment_spans)
     }
@@ -1895,7 +1905,7 @@ impl Parser {
     pub(super) fn parse_direct_call_target_segments(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<(FunctionReference, Vec<ValueReference>, TypeReference)> {
+    ) -> ParseResult<(FunctionId, Vec<Value>, TypeId)> {
         let function = self.parse_function_segment(segment_spans)?;
         let arguments = self.parse_call_argument_segments(segment_spans)?;
         let signature = if self.peek_token(TokenType::Colon) {
@@ -1908,15 +1918,8 @@ impl Parser {
     }
 
     /// Infer one direct call signature from its callee.
-    fn infer_direct_call_signature(
-        &mut self,
-        function: FunctionReference,
-    ) -> ParseResult<TypeReference> {
-        let FunctionReference::Function(function_id) = function else {
-            return Ok(TypeReference::Error);
-        };
-
-        let function = self.tree.get(function_id);
+    fn infer_direct_call_signature(&mut self, function: FunctionId) -> ParseResult<TypeId> {
+        let function = self.tree.get(function);
         let parameters = function
             .parameters
             .iter()
@@ -1937,13 +1940,7 @@ impl Parser {
     /// Parse one virtual call target and signature.
     pub(super) fn parse_class_call_target(
         &mut self,
-    ) -> ParseResult<(
-        ValueReference,
-        TypeReference,
-        DispatchSlot,
-        Vec<ValueReference>,
-        TypeReference,
-    )> {
+    ) -> ParseResult<(Value, TypeId, DispatchSlot, Vec<Value>, TypeId)> {
         let mut segment_spans = Vec::new();
         self.parse_class_call_target_segments(&mut segment_spans)
     }
@@ -1952,13 +1949,7 @@ impl Parser {
     pub(super) fn parse_class_call_target_segments(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<(
-        ValueReference,
-        TypeReference,
-        DispatchSlot,
-        Vec<ValueReference>,
-        TypeReference,
-    )> {
+    ) -> ParseResult<(Value, TypeId, DispatchSlot, Vec<Value>, TypeId)> {
         let receiver = self.parse_value_segment(segment_spans)?;
         self.eat_token(TokenType::Comma)?;
         let class = self.parse_type_segment(segment_spans)?;
@@ -1976,13 +1967,7 @@ impl Parser {
     /// Parse one dynamic call target and signature.
     pub(super) fn parse_dynamic_call_target(
         &mut self,
-    ) -> ParseResult<(
-        ValueReference,
-        TypeReference,
-        DispatchSlot,
-        Vec<ValueReference>,
-        TypeReference,
-    )> {
+    ) -> ParseResult<(Value, TypeId, DispatchSlot, Vec<Value>, TypeId)> {
         let mut segment_spans = Vec::new();
         self.parse_dynamic_call_target_segments(&mut segment_spans)
     }
@@ -1991,13 +1976,7 @@ impl Parser {
     pub(super) fn parse_dynamic_call_target_segments(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<(
-        ValueReference,
-        TypeReference,
-        DispatchSlot,
-        Vec<ValueReference>,
-        TypeReference,
-    )> {
+    ) -> ParseResult<(Value, TypeId, DispatchSlot, Vec<Value>, TypeId)> {
         let receiver = self.parse_value_segment(segment_spans)?;
         self.eat_token(TokenType::Comma)?;
         let constraint = self.parse_type_segment(segment_spans)?;
@@ -2015,7 +1994,7 @@ impl Parser {
     /// Parse one indirect call target and signature.
     pub(super) fn parse_indirect_call_target(
         &mut self,
-    ) -> ParseResult<(ValueReference, Vec<ValueReference>, TypeReference)> {
+    ) -> ParseResult<(Value, Vec<Value>, TypeId)> {
         let mut segment_spans = Vec::new();
         self.parse_indirect_call_target_segments(&mut segment_spans)
     }
@@ -2024,7 +2003,7 @@ impl Parser {
     pub(super) fn parse_indirect_call_target_segments(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<(ValueReference, Vec<ValueReference>, TypeReference)> {
+    ) -> ParseResult<(Value, Vec<Value>, TypeId)> {
         let callee = self.parse_value_segment(segment_spans)?;
         let arguments = self.parse_call_argument_segments(segment_spans)?;
         let signature = self.parse_required_call_signature_segment(segment_spans)?;
@@ -2036,7 +2015,7 @@ impl Parser {
     fn parse_required_call_signature_segment(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<TypeReference> {
+    ) -> ParseResult<TypeId> {
         let signature_start = self.pos();
         self.eat_token(TokenType::Colon)?;
         self.eat_token(TokenType::OpenParenthesis)?;
@@ -2050,7 +2029,7 @@ impl Parser {
         }
 
         self.eat_token(TokenType::CloseParenthesis)?;
-        self.eat_token(TokenType::Arrow)?;
+        self.eat_token(TokenType::FatArrow)?;
         let result = self.parse_type()?;
         let signature_span = self.span_from_parse_start(signature_start);
         segment_spans.push(signature_span);

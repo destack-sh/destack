@@ -1,9 +1,7 @@
 use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    Constant, FunctionReference, Mutability, Node, NodeType, Space, Symbol, TypeReference,
-};
+use crate::{Constant, FunctionId, Mutability, Node, NodeType, Space, Symbol, TypeId};
 
 /// Symbol linkage (visibility and definition location).
 ///
@@ -51,7 +49,7 @@ pub struct Global {
     /// The global's persistent mangled symbol: its linkable identity.
     pub symbol: Symbol,
     /// The type of the global.
-    pub ty: TypeReference,
+    pub ty: TypeId,
     /// Whether this global is mutable.
     pub mutability: Mutability,
     /// The space that owns this global storage.
@@ -70,7 +68,7 @@ impl Global {
     /// Create a new local (private) global.
     pub fn new(
         name: StringId,
-        ty: TypeReference,
+        ty: TypeId,
         mutability: Mutability,
         init: GlobalInitializer,
     ) -> Self {
@@ -86,17 +84,17 @@ impl Global {
     }
 
     /// Create a mutable global (variable), local by default.
-    pub fn variable(name: StringId, ty: TypeReference, init: GlobalInitializer) -> Self {
+    pub fn variable(name: StringId, ty: TypeId, init: GlobalInitializer) -> Self {
         Self::new(name, ty, Mutability::Mutable, init)
     }
 
     /// Create an immutable global (constant), local by default.
-    pub fn constant(name: StringId, ty: TypeReference, init: GlobalInitializer) -> Self {
+    pub fn constant(name: StringId, ty: TypeId, init: GlobalInitializer) -> Self {
         Self::new(name, ty, Mutability::Immutable, init)
     }
 
     /// Create an imported global declaration (no initializer).
-    pub fn import(name: StringId, ty: TypeReference, mutability: Mutability) -> Self {
+    pub fn import(name: StringId, ty: TypeId, mutability: Mutability) -> Self {
         Self {
             name,
             symbol: Symbol(name),
@@ -133,7 +131,7 @@ pub enum GlobalInitializer {
     /// Scalar constant (bool, int, float).
     Scalar(Constant),
     /// Address of one function inside the program.
-    FunctionAddress(FunctionReference),
+    FunctionAddress(FunctionId),
     /// Raw bytes (blobs).
     Bytes(Vec<u8>),
     /// Aggregate (array/struct fields).
@@ -152,7 +150,7 @@ impl GlobalInitializer {
     }
 
     /// Create from a function address.
-    pub fn function_address(function: FunctionReference) -> Self {
+    pub fn function_address(function: FunctionId) -> Self {
         Self::FunctionAddress(function)
     }
 

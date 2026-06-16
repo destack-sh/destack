@@ -313,15 +313,12 @@ pub fn instruction_resolved_target(
     instruction: &mir::Instruction,
     tree: &mir::Tree,
 ) -> Option<mir::LocalNodeId<mir::Function>> {
-    instruction
-        .call_direct_target()
-        .and_then(|target| target.function())
-        .or_else(|| {
-            tree.metadata
-                .functions
-                .call(mir::CallSite::Instruction(instruction_id))
-                .and_then(|metadata| metadata.target)
-        })
+    instruction.call_direct_target().or_else(|| {
+        tree.metadata
+            .functions
+            .call(mir::CallSite::Instruction(instruction_id))
+            .and_then(|metadata| metadata.target)
+    })
 }
 
 /// Return the resolved function target for a terminator callsite.
@@ -330,15 +327,12 @@ pub fn terminator_resolved_target(
     terminator: &mir::Terminator,
     tree: &mir::Tree,
 ) -> Option<mir::LocalNodeId<mir::Function>> {
-    terminator
-        .call_direct_target()
-        .and_then(|target| target.function())
-        .or_else(|| {
-            tree.metadata
-                .functions
-                .call(mir::CallSite::Terminator(block_id))
-                .and_then(|metadata| metadata.target)
-        })
+    terminator.call_direct_target().or_else(|| {
+        tree.metadata
+            .functions
+            .call(mir::CallSite::Terminator(block_id))
+            .and_then(|metadata| metadata.target)
+    })
 }
 
 impl CallSite {
@@ -376,7 +370,7 @@ impl CallSite {
                 caller,
                 callsite,
                 dispatch: mir::CallDispatchKind::Direct,
-                callee: function.function(),
+                callee: Some(*function),
                 is_precise: true,
             }),
             mir::Terminator::CallIndirect { .. } => Some(Self {
@@ -404,7 +398,7 @@ impl CallSite {
                 caller,
                 callsite,
                 dispatch: mir::CallDispatchKind::Direct,
-                callee: function.function(),
+                callee: Some(*function),
                 is_precise: true,
             }),
             mir::Terminator::TailCallIndirect { .. } => Some(Self {
@@ -523,9 +517,9 @@ entry:
     fn test_call_graph_indirect_unknown() {
         let test = TestProgram::new(
             r#"
-function test(v0: (int32) -> int32, v1: int32): int32 {
-entry(v0: (int32) -> int32, v1: int32):
-    v2: int32 = call.indirect v0(v1): (int32) -> int32
+function test(v0: fn(int32) => int32, v1: int32): int32 {
+entry(v0: fn(int32) => int32, v1: int32):
+    v2: int32 = call.indirect v0(v1): (int32) => int32
     return v2
 }
 "#,
@@ -578,9 +572,9 @@ entry(v0: int32):
     fn test_call_graph_tailcall_indirect_unknown() {
         let test = TestProgram::new(
             r#"
-function test(v0: (int32) -> int32, v1: int32): int32 {
-entry(v0: (int32) -> int32, v1: int32):
-    tail.call.indirect v0(v1): (int32) -> int32
+function test(v0: fn(int32) => int32, v1: int32): int32 {
+entry(v0: fn(int32) => int32, v1: int32):
+    tail.call.indirect v0(v1): (int32) => int32
 }
 "#,
         );
@@ -606,9 +600,9 @@ entry(v0: int32):
     return v0
 }
 
-function test(v0: (int32) -> int32, v1: int32): int32 {
-entry(v0: (int32) -> int32, v1: int32):
-    v2: int32 = call.indirect v0(v1): (int32) -> int32
+function test(v0: fn(int32) => int32, v1: int32): int32 {
+entry(v0: fn(int32) => int32, v1: int32):
+    v2: int32 = call.indirect v0(v1): (int32) => int32
     return v2
 }
 "#,
@@ -673,7 +667,7 @@ entry(v0: int32):
 
 function test(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call.virtual v0, int32, 1(v0): (int32) -> int32
+    v1: int32 = call.virtual v0, int32, 1(v0): (int32) => int32
     return v1
 }
 "#,
@@ -734,7 +728,7 @@ entry(v0: int32):
 
 function test(v0: int32): int32 {
 entry(v0: int32):
-    call.virtual v0, int32, 1(v0): (int32) -> int32 -> b1
+    call.virtual v0, int32, 1(v0): (int32) => int32 -> b1
 
 b1(v1: int32):
     return v1

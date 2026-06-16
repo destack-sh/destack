@@ -79,8 +79,8 @@ entry:
     v0: int32 = 1
     v1: int32 = 2
     v2: int32 = call callee(v0, v1)
-    v3: (int32, int32) -> int32 = function.address callee
-    v4: int32 = call.indirect v3(v0, v1): (int32, int32) -> int32
+    v3: fn(int32, int32) => int32 = function.address callee
+    v4: int32 = call.indirect v3(v0, v1): (int32, int32) => int32
     return v4
 }
 "#,
@@ -92,10 +92,10 @@ entry:
 fn test_format_void_call_with_callable_argument() {
     assert_format(
         r#"
-external function consume(() -> int32): void
+external function consume(() => int32): void
 
-function caller(v0: () -> int32): void {
-entry(v0: () -> int32):
+function caller(v0: () => int32): void {
+entry(v0: () => int32):
     call consume(v0)
     return
 }

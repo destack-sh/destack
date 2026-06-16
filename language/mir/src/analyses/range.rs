@@ -256,27 +256,18 @@ impl RangeMap {
     }
 
     /// Get the range for a value.
-    pub fn get(&self, value: impl Into<mir::ValueReference>) -> Option<&ValueRange> {
-        let value = value.into().value()?;
-        self.ranges.get(&value)
+    pub fn get(&self, value: impl Into<mir::Value>) -> Option<&ValueRange> {
+        self.ranges.get(&value.into())
     }
 
     /// Insert a range for a value.
-    pub fn insert(&mut self, value: impl Into<mir::ValueReference>, range: ValueRange) {
-        let Some(value) = value.into().value() else {
-            return;
-        };
-
-        self.ranges.insert(value, range);
+    pub fn insert(&mut self, value: impl Into<mir::Value>, range: ValueRange) {
+        self.ranges.insert(value.into(), range);
     }
 
     /// Remove any range for a value.
-    pub fn remove(&mut self, value: impl Into<mir::ValueReference>) {
-        let Some(value) = value.into().value() else {
-            return;
-        };
-
-        self.ranges.remove(&value);
+    pub fn remove(&mut self, value: impl Into<mir::Value>) {
+        self.ranges.remove(&value.into());
     }
 
     /// Iterate over known ranges.
@@ -420,11 +411,7 @@ impl RangeAnalysis {
                     // add successors to worklist
                     let block = tree.get(block_id);
                     let terminator = tree.get(block.terminator);
-                    for succ in terminator.successors() {
-                        let Some(succ) = succ.block() else {
-                            continue;
-                        };
-
+                    for succ in tree.terminator_successors(terminator) {
                         if !in_worklist.contains(&succ) {
                             worklist.push_back(succ);
                             in_worklist.insert(succ);
@@ -507,9 +494,7 @@ fn apply_block_param_ranges(
 
     // apply ranges to entry state
     for param in &block.parameters {
-        let Some(param_value) = param.value.value() else {
-            continue;
-        };
+        let param_value = param.value;
 
         if let Some(range) = ranges.get(&param_value) {
             entry_state.insert(param_value, range.clone());
@@ -546,7 +531,8 @@ fn resolve_block_param_ranges(
         // collect arguments for this edge
         let pred_block = tree.get(pred);
         let pred_terminator = tree.get(pred_block.terminator);
-        let args = match terminator_arguments_for_successor_checked(pred_terminator, block_id) {
+        let args = match terminator_arguments_for_successor_checked(tree, pred_terminator, block_id)
+        {
             SuccessorArguments::Missing => continue,
             SuccessorArguments::Conflict => {
                 states.fill(ParamRangeState::Overdefined);
@@ -589,9 +575,7 @@ fn resolve_block_param_ranges(
     // collect ranges for parameters
     let mut ranges = HashMap::new();
     for (param, state) in block.parameters.iter().zip(states) {
-        let Some(param_value) = param.value.value() else {
-            continue;
-        };
+        let param_value = param.value;
 
         if let ParamRangeState::Range(range) = state {
             ranges.insert(param_value, range);
@@ -616,9 +600,6 @@ fn transfer_block(
     for &instruction_id in &block.instructions {
         let instruction = tree.get(instruction_id);
         let Some(destination) = instruction.destination() else {
-            continue;
-        };
-        let Some(destination) = destination.value() else {
             continue;
         };
 
@@ -658,7 +639,7 @@ fn range_for_instruction(
         } => range_for_cast(
             *operator,
             state.get(*argument),
-            to_type.ty()?,
+            *to_type,
             tree,
             pointer_width_bits,
         ),

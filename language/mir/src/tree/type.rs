@@ -3,8 +3,7 @@ use serde::{Deserialize, Serialize};
 use destack_core::{FloatFormat, StringId};
 
 use crate::{
-    BorrowObligation, Constant, Lifetime, LifetimeParameter, LocalNodeId, Node, NodeType,
-    TypeReference,
+    BorrowObligation, Constant, Lifetime, LifetimeParameter, LocalNodeId, Node, NodeType, TypeId,
 };
 
 /// Mutability of a storage binding.
@@ -232,6 +231,8 @@ impl TensorDimension {
 /// Concrete type in MIR (post-monomorphization).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Type {
+    /// Invalid type produced while recovering malformed MIR text.
+    Error,
     /// Void / unit type (no value).
     Void,
     /// Boolean (1 bit logical, typically 1 byte).
@@ -252,12 +253,19 @@ pub enum Type {
     /// Atomic storage cell for one value type.
     Atomic {
         /// The stored value type.
-        value: TypeReference,
+        value: TypeId,
     },
     /// Runtime-erased value satisfying one dynamic constraint.
     Dynamic {
         /// The lowered dynamic constraint type.
-        constraint: TypeReference,
+        constraint: TypeId,
+    },
+    /// Type use with applied lifetime arguments.
+    WithLifetimes {
+        /// The type being applied.
+        base: TypeId,
+        /// The applied lifetime arguments.
+        lifetimes: Vec<Lifetime>,
     },
     /// Reference with explicit kind and access.
     Reference {
@@ -270,7 +278,7 @@ pub enum Type {
         /// The access exposed through this reference.
         access: Access,
         /// The referenced type.
-        pointee: TypeReference,
+        pointee: TypeId,
         /// The nullish values allowed by this reference.
         nullability: Nullability,
     },
@@ -281,7 +289,7 @@ pub enum Type {
         /// Lifetime roots for borrowed slices.
         lifetime: Lifetime,
         /// The element type of the slice.
-        element: TypeReference,
+        element: TypeId,
         /// The space of the slice base.
         space: Space,
         /// The element access exposed by the slice.
@@ -292,13 +300,13 @@ pub enum Type {
     /// Linear token for one uninitialized allocation.
     Uninit {
         /// The value under construction.
-        value: TypeReference,
+        value: TypeId,
     },
 
     /// Fixed-size array: `[T; N]`.
     Array {
         /// The element type of the array.
-        element: TypeReference,
+        element: TypeId,
         /// The number of elements in the array.
         length: u64,
         /// Copy of this array type.
@@ -307,7 +315,7 @@ pub enum Type {
     /// Tuple: `(T1, T2, ...)`.
     Tuple {
         /// The element types of the tuple.
-        elements: Vec<TypeReference>,
+        elements: Vec<TypeId>,
         /// Copy of this tuple type.
         copy: Copy,
     },
@@ -321,16 +329,16 @@ pub enum Type {
     /// Nominal newtype wrapping an inner type.
     Newtype {
         /// The wrapped inner type.
-        inner: TypeReference,
+        inner: TypeId,
         /// Copy of this newtype.
         copy: Copy,
     },
     /// Physical tagged sum value.
     Variant {
         /// The tag value type.
-        tag: TypeReference,
+        tag: TypeId,
         /// The physical payload storage type.
-        storage: TypeReference,
+        storage: TypeId,
         /// The cases keyed by tag value.
         cases: Vec<VariantCase>,
         /// Copy of this variant type.
@@ -340,7 +348,7 @@ pub enum Type {
     /// Fixed-width vector value.
     Vector {
         /// The element type.
-        element: TypeReference,
+        element: TypeId,
         /// The number of lanes.
         lanes: u32,
         /// Copy of this vector type.
@@ -349,7 +357,7 @@ pub enum Type {
     /// Ranked tensor value with static or dynamic shape.
     Tensor {
         /// The element type.
-        element: TypeReference,
+        element: TypeId,
         /// The static shape.
         shape: Vec<TensorDimension>,
         /// The tensor layout.
@@ -368,7 +376,7 @@ pub enum Type {
         /// The access exposed through this view.
         access: Access,
         /// The element type.
-        element: TypeReference,
+        element: TypeId,
         /// The static shape.
         shape: Vec<TensorDimension>,
         /// The tensor view layout.
@@ -380,23 +388,23 @@ pub enum Type {
     /// Bare function signature.
     FunctionSignature {
         /// The parameters of the function.
-        parameters: Vec<TypeReference>,
+        parameters: Vec<TypeId>,
         /// The result type of the function.
-        result: TypeReference,
+        result: TypeId,
         /// Borrow obligations callers must satisfy.
         borrow_obligations: Vec<BorrowObligation>,
     },
     /// Function pointer type.
     FunctionPointer {
         /// The bare function signature.
-        signature: TypeReference,
+        signature: TypeId,
     },
     /// Closure value with code and environment.
     Closure {
         /// The bare function signature.
-        signature: TypeReference,
+        signature: TypeId,
         /// The closure environment reference.
-        environment: TypeReference,
+        environment: TypeId,
     },
 }
 
@@ -406,7 +414,7 @@ pub struct VariantCase {
     /// The tag constant selecting this case.
     pub tag: Constant,
     /// The logical payload type.
-    pub ty: TypeReference,
+    pub ty: TypeId,
 }
 
 impl Node for Type {
@@ -586,6 +594,10 @@ impl Type {
     /// - Function pointers are always copyable
     pub fn copy(&self) -> Copy {
         match self {
+            // parse recovery nodes are never copyable semantic values
+            Type::Error => Copy::No,
+            Type::WithLifetimes { .. } => Copy::No,
+
             // primitives are always trivially copyable
             Type::Void
             | Type::Boolean
@@ -690,7 +702,7 @@ pub struct Field {
     /// Name (optional).
     pub name: Option<StringId>,
     /// Type of the field.
-    pub ty: TypeReference,
+    pub ty: TypeId,
 }
 
 impl Node for Field {
@@ -700,7 +712,7 @@ impl Node for Field {
 /// Return the canonical hidden header types for one slice value.
 pub fn slice_header_types(
     kind: ReferenceKind,
-    element: TypeReference,
+    element: TypeId,
     access: Access,
     space: Space,
 ) -> (Type, Type) {
@@ -718,21 +730,19 @@ pub fn slice_header_types(
 }
 
 /// Return the signature reference carried by one callable type.
-pub fn callable_signature(ty: &Type) -> Option<TypeReference> {
+pub fn callable_signature(ty: &Type) -> Option<TypeId> {
     match ty {
-        Type::FunctionPointer { signature } | Type::Closure { signature, .. } => {
-            Some(signature.clone())
-        }
+        Type::FunctionPointer { signature } | Type::Closure { signature, .. } => Some(*signature),
         _ => None,
     }
 }
 
 /// Return the parameter and result types of one function signature.
-pub fn function_signature_parts(ty: &Type) -> Option<(&[TypeReference], TypeReference)> {
+pub fn function_signature_parts(ty: &Type) -> Option<(&[TypeId], TypeId)> {
     match ty {
         Type::FunctionSignature {
             parameters, result, ..
-        } => Some((parameters.as_slice(), result.clone())),
+        } => Some((parameters.as_slice(), *result)),
         _ => None,
     }
 }
@@ -745,7 +755,7 @@ pub struct TypeAlias {
     /// Lifetime parameters in type-local slot order.
     pub lifetimes: Vec<LifetimeParameter>,
     /// The aliased type.
-    pub ty: TypeReference,
+    pub ty: TypeId,
 }
 
 impl Node for TypeAlias {

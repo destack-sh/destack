@@ -210,10 +210,8 @@ impl Parser {
         expected_type: LocalNodeId<Type>,
     ) -> ParseResult<LocalNodeId<Type>> {
         let expected = self.tree.get(expected_type);
-        if let Type::Newtype { inner, .. } = expected
-            && let Some(inner) = inner.ty()
-        {
-            Ok(inner)
+        if let Type::Newtype { inner, .. } = expected {
+            Ok(*inner)
         } else {
             Ok(expected_type)
         }

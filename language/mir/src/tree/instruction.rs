@@ -6,45 +6,11 @@ use smallvec::{SmallVec, smallvec};
 
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CompareExchangeAccess, Constant,
-    CounterId, DispatchSlot, FenceAccess, FunctionReference, GlobalReference, Intrinsic,
-    LocalReference, Node, NodeType, Place, PlaceEffect, Projection, TensorConvertMode,
-    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
-    TensorGatherDimensionNumbers, TensorIndexReduceOperator, TensorIndexTieBreak,
-    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, TypeReference,
-    UnaryOperator, ValueReference, VectorConvertMode, VectorReduceOperator,
+    CounterId, DispatchSlot, FenceAccess, FunctionId, GlobalId, IndexSlice, Intrinsic, LocalId,
+    Node, NodeType, Place, PlaceEffect, Projection, TensorConvertMode, TensorImmediateId,
+    TensorIndexReduceOperator, TensorIndexTieBreak, TensorReduceOperator, TensorScatterMode,
+    TypeId, UnaryOperator, Value, ValueSlice, VectorConvertMode, VectorReduceOperator,
 };
-
-/// Compact representation of an argument slice stored in an external buffer.
-///
-/// Used by aggregate, call, intrinsic, and tensor instructions to reference value references.
-/// (This saves 16 bytes per instruction compared to using `Vec<ValueReference>` inline.)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct ArgumentSlice {
-    /// Start index in the arguments buffer.
-    pub start: u32,
-    /// Number of arguments.
-    pub count: u16,
-}
-
-impl ArgumentSlice {
-    /// Create a new argument slice.
-    #[inline]
-    pub const fn new(start: u32, count: u16) -> Self {
-        Self { start, count }
-    }
-
-    /// Check if the slice is empty.
-    #[inline]
-    pub const fn is_empty(&self) -> bool {
-        self.count == 0
-    }
-
-    /// Get the length of the slice.
-    #[inline]
-    pub const fn len(&self) -> usize {
-        self.count as usize
-    }
-}
 
 /// Dispatch kind for a call instruction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -66,7 +32,6 @@ pub enum CallDispatchKind {
 }
 
 /// Instructions produce SSA values and perform "operations".
-/// Each instruction produces at most one value via the `destination` field.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Instruction {
     /// Recovered invalid instruction syntax.
@@ -76,7 +41,7 @@ pub enum Instruction {
     /// Load a constant value.
     Const {
         /// The SSA value to define.
-        destination: ValueReference,
+        destination: Value,
         /// The constant value to load.
         value: Constant,
     },
@@ -85,35 +50,35 @@ pub enum Instruction {
     /// Binary operation (e.g., add, subtract, compare).
     Binary {
         /// The SSA value to define with the result.
-        destination: ValueReference,
+        destination: Value,
         /// The binary operator to apply.
         operator: BinaryOperator,
         /// The left-hand operand.
-        left: ValueReference,
+        left: Value,
         /// The right-hand operand.
-        right: ValueReference,
+        right: Value,
     },
     /// Unary operation (e.g., negate, not).
     Unary {
         /// The SSA value to define with the result.
-        destination: ValueReference,
+        destination: Value,
         /// The unary operator to apply.
         operator: UnaryOperator,
         /// The operand.
-        argument: ValueReference,
+        argument: Value,
     },
 
     // type conversions
     /// Cast between types (bitcast, truncate, extend, etc.).
     Cast {
         /// The SSA value to define with the converted result.
-        destination: ValueReference,
+        destination: Value,
         /// The cast operator to perform.
         operator: CastOperator,
         /// The value to cast.
-        argument: ValueReference,
+        argument: Value,
         /// The target type to cast to.
-        to_type: TypeReference,
+        to_type: TypeId,
     },
 
     // conditional selection
@@ -124,38 +89,38 @@ pub enum Instruction {
     /// computed before the selection (no short-circuit evaluation).
     Select {
         /// The SSA value to define with the selected result.
-        destination: ValueReference,
+        destination: Value,
         /// The boolean condition (must be bool type).
-        condition: ValueReference,
+        condition: Value,
         /// The value returned if condition is true.
-        then_value: ValueReference,
+        then_value: Value,
         /// The value returned if condition is false.
-        else_value: ValueReference,
+        else_value: Value,
     },
 
     // local variables (local.get, local.set, local.address)
     /// Load from a local variable (stack slot).
     LocalGet {
         /// The SSA value to define with the loaded value.
-        destination: ValueReference,
+        destination: Value,
         /// The local variable to load from.
-        local: LocalReference,
+        local: LocalId,
     },
     /// Get the address of a local variable (stack slot).
     LocalAddr {
         /// The SSA value to define with the local address.
-        destination: ValueReference,
+        destination: Value,
         /// The local variable to take the address of.
-        local: LocalReference,
+        local: LocalId,
         /// The result type of the address.
-        result_type: TypeReference,
+        result_type: TypeId,
     },
     /// Store to a local variable (stack slot).
     LocalSet {
         /// The local variable to store to.
-        local: LocalReference,
+        local: LocalId,
         /// The value to store.
-        value: ValueReference,
+        value: Value,
     },
 
     // global variables (global.address)
@@ -163,32 +128,32 @@ pub enum Instruction {
     /// Returns a raw pointer that can be used with Load/Store.
     GlobalAddr {
         /// The SSA value to define with the pointer.
-        destination: ValueReference,
+        destination: Value,
         /// The global variable to get the address of.
-        global: GlobalReference,
+        global: GlobalId,
         /// The result type of the address.
-        result_type: TypeReference,
+        result_type: TypeId,
     },
     /// Get a function pointer for a function (function.address).
     FunctionAddr {
         /// The SSA value to define with the function pointer.
-        destination: ValueReference,
+        destination: Value,
         /// The function to take the address of.
-        function: FunctionReference,
+        function: FunctionId,
     },
     /// Bind one environment to a function and produce a closure value (closure.bind).
     ClosureBind {
         /// The SSA value to define with the closure value.
-        destination: ValueReference,
+        destination: Value,
         /// The function to pair with the environment.
-        function: FunctionReference,
+        function: FunctionId,
         /// The environment value to capture in the closure.
-        environment: ValueReference,
+        environment: Value,
     },
     /// Load the hidden environment for the current function (closure.environment).
     ClosureEnvironment {
         /// The SSA value to define with the hidden environment pointer.
-        destination: ValueReference,
+        destination: Value,
     },
 
     // memory (pointers)
@@ -197,307 +162,307 @@ pub enum Instruction {
     /// Optional memory access metadata is stored in `Tree::memory_table`.
     Load {
         /// The SSA value to define with the loaded value.
-        destination: ValueReference,
+        destination: Value,
         /// The pointer to load from.
-        pointer: ValueReference,
+        pointer: Value,
         /// The loaded value type.
-        result_type: TypeReference,
+        result_type: TypeId,
     },
     /// Store to a pointer (write through pointer).
     ///
     /// Optional memory access metadata is stored in `Tree::memory_table`.
     Store {
         /// The pointer to store to.
-        pointer: ValueReference,
+        pointer: Value,
         /// The value to store.
-        value: ValueReference,
+        value: Value,
     },
 
     // aggregate operations (field.get, field.address, field.set, element.get, element.address, element.set)
     /// Extract a field from an aggregate value (field.get).
     FieldGet {
         /// The SSA value to define with the extracted field.
-        destination: ValueReference,
+        destination: Value,
         /// The aggregate value to extract from.
-        aggregate: ValueReference,
+        aggregate: Value,
         /// The zero-based field index.
         index: u32,
     },
     /// Get the address of a field from an addressable aggregate (field.address).
     FieldAddr {
         /// The SSA value to define with the field address.
-        destination: ValueReference,
+        destination: Value,
         /// The aggregate base to project from.
-        aggregate: ValueReference,
+        aggregate: Value,
         /// The zero-based field index.
         index: u32,
         /// The result type of the address.
-        result_type: TypeReference,
+        result_type: TypeId,
     },
     /// Insert a value into a struct or tuple field (field.set).
     FieldSet {
         /// The SSA value to define with the new aggregate.
-        destination: ValueReference,
+        destination: Value,
         /// The original aggregate value.
-        aggregate: ValueReference,
+        aggregate: Value,
         /// The zero-based field index to update.
         index: u32,
         /// The value to insert at the field.
-        value: ValueReference,
+        value: Value,
     },
     /// Extract an element from an array aggregate (element.get).
     ElementGet {
         /// The SSA value to define with the extracted element.
-        destination: ValueReference,
+        destination: Value,
         /// The array value to extract from.
-        array: ValueReference,
+        array: Value,
         /// The zero-based element index.
         index: u32,
     },
     /// Get the address of an element from an addressable indexed value (element.address).
     ElementAddr {
         /// The SSA value to define with the element address.
-        destination: ValueReference,
+        destination: Value,
         /// The indexed base to project from.
-        array: ValueReference,
+        array: Value,
         /// The index of the element (runtime value).
-        index: ValueReference,
+        index: Value,
         /// The result type of the address.
-        result_type: TypeReference,
+        result_type: TypeId,
     },
     /// Insert a value into an array element (element.set).
     ElementSet {
         /// The SSA value to define with the new array.
-        destination: ValueReference,
+        destination: Value,
         /// The original array value.
-        array: ValueReference,
+        array: Value,
         /// The zero-based element index to update.
         index: u32,
         /// The value to insert at the index.
-        value: ValueReference,
+        value: Value,
     },
     /// Construct a struct from field values.
     ///
     /// Fields must be provided in layout order.
     Struct {
         /// The SSA value to define with the constructed struct.
-        destination: ValueReference,
+        destination: Value,
         /// The struct type to construct.
-        ty: TypeReference,
+        ty: TypeId,
         /// The field values (stored in Tree's argument buffer).
-        fields: ArgumentSlice,
+        fields: ValueSlice,
     },
     /// Construct a tuple from element values.
     ///
     /// Elements must be provided in order.
     Tuple {
         /// The SSA value to define with the constructed tuple.
-        destination: ValueReference,
+        destination: Value,
         /// The tuple type to construct.
-        ty: TypeReference,
+        ty: TypeId,
         /// The element values (stored in Tree's argument buffer).
-        elements: ArgumentSlice,
+        elements: ValueSlice,
     },
     /// Construct an array from element values.
     ///
     /// Elements must be provided in index order.
     Array {
         /// The SSA value to define with the constructed array.
-        destination: ValueReference,
+        destination: Value,
         /// The array type to construct.
-        ty: TypeReference,
+        ty: TypeId,
         /// The element values (stored in Tree's argument buffer).
-        elements: ArgumentSlice,
+        elements: ValueSlice,
     },
     /// Construct a non-owning slice descriptor from a contiguous source region.
     Slice {
         /// The SSA value to define with the constructed slice.
-        destination: ValueReference,
+        destination: Value,
         /// The source slice value.
-        source: ValueReference,
+        source: Value,
         /// The start index inside the source slice.
-        start: ValueReference,
+        start: Value,
         /// The number of elements in the result.
-        length: ValueReference,
+        length: Value,
         /// The result slice type.
-        result_type: TypeReference,
+        result_type: TypeId,
     },
 
     // vector operations
     /// Broadcast a scalar to all vector lanes.
     VectorSplat {
         /// The SSA value to define with the vector result.
-        destination: ValueReference,
+        destination: Value,
         /// The scalar value to broadcast.
-        value: ValueReference,
+        value: Value,
     },
     /// Extract a lane from a vector.
     VectorExtract {
         /// The SSA value to define with the extracted lane.
-        destination: ValueReference,
+        destination: Value,
         /// The vector value to extract from.
-        vector: ValueReference,
+        vector: Value,
         /// The lane index to extract.
-        index: ValueReference,
+        index: Value,
     },
     /// Insert a lane into a vector.
     VectorInsert {
         /// The SSA value to define with the updated vector.
-        destination: ValueReference,
+        destination: Value,
         /// The original vector value.
-        vector: ValueReference,
+        vector: Value,
         /// The lane index to update.
-        index: ValueReference,
+        index: Value,
         /// The lane value to insert.
-        value: ValueReference,
+        value: Value,
     },
     /// Shuffle vector lanes using a constant mask.
     VectorShuffle {
         /// The SSA value to define with the shuffled result.
-        destination: ValueReference,
+        destination: Value,
         /// The left vector operand.
-        left: ValueReference,
+        left: Value,
         /// The right vector operand.
-        right: ValueReference,
+        right: Value,
         /// The shuffle mask indices.
-        mask: Vec<u32>,
+        mask: IndexSlice,
     },
     /// Select vector lanes based on a boolean mask.
     VectorSelect {
         /// The SSA value to define with the selected result.
-        destination: ValueReference,
+        destination: Value,
         /// The boolean mask vector.
-        mask: ValueReference,
+        mask: Value,
         /// The value returned if the mask lane is true.
-        then_value: ValueReference,
+        then_value: Value,
         /// The value returned if the mask lane is false.
-        else_value: ValueReference,
+        else_value: Value,
     },
     /// Reduce a vector to a scalar.
     VectorReduce {
         /// The SSA value to define with the reduced result.
-        destination: ValueReference,
+        destination: Value,
         /// The reduction operator to apply.
         operator: VectorReduceOperator,
         /// The vector value to reduce.
-        vector: ValueReference,
+        vector: Value,
     },
     /// Compare two vectors elementwise.
     ///
     /// The result is a vector of boolean lanes.
     VectorCompare {
         /// The SSA value to define with the comparison result.
-        destination: ValueReference,
+        destination: Value,
         /// The comparison operator to apply.
         operator: BinaryOperator,
         /// The left vector operand.
-        left: ValueReference,
+        left: Value,
         /// The right vector operand.
-        right: ValueReference,
+        right: Value,
     },
     /// Convert vector element types with an explicit mode.
     ///
     /// The result must have the same lane count as the input.
     VectorConvert {
         /// The SSA value to define with the converted vector.
-        destination: ValueReference,
+        destination: Value,
         /// The conversion mode to apply.
         mode: VectorConvertMode,
         /// The vector value to convert.
-        vector: ValueReference,
+        vector: Value,
     },
 
     // tensor operations (tensor.*)
     /// Broadcast a scalar to all tensor elements.
     TensorSplat {
         /// The SSA value to define with the tensor result.
-        destination: ValueReference,
+        destination: Value,
         /// The scalar value to broadcast.
-        value: ValueReference,
+        value: Value,
     },
     /// Load a tensor element from a tensor reference.
     TensorLoad {
         /// The SSA value to define with the loaded element.
-        destination: ValueReference,
+        destination: Value,
         /// The tensor reference to load from.
-        view: ValueReference,
+        view: Value,
         /// The index values (stored in Tree's argument buffer).
-        indices: ArgumentSlice,
+        indices: ValueSlice,
     },
     /// Extract a tensor element from a tensor value.
     TensorExtract {
         /// The SSA value to define with the extracted element.
-        destination: ValueReference,
+        destination: Value,
         /// The tensor value to extract from.
-        tensor: ValueReference,
+        tensor: Value,
         /// The index values (stored in Tree's argument buffer).
-        indices: ArgumentSlice,
+        indices: ValueSlice,
     },
     /// Store a tensor element into a tensor reference.
     TensorStore {
         /// The tensor reference to store into.
-        view: ValueReference,
+        view: Value,
         /// The index values (stored in Tree's argument buffer).
-        indices: ArgumentSlice,
+        indices: ValueSlice,
         /// The value to store.
-        value: ValueReference,
+        value: Value,
     },
     /// Fill a tensor reference with a scalar value.
     TensorFill {
         /// The tensor reference to fill.
-        view: ValueReference,
+        view: Value,
         /// The scalar value to write.
-        value: ValueReference,
+        value: Value,
     },
     /// Copy elements from a source tensor reference into a destination tensor reference.
     TensorCopy {
         /// The destination tensor reference.
-        target: ValueReference,
+        target: Value,
         /// The source tensor reference.
-        source: ValueReference,
+        source: Value,
     },
     /// Reshape a tensor value into a new shape.
     TensorReshape {
         /// The SSA value to define with the reshaped tensor.
-        destination: ValueReference,
+        destination: Value,
         /// The tensor value to reshape.
-        tensor: ValueReference,
+        tensor: Value,
         /// The shape values (stored in Tree's argument buffer).
-        shape: ArgumentSlice,
+        shape: ValueSlice,
     },
     /// Broadcast a tensor into a larger shape.
     TensorBroadcast {
         /// The SSA value to define with the broadcasted tensor.
-        destination: ValueReference,
+        destination: Value,
         /// The tensor value to broadcast.
-        tensor: ValueReference,
+        tensor: Value,
         /// The operand dimensions mapped into the result.
-        dimensions: Vec<u32>,
+        dimensions: IndexSlice,
     },
     /// Permute tensor dimensions.
     TensorTranspose {
         /// The SSA value to define with the transposed tensor.
-        destination: ValueReference,
+        destination: Value,
         /// The tensor value to transpose.
-        tensor: ValueReference,
+        tensor: Value,
         /// The permutation of dimensions.
-        permutation: Vec<u32>,
+        permutation: IndexSlice,
     },
     /// Refine a tensor type without changing its contents.
     TensorCast {
         /// The SSA value to define with the cast tensor.
-        destination: ValueReference,
+        destination: Value,
         /// The tensor value to cast.
-        tensor: ValueReference,
+        tensor: Value,
     },
     /// Create a view into a tensor reference.
     TensorView {
         /// The SSA value to define with the view result.
-        destination: ValueReference,
+        destination: Value,
         /// The tensor reference to view.
-        view: ValueReference,
+        view: Value,
         /// The view arguments (offsets, sizes, strides) stored in Tree's argument buffer.
-        arguments: ArgumentSlice,
+        arguments: ValueSlice,
         /// The number of offset values.
         offsets_count: u16,
         /// The number of size values.
@@ -508,11 +473,11 @@ pub enum Instruction {
     /// Slice a tensor by offsets, sizes, and strides.
     TensorSlice {
         /// The SSA value to define with the sliced tensor.
-        destination: ValueReference,
+        destination: Value,
         /// The tensor value to slice.
-        tensor: ValueReference,
+        tensor: Value,
         /// The slice arguments (offsets, sizes, strides) stored in Tree's argument buffer.
-        arguments: ArgumentSlice,
+        arguments: ValueSlice,
         /// The number of offset values.
         offsets_count: u16,
         /// The number of size values.
@@ -523,11 +488,11 @@ pub enum Instruction {
     /// Pad a tensor with low, high, and interior padding.
     TensorPad {
         /// The SSA value to define with the padded tensor.
-        destination: ValueReference,
+        destination: Value,
         /// The tensor value to pad.
-        tensor: ValueReference,
+        tensor: Value,
         /// The padding arguments (low, high, interior) stored in Tree's argument buffer.
-        arguments: ArgumentSlice,
+        arguments: ValueSlice,
         /// The number of low padding values.
         low_count: u16,
         /// The number of high padding values.
@@ -535,14 +500,14 @@ pub enum Instruction {
         /// The number of interior padding values.
         interior_count: u16,
         /// The scalar padding value.
-        value: ValueReference,
+        value: Value,
     },
     /// Concatenate tensors along a dimension.
     TensorConcat {
         /// The SSA value to define with the concatenated tensor.
-        destination: ValueReference,
+        destination: Value,
         /// The tensor operands stored in Tree's argument buffer.
-        tensors: ArgumentSlice,
+        tensors: ValueSlice,
         /// The concatenation axis.
         axis: u32,
     },
@@ -551,46 +516,46 @@ pub enum Instruction {
     /// The result is a tensor with boolean element type and matching shape.
     TensorCompare {
         /// The SSA value to define with the comparison result.
-        destination: ValueReference,
+        destination: Value,
         /// The comparison operator to apply.
         operator: BinaryOperator,
         /// The left tensor operand.
-        left: ValueReference,
+        left: Value,
         /// The right tensor operand.
-        right: ValueReference,
+        right: Value,
     },
     /// Select tensor elements based on a boolean mask.
     TensorSelect {
         /// The SSA value to define with the selected tensor.
-        destination: ValueReference,
+        destination: Value,
         /// The boolean mask tensor.
-        mask: ValueReference,
+        mask: Value,
         /// The tensor returned if the mask element is true.
-        then_value: ValueReference,
+        then_value: Value,
         /// The tensor returned if the mask element is false.
-        else_value: ValueReference,
+        else_value: Value,
     },
     /// Reduce a tensor along axes with a fixed operator.
     TensorReduce {
         /// The SSA value to define with the reduced tensor.
-        destination: ValueReference,
+        destination: Value,
         /// The reduction operator to apply.
         operator: TensorReduceOperator,
         /// The tensor value to reduce.
-        tensor: ValueReference,
+        tensor: Value,
         /// The initial value for the reduction.
-        initial: ValueReference,
+        initial: Value,
         /// The axes to reduce.
-        axes: Vec<u32>,
+        axes: IndexSlice,
     },
     /// Reduce a tensor along one axis and return selected source indices.
     TensorIndexReduce {
         /// The SSA value to define with the index tensor.
-        destination: ValueReference,
+        destination: Value,
         /// The index reduction operator to apply.
         operator: TensorIndexReduceOperator,
         /// The tensor value to reduce.
-        tensor: ValueReference,
+        tensor: Value,
         /// The axis to reduce.
         axis: u32,
         /// The behavior for equal selected values.
@@ -599,56 +564,48 @@ pub enum Instruction {
     /// Dot product of two tensors.
     TensorDot {
         /// The SSA value to define with the dot result.
-        destination: ValueReference,
+        destination: Value,
         /// The left operand.
-        left: ValueReference,
+        left: Value,
         /// The right operand.
-        right: ValueReference,
+        right: Value,
         /// The dot dimension numbers.
-        dimensions: TensorDotDimensionNumbers,
+        immediate: TensorImmediateId,
     },
     /// Convolution between an input tensor and a kernel tensor.
     TensorConvolution {
         /// The SSA value to define with the convolution result.
-        destination: ValueReference,
+        destination: Value,
         /// The input tensor.
-        input: ValueReference,
+        input: Value,
         /// The kernel tensor.
-        kernel: ValueReference,
+        kernel: Value,
         /// The convolution dimension numbers.
-        dimensions: TensorConvolutionDimensionNumbers,
-        /// The convolution window parameters.
-        window: TensorConvolutionWindow,
-        /// The number of feature groups.
-        feature_group_count: u32,
-        /// The number of batch groups.
-        batch_group_count: u32,
+        immediate: TensorImmediateId,
     },
     /// Gather slices from a tensor based on indices.
     TensorGather {
         /// The SSA value to define with the gathered tensor.
-        destination: ValueReference,
+        destination: Value,
         /// The operand tensor.
-        operand: ValueReference,
+        operand: Value,
         /// The indices tensor.
-        indices: ValueReference,
+        indices: Value,
         /// The gather dimension numbers.
-        dimensions: TensorGatherDimensionNumbers,
-        /// The slice sizes for each operand dimension.
-        slice_sizes: Vec<u32>,
+        immediate: TensorImmediateId,
     },
     /// Scatter updates into a tensor based on indices.
     TensorScatter {
         /// The SSA value to define with the scatter result.
-        destination: ValueReference,
+        destination: Value,
         /// The operand tensor.
-        operand: ValueReference,
+        operand: Value,
         /// The indices tensor.
-        indices: ValueReference,
+        indices: Value,
         /// The updates tensor.
-        updates: ValueReference,
+        updates: Value,
         /// The scatter dimension numbers.
-        dimensions: TensorScatterDimensionNumbers,
+        immediate: TensorImmediateId,
         /// The scatter update mode.
         mode: TensorScatterMode,
     },
@@ -657,57 +614,57 @@ pub enum Instruction {
     /// The result must have the same shape as the input.
     TensorConvert {
         /// The SSA value to define with the converted tensor.
-        destination: ValueReference,
+        destination: Value,
         /// The conversion mode to apply.
         mode: TensorConvertMode,
         /// The tensor value to convert.
-        tensor: ValueReference,
+        tensor: Value,
     },
 
     // function calls (call, call.virtual, call.dynamic, call.indirect)
     /// Call a function directly.
     Call {
         /// The SSA value to define with the return value, if any.
-        destination: Option<ValueReference>,
+        destination: Option<Value>,
         /// The function to call.
-        function: FunctionReference,
+        function: FunctionId,
         /// The shared call payload.
-        call: Call<ArgumentSlice>,
+        call: Call<ValueSlice>,
     },
     /// Call a virtual method through a virtual dispatch slot.
     CallVirtual {
         /// The SSA value to define with the return value, if any.
-        destination: Option<ValueReference>,
+        destination: Option<Value>,
         /// The receiver value for dispatch.
-        receiver: ValueReference,
+        receiver: Value,
         /// The class type declaring this dispatch slot.
-        class: TypeReference,
+        class: TypeId,
         /// The dispatch slot for the method.
         slot: DispatchSlot,
         /// The shared call payload.
-        call: Call<ArgumentSlice>,
+        call: Call<ValueSlice>,
     },
     /// Call through a dynamic dispatch table slot.
     CallDynamic {
         /// The SSA value to define with the return value, if any.
-        destination: Option<ValueReference>,
+        destination: Option<Value>,
         /// The receiver value for dispatch.
-        receiver: ValueReference,
+        receiver: Value,
         /// The dynamic constraint type declaring this dispatch slot.
-        constraint: TypeReference,
+        constraint: TypeId,
         /// The dispatch slot for the method.
         slot: DispatchSlot,
         /// The shared call payload.
-        call: Call<ArgumentSlice>,
+        call: Call<ValueSlice>,
     },
     /// Call through a function pointer (call.indirect).
     CallIndirect {
         /// The SSA value to define with the return value, if any.
-        destination: Option<ValueReference>,
+        destination: Option<Value>,
         /// The function pointer or closure value to call.
-        callee: ValueReference,
+        callee: Value,
         /// The shared call payload.
-        call: Call<ArgumentSlice>,
+        call: Call<ValueSlice>,
     },
 
     // heap allocation
@@ -716,64 +673,64 @@ pub enum Instruction {
     /// The result type decides whether the returned reference is managed or unique.
     NewZeroed {
         /// The SSA value to define with the allocated reference.
-        destination: ValueReference,
+        destination: Value,
         /// The type of the struct to allocate.
-        layout: TypeReference,
+        layout: TypeId,
         /// The result type of the allocation.
-        result_type: TypeReference,
+        result_type: TypeId,
     },
     /// Allocate uninitialized typed heap storage (`new.uninit`).
     ///
     /// The result is an initialization token that must be completed before publication.
     NewUninit {
         /// The SSA value to define with the initialization token.
-        destination: ValueReference,
+        destination: Value,
         /// The type of the struct to allocate.
-        layout: TypeReference,
+        layout: TypeId,
         /// The result type of the allocation.
-        result_type: TypeReference,
+        result_type: TypeId,
     },
     /// Complete one initialized heap allocation (`new.complete`).
     NewComplete {
         /// The SSA value to define with the completed allocation.
-        destination: ValueReference,
+        destination: Value,
         /// The initialization token to complete.
-        value: ValueReference,
+        value: Value,
         /// The result type of the completed value.
-        result_type: TypeReference,
+        result_type: TypeId,
     },
     /// Allocate zeroed typed repeated heap storage (`new.slice.zeroed`).
     ///
     /// The result type decides whether the returned slice is managed or unique.
     NewSliceZeroed {
         /// The SSA value to define with the allocated slice.
-        destination: ValueReference,
+        destination: Value,
         /// The element type of the repeated storage.
-        element: TypeReference,
+        element: TypeId,
         /// The number of elements (runtime value).
-        length: ValueReference,
+        length: Value,
         /// The result type of the allocation.
-        result_type: TypeReference,
+        result_type: TypeId,
     },
     /// Allocate uninitialized typed repeated heap storage (`new.slice.uninit`).
     ///
     /// The result is an initialization token that must be completed before publication.
     NewSliceUninit {
         /// The SSA value to define with the initialization token.
-        destination: ValueReference,
+        destination: Value,
         /// The element type of the repeated storage.
-        element: TypeReference,
+        element: TypeId,
         /// The number of elements (runtime value).
-        length: ValueReference,
+        length: Value,
         /// The result type of the allocation.
-        result_type: TypeReference,
+        result_type: TypeId,
     },
     /// Release unique heap storage (`free`).
     ///
     /// This is only valid for unique references after drop elaboration has run.
     Free {
         /// The unique heap reference to free.
-        value: ValueReference,
+        value: Value,
     },
 
     // frame allocation
@@ -782,22 +739,22 @@ pub enum Instruction {
     /// The storage is released when the frame exits.
     FrameAllocZeroed {
         /// The SSA value to define with the frame allocation pointer.
-        destination: ValueReference,
+        destination: Value,
         /// The type of the value to allocate.
-        layout: TypeReference,
+        layout: TypeId,
         /// The result type of the allocation.
-        result_type: TypeReference,
+        result_type: TypeId,
     },
     /// Allocate uninitialized frame-scoped storage (`frame.alloc.uninit`).
     ///
     /// The storage is released when the frame exits.
     FrameAllocUninit {
         /// The SSA value to define with the frame allocation pointer.
-        destination: ValueReference,
+        destination: Value,
         /// The type of the value to allocate.
-        layout: TypeReference,
+        layout: TypeId,
         /// The result type of the allocation.
-        result_type: TypeReference,
+        result_type: TypeId,
     },
 
     // ownership end
@@ -815,60 +772,60 @@ pub enum Instruction {
     /// While pinned, derived borrowed addresses remain valid across safepoints.
     Pin {
         /// The SSA value to define with the pinned reference.
-        destination: ValueReference,
+        destination: Value,
         /// The heap value to pin.
-        value: ValueReference,
+        value: Value,
         /// The result type of the pinned reference.
-        result_type: TypeReference,
+        result_type: TypeId,
     },
     /// Release one heap pin (`unpin`).
     Unpin {
         /// The heap value to unpin.
-        value: ValueReference,
+        value: Value,
     },
 
     // collector protocol
     /// Record a managed reference write for the collector.
     BarrierWrite {
         /// The managed object whose reference range changed.
-        object: ValueReference,
+        object: Value,
         /// The byte offset of the changed reference range.
-        offset: ValueReference,
+        offset: Value,
         /// The changed byte length.
-        byte_len: ValueReference,
+        byte_len: Value,
     },
 
     // atomic memory operations
     /// Load from memory atomically.
     AtomicLoad {
         /// The SSA value to define with the loaded result.
-        destination: ValueReference,
+        destination: Value,
         /// The pointer to load from.
-        pointer: ValueReference,
+        pointer: Value,
         /// The loaded value type.
-        result_type: TypeReference,
+        result_type: TypeId,
         /// The atomic access.
         access: AtomicAccess,
     },
     /// Store to memory atomically.
     AtomicStore {
         /// The pointer to store to.
-        pointer: ValueReference,
+        pointer: Value,
         /// The value to store.
-        value: ValueReference,
+        value: Value,
         /// The atomic access.
         access: AtomicAccess,
     },
     /// Compare exchange one memory location atomically.
     AtomicCompareExchange {
         /// The SSA value to define with the old value and success flag.
-        destination: ValueReference,
+        destination: Value,
         /// The pointer to update.
-        pointer: ValueReference,
+        pointer: Value,
         /// The expected current value.
-        expected: ValueReference,
+        expected: Value,
         /// The replacement value.
-        new_value: ValueReference,
+        new_value: Value,
         /// Whether the compare exchange is weak.
         is_weak: bool,
         /// The compare exchange access.
@@ -877,13 +834,13 @@ pub enum Instruction {
     /// Apply one atomic read modify write operation.
     AtomicRmw {
         /// The SSA value to define with the old value.
-        destination: ValueReference,
+        destination: Value,
         /// The read modify write operator.
         operator: AtomicRmwOperator,
         /// The pointer to update.
-        pointer: ValueReference,
+        pointer: Value,
         /// The value argument for the operator.
-        value: ValueReference,
+        value: Value,
         /// The atomic access.
         access: AtomicAccess,
     },
@@ -896,7 +853,7 @@ pub enum Instruction {
     /// Assume a condition is true (UB if false).
     Assume {
         /// The condition to assume.
-        condition: ValueReference,
+        condition: Value,
     },
 
     // profile instrumentation
@@ -910,7 +867,7 @@ pub enum Instruction {
         /// The counter receiving the sampled value.
         counter: CounterId,
         /// The sampled MIR value.
-        value: ValueReference,
+        value: Value,
     },
 
     // intrinsics
@@ -922,11 +879,11 @@ pub enum Instruction {
     /// - Are used for comptime evaluation, type reflection, and low-level ops
     Intrinsic {
         /// The SSA value to define with the result, if any.
-        destination: Option<ValueReference>,
+        destination: Option<Value>,
         /// The intrinsic to call.
         intrinsic: Intrinsic,
         /// The arguments to pass.
-        arguments: ArgumentSlice,
+        arguments: ValueSlice,
     },
 }
 
@@ -941,7 +898,7 @@ impl Instruction {
             Instruction::LocalAddr {
                 destination, local, ..
             } => Some(PlaceEffect::Root {
-                value: destination.value()?,
+                value: *destination,
                 place: Place::local(*local),
             }),
             Instruction::GlobalAddr {
@@ -949,7 +906,7 @@ impl Instruction {
                 global,
                 ..
             } => Some(PlaceEffect::Root {
-                value: destination.value()?,
+                value: *destination,
                 place: Place::global(*global),
             }),
             Instruction::NewZeroed { destination, .. }
@@ -960,7 +917,7 @@ impl Instruction {
             | Instruction::FrameAllocZeroed { destination, .. }
             | Instruction::FrameAllocUninit { destination, .. }
             | Instruction::ClosureEnvironment { destination } => Some(PlaceEffect::Root {
-                value: destination.value()?,
+                value: *destination,
                 place: Place::value(*destination),
             }),
             Instruction::FieldAddr {
@@ -969,8 +926,8 @@ impl Instruction {
                 index,
                 ..
             } => Some(PlaceEffect::Projection {
-                value: destination.value()?,
-                base: aggregate.value()?,
+                value: *destination,
+                base: *aggregate,
                 projection: Projection::Field { index: *index },
             }),
             Instruction::ElementAddr {
@@ -979,8 +936,8 @@ impl Instruction {
                 index,
                 ..
             } => Some(PlaceEffect::Projection {
-                value: destination.value()?,
-                base: array.value()?,
+                value: *destination,
+                base: *array,
                 projection: Projection::Index { index: *index },
             }),
             Instruction::Slice {
@@ -990,8 +947,8 @@ impl Instruction {
                 length,
                 ..
             } => Some(PlaceEffect::Projection {
-                value: destination.value()?,
-                base: source.value()?,
+                value: *destination,
+                base: *source,
                 projection: Projection::Slice {
                     start: *start,
                     length: *length,
@@ -1016,8 +973,8 @@ impl Instruction {
                 value: argument,
                 ..
             } => Some(PlaceEffect::Copy {
-                value: destination.value()?,
-                source: argument.value()?,
+                value: *destination,
+                source: *argument,
             }),
             Instruction::Error
             | Instruction::Const { .. }
@@ -1087,7 +1044,7 @@ impl Instruction {
     }
 
     /// Get the destination value defined by this instruction (if any).
-    pub fn destination(&self) -> Option<ValueReference> {
+    pub fn destination(&self) -> Option<Value> {
         match self {
             Instruction::Error => None,
             Instruction::Const { destination, .. } => Some(*destination),
@@ -1176,8 +1133,8 @@ impl Instruction {
     /// Get inline values used by this instruction (excludes externalized arguments).
     ///
     /// For Call, CallVirtual, CallDynamic, CallIndirect, and Intrinsic, the arguments are stored externally
-    /// in Tree's argument buffer and must be fetched via `Tree::get_arguments()`.
-    pub fn uses(&self) -> SmallVec<[ValueReference; 4]> {
+    /// in Tree's argument buffer and must be fetched via `Tree::get_values()`.
+    pub fn uses(&self) -> SmallVec<[Value; 4]> {
         match self {
             Instruction::Error => smallvec![],
             Instruction::Const { .. } => smallvec![],
@@ -1285,7 +1242,7 @@ impl Instruction {
             Instruction::NewSliceZeroed { length, .. }
             | Instruction::NewSliceUninit { length, .. } => smallvec![*length],
             Instruction::Free { value } => smallvec![*value],
-            Instruction::Drop { place } => place.value_references(),
+            Instruction::Drop { place } => place.values(),
             Instruction::Pin { value, .. } => smallvec![*value],
             Instruction::Unpin { value } => smallvec![*value],
             Instruction::BarrierWrite {
@@ -1316,10 +1273,10 @@ impl Instruction {
 
     /// Get the argument slice for instructions that have externalized arguments.
     ///
-    /// Returns `Some(ArgumentSlice)` for Struct, Tuple, Array, Call, CallVirtual, CallDynamic,
+    /// Returns `Some(ValueSlice)` for Struct, Tuple, Array, Call, CallVirtual, CallDynamic,
     /// CallIndirect, Intrinsic, and tensor instructions that externalize value lists.
     /// Returns `None` for all other instructions.
-    pub fn argument_slice(&self) -> Option<ArgumentSlice> {
+    pub fn argument_slice(&self) -> Option<ValueSlice> {
         match self {
             Instruction::Struct { fields, .. } => Some(*fields),
             Instruction::Tuple { elements, .. } => Some(*elements),
@@ -1357,18 +1314,18 @@ impl Instruction {
     }
 
     /// Return the signature type for call instructions.
-    pub fn call_signature(&self) -> Option<TypeReference> {
+    pub fn call_signature(&self) -> Option<TypeId> {
         match self {
             Instruction::Call { call, .. }
             | Instruction::CallVirtual { call, .. }
             | Instruction::CallDynamic { call, .. }
-            | Instruction::CallIndirect { call, .. } => Some(call.signature.clone()),
+            | Instruction::CallIndirect { call, .. } => Some(call.signature),
             _ => None,
         }
     }
 
     /// Return the direct target for call instructions.
-    pub fn call_direct_target(&self) -> Option<FunctionReference> {
+    pub fn call_direct_target(&self) -> Option<FunctionId> {
         match self {
             Instruction::Call { function, .. } => Some(*function),
             _ => None,

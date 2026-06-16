@@ -1,6 +1,6 @@
 use crate::{
-    Block, Field, Function, Global, Instruction, Local, Terminator, Type, TypeAlias, TypeReference,
-    assert_node,
+    Block, Field, Function, Global, Instruction, Local, LocalNodeId, Terminator, Tree, Type,
+    TypeAlias, assert_node,
 };
 use destack_source::DiagnosticSeverity;
 
@@ -190,7 +190,7 @@ b0:
 
     // recovered local
     assert_node!(tree, function.locals[0], Local { ty, .. } => {
-        assert_eq!(*ty, TypeReference::Missing);
+        assert_error_type(&tree, *ty);
     });
 
     // recovered terminator
@@ -268,14 +268,13 @@ type Pair {
     assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
 
     // recovered fields
-    let ty = alias.ty.ty().expect("expected recovered type alias");
-    assert_node!(tree, ty, Type::Struct { fields, .. } => {
+    assert_node!(tree, alias.ty, Type::Struct { fields, .. } => {
         assert_eq!(fields.len(), 2);
         assert_node!(tree, fields[0], Field { ty, .. } => {
-            assert_eq!(*ty, TypeReference::Missing);
+            assert_error_type(&tree, *ty);
         });
         assert_node!(tree, fields[1], Field { ty, .. } => {
-            assert!(ty.ty().is_some());
+            assert!(!matches!(tree.get(*ty), Type::Error));
         });
     });
 }
@@ -299,7 +298,7 @@ b0:
     // diagnostic and later item
     assert_eq!(diagnostics.len(), 1);
     assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
-    assert_eq!(global.ty, TypeReference::Missing);
+    assert_error_type(&tree, global.ty);
     assert_eq!(tree.iter_nodes::<Function>().count(), 1);
 }
 
@@ -321,7 +320,7 @@ b0:
     assert_eq!(diagnostics.len(), 1);
     assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
     assert_eq!(function.parameters.len(), 1);
-    assert_eq!(function.parameters[0].ty, TypeReference::Missing);
+    assert_error_type(&tree, function.parameters[0].ty);
 }
 
 /// Recovering parse keeps a function with a missing return type.
@@ -341,8 +340,12 @@ b0:
     // diagnostic and body
     assert_eq!(diagnostics.len(), 1);
     assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
-    assert_eq!(function.return_type, TypeReference::Missing);
+    assert_error_type(&tree, function.return_type);
     assert_eq!(function.blocks.len(), 1);
+}
+
+fn assert_error_type(tree: &Tree, ty: LocalNodeId<Type>) {
+    assert_node!(tree, ty, Type::Error);
 }
 
 /// Recovering parse collects multiple same-block instruction errors.

@@ -25,25 +25,21 @@ impl ConstantMap {
     }
 
     /// Get the constant value for a given SSA value.
-    pub fn get(&self, value: impl Into<mir::ValueReference>) -> Option<&mir::Constant> {
-        let value = value.into().value()?;
+    pub fn get(&self, value: impl Into<mir::Value>) -> Option<&mir::Constant> {
+        let value = value.into();
         self.constants.get(&value)
     }
 
     /// Insert a constant value for a given SSA value.
-    pub fn insert(&mut self, value: impl Into<mir::ValueReference>, constant: mir::Constant) {
-        let Some(value) = value.into().value() else {
-            return;
-        };
+    pub fn insert(&mut self, value: impl Into<mir::Value>, constant: mir::Constant) {
+        let value = value.into();
 
         self.constants.insert(value, constant);
     }
 
     /// Remove any constant for a given SSA value.
-    pub fn remove(&mut self, value: impl Into<mir::ValueReference>) {
-        let Some(value) = value.into().value() else {
-            return;
-        };
+    pub fn remove(&mut self, value: impl Into<mir::Value>) {
+        let value = value.into();
 
         self.constants.remove(&value);
     }
@@ -199,11 +195,7 @@ impl ConstantPropagation {
                     // enqueue successors
                     let block = tree.get(block_id);
                     let terminator = tree.get(block.terminator);
-                    for succ in terminator.successors() {
-                        let Some(succ) = succ.block() else {
-                            continue;
-                        };
-
+                    for succ in tree.terminator_successors(terminator) {
                         if in_worklist.insert(succ) {
                             worklist.push_back(succ);
                         }
@@ -316,9 +308,7 @@ fn apply_block_param_constants(
 
     // apply constants to entry state
     for param in &block.parameters {
-        let Some(param_value) = param.value.value() else {
-            continue;
-        };
+        let param_value = param.value;
 
         if let Some(constant) = constants.get(&param_value) {
             entry_state.insert(param_value, constant.clone());
@@ -355,7 +345,8 @@ fn resolve_block_param_constants(
         // collect arguments for this edge
         let pred_block = tree.get(pred);
         let pred_terminator = tree.get(pred_block.terminator);
-        let args = match terminator_arguments_for_successor_checked(pred_terminator, block_id) {
+        let args = match terminator_arguments_for_successor_checked(tree, pred_terminator, block_id)
+        {
             SuccessorArguments::Missing => continue,
             SuccessorArguments::Conflict => {
                 states.fill(ParamState::Overdefined);
@@ -398,9 +389,7 @@ fn resolve_block_param_constants(
     // collect constants for parameters
     let mut constants = HashMap::new();
     for (param, state) in block.parameters.iter().zip(states) {
-        let Some(param_value) = param.value.value() else {
-            continue;
-        };
+        let param_value = param.value;
 
         if let ParamState::Constant(constant) = state {
             constants.insert(param_value, constant);
@@ -425,9 +414,6 @@ fn transfer_block(
     for &instruction_id in &block.instructions {
         let instruction = tree.get(instruction_id);
         let Some(destination) = instruction.destination() else {
-            continue;
-        };
-        let Some(destination) = destination.value() else {
             continue;
         };
 
@@ -482,7 +468,7 @@ fn constant_for_instruction(
             fold_cast(
                 *operator,
                 arg_constant.clone(),
-                to_type.ty()?,
+                *to_type,
                 pointer_width_bits,
                 tree,
             )
@@ -692,7 +678,7 @@ b3(v5: boolean):
 
     /// Conflicting arguments to a single target are not treated as constants.
     #[test]
-    fn test_conflicting_target_arguments() {
+    fn test_conflicting_target_values() {
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): boolean {

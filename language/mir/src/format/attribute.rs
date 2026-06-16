@@ -142,7 +142,7 @@ pub(crate) fn write_attribute_value<'a>(
     match value {
         AttributeValue::Identifier(name) => write_attribute_identifier(*name, f),
         AttributeValue::Type(ty) => write!(f, [*ty]),
-        AttributeValue::Integer(value) => write!(f, [*value]),
+        AttributeValue::Integer(value) => write!(f, [text(&value.to_string())]),
         AttributeValue::Float(value) => format_float_literal(*value, f),
         AttributeValue::Boolean(value) => {
             let text_value = if *value { "true" } else { "false" };

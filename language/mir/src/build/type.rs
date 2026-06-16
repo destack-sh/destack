@@ -3,7 +3,7 @@ use destack_core::StringId;
 use crate::build::ModuleBuilder;
 use crate::{
     Access, Constant, Copy, Field, FloatType, Lifetime, LocalNodeId, Nullability, ReferenceKind,
-    Space, TensorDimension, TensorLayout, TensorViewLayout, Type, TypeReference, VariantCase,
+    Space, TensorDimension, TensorLayout, TensorViewLayout, Type, TypeId, VariantCase,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -99,7 +99,7 @@ impl ModuleBuilder {
     }
 
     /// Create a reference type.
-    pub fn type_reference(
+    pub fn reference_type(
         &mut self,
         kind: ReferenceKind,
         pointee: LocalNodeId<Type>,
@@ -107,7 +107,7 @@ impl ModuleBuilder {
         space: Space,
         nullability: Nullability,
     ) -> LocalNodeId<Type> {
-        self.type_reference_with_lifetime(
+        self.reference_type_with_lifetime(
             kind,
             Lifetime::empty(),
             pointee,
@@ -118,7 +118,7 @@ impl ModuleBuilder {
     }
 
     /// Create a reference type with an explicit lifetime.
-    pub fn type_reference_with_lifetime(
+    pub fn reference_type_with_lifetime(
         &mut self,
         kind: ReferenceKind,
         lifetime: Lifetime,
@@ -143,7 +143,7 @@ impl ModuleBuilder {
         pointee: LocalNodeId<Type>,
         access: Access,
     ) -> LocalNodeId<Type> {
-        self.type_reference(
+        self.reference_type(
             ReferenceKind::Borrowed,
             pointee,
             access,
@@ -163,7 +163,7 @@ impl ModuleBuilder {
         pointee: LocalNodeId<Type>,
         access: Access,
     ) -> LocalNodeId<Type> {
-        self.type_reference(
+        self.reference_type(
             ReferenceKind::Raw,
             pointee,
             access,
@@ -188,7 +188,7 @@ impl ModuleBuilder {
         pointee: LocalNodeId<Type>,
         access: Access,
     ) -> LocalNodeId<Type> {
-        self.type_reference(
+        self.reference_type(
             ReferenceKind::Managed,
             pointee,
             access,
@@ -219,7 +219,7 @@ impl ModuleBuilder {
         pointee: LocalNodeId<Type>,
         access: Access,
     ) -> LocalNodeId<Type> {
-        self.type_reference(
+        self.reference_type(
             ReferenceKind::Managed,
             pointee,
             access,
@@ -247,7 +247,7 @@ impl ModuleBuilder {
         pointee: LocalNodeId<Type>,
         access: Access,
     ) -> LocalNodeId<Type> {
-        self.type_reference(
+        self.reference_type(
             ReferenceKind::Unique,
             pointee,
             access,
@@ -369,7 +369,7 @@ impl ModuleBuilder {
         elements: Vec<LocalNodeId<Type>>,
         copy: Copy,
     ) -> LocalNodeId<Type> {
-        let elements = elements.into_iter().map(TypeReference::from).collect();
+        let elements = elements.into_iter().map(TypeId::from).collect();
 
         self.tree.insert_type(Type::Tuple { elements, copy })
     }
@@ -418,7 +418,7 @@ impl ModuleBuilder {
         parameters: Vec<LocalNodeId<Type>>,
         result: LocalNodeId<Type>,
     ) -> LocalNodeId<Type> {
-        let parameters = parameters.into_iter().map(TypeReference::from).collect();
+        let parameters = parameters.into_iter().map(TypeId::from).collect();
 
         self.tree.insert_type(Type::FunctionSignature {
             parameters,

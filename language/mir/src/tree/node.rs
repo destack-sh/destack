@@ -4,6 +4,23 @@ use std::marker::PhantomData;
 use destack_source::{ModuleId, TargetId};
 use serde::{Deserialize, Serialize};
 
+use crate::{Block, Function, Global, Local, Type};
+
+/// Compact type identity in one MIR tree.
+pub type TypeId = LocalNodeId<Type>;
+
+/// Compact block identity in one MIR function.
+pub type BlockId = LocalNodeId<Block>;
+
+/// Compact function identity in one MIR tree.
+pub type FunctionId = LocalNodeId<Function>;
+
+/// Compact local identity in one MIR function.
+pub type LocalId = LocalNodeId<Local>;
+
+/// Compact global identity in one MIR tree.
+pub type GlobalId = LocalNodeId<Global>;
+
 /// The type of a MIR node.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum NodeType {

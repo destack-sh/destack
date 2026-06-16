@@ -3,7 +3,6 @@ use super::{
 };
 use crate::{
     Access, Function, Lifetime, MirFormatOptions, Nullability, ReferenceKind, Space, Type,
-    TypeReference,
 };
 
 /// Preserves declaration comments while normalizing canonical separators and names.
@@ -24,7 +23,7 @@ function use(v0: Callable): int32 {
 entry(v0: Callable):
     v1: ref<int32, raw, readonly> = global.address Count
     v2: int32 = load v1
-    v3: int32 = call.indirect v0(v2): (int32) -> int32
+    v3: int32 = call.indirect v0(v2): (int32) => int32
     return v3
 }
 "#,
@@ -42,7 +41,7 @@ function use(v0: Callable): int32 {
 entry(v0: Callable):
     v1: ref<int32, raw, readonly> = global.address Count
     v2: int32 = load v1
-    v3: int32 = call.indirect v0(v2): (int32) -> int32
+    v3: int32 = call.indirect v0(v2): (int32) => int32
     return v3
 }
 "#,
@@ -125,10 +124,10 @@ entry:
         lifetime: Lifetime::empty(),
         space: Space::Local,
         access: Access::Mutable,
-        pointee: TypeReference::from(int32),
+        pointee: int32,
         nullability: Nullability::None,
     });
-    tree.get_mut(function_id).environment = Some(TypeReference::from(environment));
+    tree.get_mut(function_id).environment = Some(environment);
 
     // // detail
     let output = format_tree_with_options(&tree, &strings, MirFormatOptions::default());

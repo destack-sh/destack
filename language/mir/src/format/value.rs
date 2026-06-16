@@ -3,34 +3,17 @@ use destack_fir::format::{Format, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use super::r#type::format_lifetime_group;
+use super::r#type::format_type_expanded;
 
 use crate::{
-    BlockReference, Constant, FunctionReference, GlobalReference, IntegerReference, LocalNodeId,
-    LocalReference, MirFormatContext, MirFormatter, Place, PlaceOrigin, Projection, Type,
-    TypeReference, Value, ValueReference,
+    BlockId, Constant, FunctionId, GlobalId, LocalNodeId, MirFormatContext, MirFormatter, Place,
+    PlaceOrigin, Projection, Type, TypeId, Value,
 };
-
-fn write_recovery_token<'a>(is_missing: bool, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
-    let token_text = if is_missing { "<missing>" } else { "<error>" };
-
-    write!(f, [token(token_text)])
-}
 
 impl<'a> Format<MirFormatContext<'a>> for Value {
     fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
         let name = f.context().value_name(*self)?;
         write!(f, [text(&name)])
-    }
-}
-
-impl<'a> Format<MirFormatContext<'a>> for ValueReference {
-    fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
-        match self {
-            ValueReference::Value(value) => value.format(f),
-            ValueReference::Missing => write_recovery_token(true, f),
-            ValueReference::Error => write_recovery_token(false, f),
-        }
     }
 }
 
@@ -49,91 +32,6 @@ impl<'a> Format<MirFormatContext<'a>> for Place {
             format_place_projection(projection, f)?;
         }
         write!(f, [token(")")])
-    }
-}
-
-impl<'a> Format<MirFormatContext<'a>> for TypeReference {
-    fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
-        match self {
-            TypeReference::Type { ty, lifetimes } => {
-                if lifetimes.is_empty() {
-                    return ty.format(f);
-                }
-                write!(f, [ty, token("<")])?;
-                for (index, lifetime) in lifetimes.iter().enumerate() {
-                    if index > 0 {
-                        write!(f, [token(","), space()])?;
-                    }
-                    write!(f, [token("lifetime")])?;
-                    format_lifetime_group(lifetime, f)?;
-                }
-                write!(f, [token(">")])
-            }
-            TypeReference::Missing => write_recovery_token(true, f),
-            TypeReference::Error => write_recovery_token(false, f),
-        }
-    }
-}
-
-impl<'a> Format<MirFormatContext<'a>> for BlockReference {
-    fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
-        match self {
-            BlockReference::Block(block) => {
-                let name = f.context().block_name(*block);
-                write!(f, [text(&name)])
-            }
-            BlockReference::Missing => write_recovery_token(true, f),
-            BlockReference::Error => write_recovery_token(false, f),
-        }
-    }
-}
-
-impl<'a> Format<MirFormatContext<'a>> for FunctionReference {
-    fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
-        match self {
-            FunctionReference::Function(function) => {
-                let name = f.context().function_name(*function).to_string();
-                write!(f, [text(&name)])
-            }
-            FunctionReference::Missing => write_recovery_token(true, f),
-            FunctionReference::Error => write_recovery_token(false, f),
-        }
-    }
-}
-
-impl<'a> Format<MirFormatContext<'a>> for GlobalReference {
-    fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
-        match self {
-            GlobalReference::Global(global) => {
-                let name = f.context().global_name(*global).to_string();
-                write!(f, [text(&name)])
-            }
-            GlobalReference::Missing => write_recovery_token(true, f),
-            GlobalReference::Error => write_recovery_token(false, f),
-        }
-    }
-}
-
-impl<'a> Format<MirFormatContext<'a>> for LocalReference {
-    fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
-        match self {
-            LocalReference::Local(local) => {
-                let index = f.context().local_index(*local);
-                write!(f, [text(&format!("l{index}"))])
-            }
-            LocalReference::Missing => write_recovery_token(true, f),
-            LocalReference::Error => write_recovery_token(false, f),
-        }
-    }
-}
-
-impl<'a> Format<MirFormatContext<'a>> for IntegerReference {
-    fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
-        match self {
-            IntegerReference::Integer(value) => write!(f, [text(&value.to_string())]),
-            IntegerReference::Missing => write_recovery_token(true, f),
-            IntegerReference::Error => write_recovery_token(false, f),
-        }
     }
 }
 
@@ -169,6 +67,47 @@ impl<'a> Format<MirFormatContext<'a>> for Constant {
             }
         }
     }
+}
+
+/// Format a type id by canonical MIR name.
+pub(crate) fn format_type_id<'a>(ty: TypeId, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+    if let Some(name) = f.context().type_alias_name(ty).map(str::to_string) {
+        return write!(f, [text(&name)]);
+    }
+
+    let node = f.context().tree.get(ty);
+
+    format_type_expanded(f, ty, node)
+}
+
+/// Format a block id by canonical MIR name.
+pub(crate) fn format_block_id<'a>(
+    block: BlockId,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    let name = f.context().block_name(block);
+
+    write!(f, [text(&name)])
+}
+
+/// Format a function id by canonical MIR name.
+pub(crate) fn format_function_id<'a>(
+    function: FunctionId,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    let name = f.context().function_name(function).to_string();
+
+    write!(f, [text(&name)])
+}
+
+/// Format a global id by canonical MIR name.
+pub(crate) fn format_global_id<'a>(
+    global: GlobalId,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    let name = f.context().global_name(global).to_string();
+
+    write!(f, [text(&name)])
 }
 
 /// Format one constant with an expected MIR type.
@@ -228,10 +167,8 @@ fn constant_storage_type<'a>(
     f: &mut MirFormatter<'a, '_>,
 ) -> LocalNodeId<Type> {
     let expected = f.context().tree.get(ty);
-    if let Type::Newtype { inner, .. } = expected
-        && let Some(inner) = inner.ty()
-    {
-        inner
+    if let Type::Newtype { inner, .. } = expected {
+        *inner
     } else {
         ty
     }
@@ -240,7 +177,10 @@ fn constant_storage_type<'a>(
 /// Format one MIR place origin.
 fn format_place_origin<'a>(origin: &PlaceOrigin, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
     match origin {
-        PlaceOrigin::Local(local) => local.format(f),
+        PlaceOrigin::Local(local) => {
+            let index = f.context().local_index(*local);
+            write!(f, [text(&format!("l{index}"))])
+        }
         PlaceOrigin::Global(global) => global.format(f),
         PlaceOrigin::Value(value) => value.format(f),
     }

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use super::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, Mutation};
-use crate::{Block, BlockReference, ControlFlowGraph, Function, LocalNodeId, Tree};
+use crate::{Block, ControlFlowGraph, Function, LocalNodeId, Tree};
 
 /// Dense control flow graph used by dominance computation.
 #[derive(Debug)]
@@ -33,11 +33,7 @@ impl DenseControlFlow {
             let block_data = tree.get(block);
             let terminator = tree.get(block_data.terminator);
 
-            for successor in terminator.successors() {
-                let BlockReference::Block(successor) = successor else {
-                    continue;
-                };
-
+            for successor in tree.terminator_successors(terminator) {
                 let successor_index = block_index[&successor];
                 successors[index].push(successor_index);
             }

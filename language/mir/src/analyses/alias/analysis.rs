@@ -394,10 +394,7 @@ entry(v0: ref<int32, raw>):
         let function_id = program.entry_function_id();
         let param_value = {
             let function = program.tree.get(function_id);
-            function.parameters[0]
-                .value
-                .value()
-                .expect("parameter value should be concrete")
+            function.parameters[0].value
         };
         let (call_inst, _callee) = program.first_call_in_entry(function_id);
 

@@ -1,6 +1,6 @@
 use crate::{
     Block, Field, Function, Global, Instruction, Local, LocalNodeId, NodeType, NodeVisitor,
-    Terminator, Tree, Type, TypeAlias, TypeReference,
+    Terminator, Tree, Type, TypeAlias, TypeId,
 };
 
 /// Walk any node.
@@ -135,27 +135,31 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Type, id.id);
 
     match ty {
+        Type::Error => {}
         Type::Reference { pointee, .. } => {
-            walk_type_reference(visitor, tree, pointee);
+            walk_type_id(visitor, tree, pointee);
         }
         Type::Atomic { value } => {
-            walk_type_reference(visitor, tree, value);
+            walk_type_id(visitor, tree, value);
         }
         Type::Dynamic { constraint } => {
-            walk_type_reference(visitor, tree, constraint);
+            walk_type_id(visitor, tree, constraint);
+        }
+        Type::WithLifetimes { base, .. } => {
+            walk_type_id(visitor, tree, base);
         }
         Type::Uninit { value } => {
-            walk_type_reference(visitor, tree, value);
+            walk_type_id(visitor, tree, value);
         }
         Type::Array { element, .. } => {
-            walk_type_reference(visitor, tree, element);
+            walk_type_id(visitor, tree, element);
         }
         Type::Slice { element, .. } => {
-            walk_type_reference(visitor, tree, element);
+            walk_type_id(visitor, tree, element);
         }
         Type::Tuple { elements, copy: _ } => {
             for element_id in elements {
-                walk_type_reference(visitor, tree, element_id);
+                walk_type_id(visitor, tree, element_id);
             }
         }
         Type::Struct { fields, copy: _ } => {
@@ -165,7 +169,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             }
         }
         Type::Newtype { inner, .. } => {
-            walk_type_reference(visitor, tree, inner);
+            walk_type_id(visitor, tree, inner);
         }
         Type::Variant {
             tag,
@@ -173,38 +177,38 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             cases,
             copy: _,
         } => {
-            walk_type_reference(visitor, tree, tag);
-            walk_type_reference(visitor, tree, storage);
+            walk_type_id(visitor, tree, tag);
+            walk_type_id(visitor, tree, storage);
             for case in cases {
-                walk_type_reference(visitor, tree, &case.ty);
+                walk_type_id(visitor, tree, &case.ty);
             }
         }
         Type::Vector { element, .. } => {
-            walk_type_reference(visitor, tree, element);
+            walk_type_id(visitor, tree, element);
         }
         Type::Tensor { element, .. } => {
-            walk_type_reference(visitor, tree, element);
+            walk_type_id(visitor, tree, element);
         }
         Type::TensorView { element, .. } => {
-            walk_type_reference(visitor, tree, element);
+            walk_type_id(visitor, tree, element);
         }
         Type::FunctionSignature {
             parameters, result, ..
         } => {
             for parameter_id in parameters {
-                walk_type_reference(visitor, tree, parameter_id);
+                walk_type_id(visitor, tree, parameter_id);
             }
-            walk_type_reference(visitor, tree, result);
+            walk_type_id(visitor, tree, result);
         }
         Type::FunctionPointer { signature } => {
-            walk_type_reference(visitor, tree, signature);
+            walk_type_id(visitor, tree, signature);
         }
         Type::Closure {
             signature,
             environment,
         } => {
-            walk_type_reference(visitor, tree, signature);
-            walk_type_reference(visitor, tree, environment);
+            walk_type_id(visitor, tree, signature);
+            walk_type_id(visitor, tree, environment);
         }
         Type::Void
         | Type::Boolean
@@ -225,10 +229,8 @@ pub fn walk_type_alias<V: NodeVisitor + ?Sized>(
     type_alias: &TypeAlias,
 ) {
     visitor.visit_any(tree, NodeType::TypeAlias, id.id);
-    if let Some(aliased_ty_id) = type_alias.ty.ty() {
-        let aliased_ty = tree.get(aliased_ty_id);
-        visitor.visit_type(tree, aliased_ty_id, aliased_ty);
-    }
+    let aliased_ty = tree.get(type_alias.ty);
+    visitor.visit_type(tree, type_alias.ty, aliased_ty);
 }
 
 /// Walk a Field.
@@ -239,22 +241,14 @@ pub fn walk_field<V: NodeVisitor + ?Sized>(
     field: &Field,
 ) {
     visitor.visit_any(tree, NodeType::Field, id.id);
-    if let Some(field_ty_id) = field.ty.ty() {
-        let field_ty = tree.get(field_ty_id);
-        visitor.visit_type(tree, field_ty_id, field_ty);
-    }
+    let field_ty = tree.get(field.ty);
+    visitor.visit_type(tree, field.ty, field_ty);
 }
 
 /// Walk one referenced type node when present.
-fn walk_type_reference<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &Tree,
-    reference: &TypeReference,
-) {
-    if let Some(type_id) = reference.ty() {
-        let ty = tree.get(type_id);
-        visitor.visit_type(tree, type_id, ty);
-    }
+fn walk_type_id<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, reference: &TypeId) {
+    let ty = tree.get(*reference);
+    visitor.visit_type(tree, *reference, ty);
 }
 
 /// Walk a Global.
