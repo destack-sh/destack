@@ -5,9 +5,10 @@ use super::compile_mir_to_normalized_clif;
 fn test_empty_void_function() {
     let mir = r#"
 function empty(): void {
-b0:
+entry:
     return
-}"#;
+}
+"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -24,10 +25,11 @@ b0:
 fn test_function_with_i32_params() {
     let mir = r#"
 function add(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
+entry(v0: int32, v1: int32):
     v2: int32 = int.add v0, v1
     return v2
-}"#;
+}
+"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -45,10 +47,11 @@ b0(v0: int32, v1: int32):
 fn test_function_returning_i64() {
     let mir = r#"
 function returns_i64(): int64 {
-b0:
-    v0: int64 = 42int64
+entry:
+    v0: int64 = 42
     return v0
-}"#;
+}
+"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"

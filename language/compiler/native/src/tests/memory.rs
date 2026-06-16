@@ -11,10 +11,11 @@ use super::compile_mir_to_normalized_clif;
 fn test_load_from_pointer() {
     let mir = r#"
 function read_ptr(v0: ref<int32, raw, readonly>): int32 {
-b0(v0: ref<int32, raw, readonly>):
+entry(v0: ref<int32, raw, readonly>):
     v1: int32 = load v0
     return v1
-}"#;
+}
+"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -33,11 +34,12 @@ b0(v0: int64):
 fn test_load_double_indirection() {
     let mir = r#"
 function read_ptr_ptr(v0: ref<ref<int32, raw>, raw, readonly>): int32 {
-b0(v0: ref<ref<int32, raw>, raw, readonly>):
+entry(v0: ref<ref<int32, raw>, raw, readonly>):
     v1: ref<int32, raw, readonly> = load v0
     v2: int32 = load v1
     return v2
-}"#;
+}
+"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -57,10 +59,11 @@ b0(v0: int64):
 fn test_load_i64() {
     let mir = r#"
 function read_ptr64(v0: ref<int64, raw, readonly>): int64 {
-b0(v0: ref<int64, raw, readonly>):
+entry(v0: ref<int64, raw, readonly>):
     v1: int64 = load v0
     return v1
-}"#;
+}
+"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -79,10 +82,11 @@ b0(v0: int64):
 fn test_load_bool() {
     let mir = r#"
 function read_bool(v0: ref<boolean, raw, readonly>): boolean {
-b0(v0: ref<boolean, raw, readonly>):
+entry(v0: ref<boolean, raw, readonly>):
     v1: boolean = load v0
     return v1
-}"#;
+}
+"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -101,13 +105,14 @@ b0(v0: int64):
 fn test_local_get() {
     let mir = r#"
 function local_test(v0: int32): int32 {
-    local local0: int32
+    local l0: int32
 
-b0(v0: int32):
-    v1: int32 = local.get local0
+entry(v0: int32):
+    v1: int32 = local.get l0
     v2: int32 = int.add v0, v1
     return v2
-}"#;
+}
+"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -129,13 +134,13 @@ b0(v0: int32):
 fn test_multiple_locals_load() {
     let mir = r#"
 function multi_local_test(v0: int32): int64 {
-    local local0: int32
-    local local1: int64
+    local l0: int32
+    local l1: int64
 
 b0(v0: int32):
-    v1: int32 = local.get local0
+    v1: int32 = local.get l0
     v2: int64 = cast.extend.u v1 to int64
-    v3: int64 = local.get local1
+    v3: int64 = local.get l1
     v4: int64 = int.add v2, v3
     return v4
 }"#;
@@ -163,10 +168,11 @@ b0(v0: int32):
 fn test_load_float() {
     let mir = r#"
 function read_float(v0: ref<float32, raw, readonly>): float32 {
-b0(v0: ref<float32, raw, readonly>):
+entry(v0: ref<float32, raw, readonly>):
     v1: float32 = load v0
     return v1
-}"#;
+}
+"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"

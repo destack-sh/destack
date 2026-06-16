@@ -9,16 +9,17 @@ use super::compile_mir_to_normalized_clif;
 fn test_direct_call_no_args() {
     let mir = r#"
 function callee(): int32 {
-b0:
-    v0: int32 = 42int32
+entry:
+    v0: int32 = 42
     return v0
 }
 
 function caller(): int32 {
-b0:
+entry:
     v0: int32 = call callee()
     return v0
-}"#;
+}
+"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     // cranelift declares the signature separately with "sigN = ..."
@@ -47,18 +48,19 @@ b0:
 fn test_direct_call_with_args() {
     let mir = r#"
 function add(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
+entry(v0: int32, v1: int32):
     v2: int32 = int.add v0, v1
     return v2
 }
 
 function caller(): int32 {
-b0:
-    v0: int32 = 10int32
-    v1: int32 = 20int32
+entry:
+    v0: int32 = 10
+    v1: int32 = 20
     v2: int32 = call add(v0, v1)
     return v2
-}"#;
+}
+"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -87,15 +89,16 @@ b0:
 fn test_void_call() {
     let mir = r#"
 function void_fn(): void {
-b0:
+entry:
     return
 }
 
 function caller(): void {
-b0:
+entry:
     call void_fn()
     return
-}"#;
+}
+"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     // void calls don't produce a value, so no "v0 =" prefix
@@ -122,17 +125,18 @@ b0:
 fn test_multiple_calls_same_function() {
     let mir = r#"
 function double(v0: int32): int32 {
-b0(v0: int32):
+entry(v0: int32):
     v1: int32 = int.add v0, v0
     return v1
 }
 
 function caller(v0: int32): int32 {
-b0(v0: int32):
+entry(v0: int32):
     v1: int32 = call double(v0)
     v2: int32 = call double(v1)
     return v2
-}"#;
+}
+"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -160,8 +164,8 @@ b0(v0: int32):
 fn test_recursive_call() {
     let mir = r#"
 function factorial(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
+entry(v0: int32):
+    v1: int32 = 1
     v2: boolean = int.le.s v0, v1
     branch v2, b1, b2
 
@@ -173,7 +177,8 @@ b2:
     v4: int32 = call factorial(v3)
     v5: int32 = int.mul v0, v4
     return v5
-}"#;
+}
+"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     // recursive call: function calls itself
@@ -206,11 +211,12 @@ fn test_closure_environment_signature_param() {
     let mir = r#"
 @environment(ref<int32, raw, space(frame)>)
 function read_env(): int32 {
-b0:
+entry:
     v0: ref<int32, raw, space(frame)> = closure.environment
     v1: int32 = load v0
     return v1
-}"#;
+}
+"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"

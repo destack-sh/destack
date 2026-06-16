@@ -316,7 +316,7 @@ mod tests {
     #[test]
     fn test_lower_static_data_preserves_record_padding() {
         let source = r#"
-readonly global padded: { int8, int32, int16 }, space(static) = { 1int8, 100int32, 50int16 };
+readonly global padded: { int8, int32, int16 }, space(static) = {1int8, 100int32, 50int16}
 "#;
         let (tree, global) = parse_global(source, "padded");
 
@@ -335,11 +335,11 @@ readonly global padded: { int8, int32, int16 }, space(static) = { 1int8, 100int3
     fn test_lower_static_data_records_function_address_relocation() {
         let source = r#"
 function target(): void {
-b0:
+entry:
     return
 }
 
-readonly global table: [ref<void, raw, readonly, space(static), nullable>; 2], space(static) = { null, functionAddress target };
+readonly global table: [ref<void, raw, readonly, nullable, space(static)>; 2], space(static) = {null, functionAddress target}
 "#;
         let (tree, global) = parse_global(source, "table");
 

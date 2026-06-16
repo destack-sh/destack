@@ -6,12 +6,13 @@ fn test_struct_construction_i32_i32() {
     // aggregates in cranelift are always pointers, so return ref type
     let mir = r#"
 function make_point(): ref<{ int32, int32 }, raw> {
-b0:
-    v0: int32 = 10int32
-    v1: int32 = 20int32
+entry:
+    v0: int32 = 10
+    v1: int32 = 20
     v2: { int32, int32 } = struct { int32, int32 } (v0, v1)
     return v2
-}"#;
+}
+"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     // struct construction: allocate stack slot, store each field, return address
@@ -36,12 +37,13 @@ b0:
 fn test_tuple_construction_i32_i32() {
     let mir = r#"
 function make_pair(): ref<(int32, int32), raw> {
-b0:
-    v0: int32 = 42int32
-    v1: int32 = 99int32
+entry:
+    v0: int32 = 42
+    v1: int32 = 99
     v2: (int32, int32) = tuple (int32, int32) (v0, v1)
     return v2
-}"#;
+}
+"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     // tuple construction: allocate stack slot, store each element, return address
@@ -66,13 +68,14 @@ b0:
 fn test_array_construction_i32_3() {
     let mir = r#"
 function make_array(): ref<[int32; 3], raw> {
-b0:
-    v0: int32 = 1int32
-    v1: int32 = 2int32
-    v2: int32 = 3int32
+entry:
+    v0: int32 = 1
+    v1: int32 = 2
+    v2: int32 = 3
     v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
     return v3
-}"#;
+}
+"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     // array construction: allocate stack slot, store each element at index*size
@@ -99,13 +102,14 @@ b0:
 fn test_struct_construction_mixed_types() {
     let mir = r#"
 function make_mixed(): ref<{ int8, int32, int16 }, raw> {
-b0:
-    v0: int8 = 1int8
-    v1: int32 = 100int32
-    v2: int16 = 50int16
+entry:
+    v0: int8 = 1
+    v1: int32 = 100
+    v2: int16 = 50
     v3: { int8, int32, int16 } = struct { int8, int32, int16 } (v0, v1, v2)
     return v3
-}"#;
+}
+"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     // layout: i8 at 0, i32 at 4 (aligned), i16 at 8
@@ -133,12 +137,13 @@ b0:
 fn test_array_construction_i64_2() {
     let mir = r#"
 function make_array(): ref<[int64; 2], raw> {
-b0:
-    v0: int64 = 100int64
-    v1: int64 = 200int64
+entry:
+    v0: int64 = 100
+    v1: int64 = 200
     v2: [int64; 2] = array [int64; 2] (v0, v1)
     return v2
-}"#;
+}
+"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     // array: 2 * 8 = 16 bytes, 8-byte alignment
