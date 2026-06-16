@@ -410,12 +410,14 @@ impl WalkState<'_, '_> {
                 signature,
                 body,
                 abstraction,
+                is_ambient,
                 is_static,
                 is_override,
                 ..
             } => {
                 let (key, body, is_static) = (*key, *body, *is_static);
-                let (abstraction, is_override) = (*abstraction, *is_override);
+                let (abstraction, is_ambient, is_override) =
+                    (*abstraction, *is_ambient, *is_override);
 
                 if let Some(dir::Key::Expression(key)) = key {
                     // check computed member keys in declaration context
@@ -436,6 +438,10 @@ impl WalkState<'_, '_> {
 
                 // walk signature before reading its inputs
                 self.walk_function_signature(template, signature)?;
+                if body.is_none() && !is_ambient && !abstraction.is_abstract() {
+                    let member = self.method_body_name(key, signature);
+                    self.report_missing_declaration_body(id.into_any(), member);
+                }
                 let implicit_receiver_scope = if is_static { None } else { receiver_scope };
                 let receiver = self.method_receiver_binding(
                     id,
@@ -855,6 +861,25 @@ impl WalkState<'_, '_> {
             signature.role,
             Some(dir::FunctionRole::Constructor | dir::FunctionRole::New)
         )
+    }
+
+    /// Return the name used to report one method body requirement.
+    fn method_body_name(
+        &self,
+        key: Option<dir::Key>,
+        signature: &dir::FunctionSignature,
+    ) -> String {
+        match signature.role {
+            Some(dir::FunctionRole::Constructor) => "constructor".to_string(),
+            Some(dir::FunctionRole::New) => "new".to_string(),
+            Some(dir::FunctionRole::Call) => "call".to_string(),
+            Some(dir::FunctionRole::Getter) => "get".to_string(),
+            Some(dir::FunctionRole::Setter) => "set".to_string(),
+            None => key
+                .and_then(dir::Key::direct_static_key)
+                .map(|key| self.check.format_static_key(&key))
+                .unwrap_or_else(|| "method".to_string()),
+        }
     }
 
     /// Return one method body or call signature result type.

@@ -4,7 +4,7 @@ use crate::check::{
     Decision, GenericInductionDeclaration, GenericTemplateId, HeritageObligation, LayoutObligation,
     Obligation, Origin, Receiver, ReceiverBinding, Relation, WalkState,
 };
-use crate::{CompilerError, CompilerResult};
+use crate::{CheckError, CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
     /// Declare generic headers introduced by one expression.
@@ -744,6 +744,9 @@ impl WalkState<'_, '_> {
         let template =
             self.signature_template(source, None, Some(symbol), &declaration.signature)?;
         self.walk_function_signature(template, &declaration.signature)?;
+        if declaration.body.is_none() && !declaration.is_ambient {
+            self.report_missing_declaration_body(id.into_any(), self.check.format_symbol(symbol));
+        }
         let result =
             self.function_result_type(id.into_any(), &declaration.signature, declaration.body)?;
 
@@ -1007,6 +1010,21 @@ impl WalkState<'_, '_> {
                 super_ty: None,
             },
         })
+    }
+
+    /// Report one concrete callable declaration without an implementation body.
+    pub(in crate::check) fn report_missing_declaration_body(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        member: String,
+    ) {
+        let (module, anchor) = self.check.source_anchor(source.into_global(self.module));
+        let error = CheckError::MissingDeclarationBody {
+            anchor,
+            module,
+            member,
+        };
+        self.check.module_mut(module).diagnostics.push(error.into());
     }
 
     /// Return one function result type.
