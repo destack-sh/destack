@@ -207,7 +207,7 @@ const values = [1, 2, 3] as Slice<_>;
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===
-const values: Slice<float64> = [1 as float64, 2 as float64, 3 as float64] as Slice<float64>;
+const values: Slice<float64> = [1, 2, 3] as Slice<float64>;
 
 === checked ===
 const values = [1, 2, 3] as Slice<_>;
@@ -238,7 +238,7 @@ const values = [1, 2, 3] as [_];
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===
-const values: [float64] = [1 as float64, 2 as float64, 3 as float64] as [float64];
+const values: [float64] = [1, 2, 3] as [float64];
 
 === checked ===
 const values = [1, 2, 3] as [_];

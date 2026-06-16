@@ -15,12 +15,18 @@ const visible = 1;
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
+=== annotated ===
+@if(false)
+const hidden: MissingType = missingValue;
+
+const visible: 1 = 1;
+
+=== checked ===
 @if(false)
 const hidden: MissingType = missingValue;
 
 const visible = 1;
-/// @type.node source="const visible = 1" type=void
-/// @type.symbol symbol=visible type=int32
+/// @type.symbol symbol=visible source=visible type=1
 /// @type.node source=1 type=1
 "#,
     );
@@ -39,15 +45,19 @@ const value: int32 = "text";
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
+=== annotated ===
 @if(true)
-/// @type.node type=void
-
 const value: int32 = "text";
-/// @type.symbol symbol=value type=int32
+
+=== checked ===
+@if(true)
+const value: int32 = "text";
+/// @type.symbol symbol=value source=value type=int32
 /// @type.node source="\"text\"" type="text"
 "#,
         r#"
-
+/// @diagnostic.error code=EC200 message="type '\"text\"' is not assignable to type 'int32'"
+/// @diagnostic.label line=3 column=22 source="const value: int32 = \"text\";"
 "#,
     );
 }

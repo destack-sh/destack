@@ -184,7 +184,7 @@ const values: number[] = [1, 2, 3];
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-const values: number[] = [1 as float64, 2 as float64, 3 as float64];
+const values: number[] = [1, 2, 3];
 
 === checked ===
 const values: number[] = [1, 2, 3];

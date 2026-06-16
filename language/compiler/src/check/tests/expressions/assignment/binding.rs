@@ -83,8 +83,8 @@ value = 2;
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-let value: float64 = 1 as float64;
-value = 2 as float64;
+let value: float64 = 1;
+value = 2;
 
 === checked ===
 let value = 1;
@@ -116,7 +116,7 @@ value = "text";
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-let value: float64 = 1 as float64;
+let value: float64 = 1;
 value = "text";
 
 === checked ===

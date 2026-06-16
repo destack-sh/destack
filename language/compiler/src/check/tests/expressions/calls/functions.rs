@@ -19,6 +19,14 @@ const value = add(1, 2);
             .without_reference_types()
             .with_check_stats(),
         r#"
+=== annotated ===
+function add(left: int32, right: int32): int32 {
+    return left + right;
+}
+
+const value: int32 = add(1, 2);
+
+=== checked ===
 function add(left: int32, right: int32): int32 {
 /// @type.symbol symbol=add type=(int32, int32) => int32
 /// @type.symbol symbol=left source="left: int32" type=int32
@@ -40,7 +48,7 @@ const value = add(1, 2);
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=14 terms=13 constraints=37 obligations=0 solutions=14 bounds=33 decisions=5
+/// @check.stats.solve variables=3 types=13 constraints=4 obligations=0 solutions=3 bounds=4 decisions=5
 "#);
 }
 
@@ -69,6 +77,12 @@ const value = add(1, 2);
         "main.ds",
         DirRows::checked().with_node_types().without_reference_types(),
         r#"
+=== annotated ===
+import { add } from "./math.ds";
+
+const value: int32 = add(1, 2);
+
+=== checked ===
 import { add } from "./math.ds";
 
 const value = add(1, 2);
@@ -96,21 +110,27 @@ use(source);
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
+=== annotated ===
 function source(value?: unknown): void {}
-/// @type.symbol symbol=source source="function source(value?: unknown): void {}" type=(unknown | undefined?) => ()
+declare function use(callback: (value: unknown) => void): void;
+
+use(source);
+
+=== checked ===
+function source(value?: unknown): void {}
+/// @type.symbol symbol=source source="function source(value?: unknown): void {}" type=(unknown | undefined?) => void
 /// @type.symbol symbol=value#1 source="value?: unknown" type=unknown | undefined
 
 declare function use(callback: (value: unknown) => void): void;
-/// @type.symbol symbol=use source="declare function use(callback: (value: unknown) => void): void" type=((unknown) => ()) => ()
-/// @type.symbol symbol=callback source="callback: (value: unknown) => void" type=(unknown) => ()
-/// @type.symbol symbol=value#2 source="value: unknown" type=unknown
+/// @type.symbol symbol=use source="declare function use(callback: (value: unknown) => void): void" type=((unknown) => void) => void
+/// @type.symbol symbol=callback source="callback: (value: unknown) => void" type=(unknown) => void
 
 use(source);
-/// @type.node source=use type=((unknown) => ()) => ()
-/// @type.node source=use(source) type=()
+/// @type.node source=use type=((unknown) => void) => void
+/// @type.node source=use(source) type=void
 /// @resolution.name source=use target=use
-/// @resolution.call source=use(source) parameters=((unknown) => ()) return=() kind=symbol target=use
-/// @type.node source=source type=(unknown | undefined?) => ()
+/// @resolution.call source=use(source) parameters=((unknown) => void) return=void kind=symbol target=use
+/// @type.node source=source type=(unknown | undefined?) => void
 /// @resolution.name source=source target=source
 "#,
     );

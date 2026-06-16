@@ -58,8 +58,9 @@ const value: Named = source;
 === annotated ===
 type Named = { name: string };
 
-const source: { name: string; extra: boolean } = { name: "Ada", extra: true };
-const value: Named = source;
+const source: { name: string; extra: boolean } =
+    { name: "Ada", extra: true };
+const value: Named = source as Named;
 
 === checked ===
 type Named = { name: string };
