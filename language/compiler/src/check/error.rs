@@ -992,6 +992,21 @@ pub enum CheckError {
         target: String,
     },
 
+    /// Concrete callable declaration has no body.
+    ///
+    /// ```ds
+    /// function parse(input: string): int32;
+    /// ```
+    #[diagnostic(code = "EC611", message = "'{member}' requires a body")]
+    MissingDeclarationBody {
+        /// Report the bodyless declaration.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The bodyless declaration name.
+        member: String,
+    },
+
     /// Ambient signature elides a result lifetime.
     ///
     /// ```ds
