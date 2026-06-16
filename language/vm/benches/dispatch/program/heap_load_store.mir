@@ -1,22 +1,22 @@
-function heapLoadStore(value0: int32): int32 {
-entry0(value0: int32):
-    value1: ref<int32, managed, readonly> = new.zeroed int32
-    value2: int32 = 0int32
-    value3: int32 = 0int32
-    jump block1(value2, value3)
+function heapLoadStore(v0: int32): int32 {
+entry(v0: int32):
+    v1: ref<int32, managed, readonly> = new.zeroed int32
+    v2: int32 = 0
+    v3: int32 = 0
+    jump b1(v2, v3)
 
-block1(value4: int32, value5: int32):
-    value6: boolean = int.lt.s value4, value0
-    branch value6, block2(value4, value5), block3(value5)
+b1(v4: int32, v5: int32):
+    v6: boolean = int.lt.s v4, v0
+    branch v6, b2(v4, v5), b3(v5)
 
-block2(value7: int32, value8: int32):
-    store value1, value7
-    value9: int32 = load value1
-    value10: int32 = 1int32
-    value11: int32 = int.add value7, value10
-    value12: int32 = int.add value8, value9
-    jump block1(value11, value12)
+b2(v7: int32, v8: int32):
+    store v1, v7
+    v9: int32 = load v1
+    v10: int32 = 1
+    v11: int32 = int.add v7, v10
+    v12: int32 = int.add v8, v9
+    jump b1(v11, v12)
 
-block3(value13: int32):
-    return value13
+b3(v13: int32):
+    return v13
 }

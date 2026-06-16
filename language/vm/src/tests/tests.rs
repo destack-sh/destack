@@ -584,16 +584,17 @@ type Box {
 }
 
 function sumBox(v0: int32): int32 {
-b0(v0: int32):
+entry(v0: int32):
     v1: Box = struct Box (v0)
     v2: ref<Box, managed, readonly> = new.zeroed Box
     store v2, v1
     v3: ref<int32, managed, readonly> = field.address v2, 0
     v4: int32 = load v3
-    v5: int32 = 1int32
+    v5: int32 = 1
     v6: int32 = int.add v4, v5
     return v6
-}"#;
+}
+"#;
 
     let output = run_mir_ok(mir_text, "sumBox", &[Value::int32(9)]);
 
@@ -609,20 +610,21 @@ type Box {
 }
 
 function readValueClass(v0: int32): int32 {
-b0(v0: int32):
+entry(v0: int32):
     v1: Box = struct Box (v0)
     v2: ref<Box, managed, readonly> = new.zeroed Box
     store v2, v1
-    v3: int32 = call Box.get(v2): (ref<Box, managed, readonly>) -> int32
+    v3: int32 = call Box.get(v2)
     return v3
 }
 
 function Box.get(v0: ref<Box, managed, readonly>): int32 {
-b0(v0: ref<Box, managed, readonly>):
+entry(v0: ref<Box, managed, readonly>):
     v1: ref<int32, managed, readonly> = field.address v0, 0
     v2: int32 = load v1
     return v2
-}"#;
+}
+"#;
 
     let output = run_mir_ok(mir_text, "readValueClass", &[Value::int32(9)]);
 
@@ -634,18 +636,19 @@ b0(v0: ref<Box, managed, readonly>):
 fn test_stored_closure_roundtrips() {
     let mir_text = r#"
 type Fn = () -> int32;
+
 type Holder {
     action: Fn;
 }
 
 function target(): int32 {
-b0:
-    v0: int32 = 7int32
+entry:
+    v0: int32 = 7
     return v0
 }
 
 function run(): int32 {
-b0:
+entry:
     v0: Fn = function.address target
     v1: ref<Holder, managed, readonly> = new.zeroed Holder
     v2: Holder = struct Holder (v0)
@@ -654,7 +657,8 @@ b0:
     v4: Fn = load v3
     v5: int32 = call.indirect v4(): () -> int32
     return v5
-}"#;
+}
+"#;
 
     let output = run_mir_ok(mir_text, "run", &[]);
 
@@ -670,43 +674,45 @@ type Greeter {
     value: ref<void, managed, readonly>;
     table: ref<void, raw, readonly, space(static)>;
 }
+
 type GreeterImpl {
-    vtable: ref<void, raw, readonly, space(local)>;
+    vtable: ref<void, raw, readonly>;
     value: int32;
 }
+
 type Greeter#object {
     greet: () => int32;
 }
 
-readonly global GreeterImpl#vtable: [ref<void, raw, readonly, space(local), nullable>; 3] = zeroInit
+readonly global GreeterImpl#vtable: [ref<void, raw, readonly, nullable>; 3] = zeroInit
 
 external function Greeter.greet(Greeter#object): int32
 
 function callInterface(v0: Greeter): int32 {
-b0(v0: Greeter):
+entry(v0: Greeter):
     v1: ref<void, managed, readonly> = field.get v0, 0
     v2: int32 = call.dynamic v0, Greeter#object, 1(v1): (Greeter#object) -> int32
     return v2
 }
 
 function runInterface(): int32 {
-b0:
-    v0: int32 = 41int32
-    v1: ref<GreeterImpl, managed, readonly> = call GreeterImpl.constructor(v0): (int32) -> ref<GreeterImpl, managed, readonly>
+entry:
+    v0: int32 = 41
+    v1: ref<GreeterImpl, managed, readonly> = call GreeterImpl.constructor(v0)
     v2: ref<void, managed, readonly> = cast.bit v1 -> ref<void, managed, readonly>
-    v3: uint64 = 0uint64
+    v3: uint64 = 0
     v4: ref<void, raw, readonly, space(static)> = cast.bit v3 -> ref<void, raw, readonly, space(static)>
     v5: Greeter = struct Greeter (v2, v4)
-    v6: int32 = call callInterface(v5): (Greeter) -> int32
+    v6: int32 = call callInterface(v5)
     return v6
 }
 
 function GreeterImpl.constructor(v0: int32): ref<GreeterImpl, managed, readonly> {
-b0(v0: int32):
+entry(v0: int32):
     v1: ref<GreeterImpl, managed, readonly> = new.zeroed GreeterImpl
-    v2: ref<[ref<void, raw, readonly, space(local), nullable>; 3], raw, readonly, space(local)> = global.address GreeterImpl#vtable
-    v3: ref<void, raw, readonly, space(local)> = cast.bit v2 -> ref<void, raw, readonly, space(local)>
-    v4: int32 = 0int32
+    v2: ref<[ref<void, raw, readonly, nullable>; 3], raw, readonly> = global.address GreeterImpl#vtable
+    v3: ref<void, raw, readonly> = cast.bit v2 -> ref<void, raw, readonly>
+    v4: int32 = 0
     v5: GreeterImpl = struct GreeterImpl (v3, v4)
     store v1, v5
     v6: GreeterImpl = load v1
@@ -716,13 +722,14 @@ b0(v0: int32):
 }
 
 function GreeterImpl.greet(v0: ref<GreeterImpl, managed, readonly>): int32 {
-b0(v0: ref<GreeterImpl, managed, readonly>):
+entry(v0: ref<GreeterImpl, managed, readonly>):
     v1: GreeterImpl = load v0
     v2: int32 = field.get v1, 1
-    v3: int32 = 1int32
+    v3: int32 = 1
     v4: int32 = int.add v2, v3
     return v4
-}"#;
+}
+"#;
 
     let output = run_mir_ok(mir_text, "runInterface", &[]);
 

@@ -1404,7 +1404,8 @@ type Mixed {
     first: uint8;
     second: int64;
     third: uint8;
-}"#;
+}
+"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "Mixed");
         let layouts = build_test_layouts(&tree);
@@ -1425,7 +1426,8 @@ type Packed {
     first: uint8;
     inner: ref<int32, managed, readonly>;
     third: uint8;
-}"#;
+}
+"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "Packed");
         let layouts = build_test_layouts(&tree);
@@ -1453,7 +1455,8 @@ type Packed {
         let mir_text = r#"
 type View {
     name: ref<int32, borrowed, lifetime(static), readonly>;
-}"#;
+}
+"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "View");
         let layouts = build_test_layouts(&tree);
@@ -1474,7 +1477,8 @@ type View {
         let mir_text = r#"
 type View {
     items: slice<int32, managed>;
-}"#;
+}
+"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "View");
         let layouts = build_test_layouts(&tree);
@@ -1493,7 +1497,8 @@ type View {
     #[test]
     fn test_build_layout_uses_canonical_vector_stride() {
         let mir_text = r#"
-type Vec = vector<ref<int32, managed, readonly>, 2>"#;
+type Vec = vector<ref<int32, managed, readonly>, 2>;
+"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "Vec");
         let layouts = build_test_layouts(&tree);
@@ -1520,9 +1525,11 @@ type Vec = vector<ref<int32, managed, readonly>, 2>"#;
     fn test_build_layout_traces_newtype_wrapped_heap_reference() {
         let mir_text = r#"
 type Handle = newtype<ref<int32, managed, readonly>>;
+
 type Holder {
     value: Handle;
-}"#;
+}
+"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "Holder");
         let layouts = build_test_layouts(&tree);
@@ -1543,10 +1550,15 @@ type Holder {
     fn test_build_layout_uses_tagged_trace_map_for_union() {
         let mir_text = r#"
 type Ref = ref<int32, managed, readonly>;
+
 type Plain = int32;
+
 type Tag = uint8;
+
 type Storage = [usize; 1];
-type Shape = variant<Tag, Storage> { 0uint8 = Ref; 1uint8 = Plain; }"#;
+
+type Shape = variant<Tag, Storage> { 0uint8 = Ref; 1uint8 = Plain; };
+"#;
         let (mut tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let union_type = lookup_type_alias(&tree, &strings, "Shape");
         let layout_id = tree.metadata.layout.layout_table.insert(mir::Layout {
@@ -1603,7 +1615,8 @@ type Shape = variant<Tag, Storage> { 0uint8 = Ref; 1uint8 = Plain; }"#;
     #[test]
     fn test_build_layout_boxes_closure() {
         let mir_text = r#"
-type Callable = () => int32"#;
+type Callable = () => int32;
+"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "Callable");
         let layouts = build_test_layouts(&tree);
@@ -1626,10 +1639,12 @@ type Callable = () => int32"#;
     fn test_build_layout_traces_closure_fields() {
         let mir_text = r#"
 type Callable = () => int32;
+
 type Holder {
     pad: uint8;
     action: Callable;
-}"#;
+}
+"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "Holder");
         let layouts = build_test_layouts(&tree);

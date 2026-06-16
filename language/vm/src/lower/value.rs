@@ -373,7 +373,7 @@ fn propagate_block_parameter_shapes(
             mir::Terminator::Error => {}
             mir::Terminator::Return { .. }
             | mir::Terminator::Panic { .. }
-            | mir::Terminator::ResumeUnwind
+            | mir::Terminator::UnwindResume
             | mir::Terminator::Trap { .. }
             | mir::Terminator::Unreachable
             | mir::Terminator::TailCall { .. }

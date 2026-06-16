@@ -7,16 +7,18 @@ use destack_engine::Value;
 fn test_function_addr_indirect_call() {
     let mir = r#"
 function add(v0: int32): int32 {
-b0(v0: int32):
+entry(v0: int32):
     v1: int32 = int.add v0, v0
     return v1
 }
+
 function caller(v0: int32): int32 {
-b0(v0: int32):
+entry(v0: int32):
     v1: (int32) -> int32 = function.address add
     v2: int32 = call.indirect v1(v0): (int32) -> int32
     return v2
-}"#;
+}
+"#;
     run_mir_expect(mir, "caller", &[Value::int32(21)], Value::int32(42));
 }
 

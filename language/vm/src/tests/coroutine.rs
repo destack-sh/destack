@@ -98,13 +98,13 @@ b1(v2: int32):
 fn test_yield_preserves_locals() {
     let mir = r#"
 function yieldWithLocal(v0: int32): int32 {
-    local local0: int32, owned
+    local l0: int32
 b0(v0: int32):
     v1: int32 = 4int32
-    local.set local0, v1
+    local.set l0, v1
     yield v1, b1
 b1(v2: int32):
-    v3: int32 = local.get local0
+    v3: int32 = local.get l0
     v4: int32 = int.add v3, v2
     return v4
 }"#;
@@ -296,11 +296,11 @@ b0(v0: int32):
 fn test_yield_preserves_frame_pointer_in_current_frame() {
     let mir = r#"
 function yieldFramePointer(): int32 {
-    local local0: int32, owned
+    local l0: int32
 b0:
     v0: int32 = 1int32
-    local.set local0, v0
-    v1: ref<int32, borrowed, space(frame)> = local.address local0
+    local.set l0, v0
+    v1: ref<int32, borrowed, space(frame)> = local.address l0
     v2: int32 = 2int32
     yield v2, b1
 b1(v3: int32):

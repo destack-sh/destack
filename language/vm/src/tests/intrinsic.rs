@@ -11,10 +11,11 @@ use destack_mir as mir;
 fn test_intrinsic_clz() {
     let mir = r#"
 function test(v0: uint32): uint32 {
-b0(v0: uint32):
+entry(v0: uint32):
     v1: uint32 = intrinsic.math.bits.leadingZeroCount(v0)
     return v1
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[Value::uint32(0x00800000)], Value::uint32(8));
 }
 
@@ -22,10 +23,11 @@ b0(v0: uint32):
 fn test_intrinsic_ctz() {
     let mir = r#"
 function test(v0: uint32): uint32 {
-b0(v0: uint32):
+entry(v0: uint32):
     v1: uint32 = intrinsic.math.bits.trailingZeroCount(v0)
     return v1
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[Value::uint32(0x80)], Value::uint32(7));
 }
 
@@ -33,10 +35,11 @@ b0(v0: uint32):
 fn test_intrinsic_popcnt() {
     let mir = r#"
 function test(v0: uint32): uint32 {
-b0(v0: uint32):
+entry(v0: uint32):
     v1: uint32 = intrinsic.math.bits.populationCount(v0)
     return v1
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[Value::uint32(0xFF)], Value::uint32(8));
 }
 
@@ -44,10 +47,11 @@ b0(v0: uint32):
 fn test_intrinsic_byte_swap() {
     let mir = r#"
 function test(v0: uint32): uint32 {
-b0(v0: uint32):
+entry(v0: uint32):
     v1: uint32 = intrinsic.math.bits.byteSwap(v0)
     return v1
-}"#;
+}
+"#;
     run_mir_expect(
         mir,
         "test",
@@ -60,10 +64,11 @@ b0(v0: uint32):
 fn test_intrinsic_rotate_left() {
     let mir = r#"
 function test(v0: uint32, v1: uint32): uint32 {
-b0(v0: uint32, v1: uint32):
+entry(v0: uint32, v1: uint32):
     v2: uint32 = intrinsic.math.bits.rotateLeft(v0, v1)
     return v2
-}"#;
+}
+"#;
     run_mir_expect(
         mir,
         "test",
@@ -76,10 +81,11 @@ b0(v0: uint32, v1: uint32):
 fn test_intrinsic_rotate_right() {
     let mir = r#"
 function test(v0: uint32, v1: uint32): uint32 {
-b0(v0: uint32, v1: uint32):
+entry(v0: uint32, v1: uint32):
     v2: uint32 = intrinsic.math.bits.rotateRight(v0, v1)
     return v2
-}"#;
+}
+"#;
     run_mir_expect(
         mir,
         "test",
@@ -92,20 +98,22 @@ b0(v0: uint32, v1: uint32):
 fn test_intrinsic_add_overflow_no_overflow() {
     let mir = r#"
 function testResult(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
+entry(v0: int32, v1: int32):
     v2: (int32, boolean) = intrinsic.math.arithmetic.overflowing.add(v0, v1)
     v3: int32 = field.get v2, 0
     return v3
-}"#;
+}
+"#;
     let output = run_mir_ok(mir, "testResult", &[Value::int32(10), Value::int32(20)]);
     assert_eq!(output, Value::int32(30));
     let mir = r#"
 function testFlag(v0: int32, v1: int32): boolean {
-b0(v0: int32, v1: int32):
+entry(v0: int32, v1: int32):
     v2: (int32, boolean) = intrinsic.math.arithmetic.overflowing.add(v0, v1)
     v3: boolean = field.get v2, 1
     return v3
-}"#;
+}
+"#;
     let output = run_mir_ok(mir, "testFlag", &[Value::int32(10), Value::int32(20)]);
     assert_eq!(output, Value::bool(false));
 }
@@ -114,11 +122,12 @@ b0(v0: int32, v1: int32):
 fn test_intrinsic_add_overflow_with_overflow() {
     let mir = r#"
 function test(v0: int32, v1: int32): boolean {
-b0(v0: int32, v1: int32):
+entry(v0: int32, v1: int32):
     v2: (int32, boolean) = intrinsic.math.arithmetic.overflowing.add(v0, v1)
     v3: boolean = field.get v2, 1
     return v3
-}"#;
+}
+"#;
     let output = run_mir_ok(mir, "test", &[Value::int32(i32::MAX), Value::int32(1)]);
     assert_eq!(output, Value::bool(true));
 }
@@ -127,11 +136,12 @@ b0(v0: int32, v1: int32):
 fn test_intrinsic_sub_overflow() {
     let mir = r#"
 function test(v0: uint32, v1: uint32): boolean {
-b0(v0: uint32, v1: uint32):
+entry(v0: uint32, v1: uint32):
     v2: (uint32, boolean) = intrinsic.math.arithmetic.overflowing.subtract(v0, v1)
     v3: boolean = field.get v2, 1
     return v3
-}"#;
+}
+"#;
     let output = run_mir_ok(mir, "test", &[Value::uint32(0), Value::uint32(1)]);
     assert_eq!(output, Value::bool(true));
 }
@@ -140,10 +150,11 @@ b0(v0: uint32, v1: uint32):
 fn test_intrinsic_sat_add() {
     let mir = r#"
 function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
+entry(v0: int32, v1: int32):
     v2: int32 = intrinsic.math.arithmetic.saturating.add(v0, v1)
     return v2
-}"#;
+}
+"#;
     run_mir_expect(
         mir,
         "test",
@@ -156,10 +167,11 @@ b0(v0: int32, v1: int32):
 fn test_intrinsic_sat_sub() {
     let mir = r#"
 function test(v0: uint32, v1: uint32): uint32 {
-b0(v0: uint32, v1: uint32):
+entry(v0: uint32, v1: uint32):
     v2: uint32 = intrinsic.math.arithmetic.saturating.subtract(v0, v1)
     return v2
-}"#;
+}
+"#;
     run_mir_expect(
         mir,
         "test",
@@ -172,16 +184,17 @@ b0(v0: uint32, v1: uint32):
 fn test_atomic_cas_success_flag() {
     let mir = r#"
 function test(): boolean {
-b0:
+entry:
     v0: ref<atomic<int32>, raw, space(frame)> = frame.alloc.zeroed atomic<int32>
-    v1: int32 = 10int32
+    v1: int32 = 10
     atomic.store v0, v1, relaxed
-    v2: int32 = 10int32
-    v3: int32 = 99int32
+    v2: int32 = 10
+    v3: int32 = 99
     v4: (int32, boolean) = atomic.cas v0, v2, v3, relaxed
     v5: boolean = field.get v4, 1
     return v5
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[], Value::bool(true));
 }
 
@@ -189,16 +202,17 @@ b0:
 fn test_atomic_cas_success_value() {
     let mir = r#"
 function test(): int32 {
-b0:
+entry:
     v0: ref<atomic<int32>, raw, space(frame)> = frame.alloc.zeroed atomic<int32>
-    v1: int32 = 10int32
+    v1: int32 = 10
     atomic.store v0, v1, relaxed
-    v2: int32 = 10int32
-    v3: int32 = 42int32
+    v2: int32 = 10
+    v3: int32 = 42
     v4: (int32, boolean) = atomic.cas v0, v2, v3, relaxed
     v5: int32 = field.get v4, 0
     return v5
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[], Value::int32(10));
 }
 
@@ -206,16 +220,17 @@ b0:
 fn test_atomic_cas_failure_flag() {
     let mir = r#"
 function test(): boolean {
-b0:
+entry:
     v0: ref<atomic<int32>, raw, space(frame)> = frame.alloc.zeroed atomic<int32>
-    v1: int32 = 10int32
+    v1: int32 = 10
     atomic.store v0, v1, relaxed
-    v2: int32 = 11int32
-    v3: int32 = 99int32
+    v2: int32 = 11
+    v3: int32 = 99
     v4: (int32, boolean) = atomic.cas v0, v2, v3, relaxed
     v5: boolean = field.get v4, 1
     return v5
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[], Value::bool(false));
 }
 
@@ -223,16 +238,17 @@ b0:
 fn test_atomic_cas_weak_success() {
     let mir = r#"
 function test(): boolean {
-b0:
+entry:
     v0: ref<atomic<int32>, raw, space(frame)> = frame.alloc.zeroed atomic<int32>
-    v1: int32 = 5int32
+    v1: int32 = 5
     atomic.store v0, v1, relaxed
-    v2: int32 = 5int32
-    v3: int32 = 6int32
+    v2: int32 = 5
+    v3: int32 = 6
     v4: (int32, boolean) = atomic.cas.weak v0, v2, v3, relaxed
     v5: boolean = field.get v4, 1
     return v5
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[], Value::bool(true));
 }
 
@@ -240,16 +256,17 @@ b0:
 fn test_atomic_fetch_umin() {
     let mir = r#"
 function test(): uint32 {
-b0:
+entry:
     v0: ref<atomic<uint32>, raw, space(frame)> = frame.alloc.zeroed atomic<uint32>
-    v1: uint32 = 40uint32
+    v1: uint32 = 40
     atomic.store v0, v1, relaxed
-    v2: uint32 = 10uint32
+    v2: uint32 = 10
     v3: uint32 = atomic.rmw.umin v0, v2, relaxed
     v4: uint32 = atomic.load v0, relaxed
     v5: uint32 = int.add v3, v4
     return v5
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[], Value::uint32(50));
 }
 
@@ -257,16 +274,17 @@ b0:
 fn test_atomic_fetch_umax() {
     let mir = r#"
 function test(): uint32 {
-b0:
+entry:
     v0: ref<atomic<uint32>, raw, space(frame)> = frame.alloc.zeroed atomic<uint32>
-    v1: uint32 = 12uint32
+    v1: uint32 = 12
     atomic.store v0, v1, relaxed
-    v2: uint32 = 20uint32
+    v2: uint32 = 20
     v3: uint32 = atomic.rmw.umax v0, v2, relaxed
     v4: uint32 = atomic.load v0, relaxed
     v5: uint32 = int.add v3, v4
     return v5
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[], Value::uint32(32));
 }
 
@@ -274,13 +292,14 @@ b0:
 fn test_atomic_store_load_managed_heap() {
     let mir = r#"
 function test(): int32 {
-b0:
+entry:
     v0: ref<atomic<int32>, managed> = new.zeroed atomic<int32>
-    v1: int32 = 42int32
+    v1: int32 = 42
     atomic.store v0, v1, relaxed
     v2: int32 = atomic.load v0, relaxed
     return v2
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[], Value::int32(42));
 }
 
@@ -288,13 +307,14 @@ b0:
 fn test_atomic_store_load_shared_heap() {
     let mir = r#"
 function test(): int32 {
-b0:
+entry:
     v0: ref<atomic<int32>, managed, space(shared)> = new.zeroed atomic<int32>
-    v1: int32 = 37int32
+    v1: int32 = 37
     atomic.store v0, v1, relaxed
     v2: int32 = atomic.load v0, relaxed
     return v2
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[], Value::int32(37));
 }
 
@@ -302,14 +322,15 @@ b0:
 fn test_atomic_store_load_unique_heap() {
     let mir = r#"
 function test(): int32 {
-b0:
+entry:
     v0: ref<atomic<int32>, unique> = new.zeroed atomic<int32>
-    v1: int32 = 43int32
+    v1: int32 = 43
     atomic.store v0, v1, relaxed
     v2: int32 = atomic.load v0, relaxed
     free v0
     return v2
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[], Value::int32(43));
 }
 
@@ -317,14 +338,15 @@ b0:
 fn test_atomic_store_load_unique_shared_heap() {
     let mir = r#"
 function test(): int32 {
-b0:
+entry:
     v0: ref<atomic<int32>, unique, space(shared)> = new.zeroed atomic<int32>
-    v1: int32 = 44int32
+    v1: int32 = 44
     atomic.store v0, v1, relaxed
     v2: int32 = atomic.load v0, relaxed
     free v0
     return v2
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[], Value::int32(44));
 }
 
@@ -332,16 +354,17 @@ b0:
 fn test_atomic_fetch_fadd() {
     let mir = r#"
 function test(): float64 {
-b0:
+entry:
     v0: ref<atomic<float64>, raw, space(frame)> = frame.alloc.zeroed atomic<float64>
-    v1: float64 = 1.5float64
+    v1: float64 = 1.5
     atomic.store v0, v1, relaxed
-    v2: float64 = 2.25float64
+    v2: float64 = 2.25
     v3: float64 = atomic.rmw.fadd v0, v2, relaxed
     v4: float64 = atomic.load v0, relaxed
     v5: float64 = float.add v3, v4
     return v5
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[], Value::float64(5.25));
 }
 
@@ -349,16 +372,17 @@ b0:
 fn test_atomic_fetch_fmin() {
     let mir = r#"
 function test(): float64 {
-b0:
+entry:
     v0: ref<atomic<float64>, raw, space(frame)> = frame.alloc.zeroed atomic<float64>
-    v1: float64 = 3.5float64
+    v1: float64 = 3.5
     atomic.store v0, v1, relaxed
-    v2: float64 = 1.25float64
+    v2: float64 = 1.25
     v3: float64 = atomic.rmw.fmin v0, v2, relaxed
     v4: float64 = atomic.load v0, relaxed
     v5: float64 = float.add v3, v4
     return v5
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[], Value::float64(4.75));
 }
 
@@ -366,16 +390,17 @@ b0:
 fn test_atomic_fetch_fmax() {
     let mir = r#"
 function test(): float64 {
-b0:
+entry:
     v0: ref<atomic<float64>, raw, space(frame)> = frame.alloc.zeroed atomic<float64>
-    v1: float64 = 3.5float64
+    v1: float64 = 3.5
     atomic.store v0, v1, relaxed
-    v2: float64 = 7.25float64
+    v2: float64 = 7.25
     v3: float64 = atomic.rmw.fmax v0, v2, relaxed
     v4: float64 = atomic.load v0, relaxed
     v5: float64 = float.add v3, v4
     return v5
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[], Value::float64(10.75));
 }
 
@@ -383,10 +408,11 @@ b0:
 fn test_intrinsic_add_unchecked() {
     let mir = r#"
 function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
+entry(v0: int32, v1: int32):
     v2: int32 = intrinsic.math.arithmetic.unchecked.add(v0, v1)
     return v2
-}"#;
+}
+"#;
     run_mir_expect(
         mir,
         "test",
@@ -399,10 +425,11 @@ b0(v0: int32, v1: int32):
 fn test_intrinsic_div_unchecked() {
     let mir = r#"
 function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
+entry(v0: int32, v1: int32):
     v2: int32 = intrinsic.math.arithmetic.unchecked.divide(v0, v1)
     return v2
-}"#;
+}
+"#;
     run_mir_expect(
         mir,
         "test",
@@ -415,10 +442,11 @@ b0(v0: int32, v1: int32):
 fn test_intrinsic_div_by_zero_unchecked() {
     let mir = r#"
 function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
+entry(v0: int32, v1: int32):
     v2: int32 = intrinsic.math.arithmetic.unchecked.divide(v0, v1)
     return v2
-}"#;
+}
+"#;
     let result = run_mir(mir, "test", &[Value::int32(100), Value::int32(0)]);
     assert!(result.is_err(), "expected division by zero error");
 }
@@ -438,10 +466,11 @@ b0(v0: float64):
 fn test_intrinsic_abs() {
     let mir = r#"
 function test(v0: float64): float64 {
-b0(v0: float64):
+entry(v0: float64):
     v1: float64 = intrinsic.math.float.abs(v0)
     return v1
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[Value::float64(-42.5)], Value::float64(42.5));
 }
 
@@ -449,10 +478,11 @@ b0(v0: float64):
 fn test_intrinsic_floor() {
     let mir = r#"
 function test(v0: float64): float64 {
-b0(v0: float64):
+entry(v0: float64):
     v1: float64 = intrinsic.math.float.floor(v0)
     return v1
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[Value::float64(3.7)], Value::float64(3.0));
 }
 
@@ -460,10 +490,11 @@ b0(v0: float64):
 fn test_intrinsic_ceil() {
     let mir = r#"
 function test(v0: float64): float64 {
-b0(v0: float64):
+entry(v0: float64):
     v1: float64 = intrinsic.math.float.ceil(v0)
     return v1
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[Value::float64(3.2)], Value::float64(4.0));
 }
 
@@ -471,10 +502,11 @@ b0(v0: float64):
 fn test_intrinsic_round() {
     let mir = r#"
 function test(v0: float64): float64 {
-b0(v0: float64):
+entry(v0: float64):
     v1: float64 = intrinsic.math.float.round(v0)
     return v1
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[Value::float64(3.5)], Value::float64(4.0));
 }
 
@@ -482,10 +514,11 @@ b0(v0: float64):
 fn test_intrinsic_min() {
     let mir = r#"
 function test(v0: float64, v1: float64): float64 {
-b0(v0: float64, v1: float64):
+entry(v0: float64, v1: float64):
     v2: float64 = intrinsic.math.float.min(v0, v1)
     return v2
-}"#;
+}
+"#;
     run_mir_expect(
         mir,
         "test",
@@ -498,10 +531,11 @@ b0(v0: float64, v1: float64):
 fn test_intrinsic_max() {
     let mir = r#"
 function test(v0: float64, v1: float64): float64 {
-b0(v0: float64, v1: float64):
+entry(v0: float64, v1: float64):
     v2: float64 = intrinsic.math.float.max(v0, v1)
     return v2
-}"#;
+}
+"#;
     run_mir_expect(
         mir,
         "test",
@@ -514,10 +548,11 @@ b0(v0: float64, v1: float64):
 fn test_intrinsic_pow() {
     let mir = r#"
 function test(v0: float64, v1: float64): float64 {
-b0(v0: float64, v1: float64):
+entry(v0: float64, v1: float64):
     v2: float64 = intrinsic.math.float.pow(v0, v1)
     return v2
-}"#;
+}
+"#;
     run_mir_expect(
         mir,
         "test",
@@ -530,10 +565,11 @@ b0(v0: float64, v1: float64):
 fn test_intrinsic_fma() {
     let mir = r#"
 function test(v0: float64, v1: float64, v2: float64): float64 {
-b0(v0: float64, v1: float64, v2: float64):
+entry(v0: float64, v1: float64, v2: float64):
     v3: float64 = intrinsic.math.float.fma(v0, v1, v2)
     return v3
-}"#;
+}
+"#;
     run_mir_expect(
         mir,
         "test",
@@ -550,12 +586,13 @@ b0(v0: float64, v1: float64, v2: float64):
 fn test_intrinsic_sin_cos() {
     let mir = r#"
 function test(v0: float64): float64 {
-b0(v0: float64):
+entry(v0: float64):
     v1: float64 = intrinsic.math.float.sin(v0)
     v2: float64 = intrinsic.math.float.cos(v0)
     v3: float64 = float.add v1, v2
     return v3
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[Value::float64(0.0)], Value::float64(1.0));
 }
 
@@ -563,11 +600,12 @@ b0(v0: float64):
 fn test_intrinsic_expect_true() {
     let mir = r#"
 function test(v0: boolean): boolean {
-b0(v0: boolean):
+entry(v0: boolean):
     v1: boolean = true
     v2: boolean = intrinsic.expect(v0, v1)
     return v2
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[Value::bool(true)], Value::bool(true));
 }
 
@@ -575,11 +613,12 @@ b0(v0: boolean):
 fn test_intrinsic_expect_false() {
     let mir = r#"
 function test(v0: boolean): boolean {
-b0(v0: boolean):
+entry(v0: boolean):
     v1: boolean = false
     v2: boolean = intrinsic.expect(v0, v1)
     return v2
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[Value::bool(false)], Value::bool(false));
 }
 
@@ -587,10 +626,11 @@ b0(v0: boolean):
 fn test_intrinsic_black_box() {
     let mir = r#"
 function test(v0: int32): int32 {
-b0(v0: int32):
+entry(v0: int32):
     v1: int32 = intrinsic.error.debug.blackBox(v0)
     return v1
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[Value::int32(42)], Value::int32(42));
 }
 
@@ -598,11 +638,12 @@ b0(v0: int32):
 fn test_barrier_write_local_managed() {
     let mir = r#"
 function test(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64): boolean {
-b0(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
+entry(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
     barrier.write v0, v1, v2
     v3: boolean = true
     return v3
-}"#;
+}
+"#;
     run_mir_with_frame(mir, "test", |machine| {
         let reference_type = machine.parameter_type("test", 0);
         let pointee_type = match machine.machine.tree().get(reference_type) {
@@ -635,11 +676,12 @@ b0(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
 fn test_barrier_write_shared_managed() {
     let mir = r#"
 function test(v0: ref<int32, managed, readonly, space(shared)>, v1: uint64, v2: uint64): boolean {
-b0(v0: ref<int32, managed, readonly, space(shared)>, v1: uint64, v2: uint64):
+entry(v0: ref<int32, managed, readonly, space(shared)>, v1: uint64, v2: uint64):
     barrier.write v0, v1, v2
     v3: boolean = true
     return v3
-}"#;
+}
+"#;
     run_mir_with_frame(mir, "test", |machine| {
         let reference_type = machine.parameter_type("test", 0);
         let pointee_type = match machine.machine.tree().get(reference_type) {
@@ -683,10 +725,11 @@ b0(v0: ref<int32, managed, readonly, space(shared)>, v1: uint64, v2: uint64):
 fn test_barrier_write_rejects_invalid_range() {
     let mir = r#"
 function test(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64): void {
-b0(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
+entry(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
     barrier.write v0, v1, v2
     return
-}"#;
+}
+"#;
     let result = run_mir_with_frame(mir, "test", |machine| {
         let reference_type = machine.parameter_type("test", 0);
         let pointee_type = match machine.machine.tree().get(reference_type) {
@@ -724,10 +767,11 @@ b0(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
 fn test_intrinsic_raw_eq_true() {
     let mir = r#"
 function test(v0: int32, v1: int32): boolean {
-b0(v0: int32, v1: int32):
+entry(v0: int32, v1: int32):
     v2: int32 = intrinsic.memory.raw.eq(v0, v1)
     return v2
-}"#;
+}
+"#;
     run_mir_expect(
         mir,
         "test",
@@ -740,10 +784,11 @@ b0(v0: int32, v1: int32):
 fn test_intrinsic_raw_eq_false() {
     let mir = r#"
 function test(v0: int32, v1: int32): boolean {
-b0(v0: int32, v1: int32):
+entry(v0: int32, v1: int32):
     v2: int32 = intrinsic.memory.raw.eq(v0, v1)
     return v2
-}"#;
+}
+"#;
     run_mir_expect(
         mir,
         "test",
@@ -756,10 +801,11 @@ b0(v0: int32, v1: int32):
 fn test_intrinsic_breakpoint() {
     let mir = r#"
 function test(v0: int32): int32 {
-b0(v0: int32):
+entry(v0: int32):
     intrinsic.error.debug.breakpoint()
     return v0
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[Value::int32(42)], Value::int32(42));
 }
 
@@ -767,9 +813,10 @@ b0(v0: int32):
 fn test_terminator_unreachable() {
     let mir = r#"
 function test(v0: int32): int32 {
-b0(v0: int32):
+entry(v0: int32):
     unreachable
-}"#;
+}
+"#;
     let result = run_mir(mir, "test", &[Value::int32(42)]);
     assert!(result.is_err(), "expected unreachable error");
 }
@@ -813,15 +860,17 @@ b0(v0: int32):
 fn test_intrinsic_return_address() {
     let mir = r#"
 function inner(): uint64 {
-b0:
+entry:
     v0: uint64 = intrinsic.returnAddress()
     return v0
 }
+
 function test(): uint64 {
-b0:
-    v0: uint64 = call inner(): () -> uint64
+entry:
+    v0: uint64 = call inner()
     return v0
-}"#;
+}
+"#;
     let output = run_mir_ok(mir, "test", &[]);
     let value = UnsignedInt::try_from(&output).expect("expected uint value");
 
@@ -832,10 +881,11 @@ b0:
 fn test_intrinsic_return_address_no_caller() {
     let mir = r#"
 function test(): uint64 {
-b0:
+entry:
     v0: uint64 = intrinsic.returnAddress()
     return v0
-}"#;
+}
+"#;
     run_mir_expect(mir, "test", &[], Value::uint64(0));
 }
 
@@ -843,15 +893,17 @@ b0:
 fn test_intrinsic_frame_address() {
     let mir = r#"
 function inner(): uint64 {
-b0:
+entry:
     v0: uint64 = intrinsic.frameAddress()
     return v0
 }
+
 function test(): uint64 {
-b0:
-    v0: uint64 = call inner(): () -> uint64
+entry:
+    v0: uint64 = call inner()
     return v0
-}"#;
+}
+"#;
     let output = run_mir_ok(mir, "test", &[]);
     let value = UnsignedInt::try_from(&output).expect("expected uint value");
 
@@ -865,10 +917,11 @@ b0:
 fn test_intrinsic_reduce_add() {
     let mir = r#"
 function test(v0: vector<int32, 4>): int32 {
-b0(v0: vector<int32, 4>):
+entry(v0: vector<int32, 4>):
     v1: int32 = vector.reduce add, v0
     return v1
-}"#;
+}
+"#;
     let output = run_mir_with_frame_ok(mir, "test", |interp| {
         let ty = interp.parameter_type("test", 0);
         let input = interp.materialize_value_for_type(
@@ -889,10 +942,11 @@ b0(v0: vector<int32, 4>):
 fn test_intrinsic_reduce_mul() {
     let mir = r#"
 function test(v0: vector<int32, 4>): int32 {
-b0(v0: vector<int32, 4>):
+entry(v0: vector<int32, 4>):
     v1: int32 = vector.reduce mul, v0
     return v1
-}"#;
+}
+"#;
     let output = run_mir_with_frame_ok(mir, "test", |interp| {
         let ty = interp.parameter_type("test", 0);
         let input = interp.materialize_value_for_type(
@@ -913,10 +967,11 @@ b0(v0: vector<int32, 4>):
 fn test_intrinsic_reduce_min() {
     let mir = r#"
 function test(v0: vector<int32, 4>): int32 {
-b0(v0: vector<int32, 4>):
+entry(v0: vector<int32, 4>):
     v1: int32 = vector.reduce min, v0
     return v1
-}"#;
+}
+"#;
     let output = run_mir_with_frame_ok(mir, "test", |interp| {
         let ty = interp.parameter_type("test", 0);
         let input = interp.materialize_value_for_type(
@@ -937,10 +992,11 @@ b0(v0: vector<int32, 4>):
 fn test_intrinsic_reduce_max() {
     let mir = r#"
 function test(v0: vector<int32, 4>): int32 {
-b0(v0: vector<int32, 4>):
+entry(v0: vector<int32, 4>):
     v1: int32 = vector.reduce max, v0
     return v1
-}"#;
+}
+"#;
     let output = run_mir_with_frame_ok(mir, "test", |interp| {
         let ty = interp.parameter_type("test", 0);
         let input = interp.materialize_value_for_type(
@@ -961,10 +1017,11 @@ b0(v0: vector<int32, 4>):
 fn test_intrinsic_reduce_and() {
     let mir = r#"
 function test(v0: vector<uint32, 4>): uint32 {
-b0(v0: vector<uint32, 4>):
+entry(v0: vector<uint32, 4>):
     v1: uint32 = vector.reduce and, v0
     return v1
-}"#;
+}
+"#;
     let output = run_mir_with_frame_ok(mir, "test", |interp| {
         let ty = interp.parameter_type("test", 0);
         let input = interp.materialize_value_for_type(
@@ -985,10 +1042,11 @@ b0(v0: vector<uint32, 4>):
 fn test_intrinsic_reduce_or() {
     let mir = r#"
 function test(v0: vector<uint32, 4>): uint32 {
-b0(v0: vector<uint32, 4>):
+entry(v0: vector<uint32, 4>):
     v1: uint32 = vector.reduce or, v0
     return v1
-}"#;
+}
+"#;
     let output = run_mir_with_frame_ok(mir, "test", |interp| {
         let ty = interp.parameter_type("test", 0);
         let input = interp.materialize_value_for_type(
@@ -1009,10 +1067,11 @@ b0(v0: vector<uint32, 4>):
 fn test_intrinsic_reduce_xor() {
     let mir = r#"
 function test(v0: vector<uint32, 4>): uint32 {
-b0(v0: vector<uint32, 4>):
+entry(v0: vector<uint32, 4>):
     v1: uint32 = vector.reduce xor, v0
     return v1
-}"#;
+}
+"#;
     let output = run_mir_with_frame_ok(mir, "test", |interp| {
         let ty = interp.parameter_type("test", 0);
         let input = interp.materialize_value_for_type(

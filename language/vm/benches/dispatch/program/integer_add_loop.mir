@@ -1,19 +1,19 @@
-function integerAddLoop(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    value2: int32 = 0int32
-    jump block1(value1, value2)
+function integerAddLoop(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    v2: int32 = 0
+    jump b1(v1, v2)
 
-block1(value3: int32, value4: int32):
-    value5: boolean = int.lt.s value3, value0
-    branch value5, block2(value3, value4), block3(value4)
+b1(v3: int32, v4: int32):
+    v5: boolean = int.lt.s v3, v0
+    branch v5, b2(v3, v4), b3(v4)
 
-block2(value6: int32, value7: int32):
-    value8: int32 = 1int32
-    value9: int32 = int.add value6, value8
-    value10: int32 = int.add value7, value6
-    jump block1(value9, value10)
+b2(v6: int32, v7: int32):
+    v8: int32 = 1
+    v9: int32 = int.add v6, v8
+    v10: int32 = int.add v7, v6
+    jump b1(v9, v10)
 
-block3(value11: int32):
-    return value11
+b3(v11: int32):
+    return v11
 }
