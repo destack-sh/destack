@@ -16,18 +16,10 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one field address.
     pub(super) fn lower_field_addr(
         &self,
-        destination: mir::ValueReference,
-        base: mir::ValueReference,
+        destination: mir::Value,
+        base: mir::Value,
         index: u32,
     ) -> Result<Instruction> {
-        // require SSA values
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("field address destination"))?;
-        let base = base
-            .value()
-            .ok_or_else(|| Error::invalid_program("field address base"))?;
-
         // lower fixed projections as base plus byte offset
         let layout = self
             .value_shape_map()

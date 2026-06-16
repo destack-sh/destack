@@ -833,7 +833,7 @@ fn test_null_pointer_check_branches() {
     let mir = r#"
 function nullCheck(v0: ref<int32, raw, readonly>): int32 {
 b0(v0: ref<int32, raw, readonly>):
-    check null v0 -> b1, b2
+    check null v0 => b1, b2
 b1:
     v1: int32 = 1int32
     return v1

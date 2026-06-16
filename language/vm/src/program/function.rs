@@ -131,7 +131,7 @@ fn environment_layout(
 ) -> Option<CellLayout> {
     let function = tree.get(function_id);
     let environment = function.environment.as_ref()?;
-    let environment_type = environment.ty()?;
+    let environment_type = *environment;
 
     cell_layout_from_type(tree, environment_type)
 }

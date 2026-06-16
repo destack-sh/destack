@@ -25,7 +25,7 @@ impl<'a> BlockLowerer<'a> {
             return None;
         };
 
-        let condition = condition.value()?;
+        let condition = *condition;
         if self.value_use_count(condition) != Some(1) {
             return None;
         }
@@ -45,9 +45,9 @@ impl<'a> BlockLowerer<'a> {
             return None;
         }
 
-        let destination = destination.value()?;
-        let left = left.value()?;
-        let right = right.value()?;
+        let destination = *destination;
+        let left = *left;
+        let right = *right;
         if destination != condition {
             return None;
         }
@@ -59,24 +59,16 @@ impl<'a> BlockLowerer<'a> {
 
         instructions.pop();
 
-        let then_target_block = then_target.block.block()?;
-        let else_target_block = else_target.block.block()?;
-        let then_arguments = then_target
-            .arguments
-            .iter()
-            .map(|argument| argument.value())
-            .collect::<Option<Vec<_>>>()?;
-        let else_arguments = else_target
-            .arguments
-            .iter()
-            .map(|argument| argument.value())
-            .collect::<Option<Vec<_>>>()?;
+        let then_target_block = then_target.block;
+        let else_target_block = else_target.block;
+        let then_arguments = self.target_values(then_target);
+        let else_arguments = self.target_values(else_target);
         let then_index = self.block_index_by_id[&then_target_block];
         let else_index = self.block_index_by_id[&else_target_block];
         let then_parameters = self.block_parameter[then_index].as_slice();
         let else_parameters = self.block_parameter[else_index].as_slice();
-        let then_moves = pool.move_range(then_parameters, &then_arguments).ok()?;
-        let else_moves = pool.move_range(else_parameters, &else_arguments).ok()?;
+        let then_moves = pool.move_range(then_parameters, then_arguments).ok()?;
+        let else_moves = pool.move_range(else_parameters, else_arguments).ok()?;
         let then_edge = pool.edge(then_index as u32, then_moves);
         let else_edge = pool.edge(else_index as u32, else_moves);
 

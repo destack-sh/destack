@@ -14,8 +14,8 @@ entry(v0: int32):
 
 function caller(v0: int32): int32 {
 entry(v0: int32):
-    v1: (int32) -> int32 = function.address add
-    v2: int32 = call.indirect v1(v0): (int32) -> int32
+    v1: fn(int32) => int32 = function.address add
+    v2: int32 = call.indirect v1(v0): (int32) => int32
     return v2
 }
 "#;
@@ -35,7 +35,7 @@ b0(v0: int32):
 function caller(v0: int32): int32 {
 b0(v0: int32):
     v1: int32 = 10int32
-    call double(v0): (int32) -> int32 -> b1(v1)
+    call double(v0): (int32) => int32 => b1(v1)
 b1(v2: int32, v3: int32):
     v4: int32 = int.add v2, v3
     return v4
@@ -52,7 +52,7 @@ external function touch(): void
 
 function caller(): int32 {
 b0:
-    call touch(): () -> void -> b1
+    call touch(): () => void => b1
 b1:
     v0: int32 = 7int32
     return v0

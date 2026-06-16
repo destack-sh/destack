@@ -95,12 +95,8 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
             .func
             .parameters
             .iter()
-            .map(|parameter| {
-                (parameter.value)
-                    .value()
-                    .ok_or_else(|| Error::invalid_program("function parameter value"))
-            })
-            .collect::<Result<Vec<_>>>()?;
+            .map(|parameter| parameter.value)
+            .collect::<Vec<_>>();
         let parameter = self.pool.argument_range(&parameter_value);
         let mut mir_block = self
             .context
@@ -183,12 +179,8 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
             let parameter = block
                 .parameters
                 .iter()
-                .map(|parameter| {
-                    (parameter.value)
-                        .value()
-                        .ok_or_else(|| Error::invalid_program("block parameter value"))
-                })
-                .collect::<Result<Vec<_>>>()?;
+                .map(|parameter| parameter.value)
+                .collect::<Vec<_>>();
             block_parameter.push(parameter);
         }
 
@@ -375,28 +367,16 @@ fn compute_value_use_counts(
         for inst_id in &block.instructions {
             let inst = tree.get(*inst_id);
             for value in inst.uses() {
-                record_use(
-                    (value)
-                        .value()
-                        .ok_or_else(|| Error::invalid_program("instruction use"))?,
-                );
+                record_use(value);
             }
             if let Some(args) = inst.argument_slice() {
-                for arg in tree.get_arguments(args) {
-                    record_use(
-                        (*arg)
-                            .value()
-                            .ok_or_else(|| Error::invalid_program("instruction argument"))?,
-                    );
+                for arg in tree.get_values(args) {
+                    record_use(*arg);
                 }
             }
         }
-        for value in terminator.uses() {
-            record_use(
-                (value)
-                    .value()
-                    .ok_or_else(|| Error::invalid_program("terminator use"))?,
-            );
+        for value in tree.terminator_uses(terminator) {
+            record_use(value);
         }
     }
 

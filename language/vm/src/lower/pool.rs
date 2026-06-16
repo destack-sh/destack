@@ -104,24 +104,6 @@ impl<'layout, 'table> Pool<'layout, 'table> {
         argument_range(&mut self.argument, arguments)
     }
 
-    /// Return one argument range from MIR value references.
-    pub(super) fn argument_reference_range(
-        &mut self,
-        arguments: &[mir::ValueReference],
-        context: &str,
-    ) -> Result<ArgumentRange> {
-        let arguments = arguments
-            .iter()
-            .map(|argument| {
-                (*argument)
-                    .value()
-                    .ok_or_else(|| Error::invalid_program(context))
-            })
-            .collect::<Result<Vec<_>>>()?;
-
-        Ok(argument_range(&mut self.argument, &arguments))
-    }
-
     /// Return one move range from the pool.
     pub(super) fn move_range(
         &mut self,
@@ -163,6 +145,7 @@ impl<'layout, 'table> Pool<'layout, 'table> {
     /// Return one switch-case range from the pool.
     pub(super) fn switch_case_range(
         &mut self,
+        tree: &mir::Tree,
         block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
         block_parameter: &[Vec<mir::Value>],
         cases: &[mir::SwitchCase],
@@ -171,6 +154,7 @@ impl<'layout, 'table> Pool<'layout, 'table> {
         let cases = switch_case_range(
             frame_layout,
             &mut self.move_pair,
+            tree,
             block_index_map,
             block_parameter,
             cases,
@@ -182,6 +166,7 @@ impl<'layout, 'table> Pool<'layout, 'table> {
     /// Return one switch-table range from the pool.
     pub(super) fn switch_table_range(
         &mut self,
+        tree: &mir::Tree,
         block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
         block_parameter: &[Vec<mir::Value>],
         cases: &[mir::SwitchCase],
@@ -192,6 +177,7 @@ impl<'layout, 'table> Pool<'layout, 'table> {
         let table = switch_table_range(
             frame_layout,
             &mut self.move_pair,
+            tree,
             block_index_map,
             block_parameter,
             cases,
@@ -340,9 +326,7 @@ fn parameter_move_range(
 
     // append move pairs
     for (index, param) in parameters.iter().enumerate() {
-        let parameter = (param.value)
-            .value()
-            .ok_or_else(|| Error::invalid_program("function parameter value"))?;
+        let parameter = param.value;
         let source = move_source(frame_layout, arguments, index)?;
         let dest = move_slot(frame_layout, parameter)?;
 
@@ -368,6 +352,7 @@ pub(super) fn lookup_call_target(
 fn switch_case_range(
     frame_layout: &engine::FrameLayout,
     move_pool: &mut Vec<MovePair>,
+    tree: &mir::Tree,
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
     block_parameters: &[Vec<mir::Value>],
     cases: &[mir::SwitchCase],
@@ -376,26 +361,13 @@ fn switch_case_range(
 
     // append cases
     for case in cases {
-        let target = (case.target.block)
-            .block()
-            .ok_or_else(|| Error::invalid_program("switch case target"))?;
+        let target = case.target.block;
         let target_index = block_index_map[&target];
         let target_parameters = block_parameters[target_index].as_slice();
-        let arguments = case
-            .target
-            .arguments
-            .iter()
-            .map(|argument| {
-                (*argument)
-                    .value()
-                    .ok_or_else(|| Error::invalid_program("switch case argument"))
-            })
-            .collect::<Result<Vec<_>>>()?;
-        let moves = move_range(frame_layout, move_pool, target_parameters, &arguments)?;
+        let arguments = tree.block_target_values(&case.target);
+        let moves = move_range(frame_layout, move_pool, target_parameters, arguments)?;
         lowered_cases.push(SwitchCase {
-            value: (case.value)
-                .integer()
-                .ok_or_else(|| Error::invalid_program("switch case value"))?,
+            value: case.value,
             target: target_index as u32,
             moves,
         });
@@ -408,6 +380,7 @@ fn switch_case_range(
 fn switch_table_range(
     frame_layout: &engine::FrameLayout,
     move_pool: &mut Vec<MovePair>,
+    tree: &mir::Tree,
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
     block_parameters: &[Vec<mir::Value>],
     cases: &[mir::SwitchCase],
@@ -420,14 +393,10 @@ fn switch_table_range(
     }
 
     // compute min and max case values
-    let mut min_value = (cases[0].value)
-        .integer()
-        .ok_or_else(|| Error::invalid_program("switch table min value"))?;
+    let mut min_value = cases[0].value;
     let mut max_value = min_value;
     for case in cases {
-        let value = (case.value)
-            .integer()
-            .ok_or_else(|| Error::invalid_program("switch table case value"))?;
+        let value = case.value;
         min_value = min_value.min(value);
         max_value = max_value.max(value);
     }
@@ -462,25 +431,12 @@ fn switch_table_range(
 
     // populate explicit cases
     for case in cases {
-        let case_value = (case.value)
-            .integer()
-            .ok_or_else(|| Error::invalid_program("switch table case value"))?;
-        let target = (case.target.block)
-            .block()
-            .ok_or_else(|| Error::invalid_program("switch table target"))?;
+        let case_value = case.value;
+        let target = case.target.block;
         let target_index = block_index_map[&target];
         let target_parameters = block_parameters[target_index].as_slice();
-        let arguments = case
-            .target
-            .arguments
-            .iter()
-            .map(|argument| {
-                (*argument)
-                    .value()
-                    .ok_or_else(|| Error::invalid_program("switch table argument"))
-            })
-            .collect::<Result<Vec<_>>>()?;
-        let moves = move_range(frame_layout, move_pool, target_parameters, &arguments)?;
+        let arguments = tree.block_target_values(&case.target);
+        let moves = move_range(frame_layout, move_pool, target_parameters, arguments)?;
         let offset = (case_value - min_value) as usize;
         let entry = &mut table[offset];
         entry.value = case_value;

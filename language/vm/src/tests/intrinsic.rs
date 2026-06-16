@@ -647,9 +647,7 @@ entry(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
     run_mir_with_frame(mir, "test", |machine| {
         let reference_type = machine.parameter_type("test", 0);
         let pointee_type = match machine.machine.tree().get(reference_type) {
-            mir::Type::Reference { pointee, .. } => pointee
-                .ty()
-                .expect("test parameter pointee should be concrete"),
+            mir::Type::Reference { pointee, .. } => *pointee,
             _ => panic!("test parameter should be one heap reference"),
         };
         let layout_id = machine
@@ -685,9 +683,7 @@ entry(v0: ref<int32, managed, readonly, space(shared)>, v1: uint64, v2: uint64):
     run_mir_with_frame(mir, "test", |machine| {
         let reference_type = machine.parameter_type("test", 0);
         let pointee_type = match machine.machine.tree().get(reference_type) {
-            mir::Type::Reference { pointee, .. } => pointee
-                .ty()
-                .expect("test parameter pointee should be concrete"),
+            mir::Type::Reference { pointee, .. } => *pointee,
             _ => panic!("test parameter should be one shared heap reference"),
         };
         let layout_id = machine
@@ -733,9 +729,7 @@ entry(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
     let result = run_mir_with_frame(mir, "test", |machine| {
         let reference_type = machine.parameter_type("test", 0);
         let pointee_type = match machine.machine.tree().get(reference_type) {
-            mir::Type::Reference { pointee, .. } => pointee
-                .ty()
-                .expect("test parameter pointee should be concrete"),
+            mir::Type::Reference { pointee, .. } => *pointee,
             _ => panic!("test parameter should be one heap reference"),
         };
         let layout_id = machine

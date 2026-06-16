@@ -10,20 +10,14 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one write barrier.
     pub(super) fn lower_barrier_write(
         &self,
-        object: mir::ValueReference,
-        offset: mir::ValueReference,
-        byte_len: mir::ValueReference,
+        object: mir::Value,
+        offset: mir::Value,
+        byte_len: mir::Value,
     ) -> Result<Instruction> {
         // require SSA values
-        let object = object
-            .value()
-            .ok_or_else(|| Error::invalid_program("barrier.write object"))?;
-        let offset = offset
-            .value()
-            .ok_or_else(|| Error::invalid_program("barrier.write offset"))?;
-        let byte_len = byte_len
-            .value()
-            .ok_or_else(|| Error::invalid_program("barrier.write byte length"))?;
+        let object = object;
+        let offset = offset;
+        let byte_len = byte_len;
 
         // encode the collector that owns this reference
         let object_type = self.value_type_for_value(object)?;

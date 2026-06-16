@@ -511,9 +511,7 @@ impl Machine {
             .tree
             .iter_nodes::<mir::Global>()
             .map(|(id, global)| {
-                let ty = (global.ty)
-                    .ty()
-                    .ok_or_else(|| Error::invalid_program("global type"))?;
+                let ty = global.ty;
 
                 Ok((id, ty, global.is_import(), global.initializer.clone()))
             })

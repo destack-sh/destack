@@ -21,8 +21,8 @@ impl<'a> BlockLowerer<'a> {
                 is_signed,
                 ..
             } => {
-                let index = check_value(*index, "bounds check index")?;
-                let length = check_value(*length, "bounds check length")?;
+                let index = *index;
+                let length = *length;
                 let (_, length_signed) = checked_integer(self, length)?;
                 let check = BoundsCheck {
                     index: cell_offset(self, index)?,
@@ -32,14 +32,14 @@ impl<'a> BlockLowerer<'a> {
                 Ok(bounds_check(*is_signed, length_signed, check))
             }
             mir::CheckConstraint::Null { value } => {
-                let value = check_value(*value, "null check value")?;
+                let value = *value;
 
                 Ok(Check::Null {
                     value: cell_offset(self, value)?,
                 })
             }
             mir::CheckConstraint::DivZero { divisor } => {
-                let divisor = check_value(*divisor, "divzero divisor")?;
+                let divisor = *divisor;
                 let (_, is_signed) = checked_integer(self, divisor)?;
                 let divisor = cell_offset(self, divisor)?;
 
@@ -50,7 +50,7 @@ impl<'a> BlockLowerer<'a> {
                 bit_width,
                 is_signed,
             } => {
-                let value = check_value(*value, "shift range value")?;
+                let value = *value;
                 if *bit_width == 0 {
                     return Err(Error::invalid_instruction());
                 }
@@ -66,7 +66,7 @@ impl<'a> BlockLowerer<'a> {
                 to_width,
                 is_signed,
             } => {
-                let value = check_value(*value, "narrow value")?;
+                let value = *value;
                 if *to_width == 0 {
                     return Err(Error::invalid_instruction());
                 }
@@ -83,8 +83,8 @@ impl<'a> BlockLowerer<'a> {
                 right,
                 is_signed,
             } => {
-                let left = check_value(*left, "overflow left")?;
-                let right = check_value(*right, "overflow right")?;
+                let left = *left;
+                let right = *right;
                 let (width, _) = checked_integer(self, left)?;
                 let (right_width, _) = checked_integer(self, right)?;
                 if width != right_width {
@@ -100,10 +100,8 @@ impl<'a> BlockLowerer<'a> {
                 overflow_check(*operator, *is_signed, check)
             }
             mir::CheckConstraint::Type { value, expected } => {
-                let value = check_value(*value, "type check value")?;
-                let expected = expected
-                    .ty()
-                    .ok_or_else(|| Error::invalid_program("type check expected"))?;
+                let value = *value;
+                let expected = expected;
 
                 Ok(Check::Type {
                     value: cell_offset(self, value)?,
@@ -111,7 +109,7 @@ impl<'a> BlockLowerer<'a> {
                 })
             }
             mir::CheckConstraint::Variant { value, expected } => {
-                let value = check_value(*value, "variant check value")?;
+                let value = *value;
                 let check = VariantCheck {
                     value: cell_offset(self, value)?,
                     expected: constant_cell_bits(expected)?,
@@ -122,9 +120,9 @@ impl<'a> BlockLowerer<'a> {
             mir::CheckConstraint::ReceiverType { .. } => {
                 Err(Error::unsupported_instruction("receiver.type check"))
             }
-            mir::CheckConstraint::Implements { .. } => {
-                Err(Error::unsupported_instruction("interface.conformance check"))
-            }
+            mir::CheckConstraint::Implements { .. } => Err(Error::unsupported_instruction(
+                "interface.conformance check",
+            )),
         }
     }
 
@@ -142,9 +140,7 @@ impl<'a> BlockLowerer<'a> {
                 let Some(value) = value else {
                     return Ok(Instruction::new(Op::ReturnVoid, 0, 0, 0, 0));
                 };
-                let value = value
-                    .value()
-                    .ok_or_else(|| Error::invalid_program("return value"))?;
+                let value = *value;
 
                 let value_type = self.value_type_for_value(value)?;
                 let is_cell = self.layout_for_type(value_type)?.is_cell();
@@ -159,21 +155,11 @@ impl<'a> BlockLowerer<'a> {
             }
 
             mir::Terminator::Jump { target } => {
-                let target_block = (target.block)
-                    .block()
-                    .ok_or_else(|| Error::invalid_program("jump target"))?;
-                let arguments = target
-                    .arguments
-                    .iter()
-                    .map(|argument| {
-                        (*argument)
-                            .value()
-                            .ok_or_else(|| Error::invalid_program("jump argument"))
-                    })
-                    .collect::<Result<Vec<_>>>()?;
+                let target_block = target.block;
+                let arguments = self.target_values(target);
                 let target_index = self.block_index_by_id[&target_block];
                 let target_parameters = self.block_parameter[target_index].as_slice();
-                let moves = pool.edge_moves(target_parameters, &arguments)?;
+                let moves = pool.edge_moves(target_parameters, arguments)?;
 
                 Instruction::new(Op::Jump, target_index as u32, moves.start, moves.len, 0)
             }
@@ -183,39 +169,17 @@ impl<'a> BlockLowerer<'a> {
                 then_target,
                 else_target,
             } => {
-                let condition = (*condition)
-                    .value()
-                    .ok_or_else(|| Error::invalid_program("branch condition"))?;
-                let then_target_block = (then_target.block)
-                    .block()
-                    .ok_or_else(|| Error::invalid_program("branch then target"))?;
-                let else_target_block = (else_target.block)
-                    .block()
-                    .ok_or_else(|| Error::invalid_program("branch else target"))?;
-                let then_arguments = then_target
-                    .arguments
-                    .iter()
-                    .map(|argument| {
-                        (*argument)
-                            .value()
-                            .ok_or_else(|| Error::invalid_program("branch then argument"))
-                    })
-                    .collect::<Result<Vec<_>>>()?;
-                let else_arguments = else_target
-                    .arguments
-                    .iter()
-                    .map(|argument| {
-                        (*argument)
-                            .value()
-                            .ok_or_else(|| Error::invalid_program("branch else argument"))
-                    })
-                    .collect::<Result<Vec<_>>>()?;
+                let condition = *condition;
+                let then_target_block = then_target.block;
+                let else_target_block = else_target.block;
+                let then_arguments = self.target_values(then_target);
+                let else_arguments = self.target_values(else_target);
                 let then_index = self.block_index_by_id[&then_target_block];
                 let else_index = self.block_index_by_id[&else_target_block];
                 let then_parameters = self.block_parameter[then_index].as_slice();
                 let else_parameters = self.block_parameter[else_index].as_slice();
-                let then_moves = pool.edge_moves(then_parameters, &then_arguments)?;
-                let else_moves = pool.edge_moves(else_parameters, &else_arguments)?;
+                let then_moves = pool.edge_moves(then_parameters, then_arguments)?;
+                let else_moves = pool.edge_moves(else_parameters, else_arguments)?;
                 let then_edge = pool.edge(then_index as u32, then_moves);
                 let else_edge = pool.edge(else_index as u32, else_moves);
 
@@ -233,36 +197,16 @@ impl<'a> BlockLowerer<'a> {
                 success,
                 failure,
             } => {
-                let success_block = (success.block)
-                    .block()
-                    .ok_or_else(|| Error::invalid_program("check success target"))?;
-                let failure_block = (failure.block)
-                    .block()
-                    .ok_or_else(|| Error::invalid_program("check failure target"))?;
-                let success_arguments = success
-                    .arguments
-                    .iter()
-                    .map(|argument| {
-                        (*argument)
-                            .value()
-                            .ok_or_else(|| Error::invalid_program("check success argument"))
-                    })
-                    .collect::<Result<Vec<_>>>()?;
-                let failure_arguments = failure
-                    .arguments
-                    .iter()
-                    .map(|argument| {
-                        (*argument)
-                            .value()
-                            .ok_or_else(|| Error::invalid_program("check failure argument"))
-                    })
-                    .collect::<Result<Vec<_>>>()?;
+                let success_block = success.block;
+                let failure_block = failure.block;
+                let success_arguments = self.target_values(success);
+                let failure_arguments = self.target_values(failure);
                 let success_index = self.block_index_by_id[&success_block];
                 let failure_index = self.block_index_by_id[&failure_block];
                 let success_parameters = self.block_parameter[success_index].as_slice();
                 let failure_parameters = self.block_parameter[failure_index].as_slice();
-                let success_moves = pool.edge_moves(success_parameters, &success_arguments)?;
-                let failure_moves = pool.edge_moves(failure_parameters, &failure_arguments)?;
+                let success_moves = pool.edge_moves(success_parameters, success_arguments)?;
+                let failure_moves = pool.edge_moves(failure_parameters, failure_arguments)?;
                 let constraint = pool.check(self.lower_check(constraint)?);
                 let success_edge = pool.edge(success_index as u32, success_moves);
                 let failure_edge = pool.edge(failure_index as u32, failure_moves);
@@ -275,30 +219,20 @@ impl<'a> BlockLowerer<'a> {
                 cases,
                 default,
             } => {
-                let value = (*value)
-                    .value()
-                    .ok_or_else(|| Error::invalid_program("switch value"))?;
-                let default_block = (default.block)
-                    .block()
-                    .ok_or_else(|| Error::invalid_program("switch default target"))?;
-                let default_arguments = default
-                    .arguments
-                    .iter()
-                    .map(|argument| {
-                        (*argument)
-                            .value()
-                            .ok_or_else(|| Error::invalid_program("switch default argument"))
-                    })
-                    .collect::<Result<Vec<_>>>()?;
+                let value = *value;
+                let default_block = default.block;
+                let default_arguments = self.target_values(default);
                 let default_index = self.block_index_by_id[&default_block];
                 let default_parameters = self.block_parameter[default_index].as_slice();
-                let default_moves = pool.edge_moves(default_parameters, &default_arguments)?;
+                let default_moves = pool.edge_moves(default_parameters, default_arguments)?;
                 let default_edge = pool.edge(default_index as u32, default_moves);
+                let cases = self.switch_cases(*cases);
 
                 let (is_cell, width, is_signed) = switch_layout(self.value_shape_map().get(value));
                 let switch_layout = switch_layout_field(width, is_signed);
                 if is_cell
                     && let Some(table) = pool.switch_table_range(
+                        self.tree,
                         &self.block_index_by_id,
                         &self.block_parameter,
                         cases,
@@ -315,6 +249,7 @@ impl<'a> BlockLowerer<'a> {
                     )
                 } else {
                     let cases = pool.switch_case_range(
+                        self.tree,
                         &self.block_index_by_id,
                         &self.block_parameter,
                         cases,
@@ -388,9 +323,10 @@ impl<'a> BlockLowerer<'a> {
             )?,
 
             mir::Terminator::Panic { payload } => {
-                let Some(payload) = payload.and_then(|payload| payload.value()) else {
+                let Some(payload) = payload else {
                     return Ok(Instruction::new(Op::Panic, 0, 0, 0, 0));
                 };
+                let payload = *payload;
 
                 Instruction::new(Op::PanicValue, cell_offset(self, payload)?, 0, 0, 0)
             }
@@ -402,9 +338,7 @@ impl<'a> BlockLowerer<'a> {
             mir::Terminator::Unreachable => Instruction::new(Op::Unreachable, 0, 0, 0, 0),
 
             mir::Terminator::Yield { value, .. } => {
-                let value = (*value)
-                    .value()
-                    .ok_or_else(|| Error::invalid_program("yield value"))?;
+                let value = *value;
                 let frame_state = self
                     .yield_frame_states
                     .get(&self.block_id())
@@ -479,11 +413,6 @@ fn checked_integer(lowerer: &BlockLowerer<'_>, value: mir::Value) -> Result<(u8,
             format!("{value_type:?}"),
         )),
     }
-}
-
-/// Resolve one value reference used by a runtime check.
-fn check_value(value: mir::ValueReference, context: &'static str) -> Result<mir::Value> {
-    value.value().ok_or_else(|| Error::invalid_program(context))
 }
 
 /// Return one constant as VM cell bits.

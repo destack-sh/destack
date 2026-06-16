@@ -11,14 +11,11 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one MIR value constructor into frame stores.
     pub(super) fn lower_frame_constructor(
         &self,
-        destination: mir::ValueReference,
-        values: mir::ArgumentSlice,
+        destination: mir::Value,
+        values: mir::ValueSlice,
     ) -> Result<Vec<Instruction>> {
         // resolve constructor values
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("frame constructor destination"))?;
-        let values = self.tree.get_arguments(values);
+        let values = self.tree.get_values(values);
 
         self.lower_frame_init(destination, values)
     }
@@ -27,7 +24,7 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_frame_init(
         &self,
         destination: mir::Value,
-        values: &[mir::ValueReference],
+        values: &[mir::Value],
     ) -> Result<Vec<Instruction>> {
         // resolve physical frame ranges
         let destination_type = self.value_type_for_value(destination)?;
@@ -43,10 +40,7 @@ impl<'a> BlockLowerer<'a> {
 
         // emit one physical store per source
         let mut instructions = Vec::with_capacity(ranges.len());
-        for (index, value) in values.iter().enumerate() {
-            let value = value
-                .value()
-                .ok_or_else(|| Error::invalid_program("frame constructor value"))?;
+        for (index, value) in values.iter().copied().enumerate() {
             let range = ranges[index];
             instructions.push(self.store_frame_range(destination, value, range)?);
         }
@@ -66,12 +60,8 @@ impl<'a> BlockLowerer<'a> {
         };
 
         // resolve values and layout
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("field get destination"))?;
-        let base = base
-            .value()
-            .ok_or_else(|| Error::invalid_program("field get base"))?;
+        let destination = *destination;
+        let base = *base;
         let destination_type = self.value_type_for_value(destination)?;
         let base_type = self.value_type_for_value(base)?;
         let layout = self.layout_for_type(base_type)?;
@@ -127,12 +117,8 @@ impl<'a> BlockLowerer<'a> {
         };
 
         // resolve values and reject dynamic slices
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("element get destination"))?;
-        let array = array
-            .value()
-            .ok_or_else(|| Error::invalid_program("element get array"))?;
+        let destination = *destination;
+        let array = *array;
         let destination_type = self.value_type_for_value(destination)?;
         let array_type = self.value_type_for_value(array)?;
         if matches!(self.tree.get(array_type), mir::Type::Slice { .. }) {
@@ -191,22 +177,11 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one functional field update into frame stores.
     pub(super) fn lower_field_update(
         &self,
-        destination: mir::ValueReference,
-        base: mir::ValueReference,
+        destination: mir::Value,
+        base: mir::Value,
         index: u32,
-        value: mir::ValueReference,
+        value: mir::Value,
     ) -> Result<Vec<Instruction>> {
-        // require SSA values
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("field set destination"))?;
-        let base = base
-            .value()
-            .ok_or_else(|| Error::invalid_program("field set base"))?;
-        let value = value
-            .value()
-            .ok_or_else(|| Error::invalid_program("field set value"))?;
-
         // resolve original frame value and replacement field
         let destination_type = self.value_type_for_value(destination)?;
         let layout = self.layout_for_type(destination_type)?;
@@ -235,22 +210,11 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one functional element update into frame stores.
     pub(super) fn lower_element_update(
         &self,
-        destination: mir::ValueReference,
-        array: mir::ValueReference,
+        destination: mir::Value,
+        array: mir::Value,
         index: u32,
-        value: mir::ValueReference,
+        value: mir::Value,
     ) -> Result<Vec<Instruction>> {
-        // require SSA values
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("element set destination"))?;
-        let array = array
-            .value()
-            .ok_or_else(|| Error::invalid_program("element set array"))?;
-        let value = value
-            .value()
-            .ok_or_else(|| Error::invalid_program("element set value"))?;
-
         // reject dynamic slices
         let destination_type = self.value_type_for_value(destination)?;
         if matches!(self.tree.get(destination_type), mir::Type::Slice { .. }) {

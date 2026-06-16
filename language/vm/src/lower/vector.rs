@@ -58,16 +58,12 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_vector_splat(
         &self,
         pool: &mut Pool<'_, '_>,
-        destination: mir::ValueReference,
-        value: mir::ValueReference,
+        destination: mir::Value,
+        value: mir::Value,
     ) -> Result<Instruction> {
         // resolve SSA operands
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("vector splat destination"))?;
-        let value = value
-            .value()
-            .ok_or_else(|| Error::invalid_program("vector splat value"))?;
+        let destination = destination;
+        let value = value;
         let destination_type = self.value_type_for_value(destination)?;
         let (dest_element, element_count, element_type) =
             self.vector_element_projection(destination_type)?;
@@ -108,20 +104,14 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_vector_extract(
         &self,
         pool: &mut Pool<'_, '_>,
-        destination: mir::ValueReference,
-        vector: mir::ValueReference,
-        index: mir::ValueReference,
+        destination: mir::Value,
+        vector: mir::Value,
+        index: mir::Value,
     ) -> Result<Instruction> {
         // resolve SSA operands
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("vector extract destination"))?;
-        let vector = vector
-            .value()
-            .ok_or_else(|| Error::invalid_program("vector extract input"))?;
-        let index = index
-            .value()
-            .ok_or_else(|| Error::invalid_program("vector extract index"))?;
+        let destination = destination;
+        let vector = vector;
+        let index = index;
         let vector_type = self.value_type_for_value(vector)?;
         let (vector_element, element_count, _) = self.vector_element_projection(vector_type)?;
 
@@ -142,24 +132,16 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_vector_insert(
         &self,
         pool: &mut Pool<'_, '_>,
-        destination: mir::ValueReference,
-        vector: mir::ValueReference,
-        index: mir::ValueReference,
-        value: mir::ValueReference,
+        destination: mir::Value,
+        vector: mir::Value,
+        index: mir::Value,
+        value: mir::Value,
     ) -> Result<Instruction> {
         // resolve SSA operands
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("vector insert destination"))?;
-        let vector = vector
-            .value()
-            .ok_or_else(|| Error::invalid_program("vector insert input"))?;
-        let index = index
-            .value()
-            .ok_or_else(|| Error::invalid_program("vector insert index"))?;
-        let value = value
-            .value()
-            .ok_or_else(|| Error::invalid_program("vector insert value"))?;
+        let destination = destination;
+        let vector = vector;
+        let index = index;
+        let value = value;
 
         let destination_type = self.value_type_for_value(destination)?;
         let vector_type = self.value_type_for_value(vector)?;
@@ -185,21 +167,15 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_vector_shuffle(
         &self,
         pool: &mut Pool<'_, '_>,
-        destination: mir::ValueReference,
-        left: mir::ValueReference,
-        right: mir::ValueReference,
-        mask: &[u32],
+        destination: mir::Value,
+        left: mir::Value,
+        right: mir::Value,
+        mask: mir::IndexSlice,
     ) -> Result<Instruction> {
         // resolve SSA operands
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("vector shuffle destination"))?;
-        let left = left
-            .value()
-            .ok_or_else(|| Error::invalid_program("vector shuffle left"))?;
-        let right = right
-            .value()
-            .ok_or_else(|| Error::invalid_program("vector shuffle right"))?;
+        let destination = destination;
+        let left = left;
+        let right = right;
 
         let destination_type = self.value_type_for_value(destination)?;
         let left_type = self.value_type_for_value(left)?;
@@ -207,7 +183,7 @@ impl<'a> BlockLowerer<'a> {
         let (dest_element, _, _) = self.vector_element_projection(destination_type)?;
         let (left_element, left_count, _) = self.vector_element_projection(left_type)?;
         let (right_element, right_count, _) = self.vector_element_projection(right_type)?;
-        let mask = pool.u32_range(mask);
+        let mask = pool.u32_range(self.indices(mask));
 
         // pool the shuffle mask because it is variable length
         Ok(pool.instruction_with_side(
@@ -230,24 +206,16 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_vector_select(
         &self,
         pool: &mut Pool<'_, '_>,
-        destination: mir::ValueReference,
-        mask: mir::ValueReference,
-        then_value: mir::ValueReference,
-        else_value: mir::ValueReference,
+        destination: mir::Value,
+        mask: mir::Value,
+        then_value: mir::Value,
+        else_value: mir::Value,
     ) -> Result<Instruction> {
         // resolve SSA operands
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("vector select destination"))?;
-        let mask = mask
-            .value()
-            .ok_or_else(|| Error::invalid_program("vector select mask"))?;
-        let then_value = then_value
-            .value()
-            .ok_or_else(|| Error::invalid_program("vector select then value"))?;
-        let else_value = else_value
-            .value()
-            .ok_or_else(|| Error::invalid_program("vector select else value"))?;
+        let destination = destination;
+        let mask = mask;
+        let then_value = then_value;
+        let else_value = else_value;
 
         let mask_type = self.value_type_for_value(mask)?;
         let then_type = self.value_type_for_value(then_value)?;
@@ -284,17 +252,13 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_vector_reduce(
         &self,
         pool: &mut Pool<'_, '_>,
-        destination: mir::ValueReference,
+        destination: mir::Value,
         operator: mir::VectorReduceOperator,
-        vector: mir::ValueReference,
+        vector: mir::Value,
     ) -> Result<Instruction> {
         // resolve SSA operands
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("vector reduce destination"))?;
-        let vector = vector
-            .value()
-            .ok_or_else(|| Error::invalid_program("vector reduce input"))?;
+        let destination = destination;
+        let vector = vector;
 
         let vector_type = self.value_type_for_value(vector)?;
         let (vector_element, element_count, element) =
@@ -318,21 +282,15 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_vector_compare(
         &self,
         pool: &mut Pool<'_, '_>,
-        destination: mir::ValueReference,
+        destination: mir::Value,
         operator: mir::BinaryOperator,
-        left: mir::ValueReference,
-        right: mir::ValueReference,
+        left: mir::Value,
+        right: mir::Value,
     ) -> Result<Instruction> {
         // resolve SSA operands
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("vector compare destination"))?;
-        let left = left
-            .value()
-            .ok_or_else(|| Error::invalid_program("vector compare left"))?;
-        let right = right
-            .value()
-            .ok_or_else(|| Error::invalid_program("vector compare right"))?;
+        let destination = destination;
+        let left = left;
+        let right = right;
 
         let left_type = self.value_type_for_value(left)?;
         let right_type = self.value_type_for_value(right)?;
@@ -374,17 +332,13 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_vector_convert(
         &self,
         pool: &mut Pool<'_, '_>,
-        destination: mir::ValueReference,
+        destination: mir::Value,
         mode: mir::VectorConvertMode,
-        vector: mir::ValueReference,
+        vector: mir::Value,
     ) -> Result<Instruction> {
         // resolve SSA operands
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("vector convert destination"))?;
-        let vector = vector
-            .value()
-            .ok_or_else(|| Error::invalid_program("vector convert input"))?;
+        let destination = destination;
+        let vector = vector;
         let dest_type = self.value_type_for_value(destination)?;
         let source_type = self.value_type_for_value(vector)?;
         let (dest_element, dest_count, dest_element_type) =

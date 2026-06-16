@@ -19,15 +19,6 @@ use super::vector::{PackedVector, vector_scalar_layout};
 const INTEGER_SIGN_BIT: u32 = 1 << 16;
 
 impl<'a> BlockLowerer<'a> {
-    /// Require one value reference to be an SSA value.
-    fn require_value(
-        &self,
-        value: mir::ValueReference,
-        context: &'static str,
-    ) -> Result<mir::Value> {
-        value.value().ok_or_else(|| Error::invalid_program(context))
-    }
-
     /// Lower one cell binary instruction.
     fn lower_binary_cell(
         &self,
@@ -454,15 +445,11 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_binary(
         &self,
         pool: &mut Pool<'_, '_>,
-        destination: mir::ValueReference,
+        destination: mir::Value,
         operator: mir::BinaryOperator,
-        left: mir::ValueReference,
-        right: mir::ValueReference,
+        left: mir::Value,
+        right: mir::Value,
     ) -> Result<Instruction> {
-        // require SSA values
-        let destination = self.require_value(destination, "binary destination")?;
-        let left = self.require_value(left, "binary left value")?;
-        let right = self.require_value(right, "binary right value")?;
         let destination_type = self.value_type_for_value(destination)?;
         let left_type = self.value_type_for_value(left)?;
 
@@ -500,13 +487,10 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_unary(
         &self,
         pool: &mut Pool<'_, '_>,
-        destination: mir::ValueReference,
+        destination: mir::Value,
         operator: mir::UnaryOperator,
-        argument: mir::ValueReference,
+        argument: mir::Value,
     ) -> Result<Instruction> {
-        // require SSA values
-        let destination = self.require_value(destination, "unary destination")?;
-        let argument = self.require_value(argument, "unary argument")?;
         let argument_type = self.value_type_for_value(argument)?;
         let destination_type = self.value_type_for_value(destination)?;
 

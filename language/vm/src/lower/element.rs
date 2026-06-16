@@ -14,21 +14,10 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_element_addr(
         &self,
         pool: &mut Pool<'_, '_>,
-        destination: mir::ValueReference,
-        array: mir::ValueReference,
-        index: mir::ValueReference,
+        destination: mir::Value,
+        array: mir::Value,
+        index: mir::Value,
     ) -> Result<Instruction> {
-        // require SSA values
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("element address destination"))?;
-        let array = array
-            .value()
-            .ok_or_else(|| Error::invalid_program("element address array"))?;
-        let index = index
-            .value()
-            .ok_or_else(|| Error::invalid_program("element address index"))?;
-
         // slice descriptors have a distinct address path
         let pointee_type = self.projection_type_for_value(array)?;
         if let Some(access) = pointee_type

@@ -29,8 +29,8 @@ impl<'a> BlockLowerer<'a> {
         Ok(match inst {
             // tensor.splat
             mir::Instruction::TensorSplat { destination, value } => {
-                let destination = tensor_value(*destination, "tensor splat destination")?;
-                let value = tensor_value(*value, "tensor splat value")?;
+                let destination = *destination;
+                let value = *value;
                 let tensor_type = self.value_type_for_value(destination)?;
                 let tensor_layout = self.tensor_layout(pool, tensor_type)?;
 
@@ -48,15 +48,11 @@ impl<'a> BlockLowerer<'a> {
                 view,
                 indices,
             } => {
-                let destination = tensor_value(*destination, "tensor load destination")?;
-                let view = tensor_value(*view, "tensor load view")?;
+                let destination = *destination;
+                let view = *view;
                 let view_type = self.value_type_for_value(view)?;
                 let view_layout = self.tensor_layout(pool, view_type)?;
-                let indices = self.cell_offset_reference_range(
-                    pool,
-                    self.tree.get_arguments(*indices),
-                    "tensor load index",
-                )?;
+                let indices = self.cell_offset_range(pool, self.tree.get_values(*indices))?;
                 let (address_space, element) = self.tensor_element_projection(view_type)?;
                 let address = TensorAddress::from_address_space(address_space)?;
                 let element = pool.projection(element);
@@ -79,15 +75,11 @@ impl<'a> BlockLowerer<'a> {
                 tensor,
                 indices,
             } => {
-                let destination = tensor_value(*destination, "tensor extract destination")?;
-                let tensor = tensor_value(*tensor, "tensor extract source")?;
+                let destination = *destination;
+                let tensor = *tensor;
                 let tensor_type = self.value_type_for_value(tensor)?;
                 let tensor_layout = self.tensor_layout(pool, tensor_type)?;
-                let indices = self.cell_offset_reference_range(
-                    pool,
-                    self.tree.get_arguments(*indices),
-                    "tensor extract index",
-                )?;
+                let indices = self.cell_offset_range(pool, self.tree.get_values(*indices))?;
 
                 pool.instruction_with_side(
                     Op::TensorExtract,
@@ -105,15 +97,11 @@ impl<'a> BlockLowerer<'a> {
                 indices,
                 value,
             } => {
-                let view = tensor_value(*view, "tensor store view")?;
-                let value = tensor_value(*value, "tensor store value")?;
+                let view = *view;
+                let value = *value;
                 let view_type = self.value_type_for_value(view)?;
                 let view_layout = self.tensor_layout(pool, view_type)?;
-                let indices = self.cell_offset_reference_range(
-                    pool,
-                    self.tree.get_arguments(*indices),
-                    "tensor store index",
-                )?;
+                let indices = self.cell_offset_range(pool, self.tree.get_values(*indices))?;
                 let (address_space, element) = self.tensor_element_projection(view_type)?;
                 let address = TensorAddress::from_address_space(address_space)?;
                 let element = pool.projection(element);
@@ -132,8 +120,8 @@ impl<'a> BlockLowerer<'a> {
             }
             // tensor.fill
             mir::Instruction::TensorFill { view, value } => {
-                let view = tensor_value(*view, "tensor fill view")?;
-                let value = tensor_value(*value, "tensor fill value")?;
+                let view = *view;
+                let value = *value;
                 let view_type = self.value_type_for_value(view)?;
                 let view_layout = self.tensor_layout(pool, view_type)?;
                 let (address_space, element) = self.tensor_element_projection(view_type)?;
@@ -153,8 +141,8 @@ impl<'a> BlockLowerer<'a> {
             }
             // tensor.copy
             mir::Instruction::TensorCopy { target, source } => {
-                let target = tensor_value(*target, "tensor copy target")?;
-                let source = tensor_value(*source, "tensor copy source")?;
+                let target = *target;
+                let source = *source;
                 let target_type = self.value_type_for_value(target)?;
                 let source_type = self.value_type_for_value(source)?;
                 let target_layout = self.tensor_layout(pool, target_type)?;
@@ -186,17 +174,13 @@ impl<'a> BlockLowerer<'a> {
                 tensor,
                 shape,
             } => {
-                let destination = tensor_value(*destination, "tensor reshape destination")?;
-                let tensor = tensor_value(*tensor, "tensor reshape source")?;
+                let destination = *destination;
+                let tensor = *tensor;
                 let source_type = self.value_type_for_value(tensor)?;
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_layout = self.tensor_layout(pool, source_type)?;
                 let dest_layout = self.tensor_layout(pool, dest_type)?;
-                let shape = self.cell_offset_reference_range(
-                    pool,
-                    self.tree.get_arguments(*shape),
-                    "tensor reshape shape",
-                )?;
+                let shape = self.cell_offset_range(pool, self.tree.get_values(*shape))?;
 
                 pool.instruction_with_side(
                     Op::TensorReshape,
@@ -215,13 +199,13 @@ impl<'a> BlockLowerer<'a> {
                 tensor,
                 dimensions,
             } => {
-                let destination = tensor_value(*destination, "tensor broadcast destination")?;
-                let tensor = tensor_value(*tensor, "tensor broadcast source")?;
+                let destination = *destination;
+                let tensor = *tensor;
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(tensor)?;
                 let source_layout = self.tensor_layout(pool, source_type)?;
                 let dest_layout = self.tensor_layout(pool, dest_type)?;
-                let dimensions = pool.u32_range(dimensions);
+                let dimensions = pool.u32_range(self.indices(*dimensions));
 
                 pool.instruction_with_side(
                     Op::TensorBroadcast,
@@ -240,13 +224,13 @@ impl<'a> BlockLowerer<'a> {
                 tensor,
                 permutation,
             } => {
-                let destination = tensor_value(*destination, "tensor transpose destination")?;
-                let tensor = tensor_value(*tensor, "tensor transpose source")?;
+                let destination = *destination;
+                let tensor = *tensor;
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(tensor)?;
                 let source_layout = self.tensor_layout(pool, source_type)?;
                 let dest_layout = self.tensor_layout(pool, dest_type)?;
-                let permutation = pool.u32_range(permutation);
+                let permutation = pool.u32_range(self.indices(*permutation));
 
                 pool.instruction_with_side(
                     Op::TensorTranspose,
@@ -268,13 +252,9 @@ impl<'a> BlockLowerer<'a> {
                 sizes_count,
                 strides_count,
             } => {
-                let destination = tensor_value(*destination, "tensor slice destination")?;
-                let tensor = tensor_value(*tensor, "tensor slice source")?;
-                let arguments = self.cell_offset_reference_range(
-                    pool,
-                    self.tree.get_arguments(*arguments),
-                    "tensor slice argument",
-                )?;
+                let destination = *destination;
+                let tensor = *tensor;
+                let arguments = self.cell_offset_range(pool, self.tree.get_values(*arguments))?;
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(tensor)?;
                 let source_layout = self.tensor_layout(pool, source_type)?;
@@ -304,14 +284,10 @@ impl<'a> BlockLowerer<'a> {
                 interior_count,
                 value,
             } => {
-                let destination = tensor_value(*destination, "tensor pad destination")?;
-                let tensor = tensor_value(*tensor, "tensor pad source")?;
-                let value = tensor_value(*value, "tensor pad value")?;
-                let arguments = self.cell_offset_reference_range(
-                    pool,
-                    self.tree.get_arguments(*arguments),
-                    "tensor pad argument",
-                )?;
+                let destination = *destination;
+                let tensor = *tensor;
+                let value = *value;
+                let arguments = self.cell_offset_range(pool, self.tree.get_values(*arguments))?;
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(tensor)?;
                 let source_layout = self.tensor_layout(pool, source_type)?;
@@ -338,14 +314,12 @@ impl<'a> BlockLowerer<'a> {
                 tensors,
                 axis,
             } => {
-                let destination = tensor_value(*destination, "tensor concat destination")?;
-                let tensor_value = self.tree.get_arguments(*tensors);
-                let tensors =
-                    self.value_offset_reference_range(pool, tensor_value, "tensor concat input")?;
+                let destination = *destination;
+                let tensor_value = self.tree.get_values(*tensors);
+                let tensors = self.value_offset_range(pool, tensor_value)?;
                 let mut tensor_layouts = Vec::with_capacity(tensor_value.len());
                 for value in tensor_value {
-                    let value = tensor_value_ref(*value, "tensor concat input")?;
-                    let value_type = self.value_type_for_value(value)?;
+                    let value_type = self.value_type_for_value(*value)?;
                     tensor_layouts.push(self.tensor_layout(pool, value_type)?.0);
                 }
                 let dest_type = self.value_type_for_value(destination)?;
@@ -371,14 +345,14 @@ impl<'a> BlockLowerer<'a> {
                 initial,
                 axes,
             } => {
-                let destination = tensor_value(*destination, "tensor reduce destination")?;
-                let tensor = tensor_value(*tensor, "tensor reduce source")?;
-                let initial = tensor_value(*initial, "tensor reduce initial")?;
+                let destination = *destination;
+                let tensor = *tensor;
+                let initial = *initial;
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(tensor)?;
                 let source_layout = self.tensor_layout(pool, source_type)?;
                 let dest_layout = self.tensor_layout(pool, dest_type)?;
-                let axes = pool.u32_range(axes);
+                let axes = pool.u32_range(self.indices(*axes));
 
                 pool.instruction_with_side(
                     Op::TensorReduce,
@@ -401,8 +375,8 @@ impl<'a> BlockLowerer<'a> {
                 axis,
                 tie_break,
             } => {
-                let destination = tensor_value(*destination, "tensor index reduce destination")?;
-                let tensor = tensor_value(*tensor, "tensor index reduce source")?;
+                let destination = *destination;
+                let tensor = *tensor;
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(tensor)?;
                 let source_layout = self.tensor_layout(pool, source_type)?;
@@ -426,18 +400,18 @@ impl<'a> BlockLowerer<'a> {
                 destination,
                 left,
                 right,
-                dimensions,
+                immediate,
             } => {
-                let destination = tensor_value(*destination, "tensor dot destination")?;
-                let left = tensor_value(*left, "tensor dot left")?;
-                let right = tensor_value(*right, "tensor dot right")?;
+                let destination = *destination;
+                let left = *left;
+                let right = *right;
                 let dest_type = self.value_type_for_value(destination)?;
                 let left_type = self.value_type_for_value(left)?;
                 let right_type = self.value_type_for_value(right)?;
                 let dest_layout = TensorLayout::from_type(self.tree, self.layouts(), dest_type)?;
                 let left_layout = TensorLayout::from_type(self.tree, self.layouts(), left_type)?;
                 let right_layout = TensorLayout::from_type(self.tree, self.layouts(), right_type)?;
-                let dimensions = pool.tensor_dot(dimensions.clone());
+                let dimensions = pool.tensor_dot(self.tensor_dot(*immediate)?);
                 let element = tensor_element_type(self.tree, dest_type)
                     .ok_or_else(|| Error::invalid_program("tensor dot element"))?;
                 let element_layout = tensor_scalar_layout(self.tree, element)?;
@@ -465,22 +439,21 @@ impl<'a> BlockLowerer<'a> {
                 destination,
                 input,
                 kernel,
-                dimensions,
-                window,
-                feature_group_count,
-                batch_group_count,
+                immediate,
             } => {
-                let destination = tensor_value(*destination, "tensor convolution destination")?;
-                let input = tensor_value(*input, "tensor convolution input")?;
-                let kernel = tensor_value(*kernel, "tensor convolution kernel")?;
+                let destination = *destination;
+                let input = *input;
+                let kernel = *kernel;
                 let dest_type = self.value_type_for_value(destination)?;
                 let input_type = self.value_type_for_value(input)?;
                 let kernel_type = self.value_type_for_value(kernel)?;
                 let dest_layout = self.tensor_layout(pool, dest_type)?;
                 let input_layout = self.tensor_layout(pool, input_type)?;
                 let kernel_layout = self.tensor_layout(pool, kernel_type)?;
-                let dimensions = pool.tensor_convolution(dimensions.clone());
-                let window = pool.tensor_window(window.clone());
+                let (dimensions, window, feature_group_count, batch_group_count) =
+                    self.tensor_convolution(*immediate)?;
+                let dimensions = pool.tensor_convolution(dimensions);
+                let window = pool.tensor_window(window);
                 let element = tensor_element_type(self.tree, dest_type)
                     .ok_or_else(|| Error::invalid_program("tensor convolution element"))?;
                 let element_layout = tensor_scalar_layout(self.tree, element)?;
@@ -493,8 +466,8 @@ impl<'a> BlockLowerer<'a> {
                         kernel_offset: value_offset(self, kernel)?,
                         dimensions,
                         window,
-                        feature_group_count: *feature_group_count,
-                        batch_group_count: *batch_group_count,
+                        feature_group_count,
+                        batch_group_count,
                         input_layout,
                         kernel_layout,
                         dest_layout,
@@ -507,20 +480,20 @@ impl<'a> BlockLowerer<'a> {
                 destination,
                 operand: source,
                 indices,
-                dimensions,
-                slice_sizes,
+                immediate,
             } => {
-                let destination = tensor_value(*destination, "tensor gather destination")?;
-                let source = tensor_value(*source, "tensor gather source")?;
-                let indices = tensor_value(*indices, "tensor gather indices")?;
+                let destination = *destination;
+                let source = *source;
+                let indices = *indices;
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(source)?;
                 let indices_type = self.value_type_for_value(indices)?;
                 let source_layout = self.tensor_layout(pool, source_type)?;
                 let indices_layout = self.tensor_layout(pool, indices_type)?;
                 let dest_layout = self.tensor_layout(pool, dest_type)?;
-                let dimensions = pool.tensor_gather(dimensions.clone());
-                let slice_sizes = pool.u32_range(slice_sizes);
+                let (dimensions, slice_sizes) = self.tensor_gather(*immediate)?;
+                let dimensions = pool.tensor_gather(dimensions);
+                let slice_sizes = pool.u32_range(&slice_sizes);
 
                 pool.instruction_with_side(
                     Op::TensorGather,
@@ -542,13 +515,13 @@ impl<'a> BlockLowerer<'a> {
                 operand: source,
                 indices,
                 updates,
-                dimensions,
+                immediate,
                 mode,
             } => {
-                let destination = tensor_value(*destination, "tensor scatter destination")?;
-                let source = tensor_value(*source, "tensor scatter source")?;
-                let indices = tensor_value(*indices, "tensor scatter indices")?;
-                let updates = tensor_value(*updates, "tensor scatter updates")?;
+                let destination = *destination;
+                let source = *source;
+                let indices = *indices;
+                let updates = *updates;
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(source)?;
                 let indices_type = self.value_type_for_value(indices)?;
@@ -557,7 +530,7 @@ impl<'a> BlockLowerer<'a> {
                 let indices_layout = self.tensor_layout(pool, indices_type)?;
                 let updates_layout = self.tensor_layout(pool, updates_type)?;
                 let dest_layout = self.tensor_layout(pool, dest_type)?;
-                let dimensions = pool.tensor_scatter(dimensions.clone());
+                let dimensions = pool.tensor_scatter(self.tensor_scatter(*immediate)?);
                 let element = tensor_element_type(self.tree, dest_type)
                     .ok_or_else(|| Error::invalid_program("tensor scatter element"))?;
                 let element_layout = tensor_scalar_layout(self.tree, element)?;
@@ -586,9 +559,9 @@ impl<'a> BlockLowerer<'a> {
                 left,
                 right,
             } => {
-                let destination = tensor_value(*destination, "tensor compare destination")?;
-                let left = tensor_value(*left, "tensor compare left")?;
-                let right = tensor_value(*right, "tensor compare right")?;
+                let destination = *destination;
+                let left = *left;
+                let right = *right;
                 let dest_type = self.value_type_for_value(destination)?;
                 let left_type = self.value_type_for_value(left)?;
                 let right_type = self.value_type_for_value(right)?;
@@ -642,10 +615,10 @@ impl<'a> BlockLowerer<'a> {
                 then_value,
                 else_value,
             } => {
-                let destination = tensor_value(*destination, "tensor select destination")?;
-                let mask = tensor_value(*mask, "tensor select mask")?;
-                let then_value = tensor_value(*then_value, "tensor select then value")?;
-                let else_value = tensor_value(*else_value, "tensor select else value")?;
+                let destination = *destination;
+                let mask = *mask;
+                let then_value = *then_value;
+                let else_value = *else_value;
                 let dest_type = self.value_type_for_value(destination)?;
                 let mask_type = self.value_type_for_value(mask)?;
                 let then_type = self.value_type_for_value(then_value)?;
@@ -675,8 +648,8 @@ impl<'a> BlockLowerer<'a> {
                 mode,
                 tensor,
             } => {
-                let destination = tensor_value(*destination, "tensor convert destination")?;
-                let tensor = tensor_value(*tensor, "tensor convert source")?;
+                let destination = *destination;
+                let tensor = *tensor;
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(tensor)?;
                 let source_layout = self.tensor_layout(pool, source_type)?;
@@ -704,8 +677,8 @@ impl<'a> BlockLowerer<'a> {
                 destination,
                 tensor,
             } => {
-                let destination = tensor_value(*destination, "tensor cast destination")?;
-                let tensor = tensor_value(*tensor, "tensor cast source")?;
+                let destination = *destination;
+                let tensor = *tensor;
                 let destination_type = self.value_type_for_value(destination)?;
                 let byte_len = self.layout_for_type(destination_type)?.byte_len as u64;
 
@@ -726,13 +699,9 @@ impl<'a> BlockLowerer<'a> {
                 sizes_count,
                 strides_count,
             } => {
-                let destination = tensor_value(*destination, "tensor view destination")?;
-                let view = tensor_value(*view, "tensor view source")?;
-                let arguments = self.cell_offset_reference_range(
-                    pool,
-                    self.tree.get_arguments(*arguments),
-                    "tensor view argument",
-                )?;
+                let destination = *destination;
+                let view = *view;
+                let arguments = self.cell_offset_range(pool, self.tree.get_values(*arguments))?;
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_type = self.value_type_for_value(view)?;
                 let source_layout = self.tensor_layout(pool, source_type)?;
@@ -788,35 +757,165 @@ impl<'a> BlockLowerer<'a> {
     }
 
     /// Return one side-table range of cell frame offsets.
-    fn cell_offset_reference_range(
+    fn cell_offset_range(
         &self,
         pool: &mut Pool<'_, '_>,
-        values: &[mir::ValueReference],
-        context: &'static str,
+        values: &[mir::Value],
     ) -> Result<U32RangeId> {
         let mut offsets = Vec::with_capacity(values.len());
         for value in values {
-            let value = tensor_value(*value, context)?;
-            offsets.push(cell_offset(self, value)?);
+            offsets.push(cell_offset(self, *value)?);
         }
 
         Ok(pool.u32_range(&offsets))
     }
 
     /// Return one side-table range of value frame offsets.
-    fn value_offset_reference_range(
+    fn value_offset_range(
         &self,
         pool: &mut Pool<'_, '_>,
-        values: &[mir::ValueReference],
-        context: &'static str,
+        values: &[mir::Value],
     ) -> Result<U32RangeId> {
         let mut offsets = Vec::with_capacity(values.len());
         for value in values {
-            let value = tensor_value(*value, context)?;
-            offsets.push(value_offset(self, value)?);
+            offsets.push(value_offset(self, *value)?);
         }
 
         Ok(pool.u32_range(&offsets))
+    }
+
+    /// Return VM tensor dot dimensions from one MIR immediate.
+    fn tensor_dot(
+        &self,
+        immediate: mir::TensorImmediateId,
+    ) -> Result<mir::TensorDotDimensionNumbers> {
+        let mir::TensorImmediate::Dot {
+            lhs_batch,
+            rhs_batch,
+            lhs_contracting,
+            rhs_contracting,
+        } = self.tree.get_tensor_immediate(immediate)
+        else {
+            return Err(Error::invalid_instruction());
+        };
+
+        Ok(mir::TensorDotDimensionNumbers {
+            lhs_batch: self.indices(*lhs_batch).to_vec(),
+            rhs_batch: self.indices(*rhs_batch).to_vec(),
+            lhs_contracting: self.indices(*lhs_contracting).to_vec(),
+            rhs_contracting: self.indices(*rhs_contracting).to_vec(),
+        })
+    }
+
+    /// Return VM tensor convolution descriptors from one MIR immediate.
+    fn tensor_convolution(
+        &self,
+        immediate: mir::TensorImmediateId,
+    ) -> Result<(
+        mir::TensorConvolutionDimensionNumbers,
+        mir::TensorConvolutionWindow,
+        u32,
+        u32,
+    )> {
+        let mir::TensorImmediate::Convolution {
+            input_batch,
+            input_feature,
+            input_spatial,
+            kernel_input_feature,
+            kernel_output_feature,
+            kernel_spatial,
+            output_batch,
+            output_feature,
+            output_spatial,
+            strides,
+            padding_low,
+            padding_high,
+            lhs_dilation,
+            rhs_dilation,
+            window_reversal,
+            feature_group_count,
+            batch_group_count,
+        } = self.tree.get_tensor_immediate(immediate)
+        else {
+            return Err(Error::invalid_instruction());
+        };
+
+        let dimensions = mir::TensorConvolutionDimensionNumbers {
+            input_batch: *input_batch,
+            input_feature: *input_feature,
+            input_spatial: self.indices(*input_spatial).to_vec(),
+            kernel_input_feature: *kernel_input_feature,
+            kernel_output_feature: *kernel_output_feature,
+            kernel_spatial: self.indices(*kernel_spatial).to_vec(),
+            output_batch: *output_batch,
+            output_feature: *output_feature,
+            output_spatial: self.indices(*output_spatial).to_vec(),
+        };
+        let window = mir::TensorConvolutionWindow {
+            strides: self.tree.get_extents(*strides).to_vec(),
+            padding_low: self.tree.get_extents(*padding_low).to_vec(),
+            padding_high: self.tree.get_extents(*padding_high).to_vec(),
+            lhs_dilation: self.tree.get_extents(*lhs_dilation).to_vec(),
+            rhs_dilation: self.tree.get_extents(*rhs_dilation).to_vec(),
+            window_reversal: self
+                .tree
+                .get_flags(*window_reversal)
+                .iter()
+                .map(|flag| *flag != 0)
+                .collect(),
+        };
+
+        Ok((dimensions, window, *feature_group_count, *batch_group_count))
+    }
+
+    /// Return VM tensor gather descriptors from one MIR immediate.
+    fn tensor_gather(
+        &self,
+        immediate: mir::TensorImmediateId,
+    ) -> Result<(mir::TensorGatherDimensionNumbers, Vec<u32>)> {
+        let mir::TensorImmediate::Gather {
+            offset_dims,
+            collapsed_slice_dims,
+            start_index_map,
+            index_vector_dim,
+            slice_sizes,
+        } = self.tree.get_tensor_immediate(immediate)
+        else {
+            return Err(Error::invalid_instruction());
+        };
+
+        Ok((
+            mir::TensorGatherDimensionNumbers {
+                offset_dims: self.indices(*offset_dims).to_vec(),
+                collapsed_slice_dims: self.indices(*collapsed_slice_dims).to_vec(),
+                start_index_map: self.indices(*start_index_map).to_vec(),
+                index_vector_dim: *index_vector_dim,
+            },
+            self.indices(*slice_sizes).to_vec(),
+        ))
+    }
+
+    /// Return VM tensor scatter dimensions from one MIR immediate.
+    fn tensor_scatter(
+        &self,
+        immediate: mir::TensorImmediateId,
+    ) -> Result<mir::TensorScatterDimensionNumbers> {
+        let mir::TensorImmediate::Scatter {
+            update_window_dims,
+            inserted_window_dims,
+            scatter_dims_to_operand_dims,
+            index_vector_dim,
+        } = self.tree.get_tensor_immediate(immediate)
+        else {
+            return Err(Error::invalid_instruction());
+        };
+
+        Ok(mir::TensorScatterDimensionNumbers {
+            update_window_dims: self.indices(*update_window_dims).to_vec(),
+            inserted_window_dims: self.indices(*inserted_window_dims).to_vec(),
+            scatter_dims_to_operand_dims: self.indices(*scatter_dims_to_operand_dims).to_vec(),
+            index_vector_dim: *index_vector_dim,
+        })
     }
 }
 
@@ -827,16 +926,4 @@ pub(super) fn tensor_scalar_layout(
 ) -> Result<ScalarLayout> {
     scalar_layout_from_type(tree, element)
         .ok_or_else(|| Error::type_mismatch("tensor scalar element", format!("{element:?}")))
-}
-
-/// Return one required tensor value.
-fn tensor_value(reference: mir::ValueReference, context: &'static str) -> Result<mir::Value> {
-    reference
-        .value()
-        .ok_or_else(|| Error::invalid_program(context))
-}
-
-/// Return one required tensor value from an argument slice.
-fn tensor_value_ref(reference: mir::ValueReference, context: &'static str) -> Result<mir::Value> {
-    tensor_value(reference, context)
 }

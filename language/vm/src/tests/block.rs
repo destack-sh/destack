@@ -52,7 +52,7 @@ fn test_check_bounds_accepts_in_range_index() {
     let mir = r#"
 function bounds(v0: int64, v1: int64): int32 {
 entry(v0: int64, v1: int64):
-    check bounds.s v0, v1, v0 -> b1, b2
+    check bounds.s v0, v1, v0 => b1, b2
 
 b1:
     v2: int32 = 1
@@ -78,7 +78,7 @@ fn test_check_bounds_rejects_out_of_range_index() {
     let mir = r#"
 function bounds(v0: int64, v1: int64): int32 {
 entry(v0: int64, v1: int64):
-    check bounds.s v0, v1, v0 -> b1, b2
+    check bounds.s v0, v1, v0 => b1, b2
 
 b1:
     v2: int32 = 1
@@ -120,7 +120,7 @@ fn test_switch() {
     let mir = r#"
 function switchTest(v0: int32): int32 {
 entry(v0: int32):
-    switch v0, b3, 0 -> b1, 1 -> b2
+    switch v0, b3, 0 => b1, 1 => b2
 
 b1:
     v1: int32 = 100
@@ -174,7 +174,7 @@ b1:
     return v1
 b2:
     v3: int32 = int.sub v0, v1
-    v4: int32 = call factorial(v3): (int32) -> int32
+    v4: int32 = call factorial(v3): (int32) => int32
     v5: int32 = int.mul v0, v4
     return v5
 }"#;
@@ -258,8 +258,8 @@ b0(v0: int32):
 function caller(): int32 {
 b0:
     v0: int32 = 3int32
-    v1: int32 = call double(v0): (int32) -> int32
-    v2: int32 = call double(v1): (int32) -> int32
+    v1: int32 = call double(v0): (int32) => int32
+    v2: int32 = call double(v1): (int32) => int32
     return v2
 }"#;
     run_mir_expect(mir, "caller", &[], Value::int32(12));
@@ -276,9 +276,9 @@ b0(v0: int32):
     return v2
 }
 
-function caller(v0: (int32) -> int32, v1: int32): int32 {
-b0(v0: (int32) -> int32, v1: int32):
-    v2: int32 = call.indirect v0(v1): (int32) -> int32
+function caller(v0: fn(int32) => int32, v1: int32): int32 {
+b0(v0: fn(int32) => int32, v1: int32):
+    v2: int32 = call.indirect v0(v1): (int32) => int32
     return v2
 }"#;
 
@@ -310,9 +310,9 @@ entry(v0: int64):
     return v1
 }
 
-function caller(v0: (int32) -> int32, v1: int32): int32 {
-entry(v0: (int32) -> int32, v1: int32):
-    v2: int32 = call.indirect v0(v1): (int32) -> int32
+function caller(v0: fn(int32) => int32, v1: int32): int32 {
+entry(v0: fn(int32) => int32, v1: int32):
+    v2: int32 = call.indirect v0(v1): (int32) => int32
     return v2
 }
 "#;
@@ -351,7 +351,7 @@ b1:
     v4: int32 = 1int32
     v5: int32 = int.sub v0, v4
     v6: int32 = int.add v1, v4
-    tail.call countdown(v5, v6): (int32, int32) -> int32
+    tail.call countdown(v5, v6): (int32, int32) => int32
 b2:
     return v1
 }
@@ -359,7 +359,7 @@ b2:
 function entry(v0: int32): int32 {
 b0(v0: int32):
     v1: int32 = 0int32
-    tail.call countdown(v0, v1): (int32, int32) -> int32
+    tail.call countdown(v0, v1): (int32, int32) => int32
 }"#;
     let output = run_mir_ok(mir, "entry", &[Value::int32(200)]);
     assert_eq!(output, Value::int32(200));
@@ -409,10 +409,10 @@ b2:
     return v1
 }
 
-function entry(v0: int32, v1: (int32, int32) -> int32): int32 {
-entry(v0: int32, v1: (int32, int32) -> int32):
+function entry(v0: int32, v1: fn(int32, int32) => int32): int32 {
+entry(v0: int32, v1: fn(int32, int32) => int32):
     v2: int32 = 0
-    tail.call.indirect v1(v0, v2): (int32, int32) -> int32
+    tail.call.indirect v1(v0, v2): (int32, int32) => int32
 }
 "#;
 
