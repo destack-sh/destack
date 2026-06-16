@@ -7,7 +7,7 @@ fn test_format_switch() {
         r#"
 function dispatch(v0: int32): int32 {
 entry(v0: int32):
-    switch v0, b3, 0 -> b1, 1 -> b2
+    switch v0, b3, 0 => b1, 1 => b2
 
 b1:
     v1: int32 = 100
@@ -33,7 +33,7 @@ fn test_format_yield() {
 function yieldOnce(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 5
-    yield v1 -> b1(v0)
+    yield v1 => b1(v0)
 
 b1(v2: int32, v3: int32):
     v4: int32 = int.add v2, v3
@@ -53,10 +53,10 @@ external function callee(int32): int32
 function suspends(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 5
-    yield v1 -> b1(v0) | b2
+    yield v1 => b1(v0) | b2
 
 b1(v2: int32, v3: int32):
-    call callee(v3) -> b3 | b2
+    call callee(v3) => b3 | b2
 
 b2:
     unwind.resume
@@ -77,7 +77,7 @@ external function callee(int32): int32
 
 function caller(v0: int32): int32 {
 entry(v0: int32):
-    call callee(v0) -> b1
+    call callee(v0) => b1
 
 b1(v1: int32):
     return v1
@@ -107,19 +107,19 @@ fn test_format_check_type_guards() {
 function guard(v0: uint32, v1: ref<void, managed>): int32 {
 entry(v0: uint32, v1: ref<void, managed>):
     v2: boolean = int.eq v0, v0
-    check dynamic.type v0, int32 -> b1, b4
+    check dynamic.type v0, int32 => b1, b4
 
 b1:
     v3: boolean = int.eq v0, v0
-    check variant.tag v0, 1uint32 -> b4, b5
+    check variant.tag v0, 1uint32 => b4, b5
 
 b2:
     v4: boolean = int.eq v0, v0
-    check receiver.type v1, int32 -> b2, b4
+    check receiver.type v1, int32 => b2, b4
 
 b3:
     v5: boolean = int.eq v0, v0
-    check interface.conformance v1, int32 -> b3, b5
+    check interface.conformance v1, int32 => b3, b5
 
 b4:
     v6: int32 = 0

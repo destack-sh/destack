@@ -59,11 +59,11 @@ The terminators themselves are also quite straightforward: control flow can retu
 | `return` | Returns to the caller's frame with a value. | `return v0` |
 | `jump` | Unconditionally jumps to another block. | `jump b1(v0)` |
 | `branch` | Conditionally jumps to one of two blocks based on a boolean value. | `branch v0, b1(v1), b2(v2)` |
-| `check` | Conditionally jumps to a success or failure block based on a semantic constraint (`bounds`, `null`, `div.zero`, etc.); easier to optimize than `branch` because the guard kind is explicit. | `check bounds.u v0, v1, v2 -> b1, b2` |
-| `switch` | Jumps to one of many blocks based on an integer value. | `switch v0, b3, 0 -> b1, 1 -> b2` |
-| `call` (`.indirect`, `.virtual`, `.dynamic`) | Calls and branches to an explicit continuation; the suffix picks static, function-value, virtual, or dynamic-table dispatch. | `call foo(v0): (int32) -> int32 -> okBlock` |
-| `tail.call` (`.indirect`, `.virtual`, `.dynamic`) | Same dispatch flavors, but reuses the current frame and never returns to the caller. | `tail.call foo(v0): (int32) -> void` |
-| `yield` | Suspends the coroutine, yielding a value and remembering where to resume. | `yield v0 -> resume(v1)` |
+| `check` | Conditionally jumps to a success or failure block based on a semantic constraint (`bounds`, `null`, `div.zero`, etc.); easier to optimize than `branch` because the guard kind is explicit. | `check bounds.u v0, v1, v2 => b1, b2` |
+| `switch` | Jumps to one of many blocks based on an integer value. | `switch v0, b3, 0 => b1, 1 => b2` |
+| `call` (`.indirect`, `.virtual`, `.dynamic`) | Calls and branches to an explicit continuation; the suffix picks static, function-value, virtual, or dynamic-table dispatch. | `call foo(v0): (int32) => int32 => okBlock` |
+| `tail.call` (`.indirect`, `.virtual`, `.dynamic`) | Same dispatch flavors, but reuses the current frame and never returns to the caller. | `tail.call foo(v0): (int32) => void` |
+| `yield` | Suspends the coroutine, yielding a value and remembering where to resume. | `yield v0 => resume(v1)` |
 | `panic` | Starts unwinding the Worker with an optional readonly managed string payload. | `panic v0` |
 | `unwind.resume` | Ends a cleanup block by continuing the unwind to the next cleanup or boundary. | `unwind.resume` |
 | `trap` | Terminates unrecoverably without unwinding (no cleanup runs). | `trap.abort` |
@@ -75,8 +75,8 @@ Calls and yields name their continuation explicitly, and can name a cleanup bloc
 The normal target always comes first and the unwind target second, positional just like `branch` and `check` edges.
 
 ```mir
-call open(v0): (int32) -> File -> done(v1) | cleanup
-yield v0 -> resume(v1) | cleanup
+call open(v0): (int32) => File => done(v1) | cleanup
+yield v0 => resume(v1) | cleanup
 ```
 
 ## Instructions
@@ -100,7 +100,7 @@ Instructions perform "operations" and may produce SSA `Value`s.
 | Allocation | `new.zeroed`, `new.uninit`, `new.complete`, `new.slice.zeroed`, `new.slice.uninit`, `frame.alloc.*` |
 | Intrinsics | `intrinsic.*` |
 
-Canonical MIR uses camelCase for multiword instruction and intrinsic names, and spells checks guard-first: `check int.add.overflow.s left, right -> ok, fail`.
+Canonical MIR uses camelCase for multiword instruction and intrinsic names, and spells checks guard-first: `check int.add.overflow.s left, right => ok, fail`.
 
 ### Pointers and References
 

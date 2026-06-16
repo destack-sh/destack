@@ -141,7 +141,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
         } => {
             write!(f, [token("check"), space()])?;
             format_check_constraint(constraint, f)?;
-            write!(f, [space(), token("->"), space()])?;
+            write!(f, [space(), token("=>"), space()])?;
             format_block_target(success, f)?;
             write!(f, [token(","), space()])?;
             format_block_target(failure, f)?;
@@ -164,7 +164,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                         space(),
                         text(&case.value.to_string()),
                         space(),
-                        token("->"),
+                        token("=>"),
                         space()
                     ]
                 )?;
@@ -422,7 +422,7 @@ fn format_continuation<'a>(
     unwind: Option<&BlockTarget>,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    write!(f, [space(), token("->"), space()])?;
+    write!(f, [space(), token("=>"), space()])?;
     format_block_target(target, f)?;
 
     if let Some(unwind) = unwind {
@@ -439,7 +439,7 @@ fn format_allocation_continuation<'a>(
     failure: &BlockTarget,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    write!(f, [space(), token("->"), space()])?;
+    write!(f, [space(), token("=>"), space()])?;
     format_block_target(success, f)?;
     write!(f, [token(","), space()])?;
     format_block_target(failure, f)?;
