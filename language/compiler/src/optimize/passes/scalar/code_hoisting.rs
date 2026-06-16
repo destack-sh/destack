@@ -129,32 +129,11 @@ fn run_code_hoisting(
             _ => continue,
         };
 
-        let Some(then_block) = then_target.block.block() else {
-            continue;
-        };
-        let Some(else_block) = else_target.block.block() else {
-            continue;
-        };
+        let then_block = then_target.block;
+        let else_block = else_target.block;
 
-        let Some(then_arguments) = then_target
-            .arguments
-            .iter()
-            .copied()
-            .map(|argument| argument.value())
-            .collect::<Option<Vec<_>>>()
-        else {
-            continue;
-        };
-
-        let Some(else_arguments) = else_target
-            .arguments
-            .iter()
-            .copied()
-            .map(|argument| argument.value())
-            .collect::<Option<Vec<_>>>()
-        else {
-            continue;
-        };
+        let then_arguments = tree.block_target_values(&then_target).to_vec();
+        let else_arguments = tree.block_target_values(&else_target).to_vec();
 
         // reject degenerate branches
         if then_block == else_block {
@@ -370,18 +349,14 @@ fn build_param_rewrites(
 
     // map then parameters to their incoming arguments
     for (then_param, then_arg) in then_block.parameters.iter().zip(then_arguments.iter()) {
-        let Some(then_param) = then_param.value.value() else {
-            continue;
-        };
+        let then_param = then_param.value;
 
         then_rewrites.insert(then_param, *then_arg);
     }
 
     // map else parameters to their incoming arguments
     for (else_param, else_arg) in else_block.parameters.iter().zip(else_arguments.iter()) {
-        let Some(else_param) = else_param.value.value() else {
-            continue;
-        };
+        let else_param = else_param.value;
 
         else_rewrites.insert(else_param, *else_arg);
     }
@@ -399,7 +374,7 @@ fn instruction_operands_available(
 ) -> bool {
     // scan all operands
     for value in instruction.uses() {
-        let Some(value) = value.value() else {
+        let Some(value) = Some(value) else {
             return false;
         };
 
@@ -477,10 +452,7 @@ fn build_expression_index(
         let instruction = tree.get(instruction_id).clone();
 
         // skip instructions without destinations
-        let Some(destination) = instruction
-            .destination()
-            .and_then(|destination| destination.value())
-        else {
+        let Some(destination) = instruction.destination() else {
             continue;
         };
 

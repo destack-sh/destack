@@ -234,7 +234,7 @@ fn build_candidate(
     let latch_terminator = tree.get(latch_block.terminator);
     match latch_terminator {
         mir::Terminator::Jump { target } => {
-            if target.block.block()? != lp.header {
+            if target.block != lp.header {
                 return None;
             }
             if target.arguments.len() != tree.get(lp.header).parameters.len() {
@@ -335,8 +335,8 @@ fn collect_store_groups(
         // collect store anchors
         let instruction = tree.get(instruction_id);
         let (pointer, value) = match instruction {
-            mir::Instruction::Store { pointer, value } => (Some(pointer.value()?), value.value()?),
-            mir::Instruction::LocalSet { value, .. } => (None, value.value()?),
+            mir::Instruction::Store { pointer, value } => (Some(pointer), value),
+            mir::Instruction::LocalSet { value, .. } => (None, value),
             _ => continue,
         };
 
@@ -348,8 +348,8 @@ fn collect_store_groups(
         // collect dependent instructions
         let group_instructions = collect_group_instructions(
             instruction_id,
-            pointer,
-            value,
+            pointer.copied(),
+            *value,
             latch,
             tree,
             definitions,
@@ -463,12 +463,7 @@ fn collect_group_instructions(
         }
 
         // enqueue operand uses
-        worklist.extend(
-            instruction
-                .uses()
-                .into_iter()
-                .filter_map(|value| value.value()),
-        );
+        worklist.extend(instruction.uses().into_iter());
     }
 
     Some(instructions)
@@ -588,7 +583,7 @@ fn apply_distribution(
             let block = tree.get(cloned_id).clone();
             let terminator_id = block.terminator;
             let mut terminator = tree.get(terminator_id).clone();
-            terminator_remap(&mut terminator, &block_map, &value_map);
+            terminator_remap(tree, &mut terminator, &block_map, &value_map);
             tree.set(cloned_id, block);
             tree.set(terminator_id, terminator);
         }
@@ -642,12 +637,7 @@ fn apply_distribution(
     let new_terminator = mir::Terminator::Jump {
         target: mir::BlockTarget::new(
             loop_instances[0].header.into(),
-            candidate
-                .preheader_args
-                .iter()
-                .copied()
-                .map(Into::into)
-                .collect(),
+            tree.add_values(&candidate.preheader_args),
         ),
     };
     tree.set(candidate.preheader, preheader_block);
@@ -735,9 +725,9 @@ fn update_header_exit(
     // select the exit target and arguments
     let exit_target = next_header.unwrap_or(exit_block);
     let exit_arguments = if next_header.is_some() {
-        preheader_args.iter().copied().map(Into::into).collect()
+        tree.add_values(preheader_args)
     } else {
-        Vec::new()
+        mir::ValueSlice::default()
     };
     let exit_target = mir::BlockTarget::new(exit_target.into(), exit_arguments);
 

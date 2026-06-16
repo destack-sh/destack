@@ -124,15 +124,9 @@ fn run_correlated_value_prop(
                 else_target,
                 ..
             } => {
-                let Some(condition) = condition.value() else {
-                    continue;
-                };
-                let Some(then_target) = then_target.block.block() else {
-                    continue;
-                };
-                let Some(else_target) = else_target.block.block() else {
-                    continue;
-                };
+                let condition = *condition;
+                let then_target = then_target.block;
+                let else_target = else_target.block;
 
                 (condition, then_target, else_target)
             }
@@ -272,8 +266,8 @@ fn equality_condition(
     } = instruction
     {
         // map equality operators to the condition
-        let left = left.value()?;
-        let right = right.value()?;
+        let left = *left;
+        let right = *right;
 
         return match operator {
             mir::BinaryOperator::Equal => Some(EqualityCondition {
@@ -296,7 +290,7 @@ fn equality_condition(
         argument,
         ..
     } = instruction
-        && let Some(argument) = argument.value()
+        && true
         && let Some(nested) = value_to_instruction.get(&argument)
         && let mir::Instruction::Binary {
             operator,
@@ -306,8 +300,8 @@ fn equality_condition(
         } = nested
     {
         // invert equality operators for the negated condition
-        let left = left.value()?;
-        let right = right.value()?;
+        let left = *left;
+        let right = *right;
 
         return match operator {
             mir::BinaryOperator::Equal => Some(EqualityCondition {
@@ -351,16 +345,7 @@ fn range_constraints_for_condition(
             left,
             right,
             ..
-        } => {
-            let Some(left) = left.value() else {
-                return constraints;
-            };
-            let Some(right) = right.value() else {
-                return constraints;
-            };
-
-            (*operator, left, right)
-        }
+        } => (*operator, *left, *right),
         _ => return constraints,
     };
 
@@ -383,11 +368,11 @@ fn range_constraints_for_condition(
 
     // populate the constraint pair
     constraints.then_constraint = Some(RangeConstraint {
-        value,
+        value: value,
         range: then_range,
     });
     constraints.else_constraint = Some(RangeConstraint {
-        value,
+        value: value,
         range: else_range,
     });
 
@@ -569,15 +554,9 @@ fn apply_range_constraint(
             else {
                 continue;
             };
-            let Some(destination) = destination.value() else {
-                continue;
-            };
-            let Some(left) = left.value() else {
-                continue;
-            };
-            let Some(right) = right.value() else {
-                continue;
-            };
+            let destination = *destination;
+            let left = *left;
+            let right = *right;
 
             // fold the comparison when constrained
             let comparison = comparison_from_range(
@@ -1055,7 +1034,7 @@ b2:
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = int.eq v0, v1
-    check bounds.u v0, v1, v2 -> b1, b2
+    check bounds.u v0, v1, v2 => b1, b2
 
 b1:
     v4: uint32 = int.add v0, v1
@@ -1071,7 +1050,7 @@ b2:
 function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
 entry(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = int.eq v0, v1
-    check bounds.u v0, v1, v2 -> b1, b2
+    check bounds.u v0, v1, v2 => b1, b2
 
 b1:
     v4: uint32 = int.add v0, v1

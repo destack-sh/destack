@@ -317,9 +317,7 @@ fn compute_function_summary(
                 has_return = true;
             }
             mir::Terminator::Call { function, .. } => {
-                let Some(function) = function.function() else {
-                    continue;
-                };
+                let function = *function;
 
                 let (effect, behavior) = call_effects_for_direct_callee(function, summaries);
                 memory_builder.record_effect(&effect);
@@ -344,9 +342,7 @@ fn compute_function_summary(
             }
             mir::Terminator::Trap { .. } => {}
             mir::Terminator::TailCall { function, .. } => {
-                let Some(function) = function.function() else {
-                    continue;
-                };
+                let function = *function;
 
                 let (effect, behavior) = call_effects_for_direct_callee(function, summaries);
                 memory_builder.record_effect(&effect);
@@ -482,7 +478,7 @@ fn update_call_metadata(
             let terminator = tree.get(block.terminator);
             terminator
                 .call_direct_target()
-                .and_then(|target| target.function())
+                .and_then(|target| Some(target))
         };
         let Some(callee_id) = callee_id else {
             continue;
@@ -619,7 +615,7 @@ fn call_effects_for_dynamic_terminator(
     let terminator = tree.get(block.terminator);
     let callee = terminator
         .call_direct_target()
-        .and_then(|target| target.function())
+        .and_then(|target| Some(target))
         .or_else(|| call_metadata.and_then(|metadata| metadata.target));
 
     // fill missing pieces from direct callee summaries
@@ -643,7 +639,7 @@ fn direct_callee_for_instruction(
     instruction: &mir::Instruction,
 ) -> Option<mir::LocalNodeId<mir::Function>> {
     match instruction {
-        mir::Instruction::Call { function, .. } => function.function(),
+        mir::Instruction::Call { function, .. } => Some(*function),
         _ => None,
     }
 }
@@ -817,27 +813,23 @@ fn free_behavior() -> mir::FunctionBehavior {
 fn space_set_for_value(
     tree: &mir::Tree,
     function: &mir::Function,
-    value: mir::ValueReference,
+    value: mir::Value,
 ) -> mir::SpaceSet {
-    let Some(value) = value.value() else {
+    let Some(value) = Some(value) else {
         return mir::SpaceSet::ANY;
     };
     let Some(ty) = function.value_type(value) else {
         return mir::SpaceSet::ANY;
     };
 
-    let ty = mir::TypeReference::from(ty);
+    let ty = mir::TypeId::from(ty);
 
     space_set_for_type(tree, &ty)
 }
 
 /// Resolve the backing space for one reference-like type.
-fn space_set_for_type(tree: &mir::Tree, ty: &mir::TypeReference) -> mir::SpaceSet {
-    let Some(ty) = ty.ty() else {
-        return mir::SpaceSet::ANY;
-    };
-
-    match tree.get(ty) {
+fn space_set_for_type(tree: &mir::Tree, ty: &mir::TypeId) -> mir::SpaceSet {
+    match tree.get(*ty) {
         mir::Type::Uninit { value } => space_set_for_type(tree, value),
         mir::Type::Reference { space, .. } | mir::Type::TensorView { space, .. } => {
             space_set_for_space(space.clone())
@@ -1039,9 +1031,9 @@ entry:
     #[test]
     fn test_function_attrs_unknown_indirect_effects() {
         let input = r#"
-function callee(v0: (int32) -> int32, v1: int32): int32 {
-entry(v0: (int32) -> int32, v1: int32):
-    v2: int32 = call.indirect v0(v1): (int32) -> int32
+function callee(v0: fn(int32) => int32, v1: int32): int32 {
+entry(v0: fn(int32) => int32, v1: int32):
+    v2: int32 = call.indirect v0(v1): (int32) => int32
     return v2
 }
 "#;
@@ -1075,7 +1067,7 @@ entry(v0: ref<int32, raw>):
 
 function caller(v0: ref<int32, raw>): void {
 entry(v0: ref<int32, raw>):
-    v1: int32 = call.virtual v0, int32, 1(v0): (ref<int32, raw>) -> int32
+    v1: int32 = call.virtual v0, int32, 1(v0): (ref<int32, raw>) => int32
     return
 }
 "#;
@@ -1121,7 +1113,7 @@ entry(v0: ref<int32, raw>):
 
 function caller(v0: ref<int32, raw>, v1: ref<void, managed, readonly>): void {
 entry(v0: ref<int32, raw>, v1: ref<void, managed, readonly>):
-    call callee(v0) -> b1
+    call callee(v0) => b1
 
 b1:
     return

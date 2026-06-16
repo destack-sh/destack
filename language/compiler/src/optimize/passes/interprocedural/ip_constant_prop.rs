@@ -181,20 +181,14 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                     if let mir::CallDispatchKind::Direct = dispatch
                         && let mir::Instruction::Call { function, call, .. } = instruction
                     {
-                        let Some(function) = function.function() else {
-                            continue;
-                        };
-                        let Some(arguments) = tree
-                            .get_arguments(call.arguments)
+                        let arguments = tree
+                            .get_values(call.arguments)
                             .iter()
-                            .map(|value| value.value())
-                            .collect::<Option<Vec<_>>>()
-                        else {
-                            continue;
-                        };
+                            .copied()
+                            .collect::<Vec<_>>();
 
                         data.direct_calls
-                            .entry(function)
+                            .entry(*function)
                             .or_default()
                             .push(DirectCallArgs {
                                 caller: caller_id,
@@ -214,20 +208,10 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
 
             match terminator {
                 mir::Terminator::Call { function, call, .. } => {
-                    let Some(function) = function.function() else {
-                        continue;
-                    };
-                    let Some(arguments) = call
-                        .arguments
-                        .iter()
-                        .map(|value| value.value())
-                        .collect::<Option<Vec<_>>>()
-                    else {
-                        continue;
-                    };
+                    let arguments = tree.get_values(call.arguments).to_vec();
 
                     data.direct_calls
-                        .entry(function)
+                        .entry(*function)
                         .or_default()
                         .push(DirectCallArgs {
                             caller: caller_id,
@@ -244,20 +228,10 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                     }
                 }
                 mir::Terminator::TailCall { function, call, .. } => {
-                    let Some(function) = function.function() else {
-                        continue;
-                    };
-                    let Some(arguments) = call
-                        .arguments
-                        .iter()
-                        .map(|value| value.value())
-                        .collect::<Option<Vec<_>>>()
-                    else {
-                        continue;
-                    };
+                    let arguments = tree.get_values(call.arguments).to_vec();
 
                     data.direct_calls
-                        .entry(function)
+                        .entry(*function)
                         .or_default()
                         .push(DirectCallArgs {
                             caller: caller_id,
@@ -338,10 +312,7 @@ fn constant_parameters(
 
             // validate the constant matches the parameter type
             let constant_type = constant_type_of(&constant);
-            let Some(parameter_type) = param.ty.ty() else {
-                candidate = None;
-                break;
-            };
+            let parameter_type = param.ty;
             if !constant_matches_type(constant_type, parameter_type, pointer_width_bits, tree) {
                 candidate = None;
                 break;
@@ -473,9 +444,9 @@ entry(v0: int32):
     return v1
 }
 
-function root(v0: (int32) -> int32, v1: int32): int32 {
-entry(v0: (int32) -> int32, v1: int32):
-    v2: int32 = call.indirect v0(v1): (int32) -> int32
+function root(v0: fn(int32) => int32, v1: int32): int32 {
+entry(v0: fn(int32) => int32, v1: int32):
+    v2: int32 = call.indirect v0(v1): (int32) => int32
     v3: int32 = 4
     v4: int32 = call callee(v3)
     return v4
@@ -489,9 +460,9 @@ entry(v0: int32):
     return v1
 }
 
-function root(v0: (int32) -> int32, v1: int32): int32 {
-entry(v0: (int32) -> int32, v1: int32):
-    v2: int32 = call.indirect v0(v1): (int32) -> int32
+function root(v0: fn(int32) => int32, v1: int32): int32 {
+entry(v0: fn(int32) => int32, v1: int32):
+    v2: int32 = call.indirect v0(v1): (int32) => int32
     v3: int32 = 4
     v4: int32 = call callee(v3)
     return v4
@@ -557,7 +528,7 @@ entry(v0: int32):
 function root(): int32 {
 entry:
     v0: int32 = 4
-    call callee(v0) -> b1
+    call callee(v0) => b1
 
 b1(v1: int32):
     return v1
@@ -577,7 +548,7 @@ entry(v0: int32):
 function root(): int32 {
 entry:
     v0: int32 = 4
-    call callee(v0) -> b1
+    call callee(v0) => b1
 
 b1(v1: int32):
     return v1

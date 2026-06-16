@@ -157,7 +157,7 @@ fn run_store_sink(
     for candidate in candidates {
         let block = tree.get(candidate.block);
         let terminator = tree.get(block.terminator);
-        let successors = terminator.successors();
+        let successors = tree.terminator_successors(terminator);
 
         // require multiple successors
         if successors.len() < 2 {
@@ -173,9 +173,7 @@ fn run_store_sink(
         // determine which successors need the store
         let mut needed = Vec::new();
         for successor in &successors {
-            let Some(successor) = successor.block() else {
-                continue;
-            };
+            let successor = *successor;
 
             if successor_reaches_use(tree, successor, use_blocks) {
                 needed.push(successor);
@@ -246,24 +244,15 @@ fn collect_store_candidates(
             // select store instructions
             let (kind, pointer, local, value) = match tree.get(instruction_id) {
                 mir::Instruction::Store { pointer, value } => {
-                    let Some(pointer) = pointer.value() else {
-                        continue;
-                    };
-                    let Some(value) = value.value() else {
-                        continue;
-                    };
+                    let pointer = *pointer;
+                    let value = *value;
 
                     (StoreKind::Store, Some(pointer), None, value)
                 }
                 mir::Instruction::LocalSet { local, value } => {
-                    let Some(local) = local.local() else {
-                        continue;
-                    };
-                    let Some(value) = value.value() else {
-                        continue;
-                    };
+                    let value = *value;
 
-                    (StoreKind::LocalSet, None, Some(local), value)
+                    (StoreKind::LocalSet, None, Some(*local), value)
                 }
                 _ => continue,
             };
@@ -424,11 +413,7 @@ fn successor_reaches_use(
 
         let block = tree.get(block);
         let terminator = tree.get(block.terminator);
-        for successor in terminator.successors() {
-            let Some(successor) = successor.block() else {
-                continue;
-            };
-
+        for successor in tree.terminator_successors(terminator) {
             if visited.insert(successor) {
                 queue.push_back(successor);
             }
@@ -521,17 +506,17 @@ function test(v0: boolean): int32 {
 entry(v0: boolean):
     v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 7
-    branch v0, b1, b3
+    branch v0, b1, b2
 
 b1:
     store v1, v2
-    jump block1_1
+    jump b1_1
 
-block1_1:
+b1_1:
     v3: int32 = load v1
     return v3
 
-b3:
+b2:
     return v2
 }
 "#;

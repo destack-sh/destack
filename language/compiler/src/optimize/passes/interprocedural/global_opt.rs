@@ -168,12 +168,8 @@ fn collect_global_addr_info(tree: &mir::Tree) -> GlobalAddrInfo {
                     continue;
                 };
 
-                let Some(destination) = destination.value() else {
-                    continue;
-                };
-                let Some(global) = global.global() else {
-                    continue;
-                };
+                let destination = *destination;
+                let global = *global;
 
                 let entry = GlobalAddrEntry {
                     function_id,
@@ -211,21 +207,12 @@ fn build_value_use_maps(
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
 
-                for value in instruction
-                    .uses()
-                    .into_iter()
-                    .filter_map(|value| value.value())
-                {
+                for value in instruction.uses().into_iter() {
                     uses.entry(value).or_default().push(instruction_id);
                 }
 
                 if let Some(args) = instruction.argument_slice() {
-                    for arg in tree
-                        .get_arguments(args)
-                        .iter()
-                        .cloned()
-                        .filter_map(|value| value.value())
-                    {
+                    for arg in tree.get_values(args).iter().copied() {
                         uses.entry(arg).or_default().push(instruction_id);
                     }
                 }
@@ -233,11 +220,7 @@ fn build_value_use_maps(
 
             // collect terminator uses
             let terminator = tree.get(block.terminator);
-            for value in terminator
-                .uses()
-                .into_iter()
-                .filter_map(|value| value.value())
-            {
+            for value in tree.terminator_uses(terminator) {
                 terminator_uses.insert(value);
             }
         }
@@ -287,9 +270,8 @@ fn collect_written_globals(
 
                 // detect direct stores through global pointers
                 if let mir::Instruction::Store { pointer, .. } = instruction
-                    && let Some(global_id) = pointer.value().and_then(|pointer| {
-                        global_addr_base(pointer, &definitions, addr_info, tree)
-                    })
+                    && let Some(global_id) =
+                        global_addr_base(*pointer, &definitions, addr_info, tree)
                 {
                     written.insert(global_id);
                     continue;
@@ -297,9 +279,7 @@ fn collect_written_globals(
 
                 // detect local stores of global pointers
                 if let mir::Instruction::LocalSet { value, .. } = instruction
-                    && let Some(global_id) = value
-                        .value()
-                        .and_then(|value| global_addr_base(value, &definitions, addr_info, tree))
+                    && let Some(global_id) = global_addr_base(*value, &definitions, addr_info, tree)
                 {
                     written.insert(global_id);
                     continue;
@@ -307,9 +287,8 @@ fn collect_written_globals(
 
                 // detect frees through global pointers
                 if let mir::Instruction::Free { value: pointer } = instruction
-                    && let Some(global_id) = pointer.value().and_then(|pointer| {
-                        global_addr_base(pointer, &definitions, addr_info, tree)
-                    })
+                    && let Some(global_id) =
+                        global_addr_base(*pointer, &definitions, addr_info, tree)
                 {
                     written.insert(global_id);
                     continue;
@@ -384,50 +363,50 @@ fn collect_written_globals(
 
 /// Return true when any argument is derived from a global pointer.
 fn any_argument_global(
-    arguments: &mir::ArgumentSlice,
+    arguments: &mir::ValueSlice,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     addr_info: &GlobalAddrInfo,
     tree: &mir::Tree,
 ) -> bool {
-    tree.get_arguments(*arguments)
+    tree.get_values(*arguments)
         .iter()
-        .filter_map(|value| value.value())
+        .copied()
         .any(|value| global_addr_base(value, definitions, addr_info, tree).is_some())
 }
 
 /// Return true when any value is derived from a global pointer.
 fn any_argument_global_values(
-    arguments: &[mir::ValueReference],
+    arguments: &[mir::Value],
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     addr_info: &GlobalAddrInfo,
     tree: &mir::Tree,
 ) -> bool {
     arguments
         .iter()
-        .filter_map(|value| value.value())
+        .copied()
         .any(|value| global_addr_base(value, definitions, addr_info, tree).is_some())
 }
 
 /// Collect globals referenced by argument slice values.
 fn globals_from_arguments(
-    arguments: &mir::ArgumentSlice,
+    arguments: &mir::ValueSlice,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     addr_info: &GlobalAddrInfo,
     tree: &mir::Tree,
 ) -> HashSet<mir::LocalNodeId<mir::Global>> {
-    globals_from_values(tree.get_arguments(*arguments), definitions, addr_info, tree)
+    globals_from_values(tree.get_values(*arguments), definitions, addr_info, tree)
 }
 
 /// Collect globals referenced by value list.
 fn globals_from_values(
-    values: &[mir::ValueReference],
+    values: &[mir::Value],
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     addr_info: &GlobalAddrInfo,
     tree: &mir::Tree,
 ) -> HashSet<mir::LocalNodeId<mir::Global>> {
     let mut globals = HashSet::new();
 
-    for value in values.iter().filter_map(|value| value.value()) {
+    for value in values.iter().copied() {
         if let Some(global_id) = global_addr_base(value, definitions, addr_info, tree) {
             globals.insert(global_id);
         }
@@ -461,13 +440,13 @@ fn global_addr_base(
 
         match instruction {
             mir::Instruction::FieldAddr { aggregate, .. } => {
-                current = aggregate.value()?;
+                current = *aggregate;
             }
             mir::Instruction::ElementAddr { array, .. } => {
-                current = array.value()?;
+                current = *array;
             }
             mir::Instruction::Cast { argument, .. } => {
-                current = argument.value()?;
+                current = *argument;
             }
             mir::Instruction::Intrinsic {
                 intrinsic,
@@ -478,8 +457,7 @@ fn global_addr_base(
                     intrinsic,
                     mir::Intrinsic::SpaceCast | mir::Intrinsic::Transmute
                 ) {
-                    let argument = tree.get_arguments(*arguments).first()?;
-                    current = argument.value()?;
+                    current = *tree.get_values(*arguments).first()?;
                     continue;
                 }
 
@@ -509,10 +487,7 @@ fn call_writes_memory(
         return metadata.memory.writes;
     }
 
-    let Some(function) = instruction
-        .call_direct_target()
-        .and_then(|target| target.function())
-    else {
+    let Some(function) = instruction.call_direct_target() else {
         return true;
     };
 
@@ -524,13 +499,15 @@ fn terminator_write_arguments(
     tree: &mir::Tree,
     block_id: mir::LocalNodeId<mir::Block>,
     terminator: &mir::Terminator,
-) -> Option<Vec<mir::ValueReference>> {
+) -> Option<Vec<mir::Value>> {
     match terminator {
         mir::Terminator::Call { function, call, .. } => {
-            let function = function.function()?;
-            function_memory_writes_from_tree(tree, function).then(|| call.arguments.clone())
+            function_memory_writes_from_tree(tree, *function)
+                .then(|| tree.get_values(call.arguments).to_vec())
         }
-        mir::Terminator::CallIndirect { call, .. } => Some(call.arguments.clone()),
+        mir::Terminator::CallIndirect { call, .. } => {
+            Some(tree.get_values(call.arguments).to_vec())
+        }
         mir::Terminator::CallVirtual { receiver, call, .. }
         | mir::Terminator::CallDynamic { receiver, call, .. }
         | mir::Terminator::TailCallVirtual { receiver, call, .. }
@@ -549,15 +526,17 @@ fn terminator_write_arguments(
                 return None;
             }
 
-            let mut values = call.arguments.clone();
+            let mut values = tree.get_values(call.arguments).to_vec();
             values.push(*receiver);
             Some(values)
         }
         mir::Terminator::TailCall { function, call, .. } => {
-            let function = function.function()?;
-            function_memory_writes_from_tree(tree, function).then(|| call.arguments.clone())
+            function_memory_writes_from_tree(tree, *function)
+                .then(|| tree.get_values(call.arguments).to_vec())
         }
-        mir::Terminator::TailCallIndirect { call, .. } => Some(call.arguments.clone()),
+        mir::Terminator::TailCallIndirect { call, .. } => {
+            Some(tree.get_values(call.arguments).to_vec())
+        }
         _ => None,
     }
 }
@@ -684,7 +663,7 @@ entry(v0: ref<int32, raw>):
 function root(v0: ref<void, managed, readonly>): void {
 entry(v0: ref<void, managed, readonly>):
     v1: ref<int32, raw> = global.address value
-    call write(v1) -> b1
+    call write(v1) => b1
 
 b1:
     return

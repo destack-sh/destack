@@ -164,15 +164,10 @@ fn run_instruction_combine(
                     fields,
                     ..
                 } => {
-                    let Some(destination) = destination.value() else {
-                        continue;
-                    };
+                    let destination = *destination;
 
-                    let args = tree.get_arguments(*fields);
-                    aggregate_operands.insert(
-                        destination,
-                        args.iter().filter_map(|value| value.value()).collect(),
-                    );
+                    let args = tree.get_values(*fields);
+                    aggregate_operands.insert(destination, args.iter().copied().collect());
                 }
                 mir::Instruction::Tuple {
                     destination,
@@ -184,15 +179,10 @@ fn run_instruction_combine(
                     elements,
                     ..
                 } => {
-                    let Some(destination) = destination.value() else {
-                        continue;
-                    };
+                    let destination = *destination;
 
-                    let args = tree.get_arguments(*elements);
-                    aggregate_operands.insert(
-                        destination,
-                        args.iter().filter_map(|value| value.value()).collect(),
-                    );
+                    let args = tree.get_values(*elements);
+                    aggregate_operands.insert(destination, args.iter().copied().collect());
                 }
                 mir::Instruction::FieldSet {
                     destination,
@@ -200,18 +190,12 @@ fn run_instruction_combine(
                     index,
                     value,
                 } => {
-                    let (Some(destination), Some(aggregate), Some(value)) =
-                        (destination.value(), aggregate.value(), value.value())
-                    else {
-                        continue;
-                    };
-
                     field_sets.insert(
-                        destination,
+                        *destination,
                         FieldSetEntry {
-                            aggregate,
+                            aggregate: *aggregate,
                             index: *index,
-                            value,
+                            value: *value,
                         },
                     );
                 }
@@ -221,18 +205,12 @@ fn run_instruction_combine(
                     index,
                     value,
                 } => {
-                    let (Some(destination), Some(array), Some(value)) =
-                        (destination.value(), array.value(), value.value())
-                    else {
-                        continue;
-                    };
-
                     element_sets.insert(
-                        destination,
+                        *destination,
                         ElementSetEntry {
-                            array,
+                            array: *array,
                             index: *index,
-                            value,
+                            value: *value,
                         },
                     );
                 }
@@ -241,16 +219,10 @@ fn run_instruction_combine(
                     aggregate,
                     index,
                 } => {
-                    let (Some(destination), Some(aggregate)) =
-                        (destination.value(), aggregate.value())
-                    else {
-                        continue;
-                    };
-
                     field_gets.insert(
-                        destination,
+                        *destination,
                         FieldGetEntry {
-                            aggregate,
+                            aggregate: *aggregate,
                             index: *index,
                         },
                     );
@@ -260,15 +232,10 @@ fn run_instruction_combine(
                     array,
                     index,
                 } => {
-                    let (Some(destination), Some(array)) = (destination.value(), array.value())
-                    else {
-                        continue;
-                    };
-
                     element_gets.insert(
-                        destination,
+                        *destination,
                         ElementGetEntry {
-                            array,
+                            array: *array,
                             index: *index,
                         },
                     );
@@ -277,10 +244,7 @@ fn run_instruction_combine(
             }
 
             // track all instructions by destination
-            if let Some(dest) = instruction
-                .destination()
-                .and_then(|destination| destination.value())
-            {
+            if let Some(dest) = instruction.destination() {
                 value_to_instruction.insert(dest, instruction.clone());
             }
         }
@@ -312,59 +276,33 @@ fn run_instruction_combine(
                         operator,
                         left,
                         right,
-                    } => {
-                        if let (Some(destination), Some(left), Some(right)) =
-                            (destination.value(), left.value(), right.value())
-                        {
-                            simplify_binary_operator(
-                                destination,
-                                *operator,
-                                left,
-                                right,
-                                &constant_lookup,
-                                &block_ranges,
-                                float_math,
-                            )
-                        } else {
-                            None
-                        }
-                    }
+                    } => simplify_binary_operator(
+                        *destination,
+                        *operator,
+                        *left,
+                        *right,
+                        &constant_lookup,
+                        &block_ranges,
+                        float_math,
+                    ),
 
                     mir::Instruction::Unary {
                         destination,
                         operator,
                         argument,
-                    } => {
-                        if let (Some(destination), Some(argument)) =
-                            (destination.value(), argument.value())
-                        {
-                            simplify_unary_operator(
-                                destination,
-                                *operator,
-                                argument,
-                                &value_to_instruction,
-                            )
-                        } else {
-                            None
-                        }
-                    }
+                    } => simplify_unary_operator(
+                        *destination,
+                        *operator,
+                        *argument,
+                        &value_to_instruction,
+                    ),
 
                     mir::Instruction::FieldGet {
                         aggregate, index, ..
-                    } => {
-                        if let Some(aggregate) = aggregate.value() {
-                            simplify_field_get(aggregate, *index, &aggregate_operands, &field_sets)
-                        } else {
-                            None
-                        }
-                    }
+                    } => simplify_field_get(*aggregate, *index, &aggregate_operands, &field_sets),
 
                     mir::Instruction::ElementGet { array, index, .. } => {
-                        if let Some(array) = array.value() {
-                            simplify_element_get(array, *index, &aggregate_operands, &element_sets)
-                        } else {
-                            None
-                        }
+                        simplify_element_get(*array, *index, &aggregate_operands, &element_sets)
                     }
 
                     mir::Instruction::FieldSet {
@@ -372,26 +310,14 @@ fn run_instruction_combine(
                         index,
                         value,
                         ..
-                    } => {
-                        if let (Some(aggregate), Some(value)) = (aggregate.value(), value.value()) {
-                            simplify_field_set(aggregate, *index, value, &field_gets)
-                        } else {
-                            None
-                        }
-                    }
+                    } => simplify_field_set(*aggregate, *index, *value, &field_gets),
 
                     mir::Instruction::ElementSet {
                         array,
                         index,
                         value,
                         ..
-                    } => {
-                        if let (Some(array), Some(value)) = (array.value(), value.value()) {
-                            simplify_element_set(array, *index, value, &element_gets)
-                        } else {
-                            None
-                        }
-                    }
+                    } => simplify_element_set(*array, *index, *value, &element_gets),
 
                     _ => None,
                 }
@@ -404,10 +330,7 @@ fn run_instruction_combine(
                 applied_simplification = true;
                 match simplification {
                     Simplification::Constant(value) => {
-                        let dest = instruction
-                            .destination()
-                            .and_then(|destination| destination.value())
-                            .unwrap();
+                        let dest = instruction.destination().unwrap();
                         let new_instruction = mir::Instruction::Const {
                             destination: dest.into(),
                             value: value.clone(),
@@ -417,10 +340,7 @@ fn run_instruction_combine(
                         tree.set(instruction_id, new_instruction);
                     }
                     Simplification::Substitute(replacement) => {
-                        let dest = instruction
-                            .destination()
-                            .and_then(|destination| destination.value())
-                            .unwrap();
+                        let dest = instruction.destination().unwrap();
                         substitutions.insert(dest, replacement);
                         to_remove.push(instruction_id);
                         let constant_lookup = ConstantLookup::new(&block_constants, &block_ranges);
@@ -471,10 +391,10 @@ fn run_instruction_combine(
         }
 
         for &block_id in &function.blocks {
-            let block = tree.get(block_id);
+            let block = tree.get(block_id).clone();
             let terminator_id = block.terminator;
             let terminator = tree.get(terminator_id).clone();
-            let new_terminator = terminator_substitute_uses(&terminator, &substitutions);
+            let new_terminator = terminator_substitute_uses(tree, &terminator, &substitutions);
             let filtered: Vec<_> = block
                 .instructions
                 .iter()
@@ -484,7 +404,7 @@ fn run_instruction_combine(
 
             // replace the block when terminators or instructions change
             if new_terminator != terminator || filtered.len() != block.instructions.len() {
-                let mut new_block = block.clone();
+                let mut new_block = block;
                 new_block.instructions = filtered;
                 tree.set(block_id, new_block);
                 tree.set(terminator_id, new_terminator);
@@ -784,10 +704,7 @@ fn update_constant_map(
     type_context: TypeContext,
 ) {
     // skip instructions without destinations
-    let Some(destination) = instruction
-        .destination()
-        .and_then(|destination| destination.value())
-    else {
+    let Some(destination) = instruction.destination() else {
         return;
     };
 
@@ -813,8 +730,8 @@ fn update_constant_map(
             ..
         } => {
             // fold binary constants when possible
-            let left = left.value().and_then(constant_for);
-            let right = right.value().and_then(constant_for);
+            let left = constant_for(*left);
+            let right = constant_for(*right);
             if let (Some(left), Some(right)) = (left, right)
                 && let Some(result) = fold_binary(*operator, left, right)
             {
@@ -827,7 +744,7 @@ fn update_constant_map(
             operator, argument, ..
         } => {
             // fold unary constants when possible
-            let argument = argument.value().and_then(constant_for);
+            let argument = constant_for(*argument);
             if let Some(argument) = argument
                 && let Some(result) = fold_unary(*operator, argument)
             {
@@ -843,13 +760,13 @@ fn update_constant_map(
             ..
         } => {
             // fold casts when possible
-            let argument = argument.value().and_then(constant_for);
+            let argument = constant_for(*argument);
             if let Some(argument) = argument
-                && let Some(to_type) = to_type.ty()
+                && true
                 && let Some(result) = fold_cast(
                     *operator,
                     argument,
-                    to_type,
+                    *to_type,
                     type_context.pointer_width_bits,
                     tree,
                 )
@@ -866,18 +783,9 @@ fn update_constant_map(
             ..
         } => {
             // fold selects with constant conditions
-            let condition = condition.value().and_then(constant_for);
+            let condition = constant_for(*condition);
             if let Some(mir::Constant::Boolean { value }) = condition {
-                let selected = if value {
-                    then_value.value()
-                } else {
-                    else_value.value()
-                };
-
-                let Some(selected) = selected else {
-                    block_constants.remove(destination);
-                    return;
-                };
+                let selected = if value { *then_value } else { *else_value };
 
                 if let Some(constant) = constant_for(selected) {
                     block_constants.insert(destination, constant);
@@ -916,7 +824,7 @@ fn simplify_unary_operator(
         }) = value_to_instruction.get(&argument)
     {
         // !!x = x
-        return Some(Simplification::Substitute(inner.value()?));
+        return Some(Simplification::Substitute(*inner));
     }
 
     None

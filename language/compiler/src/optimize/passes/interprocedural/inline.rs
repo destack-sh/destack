@@ -521,17 +521,8 @@ fn resolve_inline_target(
             ..
         } => {
             // capture call arguments for a direct call
-            let args = tree
-                .get_arguments(call.arguments)
-                .iter()
-                .copied()
-                .map(|argument| argument.value())
-                .collect::<Option<Vec<_>>>()?;
-            Some((
-                function.function()?,
-                args,
-                destination.and_then(|value| value.value()),
-            ))
+            let args = tree.get_values(call.arguments).to_vec();
+            Some((*function, args, *destination))
         }
         _ => None,
     }
@@ -628,9 +619,7 @@ fn inline_callsite(caller: &mut mir::Function, tree: &mut mir::Tree, site: &Inli
     };
 
     // reject mismatched return handling
-    let Some(return_type) = callee.return_type.ty() else {
-        return false;
-    };
+    let return_type = callee.return_type;
 
     if matches!(tree.get(return_type), mir::Type::Void) && site.destination.is_some() {
         return false;
@@ -648,9 +637,7 @@ fn inline_callsite(caller: &mut mir::Function, tree: &mut mir::Tree, site: &Inli
     // build the parameter to argument mapping
     let mut argument_map = HashMap::new();
     for (param, arg) in callee.parameters.iter().zip(site.arguments.iter()) {
-        let Some(param_value) = param.value.value() else {
-            return false;
-        };
+        let param_value = param.value;
 
         argument_map.insert(param_value, *arg);
     }
@@ -658,9 +645,7 @@ fn inline_callsite(caller: &mut mir::Function, tree: &mut mir::Tree, site: &Inli
     // ensure entry block parameters are sourced from arguments
     let entry_params = tree.get(entry_block).parameters.clone();
     for param in &entry_params {
-        let Some(param_value) = param.value.value() else {
-            return false;
-        };
+        let param_value = param.value;
 
         if !argument_map.contains_key(&param_value) {
             return false;
@@ -771,25 +756,22 @@ fn clone_callee_blocks(
         let new_params: Vec<mir::Parameter> = original
             .parameters
             .iter()
-            .filter_map(|param| {
-                let value = param.value.value()?;
-                let ty = param.ty.ty()?;
+            .map(|param| {
+                let value = param.value;
+                let ty = param.ty;
                 let new_value = caller.next_typed_value(ty);
                 value_map.insert(value, new_value);
-                Some(mir::Parameter {
+                mir::Parameter {
                     value: new_value.into(),
                     ty: ty.into(),
-                })
+                }
             })
             .collect();
 
         // allocate new values for instruction destinations
         for &instruction_id in &original.instructions {
             let instruction = tree.get(instruction_id);
-            if let Some(destination) = instruction
-                .destination()
-                .and_then(|destination| destination.value())
-            {
+            if let Some(destination) = instruction.destination() {
                 let destination_type = callee_value_types.require_value_type(destination);
                 let new_value = caller.next_typed_value(destination_type);
                 value_map.insert(destination, new_value);
@@ -866,10 +848,11 @@ fn split_block_for_inline(
     // build jump arguments for the inlined entry block
     let mut entry_arguments = Vec::new();
     for param in entry_params {
-        let param_value = param.value.value()?;
+        let param_value = param.value;
         let argument = argument_map.get(&param_value).copied()?;
-        entry_arguments.push(argument.into());
+        entry_arguments.push(argument);
     }
+    let entry_arguments = tree.add_values(&entry_arguments);
 
     // replace the call with a jump to the inlined entry
     let jump_terminator = mir::Terminator::Jump {
@@ -914,7 +897,7 @@ fn substitute_value_in_function(
         }
 
         let terminator = tree.get(block.terminator).clone();
-        let updated_terminator = terminator_substitute_uses(&terminator, &substitutions);
+        let updated_terminator = terminator_substitute_uses(tree, &terminator, &substitutions);
         if updated_terminator != terminator {
             tree.set(block.terminator, updated_terminator);
         }
@@ -965,7 +948,7 @@ fn remap_inline_blocks(
         tree.set(new_block.terminator, original_terminator);
 
         let mut remapped_terminator = tree.get(new_block.terminator).clone();
-        terminator_remap(&mut remapped_terminator, block_map, value_map);
+        terminator_remap(tree, &mut remapped_terminator, block_map, value_map);
         tree.set(new_block.terminator, remapped_terminator);
 
         tree.set(new_block_id, new_block);
@@ -993,10 +976,11 @@ fn rewrite_inlined_returns(
         if expects_value && let Some(value) = value {
             arguments.push(value);
         }
+        let arguments = tree.add_values(&arguments);
 
         // replace the return with a jump to the continuation
         let new_terminator = mir::Terminator::Jump {
-            target: mir::BlockTarget::new(continuation.into(), arguments.into_iter().collect()),
+            target: mir::BlockTarget::new(continuation.into(), arguments),
         };
         tree.set(block.terminator, new_terminator);
         tree.set(new_block_id, block);
@@ -1352,13 +1336,13 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::Tree) -> u64 {
         | mir::Instruction::ElementAddr { .. }
         | mir::Instruction::ElementSet { .. } => INLINE_COST_SIMPLE + 1,
         mir::Instruction::Struct { fields, .. } => {
-            INLINE_COST_SIMPLE + tree.get_arguments(*fields).len() as u64
+            INLINE_COST_SIMPLE + tree.get_values(*fields).len() as u64
         }
         mir::Instruction::Tuple { elements, .. } => {
-            INLINE_COST_SIMPLE + tree.get_arguments(*elements).len() as u64
+            INLINE_COST_SIMPLE + tree.get_values(*elements).len() as u64
         }
         mir::Instruction::Array { elements, .. } => {
-            INLINE_COST_SIMPLE + tree.get_arguments(*elements).len() as u64
+            INLINE_COST_SIMPLE + tree.get_values(*elements).len() as u64
         }
         mir::Instruction::Call { .. } => INLINE_COST_CALL,
         mir::Instruction::CallVirtual { .. } | mir::Instruction::CallDynamic { .. } => {
@@ -1426,17 +1410,17 @@ mod tests {
     #[test]
     fn test_inline_basic_call() {
         let input = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = int.add value0, value0
-    return value1
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = int.add v0, v0
+    return v1
 }
 
-function caller(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = call callee(value0): (int32) -> int32
-    value2: int32 = int.add value1, value0
-    return value2
+function caller(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = call callee(v0): (int32) => int32
+    v2: int32 = int.add v1, v0
+    return v2
 }
 "#;
 
@@ -1616,10 +1600,7 @@ entry:
         }
 
         let callee_load = callee_load.expect("missing callee load");
-        let callee_pointer = callee_pointer
-            .expect("missing callee pointer")
-            .value()
-            .expect("callee pointer should be concrete");
+        let callee_pointer = callee_pointer.expect("missing callee pointer");
         test.insert_pointer_access(
             callee_load,
             mir::MemoryAccessKind::Read,
@@ -1648,10 +1629,7 @@ entry:
         }
 
         let inlined_load = inlined_load.expect("missing inlined load");
-        let inlined_pointer = inlined_pointer
-            .expect("missing inlined pointer")
-            .value()
-            .expect("inlined pointer should be concrete");
+        let inlined_pointer = inlined_pointer.expect("missing inlined pointer");
         let accesses = test
             .tree
             .metadata
@@ -1683,7 +1661,7 @@ entry:
         input.push_str("}\n");
         input.push_str("function caller(v0: int32): int32 {\n");
         input.push_str("b0(v0: int32):\n");
-        input.push_str("    v1: int32 = call callee(v0): (int32) -> int32\n");
+        input.push_str("    v1: int32 = call callee(v0): (int32) => int32\n");
         input.push_str("    return v1\n");
         input.push_str("}\n");
 
@@ -1774,34 +1752,34 @@ entry(v0: int32):
     #[test]
     fn test_inline_uses_hot_callsite() {
         let input = r#"
-function helper(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = int.add value0, value0
-    value2: int32 = int.add value1, value0
-    value3: int32 = int.add value2, value0
-    value4: int32 = int.add value3, value0
-    value5: int32 = int.add value4, value0
-    value6: int32 = int.add value5, value0
-    value7: int32 = int.add value6, value0
-    value8: int32 = int.add value7, value0
-    value9: int32 = int.add value8, value0
-    return value9
+function helper(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = int.add v0, v0
+    v2: int32 = int.add v1, v0
+    v3: int32 = int.add v2, v0
+    v4: int32 = int.add v3, v0
+    v5: int32 = int.add v4, v0
+    v6: int32 = int.add v5, v0
+    v7: int32 = int.add v6, v0
+    v8: int32 = int.add v7, v0
+    v9: int32 = int.add v8, v0
+    return v9
 }
 
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = call helper(value0): (int32) -> int32
-    value2: int32 = call helper(value1): (int32) -> int32
-    value3: int32 = call helper(value2): (int32) -> int32
-    value4: int32 = call helper(value3): (int32) -> int32
-    value5: int32 = call helper(value4): (int32) -> int32
-    return value5
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = call helper(v0): (int32) => int32
+    v2: int32 = call helper(v1): (int32) => int32
+    v3: int32 = call helper(v2): (int32) => int32
+    v4: int32 = call helper(v3): (int32) => int32
+    v5: int32 = call helper(v4): (int32) => int32
+    return v5
 }
 
-function caller(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = call callee(value0): (int32) -> int32
-    return value1
+function caller(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = call callee(v0): (int32) => int32
+    return v1
 }
 "#;
 
@@ -2001,9 +1979,9 @@ entry(v0: int32):
     return v1
 }
 
-function caller(v0: (int32) -> int32, v1: int32): int32 {
-entry(v0: (int32) -> int32, v1: int32):
-    v2: int32 = call.indirect v0(v1): (int32) -> int32
+function caller(v0: fn(int32) => int32, v1: int32): int32 {
+entry(v0: fn(int32) => int32, v1: int32):
+    v2: int32 = call.indirect v0(v1): (int32) => int32
     return v2
 }
 "#;

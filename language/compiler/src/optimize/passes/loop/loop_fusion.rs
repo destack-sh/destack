@@ -443,7 +443,7 @@ fn guard_info(
     let header_block = tree.get(header);
     let header_terminator = tree.get(header_block.terminator);
     let condition = match header_terminator {
-        mir::Terminator::Branch { condition, .. } => condition.value()?,
+        mir::Terminator::Branch { condition, .. } => condition,
         _ => return None,
     };
 
@@ -475,7 +475,7 @@ fn guard_info(
     let induction_index = header_block
         .parameters
         .iter()
-        .position(|param| param.value.value() == left.value())?;
+        .position(|param| param.value == *left)?;
 
     // resolve the induction step
     let step = induction_step(
@@ -491,13 +491,9 @@ fn guard_info(
         return None;
     }
 
-    // validate the step direction
-    let operator = *operator;
-    let bound = right.value()?;
-
     // reject less than guards with non positive steps
     if matches!(
-        operator,
+        *operator,
         mir::BinaryOperator::SignedLessThan | mir::BinaryOperator::UnsignedLessThan
     ) && step <= 0
     {
@@ -506,7 +502,7 @@ fn guard_info(
 
     // reject greater than guards with non negative steps
     if matches!(
-        operator,
+        *operator,
         mir::BinaryOperator::SignedGreaterThan | mir::BinaryOperator::UnsignedGreaterThan
     ) && step >= 0
     {
@@ -517,8 +513,8 @@ fn guard_info(
     if is_strict {
         Some(GuardInfo {
             induction_index,
-            bound,
-            operator,
+            bound: *right,
+            operator: *operator,
             step,
             is_signed,
         })
@@ -545,13 +541,11 @@ fn induction_step(
     };
 
     // resolve the induction argument
-    let arg = target.arguments.get(induction_index).copied()?.value()?;
-    let header_param = tree
-        .get(header)
-        .parameters
-        .get(induction_index)?
-        .value
-        .value()?;
+    let arg = tree
+        .get_values(target.arguments)
+        .get(induction_index)
+        .copied()?;
+    let header_param = tree.get(header).parameters.get(induction_index)?.value;
 
     // reject unchanged induction values
     if forwarding.resolve(arg) == header_param {
@@ -573,19 +567,11 @@ fn induction_step(
 
     // compute the constant step
     let step = match operator {
-        mir::BinaryOperator::Add
-            if left
-                .value()
-                .is_some_and(|left| forwarding.resolve(left) == header_param) =>
-        {
-            const_i64(right.value()?, latch, constants)?
+        mir::BinaryOperator::Add if forwarding.resolve(*left) == header_param => {
+            const_i64(*right, latch, constants)?
         }
-        mir::BinaryOperator::Subtract
-            if left
-                .value()
-                .is_some_and(|left| forwarding.resolve(left) == header_param) =>
-        {
-            -const_i64(right.value()?, latch, constants)?
+        mir::BinaryOperator::Subtract if forwarding.resolve(*left) == header_param => {
+            -const_i64(*right, latch, constants)?
         }
         _ => return None,
     };
@@ -773,12 +759,8 @@ fn apply_fusion(
         .iter()
         .zip(second_header.parameters.iter())
     {
-        let Some(first_param) = first_param.typed_value() else {
-            return false;
-        };
-        let Some(second_param) = second_param.typed_value() else {
-            return false;
-        };
+        let first_param = first_param.typed_value();
+        let second_param = second_param.typed_value();
 
         if first_param.ty != second_param.ty {
             return false;
@@ -799,12 +781,8 @@ fn apply_fusion(
         .iter()
         .zip(second_latch.parameters.iter())
     {
-        let Some(first_param) = first_param.typed_value() else {
-            return false;
-        };
-        let Some(second_param) = second_param.typed_value() else {
-            return false;
-        };
+        let first_param = first_param.typed_value();
+        let second_param = second_param.typed_value();
 
         // require matching parameter types
         if first_param.ty != second_param.ty {
@@ -818,7 +796,7 @@ fn apply_fusion(
     // map loop2 body definitions
     for &instruction_id in &candidate.second.body_instructions {
         let instruction = tree.get(instruction_id);
-        if let Some(destination) = instruction.destination().and_then(|value| value.value()) {
+        if let Some(destination) = instruction.destination() {
             let new_value = function.next_typed_value_like(destination);
             value_map.insert(destination, new_value);
         }
@@ -827,11 +805,7 @@ fn apply_fusion(
     // ensure loop2 body does not depend on header local values
     for &instruction_id in &candidate.second.body_instructions {
         let instruction = tree.get(instruction_id);
-        for value in instruction
-            .uses()
-            .into_iter()
-            .filter_map(|value| value.value())
-        {
+        for value in instruction.uses().into_iter() {
             if value_map.contains_key(&value) {
                 continue;
             }
@@ -891,17 +865,23 @@ fn apply_fusion(
     };
 
     // rewrite the exit target
-    let in_loop_is_then = then_target.block.block() == Some(candidate.first.latch);
+    let in_loop_is_then = then_target.block == candidate.first.latch;
     let new_terminator = if in_loop_is_then {
         mir::Terminator::Branch {
             condition: *condition,
             then_target: then_target.clone(),
-            else_target: mir::BlockTarget::new(candidate.second.exit_block.into(), Vec::new()),
+            else_target: mir::BlockTarget::new(
+                candidate.second.exit_block.into(),
+                mir::ValueSlice::default(),
+            ),
         }
     } else {
         mir::Terminator::Branch {
             condition: *condition,
-            then_target: mir::BlockTarget::new(candidate.second.exit_block.into(), Vec::new()),
+            then_target: mir::BlockTarget::new(
+                candidate.second.exit_block.into(),
+                mir::ValueSlice::default(),
+            ),
             else_target: else_target.clone(),
         }
     };
@@ -982,7 +962,7 @@ entry(v0: uint32):
 
 b1(v5: uint32):
     v6: boolean = int.lt.u v5, v0
-    branch v6, b2(v5), b3
+    branch v6, b2(v5), b6
 
 b2(v7: uint32):
     v8: ref<int32, raw, space(frame)> = element.address v1, v7
@@ -994,7 +974,7 @@ b2(v7: uint32):
     v10: uint32 = int.add v7, v4
     jump b1(v10)
 
-b3:
+b6:
     return
 }
 "#;
@@ -1057,7 +1037,7 @@ entry(v0: uint32):
 
 b1(v6: uint32, v7: uint32):
     v8: boolean = int.lt.u v6, v0
-    branch v8, b2(v6, v7), b3
+    branch v8, b2(v6, v7), b6
 
 b2(v9: uint32, v10: uint32):
     v11: ref<int32, raw, space(frame)> = element.address v1, v9
@@ -1067,7 +1047,7 @@ b2(v9: uint32, v10: uint32):
     v12: uint32 = int.add v9, v4
     jump b1(v12, v10)
 
-b3:
+b6:
     return
 }
 "#;

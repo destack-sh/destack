@@ -177,9 +177,7 @@ fn run_licm(
                 // scan instructions in the block
                 for &instruction_id in &block.instructions {
                     let instruction = tree.get(instruction_id);
-                    let Some(destination) =
-                        instruction.destination().and_then(|value| value.value())
-                    else {
+                    let Some(destination) = instruction.destination() else {
                         continue;
                     };
 
@@ -187,11 +185,10 @@ fn run_licm(
                         continue;
                     }
 
-                    let operands_invariant = instruction.uses().iter().all(|value| {
-                        value
-                            .value()
-                            .is_some_and(|value| invariant_values.contains(&value))
-                    });
+                    let operands_invariant = instruction
+                        .uses()
+                        .iter()
+                        .all(|value| invariant_values.contains(value));
                     if !operands_invariant {
                         continue;
                     }
@@ -225,8 +222,7 @@ fn run_licm(
             // scan block instructions in order
             for (index, &instruction_id) in block.instructions.iter().enumerate() {
                 let instruction = tree.get(instruction_id);
-                let Some(destination) = instruction.destination().and_then(|value| value.value())
-                else {
+                let Some(destination) = instruction.destination() else {
                     continue;
                 };
 
@@ -234,11 +230,10 @@ fn run_licm(
                     continue;
                 }
 
-                let operands_invariant = instruction.uses().iter().all(|value| {
-                    value
-                        .value()
-                        .is_some_and(|value| invariant_values.contains(&value))
-                });
+                let operands_invariant = instruction
+                    .uses()
+                    .iter()
+                    .all(|value| invariant_values.contains(value));
                 if !operands_invariant {
                     continue;
                 }
@@ -353,9 +348,7 @@ fn collect_invariant_seed_values(
 
     // include function parameters
     for param in &function.parameters {
-        let Some(value) = param.value.value() else {
-            continue;
-        };
+        let value = param.value;
 
         invariant_values.insert(value);
     }
@@ -369,16 +362,14 @@ fn collect_invariant_seed_values(
         let block = tree.get(block_id);
 
         for param in &block.parameters {
-            let Some(value) = param.value.value() else {
-                continue;
-            };
+            let value = param.value;
 
             invariant_values.insert(value);
         }
 
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
-            if let Some(destination) = instruction.destination().and_then(|value| value.value()) {
+            if let Some(destination) = instruction.destination() {
                 invariant_values.insert(destination);
             }
         }
@@ -540,14 +531,14 @@ fn instruction_is_hoistable(
                 | mir::BinaryOperator::UnsignedRemainder
         ) =>
         {
-            let Some(left) = left.value() else {
+            let Some(left) = Some(left) else {
                 return false;
             };
-            let Some(right) = right.value() else {
+            let Some(right) = Some(right) else {
                 return false;
             };
 
-            division_is_safe(*operator, left, right, block_id, ranges, constants)
+            division_is_safe(*operator, *left, *right, block_id, ranges, constants)
         }
         _ => false,
     }

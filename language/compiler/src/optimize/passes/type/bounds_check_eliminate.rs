@@ -22,10 +22,10 @@ declare_pass! {
     ///     v1 = 2uint32
     ///     v2 = 4uint32
     ///     v3 = int.lt.u v1, v2
-    ///     check bounds.u v1, v2, v0 -> b1, b2
+    ///     check bounds.u v1, v2, v0 => b1, b2
     /// b1:
     ///     v4 = int.lt.u v1, v2
-    ///     check bounds.u v1, v2, v0 -> b3, b2
+    ///     check bounds.u v1, v2, v0 => b3, b2
     /// b3:
     ///     return
     /// b2:
@@ -39,7 +39,7 @@ declare_pass! {
     ///     v1 = 2uint32
     ///     v2 = 4uint32
     ///     v3 = int.lt.u v1, v2
-    ///     check bounds.u v1, v2, v0 -> b1, b2
+    ///     check bounds.u v1, v2, v0 => b1, b2
     /// b1:
     ///     v4 = int.lt.u v1, v2
     ///     jump b3
@@ -227,9 +227,7 @@ impl ValueDefinitions {
             // record block parameter definitions
             let block = tree.get(block_id);
             for (index, param) in block.parameters.iter().enumerate() {
-                let Some(value) = param.value.value() else {
-                    continue;
-                };
+                let value = param.value;
 
                 definitions.insert(
                     value,
@@ -243,8 +241,7 @@ impl ValueDefinitions {
             // record instruction definitions
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
-                if let Some(destination) = instruction.destination().and_then(|value| value.value())
-                {
+                if let Some(destination) = instruction.destination() {
                     definitions.insert(
                         destination,
                         ValueDefinition::Instruction {
@@ -391,11 +388,7 @@ impl ReachabilityCache {
                 // enqueue successors for traversal
                 let block = tree.get(block_id);
                 let terminator = tree.get(block.terminator);
-                for successor in terminator.successors() {
-                    let Some(successor) = successor.block() else {
-                        continue;
-                    };
-
+                for successor in tree.terminator_successors(terminator) {
                     if visited.contains(&successor) {
                         continue;
                     }
@@ -460,20 +453,13 @@ fn bounds_check_candidate(
             else_target,
         } => {
             // consider only branches to trap blocks
-            let then_trap = then_target
-                .block
-                .block()
-                .is_some_and(|block| is_trap_block(block, tree));
-            let else_trap = else_target
-                .block
-                .block()
-                .is_some_and(|block| is_trap_block(block, tree));
+            let then_trap = is_trap_block(then_target.block, tree);
+            let else_trap = is_trap_block(else_target.block, tree);
             if !then_trap && !else_trap {
                 return None;
             }
 
             // assign in bounds and out of bounds edges
-            let condition = condition.value()?;
             let (in_bounds_target, out_target, in_bounds_truth) = if then_trap {
                 (else_target, then_target, false)
             } else {
@@ -596,9 +582,7 @@ fn constraints_from_assumes(
         let mir::Instruction::Assume { condition } = instruction else {
             continue;
         };
-        let Some(condition) = condition.value() else {
-            continue;
-        };
+        let condition = *condition;
 
         let mut assume_constraints = constraints_for_condition(
             condition,
@@ -636,15 +620,9 @@ fn constraints_for_edge(
             else_target,
             ..
         } => {
-            let Some(condition) = condition.value() else {
-                return Vec::new();
-            };
-            let Some(then_target) = then_target.block.block() else {
-                return Vec::new();
-            };
-            let Some(else_target) = else_target.block.block() else {
-                return Vec::new();
-            };
+            let condition = *condition;
+            let then_target = then_target.block;
+            let else_target = else_target.block;
 
             // check reachability for each successor
             let then_reaches = reachability.can_reach(tree, then_target, child);
@@ -673,12 +651,8 @@ fn constraints_for_edge(
             success,
             failure,
         } => {
-            let Some(success) = success.block.block() else {
-                return Vec::new();
-            };
-            let Some(failure) = failure.block.block() else {
-                return Vec::new();
-            };
+            let success = success.block;
+            let failure = failure.block;
 
             // check reachability for each successor
             let success_reaches = reachability.can_reach(tree, success, child);
@@ -1085,28 +1059,26 @@ fn condition_truth_value(
                     ..
                 } => match operator {
                     mir::BinaryOperator::And => {
-                        let left = left.value()?;
-                        let right = right.value()?;
+                        let left = *left;
+                        let right = *right;
                         let left_value = condition_truth_value(left, ranges, definitions, tree)?;
                         let right_value = condition_truth_value(right, ranges, definitions, tree)?;
                         Some(left_value && right_value)
                     }
                     mir::BinaryOperator::Or => {
-                        let left = left.value()?;
-                        let right = right.value()?;
+                        let left = *left;
+                        let right = *right;
                         let left_value = condition_truth_value(left, ranges, definitions, tree)?;
                         let right_value = condition_truth_value(right, ranges, definitions, tree)?;
                         Some(left_value || right_value)
                     }
-                    _ => evaluate_comparison(*operator, left.value()?, right.value()?, ranges),
+                    _ => evaluate_comparison(*operator, *left, *right, ranges),
                 },
                 mir::Instruction::Unary {
                     operator: mir::UnaryOperator::Not,
                     argument,
                     ..
-                } => {
-                    condition_truth_value(argument.value()?, ranges, definitions, tree).map(|v| !v)
-                }
+                } => condition_truth_value(*argument, ranges, definitions, tree).map(|v| !v),
                 _ => None,
             }
         }
@@ -1172,8 +1144,8 @@ fn constraints_for_check_kind(
     else {
         return None;
     };
-    let index = index.value()?;
-    let length = length.value()?;
+    let index = *index;
+    let length = *length;
 
     // resolve bound keys and initialize constraints
     let index_key = bound_key_for_value(index, block_id, definitions, tree, constants, ranges);
@@ -1245,7 +1217,7 @@ fn constraints_for_condition(
 
                         // collect constraints from both sides
                         let mut left_constraints = constraints_for_condition(
-                            left.value()?,
+                            *left,
                             true,
                             block_id,
                             definitions,
@@ -1255,7 +1227,7 @@ fn constraints_for_condition(
                         )
                         .unwrap_or_default();
                         let mut right_constraints = constraints_for_condition(
-                            right.value()?,
+                            *right,
                             true,
                             block_id,
                             definitions,
@@ -1277,7 +1249,7 @@ fn constraints_for_condition(
 
                         // collect constraints from both sides
                         let mut left_constraints = constraints_for_condition(
-                            left.value()?,
+                            *left,
                             false,
                             block_id,
                             definitions,
@@ -1287,7 +1259,7 @@ fn constraints_for_condition(
                         )
                         .unwrap_or_default();
                         let mut right_constraints = constraints_for_condition(
-                            right.value()?,
+                            *right,
                             false,
                             block_id,
                             definitions,
@@ -1309,7 +1281,7 @@ fn constraints_for_condition(
 
                         // resolve bound keys for both sides
                         let left_key = bound_key_for_value(
-                            left.value()?,
+                            *left,
                             block_id,
                             definitions,
                             tree,
@@ -1317,7 +1289,7 @@ fn constraints_for_condition(
                             ranges,
                         );
                         let right_key = bound_key_for_value(
-                            right.value()?,
+                            *right,
                             block_id,
                             definitions,
                             tree,
@@ -1349,7 +1321,7 @@ fn constraints_for_condition(
                     _ => {
                         // resolve bound keys for comparison
                         let left_key = bound_key_for_value(
-                            left.value()?,
+                            *left,
                             block_id,
                             definitions,
                             tree,
@@ -1357,7 +1329,7 @@ fn constraints_for_condition(
                             ranges,
                         );
                         let right_key = bound_key_for_value(
-                            right.value()?,
+                            *right,
                             block_id,
                             definitions,
                             tree,
@@ -1377,7 +1349,7 @@ fn constraints_for_condition(
                 } => {
                     // invert the truth value for not
                     constraints_for_condition(
-                        argument.value()?,
+                        *argument,
                         !truth_value,
                         block_id,
                         definitions,
@@ -1635,7 +1607,7 @@ entry(v0: [int32; 4]):
     v1: uint32 = 2
     v2: uint32 = 4
     v3: boolean = int.lt.u v1, v2
-    check bounds.u v1, v2, v0 -> b1, b2
+    check bounds.u v1, v2, v0 => b1, b2
 
 b1:
     v4: int32 = element.get v0, 0
@@ -1711,11 +1683,11 @@ function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
     v3: boolean = int.lt.u v1, v2
-    check bounds.u v1, v2, v0 -> b1, b2
+    check bounds.u v1, v2, v0 => b1, b2
 
 b1:
     v4: boolean = int.lt.u v1, v2
-    check bounds.u v1, v2, v0 -> b3, b2
+    check bounds.u v1, v2, v0 => b3, b2
 
 b2:
     unreachable
@@ -1732,7 +1704,7 @@ function test(v0: [int32; 4], v1: uint32): int32 {
 entry(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4
     v3: boolean = int.lt.u v1, v2
-    check bounds.u v1, v2, v0 -> b1, b2
+    check bounds.u v1, v2, v0 => b1, b2
 
 b1:
     v4: boolean = int.lt.u v1, v2
@@ -1822,7 +1794,7 @@ entry(v0: [int32; 16], v1: uint32):
     v3: boolean = int.lt.u v1, v2
     assume v3
     v4: boolean = int.lt.u v1, v2
-    check bounds.u v1, v2, v0 -> b1, b2
+    check bounds.u v1, v2, v0 => b1, b2
 
 b1:
     v5: int32 = element.get v0, 0
@@ -1873,7 +1845,7 @@ entry(v0: [int32; 8], v1: int32):
     branch v6, b1, b2
 
 b1:
-    check bounds.s v1, v3, v0 -> b3, b2
+    check bounds.s v1, v3, v0 => b3, b2
 
 b2:
     unreachable
@@ -1932,7 +1904,7 @@ b2:
 
 b3:
     v4: boolean = int.lt.u v1, v2
-    check bounds.u v1, v2, v0 -> b4, b2
+    check bounds.u v1, v2, v0 => b4, b2
 
 b4:
     v5: int32 = element.get v0, 0
@@ -1983,7 +1955,7 @@ entry(v0: [int32; 4], v1: uint32):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v2
-    check bounds.u v4, v2, v0 -> b3, b2
+    check bounds.u v4, v2, v0 => b3, b2
 
 b2:
     unreachable
@@ -2064,7 +2036,7 @@ entry(v0: [int32; 4], v1: uint32):
 
 b1:
     v4: boolean = int.lt.u v1, v2
-    check bounds.u v1, v2, v0 -> b2, b3
+    check bounds.u v1, v2, v0 => b2, b3
 
 b2:
     v5: int32 = element.get v0, 0
@@ -2116,7 +2088,7 @@ entry(v0: [int32; 4], v1: uint32):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v2
-    check bounds.u v4, v2, v0 -> b3, b4
+    check bounds.u v4, v2, v0 => b3, b4
 
 b2:
     jump b1(v1)
@@ -2149,7 +2121,7 @@ entry(v0: [int32; 4], v1: uint32):
 
 b1(v4: uint32):
     v5: boolean = int.lt.u v4, v2
-    check bounds.u v4, v2, v0 -> b3, b4
+    check bounds.u v4, v2, v0 => b3, b4
 
 b2:
     v6: uint32 = 1
@@ -2211,7 +2183,7 @@ entry(v0: [int32; 4], v1: uint32):
 
 b1:
     v5: boolean = int.lt.u v1, v3
-    check bounds.u v1, v3, v0 -> b3, b2
+    check bounds.u v1, v3, v0 => b3, b2
 
 b2:
     unreachable

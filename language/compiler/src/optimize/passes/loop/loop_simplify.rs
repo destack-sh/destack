@@ -113,10 +113,9 @@ fn run_loop_simplify(
                     .filter(|&&eb| {
                         let block = tree.get(eb);
                         let terminator = tree.get(block.terminator);
-                        terminator
-                            .successors()
+                        tree.terminator_successors(terminator)
                             .iter()
-                            .any(|target| target.block() == Some(exit_block))
+                            .any(|target| *target == exit_block)
                     })
                     .copied()
                     .collect();
@@ -212,15 +211,10 @@ fn fresh_parameters_like(
 ) -> Vec<mir::Parameter> {
     parameters
         .iter()
-        .map(
-            |parameter| match (parameter.value.value(), parameter.ty.ty()) {
-                (Some(_), Some(ty)) => mir::Parameter {
-                    value: function.next_typed_value(ty).into(),
-                    ty: ty.into(),
-                },
-                _ => parameter.clone(),
-            },
-        )
+        .map(|parameter| mir::Parameter {
+            value: function.next_typed_value(parameter.ty),
+            ty: parameter.ty,
+        })
         .collect()
 }
 
@@ -258,7 +252,7 @@ fn needs_preheader(
         let pred = *outside_preds[0];
         let pred_block = tree.get(pred);
         let pred_terminator = tree.get(pred_block.terminator);
-        if pred_terminator.successors().len() > 1 {
+        if tree.terminator_successors(pred_terminator).len() > 1 {
             return true;
         }
     }
@@ -315,6 +309,7 @@ fn insert_preheader(
         .iter()
         .map(|parameter| parameter.value)
         .collect();
+    let preheader_args = tree.add_values(&preheader_args);
     let preheader_terminator = tree.insert(mir::Terminator::Jump {
         target: mir::BlockTarget::new(header.into(), preheader_args),
     });
@@ -348,10 +343,10 @@ fn insert_preheader(
             continue;
         }
 
-        let block = tree.get(block_id);
-        let terminator = tree.get(block.terminator);
-        if let Some(new_terminator) = redirect_terminator(terminator, header, preheader_id) {
-            tree.set(block.terminator, new_terminator);
+        let terminator_id = tree.get(block_id).terminator;
+        let terminator = tree.get(terminator_id).clone();
+        if let Some(new_terminator) = redirect_terminator(tree, &terminator, header, preheader_id) {
+            tree.set(terminator_id, new_terminator);
             redirected = true;
         }
     }
@@ -372,7 +367,7 @@ fn parameter_substitutions(
 ) -> HashMap<mir::Value, mir::Value> {
     from.iter()
         .zip(to.iter())
-        .filter_map(|(from, to)| Some((from.value.value()?, to.value.value()?)))
+        .map(|(from, to)| (from.value, to.value))
         .collect()
 }
 
@@ -399,7 +394,7 @@ fn substitute_values_in_blocks(
 
         // rewrite terminator operands
         let terminator = tree.get(block.terminator).clone();
-        let terminator = terminator_substitute_uses(&terminator, substitutions);
+        let terminator = terminator_substitute_uses(tree, &terminator, substitutions);
         tree.set(block.terminator, terminator);
     }
 }
@@ -408,13 +403,14 @@ fn substitute_values_in_blocks(
 ///
 /// Returns Some(new_terminator) if any edges were redirected, None otherwise.
 fn redirect_terminator(
+    tree: &mut mir::Tree,
     terminator: &mir::Terminator,
     old_target: mir::LocalNodeId<mir::Block>,
     new_target: mir::LocalNodeId<mir::Block>,
 ) -> Option<mir::Terminator> {
     match terminator {
         mir::Terminator::Jump { target } => {
-            if target.block.block() == Some(old_target) {
+            if target.block == old_target {
                 Some(mir::Terminator::Jump {
                     target: mir::BlockTarget::new(new_target.into(), target.arguments.clone()),
                 })
@@ -428,8 +424,8 @@ fn redirect_terminator(
             then_target,
             else_target,
         } => {
-            let redirect_then = then_target.block.block() == Some(old_target);
-            let redirect_else = else_target.block.block() == Some(old_target);
+            let redirect_then = then_target.block == old_target;
+            let redirect_else = else_target.block == old_target;
 
             if redirect_then || redirect_else {
                 Some(mir::Terminator::Branch {
@@ -493,15 +489,17 @@ fn redirect_terminator(
             default,
             cases,
         } => {
-            let redirect_default = default.block.block() == Some(old_target);
-            let redirect_cases: Vec<bool> = cases
+            let redirect_default = default.block == old_target;
+            let redirect_cases: Vec<bool> = tree
+                .get_switch_cases(*cases)
                 .iter()
-                .map(|case| case.target.block.block() == Some(old_target))
+                .map(|case| case.target.block == old_target)
                 .collect();
             let any_case_redirected = redirect_cases.iter().any(|&r| r);
 
             if redirect_default || any_case_redirected {
-                let new_cases: Vec<_> = cases
+                let new_cases: Vec<_> = tree
+                    .get_switch_cases(*cases)
                     .iter()
                     .zip(redirect_cases.iter())
                     .map(|(case, &redirect)| mir::SwitchCase {
@@ -527,7 +525,7 @@ fn redirect_terminator(
                         },
                         default.arguments.clone(),
                     ),
-                    cases: new_cases,
+                    cases: tree.add_switch_cases(&new_cases),
                 })
             } else {
                 None
@@ -544,14 +542,14 @@ fn redirect_terminator(
             let mut changed = false;
 
             // redirect resume edge
-            if resume.block.block() == Some(old_target) {
+            if resume.block == old_target {
                 new_resume.block = new_target.into();
                 changed = true;
             }
 
             // redirect unwind edge
             if let Some(unwind) = &mut new_unwind
-                && unwind.block.block() == Some(old_target)
+                && unwind.block == old_target
             {
                 unwind.block = new_target.into();
                 changed = true;
@@ -601,6 +599,7 @@ fn merge_latches(
         .iter()
         .map(|parameter| parameter.value)
         .collect();
+    let latch_args = tree.add_values(&latch_args);
     let latch_terminator = tree.insert(mir::Terminator::Jump {
         target: mir::BlockTarget::new(header.into(), latch_args),
     });
@@ -615,10 +614,12 @@ fn merge_latches(
 
     // redirect all original latches to the new merged latch
     for &latch_id in latches {
-        let latch_block = tree.get(latch_id);
-        let latch_terminator = tree.get(latch_block.terminator);
-        if let Some(new_terminator) = redirect_terminator(latch_terminator, header, new_latch_id) {
-            tree.set(latch_block.terminator, new_terminator);
+        let terminator_id = tree.get(latch_id).terminator;
+        let latch_terminator = tree.get(terminator_id).clone();
+        if let Some(new_terminator) =
+            redirect_terminator(tree, &latch_terminator, header, new_latch_id)
+        {
+            tree.set(terminator_id, new_terminator);
         }
     }
 
@@ -653,6 +654,7 @@ fn insert_dedicated_exit(
         .iter()
         .map(|parameter| parameter.value)
         .collect();
+    let dedicated_args = tree.add_values(&dedicated_args);
     let dedicated_terminator = tree.insert(mir::Terminator::Jump {
         target: mir::BlockTarget::new(exit_block.into(), dedicated_args),
     });
@@ -668,12 +670,12 @@ fn insert_dedicated_exit(
     // redirect exiting blocks to the dedicated exit
     let mut redirected = false;
     for &exiting_id in exiting_blocks {
-        let exiting_block = tree.get(exiting_id);
-        let exiting_terminator = tree.get(exiting_block.terminator);
+        let terminator_id = tree.get(exiting_id).terminator;
+        let exiting_terminator = tree.get(terminator_id).clone();
         if let Some(new_terminator) =
-            redirect_terminator(exiting_terminator, exit_block, dedicated_id)
+            redirect_terminator(tree, &exiting_terminator, exit_block, dedicated_id)
         {
-            tree.set(exiting_block.terminator, new_terminator);
+            tree.set(terminator_id, new_terminator);
             redirected = true;
         }
     }
@@ -768,12 +770,12 @@ b1:
         let expected = r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
-    jump entry0_1(v0)
+    jump entry_1(v0)
 
-entry0_1(v1: boolean):
-    branch v1, entry0_1(v1), b2
+entry_1(v1: boolean):
+    branch v1, entry_1(v1), b1
 
-b2:
+b1:
     return
 }
 "#;
@@ -902,7 +904,7 @@ b4(v4: int32):
         let input = r#"
 function test(v0: int32, v1: boolean): void {
 entry(v0: int32, v1: boolean):
-    switch v0, b1, 0 -> b1, 1 -> b2
+    switch v0, b1, 0 => b1, 1 => b2
 
 b1:
     branch v1, b1, b2
@@ -915,7 +917,7 @@ b2:
         let expected = r#"
 function test(v0: int32, v1: boolean): void {
 entry(v0: int32, v1: boolean):
-    switch v0, b3, 0 -> b3, 1 -> b2
+    switch v0, b3, 0 => b3, 1 => b2
 
 b1:
     branch v1, b1, b4
@@ -949,10 +951,10 @@ entry(v0: boolean):
         let expected = r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
-    jump entry0_1(v0)
+    jump entry_1(v0)
 
-entry0_1(v1: boolean):
-    jump entry0_1(v1)
+entry_1(v1: boolean):
+    jump entry_1(v1)
 }
 "#;
         let mut test = TestProgram::new(input);

@@ -215,7 +215,7 @@ fn find_splittable_allocations_core(
     let block_ids: Vec<_> = function.blocks.clone();
 
     for &block_id in &block_ids {
-        let block = tree.get(block_id);
+        let block = tree.get(block_id).clone();
 
         for &inst_id in &block.instructions {
             let inst = tree.get(inst_id);
@@ -226,15 +226,9 @@ fn find_splittable_allocations_core(
                 result_type,
             } = inst
             {
-                let Some(result_type) = result_type.ty() else {
-                    continue;
-                };
-                let Some(layout) = layout.ty() else {
-                    continue;
-                };
-                let Some(destination) = destination.value() else {
-                    continue;
-                };
+                let result_type = *result_type;
+                let layout = *layout;
+                let destination = *destination;
 
                 let reference_spec = match ReferenceSpec::from_type(tree.get(result_type)) {
                     Some(spec) => spec,
@@ -294,19 +288,16 @@ fn get_element_types(
                 .iter()
                 .map(|&field_id| {
                     let field = tree.get(field_id);
-                    field.ty.ty()
+                    field.ty
                 })
-                .collect::<Option<_>>()?;
+                .collect();
 
             Some(types)
         }
 
         mir::Type::Tuple { elements, copy: _ } => {
             // collect element types without recursive flattening
-            elements
-                .iter()
-                .map(|element| element.ty())
-                .collect::<Option<_>>()
+            Some(elements.iter().copied().collect())
         }
 
         mir::Type::Array {
@@ -320,7 +311,7 @@ fn get_element_types(
             }
 
             // create element types for each array element
-            let types = vec![element.ty()?; *length as usize];
+            let types = vec![*element; *length as usize];
 
             Some(types)
         }
@@ -364,17 +355,15 @@ fn analyze_uses(
                         aggregate,
                         index,
                         ..
-                    } if aggregate.value() == Some(value) => {
-                        let destination = destination.value()?;
-
+                    } if *aggregate == value => {
                         uses.push(UseInfo {
                             instruction: inst_id,
                             index: *index as usize,
-                            destination,
+                            destination: *destination,
                         });
 
                         // the field address itself might be used
-                        worklist.push(destination);
+                        worklist.push(*destination);
                     }
 
                     // element address: supported if index is constant
@@ -383,25 +372,22 @@ fn analyze_uses(
                         array,
                         index,
                         ..
-                    } if array.value() == Some(value) => {
-                        let index = index.value()?;
-
+                    } if *array == value => {
                         // check if index is a constant
-                        let const_index = resolve_constant_index(index, block_id, constants)?;
-                        let destination = destination.value()?;
+                        let const_index = resolve_constant_index(*index, block_id, constants)?;
 
                         uses.push(UseInfo {
                             instruction: inst_id,
                             index: const_index,
-                            destination,
+                            destination: *destination,
                         });
 
                         // the element address itself might be used
-                        worklist.push(destination);
+                        worklist.push(*destination);
                     }
 
                     // loads and stores are allowed, base pointer uses are recorded
-                    mir::Instruction::Load { pointer, .. } if pointer.value() == Some(value) => {
+                    mir::Instruction::Load { pointer, .. } if *pointer == value => {
                         if instruction_requires_exact_access(tree, inst_id) {
                             return None;
                         }
@@ -410,7 +396,7 @@ fn analyze_uses(
                         }
                     }
 
-                    mir::Instruction::Store { pointer, .. } if pointer.value() == Some(value) => {
+                    mir::Instruction::Store { pointer, .. } if *pointer == value => {
                         if instruction_requires_exact_access(tree, inst_id) {
                             return None;
                         }
@@ -426,8 +412,8 @@ fn analyze_uses(
                     | mir::Instruction::CallIndirect { .. } => {
                         // arguments are stored externally, access via argument_slice
                         if let Some(arg_slice) = inst.argument_slice() {
-                            for &arg in tree.get_arguments(arg_slice) {
-                                if arg.value() == Some(value) {
+                            for &arg in tree.get_values(arg_slice) {
+                                if arg == value {
                                     // value escapes through call
                                     return None;
                                 }
@@ -437,11 +423,7 @@ fn analyze_uses(
 
                     // any other use of the allocation value escapes
                     _ => {
-                        if inst
-                            .uses()
-                            .into_iter()
-                            .any(|used| used.value() == Some(value))
-                        {
+                        if inst.uses().into_iter().any(|used| used == value) {
                             // this value escapes, can't split
                             return None;
                         }
@@ -451,7 +433,7 @@ fn analyze_uses(
 
             // check terminator uses
             let terminator = tree.get(block.terminator);
-            if terminator_uses(terminator, value) {
+            if terminator_uses(tree, terminator, value) {
                 // value used in terminator, escapes
                 return None;
             }
@@ -622,16 +604,7 @@ fn rewrite_base_load(
             destination,
             pointer,
             ..
-        } => {
-            let Some(destination) = destination.value() else {
-                return Vec::new();
-            };
-            let Some(pointer) = pointer.value() else {
-                return Vec::new();
-            };
-
-            (destination, pointer)
-        }
+        } => (*destination, *pointer),
         _ => panic!("sroa base load rewrite expects a load instruction"),
     };
 
@@ -674,19 +647,12 @@ fn rewrite_base_store(
 ) -> Vec<mir::LocalNodeId<mir::Instruction>> {
     // extract stored value
     let stored_value = match tree.get(instruction_id) {
-        mir::Instruction::Store { value, .. } => {
-            let Some(value) = value.value() else {
-                return Vec::new();
-            };
-
-            value
-        }
+        mir::Instruction::Store { value, .. } => *value,
         _ => panic!("sroa base store rewrite expects a store instruction"),
     };
 
     // select aggregate decomposition strategy
-    let layout = tree.get(candidate.layout);
-    let is_array = matches!(layout, mir::Type::Array { .. });
+    let is_array = matches!(tree.get(candidate.layout), mir::Type::Array { .. });
 
     let mut new_instructions: Vec<mir::LocalNodeId<mir::Instruction>> = Vec::new();
     for index in 0..candidate.element_types.len() {
@@ -740,7 +706,7 @@ fn build_aggregate_instruction(
 ) -> mir::Instruction {
     // prepare aggregate arguments and layout
     let arguments: Vec<_> = element_values.iter().copied().map(Into::into).collect();
-    let arguments = tree.add_arguments(&arguments);
+    let arguments = tree.add_values(&arguments);
     let layout_type = tree.get(layout);
 
     match layout_type {
@@ -789,10 +755,10 @@ fn apply_substitutions(
         }
 
         // substitute in terminator
-        let block = tree.get(block_id);
-        let terminator = tree.get(block.terminator).clone();
-        let new_terminator = terminator_substitute_uses(&terminator, substitutions);
-        tree.set(block.terminator, new_terminator);
+        let terminator_id = tree.get(block_id).terminator;
+        let terminator = tree.get(terminator_id).clone();
+        let new_terminator = terminator_substitute_uses(tree, &terminator, substitutions);
+        tree.set(terminator_id, new_terminator);
     }
 }
 

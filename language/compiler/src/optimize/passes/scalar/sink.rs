@@ -130,7 +130,7 @@ fn run_sink(
         // load the block and its successors
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
-        let successors = terminator.successors();
+        let successors = tree.terminator_successors(terminator);
 
         if successors.is_empty() {
             continue;
@@ -167,12 +167,10 @@ fn run_sink(
                 Some(d) => d,
                 None => continue,
             };
-            let Some(destination_value) = destination.value() else {
-                continue;
-            };
+            let destination_value = destination;
 
             // check that the value is not used in the terminator
-            let terminator_uses: Vec<_> = terminator.uses().into_iter().collect();
+            let terminator_uses: Vec<_> = tree.terminator_uses(terminator).into_iter().collect();
             if terminator_uses.contains(&destination) {
                 continue;
             }
@@ -198,10 +196,7 @@ fn run_sink(
                 }
 
                 // must be a successor
-                if !successors
-                    .iter()
-                    .any(|successor| successor.block() == Some(use_block))
-                {
+                if !successors.iter().any(|successor| *successor == use_block) {
                     // used in a non successor block
                     // this can happen if the value flows through block parameters
                     target_successor = None;
@@ -243,9 +238,7 @@ fn run_sink(
             // verify the instruction's operands will still be available in the successor
             // (they must dominate the successor)
             let operands_ok = instruction.uses().iter().all(|&operand| {
-                let Some(operand_value) = operand.value() else {
-                    return false;
-                };
+                let operand_value = operand;
 
                 if let Some(def_id) = definition_map.get(&operand_value)
                     && instruction_blocks.get(def_id) == Some(&successor)
@@ -335,11 +328,7 @@ fn memory_read_can_sink(
     match instruction {
         mir::Instruction::Load { pointer, .. } => {
             // check for clobbering memory operations
-            let Some(pointer) = pointer.value() else {
-                return false;
-            };
-
-            let location = MemoryLocation::from_ptr(pointer);
+            let location = MemoryLocation::from_ptr(*pointer);
             for &later_id in &block.instructions[index + 1..] {
                 let later = tree.get(later_id);
                 if instruction_may_affect_memory(later) && alias.may_clobber(later_id, &location) {

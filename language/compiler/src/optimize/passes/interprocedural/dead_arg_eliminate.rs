@@ -162,10 +162,9 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                 if let Some(dispatch) = instruction.call_dispatch_kind() {
                     if let mir::CallDispatchKind::Direct = dispatch
                         && let mir::Instruction::Call { function, .. } = instruction
-                        && let Some(function) = function.function()
                     {
                         data.direct_calls
-                            .entry(function)
+                            .entry(*function)
                             .or_default()
                             .push(DirectCallSite::Instruction(instruction_id));
                         continue;
@@ -184,9 +183,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
             let terminator = tree.get(block.terminator);
             match terminator {
                 mir::Terminator::Call { function, .. } => {
-                    let Some(function) = function.function() else {
-                        continue;
-                    };
+                    let function = *function;
 
                     data.direct_calls
                         .entry(function)
@@ -203,9 +200,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                     }
                 }
                 mir::Terminator::TailCall { function, .. } => {
-                    let Some(function) = function.function() else {
-                        continue;
-                    };
+                    let function = *function;
 
                     data.direct_calls
                         .entry(function)
@@ -249,9 +244,7 @@ fn unused_parameter_indices(
             continue;
         }
 
-        let Some(value) = param.value.value() else {
-            continue;
-        };
+        let value = param.value;
 
         if !use_def.use_blocks.contains_key(&value) {
             unused.push(index);
@@ -318,7 +311,7 @@ fn update_call_sites(
                 };
 
                 // filter the argument list
-                let arguments = remap.filter_by_index(tree.get_arguments(slice));
+                let arguments = remap.filter_by_index(tree.get_values(slice));
 
                 // refresh the signature when arguments are removed
                 let signature = if unused.is_empty() {
@@ -329,7 +322,7 @@ fn update_call_sites(
                 };
 
                 // update the call instruction with the new argument slice
-                let new_slice = tree.add_arguments(&arguments);
+                let new_slice = tree.add_values(&arguments);
                 let callsite = mir::CallSite::Instruction(instruction_id);
                 let mut metadata = tree
                     .metadata
@@ -365,7 +358,8 @@ fn update_call_sites(
                     } => {
                         // filter the argument list
                         let mut new_call = call.clone();
-                        new_call.arguments = remap.filter_by_index(&call.arguments);
+                        let arguments = remap.filter_by_index(tree.get_values(call.arguments));
+                        new_call.arguments = tree.add_values(&arguments);
 
                         let new_terminator = mir::Terminator::Call {
                             function: *function,
@@ -378,7 +372,8 @@ fn update_call_sites(
                     mir::Terminator::TailCall { function, call } => {
                         // filter the argument list
                         let mut new_call = call.clone();
-                        new_call.arguments = remap.filter_by_index(&call.arguments);
+                        let arguments = remap.filter_by_index(tree.get_values(call.arguments));
+                        new_call.arguments = tree.add_values(&arguments);
 
                         let new_terminator = mir::Terminator::TailCall {
                             function: *function,
@@ -475,7 +470,7 @@ entry(v0: int32, v1: int32):
 
 function root(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    call callee(v0, v1) -> b1
+    call callee(v0, v1) => b1
 
 b1(v2: int32):
     return v2
@@ -493,7 +488,7 @@ entry(v0: int32):
 
 function root(v0: int32): int32 {
 entry(v0: int32):
-    call callee(v0) -> b1
+    call callee(v0) => b1
 
 b1(v2: int32):
     return v2
@@ -538,9 +533,9 @@ entry(v0: int32, v1: int32):
     return v0
 }
 
-function root(v0: (int32, int32) -> int32, v1: int32, v2: int32): int32 {
-entry(v0: (int32, int32) -> int32, v1: int32, v2: int32):
-    v3: int32 = call.indirect v0(v1, v2): (int32, int32) -> int32
+function root(v0: fn(int32, int32) => int32, v1: int32, v2: int32): int32 {
+entry(v0: fn(int32, int32) => int32, v1: int32, v2: int32):
+    v3: int32 = call.indirect v0(v1, v2): (int32, int32) => int32
     v4: int32 = call callee(v1, v2)
     return v4
 }

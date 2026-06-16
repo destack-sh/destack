@@ -114,7 +114,7 @@ fn eliminate_common_subexpressions_in_block(
     let mut local_values: HashMap<mir::LocalNodeId<mir::Local>, mir::Value> = HashMap::new();
 
     // scan instructions for redundant expressions
-    let block = tree.get(block_id);
+    let block = tree.get(block_id).clone();
     let instruction_ids: Vec<_> = block.instructions.clone();
 
     // scan instructions in test order
@@ -129,12 +129,8 @@ fn eliminate_common_subexpressions_in_block(
 
         // handle local get forwarding
         if let mir::Instruction::LocalGet { destination, local } = instruction {
-            let Some(destination) = destination.value() else {
-                continue;
-            };
-            let Some(local) = local.local() else {
-                continue;
-            };
+            let destination = *destination;
+            let local = *local;
 
             if let Some(existing) = local_values.get(&local) {
                 substitutions.insert(destination, *existing);
@@ -147,12 +143,8 @@ fn eliminate_common_subexpressions_in_block(
 
         // update local state on set
         if let mir::Instruction::LocalSet { local, value } = instruction {
-            let Some(local) = local.local() else {
-                continue;
-            };
-            let Some(value) = value.value() else {
-                continue;
-            };
+            let local = *local;
+            let value = *value;
 
             local_values.insert(local, value);
         }
@@ -164,12 +156,8 @@ fn eliminate_common_subexpressions_in_block(
             ..
         } = instruction
         {
-            let Some(destination) = destination.value() else {
-                continue;
-            };
-            let Some(pointer) = pointer.value() else {
-                continue;
-            };
+            let destination = *destination;
+            let pointer = *pointer;
 
             let location = MemoryLocation::from_ptr(pointer);
             if let Some(existing) = find_load_redundancy(&load_table, &location, alias) {
@@ -200,10 +188,7 @@ fn eliminate_common_subexpressions_in_block(
         };
 
         // get the destination value
-        let Some(destination) = instruction
-            .destination()
-            .and_then(|destination| destination.value())
-        else {
+        let Some(destination) = instruction.destination() else {
             continue;
         };
 
@@ -249,13 +234,12 @@ fn eliminate_common_subexpressions_in_block(
     }
 
     // apply substitutions to terminator
-    let block = tree.get(block_id);
-    let terminator_id = block.terminator;
-    let terminator = tree.get(block.terminator).clone();
-    let new_terminator = terminator_substitute_uses(&terminator, &substitutions);
+    let terminator_id = tree.get(block_id).terminator;
+    let terminator = tree.get(terminator_id).clone();
+    let new_terminator = terminator_substitute_uses(tree, &terminator, &substitutions);
 
     // update block: remove redundant instructions and update terminator
-    let mut new_block = block.clone();
+    let mut new_block = tree.get(block_id).clone();
     new_block.instructions.retain(|id| !to_remove.contains(id));
     tree.set(block_id, new_block);
     tree.set(terminator_id, new_terminator);

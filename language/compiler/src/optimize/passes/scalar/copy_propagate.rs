@@ -75,7 +75,7 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
     // build predecessor map: block -> list of (predecessor_block, arguments passed)
     let mut predecessors: HashMap<
         mir::LocalNodeId<mir::Block>,
-        Vec<(mir::LocalNodeId<mir::Block>, Vec<mir::ValueReference>)>,
+        Vec<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)>,
     > = HashMap::new();
 
     // initialize all blocks with empty predecessor lists
@@ -85,53 +85,34 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
 
     // collect predecessors and their arguments
     for &block_id in &function.blocks {
-        let block = tree.get(block_id);
+        let block = tree.get(block_id).clone();
         let terminator = tree.get(block.terminator);
+        let mut record_predecessor = |target: &mir::BlockTarget| {
+            let arguments = tree.block_target_values(target).to_vec();
+            predecessors
+                .get_mut(&target.block)
+                .unwrap()
+                .push((block_id, arguments));
+        };
+
         match terminator {
             mir::Terminator::Error => {}
             mir::Terminator::Jump { target } => {
-                if let Some(target_block) = target.block.block() {
-                    predecessors
-                        .get_mut(&target_block)
-                        .unwrap()
-                        .push((block_id, target.arguments.clone()));
-                }
+                record_predecessor(target);
             }
             mir::Terminator::Branch {
                 then_target,
                 else_target,
                 ..
             } => {
-                if let Some(target_block) = then_target.block.block() {
-                    predecessors
-                        .get_mut(&target_block)
-                        .unwrap()
-                        .push((block_id, then_target.arguments.clone()));
-                }
-
-                if let Some(target_block) = else_target.block.block() {
-                    predecessors
-                        .get_mut(&target_block)
-                        .unwrap()
-                        .push((block_id, else_target.arguments.clone()));
-                }
+                record_predecessor(then_target);
+                record_predecessor(else_target);
             }
             mir::Terminator::Check {
                 success, failure, ..
             } => {
-                if let Some(target_block) = success.block.block() {
-                    predecessors
-                        .get_mut(&target_block)
-                        .unwrap()
-                        .push((block_id, success.arguments.clone()));
-                }
-
-                if let Some(target_block) = failure.block.block() {
-                    predecessors
-                        .get_mut(&target_block)
-                        .unwrap()
-                        .push((block_id, failure.arguments.clone()));
-                }
+                record_predecessor(success);
+                record_predecessor(failure);
             }
             mir::Terminator::NewZeroedTry {
                 success, failure, ..
@@ -145,74 +126,29 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
             | mir::Terminator::NewSliceUninitTry {
                 success, failure, ..
             } => {
-                if let Some(target_block) = success.block.block() {
-                    let mut arguments = Vec::with_capacity(success.arguments.len() + 1);
-                    arguments.push(mir::ValueReference::Missing);
-                    arguments.extend(success.arguments.iter().copied());
-
-                    predecessors
-                        .get_mut(&target_block)
-                        .unwrap()
-                        .push((block_id, arguments));
-                }
-
-                if let Some(target_block) = failure.block.block() {
-                    predecessors
-                        .get_mut(&target_block)
-                        .unwrap()
-                        .push((block_id, failure.arguments.clone()));
-                }
+                record_predecessor(success);
+                record_predecessor(failure);
             }
             mir::Terminator::Switch { default, cases, .. } => {
-                if let Some(target_block) = default.block.block() {
-                    predecessors
-                        .get_mut(&target_block)
-                        .unwrap()
-                        .push((block_id, default.arguments.clone()));
-                }
+                record_predecessor(default);
 
-                for case in cases {
-                    if let Some(target_block) = case.target.block.block() {
-                        predecessors
-                            .get_mut(&target_block)
-                            .unwrap()
-                            .push((block_id, case.target.arguments.clone()));
-                    }
+                for case in tree.get_switch_cases(*cases) {
+                    record_predecessor(&case.target);
                 }
             }
             mir::Terminator::Yield { resume, unwind, .. } => {
-                if let Some(target_block) = resume.block.block() {
-                    predecessors
-                        .get_mut(&target_block)
-                        .unwrap()
-                        .push((block_id, resume.arguments.clone()));
-                }
-                if let Some(unwind) = unwind
-                    && let Some(target_block) = unwind.block.block()
-                {
-                    predecessors
-                        .get_mut(&target_block)
-                        .unwrap()
-                        .push((block_id, unwind.arguments.clone()));
+                record_predecessor(resume);
+                if let Some(unwind) = unwind {
+                    record_predecessor(unwind);
                 }
             }
             mir::Terminator::Call { target, unwind, .. }
             | mir::Terminator::CallIndirect { target, unwind, .. }
             | mir::Terminator::CallVirtual { target, unwind, .. }
             | mir::Terminator::CallDynamic { target, unwind, .. } => {
-                if let Some(target_block) = target.block.block() {
-                    predecessors
-                        .get_mut(&target_block)
-                        .unwrap()
-                        .push((block_id, target.arguments.clone()));
-                }
-                if let Some(unwind) = unwind
-                    && let Some(target_block) = unwind.block.block()
-                {
-                    predecessors
-                        .get_mut(&target_block)
-                        .unwrap()
-                        .push((block_id, unwind.arguments.clone()));
+                record_predecessor(target);
+                if let Some(unwind) = unwind {
+                    record_predecessor(unwind);
                 }
             }
             mir::Terminator::Return { .. }
@@ -236,7 +172,7 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
             continue;
         }
 
-        let block = tree.get(block_id);
+        let block = tree.get(block_id).clone();
         let preds = &predecessors[&block_id];
 
         // skip blocks without predecessors or parameters
@@ -245,17 +181,12 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
         }
 
         for (param_idx, param) in block.parameters.iter().enumerate() {
-            let Some(param_value) = param.value.value() else {
-                continue;
-            };
+            let param_value = param.value;
 
             let mut incoming_values: Vec<mir::Value> = Vec::new();
             for (_pred_block, args) in preds {
                 if param_idx < args.len() {
-                    let Some(argument) = args[param_idx].value() else {
-                        incoming_values.clear();
-                        break;
-                    };
+                    let argument = args[param_idx];
                     incoming_values.push(argument);
                 }
             }
@@ -287,10 +218,10 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
                 ..
             } = instruction
                 && then_value == else_value
-                && let Some(destination) = destination.value()
-                && let Some(then_value) = then_value.value()
+                && true
+                && true
             {
-                substitutions.insert(destination, then_value);
+                substitutions.insert(*destination, *then_value);
                 to_remove.insert(instruction_id);
             }
         }
@@ -314,10 +245,7 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
             .enumerate()
             .filter_map(|(idx, p)| {
                 // record indices that will be removed
-                if p.value
-                    .value()
-                    .is_some_and(|value| substitutions.contains_key(&value))
-                {
+                if substitutions.contains_key(&p.value) {
                     Some(idx)
                 } else {
                     None
@@ -352,22 +280,25 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
 
     // apply substitutions to terminators and parameters
     for &block_id in &function.blocks {
-        let block = tree.get(block_id);
-        let terminator = tree.get(block.terminator).clone();
-        let new_terminator = terminator_substitute_uses(&terminator, &substitutions);
-        let new_terminator = remove_arguments_at_indices(&new_terminator, &removed_indices);
-        let new_parameters: Vec<_> = block
-            .parameters
+        let block = tree.get(block_id).clone();
+        let terminator_id = block.terminator;
+        let parameters = block.parameters.clone();
+        let instructions = block.instructions.clone();
+        let terminator = tree.get(terminator_id).clone();
+
+        // rewrite terminator arguments
+        let new_terminator = terminator_substitute_uses(tree, &terminator, &substitutions);
+        let new_terminator = remove_arguments_at_indices(tree, &new_terminator, &removed_indices);
+
+        // drop substituted parameters
+        let new_parameters: Vec<_> = parameters
             .iter()
-            .filter(|p| {
-                !p.value
-                    .value()
-                    .is_some_and(|value| substitutions.contains_key(&value))
-            })
+            .filter(|p| !substitutions.contains_key(&p.value))
             .cloned()
             .collect();
-        let new_instructions: Vec<_> = block
-            .instructions
+
+        // drop substituted instructions
+        let new_instructions: Vec<_> = instructions
             .iter()
             .copied()
             .filter(|id| !to_remove.contains(id))
@@ -375,13 +306,13 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
 
         // replace blocks when terminators or parameters change
         if new_terminator != terminator
-            || new_parameters.len() != block.parameters.len()
-            || new_instructions.len() != block.instructions.len()
+            || new_parameters.len() != parameters.len()
+            || new_instructions.len() != instructions.len()
         {
-            let mut new_block = block.clone();
+            let mut new_block = block;
             new_block.parameters = new_parameters;
             new_block.instructions = new_instructions;
-            tree.set(block.terminator, new_terminator);
+            tree.set(terminator_id, new_terminator);
             tree.set(block_id, new_block);
         }
     }
@@ -391,20 +322,14 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
 
 /// Remove arguments at specified indices from terminator's target arguments.
 fn remove_arguments_at_indices(
+    tree: &mut mir::Tree,
     terminator: &mir::Terminator,
     removed_indices: &HashMap<mir::LocalNodeId<mir::Block>, Vec<usize>>,
 ) -> mir::Terminator {
     match terminator {
         mir::Terminator::Jump { target } => {
-            let Some(target_block) = target.block.block() else {
-                return terminator.clone();
-            };
-            let Some(indices) = removed_indices.get(&target_block) else {
-                return terminator.clone();
-            };
-
-            let new_arguments = filter_indices(&target.arguments, indices);
-            if new_arguments == target.arguments {
+            let (new_arguments, changed) = filter_target_arguments(tree, target, removed_indices);
+            if !changed {
                 return terminator.clone();
             }
 
@@ -417,19 +342,11 @@ fn remove_arguments_at_indices(
             then_target,
             else_target,
         } => {
-            let new_then_args = then_target
-                .block
-                .block()
-                .and_then(|block| removed_indices.get(&block))
-                .map(|indices| filter_indices(&then_target.arguments, indices))
-                .unwrap_or_else(|| then_target.arguments.clone());
-            let new_else_args = else_target
-                .block
-                .block()
-                .and_then(|block| removed_indices.get(&block))
-                .map(|indices| filter_indices(&else_target.arguments, indices))
-                .unwrap_or_else(|| else_target.arguments.clone());
-            if new_then_args != then_target.arguments || new_else_args != else_target.arguments {
+            let (new_then_args, changed_then) =
+                filter_target_arguments(tree, then_target, removed_indices);
+            let (new_else_args, changed_else) =
+                filter_target_arguments(tree, else_target, removed_indices);
+            if changed_then || changed_else {
                 mir::Terminator::Branch {
                     condition: *condition,
                     then_target: mir::BlockTarget::new(then_target.block, new_then_args),
@@ -444,19 +361,11 @@ fn remove_arguments_at_indices(
             success,
             failure,
         } => {
-            let new_success_args = success
-                .block
-                .block()
-                .and_then(|block| removed_indices.get(&block))
-                .map(|indices| filter_indices(&success.arguments, indices))
-                .unwrap_or_else(|| success.arguments.clone());
-            let new_failure_args = failure
-                .block
-                .block()
-                .and_then(|block| removed_indices.get(&block))
-                .map(|indices| filter_indices(&failure.arguments, indices))
-                .unwrap_or_else(|| failure.arguments.clone());
-            if new_success_args != success.arguments || new_failure_args != failure.arguments {
+            let (new_success_args, changed_success) =
+                filter_target_arguments(tree, success, removed_indices);
+            let (new_failure_args, changed_failure) =
+                filter_target_arguments(tree, failure, removed_indices);
+            if changed_success || changed_failure {
                 mir::Terminator::Check {
                     constraint: constraint.clone(),
                     success: mir::BlockTarget::new(success.block, new_success_args),
@@ -471,28 +380,27 @@ fn remove_arguments_at_indices(
             default,
             cases,
         } => {
-            let new_default_args = default
-                .block
-                .block()
-                .and_then(|block| removed_indices.get(&block))
-                .map(|indices| filter_indices(&default.arguments, indices))
-                .unwrap_or_else(|| default.arguments.clone());
+            let (new_default_args, changed_default) =
+                filter_target_arguments(tree, default, removed_indices);
+            let cases = tree.get_switch_cases(*cases).to_vec();
+            let mut changed_cases = false;
             let new_cases: Vec<_> = cases
                 .iter()
                 .map(|case| {
-                    let new_args = case
-                        .target
-                        .block
-                        .block()
-                        .and_then(|block| removed_indices.get(&block))
-                        .map(|indices| filter_indices(&case.target.arguments, indices))
-                        .unwrap_or_else(|| case.target.arguments.clone());
+                    let (new_args, changed_case) =
+                        filter_target_arguments(tree, &case.target, removed_indices);
+                    changed_cases |= changed_case;
                     mir::SwitchCase {
                         value: case.value,
                         target: mir::BlockTarget::new(case.target.block, new_args),
                     }
                 })
                 .collect();
+            if !changed_default && !changed_cases {
+                return terminator.clone();
+            }
+            let new_cases = tree.add_switch_cases(&new_cases);
+
             mir::Terminator::Switch {
                 value: *value,
                 default: mir::BlockTarget::new(default.block, new_default_args),
@@ -504,31 +412,16 @@ fn remove_arguments_at_indices(
             resume,
             unwind,
         } => {
-            let new_resume_args = if let Some(indices) = resume
-                .block
-                .block()
-                .and_then(|block| removed_indices.get(&block))
-            {
-                filter_indices(&resume.arguments, indices)
-            } else {
-                resume.arguments.clone()
-            };
+            let (new_resume_args, changed_resume) =
+                filter_target_arguments(tree, resume, removed_indices);
 
             let new_unwind = unwind.as_ref().map(|unwind| {
-                let arguments = if let Some(indices) = unwind
-                    .block
-                    .block()
-                    .and_then(|block| removed_indices.get(&block))
-                {
-                    filter_indices(&unwind.arguments, indices)
-                } else {
-                    unwind.arguments.clone()
-                };
+                let (arguments, _) = filter_target_arguments(tree, unwind, removed_indices);
 
                 mir::BlockTarget::new(unwind.block, arguments)
             });
 
-            if new_resume_args != resume.arguments || new_unwind != *unwind {
+            if changed_resume || new_unwind != *unwind {
                 mir::Terminator::Yield {
                     value: *value,
                     resume: mir::BlockTarget::new(resume.block, new_resume_args),
@@ -542,11 +435,25 @@ fn remove_arguments_at_indices(
     }
 }
 
+/// Remove arguments from one block target.
+fn filter_target_arguments(
+    tree: &mut mir::Tree,
+    target: &mir::BlockTarget,
+    removed_indices: &HashMap<mir::LocalNodeId<mir::Block>, Vec<usize>>,
+) -> (mir::ValueSlice, bool) {
+    let Some(indices) = removed_indices.get(&target.block) else {
+        return (target.arguments, false);
+    };
+
+    let arguments = tree.block_target_values(target);
+    let arguments = filter_indices(arguments, indices);
+    let arguments = tree.add_values(&arguments);
+
+    (arguments, true)
+}
+
 /// Filter out elements at the given indices.
-fn filter_indices(
-    values: &[mir::ValueReference],
-    indices_to_remove: &[usize],
-) -> Vec<mir::ValueReference> {
+fn filter_indices(values: &[mir::Value], indices_to_remove: &[usize]) -> Vec<mir::Value> {
     values
         .iter()
         .enumerate()

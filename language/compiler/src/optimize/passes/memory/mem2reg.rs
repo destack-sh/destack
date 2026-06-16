@@ -176,11 +176,7 @@ fn find_promotable_locals(
         let block = tree.get(block_id);
         for &instruction_id in &block.instructions {
             if let mir::Instruction::LocalAddr { local, .. } = tree.get(instruction_id) {
-                let Some(local) = local.local() else {
-                    continue;
-                };
-
-                address_taken.insert(local);
+                address_taken.insert(*local);
             }
         }
     }
@@ -191,7 +187,7 @@ fn find_promotable_locals(
         .filter(|local_id| !address_taken.contains(local_id))
         .filter_map(|&local_id| {
             let local = tree.get(local_id);
-            let ty = local.ty.ty()?;
+            let ty = local.ty;
 
             Some((local_id, PromotableLocal { ty }))
         })
@@ -214,10 +210,9 @@ fn find_definition_blocks(
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
             if let mir::Instruction::LocalSet { local, .. } = instruction
-                && let Some(local) = local.local()
-                && promotable.contains_key(&local)
+                && promotable.contains_key(local)
             {
-                def_blocks.get_mut(&local).unwrap().insert(block_id);
+                def_blocks.get_mut(local).unwrap().insert(block_id);
             }
         }
     }
@@ -306,25 +301,15 @@ fn compute_local_liveness(
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
             match instruction {
-                mir::Instruction::LocalGet { local, .. }
-                    if local
-                        .local()
-                        .is_some_and(|local| promotable.contains_key(&local)) =>
-                {
-                    let local = local.local().unwrap();
-                    let was_defined = seen_defs.contains(&local);
+                mir::Instruction::LocalGet { local, .. } if promotable.contains_key(local) => {
+                    let was_defined = seen_defs.contains(local);
                     if !was_defined {
-                        uses.insert(local);
+                        uses.insert(*local);
                     }
                 }
-                mir::Instruction::LocalSet { local, .. }
-                    if local
-                        .local()
-                        .is_some_and(|local| promotable.contains_key(&local)) =>
-                {
-                    let local = local.local().unwrap();
-                    seen_defs.insert(local);
-                    defs.insert(local);
+                mir::Instruction::LocalSet { local, .. } if promotable.contains_key(local) => {
+                    seen_defs.insert(*local);
+                    defs.insert(*local);
                 }
                 _ => {}
             }
@@ -358,11 +343,7 @@ fn compute_local_liveness(
 
             // live_out is union of successor live_in sets
             let mut new_live_out: HashSet<mir::LocalNodeId<mir::Local>> = HashSet::new();
-            for successor in terminator.successors() {
-                let Some(successor) = successor.block() else {
-                    continue;
-                };
-
+            for successor in tree.terminator_successors(terminator) {
                 if let Some(successor_live_in) = live_in.get(&successor) {
                     new_live_out.extend(successor_live_in.iter().copied());
                 }
@@ -393,7 +374,7 @@ fn compute_local_liveness(
 }
 
 /// Insert block parameters for promoted locals.
-/// Returns a mapping from (block, local) -> parameter value.
+/// Returns a mapping from (block, local) => parameter value.
 fn insert_block_parameters(
     param_placements: &HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Local>>>,
     promotable: &HashMap<mir::LocalNodeId<mir::Local>, PromotableLocal>,
@@ -481,17 +462,12 @@ fn rename_variables(
             let instruction = tree.get(instruction_id);
             match instruction {
                 mir::Instruction::LocalGet { destination, local } => {
-                    let Some(destination) = destination.value() else {
-                        continue;
-                    };
-                    let Some(local) = local.local() else {
-                        continue;
-                    };
+                    let destination = *destination;
 
-                    if promotable.contains_key(&local) {
+                    if promotable.contains_key(local) {
                         // replace with current value
                         let current_value =
-                            value_stacks[&local].last().copied().unwrap_or_else(|| {
+                            value_stacks[local].last().copied().unwrap_or_else(|| {
                                 panic!(
                                     "use of undefined local in block {block_id:?} \
                                  (local was read before being written, this is invalid MIR)"
@@ -502,17 +478,12 @@ fn rename_variables(
                     }
                 }
                 mir::Instruction::LocalSet { local, value } => {
-                    let Some(local) = local.local() else {
-                        continue;
-                    };
-                    let Some(value) = value.value() else {
-                        continue;
-                    };
+                    let value = *value;
 
-                    if promotable.contains_key(&local) {
+                    if promotable.contains_key(local) {
                         // apply any pending substitutions to the value
                         let actual_value = resolve_value(value, &substitutions);
-                        value_stacks.get_mut(&local).unwrap().push(actual_value);
+                        value_stacks.get_mut(local).unwrap().push(actual_value);
                         instructions_to_remove.insert(instruction_id);
                     }
                 }
@@ -521,9 +492,10 @@ fn rename_variables(
         }
 
         // update terminator to pass block arguments to successors
-        let block = tree.get(block_id);
-        let terminator = tree.get(block.terminator).clone();
+        let terminator_id = tree.get(block_id).terminator;
+        let terminator = tree.get(terminator_id).clone();
         let new_terminator = update_terminator_arguments(
+            tree,
             &terminator,
             block_id,
             block_params,
@@ -532,9 +504,7 @@ fn rename_variables(
         );
 
         if new_terminator != terminator {
-            let new_block = block.clone();
-            tree.set(block.terminator, new_terminator);
-            tree.set(block_id, new_block);
+            tree.set(terminator_id, new_terminator);
         }
 
         // record current stack depths for children
@@ -570,13 +540,11 @@ fn rename_variables(
         }
 
         // apply substitutions to terminator
-        let block = tree.get(block_id);
-        let terminator = tree.get(block.terminator).clone();
-        let new_terminator = terminator_substitute_uses(&terminator, &substitutions);
+        let terminator_id = tree.get(block_id).terminator;
+        let terminator = tree.get(terminator_id).clone();
+        let new_terminator = terminator_substitute_uses(tree, &terminator, &substitutions);
         if new_terminator != terminator {
-            let new_block = block.clone();
-            tree.set(block.terminator, new_terminator);
-            tree.set(block_id, new_block);
+            tree.set(terminator_id, new_terminator);
         }
     }
 
@@ -612,18 +580,15 @@ fn resolve_value(value: mir::Value, substitutions: &HashMap<mir::Value, mir::Val
 
 /// Resolve a value reference through substitution chains when concrete.
 fn remap_value_reference(
-    value: mir::ValueReference,
+    value: mir::Value,
     substitutions: &HashMap<mir::Value, mir::Value>,
-) -> mir::ValueReference {
-    let Some(value) = value.value() else {
-        return value;
-    };
-
-    resolve_value(value, substitutions).into()
+) -> mir::Value {
+    resolve_value(value, substitutions)
 }
 
 /// Update terminator to add block arguments for successors.
 fn update_terminator_arguments(
+    tree: &mut mir::Tree,
     terminator: &mir::Terminator,
     _block_id: mir::LocalNodeId<mir::Block>,
     block_params: &HashMap<
@@ -633,19 +598,6 @@ fn update_terminator_arguments(
     value_stacks: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
     substitutions: &HashMap<mir::Value, mir::Value>,
 ) -> mir::Terminator {
-    let extend_target = |target: &mir::BlockTarget| {
-        mir::BlockTarget::new(
-            target.block,
-            extend_arguments(
-                target.block,
-                &target.arguments,
-                block_params,
-                value_stacks,
-                substitutions,
-            ),
-        )
-    };
-
     match terminator {
         mir::Terminator::Error => {
             panic!("recovered MIR terminator reached optimizer");
@@ -653,13 +605,13 @@ fn update_terminator_arguments(
         mir::Terminator::Jump { target } => {
             let new_args = extend_arguments(
                 target.block,
-                &target.arguments,
+                tree.get_values(target.arguments),
                 block_params,
                 value_stacks,
                 substitutions,
             );
             mir::Terminator::Jump {
-                target: mir::BlockTarget::new(target.block, new_args),
+                target: mir::BlockTarget::new(target.block, tree.add_values(&new_args)),
             }
         }
         mir::Terminator::Branch {
@@ -669,22 +621,28 @@ fn update_terminator_arguments(
         } => {
             let new_then_args = extend_arguments(
                 then_target.block,
-                &then_target.arguments,
+                tree.get_values(then_target.arguments),
                 block_params,
                 value_stacks,
                 substitutions,
             );
             let new_else_args = extend_arguments(
                 else_target.block,
-                &else_target.arguments,
+                tree.get_values(else_target.arguments),
                 block_params,
                 value_stacks,
                 substitutions,
             );
             mir::Terminator::Branch {
                 condition: remap_value_reference(*condition, substitutions),
-                then_target: mir::BlockTarget::new(then_target.block, new_then_args),
-                else_target: mir::BlockTarget::new(else_target.block, new_else_args),
+                then_target: mir::BlockTarget::new(
+                    then_target.block,
+                    tree.add_values(&new_then_args),
+                ),
+                else_target: mir::BlockTarget::new(
+                    else_target.block,
+                    tree.add_values(&new_else_args),
+                ),
             }
         }
         mir::Terminator::Check {
@@ -694,14 +652,14 @@ fn update_terminator_arguments(
         } => {
             let new_success_args = extend_arguments(
                 success.block,
-                &success.arguments,
+                tree.get_values(success.arguments),
                 block_params,
                 value_stacks,
                 substitutions,
             );
             let new_failure_args = extend_arguments(
                 failure.block,
-                &failure.arguments,
+                tree.get_values(failure.arguments),
                 block_params,
                 value_stacks,
                 substitutions,
@@ -778,8 +736,8 @@ fn update_terminator_arguments(
             };
             mir::Terminator::Check {
                 constraint,
-                success: mir::BlockTarget::new(success.block, new_success_args),
-                failure: mir::BlockTarget::new(failure.block, new_failure_args),
+                success: mir::BlockTarget::new(success.block, tree.add_values(&new_success_args)),
+                failure: mir::BlockTarget::new(failure.block, tree.add_values(&new_failure_args)),
             }
         }
         mir::Terminator::NewZeroedTry {
@@ -788,17 +746,8 @@ fn update_terminator_arguments(
             failure,
         } => mir::Terminator::NewZeroedTry {
             layout: layout.clone(),
-            success: mir::BlockTarget::new(
-                success.block,
-                extend_arguments(
-                    success.block,
-                    &success.arguments,
-                    block_params,
-                    value_stacks,
-                    substitutions,
-                ),
-            ),
-            failure: extend_target(failure),
+            success: extend_target(tree, success, block_params, value_stacks, substitutions),
+            failure: extend_target(tree, failure, block_params, value_stacks, substitutions),
         },
         mir::Terminator::NewUninitTry {
             layout,
@@ -806,17 +755,8 @@ fn update_terminator_arguments(
             failure,
         } => mir::Terminator::NewUninitTry {
             layout: layout.clone(),
-            success: mir::BlockTarget::new(
-                success.block,
-                extend_arguments(
-                    success.block,
-                    &success.arguments,
-                    block_params,
-                    value_stacks,
-                    substitutions,
-                ),
-            ),
-            failure: extend_target(failure),
+            success: extend_target(tree, success, block_params, value_stacks, substitutions),
+            failure: extend_target(tree, failure, block_params, value_stacks, substitutions),
         },
         mir::Terminator::NewSliceZeroedTry {
             element,
@@ -826,17 +766,8 @@ fn update_terminator_arguments(
         } => mir::Terminator::NewSliceZeroedTry {
             element: element.clone(),
             length: remap_value_reference(*length, substitutions),
-            success: mir::BlockTarget::new(
-                success.block,
-                extend_arguments(
-                    success.block,
-                    &success.arguments,
-                    block_params,
-                    value_stacks,
-                    substitutions,
-                ),
-            ),
-            failure: extend_target(failure),
+            success: extend_target(tree, success, block_params, value_stacks, substitutions),
+            failure: extend_target(tree, failure, block_params, value_stacks, substitutions),
         },
         mir::Terminator::NewSliceUninitTry {
             element,
@@ -846,17 +777,8 @@ fn update_terminator_arguments(
         } => mir::Terminator::NewSliceUninitTry {
             element: element.clone(),
             length: remap_value_reference(*length, substitutions),
-            success: mir::BlockTarget::new(
-                success.block,
-                extend_arguments(
-                    success.block,
-                    &success.arguments,
-                    block_params,
-                    value_stacks,
-                    substitutions,
-                ),
-            ),
-            failure: extend_target(failure),
+            success: extend_target(tree, success, block_params, value_stacks, substitutions),
+            failure: extend_target(tree, failure, block_params, value_stacks, substitutions),
         },
         mir::Terminator::Switch {
             value,
@@ -865,31 +787,29 @@ fn update_terminator_arguments(
         } => {
             let new_default_args = extend_arguments(
                 default.block,
-                &default.arguments,
+                tree.get_values(default.arguments),
                 block_params,
                 value_stacks,
                 substitutions,
             );
+            let cases = tree.get_switch_cases(*cases).to_vec();
             let new_cases: Vec<_> = cases
                 .iter()
                 .map(|case| mir::SwitchCase {
                     value: case.value,
-                    target: mir::BlockTarget::new(
-                        case.target.block,
-                        extend_arguments(
-                            case.target.block,
-                            &case.target.arguments,
-                            block_params,
-                            value_stacks,
-                            substitutions,
-                        ),
+                    target: extend_target(
+                        tree,
+                        &case.target,
+                        block_params,
+                        value_stacks,
+                        substitutions,
                     ),
                 })
                 .collect();
             mir::Terminator::Switch {
                 value: remap_value_reference(*value, substitutions),
-                default: mir::BlockTarget::new(default.block, new_default_args),
-                cases: new_cases,
+                default: mir::BlockTarget::new(default.block, tree.add_values(&new_default_args)),
+                cases: tree.add_switch_cases(&new_cases),
             }
         }
         mir::Terminator::Yield {
@@ -899,25 +819,16 @@ fn update_terminator_arguments(
         } => {
             let new_resume_args = extend_arguments(
                 resume.block,
-                &resume.arguments,
+                tree.get_values(resume.arguments),
                 block_params,
                 value_stacks,
                 substitutions,
             );
             mir::Terminator::Yield {
                 value: remap_value_reference(*value, substitutions),
-                resume: mir::BlockTarget::new(resume.block, new_resume_args),
+                resume: mir::BlockTarget::new(resume.block, tree.add_values(&new_resume_args)),
                 unwind: unwind.as_ref().map(|unwind| {
-                    mir::BlockTarget::new(
-                        unwind.block,
-                        extend_arguments(
-                            unwind.block,
-                            &unwind.arguments,
-                            block_params,
-                            value_stacks,
-                            substitutions,
-                        ),
-                    )
+                    extend_target(tree, unwind, block_params, value_stacks, substitutions)
                 }),
             }
         }
@@ -928,25 +839,11 @@ fn update_terminator_arguments(
             unwind,
         } => mir::Terminator::Call {
             function: *function,
-            call: mir::Call {
-                arguments: call
-                    .arguments
-                    .iter()
-                    .map(|value| remap_value_reference(*value, substitutions))
-                    .collect(),
-                ..call.clone()
-            },
-            target: mir::BlockTarget::new(
-                target.block,
-                extend_arguments(
-                    target.block,
-                    &target.arguments,
-                    block_params,
-                    value_stacks,
-                    substitutions,
-                ),
-            ),
-            unwind: unwind.as_ref().map(&extend_target),
+            call: remap_call(tree, call, substitutions),
+            target: extend_target(tree, target, block_params, value_stacks, substitutions),
+            unwind: unwind.as_ref().map(|unwind| {
+                extend_target(tree, unwind, block_params, value_stacks, substitutions)
+            }),
         },
         mir::Terminator::CallIndirect {
             callee,
@@ -955,25 +852,11 @@ fn update_terminator_arguments(
             unwind,
         } => mir::Terminator::CallIndirect {
             callee: remap_value_reference(*callee, substitutions),
-            call: mir::Call {
-                arguments: call
-                    .arguments
-                    .iter()
-                    .map(|value| remap_value_reference(*value, substitutions))
-                    .collect(),
-                ..call.clone()
-            },
-            target: mir::BlockTarget::new(
-                target.block,
-                extend_arguments(
-                    target.block,
-                    &target.arguments,
-                    block_params,
-                    value_stacks,
-                    substitutions,
-                ),
-            ),
-            unwind: unwind.as_ref().map(&extend_target),
+            call: remap_call(tree, call, substitutions),
+            target: extend_target(tree, target, block_params, value_stacks, substitutions),
+            unwind: unwind.as_ref().map(|unwind| {
+                extend_target(tree, unwind, block_params, value_stacks, substitutions)
+            }),
         },
         mir::Terminator::CallVirtual {
             receiver,
@@ -984,27 +867,13 @@ fn update_terminator_arguments(
             unwind,
         } => mir::Terminator::CallVirtual {
             receiver: remap_value_reference(*receiver, substitutions),
-            call: mir::Call {
-                arguments: call
-                    .arguments
-                    .iter()
-                    .map(|value| remap_value_reference(*value, substitutions))
-                    .collect(),
-                ..call.clone()
-            },
+            call: remap_call(tree, call, substitutions),
             class: class.clone(),
             slot: *slot,
-            target: mir::BlockTarget::new(
-                target.block,
-                extend_arguments(
-                    target.block,
-                    &target.arguments,
-                    block_params,
-                    value_stacks,
-                    substitutions,
-                ),
-            ),
-            unwind: unwind.as_ref().map(&extend_target),
+            target: extend_target(tree, target, block_params, value_stacks, substitutions),
+            unwind: unwind.as_ref().map(|unwind| {
+                extend_target(tree, unwind, block_params, value_stacks, substitutions)
+            }),
         },
         mir::Terminator::CallDynamic {
             receiver,
@@ -1015,27 +884,13 @@ fn update_terminator_arguments(
             unwind,
         } => mir::Terminator::CallDynamic {
             receiver: remap_value_reference(*receiver, substitutions),
-            call: mir::Call {
-                arguments: call
-                    .arguments
-                    .iter()
-                    .map(|value| remap_value_reference(*value, substitutions))
-                    .collect(),
-                ..call.clone()
-            },
+            call: remap_call(tree, call, substitutions),
             constraint: constraint.clone(),
             slot: *slot,
-            target: mir::BlockTarget::new(
-                target.block,
-                extend_arguments(
-                    target.block,
-                    &target.arguments,
-                    block_params,
-                    value_stacks,
-                    substitutions,
-                ),
-            ),
-            unwind: unwind.as_ref().map(extend_target),
+            target: extend_target(tree, target, block_params, value_stacks, substitutions),
+            unwind: unwind.as_ref().map(|unwind| {
+                extend_target(tree, unwind, block_params, value_stacks, substitutions)
+            }),
         },
         mir::Terminator::Return { value } => mir::Terminator::Return {
             value: value.map(|value| remap_value_reference(value, substitutions)),
@@ -1051,14 +906,7 @@ fn update_terminator_arguments(
         mir::Terminator::Unreachable => mir::Terminator::Unreachable,
         mir::Terminator::TailCall { function, call } => mir::Terminator::TailCall {
             function: *function,
-            call: mir::Call {
-                arguments: call
-                    .arguments
-                    .iter()
-                    .map(|value| remap_value_reference(*value, substitutions))
-                    .collect(),
-                ..call.clone()
-            },
+            call: remap_call(tree, call, substitutions),
         },
         mir::Terminator::TailCallVirtual {
             receiver,
@@ -1067,14 +915,7 @@ fn update_terminator_arguments(
             slot,
         } => mir::Terminator::TailCallVirtual {
             receiver: remap_value_reference(*receiver, substitutions),
-            call: mir::Call {
-                arguments: call
-                    .arguments
-                    .iter()
-                    .map(|value| remap_value_reference(*value, substitutions))
-                    .collect(),
-                ..call.clone()
-            },
+            call: remap_call(tree, call, substitutions),
             class: class.clone(),
             slot: *slot,
         },
@@ -1085,51 +926,73 @@ fn update_terminator_arguments(
             slot,
         } => mir::Terminator::TailCallDynamic {
             receiver: remap_value_reference(*receiver, substitutions),
-            call: mir::Call {
-                arguments: call
-                    .arguments
-                    .iter()
-                    .map(|value| remap_value_reference(*value, substitutions))
-                    .collect(),
-                ..call.clone()
-            },
+            call: remap_call(tree, call, substitutions),
             constraint: constraint.clone(),
             slot: *slot,
         },
         mir::Terminator::TailCallIndirect { callee, call } => mir::Terminator::TailCallIndirect {
             callee: remap_value_reference(*callee, substitutions),
-            call: mir::Call {
-                arguments: call
-                    .arguments
-                    .iter()
-                    .map(|value| remap_value_reference(*value, substitutions))
-                    .collect(),
-                ..call.clone()
-            },
+            call: remap_call(tree, call, substitutions),
         },
     }
 }
 
-/// Extend existing arguments with block arguments for a target block.
-fn extend_arguments(
-    target: mir::BlockReference,
-    existing: &[mir::ValueReference],
+/// Extend one block target with promoted local arguments.
+fn extend_target(
+    tree: &mut mir::Tree,
+    target: &mir::BlockTarget,
     block_params: &HashMap<
         (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Local>),
         mir::Value,
     >,
     value_stacks: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
     substitutions: &HashMap<mir::Value, mir::Value>,
-) -> Vec<mir::ValueReference> {
-    let Some(target) = target.block() else {
-        return existing.to_vec();
-    };
+) -> mir::BlockTarget {
+    let arguments = extend_arguments(
+        target.block,
+        tree.get_values(target.arguments),
+        block_params,
+        value_stacks,
+        substitutions,
+    );
 
+    mir::BlockTarget::new(target.block, tree.add_values(&arguments))
+}
+
+/// Remap one compact call argument slice.
+fn remap_call(
+    tree: &mut mir::Tree,
+    call: &mir::Call<mir::ValueSlice>,
+    substitutions: &HashMap<mir::Value, mir::Value>,
+) -> mir::Call<mir::ValueSlice> {
+    let arguments: Vec<_> = tree
+        .get_values(call.arguments)
+        .iter()
+        .copied()
+        .map(|value| remap_value_reference(value, substitutions))
+        .collect();
+
+    mir::Call {
+        arguments: tree.add_values(&arguments),
+        ..call.clone()
+    }
+}
+
+/// Extend existing arguments with block arguments for a target block.
+fn extend_arguments(
+    target: mir::BlockId,
+    existing: &[mir::Value],
+    block_params: &HashMap<
+        (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Local>),
+        mir::Value,
+    >,
+    value_stacks: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
+    substitutions: &HashMap<mir::Value, mir::Value>,
+) -> Vec<mir::Value> {
     let mut args: Vec<_> = existing
         .iter()
         .copied()
-        .filter_map(|value| value.value())
-        .map(|value| resolve_value(value, substitutions).into())
+        .map(|value| resolve_value(value, substitutions))
         .collect();
 
     // find block params for target block and add arguments
@@ -1461,7 +1324,7 @@ function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 10
     local.set l0, v1
-    switch v0, b3, 0 -> b1, 1 -> b2
+    switch v0, b3, 0 => b1, 1 => b2
 
 b1:
     v2: int32 = 100
@@ -1485,7 +1348,7 @@ b3:
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 10
-    switch v0, b3(v1), 0 -> b1, 1 -> b2
+    switch v0, b3(v1), 0 => b1, 1 => b2
 
 b1:
     v2: int32 = 100

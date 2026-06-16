@@ -218,7 +218,7 @@ fn o1_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
 
 /// O2: Release builds with comprehensive optimization.
 ///
-/// Structure: verify -> canonicalize -> [simplify <-> optimize]* -> cleanup
+/// Structure: verify -> canonicalize -> [simplify <-> optimize]* => cleanup
 /// Each major phase is followed by simplification to expose new opportunities.
 fn o2_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
     PipelineBuilder::new()

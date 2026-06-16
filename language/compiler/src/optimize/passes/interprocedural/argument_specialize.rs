@@ -111,7 +111,7 @@ struct DirectCallSite {
     /// The call instruction.
     call_instruction: mir::LocalNodeId<mir::Instruction>,
     /// The arguments passed at the callsite.
-    arguments: Vec<mir::ValueReference>,
+    arguments: Vec<mir::Value>,
 }
 
 /// Collected callsite data for specialization.
@@ -299,9 +299,9 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                             call,
                             ..
                         } = instruction
-                        && let Some(callee) = callee.function()
                     {
-                        let arguments = tree.get_arguments(call.arguments).to_vec();
+                        let callee = *callee;
+                        let arguments = tree.get_values(call.arguments).to_vec();
                         data.callsites.push(DirectCallSite {
                             caller: caller_id,
                             callee,
@@ -526,7 +526,7 @@ fn clone_function(
         let new_block_id = block_map[block_id];
         let terminator_id = tree.get(new_block_id).terminator;
         let mut terminator = tree.get(terminator_id).clone();
-        terminator_remap(&mut terminator, &block_map, &value_map);
+        terminator_remap(tree, &mut terminator, &block_map, &value_map);
         tree.set(terminator_id, terminator);
     }
 
@@ -623,8 +623,8 @@ fn update_callsite(
     };
 
     // filter the argument list to match the specialized signature
-    let arguments = remap.filter_by_index(tree.get_arguments(slice));
-    let new_slice = tree.add_arguments(&arguments);
+    let arguments = remap.filter_by_index(tree.get_values(slice));
+    let new_slice = tree.add_values(&arguments);
     let call = match tree.get(callsite.call_instruction) {
         mir::Instruction::Call { call, .. } => call.clone(),
         _ => return false,
@@ -778,7 +778,7 @@ entry:
         let signature = test.tree.get(
             instruction
                 .call_signature()
-                .and_then(|signature| signature.ty())
+                .and_then(|signature| Some(signature))
                 .expect("call signature should be concrete"),
         );
         let expected_signature = mir::Type::FunctionSignature {
@@ -837,10 +837,7 @@ entry:
         }
 
         let callee_load = callee_load.expect("missing callee load");
-        let callee_pointer = callee_pointer
-            .expect("missing callee pointer")
-            .value()
-            .expect("callee pointer should be concrete");
+        let callee_pointer = callee_pointer.expect("missing callee pointer");
         test.insert_pointer_access(
             callee_load,
             mir::MemoryAccessKind::Read,
@@ -877,10 +874,7 @@ entry:
         }
 
         let specialized_load = specialized_load.expect("missing specialized load");
-        let specialized_pointer = specialized_pointer
-            .expect("missing specialized pointer")
-            .value()
-            .expect("specialized pointer should be concrete");
+        let specialized_pointer = specialized_pointer.expect("missing specialized pointer");
         let accesses = test
             .tree
             .metadata

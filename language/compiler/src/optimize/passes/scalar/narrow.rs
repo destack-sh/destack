@@ -272,12 +272,12 @@ fn supported_integer_width(required_width: u16, original_width: u16) -> Option<u
 
 /// Return integer range and type details needed for narrowing.
 fn integer_info_for_value(
-    value: mir::ValueReference,
+    value: mir::Value,
     ranges: &RangeMap,
     value_types: &ValueTypeMap,
     tree: &mut mir::Tree,
 ) -> Option<IntegerInfo> {
-    let value = value.value()?;
+    let value = value;
 
     // fetch the integer range for this value
     let range = ranges.get(value)?;
@@ -323,8 +323,8 @@ fn integer_info_for_value(
 /// Narrow a pair of operands when the range allows it.
 #[allow(clippy::too_many_arguments)]
 fn narrow_pair(
-    left: mir::ValueReference,
-    right: mir::ValueReference,
+    left: mir::Value,
+    right: mir::Value,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     new_instructions: &mut Vec<mir::LocalNodeId<mir::Instruction>>,
@@ -334,8 +334,8 @@ fn narrow_pair(
     ranges: &RangeMap,
     value_types: &ValueTypeMap,
 ) -> Option<(mir::Value, mir::Value)> {
-    let left = left.value()?;
-    let right = right.value()?;
+    let left = left;
+    let right = right;
 
     // compute range info for both operands
     let left_info = integer_info_for_value(left.into(), ranges, value_types, tree)?;
@@ -506,7 +506,7 @@ entry(v0: [uint8; 8]):
     v1: uint32 = 2
     v2: uint32 = 4
     v3: boolean = int.lt.u v1, v2
-    check bounds.u v1, v2, v0 -> b1, b2
+    check bounds.u v1, v2, v0 => b1, b2
 
 b1:
     v4: uint8 = element.get v0, 0
@@ -525,7 +525,7 @@ entry(v0: [uint8; 8]):
     v5: uint8 = cast.truncate v1 -> uint8
     v6: uint8 = cast.truncate v2 -> uint8
     v3: boolean = int.lt.u v5, v6
-    check bounds.u v5, v6, v0 -> b1, b2
+    check bounds.u v5, v6, v0 => b1, b2
 
 b1:
     v4: uint8 = element.get v0, 0
@@ -566,7 +566,7 @@ entry(v0: [uint8; 8]):
     v1: uint32 = 2
     v2: uint64 = 4
     v3: boolean = int.lt.u v1, v2
-    check bounds.u v1, v2, v0 -> b1, b2
+    check bounds.u v1, v2, v0 => b1, b2
 
 b1:
     return

@@ -282,9 +282,7 @@ impl TestProgram {
             panic!("expected stack allocation");
         };
 
-        destination
-            .value()
-            .expect("stack allocation should produce a concrete value")
+        *destination
     }
 
     /// Return stack allocation destinations from the entry block.
@@ -304,11 +302,7 @@ impl TestProgram {
                 if let mir::Instruction::FrameAllocZeroed { destination, .. } =
                     self.tree.get(*instruction_id)
                 {
-                    Some(
-                        destination
-                            .value()
-                            .expect("stack allocation should produce a concrete value"),
-                    )
+                    Some(*destination)
                 } else {
                     None
                 }
@@ -424,12 +418,7 @@ impl TestProgram {
             panic!("expected call instruction");
         };
 
-        (
-            call_inst,
-            callee
-                .function()
-                .expect("call instruction should reference a concrete function"),
-        )
+        (call_inst, *callee)
     }
 
     /// Insert a function pointer type for a callee signature.
@@ -547,16 +536,7 @@ impl TestProgram {
         };
 
         // return the targets
-        (
-            then_target
-                .block
-                .block()
-                .expect("branch should reference a concrete then block"),
-            else_target
-                .block
-                .block()
-                .expect("branch should reference a concrete else block"),
-        )
+        (then_target.block, else_target.block)
     }
 
     /// Return the jump target for a block.
@@ -572,10 +552,7 @@ impl TestProgram {
         };
 
         // return the target
-        target
-            .block
-            .block()
-            .expect("jump should reference a concrete block")
+        target.block
     }
 
     /// Record a function's profiled entry execution count, keyed by its symbol.
@@ -592,6 +569,7 @@ impl TestProgram {
             mir::FunctionProfile {
                 hash: mir::FunctionHash(0),
                 entry: mir::Count::new(count),
+                edges: HashMap::new(),
                 counts: Vec::new(),
                 values: HashMap::new(),
             },
@@ -603,33 +581,36 @@ impl TestProgram {
     /// Ordering matches the terminator's successor fields: branch is then then else,
     /// switch is default then each case, and check is success then failure.
     pub(crate) fn record_successor_weights(
-        &mut self,
+        &self,
+        profile: &mut mir::Profile,
         block: mir::LocalNodeId<mir::Block>,
         weights: &[u32],
     ) {
-        // collect the successor targets in field order
-        let terminator_id = self.tree.get(block).terminator;
-        let terminator = self.tree.get_mut(terminator_id);
-        let targets: Vec<&mut mir::BlockTarget> = match terminator {
-            mir::Terminator::Branch {
-                then_target,
-                else_target,
-                ..
-            } => vec![then_target, else_target],
-            mir::Terminator::Check {
-                success, failure, ..
-            } => vec![success, failure],
-            mir::Terminator::Switch { default, cases, .. } => {
-                let mut targets = vec![default];
-                targets.extend(cases.iter_mut().map(|case| &mut case.target));
-                targets
-            }
-            _ => panic!("terminator has no weighted successors"),
-        };
+        // find the function that owns this block
+        let (_, function) = self
+            .tree
+            .iter_nodes::<mir::Function>()
+            .find(|(_, function)| function.blocks.contains(&block))
+            .expect("missing function for profiled block");
 
-        // weight each successor so block frequencies follow the profiled split
-        for (target, &weight) in targets.into_iter().zip(weights) {
-            target.weight = mir::EdgeWeight::Known(weight);
+        // fetch the profile entry created by record_function_entry
+        let function_profile = profile
+            .functions
+            .get_mut(&function.symbol)
+            .expect("missing function profile for successor weights");
+
+        // record each structural successor edge
+        let terminator = self.tree.get(self.tree.get(block).terminator);
+        let targets = mir::terminator_targets(&self.tree, block, terminator);
+        assert_eq!(
+            targets.len(),
+            weights.len(),
+            "successor weight count does not match terminator successor count"
+        );
+        for ((edge, _), &weight) in targets.into_iter().zip(weights) {
+            function_profile
+                .edges
+                .insert(edge, mir::Count::new(weight as u64));
         }
     }
 
