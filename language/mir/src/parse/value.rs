@@ -45,23 +45,6 @@ impl Parser {
         let span = token.span;
 
         match self.token_type(token) {
-            TokenType::Value => {
-                let text = self.tree.source_text(token.span).to_string();
-                self.bump();
-
-                let idx: u32 = text
-                    .strip_prefix('v')
-                    .and_then(|s| s.parse().ok())
-                    .ok_or_else(|| {
-                        ParseError::invalid_at_span(
-                            "value definition",
-                            span.start as usize,
-                            span.end.saturating_sub(span.start) as usize,
-                        )
-                    })?;
-                self.next_value_id = self.next_value_id.max(idx + 1);
-                Ok((Value::new(idx), span))
-            }
             TokenType::Identifier => {
                 let name = self.tree.source_text(token.span).to_string();
                 let start = token.start;
@@ -106,22 +89,6 @@ impl Parser {
         let span = token.span;
 
         match self.token_type(token) {
-            TokenType::Value => {
-                let text = self.tree.source_text(token.span).to_string();
-                self.bump();
-
-                let idx: u32 = text
-                    .strip_prefix('v')
-                    .and_then(|s| s.parse().ok())
-                    .ok_or_else(|| {
-                        ParseError::invalid_at_span(
-                            "value reference",
-                            span.start as usize,
-                            span.end.saturating_sub(span.start) as usize,
-                        )
-                    })?;
-                Ok((ValueReference::Value(Value::new(idx)), span))
-            }
             TokenType::Identifier => {
                 let name = self.tree.source_text(token.span).to_string();
                 let start = token.start;
@@ -153,31 +120,11 @@ impl Parser {
         let span = token.span;
 
         match self.token_type(token) {
-            TokenType::BlockReference => {
-                let text = self.tree.source_text(token.span).to_string();
-                let start = token.start;
-                self.bump();
-
-                let label_index: u32 = text
-                    .strip_prefix('b')
-                    .and_then(|s| s.parse().ok())
-                    .ok_or_else(|| {
-                        ParseError::invalid_at_span(
-                            "block reference",
-                            start,
-                            span.end.saturating_sub(span.start) as usize,
-                        )
-                    })?;
-                self.block_id_by_label_index
-                    .get(&label_index)
-                    .copied()
-                    .map(|block| (BlockReference::Block(block), span))
-                    .ok_or_else(|| ParseError::new(format!("undefined block '{text}'"), start))
-            }
             TokenType::Identifier => {
                 let name = self.tree.source_text(token.span).to_string();
                 let start = token.start;
                 self.bump();
+
                 self.block_name_map
                     .get(&name)
                     .copied()
@@ -190,18 +137,21 @@ impl Parser {
 
     /// Parse a local reference and return its span.
     pub(super) fn parse_local_ref_part(&mut self) -> ParseResult<(LocalReference, Span)> {
-        let token = self.eat_token(TokenType::LocalReference)?;
+        let token = self.eat_token(TokenType::Identifier)?;
         let token_start = token.start;
         let token_text = self.tree.source_text(token.span).to_string();
         let token_length = token_text.len();
         let span = self.span_at(token_start, token_length);
-        let idx: u32 = token_text
-            .strip_prefix("local")
-            .and_then(|s| s.parse().ok())
+        let local = self
+            .local_name_map
+            .get(&token_text)
+            .copied()
+            .map(LocalReference::Local)
             .ok_or_else(|| {
                 ParseError::invalid_at_span("local reference", token_start, token_length)
             })?;
-        Ok((LocalReference::Local(LocalNodeId::new(idx)), span))
+
+        Ok((local, span))
     }
 
     /// Parse a local reference and append its span as one source segment.

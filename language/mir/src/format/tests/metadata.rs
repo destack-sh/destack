@@ -8,7 +8,7 @@ fn test_format_function_metadata() {
 @cold
 @inline
 function kernel(): void {
-entry0:
+entry:
     return
 }
 "#,
@@ -23,7 +23,7 @@ fn test_format_function_stage_metadata() {
 @profile("interactive")
 @priority(1)
 function vertexMain(): void {
-entry0:
+entry:
     return
 }
 "#,
@@ -44,12 +44,12 @@ type Point {
 }
 
 @section(".rodata")
-readonly global Count: int32 = 1int32
+readonly global Count: int32 = 1
 
-function usePoint(value0: Point): int32 {
-entry0(value0: Point):
-    value1: int32 = field.get value0, 0
-    return value1
+function usePoint(v0: Point): int32 {
+entry(v0: Point):
+    v1: int32 = field.get v0, 0
+    return v1
 }
 "#,
     );

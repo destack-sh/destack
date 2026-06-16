@@ -17,8 +17,11 @@ pub(crate) fn finalize_function_names(
             continue;
         }
 
-        let prefix = if block_index == 0 { "entry" } else { "block" };
-        let name = strings.intern(&format!("{prefix}{block_index}"));
+        let name = if block_index == 0 {
+            strings.intern("entry")
+        } else {
+            strings.intern(&format!("b{block_index}"))
+        };
         let block = tree.get_mut(*block_id);
         block.name = Some(name);
     }
@@ -40,7 +43,7 @@ pub(crate) fn finalize_function_names(
             .and_then(|name| *name)
             .map(|name| strings.get(name).to_string())
             .map(|name| identifier_prefix(&name))
-            .unwrap_or_else(|| "value".to_string());
+            .unwrap_or_else(|| "v".to_string());
 
         let name = strings.intern(&format!("{prefix}{}", value.0));
         let function = tree.get_mut(function_id);
@@ -60,7 +63,7 @@ pub(crate) fn finalize_function_names(
                 continue;
             }
 
-            let name = strings.intern(&format!("value{}", value.0));
+            let name = strings.intern(&format!("v{}", value.0));
             let function = tree.get_mut(function_id);
             set_value_name(function, value, name);
         }
@@ -75,7 +78,7 @@ pub(crate) fn finalize_function_names(
                 continue;
             }
 
-            let name = strings.intern(&format!("value{}", destination.0));
+            let name = strings.intern(&format!("v{}", destination.0));
             let function = tree.get_mut(function_id);
             set_value_name(function, destination, name);
         }
@@ -107,7 +110,7 @@ fn identifier_prefix(name: &str) -> String {
     }
 
     if prefix.is_empty() {
-        return "value".to_string();
+        return "v".to_string();
     }
 
     if !prefix

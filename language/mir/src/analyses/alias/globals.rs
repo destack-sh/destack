@@ -253,17 +253,20 @@ mod tests {
     fn test_different_globals_no_alias() {
         let program = TestProgram::new(
             r#"
-global g1: int32 = 0int32
-global g2: int32 = 0int32
+global g1: int32 = 0
+
+global g2: int32 = 0
+
 function test(): void {
-b0:
+entry:
     v0: ref<int32, raw, space(static)> = global.address g1
     v1: ref<int32, raw, space(static)> = global.address g2
-    v2: int32 = 1int32
+    v2: int32 = 1
     store v0, v2
     store v1, v2
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -280,13 +283,15 @@ b0:
     fn test_same_global_may_alias() {
         let program = TestProgram::new(
             r#"
-global g: int32 = 0int32
+global g: int32 = 0
+
 function test(): void {
-b0:
+entry:
     v0: ref<int32, raw, space(static)> = global.address g
     v1: ref<int32, raw, space(static)> = global.address g
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -303,13 +308,15 @@ b0:
     fn test_global_read_tracking() {
         let program = TestProgram::new(
             r#"
-global g: int32 = 0int32
+global g: int32 = 0
+
 function test(): int32 {
-b0:
+entry:
     v0: ref<int32, raw, space(static)> = global.address g
     v1: int32 = load v0
     return v1
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -326,14 +333,16 @@ b0:
     fn test_global_write_tracking() {
         let program = TestProgram::new(
             r#"
-global g: int32 = 0int32
+global g: int32 = 0
+
 function test(): void {
-b0:
+entry:
     v0: ref<int32, raw, space(static)> = global.address g
-    v1: int32 = 42int32
+    v1: int32 = 42
     store v0, v1
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -350,16 +359,17 @@ b0:
         // global address passed to call makes it escape
         let program = TestProgram::new(
             r#"
-global g: int32 = 0int32
+global g: int32 = 0
 
 external function imported(ref<int32, raw>): void
 
 function test(): void {
-b0:
+entry:
     v0: ref<int32, raw, space(static)> = global.address g
-    call imported(v0): (ref<int32, raw>) -> void
+    call imported(v0)
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program
@@ -382,15 +392,15 @@ b0:
         // global address stored to memory makes it escape
         let program = TestProgram::new(
             r#"
-global g: int32 = 0int32
+global g: int32 = 0
 
 function test(v0: ref<ref<int32, raw>, raw>): void {
-
-b0(v0: ref<ref<int32, raw>, raw>):
+entry(v0: ref<ref<int32, raw>, raw>):
     v1: ref<int32, raw, space(static)> = global.address g
     store v0, v1
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -408,16 +418,16 @@ b0(v0: ref<ref<int32, raw>, raw>):
         // when global's address is taken, non-global pointer may alias it
         let program = TestProgram::new(
             r#"
-global g: int32 = 0int32
+global g: int32 = 0
 
 function test(v0: ref<int32, raw>): void {
-
-b0(v0: ref<int32, raw>):
+entry(v0: ref<int32, raw>):
     v1: ref<int32, raw, space(static)> = global.address g
-    v2: int32 = 42int32
+    v2: int32 = 42
     store v1, v2
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -439,18 +449,22 @@ b0(v0: ref<int32, raw>):
         // accessing field of global should still track it
         let program = TestProgram::new(
             r#"
-type Point { int32, int32 }
+type Point {
+    int32;
+    int32;
+}
 
-global g: Point = { 0int32, 0int32 }
+global g: Point = {0int32, 0int32}
 
 function test(): void {
-b0:
+entry:
     v0: ref<Point, raw, space(static)> = global.address g
     v1: ref<int32, borrowed> = field.address v0, 0
-    v2: int32 = 42int32
+    v2: int32 = 42
     store v1, v2
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;

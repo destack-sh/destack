@@ -115,15 +115,17 @@ mod tests {
         let test = TestProgram::new(
             r#"
 function callee(): int32 {
-b0:
-    v0: int32 = 7int32
+entry:
+    v0: int32 = 7
     return v0
 }
+
 function test(): int32 {
-b0:
-    v0: int32 = call callee(): () -> int32
+entry:
+    v0: int32 = call callee()
     return v0
-}"#,
+}
+"#,
         );
 
         let callee_id = test.function_id_by_name("callee");
@@ -147,14 +149,16 @@ b0:
         let test = TestProgram::new(
             r#"
 function callee(v0: int32): int32 {
-b0(v0: int32):
+entry(v0: int32):
     return v0
 }
+
 function test(v0: int32): int32 {
-b0(v0: int32):
+entry(v0: int32):
     v1: int32 = call.virtual v0, int32, 1(v0): (int32) -> int32
     return v1
-}"#,
+}
+"#,
         );
 
         let test_id = test.function_id_by_name("test");
@@ -174,14 +178,16 @@ b0(v0: int32):
         let test = TestProgram::new(
             r#"
 function callee(v0: int32): int32 {
-b0(v0: int32):
+entry(v0: int32):
     return v0
 }
-function test(v0: (int32) -> int32, v1: int32): int32  {
-b0(v0: (int32) -> int32, v1: int32):
+
+function test(v0: (int32) -> int32, v1: int32): int32 {
+entry(v0: (int32) -> int32, v1: int32):
     v2: int32 = call.indirect v0(v1): (int32) -> int32
     return v2
-}"#,
+}
+"#,
         );
 
         let test_id = test.function_id_by_name("test");

@@ -232,12 +232,14 @@ type Point {
     int32;
     int32;
 }
+
 function test(): void {
-b0:
+entry:
     v0: ref<Point, managed> = new.zeroed Point
     v1: ref<Point, managed> = new.zeroed Point
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -254,14 +256,15 @@ b0:
         let program = TestProgram::new(
             r#"
 function test(): int32 {
-b0:
+entry:
     v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int32 = 42int32
+    v2: int32 = 42
     store v0, v2
     v3: int32 = load v1
     return v3
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -283,13 +286,14 @@ b0:
         let program = TestProgram::new(
             r#"
 function test(): void {
-b0:
+entry:
     v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int32 = 42int32
+    v2: int32 = 42
     store v0, v2
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -314,15 +318,18 @@ b0:
     fn test_global_alias_analysis() {
         let program = TestProgram::new(
             r#"
-global g1: int32 = 0int32
-global g2: int32 = 0int32
+global g1: int32 = 0
+
+global g2: int32 = 0
+
 function test(): void {
-b0:
+entry:
     v0: ref<int32, raw, space(static)> = global.address g1
     v1: ref<int32, raw, space(static)> = global.address g2
     v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -342,11 +349,12 @@ b0:
         let program = TestProgram::new(
             r#"
 function test(): void {
-b0:
+entry:
     v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: ref<float64, raw, space(frame)> = frame.alloc.zeroed float64
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -374,11 +382,13 @@ b0:
         let mut program = TestProgram::new(
             r#"
 external function imported(ref<int32, raw>): void
+
 function test(v0: ref<int32, raw>): void {
-b0(v0: ref<int32, raw>):
-    call imported(v0): (ref<int32, raw>) -> void
+entry(v0: ref<int32, raw>):
+    call imported(v0)
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.entry_function_id();

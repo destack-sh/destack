@@ -1949,12 +1949,13 @@ mod tests {
         let test = TestProgram::new(
             r#"
 function test(v0: ref<int32, raw>): int32 {
-b0(v0: ref<int32, raw>):
-    v1: int32 = 1int32
+entry(v0: ref<int32, raw>):
+    v1: int32 = 1
     store v0, v1
     v2: int32 = load v0
     return v2
-}"#,
+}
+"#,
         );
 
         let function_id = test.first_function_id();
@@ -1991,20 +1992,24 @@ b0(v0: ref<int32, raw>):
         let test = TestProgram::new(
             r#"
 function test(v0: ref<int32, raw>, v1: boolean): int32 {
-b0(v0: ref<int32, raw>, v1: boolean):
+entry(v0: ref<int32, raw>, v1: boolean):
     branch v1, b1, b2
+
 b1:
-    v2: int32 = 1int32
+    v2: int32 = 1
     store v0, v2
     jump b3
+
 b2:
-    v3: int32 = 2int32
+    v3: int32 = 2
     store v0, v3
     jump b3
+
 b3:
     v4: int32 = load v0
     return v4
-}"#,
+}
+"#,
         );
 
         let function_id = test.first_function_id();
@@ -2040,16 +2045,17 @@ b3:
         let test = TestProgram::new(
             r#"
 function test(): int32 {
-b0:
+entry:
     v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int32 = 1int32
+    v2: int32 = 1
     store v0, v2
-    v3: int32 = 2int32
+    v3: int32 = 2
     store v1, v3
     v4: int32 = load v0
     return v4
-}"#,
+}
+"#,
         );
 
         let function_id = test.first_function_id();
@@ -2081,11 +2087,12 @@ b0:
         let mut test = TestProgram::new(
             r#"
 function test(): int32 {
-b0:
+entry:
     v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = load v0
     return v1
-}"#,
+}
+"#,
         );
 
         let function_id = test.first_function_id();
@@ -2126,12 +2133,13 @@ b0:
         let mut test = TestProgram::new(
             r#"
 function test(v0: ref<int32, raw>): int32 {
-b0(v0: ref<int32, raw>):
-    v1: int32 = 1int32
+entry(v0: ref<int32, raw>):
+    v1: int32 = 1
     store v0, v1
     v2: int32 = load v0
     return v2
-}"#,
+}
+"#,
         );
 
         let function_id = test.first_function_id();
@@ -2189,16 +2197,17 @@ b0(v0: ref<int32, raw>):
         let mut test = TestProgram::new(
             r#"
 function test(): int32 {
-b0:
+entry:
     v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int32 = 1int32
+    v2: int32 = 1
     store v0, v2
-    v3: int32 = 2int32
+    v3: int32 = 2
     store v1, v3
     v4: int32 = load v0
     return v4
-}"#,
+}
+"#,
         );
 
         // locate store and load instructions
@@ -2240,13 +2249,15 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(): int32 {
-    local local0: int32, owned
-b0:
-    v0: int32 = 7int32
-    local.set local0, v0
-    v1: int32 = local.get local0
+    local l0: int32
+
+entry:
+    v0: int32 = 7
+    local.set l0, v0
+    v1: int32 = local.get l0
     return v1
-}"#,
+}
+"#,
         );
 
         let function_id = test.first_function_id();
@@ -2276,11 +2287,12 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(v0: int32): int32 {
-b0(v0: int32):
+entry(v0: int32):
     drop v0
-    v1: int32 = 0int32
+    v1: int32 = 0
     return v1
-}"#,
+}
+"#,
         );
 
         let function_id = test.first_function_id();
@@ -2310,11 +2322,13 @@ b0(v0: int32):
 type Point {
     int32;
 }
+
 function test(): ref<Point, managed> {
-b0:
+entry:
     v0: ref<Point, managed> = new.zeroed Point
     return v0
-}"#,
+}
+"#,
         );
 
         let function_id = test.first_function_id();
@@ -2342,14 +2356,15 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(): int32 {
-b0:
+entry:
     v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int64 = 4int64
+    v2: int64 = 4
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
     v3: int32 = load v0
     return v3
-}"#,
+}
+"#,
         );
 
         let function_id = test.first_function_id();
@@ -2397,13 +2412,14 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(): int32 {
-b0:
+entry:
     v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int64 = 4int64
+    v2: int64 = 4
     v3: int32 = intrinsic.memory.raw.compareBytes(v0, v1, v2)
     return v3
-}"#,
+}
+"#,
         );
 
         let function_id = test.first_function_id();
@@ -2431,12 +2447,13 @@ b0:
         let mut test = TestProgram::new(
             r#"
 function test(): int32 {
-b0:
+entry:
     v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = load v0
     store v0, v1
     return v1
-}"#,
+}
+"#,
         );
 
         let function_id = test.first_function_id();
@@ -2491,12 +2508,13 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(): int32 {
-b0:
+entry:
     v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = atomic.load v0, acquire, scope(device)
     atomic.store v0, v1, release, scope(device)
     return v1
-}"#,
+}
+"#,
         );
 
         let function_id = test.first_function_id();
@@ -2529,11 +2547,12 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(): int32 {
-b0:
+entry:
     atomic.fence sequentiallyConsistent, scope(device), memory(device)
-    v0: int32 = 0int32
+    v0: int32 = 0
     return v0
-}"#,
+}
+"#,
         );
 
         let function_id = test.first_function_id();
@@ -2563,12 +2582,14 @@ b0:
         let test = TestProgram::new(
             r#"
 external function imported(ref<int32, raw>): void
+
 function test(v0: ref<int32, raw>): int32 {
-b0(v0: ref<int32, raw>):
-    call imported(v0): (ref<int32, raw>) -> void
-    v1: int32 = 0int32
+entry(v0: ref<int32, raw>):
+    call imported(v0)
+    v1: int32 = 0
     return v1
-}"#,
+}
+"#,
         );
 
         // select the defined function
@@ -2605,12 +2626,14 @@ b0(v0: ref<int32, raw>):
         let mut test = TestProgram::new(
             r#"
 external function imported(ref<int32, raw>): void
+
 function test(v0: ref<int32, raw>): int32 {
-b0(v0: ref<int32, raw>):
-    call imported(v0): (ref<int32, raw>) -> void
-    v1: int32 = 0int32
+entry(v0: ref<int32, raw>):
+    call imported(v0)
+    v1: int32 = 0
     return v1
-}"#,
+}
+"#,
         );
 
         let function_id = test.entry_function_id();
@@ -2635,12 +2658,14 @@ b0(v0: ref<int32, raw>):
         let mut test = TestProgram::new(
             r#"
 external function imported(ref<int32, raw>, ref<int32, raw>): void
+
 function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
-b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
-    call imported(v0, v1): (ref<int32, raw>, ref<int32, raw>) -> void
-    v2: int32 = 0int32
+entry(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    call imported(v0, v1)
+    v2: int32 = 0
     return v2
-}"#,
+}
+"#,
         );
 
         // collect parameter values and the call instruction
@@ -2741,22 +2766,26 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
         let test = TestProgram::new(
             r#"
 function test(v0: ref<int32, raw>, v1: int32): int32 {
-b0(v0: ref<int32, raw>, v1: int32):
-    v2: int32 = 0int32
+entry(v0: ref<int32, raw>, v1: int32):
+    v2: int32 = 0
     store v0, v2
     jump b1(v2)
+
 b1(v3: int32):
     v4: boolean = int.lt.s v3, v1
     branch v4, b2, b3
+
 b2:
-    v5: int32 = 1int32
+    v5: int32 = 1
     store v0, v5
     v6: int32 = int.add v3, v5
     jump b1(v6)
+
 b3:
     v7: int32 = load v0
     return v7
-}"#,
+}
+"#,
         );
 
         let function_id = test.first_function_id();
@@ -2788,15 +2817,17 @@ b3:
         let test = TestProgram::new(
             r#"
 function test(): int32 {
-b0:
-    v0: int32 = 0int32
+entry:
+    v0: int32 = 0
     return v0
+
 b1:
     v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int32 = 1int32
+    v2: int32 = 1
     store v1, v2
     return v2
-}"#,
+}
+"#,
         );
 
         let function_id = test.first_function_id();

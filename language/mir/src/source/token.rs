@@ -127,26 +127,26 @@ pub enum TokenType {
     /// `panic`
     Panic,
     /// `unwind.resume`
-    ResumeUnwind,
+    UnwindResume,
     /// `trap.abort`
     Trap,
     /// `unreachable`
     Unreachable,
-    /// `tailCall`
+    /// `tail.call`
     TailCall,
     /// `call`
     Call,
     /// `call.indirect`
     CallIndirect,
-    /// `tailCall.indirect`
+    /// `tail.call.indirect`
     TailCallIndirect,
     /// `call.virtual`
     CallVirtual,
-    /// `tailCall.virtual`
+    /// `tail.call.virtual`
     TailCallVirtual,
     /// `call.dynamic`
     CallDynamic,
-    /// `tailCall.dynamic`
+    /// `tail.call.dynamic`
     TailCallDynamic,
     /// `void`
     Void,
@@ -166,14 +166,6 @@ pub enum TokenType {
     Struct,
     /// `newtype`
     Newtype,
-    /// SSA value reference.
-    Value,
-    /// Block reference.
-    BlockReference,
-    /// Local reference.
-    LocalReference,
-    /// Function reference.
-    FunctionReference,
     /// Boolean literal.
     BooleanLiteral,
     /// Primitive type name.
@@ -204,17 +196,17 @@ impl TokenType {
             "switch" => Self::Switch,
             "yield" => Self::Yield,
             "panic" => Self::Panic,
-            "unwind.resume" => Self::ResumeUnwind,
+            "unwind.resume" => Self::UnwindResume,
             "trap.abort" => Self::Trap,
             "unreachable" => Self::Unreachable,
-            "tailCall" => Self::TailCall,
+            "tail.call" => Self::TailCall,
             "call" => Self::Call,
             "call.indirect" => Self::CallIndirect,
-            "tailCall.indirect" => Self::TailCallIndirect,
+            "tail.call.indirect" => Self::TailCallIndirect,
             "call.virtual" => Self::CallVirtual,
-            "tailCall.virtual" => Self::TailCallVirtual,
+            "tail.call.virtual" => Self::TailCallVirtual,
             "call.dynamic" => Self::CallDynamic,
-            "tailCall.dynamic" => Self::TailCallDynamic,
+            "tail.call.dynamic" => Self::TailCallDynamic,
             "void" => Self::Void,
             "boolean" => Self::Boolean,
             "ref" => Self::Ref,
@@ -228,42 +220,10 @@ impl TokenType {
             "owned" | "borrowed" | "copy" => Self::Ownership,
             "readonly" => Self::Readonly,
             "const" => Self::Const,
-            _ if is_value_name(text) => Self::Value,
-            _ if is_block_name(text) => Self::BlockReference,
-            _ if is_local_name(text) => Self::LocalReference,
-            _ if is_function_name(text) => Self::FunctionReference,
             _ if is_primitive_type_name(text) => Self::TypeName,
             _ => Self::Identifier,
         }
     }
-}
-
-/// Return whether text is a numeric value name.
-fn is_value_name(text: &str) -> bool {
-    text.strip_prefix('v').is_some_and(|rest| {
-        !rest.is_empty() && rest.chars().all(|character| character.is_ascii_digit())
-    })
-}
-
-/// Return whether text is a numeric block name.
-fn is_block_name(text: &str) -> bool {
-    text.strip_prefix('b').is_some_and(|rest| {
-        !rest.is_empty() && rest.chars().all(|character| character.is_ascii_digit())
-    })
-}
-
-/// Return whether text is a numeric local name.
-fn is_local_name(text: &str) -> bool {
-    text.strip_prefix("local").is_some_and(|rest| {
-        !rest.is_empty() && rest.chars().all(|character| character.is_ascii_digit())
-    })
-}
-
-/// Return whether text is a numeric function name.
-fn is_function_name(text: &str) -> bool {
-    text.strip_prefix("function").is_some_and(|rest| {
-        !rest.is_empty() && rest.chars().all(|character| character.is_ascii_digit())
-    })
 }
 
 /// Return whether text is a primitive MIR type name.

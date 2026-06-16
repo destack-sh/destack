@@ -5,10 +5,10 @@ use super::{assert_format, assert_format_eq};
 fn test_format_simple_add() {
     assert_format(
         r#"
-function add(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    return value2
+function add(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    return v2
 }
 "#,
     );
@@ -20,13 +20,13 @@ fn test_format_with_locals() {
     assert_format(
         r#"
 function withLocals(): int64 {
-    local local0: int64, owned
+    local l0: int64
 
-entry0:
-    value0: int64 = 42int64
-    local.set local0, value0
-    value1: int64 = local.get local0
-    return value1
+entry:
+    v0: int64 = 42
+    local.set l0, v0
+    v1: int64 = local.get l0
+    return v1
 }
 "#,
     );
@@ -38,10 +38,10 @@ fn test_format_local_address() {
     assert_format(
         r#"
 function localAddr(): void {
-    local local0: int32, owned
+    local l0: int32
 
-entry0:
-    value0: ref<int32, borrowed, space(frame)> = local.address local0
+entry:
+    v0: ref<int32, borrowed, space(frame)> = local.address l0
     return
 }
 "#,
@@ -53,15 +53,15 @@ entry0:
 fn test_format_branch() {
     assert_format(
         r#"
-function choose(value0: boolean, value1: int32, value2: int32): int32 {
-entry0(value0: boolean, value1: int32, value2: int32):
-    branch value0, block1(value1), block2(value2)
+function choose(v0: boolean, v1: int32, v2: int32): int32 {
+entry(v0: boolean, v1: int32, v2: int32):
+    branch v0, b1(v1), b2(v2)
 
-block1(value3: int32):
-    return value3
+b1(v3: int32):
+    return v3
 
-block2(value4: int32):
-    return value4
+b2(v4: int32):
+    return v4
 }
 "#,
     );
@@ -73,7 +73,7 @@ fn test_format_void_return() {
     assert_format(
         r#"
 function noop(): void {
-entry0:
+entry:
     return
 }
 "#,
@@ -86,20 +86,20 @@ fn test_format_closure_environment() {
     assert_format(
         r#"
 @environment(ref<void, managed>)
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    value1: ref<void, managed> = closure.environment
-    return value0
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    v1: ref<void, managed> = closure.environment
+    return v0
 }
 
 @environment(ref<void, managed>)
 function caller(): int32 {
-entry0:
-    value0: ref<void, managed> = closure.environment
-    value1: (int32) => int32 = closure.bind callee, value0
-    value2: int32 = 1int32
-    value3: int32 = call.indirect value1(value2): (int32) -> int32
-    return value3
+entry:
+    v0: ref<void, managed> = closure.environment
+    v1: (int32) => int32 = closure.bind callee, v0
+    v2: int32 = 1
+    v3: int32 = call.indirect v1(v2): (int32) -> int32
+    return v3
 }
 "#,
     );
@@ -111,16 +111,16 @@ fn test_format_renames_non_canonical_names() {
     assert_format_eq(
         r#"
 function varTest(): int32 {
-b0:
-    v0: int32 = 10int32
+entry:
+    v0: int32 = 10
     return v0
 }
 "#,
         r#"
 function varTest(): int32 {
-entry0:
-    value0: int32 = 10int32
-    return value0
+entry:
+    v0: int32 = 10
+    return v0
 }
 "#,
     );
@@ -131,9 +131,9 @@ entry0:
 fn test_format_reference_access_preserved() {
     assert_format(
         r#"
-function refMutability(value0: ref<int32, managed>, value1: ref<int32, unique, readonly>): ref<int32, managed> {
-entry0(value0: ref<int32, managed>, value1: ref<int32, unique, readonly>):
-    return value0
+function refMutability(v0: ref<int32, managed>, v1: ref<int32, unique, readonly>): ref<int32, managed> {
+entry(v0: ref<int32, managed>, v1: ref<int32, unique, readonly>):
+    return v0
 }
 "#,
     );

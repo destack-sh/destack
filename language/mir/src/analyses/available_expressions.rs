@@ -221,13 +221,15 @@ mod tests {
         let test = TestProgram::new(
             r#"
 function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
+entry(v0: int32, v1: int32):
     v2: int32 = int.add v0, v1
     jump b1
+
 b1:
     v3: int32 = int.add v0, v1
     return v3
-}"#,
+}
+"#,
         );
 
         // fetch the function and analysis
@@ -254,17 +256,21 @@ b1:
         let test = TestProgram::new(
             r#"
 function test(v0: boolean, v1: int32, v2: int32): int32 {
-b0(v0: boolean, v1: int32, v2: int32):
+entry(v0: boolean, v1: int32, v2: int32):
     branch v0, b1, b2
+
 b1:
     v3: int32 = int.add v1, v2
     jump b3
+
 b2:
     jump b3
+
 b3:
     v4: int32 = int.add v1, v2
     return v4
-}"#,
+}
+"#,
         );
 
         // fetch the function and analysis
@@ -288,18 +294,22 @@ b3:
         let test = TestProgram::new(
             r#"
 function test(v0: boolean, v1: int32, v2: int32): int32 {
-b0(v0: boolean, v1: int32, v2: int32):
+entry(v0: boolean, v1: int32, v2: int32):
     branch v0, b1, b2
+
 b1:
     v3: int32 = int.add v1, v2
     jump b3
+
 b2:
     v4: int32 = int.add v1, v2
     jump b3
+
 b3:
     v5: int32 = int.add v1, v2
     return v5
-}"#,
+}
+"#,
         );
 
         // fetch the function and analysis
@@ -323,12 +333,14 @@ b3:
         let test = TestProgram::new(
             r#"
 function test(v0: int32): int32 {
-    local local0: int32, owned
-b0(v0: int32):
-    local.set local0, v0
-    v1: int32 = local.get local0
+    local l0: int32
+
+entry(v0: int32):
+    local.set l0, v0
+    v1: int32 = local.get l0
     return v1
-}"#,
+}
+"#,
         );
 
         // fetch the function and analysis
@@ -348,18 +360,22 @@ b0(v0: int32):
         let test = TestProgram::new(
             r#"
 function test(v0: boolean, v1: int32, v2: int32): int32 {
-b0(v0: boolean, v1: int32, v2: int32):
+entry(v0: boolean, v1: int32, v2: int32):
     branch v0, b1, b2
+
 b1:
     v3: int32 = int.add v1, v2
     jump b3
+
 b2:
     v4: int32 = int.add v2, v1
     jump b3
+
 b3:
     v5: int32 = int.add v1, v2
     return v5
-}"#,
+}
+"#,
         );
 
         // fetch the function and analysis
@@ -383,11 +399,12 @@ b3:
         let test = TestProgram::new(
             r#"
 function test(v0: int32, v1: int32, v2: int32): int32 {
-b0(v0: int32, v1: int32, v2: int32):
+entry(v0: int32, v1: int32, v2: int32):
     v3: int32 = int.add v0, v1
     v4: int32 = int.add v3, v2
     return v4
-}"#,
+}
+"#,
         );
 
         // fetch the function and analysis
@@ -427,16 +444,19 @@ b0(v0: int32, v1: int32, v2: int32):
         let test = TestProgram::new(
             r#"
 function test(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
+entry(v0: int32, v1: int32):
     v2: int32 = int.add v0, v1
     jump b1
+
 b1:
     v3: int32 = int.add v0, v1
     return v3
+
 b2:
     v4: int32 = int.add v0, v1
     return v4
-}"#,
+}
+"#,
         );
 
         // fetch the function and analysis

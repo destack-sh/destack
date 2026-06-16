@@ -3,6 +3,7 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use super::r#type::format_borrow_obligations;
+use super::value::format_constant_for_type;
 
 use crate::{
     AtomicAccess, CompareExchangeAccess, FenceAccess, FormatMirNode, FunctionReference,
@@ -24,8 +25,10 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             }),
 
             Instruction::Const { destination, value } => {
+                let destination_type = typed_destination_type(*destination, f)?;
                 format_typed_destination(*destination, f)?;
-                write!(f, [space(), token("="), space(), value])
+                write!(f, [space(), token("="), space()])?;
+                format_constant_for_type(value, destination_type, f)
             }
 
             Instruction::Binary {
@@ -134,7 +137,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("local.get"),
                         space(),
-                        text(&format!("local{local_index}"))
+                        text(&format!("l{local_index}"))
                     ]
                 )
             }
@@ -155,7 +158,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("local.address"),
                         space(),
-                        text(&format!("local{local_index}"))
+                        text(&format!("l{local_index}"))
                     ]
                 )
             }
@@ -170,7 +173,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                     [
                         token("local.set"),
                         space(),
-                        text(&format!("local{local_index}")),
+                        text(&format!("l{local_index}")),
                         token(","),
                         space(),
                         value
@@ -1316,8 +1319,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 write!(f, [token("call"), space()])?;
                 format_function_reference(*function, f)?;
                 let args = f.context().tree.get_arguments(call.arguments);
-                format_value_list(args, f)?;
-                format_call_signature_suffix(&call.signature, f)
+                format_value_list(args, f)
             }
 
             Instruction::CallVirtual {
@@ -1697,6 +1699,23 @@ fn format_typed_destination<'a>(
             message: "missing value type for instruction destination",
         })?;
     write!(f, [destination, token(":"), space(), ty])
+}
+
+fn typed_destination_type<'a>(
+    destination: ValueReference,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<LocalNodeId<crate::Type>> {
+    let ValueReference::Value(destination) = destination else {
+        return Err(FormatError::SyntaxError {
+            message: "missing value for instruction destination",
+        });
+    };
+
+    f.context()
+        .value_type(destination)
+        .ok_or(FormatError::SyntaxError {
+            message: "missing value type for instruction destination",
+        })
 }
 
 /// Format a function reference.

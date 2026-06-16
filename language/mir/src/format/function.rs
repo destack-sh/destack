@@ -6,8 +6,8 @@ use super::attribute::{write_attribute, write_attributes};
 
 use crate::{
     FormatMirNode, Function, FunctionHeaderSpans, LifetimeParameter, Linkage, Local, LocalNodeId,
-    MirFormatContext, MirFormatter, Mutability, Ownership, Tree, write_comments_after,
-    write_comments_before, write_inline_comment_after, write_node_leading_comments,
+    MirFormatContext, MirFormatter, Mutability, Tree, write_comments_after, write_comments_before,
+    write_inline_comment_after, write_node_leading_comments,
     write_node_leading_comments_after_separator,
 };
 
@@ -271,20 +271,12 @@ fn format_local_declaration(
         [
             token("local"),
             space(),
-            text(&format!("local{local_index}")),
+            text(&format!("l{local_index}")),
             token(":"),
             space(),
             local.ty
         ]
     )?;
-
-    // ownership
-    write!(f, [token(","), space()])?;
-    match local.ownership {
-        Ownership::Owned => write!(f, [token("owned")])?,
-        Ownership::Borrowed => write!(f, [token("borrowed")])?,
-        Ownership::Copy => write!(f, [token("copy")])?,
-    }
 
     // mutability
     if local.mutability == Mutability::Immutable {

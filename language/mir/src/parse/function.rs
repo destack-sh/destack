@@ -4,8 +4,8 @@ use crate::source::{Token, TokenType};
 use crate::{
     AllocationMode, Attribute, AttributeArgs, AttributeValue, Block, BlockTarget, Call,
     CheckConstraint, Function, FunctionHeaderSpans, Instruction, IntegerReference, Linkage, Local,
-    LocalNodeId, LocalReference, Mutability, Ownership, Parameter, SwitchCase, Terminator,
-    TrapKind, TypeReference, TypedValueSpan, Value, ValueReference,
+    LocalNodeId, Mutability, Parameter, SwitchCase, Terminator, TrapKind, TypeReference,
+    TypedValueSpan, Value, ValueReference,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -219,11 +219,6 @@ impl Parser {
             self.try_recover_to_block(self.pos());
         }
 
-        // resolve body references
-        let source_index_to_local: Vec<_> = locals.clone();
-        for block_id in &blocks {
-            self.resolve_local_references(*block_id, &source_index_to_local);
-        }
         self.eat_token(TokenType::CloseBrace)?;
 
         // finalize body
@@ -312,47 +307,40 @@ impl Parser {
         self.eat_token(TokenType::Local)?;
 
         // local reference
-        let local_token = self.eat_token(TokenType::LocalReference)?;
+        let local_token = self.eat_token(TokenType::Identifier)?;
         let local_name_text = self.tree.source_text(local_token.span).to_string();
         let local_name_start = local_token.start;
         let local_name_length = local_name_text.len();
         let local_span = self.span_at(local_name_start, local_name_length);
-        let _local_idx: u32 = local_name_text
-            .strip_prefix("local")
-            .and_then(|s| s.parse().ok())
-            .ok_or_else(|| ParseError::invalid("local reference", local_name_start))?;
+        if self.local_name_map.contains_key(&local_name_text) {
+            return Err(ParseError::new(
+                format!("duplicate local name '{local_name_text}'"),
+                local_name_start,
+            ));
+        }
 
         // local type
         let colon_token = self.eat_token(TokenType::Colon)?;
         let (ty, type_span) = self.parse_type_reference_after(colon_token, "local type");
 
         // local annotations
-        let mut ownership = Ownership::Owned;
         let mut mutability = Mutability::Mutable;
-
-        // ownership
-        if self.eat_token_maybe(TokenType::Comma) && self.peek_token(TokenType::Ownership) {
-            let text = self
-                .peek()
-                .map(|token| self.tree.source_text(token.span))
-                .unwrap_or("");
-            ownership = match text {
-                "owned" => Ownership::Owned,
-                "borrowed" => Ownership::Borrowed,
-                "copy" => Ownership::Copy,
-                _ => Ownership::Owned,
-            };
-            self.bump();
-        }
-
-        // mutability
-        if self.eat_token_maybe(TokenType::Comma) && self.eat_token_maybe(TokenType::Readonly) {
-            mutability = Mutability::Immutable;
+        while self.eat_token_maybe(TokenType::Comma) {
+            // mutability
+            if self.eat_token_maybe(TokenType::Readonly) {
+                mutability = Mutability::Immutable;
+            }
+            // reject unknown local qualifiers
+            else {
+                return Err(ParseError::invalid("local qualifier", self.pos()));
+            }
         }
 
         // record the local
-        let local = Local::new(ty, mutability, ownership);
+        let local = Local::new(ty, mutability);
         let local_id = self.tree.insert(local);
+        self.local_name_map
+            .insert(local_name_text.clone(), local_id);
         self.tree
             .set_text_span(local_id, self.span_from_parse_start(local_start));
         self.tree.set_main_span(local_id, local_span);
@@ -379,15 +367,10 @@ impl Parser {
             let block_span = block_token.span;
 
             let block_name = match self.token_type(block_token) {
-                TokenType::BlockReference => {
-                    self.bump();
-                    None
-                }
                 TokenType::Identifier => {
                     let name = self.tree.source_text(block_token.span).to_string();
                     self.bump();
-                    let name_id = self.strings.intern(&name);
-                    Some(name_id)
+                    Some(self.strings.intern(&name))
                 }
                 _ => {
                     return Err(ParseError::unexpected(
@@ -445,7 +428,7 @@ impl Parser {
                 || self.peek_token(TokenType::Switch)
                 || self.peek_token(TokenType::Yield)
                 || self.peek_token(TokenType::Panic)
-                || self.peek_token(TokenType::ResumeUnwind)
+                || self.peek_token(TokenType::UnwindResume)
                 || self.peek_token(TokenType::Trap)
                 || self.peek_token(TokenType::Unreachable)
                 || self.peek_token(TokenType::TailCall)
@@ -718,19 +701,6 @@ impl Parser {
         let span = token.span;
 
         match self.token_type(token) {
-            TokenType::Value => {
-                let text = self.tree.source_text(token.span).to_string();
-                self.bump();
-
-                let index: u32 = text
-                    .strip_prefix('v')
-                    .and_then(|text| text.parse().ok())
-                    .ok_or_else(|| {
-                        ParseError::invalid("entry block parameter", span.start as usize)
-                    })?;
-
-                Ok((ValueReference::Value(Value::new(index)), span))
-            }
             TokenType::Identifier => {
                 let name = self.tree.source_text(token.span).to_string();
                 let start = token.start;
@@ -789,7 +759,6 @@ impl Parser {
     /// Return whether a token can start a block reference in this function.
     fn is_block_reference_token(&self, token: &Token) -> bool {
         match self.token_type(token) {
-            TokenType::BlockReference => true,
             TokenType::Identifier => {
                 let name = self.tree.source_text(token.span);
                 self.block_name_map.contains_key(name)
@@ -849,6 +818,10 @@ impl Parser {
             }
             TokenType::Check => {
                 self.bump();
+                if self.has_line_break_after(&token) {
+                    return Err(ParseError::unexpected_end("check kind", self.pos()));
+                }
+
                 let constraint = self.parse_check_kind()?;
                 self.eat_token(TokenType::Arrow)?;
                 let success = self.parse_block_target()?;
@@ -869,7 +842,7 @@ impl Parser {
                 let mut cases = Vec::new();
                 while self.eat_token_maybe(TokenType::Comma) {
                     let case_value = self.parse_int_literal()?;
-                    self.eat_token(TokenType::FatArrow)?;
+                    self.eat_token(TokenType::Arrow)?;
                     let target = self.parse_block_target()?;
                     cases.push(SwitchCase {
                         value: IntegerReference::Integer(case_value),
@@ -917,9 +890,9 @@ impl Parser {
                     };
                 Ok(Terminator::Panic { payload })
             }
-            TokenType::ResumeUnwind => {
+            TokenType::UnwindResume => {
                 self.bump();
-                Ok(Terminator::ResumeUnwind)
+                Ok(Terminator::UnwindResume)
             }
             TokenType::Unreachable => {
                 self.bump();
@@ -1156,7 +1129,7 @@ impl Parser {
                 })
             }
             "null" => {
-                if kind_parts.len() != 1 {
+                if kind_parts.len() != 2 {
                     return Err(ParseError::invalid(
                         &format!("check kind '{kind_text}'"),
                         kind_start,
@@ -1166,8 +1139,8 @@ impl Parser {
                 let value = self.parse_value()?;
                 Ok(CheckConstraint::Null { value })
             }
-            "zeroDivisor" => {
-                if kind_parts.len() != 1 {
+            "div" if kind_parts.get(1) == Some(&"zero") => {
+                if kind_parts.len() != 2 {
                     return Err(ParseError::invalid(
                         &format!("check kind '{kind_text}'"),
                         kind_start,
@@ -1177,8 +1150,8 @@ impl Parser {
                 let divisor = self.parse_value()?;
                 Ok(CheckConstraint::DivZero { divisor })
             }
-            "dynamicType" => {
-                if kind_parts.len() != 1 {
+            "dynamic" if kind_parts.get(1) == Some(&"type") => {
+                if kind_parts.len() != 2 {
                     return Err(ParseError::invalid(
                         &format!("check kind '{kind_text}'"),
                         kind_start,
@@ -1191,8 +1164,8 @@ impl Parser {
 
                 Ok(CheckConstraint::Type { value, expected })
             }
-            "variantTag" => {
-                if kind_parts.len() != 1 {
+            "variant" if kind_parts.get(1) == Some(&"tag") => {
+                if kind_parts.len() != 2 {
                     return Err(ParseError::invalid(
                         &format!("check kind '{kind_text}'"),
                         kind_start,
@@ -1205,8 +1178,8 @@ impl Parser {
 
                 Ok(CheckConstraint::Variant { value, expected })
             }
-            "receiverType" => {
-                if kind_parts.len() != 1 {
+            "receiver" if kind_parts.get(1) == Some(&"type") => {
+                if kind_parts.len() != 2 {
                     return Err(ParseError::invalid(
                         &format!("check kind '{kind_text}'"),
                         kind_start,
@@ -1219,8 +1192,8 @@ impl Parser {
 
                 Ok(CheckConstraint::ReceiverType { receiver, expected })
             }
-            "interfaceConformance" => {
-                if kind_parts.len() != 1 {
+            "interface" if kind_parts.get(1) == Some(&"conformance") => {
+                if kind_parts.len() != 2 {
                     return Err(ParseError::invalid(
                         &format!("check kind '{kind_text}'"),
                         kind_start,
@@ -1233,8 +1206,8 @@ impl Parser {
 
                 Ok(CheckConstraint::Implements { receiver, expected })
             }
-            "shiftRange" => {
-                let signedness = kind_parts.get(1).copied().ok_or_else(|| {
+            "shift" if kind_parts.get(1) == Some(&"range") => {
+                let signedness = kind_parts.get(2).copied().ok_or_else(|| {
                     ParseError::invalid(&format!("check kind '{kind_text}'"), kind_start)
                 })?;
                 let is_signed = match signedness {
@@ -1248,7 +1221,7 @@ impl Parser {
                     }
                 };
 
-                if kind_parts.len() != 2 {
+                if kind_parts.len() != 3 {
                     return Err(ParseError::invalid(
                         &format!("check kind '{kind_text}'"),
                         kind_start,
@@ -1267,8 +1240,8 @@ impl Parser {
                     is_signed,
                 })
             }
-            "narrowRange" => {
-                let signedness = kind_parts.get(1).copied().ok_or_else(|| {
+            "narrow" if kind_parts.get(1) == Some(&"range") => {
+                let signedness = kind_parts.get(2).copied().ok_or_else(|| {
                     ParseError::invalid(&format!("check kind '{kind_text}'"), kind_start)
                 })?;
                 let is_signed = match signedness {
@@ -1282,7 +1255,7 @@ impl Parser {
                     }
                 };
 
-                if kind_parts.len() != 2 {
+                if kind_parts.len() != 3 {
                     return Err(ParseError::invalid(
                         &format!("check kind '{kind_text}'"),
                         kind_start,
@@ -1395,39 +1368,15 @@ impl Parser {
             self.predeclared_blocks.push(block_id);
 
             match self.token_type(&token) {
-                TokenType::BlockReference => {
-                    let source_index = self
-                        .tree
-                        .source_text(token.span)
-                        .strip_prefix('b')
-                        .and_then(|text| text.parse::<u32>().ok())
-                        .ok_or_else(|| ParseError::invalid("block label", token.start))?;
-
-                    if self
-                        .block_id_by_label_index
-                        .insert(source_index, block_id)
-                        .is_some()
-                    {
-                        return Err(ParseError::new(
-                            format!(
-                                "duplicate block label '{}'",
-                                self.tree.source_text(token.span)
-                            ),
-                            token.start,
-                        ));
-                    }
-                }
                 TokenType::Identifier => {
+                    let token_text = self.tree.source_text(token.span).to_string();
                     if self
                         .block_name_map
-                        .insert(self.tree.source_text(token.span).to_string(), block_id)
+                        .insert(token_text.clone(), block_id)
                         .is_some()
                     {
                         return Err(ParseError::new(
-                            format!(
-                                "duplicate block label '{}'",
-                                self.tree.source_text(token.span)
-                            ),
+                            format!("duplicate block label '{token_text}'"),
                             token.start,
                         ));
                     }
@@ -1439,36 +1388,6 @@ impl Parser {
         }
 
         Ok(())
-    }
-
-    /// Resolve local references in instructions after parsing locals.
-    fn resolve_local_references(
-        &mut self,
-        block_id: LocalNodeId<Block>,
-        source_to_actual: &[LocalNodeId<Local>],
-    ) {
-        // clone to avoid borrow issues while mutating
-        let block = self.tree.get(block_id);
-        let instructions = block.instructions.clone();
-
-        // update local references in instructions
-        for inst_id in instructions {
-            let inst = self.tree.get_mut(inst_id);
-            match inst {
-                Instruction::LocalGet { local, .. }
-                | Instruction::LocalAddr { local, .. }
-                | Instruction::LocalSet { local, .. } => {
-                    if let LocalReference::Local(local_id) = *local {
-                        *local = source_to_actual
-                            .get(local_id.id as usize)
-                            .copied()
-                            .map(LocalReference::Local)
-                            .unwrap_or(*local);
-                    }
-                }
-                _ => {}
-            }
-        }
     }
 }
 

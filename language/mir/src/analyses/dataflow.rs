@@ -401,15 +401,18 @@ mod tests {
         let mut program = TestProgram::new(
             r#"
 function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
+entry(v0: int32):
+    v1: int32 = 1
     jump b2
+
 b1:
-    v2: int32 = 2int32
+    v2: int32 = 2
     jump b2
+
 b2:
     return v0
-}"#,
+}
+"#,
         );
 
         let function_id = program.first_function_id();
@@ -452,13 +455,15 @@ b2:
         let program = TestProgram::new(
             r#"
 function callee(v0: int32): int32 {
-b0(v0: int32):
+entry(v0: int32):
     return v0
 }
+
 function test(v0: int32): int32 {
-b0(v0: int32):
-    tailCall callee(v0): (int32) -> int32
-}"#,
+entry(v0: int32):
+    tail.call callee(v0)
+}
+"#,
         );
 
         let function_id = program.function_id_by_name("test");
@@ -488,9 +493,10 @@ b0(v0: int32):
         let program = TestProgram::new(
             r#"
 function test(v0: ref<void, managed, readonly>): void {
-b0(v0: ref<void, managed, readonly>):
+entry(v0: ref<void, managed, readonly>):
     panic v0
-}"#,
+}
+"#,
         );
 
         let function_id = program.function_id_by_name("test");

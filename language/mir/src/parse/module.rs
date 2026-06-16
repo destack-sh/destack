@@ -244,8 +244,14 @@ impl Parser {
 
         // return type
         self.eat_token(TokenType::Colon)?;
-        let return_type = self.parse_type()?;
-        let return_lifetimes = self.parse_type_reference_lifetimes()?;
+        let return_type =
+            if self.peek_token(TokenType::OpenBrace) && !self.is_return_structural_type_start() {
+                TypeReference::Missing
+            } else {
+                let return_type = self.parse_type()?;
+                let return_lifetimes = self.parse_type_reference_lifetimes()?;
+                TypeReference::new(return_type, return_lifetimes)
+            };
 
         // seed the placeholder signature now so forward calls can resolve immediately
         let Some(function_id) = self.function_map.get(&name).copied() else {
@@ -257,7 +263,7 @@ impl Parser {
         let function = self.tree.get_mut(function_id);
         function.parameters = parameters;
         function.lifetimes = lifetimes;
-        function.return_type = TypeReference::new(return_type, return_lifetimes);
+        function.return_type = return_type;
         self.pop_lifetimes();
 
         // imports stop at the signature
@@ -330,20 +336,9 @@ impl Parser {
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("value definition", self.pos()))?;
         let kind = self.token_type(token);
-        let token_text = self.tree.source_text(token.span).to_string();
         let token_start = token.start;
 
         match kind {
-            TokenType::Value => {
-                self.bump();
-
-                let index: u32 = token_text
-                    .strip_prefix('v')
-                    .and_then(|text| text.parse().ok())
-                    .ok_or_else(|| ParseError::invalid("value definition", token_start))?;
-                *next_value_id = (*next_value_id).max(index + 1);
-                Ok(Value::new(index))
-            }
             TokenType::Identifier => {
                 self.bump();
 
@@ -581,7 +576,7 @@ impl Parser {
                 None
             } else {
                 self.eat_token(TokenType::Equal)?;
-                Some(self.parse_data_init()?)
+                Some(self.parse_data_init(ty.ty())?)
             };
 
         // record global
@@ -617,7 +612,10 @@ impl Parser {
     }
 
     /// Parse a data initializer.
-    fn parse_data_init(&mut self) -> ParseResult<GlobalInitializer> {
+    fn parse_data_init(
+        &mut self,
+        expected_type: Option<LocalNodeId<Type>>,
+    ) -> ParseResult<GlobalInitializer> {
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("data initializer", self.pos()))?;
@@ -656,14 +654,22 @@ impl Parser {
             }
             // scalar constant
             TokenType::Identifier if self.tree.source_text(token.span) == "null" => {
-                let constant = self.parse_constant()?;
+                let constant = if let Some(expected_type) = expected_type {
+                    self.parse_constant_for_type(expected_type)?
+                } else {
+                    self.parse_constant()?
+                };
                 Ok(GlobalInitializer::Scalar(constant))
             }
             TokenType::BooleanLiteral
             | TokenType::Integer
             | TokenType::Float
             | TokenType::Character => {
-                let constant = self.parse_constant()?;
+                let constant = if let Some(expected_type) = expected_type {
+                    self.parse_constant_for_type(expected_type)?
+                } else {
+                    self.parse_constant()?
+                };
                 Ok(GlobalInitializer::Scalar(constant))
             }
             // function address
@@ -678,7 +684,8 @@ impl Parser {
                 self.bump();
                 let mut elements = Vec::new();
                 while !self.peek_token(TokenType::CloseBrace) {
-                    elements.push(self.parse_data_init()?);
+                    let element_type = self.data_init_element_type(expected_type, elements.len());
+                    elements.push(self.parse_data_init(element_type)?);
                     if !self.eat_token_maybe(TokenType::Comma) {
                         break;
                     }
@@ -691,6 +698,27 @@ impl Parser {
                 self.token_type(token),
                 token.start,
             )),
+        }
+    }
+
+    /// Return the expected type for one aggregate initializer element.
+    fn data_init_element_type(
+        &self,
+        expected_type: Option<LocalNodeId<Type>>,
+        index: usize,
+    ) -> Option<LocalNodeId<Type>> {
+        let expected_type = expected_type?;
+
+        match self.tree.get(expected_type) {
+            Type::Array { element, .. }
+            | Type::Vector { element, .. }
+            | Type::Tensor { element, .. } => element.ty(),
+            Type::Tuple { elements, .. } => elements.get(index).and_then(|element| element.ty()),
+            Type::Struct { fields, .. } => fields
+                .get(index)
+                .and_then(|field| self.tree.get(*field).ty.ty()),
+            Type::Newtype { inner, .. } => self.data_init_element_type(inner.ty(), index),
+            _ => None,
         }
     }
 }

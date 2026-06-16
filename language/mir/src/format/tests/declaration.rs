@@ -5,45 +5,45 @@ use super::{assert_format, assert_format_eq};
 fn test_format_dotted_symbol_names() {
     assert_format_eq(
         r#"
-type Status = newtype<int32>
+type Status = newtype<int32>;
 
-readonly global Status.Default: Status = 1int32
+readonly global Status.Default: Status = 1
 
 function Status.isActive(v0: Status): boolean {
-b0(v0: Status):
+entry(v0: Status):
     v1: int32 = cast.bit v0 -> int32
-    v2: int32 = 1int32
+    v2: int32 = 1
     v3: boolean = int.eq v1, v2
     return v3
 }
 
 function checkDefault(): boolean {
-b0:
+entry:
     v0: ref<Status, raw, readonly> = global.address Status.Default
     v1: Status = load v0
-    v2: boolean = call Status.isActive(v1): (Status) -> boolean
+    v2: boolean = call Status.isActive(v1)
     return v2
 }
 "#,
         r#"
 type Status = newtype<int32>;
 
-readonly global Status.Default: Status = 1int32
+readonly global Status.Default: Status = 1
 
-function Status.isActive(value0: Status): boolean {
-entry0(value0: Status):
-    value1: int32 = cast.bit value0 -> int32
-    value2: int32 = 1int32
-    value3: boolean = int.eq value1, value2
-    return value3
+function Status.isActive(v0: Status): boolean {
+entry(v0: Status):
+    v1: int32 = cast.bit v0 -> int32
+    v2: int32 = 1
+    v3: boolean = int.eq v1, v2
+    return v3
 }
 
 function checkDefault(): boolean {
-entry0:
-    value0: ref<Status, raw, readonly> = global.address Status.Default
-    value1: Status = load value0
-    value2: boolean = call Status.isActive(value1): (Status) -> boolean
-    return value2
+entry:
+    v0: ref<Status, raw, readonly> = global.address Status.Default
+    v1: Status = load v0
+    v2: boolean = call Status.isActive(v1)
+    return v2
 }
 "#,
     );
@@ -54,19 +54,19 @@ entry0:
 fn test_format_callable_type_declaration() {
     assert_format_eq(
         r#"
-type Callable = (int32) => int32
+type Callable = (int32) => int32;
 
 function use(v0: Callable): Callable {
-b0(v0: Callable):
+entry(v0: Callable):
     return v0
 }
 "#,
         r#"
 type Callable = (int32) => int32;
 
-function use(value0: Callable): Callable {
-entry0(value0: Callable):
-    return value0
+function use(v0: Callable): Callable {
+entry(v0: Callable):
+    return v0
 }
 "#,
     );
@@ -79,14 +79,14 @@ fn test_format_import_export_declarations() {
         r#"
 external readonly global Imported: int32
 
-export global Exported: int32 = 7int32
+export global Exported: int32 = 7
 
 external function imported(int32): int32
 
-export function exported(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = call imported(value0): (int32) -> int32
-    return value1
+export function exported(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = call imported(v0)
+    return v1
 }
 "#,
     );

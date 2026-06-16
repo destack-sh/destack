@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 
 use destack_core::StringPool;
 use destack_fir::format::{
@@ -11,11 +11,9 @@ use destack_source::{File, FileType, IndentStyle, LineEnding};
 
 use crate::source::TokenType;
 use crate::{
-    Block, Function, Global, Instruction, LifetimeParameter, LifetimeSlot, Local, LocalNodeId,
-    Node, NodeType, Terminator, Tree, TreeImpl, Type, TypeAlias, TypeReference, Value,
+    Block, Function, Global, LifetimeParameter, LifetimeSlot, Local, LocalNodeId, Node, NodeType,
+    Tree, TreeImpl, Type, TypeAlias, Value,
 };
-
-use super::r#type::{format_type_declaration, format_type_expanded};
 
 pub type MirFormatter<'a, 'buf> = Formatter<'buf, MirFormatContext<'a>>;
 
@@ -30,12 +28,6 @@ pub struct MirFormatOptions {
     pub indent_width: u8,
     /// Maximum line width.
     pub line_width: u8,
-    /// Whether to emit synthetic type aliases for readability.
-    pub use_type_aliases: bool,
-    /// Minimum number of uses before a type gets a synthetic alias.
-    pub type_alias_min_uses: u8,
-    /// Whether to render metadata names without module prefixes.
-    pub use_local_names: bool,
 }
 
 impl Default for MirFormatOptions {
@@ -45,9 +37,6 @@ impl Default for MirFormatOptions {
             indent_style: IndentStyle::Space,
             indent_width: 4,
             line_width: 100,
-            use_type_aliases: false,
-            type_alias_min_uses: 2,
-            use_local_names: false,
         }
     }
 }
@@ -62,24 +51,6 @@ impl MirFormatOptions {
             indent_width: self.indent_width,
             trim_trailing_whitespace: false,
         }
-    }
-
-    /// Enable or disable synthetic type aliases.
-    pub fn with_type_aliases(mut self, value: bool) -> Self {
-        self.use_type_aliases = value;
-        self
-    }
-
-    /// Set the minimum number of uses required for a synthetic alias.
-    pub fn with_type_alias_min_uses(mut self, value: u8) -> Self {
-        self.type_alias_min_uses = value;
-        self
-    }
-
-    /// Enable or disable local name formatting for metadata.
-    pub fn with_local_names(mut self, value: bool) -> Self {
-        self.use_local_names = value;
-        self
     }
 }
 
@@ -122,8 +93,6 @@ pub struct MirFormatContext<'a> {
     pub global_names: HashMap<LocalNodeId<Global>, String>,
     /// Map from type ID to its alias name (if any).
     pub type_alias_by_type: HashMap<LocalNodeId<Type>, String>,
-    /// Synthetic aliases generated for readability.
-    pub synthetic_aliases: Vec<(LocalNodeId<Type>, String)>,
     /// The function currently being formatted.
     pub current_function: Option<LocalNodeId<Function>>,
     /// Lifetime parameters currently in scope.
@@ -151,35 +120,15 @@ impl<'a> MirFormatContext<'a> {
             .filter_map(|(_, alias)| {
                 let ty = alias.ty.ty()?;
 
-                let name = strings.get(alias.name);
-                let name = if options.use_local_names {
-                    local_name_from_metadata(name)
-                } else {
-                    name.to_string()
-                };
+                let name = strings.get(alias.name).to_string();
                 Some((ty, name))
             })
             .collect();
 
         // assign unique function and global names
-        let function_names = build_unique_function_names(tree, strings, options.use_local_names);
+        let function_names = build_unique_function_names(tree, strings);
         let block_names = build_unique_block_names(tree, strings);
-        let global_names = build_unique_global_names(tree, strings, options.use_local_names);
-
-        // include synthetic aliases when configured
-        let (type_alias_by_type, synthetic_aliases) = if options.use_type_aliases {
-            // build synthetic aliases
-            build_synthetic_aliases(
-                tree,
-                strings,
-                type_alias_by_type,
-                options.type_alias_min_uses,
-                options.use_local_names,
-            )?
-        } else {
-            // skip synthetic aliases
-            (type_alias_by_type, Vec::new())
-        };
+        let global_names = build_unique_global_names(tree, strings);
 
         // assemble the format context
         Ok(Self {
@@ -192,20 +141,9 @@ impl<'a> MirFormatContext<'a> {
             block_names,
             global_names,
             type_alias_by_type,
-            synthetic_aliases,
             current_function: None,
             current_lifetimes: Vec::new(),
         })
-    }
-
-    /// Format a type alias name with the configured naming policy.
-    pub fn format_alias_name(&self, name: &str) -> String {
-        // use local names when configured
-        if self.options.use_local_names {
-            return local_name_from_metadata(name);
-        }
-
-        name.to_string()
     }
 
     /// Get the display name of a block in the current function.
@@ -213,7 +151,7 @@ impl<'a> MirFormatContext<'a> {
         self.block_names
             .get(&id)
             .cloned()
-            .unwrap_or_else(|| format!("block{}", id.id))
+            .unwrap_or_else(|| format!("b{}", id.id))
     }
 
     /// Get the index of a local in the current function.
@@ -236,7 +174,7 @@ impl<'a> MirFormatContext<'a> {
         let name = if let Some(name) = function.value_name(value) {
             self.strings.get(name).to_string()
         } else {
-            format!("value{}", value.0)
+            format!("v{}", value.0)
         };
 
         Ok(name)
@@ -292,19 +230,13 @@ impl<'a> MirFormatContext<'a> {
 fn build_unique_function_names(
     tree: &Tree,
     strings: &StringPool,
-    use_local_names: bool,
 ) -> HashMap<LocalNodeId<Function>, String> {
     // collect function names
     let names = tree
         .iter_nodes::<Function>()
         .map(|(id, function)| (id, strings.get(function.name).to_string()));
 
-    // build stable unique names
-    if use_local_names {
-        build_unique_names(names.map(|(id, name)| (id, local_name_from_metadata(&name))))
-    } else {
-        build_unique_names(names)
-    }
+    build_unique_names(names)
 }
 
 /// Build unique display names for blocks.
@@ -320,9 +252,10 @@ fn build_unique_block_names(
             let block = tree.get(*block_id);
             let name = if let Some(name) = block.name {
                 strings.get(name).to_string()
+            } else if index == 0 {
+                "entry".to_string()
             } else {
-                let prefix = if index == 0 { "entry" } else { "block" };
-                format!("{prefix}{index}")
+                format!("b{index}")
             };
 
             (*block_id, name)
@@ -338,19 +271,13 @@ fn build_unique_block_names(
 fn build_unique_global_names(
     tree: &Tree,
     strings: &StringPool,
-    use_local_names: bool,
 ) -> HashMap<LocalNodeId<Global>, String> {
     // collect global names
     let names = tree
         .iter_nodes::<Global>()
         .map(|(id, global)| (id, strings.get(global.name).to_string()));
 
-    // build stable unique names
-    if use_local_names {
-        build_unique_names(names.map(|(id, name)| (id, local_name_from_metadata(&name))))
-    } else {
-        build_unique_names(names)
-    }
+    build_unique_names(names)
 }
 
 /// Build unique display names for nodes.
@@ -393,553 +320,6 @@ where
 
     // return the final name map
     names_by_id
-}
-
-/// Build synthetic type aliases based on usage counts.
-#[allow(clippy::type_complexity)]
-fn build_synthetic_aliases(
-    tree: &Tree,
-    strings: &StringPool,
-    mut type_alias_by_type: HashMap<LocalNodeId<Type>, String>,
-    min_uses: u8,
-    use_local_names: bool,
-) -> FormatResult<(
-    HashMap<LocalNodeId<Type>, String>,
-    Vec<(LocalNodeId<Type>, String)>,
-)> {
-    // collect how often types appear in formatted output
-    let type_uses = collect_type_uses(tree);
-
-    // seed alias names with explicit aliases
-    let mut alias_names: HashSet<String> = type_alias_by_type.values().cloned().collect();
-    let mut synthetic_aliases = Vec::new();
-    let mut next_alias_indices: HashMap<String, usize> = HashMap::new();
-    let mut candidates: HashMap<String, AliasCandidateGroup> = HashMap::new();
-
-    // collect candidates by structural key
-    for (type_id, ty) in tree.iter_nodes::<Type>() {
-        // skip types that already have aliases
-        if type_alias_by_type.contains_key(&type_id) {
-            continue;
-        }
-
-        // filter by aliasable shapes
-        if !should_alias_type(ty) {
-            continue;
-        }
-
-        // require enough uses to justify an alias
-        let uses = type_uses.get(&type_id).copied().unwrap_or(0);
-        if uses == 0 {
-            continue;
-        }
-
-        // group candidates by structure
-        let key = type_key_for_alias(tree, strings, type_id)?;
-        let entry = candidates.entry(key).or_default();
-        entry.total_uses += uses;
-        entry.type_ids.push(type_id);
-
-        // track metadata names when available
-        if let Some(name) = metadata_name_for_type(tree, strings, type_id, use_local_names) {
-            if entry.preferred_metadata_name.is_none() {
-                entry.preferred_metadata_name = Some(name.clone());
-            }
-            entry.metadata_names.insert(name);
-        }
-    }
-
-    // order keys for deterministic naming
-    let mut ordered_keys: Vec<_> = candidates.keys().cloned().collect();
-    ordered_keys.sort();
-
-    // assign aliases in stable order
-    for key in ordered_keys {
-        // select the next alias name
-        let candidate = candidates.remove(&key).ok_or(FormatError::SyntaxError {
-            message: "missing alias candidates",
-        })?;
-        if candidate.total_uses < u32::from(min_uses) {
-            continue;
-        }
-
-        // reserve the alias name
-        let alias_name =
-            alias_name_for_candidate(tree, &candidate, &mut next_alias_indices, &alias_names)?;
-        alias_names.insert(alias_name.clone());
-
-        // assign the alias to all matching types
-        if let Some((first, rest)) = candidate.type_ids.split_first() {
-            type_alias_by_type.insert(*first, alias_name.clone());
-            synthetic_aliases.push((*first, alias_name.clone()));
-            for type_id in rest {
-                type_alias_by_type.insert(*type_id, alias_name.clone());
-            }
-        }
-    }
-
-    Ok((type_alias_by_type, synthetic_aliases))
-}
-
-/// Check whether a type is eligible for synthetic aliasing.
-fn should_alias_type(ty: &Type) -> bool {
-    // allow aliasing for common aggregate shapes
-    matches!(
-        ty,
-        Type::Struct { .. } | Type::Tuple { .. } | Type::Variant { .. } | Type::Closure { .. }
-    )
-}
-
-/// Choose an alias name for a candidate group.
-fn alias_name_for_candidate(
-    tree: &Tree,
-    candidate: &AliasCandidateGroup,
-    next_alias_indices: &mut HashMap<String, usize>,
-    alias_names: &HashSet<String>,
-) -> FormatResult<String> {
-    // prefer the stable earliest metadata name when available
-    if let Some(name) = &candidate.preferred_metadata_name {
-        return Ok(unique_alias_name(name, alias_names));
-    }
-
-    // fall back to a type based prefix
-    let first_id = candidate
-        .type_ids
-        .first()
-        .copied()
-        .ok_or(FormatError::SyntaxError {
-            message: "missing type id for alias candidate",
-        })?;
-    let prefix = type_alias_prefix(tree.get(first_id));
-    Ok(next_available_alias_name(
-        prefix,
-        next_alias_indices,
-        alias_names,
-    ))
-}
-
-/// Return a unique alias name based on the preferred base.
-fn unique_alias_name(base: &str, alias_names: &HashSet<String>) -> String {
-    // fast path when unused
-    if !alias_names.contains(base) {
-        return base.to_string();
-    }
-
-    // add a suffix for uniqueness
-    let mut suffix = 1;
-    loop {
-        let candidate = format!("{base}#{suffix}");
-        if !alias_names.contains(&candidate) {
-            return candidate;
-        }
-        suffix += 1;
-    }
-}
-
-/// Return the next available alias name for a prefix.
-fn next_available_alias_name(
-    prefix: &str,
-    next_alias_indices: &mut HashMap<String, usize>,
-    alias_names: &HashSet<String>,
-) -> String {
-    // seed the prefix counter
-    let entry = next_alias_indices.entry(prefix.to_string()).or_insert(0);
-
-    // advance prefix counters until unused
-    loop {
-        let candidate = format!("{prefix}{entry}");
-        *entry += 1;
-        if !alias_names.contains(&candidate) {
-            return candidate;
-        }
-    }
-}
-
-/// Return the default alias prefix for a type.
-fn type_alias_prefix(ty: &Type) -> &'static str {
-    // select a prefix based on the type shape
-    match ty {
-        Type::Struct { .. } => "Struct",
-        Type::Tuple { .. } => "Tuple",
-        Type::Array { .. } => "Array",
-        Type::Slice { .. } => "Slice",
-        Type::Uninit { .. } => "Uninit",
-        Type::Variant { .. } => "Variant",
-        Type::Atomic { .. } => "Atomic",
-        Type::Reference { .. } => "Ref",
-        Type::FunctionPointer { .. } => "Function",
-        Type::Closure { .. } => "Closure",
-        _ => "Type",
-    }
-}
-
-/// Read the metadata name for a type, if any.
-fn metadata_name_for_type(
-    tree: &Tree,
-    strings: &StringPool,
-    ty: LocalNodeId<Type>,
-    use_local_names: bool,
-) -> Option<String> {
-    // read the metadata name when available
-    tree.metadata
-        .types
-        .display_name(ty)
-        .map(|name_id| strings.get(name_id).to_string())
-        .map(|name| {
-            if use_local_names {
-                local_name_from_metadata(&name)
-            } else {
-                name
-            }
-        })
-}
-
-/// Strip module prefixes from metadata names.
-fn local_name_from_metadata(name: &str) -> String {
-    let Some((prefix, suffix)) = name.split_once(':') else {
-        return name.to_string();
-    };
-
-    if prefix.contains('/') {
-        return suffix.to_string();
-    }
-
-    name.to_string()
-}
-
-/// Alias candidates grouped by structural key.
-#[derive(Default)]
-struct AliasCandidateGroup {
-    /// Total uses across matching types.
-    total_uses: u32,
-    /// Type ids that share the same structural key.
-    type_ids: Vec<LocalNodeId<Type>>,
-    /// The first metadata name seen for the group in type order.
-    preferred_metadata_name: Option<String>,
-    /// Metadata names seen for the group.
-    metadata_names: HashSet<String>,
-}
-
-/// Build a structural key used for alias grouping.
-fn type_key_for_alias(
-    tree: &Tree,
-    strings: &StringPool,
-    ty: LocalNodeId<Type>,
-) -> FormatResult<String> {
-    let options = MirFormatOptions {
-        use_type_aliases: false,
-        ..MirFormatOptions::default()
-    };
-    let context = MirFormatContext::new(tree, strings, options)?;
-    let ty_node = tree.get(ty);
-    let document = destack_fir::format!(
-        context,
-        [format_with(|f| format_type_expanded(f, ty, ty_node))]
-    )?;
-    let printed = document.print()?;
-
-    Ok(printed.as_str().to_string())
-}
-
-/// Collect type usage counts for formatting.
-fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
-    // initialize usage counts
-    let mut counts = HashMap::new();
-
-    // record global types
-    for (_, global) in tree.iter_nodes::<Global>() {
-        record_type_use(tree, &global.ty, &mut counts);
-    }
-
-    // record function signatures
-    for (_, function) in tree.iter_nodes::<Function>() {
-        record_type_use(tree, &function.return_type, &mut counts);
-        for parameter in &function.parameters {
-            record_type_use(tree, &parameter.ty, &mut counts);
-        }
-    }
-
-    // record local types
-    for (_, local) in tree.iter_nodes::<Local>() {
-        record_type_use(tree, &local.ty, &mut counts);
-    }
-
-    // record block parameter types
-    for (_, block) in tree.iter_nodes::<Block>() {
-        let terminator = tree.get(block.terminator);
-
-        for parameter in &block.parameters {
-            record_type_use(tree, &parameter.ty, &mut counts);
-        }
-
-        match terminator {
-            Terminator::Call { call, .. }
-            | Terminator::CallIndirect { call, .. }
-            | Terminator::CallVirtual { call, .. }
-            | Terminator::CallDynamic { call, .. }
-            | Terminator::TailCall { call, .. }
-            | Terminator::TailCallIndirect { call, .. }
-            | Terminator::TailCallVirtual { call, .. }
-            | Terminator::TailCallDynamic { call, .. } => {
-                record_type_use(tree, &call.signature, &mut counts);
-            }
-            _ => {}
-        }
-
-        match terminator {
-            Terminator::CallVirtual { class, .. } | Terminator::TailCallVirtual { class, .. } => {
-                record_type_use(tree, class, &mut counts);
-            }
-            Terminator::CallDynamic { constraint, .. }
-            | Terminator::TailCallDynamic { constraint, .. } => {
-                record_type_use(tree, constraint, &mut counts);
-            }
-            _ => {}
-        }
-    }
-
-    // record instruction types
-    for (_, instruction) in tree.iter_nodes::<Instruction>() {
-        match instruction {
-            Instruction::Cast { to_type, .. } => {
-                record_type_use(tree, to_type, &mut counts);
-            }
-            Instruction::LocalAddr { result_type, .. } => {
-                record_type_use(tree, result_type, &mut counts);
-            }
-            Instruction::GlobalAddr { result_type, .. } => {
-                record_type_use(tree, result_type, &mut counts);
-            }
-            Instruction::Load { result_type, .. } => {
-                record_type_use(tree, result_type, &mut counts);
-            }
-            Instruction::FieldAddr { result_type, .. } => {
-                record_type_use(tree, result_type, &mut counts);
-            }
-            Instruction::ElementAddr { result_type, .. } => {
-                record_type_use(tree, result_type, &mut counts);
-            }
-            Instruction::Slice { result_type, .. } => {
-                record_type_use(tree, result_type, &mut counts);
-            }
-            Instruction::Struct { ty, .. } => {
-                record_type_use(tree, ty, &mut counts);
-            }
-            Instruction::Tuple { ty, .. } => {
-                record_type_use(tree, ty, &mut counts);
-            }
-            Instruction::Array { ty, .. } => {
-                record_type_use(tree, ty, &mut counts);
-            }
-            Instruction::Call { call, .. } => {
-                record_type_use(tree, &call.signature, &mut counts);
-            }
-            Instruction::CallVirtual { class, call, .. } => {
-                record_type_use(tree, class, &mut counts);
-                record_type_use(tree, &call.signature, &mut counts);
-            }
-            Instruction::CallDynamic {
-                constraint, call, ..
-            } => {
-                record_type_use(tree, constraint, &mut counts);
-                record_type_use(tree, &call.signature, &mut counts);
-            }
-            Instruction::CallIndirect { call, .. } => {
-                record_type_use(tree, &call.signature, &mut counts);
-            }
-            Instruction::NewZeroed {
-                layout,
-                result_type,
-                ..
-            }
-            | Instruction::NewUninit {
-                layout,
-                result_type,
-                ..
-            } => {
-                record_type_use(tree, layout, &mut counts);
-                record_type_use(tree, result_type, &mut counts);
-            }
-            Instruction::NewComplete { result_type, .. } => {
-                record_type_use(tree, result_type, &mut counts);
-            }
-            Instruction::NewSliceZeroed {
-                element,
-                result_type,
-                ..
-            }
-            | Instruction::NewSliceUninit {
-                element,
-                result_type,
-                ..
-            } => {
-                record_type_use(tree, element, &mut counts);
-                record_type_use(tree, result_type, &mut counts);
-            }
-            Instruction::FrameAllocZeroed {
-                layout,
-                result_type,
-                ..
-            }
-            | Instruction::FrameAllocUninit {
-                layout,
-                result_type,
-                ..
-            } => {
-                record_type_use(tree, layout, &mut counts);
-                record_type_use(tree, result_type, &mut counts);
-            }
-            Instruction::Pin { result_type, .. } => {
-                record_type_use(tree, result_type, &mut counts);
-            }
-            Instruction::Const { .. }
-            | Instruction::Binary { .. }
-            | Instruction::Unary { .. }
-            | Instruction::Select { .. }
-            | Instruction::LocalGet { .. }
-            | Instruction::LocalSet { .. }
-            | Instruction::Store { .. }
-            | Instruction::FieldGet { .. }
-            | Instruction::FieldSet { .. }
-            | Instruction::ElementGet { .. }
-            | Instruction::ElementSet { .. }
-            | Instruction::Free { .. }
-            | Instruction::Drop { .. }
-            | Instruction::Unpin { .. }
-            | Instruction::Assume { .. }
-            | Instruction::ProfileIncrement { .. }
-            | Instruction::ProfileValue { .. }
-            | Instruction::Intrinsic { .. } => {}
-            _ => {}
-        }
-    }
-
-    // return usage counts
-    counts
-}
-
-/// Record usage of a type and its nested types.
-fn record_type_use(tree: &Tree, ty: &TypeReference, counts: &mut HashMap<LocalNodeId<Type>, u32>) {
-    let Some(ty) = ty.ty() else {
-        return;
-    };
-
-    // track visited types for this traversal
-    let mut visited = HashSet::new();
-
-    // walk the type graph once
-    record_type_use_inner(tree, ty, counts, &mut visited);
-}
-
-/// Record usage of one nested type reference.
-fn record_nested_type_use(
-    tree: &Tree,
-    ty: &TypeReference,
-    counts: &mut HashMap<LocalNodeId<Type>, u32>,
-    visited: &mut HashSet<LocalNodeId<Type>>,
-) {
-    if let Some(ty) = ty.ty() {
-        record_type_use_inner(tree, ty, counts, visited);
-    }
-}
-
-/// Record usage of a type once per traversal.
-fn record_type_use_inner(
-    tree: &Tree,
-    ty: LocalNodeId<Type>,
-    counts: &mut HashMap<LocalNodeId<Type>, u32>,
-    visited: &mut HashSet<LocalNodeId<Type>>,
-) {
-    // guard against cycles
-    if !visited.insert(ty) {
-        return;
-    }
-
-    // increment the usage count
-    *counts.entry(ty).or_insert(0) += 1;
-
-    // record nested types
-    match tree.get(ty) {
-        Type::Reference { pointee, .. } => {
-            record_nested_type_use(tree, pointee, counts, visited);
-        }
-        Type::Atomic { value } => {
-            record_nested_type_use(tree, value, counts, visited);
-        }
-        Type::Dynamic { constraint } => {
-            record_nested_type_use(tree, constraint, counts, visited);
-        }
-        Type::Uninit { value } => {
-            record_nested_type_use(tree, value, counts, visited);
-        }
-        Type::Array { element, .. } | Type::Slice { element, .. } => {
-            record_nested_type_use(tree, element, counts, visited);
-        }
-        Type::Tuple { elements, .. } => {
-            // record tuple element types
-            for element_id in elements {
-                record_nested_type_use(tree, element_id, counts, visited);
-            }
-        }
-        Type::Struct { fields, .. } => {
-            // record struct field types
-            for field_id in fields {
-                let field = tree.get(*field_id);
-                record_nested_type_use(tree, &field.ty, counts, visited);
-            }
-        }
-        Type::Newtype { inner, .. } => {
-            record_nested_type_use(tree, inner, counts, visited);
-        }
-        Type::Variant {
-            tag,
-            storage,
-            cases,
-            ..
-        } => {
-            record_nested_type_use(tree, tag, counts, visited);
-            record_nested_type_use(tree, storage, counts, visited);
-            for case in cases {
-                record_nested_type_use(tree, &case.ty, counts, visited);
-            }
-        }
-        Type::Vector { element, .. } => {
-            record_nested_type_use(tree, element, counts, visited);
-        }
-        Type::Tensor { element, .. } => {
-            record_nested_type_use(tree, element, counts, visited);
-        }
-        Type::TensorView { element, .. } => {
-            record_nested_type_use(tree, element, counts, visited);
-        }
-        Type::FunctionSignature {
-            parameters, result, ..
-        } => {
-            // record function signature types
-            for parameter_id in parameters {
-                record_nested_type_use(tree, parameter_id, counts, visited);
-            }
-            record_nested_type_use(tree, result, counts, visited);
-        }
-        Type::FunctionPointer { signature } => {
-            record_nested_type_use(tree, signature, counts, visited);
-        }
-        Type::Closure {
-            signature,
-            environment,
-        } => {
-            record_nested_type_use(tree, signature, counts, visited);
-            record_nested_type_use(tree, environment, counts, visited);
-        }
-        Type::Void
-        | Type::Boolean
-        | Type::Int { .. }
-        | Type::Isize
-        | Type::Usize
-        | Type::Float { .. }
-        | Type::TypeDescriptor
-        | Type::TypeId => {}
-    }
 }
 
 impl<'a> FormatContext for MirFormatContext<'a> {
@@ -1246,204 +626,6 @@ where
     write_comments_after_separator(tree, span.end, scope_end, f)
 }
 
-/// One synthetic type alias entry.
-struct SyntheticAliasEntry {
-    /// The aliased type id.
-    type_id: LocalNodeId<Type>,
-    /// The generated alias name.
-    name: String,
-}
-
-/// Order alias entries so referenced aliases appear first.
-fn order_alias_entries(tree: &Tree, entries: &[SyntheticAliasEntry]) -> Vec<usize> {
-    if entries.len() <= 1 {
-        return (0..entries.len()).collect();
-    }
-
-    let alias_types: HashSet<_> = entries.iter().map(|entry| entry.type_id).collect();
-    let index_by_type: HashMap<_, _> = entries
-        .iter()
-        .enumerate()
-        .map(|(index, entry)| (entry.type_id, index))
-        .collect();
-
-    let mut edges = vec![Vec::new(); entries.len()];
-    let mut in_degree = vec![0usize; entries.len()];
-
-    for (index, entry) in entries.iter().enumerate() {
-        let dependencies = collect_alias_dependencies(tree, entry.type_id, &alias_types);
-        for dependency in dependencies {
-            let Some(&dependency_index) = index_by_type.get(&dependency) else {
-                continue;
-            };
-            if dependency_index == index {
-                continue;
-            }
-            edges[dependency_index].push(index);
-            in_degree[index] += 1;
-        }
-    }
-
-    let mut available = BTreeSet::new();
-    for (index, degree) in in_degree.iter().enumerate() {
-        if *degree == 0 {
-            available.insert(index);
-        }
-    }
-
-    let mut ordered = Vec::with_capacity(entries.len());
-    while let Some(&index) = available.iter().next() {
-        available.remove(&index);
-        ordered.push(index);
-        for dependent in &edges[index] {
-            let degree = &mut in_degree[*dependent];
-            *degree = degree.saturating_sub(1);
-            if *degree == 0 {
-                available.insert(*dependent);
-            }
-        }
-    }
-
-    if ordered.len() == entries.len() {
-        return ordered;
-    }
-
-    let mut seen = HashSet::new();
-    for index in &ordered {
-        seen.insert(*index);
-    }
-    for index in 0..entries.len() {
-        if !seen.contains(&index) {
-            ordered.push(index);
-        }
-    }
-
-    ordered
-}
-
-/// Collect alias dependencies for a type id.
-fn collect_alias_dependencies(
-    tree: &Tree,
-    root: LocalNodeId<Type>,
-    alias_types: &HashSet<LocalNodeId<Type>>,
-) -> HashSet<LocalNodeId<Type>> {
-    let mut dependencies = HashSet::new();
-    let mut stack = vec![root];
-    let mut visited = HashSet::new();
-
-    while let Some(type_id) = stack.pop() {
-        if !visited.insert(type_id) {
-            continue;
-        }
-
-        let ty = tree.get(type_id);
-        match ty {
-            Type::Reference { pointee, .. } => {
-                record_dependency(pointee, root, alias_types, &mut dependencies, &mut stack);
-            }
-            Type::Atomic { value } => {
-                record_dependency(value, root, alias_types, &mut dependencies, &mut stack);
-            }
-            Type::Dynamic { constraint } => {
-                record_dependency(constraint, root, alias_types, &mut dependencies, &mut stack);
-            }
-            Type::Uninit { value } => {
-                record_dependency(value, root, alias_types, &mut dependencies, &mut stack);
-            }
-            Type::Array { element, .. } | Type::Slice { element, .. } => {
-                record_dependency(element, root, alias_types, &mut dependencies, &mut stack);
-            }
-            Type::Tuple { elements, .. } => {
-                for element in elements {
-                    record_dependency(element, root, alias_types, &mut dependencies, &mut stack);
-                }
-            }
-            Type::Struct { fields, .. } => {
-                for field_id in fields {
-                    let field = tree.get(*field_id);
-                    record_dependency(&field.ty, root, alias_types, &mut dependencies, &mut stack);
-                }
-            }
-            Type::Newtype { inner, .. } => {
-                record_dependency(inner, root, alias_types, &mut dependencies, &mut stack);
-            }
-            Type::Variant {
-                tag,
-                storage,
-                cases,
-                ..
-            } => {
-                record_dependency(tag, root, alias_types, &mut dependencies, &mut stack);
-                record_dependency(storage, root, alias_types, &mut dependencies, &mut stack);
-                for case in cases {
-                    record_dependency(&case.ty, root, alias_types, &mut dependencies, &mut stack);
-                }
-            }
-            Type::Vector { element, .. } => {
-                record_dependency(element, root, alias_types, &mut dependencies, &mut stack);
-            }
-            Type::Tensor { element, .. } => {
-                record_dependency(element, root, alias_types, &mut dependencies, &mut stack);
-            }
-            Type::TensorView { element, .. } => {
-                record_dependency(element, root, alias_types, &mut dependencies, &mut stack);
-            }
-            Type::FunctionSignature {
-                parameters, result, ..
-            } => {
-                for parameter in parameters {
-                    record_dependency(parameter, root, alias_types, &mut dependencies, &mut stack);
-                }
-                record_dependency(result, root, alias_types, &mut dependencies, &mut stack);
-            }
-            Type::FunctionPointer { signature } => {
-                record_dependency(signature, root, alias_types, &mut dependencies, &mut stack);
-            }
-            Type::Closure {
-                signature,
-                environment,
-            } => {
-                record_dependency(signature, root, alias_types, &mut dependencies, &mut stack);
-                record_dependency(
-                    environment,
-                    root,
-                    alias_types,
-                    &mut dependencies,
-                    &mut stack,
-                );
-            }
-            Type::Void
-            | Type::Boolean
-            | Type::Int { .. }
-            | Type::Isize
-            | Type::Usize
-            | Type::Float { .. }
-            | Type::TypeDescriptor
-            | Type::TypeId => {}
-        }
-    }
-
-    dependencies
-}
-
-/// Record a dependency and continue traversal.
-fn record_dependency(
-    type_id: &TypeReference,
-    root: LocalNodeId<Type>,
-    alias_types: &HashSet<LocalNodeId<Type>>,
-    dependencies: &mut HashSet<LocalNodeId<Type>>,
-    stack: &mut Vec<LocalNodeId<Type>>,
-) {
-    let Some(type_id) = type_id.ty() else {
-        return;
-    };
-
-    if type_id != root && alias_types.contains(&type_id) {
-        dependencies.insert(type_id);
-    }
-    stack.push(type_id);
-}
-
 /// Helper to format all module items.
 struct FormatAllItems;
 
@@ -1451,31 +633,6 @@ impl<'a> Format<MirFormatContext<'a>> for FormatAllItems {
     fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
         let tree = f.context().tree;
         let mut has_output = false;
-
-        // synthetic aliases
-        let mut alias_entries = Vec::new();
-        for (type_id, name) in &f.context().synthetic_aliases {
-            alias_entries.push(SyntheticAliasEntry {
-                type_id: *type_id,
-                name: name.clone(),
-            });
-        }
-
-        if !f.context().synthetic_aliases.is_empty() {
-            let alias_order = order_alias_entries(tree, &alias_entries);
-
-            for index in alias_order {
-                let entry = &alias_entries[index];
-                if has_output {
-                    write!(f, [hard_line_break()])?;
-                }
-
-                let ty = f.context().tree.get(entry.type_id);
-                format_type_declaration(&entry.name, &[], None, entry.type_id, ty, f)?;
-            }
-
-            has_output = true;
-        }
 
         // explicit top level items
         let mut item_ids = Vec::new();

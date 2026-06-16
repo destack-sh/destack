@@ -53,10 +53,12 @@ impl Parser {
                         | TokenType::Float
                         | TokenType::Character
                 ) || (self.token_type(token) == TokenType::Identifier
-                    && (self.tree.source_text(token.span) == "null"
-                        || self
-                            .parse_float_constant(self.tree.source_text(token.span))
-                            .is_some())))
+                    && (matches!(
+                        self.tree.source_text(token.span),
+                        "null" | "inf" | "-inf" | "NaN"
+                    ) || self
+                        .parse_float_constant(self.tree.source_text(token.span))
+                        .is_some())))
             {
                 let value = self.parse_constant_for_type(destination_type)?;
                 let instruction = Instruction::Const { destination, value };
@@ -1319,22 +1321,18 @@ impl Parser {
             .ok_or_else(|| ParseError::unexpected_end("place origin", self.pos()))?;
 
         match self.token_type(token) {
-            TokenType::Value => {
-                let (value, _) = self.parse_value_reference_part()?;
-
-                Ok(PlaceOrigin::Value(value))
-            }
-            TokenType::LocalReference => {
-                let (local, _) = self.parse_local_ref_part()?;
-
-                Ok(PlaceOrigin::Local(local))
-            }
             TokenType::Identifier => {
                 let name = self.tree.source_text(token.span).to_string();
                 if let Some(value) = self.value_name_map.get(&name).copied() {
                     self.bump();
 
                     return Ok(PlaceOrigin::Value(value.into()));
+                }
+
+                if let Some(local) = self.local_name_map.get(&name).copied() {
+                    self.bump();
+
+                    return Ok(PlaceOrigin::Local(local.into()));
                 }
 
                 let (global, _) = self.parse_global_reference_part()?;
@@ -1900,8 +1898,40 @@ impl Parser {
     ) -> ParseResult<(FunctionReference, Vec<ValueReference>, TypeReference)> {
         let function = self.parse_function_segment(segment_spans)?;
         let arguments = self.parse_call_argument_segments(segment_spans)?;
-        let signature = self.parse_required_call_signature_segment(segment_spans)?;
+        let signature = if self.peek_token(TokenType::Colon) {
+            self.parse_required_call_signature_segment(segment_spans)?
+        } else {
+            self.infer_direct_call_signature(function)?
+        };
+
         Ok((function, arguments, signature))
+    }
+
+    /// Infer one direct call signature from its callee.
+    fn infer_direct_call_signature(
+        &mut self,
+        function: FunctionReference,
+    ) -> ParseResult<TypeReference> {
+        let FunctionReference::Function(function_id) = function else {
+            return Ok(TypeReference::Error);
+        };
+
+        let function = self.tree.get(function_id);
+        let parameters = function
+            .parameters
+            .iter()
+            .map(|parameter| parameter.ty.clone())
+            .collect();
+        let result = function.return_type.clone();
+        let borrow_obligations = function.borrow_obligations.clone();
+
+        Ok(self
+            .intern_type(Type::FunctionSignature {
+                parameters,
+                result,
+                borrow_obligations,
+            })?
+            .into())
     }
 
     /// Parse one virtual call target and signature.

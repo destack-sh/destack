@@ -509,12 +509,14 @@ mod tests {
         let test = TestProgram::new(
             r#"
 readonly global flag: boolean = true
+
 function test(): boolean {
-b0:
+entry:
     v0: ref<boolean, raw, readonly> = global.address flag
     v1: boolean = load v0
     return v1
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -535,12 +537,14 @@ b0:
         let test = TestProgram::new(
             r#"
 global flag: boolean = true
+
 function test(): boolean {
-b0:
+entry:
     v0: ref<boolean, raw> = global.address flag
     v1: boolean = load v0
     return v1
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -561,12 +565,14 @@ b0:
         let test = TestProgram::new(
             r#"
 readonly global flag: boolean = zeroInit
+
 function test(): boolean {
-b0:
+entry:
     v0: ref<boolean, raw, readonly> = global.address flag
     v1: boolean = load v0
     return v1
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -587,12 +593,13 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(): int32 {
-b0:
-    v0: int32 = 2int32
-    v1: int32 = 3int32
+entry:
+    v0: int32 = 2
+    v1: int32 = 3
     v2: int32 = int.add v0, v1
     return v2
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -620,16 +627,20 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): boolean {
-b0(v0: boolean):
+entry(v0: boolean):
     v1: boolean = true
     branch v0, b1(v1), b2(v1)
+
 b1(v2: boolean):
     jump b3(v2)
+
 b2(v3: boolean):
     jump b3(v3)
+
 b3(v4: boolean):
     return v4
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -650,17 +661,21 @@ b3(v4: boolean):
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): boolean {
-b0(v0: boolean):
+entry(v0: boolean):
     v1: boolean = true
     v2: boolean = false
     branch v0, b1(v1), b2(v2)
+
 b1(v3: boolean):
     jump b3(v3)
+
 b2(v4: boolean):
     jump b3(v4)
+
 b3(v5: boolean):
     return v5
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -681,13 +696,15 @@ b3(v5: boolean):
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): boolean {
-b0(v0: boolean):
+entry(v0: boolean):
     v1: boolean = true
     v2: boolean = false
     branch v0, b1(v1), b1(v2)
+
 b1(v3: boolean):
     return v3
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;

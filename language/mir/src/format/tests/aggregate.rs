@@ -10,10 +10,10 @@ type Pair {
     right: int32;
 }
 
-function makePair(value0: int32, value1: int32): Pair {
-entry0(value0: int32, value1: int32):
-    value2: Pair = struct Pair (value0, value1)
-    return value2
+function makePair(v0: int32, v1: int32): Pair {
+entry(v0: int32, v1: int32):
+    v2: Pair = struct Pair (v0, v1)
+    return v2
 }
 "#,
     );
@@ -24,10 +24,10 @@ entry0(value0: int32, value1: int32):
 fn test_format_tuple_aggregate() {
     assert_format(
         r#"
-function makeTuple(value0: int32, value1: float64, value2: boolean): (int32, float64, boolean) {
-entry0(value0: int32, value1: float64, value2: boolean):
-    value3: (int32, float64, boolean) = tuple (int32, float64, boolean) (value0, value1, value2)
-    return value3
+function makeTuple(v0: int32, v1: float64, v2: boolean): (int32, float64, boolean) {
+entry(v0: int32, v1: float64, v2: boolean):
+    v3: (int32, float64, boolean) = tuple (int32, float64, boolean) (v0, v1, v2)
+    return v3
 }
 "#,
     );
@@ -38,21 +38,21 @@ entry0(value0: int32, value1: float64, value2: boolean):
 fn test_format_tuple_alias_aggregate() {
     assert_format_eq(
         r#"
-type Triple = (int32, float64, boolean)
+type Triple = (int32, float64, boolean);
 
-function makeTuple(value0: int32, value1: float64, value2: boolean): Triple {
-entry0(value0: int32, value1: float64, value2: boolean):
-    value3: Triple = tuple Triple (value0, value1, value2)
-    return value3
+function makeTuple(v0: int32, v1: float64, v2: boolean): Triple {
+entry(v0: int32, v1: float64, v2: boolean):
+    v3: Triple = tuple Triple (v0, v1, v2)
+    return v3
 }
 "#,
         r#"
 type Triple = (int32, float64, boolean);
 
-function makeTuple(value0: int32, value1: float64, value2: boolean): Triple {
-entry0(value0: int32, value1: float64, value2: boolean):
-    value3: Triple = tuple Triple (value0, value1, value2)
-    return value3
+function makeTuple(v0: int32, v1: float64, v2: boolean): Triple {
+entry(v0: int32, v1: float64, v2: boolean):
+    v3: Triple = tuple Triple (v0, v1, v2)
+    return v3
 }
 "#,
     );
@@ -63,10 +63,10 @@ entry0(value0: int32, value1: float64, value2: boolean):
 fn test_format_array_aggregate() {
     assert_format(
         r#"
-function makeArray(value0: int32, value1: int32, value2: int32): [int32; 3] {
-entry0(value0: int32, value1: int32, value2: int32):
-    value3: [int32; 3] = array [int32; 3] (value0, value1, value2)
-    return value3
+function makeArray(v0: int32, v1: int32, v2: int32): [int32; 3] {
+entry(v0: int32, v1: int32, v2: int32):
+    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
+    return v3
 }
 "#,
     );
@@ -77,11 +77,11 @@ entry0(value0: int32, value1: int32, value2: int32):
 fn test_format_aggregate_access() {
     assert_format(
         r#"
-function aggregateAccess(value0: (int32, float64), value1: [int32; 10]): int32 {
-entry0(value0: (int32, float64), value1: [int32; 10]):
-    value3: int32 = field.get value0, 0
-    value4: int32 = element.get value1, 2
-    return value3
+function aggregateAccess(v0: (int32, float64), v1: [int32; 10]): int32 {
+entry(v0: (int32, float64), v1: [int32; 10]):
+    v3: int32 = field.get v0, 0
+    v4: int32 = element.get v1, 2
+    return v3
 }
 "#,
     );

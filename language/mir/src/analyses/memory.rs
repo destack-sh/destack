@@ -491,7 +491,7 @@ pub fn collect_non_escaping_frame_allocs(
                     );
                 }
             }
-            mir::Terminator::ResumeUnwind => {}
+            mir::Terminator::UnwindResume => {}
             mir::Terminator::TailCall { call, .. }
             | mir::Terminator::TailCallVirtual { call, .. }
             | mir::Terminator::TailCallDynamic { call, .. } => {

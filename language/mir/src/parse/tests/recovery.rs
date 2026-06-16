@@ -15,7 +15,7 @@ b0:
     return
 }
 
-global Broken int32 = 0int32
+global Broken int32 = 0
 
 function later(): void {
 b0:
@@ -45,7 +45,7 @@ fn test_parse_recovers_after_instruction_error() {
     let source = r#"
 function broken(): void {
 b0:
-    value0: int32 = int.add
+    v0: int32 = int.add
 
 b1:
     return
@@ -80,9 +80,9 @@ fn test_parse_recovers_after_instruction_error_in_same_block() {
     let source = r#"
 function broken(): int32 {
 b0:
-    value0: int32 = int.add
-    value1: int32 = 1int32
-    return value1
+    v0: int32 = int.add
+    v1: int32 = 1
+    return v1
 }
 "#;
 
@@ -111,8 +111,8 @@ fn test_parse_recovers_after_instruction_type_hole() {
 function broken(): int32 {
 b0:
     v0:
-    value1: int32 = 1int32
-    return value1
+    v1: int32 = 1
+    return v1
 }
 "#;
 
@@ -171,7 +171,7 @@ b1:
 fn test_parse_recovers_after_local_error() {
     let source = r#"
 function broken(): void {
-    local local0:
+    local l0:
 
 b0:
     return
@@ -307,7 +307,7 @@ b0:
 #[test]
 fn test_parse_recovers_after_parameter_type_hole() {
     let source = r#"
-function broken(value0: ): void {
+function broken(v0: ): void {
 b0:
     return
 }
@@ -351,10 +351,10 @@ fn test_parse_collects_multiple_instruction_errors() {
     let source = r#"
 function broken(): int32 {
 b0:
-    value0: int32 = int.add
-    value1: int32 = int.sub
-    value2: int32 = 1int32
-    return value2
+    v0: int32 = int.add
+    v1: int32 = int.sub
+    v2: int32 = 1
+    return v2
 }
 "#;
 

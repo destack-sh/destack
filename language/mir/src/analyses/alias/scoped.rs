@@ -187,12 +187,13 @@ mod tests {
         let program = TestProgram::new(
             r#"
 function test(v0: ref<int32, borrowed, readonly>, v1: ref<int32, borrowed, readonly>): void {
-b0(v0: ref<int32, borrowed, readonly>, v1: ref<int32, borrowed, readonly>):
-    v2: int32 = 1int32
+entry(v0: ref<int32, borrowed, readonly>, v1: ref<int32, borrowed, readonly>):
+    v2: int32 = 1
     store v0, v2
     store v1, v2
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -212,12 +213,13 @@ b0(v0: ref<int32, borrowed, readonly>, v1: ref<int32, borrowed, readonly>):
         let program = TestProgram::new(
             r#"
 function test(v0: ref<int32, borrowed>, v1: ref<int32, borrowed, readonly>): void {
-b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed, readonly>):
-    v2: int32 = 1int32
+entry(v0: ref<int32, borrowed>, v1: ref<int32, borrowed, readonly>):
+    v2: int32 = 1
     store v0, v2
     store v1, v2
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -237,13 +239,14 @@ b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed, readonly>):
         let program = TestProgram::new(
             r#"
 function test(v0: ref<int32, borrowed>): void {
-b0(v0: ref<int32, borrowed>):
+entry(v0: ref<int32, borrowed>):
     v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int32 = 1int32
+    v2: int32 = 1
     store v0, v2
     store v1, v2
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -264,11 +267,12 @@ b0(v0: ref<int32, borrowed>):
         let program = TestProgram::new(
             r#"
 function test(v0: ref<int32, borrowed, readonly>, v1: ref<int32, borrowed, readonly>): void {
-b0(v0: ref<int32, borrowed, readonly>, v1: ref<int32, borrowed, readonly>):
+entry(v0: ref<int32, borrowed, readonly>, v1: ref<int32, borrowed, readonly>):
     v2: int32 = load v0
     v3: int32 = load v1
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -290,12 +294,13 @@ b0(v0: ref<int32, borrowed, readonly>, v1: ref<int32, borrowed, readonly>):
         let program = TestProgram::new(
             r#"
 function test(v0: ref<int32, borrowed>, v1: ref<int32, borrowed, readonly>): void {
-b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed, readonly>):
-    v2: int32 = 1int32
+entry(v0: ref<int32, borrowed>, v1: ref<int32, borrowed, readonly>):
+    v2: int32 = 1
     store v0, v2
     v3: int32 = load v1
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -320,14 +325,16 @@ type Point {
     int32;
     int32;
 }
+
 function test(v0: ref<Point, borrowed>, v1: ref<int32, borrowed>): void {
-b0(v0: ref<Point, borrowed>, v1: ref<int32, borrowed>):
+entry(v0: ref<Point, borrowed>, v1: ref<int32, borrowed>):
     v2: ref<int32, borrowed> = field.address v0, 0
-    v3: int32 = 1int32
+    v3: int32 = 1
     store v2, v3
     store v1, v3
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -349,11 +356,12 @@ b0(v0: ref<Point, borrowed>, v1: ref<int32, borrowed>):
         let program = TestProgram::new(
             r#"
 function test(v0: ref<int32, borrowed>): void {
-b0(v0: ref<int32, borrowed>):
-    v1: int32 = 1int32
+entry(v0: ref<int32, borrowed>):
+    v1: int32 = 1
     store v0, v1
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;

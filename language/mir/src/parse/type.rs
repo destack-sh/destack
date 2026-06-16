@@ -278,7 +278,7 @@ impl Parser {
     }
 
     /// Return whether a return type starts with a complete structural type.
-    fn is_return_structural_type_start(&self) -> bool {
+    pub(super) fn is_return_structural_type_start(&self) -> bool {
         let tokens = self.tree.tokens();
         let Some((open_index, open_token)) = tokens
             .iter()

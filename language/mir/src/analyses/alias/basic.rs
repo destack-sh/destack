@@ -693,15 +693,17 @@ type Point {
     int32;
     int32;
 }
+
 function test(): void {
-b0:
+entry:
     v0: ref<Point, managed> = new.zeroed Point
     v1: ref<Point, managed> = new.zeroed Point
-    v2: int32 = 1int32
+    v2: int32 = 1
     store v0, v2
     store v1, v2
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -719,14 +721,15 @@ b0:
         let mut program = TestProgram::new(
             r#"
 function test(): void {
-b0:
+entry:
     v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int8 = 0int8
-    v3: int64 = 4int64
+    v2: int8 = 0
+    v3: int64 = 4
     intrinsic.memory.raw.setBytes(v1, v2, v3)
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.entry_function_id();
@@ -758,14 +761,16 @@ b0:
         let mut program = TestProgram::new(
             r#"
 function test(): void {
-    local local0: int32, owned
-b0:
-    v0: ref<int32, raw, space(frame)> = local.address local0
-    v1: int8 = 0int8
-    v2: int64 = 4int64
+    local l0: int32
+
+entry:
+    v0: ref<int32, raw, space(frame)> = local.address l0
+    v1: int8 = 0
+    v2: int64 = 4
     intrinsic.memory.raw.setBytes(v0, v1, v2)
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.entry_function_id();
@@ -825,11 +830,13 @@ type Point {
     int32;
     int32;
 }
+
 function test(): void {
-b0:
+entry:
     v0: ref<Point, managed> = new.zeroed Point
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -849,16 +856,18 @@ type Point {
     int32;
     int32;
 }
+
 function test(): void {
-b0:
+entry:
     v0: ref<Point, managed> = new.zeroed Point
     v1: ref<int32, borrowed> = field.address v0, 0
     v2: ref<int32, borrowed> = field.address v0, 1
-    v3: int32 = 1int32
+    v3: int32 = 1
     store v1, v3
     store v2, v3
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -876,14 +885,15 @@ b0:
         let program = TestProgram::new(
             r#"
 function test(): void {
-b0:
+entry:
     v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: ref<int32, managed> = new.zeroed int32
-    v2: int32 = 1int32
+    v2: int32 = 1
     store v0, v2
     store v1, v2
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -900,16 +910,18 @@ b0:
     fn test_global_vs_local_no_alias() {
         let program = TestProgram::new(
             r#"
-global g: int32 = 0int32
+global g: int32 = 0
+
 function test(): void {
-b0:
+entry:
     v0: ref<int32, raw, space(static)> = global.address g
     v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: int32 = 1int32
+    v2: int32 = 1
     store v0, v2
     store v1, v2
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -926,19 +938,21 @@ b0:
     fn test_different_elements_no_alias() {
         let program = TestProgram::new(
             r#"
-type Arr = [int32; 10]
+type Arr = [int32; 10];
+
 function test(): void {
-b0:
+entry:
     v0: ref<Arr, raw, space(frame)> = frame.alloc.zeroed Arr
-    v1: int64 = 0int64
-    v2: int64 = 1int64
+    v1: int64 = 0
+    v2: int64 = 1
     v3: ref<int32, borrowed> = element.address v0, v1
     v4: ref<int32, borrowed> = element.address v0, v2
-    v5: int32 = 42int32
+    v5: int32 = 42
     store v3, v5
     store v4, v5
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -956,12 +970,13 @@ b0:
         let program = TestProgram::new(
             r#"
 function test(v0: ref<int32, raw>, v1: ref<int32, raw>): void {
-b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
-    v2: int32 = 1int32
+entry(v0: ref<int32, raw>, v1: ref<int32, raw>):
+    v2: int32 = 1
     store v0, v2
     store v1, v2
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -981,10 +996,11 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
         let program = TestProgram::new(
             r#"
 function test(): void {
-b0:
+entry:
     v0: ref<int64, raw, space(frame)> = frame.alloc.zeroed int64
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -1007,10 +1023,11 @@ b0:
         let program = TestProgram::new(
             r#"
 function test(): void {
-b0:
+entry:
     v0: ref<int64, raw, space(frame)> = frame.alloc.zeroed int64
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -1033,11 +1050,12 @@ b0:
         let program = TestProgram::new(
             r#"
 function test(): void {
-b0:
+entry:
     v0: ref<int64, raw, space(frame)> = frame.alloc.zeroed int64
     v1: ref<int64, managed> = new.zeroed int64
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -1056,12 +1074,13 @@ b0:
         let program = TestProgram::new(
             r#"
 function test(): void {
-b0:
+entry:
     v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v2: ref<int8, raw> = cast.bit v0 -> ref<int8, raw>
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -1085,14 +1104,16 @@ b0:
         // same array with same variable index should may alias
         let program = TestProgram::new(
             r#"
-type Arr = [int32; 10]
+type Arr = [int32; 10];
+
 function test(v0: int64): void {
-b0(v0: int64):
+entry(v0: int64):
     v1: ref<Arr, raw, space(frame)> = frame.alloc.zeroed Arr
     v2: ref<int32, borrowed> = element.address v1, v0
     v3: ref<int32, borrowed> = element.address v1, v0
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -1115,19 +1136,22 @@ type Inner {
     int32;
     int32;
 }
+
 type Outer {
     Inner;
     Inner;
 }
+
 function test(): void {
-b0:
+entry:
     v0: ref<Outer, raw, space(frame)> = frame.alloc.zeroed Outer
     v1: ref<Inner, borrowed> = field.address v0, 0
     v2: ref<Inner, borrowed> = field.address v0, 1
     v3: ref<int32, borrowed> = field.address v1, 0
     v4: ref<int32, borrowed> = field.address v2, 0
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;

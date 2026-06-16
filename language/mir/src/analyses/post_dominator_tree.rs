@@ -245,13 +245,16 @@ mod tests {
         let (tree, function_id) = parse_test_function(
             r#"
 function linear(): void {
-b0:
+entry:
     jump b1
+
 b1:
     jump b2
+
 b2:
     return
-}"#,
+}
+"#,
         );
 
         let function = tree.get(function_id);

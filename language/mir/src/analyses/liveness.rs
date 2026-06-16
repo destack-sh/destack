@@ -516,12 +516,13 @@ mod tests {
         let (tree, function_id) = parse_test_function(
             r#"
 function test(): int32 {
-b0:
-    v0: int32 = 1int32
-    v1: int32 = 2int32
+entry:
+    v0: int32 = 1
+    v1: int32 = 2
     v2: int32 = int.add v0, v1
     return v2
-}"#,
+}
+"#,
         );
 
         let function = tree.get(function_id);
@@ -542,15 +543,18 @@ b0:
         let (tree, function_id) = parse_test_function(
             r#"
 function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 42int32
+entry(v0: boolean):
+    v1: int32 = 42
     branch v0, b1, b2
+
 b1:
     return v1
+
 b2:
-    v2: int32 = 0int32
+    v2: int32 = 0
     return v2
-}"#,
+}
+"#,
         );
 
         let function = tree.get(function_id);
@@ -568,16 +572,19 @@ b2:
         let (tree, function_id) = parse_test_function(
             r#"
 function test(v0: boolean): int32 {
-b0(v0: boolean):
-    v1: int32 = 1int32
+entry(v0: boolean):
+    v1: int32 = 1
     jump b1(v1)
+
 b1(v2: int32):
-    v3: int32 = 2int32
+    v3: int32 = 2
     v4: int32 = int.add v2, v3
     branch v0, b1(v4), b2
+
 b2:
     return v4
-}"#,
+}
+"#,
         );
 
         let function = tree.get(function_id);
@@ -597,11 +604,12 @@ b2:
         let (tree, function_id) = parse_test_function(
             r#"
 function test(): int32 {
-b0:
-    v0: int32 = 1int32
-    v1: int32 = 2int32
+entry:
+    v0: int32 = 1
+    v1: int32 = 2
     return v1
-}"#,
+}
+"#,
         );
 
         let function = tree.get(function_id);

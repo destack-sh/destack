@@ -1,13 +1,13 @@
-use destack_core::float_from_bits;
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
 use super::attribute::{write_attributes, write_attributes_before_anchor};
+use super::value::format_constant_for_type;
 
 use crate::{
-    Constant, FormatMirNode, Global, GlobalInitializer, Linkage, LocalNodeId, MirFormatter,
-    Mutability, Space,
+    FormatMirNode, Global, GlobalInitializer, Linkage, LocalNodeId, MirFormatter, Mutability,
+    Space, Type,
 };
 
 impl<'a> FormatMirNode<'a, Global> for Global {
@@ -71,7 +71,7 @@ impl<'a> FormatMirNode<'a, Global> for Global {
 
             // format initializer
             if let Some(init) = &self.initializer {
-                format_data_init(init, f)?;
+                format_data_init(init, self.ty.ty(), f)?;
             }
         }
 
@@ -82,11 +82,18 @@ impl<'a> FormatMirNode<'a, Global> for Global {
 /// Format a data initializer.
 fn format_data_init<'a>(
     init: &GlobalInitializer,
+    ty: Option<LocalNodeId<crate::Type>>,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     match init {
         GlobalInitializer::Zero => write!(f, [token("zeroInit")]),
-        GlobalInitializer::Scalar(constant) => format_constant(constant, f),
+        GlobalInitializer::Scalar(constant) => {
+            if let Some(ty) = ty {
+                return format_constant_for_type(constant, ty, f);
+            }
+
+            write!(f, [constant])
+        }
         GlobalInitializer::FunctionAddress(function) => {
             write!(f, [token("functionAddress"), space(), function])
         }
@@ -97,10 +104,32 @@ fn format_data_init<'a>(
                 if i > 0 {
                     write!(f, [token(","), space()])?;
                 }
-                format_data_init(elem, f)?;
+                let element_type = data_init_element_type(ty, i, f);
+                format_data_init(elem, element_type, f)?;
             }
             write!(f, [token("}")])
         }
+    }
+}
+
+/// Return the expected type for one aggregate initializer element.
+fn data_init_element_type<'a>(
+    ty: Option<LocalNodeId<Type>>,
+    index: usize,
+    f: &mut MirFormatter<'a, '_>,
+) -> Option<LocalNodeId<Type>> {
+    let ty = ty?;
+
+    match f.context().tree.get(ty) {
+        Type::Array { element, .. }
+        | Type::Vector { element, .. }
+        | Type::Tensor { element, .. } => element.ty(),
+        Type::Tuple { elements, .. } => elements.get(index).and_then(|element| element.ty()),
+        Type::Struct { fields, .. } => fields
+            .get(index)
+            .and_then(|field| f.context().tree.get(*field).ty.ty()),
+        Type::Newtype { inner, .. } => data_init_element_type(inner.ty(), index, f),
+        _ => None,
     }
 }
 
@@ -125,31 +154,4 @@ fn format_byte_literal<'a>(bytes: &[u8], f: &mut MirFormatter<'a, '_>) -> Format
         }
     }
     write!(f, [token("\"")])
-}
-
-/// Format a constant value.
-fn format_constant<'a>(constant: &Constant, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
-    match constant {
-        Constant::Null => write!(f, [text("null")]),
-        Constant::Boolean { value } => {
-            write!(f, [text(if *value { "true" } else { "false" })])
-        }
-        Constant::Int {
-            value,
-            width,
-            is_signed: _,
-        } => {
-            write!(f, [text(&format!("{value}int{width}"))])
-        }
-        Constant::UInt { value, width } => {
-            write!(f, [text(&format!("{value}uint{width}"))])
-        }
-        Constant::Float { bits, format } => {
-            let value = float_from_bits(format.format(), *bits);
-            write!(f, [text(&format!("{value}{}", format.label()))])
-        }
-        Constant::Char { value } => {
-            write!(f, [text(&format!("{value:?}"))])
-        }
-    }
 }

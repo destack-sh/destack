@@ -2338,11 +2338,12 @@ mod tests {
         let test = TestProgram::new(
             r#"
 function test(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 5int32
+entry(v0: int32):
+    v1: int32 = 5
     v2: int32 = int.add v1, v0
     return v2
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -2375,17 +2376,21 @@ b0(v0: int32):
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): int32 {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: int32 = 1int32
+    v1: int32 = 1
     jump b3(v1)
+
 b2:
-    v2: int32 = 3int32
+    v2: int32 = 3
     jump b3(v2)
+
 b3(v3: int32):
     return v3
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -2417,16 +2422,20 @@ b3(v3: int32):
         let test = TestProgram::new(
             r#"
 function test(v0: boolean, v1: int32): int32 {
-b0(v0: boolean, v1: int32):
+entry(v0: boolean, v1: int32):
     branch v0, b1, b2
+
 b1:
-    v2: int32 = 1int32
+    v2: int32 = 1
     jump b3(v2)
+
 b2:
     jump b3(v1)
+
 b3(v3: int32):
     return v3
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -2448,19 +2457,23 @@ b3(v3: int32):
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): int32 {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: int32 = 2int32
+    v1: int32 = 2
     jump b3(v1)
+
 b2:
-    v2: int32 = 4int32
+    v2: int32 = 4
     jump b3(v2)
+
 b3(v3: int32):
-    v4: int32 = 1int32
+    v4: int32 = 1
     v5: int32 = int.add v3, v4
     return v5
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -2494,19 +2507,23 @@ b3(v3: int32):
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): boolean {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: int32 = 1int32
+    v1: int32 = 1
     jump b3(v1)
+
 b2:
-    v2: int32 = 3int32
+    v2: int32 = 3
     jump b3(v2)
+
 b3(v3: int32):
-    v4: int32 = 10int32
+    v4: int32 = 10
     v5: boolean = int.lt.s v3, v4
     return v5
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -2538,10 +2555,11 @@ b3(v3: int32):
         let test = TestProgram::new(
             r#"
 function test(): float32 {
-b0:
-    v0: float32 = 1.5float32
+entry:
+    v0: float32 = 1.5
     return v0
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -2575,19 +2593,23 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): float32 {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: float32 = 1float32
+    v1: float32 = 1
     jump b3(v1)
+
 b2:
-    v2: float32 = 3float32
+    v2: float32 = 3
     jump b3(v2)
+
 b3(v3: float32):
-    v4: float32 = 2float32
+    v4: float32 = 2
     v5: float32 = float.add v3, v4
     return v5
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -2622,20 +2644,24 @@ b3(v3: float32):
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): float32 {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: float32 = inffloat32
-    v2: float32 = -inffloat32
+    v1: float32 = inf
+    v2: float32 = -inf
     jump b3(v1, v2)
+
 b2:
-    v3: float32 = inffloat32
-    v4: float32 = -inffloat32
+    v3: float32 = inf
+    v4: float32 = -inf
     jump b3(v3, v4)
+
 b3(v5: float32, v6: float32):
     v7: float32 = float.add v5, v6
     return v7
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -2670,12 +2696,13 @@ b3(v5: float32, v6: float32):
         let test = TestProgram::new(
             r#"
 function test(): float32 {
-b0:
-    v0: float32 = inffloat32
-    v1: float32 = 2float32
+entry:
+    v0: float32 = inf
+    v1: float32 = 2
     v2: float32 = float.add v0, v1
     return v2
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -2710,20 +2737,24 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): float32 {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: float32 = inffloat32
-    v2: float32 = inffloat32
+    v1: float32 = inf
+    v2: float32 = inf
     jump b3(v1, v2)
+
 b2:
-    v3: float32 = inffloat32
-    v4: float32 = inffloat32
+    v3: float32 = inf
+    v4: float32 = inf
     jump b3(v3, v4)
+
 b3(v5: float32, v6: float32):
     v7: float32 = float.sub v5, v6
     return v7
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -2758,12 +2789,13 @@ b3(v5: float32, v6: float32):
         let test = TestProgram::new(
             r#"
 function test(): float32 {
-b0:
-    v0: float32 = 2float32
-    v1: float32 = inffloat32
+entry:
+    v0: float32 = 2
+    v1: float32 = inf
     v2: float32 = float.sub v0, v1
     return v2
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -2798,19 +2830,23 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): boolean {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: float32 = 1float32
+    v1: float32 = 1
     jump b3(v1)
+
 b2:
-    v2: float32 = 2float32
+    v2: float32 = 2
     jump b3(v2)
+
 b3(v3: float32):
-    v4: float32 = 5float32
+    v4: float32 = 5
     v5: boolean = float.lt v3, v4
     return v5
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -2842,14 +2878,15 @@ b3(v3: float32):
         let test = TestProgram::new(
             r#"
 function test(): boolean {
-b0:
-    v0: float32 = 1float32
-    v1: float32 = 0float32
+entry:
+    v0: float32 = 1
+    v1: float32 = 0
     v2: float32 = float.div v0, v1
-    v3: float32 = 5float32
+    v3: float32 = 5
     v4: boolean = float.gt v2, v3
     return v4
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -2873,26 +2910,33 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(v0: boolean, v1: boolean): float32 {
-b0(v0: boolean, v1: boolean):
+entry(v0: boolean, v1: boolean):
     branch v0, b1, b2
+
 b1:
-    v2: float32 = 0float32
+    v2: float32 = 0
     jump b3(v2, v1)
+
 b2:
-    v3: float32 = 1float32
+    v3: float32 = 1
     jump b3(v3, v1)
+
 b3(v4: float32, v5: boolean):
     branch v5, b4, b5
+
 b4:
-    v6: float32 = 0float32
+    v6: float32 = 0
     jump b6(v4, v6)
+
 b5:
-    v7: float32 = 1float32
+    v7: float32 = 1
     jump b6(v4, v7)
+
 b6(v8: float32, v9: float32):
     v10: float32 = float.div v9, v8
     return v10
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -2930,19 +2974,23 @@ b6(v8: float32, v9: float32):
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): float32 {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: float32 = 0float32
+    v1: float32 = 0
     jump b3(v1)
+
 b2:
-    v2: float32 = 1float32
+    v2: float32 = 1
     jump b3(v2)
+
 b3(v3: float32):
-    v4: float32 = 2float32
+    v4: float32 = 2
     v5: float32 = float.div v4, v3
     return v5
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -2980,19 +3028,23 @@ b3(v3: float32):
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): float32 {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: float32 = 0float32
+    v1: float32 = 0
     jump b3(v1)
+
 b2:
-    v2: float32 = 1float32
+    v2: float32 = 1
     jump b3(v2)
+
 b3(v3: float32):
-    v4: float32 = 0float32
+    v4: float32 = 0
     v5: float32 = float.div v4, v3
     return v5
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3027,19 +3079,23 @@ b3(v3: float32):
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): float32 {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: float32 = 0float32
+    v1: float32 = 0
     jump b3(v1)
+
 b2:
-    v2: float32 = inffloat32
+    v2: float32 = inf
     jump b3(v2)
+
 b3(v3: float32):
-    v4: float32 = 0float32
+    v4: float32 = 0
     v5: float32 = float.div v4, v3
     return v5
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3074,20 +3130,24 @@ b3(v3: float32):
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): float32 {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: float32 = 0float32
-    v2: float32 = inffloat32
+    v1: float32 = 0
+    v2: float32 = inf
     jump b3(v1, v2)
+
 b2:
-    v3: float32 = 0float32
-    v4: float32 = inffloat32
+    v3: float32 = 0
+    v4: float32 = inf
     jump b3(v3, v4)
+
 b3(v5: float32, v6: float32):
     v7: float32 = float.mul v5, v6
     return v7
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3122,19 +3182,23 @@ b3(v5: float32, v6: float32):
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): float32 {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: float32 = 0float32
+    v1: float32 = 0
     jump b3(v1)
+
 b2:
-    v2: float32 = 2float32
+    v2: float32 = 2
     jump b3(v2)
+
 b3(v3: float32):
-    v4: float32 = inffloat32
+    v4: float32 = inf
     v5: float32 = float.mul v4, v3
     return v5
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3169,20 +3233,24 @@ b3(v3: float32):
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): float32 {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: float32 = inffloat32
-    v2: float32 = inffloat32
+    v1: float32 = inf
+    v2: float32 = inf
     jump b3(v1, v2)
+
 b2:
-    v3: float32 = inffloat32
-    v4: float32 = inffloat32
+    v3: float32 = inf
+    v4: float32 = inf
     jump b3(v3, v4)
+
 b3(v5: float32, v6: float32):
     v7: float32 = float.div v5, v6
     return v7
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3217,12 +3285,13 @@ b3(v5: float32, v6: float32):
         let test = TestProgram::new(
             r#"
 function test(): float32 {
-b0:
-    v0: float32 = inffloat32
-    v1: float32 = 0float32
+entry:
+    v0: float32 = inf
+    v1: float32 = 0
     v2: float32 = float.div v0, v1
     return v2
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3257,12 +3326,13 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(): float32 {
-b0:
-    v0: float32 = 2float32
-    v1: float32 = inffloat32
+entry:
+    v0: float32 = 2
+    v1: float32 = inf
     v2: float32 = float.div v0, v1
     return v2
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3297,12 +3367,13 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(): float32 {
-b0:
-    v0: float32 = inffloat32
-    v1: float32 = -2float32
+entry:
+    v0: float32 = inf
+    v1: float32 = -2
     v2: float32 = float.div v0, v1
     return v2
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3337,14 +3408,15 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(): float32 {
-b0:
-    v0: float32 = 1float32
-    v1: float32 = 0float32
+entry:
+    v0: float32 = 1
+    v1: float32 = 0
     v2: float32 = float.div v0, v1
-    v3: float32 = 0float32
+    v3: float32 = 0
     v4: float32 = float.mul v3, v2
     return v4
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3379,11 +3451,12 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(): int32 {
-b0:
-    v0: float32 = 3.9float32
+entry:
+    v0: float32 = 3.9000000953674316
     v1: int32 = cast.floatToInt.s v0 -> int32
     return v1
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3417,18 +3490,22 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): int32 {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: float32 = 1float32
+    v1: float32 = 1
     jump b3(v1)
+
 b2:
-    v2: float32 = 100000000000000000000float32
+    v2: float32 = 100000002004087730000
     jump b3(v2)
+
 b3(v3: float32):
     v4: int32 = cast.floatToIntSaturating.s v3 -> int32
     return v4
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3462,12 +3539,13 @@ b3(v3: float32):
         let test = TestProgram::new(
             r#"
 function test(): int32 {
-b0:
-    v0: float32 = 0float32
+entry:
+    v0: float32 = 0
     v1: float32 = float.div v0, v0
     v2: int32 = cast.floatToIntSaturating.s v1 -> int32
     return v2
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3501,11 +3579,12 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(): float32 {
-b0:
-    v0: int32 = 4int32
+entry:
+    v0: int32 = 4
     v1: float32 = cast.intToFloat.s v0 -> float32
     return v1
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3540,11 +3619,12 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(): float32 {
-b0:
-    v0: float64 = 1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000float64
+entry:
+    v0: float64 = 1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
     v1: float32 = cast.floatTruncate v0 -> float32
     return v1
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3579,18 +3659,22 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): float32 {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: float32 = 0float32
+    v1: float32 = 0
     v2: float32 = float.div v1, v1
     jump b3(v2)
+
 b2:
-    v3: float32 = 1float32
+    v3: float32 = 1
     jump b3(v3)
+
 b3(v4: float32):
     return v4
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3623,13 +3707,14 @@ b3(v4: float32):
         let test = TestProgram::new(
             r#"
 function test(): boolean {
-b0:
-    v0: float32 = 0float32
+entry:
+    v0: float32 = 0
     v1: float32 = float.div v0, v0
-    v2: float32 = 1float32
+    v2: float32 = 1
     v3: boolean = float.eq v1, v2
     return v3
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3659,12 +3744,13 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(): boolean {
-b0:
-    v0: float32 = inffloat32
-    v1: float32 = 1float32
+entry:
+    v0: float32 = inf
+    v1: float32 = 1
     v2: boolean = float.gt v0, v1
     return v2
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3694,12 +3780,13 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(): boolean {
-b0:
-    v0: float32 = inffloat32
-    v1: float32 = 1float32
+entry:
+    v0: float32 = inf
+    v1: float32 = 1
     v2: boolean = float.le v0, v1
     return v2
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3729,13 +3816,14 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(): boolean {
-b0:
-    v0: float32 = 0float32
+entry:
+    v0: float32 = 0
     v1: float32 = float.div v0, v0
-    v2: float32 = 1float32
+    v2: float32 = 1
     v3: boolean = float.ne v1, v2
     return v3
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3765,20 +3853,24 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): boolean {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: float32 = 0float32
+    v1: float32 = 0
     v2: float32 = float.div v1, v1
     jump b3(v2)
+
 b2:
-    v3: float32 = 1float32
+    v3: float32 = 1
     jump b3(v3)
+
 b3(v4: float32):
-    v5: float32 = 1float32
+    v5: float32 = 1
     v6: boolean = float.ge v4, v5
     return v6
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3802,17 +3894,21 @@ b3(v4: float32):
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): float32 {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: float32 = inffloat32
+    v1: float32 = inf
     jump b3(v1)
+
 b2:
-    v2: float32 = 2float32
+    v2: float32 = 2
     jump b3(v2)
+
 b3(v3: float32):
     return v3
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3845,18 +3941,22 @@ b3(v3: float32):
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): int32 {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: float32 = 1float32
+    v1: float32 = 1
     jump b3(v1)
+
 b2:
-    v2: float32 = 100000000000000000000float32
+    v2: float32 = 100000002004087730000
     jump b3(v2)
+
 b3(v3: float32):
     v4: int32 = cast.floatToInt.s v3 -> int32
     return v4
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3880,11 +3980,12 @@ b3(v3: float32):
         let test = TestProgram::new(
             r#"
 function test(): int32 {
-b0:
-    v0: float32 = inffloat32
+entry:
+    v0: float32 = inf
     v1: int32 = cast.floatToInt.s v0 -> int32
     return v1
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3908,18 +4009,22 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): int32 {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: float32 = -1float32
+    v1: float32 = -1
     jump b3(v1)
+
 b2:
-    v2: float32 = -100000000000000000000float32
+    v2: float32 = -100000002004087730000
     jump b3(v2)
+
 b3(v3: float32):
     v4: int32 = cast.floatToInt.s v3 -> int32
     return v4
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3943,11 +4048,12 @@ b3(v3: float32):
         let test = TestProgram::new(
             r#"
 function test(): int32 {
-b0:
-    v0: float32 = -inffloat32
+entry:
+    v0: float32 = -inf
     v1: int32 = cast.floatToInt.s v0 -> int32
     return v1
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -3971,12 +4077,13 @@ b0:
         let test = TestProgram::new(
             r#"
 function test(): int32 {
-b0:
-    v0: float32 = 0float32
+entry:
+    v0: float32 = 0
     v1: float32 = float.div v0, v0
     v2: int32 = cast.floatToInt.s v1 -> int32
     return v2
-}"#,
+}
+"#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;

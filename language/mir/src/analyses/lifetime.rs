@@ -110,10 +110,11 @@ mod tests {
         let program = TestProgram::new(
             r#"
 function add(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
+entry(v0: int32, v1: int32):
     v2: int32 = int.add v0, v1
     return v2
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -130,9 +131,10 @@ b0(v0: int32, v1: int32):
         let program = TestProgram::new(
             r#"
 function identity(v0: ref<int32, borrowed>): ref<int32, borrowed> {
-b0(v0: ref<int32, borrowed>):
+entry(v0: ref<int32, borrowed>):
     return v0
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -151,9 +153,10 @@ b0(v0: ref<int32, borrowed>):
         let program = TestProgram::new(
             r#"
 function pick(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>): ref<int32, borrowed> {
-b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
+entry(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
     return v0
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -172,9 +175,10 @@ b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
         let program = TestProgram::new(
             r#"
 function consume(v0: ref<int32, borrowed>): void {
-b0(v0: ref<int32, borrowed>):
+entry(v0: ref<int32, borrowed>):
     return
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -192,10 +196,11 @@ b0(v0: ref<int32, borrowed>):
         let program = TestProgram::new(
             r#"
 function create(): ref<int32, raw, space(frame)> {
-b0:
+entry:
     v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     return v0
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -213,9 +218,10 @@ b0:
         let program = TestProgram::new(
             r#"
 function mixed(v0: int32, v1: ref<int32, borrowed>, v2: int32): ref<int32, borrowed> {
-b0(v0: int32, v1: ref<int32, borrowed>, v2: int32):
+entry(v0: int32, v1: ref<int32, borrowed>, v2: int32):
     return v1
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -237,9 +243,10 @@ b0(v0: int32, v1: ref<int32, borrowed>, v2: int32):
         let program = TestProgram::new(
             r#"
 function getGlobal(v0: ref<int32, borrowed>): ref<int32, borrowed, lifetime(static)> {
-b0(v0: ref<int32, borrowed>):
+entry(v0: ref<int32, borrowed>):
     return v0
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -258,9 +265,10 @@ b0(v0: ref<int32, borrowed>):
         let program = TestProgram::new(
             r#"
 function pickFirst(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>): ref<int32, borrowed, lifetime(0)> {
-b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
+entry(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
     return v0
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -284,10 +292,11 @@ b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
         let program = TestProgram::new(
             r#"
 function getStatic(v0: int32): ref<int32, borrowed> {
-b0(v0: int32):
+entry(v0: int32):
     v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     return v1
-}"#,
+}
+"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
@@ -307,9 +316,10 @@ b0(v0: int32):
         let mut program = TestProgram::new(
             r#"
 function test(): void {
-b0:
+entry:
     return
-}"#,
+}
+"#,
         );
 
         let int_ty = program.tree.insert_type(mir::Type::Int {
@@ -332,9 +342,10 @@ b0:
         let mut program = TestProgram::new(
             r#"
 function test(): void {
-b0:
+entry:
     return
-}"#,
+}
+"#,
         );
 
         let int_ty = program.tree.insert_type(mir::Type::Int {
@@ -365,9 +376,10 @@ b0:
         let mut program = TestProgram::new(
             r#"
 function test(): void {
-b0:
+entry:
     return
-}"#,
+}
+"#,
         );
 
         let int_ty = program.tree.insert_type(mir::Type::Int {
@@ -399,9 +411,10 @@ b0:
         let mut program = TestProgram::new(
             r#"
 function test(): void {
-b0:
+entry:
     return
-}"#,
+}
+"#,
         );
 
         let int_ty = program.tree.insert_type(mir::Type::Int {

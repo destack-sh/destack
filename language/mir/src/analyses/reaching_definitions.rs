@@ -273,12 +273,14 @@ mod tests {
         let test = TestProgram::new(
             r#"
 function test(v0: int32): int32 {
-    local local0: int32, owned
-b0(v0: int32):
-    local.set local0, v0
-    v1: int32 = local.get local0
+    local l0: int32
+
+entry(v0: int32):
+    local.set l0, v0
+    v1: int32 = local.get l0
     return v1
-}"#,
+}
+"#,
         );
 
         // fetch the function and analysis
@@ -319,12 +321,14 @@ b0(v0: int32):
         let test = TestProgram::new(
             r#"
 function test(v0: int32): int32 {
-    local local0: int32, owned
-b0(v0: int32):
-    local.set local0, v0
-    v1: int32 = local.get local0
+    local l0: int32
+
+entry(v0: int32):
+    local.set l0, v0
+    v1: int32 = local.get l0
     return v1
-}"#,
+}
+"#,
         );
 
         // fetch the function and analysis
@@ -352,13 +356,15 @@ b0(v0: int32):
         let test = TestProgram::new(
             r#"
 function test(v0: int32, v1: int32): int32 {
-    local local0: int32, owned
-b0(v0: int32, v1: int32):
-    local.set local0, v0
-    local.set local0, v1
-    v2: int32 = local.get local0
+    local l0: int32
+
+entry(v0: int32, v1: int32):
+    local.set l0, v0
+    local.set l0, v1
+    v2: int32 = local.get l0
     return v2
-}"#,
+}
+"#,
         );
 
         // fetch the function and analysis
@@ -401,19 +407,24 @@ b0(v0: int32, v1: int32):
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): int32 {
-    local local0: int32, owned
-b0(v0: boolean):
+    local l0: int32
+
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: int32 = 1int32
-    local.set local0, v1
+    v1: int32 = 1
+    local.set l0, v1
     jump b3
+
 b2:
     jump b3
+
 b3:
-    v2: int32 = local.get local0
+    v2: int32 = local.get l0
     return v2
-}"#,
+}
+"#,
         );
 
         // fetch the function and analysis
@@ -443,22 +454,27 @@ b3:
         let test = TestProgram::new(
             r#"
 function test(v0: boolean, v1: int32, v2: int32): int32 {
-    local local0: int32, owned
-    local local1: int32, owned
-b0(v0: boolean, v1: int32, v2: int32):
+    local l0: int32
+    local l1: int32
+
+entry(v0: boolean, v1: int32, v2: int32):
     branch v0, b1, b2
+
 b1:
-    local.set local0, v1
+    local.set l0, v1
     jump b3
+
 b2:
-    local.set local1, v2
+    local.set l1, v2
     jump b3
+
 b3:
-    v3: int32 = local.get local0
-    v4: int32 = local.get local1
+    v3: int32 = local.get l0
+    v4: int32 = local.get l1
     v5: int32 = int.add v3, v4
     return v5
-}"#,
+}
+"#,
         );
 
         // fetch the function and analysis
@@ -468,27 +484,27 @@ b3:
         let reaching = analyses.get::<ReachingDefinitions>(function, &test.tree);
 
         // collect ids for the join block and locals
-        let local0 = function.locals[0];
-        let local1 = function.locals[1];
+        let l0 = function.locals[0];
+        let l1 = function.locals[1];
         let join_block = function.blocks[3];
 
         let set_local0 = first_local_set_instruction(function.blocks[1], &test.tree);
         let set_local1 = first_local_set_instruction(function.blocks[2], &test.tree);
 
-        // expect entry and local0 definition at the join
+        // expect entry and l0 definition at the join
         let mut expected_local0 = HashSet::new();
         expected_local0.insert(LocalDefinition::Entry);
         expected_local0.insert(LocalDefinition::Instruction(set_local0));
 
-        let local0_defs = reaching.definitions_at_entry(join_block, local0);
+        let local0_defs = reaching.definitions_at_entry(join_block, l0);
         assert_eq!(local0_defs, &expected_local0);
 
-        // expect entry and local1 definition at the join
+        // expect entry and l1 definition at the join
         let mut expected_local1 = HashSet::new();
         expected_local1.insert(LocalDefinition::Entry);
         expected_local1.insert(LocalDefinition::Instruction(set_local1));
 
-        let local1_defs = reaching.definitions_at_entry(join_block, local1);
+        let local1_defs = reaching.definitions_at_entry(join_block, l1);
         assert_eq!(local1_defs, &expected_local1);
     }
 
@@ -498,21 +514,26 @@ b3:
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): int32 {
-    local local0: int32, owned
-b0(v0: boolean):
+    local l0: int32
+
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: int32 = 1int32
-    local.set local0, v1
+    v1: int32 = 1
+    local.set l0, v1
     jump b3
+
 b2:
-    v2: int32 = 2int32
-    local.set local0, v2
+    v2: int32 = 2
+    local.set l0, v2
     jump b3
+
 b3:
-    v3: int32 = local.get local0
+    v3: int32 = local.get l0
     return v3
-}"#,
+}
+"#,
         );
 
         // fetch the function and analysis
@@ -543,19 +564,23 @@ b3:
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): int32 {
-    local local0: int32, owned
-b0(v0: boolean):
+    local l0: int32
+
+entry(v0: boolean):
     jump b1
+
 b1:
-    v1: int32 = local.get local0
-    v2: int32 = 1int32
+    v1: int32 = local.get l0
+    v2: int32 = 1
     v3: int32 = int.add v1, v2
-    local.set local0, v3
+    local.set l0, v3
     branch v0, b1, b2
+
 b2:
-    v4: int32 = local.get local0
+    v4: int32 = local.get l0
     return v4
-}"#,
+}
+"#,
         );
 
         // fetch the function and analysis
@@ -585,17 +610,21 @@ b2:
         let test = TestProgram::new(
             r#"
 function test(v0: int32): int32 {
-    local local0: int32, owned
-b0(v0: int32):
-    local.set local0, v0
+    local l0: int32
+
+entry(v0: int32):
+    local.set l0, v0
     jump b1
+
 b1:
-    v1: int32 = local.get local0
+    v1: int32 = local.get l0
     return v1
+
 b2:
-    v2: int32 = local.get local0
+    v2: int32 = local.get l0
     return v2
-}"#,
+}
+"#,
         );
 
         // fetch the function and analysis
