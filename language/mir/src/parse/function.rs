@@ -808,7 +808,8 @@ impl Parser {
         match self.token_type(&token) {
             TokenType::Return => {
                 self.bump();
-                let value = if self.is_value_reference_start() {
+                let value = if !self.has_line_break_after(&token) && self.is_value_reference_start()
+                {
                     Some(self.parse_value()?)
                 } else {
                     None
@@ -908,11 +909,12 @@ impl Parser {
             }
             TokenType::Panic => {
                 self.bump();
-                let payload = if self.is_value_reference_start() {
-                    Some(self.parse_value()?)
-                } else {
-                    None
-                };
+                let payload =
+                    if !self.has_line_break_after(&token) && self.is_value_reference_start() {
+                        Some(self.parse_value()?)
+                    } else {
+                        None
+                    };
                 Ok(Terminator::Panic { payload })
             }
             TokenType::ResumeUnwind => {

@@ -28,10 +28,10 @@ fn test_format_fallible_allocation_family() {
         r#"
 function allocTry(value0: int64): int32 {
 entry0(value0: int64):
-    new.zeroed.try int32 -> block1, block2
+    new.zeroed.try int32 -> block1(), block2()
 
 block1(value1: ref<int32, managed>):
-    new.slice.uninit.try int32, value0 -> block3, block2
+    new.slice.uninit.try int32, value0 -> block3(), block2()
 
 block2:
     value4: int32 = 0int32

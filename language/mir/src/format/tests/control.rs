@@ -7,7 +7,7 @@ fn test_format_switch() {
         r#"
 function dispatch(value0: int32): int32 {
 entry0(value0: int32):
-    switch value0, block3, 0 => block1, 1 => block2
+    switch value0, block3(), 0 => block1(), 1 => block2()
 
 block1:
     value1: int32 = 100int32
@@ -53,10 +53,10 @@ external function callee(int32): int32
 function suspends(value0: int32): int32 {
 entry0(value0: int32):
     value1: int32 = 5int32
-    yield value1 -> block1(value0) | block2
+    yield value1 -> block1(value0) | block2()
 
 block1(value2: int32, value3: int32):
-    call callee(value3): (int32) -> int32 -> block3 | block2
+    call callee(value3): (int32) -> int32 -> block3() | block2()
 
 block2:
     unwind.resume
@@ -77,7 +77,7 @@ external function callee(int32): int32
 
 function caller(value0: int32): int32 {
 entry0(value0: int32):
-    call callee(value0): (int32) -> int32 -> block1
+    call callee(value0): (int32) -> int32 -> block1()
 
 block1(value1: int32):
     return value1
@@ -107,19 +107,19 @@ fn test_format_check_type_guards() {
 function guard(value0: uint32, value1: ref<void, managed>): int32 {
 entry0(value0: uint32, value1: ref<void, managed>):
     value2: boolean = int.eq value0, value0
-    check dynamicType value0, int32 -> block1, block4
+    check dynamicType value0, int32 -> block1(), block4()
 
 block1:
     value3: boolean = int.eq value0, value0
-    check variantTag value0, 1uint32 -> block4, block5
+    check variantTag value0, 1uint32 -> block4(), block5()
 
 block2:
     value4: boolean = int.eq value0, value0
-    check receiverType value1, int32 -> block2, block4
+    check receiverType value1, int32 -> block2(), block4()
 
 block3:
     value5: boolean = int.eq value0, value0
-    check interfaceConformance value1, int32 -> block3, block5
+    check interfaceConformance value1, int32 -> block3(), block5()
 
 block4:
     value6: int32 = 0int32

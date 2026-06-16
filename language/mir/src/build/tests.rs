@@ -150,15 +150,15 @@ fn test_build_function_with_branch() {
     let expected = "\
 function select(value0: boolean): int32 {
 entry0(value0: boolean):
-    branch value0, block1, block2
+    branch value0, block1(), block2()
 
 block1:
     value1: int32 = 1int32
-    jump block3
+    jump block3()
 
 block2:
     value2: int32 = 0int32
-    jump block3
+    jump block3()
 
 block3:
     return value1
@@ -201,7 +201,7 @@ external function callee(int32): int32
 
 function caller(value0: int32): int32 {
 entry0(value0: int32):
-    call callee(value0): (int32) -> int32 -> block1
+    call callee(value0): (int32) -> int32 -> block1()
 
 block1(value1: int32):
     return value1
@@ -369,7 +369,7 @@ fn test_ssa_branch_with_phi() {
     let expected = "\
 function phiTest(value0: boolean): int32 {
 entry0(value0: boolean):
-    branch value0, block1, block2
+    branch value0, block1(), block2()
 
 block1:
     value1: int32 = 1int32
@@ -437,13 +437,13 @@ fn test_ssa_trivial_phi_removal() {
 function trivialPhi(value0: boolean): int32 {
 entry0(value0: boolean):
     value1: int32 = 42int32
-    branch value0, block1, block2
+    branch value0, block1(), block2()
 
 block1:
-    jump block3
+    jump block3()
 
 block2:
-    jump block3
+    jump block3()
 
 block3:
     return value1
@@ -502,13 +502,13 @@ fn test_ssa_trivial_phi_unsealed() {
 function trivialPhiUnsealed(value0: boolean): int32 {
 entry0(value0: boolean):
     value1: int32 = 42int32
-    branch value0, block1, block2
+    branch value0, block1(), block2()
 
 block1:
-    jump block3
+    jump block3()
 
 block2:
-    jump block3
+    jump block3()
 
 block3:
     return value1
@@ -686,10 +686,10 @@ fn test_seal_all_blocks() {
     let expected = "\
 function multiBlock(): void {
 entry0:
-    jump block1
+    jump block1()
 
 block1:
-    jump block2
+    jump block2()
 
 block2:
     return
@@ -1268,12 +1268,12 @@ entry0(value0: boolean):
     jump block1(value1)
 
 block1(value2: int32):
-    branch value0, block2, block4
+    branch value0, block2(), block4()
 
 block2:
     value4: int32 = 10int32
     value5: int32 = int.add value2, value4
-    jump block3
+    jump block3()
 
 block3:
     jump block1(value5)
@@ -1347,7 +1347,7 @@ fn test_ssa_multiple_phis_at_merge() {
     let expected = "\
 function multiPhi(value0: boolean): int32 {
 entry0(value0: boolean):
-    branch value0, block1, block2
+    branch value0, block1(), block2()
 
 block1:
     value1: int32 = 1int32

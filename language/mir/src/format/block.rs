@@ -646,10 +646,7 @@ fn format_call_signature_suffix<'a>(
 
 fn format_block_target<'a>(target: &BlockTarget, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
     write!(f, [target.block])?;
-
-    if !target.arguments.is_empty() {
-        format_value_list(&target.arguments, f)?;
-    }
+    format_value_list(&target.arguments, f)?;
 
     Ok(())
 }
