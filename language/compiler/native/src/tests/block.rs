@@ -6,17 +6,18 @@ use super::compile_mir_to_normalized_clif;
 fn test_conditional_branch() {
     let mir = r#"
 function select(v0: boolean): int32 {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
 
 b1:
-    v1: int32 = 1int32
+    v1: int32 = 1
     return v1
 
 b2:
-    v2: int32 = 0int32
+    v2: int32 = 0
     return v2
-}"#;
+}
+"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -42,14 +43,14 @@ b2:
 fn test_unconditional_jump() {
     let mir = r#"
 function jump_test(): int32 {
-
-b0:
+entry:
     jump b1
 
 b1:
-    v0: int32 = 42int32
+    v0: int32 = 42
     return v0
-}"#;
+}
+"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -72,17 +73,21 @@ b1:
 fn test_block_parameters() {
     let mir = r#"
 function phi_test(v0: boolean): int32 {
-b0(v0: boolean):
+entry(v0: boolean):
     branch v0, b1, b2
+
 b1:
-    v1: int32 = 10int32
+    v1: int32 = 10
     jump b3(v1)
+
 b2:
-    v2: int32 = 20int32
+    v2: int32 = 20
     jump b3(v2)
+
 b3(v3: int32):
     return v3
-}"#;
+}
+"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -150,18 +155,21 @@ b3:
 fn test_sequential_blocks() {
     let mir = r#"
 function sequential(): int32 {
-b0:
-    v0: int32 = 1int32
+entry:
+    v0: int32 = 1
     jump b1
+
 b1:
-    v1: int32 = 2int32
+    v1: int32 = 2
     v2: int32 = int.add v0, v1
     jump b2
+
 b2:
-    v3: int32 = 3int32
+    v3: int32 = 3
     v4: int32 = int.add v2, v3
     return v4
-}"#;
+}
+"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
