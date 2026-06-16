@@ -15,38 +15,35 @@ We can do better, but not by adding _more_ and more inscrutable pieces.
 The best possible stack would be fully integrated across the language itself, the toolchain, the runtime, and basically anything that touches the software stack.
 To be fully integrated, we need a base programming language that can actually run all modern software efficiently across all relevant target platforms.
 
-Only TypeScript is seriously close to being a universal software foundation: it is the most popular and familiar programming language, it runs _directly_ on the web, and that means it runs directly on the most ubiquitous software platform.
+Only TypeScript is seriously close to being a universal software foundation: it is the most popular and familiar programming language, it runs _directly_ on the web, and the web is the most ubiquitous software platform.
 The TypeScript ecosystem has good - if not perfect - conceptions of answers to all modern software needs, from great developer tools to rich interactive frontends to reasonably performant backends.
 
-Disregarding the legacy JavaScript baggage, modern TypeScript is surprisingly close to a fully AOT-compilable language - indeed, most browsers retrofit compilation internally already based on this assumption.
+Disregarding the legacy JavaScript baggage, modern TypeScript is surprisingly close to a fully statically compilable language - indeed, most browsers retrofit compilation internally already based on this assumption.
 Embracing TypeScript and "the web ecosystem" lets us build a new toolchain that covers the full stack, is immediately familiar to millions of developers, runs transparently on existing targets, and can be made to run as fast as the machine allows.
 
 # Language
 
-Our `.ds` "TypeScript++" is a superset of the "strict modern" subset of TypeScript, similar in spirit to `.tsx` or `.svelte`.
-Generally, existing TypeScript (and TSX!) _just works_ **if** it follows our strict TypeScript-based type system _and_ uses no exceptions.
+Our `.ds` ("TypeScript++") is a superset of the "strict modern" subset of `.ts` (TypeScript), similar _in spirit_ to TypeScript extensions like `.svelte` or `.vue`.
+Generally, existing TypeScript and TSX _just works_ **if** it follows our strict TypeScript-based type system _and_ uses no exceptions.
 Fortunately, strict TypeScript is already a best practice - it's what you get when enabling the recommended soundness flags in TSC (mostly) - and converting implicit exceptions to explicit results is a trivial (and worthwhile) one-shot transformation.
 
-There are solid arguments that a language should be minimal (like Zig or Go or even C), but we do not believe "language minimalism" to be pragmatic for the universal language and toolchain we want: Destack aims to be a _complete_ (and coherent and pragmatic) language, not a purely _minimal_ language.
+There are solid arguments that a language should be minimal (like Zig or Go or even C), but we do not believe "language minimalism" to be pragmatic for the universal language and toolchain we want: Destack aims to be a _complete_ (and coherent and pragmatic) language, not a _minimal_ language.
 And since we needed _some_ additions anyway, we took the opportunity to round out the language with modern ergonomics like patterns, operator overloading, reflection, and comptime.
 
 ## Types
 
-Destack extends TypeScript's type system with precise primitives, nominal types ("`newtype`s"), value types ("`struct`s"), tuples, ergonomic constraints, and some additional niceties.
+Destack extends TypeScript's type system with precise primitives, nominal types ("`newtype`s"), value types ("`struct`s"), tuples, `where`-based constraints, and some additional niceties.
 
 ### Primitives
 
 Destack is based on TypeScript, and TypeScript inherits its main primitive types from JavaScript: `string`, `boolean`, `number`, `bigint`, and `symbol`, plus the `null` and `undefined` sentinels.
-It should be noted that `string` and `bigint` are not really special in Destack, they are just aliases to the standard library `String` and `BigInt` classes, respectively.
-We forbid imprecise top types like `object` and `any`, and provide additional precise primitive types:
-- precise numeric types beyond `number`, with variable-width signed and unsigned integers (`int8`, `uint32`, `int17`) as well as modern concrete float formats (`float16`, `bfloat16`, `float32`, `float64`)
+- precise numeric types beyond `number`, with variable-width signed and unsigned integers (`int8`, `uint32`, `int17`) as well as concrete float formats (`float16`, `float32`, `float64`)
 - pointer-sized integers, i.e. integers as wide as the target pointer size, spelled `isize` and `usize`
 - `int` and `uint` as aliases to `int64` and `uint64`
 - `number` as an alias for `float`, and `float` as an alias to `float64`
 - `char` as a single Unicode scalar value, distinct from `string`
 
-`float16` is the IEEE-754 binary16 format, while `bfloat16` is a distinct 16-bit format intended for ML and tensor-heavy workloads.
-
+It should be noted that `string` and `bigint` are not really "special" in Destack, they are just aliases to the standard library `String` and `BigInt` classes, respectively.
 Following the spirit of TypeScript's widening rules, numeric literals start as exact values and can flow into any numeric type that can represent them.
 When no specific numeric context fits, the literals widen as usual to plain `number` (i.e. `float64`).
 
@@ -70,10 +67,9 @@ const input: unknown = readInput();
 
 ### Unknown
 
-TypeScript has two "top" types: `unknown` and `any`, these types can contain all other types.
-Of course, `any` is unsound, because everything can be assigned to and from it without any checks, so Destack only supports `unknown`.
-Because `unknown` is just a transparent constraint, it behaves like an interface with zero members under the regular [representation rules](#representation):
-
+TypeScript has two "top" types: `unknown` and `any` can contain _all_ other types.
+Of course, `any` is unsound, because everything can be assigned to and from `any` without any checks, so Destack forbids it in favor of the explicit `unknown`.
+`unknown` is really just a transparent constraint, and so it behaves like an interface with zero members under the regular [representation rules](#representation):
 - In constraint positions, `unknown` induces an implicit generic: `function parse(value: unknown)` behaves like `function parse<T>(value: T)` where the body knows nothing about `T` until it narrows.
 - In storage positions, there is nothing to reify, so storing `unknown` induces a generic parameter just like storing an interface does.
 
@@ -94,11 +90,11 @@ struct ErasedEvent {
 }
 ```
 
-For genuinely heterogeneous storage, `Dynamic<unknown>` is the explicit erased universal value: a fat pointer carrying the value and its runtime type witness, introspectable via [reflection](#reflection) and narrowable via `is`.
+For genuinely heterogeneous storage, `Dynamic<unknown>` serves as the explicit erased universal value: a fat pointer carrying the value and its runtime type, introspectable via [reflection](#reflection) and narrowable via `is`.
 
 ### String
 
-Destack aims to be "TypeScript++", and thus we inherit JavaScript's string behavior so the same code runs transparently on TS targets and native: `string` length and positional access are _defined_ in terms of UTF-16 code units, and - just like TS's own string iterator - iteration yields Unicode code points (mapping to `char`).
+Destack wants to be "TypeScript++", and thus we also follow JavaScript's string behavior: `string` length and positional access are _defined_ in terms of UTF-16 code units, and - just like TS's own string iterator - iteration yields Unicode code points (mapping to `char`).
 
 ```ds
 const text = "héllo";
@@ -156,8 +152,7 @@ struct InlineBuffer<T, comptime N: 0..=4096> {
 }
 ```
 
-Because interval types are basically just aliases to union types, they are _bounded_ sets, and floating point numbers cannot participate.
-(It would not make sense to have `0.0..1.0` since that would be inviting a whole new class of refinement types that we wanted to avoid in favor of more explicit and flexible nominality.)
+Because interval types are basically just aliases to union types, they must be _bounded_ sets, and as floating point are not bounded, plain `number`s cannot participate.
 It follows that runtime values can become an interval type through ordinary _narrowing_ - good old [range patterns](#patterns) and [`is` checks](#guards):
 
 ```ds
@@ -173,7 +168,7 @@ function parsePort(n: int): Result<Port, ParseError> {
 
 ### Newtypes
 
-TypeScript is structurally typed: an interface is satisfied by any value matching its shape, regardless of whether it explicitly `implement`s it.
+TypeScript is (primarily) structurally typed: an interface is satisfied by any value matching its shape, regardless of whether it explicitly `implement`s the interface.
 However, sometimes explicit nominality is helpful for correctness and expressiveness, and Destack adds `newtype` as the nominal counterpart to `type`.
 Like `type`, `newtype` follows its backing type: representable backings result in nominal concrete types, and constraint backings produce nominal constraints.
 
@@ -218,7 +213,7 @@ AuthenticatedUser(user) satisfies AuthenticatedUser;
 ```
 
 Concrete newtypes are representation-transparent to the compiler but opaque to the type system.
-Construction and projection across the backing boundary are both explicit and zero-cost:
+Construction and projection across the backing boundary are explicit at the type level and of course "zero-cost" at runtime:
 
 ```ds
 const id = UserId(1);
@@ -245,13 +240,13 @@ newtype interface Add<T = this> {
 }
 ```
 
-Nominal interfaces require **explicit `implements`** declarations - structural compatibility alone doesn't satisfy the constraint, unlike for regular `interface`.
+Nominal interfaces require **explicit `implements`** clauses, so structural compatibility alone doesn't satisfy the constraint (unlike with regular `interface`).
 Newtype interfaces are used for explicit behavioral traits like [operator interfaces](#operators) (e.g., `Add`, `Compare`), and for [capability traits](#capabilities) (e.g., `Send`, `Sync`, `Copy`, and `Clone`).
 A `newtype interface` is nominal as a constraint, but it is still not a concrete value representation.
 
 ### Extensions
 
-It is sometimes convenient to attach additional logic and data directly to a type, even and especially when the type is not defined locally.
+It is sometimes convenient to attach additional logic and data directly to a type, even and especially when the type is not defined locally (in the same module or even the same package).
 Rust supports this with `impl` blocks (and only `impl` blocks, actually), and Destack supports _additional_ `extension`s to add instance and static members to any _nominal_ type:
 
 ```ds
@@ -388,6 +383,19 @@ const circle = Shape.Circle({ radius: 5 });
 ```
 
 The discriminant field is inferred from the union via a regular userland `Tagged` macro from the unique common field whose variants carry distinct literal values.
+It's really just a builtin sugar that becomes:
+
+```ds
+extension of Shape {
+    // for each tagged variant, expose a "constructor" by tag
+    static Rectangle({ width: int32, height: int32 }) {
+        { kind: "rectangle", width, height }
+    }
+
+    // ...
+}
+```
+
 By default, string discriminants are exposed as `UpperCamelCase` constructor names - the other supported naming policies are:
 
 | Tagged Casing | Example |
@@ -411,8 +419,8 @@ const circle = Shape.circle( /* ... */ );
 ### Structs
 
 Structs are nominal value types for data with a fixed shape, but without reference identity, constructors, or inheritance.
-Basically, structs are just values with a name, much like structs in other "systems languages": an alias to the struct's components (with a certain layout and padding).
-Structs are created via the usual `T { .. }` constructor form to distinguish them from regular objects (no constructors).
+Basically, structs are just their values with a name attached, much like structs in other "systems-y" managed languages.
+Structs are created via the usual `T { .. }` constructor form to distinguish them from regular objects, they do not and cannot have `new`-like `constructor`s of their own.
 
 ```ds
 struct Point {
@@ -424,7 +432,7 @@ let x: Point = Point { x, y };  // OK
 let x: Point = { x, y };        // ERROR: plain object is not Point
 ```
 
-Structs also support the `_` placeholder for type inference:
+Like all type positions, struct expressions also support the `_` placeholder for contextual type inference:
 
 ```ds
 let x: Point = _ { x, y };  // OK
@@ -444,7 +452,7 @@ const object = { ...x, label: "origin" }; // x: Point
 object satisfies { x: float32; y: float32; label: string };
 ```
 
-Conversely, struct expressions can also spread from object literals (when the final field set satisfies the struct):
+Conversely, struct expressions can also spread _from_ object literal expressions (when the field set satisfies the struct):
 
 ```ds
 const base = { x: 1.0, y: 2.0 };
@@ -455,7 +463,7 @@ Classes don't get to participate in spreads because they carry identity, behavio
 
 ### Classes
 
-Classes follow the TypeScript-shaped model for managed objects with identity, except of course without a prototype chain or any dynamic class shenanigans.
+Classes follow the TypeScript-shaped model for managed objects with identity - except, of course, without the prototype chain or any dynamic or unsound shenanigans.
 Also, class fields require every instance field to be initialized by its declaration or every constructor path.
 (Optional fields do not need eager initialization, they default to `undefined`.)
 
@@ -485,7 +493,7 @@ counter.increment() satisfies int32;
 ```
 
 Class methods are concrete (have only one implementation) by default and must be declared as `virtual` to enable _virtual_ dispatch of instances methods in subclasses.
-Similarly, class methods are marked as `abstract` to require an override before the class can be constructed.
+Similarly, class methods are marked as `abstract` to _require_ an `override` in an implementing subclass such that the class can actually be constructed.
 
 ```ds
 abstract class Logger {
@@ -518,24 +526,24 @@ Unfortunately, not much syntax was left here, so we had to adopt the slightly no
 | `[T; N]`, `FixedArray<T, N>` | Inline array | Exactly `N` elements stored in the value |
 | `(A, B)` | Inline product | Heterogeneous sequence of owned values |
 
-Dynamic arrays are regular managed objects with identity, while slices, fixed arrays, and tuples are value types (`struct`s, basically).
+Dynamic arrays are just class, regular managed objects with identity, while slices, fixed arrays, and tuples are value types (`struct`s, basically).
 However, Destack does not permit holes in arrays or any other sequences, and indexing into `T[]` therefore always returns `T`.
-Unlike in Rust, and somewhat more like in Go, Destack's `[T]` is sized and a first-class slice _value_.
+Unlike in Rust, and somewhat more like in Go, Destack's `[T]` slice is a sized fat pointer and thus a first-class slice _value_.
 
 ```ds
-let x: int32[] = [1, 2, 3]; // dynamic array of int32
-let x: Array<int32> = [1, 2, 3]; // dynamic array of int32
+let x: int32[] = [1, 2, 3];       // dynamic array of int32
+let x: Array<int32> = x;          // dynamic array of int32
 
-let x: [int32] = [1, 2, 3]; // slice of int32
-let x: Slice<int32> = [1, 2, 3]; // slice of int32
+let x: [int32] = [1, 2, 3];       // slice of int32
+let x: Slice<int32> = x;          // slice of int32
 
-let x: [int32; 3] = [1, 2, 3]; // fixed array of int32
-let x: FixedArray<int32, 3> = [1, 2, 3]; // fixed array of int32
+let x: [int32; 3] = [1, 2, 3];    // fixed array of int32
+let x: FixedArray<int32, 3> = x;  // fixed array of int32
 
 let x: (int32, int32, int32) = (1, 2, 3); // tuple of int32
 ```
 
-By default, array literals are dynamic arrays but can coerce to our "fixed array" as needed.
+By default, array literals are dynamic arrays but can coerce to other sequence forms in place when contextually required.
 Fixed arrays are just a homogeneous sequence of values whose length is statically known (and part of the type): they are inline value/layout types by default, and definitionally cannot grow.
 (If you need an array that can grow, use a dynamic array, i.e. `T[]` / `Array<T>`)
 
@@ -600,9 +608,6 @@ user.profile.name = "Grace"; // ERROR: readonly view
 user.tags[0] = "admin";      // ERROR: readonly view
 ```
 
-As in TypeScript, `readonly` is a type-level access promise.
-It does not freeze the runtime value.
-
 ### Generics
 
 Destack supports classic TypeScript-shaped generics: inference, constraints, defaults, conditional types, mapped types, indexed access types, and the rest of the usual machinery.
@@ -628,6 +633,7 @@ function copy<T, comptime N: uint>(src: [T; N]): [T; N] {
 ```
 
 Dynamic parameters may _also_ be marked `comptime` when the caller should pass an ordinary argument expression that is still required to be evaluatable as a static term during compile time, mostly as a readability affordance where spelling the value as a generic argument would be awkward or constraining.
+(It also means we can progressively make an argument statically known, without forcing a generic signature, which is nice and ergonomic in some situations.)
 
 ```ds
 function repeat<T>(value: T, comptime count: uint): [T; count] {
@@ -645,34 +651,13 @@ type Callback<...Parameters, Return> = (...parameters: Parameters) => Return;
 type Buffer<comptime ...Shape: readonly usize[]> = TensorBuffer<...Shape>;
 ```
 
-Generic type inference - like all type inference - is local and flows "outward": each module infers from its own declarations and imports, downstream modules can use what it exports, and downstream uses can never feed back into upstream inference (unlike in TypeScript, mostly).
-
-```ds:a.ds
-declare function length<T, comptime N: uint>(xs: [T; N]): N;
-
-export const RGB: [uint8; 3] = [255, 128, 0];
-export const N = length(RGB);
-
-N satisfies 3;
-```
-
-```ds:b.ds
-import { N } from "./a.ds";
-
-declare function double<comptime N: uint>(): N * 2;
-
-export const M = double<N>();
-
-N satisfies 3;
-M satisfies 6;
-```
+Type inference (including generics) works across modules, even when modules circularly reference one another - though of course, this should be used with caution and can lead to longer compile times because it forces large connected components during inference checking.
 
 ### Variance
 
 Variance describes how typing and subtyping relations work for generic types, including for all the types that managed language users may not even usually think of as generic (like `Array`).
-Mutable covariance - the fact that you can assign `Circle[]` to `Shape[]` and then mutate `Circle[]` _through_ the widened `Shape[]` alias - is one of TypeScript's best known soundness holes and a classic footgun.
-This generalises 
-Because Destack needs to be sound, we only support this sort of widening when it is unambiguously safe:
+Mutable covariance - the fact that we can assign `Circle[]` to `Shape[]` and then mutate `Circle[]` _through_ the widened `Shape[]` alias - is one of TypeScript's best known soundness holes and a classic footgun.
+Because Destack needs to be actually sound, we only support this sort of widening when it is unambiguously safe:
 
 | Position | Variance | Example |
 | --- | --- | --- |
@@ -681,7 +666,7 @@ Because Destack needs to be sound, we only support this sort of widening when it
 | Function parameters | contravariant | `(shape: Shape) => void` is assignable to `(circle: Circle) => void` |
 | Function returns | covariant | `() => Circle` is assignable to `() => Shape` |
 
-For generic types, variance is derived per parameter from their members usage (like in TypeScript): a parameter that only comes _out_ (returns, readable fields) is covariant, one that only goes _in_ (parameters, writable fields) is contravariant, and one that does both - a mutable field counts as both at once - is invariant.
+For generic types, variance is derived per parameter from each generic parameter's usage in the declaration (like in TypeScript): a parameter that only comes "_out_" (returns, readable fields) is covariant, one that only goes "_in_" (parameters, writable fields) is contravariant, and one that does both - a mutable field counts as both at once - is invariant.
 
 ```ds
 class Source<T> { take(): T }                      // T only comes out -> covariant
@@ -711,7 +696,7 @@ For the other spellings of "a collection of shapes", the element representation 
 ### Static
 
 Unlike TypeScript, Destack actually _compiles_, so we need to figure out during "compile time" the final type of each value and fill in values for all the known constants.
-To do this, the "evaluation time" of the program is conceptually split into three successive worlds that only flow forward:
+To do this, the "evaluation time" of the program is conceptually split into three successive worlds that run in succession:
 
 | World | Meaning | Example |
 |-------|---------|---------|
@@ -719,7 +704,8 @@ To do this, the "evaluation time" of the program is conceptually split into thre
 | Comptime | ordinary code explicitly evaluated by the compiler | `comptime factorial(10)` |
 | Runtime | ordinary program execution | `readFile(path)`, `worker.postMessage(msg)` |
 
-The statically known language forms known to inference are called **static terms**: static evaluation happens automatically during inference, it is restricted to a small subset of the language (like TypeScript type operators), and it can _not_ execute `comptime <expr>` expressions.
+Type inference and static term evaluation are one and the same, which is why we get both fast generics and powerful type evaluation using **static terms**: a small subset of the language (like TypeScript type operators) available during type inference.
+All dynamic `comptime <expr>` _execution_ happens _after_ type inference, so it can do anything that runtime code can do, except influence type inference.
 That keeps compilation fast and predictable, and thanks to TypeScript's flexible type algebra, static terms are still pretty powerful:
 
 | Input | Example |
