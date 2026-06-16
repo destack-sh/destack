@@ -81,7 +81,7 @@ const copy = counter;
 === values.ds ===
 
 === annotated ===
-export let counter: float64 = 1 as float64;
+export let counter: float64 = 1;
 
 === checked ===
 export let counter = 1;

@@ -5,7 +5,7 @@ fn test_mapped_type_projects_each_source_key() {
     let session = TestSession::single(
         r#"
 type Flags<T> = { [K in keyof T]: boolean };
-type Actual = Flags<type { name: string; age: int32 }>;
+type Actual = Flags<{ name: string; age: int32 }>;
 
 declare const value: Actual;
 "#,
@@ -17,7 +17,7 @@ declare const value: Actual;
         r#"
 === annotated ===
 type Flags<T> = { [K in keyof T]: boolean };
-type Actual = Flags<type { name: string; age: int32 }>;
+type Actual = Flags<{ name: string; age: int32 }>;
 
 declare const value: Actual;
 
@@ -31,9 +31,9 @@ type Flags<T> = { [K in keyof T]: boolean };
 /// @type.symbol symbol=K source=[K in keyof T] type=K
 /// @resolution.name source=T target=Flags.T
 
-type Actual = Flags<type { name: string; age: int32 }>;
-/// @type.symbol symbol=Actual source="type Actual = Flags<type { name: string; age: int32 }>" type={ name: boolean; age: boolean }
-/// @definition.type symbol=Actual source="type Actual = Flags<type { name: string; age: int32 }>" value={ name: boolean; age: boolean }
+type Actual = Flags<{ name: string; age: int32 }>;
+/// @type.symbol symbol=Actual source="type Actual = Flags<{ name: string; age: int32 }>" type={ name: boolean; age: boolean }
+/// @definition.type symbol=Actual source="type Actual = Flags<{ name: string; age: int32 }>" value={ name: boolean; age: boolean }
 /// @resolution.name source=Flags target=Flags
 
 declare const value: Actual;
@@ -48,7 +48,7 @@ fn test_mapped_type_carries_source_field_modifiers() {
     let session = TestSession::single(
         r#"
 type Clone<T> = { [K in keyof T]: T[K] };
-type Actual = Clone<type { readonly name: string; age?: int32 }>;
+type Actual = Clone<{ readonly name: string; age?: int32 }>;
 "#,
     );
 
@@ -58,7 +58,7 @@ type Actual = Clone<type { readonly name: string; age?: int32 }>;
         r#"
 === annotated ===
 type Clone<T> = { [K in keyof T]: T[K] };
-type Actual = Clone<type { readonly name: string; age?: int32 }>;
+type Actual = Clone<{ readonly name: string; age?: int32 }>;
 
 === checked ===
 type Clone<T> = { [K in keyof T]: T[K] };
@@ -72,9 +72,9 @@ type Clone<T> = { [K in keyof T]: T[K] };
 /// @resolution.name source=T target=Clone.T
 /// @resolution.name source=K target=K
 
-type Actual = Clone<type { readonly name: string; age?: int32 }>;
-/// @type.symbol symbol=Actual source="type Actual = Clone<type { readonly name: string; age?: int32 }>" type={ readonly name: string; age?: int32 }
-/// @definition.type symbol=Actual source="type Actual = Clone<type { readonly name: string; age?: int32 }>" value={ readonly name: string; age?: int32 }
+type Actual = Clone<{ readonly name: string; age?: int32 }>;
+/// @type.symbol symbol=Actual source="type Actual = Clone<{ readonly name: string; age?: int32 }>" type={ readonly name: string; age?: int32 }
+/// @definition.type symbol=Actual source="type Actual = Clone<{ readonly name: string; age?: int32 }>" value={ readonly name: string; age?: int32 }
 /// @resolution.name source=Clone target=Clone
 "#,
     );
@@ -85,7 +85,7 @@ fn test_mapped_type_adds_optional_modifier() {
     let session = TestSession::single(
         r#"
 type Loose<T> = { [K in keyof T]?: T[K] };
-type Actual = Loose<type { name: string; age: int32 }>;
+type Actual = Loose<{ name: string; age: int32 }>;
 "#,
     );
 
@@ -95,7 +95,7 @@ type Actual = Loose<type { name: string; age: int32 }>;
         r#"
 === annotated ===
 type Loose<T> = { [K in keyof T]?: T[K] };
-type Actual = Loose<type { name: string; age: int32 }>;
+type Actual = Loose<{ name: string; age: int32 }>;
 
 === checked ===
 type Loose<T> = { [K in keyof T]?: T[K] };
@@ -109,9 +109,9 @@ type Loose<T> = { [K in keyof T]?: T[K] };
 /// @resolution.name source=T target=Loose.T
 /// @resolution.name source=K target=K
 
-type Actual = Loose<type { name: string; age: int32 }>;
-/// @type.symbol symbol=Actual source="type Actual = Loose<type { name: string; age: int32 }>" type={ name?: string; age?: int32 }
-/// @definition.type symbol=Actual source="type Actual = Loose<type { name: string; age: int32 }>" value={ name?: string; age?: int32 }
+type Actual = Loose<{ name: string; age: int32 }>;
+/// @type.symbol symbol=Actual source="type Actual = Loose<{ name: string; age: int32 }>" type={ name?: string; age?: int32 }
+/// @definition.type symbol=Actual source="type Actual = Loose<{ name: string; age: int32 }>" value={ name?: string; age?: int32 }
 /// @resolution.name source=Loose target=Loose
 "#,
     );
@@ -122,7 +122,7 @@ fn test_mapped_type_removes_source_modifiers() {
     let session = TestSession::single(
         r#"
 type Strict<T> = { -readonly [K in keyof T]-?: T[K] };
-type Actual = Strict<type { readonly name?: string }>;
+type Actual = Strict<{ readonly name?: string }>;
 "#,
     );
 
@@ -132,7 +132,7 @@ type Actual = Strict<type { readonly name?: string }>;
         r#"
 === annotated ===
 type Strict<T> = { -readonly [K in keyof T]-?: T[K] };
-type Actual = Strict<type { readonly name?: string }>;
+type Actual = Strict<{ readonly name?: string }>;
 
 === checked ===
 type Strict<T> = { -readonly [K in keyof T]-?: T[K] };
@@ -146,9 +146,9 @@ type Strict<T> = { -readonly [K in keyof T]-?: T[K] };
 /// @resolution.name source=T target=Strict.T
 /// @resolution.name source=K target=K
 
-type Actual = Strict<type { readonly name?: string }>;
-/// @type.symbol symbol=Actual source="type Actual = Strict<type { readonly name?: string }>" type={ name: string }
-/// @definition.type symbol=Actual source="type Actual = Strict<type { readonly name?: string }>" value={ name: string }
+type Actual = Strict<{ readonly name?: string }>;
+/// @type.symbol symbol=Actual source="type Actual = Strict<{ readonly name?: string }>" type={ name: string }
+/// @definition.type symbol=Actual source="type Actual = Strict<{ readonly name?: string }>" value={ name: string }
 /// @resolution.name source=Strict target=Strict
 "#,
     );
@@ -186,7 +186,7 @@ fn test_mapped_type_drops_never_remapped_keys() {
     let session = TestSession::single(
         r#"
 type WithoutSecret<T> = { [K in keyof T as K extends "secret" ? never : K]: T[K] };
-type Actual = WithoutSecret<type { name: string; secret: string }>;
+type Actual = WithoutSecret<{ name: string; secret: string }>;
 "#,
     );
 
@@ -196,7 +196,7 @@ type Actual = WithoutSecret<type { name: string; secret: string }>;
         r#"
 === annotated ===
 type WithoutSecret<T> = { [K in keyof T as K extends "secret" ? never : K]: T[K] };
-type Actual = WithoutSecret<type { name: string; secret: string }>;
+type Actual = WithoutSecret<{ name: string; secret: string }>;
 
 === checked ===
 type WithoutSecret<T> = { [K in keyof T as K extends "secret" ? never : K]: T[K] };
@@ -212,9 +212,9 @@ type WithoutSecret<T> = { [K in keyof T as K extends "secret" ? never : K]: T[K]
 /// @resolution.name source=T target=WithoutSecret.T
 /// @resolution.name source=K target=K
 
-type Actual = WithoutSecret<type { name: string; secret: string }>;
-/// @type.symbol symbol=Actual source="type Actual = WithoutSecret<type { name: string; secret: string }>" type={ name: string }
-/// @definition.type symbol=Actual source="type Actual = WithoutSecret<type { name: string; secret: string }>" value={ name: string }
+type Actual = WithoutSecret<{ name: string; secret: string }>;
+/// @type.symbol symbol=Actual source="type Actual = WithoutSecret<{ name: string; secret: string }>" type={ name: string }
+/// @definition.type symbol=Actual source="type Actual = WithoutSecret<{ name: string; secret: string }>" value={ name: string }
 /// @resolution.name source=WithoutSecret target=WithoutSecret
 "#,
     );

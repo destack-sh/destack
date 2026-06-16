@@ -38,7 +38,7 @@ let value = 42;
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-let value: float64 = 42 as float64;
+let value: float64 = 42;
 
 === checked ===
 let value = 42;

@@ -14,6 +14,12 @@ const id = UserId(42);
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
+=== annotated ===
+newtype UserId = int64;
+
+const id: UserId = UserId(42);
+
+=== checked ===
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
 /// @definition.newtype symbol=UserId source="newtype UserId = int64" value=int64
@@ -23,7 +29,7 @@ const id = UserId(42);
 /// @type.node source=UserId type=UserId
 /// @type.node source=UserId(42) type=UserId
 /// @resolution.name source=UserId target=UserId
-/// @resolution.construct source=UserId(42) parameters=(int64) return=UserId kind=newtype target=UserId
+/// @resolution.construct source=UserId(42) parameters=(42) return=UserId kind=newtype target=UserId
 /// @type.node source=42 type=42
 "#,
     );
@@ -74,18 +80,23 @@ const config = Config({ debug: true });
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
+=== annotated ===
+newtype Config = { debug: boolean };
+
+const config: Config = Config({ debug: true });
+
+=== checked ===
 newtype Config = { debug: boolean };
 /// @type.symbol symbol=Config source="newtype Config = { debug: boolean }" type=Config
 /// @definition.newtype symbol=Config source="newtype Config = { debug: boolean }" value={ debug: boolean }
-/// @type.symbol symbol=Config.debug source="debug: boolean" type=boolean
 
 const config = Config({ debug: true });
 /// @type.symbol symbol=config source=config type=Config
 /// @type.node source="Config({ debug: true })" type=Config
 /// @type.node source=Config type=Config
 /// @resolution.name source=Config target=Config
-/// @resolution.construct source="Config({ debug: true })" parameters=({ debug: boolean }) return=Config kind=newtype target=Config
-/// @type.node source="{ debug: true }" type={ debug: true }
+/// @resolution.construct source="Config({ debug: true })" parameters=(Managed<{ debug: true }>) return=Config kind=newtype target=Config
+/// @type.node source="{ debug: true }" type=Managed<{ debug: true }>
 /// @type.node source=true type=true
 "#,
     );

@@ -45,16 +45,22 @@ value();
             .with_node_types()
             .without_reference_types(),
         r#"
+=== annotated ===
+const value: 1 = 1;
+value();
+
+=== checked ===
 const value = 1;
-/// @type.symbol symbol=value type=1
+/// @type.symbol symbol=value source=value type=1
 /// @type.node source=1 type=1
 
 value();
+/// @type.node source=value() type=<error>
 /// @resolution.name source=value target=value
 
 "#,
         r#"
-/// @diagnostic.error code=EC301 message="value is not callable"
+/// @diagnostic.error code=EC301 message="value of type '1' is not callable"
 /// @diagnostic.label line=3 column=1 source="value();"
 "#,
     );

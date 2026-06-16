@@ -15,20 +15,28 @@ const value: Person = source;
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
+=== annotated ===
 type Person = { name: string };
-/// @type.symbol symbol=Person type={ name: string }
-/// @type.symbol symbol=Person.name type=string
+
+const source: { name: string; extra: boolean } =
+    { name: "Ada", extra: true };
+const value: Person = source as Person;
+
+=== checked ===
+type Person = { name: string };
+/// @type.symbol symbol=Person source="type Person = { name: string }" type={ name: string }
+/// @definition.type symbol=Person source="type Person = { name: string }" value={ name: string }
 
 const source = { name: "Ada", extra: true };
-/// @type.symbol symbol=source type={ name: string; extra: boolean }
-/// @type.node source="{ name: \"Ada\", extra: true }" type={ name: string; extra: boolean }
-/// @type.node source="\"Ada\"" type=string
-/// @type.node source=true type=boolean
+/// @type.symbol symbol=source source=source type=Managed<{ name: string; extra: boolean }>
+/// @type.node source="{ name: \"Ada\", extra: true }" type=Managed<{ name: "Ada"; extra: true }>
+/// @type.node source="\"Ada\"" type="Ada"
+/// @type.node source=true type=true
 
 const value: Person = source;
-/// @type.symbol symbol=value type={ name: string }
+/// @type.symbol symbol=value source=value type={ name: string }
 /// @resolution.name source=Person target=Person
-/// @type.node source=source type={ name: string; extra: boolean }
+/// @type.node source=source type=Managed<{ name: string; extra: boolean }>
 /// @resolution.name source=source target=source
 "#,
     );

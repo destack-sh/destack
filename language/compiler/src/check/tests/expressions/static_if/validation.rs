@@ -13,12 +13,17 @@ const value = 1;
         "main.ds",
         DirRows::checked(),
         r#"
+=== annotated ===
+@if(1)
+const value = 1;
+
+=== checked ===
 @if(1)
 const value = 1;
 
 "#,
         r#"
-/// @diagnostic.error code=EC401 message="static condition requires boolean value"
+/// @diagnostic.error code=EC401 message="static condition must evaluate to a boolean"
 /// @diagnostic.label line=2 column=5 source="@if(1)"
 "#,
     );
@@ -39,16 +44,21 @@ const value = 1;
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
+=== annotated ===
+let enabled: boolean = true;
+
+@if(enabled)
+const value: 1 = 1;
+
+=== checked ===
 let enabled = true;
-/// @type.node source="let enabled = true" type=void
-/// @type.symbol symbol=enabled type=boolean
+/// @type.symbol symbol=enabled source=enabled type=boolean
 /// @type.node source=true type=true
 
 @if(enabled)
-/// @resolution.name source=enabled target=enabled
-/// @type.node source=enabled type=boolean
-
 const value = 1;
+/// @type.symbol symbol=value source=value type=1
+/// @type.node source=1 type=1
 
 "#,
         r#"

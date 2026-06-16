@@ -38,18 +38,23 @@ function access<comptime L0: Lifetime, comptime L1: Lifetime, comptime L2: Lifet
 === checked ===
 struct Node {
 /// @type.symbol symbol=Node type=Node
+/// @definition.field symbol=Node.id source="id: int32" key=id type=int32
+/// @definition.struct symbol=Node
 
     id: int32;
-    /// @type.symbol symbol=Node.id type=int32
+    /// @type.symbol symbol=Node.id source="id: int32" type=int32
 
 }
 
 function access(read: &readonly Node, write: &Node, exclusive: &exclusive Node): void {
+/// @generic.template symbol=access parameters=[comptime L0: Lifetime origin=induced.form, comptime L1: Lifetime origin=induced.form, comptime L2: Lifetime origin=induced.form]
 /// @type.symbol symbol=access type=(Borrowed<Node, access.L0, "readonly">, Borrowed<Node, access.L1, "mutable">, Borrowed<Node, access.L2, "exclusive">) => void
-/// @generic.template symbol=access parameters=[comptime L0: memory.lifetime.Lifetime, comptime L1: memory.lifetime.Lifetime, comptime L2: memory.lifetime.Lifetime]
-/// @type.symbol symbol=read type=Borrowed<Node, access.L0, "readonly">
-/// @type.symbol symbol=write type=Borrowed<Node, access.L1, "mutable">
-/// @type.symbol symbol=exclusive type=Borrowed<Node, access.L2, "exclusive">
+/// @type.symbol symbol=read source="read: &readonly Node" type=Borrowed<Node, access.L0, "readonly">
+/// @resolution.name source=Node target=Node
+/// @type.symbol symbol=write source="write: &Node" type=Borrowed<Node, access.L1, "mutable">
+/// @resolution.name source=Node target=Node
+/// @type.symbol symbol=exclusive source="exclusive: &exclusive Node" type=Borrowed<Node, access.L2, "exclusive">
+/// @resolution.name source=Node target=Node
 
     read.id;
     /// @type.node source=read type=Borrowed<Node, access.L0, "readonly">
