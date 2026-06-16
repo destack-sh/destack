@@ -8,200 +8,200 @@ use serde::{Deserialize, Serialize};
 pub enum Intrinsic {
     // reflection (comptime-only, resolved to constants)
     /// Get the type of a value (comptime only).
-    /// `(T) -> Type<T>`
+    /// `(T) => Type<T>`
     TypeOf,
     /// Get the size of a type in bytes.
-    /// `() -> usize`
+    /// `() => usize`
     SizeOf,
     /// Get the alignment of a type in bytes.
-    /// `() -> usize`
+    /// `() => usize`
     AlignOf,
 
     // bit manipulation
     /// Count leading zeros.
-    /// `(T) -> T`
+    /// `(T) => T`
     LeadingZeroCount,
     /// Count trailing zeros.
-    /// `(T) -> T`
+    /// `(T) => T`
     TrailingZeroCount,
     /// Population count (count of set bits).
-    /// `(T) -> T`
+    /// `(T) => T`
     PopulationCount,
     /// Byte swap (endianness conversion).
-    /// `(T) -> T`
+    /// `(T) => T`
     ByteSwap,
     /// Reverse all bits.
-    /// `(T) -> T`
+    /// `(T) => T`
     BitReverse,
     /// Rotate bits left.
-    /// `(T, T) -> T`
+    /// `(T, T) => T`
     RotateLeft,
     /// Rotate bits right.
-    /// `(T, T) -> T`
+    /// `(T, T) => T`
     RotateRight,
 
     // overflowing arithmetic
     /// Add with overflow detection.
-    /// `(T, T) -> (T, bool)`
+    /// `(T, T) => (T, bool)`
     AddOverflow,
     /// Subtract with overflow detection.
-    /// `(T, T) -> (T, bool)`
+    /// `(T, T) => (T, bool)`
     SubOverflow,
     /// Multiply with overflow detection.
-    /// `(T, T) -> (T, bool)`
+    /// `(T, T) => (T, bool)`
     MulOverflow,
 
     // unchecked arithmetic, optimizer may assume no overflow
     /// Unchecked add (UB on overflow).
-    /// `(T, T) -> T`
+    /// `(T, T) => T`
     AddUnchecked,
     /// Unchecked subtract (UB on overflow).
-    /// `(T, T) -> T`
+    /// `(T, T) => T`
     SubUnchecked,
     /// Unchecked multiply (UB on overflow).
-    /// `(T, T) -> T`
+    /// `(T, T) => T`
     MulUnchecked,
     /// Unchecked divide (UB on zero or overflow).
-    /// `(T, T) -> T`
+    /// `(T, T) => T`
     DivUnchecked,
     /// Unchecked remainder (UB on zero or overflow).
-    /// `(T, T) -> T`
+    /// `(T, T) => T`
     RemUnchecked,
     /// Unchecked shift left (UB if shift >= bit width).
-    /// `(T, T) -> T`
+    /// `(T, T) => T`
     ShlUnchecked,
     /// Unchecked shift right (UB if shift >= bit width).
-    /// `(T, T) -> T`
+    /// `(T, T) => T`
     ShrUnchecked,
 
     // saturating arithmetic (clamps to min/max on overflow)
     /// Saturating add.
-    /// `(T, T) -> T`
+    /// `(T, T) => T`
     SatAdd,
     /// Saturating subtract.
-    /// `(T, T) -> T`
+    /// `(T, T) => T`
     SatSub,
 
     // memory operations
     /// Copy memory from source to destination (non-overlapping).
-    /// `(dst: ptr, src: ptr, len: usize) -> ()`
+    /// `(dst: ptr, src: ptr, len: usize) => ()`
     Memcpy,
     /// Move memory, allowing overlapping ranges.
-    /// `(dst: ptr, src: ptr, len: usize) -> ()`
+    /// `(dst: ptr, src: ptr, len: usize) => ()`
     Memmove,
     /// Set memory to a byte value.
-    /// `(dst: ptr, val: u8, len: usize) -> ()`
+    /// `(dst: ptr, val: u8, len: usize) => ()`
     Memset,
     /// Compare memory ranges.
-    /// `(ptr, ptr, len: usize) -> i32`
+    /// `(ptr, ptr, len: usize) => i32`
     Memcmp,
     /// Prefetch memory for reading (hint to CPU cache).
-    /// `(ptr) -> ()`
+    /// `(ptr) => ()`
     PrefetchRead,
     /// Prefetch memory for writing (hint to CPU cache).
-    /// `(ptr) -> ()`
+    /// `(ptr) => ()`
     PrefetchWrite,
 
     // type punning and pointer ops
     /// Reinterpret bytes as a different type (no conversion, just reinterpret).
-    /// `(T) -> U`
+    /// `(T) => U`
     Transmute,
     /// Cast between spaces without changing the representation.
-    /// `(T) -> U`
+    /// `(T) => U`
     SpaceCast,
     /// Compute byte offset between two pointers.
-    /// `(ptr, ptr) -> isize`
+    /// `(ptr, ptr) => isize`
     PointerOffsetFrom,
     /// Byte-wise equality comparison.
-    /// `(T, T) -> bool`
+    /// `(T, T) => bool`
     RawEq,
 
     // float math
     /// Square root.
-    /// `(T) -> T`
+    /// `(T) => T`
     Sqrt,
     /// Absolute value.
-    /// `(T) -> T`
+    /// `(T) => T`
     Abs,
     /// Fused multiply-add: (a * b) + c with single rounding.
-    /// `(T, T, T) -> T`
+    /// `(T, T, T) => T`
     Fma,
     /// Copy sign from one float to another.
-    /// `(T, T) -> T`
+    /// `(T, T) => T`
     CopySign,
     /// Minimum of two floats (IEEE 754 minNum).
-    /// `(T, T) -> T`
+    /// `(T, T) => T`
     Min,
     /// Maximum of two floats (IEEE 754 maxNum).
-    /// `(T, T) -> T`
+    /// `(T, T) => T`
     Max,
     /// Sine.
-    /// `(T) -> T`
+    /// `(T) => T`
     Sin,
     /// Cosine.
-    /// `(T) -> T`
+    /// `(T) => T`
     Cos,
     /// Tangent.
-    /// `(T) -> T`
+    /// `(T) => T`
     Tan,
     /// Arc sine.
-    /// `(T) -> T`
+    /// `(T) => T`
     Asin,
     /// Arc cosine.
-    /// `(T) -> T`
+    /// `(T) => T`
     Acos,
     /// Arc tangent.
-    /// `(T) -> T`
+    /// `(T) => T`
     Atan,
     /// Arc tangent of y/x (two-argument).
-    /// `(T, T) -> T`
+    /// `(T, T) => T`
     Atan2,
     /// e^x (natural exponential).
-    /// `(T) -> T`
+    /// `(T) => T`
     Exp,
     /// 2^x.
-    /// `(T) -> T`
+    /// `(T) => T`
     Exp2,
     /// Natural logarithm (ln).
-    /// `(T) -> T`
+    /// `(T) => T`
     Log,
     /// Base-2 logarithm.
-    /// `(T) -> T`
+    /// `(T) => T`
     Log2,
     /// Base-10 logarithm.
-    /// `(T) -> T`
+    /// `(T) => T`
     Log10,
     /// Power: base^exponent.
-    /// `(T, T) -> T`
+    /// `(T, T) => T`
     Pow,
     /// Round toward negative infinity.
-    /// `(T) -> T`
+    /// `(T) => T`
     Floor,
     /// Round toward positive infinity.
-    /// `(T) -> T`
+    /// `(T) => T`
     Ceil,
     /// Round toward zero (truncate).
-    /// `(T) -> T`
+    /// `(T) => T`
     Trunc,
     /// Round to nearest integer, ties to even.
-    /// `(T) -> T`
+    /// `(T) => T`
     Round,
 
     // control flow and debugging
     /// Trigger a debugger breakpoint.
-    /// `() -> ()`
+    /// `() => ()`
     Breakpoint,
     /// Get the return address of the current function.
-    /// `() -> ptr`
+    /// `() => ptr`
     ReturnAddress,
     /// Get the frame pointer of the current function.
-    /// `() -> ptr`
+    /// `() => ptr`
     FrameAddress,
     /// Hint that condition is expected to be the given value.
-    /// `(bool, bool) -> bool`
+    /// `(bool, bool) => bool`
     Expect,
     /// Optimization barrier (prevent optimizations through this value).
-    /// `(T) -> T`
+    /// `(T) => T`
     BlackBox,
 }
 
@@ -449,30 +449,30 @@ impl FromStr for Intrinsic {
 /// Describes the type signature pattern of an intrinsic.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IntrinsicSignature {
-    /// Unary operation: (T) -> T
+    /// Unary operation: (T) => T
     /// Examples: sqrt, abs, sin, cos, floor, ceil, leadingZeroCount, trailingZeroCount, populationCount
     Unary,
 
-    /// Binary operation: (T, T) -> T
+    /// Binary operation: (T, T) => T
     /// Examples: min, max, copySign, pow, atan2, rotateLeft, rotateRight
     Binary,
 
-    /// Ternary operation: (T, T, T) -> T
+    /// Ternary operation: (T, T, T) => T
     /// Examples: fma, select
     Ternary,
 
-    /// Overflowing arithmetic: (T, T) -> (T, bool)
+    /// Overflowing arithmetic: (T, T) => (T, bool)
     /// Examples: overflowingAdd, overflowingSubtract, overflowingMultiply
     OverflowingBinary,
 
-    /// Transmute or space.cast: (T) -> U (reinterpret bits)
+    /// Transmute or space.cast: (T) => U (reinterpret bits)
     Transmute,
 
-    /// Comparison: (T, T) -> bool
+    /// Comparison: (T, T) => bool
     /// Examples: rawEq
     Comparison,
 
-    /// Pointer operation: (ptr, ptr) -> isize
+    /// Pointer operation: (ptr, ptr) => isize
     /// Examples: ptrOffsetFrom
     PointerDiff,
 
@@ -480,22 +480,22 @@ pub enum IntrinsicSignature {
     /// memcpy(dst, src, len), memmove(dst, src, len), memset(dst, val, len)
     Memory { args: u8 },
 
-    /// Memory comparison: (ptr, ptr, len) -> i32
+    /// Memory comparison: (ptr, ptr, len) => i32
     MemoryCompare,
 
     /// Prefetch hint (no result)
     Prefetch,
 
-    /// Reflection (comptime only): () -> usize or (T) -> Type
+    /// Reflection (comptime only): () => usize or (T) => Type
     Reflection { args: u8 },
 
     /// Control flow / debugging (no result, may not return)
     Control { args: u8 },
 
-    /// Branch hint: (bool) -> bool or (bool, bool) -> bool
+    /// Branch hint: (bool) => bool or (bool, bool) => bool
     BranchHint { args: u8 },
 
-    /// Optimization barrier: (T) -> T
+    /// Optimization barrier: (T) => T
     Passthrough,
 }
 

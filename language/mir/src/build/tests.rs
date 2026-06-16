@@ -201,7 +201,7 @@ external function callee(int32): int32
 
 function caller(v0: int32): int32 {
 entry(v0: int32):
-    call callee(v0) -> b1
+    call callee(v0) => b1
 
 b1(v1: int32):
     return v1

@@ -724,7 +724,7 @@ impl Parser {
                 break;
             }
 
-            if self.token_type(token) == TokenType::Arrow {
+            if self.token_type(token) == TokenType::FatArrow {
                 let next_token = tokens
                     .iter()
                     .skip(token_index + 1)
@@ -813,7 +813,7 @@ impl Parser {
                 }
 
                 let constraint = self.parse_check_kind()?;
-                self.eat_token(TokenType::Arrow)?;
+                self.eat_token(TokenType::FatArrow)?;
                 let success = self.parse_block_target()?;
                 self.eat_token(TokenType::Comma)?;
                 let failure = self.parse_block_target()?;
@@ -832,7 +832,7 @@ impl Parser {
                 let mut cases = Vec::new();
                 while self.eat_token_maybe(TokenType::Comma) {
                     let case_value = self.parse_int_literal()?;
-                    self.eat_token(TokenType::Arrow)?;
+                    self.eat_token(TokenType::FatArrow)?;
                     let target = self.parse_block_target()?;
                     cases.push(SwitchCase {
                         value: case_value,
@@ -1059,7 +1059,7 @@ impl Parser {
 
     /// Parse success and failure targets for a fallible allocation terminator.
     fn parse_allocation_targets(&mut self) -> ParseResult<(BlockTarget, BlockTarget)> {
-        self.eat_token(TokenType::Arrow)?;
+        self.eat_token(TokenType::FatArrow)?;
 
         let success = self.parse_block_target()?;
         self.eat_token(TokenType::Comma)?;
@@ -1327,9 +1327,9 @@ impl Parser {
         Ok(BlockTarget::new(block, arguments))
     }
 
-    /// Parse one continuation: `-> target`, with an optional `| target` unwind alternative.
+    /// Parse one continuation: `=> target`, with an optional `| target` unwind alternative.
     fn parse_continuation(&mut self) -> ParseResult<(BlockTarget, Option<BlockTarget>)> {
-        self.eat_token(TokenType::Arrow)?;
+        self.eat_token(TokenType::FatArrow)?;
         let target = self.parse_block_target()?;
 
         // the unwind alternative
