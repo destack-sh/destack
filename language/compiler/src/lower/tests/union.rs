@@ -34,14 +34,17 @@ function takeShape(value: Circle | Square): int32 {
         module_id,
         "native",
         r#"
-type takeShape.payload#union { tag: uint8, storage: [usize; 1] }
-
-function takeShape(value0: takeShape.payload#union): int32 {
-entry0(value0: takeShape.payload#union):
-    value1: int32 = 0int32
-    return value1
+type takeShape.payload#union {
+    tag: uint8;
+    storage: [usize; 1];
 }
-        "#,
+
+function takeShape(v0: takeShape.payload#union): int32 {
+entry(v0: takeShape.payload#union):
+    v1: int32 = 0
+    return v1
+}
+"#,
     );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
@@ -122,14 +125,17 @@ function takeFrame(value: Frame | MegaFrame): int32 {
         module_id,
         "native",
         r#"
-type takeFrame.payload#union { tag: uint8, storage: ref<void, managed, readonly> }
-
-function takeFrame(value0: takeFrame.payload#union): int32 {
-entry0(value0: takeFrame.payload#union):
-    value1: int32 = 0int32
-    return value1
+type takeFrame.payload#union {
+    tag: uint8;
+    storage: ref<void, managed, readonly>;
 }
-        "#,
+
+function takeFrame(v0: takeFrame.payload#union): int32 {
+entry(v0: takeFrame.payload#union):
+    v1: int32 = 0
+    return v1
+}
+"#,
     );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
@@ -194,23 +200,24 @@ type makeShape.return#union {
     tag: uint8;
     storage: [usize; 1];
 }
+
 type Circle {
     value: int32;
 }
 
-function makeShape(value0: Circle): makeShape.return#union {
-entry0(value0: Circle):
-    value1: uint8 = 0uint8
-    value2: ref<[usize; 1], raw, space(frame)> = frame.alloc.zeroed [usize; 1]
-    value3: uint64 = 0uint64
-    value4: usize = cast.bit value3 -> usize
-    value5: [usize; 1] = array [usize; 1] (value4)
-    store value2, value5
-    value6: ref<Circle, raw, space(frame)> = cast.bit value2 -> ref<Circle, raw, space(frame)>
-    store value6, value0
-    value7: [usize; 1] = load value2
-    value8: makeShape.return#union = struct makeShape.return#union (value1, value7)
-    return value8
+function makeShape(v0: Circle): makeShape.return#union {
+entry(v0: Circle):
+    v1: uint8 = 0
+    v2: ref<[usize; 1], raw, space(frame)> = frame.alloc.zeroed [usize; 1]
+    v3: uint64 = 0
+    v4: usize = cast.bit v3 -> usize
+    v5: [usize; 1] = array [usize; 1] (v4)
+    store v2, v5
+    v6: ref<Circle, raw, space(frame)> = cast.bit v2 -> ref<Circle, raw, space(frame)>
+    store v6, v0
+    v7: [usize; 1] = load v2
+    v8: makeShape.return#union = struct makeShape.return#union (v1, v7)
+    return v8
 }
 "#,
     );
@@ -248,9 +255,9 @@ type Circle {
     value: int32;
 }
 
-function acceptNullable(value0: ref<Circle, managed, readonly, nullable>): ref<Circle, managed, readonly, nullable> {
-entry0(value0: ref<Circle, managed, readonly, nullable>):
-    return value0
+function acceptNullable(v0: ref<Circle, managed, readonly, nullable>): ref<Circle, managed, readonly, nullable> {
+entry(v0: ref<Circle, managed, readonly, nullable>):
+    return v0
 }
 "#,
     );
@@ -325,10 +332,11 @@ type acceptUnion.payload#union {
     storage: [usize; 1];
 }
 
-function acceptUnion(value0: acceptUnion.payload#union): acceptUnion.payload#union {
-entry0(value0: acceptUnion.payload#union):
-    return value0
-}"#,
+function acceptUnion(v0: acceptUnion.payload#union): acceptUnion.payload#union {
+entry(v0: acceptUnion.payload#union):
+    return v0
+}
+"#,
     );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
@@ -382,13 +390,13 @@ type makeNull.return#union {
 }
 
 function makeNull(): makeNull.return#union {
-entry0:
-    value0: uint8 = 1uint8
-    value1: uint64 = 0uint64
-    value2: usize = cast.bit value1 -> usize
-    value3: [usize; 1] = array [usize; 1] (value2)
-    value4: makeNull.return#union = struct makeNull.return#union (value0, value3)
-    return value4
+entry:
+    v0: uint8 = 1
+    v1: uint64 = 0
+    v2: usize = cast.bit v1 -> usize
+    v3: [usize; 1] = array [usize; 1] (v2)
+    v4: makeNull.return#union = struct makeNull.return#union (v0, v3)
+    return v4
 }
 "#,
     );
@@ -428,13 +436,13 @@ type makeUndefined.return#union {
 }
 
 function makeUndefined(): makeUndefined.return#union {
-entry0:
-    value0: uint8 = 2uint8
-    value1: uint64 = 0uint64
-    value2: usize = cast.bit value1 -> usize
-    value3: [usize; 1] = array [usize; 1] (value2)
-    value4: makeUndefined.return#union = struct makeUndefined.return#union (value0, value3)
-    return value4
+entry:
+    v0: uint8 = 2
+    v1: uint64 = 0
+    v2: usize = cast.bit v1 -> usize
+    v3: [usize; 1] = array [usize; 1] (v2)
+    v4: makeUndefined.return#union = struct makeUndefined.return#union (v0, v3)
+    return v4
 }
 "#,
     );
@@ -482,19 +490,20 @@ type Frame {
     second: int64;
     third: int64;
 }
+
 type makeFrame.return#union {
     tag: uint8;
     storage: ref<void, managed, readonly>;
 }
 
-function makeFrame(value0: Frame): makeFrame.return#union {
-entry0(value0: Frame):
-    value1: uint8 = 0uint8
-    value2: ref<Frame, managed, readonly> = new.zeroed Frame
-    store value2, value0
-    value3: ref<void, managed, readonly> = cast.bit value2 -> ref<void, managed, readonly>
-    value4: makeFrame.return#union = struct makeFrame.return#union (value1, value3)
-    return value4
+function makeFrame(v0: Frame): makeFrame.return#union {
+entry(v0: Frame):
+    v1: uint8 = 0
+    v2: ref<Frame, managed, readonly> = new.zeroed Frame
+    store v2, v0
+    v3: ref<void, managed, readonly> = cast.bit v2 -> ref<void, managed, readonly>
+    v4: makeFrame.return#union = struct makeFrame.return#union (v1, v3)
+    return v4
 }
 "#,
     );
@@ -532,19 +541,25 @@ function takeCircle(value: Circle | Square): Circle {
         module_id,
         "native",
         r#"
-type takeCircle.payload#union { tag: uint8, storage: [usize; 1] }
-type Circle { value: int32 }
-
-function takeCircle(value0: takeCircle.payload#union): Circle {
-entry0(value0: takeCircle.payload#union):
-    value1: [usize; 1] = field.get value0, 1
-    value2: ref<[usize; 1], raw, space(frame)> = frame.alloc.zeroed [usize; 1]
-    store value2, value1
-    value3: ref<Circle, raw, space(frame)> = cast.bit value2 -> ref<Circle, raw, space(frame)>
-    value4: Circle = load value3
-    return value4
+type takeCircle.payload#union {
+    tag: uint8;
+    storage: [usize; 1];
 }
-        "#,
+
+type Circle {
+    value: int32;
+}
+
+function takeCircle(v0: takeCircle.payload#union): Circle {
+entry(v0: takeCircle.payload#union):
+    v1: [usize; 1] = field.get v0, 1
+    v2: ref<[usize; 1], raw, space(frame)> = frame.alloc.zeroed [usize; 1]
+    store v2, v1
+    v3: ref<Circle, raw, space(frame)> = cast.bit v2 -> ref<Circle, raw, space(frame)>
+    v4: Circle = load v3
+    return v4
+}
+"#,
     );
 }
 
@@ -572,23 +587,29 @@ function select(value: { kind: 0, value: int32 } | { kind: 1, value: int32 }): i
         module_id,
         "native",
         r#"
-type select.payload#union { tag: uint8, storage: [usize; 1] }
-
-function select(value0: select.payload#union): int32 {
-entry0(value0: select.payload#union):
-    value1: uint8 = field.get value0, 0
-    value2: uint8 = 0uint8
-    check variantTag value1, 0uint8 -> block1, block2
-block1:
-    value3: int32 = 1int32
-    jump block3(value3)
-block2:
-    value4: int32 = 2int32
-    jump block3(value4)
-block3(value5: int32):
-    return value5
+type select.payload#union {
+    tag: uint8;
+    storage: [usize; 1];
 }
-        "#,
+
+function select(v0: select.payload#union): int32 {
+entry(v0: select.payload#union):
+    v1: uint8 = field.get v0, 0
+    v2: uint8 = 0
+    check variant.tag v1, 0uint8 -> b1, b2
+
+b1:
+    v3: int32 = 1
+    jump b3(v3)
+
+b2:
+    v4: int32 = 2
+    jump b3(v4)
+
+b3(v5: int32):
+    return v5
+}
+"#,
     );
 }
 
@@ -620,16 +641,19 @@ function isNull(value: Circle | null | undefined): boolean {
         module_id,
         "native",
         r#"
-type isNull.payload#union { tag: uint8, storage: [usize; 1] }
-
-function isNull(value0: isNull.payload#union): boolean {
-entry0(value0: isNull.payload#union):
-    value1: uint8 = field.get value0, 0
-    value2: uint8 = 1uint8
-    value3: boolean = int.eq value1, value2
-    return value3
+type isNull.payload#union {
+    tag: uint8;
+    storage: [usize; 1];
 }
-        "#,
+
+function isNull(v0: isNull.payload#union): boolean {
+entry(v0: isNull.payload#union):
+    v1: uint8 = field.get v0, 0
+    v2: uint8 = 1
+    v3: boolean = int.eq v1, v2
+    return v3
+}
+"#,
     );
 }
 
@@ -661,16 +685,19 @@ function isUndefined(value: Circle | null | undefined): boolean {
         module_id,
         "native",
         r#"
-type isUndefined.payload#union { tag: uint8, storage: [usize; 1] }
-
-function isUndefined(value0: isUndefined.payload#union): boolean {
-entry0(value0: isUndefined.payload#union):
-    value1: uint8 = field.get value0, 0
-    value2: uint8 = 2uint8
-    value3: boolean = int.eq value1, value2
-    return value3
+type isUndefined.payload#union {
+    tag: uint8;
+    storage: [usize; 1];
 }
-        "#,
+
+function isUndefined(v0: isUndefined.payload#union): boolean {
+entry(v0: isUndefined.payload#union):
+    v1: uint8 = field.get v0, 0
+    v2: uint8 = 2
+    v3: boolean = int.eq v1, v2
+    return v3
+}
+"#,
     );
 }
 
@@ -698,16 +725,19 @@ function isOne(value: 1 | 2): boolean {
         module_id,
         "native",
         r#"
-type isOne.payload#union { tag: uint8, storage: [usize; 1] }
-
-function isOne(value0: isOne.payload#union): boolean {
-entry0(value0: isOne.payload#union):
-    value1: uint8 = field.get value0, 0
-    value2: uint8 = 0uint8
-    value3: boolean = int.eq value1, value2
-    return value3
+type isOne.payload#union {
+    tag: uint8;
+    storage: [usize; 1];
 }
-        "#,
+
+function isOne(v0: isOne.payload#union): boolean {
+entry(v0: isOne.payload#union):
+    v1: uint8 = field.get v0, 0
+    v2: uint8 = 0
+    v3: boolean = int.eq v1, v2
+    return v3
+}
+"#,
     );
 }
 
@@ -735,16 +765,19 @@ function isReady(value: true | { value: int32 }): boolean {
         module_id,
         "native",
         r#"
-type isReady.payload#union { tag: uint8, storage: [usize; 1] }
-
-function isReady(value0: isReady.payload#union): boolean {
-entry0(value0: isReady.payload#union):
-    value1: uint8 = field.get value0, 0
-    value2: uint8 = 0uint8
-    value3: boolean = int.eq value1, value2
-    return value3
+type isReady.payload#union {
+    tag: uint8;
+    storage: [usize; 1];
 }
-        "#,
+
+function isReady(v0: isReady.payload#union): boolean {
+entry(v0: isReady.payload#union):
+    v1: uint8 = field.get v0, 0
+    v2: uint8 = 0
+    v3: boolean = int.eq v1, v2
+    return v3
+}
+"#,
     );
 }
 
@@ -772,16 +805,19 @@ function isA(value: { kind: 1, value: int32 } | { kind: 0, value: int32 }): bool
         module_id,
         "native",
         r#"
-type isA.payload#union { tag: uint8, storage: [usize; 1] }
-
-function isA(value0: isA.payload#union): boolean {
-entry0(value0: isA.payload#union):
-    value1: uint8 = field.get value0, 0
-    value2: uint8 = 0uint8
-    value3: boolean = int.eq value1, value2
-    return value3
+type isA.payload#union {
+    tag: uint8;
+    storage: [usize; 1];
 }
-        "#,
+
+function isA(v0: isA.payload#union): boolean {
+entry(v0: isA.payload#union):
+    v1: uint8 = field.get v0, 0
+    v2: uint8 = 0
+    v3: boolean = int.eq v1, v2
+    return v3
+}
+"#,
     );
 }
 
@@ -810,12 +846,12 @@ function isA(value: { kind: "b", value: int32 } | { kind: "a", value: int32 }): 
 ${string_alias}
 type isA.payload#union { tag: uint8, storage: [usize; 2] }
 readonly global ${string_a}: ref<String, managed, readonly> = "a"
-function isA(value0: isA.payload#union): boolean {
-entry0(value0: isA.payload#union):
-    value1: uint8 = field.get value0, 0
-    value2: uint8 = 0uint8
-    value3: boolean = int.eq value1, value2
-    return value3
+function isA(v0: isA.payload#union): boolean {
+entry(v0: isA.payload#union):
+    v1: uint8 = field.get v0, 0
+    v2: uint8 = 0uint8
+    v3: boolean = int.eq v1, v2
+    return v3
 }
         "#;
     let expected = expected.replace("${string_alias}", string_alias);
@@ -847,16 +883,19 @@ function isReady(value: { kind: true, value: int32 } | { kind: false, value: int
         module_id,
         "native",
         r#"
-type isReady.payload#union { tag: uint8, storage: [usize; 1] }
-
-function isReady(value0: isReady.payload#union): boolean {
-entry0(value0: isReady.payload#union):
-    value1: uint8 = field.get value0, 0
-    value2: uint8 = 1uint8
-    value3: boolean = int.eq value1, value2
-    return value3
+type isReady.payload#union {
+    tag: uint8;
+    storage: [usize; 1];
 }
-        "#,
+
+function isReady(v0: isReady.payload#union): boolean {
+entry(v0: isReady.payload#union):
+    v1: uint8 = field.get v0, 0
+    v2: uint8 = 1
+    v3: boolean = int.eq v1, v2
+    return v3
+}
+"#,
     );
 }
 
@@ -884,15 +923,18 @@ function isLarge(value: { kind: 1.5, value: int32 } | { kind: 0.5, value: int32 
         module_id,
         "native",
         r#"
-type isLarge.payload#union { tag: uint8, storage: [usize; 2] }
-
-function isLarge(value0: isLarge.payload#union): boolean {
-entry0(value0: isLarge.payload#union):
-    value1: uint8 = field.get value0, 0
-    value2: uint8 = 1uint8
-    value3: boolean = int.eq value1, value2
-    return value3
+type isLarge.payload#union {
+    tag: uint8;
+    storage: [usize; 2];
 }
-        "#,
+
+function isLarge(v0: isLarge.payload#union): boolean {
+entry(v0: isLarge.payload#union):
+    v1: uint8 = field.get v0, 0
+    v2: uint8 = 1
+    v3: boolean = int.eq v1, v2
+    return v3
+}
+"#,
     );
 }

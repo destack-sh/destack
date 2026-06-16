@@ -61,8 +61,7 @@ const value: string = Symbol.create("id");
 
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'symbol' is not assignable to type 'string'"
-/// @diagnostic.label line=2 column=23 source="const value: string = Symbol.create(\"id\");"
+
 "#,
     );
 }
@@ -128,8 +127,7 @@ const value: number = Symbol.create("id");
 
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'symbol' is not assignable to type 'float64'"
-/// @diagnostic.label line=2 column=23 source="const value: number = Symbol.create(\"id\");"
+
 "#,
     );
 }

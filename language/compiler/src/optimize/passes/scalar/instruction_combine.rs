@@ -1055,19 +1055,19 @@ mod tests {
     #[test]
     fn test_simplify_add_zero() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    value2: int32 = int.add value0, value1
-    return value2
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    v2: int32 = int.add v0, v1
+    return v2
 }
 "#;
         // v2 is substituted with v0, the int.add is removed
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    return value0
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    return v0
 }
 "#;
 
@@ -1080,18 +1080,18 @@ entry0(value0: int32):
     #[test]
     fn test_simplify_zero_add() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    value2: int32 = int.add value1, value0
-    return value2
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    v2: int32 = int.add v1, v0
+    return v2
 }
 "#;
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    return value0
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    return v0
 }
 "#;
 
@@ -1104,18 +1104,18 @@ entry0(value0: int32):
     #[test]
     fn test_simplify_mul_one() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 1int32
-    value2: int32 = int.mul value0, value1
-    return value2
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 1
+    v2: int32 = int.mul v0, v1
+    return v2
 }
 "#;
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 1int32
-    return value0
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 1
+    return v0
 }
 "#;
 
@@ -1128,19 +1128,19 @@ entry0(value0: int32):
     #[test]
     fn test_simplify_mul_zero() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    value2: int32 = int.mul value0, value1
-    return value2
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    v2: int32 = int.mul v0, v1
+    return v2
 }
 "#;
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    value2: int32 = 0int32
-    return value2
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    v2: int32 = 0
+    return v2
 }
 "#;
 
@@ -1153,19 +1153,19 @@ entry0(value0: int32):
     #[test]
     fn test_simplify_and_zero() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    value2: int32 = int.and value0, value1
-    return value2
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    v2: int32 = int.and v0, v1
+    return v2
 }
 "#;
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    value2: int32 = 0int32
-    return value2
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    v2: int32 = 0
+    return v2
 }
 "#;
 
@@ -1178,18 +1178,18 @@ entry0(value0: int32):
     #[test]
     fn test_simplify_or_zero() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    value2: int32 = int.or value0, value1
-    return value2
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    v2: int32 = int.or v0, v1
+    return v2
 }
 "#;
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    return value0
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    return v0
 }
 "#;
 
@@ -1202,18 +1202,18 @@ entry0(value0: int32):
     #[test]
     fn test_simplify_xor_zero() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    value2: int32 = int.xor value0, value1
-    return value2
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    v2: int32 = int.xor v0, v1
+    return v2
 }
 "#;
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    return value0
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    return v0
 }
 "#;
 
@@ -1228,18 +1228,18 @@ entry0(value0: int32):
         // use a constant so we have type entry
         let input = r#"
 function test(): int32 {
-entry0:
-    value0: int32 = 42int32
-    value1: int32 = int.sub value0, value0
-    return value1
+entry:
+    v0: int32 = 42
+    v1: int32 = int.sub v0, v0
+    return v1
 }
 "#;
         let expected = r#"
 function test(): int32 {
-entry0:
-    value0: int32 = 42int32
-    value1: int32 = 0int32
-    return value1
+entry:
+    v0: int32 = 42
+    v1: int32 = 0
+    return v1
 }
 "#;
 
@@ -1254,18 +1254,18 @@ entry0:
         // use a constant so we have type entry
         let input = r#"
 function test(): int32 {
-entry0:
-    value0: int32 = 42int32
-    value1: int32 = int.xor value0, value0
-    return value1
+entry:
+    v0: int32 = 42
+    v1: int32 = int.xor v0, v0
+    return v1
 }
 "#;
         let expected = r#"
 function test(): int32 {
-entry0:
-    value0: int32 = 42int32
-    value1: int32 = 0int32
-    return value1
+entry:
+    v0: int32 = 42
+    v1: int32 = 0
+    return v1
 }
 "#;
 
@@ -1278,10 +1278,10 @@ entry0:
     #[test]
     fn test_preserve_sub_self_without_type_entry() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = int.sub value0, value0
-    return value1
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = int.sub v0, v0
+    return v1
 }
 "#;
         // no simplification because we don't know the type of v0
@@ -1295,16 +1295,16 @@ entry0(value0: int32):
     #[test]
     fn test_simplify_and_self() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = int.and value0, value0
-    return value1
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = int.and v0, v0
+    return v1
 }
 "#;
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function test(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 "#;
 
@@ -1317,16 +1317,16 @@ entry0(value0: int32):
     #[test]
     fn test_simplify_or_self() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = int.or value0, value0
-    return value1
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = int.or v0, v0
+    return v1
 }
 "#;
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function test(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 "#;
 
@@ -1339,17 +1339,17 @@ entry0(value0: int32):
     #[test]
     fn test_simplify_eq_self() {
         let input = r#"
-function test(value0: int32): boolean {
-entry0(value0: int32):
-    value1: boolean = int.eq value0, value0
-    return value1
+function test(v0: int32): boolean {
+entry(v0: int32):
+    v1: boolean = int.eq v0, v0
+    return v1
 }
 "#;
         let expected = r#"
-function test(value0: int32): boolean {
-entry0(value0: int32):
-    value1: boolean = true
-    return value1
+function test(v0: int32): boolean {
+entry(v0: int32):
+    v1: boolean = true
+    return v1
 }
 "#;
 
@@ -1362,17 +1362,17 @@ entry0(value0: int32):
     #[test]
     fn test_simplify_ne_self() {
         let input = r#"
-function test(value0: int32): boolean {
-entry0(value0: int32):
-    value1: boolean = int.ne value0, value0
-    return value1
+function test(v0: int32): boolean {
+entry(v0: int32):
+    v1: boolean = int.ne v0, v0
+    return v1
 }
 "#;
         let expected = r#"
-function test(value0: int32): boolean {
-entry0(value0: int32):
-    value1: boolean = false
-    return value1
+function test(v0: int32): boolean {
+entry(v0: int32):
+    v1: boolean = false
+    return v1
 }
 "#;
 
@@ -1385,17 +1385,17 @@ entry0(value0: int32):
     #[test]
     fn test_simplify_lt_self() {
         let input = r#"
-function test(value0: int32): boolean {
-entry0(value0: int32):
-    value1: boolean = int.lt.s value0, value0
-    return value1
+function test(v0: int32): boolean {
+entry(v0: int32):
+    v1: boolean = int.lt.s v0, v0
+    return v1
 }
 "#;
         let expected = r#"
-function test(value0: int32): boolean {
-entry0(value0: int32):
-    value1: boolean = false
-    return value1
+function test(v0: int32): boolean {
+entry(v0: int32):
+    v1: boolean = false
+    return v1
 }
 "#;
 
@@ -1408,17 +1408,17 @@ entry0(value0: int32):
     #[test]
     fn test_simplify_le_self() {
         let input = r#"
-function test(value0: int32): boolean {
-entry0(value0: int32):
-    value1: boolean = int.le.s value0, value0
-    return value1
+function test(v0: int32): boolean {
+entry(v0: int32):
+    v1: boolean = int.le.s v0, v0
+    return v1
 }
 "#;
         let expected = r#"
-function test(value0: int32): boolean {
-entry0(value0: int32):
-    value1: boolean = true
-    return value1
+function test(v0: int32): boolean {
+entry(v0: int32):
+    v1: boolean = true
+    return v1
 }
 "#;
 
@@ -1431,18 +1431,18 @@ entry0(value0: int32):
     #[test]
     fn test_simplify_shl_zero() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    value2: int32 = int.shl value0, value1
-    return value2
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    v2: int32 = int.shl v0, v1
+    return v2
 }
 "#;
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    return value0
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    return v0
 }
 "#;
 
@@ -1455,19 +1455,19 @@ entry0(value0: int32):
     #[test]
     fn test_simplify_zero_shl() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    value2: int32 = int.shl value1, value0
-    return value2
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    v2: int32 = int.shl v1, v0
+    return v2
 }
 "#;
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    value2: int32 = 0int32
-    return value2
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    v2: int32 = 0
+    return v2
 }
 "#;
 
@@ -1480,18 +1480,18 @@ entry0(value0: int32):
     #[test]
     fn test_simplify_div_one() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 1int32
-    value2: int32 = int.div.s value0, value1
-    return value2
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 1
+    v2: int32 = int.div.s v0, v1
+    return v2
 }
 "#;
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 1int32
-    return value0
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 1
+    return v0
 }
 "#;
 
@@ -1504,19 +1504,19 @@ entry0(value0: int32):
     #[test]
     fn test_simplify_rem_one() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 1int32
-    value2: int32 = int.rem.s value0, value1
-    return value2
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 1
+    v2: int32 = int.rem.s v0, v1
+    return v2
 }
 "#;
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 1int32
-    value2: int32 = 0int32
-    return value2
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 1
+    v2: int32 = 0
+    return v2
 }
 "#;
 
@@ -1529,11 +1529,11 @@ entry0(value0: int32):
     #[test]
     fn test_preserve_non_simplifiable() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 5int32
-    value2: int32 = int.add value0, value1
-    return value2
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 5
+    v2: int32 = int.add v0, v1
+    return v2
 }
 "#;
 
@@ -1546,22 +1546,22 @@ entry0(value0: int32):
     #[test]
     fn test_apply_chained_simplifications() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    value2: int32 = int.add value0, value1
-    value3: int32 = 1int32
-    value4: int32 = int.mul value2, value3
-    return value4
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    v2: int32 = int.add v0, v1
+    v3: int32 = 1
+    v4: int32 = int.mul v2, v3
+    return v4
 }
 "#;
         // v2 substituted to v0, v4 substituted to v2 (which is v0)
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    value3: int32 = 1int32
-    return value0
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    v3: int32 = 1
+    return v0
 }
 "#;
 
@@ -1574,23 +1574,23 @@ entry0(value0: int32):
     #[test]
     fn test_propagate_substitutions() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    value2: int32 = int.add value0, value1
-    value3: int32 = 5int32
-    value4: int32 = int.add value2, value3
-    return value4
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    v2: int32 = int.add v0, v1
+    v3: int32 = 5
+    v4: int32 = int.add v2, v3
+    return v4
 }
 "#;
         // v2 -> v0, so v4 = int.add v0, v3
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    value3: int32 = 5int32
-    value4: int32 = int.add value0, value3
-    return value4
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    v3: int32 = 5
+    v4: int32 = int.add v0, v3
+    return v4
 }
 "#;
 
@@ -1603,18 +1603,18 @@ entry0(value0: int32):
     #[test]
     fn test_simplify_and_all_ones() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = -1int32
-    value2: int32 = int.and value0, value1
-    return value2
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = -1
+    v2: int32 = int.and v0, v1
+    return v2
 }
 "#;
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = -1int32
-    return value0
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = -1
+    return v0
 }
 "#;
 
@@ -1627,19 +1627,19 @@ entry0(value0: int32):
     #[test]
     fn test_simplify_or_all_ones() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = -1int32
-    value2: int32 = int.or value0, value1
-    return value2
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = -1
+    v2: int32 = int.or v0, v1
+    return v2
 }
 "#;
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = -1int32
-    value2: int32 = -1int32
-    return value2
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = -1
+    v2: int32 = -1
+    return v2
 }
 "#;
 
@@ -1652,18 +1652,18 @@ entry0(value0: int32):
     #[test]
     fn test_simplify_ashr_zero() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    value2: int32 = int.shr.s value0, value1
-    return value2
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    v2: int32 = int.shr.s v0, v1
+    return v2
 }
 "#;
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    return value0
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    return v0
 }
 "#;
 
@@ -1676,18 +1676,18 @@ entry0(value0: int32):
     #[test]
     fn test_simplify_lshr_zero() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    value2: int32 = int.shr.u value0, value1
-    return value2
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    v2: int32 = int.shr.u v0, v1
+    return v2
 }
 "#;
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    return value0
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    return v0
 }
 "#;
 
@@ -1700,18 +1700,18 @@ entry0(value0: int32):
     #[test]
     fn test_simplify_udiv_one() {
         let input = r#"
-function test(value0: uint32): uint32 {
-entry0(value0: uint32):
-    value1: uint32 = 1uint32
-    value2: uint32 = int.div.u value0, value1
-    return value2
+function test(v0: uint32): uint32 {
+entry(v0: uint32):
+    v1: uint32 = 1
+    v2: uint32 = int.div.u v0, v1
+    return v2
 }
 "#;
         let expected = r#"
-function test(value0: uint32): uint32 {
-entry0(value0: uint32):
-    value1: uint32 = 1uint32
-    return value0
+function test(v0: uint32): uint32 {
+entry(v0: uint32):
+    v1: uint32 = 1
+    return v0
 }
 "#;
 
@@ -1724,19 +1724,19 @@ entry0(value0: uint32):
     #[test]
     fn test_simplify_urem_one() {
         let input = r#"
-function test(value0: uint32): uint32 {
-entry0(value0: uint32):
-    value1: uint32 = 1uint32
-    value2: uint32 = int.rem.u value0, value1
-    return value2
+function test(v0: uint32): uint32 {
+entry(v0: uint32):
+    v1: uint32 = 1
+    v2: uint32 = int.rem.u v0, v1
+    return v2
 }
 "#;
         let expected = r#"
-function test(value0: uint32): uint32 {
-entry0(value0: uint32):
-    value1: uint32 = 1uint32
-    value2: uint32 = 0uint32
-    return value2
+function test(v0: uint32): uint32 {
+entry(v0: uint32):
+    v1: uint32 = 1
+    v2: uint32 = 0
+    return v2
 }
 "#;
 
@@ -1749,19 +1749,19 @@ entry0(value0: uint32):
     #[test]
     fn test_simplify_fadd_zero() {
         let input = r#"
-function test(value0: float32): float32 {
-entry0(value0: float32):
-    value1: float32 = 0float32
-    value2: float32 = float.add value0, value1
-    return value2
+function test(v0: float32): float32 {
+entry(v0: float32):
+    v1: float32 = 0
+    v2: float32 = float.add v0, v1
+    return v2
 }
 "#;
         // 0.0f32 becomes 0f32 after roundtrip
         let expected = r#"
-function test(value0: float32): float32 {
-entry0(value0: float32):
-    value1: float32 = 0float32
-    return value0
+function test(v0: float32): float32 {
+entry(v0: float32):
+    v1: float32 = 0
+    return v0
 }
 "#;
 
@@ -1780,19 +1780,19 @@ entry0(value0: float32):
     #[test]
     fn test_simplify_fmul_one() {
         let input = r#"
-function test(value0: float32): float32 {
-entry0(value0: float32):
-    value1: float32 = 1float32
-    value2: float32 = float.mul value0, value1
-    return value2
+function test(v0: float32): float32 {
+entry(v0: float32):
+    v1: float32 = 1
+    v2: float32 = float.mul v0, v1
+    return v2
 }
 "#;
         // 1.0f32 becomes 1f32 after roundtrip
         let expected = r#"
-function test(value0: float32): float32 {
-entry0(value0: float32):
-    value1: float32 = 1float32
-    return value0
+function test(v0: float32): float32 {
+entry(v0: float32):
+    v1: float32 = 1
+    return v0
 }
 "#;
 
@@ -1811,19 +1811,19 @@ entry0(value0: float32):
     #[test]
     fn test_simplify_fdiv_one() {
         let input = r#"
-function test(value0: float32): float32 {
-entry0(value0: float32):
-    value1: float32 = 1float32
-    value2: float32 = float.div value0, value1
-    return value2
+function test(v0: float32): float32 {
+entry(v0: float32):
+    v1: float32 = 1
+    v2: float32 = float.div v0, v1
+    return v2
 }
 "#;
         // 1.0f32 becomes 1f32 after roundtrip
         let expected = r#"
-function test(value0: float32): float32 {
-entry0(value0: float32):
-    value1: float32 = 1float32
-    return value0
+function test(v0: float32): float32 {
+entry(v0: float32):
+    v1: float32 = 1
+    return v0
 }
 "#;
 
@@ -1842,19 +1842,19 @@ entry0(value0: float32):
     #[test]
     fn test_simplify_fsub_zero() {
         let input = r#"
-function test(value0: float32): float32 {
-entry0(value0: float32):
-    value1: float32 = 0float32
-    value2: float32 = float.sub value0, value1
-    return value2
+function test(v0: float32): float32 {
+entry(v0: float32):
+    v1: float32 = 0
+    v2: float32 = float.sub v0, v1
+    return v2
 }
 "#;
         // 0.0f32 becomes 0f32 after roundtrip
         let expected = r#"
-function test(value0: float32): float32 {
-entry0(value0: float32):
-    value1: float32 = 0float32
-    return value0
+function test(v0: float32): float32 {
+entry(v0: float32):
+    v1: float32 = 0
+    return v0
 }
 "#;
 
@@ -1873,18 +1873,18 @@ entry0(value0: float32):
     #[test]
     fn test_simplify_double_not() {
         let input = r#"
-function test(value0: boolean): boolean {
-entry0(value0: boolean):
-    value1: boolean = int.not value0
-    value2: boolean = int.not value1
-    return value2
+function test(v0: boolean): boolean {
+entry(v0: boolean):
+    v1: boolean = int.not v0
+    v2: boolean = int.not v1
+    return v2
 }
 "#;
         let expected = r#"
-function test(value0: boolean): boolean {
-entry0(value0: boolean):
-    value1: boolean = int.not value0
-    return value0
+function test(v0: boolean): boolean {
+entry(v0: boolean):
+    v1: boolean = int.not v0
+    return v0
 }
 "#;
 
@@ -1897,18 +1897,18 @@ entry0(value0: boolean):
     #[test]
     fn test_simplify_field_get_tuple() {
         let input = r#"
-function test(value0: int32, value1: int64): int32 {
-entry0(value0: int32, value1: int64):
-    value2: (int32, int64) = tuple (int32, int64) (value0, value1)
-    value3: int32 = field.get value2, 0
-    return value3
+function test(v0: int32, v1: int64): int32 {
+entry(v0: int32, v1: int64):
+    v2: (int32, int64) = tuple (int32, int64) (v0, v1)
+    v3: int32 = field.get v2, 0
+    return v3
 }
 "#;
         let expected = r#"
-function test(value0: int32, value1: int64): int32 {
-entry0(value0: int32, value1: int64):
-    value2: (int32, int64) = tuple (int32, int64) (value0, value1)
-    return value0
+function test(v0: int32, v1: int64): int32 {
+entry(v0: int32, v1: int64):
+    v2: (int32, int64) = tuple (int32, int64) (v0, v1)
+    return v0
 }
 "#;
 
@@ -1921,18 +1921,18 @@ entry0(value0: int32, value1: int64):
     #[test]
     fn test_simplify_field_get_tuple_second() {
         let input = r#"
-function test(value0: int32, value1: int64): int64 {
-entry0(value0: int32, value1: int64):
-    value2: (int32, int64) = tuple (int32, int64) (value0, value1)
-    value3: int64 = field.get value2, 1
-    return value3
+function test(v0: int32, v1: int64): int64 {
+entry(v0: int32, v1: int64):
+    v2: (int32, int64) = tuple (int32, int64) (v0, v1)
+    v3: int64 = field.get v2, 1
+    return v3
 }
 "#;
         let expected = r#"
-function test(value0: int32, value1: int64): int64 {
-entry0(value0: int32, value1: int64):
-    value2: (int32, int64) = tuple (int32, int64) (value0, value1)
-    return value1
+function test(v0: int32, v1: int64): int64 {
+entry(v0: int32, v1: int64):
+    v2: (int32, int64) = tuple (int32, int64) (v0, v1)
+    return v1
 }
 "#;
 
@@ -1950,13 +1950,13 @@ type Point {
     int32;
 }
 
-function test(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: Point = struct Point (value0, value1)
-    value3: int32 = field.get value2, 0
-    value4: int32 = field.get value2, 1
-    value5: int32 = int.add value3, value4
-    return value5
+function test(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: Point = struct Point (v0, v1)
+    v3: int32 = field.get v2, 0
+    v4: int32 = field.get v2, 1
+    v5: int32 = int.add v3, v4
+    return v5
 }
 "#;
         // both field.get replaced with direct operands
@@ -1966,11 +1966,11 @@ type Point {
     int32;
 }
 
-function test(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: Point = struct Point (value0, value1)
-    value5: int32 = int.add value0, value1
-    return value5
+function test(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: Point = struct Point (v0, v1)
+    v5: int32 = int.add v0, v1
+    return v5
 }
 "#;
 
@@ -1983,21 +1983,21 @@ entry0(value0: int32, value1: int32):
     #[test]
     fn test_simplify_element_get_array() {
         let input = r#"
-function test(value0: int32, value1: int32, value2: int32): int32 {
-entry0(value0: int32, value1: int32, value2: int32):
-    value3: [int32; 3] = array [int32; 3] (value0, value1, value2)
-    value4: int64 = 1int64
-    value5: int32 = element.get value3, 1
-    return value5
+function test(v0: int32, v1: int32, v2: int32): int32 {
+entry(v0: int32, v1: int32, v2: int32):
+    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
+    v4: int64 = 1
+    v5: int32 = element.get v3, 1
+    return v5
 }
 "#;
         // element.get with constant index 1 replaced with v1
         let expected = r#"
-function test(value0: int32, value1: int32, value2: int32): int32 {
-entry0(value0: int32, value1: int32, value2: int32):
-    value3: [int32; 3] = array [int32; 3] (value0, value1, value2)
-    value4: int64 = 1int64
-    return value1
+function test(v0: int32, v1: int32, v2: int32): int32 {
+entry(v0: int32, v1: int32, v2: int32):
+    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
+    v4: int64 = 1
+    return v1
 }
 "#;
 
@@ -2010,10 +2010,10 @@ entry0(value0: int32, value1: int32, value2: int32):
     #[test]
     fn test_preserve_field_get_unknown_source() {
         let input = r#"
-function test(value0: (int32, int32)): int32 {
-entry0(value0: (int32, int32)):
-    value1: int32 = field.get value0, 0
-    return value1
+function test(v0: (int32, int32)): int32 {
+entry(v0: (int32, int32)):
+    v1: int32 = field.get v0, 0
+    return v1
 }
 "#;
         // v0 is a parameter, not from tuple/struct instruction
@@ -2031,11 +2031,11 @@ type Point {
     int32;
 }
 
-function test(value0: Point, value1: int32): int32 {
-entry0(value0: Point, value1: int32):
-    value2: Point = field.set value0, 0, value1
-    value3: int32 = field.get value2, 0
-    return value3
+function test(v0: Point, v1: int32): int32 {
+entry(v0: Point, v1: int32):
+    v2: Point = field.set v0, 0, v1
+    v3: int32 = field.get v2, 0
+    return v3
 }
 "#;
         // field.get of the just-set field returns the inserted value
@@ -2045,10 +2045,10 @@ type Point {
     int32;
 }
 
-function test(value0: Point, value1: int32): int32 {
-entry0(value0: Point, value1: int32):
-    value2: Point = field.set value0, 0, value1
-    return value1
+function test(v0: Point, v1: int32): int32 {
+entry(v0: Point, v1: int32):
+    v2: Point = field.set v0, 0, v1
+    return v1
 }
 "#;
 
@@ -2066,12 +2066,12 @@ type Point {
     int32;
 }
 
-function test(value0: int32, value1: int32, value2: int32): int32 {
-entry0(value0: int32, value1: int32, value2: int32):
-    value3: Point = struct Point (value0, value1)
-    value4: Point = field.set value3, 0, value2
-    value5: int32 = field.get value4, 1
-    return value5
+function test(v0: int32, v1: int32, v2: int32): int32 {
+entry(v0: int32, v1: int32, v2: int32):
+    v3: Point = struct Point (v0, v1)
+    v4: Point = field.set v3, 0, v2
+    v5: int32 = field.get v4, 1
+    return v5
 }
 "#;
         // field.get of different field passes through to original
@@ -2081,11 +2081,11 @@ type Point {
     int32;
 }
 
-function test(value0: int32, value1: int32, value2: int32): int32 {
-entry0(value0: int32, value1: int32, value2: int32):
-    value3: Point = struct Point (value0, value1)
-    value4: Point = field.set value3, 0, value2
-    return value1
+function test(v0: int32, v1: int32, v2: int32): int32 {
+entry(v0: int32, v1: int32, v2: int32):
+    v3: Point = struct Point (v0, v1)
+    v4: Point = field.set v3, 0, v2
+    return v1
 }
 "#;
 
@@ -2103,14 +2103,14 @@ type Point {
     int32;
 }
 
-function test(value0: Point, value1: int32, value2: int32): int32 {
-entry0(value0: Point, value1: int32, value2: int32):
-    value3: Point = field.set value0, 0, value1
-    value4: Point = field.set value3, 1, value2
-    value5: int32 = field.get value4, 0
-    value6: int32 = field.get value4, 1
-    value7: int32 = int.add value5, value6
-    return value7
+function test(v0: Point, v1: int32, v2: int32): int32 {
+entry(v0: Point, v1: int32, v2: int32):
+    v3: Point = field.set v0, 0, v1
+    v4: Point = field.set v3, 1, v2
+    v5: int32 = field.get v4, 0
+    v6: int32 = field.get v4, 1
+    v7: int32 = int.add v5, v6
+    return v7
 }
 "#;
         // v5 -> v1 (from first set), v6 -> v2 (from second set)
@@ -2120,12 +2120,12 @@ type Point {
     int32;
 }
 
-function test(value0: Point, value1: int32, value2: int32): int32 {
-entry0(value0: Point, value1: int32, value2: int32):
-    value3: Point = field.set value0, 0, value1
-    value4: Point = field.set value3, 1, value2
-    value7: int32 = int.add value1, value2
-    return value7
+function test(v0: Point, v1: int32, v2: int32): int32 {
+entry(v0: Point, v1: int32, v2: int32):
+    v3: Point = field.set v0, 0, v1
+    v4: Point = field.set v3, 1, v2
+    v7: int32 = int.add v1, v2
+    return v7
 }
 "#;
 
@@ -2138,21 +2138,21 @@ entry0(value0: Point, value1: int32, value2: int32):
     #[test]
     fn test_simplify_element_get_element_set_same_index() {
         let input = r#"
-function test(value0: [int32; 3], value1: int32): int32 {
-entry0(value0: [int32; 3], value1: int32):
-    value2: int64 = 1int64
-    value3: [int32; 3] = element.set value0, 1, value1
-    value4: int32 = element.get value3, 1
-    return value4
+function test(v0: [int32; 3], v1: int32): int32 {
+entry(v0: [int32; 3], v1: int32):
+    v2: int64 = 1
+    v3: [int32; 3] = element.set v0, 1, v1
+    v4: int32 = element.get v3, 1
+    return v4
 }
 "#;
         // element.get of the just-set element returns the inserted value
         let expected = r#"
-function test(value0: [int32; 3], value1: int32): int32 {
-entry0(value0: [int32; 3], value1: int32):
-    value2: int64 = 1int64
-    value3: [int32; 3] = element.set value0, 1, value1
-    return value1
+function test(v0: [int32; 3], v1: int32): int32 {
+entry(v0: [int32; 3], v1: int32):
+    v2: int64 = 1
+    v3: [int32; 3] = element.set v0, 1, v1
+    return v1
 }
 "#;
 
@@ -2165,25 +2165,25 @@ entry0(value0: [int32; 3], value1: int32):
     #[test]
     fn test_simplify_element_get_element_set_different_index() {
         let input = r#"
-function test(value0: int32, value1: int32, value2: int32): int32 {
-entry0(value0: int32, value1: int32, value2: int32):
-    value3: [int32; 2] = array [int32; 2] (value0, value1)
-    value4: int64 = 0int64
-    value5: [int32; 2] = element.set value3, 0, value2
-    value6: int64 = 1int64
-    value7: int32 = element.get value5, 1
-    return value7
+function test(v0: int32, v1: int32, v2: int32): int32 {
+entry(v0: int32, v1: int32, v2: int32):
+    v3: [int32; 2] = array [int32; 2] (v0, v1)
+    v4: int64 = 0
+    v5: [int32; 2] = element.set v3, 0, v2
+    v6: int64 = 1
+    v7: int32 = element.get v5, 1
+    return v7
 }
 "#;
         // element.get of different index passes through to original
         let expected = r#"
-function test(value0: int32, value1: int32, value2: int32): int32 {
-entry0(value0: int32, value1: int32, value2: int32):
-    value3: [int32; 2] = array [int32; 2] (value0, value1)
-    value4: int64 = 0int64
-    value5: [int32; 2] = element.set value3, 0, value2
-    value6: int64 = 1int64
-    return value1
+function test(v0: int32, v1: int32, v2: int32): int32 {
+entry(v0: int32, v1: int32, v2: int32):
+    v3: [int32; 2] = array [int32; 2] (v0, v1)
+    v4: int64 = 0
+    v5: [int32; 2] = element.set v3, 0, v2
+    v6: int64 = 1
+    return v1
 }
 "#;
 
@@ -2201,12 +2201,12 @@ type Point {
     int32;
 }
 
-function test(value0: Point, value1: int32, value2: int32): int32 {
-entry0(value0: Point, value1: int32, value2: int32):
-    value3: Point = field.set value0, 0, value1
-    value4: Point = field.set value3, 0, value2
-    value5: int32 = field.get value4, 0
-    return value5
+function test(v0: Point, v1: int32, v2: int32): int32 {
+entry(v0: Point, v1: int32, v2: int32):
+    v3: Point = field.set v0, 0, v1
+    v4: Point = field.set v3, 0, v2
+    v5: int32 = field.get v4, 0
+    return v5
 }
 "#;
         // second set overwrites first, get returns v2
@@ -2216,11 +2216,11 @@ type Point {
     int32;
 }
 
-function test(value0: Point, value1: int32, value2: int32): int32 {
-entry0(value0: Point, value1: int32, value2: int32):
-    value3: Point = field.set value0, 0, value1
-    value4: Point = field.set value3, 0, value2
-    return value2
+function test(v0: Point, v1: int32, v2: int32): int32 {
+entry(v0: Point, v1: int32, v2: int32):
+    v3: Point = field.set v0, 0, v1
+    v4: Point = field.set v3, 0, v2
+    return v2
 }
 "#;
 
@@ -2233,18 +2233,18 @@ entry0(value0: Point, value1: int32, value2: int32):
     #[test]
     fn test_simplify_field_get_field_set_tuple() {
         let input = r#"
-function test(value0: (int32, int64), value1: int32): int32 {
-entry0(value0: (int32, int64), value1: int32):
-    value2: (int32, int64) = field.set value0, 0, value1
-    value3: int32 = field.get value2, 0
-    return value3
+function test(v0: (int32, int64), v1: int32): int32 {
+entry(v0: (int32, int64), v1: int32):
+    v2: (int32, int64) = field.set v0, 0, v1
+    v3: int32 = field.get v2, 0
+    return v3
 }
 "#;
         let expected = r#"
-function test(value0: (int32, int64), value1: int32): int32 {
-entry0(value0: (int32, int64), value1: int32):
-    value2: (int32, int64) = field.set value0, 0, value1
-    return value1
+function test(v0: (int32, int64), v1: int32): int32 {
+entry(v0: (int32, int64), v1: int32):
+    v2: (int32, int64) = field.set v0, 0, v1
+    return v1
 }
 "#;
 
@@ -2257,23 +2257,23 @@ entry0(value0: (int32, int64), value1: int32):
     #[test]
     fn test_simplify_element_set_overwrite_same_index() {
         let input = r#"
-function test(value0: [int32; 2], value1: int32, value2: int32): int32 {
-entry0(value0: [int32; 2], value1: int32, value2: int32):
-    value3: int64 = 0int64
-    value4: [int32; 2] = element.set value0, 0, value1
-    value5: [int32; 2] = element.set value4, 0, value2
-    value6: int32 = element.get value5, 0
-    return value6
+function test(v0: [int32; 2], v1: int32, v2: int32): int32 {
+entry(v0: [int32; 2], v1: int32, v2: int32):
+    v3: int64 = 0
+    v4: [int32; 2] = element.set v0, 0, v1
+    v5: [int32; 2] = element.set v4, 0, v2
+    v6: int32 = element.get v5, 0
+    return v6
 }
 "#;
         // second set at index 0 overwrites first, get returns v2
         let expected = r#"
-function test(value0: [int32; 2], value1: int32, value2: int32): int32 {
-entry0(value0: [int32; 2], value1: int32, value2: int32):
-    value3: int64 = 0int64
-    value4: [int32; 2] = element.set value0, 0, value1
-    value5: [int32; 2] = element.set value4, 0, value2
-    return value2
+function test(v0: [int32; 2], v1: int32, v2: int32): int32 {
+entry(v0: [int32; 2], v1: int32, v2: int32):
+    v3: int64 = 0
+    v4: [int32; 2] = element.set v0, 0, v1
+    v5: [int32; 2] = element.set v4, 0, v2
+    return v2
 }
 "#;
 
@@ -2291,10 +2291,10 @@ type Point {
     int32;
 }
 
-function test(value0: Point): int32 {
-entry0(value0: Point):
-    value1: int32 = field.get value0, 1
-    return value1
+function test(v0: Point): int32 {
+entry(v0: Point):
+    v1: int32 = field.get v0, 1
+    return v1
 }
 "#;
         // aggregate source is a parameter, not a known constructor
@@ -2307,12 +2307,12 @@ entry0(value0: Point):
     #[test]
     fn test_preserve_element_get_out_of_bounds() {
         let input = r#"
-function test(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: [int32; 2] = array [int32; 2] (value0, value1)
-    value3: int64 = 10int64
-    value4: int32 = element.get value2, 10
-    return value4
+function test(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: [int32; 2] = array [int32; 2] (v0, v1)
+    v3: int64 = 10
+    v4: int32 = element.get v2, 10
+    return v4
 }
 "#;
         // index 10 is out of bounds for 2-element array
@@ -2330,11 +2330,11 @@ type Point {
     int32;
 }
 
-function test(value0: Point): Point {
-entry0(value0: Point):
-    value1: int32 = field.get value0, 0
-    value2: Point = field.set value0, 0, value1
-    return value2
+function test(v0: Point): Point {
+entry(v0: Point):
+    v1: int32 = field.get v0, 0
+    v2: Point = field.set v0, 0, v1
+    return v2
 }
 "#;
         let expected = r#"
@@ -2343,10 +2343,10 @@ type Point {
     int32;
 }
 
-function test(value0: Point): Point {
-entry0(value0: Point):
-    value1: int32 = field.get value0, 0
-    return value0
+function test(v0: Point): Point {
+entry(v0: Point):
+    v1: int32 = field.get v0, 0
+    return v0
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -2358,20 +2358,20 @@ entry0(value0: Point):
     #[test]
     fn test_identity_element_set() {
         let input = r#"
-function test(value0: [int32; 3]): [int32; 3] {
-entry0(value0: [int32; 3]):
-    value1: int64 = 1int64
-    value2: int32 = element.get value0, 1
-    value3: [int32; 3] = element.set value0, 1, value2
-    return value3
+function test(v0: [int32; 3]): [int32; 3] {
+entry(v0: [int32; 3]):
+    v1: int64 = 1
+    v2: int32 = element.get v0, 1
+    v3: [int32; 3] = element.set v0, 1, v2
+    return v3
 }
 "#;
         let expected = r#"
-function test(value0: [int32; 3]): [int32; 3] {
-entry0(value0: [int32; 3]):
-    value1: int64 = 1int64
-    value2: int32 = element.get value0, 1
-    return value0
+function test(v0: [int32; 3]): [int32; 3] {
+entry(v0: [int32; 3]):
+    v1: int64 = 1
+    v2: int32 = element.get v0, 1
+    return v0
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -2388,11 +2388,11 @@ type Point {
     int32;
 }
 
-function test(value0: Point): Point {
-entry0(value0: Point):
-    value1: int32 = field.get value0, 0
-    value2: Point = field.set value0, 1, value1
-    return value2
+function test(v0: Point): Point {
+entry(v0: Point):
+    v1: int32 = field.get v0, 0
+    v2: Point = field.set v0, 1, v1
+    return v2
 }
 "#;
         // get from index 0, set at index 1 - not identity
@@ -2410,11 +2410,11 @@ type Point {
     int32;
 }
 
-function test(value0: Point, value1: Point): Point {
-entry0(value0: Point, value1: Point):
-    value2: int32 = field.get value0, 0
-    value3: Point = field.set value1, 0, value2
-    return value3
+function test(v0: Point, v1: Point): Point {
+entry(v0: Point, v1: Point):
+    v2: int32 = field.get v0, 0
+    v3: Point = field.set v1, 0, v2
+    return v3
 }
 "#;
         // get from v0, set on v1 - not identity
@@ -2427,11 +2427,11 @@ entry0(value0: Point, value1: Point):
     #[test]
     fn test_non_identity_element_set_different_index() {
         let input = r#"
-function test(value0: [int32; 3]): [int32; 3] {
-entry0(value0: [int32; 3]):
-    value1: int32 = element.get value0, 0
-    value2: [int32; 3] = element.set value0, 1, value1
-    return value2
+function test(v0: [int32; 3]): [int32; 3] {
+entry(v0: [int32; 3]):
+    v1: int32 = element.get v0, 0
+    v2: [int32; 3] = element.set v0, 1, v1
+    return v2
 }
 "#;
         // get from index 0, set at index 1 - not identity
@@ -2444,12 +2444,12 @@ entry0(value0: [int32; 3]):
     #[test]
     fn test_non_identity_element_set_different_array() {
         let input = r#"
-function test(value0: [int32; 3], value1: [int32; 3]): [int32; 3] {
-entry0(value0: [int32; 3], value1: [int32; 3]):
-    value2: int64 = 0int64
-    value3: int32 = element.get value0, 0
-    value4: [int32; 3] = element.set value1, 0, value3
-    return value4
+function test(v0: [int32; 3], v1: [int32; 3]): [int32; 3] {
+entry(v0: [int32; 3], v1: [int32; 3]):
+    v2: int64 = 0
+    v3: int32 = element.get v0, 0
+    v4: [int32; 3] = element.set v1, 0, v3
+    return v4
 }
 "#;
         // get from v0, set on v1 - not identity

@@ -13,9 +13,9 @@ pub(super) struct DropState {
 
 impl DropState {
     /// Build function entry state.
-    pub(super) fn parameters(function: &mir::Function, owned: &OwnedValues) -> Self {
+    pub(super) fn parameters(function: &mir::Function: &OwnedValues) -> Self {
         Self {
-            owned: OwnedValues::parameters(function, owned),
+            owned: OwnedValues::parameters(function),
             moved: Vec::new(),
         }
     }
@@ -34,7 +34,7 @@ impl DropState {
     }
 
     /// Retain values known to be owned.
-    pub(super) fn retain_owned(&mut self, owned: &OwnedValues) {
+    pub(super) fn retain_owned(&mut self: &OwnedValues) {
         self.owned.retain_owned(owned);
         self.retain_owned_moved();
     }

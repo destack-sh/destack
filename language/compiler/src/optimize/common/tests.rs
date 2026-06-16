@@ -966,7 +966,7 @@ mod tests {
         let program = TestProgram::new(
             r#"
 function test(): void {
-entry0:
+entry:
     return
 }
 "#,
@@ -1017,7 +1017,7 @@ entry0:
         let program = TestProgram::new(
             r#"
 function test(): void {
-entry0:
+entry:
     return
 }
 "#,
@@ -1040,7 +1040,7 @@ entry0:
         let program = TestProgram::new(
             r#"
 function test(): void {
-entry0:
+entry:
     return
 }
 "#,
@@ -1065,7 +1065,7 @@ entry0:
         let program = TestProgram::new(
             r#"
 function test(): void {
-entry0:
+entry:
     return
 }
 "#,
@@ -1092,7 +1092,7 @@ entry0:
         let program = TestProgram::new(
             r#"
 function test(): void {
-entry0:
+entry:
     return
 }
 "#,
@@ -1119,7 +1119,7 @@ entry0:
         let program = TestProgram::new(
             r#"
 function test(): void {
-entry0:
+entry:
     return
 }
 "#,
@@ -1212,16 +1212,16 @@ entry0:
     #[test]
     fn test_requirements_call_effects() {
         let input = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 1int32
-    value1: int32 = call callee(value0): (int32) -> int32
-    return value1
+entry:
+    v0: int32 = 1
+    v1: int32 = call callee(v0)
+    return v1
 }
 "#;
 
@@ -1239,10 +1239,10 @@ entry0:
     #[test]
     fn test_requirements_memory_access_metadata() {
         let input = r#"
-function test(value0: ref<int32, raw>): int32 {
-entry0(value0: ref<int32, raw>):
-    value1: int32 = load value0
-    return value1
+function test(v0: ref<int32, raw>): int32 {
+entry(v0: ref<int32, raw>):
+    v1: int32 = load v0
+    return v1
 }
 "#;
 
@@ -1261,7 +1261,7 @@ entry0(value0: ref<int32, raw>):
     fn test_requirements_profile_data() {
         let input = r#"
 function test(): void {
-entry0:
+entry:
     return
 }
 "#;
@@ -1285,10 +1285,10 @@ type Point {
     int32;
 }
 
-function makePoint(value0: int32, value1: int32): Point {
-entry0(value0: int32, value1: int32):
-    value2: Point = struct Point (value0, value1)
-    return value2
+function makePoint(v0: int32, v1: int32): Point {
+entry(v0: int32, v1: int32):
+    v2: Point = struct Point (v0, v1)
+    return v2
 }
 "#;
 

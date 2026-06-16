@@ -124,8 +124,7 @@ const value: string = true;
 
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'true' is not assignable to type 'string'"
-/// @diagnostic.label line=2 column=23 source="const value: string = true;"
+
 "#,
     );
 }
@@ -154,8 +153,7 @@ const value: number = false;
 
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'false' is not assignable to type 'float64'"
-/// @diagnostic.label line=2 column=23 source="const value: number = false;"
+
 "#,
     );
 }

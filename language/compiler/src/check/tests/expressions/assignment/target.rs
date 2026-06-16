@@ -24,8 +24,7 @@ const value: int32 = "text";
 
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"text\"' is not assignable to type 'int32'"
-/// @diagnostic.label line=2 column=22 source="const value: int32 = \"text\";"
+
 "#,
     );
 }

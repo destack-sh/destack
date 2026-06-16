@@ -757,38 +757,38 @@ mod tests {
     #[test]
     fn test_pre_diamond_inserts_expression() {
         let input = r#"
-function test(value0: int32, value1: int32, value2: boolean): int32 {
-entry0(value0: int32, value1: int32, value2: boolean):
-    branch value2, block1(), block2()
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+entry(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
 
-block1:
-    value3: int32 = int.add value0, value1
-    jump block3()
+b1:
+    v3: int32 = int.add v0, v1
+    jump b3
 
-block2:
-    jump block3()
+b2:
+    jump b3
 
-block3:
-    value4: int32 = int.add value0, value1
-    return value4
+b3:
+    v4: int32 = int.add v0, v1
+    return v4
 }
 "#;
 
         let expected = r#"
-function test(value0: int32, value1: int32, value2: boolean): int32 {
-entry0(value0: int32, value1: int32, value2: boolean):
-    branch value2, block1(), block2()
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+entry(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
 
-block1:
-    value3: int32 = int.add value0, value1
-    jump block3(value3)
+b1:
+    v3: int32 = int.add v0, v1
+    jump b3(v3)
 
-block2:
-    value6: int32 = int.add value0, value1
-    jump block3(value6)
+b2:
+    v6: int32 = int.add v0, v1
+    jump b3(v6)
 
-block3(value5: int32):
-    return value5
+b3(v5: int32):
+    return v5
 }
 "#;
 
@@ -801,47 +801,47 @@ block3(value5: int32):
     #[test]
     fn test_pre_splits_critical_edge_for_insertion() {
         let input = r#"
-function test(value0: int32, value1: int32, value2: boolean): int32 {
-entry0(value0: int32, value1: int32, value2: boolean):
-    branch value2, block1(), block2()
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+entry(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
 
-block1:
-    value3: int32 = int.add value0, value1
-    jump block3()
+b1:
+    v3: int32 = int.add v0, v1
+    jump b3
 
-block2:
-    branch value2, block3(), block4()
+b2:
+    branch v2, b3, b4
 
-block3:
-    value4: int32 = int.add value0, value1
-    return value4
+b3:
+    v4: int32 = int.add v0, v1
+    return v4
 
-block4:
-    return value0
+b4:
+    return v0
 }
 "#;
 
         let expected = r#"
-function test(value0: int32, value1: int32, value2: boolean): int32 {
-entry0(value0: int32, value1: int32, value2: boolean):
-    branch value2, block1(), block2()
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+entry(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
 
-block1:
-    value3: int32 = int.add value0, value1
-    jump block3_1(value3)
+b1:
+    v3: int32 = int.add v0, v1
+    jump block3_1(v3)
 
-block2:
-    branch value2, block3(), block4()
+b2:
+    branch v2, b3, b5
 
-block3:
-    value6: int32 = int.add value0, value1
-    jump block3_1(value6)
+b3:
+    v6: int32 = int.add v0, v1
+    jump block3_1(v6)
 
-block3_1(value5: int32):
-    return value5
+block3_1(v5: int32):
+    return v5
 
-block4:
-    return value0
+b5:
+    return v0
 }
 "#;
 
@@ -854,35 +854,35 @@ block4:
     #[test]
     fn test_pre_switch_default_inserts_expression() {
         let input = r#"
-function test(value0: int32, value1: int32, value2: int32): int32 {
-entry0(value0: int32, value1: int32, value2: int32):
-    switch value2, block2(), 0 => block1()
+function test(v0: int32, v1: int32, v2: int32): int32 {
+entry(v0: int32, v1: int32, v2: int32):
+    switch v2, b2, 0 -> b1
 
-block1:
-    value3: int32 = int.add value0, value1
-    jump block2()
+b1:
+    v3: int32 = int.add v0, v1
+    jump b2
 
-block2:
-    value4: int32 = int.add value0, value1
-    return value4
+b2:
+    v4: int32 = int.add v0, v1
+    return v4
 }
 "#;
 
         let expected = r#"
-function test(value0: int32, value1: int32, value2: int32): int32 {
-entry0(value0: int32, value1: int32, value2: int32):
-    switch value2, block1(), 0 => block1_1()
+function test(v0: int32, v1: int32, v2: int32): int32 {
+entry(v0: int32, v1: int32, v2: int32):
+    switch v2, b1, 0 -> block1_1
 
-block1:
-    value6: int32 = int.add value0, value1
-    jump block2(value6)
+b1:
+    v6: int32 = int.add v0, v1
+    jump b3(v6)
 
 block1_1:
-    value3: int32 = int.add value0, value1
-    jump block2(value3)
+    v3: int32 = int.add v0, v1
+    jump b3(v3)
 
-block2(value5: int32):
-    return value5
+b3(v5: int32):
+    return v5
 }
 "#;
 
@@ -895,45 +895,45 @@ block2(value5: int32):
     #[test]
     fn test_pre_switch_case_appends_expression() {
         let input = r#"
-function test(value0: int32, value1: int32, value2: int32): int32 {
-entry0(value0: int32, value1: int32, value2: int32):
-    value3: int32 = 7int32
-    switch value2, block2(), 0 => block1(), 1 => block3(value3)
+function test(v0: int32, v1: int32, v2: int32): int32 {
+entry(v0: int32, v1: int32, v2: int32):
+    v3: int32 = 7
+    switch v2, b2, 0 -> b1, 1 -> b3(v3)
 
-block1:
-    value4: int32 = int.add value0, value1
-    jump block3(value3)
+b1:
+    v4: int32 = int.add v0, v1
+    jump b3(v3)
 
-block2:
-    value5: int32 = 0int32
-    return value5
+b2:
+    v5: int32 = 0
+    return v5
 
-block3(value6: int32):
-    value7: int32 = int.add value0, value1
-    return value7
+b3(v6: int32):
+    v7: int32 = int.add v0, v1
+    return v7
 }
 "#;
 
         let expected = r#"
-function test(value0: int32, value1: int32, value2: int32): int32 {
-entry0(value0: int32, value1: int32, value2: int32):
-    value3: int32 = 7int32
-    switch value2, block2(), 0 => block1_1(), 1 => block1()
+function test(v0: int32, v1: int32, v2: int32): int32 {
+entry(v0: int32, v1: int32, v2: int32):
+    v3: int32 = 7
+    switch v2, b3, 0 -> block1_1, 1 -> b1
 
-block1:
-    value9: int32 = int.add value0, value1
-    jump block3(value3, value9)
+b1:
+    v9: int32 = int.add v0, v1
+    jump b4(v3, v9)
 
 block1_1:
-    value4: int32 = int.add value0, value1
-    jump block3(value3, value4)
+    v4: int32 = int.add v0, v1
+    jump b4(v3, v4)
 
-block2:
-    value5: int32 = 0int32
-    return value5
+b3:
+    v5: int32 = 0
+    return v5
 
-block3(value6: int32, value8: int32):
-    return value8
+b4(v6: int32, v8: int32):
+    return v8
 }
 "#;
 
@@ -946,48 +946,48 @@ block3(value6: int32, value8: int32):
     #[test]
     fn test_pre_check_inserts_expression() {
         let input = r#"
-function test(value0: uint32, value1: uint32, value2: boolean, value3: [uint8; 8]): uint32 {
-entry0(value0: uint32, value1: uint32, value2: boolean, value3: [uint8; 8]):
-    branch value2, block1(), block2()
+function test(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]): uint32 {
+entry(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
+    branch v2, b1, b2
 
-block1:
-    value4: uint32 = int.add value0, value1
-    value5: boolean = int.lt.u value0, value1
-    check bounds.u value0, value1, value3 -> block3(), block4()
+b1:
+    v4: uint32 = int.add v0, v1
+    v5: boolean = int.lt.u v0, v1
+    check bounds.u v0, v1, v3 -> b3, b4
 
-block2:
-    jump block3()
+b2:
+    jump b3
 
-block3:
-    value6: uint32 = int.add value0, value1
-    return value6
+b3:
+    v6: uint32 = int.add v0, v1
+    return v6
 
-block4:
+b4:
     unreachable
 }
 "#;
 
         let expected = r#"
-function test(value0: uint32, value1: uint32, value2: boolean, value3: [uint8; 8]): uint32 {
-entry0(value0: uint32, value1: uint32, value2: boolean, value3: [uint8; 8]):
-    branch value2, block1(), block2_1()
+function test(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]): uint32 {
+entry(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
+    branch v2, b1, block2_1
 
-block1:
-    value4: uint32 = int.add value0, value1
-    value5: boolean = int.lt.u value0, value1
-    check bounds.u value0, value1, value3 -> block2(), block4()
+b1:
+    v4: uint32 = int.add v0, v1
+    v5: boolean = int.lt.u v0, v1
+    check bounds.u v0, v1, v3 -> b2, b5
 
-block2:
-    jump block3(value4)
+b2:
+    jump b4(v4)
 
 block2_1:
-    value8: uint32 = int.add value0, value1
-    jump block3(value8)
+    v8: uint32 = int.add v0, v1
+    jump b4(v8)
 
-block3(value7: uint32):
-    return value7
+b4(v7: uint32):
+    return v7
 
-block4:
+b5:
     unreachable
 }
 "#;
@@ -1001,49 +1001,49 @@ block4:
     #[test]
     fn test_pre_check_failure_inserts_expression() {
         let input = r#"
-function test(value0: uint32, value1: uint32, value2: boolean, value3: [uint8; 8]): uint32 {
-entry0(value0: uint32, value1: uint32, value2: boolean, value3: [uint8; 8]):
-    branch value2, block1(), block2()
+function test(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]): uint32 {
+entry(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
+    branch v2, b1, b2
 
-block1:
-    value4: uint32 = int.add value0, value1
-    value5: boolean = int.lt.u value0, value1
-    check bounds.u value0, value1, value3 -> block3(), block4()
+b1:
+    v4: uint32 = int.add v0, v1
+    v5: boolean = int.lt.u v0, v1
+    check bounds.u v0, v1, v3 -> b3, b4
 
-block2:
-    jump block4()
+b2:
+    jump b4
 
-block3:
-    return value4
+b3:
+    return v4
 
-block4:
-    value6: uint32 = int.add value0, value1
-    return value6
+b4:
+    v6: uint32 = int.add v0, v1
+    return v6
 }
 "#;
 
         let expected = r#"
-function test(value0: uint32, value1: uint32, value2: boolean, value3: [uint8; 8]): uint32 {
-entry0(value0: uint32, value1: uint32, value2: boolean, value3: [uint8; 8]):
-    branch value2, block1(), block2_1()
+function test(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]): uint32 {
+entry(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
+    branch v2, b1, block2_1
 
-block1:
-    value4: uint32 = int.add value0, value1
-    value5: boolean = int.lt.u value0, value1
-    check bounds.u value0, value1, value3 -> block3(), block2()
+b1:
+    v4: uint32 = int.add v0, v1
+    v5: boolean = int.lt.u v0, v1
+    check bounds.u v0, v1, v3 -> b4, b2
 
-block2:
-    jump block4(value4)
+b2:
+    jump b5(v4)
 
 block2_1:
-    value8: uint32 = int.add value0, value1
-    jump block4(value8)
+    v8: uint32 = int.add v0, v1
+    jump b5(v8)
 
-block3:
-    return value4
+b4:
+    return v4
 
-block4(value7: uint32):
-    return value7
+b5(v7: uint32):
+    return v7
 }
 "#;
 
@@ -1056,42 +1056,42 @@ block4(value7: uint32):
     #[test]
     fn test_pre_yield_resume_inserts_expression() {
         let input = r#"
-function test(value0: int32, value1: int32, value2: boolean): int32 {
-entry0(value0: int32, value1: int32, value2: boolean):
-    branch value2, block1(), block2()
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+entry(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
 
-block1:
-    value3: int32 = int.add value0, value1
-    value4: int32 = 1int32
-    yield value4 -> block3(value0)
+b1:
+    v3: int32 = int.add v0, v1
+    v4: int32 = 1
+    yield v4 -> b3(v0)
 
-block2:
-    value5: int32 = 2int32
-    yield value5 -> block3(value0)
+b2:
+    v5: int32 = 2
+    yield v5 -> b3(v0)
 
-block3(value6: int32, value7: int32):
-    value8: int32 = int.add value0, value1
-    return value8
+b3(v6: int32, v7: int32):
+    v8: int32 = int.add v0, v1
+    return v8
 }
 "#;
 
         let expected = r#"
-function test(value0: int32, value1: int32, value2: boolean): int32 {
-entry0(value0: int32, value1: int32, value2: boolean):
-    branch value2, block1(), block2()
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+entry(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
 
-block1:
-    value3: int32 = int.add value0, value1
-    value4: int32 = 1int32
-    yield value4 -> block3(value0, value3)
+b1:
+    v3: int32 = int.add v0, v1
+    v4: int32 = 1
+    yield v4 -> b3(v0, v3)
 
-block2:
-    value5: int32 = 2int32
-    value10: int32 = int.add value0, value1
-    yield value5 -> block3(value0, value10)
+b2:
+    v5: int32 = 2
+    v10: int32 = int.add v0, v1
+    yield v5 -> b3(v0, v10)
 
-block3(value6: int32, value7: int32, value9: int32):
-    return value9
+b3(v6: int32, v7: int32, v9: int32):
+    return v9
 }
 "#;
 
@@ -1104,20 +1104,20 @@ block3(value6: int32, value7: int32, value9: int32):
     #[test]
     fn test_pre_skips_non_speculatable_expression() {
         let input = r#"
-function test(value0: int32, value1: int32, value2: boolean): int32 {
-entry0(value0: int32, value1: int32, value2: boolean):
-    branch value2, block1(), block2()
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+entry(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
 
-block1:
-    value3: int32 = int.div.s value0, value1
-    jump block3()
+b1:
+    v3: int32 = int.div.s v0, v1
+    jump b3
 
-block2:
-    jump block3()
+b2:
+    jump b3
 
-block3:
-    value4: int32 = int.div.s value0, value1
-    return value4
+b3:
+    v4: int32 = int.div.s v0, v1
+    return v4
 }
 "#;
 
@@ -1130,20 +1130,20 @@ block3:
     #[test]
     fn test_pre_skips_float_to_int_cast() {
         let input = r#"
-function test(value0: float32, value1: boolean): int32 {
-entry0(value0: float32, value1: boolean):
-    branch value1, block1(), block2()
+function test(v0: float32, v1: boolean): int32 {
+entry(v0: float32, v1: boolean):
+    branch v1, b1, b2
 
-block1:
-    value2: int32 = cast.floatToInt.s value0 -> int32
-    jump block3()
+b1:
+    v2: int32 = cast.floatToInt.s v0 -> int32
+    jump b3
 
-block2:
-    jump block3()
+b2:
+    jump b3
 
-block3:
-    value3: int32 = cast.floatToInt.s value0 -> int32
-    return value3
+b3:
+    v3: int32 = cast.floatToInt.s v0 -> int32
+    return v3
 }
 "#;
 
@@ -1156,26 +1156,26 @@ block3:
     #[test]
     fn test_pre_skips_calls() {
         let input = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    branch value0, block1(), block2()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    branch v0, b1, b2
 
-block1:
-    value1: int32 = call getValue(): () -> int32
-    jump block3()
+b1:
+    v1: int32 = call getValue()
+    jump b3
 
-block2:
-    jump block3()
+b2:
+    jump b3
 
-block3:
-    value2: int32 = call getValue(): () -> int32
-    return value2
+b3:
+    v2: int32 = call getValue()
+    return v2
 }
 
 function getValue(): int32 {
-entry0:
-    value0: int32 = 42int32
-    return value0
+entry:
+    v0: int32 = 42
+    return v0
 }
 "#;
 
@@ -1188,21 +1188,21 @@ entry0:
     #[test]
     fn test_pre_skips_unavailable_operands() {
         let input = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    branch value0, block1(), block2()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    branch v0, b1, b2
 
-block1:
-    value1: int32 = 1int32
-    jump block3()
+b1:
+    v1: int32 = 1
+    jump b3
 
-block2:
-    value2: int32 = 2int32
-    jump block3()
+b2:
+    v2: int32 = 2
+    jump b3
 
-block3:
-    value3: int32 = int.add value1, value2
-    return value3
+b3:
+    v3: int32 = int.add v1, v2
+    return v3
 }
 "#;
 
@@ -1215,20 +1215,20 @@ block3:
     #[test]
     fn test_pre_skips_fully_redundant_expression() {
         let input = r#"
-function test(value0: int32, value1: int32, value2: boolean): int32 {
-entry0(value0: int32, value1: int32, value2: boolean):
-    value3: int32 = int.add value0, value1
-    branch value2, block1(), block2()
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+entry(v0: int32, v1: int32, v2: boolean):
+    v3: int32 = int.add v0, v1
+    branch v2, b1, b2
 
-block1:
-    jump block3()
+b1:
+    jump b3
 
-block2:
-    jump block3()
+b2:
+    jump b3
 
-block3:
-    value4: int32 = int.add value0, value1
-    return value4
+b3:
+    v4: int32 = int.add v0, v1
+    return v4
 }
 "#;
 

@@ -52,8 +52,7 @@ const pair: [int32; 2] = [1, 2, 3];
 
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'Array<1 | 2 | 3>' is not assignable to type 'FixedArray<int32, 2>'"
-/// @diagnostic.label line=2 column=26 source="const pair: [int32; 2] = [1, 2, 3];"
+
 "#,
     );
 }

@@ -515,40 +515,40 @@ mod tests {
     #[test]
     fn test_if_convert_simple_diamond() {
         let input = r#"
-function test(value0: boolean, value1: int32, value2: int32): int32 {
-entry0(value0: boolean, value1: int32, value2: int32):
-    branch value0, block1(value1, value2), block2(value1, value2)
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+entry(v0: boolean, v1: int32, v2: int32):
+    branch v0, b1(v1, v2), b2(v1, v2)
 
-block1(value3: int32, value4: int32):
-    value5: int32 = int.add value3, value4
-    jump block3(value5)
+b1(v3: int32, v4: int32):
+    v5: int32 = int.add v3, v4
+    jump b3(v5)
 
-block2(value6: int32, value7: int32):
-    value8: int32 = int.sub value6, value7
-    jump block3(value8)
+b2(v6: int32, v7: int32):
+    v8: int32 = int.sub v6, v7
+    jump b3(v8)
 
-block3(value9: int32):
-    return value9
+b3(v9: int32):
+    return v9
 }
 "#;
         let expected = r#"
-function test(value0: boolean, value1: int32, value2: int32): int32 {
-entry0(value0: boolean, value1: int32, value2: int32):
-    value10: int32 = int.add value1, value2
-    value11: int32 = int.sub value1, value2
-    value12: int32 = select value0, value10, value11
-    jump block3(value12)
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+entry(v0: boolean, v1: int32, v2: int32):
+    v10: int32 = int.add v1, v2
+    v11: int32 = int.sub v1, v2
+    v12: int32 = select v0, v10, v11
+    jump b3(v12)
 
-block1(value3: int32, value4: int32):
-    value5: int32 = int.add value3, value4
-    jump block3(value5)
+b1(v3: int32, v4: int32):
+    v5: int32 = int.add v3, v4
+    jump b3(v5)
 
-block2(value6: int32, value7: int32):
-    value8: int32 = int.sub value6, value7
-    jump block3(value8)
+b2(v6: int32, v7: int32):
+    v8: int32 = int.sub v6, v7
+    jump b3(v8)
 
-block3(value9: int32):
-    return value9
+b3(v9: int32):
+    return v9
 }
 "#;
 
@@ -561,20 +561,20 @@ block3(value9: int32):
     #[test]
     fn test_if_convert_clones_memory_access_metadata() {
         let input = r#"
-function test(value0: boolean, value1: int32, value2: int32): int32 {
-entry0(value0: boolean, value1: int32, value2: int32):
-    branch value0, block1(value1, value2), block2(value1, value2)
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+entry(v0: boolean, v1: int32, v2: int32):
+    branch v0, b1(v1, v2), b2(v1, v2)
 
-block1(value3: int32, value4: int32):
-    value5: int32 = int.add value3, value4
-    jump block3(value5)
+b1(v3: int32, v4: int32):
+    v5: int32 = int.add v3, v4
+    jump b3(v5)
 
-block2(value6: int32, value7: int32):
-    value8: int32 = int.sub value6, value7
-    jump block3(value8)
+b2(v6: int32, v7: int32):
+    v8: int32 = int.sub v6, v7
+    jump b3(v8)
 
-block3(value9: int32):
-    return value9
+b3(v9: int32):
+    return v9
 }
 "#;
 
@@ -676,88 +676,88 @@ block3(value9: int32):
     #[test]
     fn test_if_convert_large_balanced_blocks() {
         let input = r#"
-function test(value0: boolean, value1: int32): int32 {
-entry0(value0: boolean, value1: int32):
-    branch value0, block1(value1), block2(value1)
+function test(v0: boolean, v1: int32): int32 {
+entry(v0: boolean, v1: int32):
+    branch v0, b1(v1), b2(v1)
 
-block1(value2: int32):
-    value3: int32 = int.add value2, value2
-    value4: int32 = int.add value3, value2
-    value5: int32 = int.add value4, value2
-    value6: int32 = int.add value5, value2
-    value7: int32 = int.add value6, value2
-    value8: int32 = int.add value7, value2
-    value9: int32 = int.add value8, value2
-    value10: int32 = int.add value9, value2
-    value11: int32 = int.add value10, value2
-    jump block3(value11)
+b1(v2: int32):
+    v3: int32 = int.add v2, v2
+    v4: int32 = int.add v3, v2
+    v5: int32 = int.add v4, v2
+    v6: int32 = int.add v5, v2
+    v7: int32 = int.add v6, v2
+    v8: int32 = int.add v7, v2
+    v9: int32 = int.add v8, v2
+    v10: int32 = int.add v9, v2
+    v11: int32 = int.add v10, v2
+    jump b3(v11)
 
-block2(value12: int32):
-    value13: int32 = int.sub value12, value12
-    value14: int32 = int.add value13, value12
-    value15: int32 = int.add value14, value12
-    value16: int32 = int.add value15, value12
-    value17: int32 = int.add value16, value12
-    value18: int32 = int.add value17, value12
-    value19: int32 = int.add value18, value12
-    value20: int32 = int.add value19, value12
-    value21: int32 = int.add value20, value12
-    jump block3(value21)
+b2(v12: int32):
+    v13: int32 = int.sub v12, v12
+    v14: int32 = int.add v13, v12
+    v15: int32 = int.add v14, v12
+    v16: int32 = int.add v15, v12
+    v17: int32 = int.add v16, v12
+    v18: int32 = int.add v17, v12
+    v19: int32 = int.add v18, v12
+    v20: int32 = int.add v19, v12
+    v21: int32 = int.add v20, v12
+    jump b3(v21)
 
-block3(value22: int32):
-    return value22
+b3(v22: int32):
+    return v22
 }
 "#;
         let expected = r#"
-function test(value0: boolean, value1: int32): int32 {
-entry0(value0: boolean, value1: int32):
-    value23: int32 = int.add value1, value1
-    value24: int32 = int.add value23, value1
-    value25: int32 = int.add value24, value1
-    value26: int32 = int.add value25, value1
-    value27: int32 = int.add value26, value1
-    value28: int32 = int.add value27, value1
-    value29: int32 = int.add value28, value1
-    value30: int32 = int.add value29, value1
-    value31: int32 = int.add value30, value1
-    value32: int32 = int.sub value1, value1
-    value33: int32 = int.add value32, value1
-    value34: int32 = int.add value33, value1
-    value35: int32 = int.add value34, value1
-    value36: int32 = int.add value35, value1
-    value37: int32 = int.add value36, value1
-    value38: int32 = int.add value37, value1
-    value39: int32 = int.add value38, value1
-    value40: int32 = int.add value39, value1
-    value41: int32 = select value0, value31, value40
-    jump block3(value41)
+function test(v0: boolean, v1: int32): int32 {
+entry(v0: boolean, v1: int32):
+    v23: int32 = int.add v1, v1
+    v24: int32 = int.add v23, v1
+    v25: int32 = int.add v24, v1
+    v26: int32 = int.add v25, v1
+    v27: int32 = int.add v26, v1
+    v28: int32 = int.add v27, v1
+    v29: int32 = int.add v28, v1
+    v30: int32 = int.add v29, v1
+    v31: int32 = int.add v30, v1
+    v32: int32 = int.sub v1, v1
+    v33: int32 = int.add v32, v1
+    v34: int32 = int.add v33, v1
+    v35: int32 = int.add v34, v1
+    v36: int32 = int.add v35, v1
+    v37: int32 = int.add v36, v1
+    v38: int32 = int.add v37, v1
+    v39: int32 = int.add v38, v1
+    v40: int32 = int.add v39, v1
+    v41: int32 = select v0, v31, v40
+    jump b3(v41)
 
-block1(value2: int32):
-    value3: int32 = int.add value2, value2
-    value4: int32 = int.add value3, value2
-    value5: int32 = int.add value4, value2
-    value6: int32 = int.add value5, value2
-    value7: int32 = int.add value6, value2
-    value8: int32 = int.add value7, value2
-    value9: int32 = int.add value8, value2
-    value10: int32 = int.add value9, value2
-    value11: int32 = int.add value10, value2
-    jump block3(value11)
+b1(v2: int32):
+    v3: int32 = int.add v2, v2
+    v4: int32 = int.add v3, v2
+    v5: int32 = int.add v4, v2
+    v6: int32 = int.add v5, v2
+    v7: int32 = int.add v6, v2
+    v8: int32 = int.add v7, v2
+    v9: int32 = int.add v8, v2
+    v10: int32 = int.add v9, v2
+    v11: int32 = int.add v10, v2
+    jump b3(v11)
 
-block2(value12: int32):
-    value13: int32 = int.sub value12, value12
-    value14: int32 = int.add value13, value12
-    value15: int32 = int.add value14, value12
-    value16: int32 = int.add value15, value12
-    value17: int32 = int.add value16, value12
-    value18: int32 = int.add value17, value12
-    value19: int32 = int.add value18, value12
-    value20: int32 = int.add value19, value12
-    value21: int32 = int.add value20, value12
-    jump block3(value21)
+b2(v12: int32):
+    v13: int32 = int.sub v12, v12
+    v14: int32 = int.add v13, v12
+    v15: int32 = int.add v14, v12
+    v16: int32 = int.add v15, v12
+    v17: int32 = int.add v16, v12
+    v18: int32 = int.add v17, v12
+    v19: int32 = int.add v18, v12
+    v20: int32 = int.add v19, v12
+    v21: int32 = int.add v20, v12
+    jump b3(v21)
 
-block3(value22: int32):
-    return value22
+b3(v22: int32):
+    return v22
 }
 "#;
 
@@ -770,20 +770,20 @@ block3(value22: int32):
     #[test]
     fn test_if_convert_skips_trapping_ops() {
         let input = r#"
-function test(value0: boolean, value1: int32, value2: int32): int32 {
-entry0(value0: boolean, value1: int32, value2: int32):
-    branch value0, block1(value1, value2), block2(value1, value2)
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+entry(v0: boolean, v1: int32, v2: int32):
+    branch v0, b1(v1, v2), b2(v1, v2)
 
-block1(value3: int32, value4: int32):
-    value5: int32 = int.div.s value3, value4
-    jump block3(value5)
+b1(v3: int32, v4: int32):
+    v5: int32 = int.div.s v3, v4
+    jump b3(v5)
 
-block2(value6: int32, value7: int32):
-    value8: int32 = int.sub value6, value7
-    jump block3(value8)
+b2(v6: int32, v7: int32):
+    v8: int32 = int.sub v6, v7
+    jump b3(v8)
 
-block3(value9: int32):
-    return value9
+b3(v9: int32):
+    return v9
 }
 "#;
 
@@ -796,18 +796,18 @@ block3(value9: int32):
     #[test]
     fn test_if_convert_requires_single_pred() {
         let input = r#"
-function test(value0: boolean, value1: int32): int32 {
-entry0(value0: boolean, value1: int32):
-    branch value0, block1(value1), block2(value1)
+function test(v0: boolean, v1: int32): int32 {
+entry(v0: boolean, v1: int32):
+    branch v0, b1(v1), b2(v1)
 
-block1(value2: int32):
-    jump block3(value2)
+b1(v2: int32):
+    jump b3(v2)
 
-block2(value3: int32):
-    jump block1(value3)
+b2(v3: int32):
+    jump b1(v3)
 
-block3(value4: int32):
-    return value4
+b3(v4: int32):
+    return v4
 }
 "#;
 
@@ -821,26 +821,26 @@ block3(value4: int32):
     fn test_if_convert_requires_single_merge_pred() {
         // source test
         let input = r#"
-function test(value0: boolean, value1: boolean, value2: int32, value3: int32): int32 {
-entry0(value0: boolean, value1: boolean, value2: int32, value3: int32):
-    branch value0, block1(value1, value2, value3), block4(value2)
+function test(v0: boolean, v1: boolean, v2: int32, v3: int32): int32 {
+entry(v0: boolean, v1: boolean, v2: int32, v3: int32):
+    branch v0, b1(v1, v2, v3), b4(v2)
 
-block1(value4: boolean, value5: int32, value6: int32):
-    branch value4, block2(value5, value6), block3(value5, value6)
+b1(v4: boolean, v5: int32, v6: int32):
+    branch v4, b2(v5, v6), b3(v5, v6)
 
-block2(value7: int32, value8: int32):
-    value9: int32 = int.add value7, value8
-    jump block5(value9)
+b2(v7: int32, v8: int32):
+    v9: int32 = int.add v7, v8
+    jump b5(v9)
 
-block3(value10: int32, value11: int32):
-    value12: int32 = int.sub value10, value11
-    jump block5(value12)
+b3(v10: int32, v11: int32):
+    v12: int32 = int.sub v10, v11
+    jump b5(v12)
 
-block4(value13: int32):
-    jump block5(value13)
+b4(v13: int32):
+    jump b5(v13)
 
-block5(value14: int32):
-    return value14
+b5(v14: int32):
+    return v14
 }
 "#;
 
@@ -855,44 +855,44 @@ block5(value14: int32):
     fn test_if_convert_multiple_merge_args() {
         // source test
         let input = r#"
-function test(value0: boolean, value1: int32, value2: int32): int32 {
-entry0(value0: boolean, value1: int32, value2: int32):
-    branch value0, block1(value1, value2), block2(value1, value2)
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+entry(v0: boolean, v1: int32, v2: int32):
+    branch v0, b1(v1, v2), b2(v1, v2)
 
-block1(value3: int32, value4: int32):
-    value5: int32 = int.add value3, value4
-    jump block3(value5, value3)
+b1(v3: int32, v4: int32):
+    v5: int32 = int.add v3, v4
+    jump b3(v5, v3)
 
-block2(value6: int32, value7: int32):
-    value8: int32 = int.sub value6, value7
-    jump block3(value8, value7)
+b2(v6: int32, v7: int32):
+    v8: int32 = int.sub v6, v7
+    jump b3(v8, v7)
 
-block3(value9: int32, value10: int32):
-    value11: int32 = int.add value9, value10
-    return value11
+b3(v9: int32, v10: int32):
+    v11: int32 = int.add v9, v10
+    return v11
 }
 "#;
         // expected output
         let expected = r#"
-function test(value0: boolean, value1: int32, value2: int32): int32 {
-entry0(value0: boolean, value1: int32, value2: int32):
-    value12: int32 = int.add value1, value2
-    value13: int32 = int.sub value1, value2
-    value14: int32 = select value0, value12, value13
-    value15: int32 = select value0, value1, value2
-    jump block3(value14, value15)
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+entry(v0: boolean, v1: int32, v2: int32):
+    v12: int32 = int.add v1, v2
+    v13: int32 = int.sub v1, v2
+    v14: int32 = select v0, v12, v13
+    v15: int32 = select v0, v1, v2
+    jump b3(v14, v15)
 
-block1(value3: int32, value4: int32):
-    value5: int32 = int.add value3, value4
-    jump block3(value5, value3)
+b1(v3: int32, v4: int32):
+    v5: int32 = int.add v3, v4
+    jump b3(v5, v3)
 
-block2(value6: int32, value7: int32):
-    value8: int32 = int.sub value6, value7
-    jump block3(value8, value7)
+b2(v6: int32, v7: int32):
+    v8: int32 = int.sub v6, v7
+    jump b3(v8, v7)
 
-block3(value9: int32, value10: int32):
-    value11: int32 = int.add value9, value10
-    return value11
+b3(v9: int32, v10: int32):
+    v11: int32 = int.add v9, v10
+    return v11
 }
 "#;
 

@@ -31,24 +31,23 @@ function applyIdentity(input: int32): int32 {
 type makeIdentity.return.function = (int32) => int32;
 
 function makeIdentity(): makeIdentity.return.function {
-entry0:
-    value0: ref<{  }, managed, nullable> = null
-    value1: (int32) => int32 = closure.bind makeIdentity.lambda#6, value0
-    return value1
+entry:
+    v0: ref<{  }, managed, nullable> = null
+    v1: (int32) => int32 = closure.bind makeIdentity.lambda#6, v0
+    return v1
 }
 
 @environment(ref<{  }, managed, nullable>)
-function makeIdentity.lambda#6(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function makeIdentity.lambda#6(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 
-function applyIdentity(value0: int32): int32 {
-entry0(value0: int32):
-    value1: makeIdentity.return.function =
-        call makeIdentity(): () -> makeIdentity.return.function
-    value2: int32 = call.indirect value1(value0): (int32) -> int32
-    return value2
+function applyIdentity(v0: int32): int32 {
+entry(v0: int32):
+    v1: makeIdentity.return.function = call makeIdentity()
+    v2: int32 = call.indirect v1(v0): (int32) -> int32
+    return v2
 }
 "#,
     );
@@ -90,35 +89,36 @@ function applyAdder(input: int32): int32 {
         "native",
         r#"
 type makeAdder.return.function = (int32) => int32;
+
 type env.7 {
     base: int32;
 }
 
 function makeAdder(): makeAdder.return.function {
-entry0:
-    value0: int32 = 5int32
-    value1: ref<env.7, managed> = new.zeroed env.7
-    value2: ref<int32, managed> = field.address value1, 0
-    store value2, value0
-    value3: (int32) => int32 = closure.bind makeAdder.lambda#7, value1
-    return value3
+entry:
+    v0: int32 = 5
+    v1: ref<env.7, managed> = new.zeroed env.7
+    v2: ref<int32, managed> = field.address v1, 0
+    store v2, v0
+    v3: (int32) => int32 = closure.bind makeAdder.lambda#7, v1
+    return v3
 }
 
 @environment(ref<env.7, managed>)
-function makeAdder.lambda#7(value0: int32): int32 {
-entry0(value0: int32):
-    value1: ref<env.7, managed> = closure.environment
-    value2: ref<int32, managed> = field.address value1, 0
-    value3: int32 = load value2
-    value4: int32 = int.add value3, value0
-    return value4
+function makeAdder.lambda#7(v0: int32): int32 {
+entry(v0: int32):
+    v1: ref<env.7, managed> = closure.environment
+    v2: ref<int32, managed> = field.address v1, 0
+    v3: int32 = load v2
+    v4: int32 = int.add v3, v0
+    return v4
 }
 
-function applyAdder(value0: int32): int32 {
-entry0(value0: int32):
-    value1: makeAdder.return.function = call makeAdder(): () -> makeAdder.return.function
-    value2: int32 = call.indirect value1(value0): (int32) -> int32
-    return value2
+function applyAdder(v0: int32): int32 {
+entry(v0: int32):
+    v1: makeAdder.return.function = call makeAdder()
+    v2: int32 = call.indirect v1(v0): (int32) -> int32
+    return v2
 }
 "#,
     );
@@ -163,46 +163,47 @@ function runCounter(): int32 {
         "native",
         r#"
 type makeCounter.return.function = () => int32;
+
 type env.6 {
     count: ref<int32, managed>;
 }
 
 function makeCounter(): makeCounter.return.function {
-entry0:
-    value0: int32 = 0int32
-    value1: ref<int32, managed> = new.zeroed int32
-    store value1, value0
-    value2: ref<env.6, managed> = new.zeroed env.6
-    value3: ref<ref<int32, managed>, managed> = field.address value2, 0
-    value4: ref<int32, managed> = cast.bit value1 -> ref<int32, managed>
-    store value3, value4
-    value5: () => int32 = closure.bind makeCounter.lambda#6, value2
-    return value5
+entry:
+    v0: int32 = 0
+    v1: ref<int32, managed> = new.zeroed int32
+    store v1, v0
+    v2: ref<env.6, managed> = new.zeroed env.6
+    v3: ref<ref<int32, managed>, managed> = field.address v2, 0
+    v4: ref<int32, managed> = cast.bit v1 -> ref<int32, managed>
+    store v3, v4
+    v5: () => int32 = closure.bind makeCounter.lambda#6, v2
+    return v5
 }
 
 @environment(ref<env.6, managed>)
 function makeCounter.lambda#6(): int32 {
-entry0:
-    value0: ref<env.6, managed> = closure.environment
-    value1: ref<ref<int32, managed>, managed> = field.address value0, 0
-    value2: ref<int32, managed> = load value1
-    value3: int32 = load value2
-    value4: int32 = 1int32
-    value5: int32 = int.add value3, value4
-    value6: ref<ref<int32, managed>, managed> = field.address value0, 0
-    value7: ref<int32, managed> = load value6
-    store value7, value5
-    value8: ref<ref<int32, managed>, managed> = field.address value0, 0
-    value9: ref<int32, managed> = load value8
-    value10: int32 = load value9
-    return value10
+entry:
+    v0: ref<env.6, managed> = closure.environment
+    v1: ref<ref<int32, managed>, managed> = field.address v0, 0
+    v2: ref<int32, managed> = load v1
+    v3: int32 = load v2
+    v4: int32 = 1
+    v5: int32 = int.add v3, v4
+    v6: ref<ref<int32, managed>, managed> = field.address v0, 0
+    v7: ref<int32, managed> = load v6
+    store v7, v5
+    v8: ref<ref<int32, managed>, managed> = field.address v0, 0
+    v9: ref<int32, managed> = load v8
+    v10: int32 = load v9
+    return v10
 }
 
 function runCounter(): int32 {
-entry0:
-    value0: makeCounter.return.function = call makeCounter(): () -> makeCounter.return.function
-    value1: int32 = call.indirect value0(): () -> int32
-    return value1
+entry:
+    v0: makeCounter.return.function = call makeCounter()
+    v1: int32 = call.indirect v0(): () -> int32
+    return v1
 }
 "#,
     );

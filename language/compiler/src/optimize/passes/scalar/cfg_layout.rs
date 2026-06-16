@@ -811,32 +811,32 @@ mod tests {
     #[test]
     fn test_cfg_layout_orders_hot_path() {
         let input = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    branch value0, block2(), block1()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    branch v0, b2, b1
 
-block1:
-    value1: int32 = 2int32
-    return value1
+b1:
+    v1: int32 = 2
+    return v1
 
-block2:
-    value2: int32 = 1int32
-    return value2
+b2:
+    v2: int32 = 1
+    return v2
 }
 "#;
 
         let expected = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    branch value0, block2(), block1()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    branch v0, b2, b1
 
-block1:
-    value1: int32 = 2int32
-    return value1
+b1:
+    v1: int32 = 2
+    return v1
 
-block2:
-    value2: int32 = 1int32
-    return value2
+b2:
+    v2: int32 = 1
+    return v2
 }
 "#;
 
@@ -857,17 +857,17 @@ block2:
     #[test]
     fn test_cfg_layout_skips_without_profile() {
         let input = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    branch value0, block2(), block1()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    branch v0, b2, b1
 
-block1:
-    value1: int32 = 2int32
-    return value1
+b1:
+    v1: int32 = 2
+    return v1
 
-block2:
-    value2: int32 = 1int32
-    return value2
+b2:
+    v2: int32 = 1
+    return v2
 }
 "#;
 
@@ -882,35 +882,35 @@ block2:
     #[test]
     fn test_cfg_layout_splits_cold_blocks() {
         let input = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    branch value0, block2(), block1()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    branch v0, b2, b1
 
-block1:
-    value1: int32 = 2int32
-    return value1
+b1:
+    v1: int32 = 2
+    return v1
 
-block2:
-    value2: int32 = 1int32
-    return value2
+b2:
+    v2: int32 = 1
+    return v2
 }
 "#;
 
         let expected = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    branch value0, block3(), block1()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    branch v0, b3, b1
 
-block1:
-    value1: int32 = 2int32
-    return value1
+b1:
+    v1: int32 = 2
+    return v1
 
-block2:
-    value2: int32 = 1int32
-    return value2
+b2:
+    v2: int32 = 1
+    return v2
 
-block3:
-    jump block2()
+b3:
+    jump b2
 }
 "#;
 
@@ -931,35 +931,35 @@ block3:
     #[test]
     fn test_cfg_layout_switch_orders_hot_blocks() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    switch value0, block1(), 0 => block2()
+function test(v0: int32): int32 {
+entry(v0: int32):
+    switch v0, b1, 0 -> b2
 
-block1:
-    value1: int32 = 2int32
-    return value1
+b1:
+    v1: int32 = 2
+    return v1
 
-block2:
-    value2: int32 = 1int32
-    return value2
+b2:
+    v2: int32 = 1
+    return v2
 }
 "#;
 
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    switch value0, block3(), 0 => block2()
+function test(v0: int32): int32 {
+entry(v0: int32):
+    switch v0, b3, 0 -> b1
 
-block2:
-    value2: int32 = 1int32
-    return value2
+b1:
+    v2: int32 = 1
+    return v2
 
-block1:
-    value1: int32 = 2int32
-    return value1
+b2:
+    v1: int32 = 2
+    return v1
 
-block3:
-    jump block1()
+b3:
+    jump b2
 }
 "#;
 
@@ -980,39 +980,39 @@ block3:
     #[test]
     fn test_cfg_layout_check_orders_hot_blocks() {
         let input = r#"
-function test(value0: uint32, value1: [uint32; 8]): int32 {
-entry0(value0: uint32, value1: [uint32; 8]):
-    value2: uint32 = 1uint32
-    value3: boolean = int.lt.u value0, value2
-    check bounds.u value0, value2, value1 -> block2(), block1()
+function test(v0: uint32, v1: [uint32; 8]): int32 {
+entry(v0: uint32, v1: [uint32; 8]):
+    v2: uint32 = 1
+    v3: boolean = int.lt.u v0, v2
+    check bounds.u v0, v2, v1 -> b2, b1
 
-block1:
-    value4: int32 = 2int32
-    return value4
+b1:
+    v4: int32 = 2
+    return v4
 
-block2:
-    value5: int32 = 1int32
-    return value5
+b2:
+    v5: int32 = 1
+    return v5
 }
 "#;
 
         let expected = r#"
-function test(value0: uint32, value1: [uint32; 8]): int32 {
-entry0(value0: uint32, value1: [uint32; 8]):
-    value2: uint32 = 1uint32
-    value3: boolean = int.lt.u value0, value2
-    check bounds.u value0, value2, value1 -> block2(), block3()
+function test(v0: uint32, v1: [uint32; 8]): int32 {
+entry(v0: uint32, v1: [uint32; 8]):
+    v2: uint32 = 1
+    v3: boolean = int.lt.u v0, v2
+    check bounds.u v0, v2, v1 -> b1, b3
 
-block2:
-    value5: int32 = 1int32
-    return value5
+b1:
+    v5: int32 = 1
+    return v5
 
-block1:
-    value4: int32 = 2int32
-    return value4
+b2:
+    v4: int32 = 2
+    return v4
 
-block3:
-    jump block1()
+b3:
+    jump b2
 }
 "#;
 
@@ -1033,32 +1033,32 @@ block3:
     #[test]
     fn test_cfg_layout_orders_by_edge_frequency() {
         let input = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    branch value0, block1(), block2()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    branch v0, b1, b2
 
-block1:
-    value1: int32 = 1int32
-    return value1
+b1:
+    v1: int32 = 1
+    return v1
 
-block2:
-    value2: int32 = 2int32
-    return value2
+b2:
+    v2: int32 = 2
+    return v2
 }
 "#;
 
         let expected = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    branch value0, block1(), block2()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    branch v0, b2, b1
 
-block2:
-    value2: int32 = 2int32
-    return value2
+b1:
+    v2: int32 = 2
+    return v2
 
-block1:
-    value1: int32 = 1int32
-    return value1
+b2:
+    v1: int32 = 1
+    return v1
 }
 "#;
 
@@ -1079,34 +1079,34 @@ block1:
     #[test]
     fn test_cfg_layout_duplicates_hot_edge() {
         let input = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    branch value0, block2(), block1()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    branch v0, b2, b1
 
-block1:
-    jump block2()
+b1:
+    jump b2
 
-block2:
-    value1: int32 = 1int32
-    return value1
+b2:
+    v1: int32 = 1
+    return v1
 }
 "#;
 
         let expected = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    branch value0, block3(), block1()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    branch v0, b3, b1
 
-block1:
-    jump block2()
+b1:
+    jump b2
 
-block2:
-    value1: int32 = 1int32
-    return value1
+b2:
+    v1: int32 = 1
+    return v1
 
-block3:
-    value2: int32 = 1int32
-    return value2
+b3:
+    v2: int32 = 1
+    return v2
 }
 "#;
 
@@ -1127,40 +1127,40 @@ block3:
     #[test]
     fn test_cfg_layout_preserves_unreachable_order() {
         let input = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    branch value0, block1(), block3()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    branch v0, b1, b3
 
-block1:
-    value1: int32 = 1int32
-    return value1
+b1:
+    v1: int32 = 1
+    return v1
 
-block2:
-    value2: int32 = 3int32
-    return value2
+b2:
+    v2: int32 = 3
+    return v2
 
-block3:
-    value3: int32 = 2int32
-    return value3
+b3:
+    v3: int32 = 2
+    return v3
 }
 "#;
 
         let expected = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    branch value0, block1(), block3()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    branch v0, b1, b2
 
-block1:
-    value1: int32 = 1int32
-    return value1
+b1:
+    v1: int32 = 1
+    return v1
 
-block3:
-    value3: int32 = 2int32
-    return value3
+b2:
+    v3: int32 = 2
+    return v3
 
-block2:
-    value2: int32 = 3int32
-    return value2
+b3:
+    v2: int32 = 3
+    return v2
 }
 "#;
 

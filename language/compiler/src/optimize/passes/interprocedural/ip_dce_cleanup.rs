@@ -98,19 +98,19 @@ mod tests {
     #[test]
     fn test_ip_dce_cleanup_removes_dead_items() {
         let input = r#"
-readonly global dead: int32 = 1int32
+readonly global dead: int32 = 1
 
 function dead(): int32 {
-entry0:
-    value0: int32 = 2int32
-    return value0
+entry:
+    v0: int32 = 2
+    return v0
 }
 
 export function root(): int32 {
-entry0:
-    value0: int32 = 1int32
-    value1: int32 = int.add value0, value0
-    return value0
+entry:
+    v0: int32 = 1
+    v1: int32 = int.add v0, v0
+    return v0
 }
 "#;
 
@@ -120,10 +120,10 @@ external readonly global dead: int32
 external function dead(): int32
 
 export function root(): int32 {
-entry0:
-    value0: int32 = 1int32
-    value1: int32 = int.add value0, value0
-    return value0
+entry:
+    v0: int32 = 1
+    v1: int32 = int.add v0, v0
+    return v0
 }
 "#;
 
@@ -136,28 +136,28 @@ entry0:
     #[test]
     fn test_ip_dce_cleanup_preserves_live_globals() {
         let input = r#"
-readonly global live: int32 = 1int32
+readonly global live: int32 = 1
 
-readonly global dead: int32 = 2int32
+readonly global dead: int32 = 2
 
 export function root(): int32 {
-entry0:
-    value0: ref<int32, raw, readonly> = global.address live
-    value1: int32 = load value0
-    return value1
+entry:
+    v0: ref<int32, raw, readonly> = global.address live
+    v1: int32 = load v0
+    return v1
 }
 "#;
 
         let expected = r#"
-readonly global live: int32 = 1int32
+readonly global live: int32 = 1
 
 external readonly global dead: int32
 
 export function root(): int32 {
-entry0:
-    value0: ref<int32, raw, readonly> = global.address live
-    value1: int32 = load value0
-    return value1
+entry:
+    v0: ref<int32, raw, readonly> = global.address live
+    v1: int32 = load v0
+    return v1
 }
 "#;
 

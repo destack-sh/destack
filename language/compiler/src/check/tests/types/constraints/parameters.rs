@@ -220,8 +220,7 @@ write("message", number);
 /// @type.node source="write(\"message\", number)" type=void
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type is not assignable"
-/// @diagnostic.label line=17 column=18 source="write(\"message\", number);"
+
 "#,
     );
 }

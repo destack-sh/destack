@@ -32,11 +32,11 @@ function statusValue(): int32 {
 type Status = newtype<int32>;
 
 function statusValue(): int32 {
-entry0:
-    value0: int32 = 4int32
-    value1: Status = cast.bit value0 -> Status
-    value2: int32 = cast.bit value1 -> int32
-    return value2
+entry:
+    v0: int32 = 4
+    v1: Status = cast.bit v0 -> Status
+    v2: int32 = cast.bit v1 -> int32
+    return v2
 }
 "#,
     );
@@ -152,21 +152,21 @@ function checkStatic(): boolean {
 type Status = newtype<int32>;
 
 function checkStatic(): boolean {
-entry0:
-    value0: int32 = 1int32
-    value1: Status = cast.bit value0 -> Status
-    value2: boolean = call Status.isActive(value1): (Status) -> boolean
-    return value2
+entry:
+    v0: int32 = 1
+    v1: Status = cast.bit v0 -> Status
+    v2: boolean = call Status.isActive(v1)
+    return v2
 }
 
-function Status.isActive(value0: Status): boolean {
-entry0(value0: Status):
-    value1: int32 = cast.bit value0 -> int32
-    value2: int32 = 1int32
-    value3: Status = cast.bit value2 -> Status
-    value4: int32 = cast.bit value3 -> int32
-    value5: boolean = int.eq value1, value4
-    return value5
+function Status.isActive(v0: Status): boolean {
+entry(v0: Status):
+    v1: int32 = cast.bit v0 -> int32
+    v2: int32 = 1
+    v3: Status = cast.bit v2 -> Status
+    v4: int32 = cast.bit v3 -> int32
+    v5: boolean = int.eq v1, v4
+    return v5
 }
 "#,
     );
@@ -207,21 +207,21 @@ function checkInstance(): boolean {
 type Status = newtype<int32>;
 
 function checkInstance(): boolean {
-entry0:
-    value0: int32 = 1int32
-    value1: Status = cast.bit value0 -> Status
-    value2: boolean = call Status.isActive(value1): (Status) -> boolean
-    return value2
+entry:
+    v0: int32 = 1
+    v1: Status = cast.bit v0 -> Status
+    v2: boolean = call Status.isActive(v1)
+    return v2
 }
 
 function Status.isActive(this0: Status): boolean {
-entry0(this0: Status):
-    value1: int32 = cast.bit this0 -> int32
-    value2: int32 = 1int32
-    value3: Status = cast.bit value2 -> Status
-    value4: int32 = cast.bit value3 -> int32
-    value5: boolean = int.eq value1, value4
-    return value5
+entry(this0: Status):
+    v1: int32 = cast.bit this0 -> int32
+    v2: int32 = 1
+    v3: Status = cast.bit v2 -> Status
+    v4: int32 = cast.bit v3 -> int32
+    v5: boolean = int.eq v1, v4
+    return v5
 }
 "#,
     );
@@ -262,11 +262,11 @@ type Status = newtype<int32>;
 readonly global Status.Default: Status = 1int32
 
 function defaultValue(): int32 {
-entry0:
-    value0: ref<Status, raw, readonly> = global.address Status.Default
-    value1: Status = load value0
-    value2: int32 = cast.bit value1 -> int32
-    return value2
+entry:
+    v0: ref<Status, raw, readonly> = global.address Status.Default
+    v1: Status = load v0
+    v2: int32 = cast.bit v1 -> int32
+    return v2
 }
 "#,
     );

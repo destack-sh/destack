@@ -28,18 +28,18 @@ function sum(a: int32, b: int32): int32 {
     let expected = r#"
 ${string_alias}
 readonly global ${integer_overflow}: ref<String, managed, readonly> = "integer overflow"
-function sum(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: (int32, boolean) = intrinsic.math.arithmetic.overflowing.add(value0, value1)
-    value3: int32 = field.get value2, 0
-    value4: boolean = field.get value2, 1
-    check int.add.overflow.s value0, value1 -> block2, block1
-block1:
-    value5: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${integer_overflow}
-    value6: ref<String, managed, readonly> = load value5
-    panic value6
-block2:
-    return value3
+function sum(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: (int32, boolean) = intrinsic.math.arithmetic.overflowing.add(v0, v1)
+    v3: int32 = field.get v2, 0
+    v4: boolean = field.get v2, 1
+    check int.add.overflow.s v0, v1 -> b2, b1
+b1:
+    v5: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${integer_overflow}
+    v6: ref<String, managed, readonly> = load v5
+    panic v6
+b2:
+    return v3
 }
         "#;
     let expected = expected.replace("${string_alias}", string_alias);
@@ -71,18 +71,18 @@ function sum(a: int32, b: int32): int32 {
         module_id,
         "native",
         r#"
-function sum(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: (int32, boolean) = intrinsic.math.arithmetic.overflowing.add(value0, value1)
-    value3: int32 = field.get value2, 0
-    value4: boolean = field.get value2, 1
-    check int.add.overflow.s value0, value1 -> block2, block1
+function sum(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: (int32, boolean) = intrinsic.math.arithmetic.overflowing.add(v0, v1)
+    v3: int32 = field.get v2, 0
+    v4: boolean = field.get v2, 1
+    check int.add.overflow.s v0, v1 -> b2, b1
 
-block1:
+b1:
     trap.abort
 
-block2:
-    return value3
+b2:
+    return v3
 }
 "#,
     );
@@ -113,18 +113,18 @@ function sum(a: uint32, b: uint32): uint32 {
     let expected = r#"
 ${string_alias}
 readonly global ${integer_overflow}: ref<String, managed, readonly> = "integer overflow"
-function sum(value0: uint32, value1: uint32): uint32 {
-entry0(value0: uint32, value1: uint32):
-    value2: (uint32, boolean) = intrinsic.math.arithmetic.overflowing.add(value0, value1)
-    value3: uint32 = field.get value2, 0
-    value4: boolean = field.get value2, 1
-    check int.add.overflow.u value0, value1 -> block2, block1
-block1:
-    value5: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${integer_overflow}
-    value6: ref<String, managed, readonly> = load value5
-    panic value6
-block2:
-    return value3
+function sum(v0: uint32, v1: uint32): uint32 {
+entry(v0: uint32, v1: uint32):
+    v2: (uint32, boolean) = intrinsic.math.arithmetic.overflowing.add(v0, v1)
+    v3: uint32 = field.get v2, 0
+    v4: boolean = field.get v2, 1
+    check int.add.overflow.u v0, v1 -> b2, b1
+b1:
+    v5: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${integer_overflow}
+    v6: ref<String, managed, readonly> = load v5
+    panic v6
+b2:
+    return v3
 }
         "#;
     let expected = expected.replace("${string_alias}", string_alias);
@@ -156,10 +156,10 @@ function sum(a: int32, b: int32): int32 {
         module_id,
         "native",
         r#"
-function sum(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    return value2
+function sum(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    return v2
 }
 "#,
     );
@@ -192,22 +192,22 @@ function quotient(a: int32, b: int32): int32 {
 ${string_alias}
 readonly global ${division_by_zero}: ref<String, managed, readonly> = "division by zero"
 readonly global ${division_overflow}: ref<String, managed, readonly> = "division overflow"
-function quotient(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    check zeroDivisor value1 -> block2, block1
-block1:
-    value2: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${division_by_zero}
-    value3: ref<String, managed, readonly> = load value2
-    panic value3
-block2:
-    check int.div.overflow.s value0, value1 -> block4, block3
-block3:
-    value4: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${division_overflow}
-    value5: ref<String, managed, readonly> = load value4
-    panic value5
-block4:
-    value6: int32 = int.div.s value0, value1
-    return value6
+function quotient(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    check div.zero v1 -> b2, b1
+b1:
+    v2: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${division_by_zero}
+    v3: ref<String, managed, readonly> = load v2
+    panic v3
+b2:
+    check int.div.overflow.s v0, v1 -> b4, b3
+b3:
+    v4: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${division_overflow}
+    v5: ref<String, managed, readonly> = load v4
+    panic v5
+b4:
+    v6: int32 = int.div.s v0, v1
+    return v6
 }
         "#;
     let expected = expected.replace("${string_alias}", string_alias);
@@ -241,22 +241,22 @@ function quotient(a: int32, b: int32): int32 {
         module_id,
         "native",
         r#"
-function quotient(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    check zeroDivisor value1 -> block2, block1
+function quotient(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    check div.zero v1 -> b2, b1
 
-block1:
+b1:
     trap.abort
 
-block2:
-    check int.div.overflow.s value0, value1 -> block4, block3
+b2:
+    check int.div.overflow.s v0, v1 -> b4, b3
 
-block3:
+b3:
     trap.abort
 
-block4:
-    value2: int32 = int.div.s value0, value1
-    return value2
+b4:
+    v2: int32 = int.div.s v0, v1
+    return v2
 }
 "#,
     );
@@ -289,16 +289,16 @@ function quotient(a: uint32, b: uint32): uint32 {
 ${string_alias}
 readonly global ${division_by_zero}: ref<String, managed, readonly> = "division by zero"
 readonly global ${division_overflow}: ref<String, managed, readonly> = "division overflow"
-function quotient(value0: uint32, value1: uint32): uint32 {
-entry0(value0: uint32, value1: uint32):
-    check zeroDivisor value1 -> block2, block1
-block1:
-    value2: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${division_by_zero}
-    value3: ref<String, managed, readonly> = load value2
-    panic value3
-block2:
-    value4: uint32 = int.div.u value0, value1
-    return value4
+function quotient(v0: uint32, v1: uint32): uint32 {
+entry(v0: uint32, v1: uint32):
+    check div.zero v1 -> b2, b1
+b1:
+    v2: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${division_by_zero}
+    v3: ref<String, managed, readonly> = load v2
+    panic v3
+b2:
+    v4: uint32 = int.div.u v0, v1
+    return v4
 }
         "#;
     let expected = expected.replace("${string_alias}", string_alias);
@@ -333,16 +333,16 @@ function shift(value: int32, amount: int32): int32 {
     let expected = r#"
 ${string_alias}
 readonly global ${shift_out_of_range}: ref<String, managed, readonly> = "shift out of range"
-function shift(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    check shiftRange.s value1, 32 -> block2, block1
-block1:
-    value2: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${shift_out_of_range}
-    value3: ref<String, managed, readonly> = load value2
-    panic value3
-block2:
-    value4: int32 = int.shl value0, value1
-    return value4
+function shift(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    check shift.range.s v1, 32 -> b2, b1
+b1:
+    v2: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${shift_out_of_range}
+    v3: ref<String, managed, readonly> = load v2
+    panic v3
+b2:
+    v4: int32 = int.shl v0, v1
+    return v4
 }
         "#;
     let expected = expected.replace("${string_alias}", string_alias);
@@ -374,16 +374,16 @@ function shift(value: int32, amount: int32): int32 {
         module_id,
         "native",
         r#"
-function shift(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    check shiftRange.s value1, 32 -> block2, block1
+function shift(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    check shift.range.s v1, 32 -> b2, b1
 
-block1:
+b1:
     trap.abort
 
-block2:
-    value2: int32 = int.shl value0, value1
-    return value2
+b2:
+    v2: int32 = int.shl v0, v1
+    return v2
 }
 "#,
     );
@@ -414,16 +414,16 @@ function shift(value: uint32, amount: uint32): uint32 {
     let expected = r#"
 ${string_alias}
 readonly global ${shift_out_of_range}: ref<String, managed, readonly> = "shift out of range"
-function shift(value0: uint32, value1: uint32): uint32 {
-entry0(value0: uint32, value1: uint32):
-    check shiftRange.u value1, 32 -> block2, block1
-block1:
-    value2: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${shift_out_of_range}
-    value3: ref<String, managed, readonly> = load value2
-    panic value3
-block2:
-    value4: uint32 = int.shl value0, value1
-    return value4
+function shift(v0: uint32, v1: uint32): uint32 {
+entry(v0: uint32, v1: uint32):
+    check shift.range.u v1, 32 -> b2, b1
+b1:
+    v2: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${shift_out_of_range}
+    v3: ref<String, managed, readonly> = load v2
+    panic v3
+b2:
+    v4: uint32 = int.shl v0, v1
+    return v4
 }
         "#;
     let expected = expected.replace("${string_alias}", string_alias);
@@ -456,17 +456,17 @@ function element(values: [int32; 4], index: int32): int32 {
     let expected = r#"
 ${string_alias}
 readonly global ${bounds_check_failed}: ref<String, managed, readonly> = "bounds check failed"
-function element(value0: [int32; 4], value1: int32): int32 {
-entry0(value0: [int32; 4], value1: int32):
-    value2: int32 = 4int32
-    check bounds.s value1, value2, value0 -> block2, block1
-block1:
-    value3: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${bounds_check_failed}
-    value4: ref<String, managed, readonly> = load value3
-    panic value4
-block2:
-    value5: int32 = element.get value0, value1
-    return value5
+function element(v0: [int32; 4], v1: int32): int32 {
+entry(v0: [int32; 4], v1: int32):
+    v2: int32 = 4int32
+    check bounds.s v1, v2, v0 -> b2, b1
+b1:
+    v3: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${bounds_check_failed}
+    v4: ref<String, managed, readonly> = load v3
+    panic v4
+b2:
+    v5: int32 = element.get v0, v1
+    return v5
 }
         "#;
     let expected = expected.replace("${string_alias}", string_alias);
@@ -498,17 +498,17 @@ function element(values: [int32; 4], index: int32): int32 {
         module_id,
         "native",
         r#"
-function element(value0: [int32; 4], value1: int32): int32 {
-entry0(value0: [int32; 4], value1: int32):
-    value2: int32 = 4int32
-    check bounds.s value1, value2, value0 -> block2, block1
+function element(v0: [int32; 4], v1: int32): int32 {
+entry(v0: [int32; 4], v1: int32):
+    v2: int32 = 4int32
+    check bounds.s v1, v2, v0 -> b2, b1
 
-block1:
+b1:
     trap.abort
 
-block2:
-    value3: int32 = element.get value0, value1
-    return value3
+b2:
+    v3: int32 = element.get v0, v1
+    return v3
 }
 "#,
     );
@@ -539,17 +539,17 @@ function element(values: [int32; 4], index: uint32): int32 {
     let expected = r#"
 ${string_alias}
 readonly global ${bounds_check_failed}: ref<String, managed, readonly> = "bounds check failed"
-function element(value0: [int32; 4], value1: uint32): int32 {
-entry0(value0: [int32; 4], value1: uint32):
-    value2: uint32 = 4uint32
-    check bounds.u value1, value2, value0 -> block2, block1
-block1:
-    value3: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${bounds_check_failed}
-    value4: ref<String, managed, readonly> = load value3
-    panic value4
-block2:
-    value5: int32 = element.get value0, value1
-    return value5
+function element(v0: [int32; 4], v1: uint32): int32 {
+entry(v0: [int32; 4], v1: uint32):
+    v2: uint32 = 4uint32
+    check bounds.u v1, v2, v0 -> b2, b1
+b1:
+    v3: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${bounds_check_failed}
+    v4: ref<String, managed, readonly> = load v3
+    panic v4
+b2:
+    v5: int32 = element.get v0, v1
+    return v5
 }
         "#;
     let expected = expected.replace("${string_alias}", string_alias);

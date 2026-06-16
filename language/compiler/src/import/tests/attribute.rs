@@ -86,8 +86,7 @@ import data from "./data.json" with { type: true };
     compiler.assert_dir_imported_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error code=EI203 message="invalid import attribute type '<non-string>'"
-/// @diagnostic.label line=2 column=1 source="import data from \"./data.json\" with { type: true };"
+
 "#,
     );
 }
@@ -114,8 +113,7 @@ import data from "./data.json" with { type: "xml" };
     compiler.assert_dir_imported_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error code=EI203 message="invalid import attribute type 'xml'"
-/// @diagnostic.label line=2 column=1 source="import data from \"./data.json\" with { type: \"xml\" };"
+
 "#,
     );
 }

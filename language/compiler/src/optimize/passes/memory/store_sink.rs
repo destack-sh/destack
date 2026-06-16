@@ -500,39 +500,39 @@ mod tests {
     #[test]
     fn test_store_sink_to_single_successor() {
         let input = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: int32 = 7int32
-    store value1, value2
-    branch value0, block1(), block2()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: int32 = 7
+    store v1, v2
+    branch v0, b1, b2
 
-block1:
-    value3: int32 = load value1
-    return value3
+b1:
+    v3: int32 = load v1
+    return v3
 
-block2:
-    return value2
+b2:
+    return v2
 }
 "#;
 
         let expected = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: int32 = 7int32
-    branch value0, block1(), block2()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: int32 = 7
+    branch v0, b1, b3
 
-block1:
-    store value1, value2
-    jump block1_1()
+b1:
+    store v1, v2
+    jump block1_1
 
 block1_1:
-    value3: int32 = load value1
-    return value3
+    v3: int32 = load v1
+    return v3
 
-block2:
-    return value2
+b3:
+    return v2
 }
 "#;
 
@@ -545,20 +545,20 @@ block2:
     #[test]
     fn test_store_sink_skips_all_successors() {
         let input = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: int32 = 7int32
-    store value1, value2
-    branch value0, block1(), block2()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: int32 = 7
+    store v1, v2
+    branch v0, b1, b2
 
-block1:
-    value3: int32 = load value1
-    return value3
+b1:
+    v3: int32 = load v1
+    return v3
 
-block2:
-    value4: int32 = load value1
-    return value4
+b2:
+    v4: int32 = load v1
+    return v4
 }
 "#;
 
@@ -571,16 +571,16 @@ block2:
     #[test]
     fn test_store_sink_skips_escaping_store() {
         let input = r#"
-function test(value0: boolean, value1: ref<int32, raw, space(static)>): void {
-entry0(value0: boolean, value1: ref<int32, raw, space(static)>):
-    value2: int32 = 1int32
-    store value1, value2
-    branch value0, block1(), block2()
+function test(v0: boolean, v1: ref<int32, raw, space(static)>): void {
+entry(v0: boolean, v1: ref<int32, raw, space(static)>):
+    v2: int32 = 1
+    store v1, v2
+    branch v0, b1, b2
 
-block1:
+b1:
     return
 
-block2:
+b2:
     return
 }
 "#;

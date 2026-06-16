@@ -56,14 +56,14 @@ function assignReturn(x: number): number {
         module_id,
         "native",
         r#"
-function assignReturn(value0: float64): float64 {
-entry0(value0: float64):
-    value1: float64 = 1float64
-    value2: float64 = float.add value0, value1
-    value3: float64 = 2float64
-    value4: float64 = float.add value2, value3
-    value5: float64 = float.add value4, value0
-    return value5
+function assignReturn(v0: float64): float64 {
+entry(v0: float64):
+    v1: float64 = 1
+    v2: float64 = float.add v0, v1
+    v3: float64 = 2
+    v4: float64 = float.add v2, v3
+    v5: float64 = float.add v4, v0
+    return v5
 }
 "#,
     );
@@ -99,13 +99,13 @@ function borrowLocal(x: int32): &int32 {
         module_id,
         "native",
         r#"
-function borrowLocal(value0: int32): ref<int32, borrowed> {
-    local local0: int32, owned
+function borrowLocal(v0: int32): ref<int32, borrowed> {
+    local l0: int32
 
-entry0(value0: int32):
-    local.set local0, value0
-    value1: ref<int32, borrowed, space(frame)> = local.address local0
-    return value1
+entry(v0: int32):
+    local.set l0, v0
+    v1: ref<int32, borrowed, space(frame)> = local.address l0
+    return v1
 }
 "#,
     );
@@ -132,15 +132,15 @@ function borrowTemp(x: int32): &int32 {
         module_id,
         "native",
         r#"
-function borrowTemp(value0: int32): ref<int32, borrowed> {
-    local local0: int32, owned
+function borrowTemp(v0: int32): ref<int32, borrowed> {
+    local l0: int32
 
-entry0(value0: int32):
-    value1: int32 = 1int32
-    value2: int32 = int.add value0, value1
-    local.set local0, value2
-    value3: ref<int32, borrowed, space(frame)> = local.address local0
-    return value3
+entry(v0: int32):
+    v1: int32 = 1
+    v2: int32 = int.add v0, v1
+    local.set l0, v2
+    v3: ref<int32, borrowed, space(frame)> = local.address l0
+    return v3
 }
 "#,
     );
@@ -177,10 +177,10 @@ type Point {
     y: int32;
 }
 
-function borrowField(value0: ref<Point, borrowed>): ref<int32, borrowed> {
-entry0(value0: ref<Point, borrowed>):
-    value1: ref<int32, borrowed, space(frame)> = field.address value0, 0
-    return value1
+function borrowField(v0: ref<Point, borrowed>): ref<int32, borrowed> {
+entry(v0: ref<Point, borrowed>):
+    v1: ref<int32, borrowed, space(frame)> = field.address v0, 0
+    return v1
 }
 "#,
     );
@@ -209,11 +209,11 @@ function borrowElement(values: [int32; 4]): &int32 {
         module_id,
         "native",
         r#"
-function borrowElement(value0: [int32; 4]): ref<int32, borrowed> {
-entry0(value0: [int32; 4]):
-    value1: int32 = 2int32
-    value2: ref<int32, borrowed, space(frame)> = element.address value0, value1
-    return value2
+function borrowElement(v0: [int32; 4]): ref<int32, borrowed> {
+entry(v0: [int32; 4]):
+    v1: int32 = 2
+    v2: ref<int32, borrowed, space(frame)> = element.address v0, v1
+    return v2
 }
 "#,
     );
@@ -244,18 +244,18 @@ function borrowElementChecked(values: [int32; 4]): &int32 {
     let expected = r#"
 ${string_alias}
 readonly global ${bounds_check_failed}: ref<String, managed, readonly> = "bounds check failed"
-function borrowElementChecked(value0: [int32; 4]): ref<int32, borrowed> {
-entry0(value0: [int32; 4]):
-    value1: int32 = 2int32
-    value2: int32 = 4int32
-    check bounds.s value1, value2, value0 -> block2, block1
-block1:
-    value3: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${bounds_check_failed}
-    value4: ref<String, managed, readonly> = load value3
-    panic value4
-block2:
-    value5: ref<int32, borrowed, space(frame)> = element.address value0, value1
-    return value5
+function borrowElementChecked(v0: [int32; 4]): ref<int32, borrowed> {
+entry(v0: [int32; 4]):
+    v1: int32 = 2int32
+    v2: int32 = 4int32
+    check bounds.s v1, v2, v0 -> b2, b1
+b1:
+    v3: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${bounds_check_failed}
+    v4: ref<String, managed, readonly> = load v3
+    panic v4
+b2:
+    v5: ref<int32, borrowed, space(frame)> = element.address v0, v1
+    return v5
 }
         "#;
     let expected = expected.replace("${string_alias}", string_alias);
@@ -286,11 +286,11 @@ function borrowElementRef(values: &[int32; 4]): &int32 {
         module_id,
         "native",
         r#"
-function borrowElementRef(value0: ref<[int32; 4], borrowed>): ref<int32, borrowed> {
-entry0(value0: ref<[int32; 4], borrowed>):
-    value1: int32 = 2int32
-    value2: ref<int32, borrowed, space(frame)> = element.address value0, value1
-    return value2
+function borrowElementRef(v0: ref<[int32; 4], borrowed>): ref<int32, borrowed> {
+entry(v0: ref<[int32; 4], borrowed>):
+    v1: int32 = 2
+    v2: ref<int32, borrowed, space(frame)> = element.address v0, v1
+    return v2
 }
 "#,
     );
@@ -321,18 +321,18 @@ function borrowElementRefChecked(values: &[int32; 4]): &int32 {
     let expected = r#"
 ${string_alias}
 readonly global ${bounds_check_failed}: ref<String, managed, readonly> = "bounds check failed"
-function borrowElementRefChecked(value0: ref<[int32; 4], borrowed>): ref<int32, borrowed> {
-entry0(value0: ref<[int32; 4], borrowed>):
-    value1: int32 = 2int32
-    value2: int32 = 4int32
-    check bounds.s value1, value2, value0 -> block2, block1
-block1:
-    value3: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${bounds_check_failed}
-    value4: ref<String, managed, readonly> = load value3
-    panic value4
-block2:
-    value5: ref<int32, borrowed, space(frame)> = element.address value0, value1
-    return value5
+function borrowElementRefChecked(v0: ref<[int32; 4], borrowed>): ref<int32, borrowed> {
+entry(v0: ref<[int32; 4], borrowed>):
+    v1: int32 = 2int32
+    v2: int32 = 4int32
+    check bounds.s v1, v2, v0 -> b2, b1
+b1:
+    v3: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${bounds_check_failed}
+    v4: ref<String, managed, readonly> = load v3
+    panic v4
+b2:
+    v5: ref<int32, borrowed, space(frame)> = element.address v0, v1
+    return v5
 }
         "#;
     let expected = expected.replace("${string_alias}", string_alias);
@@ -378,13 +378,13 @@ type Greeter {
 
 external function Greeter.greet(Greeter.object): int32
 
-function borrowGreeter(value0: Greeter): ref<Greeter, borrowed> {
-    local local0: Greeter, owned
+function borrowGreeter(v0: Greeter): ref<Greeter, borrowed> {
+    local l0: Greeter
 
-entry0(value0: Greeter):
-    local.set local0, value0
-    value1: ref<Greeter, borrowed, space(frame)> = local.address local0
-    return value1
+entry(v0: Greeter):
+    local.set l0, v0
+    v1: ref<Greeter, borrowed, space(frame)> = local.address l0
+    return v1
 }
 "#,
     );
@@ -420,12 +420,12 @@ type Counter {
     value: int32;
 }
 
-readonly global Counter#vtable: [ref<void, raw, readonly, space(static), nullable>; 3], space(static) = zeroInit
+readonly global Counter#vtable: [ref<void, raw, readonly, nullable, space(static)>; 3], space(static) = zeroInit
 
 function Counter.borrowValue(this0: ref<Counter, managed, readonly>): ref<int32, borrowed> {
-entry0(this0: ref<Counter, managed, readonly>):
-    value1: ref<int32, borrowed> = field.address this0, 1
-    return value1
+entry(this0: ref<Counter, managed, readonly>):
+    v1: ref<int32, borrowed> = field.address this0, 1
+    return v1
 }
 "#,
     );

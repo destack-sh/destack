@@ -75,15 +75,18 @@ function isCircle(value: Circle | Square): boolean {
         module_id,
         "native",
         r#"
-type isCircle.value#union { tag: uint8, payload: [usize; 1] }
-
-function isCircle(value0: isCircle.value#union): boolean {
-entry0(value0: isCircle.value#union):
-    value1: uint8 = 0uint8
-    value2: uint8 = field.get value0, 0
-    value3: boolean = int.eq value2, value1
-    return value3
+type isCircle.value#union {
+    tag: uint8;
+    payload: [usize; 1];
 }
-        "#,
+
+function isCircle(v0: isCircle.value#union): boolean {
+entry(v0: isCircle.value#union):
+    v1: uint8 = 0
+    v2: uint8 = field.get v0, 0
+    v3: boolean = int.eq v2, v1
+    return v3
+}
+"#,
     );
 }

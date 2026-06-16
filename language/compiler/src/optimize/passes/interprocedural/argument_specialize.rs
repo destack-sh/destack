@@ -672,40 +672,40 @@ mod tests {
     #[test]
     fn test_argument_specialize_clones_constant_call() {
         let input = r#"
-function callee(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    return value2
+function callee(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    return v2
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 2int32
-    value1: int32 = 3int32
-    value2: int32 = call callee(value0, value1): (int32, int32) -> int32
-    return value2
+entry:
+    v0: int32 = 2
+    v1: int32 = 3
+    v2: int32 = call callee(v0, v1)
+    return v2
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    return value2
+function callee(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    return v2
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 2int32
-    value1: int32 = 3int32
-    value2: int32 = call callee_spec0(): () -> int32
-    return value2
+entry:
+    v0: int32 = 2
+    v1: int32 = 3
+    v2: int32 = call callee_spec0()
+    return v2
 }
 
 function callee_spec0(): int32 {
-entry0:
-    value2: int32 = 5int32
-    return value2
+entry:
+    v2: int32 = 5
+    return v2
 }
 "#;
 
@@ -718,40 +718,40 @@ entry0:
     #[test]
     fn test_argument_specialize_updates_call_metadata() {
         let input = r#"
-function callee(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    return value2
+function callee(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    return v2
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 2int32
-    value1: int32 = 3int32
-    value2: int32 = call callee(value0, value1): (int32, int32) -> int32
-    return value2
+entry:
+    v0: int32 = 2
+    v1: int32 = 3
+    v2: int32 = call callee(v0, v1)
+    return v2
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    return value2
+function callee(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    return v2
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 2int32
-    value1: int32 = 3int32
-    value2: int32 = call callee_spec0(): () -> int32
-    return value2
+entry:
+    v0: int32 = 2
+    v1: int32 = 3
+    v2: int32 = call callee_spec0()
+    return v2
 }
 
 function callee_spec0(): int32 {
-entry0:
-    value2: int32 = 5int32
-    return value2
+entry:
+    v2: int32 = 5
+    return v2
 }
 "#;
 
@@ -799,20 +799,20 @@ entry0:
     #[test]
     fn test_argument_specialize_remaps_memory_access_metadata() {
         let input = r#"
-function callee(value0: int32): int32 {
-    local local0: int32, owned
+function callee(v0: int32): int32 {
+    local l0: int32
 
-entry0(value0: int32):
-    value1: ref<int32, borrowed, space(frame)> = local.address local0
-    value2: int32 = load value1
-    return value2
+entry(v0: int32):
+    v1: ref<int32, borrowed, space(frame)> = local.address l0
+    v2: int32 = load v1
+    return v2
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 1int32
-    value1: int32 = call callee(value0): (int32) -> int32
-    return value1
+entry:
+    v0: int32 = 1
+    v1: int32 = call callee(v0)
+    return v1
 }
 "#;
 
@@ -900,18 +900,18 @@ entry0:
     #[test]
     fn test_argument_specialize_skips_cold_callsite() {
         let input = r#"
-function callee(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    return value2
+function callee(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    return v2
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 2int32
-    value1: int32 = 3int32
-    value2: int32 = call callee(value0, value1): (int32, int32) -> int32
-    return value2
+entry:
+    v0: int32 = 2
+    v1: int32 = 3
+    v2: int32 = call callee(v0, v1)
+    return v2
 }
 "#;
 
@@ -930,18 +930,18 @@ entry0:
     #[test]
     fn test_argument_specialize_skips_missing_function_count() {
         let input = r#"
-function callee(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    return value2
+function callee(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    return v2
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 2int32
-    value1: int32 = 3int32
-    value2: int32 = call callee(value0, value1): (int32, int32) -> int32
-    return value2
+entry:
+    v0: int32 = 2
+    v1: int32 = 3
+    v2: int32 = call callee(v0, v1)
+    return v2
 }
 "#;
 
@@ -958,34 +958,34 @@ entry0:
     #[test]
     fn test_argument_specialize_uses_hot_callsite() {
         let input = r#"
-function callee(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    return value2
+function callee(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    return v2
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 2int32
-    value1: int32 = 3int32
-    value2: int32 = call callee(value0, value1): (int32, int32) -> int32
-    return value2
+entry:
+    v0: int32 = 2
+    v1: int32 = 3
+    v2: int32 = call callee(v0, v1)
+    return v2
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    return value2
+function callee(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    return v2
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 2int32
-    value1: int32 = 3int32
-    value2: int32 = call callee(value0, value1): (int32, int32) -> int32
-    return value2
+entry:
+    v0: int32 = 2
+    v1: int32 = 3
+    v2: int32 = call callee(v0, v1)
+    return v2
 }
 "#;
 
@@ -1004,36 +1004,36 @@ entry0:
     #[test]
     fn test_argument_specialize_keeps_alloc_size_param() {
         let input = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 7int32
-    value1: int32 = call callee(value0): (int32) -> int32
-    return value1
+entry:
+    v0: int32 = 7
+    v1: int32 = call callee(v0)
+    return v1
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 7int32
-    value1: int32 = call callee_spec0(value0): (int32) -> int32
-    return value1
+entry:
+    v0: int32 = 7
+    v1: int32 = call callee_spec0(v0)
+    return v1
 }
 
-function callee_spec0(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 7int32
-    return value1
+function callee_spec0(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 7
+    return v1
 }
 "#;
 
@@ -1053,27 +1053,27 @@ entry0(value0: int32):
     #[test]
     fn test_argument_specialize_skips_recursive() {
         let input = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 1int32
-    value2: boolean = int.lt.s value0, value1
-    branch value2, block1(), block2()
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 1
+    v2: boolean = int.lt.s v0, v1
+    branch v2, b1, b2
 
-block1:
-    return value0
+b1:
+    return v0
 
-block2:
-    value3: int32 = 1int32
-    value4: int32 = int.sub value0, value3
-    value5: int32 = call callee(value4): (int32) -> int32
-    return value5
+b2:
+    v3: int32 = 1
+    v4: int32 = int.sub v0, v3
+    v5: int32 = call callee(v4)
+    return v5
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 9int32
-    value1: int32 = call callee(value0): (int32) -> int32
-    return value1
+entry:
+    v0: int32 = 9
+    v1: int32 = call callee(v0)
+    return v1
 }
 "#;
 
@@ -1089,10 +1089,10 @@ entry0:
 external function callee(int32): int32
 
 function root(): int32 {
-entry0:
-    value0: int32 = 2int32
-    value1: int32 = call callee(value0): (int32) -> int32
-    return value1
+entry:
+    v0: int32 = 2
+    v1: int32 = call callee(v0)
+    return v1
 }
 "#;
 
@@ -1105,70 +1105,70 @@ entry0:
     #[test]
     fn test_argument_specialize_respects_function_limit() {
         let input = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 1int32
-    value1: int32 = 2int32
-    value2: int32 = 3int32
-    value3: int32 = 4int32
-    value4: int32 = 5int32
-    value5: int32 = call callee(value0): (int32) -> int32
-    value6: int32 = call callee(value1): (int32) -> int32
-    value7: int32 = call callee(value2): (int32) -> int32
-    value8: int32 = call callee(value3): (int32) -> int32
-    value9: int32 = call callee(value4): (int32) -> int32
-    return value9
+entry:
+    v0: int32 = 1
+    v1: int32 = 2
+    v2: int32 = 3
+    v3: int32 = 4
+    v4: int32 = 5
+    v5: int32 = call callee(v0)
+    v6: int32 = call callee(v1)
+    v7: int32 = call callee(v2)
+    v8: int32 = call callee(v3)
+    v9: int32 = call callee(v4)
+    return v9
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    return value0
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    return v0
 }
 
 function root(): int32 {
-entry0:
-    value0: int32 = 1int32
-    value1: int32 = 2int32
-    value2: int32 = 3int32
-    value3: int32 = 4int32
-    value4: int32 = 5int32
-    value5: int32 = call callee_spec0(): () -> int32
-    value6: int32 = call callee_spec1(): () -> int32
-    value7: int32 = call callee_spec2(): () -> int32
-    value8: int32 = call callee_spec3(): () -> int32
-    value9: int32 = call callee(value4): (int32) -> int32
-    return value9
+entry:
+    v0: int32 = 1
+    v1: int32 = 2
+    v2: int32 = 3
+    v3: int32 = 4
+    v4: int32 = 5
+    v5: int32 = call callee_spec0()
+    v6: int32 = call callee_spec1()
+    v7: int32 = call callee_spec2()
+    v8: int32 = call callee_spec3()
+    v9: int32 = call callee(v4)
+    return v9
 }
 
 function callee_spec0(): int32 {
-entry0:
-    value1: int32 = 1int32
-    return value1
+entry:
+    v1: int32 = 1
+    return v1
 }
 
 function callee_spec1(): int32 {
-entry0:
-    value1: int32 = 2int32
-    return value1
+entry:
+    v1: int32 = 2
+    return v1
 }
 
 function callee_spec2(): int32 {
-entry0:
-    value1: int32 = 3int32
-    return value1
+entry:
+    v1: int32 = 3
+    return v1
 }
 
 function callee_spec3(): int32 {
-entry0:
-    value1: int32 = 4int32
-    return value1
+entry:
+    v1: int32 = 4
+    return v1
 }
 "#;
 

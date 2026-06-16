@@ -1393,7 +1393,7 @@ fn terminator_cost(terminator: &mir::Terminator) -> u64 {
             panic!("recovered MIR terminator reached optimizer");
         }
         mir::Terminator::Return { .. } => INLINE_COST_SIMPLE,
-        mir::Terminator::Panic { .. } | mir::Terminator::ResumeUnwind => INLINE_COST_SIMPLE + 1,
+        mir::Terminator::Panic { .. } | mir::Terminator::UnwindResume => INLINE_COST_SIMPLE + 1,
         mir::Terminator::Trap { .. } => INLINE_COST_SIMPLE + 1,
         mir::Terminator::Jump { .. } => INLINE_COST_SIMPLE,
         mir::Terminator::Branch { .. }
@@ -1441,23 +1441,23 @@ entry0(value0: int32):
 "#;
 
         let expected = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = int.add value0, value0
-    return value1
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = int.add v0, v0
+    return v1
 }
 
-function caller(value0: int32): int32 {
-entry0(value0: int32):
-    jump block1(value0)
+function caller(v0: int32): int32 {
+entry(v0: int32):
+    jump b1(v0)
 
-block1(value3: int32):
-    value4: int32 = int.add value3, value3
-    jump block2(value4)
+b1(v3: int32):
+    v4: int32 = int.add v3, v3
+    jump b2(v4)
 
-block2(value5: int32):
-    value2: int32 = int.add value5, value0
-    return value2
+b2(v5: int32):
+    v2: int32 = int.add v5, v0
+    return v2
 }
 "#;
 
@@ -1470,18 +1470,18 @@ block2(value5: int32):
     #[test]
     fn test_inline_skips_recursive_call() {
         let input = r#"
-function caller(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = call caller(value0): (int32) -> int32
-    return value1
+function caller(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = call caller(v0)
+    return v1
 }
 "#;
 
         let expected = r#"
-function caller(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = call caller(value0): (int32) -> int32
-    return value1
+function caller(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = call caller(v0)
+    return v1
 }
 "#;
 
@@ -1494,28 +1494,28 @@ entry0(value0: int32):
     #[test]
     fn test_inline_skips_tailcall_callee() {
         let input = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    tailCall callee(value0): (int32) -> int32
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    tail.call callee(v0)
 }
 
-function caller(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = call callee(value0): (int32) -> int32
-    return value1
+function caller(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = call callee(v0)
+    return v1
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    tailCall callee(value0): (int32) -> int32
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    tail.call callee(v0)
 }
 
-function caller(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = call callee(value0): (int32) -> int32
-    return value1
+function caller(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = call callee(v0)
+    return v1
 }
 "#;
 
@@ -1528,45 +1528,45 @@ entry0(value0: int32):
     #[test]
     fn test_inline_clones_locals() {
         let input = r#"
-function callee(value0: int32): int32 {
-    local local0: int32, owned
+function callee(v0: int32): int32 {
+    local l0: int32
 
-entry0(value0: int32):
-    value1: int32 = local.get local0
-    value2: int32 = int.add value1, value0
-    return value2
+entry(v0: int32):
+    v1: int32 = local.get l0
+    v2: int32 = int.add v1, v0
+    return v2
 }
 
-function caller(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = call callee(value0): (int32) -> int32
-    return value1
+function caller(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = call callee(v0)
+    return v1
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32): int32 {
-    local local0: int32, owned
+function callee(v0: int32): int32 {
+    local l0: int32
 
-entry0(value0: int32):
-    value1: int32 = local.get local0
-    value2: int32 = int.add value1, value0
-    return value2
+entry(v0: int32):
+    v1: int32 = local.get l0
+    v2: int32 = int.add v1, v0
+    return v2
 }
 
-function caller(value0: int32): int32 {
-    local local0: int32, owned
+function caller(v0: int32): int32 {
+    local l0: int32
 
-entry0(value0: int32):
-    jump block1(value0)
+entry(v0: int32):
+    jump b1(v0)
 
-block1(value2: int32):
-    value3: int32 = local.get local0
-    value4: int32 = int.add value3, value2
-    jump block2(value4)
+b1(v2: int32):
+    v3: int32 = local.get l0
+    v4: int32 = int.add v3, v2
+    jump b2(v4)
 
-block2(value5: int32):
-    return value5
+b2(v5: int32):
+    return v5
 }
 "#;
 
@@ -1580,18 +1580,18 @@ block2(value5: int32):
     fn test_inline_remaps_memory_access_metadata() {
         let input = r#"
 function callee(): int32 {
-    local local0: int32, owned
+    local l0: int32
 
-entry0:
-    value0: ref<int32, borrowed, space(frame)> = local.address local0
-    value1: int32 = load value0
-    return value1
+entry:
+    v0: ref<int32, borrowed, space(frame)> = local.address l0
+    v1: int32 = load v0
+    return v1
 }
 
 function caller(): int32 {
-entry0:
-    value0: int32 = call callee(): () -> int32
-    return value0
+entry:
+    v0: int32 = call callee()
+    return v0
 }
 "#;
 
@@ -1696,35 +1696,35 @@ entry0:
     #[test]
     fn test_inline_unused_return() {
         let input = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = int.add value0, value0
-    return value1
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = int.add v0, v0
+    return v1
 }
 
-function caller(value0: int32): void {
-entry0(value0: int32):
-    call callee(value0): (int32) -> int32
+function caller(v0: int32): void {
+entry(v0: int32):
+    call callee(v0)
     return
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = int.add value0, value0
-    return value1
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = int.add v0, v0
+    return v1
 }
 
-function caller(value0: int32): void {
-entry0(value0: int32):
-    jump block1(value0)
+function caller(v0: int32): void {
+entry(v0: int32):
+    jump b1(v0)
 
-block1(value1: int32):
-    value2: int32 = int.add value1, value1
-    jump block2()
+b1(v1: int32):
+    v2: int32 = int.add v1, v1
+    jump b2
 
-block2:
+b2:
     return
 }
 "#;
@@ -1738,24 +1738,24 @@ block2:
     #[test]
     fn test_inline_skips_cold_callsite() {
         let input = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = int.add value0, value0
-    value2: int32 = int.add value1, value0
-    value3: int32 = int.add value2, value0
-    value4: int32 = int.add value3, value0
-    value5: int32 = int.add value4, value0
-    value6: int32 = int.add value5, value0
-    value7: int32 = int.add value6, value0
-    value8: int32 = int.add value7, value0
-    value9: int32 = int.add value8, value0
-    return value9
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = int.add v0, v0
+    v2: int32 = int.add v1, v0
+    v3: int32 = int.add v2, v0
+    v4: int32 = int.add v3, v0
+    v5: int32 = int.add v4, v0
+    v6: int32 = int.add v5, v0
+    v7: int32 = int.add v6, v0
+    v8: int32 = int.add v7, v0
+    v9: int32 = int.add v8, v0
+    return v9
 }
 
-function caller(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = call callee(value0): (int32) -> int32
-    return value1
+function caller(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = call callee(v0)
+    return v1
 }
 "#;
 
@@ -1806,34 +1806,34 @@ entry0(value0: int32):
 "#;
 
         let expected = r#"
-function helper(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = int.add value0, value0
-    value2: int32 = int.add value1, value0
-    value3: int32 = int.add value2, value0
-    value4: int32 = int.add value3, value0
-    value5: int32 = int.add value4, value0
-    value6: int32 = int.add value5, value0
-    value7: int32 = int.add value6, value0
-    value8: int32 = int.add value7, value0
-    value9: int32 = int.add value8, value0
-    return value9
+function helper(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = int.add v0, v0
+    v2: int32 = int.add v1, v0
+    v3: int32 = int.add v2, v0
+    v4: int32 = int.add v3, v0
+    v5: int32 = int.add v4, v0
+    v6: int32 = int.add v5, v0
+    v7: int32 = int.add v6, v0
+    v8: int32 = int.add v7, v0
+    v9: int32 = int.add v8, v0
+    return v9
 }
 
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = call helper(value0): (int32) -> int32
-    value2: int32 = call helper(value1): (int32) -> int32
-    value3: int32 = call helper(value2): (int32) -> int32
-    value4: int32 = call helper(value3): (int32) -> int32
-    value5: int32 = call helper(value4): (int32) -> int32
-    return value5
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = call helper(v0)
+    v2: int32 = call helper(v1)
+    v3: int32 = call helper(v2)
+    v4: int32 = call helper(v3)
+    v5: int32 = call helper(v4)
+    return v5
 }
 
-function caller(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = call callee(value0): (int32) -> int32
-    return value1
+function caller(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = call callee(v0)
+    return v1
 }
 "#;
 
@@ -1884,57 +1884,57 @@ entry0:
     #[test]
     fn test_inline_multiple_returns() {
         let input = r#"
-function callee(value0: int32, value1: int32, value2: boolean): int32 {
-entry0(value0: int32, value1: int32, value2: boolean):
-    branch value2, block1(), block2()
+function callee(v0: int32, v1: int32, v2: boolean): int32 {
+entry(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
 
-block1:
-    value3: int32 = int.add value0, value1
-    return value3
+b1:
+    v3: int32 = int.add v0, v1
+    return v3
 
-block2:
-    value4: int32 = int.sub value0, value1
-    return value4
+b2:
+    v4: int32 = int.sub v0, v1
+    return v4
 }
 
-function caller(value0: int32, value1: int32, value2: boolean): int32 {
-entry0(value0: int32, value1: int32, value2: boolean):
-    value3: int32 = call callee(value0, value1, value2): (int32, int32, boolean) -> int32
-    return value3
+function caller(v0: int32, v1: int32, v2: boolean): int32 {
+entry(v0: int32, v1: int32, v2: boolean):
+    v3: int32 = call callee(v0, v1, v2)
+    return v3
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32, value1: int32, value2: boolean): int32 {
-entry0(value0: int32, value1: int32, value2: boolean):
-    branch value2, block1(), block2()
+function callee(v0: int32, v1: int32, v2: boolean): int32 {
+entry(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
 
-block1:
-    value3: int32 = int.add value0, value1
-    return value3
+b1:
+    v3: int32 = int.add v0, v1
+    return v3
 
-block2:
-    value4: int32 = int.sub value0, value1
-    return value4
+b2:
+    v4: int32 = int.sub v0, v1
+    return v4
 }
 
-function caller(value0: int32, value1: int32, value2: boolean): int32 {
-entry0(value0: int32, value1: int32, value2: boolean):
-    jump block1(value0, value1, value2)
+function caller(v0: int32, v1: int32, v2: boolean): int32 {
+entry(v0: int32, v1: int32, v2: boolean):
+    jump b1(v0, v1, v2)
 
-block1(value4: int32, value5: int32, value6: boolean):
-    branch value6, block2(), block3()
+b1(v4: int32, v5: int32, v6: boolean):
+    branch v6, b2, b3
 
-block2:
-    value7: int32 = int.add value4, value5
-    jump block4(value7)
+b2:
+    v7: int32 = int.add v4, v5
+    jump b4(v7)
 
-block3:
-    value8: int32 = int.sub value4, value5
-    jump block4(value8)
+b3:
+    v8: int32 = int.sub v4, v5
+    jump b4(v8)
 
-block4(value9: int32):
-    return value9
+b4(v9: int32):
+    return v9
 }
 "#;
 
@@ -1947,42 +1947,42 @@ block4(value9: int32):
     #[test]
     fn test_inline_continuation_argument() {
         let input = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = int.add value0, value0
-    return value1
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = int.add v0, v0
+    return v1
 }
 
-function caller(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = call callee(value0): (int32) -> int32
-    jump block1(value1)
+function caller(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = call callee(v0)
+    jump b1(v1)
 
-block1(value2: int32):
-    return value2
+b1(v2: int32):
+    return v2
 }
 "#;
 
         let expected = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = int.add value0, value0
-    return value1
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = int.add v0, v0
+    return v1
 }
 
-function caller(value0: int32): int32 {
-entry0(value0: int32):
-    jump block2(value0)
+function caller(v0: int32): int32 {
+entry(v0: int32):
+    jump b2(v0)
 
-block1(value2: int32):
-    return value2
+b1(v2: int32):
+    return v2
 
-block2(value3: int32):
-    value4: int32 = int.add value3, value3
-    jump block3(value4)
+b2(v3: int32):
+    v4: int32 = int.add v3, v3
+    jump b3(v4)
 
-block3(value5: int32):
-    jump block1(value5)
+b3(v5: int32):
+    jump b1(v5)
 }
 "#;
 
@@ -1995,16 +1995,16 @@ block3(value5: int32):
     #[test]
     fn test_inline_skips_indirect_call() {
         let input = r#"
-function callee(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = int.add value0, value0
-    return value1
+function callee(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = int.add v0, v0
+    return v1
 }
 
-function caller(value0: (int32) -> int32, value1: int32): int32 {
-entry0(value0: (int32) -> int32, value1: int32):
-    value2: int32 = call.indirect value0(value1): (int32) -> int32
-    return value2
+function caller(v0: (int32) -> int32, v1: int32): int32 {
+entry(v0: (int32) -> int32, v1: int32):
+    v2: int32 = call.indirect v0(v1): (int32) -> int32
+    return v2
 }
 "#;
 

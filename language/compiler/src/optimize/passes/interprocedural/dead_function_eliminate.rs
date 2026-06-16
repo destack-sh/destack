@@ -148,18 +148,18 @@ mod tests {
         let mut test = TestProgram::new(
             r#"
 export function root(): void {
-entry0:
-    call live(): () -> void
+entry:
+    call live()
     return
 }
 
 function live(): void {
-entry0:
+entry:
     return
 }
 
 function dead(): void {
-entry0:
+entry:
     return
 }
 "#,

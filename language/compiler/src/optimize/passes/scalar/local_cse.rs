@@ -344,20 +344,20 @@ mod tests {
     #[test]
     fn test_eliminate_simple_redundancy() {
         let input = r#"
-function test(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    value3: int32 = int.add value0, value1
-    value4: int32 = int.add value2, value3
-    return value4
+function test(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v3: int32 = int.add v0, v1
+    v4: int32 = int.add v2, v3
+    return v4
 }
 "#;
         let expected = r#"
-function test(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    value4: int32 = int.add value2, value2
-    return value4
+function test(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v4: int32 = int.add v2, v2
+    return v4
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -369,20 +369,20 @@ entry0(value0: int32, value1: int32):
     #[test]
     fn test_eliminate_commutative() {
         let input = r#"
-function test(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    value3: int32 = int.add value1, value0
-    value4: int32 = int.add value2, value3
-    return value4
+function test(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v3: int32 = int.add v1, v0
+    v4: int32 = int.add v2, v3
+    return v4
 }
 "#;
         let expected = r#"
-function test(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    value4: int32 = int.add value2, value2
-    return value4
+function test(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v4: int32 = int.add v2, v2
+    return v4
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -394,24 +394,24 @@ entry0(value0: int32, value1: int32):
     #[test]
     fn test_eliminate_chain() {
         let input = r#"
-function test(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    value3: int32 = int.add value0, value1
-    value4: int32 = int.mul value2, value2
-    value5: int32 = int.mul value3, value3
-    value6: int32 = int.add value4, value5
-    return value6
+function test(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v3: int32 = int.add v0, v1
+    v4: int32 = int.mul v2, v2
+    v5: int32 = int.mul v3, v3
+    v6: int32 = int.add v4, v5
+    return v6
 }
 "#;
         // v3 -> v2, then v5 = int.mul v2, v2 = v4
         let expected = r#"
-function test(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    value4: int32 = int.mul value2, value2
-    value6: int32 = int.add value4, value4
-    return value6
+function test(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v4: int32 = int.mul v2, v2
+    v6: int32 = int.add v4, v4
+    return v6
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -424,11 +424,11 @@ entry0(value0: int32, value1: int32):
     fn test_skip_constants() {
         let input = r#"
 function test(): int32 {
-entry0:
-    value0: int32 = 42int32
-    value1: int32 = 42int32
-    value2: int32 = int.add value0, value1
-    return value2
+entry:
+    v0: int32 = 42
+    v1: int32 = 42
+    v2: int32 = int.add v0, v1
+    return v2
 }
 "#;
         // should be unchanged: constant CSE is not done by this pass
@@ -441,15 +441,15 @@ entry0:
     #[test]
     fn test_skip_cross_block_expressions() {
         let input = r#"
-function test(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    jump block1()
+function test(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    jump b1
 
-block1:
-    value3: int32 = int.add value0, value1
-    value4: int32 = int.add value2, value3
-    return value4
+b1:
+    v3: int32 = int.add v0, v1
+    v4: int32 = int.add v2, v3
+    return v4
 }
 "#;
         // should be unchanged: v3 is in a different block
@@ -462,12 +462,12 @@ block1:
     #[test]
     fn test_distinguish_non_commutative_operands() {
         let input = r#"
-function test(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.sub value0, value1
-    value3: int32 = int.sub value1, value0
-    value4: int32 = int.add value2, value3
-    return value4
+function test(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.sub v0, v1
+    v3: int32 = int.sub v1, v0
+    v4: int32 = int.add v2, v3
+    return v4
 }
 "#;
         // should be unchanged: v0 - v1 != v1 - v0
@@ -480,20 +480,20 @@ entry0(value0: int32, value1: int32):
     #[test]
     fn test_eliminate_unary() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = int.negate value0
-    value2: int32 = int.negate value0
-    value3: int32 = int.add value1, value2
-    return value3
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = int.negate v0
+    v2: int32 = int.negate v0
+    v3: int32 = int.add v1, v2
+    return v3
 }
 "#;
         let expected = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = int.negate value0
-    value3: int32 = int.add value1, value1
-    return value3
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = int.negate v0
+    v3: int32 = int.add v1, v1
+    return v3
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -505,23 +505,23 @@ entry0(value0: int32):
     #[test]
     fn test_eliminate_multiple() {
         let input = r#"
-function test(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    value3: int32 = int.add value0, value1
-    value4: int32 = int.add value0, value1
-    value5: int32 = int.add value0, value1
-    value6: int32 = int.add value2, value5
-    return value6
+function test(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v3: int32 = int.add v0, v1
+    v4: int32 = int.add v0, v1
+    v5: int32 = int.add v0, v1
+    v6: int32 = int.add v2, v5
+    return v6
 }
 "#;
         // all int.add v0, v1 collapse to v2
         let expected = r#"
-function test(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    value6: int32 = int.add value2, value2
-    return value6
+function test(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v6: int32 = int.add v2, v2
+    return v6
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -533,20 +533,20 @@ entry0(value0: int32, value1: int32):
     #[test]
     fn test_eliminate_field_get() {
         let input = r#"
-function test(value0: (int32, int32)): int32 {
-entry0(value0: (int32, int32)):
-    value1: int32 = field.get value0, 0
-    value2: int32 = field.get value0, 0
-    value3: int32 = int.add value1, value2
-    return value3
+function test(v0: (int32, int32)): int32 {
+entry(v0: (int32, int32)):
+    v1: int32 = field.get v0, 0
+    v2: int32 = field.get v0, 0
+    v3: int32 = int.add v1, v2
+    return v3
 }
 "#;
         let expected = r#"
-function test(value0: (int32, int32)): int32 {
-entry0(value0: (int32, int32)):
-    value1: int32 = field.get value0, 0
-    value3: int32 = int.add value1, value1
-    return value3
+function test(v0: (int32, int32)): int32 {
+entry(v0: (int32, int32)):
+    v1: int32 = field.get v0, 0
+    v3: int32 = int.add v1, v1
+    return v3
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -559,21 +559,21 @@ entry0(value0: (int32, int32)):
     fn test_eliminate_redundant_loads() {
         let input = r#"
 function test(): int32 {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: int32 = load value0
-    value2: int32 = load value0
-    value3: int32 = int.add value1, value2
-    return value3
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: int32 = load v0
+    v2: int32 = load v0
+    v3: int32 = int.add v1, v2
+    return v3
 }
 "#;
         let expected = r#"
 function test(): int32 {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: int32 = load value0
-    value3: int32 = int.add value1, value1
-    return value3
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: int32 = load v0
+    v3: int32 = int.add v1, v1
+    return v3
 }
 "#;
 
@@ -587,14 +587,14 @@ entry0:
     fn test_preserve_loads_after_store() {
         let input = r#"
 function test(): int32 {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: int32 = load value0
-    value2: int32 = 1int32
-    store value0, value2
-    value3: int32 = load value0
-    value4: int32 = int.add value1, value3
-    return value4
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: int32 = load v0
+    v2: int32 = 1
+    store v0, v2
+    v3: int32 = load v0
+    v4: int32 = int.add v1, v3
+    return v4
 }
 "#;
 
@@ -607,12 +607,12 @@ entry0:
     #[test]
     fn test_distinguish_different_field_indices() {
         let input = r#"
-function test(value0: (int32, int32)): int32 {
-entry0(value0: (int32, int32)):
-    value1: int32 = field.get value0, 0
-    value2: int32 = field.get value0, 1
-    value3: int32 = int.add value1, value2
-    return value3
+function test(v0: (int32, int32)): int32 {
+entry(v0: (int32, int32)):
+    v1: int32 = field.get v0, 0
+    v2: int32 = field.get v0, 1
+    v3: int32 = int.add v1, v2
+    return v3
 }
 "#;
         // should be unchanged: different field indices
@@ -625,20 +625,20 @@ entry0(value0: (int32, int32)):
     #[test]
     fn test_eliminate_element_get() {
         let input = r#"
-function test(value0: [int32; 10], value1: int64): int32 {
-entry0(value0: [int32; 10], value1: int64):
-    value2: int32 = element.get value0, 0
-    value3: int32 = element.get value0, 0
-    value4: int32 = int.add value2, value3
-    return value4
+function test(v0: [int32; 10], v1: int64): int32 {
+entry(v0: [int32; 10], v1: int64):
+    v2: int32 = element.get v0, 0
+    v3: int32 = element.get v0, 0
+    v4: int32 = int.add v2, v3
+    return v4
 }
 "#;
         let expected = r#"
-function test(value0: [int32; 10], value1: int64): int32 {
-entry0(value0: [int32; 10], value1: int64):
-    value2: int32 = element.get value0, 0
-    value4: int32 = int.add value2, value2
-    return value4
+function test(v0: [int32; 10], v1: int64): int32 {
+entry(v0: [int32; 10], v1: int64):
+    v2: int32 = element.get v0, 0
+    v4: int32 = int.add v2, v2
+    return v4
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -650,20 +650,20 @@ entry0(value0: [int32; 10], value1: int64):
     #[test]
     fn test_eliminate_casts() {
         let input = r#"
-function test(value0: int32): int64 {
-entry0(value0: int32):
-    value1: int64 = cast.extend.s value0 -> int64
-    value2: int64 = cast.extend.s value0 -> int64
-    value3: int64 = int.add value1, value2
-    return value3
+function test(v0: int32): int64 {
+entry(v0: int32):
+    v1: int64 = cast.extend.s v0 -> int64
+    v2: int64 = cast.extend.s v0 -> int64
+    v3: int64 = int.add v1, v2
+    return v3
 }
 "#;
         let expected = r#"
-function test(value0: int32): int64 {
-entry0(value0: int32):
-    value1: int64 = cast.extend.s value0 -> int64
-    value3: int64 = int.add value1, value1
-    return value3
+function test(v0: int32): int64 {
+entry(v0: int32):
+    v1: int64 = cast.extend.s v0 -> int64
+    v3: int64 = int.add v1, v1
+    return v3
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -675,12 +675,12 @@ entry0(value0: int32):
     #[test]
     fn test_preserve_unique_expressions() {
         let input = r#"
-function test(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    value3: int32 = int.sub value0, value1
-    value4: int32 = int.mul value2, value3
-    return value4
+function test(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    v3: int32 = int.sub v0, v1
+    v4: int32 = int.mul v2, v3
+    return v4
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -692,31 +692,31 @@ entry0(value0: int32, value1: int32):
     #[test]
     fn test_propagate_substitutions_to_terminator() {
         let input = r#"
-function test(value0: int32, value1: int32, value2: boolean): int32 {
-entry0(value0: int32, value1: int32, value2: boolean):
-    value3: int32 = int.add value0, value1
-    value4: int32 = int.add value0, value1
-    branch value2, block1(value4), block2(value4)
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+entry(v0: int32, v1: int32, v2: boolean):
+    v3: int32 = int.add v0, v1
+    v4: int32 = int.add v0, v1
+    branch v2, b1(v4), b2(v4)
 
-block1(value5: int32):
-    return value5
+b1(v5: int32):
+    return v5
 
-block2(value6: int32):
-    return value6
+b2(v6: int32):
+    return v6
 }
 "#;
         // v4 -> v3, and the branch should use v3
         let expected = r#"
-function test(value0: int32, value1: int32, value2: boolean): int32 {
-entry0(value0: int32, value1: int32, value2: boolean):
-    value3: int32 = int.add value0, value1
-    branch value2, block1(value3), block2(value3)
+function test(v0: int32, v1: int32, v2: boolean): int32 {
+entry(v0: int32, v1: int32, v2: boolean):
+    v3: int32 = int.add v0, v1
+    branch v2, b1(v3), b2(v3)
 
-block1(value5: int32):
-    return value5
+b1(v5: int32):
+    return v5
 
-block2(value6: int32):
-    return value6
+b2(v6: int32):
+    return v6
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -729,12 +729,12 @@ block2(value6: int32):
     fn test_load_forwarding_respects_exact_access() {
         let input = r#"
 function test(): int32 {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: int32 = load value0
-    value2: int32 = load value0
-    value3: int32 = load value0
-    return value3
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: int32 = load v0
+    v2: int32 = load v0
+    v3: int32 = load v0
+    return v3
 }
 "#;
 
@@ -755,11 +755,11 @@ entry0:
 
         let expected = r#"
 function test(): int32 {
-entry0:
-    value0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value1: int32 = load value0
-    value2: int32 = load value0
-    return value2
+entry:
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: int32 = load v0
+    v2: int32 = load v0
+    return v2
 }
 "#;
 

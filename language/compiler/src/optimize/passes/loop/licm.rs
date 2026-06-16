@@ -909,30 +909,30 @@ mod tests {
     #[test]
     fn test_hoist_constant() {
         let input = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    jump block1()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    jump b1
 
-block1:
-    value1: int32 = 42int32
-    branch value0, block1(), block2()
+b1:
+    v1: int32 = 42
+    branch v0, b1, b2
 
-block2:
-    return value1
+b2:
+    return v1
 }
 "#;
         // v1 = 42 should be hoisted to b0
         let expected = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    value1: int32 = 42int32
-    jump block1()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    v1: int32 = 42
+    jump b1
 
-block1:
-    branch value0, block1(), block2()
+b1:
+    branch v0, b1, b2
 
-block2:
-    return value1
+b2:
+    return v1
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -945,30 +945,30 @@ block2:
     #[test]
     fn test_hoist_binary_invariant() {
         let input = r#"
-function test(value0: boolean, value1: int32, value2: int32): int32 {
-entry0(value0: boolean, value1: int32, value2: int32):
-    jump block1()
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+entry(v0: boolean, v1: int32, v2: int32):
+    jump b1
 
-block1:
-    value3: int32 = int.add value1, value2
-    branch value0, block1(), block2()
+b1:
+    v3: int32 = int.add v1, v2
+    branch v0, b1, b2
 
-block2:
-    return value3
+b2:
+    return v3
 }
 "#;
         // v3 = int.add v1, v2 is invariant (v1, v2 are function params)
         let expected = r#"
-function test(value0: boolean, value1: int32, value2: int32): int32 {
-entry0(value0: boolean, value1: int32, value2: int32):
-    value3: int32 = int.add value1, value2
-    jump block1()
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+entry(v0: boolean, v1: int32, v2: int32):
+    v3: int32 = int.add v1, v2
+    jump b1
 
-block1:
-    branch value0, block1(), block2()
+b1:
+    branch v0, b1, b2
 
-block2:
-    return value3
+b2:
+    return v3
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -981,34 +981,34 @@ block2:
     #[test]
     fn test_hoist_chain() {
         let input = r#"
-function test(value0: boolean, value1: int32): int32 {
-entry0(value0: boolean, value1: int32):
-    jump block1()
+function test(v0: boolean, v1: int32): int32 {
+entry(v0: boolean, v1: int32):
+    jump b1
 
-block1:
-    value2: int32 = 10int32
-    value3: int32 = int.add value1, value2
-    value4: int32 = int.mul value3, value2
-    branch value0, block1(), block2()
+b1:
+    v2: int32 = 10
+    v3: int32 = int.add v1, v2
+    v4: int32 = int.mul v3, v2
+    branch v0, b1, b2
 
-block2:
-    return value4
+b2:
+    return v4
 }
 "#;
         // all three instructions are invariant
         let expected = r#"
-function test(value0: boolean, value1: int32): int32 {
-entry0(value0: boolean, value1: int32):
-    value2: int32 = 10int32
-    value3: int32 = int.add value1, value2
-    value4: int32 = int.mul value3, value2
-    jump block1()
+function test(v0: boolean, v1: int32): int32 {
+entry(v0: boolean, v1: int32):
+    v2: int32 = 10
+    v3: int32 = int.add v1, v2
+    v4: int32 = int.mul v3, v2
+    jump b1
 
-block1:
-    branch value0, block1(), block2()
+b1:
+    branch v0, b1, b2
 
-block2:
-    return value4
+b2:
+    return v4
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -1021,33 +1021,33 @@ block2:
     #[test]
     fn test_no_hoist_variant() {
         let input = r#"
-function test(value0: boolean, value1: int32): int32 {
-entry0(value0: boolean, value1: int32):
-    jump block1(value1)
+function test(v0: boolean, v1: int32): int32 {
+entry(v0: boolean, v1: int32):
+    jump b1(v1)
 
-block1(value2: int32):
-    value3: int32 = 1int32
-    value4: int32 = int.add value2, value3
-    branch value0, block1(value4), block2()
+b1(v2: int32):
+    v3: int32 = 1
+    v4: int32 = int.add v2, v3
+    branch v0, b1(v4), b2
 
-block2:
-    return value4
+b2:
+    return v4
 }
 "#;
         // v3 is invariant and can be hoisted
         // v4 depends on v2 which is a loop phi, so v4 cannot be hoisted
         let expected = r#"
-function test(value0: boolean, value1: int32): int32 {
-entry0(value0: boolean, value1: int32):
-    value3: int32 = 1int32
-    jump block1(value1)
+function test(v0: boolean, v1: int32): int32 {
+entry(v0: boolean, v1: int32):
+    v3: int32 = 1
+    jump b1(v1)
 
-block1(value2: int32):
-    value4: int32 = int.add value2, value3
-    branch value0, block1(value4), block2()
+b1(v2: int32):
+    v4: int32 = int.add v2, v3
+    branch v0, b1(v4), b2
 
-block2:
-    return value4
+b2:
+    return v4
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -1060,10 +1060,10 @@ block2:
     #[test]
     fn test_no_loops() {
         let input = r#"
-function test(value0: int32, value1: int32): int32 {
-entry0(value0: int32, value1: int32):
-    value2: int32 = int.add value0, value1
-    return value2
+function test(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: int32 = int.add v0, v1
+    return v2
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -1075,16 +1075,16 @@ entry0(value0: int32, value1: int32):
     #[test]
     fn test_already_hoisted() {
         let input = r#"
-function test(value0: boolean, value1: int32, value2: int32): int32 {
-entry0(value0: boolean, value1: int32, value2: int32):
-    value3: int32 = int.add value1, value2
-    jump block1()
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+entry(v0: boolean, v1: int32, v2: int32):
+    v3: int32 = int.add v1, v2
+    jump b1
 
-block1:
-    branch value0, block1(), block2()
+b1:
+    branch v0, b1, b2
 
-block2:
-    return value3
+b2:
+    return v3
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -1097,43 +1097,43 @@ block2:
     #[test]
     fn test_hoist_nested_inner() {
         let input = r#"
-function test(value0: boolean, value1: boolean, value2: int32): int32 {
-entry0(value0: boolean, value1: boolean, value2: int32):
-    jump block1()
+function test(v0: boolean, v1: boolean, v2: int32): int32 {
+entry(v0: boolean, v1: boolean, v2: int32):
+    jump b1
 
-block1:
-    jump block2()
+b1:
+    jump b2
 
-block2:
-    value3: int32 = 5int32
-    value4: int32 = int.add value2, value3
-    branch value1, block2(), block3()
+b2:
+    v3: int32 = 5
+    v4: int32 = int.add v2, v3
+    branch v1, b2, b3
 
-block3:
-    branch value0, block1(), block4()
+b3:
+    branch v0, b1, b4
 
-block4:
-    return value4
+b4:
+    return v4
 }
 "#;
         let expected = r#"
-function test(value0: boolean, value1: boolean, value2: int32): int32 {
-entry0(value0: boolean, value1: boolean, value2: int32):
-    jump block1()
+function test(v0: boolean, v1: boolean, v2: int32): int32 {
+entry(v0: boolean, v1: boolean, v2: int32):
+    jump b1
 
-block1:
-    value3: int32 = 5int32
-    value4: int32 = int.add value2, value3
-    jump block2()
+b1:
+    v3: int32 = 5
+    v4: int32 = int.add v2, v3
+    jump b2
 
-block2:
-    branch value1, block2(), block3()
+b2:
+    branch v1, b2, b3
 
-block3:
-    branch value0, block1(), block4()
+b3:
+    branch v0, b1, b4
 
-block4:
-    return value4
+b4:
+    return v4
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -1146,34 +1146,34 @@ block4:
     #[test]
     fn test_hoist_read_only_intrinsic() {
         let input = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: int64 = 4int64
-    jump block1()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: int64 = 4
+    jump b1
 
-block1:
-    value3: int32 = intrinsic.memory.raw.compareBytes(value1, value1, value2)
-    branch value0, block1(), block2()
+b1:
+    v3: int32 = intrinsic.memory.raw.compareBytes(v1, v1, v2)
+    branch v0, b1, b2
 
-block2:
-    return value3
+b2:
+    return v3
 }
 "#;
 
         let expected = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: int64 = 4int64
-    value3: int32 = intrinsic.memory.raw.compareBytes(value1, value1, value2)
-    jump block1()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: int64 = 4
+    v3: int32 = intrinsic.memory.raw.compareBytes(v1, v1, v2)
+    jump b1
 
-block1:
-    branch value0, block1(), block2()
+b1:
+    branch v0, b1, b2
 
-block2:
-    return value3
+b2:
+    return v3
 }
 "#;
 
@@ -1187,22 +1187,22 @@ block2:
     #[test]
     fn test_no_hoist_call() {
         let input = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    jump block1()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    jump b1
 
-block1:
-    value1: int32 = call getValue(): () -> int32
-    branch value0, block1(), block2()
+b1:
+    v1: int32 = call getValue()
+    branch v0, b1, b2
 
-block2:
-    return value1
+b2:
+    return v1
 }
 
 function getValue(): int32 {
-entry0:
-    value0: int32 = 42int32
-    return value0
+entry:
+    v0: int32 = 42
+    return v0
 }
 "#;
         // call should not be hoisted
@@ -1217,16 +1217,16 @@ entry0:
     #[test]
     fn test_no_hoist_alloc() {
         let input = r#"
-function test(value0: boolean): ref<int32, managed> {
-entry0(value0: boolean):
-    jump block1()
+function test(v0: boolean): ref<int32, managed> {
+entry(v0: boolean):
+    jump b1
 
-block1:
-    value1: ref<int32, managed> = new.zeroed int32
-    branch value0, block1(), block2()
+b1:
+    v1: ref<int32, managed> = new.zeroed int32
+    branch v0, b1, b2
 
-block2:
-    return value1
+b2:
+    return v1
 }
 "#;
         // new should stay in loop: each iteration allocates a new object
@@ -1241,41 +1241,41 @@ block2:
     #[test]
     fn test_hoist_invariant_load() {
         let input = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value3: int32 = 1int32
-    store value1, value3
-    jump block1()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: int32 = 1
+    store v1, v3
+    jump b1
 
-block1:
-    value4: int32 = 2int32
-    store value2, value4
-    value5: int32 = load value1
-    branch value0, block1(), block2()
+b1:
+    v4: int32 = 2
+    store v2, v4
+    v5: int32 = load v1
+    branch v0, b1, b2
 
-block2:
-    return value5
+b2:
+    return v5
 }
 "#;
         let expected = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value3: int32 = 1int32
-    store value1, value3
-    value4: int32 = 2int32
-    value5: int32 = load value1
-    jump block1()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: int32 = 1
+    store v1, v3
+    v4: int32 = 2
+    v5: int32 = load v1
+    jump b1
 
-block1:
-    store value2, value4
-    branch value0, block1(), block2()
+b1:
+    store v2, v4
+    branch v0, b1, b2
 
-block2:
-    return value5
+b2:
+    return v5
 }
 "#;
 
@@ -1289,39 +1289,39 @@ block2:
     #[test]
     fn test_skip_hoist_clobbered_load() {
         let input = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: int32 = 1int32
-    store value1, value2
-    jump block1()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: int32 = 1
+    store v1, v2
+    jump b1
 
-block1:
-    value3: int32 = load value1
-    value4: int32 = 2int32
-    store value1, value4
-    branch value0, block1(), block2()
+b1:
+    v3: int32 = load v1
+    v4: int32 = 2
+    store v1, v4
+    branch v0, b1, b2
 
-block2:
-    return value3
+b2:
+    return v3
 }
 "#;
         let expected = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: int32 = 1int32
-    store value1, value2
-    value4: int32 = 2int32
-    jump block1()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: int32 = 1
+    store v1, v2
+    v4: int32 = 2
+    jump b1
 
-block1:
-    value3: int32 = load value1
-    store value1, value4
-    branch value0, block1(), block2()
+b1:
+    v3: int32 = load v1
+    store v1, v4
+    branch v0, b1, b2
 
-block2:
-    return value3
+b2:
+    return v3
 }
 "#;
 
@@ -1335,28 +1335,28 @@ block2:
     #[test]
     fn test_skip_hoist_conditional_load() {
         let input = r#"
-function test(value0: boolean, value1: boolean): int32 {
-entry0(value0: boolean, value1: boolean):
-    value2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value3: int32 = 1int32
-    store value2, value3
-    jump block1()
+function test(v0: boolean, v1: boolean): int32 {
+entry(v0: boolean, v1: boolean):
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: int32 = 1
+    store v2, v3
+    jump b1
 
-block1:
-    branch value0, block2(), block3()
+b1:
+    branch v0, b2, b3
 
-block2:
-    value4: int32 = load value2
-    jump block4(value4)
+b2:
+    v4: int32 = load v2
+    jump b4(v4)
 
-block3:
-    jump block4(value3)
+b3:
+    jump b4(v3)
 
-block4(value5: int32):
-    branch value1, block1(), block5()
+b4(v5: int32):
+    branch v1, b1, b5
 
-block5:
-    return value5
+b5:
+    return v5
 }
 "#;
 
@@ -1370,37 +1370,37 @@ block5:
     #[test]
     fn test_hoist_local_get() {
         let input = r#"
-function test(value0: boolean): int32 {
-    local local0: int32, owned
+function test(v0: boolean): int32 {
+    local l0: int32
 
-entry0(value0: boolean):
-    value1: int32 = 3int32
-    local.set local0, value1
-    jump block1()
+entry(v0: boolean):
+    v1: int32 = 3
+    local.set l0, v1
+    jump b1
 
-block1:
-    value2: int32 = local.get local0
-    branch value0, block1(), block2()
+b1:
+    v2: int32 = local.get l0
+    branch v0, b1, b2
 
-block2:
-    return value2
+b2:
+    return v2
 }
 "#;
         let expected = r#"
-function test(value0: boolean): int32 {
-    local local0: int32, owned
+function test(v0: boolean): int32 {
+    local l0: int32
 
-entry0(value0: boolean):
-    value1: int32 = 3int32
-    local.set local0, value1
-    value2: int32 = local.get local0
-    jump block1()
+entry(v0: boolean):
+    v1: int32 = 3
+    local.set l0, v1
+    v2: int32 = local.get l0
+    jump b1
 
-block1:
-    branch value0, block1(), block2()
+b1:
+    branch v0, b1, b2
 
-block2:
-    return value2
+b2:
+    return v2
 }
 "#;
 
@@ -1414,24 +1414,24 @@ block2:
     #[test]
     fn test_skip_hoist_load_with_call() {
         let input = r#"
-function test(value0: boolean): int32 {
-entry0(value0: boolean):
-    value1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    value2: int32 = 1int32
-    store value1, value2
-    jump block1()
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: int32 = 1
+    store v1, v2
+    jump b1
 
-block1:
-    value3: int32 = load value1
-    call touch(value1): (ref<int32, raw>) -> void
-    branch value0, block1(), block2()
+b1:
+    v3: int32 = load v1
+    call touch(v1)
+    branch v0, b1, b2
 
-block2:
-    return value3
+b2:
+    return v3
 }
 
-function touch(value0: ref<int32, raw>): void {
-entry0(value0: ref<int32, raw>):
+function touch(v0: ref<int32, raw>): void {
+entry(v0: ref<int32, raw>):
     return
 }
 "#;
@@ -1446,49 +1446,49 @@ entry0(value0: ref<int32, raw>):
     #[test]
     fn test_multiple_loops() {
         let input = r#"
-function test(value0: boolean, value1: boolean, value2: int32): int32 {
-entry0(value0: boolean, value1: boolean, value2: int32):
-    jump block1()
+function test(v0: boolean, v1: boolean, v2: int32): int32 {
+entry(v0: boolean, v1: boolean, v2: int32):
+    jump b1
 
-block1:
-    value3: int32 = 10int32
-    branch value0, block1(), block2()
+b1:
+    v3: int32 = 10
+    branch v0, b1, b2
 
-block2:
-    jump block3()
+b2:
+    jump b3
 
-block3:
-    value4: int32 = 20int32
-    value5: int32 = int.add value2, value4
-    branch value1, block3(), block4()
+b3:
+    v4: int32 = 20
+    v5: int32 = int.add v2, v4
+    branch v1, b3, b4
 
-block4:
-    value6: int32 = int.add value3, value5
-    return value6
+b4:
+    v6: int32 = int.add v3, v5
+    return v6
 }
 "#;
         // v3 hoisted from loop1 to b0
         // v4, v5 hoisted from loop3 to b2
         let expected = r#"
-function test(value0: boolean, value1: boolean, value2: int32): int32 {
-entry0(value0: boolean, value1: boolean, value2: int32):
-    value3: int32 = 10int32
-    jump block1()
+function test(v0: boolean, v1: boolean, v2: int32): int32 {
+entry(v0: boolean, v1: boolean, v2: int32):
+    v3: int32 = 10
+    jump b1
 
-block1:
-    branch value0, block1(), block2()
+b1:
+    branch v0, b1, b2
 
-block2:
-    value4: int32 = 20int32
-    value5: int32 = int.add value2, value4
-    jump block3()
+b2:
+    v4: int32 = 20
+    v5: int32 = int.add v2, v4
+    jump b3
 
-block3:
-    branch value1, block3(), block4()
+b3:
+    branch v1, b3, b4
 
-block4:
-    value6: int32 = int.add value3, value5
-    return value6
+b4:
+    v6: int32 = int.add v3, v5
+    return v6
 }
 "#;
         let mut test = TestProgram::new(input);
@@ -1502,46 +1502,46 @@ block4:
     fn test_hoist_safe_division() {
         let input = r#"
 function test(): int32 {
-entry0:
-    value0: int32 = 0int32
-    value1: int32 = 1int32
-    value2: int32 = 10int32
-    value3: int32 = 2int32
-    jump block1(value0)
+entry:
+    v0: int32 = 0
+    v1: int32 = 1
+    v2: int32 = 10
+    v3: int32 = 2
+    jump b1(v0)
 
-block1(value4: int32):
-    value5: int32 = int.div.s value2, value3
-    value6: boolean = int.lt.s value4, value1
-    branch value6, block2(), block3()
+b1(v4: int32):
+    v5: int32 = int.div.s v2, v3
+    v6: boolean = int.lt.s v4, v1
+    branch v6, b2, b3
 
-block2:
-    value7: int32 = int.add value4, value1
-    jump block1(value7)
+b2:
+    v7: int32 = int.add v4, v1
+    jump b1(v7)
 
-block3:
-    return value5
+b3:
+    return v5
 }
 "#;
         let expected = r#"
 function test(): int32 {
-entry0:
-    value0: int32 = 0int32
-    value1: int32 = 1int32
-    value2: int32 = 10int32
-    value3: int32 = 2int32
-    value5: int32 = int.div.s value2, value3
-    jump block1(value0)
+entry:
+    v0: int32 = 0
+    v1: int32 = 1
+    v2: int32 = 10
+    v3: int32 = 2
+    v5: int32 = int.div.s v2, v3
+    jump b1(v0)
 
-block1(value4: int32):
-    value6: boolean = int.lt.s value4, value1
-    branch value6, block2(), block3()
+b1(v4: int32):
+    v6: boolean = int.lt.s v4, v1
+    branch v6, b2, b3
 
-block2:
-    value7: int32 = int.add value4, value1
-    jump block1(value7)
+b2:
+    v7: int32 = int.add v4, v1
+    jump b1(v7)
 
-block3:
-    return value5
+b3:
+    return v5
 }
 "#;
 
@@ -1555,24 +1555,24 @@ block3:
     #[test]
     fn test_skip_trapping_division() {
         let input = r#"
-function test(value0: int32): int32 {
-entry0(value0: int32):
-    value1: int32 = 0int32
-    value2: int32 = 1int32
-    value3: int32 = 10int32
-    jump block1(value1)
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 0
+    v2: int32 = 1
+    v3: int32 = 10
+    jump b1(v1)
 
-block1(value4: int32):
-    value5: int32 = int.div.s value3, value0
-    value6: boolean = int.lt.s value4, value2
-    branch value6, block2(), block3()
+b1(v4: int32):
+    v5: int32 = int.div.s v3, v0
+    v6: boolean = int.lt.s v4, v2
+    branch v6, b2, b3
 
-block2:
-    value7: int32 = int.add value4, value2
-    jump block1(value7)
+b2:
+    v7: int32 = int.add v4, v2
+    jump b1(v7)
 
-block3:
-    return value5
+b3:
+    return v5
 }
 "#;
 

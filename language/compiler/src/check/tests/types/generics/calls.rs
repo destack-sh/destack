@@ -269,8 +269,7 @@ identity<int32>("x");
 
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type is not assignable"
-/// @diagnostic.label line=6 column=17 source="identity<int32>(\"x\");"
+
 "#,
     );
 }

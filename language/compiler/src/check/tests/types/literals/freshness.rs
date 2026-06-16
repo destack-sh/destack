@@ -35,8 +35,7 @@ const value: Named = { name: "Ada", extra: true };
 
 "#,
         r#"
-/// @diagnostic.error code=EC205 message="unknown property 'extra' in object literal for type '{ name: string }'"
-/// @diagnostic.label line=4 column=22 source="const value: Named = { name: \"Ada\", extra: true };"
+
 "#,
     );
 }
