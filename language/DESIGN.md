@@ -99,7 +99,7 @@ Destack wants to be "TypeScript++", and thus we also follow JavaScript's string 
 ```ds
 const text = "héllo";
 
-text.length satisfies uint; // UTF-16 code units, as in JS
+text.length satisfies usize; // UTF-16 code units, as in JS
 
 for (const c of text) {
     c satisfies char; // iteration by code point, as in JS
@@ -468,7 +468,7 @@ const base = { x: 1.0, y: 2.0 };
 const point: Point = _ { ...base };
 ```
 
-Classes don't get to participate in spreads because they carry identity, behavior, and constructors, and that would just be a confusing mess.
+Classes can also be spread into plain object expressions, following TypeScript's object-shaped model, but the result is structural and carries only fields.
 
 ### Classes
 
@@ -1363,6 +1363,9 @@ match (user) {
 }
 ```
 
+Computed object pattern keys must close to static terms when matching finite object-shaped values.
+Dynamic computed keys are still valid against indexed sources, because those are resolved through the ordinary `Index` / `IndexSet` surface rather than through declared fields.
+
 ### Guards
 
 Guards are boolean expressions that can refine types, like `"name" in value`, `instanceof`, and `value is T` checks:
@@ -1422,6 +1425,9 @@ status satisfies "done";
 ```
 
 The `break` operand still follows TypeScript's label rule, of course: a lone identifier is still a label.
+
+`for-in` enumerates string property names from object-shaped values: structural objects, structs, and classes.
+Symbol keys are not included, and dense collections use `for-of` instead.
 
 ### Using
 
