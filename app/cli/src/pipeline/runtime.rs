@@ -1,6 +1,6 @@
-use destack_artifact::ArtifactKey;
 use destack_engine::{EngineId, Value};
-use destack_repository::{Environment, Repository, Revision};
+use destack_mir::Tree;
+use destack_repository::{ArtifactReader, Environment, ProviderError, Repository, Revision};
 use destack_source::{ModuleId, ProfileId, TargetId};
 use destack_vm::{Machine, MachineOptions};
 
@@ -17,35 +17,41 @@ pub fn create_machine(
 ) -> CliResult<Machine> {
     // resolve lowered mir for the target
     let profile_id = target_profile_id(repository, revision, module_id, *target_id)?;
-    let optimized_key = ArtifactKey::mir_optimized(module_id, profile_id, *target_id);
-    let lowered_key = ArtifactKey::mir_lowered(module_id, profile_id, *target_id);
-    let optimized_version = repository
-        .artifact_version(revision, &optimized_key)
-        .map_err(|error| CliError::message(error.to_string()))?;
-    let lowered_version = repository
-        .artifact_version(revision, &lowered_key)
-        .map_err(|error| CliError::message(error.to_string()))?;
-
-    let artifact_store = repository.artifact_store();
-    let tree = if let Some(version) = optimized_version
-        && let Some(mir) = artifact_store.mir_optimized(&version)
-        && let Some(tree) = mir.latest_patch_tree()
-    {
-        tree.clone()
-    } else if let Some(version) = lowered_version
-        && let Some(mir) = artifact_store.mir_lowered(&version)
-    {
-        mir.tree.clone()
-    } else {
-        return Err(CliError::message(format!(
-            "missing MIR for target {target_id:?} (run requires lowering)"
-        )));
-    };
+    let artifacts = repository.artifact_reader(revision);
+    let tree = machine_mir_tree(&artifacts, module_id, profile_id, *target_id)?;
     let strings = repository.string_pool().as_ref().clone();
 
     // construct the machine from mir state
     Machine::build_with_options(EngineId::new(1), tree, strings, options)
         .map_err(|error| CliError::message(error.to_string()))
+}
+
+/// Return the best available MIR tree for VM execution.
+fn machine_mir_tree(
+    artifacts: &ArtifactReader<'_>,
+    module_id: ModuleId,
+    profile_id: ProfileId,
+    target_id: TargetId,
+) -> CliResult<Tree> {
+    // prefer optimized mir when the optimize stage has run
+    match artifacts.mir_optimized(module_id, profile_id, target_id) {
+        Ok(mir) => {
+            let tree = mir.latest_patch_tree().ok_or_else(|| {
+                CliError::message("optimized MIR artifact has no patches".to_string())
+            })?;
+
+            return Ok(tree.clone());
+        }
+        Err(ProviderError::Blocked { .. }) => {}
+        Err(error) => return Err(CliError::message(error.to_string())),
+    }
+
+    // otherwise use lowered mir
+    let mir = artifacts
+        .mir_lowered(module_id, profile_id, target_id)
+        .map_err(|error| CliError::message(error.to_string()))?;
+
+    Ok(mir.tree.clone())
 }
 
 /// Build the launch environment for the entry source.

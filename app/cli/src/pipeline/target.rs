@@ -56,11 +56,11 @@ pub fn resolve_target_for_module(
 
     // apply command output redirection
     if let Some(out_dir) = target_args.out_dir.as_ref() {
-        target.out_dir = out_dir.clone();
+        target.output.directory = out_dir.clone();
     }
 
     if let Some(out_file) = target_args.out_file.as_ref() {
-        target.out_file = Some(out_file.clone());
+        target.output.file = Some(out_file.clone());
     }
 
     // return the selected target info
