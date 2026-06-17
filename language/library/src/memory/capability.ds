@@ -6,6 +6,10 @@ export newtype interface Copy {}
 @languageItem("memory.Concrete")
 export newtype interface Concrete {}
 
+/// Mark a type as safe for runtime erasure.
+@languageItem("memory.DynamicSafe")
+export newtype interface DynamicSafe {}
+
 /// Mark a type as explicitly cloneable.
 @languageItem("memory.Clone")
 export newtype interface Clone {

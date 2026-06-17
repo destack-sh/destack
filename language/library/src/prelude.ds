@@ -74,6 +74,7 @@ global {
         Dispose,
         Drop,
         Dynamic,
+        DynamicSafe,
         drop,
         ExclusiveBorrowed,
         ExclusiveBorrowedFields,

@@ -805,6 +805,9 @@ define_language_items! {
             /// Conventional default value capability.
             Default => (NewtypeInterface, "memory/capability", "Default"),
 
+            /// Runtime erasure capability.
+            DynamicSafe => (NewtypeInterface, "memory/capability", "DynamicSafe"),
+
             /// Worker-send capability.
             Send => (NewtypeInterface, "memory/capability", "Send"),
 
