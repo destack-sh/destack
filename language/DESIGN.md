@@ -632,6 +632,16 @@ function copy<T, comptime N: uint>(src: [T; N]): [T; N] {
 }
 ```
 
+As in TypeScript, type parameters may include a `const` modifier to retain "fresh" precision in arguments.
+To be clear, `const T` is about type widening, and `const T` parameters are still _type_ parameters (unlike `comptime N`), and they're also the reason we had to use a different syntax for true value parameters in the first place.
+
+```ds
+declare function freeze<const T>(value: T): T;
+
+const value = freeze({ kind: "ready", level: 1 });
+value.kind satisfies "ready";
+```
+
 Dynamic parameters may _also_ be marked `comptime` when the caller should pass an ordinary argument expression that is still required to be evaluatable as a static term during compile time, mostly as a readability affordance where spelling the value as a generic argument would be awkward or constraining.
 (It also means we can progressively make an argument statically known, without forcing a generic signature, which is nice and ergonomic in some situations.)
 
@@ -1272,7 +1282,7 @@ TypeScript has pattern based destructuring for arguments and assignment-like exp
 | Enum | `State.Ready` | match a nominal enum variant |
 | Union | `0 | 1 | 2` | accept any listed pattern |
 | Rest | `...tail` | collect the remaining elements or fields |
-| Default | `name = "guest"` | bind a fallback for missing destructured values |
+| Default | `name = "guest"` | bind a fallback when the selected value is `undefined` |
 | Must | `value!` | bind the non-nullish value |
 | Borrow binding | `&readonly value`, `&value`, `&exclusive value` | bind the selected place through a borrow |
 | Move binding | `^value` | bind the selected place by ownership |
@@ -2846,7 +2856,7 @@ The compiler rejects unsafe operations, like raw pointer dereferencing, outside 
 ### Algebra
 
 Destack's "memory algebra" is a fancy way of saying that the axes of ownership, access, lifetime, and placement are just types that we can do TypeScript-style algebra and inference with.
-Code can inspect a type's memory form and build a derived form because all the qualified surface forms like `readonly T`, `^T`, `&T`, `*T`, `local T`, and `shared T` correspond to builtin intrinsic types:
+We can inspect a type's memory form and build a derived form because all the qualified surface forms like `readonly T`, `^T`, `&T`, `*T`, `local T`, and `shared T` correspond to builtin intrinsic types and rewrite helpers:
 
 ```ds
 /// Automatically managed T, owned by the runtime.
@@ -2859,15 +2869,13 @@ newtype Borrowed<T, comptime L: Lifetime, comptime A: Access = "mutable"> = intr
 newtype Raw<T> = intrinsic;
 /// Placed T (`local T` or `shared T`).
 newtype Placed<T, P: Place> = intrinsic;
-/// Readonly T (`readonly T`).
-newtype Readonly<T> = intrinsic;
 ```
 
 Specifically, all surface sigils and keywords are just compact syntax for those intrinsic forms that commute the way they read:
 
 ```ds
 User            // unqualified, normal default representation
-readonly User   // Readonly<User>
+readonly User   // WithAccess<User, "readonly">
 ^User           // Owned<User>
 &readonly User  // Borrowed<User, L, "readonly">
 &User           // Borrowed<User, L, "mutable">
