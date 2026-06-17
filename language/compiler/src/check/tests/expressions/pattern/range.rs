@@ -181,3 +181,65 @@ const isEarly = match (value) {
 "#,
     );
 }
+
+#[test]
+fn test_range_patterns_report_uncovered_interval_hole() {
+    let session = TestSession::single(
+        r#"
+type Tiny = 0..=3;
+
+declare const value: Tiny;
+
+const label = match (value) {
+    0..=1 => "low"
+    3 => "high"
+};
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+type Tiny = 0..=3;
+
+declare const value: Tiny;
+
+const label: "low" | "high" = match (value) {
+    0..=1 => "low"
+    3 => "high"
+};
+
+=== checked ===
+type Tiny = 0..=3;
+/// @type.symbol symbol=Tiny source="type Tiny = 0..=3" type=0..=3
+/// @definition.type symbol=Tiny source="type Tiny = 0..=3" value=0..=3
+
+declare const value: Tiny;
+/// @type.symbol symbol=value source=value type=0..=3
+/// @resolution.name source=Tiny target=Tiny
+
+const label = match (value) {
+/// @type.symbol symbol=label source=label type="low" | "high"
+/// @type.node source=value type=0..=3
+/// @resolution.name source=value target=value
+
+    0..=1 => "low"
+    /// @type.node source=0 type=0
+    /// @type.node source=1 type=1
+    /// @resolution.pattern source=0..=1 kind=range domain=0..=3 start=0 end=1 bound=inclusive
+    /// @type.node source="\"low\"" type="low"
+
+    3 => "high"
+    /// @resolution.pattern source=3 kind=literal value=3
+    /// @type.node source="\"high\"" type="high"
+
+};
+"#,
+        r#"
+/// @diagnostic.error code=EC403 message="match is not exhaustive: '2' is not covered"
+/// @diagnostic.label line=6 column=15 source="match (value) {\n    0..=1 => \"low\"\n    3 => \"high\"\n}"
+"#,
+    );
+}

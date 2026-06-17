@@ -69,7 +69,7 @@ const value: RegExp | int32 = /abc/;
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-const value: RegExp | int32 = /abc/;
+const value: RegExp | int32 = /abc/ as RegExp | int32;
 
 === checked ===
 const value: RegExp | int32 = /abc/;

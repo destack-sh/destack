@@ -118,7 +118,7 @@ const value: bigint | string = 42n;
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-const value: bigint | string = 42n;
+const value: bigint | string = 42n as bigint | string;
 
 === checked ===
 const value: bigint | string = 42n;

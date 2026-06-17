@@ -80,7 +80,7 @@ const value: symbol | string = Symbol.create("id");
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-const value: symbol | string = Symbol.create("id");
+const value: symbol | string = Symbol.create("id") as symbol | string;
 
 === checked ===
 const value: symbol | string = Symbol.create("id");

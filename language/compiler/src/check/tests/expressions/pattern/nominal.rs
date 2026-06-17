@@ -185,3 +185,85 @@ match (point) {
 "#,
     );
 }
+
+#[test]
+fn test_nominal_object_pattern_rejects_non_field_member() {
+    let session = TestSession::single(
+        r#"
+class User {
+    name: string;
+    displayName(): string {
+        return this.name;
+    }
+}
+
+declare const user: User;
+
+match (user) {
+    User { displayName } => displayName
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+class User {
+    name: string;
+    displayName(): string {
+        return this.name;
+    }
+}
+
+declare const user: User;
+
+match (user) {
+    User { displayName } => displayName
+}
+
+=== checked ===
+class User {
+/// @type.symbol symbol=User type=User
+/// @definition.class symbol=User
+/// @definition.field symbol=User.name source="name: string" key=name type=string
+/// @definition.method symbol=User.displayName source="displayName(): string {\n        return this.name;\n    }" slot=displayName type=(this: User) => string
+
+    name: string;
+    /// @type.symbol symbol=User.name source="name: string" type=string
+
+    displayName(): string {
+    /// @type.symbol symbol=User.displayName source="displayName(): string {\n        return this.name;\n    }" type=(this: User) => string
+
+        return this.name;
+        /// @type.node source=this.name type=string
+        /// @type.node source=this type=User
+        /// @resolution.member source=this.name receiver=User kind=field key=name
+
+    }
+}
+
+declare const user: User;
+/// @type.symbol symbol=user source=user type=User
+/// @resolution.name source=User target=User
+
+match (user) {
+/// @type.node source=user type=User
+/// @resolution.name source=user target=user
+
+    User { displayName } => displayName
+    /// @type.symbol symbol=displayName source=displayName type=<error>
+    /// @resolution.pattern source="User { displayName }" kind=nominal_object target=User fields=[displayName]
+    /// @resolution.name source=User target=User
+    /// @type.node source=displayName type=<error>
+    /// @resolution.name source=displayName target=displayName
+
+}
+"#,
+        r#"
+/// @diagnostic.error code=EC427 message="member 'displayName' on type 'User' is not a field"
+/// @diagnostic.label line=11 column=12 source=displayName
+"#,
+    );
+}

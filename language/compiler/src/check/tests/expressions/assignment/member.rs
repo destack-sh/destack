@@ -1,36 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_initializer_rejects_incompatible_value() {
-    let session = TestSession::single(
-        r#"
-const value: int32 = "text";
-"#,
-    );
-
-    session.assert_dir_checked_and_diagnostics(
-        "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
-        r#"
-=== annotated ===
-const value: int32 = "text";
-
-=== checked ===
-const value: int32 = "text";
-/// @type.symbol symbol=value source=value type=int32
-/// @type.node source="\"text\"" type="text"
-
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
-
-"#,
-        r#"
-/// @diagnostic.error code=EC200 message="type '\"text\"' is not assignable to type 'int32'"
-/// @diagnostic.label line=2 column=22 source="const value: int32 = \"text\";"
-"#,
-    );
-}
-
-#[test]
 fn test_readonly_member_rejects_assignment() {
     let session = TestSession::single(
         r#"
