@@ -14,19 +14,19 @@ value = 2;
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-let value: int32 = 1 as int32;
-value = 2 as int32;
+let value: int32 = 1;
+value = 2;
 
 === checked ===
 let value: int32 = 1;
 /// @type.symbol symbol=value source=value type=int32
-/// @type.node source=1 type=1
+/// @type.node source=1 type=int32
 
 value = 2;
-/// @type.node source="value = 2" type=2
+/// @type.node source="value = 2" type=int32
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=value
-/// @type.node source=2 type=2
+/// @type.node source=2 type=int32
 
 /// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
@@ -47,13 +47,13 @@ value = "text";
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-let value: int32 = 1 as int32;
+let value: int32 = 1;
 value = "text";
 
 === checked ===
 let value: int32 = 1;
 /// @type.symbol symbol=value source=value type=int32
-/// @type.node source=1 type=1
+/// @type.node source=1 type=int32
 
 value = "text";
 /// @type.node source="value = \"text\"" type="text"
@@ -64,7 +64,8 @@ value = "text";
 /// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
-
+/// @diagnostic.error code=EC200 message="type '\"text\"' is not assignable to type 'int32'"
+/// @diagnostic.label line=3 column=1 source="value = \"text\";"
 "#,
     );
 }
@@ -83,19 +84,19 @@ value += 2;
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-let value: int32 = 1 as int32;
-value += 2 as int32;
+let value: int32 = 1;
+value += 2;
 
 === checked ===
 let value: int32 = 1;
 /// @type.symbol symbol=value source=value type=int32
-/// @type.node source=1 type=1
+/// @type.node source=1 type=int32
 
 value += 2;
 /// @type.node source="value += 2" type=int32
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=value
-/// @type.node source=2 type=2
+/// @type.node source=2 type=int32
 /// @resolution.call source="value += 2" parameters=() return=int32 kind=builtin builtin=binary.add
 
 /// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=1
@@ -117,8 +118,8 @@ value = 2;
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-let value: float64 = 1 as float64;
-value = 2 as float64;
+let value: float64 = 1;
+value = 2;
 
 === checked ===
 let value = 1;
@@ -126,10 +127,10 @@ let value = 1;
 /// @type.node source=1 type=1
 
 value = 2;
-/// @type.node source="value = 2" type=2
+/// @type.node source="value = 2" type=float64
 /// @type.node source=value type=float64
 /// @resolution.name source=value target=value
-/// @type.node source=2 type=2
+/// @type.node source=2 type=float64
 
 /// @check.stats.solve variables=0 types=4 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
@@ -150,7 +151,7 @@ value = "text";
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-let value: float64 = 1 as float64;
+let value: float64 = 1;
 value = "text";
 
 === checked ===
@@ -167,7 +168,8 @@ value = "text";
 /// @check.stats.solve variables=0 types=4 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
-
+/// @diagnostic.error code=EC200 message="type '\"text\"' is not assignable to type 'float64'"
+/// @diagnostic.label line=3 column=1 source="value = \"text\";"
 "#,
     );
 }
@@ -187,17 +189,17 @@ value = 1;
         r#"
 === annotated ===
 let value: int32;
-value = 1 as int32;
+value = 1;
 
 === checked ===
 let value: int32;
 /// @type.symbol symbol=value source=value type=int32
 
 value = 1;
-/// @type.node source="value = 1" type=1
+/// @type.node source="value = 1" type=int32
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=value
-/// @type.node source=1 type=1
+/// @type.node source=1 type=int32
 
 /// @check.stats.solve variables=0 types=3 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
@@ -219,7 +221,7 @@ values = [1, 2];
         r#"
 === annotated ===
 let values: int32[];
-values = [1 as int32, 2 as int32];
+values = [1, 2];
 
 === checked ===
 let values: int32[];
@@ -230,8 +232,8 @@ values = [1, 2];
 /// @type.node source=values type=Array<int32>
 /// @resolution.name source=values target=values
 /// @type.node source=[1, 2] type=Array<int32>
-/// @type.node source=1 type=1
-/// @type.node source=2 type=2
+/// @type.node source=1 type=int32
+/// @type.node source=2 type=int32
 
 /// @check.stats.solve variables=1 types=7 constraints=6 obligations=1 solutions=1 bounds=4 decisions=1
 "#,
@@ -285,7 +287,7 @@ values = [1, 2];
         r#"
 === annotated ===
 let values: [int32; 2];
-values = [1 as int32, 2 as int32];
+values = [1, 2];
 
 === checked ===
 let values: [int32; 2];
@@ -296,8 +298,8 @@ values = [1, 2];
 /// @type.node source=values type=FixedArray<int32, 2>
 /// @resolution.name source=values target=values
 /// @type.node source=[1, 2] type=FixedArray<int32, 2>
-/// @type.node source=1 type=1
-/// @type.node source=2 type=2
+/// @type.node source=1 type=int32
+/// @type.node source=2 type=int32
 
 /// @check.stats.solve variables=1 types=9 constraints=6 obligations=1 solutions=1 bounds=3 decisions=1
 "#,
@@ -319,26 +321,27 @@ values = [1, 2, 3];
         r#"
 === annotated ===
 let values: [int32; 2];
-values = [1 as int32, 2 as int32, 3 as int32];
+values = [1, 2, 3];
 
 === checked ===
 let values: [int32; 2];
 /// @type.symbol symbol=values source=values type=FixedArray<int32, 2>
 
 values = [1, 2, 3];
-/// @type.node source="values = [1, 2, 3]" type=Array<1 | 2 | 3>
+/// @type.node source="values = [1, 2, 3]" type=FixedArray<int32, 3>
 /// @type.node source=values type=FixedArray<int32, 2>
 /// @resolution.name source=values target=values
-/// @type.node source=[1, 2, 3] type=Array<1 | 2 | 3>
-/// @type.node source=1 type=1
-/// @type.node source=2 type=2
-/// @type.node source=3 type=3
+/// @type.node source=[1, 2, 3] type=FixedArray<int32, 3>
+/// @type.node source=1 type=int32
+/// @type.node source=2 type=int32
+/// @type.node source=3 type=int32
 
 /// @check.stats.solve variables=1 types=10 constraints=7 obligations=1 solutions=1 bounds=3 decisions=1
 
 "#,
         r#"
-
+/// @diagnostic.error code=EC200 message="type 'FixedArray<int32, 3>' is not assignable to type 'FixedArray<int32, 2>'"
+/// @diagnostic.label line=3 column=1 source="values = [1, 2, 3];"
 "#,
     );
 }
@@ -367,10 +370,10 @@ let value: string;
 /// @type.symbol symbol=value source=value type=string
 
 value = "ready";
-/// @type.node source="value = \"ready\"" type="ready"
+/// @type.node source="value = \"ready\"" type=string
 /// @type.node source=value type=string
 /// @resolution.name source=value target=value
-/// @type.node source="\"ready\"" type="ready"
+/// @type.node source="\"ready\"" type=string
 
 const copy = value;
 /// @type.symbol symbol=copy source=copy type=string

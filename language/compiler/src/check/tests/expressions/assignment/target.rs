@@ -24,7 +24,8 @@ const value: int32 = "text";
 
 "#,
         r#"
-
+/// @diagnostic.error code=EC200 message="type '\"text\"' is not assignable to type 'int32'"
+/// @diagnostic.label line=2 column=22 source="const value: int32 = \"text\";"
 "#,
     );
 }
@@ -43,22 +44,22 @@ state.count = 1;
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-const state: { readonly count: int32 } = { count: 0 as int32 };
-state.count = 1 as int32;
+const state: { readonly count: int32 } = { count: 0 };
+state.count = 1;
 
 === checked ===
 const state: { readonly count: int32 } = { count: 0 };
 /// @type.symbol symbol=state source=state type={ readonly count: int32 }
-/// @type.node source="{ count: 0 }" type=Managed<{ count: 0 }>
-/// @type.node source=0 type=0
+/// @type.node source="{ count: 0 }" type=Managed<{ count: int32 }>
+/// @type.node source=0 type=int32
 
 state.count = 1;
-/// @type.node source="state.count = 1" type=1
+/// @type.node source="state.count = 1" type=int32
 /// @type.node source=state type={ readonly count: int32 }
 /// @type.node source=state.count type=int32
 /// @resolution.name source=state target=state
 /// @resolution.member source=state.count receiver={ readonly count: int32 } kind=field key=count
-/// @type.node source=1 type=1
+/// @type.node source=1 type=int32
 
 /// @check.stats.solve variables=1 types=8 constraints=3 obligations=1 solutions=1 bounds=1 decisions=2
 "#,

@@ -26,16 +26,16 @@ counter = 1;
 === annotated ===
 import { counter } from "./counter.ds";
 
-counter = 1 as int32;
+counter = 1;
 
 === checked ===
 import { counter } from "./counter.ds";
 
 counter = 1;
-/// @type.node source="counter = 1" type=1
+/// @type.node source="counter = 1" type=int32
 /// @type.node source=counter type=int32
 /// @resolution.name source=counter target=counter.counter
-/// @type.node source=1 type=1
+/// @type.node source=1 type=int32
 
 /// @check.stats.solve variables=0 types=2 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
@@ -72,16 +72,16 @@ localCounter = 1;
 === annotated ===
 import { counter as localCounter } from "./counter.ds";
 
-localCounter = 1 as int32;
+localCounter = 1;
 
 === checked ===
 import { counter as localCounter } from "./counter.ds";
 
 localCounter = 1;
-/// @type.node source="localCounter = 1" type=1
+/// @type.node source="localCounter = 1" type=int32
 /// @type.node source=localCounter type=int32
 /// @resolution.name source=localCounter target=counter.counter
-/// @type.node source=1 type=1
+/// @type.node source=1 type=int32
 
 /// @check.stats.solve variables=0 types=2 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
@@ -165,16 +165,16 @@ namespaceCounter.counter = 1;
 === annotated ===
 import * as namespaceCounter from "./counter.ds";
 
-namespaceCounter.counter = 1 as int32;
+namespaceCounter.counter = 1;
 
 === checked ===
 import * as namespaceCounter from "./counter.ds";
 
 namespaceCounter.counter = 1;
-/// @type.node source="namespaceCounter.counter = 1" type=1
+/// @type.node source="namespaceCounter.counter = 1" type=int32
 /// @type.node source=namespaceCounter.counter type=int32
 /// @resolution.name source=namespaceCounter.counter target=counter.counter
-/// @type.node source=1 type=1
+/// @type.node source=1 type=int32
 
 /// @check.stats.solve variables=0 types=3 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
