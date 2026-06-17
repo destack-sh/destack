@@ -49,11 +49,11 @@ impl CommandTargetOverrides {
     /// Apply overrides to a target.
     pub fn apply_to_target(&self, target: &mut Target) {
         if let Some(out_dir) = self.out_dir.as_ref() {
-            target.out_dir = out_dir.clone();
+            target.output.directory = out_dir.clone();
         }
 
         if let Some(out_file) = self.out_file.as_ref() {
-            target.out_file = Some(out_file.clone());
+            target.output.file = Some(out_file.clone());
         }
     }
 }

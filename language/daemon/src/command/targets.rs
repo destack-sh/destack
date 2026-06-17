@@ -70,10 +70,10 @@ impl CommandContext<'_> {
                 entries.push(CommandTargetsEntry {
                     name: name.clone(),
                     emit: format!("{:?}", target.emit),
-                    runtime: format!("{:?}", target.runtime),
+                    runtime: format!("{:?}", target.runtime()),
                     platform: format!("{:?}", target.platform),
-                    out_dir: target.out_dir.display().to_string(),
-                    out_file: target.out_file.as_ref().map(|p| p.display().to_string()),
+                    out_dir: target.output.directory.display().to_string(),
+                    out_file: target.output.file.as_ref().map(|p| p.display().to_string()),
                     default_target: default_target.clone(),
                     package_dir: config.directory.display().to_string(),
                 });

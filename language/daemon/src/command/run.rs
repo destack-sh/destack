@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
-use destack_repository::{Environment, Profile, Repository, Revision};
+use destack_mir::Tree;
+use destack_repository::{
+    ArtifactReader, Environment, Profile, ProviderError, Repository, Revision,
+};
 use destack_runtime::runtime::World;
 use destack_runtime::runtime::engine::{EngineId, Entry, Value};
 use destack_source::{ModuleId, ProfileId, TargetId};
@@ -184,8 +187,8 @@ fn run_entry_module(
     // profile facts
     let target_id = target.id;
     let profile = target_profile(repository, revision, entry_module, target_id)?;
-    let mut runtime_options = target.target.runtime_options.clone();
-    runtime_options.conditions = profile.conditions().clone();
+    let mut execution = target.target.execution.clone();
+    execution.conditions = profile.conditions().clone();
 
     // vm machine
     let machine = create_machine(
@@ -202,9 +205,9 @@ fn run_entry_module(
         .ok_or_else(|| "run requires an entry module".to_string())?;
     let environment = environment_for_source(entry_source, args);
     let mut world =
-        World::new(&runtime_options, environment.clone()).map_err(|error| format!("{error}"))?;
+        World::new(&execution, environment.clone()).map_err(|error| format!("{error}"))?;
     let runtime_id = world
-        .spawn_runtime(environment, &runtime_options, machine)
+        .spawn_runtime(environment, &execution, machine)
         .map_err(|error| format!("{error}"))?;
 
     let entry = Entry::new(entry_name);
@@ -345,29 +348,8 @@ fn create_machine(
     options: MachineOptions,
 ) -> CommandResult<Machine> {
     let profile_id = target_profile_id(repository, revision, module_id, *target_id)?;
-    let optimized_key = ArtifactKey::mir_optimized(module_id, profile_id, *target_id);
-    let lowered_key = ArtifactKey::mir_lowered(module_id, profile_id, *target_id);
-
-    let optimized_version = repository
-        .artifact_version(revision, &optimized_key)
-        .map_err(|error| error.to_string())?;
-    let lowered_version = repository
-        .artifact_version(revision, &lowered_key)
-        .map_err(|error| error.to_string())?;
-
-    let artifact_cache = repository.artifact_cache();
-    let tree = if let Some(version) = optimized_version
-        && let Some(mir) = artifact_cache.mir_optimized(&version)
-        && let Some(tree) = mir.latest_patch_tree()
-    {
-        tree.clone()
-    } else if let Some(version) = lowered_version
-        && let Some(mir) = artifact_cache.mir_lowered(&version)
-    {
-        mir.tree.clone()
-    } else {
-        return Err(format!("missing MIR for target {target_id:?} (run requires lowering)").into());
-    };
+    let artifacts = repository.artifact_reader(revision);
+    let tree = machine_mir_tree(&artifacts, module_id, profile_id, *target_id)?;
     let strings = repository.string_pool().as_ref().clone();
 
     let machine_id = EngineId::new(1);
@@ -376,6 +358,34 @@ fn create_machine(
         Machine::build_with_options(machine_id, tree, strings, options)
             .map_err(|error| error.to_string())?,
     )
+}
+
+/// Return the best available MIR tree for VM execution.
+fn machine_mir_tree(
+    artifacts: &ArtifactReader<'_>,
+    module_id: ModuleId,
+    profile_id: ProfileId,
+    target_id: TargetId,
+) -> CommandResult<Tree> {
+    // prefer optimized mir when the optimize stage has run
+    match artifacts.mir_optimized(module_id, profile_id, target_id) {
+        Ok(mir) => {
+            let tree = mir
+                .latest_patch_tree()
+                .ok_or_else(|| "optimized MIR artifact has no patches".to_string())?;
+
+            return Ok(tree.clone());
+        }
+        Err(ProviderError::Blocked { .. }) => {}
+        Err(error) => return Err(error.to_string().into()),
+    }
+
+    // otherwise use lowered mir
+    let mir = artifacts
+        .mir_lowered(module_id, profile_id, target_id)
+        .map_err(|error| error.to_string())?;
+
+    Ok(mir.tree.clone())
 }
 
 /// Return the profile id selected for one module target.

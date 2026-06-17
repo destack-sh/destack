@@ -100,11 +100,12 @@ impl CommandContext<'_> {
                 .map(|(name, target)| CommandInfoTarget {
                     name: name.clone(),
                     emit: format!("{:?}", target.emit),
-                    runtime: format!("{:?}", target.runtime),
+                    runtime: format!("{:?}", target.runtime()),
                     platform: format!("{:?}", target.platform),
-                    out_dir: target.out_dir.display().to_string(),
+                    out_dir: target.output.directory.display().to_string(),
                     out_file: target
-                        .out_file
+                        .output
+                        .file
                         .as_ref()
                         .map(|path| path.display().to_string()),
                     package_dir: None,
@@ -125,11 +126,12 @@ impl CommandContext<'_> {
                         .map(move |(name, target)| CommandInfoTarget {
                             name: name.clone(),
                             emit: format!("{:?}", target.emit),
-                            runtime: format!("{:?}", target.runtime),
+                            runtime: format!("{:?}", target.runtime()),
                             platform: format!("{:?}", target.platform),
-                            out_dir: target.out_dir.display().to_string(),
+                            out_dir: target.output.directory.display().to_string(),
                             out_file: target
-                                .out_file
+                                .output
+                                .file
                                 .as_ref()
                                 .map(|path| path.display().to_string()),
                             package_dir: Some(package_dir.clone()),
