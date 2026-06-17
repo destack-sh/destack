@@ -340,7 +340,7 @@ impl ProgramArgs {
 
         // prefer in memory cache stores for test file systems
         if has_fs_override {
-            repository = repository.with_cache(Arc::new(MemoryCacheStore::new()));
+            repository = repository.with_cache_store(Arc::new(MemoryCacheStore::new()));
         }
 
         let repository = Arc::new(repository);

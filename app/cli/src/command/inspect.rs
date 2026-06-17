@@ -304,7 +304,7 @@ fn format_inspect_artifact(view: InspectView, artifact: &ArtifactRecord) -> Resu
 
 /// Format one MIR tree with inspect defaults.
 fn format_inspect_mir(tree: &Tree, artifact: &ArtifactRecord) -> Result<String, String> {
-    let options = MirFormatOptions::default().with_type_aliases(true);
+    let options = MirFormatOptions::default();
 
     format_mir(tree, &artifact.strings, options)
         .map_err(|error| format!("failed to format MIR: {error}"))
