@@ -23,7 +23,7 @@ use crate::world::World;
 /// Build runtime options with one explicit execution mode.
 fn runtime_options_with_execution(mode: ExecutionMode) -> RuntimeOptions {
     let mut options = RuntimeOptions::default();
-    options.execution.mode = mode;
+    options.mode = mode;
 
     options
 }
