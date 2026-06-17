@@ -200,7 +200,7 @@ function borrowElement(values: [int32; 4]): &int32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.checks.bounds = CheckPolicy::Never;
+        target.compiler.checks.bounds = CheckPolicy::Never;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -233,8 +233,8 @@ function borrowElementChecked(values: [int32; 4]): &int32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.checks.bounds = CheckPolicy::Always;
-        target.checks.failure = CheckFailurePolicy::Panic;
+        target.compiler.checks.bounds = CheckPolicy::Always;
+        target.compiler.checks.failure = CheckFailurePolicy::Panic;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -277,7 +277,7 @@ function borrowElementRef(values: &[int32; 4]): &int32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.checks.bounds = CheckPolicy::Never;
+        target.compiler.checks.bounds = CheckPolicy::Never;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -310,8 +310,8 @@ function borrowElementRefChecked(values: &[int32; 4]): &int32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.checks.bounds = CheckPolicy::Always;
-        target.checks.failure = CheckFailurePolicy::Panic;
+        target.compiler.checks.bounds = CheckPolicy::Always;
+        target.compiler.checks.failure = CheckFailurePolicy::Panic;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();

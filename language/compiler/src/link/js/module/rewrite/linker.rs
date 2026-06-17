@@ -223,7 +223,7 @@ impl<'module, 'a> Rewriter<'module, 'a> {
         }
 
         // shorthand object fields
-        if !self.target.minify.identifiers {
+        if !self.target.js.minify.identifiers {
             self.use_object_shorthand_fields();
         }
 

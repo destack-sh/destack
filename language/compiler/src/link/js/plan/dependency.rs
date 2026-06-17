@@ -45,7 +45,7 @@ impl JsLinker<'_> {
 
     /// Return whether target policy explicitly externalizes one dependency specifier.
     fn js_dependency_is_external(&self, target: &Target, specifier: &str) -> bool {
-        let dependency = &target.bundle_dependencies;
+        let dependency = &target.js.dependencies;
 
         dependency
             .external
@@ -60,7 +60,8 @@ impl JsLinker<'_> {
     /// Return whether target policy explicitly bundles one dependency specifier.
     fn js_dependency_is_always_bundled(&self, target: &Target, specifier: &str) -> bool {
         target
-            .bundle_dependencies
+            .js
+            .dependencies
             .always_bundle
             .iter()
             .any(|candidate| candidate == specifier)
@@ -86,7 +87,7 @@ impl JsLinker<'_> {
         let specifier = dependency_target.specifier();
         let has_resolved_module = dependency_target.module().is_some();
         let is_package_like = Self::is_package_like_dependency_specifier(specifier);
-        let dependency = &target.bundle_dependencies;
+        let dependency = &target.js.dependencies;
 
         // explicit external policy
         if self.js_dependency_is_external(target, specifier) {

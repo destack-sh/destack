@@ -46,7 +46,7 @@ impl<'a> TargetLocation<'a> {
 
     /// Resolve one manifest output path for this target.
     pub(crate) fn manifest_location(&self) -> OutputLocation {
-        let manifest_directory = if let Some(out_file) = self.target.out_file.as_ref() {
+        let manifest_directory = if let Some(out_file) = self.target.output.file.as_ref() {
             let out_file = if out_file.is_absolute() {
                 out_file.clone()
             } else {
@@ -109,7 +109,7 @@ impl<'a> TargetLocation<'a> {
         from_output: &OutputLocation,
         to_output: &OutputLocation,
     ) -> String {
-        if let Some(public_path) = self.target.bundle_output.public_path.as_deref() {
+        if let Some(public_path) = self.target.js.output.public_path.as_deref() {
             return join_public_output_path(public_path, &self.manifest_path(to_output));
         }
 
@@ -123,7 +123,7 @@ impl<'a> TargetLocation<'a> {
 
     /// Resolve one default target output path for this target.
     pub(crate) fn default_target_output_path(&self, extension: &str) -> PathBuf {
-        if let Some(out_file) = self.target.out_file.as_ref() {
+        if let Some(out_file) = self.target.output.file.as_ref() {
             if out_file.is_absolute() {
                 return out_file.clone();
             }
@@ -252,7 +252,7 @@ mod tests {
     #[test]
     fn test_render_output_reference_between_output_files() {
         let mut target = Target::js();
-        target.out_dir = PathBuf::from("dist");
+        target.output.directory = PathBuf::from("dist");
         let layout = TargetLocation::new(Path::new("/workspace/pkg"), &target, "site");
         let index_path =
             layout.output_location(Path::new("/workspace/pkg/dist/index.html").to_path_buf());

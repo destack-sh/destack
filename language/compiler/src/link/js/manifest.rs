@@ -4,7 +4,7 @@ use destack_artifact::{
     BuildManifest, BuildManifestFile, BuildManifestFileType, BuildManifestLoader, OutputFile,
     PackageOutput,
 };
-use destack_repository::BundleMode;
+use destack_repository::JsOutputMode;
 use destack_source::FileType;
 
 use super::JsLinker;
@@ -203,7 +203,7 @@ impl<'a> JsLinker<'a> {
         dynamic_imports.extend(output.external_dynamic_imports().iter().cloned());
 
         Ok(ManifestChunkMetadata {
-            name: if plan.output_graph().bundle_mode() == BundleMode::PreserveModules {
+            name: if plan.output_graph().bundle_mode() == JsOutputMode::PreserveModules {
                 None
             } else {
                 plan.output_layout()

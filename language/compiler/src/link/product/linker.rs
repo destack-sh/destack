@@ -95,7 +95,7 @@ impl<'a> ProductLinker<'a> {
 
             let unit = ProductUnit::new(
                 target_name.clone(),
-                target.runtime,
+                target.runtime(),
                 target.host,
                 target.platform,
                 unit_outputs,

@@ -366,11 +366,12 @@ impl<'a> JsLinker<'a> {
                 });
             }
         };
-        let declaration = if self.target.declaration && matches!(self.target.emit, EmitFormat::Js) {
-            Some(JsDeclaration::default())
-        } else {
-            None
-        };
+        let declaration =
+            if self.target.output.declaration && matches!(self.target.emit, EmitFormat::Js) {
+                Some(JsDeclaration::default())
+            } else {
+                None
+            };
 
         Ok(JsOutput {
             language,

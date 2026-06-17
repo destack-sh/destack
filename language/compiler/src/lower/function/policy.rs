@@ -20,7 +20,7 @@ pub(crate) struct RuntimeCheckConfig {
 impl RuntimeCheckConfig {
     /// Resolve runtime check policies for a target.
     pub(crate) fn from_target(target: &Target, debug: bool) -> Self {
-        let checks = target.checks;
+        let checks = target.compiler.checks;
 
         Self {
             overflow: Self::policy_enabled(checks.overflow, debug),

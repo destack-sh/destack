@@ -6,18 +6,18 @@ use crate::{Compiler, CompilerResult};
 use destack_artifact::{
     BuildManifest, OutputFile, PackageAssembly, PackageOutput, SourceMapArtifact, TargetOutputName,
 };
-use destack_repository::{BundleMode, RepositoryError, Target};
+use destack_repository::{JsOutputMode, RepositoryError, Target};
 use destack_source::{Content, FileType, ModuleId, Uri};
 
 use super::layout::TargetLocation;
 
 impl Compiler {
     /// Lower one bundle mode to the published package assembly shape.
-    pub(crate) fn package_assembly(bundle_mode: BundleMode) -> PackageAssembly {
+    pub(crate) fn package_assembly(bundle_mode: JsOutputMode) -> PackageAssembly {
         match bundle_mode {
-            BundleMode::PreserveModules => PackageAssembly::PreserveModules,
-            BundleMode::SingleFile => PackageAssembly::SingleFile,
-            BundleMode::Chunked => PackageAssembly::Chunked,
+            JsOutputMode::PreserveModules => PackageAssembly::PreserveModules,
+            JsOutputMode::SingleFile => PackageAssembly::SingleFile,
+            JsOutputMode::Chunked => PackageAssembly::Chunked,
         }
     }
 

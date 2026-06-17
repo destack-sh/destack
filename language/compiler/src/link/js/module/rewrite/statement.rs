@@ -10,7 +10,8 @@ impl Rewriter<'_, '_> {
     /// Return whether output syntax minification may use object shorthand.
     pub(super) fn can_use_object_shorthand(&self) -> bool {
         self.target
-            .bundle_output
+            .js
+            .output
             .generated_code
             .as_ref()
             .and_then(|generated_code| generated_code.object_shorthand)
@@ -20,7 +21,8 @@ impl Rewriter<'_, '_> {
     /// Return whether output syntax minification may leave reserved names unquoted as properties.
     fn can_use_reserved_property_names(&self) -> bool {
         self.target
-            .bundle_output
+            .js
+            .output
             .generated_code
             .as_ref()
             .and_then(|generated_code| generated_code.reserved_names_as_props)

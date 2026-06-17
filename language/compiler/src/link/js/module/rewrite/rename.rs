@@ -63,7 +63,7 @@ impl IdentifierNameAllocator {
 impl JsLinker<'_> {
     /// Return whether one declaration name must stay stable for runtime `.name` semantics.
     fn declaration_keeps_name(&self, declaration: &js::Declaration) -> bool {
-        if !self.target.minify.keep_names {
+        if !self.target.js.minify.keep_names {
             return false;
         }
 
@@ -1091,7 +1091,7 @@ impl JsLinker<'_> {
         source_contexts: &HashMap<ModuleId, MinifySourceContext>,
         references: &HashMap<js::ScriptSymbolId, u32>,
     ) -> LinkResult<()> {
-        if self.target.minify.keep_names {
+        if self.target.js.minify.keep_names {
             return Ok(());
         }
 

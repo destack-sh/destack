@@ -43,7 +43,7 @@ impl<'a> JsTextOutputPolicy<'a> {
         // final JS shaping
         code = self.apply_js_banner_and_footer(code);
 
-        if self.target.should_minify_bundle_output() {
+        if self.target.should_minify_js_output() {
             // TODO #Incomplete: final JS minification is not implemented yet
         }
 
@@ -94,7 +94,7 @@ impl<'a> JsTextOutputPolicy<'a> {
         }
 
         // append footer text before any source map reference
-        if let Some(footer) = self.target.bundle_output.footer.as_deref() {
+        if let Some(footer) = self.target.js.output.footer.as_deref() {
             if !code.is_empty() && !code.ends_with('\n') {
                 code.push('\n');
             }
@@ -111,7 +111,7 @@ impl<'a> JsTextOutputPolicy<'a> {
 
     /// Return the exact banner prefix inserted before mapped JS code.
     fn js_banner_prefix(self) -> String {
-        let Some(banner) = self.target.bundle_output.banner.as_deref() else {
+        let Some(banner) = self.target.js.output.banner.as_deref() else {
             return String::new();
         };
         let mut prefix = banner.to_string();
@@ -188,7 +188,7 @@ impl JsLinker<'_> {
                 })?;
         let source_module = self.compiler.module(context.revision(), module_id)?;
         let source_file = self.compiler.file(context, source_module.file_id)?;
-        let options = if target.should_minify_bundle_output() {
+        let options = if target.should_minify_js_output() {
             JsFormatOptions::minimal()
         } else {
             JsFormatOptions::pretty()
@@ -505,7 +505,7 @@ fn linked_script_file_types(target: &Target) -> Result<Vec<FileType>, String> {
     match target.emit {
         EmitFormat::Js => {
             let mut file_types = vec![FileType::JavaScript];
-            if target.declaration {
+            if target.output.declaration {
                 file_types.push(FileType::TypeScriptDeclaration);
             }
             if target.emits_source_map_output() {

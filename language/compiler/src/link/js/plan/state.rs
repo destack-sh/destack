@@ -1,4 +1,4 @@
-use destack_repository::BundleMode;
+use destack_repository::JsOutputMode;
 use destack_source::ModuleId;
 use indexmap::{IndexMap, IndexSet};
 
@@ -61,7 +61,7 @@ pub(crate) struct Output {
 #[derive(Debug, Clone)]
 pub(crate) struct OutputGraph {
     /// The bundle mode represented by this graph.
-    pub(super) bundle_mode: BundleMode,
+    pub(super) bundle_mode: JsOutputMode,
     /// The emitted outputs in stable output order.
     pub(super) outputs: Vec<Output>,
     /// The output index for each source module.
@@ -165,7 +165,7 @@ impl Output {
 
 impl OutputGraph {
     /// Build one empty output graph for targets without planned JS outputs.
-    pub(crate) fn default_empty(bundle_mode: BundleMode) -> Self {
+    pub(crate) fn default_empty(bundle_mode: JsOutputMode) -> Self {
         Self {
             bundle_mode,
             outputs: Vec::new(),
@@ -174,7 +174,7 @@ impl OutputGraph {
     }
 
     /// Return the bundle mode represented by this graph.
-    pub(crate) fn bundle_mode(&self) -> BundleMode {
+    pub(crate) fn bundle_mode(&self) -> JsOutputMode {
         self.bundle_mode
     }
 

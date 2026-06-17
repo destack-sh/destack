@@ -151,7 +151,7 @@ impl<'a> JsLinker<'a> {
 
                 // chunked outputs can retain internal dynamic edges as output links
                 if should_bundle {
-                    if self.target.assembly == destack_repository::BundleMode::Chunked {
+                    if self.target.js.mode == destack_repository::JsOutputMode::Chunked {
                         continue;
                     }
 
@@ -337,7 +337,7 @@ impl<'a> JsLinker<'a> {
                 .map_err(CompilerError::from)?
         };
         let output_graph = if module_set.modules().is_empty() {
-            OutputGraph::default_empty(self.target.assembly)
+            OutputGraph::default_empty(self.target.js.mode)
         } else {
             self.build_js_output_graph(&module_set)
                 .map_err(CompilerError::from)?

@@ -838,13 +838,7 @@ impl WalkState<'_, '_> {
         else {
             return Ok(None);
         };
-        if self
-            .check
-            .module(self.module)
-            .profile
-            .flags
-            .no_implicit_receivers
-        {
+        if self.check.module(self.module).profile.no_implicit_receivers {
             self.check
                 .report_implicit_receiver(self.module, id.into_any());
         }

@@ -17,8 +17,8 @@ function sum(a: int32, b: int32): int32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.checks.overflow = CheckPolicy::Always;
-        target.checks.failure = CheckFailurePolicy::Panic;
+        target.compiler.checks.overflow = CheckPolicy::Always;
+        target.compiler.checks.failure = CheckFailurePolicy::Panic;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -61,8 +61,8 @@ function sum(a: int32, b: int32): int32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.checks.overflow = CheckPolicy::Always;
-        target.checks.failure = CheckFailurePolicy::Abort;
+        target.compiler.checks.overflow = CheckPolicy::Always;
+        target.compiler.checks.failure = CheckFailurePolicy::Abort;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -102,8 +102,8 @@ function sum(a: uint32, b: uint32): uint32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.checks.overflow = CheckPolicy::Always;
-        target.checks.failure = CheckFailurePolicy::Panic;
+        target.compiler.checks.overflow = CheckPolicy::Always;
+        target.compiler.checks.failure = CheckFailurePolicy::Panic;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -146,8 +146,8 @@ function sum(a: int32, b: int32): int32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.checks.overflow = CheckPolicy::Never;
-        target.checks.failure = CheckFailurePolicy::Panic;
+        target.compiler.checks.overflow = CheckPolicy::Never;
+        target.compiler.checks.failure = CheckFailurePolicy::Panic;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -179,8 +179,8 @@ function quotient(a: int32, b: int32): int32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.checks.division = CheckPolicy::Always;
-        target.checks.failure = CheckFailurePolicy::Panic;
+        target.compiler.checks.division = CheckPolicy::Always;
+        target.compiler.checks.failure = CheckFailurePolicy::Panic;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -231,8 +231,8 @@ function quotient(a: int32, b: int32): int32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.checks.division = CheckPolicy::Always;
-        target.checks.failure = CheckFailurePolicy::Abort;
+        target.compiler.checks.division = CheckPolicy::Always;
+        target.compiler.checks.failure = CheckFailurePolicy::Abort;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -276,8 +276,8 @@ function quotient(a: uint32, b: uint32): uint32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.checks.division = CheckPolicy::Always;
-        target.checks.failure = CheckFailurePolicy::Panic;
+        target.compiler.checks.division = CheckPolicy::Always;
+        target.compiler.checks.failure = CheckFailurePolicy::Panic;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -322,8 +322,8 @@ function shift(value: int32, amount: int32): int32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.checks.shift = CheckPolicy::Always;
-        target.checks.failure = CheckFailurePolicy::Panic;
+        target.compiler.checks.shift = CheckPolicy::Always;
+        target.compiler.checks.failure = CheckFailurePolicy::Panic;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -364,8 +364,8 @@ function shift(value: int32, amount: int32): int32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.checks.shift = CheckPolicy::Always;
-        target.checks.failure = CheckFailurePolicy::Abort;
+        target.compiler.checks.shift = CheckPolicy::Always;
+        target.compiler.checks.failure = CheckFailurePolicy::Abort;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -403,8 +403,8 @@ function shift(value: uint32, amount: uint32): uint32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.checks.shift = CheckPolicy::Always;
-        target.checks.failure = CheckFailurePolicy::Panic;
+        target.compiler.checks.shift = CheckPolicy::Always;
+        target.compiler.checks.failure = CheckFailurePolicy::Panic;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -445,8 +445,8 @@ function element(values: [int32; 4], index: int32): int32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.checks.bounds = CheckPolicy::Always;
-        target.checks.failure = CheckFailurePolicy::Panic;
+        target.compiler.checks.bounds = CheckPolicy::Always;
+        target.compiler.checks.failure = CheckFailurePolicy::Panic;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -488,8 +488,8 @@ function element(values: [int32; 4], index: int32): int32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.checks.bounds = CheckPolicy::Always;
-        target.checks.failure = CheckFailurePolicy::Abort;
+        target.compiler.checks.bounds = CheckPolicy::Always;
+        target.compiler.checks.failure = CheckFailurePolicy::Abort;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -528,8 +528,8 @@ function element(values: [int32; 4], index: uint32): int32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.checks.bounds = CheckPolicy::Always;
-        target.checks.failure = CheckFailurePolicy::Panic;
+        target.compiler.checks.bounds = CheckPolicy::Always;
+        target.compiler.checks.failure = CheckFailurePolicy::Panic;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();

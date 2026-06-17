@@ -1,4 +1,4 @@
-use destack_repository::BundleMode;
+use destack_repository::JsOutputMode;
 use destack_source::ModuleId;
 use indexmap::{IndexMap, IndexSet};
 
@@ -35,15 +35,15 @@ impl<'a> JsLinker<'a> {
             &dynamic_target_modules,
         )?;
         let output_graph = match self.effective_bundle_mode() {
-            BundleMode::SingleFile => self.build_single_file_js_output_graph(module_set),
-            BundleMode::Chunked => self.build_chunked_js_output_graph(
+            JsOutputMode::SingleFile => self.build_single_file_js_output_graph(module_set),
+            JsOutputMode::Chunked => self.build_chunked_js_output_graph(
                 module_set,
                 &static_entry_sets,
                 &dynamic_target_modules,
                 &dynamic_entry_modules,
                 &dynamic_target_sets,
             ),
-            BundleMode::PreserveModules => {
+            JsOutputMode::PreserveModules => {
                 self.build_preserve_js_output_graph(module_set, &dynamic_entry_modules)
             }
         }?;
@@ -52,8 +52,8 @@ impl<'a> JsLinker<'a> {
     }
 
     /// Return the effective bundle mode for the current linked module set.
-    fn effective_bundle_mode(&self) -> BundleMode {
-        self.target.assembly
+    fn effective_bundle_mode(&self) -> JsOutputMode {
+        self.target.js.mode
     }
 
     /// Build the chunked output graph over the current JS assembly.
@@ -126,7 +126,7 @@ impl<'a> JsLinker<'a> {
         }
 
         let mut output_graph = OutputGraph {
-            bundle_mode: BundleMode::Chunked,
+            bundle_mode: JsOutputMode::Chunked,
             outputs,
             output_ids_by_module,
         };
@@ -169,7 +169,7 @@ impl<'a> JsLinker<'a> {
         }
 
         Ok(OutputGraph {
-            bundle_mode: BundleMode::SingleFile,
+            bundle_mode: JsOutputMode::SingleFile,
             outputs: vec![output],
             output_ids_by_module,
         })
@@ -202,7 +202,7 @@ impl<'a> JsLinker<'a> {
         }
 
         Ok(OutputGraph {
-            bundle_mode: BundleMode::PreserveModules,
+            bundle_mode: JsOutputMode::PreserveModules,
             outputs,
             output_ids_by_module,
         })
@@ -225,7 +225,7 @@ impl<'a> JsLinker<'a> {
         }
         let mut manual_output_names = IndexMap::new();
 
-        for (output_name, module_paths) in &self.target.manual_chunks {
+        for (output_name, module_paths) in &self.target.js.manual_chunks {
             for module_path in module_paths {
                 let Some((module_id, _)) = linked_module_paths
                     .iter()
