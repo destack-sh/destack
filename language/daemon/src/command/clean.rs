@@ -139,13 +139,13 @@ fn collect_output_paths(config: &DestackFile, paths: &mut HashSet<PathBuf>) {
     }
 
     for target in options.targets.values() {
-        let out_dir = resolve_path(&target.out_dir, &config.directory);
+        let out_dir = resolve_path(&target.output.directory, &config.directory);
         paths.insert(out_dir);
 
-        if let Some(out_file) = target.out_file.as_ref() {
+        if let Some(out_file) = target.output.file.as_ref() {
             paths.insert(resolve_path(out_file, &config.directory));
         }
-        if let Some(declaration_dir) = target.declaration_dir.as_ref() {
+        if let Some(declaration_dir) = target.output.declaration_directory.as_ref() {
             paths.insert(resolve_path(declaration_dir, &config.directory));
         }
     }

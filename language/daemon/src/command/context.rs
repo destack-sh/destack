@@ -485,7 +485,7 @@ impl<'a> CommandContext<'a> {
 
     /// Decide whether optimization should run for a target.
     pub(super) fn should_optimize(&self, target: &Target) -> bool {
-        !matches!(target.optimize_level, OptimizeLevel::O0)
+        !matches!(target.compiler.optimize, OptimizeLevel::O0)
     }
 
     /// Resolve a destack.json path for the current repository.
