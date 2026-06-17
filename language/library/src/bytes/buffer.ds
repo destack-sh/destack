@@ -30,8 +30,8 @@ export class ByteBuffer {
     }
 
     /// Return the initialized byte count.
-    get length(): number {
-        this.initializedLength as number
+    get length(): usize {
+        this.initializedLength
     }
 
     /// Return the initialized byte count.

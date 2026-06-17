@@ -66,7 +66,7 @@ extension of String {
     }
 
     /// The length in UTF-16 code units.
-    get length(): number {
+    get length(): usize {
         todo("String.length")
     }
 
