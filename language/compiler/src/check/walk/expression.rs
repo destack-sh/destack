@@ -3,9 +3,9 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    ConditionBranch, ConstraintCause, Decision, FlowBranch, FlowCheckpoint, GuardOutcome,
-    MatchCase, MatchObligation, Obligation, Origin, Place, PlaceAccess, PlaceObligation,
-    PlaceTarget, Relation, WalkState,
+    ConditionBranch, ConstraintCause, Decision, DynamicSafeObligation, FlowBranch, FlowCheckpoint,
+    GuardOutcome, MatchCase, MatchObligation, Obligation, Origin, PatternObligation, Place,
+    PlaceAccess, PlaceObligation, PlaceTarget, Relation, WalkState,
 };
 
 impl WalkState<'_, '_> {
@@ -540,7 +540,14 @@ impl WalkState<'_, '_> {
             dir::Expression::Is { value, target_type } => {
                 let (value, target_type) = (*value, *target_type);
                 self.walk_expression(value, self.tree.get(value))?;
-                self.walk_type_expression(target_type)?;
+                let target = self.walk_type_expression(target_type)?;
+                let condition = self.active_static_guard();
+                self.check
+                    .push_obligation(Obligation::DynamicSafe(DynamicSafeObligation {
+                        source: target_type.into_global_any(self.module),
+                        condition,
+                        ty: target,
+                    }));
                 let boolean = self.push_type(
                     dir::Type::Primitive(dir::PrimitiveType::Boolean),
                     id.into_any(),
@@ -1411,6 +1418,15 @@ impl WalkState<'_, '_> {
                 let origin = Origin::Node(pattern.into_global_any(self.module));
                 let pattern_type = self.node_type(pattern)?;
                 self.relate_type(origin, Relation::Assignable, value, pattern_type);
+
+                let condition = self.active_static_guard();
+                self.check
+                    .push_obligation(Obligation::CatchPattern(PatternObligation {
+                        source: pattern.into_global_any(self.module),
+                        condition,
+                        pattern: pattern.into_global(self.module),
+                        value,
+                    }));
             }
 
             self.mark_bindings_assigned(pattern.into_any());

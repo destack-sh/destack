@@ -3,8 +3,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::check::{Answer, CheckError, CheckState, MemberLookup, Origin, Relation};
+use crate::{CompilerResult, DiagnosticAnchor};
 
 impl CheckState<'_> {
     /// Check whether one pattern is irrefutable for its matched value type.
@@ -13,6 +13,7 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         pattern: dir::GlobalNodeId<dir::Pattern>,
         value: dir::GlobalTypeId,
+        diagnostic: impl FnOnce(DiagnosticAnchor, ModuleId, String) -> DiagnosticBuilder<CheckError>,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
         let origin = Origin::Node(source);
         let decision = self.decide_pattern_covers(origin, pattern, value)?;
@@ -22,13 +23,9 @@ impl CheckState<'_> {
                 let missing = self.uncovered_witness(origin, &[pattern], value)?;
                 let (module, anchor) = self.source_anchor(source);
 
-                let error = CheckError::RefutablePattern {
-                    anchor,
-                    module,
-                    missing,
-                };
+                let error = diagnostic(anchor, module, missing);
 
-                Some(error.help("handle the uncovered values with 'if let' or 'match'"))
+                Some(error)
             }
             Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
         };

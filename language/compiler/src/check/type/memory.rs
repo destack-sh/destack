@@ -55,6 +55,16 @@ impl CheckState<'_> {
 
                 self.push_intrinsic_view(origin, view)
             }
+            dir::LanguageItem::Dynamic => {
+                let [constraint] = instance.arguments.as_slice() else {
+                    return Ok(Answer::Ready(None));
+                };
+                let view = dir::Type::Dynamic(dir::DynamicType {
+                    constraint: *constraint,
+                });
+
+                self.push_intrinsic_view(origin, view)
+            }
 
             // form constructors normalize to their canonical form written form
             dir::LanguageItem::Managed => {
