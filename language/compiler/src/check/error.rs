@@ -1353,6 +1353,50 @@ pub enum CheckError {
         missing: String,
     },
 
+    /// Variant pattern belongs to a different nominal type.
+    ///
+    /// ```ds
+    /// match (status) {
+    ///     Other.Done(value) => value
+    /// }
+    /// ```
+    #[diagnostic(
+        code = "EC438",
+        message = "variant '{variant}' is not a variant of type '{source}'"
+    )]
+    PatternVariantNotInType {
+        /// Report the variant pattern.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The written variant head.
+        variant: String,
+        /// The matched source type.
+        source: String,
+    },
+
+    /// Variant pattern names a variant that does not exist.
+    ///
+    /// ```ds
+    /// match (status) {
+    ///     Status.Done(value) => value
+    /// }
+    /// ```
+    #[diagnostic(
+        code = "EC439",
+        message = "variant '{variant}' does not exist on type '{owner}'"
+    )]
+    PatternVariantMissing {
+        /// Report the variant pattern.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The missing variant name.
+        variant: String,
+        /// The owner type.
+        owner: String,
+    },
+
     // -------------------------------------------------------------------------
     // 5xx: representation
     // -------------------------------------------------------------------------
@@ -1685,6 +1729,24 @@ pub enum CheckError {
         module: ModuleId,
         /// The bodyless declaration name.
         name: String,
+    },
+
+    /// Declaration repeats a member in the same owner.
+    ///
+    /// ```ds
+    /// enum Status {
+    ///     ready,
+    ///     ready,
+    /// }
+    /// ```
+    #[diagnostic(code = "EC612", message = "member '{member}' is already declared")]
+    DuplicateMember {
+        /// Report the later declaration.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The repeated member name.
+        member: String,
     },
 
     /// Class field is not definitely initialized.
