@@ -43,8 +43,8 @@ extension<T> of Slice<T> implements
     static fromRaw(data: *T, length: usize): Raw<Slice<T>>;
 
     /// Return the number of elements.
-    get length(): number {
-        this.size as number
+    get length(): usize {
+        this.size
     }
 
     /// Return the number of elements.
@@ -90,7 +90,7 @@ extension<T> of Slice<T> implements
             return undefined;
         }
 
-        this.index((length as number) - 1)
+        this.index(length - 1)
     }
 
     /// Borrow the last element.

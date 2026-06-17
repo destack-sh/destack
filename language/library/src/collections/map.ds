@@ -140,8 +140,8 @@ extension<K: Hash, V> of Map<K, V> implements
     }
 
     /// Return the number of entries.
-    get size(): number {
-        this.count as number
+    get size(): usize {
+        this.count
     }
 
     /// Return whether this map has no entries.
