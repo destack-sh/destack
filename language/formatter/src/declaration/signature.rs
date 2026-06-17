@@ -283,7 +283,7 @@ fn pattern_is_destructuring(
         | Pattern::NominalObject { .. }
         | Pattern::Sequence { .. }
         | Pattern::Tuple { .. }
-        | Pattern::Newtype { .. } => true,
+        | Pattern::NominalTuple { .. } => true,
         Pattern::Must(inner)
         | Pattern::BorrowOf { right: inner, .. }
         | Pattern::MoveOf { right: inner, .. }

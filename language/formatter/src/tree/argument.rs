@@ -14,8 +14,7 @@ use crate::chain::transparent_inner_expression;
 use crate::expression::{argument_value, jsx_chain_ternary_needs_expanded_branches};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
-    Argument, Comment, Expression, IfCondition, IfForm, LocalNodeId, NodeType, ScalarLiteral,
-    TokenType,
+    Argument, Comment, Expression, IfForm, LocalNodeId, NodeType, ScalarLiteral, TokenType,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
@@ -300,12 +299,11 @@ pub(crate) fn write_tree_expression_argument<'ast>(
                                 else_expression,
                                 ..
                             } if {
-                                let condition_has_line_comment = match condition {
-                                    IfCondition::Expression { condition } => {
-                                        node_has_line_comment(f.context(), *condition)
-                                    }
-                                    IfCondition::Let { .. } => false,
-                                };
+                                let condition_has_line_comment = condition
+                                    .as_expression()
+                                    .is_some_and(|condition| {
+                                        node_has_line_comment(f.context(), condition)
+                                    });
 
                                 condition_has_line_comment
                                     || node_has_line_comment(f.context(), *then_expression)
