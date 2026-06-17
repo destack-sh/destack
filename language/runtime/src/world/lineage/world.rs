@@ -234,7 +234,7 @@ impl World {
         };
 
         let mut options = RuntimeOptions::default();
-        options.execution.mode = ExecutionMode::Replay;
+        options.mode = ExecutionMode::Replay;
         options.trace.chunk_size_mb = replay_chunk_size_mb;
         options.trace.payload = replay_payload;
 

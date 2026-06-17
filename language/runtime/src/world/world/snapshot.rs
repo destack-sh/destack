@@ -108,7 +108,7 @@ impl World {
     fn runtime_options_from_snapshot(snapshot: &WorldSnapshot) -> RuntimeOptions {
         let mut options = RuntimeOptions::default();
 
-        options.execution.mode = snapshot.options.execution;
+        options.mode = snapshot.options.execution;
         options.trace.chunk_size_mb = snapshot.options.replay_chunk_size_mb;
         options.trace.payload = snapshot.options.replay_payload;
 
