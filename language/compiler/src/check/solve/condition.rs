@@ -53,7 +53,7 @@ impl CheckState<'_> {
                 // non-boolean conditions fail loudly and read as absent
                 dir::Type::Literal(_) => {
                     let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-                    let error = crate::CheckError::InvalidCondition { anchor, module };
+                    let error = crate::CheckError::InvalidStaticCondition { anchor, module };
                     self.module_mut(module).diagnostics.push(error.into());
 
                     return Ok(Answer::Ready(false));

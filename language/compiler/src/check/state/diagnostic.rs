@@ -100,7 +100,7 @@ impl CheckState<'_> {
         source: dir::LocalNodeIdAny,
     ) {
         let anchor = self.diagnostic_anchor(module, source);
-        let diagnostic = CheckError::InvalidCondition { anchor, module };
+        let diagnostic = CheckError::InvalidStaticCondition { anchor, module };
 
         self.module_mut(module).diagnostics.push(diagnostic.into());
     }
