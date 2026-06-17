@@ -42,7 +42,7 @@ impl<'a> NativeLinker<'a> {
         let mut output = self.build_package_output(files);
 
         // optional manifest
-        if self.target.bundle_output.manifest {
+        if self.target.js.output.manifest {
             let manifest = self.build_manifest(&output);
 
             self.compiler
@@ -137,7 +137,7 @@ impl<'a> NativeLinker<'a> {
 
         PackageOutput::new(
             self.target.emit,
-            Compiler::package_assembly(self.target.assembly),
+            Compiler::package_assembly(self.target.js.mode),
             outputs,
         )
     }

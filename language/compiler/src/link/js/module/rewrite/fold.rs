@@ -143,7 +143,7 @@ impl Rewriter<'_, '_> {
     /// Return whether output syntax minification may introduce ES2020 syntax.
     fn output_uses_es2020_syntax(&self) -> bool {
         matches!(
-            self.target.es_target,
+            self.target.js.target,
             EsTarget::Es2020
                 | EsTarget::Es2021
                 | EsTarget::Es2022

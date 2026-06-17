@@ -1,7 +1,7 @@
 use crate::{Compiler, CompilerError, CompilerResult, LinkError, LinkResult};
 
 use destack_artifact::{OutputFile, PackageOutput, TargetOutputName};
-use destack_repository::BundleFormat;
+use destack_repository::JsOutputFormat;
 use destack_source::{FileType, ModuleId};
 
 use super::JsLinker;
@@ -27,7 +27,7 @@ impl<'a> JsLinker<'a> {
         let mut output = self.package_output(output_files);
 
         // optional manifest
-        if self.target.bundle_output.manifest {
+        if self.target.js.output.manifest {
             let manifest = self.build_js_manifest(&output, &plan)?;
 
             self.compiler.append_manifest_output(
@@ -45,16 +45,16 @@ impl<'a> JsLinker<'a> {
     /// Validate the JS bundle options used by this target.
     fn validate_target(&self) -> LinkResult<()> {
         // only esm bundle output is implemented so far
-        if let Some(format) = self.target.bundle_output.format
-            && format != BundleFormat::Esm
+        if let Some(format) = self.target.js.output.format
+            && format != JsOutputFormat::Esm
         {
             return Err(LinkError::InvalidTarget {
                 anchor: self.package_id.into(),
                 package: self.package_id,
                 target: *self.target_id,
                 message: format!(
-                    "bundleOutput.format '{}' is not implemented yet",
-                    Self::bundle_format_name(format)
+                    "js.output.format '{}' is not implemented yet",
+                    Self::js_output_format_name(format)
                 ),
             });
         }
@@ -63,10 +63,10 @@ impl<'a> JsLinker<'a> {
     }
 
     /// Return the config spelling for one bundle format.
-    fn bundle_format_name(format: BundleFormat) -> &'static str {
+    fn js_output_format_name(format: JsOutputFormat) -> &'static str {
         match format {
-            BundleFormat::Esm => "esm",
-            BundleFormat::Iife => "iife",
+            JsOutputFormat::Esm => "esm",
+            JsOutputFormat::Iife => "iife",
         }
     }
 
@@ -86,7 +86,7 @@ impl<'a> JsLinker<'a> {
 
         PackageOutput::new(
             self.target.emit,
-            Compiler::package_assembly(self.target.assembly),
+            Compiler::package_assembly(self.target.js.mode),
             outputs,
         )
     }

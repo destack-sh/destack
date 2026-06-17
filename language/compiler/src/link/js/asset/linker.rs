@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use base64::Engine as _;
 use destack_artifact::OutputFile;
-use destack_repository::{BundleAssetMode, Module, Target};
+use destack_repository::{JsAssetMode, Module, Target};
 use destack_source::{Content, File, FileType, ModuleId};
 use indexmap::{IndexMap, IndexSet};
 
@@ -66,7 +66,7 @@ impl Asset {
         values: OutputFileNameValues<'_>,
     ) -> String {
         output_layout.render_output_file_name_with_values(
-            target.bundle_output.asset_file_names.as_deref(),
+            target.js.output.asset_file_names.as_deref(),
             values,
         )
     }
@@ -258,18 +258,19 @@ impl<'a> JsLinker<'a> {
     /// Plan the final reference for one asset module.
     pub(crate) fn plan_asset_reference(&self, module_id: ModuleId) -> LinkResult<AssetReference> {
         let asset = self.asset(module_id)?;
-        let should_inline = match self.target.bundle_assets.mode {
-            BundleAssetMode::Inline => true,
-            BundleAssetMode::Emit => self
+        let should_inline = match self.target.js.assets.mode {
+            JsAssetMode::Inline => true,
+            JsAssetMode::Emit => self
                 .target
-                .bundle_assets
+                .js
+                .assets
                 .inline_limit
                 .is_some_and(|limit| asset.byte_len() as u64 <= limit),
-            BundleAssetMode::Reference => false,
+            JsAssetMode::Reference => false,
         };
 
         // reference mode leaves the authored reference untouched
-        if self.target.bundle_assets.mode == BundleAssetMode::Reference {
+        if self.target.js.assets.mode == JsAssetMode::Reference {
             return Ok(AssetReference::Original);
         }
 

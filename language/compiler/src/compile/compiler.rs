@@ -42,7 +42,7 @@ impl Compiler {
 
     /// Return a read-only artifact reader for one pinned revision.
     pub(crate) fn artifact_reader(&self, revision: Revision) -> ArtifactReader<'_> {
-        ArtifactReader::new(self.repository.as_ref(), revision)
+        self.repository.artifact_reader(revision)
     }
 
     /// Add one diagnostic produced during a provider attempt.

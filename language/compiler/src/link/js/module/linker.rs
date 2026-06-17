@@ -4,7 +4,7 @@ use std::path::Path;
 use crate::emit::js;
 use crate::{Compiler, LinkError, LinkResult};
 use destack_artifact::{EmitFormat, JsOutput, ModuleOutput};
-use destack_repository::{BundleFormat, BundleMode, Target};
+use destack_repository::{JsOutputFormat, JsOutputMode, Target};
 use destack_source::{FileType, ModuleId, PackageId};
 
 use super::super::{JsDependencyTarget, JsLinker, ModuleSet, OutputGraph, OutputId, OutputLayout};
@@ -215,12 +215,12 @@ impl<'a> JsLinker<'a> {
     /// Validate that linked JS printing uses one supported output format.
     pub(super) fn validate_script_print_format(&self) -> LinkResult<()> {
         // linked JS printing is still esm-only
-        if let Some(format) = self.target.bundle_output.format
-            && format != BundleFormat::Esm
+        if let Some(format) = self.target.js.output.format
+            && format != JsOutputFormat::Esm
         {
             let format = match format {
-                BundleFormat::Esm => "esm",
-                BundleFormat::Iife => "iife",
+                JsOutputFormat::Esm => "esm",
+                JsOutputFormat::Iife => "iife",
             };
 
             return Err(LinkError::InvalidTarget {
@@ -282,7 +282,7 @@ impl<'a> JsLinker<'a> {
         target: &Target,
     ) -> LinkResult<js::Module> {
         match output_graph.bundle_mode() {
-            BundleMode::SingleFile => self.rewrite_script_module(
+            JsOutputMode::SingleFile => self.rewrite_script_module(
                 module_id,
                 script,
                 module_set,
@@ -291,14 +291,15 @@ impl<'a> JsLinker<'a> {
                 self.package_id,
                 self.context,
             ),
-            BundleMode::Chunked | BundleMode::PreserveModules => self.rewrite_output_script_module(
-                output_id,
-                module_id,
-                script,
-                output_graph,
-                output_layout,
-                target,
-            ),
+            JsOutputMode::Chunked | JsOutputMode::PreserveModules => self
+                .rewrite_output_script_module(
+                    output_id,
+                    module_id,
+                    script,
+                    output_graph,
+                    output_layout,
+                    target,
+                ),
         }
     }
 }

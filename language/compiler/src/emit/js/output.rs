@@ -90,11 +90,12 @@ impl<'a> JsOutputGenerator<'a> {
             checked,
         )?;
         let errors = lower.errors;
-        let declaration = if self.target.declaration && matches!(self.target.emit, EmitFormat::Js) {
-            Some(JsDeclaration::default())
-        } else {
-            None
-        };
+        let declaration =
+            if self.target.output.declaration && matches!(self.target.emit, EmitFormat::Js) {
+                Some(JsDeclaration::default())
+            } else {
+                None
+            };
 
         // language selection
         let language = match self.target.emit {

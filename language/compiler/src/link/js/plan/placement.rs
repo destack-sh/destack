@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{LinkError, LinkResult};
 use destack_core::{StableHasher, stable_hash_bytes};
-use destack_repository::{BundleFormat, BundleMode, Module, Target};
+use destack_repository::{JsOutputFormat, JsOutputMode, Module, Target};
 use destack_source::{Content, FileType, ModuleId};
 
 use crate::link::{OutputFileNameValues, OutputLocation, TargetLocation, module_source_path};
@@ -86,7 +86,7 @@ impl OutputLayout {
         let output_name = Self::render_entry_file_name(output_layout, target, name, hash);
 
         // explicit out_file wins for single-file entry outputs
-        if target.out_file.is_some() {
+        if target.output.file.is_some() {
             return OutputLocation::new(output_layout.default_target_output_path("js"));
         }
 
@@ -113,7 +113,8 @@ impl OutputLayout {
         hash: Option<&str>,
     ) -> String {
         let template = target
-            .bundle_output
+            .js
+            .output
             .entry_file_names
             .as_deref()
             .unwrap_or(DEFAULT_SCRIPT_ENTRY_FILE_NAME_TEMPLATE);
@@ -138,7 +139,8 @@ impl OutputLayout {
         hash: Option<&str>,
     ) -> String {
         let template = target
-            .bundle_output
+            .js
+            .output
             .chunk_file_names
             .as_deref()
             .unwrap_or(DEFAULT_SCRIPT_SHARED_FILE_NAME_TEMPLATE);
@@ -157,9 +159,9 @@ impl OutputLayout {
 
     /// Return the naming token for the configured JS output format.
     fn js_output_format_name(target: &Target) -> &'static str {
-        match target.bundle_output.format.unwrap_or(BundleFormat::Esm) {
-            BundleFormat::Esm => "esm",
-            BundleFormat::Iife => "iife",
+        match target.js.output.format.unwrap_or(JsOutputFormat::Esm) {
+            JsOutputFormat::Esm => "esm",
+            JsOutputFormat::Iife => "iife",
         }
     }
 }
@@ -192,7 +194,7 @@ impl<'a> JsLinker<'a> {
         let output_layout = TargetLocation::new(self.package_dir, self.target, self.target_name());
 
         match output_graph.bundle_mode() {
-            BundleMode::SingleFile => Ok(OutputLayout {
+            JsOutputMode::SingleFile => Ok(OutputLayout {
                 output_names: vec![self.target_name().to_string()],
                 output_locations: vec![OutputLayout::entry_output_location(
                     &output_layout,
@@ -201,8 +203,8 @@ impl<'a> JsLinker<'a> {
                     None,
                 )],
             }),
-            BundleMode::Chunked => self.build_chunked_output_layout(output_graph),
-            BundleMode::PreserveModules => self.build_preserve_output_layout(output_graph),
+            JsOutputMode::Chunked => self.build_chunked_output_layout(output_graph),
+            JsOutputMode::PreserveModules => self.build_preserve_output_layout(output_graph),
         }
     }
 
@@ -426,9 +428,9 @@ mod tests {
     #[test]
     fn test_renders_configured_js_output_file_names() {
         let mut target = Target::js();
-        target.out_dir = Path::new("dist/bundle").to_path_buf();
-        target.bundle_output.entry_file_names = Some("entries/[name]-entry.[ext]".to_string());
-        target.bundle_output.chunk_file_names = Some("chunks/[name]-shared.[ext]".to_string());
+        target.output.directory = Path::new("dist/bundle").to_path_buf();
+        target.js.output.entry_file_names = Some("entries/[name]-entry.[ext]".to_string());
+        target.js.output.chunk_file_names = Some("chunks/[name]-shared.[ext]".to_string());
 
         let layout = TargetLocation::new(Path::new("/workspace/pkg"), &target, "bundle");
         let entry_path = OutputLayout::entry_output_location(&layout, &target, "application", None);
@@ -449,7 +451,7 @@ mod tests {
     #[test]
     fn test_renders_entry_file_name_template_for_script_entry() {
         let mut target = Target::js();
-        target.bundle_output.entry_file_names = Some("entries/[name]-bundle.[ext]".to_string());
+        target.js.output.entry_file_names = Some("entries/[name]-bundle.[ext]".to_string());
 
         let layout = TargetLocation::new(Path::new("/workspace/pkg"), &target, "app");
         let entry_path = OutputLayout::entry_output_location(&layout, &target, "app", None);
@@ -464,7 +466,7 @@ mod tests {
     #[test]
     fn test_renders_shared_file_name_template_for_js_output() {
         let mut target = Target::js();
-        target.bundle_output.chunk_file_names = Some("chunks/[name]-shared.[ext]".to_string());
+        target.js.output.chunk_file_names = Some("chunks/[name]-shared.[ext]".to_string());
 
         let layout = TargetLocation::new(Path::new("/workspace/pkg"), &target, "app");
         let shared_path =

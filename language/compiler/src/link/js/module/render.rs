@@ -1,7 +1,7 @@
 use crate::emit::js;
 use crate::{Compiler, LinkError, LinkResult};
 use destack_artifact::OutputFile;
-use destack_repository::BundleMode;
+use destack_repository::JsOutputMode;
 use destack_source::{FileType, ModuleId};
 
 use super::super::plan::Plan;
@@ -40,12 +40,12 @@ impl<'a> JsLinker<'a> {
         self.rewrite_module_defaults(&mut modules)?;
 
         // syntax minification
-        if self.target.should_minify_bundle_script_syntax() {
+        if self.target.should_minify_js_syntax() {
             self.minify_output_syntax(&mut modules)?;
         }
 
         // identifier minification
-        if self.target.minify.identifiers {
+        if self.target.js.minify.identifiers {
             self.minify_output_identifiers(&mut modules)?;
         }
 
@@ -67,7 +67,7 @@ impl<'a> JsLinker<'a> {
     pub(in super::super) fn render_js_graph(&self, plan: &Plan) -> LinkResult<Vec<OutputFile>> {
         self.validate_script_print_format()?;
 
-        if plan.output_graph().bundle_mode() == BundleMode::PreserveModules {
+        if plan.output_graph().bundle_mode() == JsOutputMode::PreserveModules {
             return self.link_module_outputs(plan);
         }
 
@@ -164,7 +164,7 @@ impl<'a> JsLinker<'a> {
                     .iter()
                     .map(|(_, printed)| printed.code.clone())
                     .collect(),
-                self.target.should_minify_bundle_script_output(),
+                self.target.should_minify_js_text(),
             );
             let source_map_path = self
                 .target
@@ -179,7 +179,7 @@ impl<'a> JsLinker<'a> {
                     self.package_dir,
                     emitted_source_map_path,
                     &parts,
-                    self.target.should_minify_bundle_script_output(),
+                    self.target.should_minify_js_text(),
                     self.context,
                 )
                 .map_err(|error| Compiler::link_error(self.package_id, error))?;
