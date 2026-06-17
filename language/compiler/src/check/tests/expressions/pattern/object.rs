@@ -32,7 +32,7 @@ declare const point: { x: int32; y: string };
 let { x, y } = point;
 /// @type.symbol symbol=x source=x type=int32
 /// @type.symbol symbol=y source=y type=string
-/// @resolution.pattern source="{ x, y }" kind=object fields=[x, y]
+/// @resolution.pattern source="{ x, y }" kind=object fields={ x, y }
 /// @type.node source=point type={ x: int32; y: string }
 /// @resolution.name source=point target=point
 
@@ -67,7 +67,7 @@ let { value } = 1;
 === checked ===
 let { value } = 1;
 /// @type.symbol symbol=value source=value type=<error>
-/// @resolution.pattern source="{ value }" kind=object fields=[value]
+/// @resolution.pattern source="{ value }" kind=object fields={ value }
 /// @type.node source=1 type=1
 "#,
         r#"

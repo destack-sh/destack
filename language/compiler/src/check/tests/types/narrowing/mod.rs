@@ -1,2 +1,2 @@
-mod borrows;
-mod discriminants;
+mod borrow;
+mod discriminant;

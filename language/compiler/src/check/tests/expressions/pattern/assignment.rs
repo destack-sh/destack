@@ -37,7 +37,7 @@ declare const point: { x: int32; y: string };
 
 ({ x, y: label } = point);
 /// @type.node source="({ x, y: label } = point)" type={ x: int32; y: string }
-/// @resolution.pattern.assign source="{ x, y: label }" kind=object fields=[x, y: label]
+/// @resolution.pattern.assign source="{ x, y: label }" kind=object fields={ x, y: label }
 /// @type.node source=point type={ x: int32; y: string }
 /// @resolution.name source=point target=point
 "#,
@@ -81,7 +81,7 @@ declare const values: [int32; 3];
 
 [first, , last] = values;
 /// @type.node source="[first, , last] = values" type=[int32; 3]
-/// @resolution.pattern.assign source="[first, , last]" kind=sequence fields=[0: first, 2: last]
+/// @resolution.pattern.assign source="[first, , last]" kind=sequence fields=[first, last]
 /// @resolution.pattern.assign source=first kind=place target=first
 /// @type.node source=first type=int32
 /// @resolution.name source=first target=first
@@ -125,7 +125,7 @@ declare const values: [int32; 1];
 
 [first] += values;
 /// @type.node source="[first] += values" type=<error>
-/// @resolution.pattern.assign source="[first]" kind=sequence fields=[0: first]
+/// @resolution.pattern.assign source="[first]" kind=sequence fields=[first]
 /// @resolution.pattern.assign source=first kind=place target=first
 /// @type.node source=first type=int32
 /// @resolution.name source=first target=first
@@ -178,7 +178,7 @@ declare const user: { name: string; age: int32; active: boolean };
 
 ({ name, ...rest } = user);
 /// @type.node source="({ name, ...rest } = user)" type={ name: string; age: int32; active: boolean }
-/// @resolution.pattern.assign source="{ name, ...rest }" kind=object fields=[name] rest=...rest
+/// @resolution.pattern.assign source="{ name, ...rest }" kind=object fields={ name } rest=...rest
 /// @resolution.pattern.assign source=name kind=place target=name
 /// @resolution.pattern.assign source=rest kind=place target=rest
 /// @type.node source=user type={ name: string; age: int32; active: boolean }
@@ -224,7 +224,7 @@ declare const values: int32[];
 
 [head, ...tail] = values;
 /// @type.node source="[head, ...tail] = values" type=Array<int32>
-/// @resolution.pattern.assign source="[head, ...tail]" kind=sequence sequence=array fields=[0: head] rest=...tail
+/// @resolution.pattern.assign source="[head, ...tail]" kind=sequence sequence=array fields=[head] rest=...tail
 /// @resolution.pattern.assign source=head kind=place target=head
 /// @resolution.pattern.assign source=tail kind=place target=tail
 /// @type.node source=values type=Array<int32>
@@ -270,10 +270,10 @@ declare const packet: { point: { x: int32 }; meta: (string,) };
 
 ({ point: { x }, meta: (label) } = packet);
 /// @type.node source="({ point: { x }, meta: (label) } = packet)" type={ point: { x: int32 }; meta: (string,) }
-/// @resolution.pattern.assign source="{ point: { x }, meta: (label) }" kind=object fields=[point: pattern, meta: pattern]
-/// @resolution.pattern.assign source="{ x }" kind=object fields=[x]
+/// @resolution.pattern.assign source="{ point: { x }, meta: (label) }" kind=object fields={ point: pattern, meta: pattern }
+/// @resolution.pattern.assign source="{ x }" kind=object fields={ x }
 /// @resolution.pattern.assign source=x kind=place target=x
-/// @resolution.pattern.assign source="(label)" kind=tuple fields=[0: label]
+/// @resolution.pattern.assign source="(label)" kind=tuple fields=[label]
 /// @resolution.pattern.assign source=label kind=place target=label
 /// @type.node source=packet type={ point: { x: int32 }; meta: (string,) }
 /// @resolution.name source=packet target=packet
@@ -318,11 +318,11 @@ declare const packet: { count?: int32; labels: (string | undefined,) };
 
 ({ count = 1, labels: (label = "missing") } = packet);
 /// @type.node source="({ count = 1, labels: (label = \"missing\") } = packet)" type={ count?: int32; labels: (string | undefined,) }
-/// @resolution.pattern.assign source="{ count = 1, labels: (label = \"missing\") }" kind=object fields=[count: count, labels: pattern]
+/// @resolution.pattern.assign source="{ count = 1, labels: (label = \"missing\") }" kind=object fields={ count, labels: pattern }
 /// @resolution.pattern.assign source="count = 1" kind=default pattern=count value=1
 /// @resolution.pattern.assign source=count kind=place target=count
 /// @type.node source=1 type=int32
-/// @resolution.pattern.assign source="(label = \"missing\")" kind=tuple fields=[0: label]
+/// @resolution.pattern.assign source="(label = \"missing\")" kind=tuple fields=[label]
 /// @resolution.pattern.assign source="label = \"missing\"" kind=default pattern=label value="missing"
 /// @resolution.pattern.assign source=label kind=place target=label
 /// @type.node source="\"missing\"" type=string
@@ -363,7 +363,7 @@ declare const point: { x: int32 };
 
 ({ ["x"]: value } = point);
 /// @type.node source="({ [\"x\"]: value } = point)" type={ x: int32 }
-/// @resolution.pattern.assign source="{ [\"x\"]: value }" kind=object fields=[x: value]
+/// @resolution.pattern.assign source="{ [\"x\"]: value }" kind=object fields={ x: value }
 /// @type.node source="\"x\"" type="x"
 /// @resolution.pattern.assign source=value kind=place target=value
 /// @type.node source=point type={ x: int32 }
@@ -408,7 +408,7 @@ declare const bag: { [key: string]: int32 };
 
 ({ [key]: value } = bag);
 /// @type.node source="({ [key]: value } = bag)" type={ [key: string]: int32 }
-/// @resolution.pattern.assign source="{ [key]: value }" kind=object fields=[key: value]
+/// @resolution.pattern.assign source="{ [key]: value }" kind=object fields={ key: value }
 /// @type.node source=key type=string
 /// @resolution.name source=key target=key
 /// @resolution.pattern.assign source=value kind=place target=value
@@ -454,7 +454,7 @@ declare const point: { x: int32 };
 
 ({ [key]: value } = point);
 /// @type.node source="({ [key]: value } = point)" type=<error>
-/// @resolution.pattern.assign source="{ [key]: value }" kind=object fields=[]
+/// @resolution.pattern.assign source="{ [key]: value }" kind=object fields={}
 /// @type.node source=key type=string
 /// @resolution.name source=key target=key
 /// @resolution.pattern.assign source=value kind=place target=value

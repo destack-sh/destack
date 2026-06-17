@@ -32,7 +32,7 @@ declare const values: [int32; 2];
 let [first, second] = values;
 /// @type.symbol symbol=first source=first type=int32
 /// @type.symbol symbol=second source=second type=int32
-/// @resolution.pattern source="[first, second]" kind=sequence sequence=fixed_array length=2 fields=[0: first, 1: second]
+/// @resolution.pattern source="[first, second]" kind=sequence sequence=fixed_array length=2 fields=[first, second]
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.pattern source=second kind=binding target=second
 /// @type.node source=values type=[int32; 2]
@@ -77,7 +77,7 @@ declare const point: { x: int32; y: int32 };
 let [x, y] = point;
 /// @type.symbol symbol=x source=x type=<error>
 /// @type.symbol symbol=y source=y type=<error>
-/// @resolution.pattern source="[x, y]" kind=sequence fields=[0: x, 1: y]
+/// @resolution.pattern source="[x, y]" kind=sequence fields=[x, y]
 /// @resolution.pattern source=x kind=binding target=x
 /// @resolution.pattern source=y kind=binding target=y
 /// @type.node source=point type={ x: int32; y: int32 }

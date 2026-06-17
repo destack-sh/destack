@@ -29,7 +29,7 @@ declare const point: { x: int32 };
 
 let { ["x"]: value } = point;
 /// @type.symbol symbol=value source=value type=int32
-/// @resolution.pattern source="{ [\"x\"]: value }" kind=object fields=[x: value]
+/// @resolution.pattern source="{ [\"x\"]: value }" kind=object fields={ x: value }
 /// @type.node source="\"x\"" type="x"
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=point type={ x: int32 }
@@ -73,7 +73,7 @@ declare const point: { x: int32 };
 
 let { [key]: value } = point;
 /// @type.symbol symbol=value source=value type=<error>
-/// @resolution.pattern source="{ [key]: value }" kind=object fields=[]
+/// @resolution.pattern source="{ [key]: value }" kind=object fields={}
 /// @type.node source=key type=string
 /// @resolution.name source=key target=key
 /// @resolution.pattern source=value kind=binding target=value
@@ -130,7 +130,7 @@ declare const bag: Bag;
 
 let { [key]: value } = bag;
 /// @type.symbol symbol=value source=value type=int32
-/// @resolution.pattern source="{ [key]: value }" kind=object fields=[key: value]
+/// @resolution.pattern source="{ [key]: value }" kind=object fields={ key: value }
 /// @type.node source=key type=string
 /// @resolution.name source=key target=key
 /// @resolution.pattern source=value kind=binding target=value
@@ -196,7 +196,7 @@ function get<K: keyof User>(user: User, key: K): User[K] {
 
     let { [key]: value } = user;
     /// @type.symbol symbol=value source=value type=User[K]
-    /// @resolution.pattern source="{ [key]: value }" kind=object fields=[key: value]
+    /// @resolution.pattern source="{ [key]: value }" kind=object fields={ key: value }
     /// @type.node source=key type=K
     /// @resolution.name source=key target=key
     /// @resolution.pattern source=value kind=binding target=value
@@ -241,7 +241,7 @@ declare const pair: { 0: string; 1: int32 };
 
 let { [1]: value } = pair;
 /// @type.symbol symbol=value source=value type=int32
-/// @resolution.pattern source="{ [1]: value }" kind=object fields=[1: value]
+/// @resolution.pattern source="{ [1]: value }" kind=object fields={ 1: value }
 /// @type.node source=1 type=1
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=pair type={ 0: string; 1: int32 }
@@ -290,7 +290,7 @@ declare const box: { readonly [token]: string };
 
 let { [token]: value } = box;
 /// @type.symbol symbol=value source=value type=string
-/// @resolution.pattern source="{ [token]: value }" kind=object fields=[token: value]
+/// @resolution.pattern source="{ [token]: value }" kind=object fields={ token: value }
 /// @type.node source=token type=unique symbol
 /// @resolution.name source=token target=token
 /// @resolution.pattern source=value kind=binding target=value
@@ -337,7 +337,7 @@ declare const box: { readonly [Symbol.for("token")]: string };
 
 let { [Symbol.for("token")]: value } = box;
 /// @type.symbol symbol=value source=value type=string
-/// @resolution.pattern source="{ [Symbol.for(\"token\")]: value }" kind=object fields=[Symbol.for("token"): value]
+/// @resolution.pattern source="{ [Symbol.for(\"token\")]: value }" kind=object fields={ Symbol.for("token"): value }
 /// @resolution.name source=Symbol target=types.symbol.Symbol
 /// @resolution.member source=Symbol.for receiver=types.symbol.Symbol kind=symbol target=types.symbol.Symbol.for
 /// @resolution.call source="Symbol.for(\"token\")" parameters=(string) return=symbol kind=symbol target=types.symbol.Symbol.for receiver=types.symbol.Symbol

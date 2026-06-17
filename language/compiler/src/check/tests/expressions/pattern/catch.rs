@@ -43,7 +43,7 @@ try {
 } catch ({ code, message }) {
 /// @type.symbol symbol=code source=code type=int32
 /// @type.symbol symbol=message source=message type=string
-/// @resolution.pattern source="{ code, message }" kind=object fields=[code, message]
+/// @resolution.pattern source="{ code, message }" kind=object fields={ code, message }
 
     code satisfies int32;
     /// @type.node source="code satisfies int32" type=int32

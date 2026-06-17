@@ -1,2 +1,2 @@
-mod constants;
-mod types;
+mod constant;
+mod r#type;
