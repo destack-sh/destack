@@ -4,6 +4,30 @@ Constructors allocate and initialize managed class instances.
 
 ## initialization
 
+### classes can use implicit constructors
+
+A class without an explicit constructor has an implicit constructor.
+Base classes get an empty constructor, and derived classes forward to the base constructor.
+
+```ds
+class Counter {
+    value: number = 0;
+}
+
+class Session {
+    id: number;
+
+    constructor(id: number) {
+        this.id = id;
+    }
+}
+
+class UserSession extends Session {}
+
+const counter = new Counter();
+const session = new UserSession(1);
+```
+
 ### required fields need initialization
 
 Fields must be definitely assigned.

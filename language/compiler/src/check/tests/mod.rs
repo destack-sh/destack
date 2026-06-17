@@ -1,4 +1,5 @@
 mod expressions;
 mod library;
-mod modules;
+mod memory;
+mod module;
 mod types;
