@@ -82,8 +82,8 @@ extension<T> of Slab<T> implements
     }
 
     /// Return the number of live entries.
-    get size(): number {
-        this.count as number
+    get size(): usize {
+        this.count
     }
 
     /// Return the allocated slot count.

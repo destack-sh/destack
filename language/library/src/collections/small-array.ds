@@ -75,8 +75,8 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     }
 
     /// Return the number of elements.
-    get length(): number {
-        this.count as number
+    get length(): usize {
+        this.count
     }
 
     /// Return the number of elements.

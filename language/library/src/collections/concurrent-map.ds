@@ -182,8 +182,8 @@ extension<K: Hash, V> of ConcurrentMap<K, V> implements Extend<(K, V)> {
     }
 
     /// Return the number of entries.
-    get size(): number {
-        this.count.load() as number
+    get size(): usize {
+        this.count.load()
     }
 
     /// Return whether this map has no entries.

@@ -76,8 +76,8 @@ extension<T> of LinkedList<T> implements
     }
 
     /// Return the number of elements.
-    get length(): number {
-        this.count as number
+    get length(): usize {
+        this.count
     }
 
     /// Return the number of elements.

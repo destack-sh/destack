@@ -50,7 +50,7 @@ where T: Equal<T> {
     }
 
     /// Return the number of elements.
-    get size(): number {
+    get size(): usize {
         this.map.size
     }
 
