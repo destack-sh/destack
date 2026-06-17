@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_configured_global_root_binding_resolves_without_import() {
+fn test_global_binding_resolves_without_import() {
     let session = TestSession::builder()
         .data(
             "destack.json",

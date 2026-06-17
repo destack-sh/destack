@@ -7,7 +7,7 @@ const DEFAULT_TARGET: &str = "default";
 
 /// Check every builtin library module.
 #[test]
-fn test_check_builtin_library_modules() -> Result<(), String> {
+fn test_typecheck_builtin_library_modules() -> Result<(), String> {
     let session = TestSession::builder().build();
     let repository = session.repository();
     let package = repository.builtin_package();
