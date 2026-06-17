@@ -11,9 +11,9 @@ pub enum PrimitiveType {
     Boolean,
     /// Character type `char`.
     Character,
-    /// String type `string` (unsized).
+    /// String type `string`.
     String,
-    /// Bigint type `bigint` (unsized).
+    /// Bigint type `bigint`.
     Bigint,
     /// Integer type, like `int32`, `uint8`, or `usize`.
     Integer(IntegerType),
@@ -67,7 +67,7 @@ impl PrimitiveType {
                     end: 0x10FFFF,
                 }),
             ),
-            Self::String | Self::Bigint => return None,
+            Self::String | Self::Bigint => Layout::pointer(pointer_bytes, true),
             Self::Integer(integer) => integer.layout(pointer_bytes),
             Self::Float(float) => float.layout(),
             Self::Symbol | Self::UniqueSymbol => Layout::pointer(pointer_bytes, true),

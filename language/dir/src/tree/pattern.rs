@@ -57,14 +57,12 @@ pub enum Pattern {
         end: Option<LocalNodeId<Expression>>,
         end_kind: RangeEnd,
     },
-    /// Type-space literal or reference pattern.
-    TypeExpression { value: LocalNodeId<TypeExpression> },
     /// Tuple pattern (like `(x, 0)`).
     Tuple {
         fields: Vec<LocalNodeId<PatternField>>,
     },
-    /// Newtype wrapper pattern (like `T(1)`).
-    Newtype {
+    /// Nominal tuple pattern (like `T(1)`).
+    NominalTuple {
         ty: LocalNodeId<TypeExpression>,
         fields: Vec<LocalNodeId<PatternField>>,
     },

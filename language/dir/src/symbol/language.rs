@@ -747,9 +747,6 @@ define_language_items! {
         access {
             /// Access mode for qualified storage.
             Access => (Type, "memory/access", "Access"),
-
-            /// Readonly form.
-            Readonly => (Newtype, "memory/access", "Readonly"),
         }
 
         /// `destack:memory/dynamic`.

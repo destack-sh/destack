@@ -177,7 +177,7 @@ pub enum Expression {
     /// ```
     If {
         form: IfForm,
-        condition: IfCondition,
+        condition: Condition,
         then_expression: LocalNodeId<Expression>,
         else_expression: Option<LocalNodeId<Expression>>,
     },
@@ -1042,14 +1042,74 @@ pub enum IfForm {
     Ternary,
 }
 
-/// The condition for an if expression.
+/// A left-to-right condition.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum IfCondition {
+pub struct Condition {
+    /// The operands joined by short-circuiting `&&`.
+    pub operands: Vec<ConditionOperand>,
+}
+
+impl Condition {
+    /// Return a condition with one expression operand.
+    pub fn expression(condition: LocalNodeId<Expression>) -> Self {
+        Self {
+            operands: vec![ConditionOperand::Expression { condition }],
+        }
+    }
+
+    /// Return a condition with one binding operand.
+    pub fn binding(
+        kind: LetKind,
+        mutability: Mutability,
+        declarator: LocalNodeId<Declarator>,
+    ) -> Self {
+        Self {
+            operands: vec![ConditionOperand::Binding {
+                kind,
+                mutability,
+                declarator,
+            }],
+        }
+    }
+
+    /// Return the only expression operand, if this condition has exactly one.
+    pub fn as_expression(&self) -> Option<LocalNodeId<Expression>> {
+        match self.operands.as_slice() {
+            [ConditionOperand::Expression { condition }] => Some(*condition),
+            _ => None,
+        }
+    }
+
+    /// Return the only binding operand, if this condition has exactly one.
+    pub fn as_binding(&self) -> Option<(LetKind, Mutability, LocalNodeId<Declarator>)> {
+        match self.operands.as_slice() {
+            [
+                ConditionOperand::Binding {
+                    kind,
+                    mutability,
+                    declarator,
+                },
+            ] => Some((*kind, *mutability, *declarator)),
+            _ => None,
+        }
+    }
+
+    /// Return true when this condition contains a binding operand.
+    pub fn has_binding(&self) -> bool {
+        self.operands
+            .iter()
+            .any(|operand| matches!(operand, ConditionOperand::Binding { .. }))
+    }
+}
+
+/// One operand in a condition.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ConditionOperand {
     /// A regular condition expression.
     Expression { condition: LocalNodeId<Expression> },
-    /// A let binding condition.
-    Let {
-        /// The keyword used for the let binding.
+    /// A pattern binding condition.
+    Binding {
+        /// The keyword used for the binding.
         kind: LetKind,
         /// The mutability derived from the binding keyword.
         mutability: Mutability,

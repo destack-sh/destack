@@ -596,12 +596,14 @@ pub struct PatternNewtypeResolution {
 /// Symbol-backed variant pattern selected during checking.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PatternVariantResolution {
+    /// The selected variant family symbol.
+    pub owner: GlobalSymbolId,
     /// The selected variant symbol.
-    pub symbol: GlobalSymbolId,
+    pub variant: GlobalSymbolId,
     /// The generic arguments of the variant symbol, empty when not statically applied.
     pub arguments: Vec<GlobalTypeId>,
-    /// The discriminant value, when one is materialized.
-    pub discriminant: Option<ScalarLiteral>,
+    /// The discriminant value.
+    pub discriminant: ScalarLiteral,
     /// The variant field mapping in source order.
     pub fields: Vec<PatternFieldResolution>,
 }
@@ -664,5 +666,72 @@ pub struct PatternRestResolution {
     /// The source node that introduces the rest field.
     pub source: GlobalNodeIdAny,
     /// The nested pattern matched for the rest field.
+    pub pattern: Option<GlobalNodeIdAny>,
+}
+
+/// Assignment target meaning selected during checking.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AssignPatternResolution {
+    /// Direct writable place target, like `value` or `object.field`.
+    Place(AssignPatternPlaceResolution),
+    /// Defaulted assignment target, like `value = fallback`.
+    Default(AssignPatternDefaultResolution),
+    /// Ordered destructuring target, like `[head, ...tail]`.
+    Sequence(AssignPatternSequenceResolution),
+    /// Object destructuring target, like `{ name, age: years }`.
+    Object(AssignPatternObjectResolution),
+}
+
+/// Direct assignment place selected during checking.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AssignPatternPlaceResolution {
+    /// The expression node that designates the writable place.
+    pub target: GlobalNodeIdAny,
+}
+
+/// Defaulted assignment target selected during checking.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AssignPatternDefaultResolution {
+    /// The nested assignment target.
+    pub pattern: GlobalNodeIdAny,
+    /// The fallback expression.
+    pub value: GlobalNodeIdAny,
+}
+
+/// Ordered assignment destructuring selected during checking.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AssignPatternSequenceResolution {
+    /// The fixed fields in source order.
+    pub fields: Vec<AssignPatternFieldResolution>,
+    /// The rest target, when present.
+    pub rest: Option<AssignPatternRestResolution>,
+}
+
+/// Object assignment destructuring selected during checking.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AssignPatternObjectResolution {
+    /// The named fields in source order.
+    pub fields: Vec<AssignPatternFieldResolution>,
+    /// The rest target, when present.
+    pub rest: Option<AssignPatternRestResolution>,
+}
+
+/// One destructured assignment field.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AssignPatternFieldResolution {
+    /// The source node that introduces the field.
+    pub source: GlobalNodeIdAny,
+    /// The selected field target.
+    pub target: PatternFieldTarget,
+    /// The nested assignment target.
+    pub pattern: Option<GlobalNodeIdAny>,
+}
+
+/// Rest field selected by one assignment destructuring pattern.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AssignPatternRestResolution {
+    /// The source node that introduces the rest field.
+    pub source: GlobalNodeIdAny,
+    /// The nested assignment target.
     pub pattern: Option<GlobalNodeIdAny>,
 }
