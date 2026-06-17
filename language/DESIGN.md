@@ -382,8 +382,8 @@ const rectangle = Shape.Rectangle({ width: 10, height: 20 });
 const circle = Shape.Circle({ radius: 5 });
 ```
 
-The discriminant field is inferred from the union via a regular userland `Tagged` macro from the unique common field whose variants carry distinct literal values.
-It's really just a builtin sugar that becomes:
+The discriminant field is inferred from the union via the `Tagged` derive macro from the unique common field whose variants carry distinct literal values.
+It behaves essentially just like builtin sugar that is expanded into a constructor function:
 
 ```ds
 extension of Shape {
@@ -393,6 +393,15 @@ extension of Shape {
     }
 
     // ...
+}
+```
+
+Except that `Tagged` enums also work in pattern position, and - thanks to some compiler magic that wouldn't work in pure userland - the variant head behaves like a real variant pattern:
+
+```ds
+match (shape) {
+    Shape.Rectangle({ width, height }) => width * height
+    Shape.Circle({ radius }) => radius * radius
 }
 ```
 
@@ -1278,8 +1287,8 @@ TypeScript has pattern based destructuring for arguments and assignment-like exp
 | Array, slice, fixed array | `[head, ...tail]` | destructure indexed elements |
 | Object | `{ kind: "ok", value }` | destructure a structural object |
 | Nominal object | `Point { x, y }`, `User { name }` | match a nominal object-shaped value and destructure stored fields |
-| Newtype | `UserId(value)`, `Config({ debug })` | unwrap a nominal newtype |
-| Enum | `State.Ready` | match a nominal enum variant |
+| Nominal tuple | `UserId(value)`, `Config({ debug })`, `Shape.Circle({ radius })` | match a nominal tuple-shaped head, then resolve it as a newtype or tagged variant |
+| Enum | `State.Ready` | match a nominal enum variant without payload |
 | Union | `0 | 1 | 2` | accept any listed pattern |
 | Rest | `...tail` | collect the remaining elements or fields |
 | Default | `name = "guest"` | bind a fallback when the selected value is `undefined` |
