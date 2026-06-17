@@ -127,7 +127,7 @@ const value: (1 | 2, "a" | "b") = (1, "a");
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-const value: (1 | 2, "a" | "b") = (1, "a");
+const value: (1 | 2, "a" | "b") = (1, "a") as (1 | 2, "a" | "b");
 
 === checked ===
 const value: (1 | 2, "a" | "b") = (1, "a");

@@ -7,4 +7,3 @@ mod literal;
 mod operator;
 mod pattern;
 mod r#static;
-mod value;

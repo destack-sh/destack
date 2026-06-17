@@ -148,7 +148,7 @@ const value: char | string = 'a';
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-const value: char | string = 'a';
+const value: char | string = 'a' as char | string;
 
 === checked ===
 const value: char | string = 'a';

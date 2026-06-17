@@ -84,3 +84,39 @@ let [...middle, last] = [1, 2, 3];
 "#,
     );
 }
+
+#[test]
+fn test_sequence_pattern_rejects_multiple_rest_patterns() {
+    let session = TestSession::single(
+        r#"
+let [head, ...middle, ...tail] = [1, 2, 3];
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+let [head, ...middle, ...tail] = [1, 2, 3];
+
+=== checked ===
+let [head, ...middle, ...tail] = [1, 2, 3];
+/// @type.symbol symbol=head source=head type=float64
+/// @type.symbol symbol=middle source=middle type=Array<float64>
+/// @type.symbol symbol=tail source=tail type=Array<float64>
+/// @resolution.pattern source="[head, ...middle, ...tail]" kind=sequence sequence=array fields=[0: head] rest=...middle
+/// @resolution.pattern source=head kind=binding target=head
+/// @resolution.pattern source=middle kind=binding target=middle
+/// @resolution.pattern source=tail kind=binding target=tail
+/// @type.node source=[1, 2, 3] type=Array<float64>
+/// @type.node source=1 type=float64
+/// @type.node source=2 type=float64
+/// @type.node source=3 type=float64
+"#,
+        r#"
+/// @diagnostic.error code=EC431 message="pattern can contain at most one rest field"
+/// @diagnostic.label line=2 column=23 source="...tail"
+"#,
+    );
+}

@@ -147,8 +147,8 @@ const value: { a: number; b: string } = { a: 1, b: 2 };
 
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '{ a: float64; b: 2 }' is not assignable to type '{ a: float64; b: string }'"
-/// @diagnostic.label line=2 column=41 source="const value: { a: number; b: string } = { a: 1, b: 2 };"
+/// @diagnostic.error code=EC200 message="type '2' is not assignable to type 'string'"
+/// @diagnostic.label line=2 column=59 source=2
 "#,
     );
 }

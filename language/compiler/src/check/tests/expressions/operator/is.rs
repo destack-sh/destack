@@ -240,7 +240,7 @@ if (value is <T>(T) => T) {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type test target '<T>(T) => T' is not DynamicSafe"
+/// @diagnostic.error code=EC504 message="type '<T>(T) => T' is not dynamic-safe"
 /// @diagnostic.label line=4 column=14 source="<T>(T) => T"
 "#,
     );

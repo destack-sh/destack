@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_local_reference_selects_declared_binding() {
+fn test_name_expression_resolves_local_binding() {
     let session = TestSession::single(
         r#"
 const value = 1;

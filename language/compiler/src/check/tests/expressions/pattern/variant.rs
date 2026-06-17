@@ -216,7 +216,7 @@ match (status) {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="variant 'Other.Done' cannot match type 'Status'"
+/// @diagnostic.error code=EC438 message="variant 'Other.Done' is not a variant of type 'Status'"
 /// @diagnostic.label line=11 column=5 source="Other.Done(value)"
 "#,
     );
@@ -277,7 +277,7 @@ match (status) {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="variant 'Done' does not exist on type 'Status'"
+/// @diagnostic.error code=EC439 message="variant 'Done' does not exist on type 'Status'"
 /// @diagnostic.label line=8 column=12 source=Done
 "#,
     );

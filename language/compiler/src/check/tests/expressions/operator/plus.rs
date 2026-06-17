@@ -35,7 +35,7 @@ struct Vector {
     y: int32;
 }
 
-extension VectorAdd of Vector implements Add<Vector> {
+extension of Vector implements Add<Vector> {
     type Output = Vector;
 
     add(other: Vector): Vector {
@@ -63,7 +63,7 @@ struct Vector {
     y: int32;
 }
 
-extension VectorAdd of Vector implements Add<Vector> {
+extension of Vector implements Add<Vector> {
     type Output = Vector;
 
     add(other: Vector): Vector {
@@ -94,21 +94,20 @@ struct Vector {
 
 }
 
-extension VectorAdd of Vector implements Add<Vector> {
-/// @definition.extension symbol=VectorAdd form=inherent target=Vector
-/// @definition.implements symbol=VectorAdd source=Add<Vector> target=ops.plus.Add arguments=Vector
-/// @definition.associated.type symbol=VectorAdd.Output source="type Output = Vector" key=Output value=Vector
-/// @definition.method symbol=VectorAdd.add slot=add type=(this: Vector, Vector) => Vector
+extension of Vector implements Add<Vector> {
+/// @definition.extension form=interface target=Vector interfaces=[ops.plus.Add<Vector>]
+/// @definition.associated.type symbol=Output source="type Output = Vector" key=Output value=Vector
+/// @definition.method symbol=add slot=add type=(this: Vector, Vector) => Vector
 /// @resolution.name source=Vector target=Vector
 /// @resolution.name source=Add target=ops.plus.Add
 /// @resolution.name source=Vector target=Vector
 
     type Output = Vector;
-    /// @type.symbol symbol=VectorAdd.Output source="type Output = Vector" type=Vector
+    /// @type.symbol symbol=Output source="type Output = Vector" type=Vector
     /// @resolution.name source=Vector target=Vector
 
     add(other: Vector): Vector {
-    /// @type.symbol symbol=VectorAdd.add type=(this: Vector, Vector) => Vector
+    /// @type.symbol symbol=add type=(this: Vector, Vector) => Vector
     /// @type.symbol symbol=other source="other: Vector" type=Vector
     /// @resolution.name source=Vector target=Vector
     /// @resolution.name source=Vector target=Vector
@@ -123,7 +122,7 @@ extension VectorAdd of Vector implements Add<Vector> {
             /// @type.node source=this.x type=int32
             /// @resolution.member source=this.x receiver=Vector kind=symbol target=Vector.x
             /// @resolution.call source="this.x + other.x" parameters=() return=int32 kind=builtin builtin=binary.add
-            /// @resolution.receiver source=this kind=this owner=VectorAdd type=Vector
+            /// @resolution.receiver source=this kind=this owner=<extension> type=Vector
             /// @type.node source=other type=Vector
             /// @type.node source=other.x type=int32
             /// @resolution.name source=other target=other
@@ -135,7 +134,7 @@ extension VectorAdd of Vector implements Add<Vector> {
             /// @type.node source=this.y type=int32
             /// @resolution.member source=this.y receiver=Vector kind=symbol target=Vector.y
             /// @resolution.call source="this.y + other.y" parameters=() return=int32 kind=builtin builtin=binary.add
-            /// @resolution.receiver source=this kind=this owner=VectorAdd type=Vector
+            /// @resolution.receiver source=this kind=this owner=<extension> type=Vector
             /// @type.node source=other type=Vector
             /// @type.node source=other.y type=int32
             /// @resolution.name source=other target=other
@@ -158,7 +157,7 @@ const sum = left + right;
 /// @type.node source="left + right" type=Vector
 /// @type.node source=left type=Vector
 /// @resolution.name source=left target=left
-/// @resolution.call source="left + right" parameters=() return=Vector kind=symbol target=VectorAdd.add receiver=Vector
+/// @resolution.call source="left + right" parameters=() return=Vector kind=symbol target=add receiver=Vector
 /// @type.node source=right type=Vector
 /// @resolution.name source=right target=right
 "#);
