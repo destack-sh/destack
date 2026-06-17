@@ -1,9 +1,19 @@
-export { Function } from "./function.ds";
+export {
+    ConstructorParameters,
+    Function,
+    InstanceType,
+    OmitThisParameter,
+    Parameters,
+    ReturnType,
+    ThisParameterType,
+} from "./function.ds";
 export { Option } from "./option.ds";
 export {
+    Awaited,
     Exclude,
     Extract,
     MutableFields,
+    NoInfer,
     NonNullable,
     Omit,
     Partial,
@@ -12,6 +22,7 @@ export {
     Readonly,
     Record,
     Required,
+    ThisType,
 } from "./object.ds";
 export { Capitalize, Lowercase, Uncapitalize, Uppercase } from "./string.ds";
 export { Symbol, SymbolDescription } from "./symbol.ds";

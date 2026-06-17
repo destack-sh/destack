@@ -1399,26 +1399,83 @@ define_language_items! {
     types {
         /// `destack:types/function`.
         function {
+            /// Constructor parameter tuple alias.
+            ConstructorParameters => (Type, "types/function", "ConstructorParameters"),
+
             /// Callable value type.
             Function => (Newtype, "types/function", "Function"),
+
+            /// Constructor instance alias.
+            InstanceType => (Type, "types/function", "InstanceType"),
+
+            /// Receiver removal alias.
+            OmitThisParameter => (Type, "types/function", "OmitThisParameter"),
+
+            /// Function parameter tuple alias.
+            Parameters => (Type, "types/function", "Parameters"),
+
+            /// Function return type alias.
+            ReturnType => (Type, "types/function", "ReturnType"),
+
+            /// Receiver type alias.
+            ThisParameterType => (Type, "types/function", "ThisParameterType"),
         }
 
         /// `destack:types/object`.
         object {
+            /// Awaited value alias.
+            Awaited => (Type, "types/object", "Awaited"),
+
+            /// Exclude union alias.
+            Exclude => (Type, "types/object", "Exclude"),
+
+            /// Extract union alias.
+            Extract => (Type, "types/object", "Extract"),
+
+            /// Non-nullable union alias.
+            NonNullable => (Type, "types/object", "NonNullable"),
+
+            /// Inference blocking intrinsic.
+            NoInfer => (Type, "types/object", "NoInfer"),
+
+            /// Omit object fields alias.
+            Omit => (Type, "types/object", "Omit"),
+
+            /// Optional object fields alias.
+            Partial => (Type, "types/object", "Partial"),
+
+            /// Pick object fields alias.
+            Pick => (Type, "types/object", "Pick"),
+
+            /// Property key alias.
+            PropertyKey => (Type, "types/object", "PropertyKey"),
+
+            /// Readonly object fields alias.
+            Readonly => (Type, "types/object", "Readonly"),
+
             /// Record alias.
             Record => (Type, "types/object", "Record"),
+
+            /// Required object fields alias.
+            Required => (Type, "types/object", "Required"),
+
+            /// Contextual object receiver marker.
+            ThisType => (Interface, "types/object", "ThisType"),
         }
 
         /// `destack:types/string`.
         string {
-            /// Uppercase string mapping alias.
-            Uppercase => (Type, "types/string", "Uppercase"),
-            /// Lowercase string mapping alias.
-            Lowercase => (Type, "types/string", "Lowercase"),
             /// Capitalize string mapping alias.
             Capitalize => (Type, "types/string", "Capitalize"),
+
+            /// Lowercase string mapping alias.
+            Lowercase => (Type, "types/string", "Lowercase"),
+
             /// Uncapitalize string mapping alias.
             Uncapitalize => (Type, "types/string", "Uncapitalize"),
+
+            /// Uppercase string mapping alias.
+            Uppercase => (Type, "types/string", "Uppercase"),
         }
 
         /// `destack:types/option`.
