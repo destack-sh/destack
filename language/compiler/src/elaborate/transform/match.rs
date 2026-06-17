@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use dir::{
-    BinaryOperator, Block, Expression, IfCondition, IfForm, LocalNodeId, LocalSymbolId,
+    BinaryOperator, Block, Expression, Condition, IfForm, LocalNodeId, LocalSymbolId,
     LocalTypeId, MatchCase, MatchForm, MatchOrigin, MatchSelector, Mutability, NodeType, Pattern,
     PatternField, ScalarLiteral, StringId, TypeExpression,
 };
@@ -276,8 +276,8 @@ impl Compiler {
                 match_type_id,
             );
         }
-        // newtype patterns: emit type check and index access
-        else if let Pattern::Newtype { ty, fields } = &pattern {
+        // nominal tuple patterns: emit type check and index access
+        else if let Pattern::NominalTuple { ty, fields } = &pattern {
             return self.handle_newtype_pattern(
                 state,
                 match_id,
@@ -397,7 +397,7 @@ impl Compiler {
             if_id,
             Expression::If {
                 form: IfForm::If,
-                condition: IfCondition::Expression { condition },
+                condition: Condition::expression(condition),
                 then_expression,
                 else_expression,
             },
@@ -1076,13 +1076,8 @@ impl Compiler {
                 end_kind,
             } => self.build_range_check(state, match_id, value, start, end, end_kind, scope),
 
-            // type-space patterns lower to runtime type checks
-            Pattern::TypeExpression { value: target_type } => {
-                self.build_type_guard(state, match_id, value, target_type, scope)
-            }
-
             // newtype: type check plus constrained slot checks
-            Pattern::Newtype { ty, fields } => {
+            Pattern::NominalTuple { ty, fields } => {
                 let type_check = self.build_type_guard(state, match_id, value, ty, scope)?;
                 self.extend_sequence_pattern_check(
                     state,

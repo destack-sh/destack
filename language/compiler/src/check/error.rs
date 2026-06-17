@@ -941,6 +941,249 @@ pub enum CheckError {
         module: ModuleId,
     },
 
+    /// Pattern tries to destructure a value that has no object shape.
+    ///
+    /// ```ds
+    /// const { value } = 1;
+    /// ```
+    #[diagnostic(
+        code = "EC423",
+        message = "type '{source}' cannot be destructured as an object pattern"
+    )]
+    PatternSourceNotObjectShaped {
+        /// Report the object pattern.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The matched source type.
+        source: String,
+    },
+
+    /// Pattern tries to destructure a value that has no tuple shape.
+    ///
+    /// ```ds
+    /// const (left, right) = value;
+    /// ```
+    #[diagnostic(
+        code = "EC424",
+        message = "type '{source}' cannot be destructured as a tuple pattern"
+    )]
+    PatternSourceNotTupleShaped {
+        /// Report the tuple pattern.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The matched source type.
+        source: String,
+    },
+
+    /// Pattern tries to destructure a value that has no sequence shape.
+    ///
+    /// ```ds
+    /// const [head, ...tail] = value;
+    /// ```
+    #[diagnostic(
+        code = "EC425",
+        message = "type '{source}' cannot be destructured as a sequence pattern"
+    )]
+    PatternSourceNotSequence {
+        /// Report the sequence pattern.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The matched source type.
+        source: String,
+    },
+
+    /// Pattern names a field that does not exist on the matched type.
+    ///
+    /// ```ds
+    /// const { missing } = value;
+    /// ```
+    #[diagnostic(
+        code = "EC426",
+        message = "pattern field '{key}' does not exist on type '{receiver}'"
+    )]
+    PatternFieldMissing {
+        /// Report the missing field pattern.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The selected field key.
+        key: String,
+        /// The matched receiver type.
+        receiver: String,
+    },
+
+    /// Nominal object pattern names a member that is not a field.
+    ///
+    /// ```ds
+    /// match (user) {
+    ///     User { displayName } => displayName
+    /// }
+    /// ```
+    #[diagnostic(
+        code = "EC427",
+        message = "member '{key}' on type '{receiver}' is not a field"
+    )]
+    PatternMemberNotField {
+        /// Report the non-field pattern member.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The selected member key.
+        key: String,
+        /// The matched receiver type.
+        receiver: String,
+    },
+
+    /// Pattern repeats the same field in one destructuring shape.
+    ///
+    /// ```ds
+    /// const { name, name: alias } = user;
+    /// ```
+    #[diagnostic(
+        code = "EC428",
+        message = "field '{key}' appears more than once in pattern"
+    )]
+    DuplicatePatternField {
+        /// Report the repeated field.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The repeated field key.
+        key: String,
+    },
+
+    /// Pattern binds the same name more than once.
+    ///
+    /// ```ds
+    /// const { left: value, right: value } = pair;
+    /// ```
+    #[diagnostic(
+        code = "EC429",
+        message = "binding '{name}' appears more than once in pattern"
+    )]
+    DuplicatePatternBinding {
+        /// Report the repeated binding.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The repeated binding name.
+        name: String,
+    },
+
+    /// Rest pattern appears before another field.
+    ///
+    /// ```ds
+    /// const [head, ...middle, tail] = values;
+    /// ```
+    #[diagnostic(code = "EC430", message = "rest pattern must be last")]
+    RestPatternNotLast {
+        /// Report the rest pattern.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Pattern contains more than one rest field.
+    ///
+    /// ```ds
+    /// const [head, ...middle, ...tail] = values;
+    /// ```
+    #[diagnostic(code = "EC431", message = "pattern can contain at most one rest field")]
+    MultipleRestPatterns {
+        /// Report the extra rest pattern.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Computed pattern key is not statically known.
+    ///
+    /// ```ds
+    /// const { [runtimeKey]: value } = object;
+    /// ```
+    #[diagnostic(
+        code = "EC432",
+        message = "computed pattern key must be statically known"
+    )]
+    ComputedPatternKeyNotStatic {
+        /// Report the computed key expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Range pattern applies to a non-scalar domain.
+    ///
+    /// ```ds
+    /// match (value) {
+    ///     0..10 => true
+    /// }
+    /// ```
+    #[diagnostic(code = "EC433", message = "range pattern cannot match type '{domain}'")]
+    InvalidRangePatternDomain {
+        /// Report the range pattern.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The matched domain type.
+        domain: String,
+    },
+
+    /// Range pattern bound does not close to a valid scalar literal.
+    ///
+    /// ```ds
+    /// match (value) {
+    ///     start..end => true
+    /// }
+    /// ```
+    #[diagnostic(
+        code = "EC434",
+        message = "range pattern bound must close to an integer, bigint, or char literal"
+    )]
+    InvalidRangePatternBound {
+        /// Report the range bound expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Union pattern alternatives bind incompatible names or forms.
+    ///
+    /// ```ds
+    /// match (result) {
+    ///     Ok(value) | Err(error) => value
+    /// }
+    /// ```
+    #[diagnostic(
+        code = "EC435",
+        message = "union pattern alternatives must bind the same names with the same forms"
+    )]
+    PatternAlternativeBindingMismatch {
+        /// Report the union pattern.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Destructuring assignment is used with a compound assignment operator.
+    ///
+    /// ```ds
+    /// [left, right] += values;
+    /// ```
+    #[diagnostic(
+        code = "EC436",
+        message = "destructuring assignment only supports plain '='"
+    )]
+    DestructuringAssignmentRequiresPlainAssignment {
+        /// Report the assignment pattern.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
     // -------------------------------------------------------------------------
     // 5xx: representation
     // -------------------------------------------------------------------------

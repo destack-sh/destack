@@ -339,6 +339,11 @@ impl CheckState<'_> {
                         .resolutions
                         .set_pattern_resolution(node, resolution.clone());
                 }
+                Decision::AssignPattern(resolution) => {
+                    output
+                        .resolutions
+                        .set_assign_pattern_resolution(node, resolution.clone());
+                }
                 // rejections already carry their diagnostics
                 Decision::Rejected => {}
             }

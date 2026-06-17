@@ -66,9 +66,6 @@ impl CheckState<'_> {
             dir::LanguageItem::Raw => {
                 self.evaluate_form_constructor(origin, instance, dir::Form::Raw)
             }
-            dir::LanguageItem::Readonly => {
-                self.evaluate_form_constructor(origin, instance, dir::Form::Readonly)
-            }
             dir::LanguageItem::Borrowed => self.evaluate_borrowed_constructor(origin, instance),
             dir::LanguageItem::Placed => self.evaluate_placed_constructor(origin, instance),
 

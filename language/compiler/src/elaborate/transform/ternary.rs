@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use dir::{Expression, IfCondition, IfForm, LocalNodeId};
+use dir::{Expression, Condition, IfForm, LocalNodeId};
 
 use crate::elaborate::ElaborateState;
 use crate::{Compiler, ElaborateResult};
@@ -38,7 +38,7 @@ impl Compiler {
                 continue;
             };
 
-            if matches!(condition, IfCondition::Let { .. }) {
+            if condition.as_expression().is_none() {
                 continue;
             }
 

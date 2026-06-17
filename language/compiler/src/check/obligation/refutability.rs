@@ -190,15 +190,6 @@ impl CheckState<'_> {
 
                 self.decide_range_covers(origin, module, start, end, end_kind, value)
             }
-            // type patterns cover values assignable to their target
-            dir::Pattern::TypeExpression { value: target } => {
-                let target = *target;
-                let Some(target) = self.node_type(target.into_global_any(module)) else {
-                    return Ok(Answer::Ready(false));
-                };
-
-                self.decide_relation(origin, Relation::Assignable, value, target)
-            }
             // field patterns must each cover their projections
             dir::Pattern::Tuple { fields }
             | dir::Pattern::Sequence { fields }
@@ -208,7 +199,8 @@ impl CheckState<'_> {
                 self.decide_fields_cover(origin, module, &fields, value)
             }
             // nominal patterns check the tag then their payload fields
-            dir::Pattern::Newtype { ty, fields } | dir::Pattern::NominalObject { ty, fields } => {
+            dir::Pattern::NominalTuple { ty, fields }
+            | dir::Pattern::NominalObject { ty, fields } => {
                 let ty = *ty;
                 let fields = fields.iter().copied().collect::<SmallVec<[_; 4]>>();
                 let Some(tag) = self.node_type(ty.into_global_any(module)) else {

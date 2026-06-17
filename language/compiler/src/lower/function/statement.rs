@@ -112,23 +112,22 @@ impl FunctionLowerer<'_> {
                 then_expression,
                 else_expression,
                 ..
-            } => match condition {
-                dir::IfCondition::Expression { condition } => {
-                    self.lower_if_statement(*condition, *then_expression, *else_expression)
-                }
-                dir::IfCondition::Let { .. } => {
-                    // if let should be elaborated before lowering
+            } => {
+                if let Some(condition) = condition.as_expression() {
+                    self.lower_if_statement(condition, *then_expression, *else_expression)
+                } else {
+                    // TODO #Broken: condition chains need elaborate lowering
                     Err(LowerError::UnsupportedConstruct {
                         anchor: self.diagnostic_anchor(
                             expression_id
                                 .into_global_any(self.context.module_id)
                                 .into_anchored(Some(self.context.profile)),
                         ),
-                        message: "unsupported if-let condition".to_string(),
+                        message: "unsupported condition chain".to_string(),
                     }
                     .into())
                 }
-            },
+            }
 
             dir::Expression::While {
                 form,

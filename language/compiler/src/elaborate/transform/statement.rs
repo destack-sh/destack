@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use dir::{
     BinaryOperator, Block, BlockContext, BlockForm, Declarator, ExportKind, Expression,
-    IfCondition, IfForm, LocalNodeId, Mutability, NodeType,
+    Condition, IfForm, LocalNodeId, Mutability, NodeType,
 };
 
 use crate::elaborate::ElaborateState;
@@ -434,7 +434,7 @@ impl Compiler {
         original_expr_id: LocalNodeId<Expression>,
         declarator_id: LocalNodeId<Declarator>,
         declarator: &Declarator,
-        condition: IfCondition,
+        condition: Condition,
         then_expression: LocalNodeId<Expression>,
         else_expression: LocalNodeId<Expression>,
     ) -> ElaborateResult<()> {
@@ -653,7 +653,7 @@ impl Compiler {
         new_expressions: &mut Vec<LocalNodeId<Expression>>,
         original_return_id: LocalNodeId<Expression>,
         original_value_id: LocalNodeId<Expression>,
-        condition: IfCondition,
+        condition: Condition,
         then_expression: LocalNodeId<Expression>,
         else_expression: LocalNodeId<Expression>,
     ) -> ElaborateResult<()> {

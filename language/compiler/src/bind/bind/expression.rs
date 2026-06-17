@@ -181,43 +181,55 @@ impl Compiler {
         state: &mut BindState<'_>,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
-        condition: &dir::IfCondition,
+        condition: &dir::Condition,
         then_expression: dir::LocalNodeId<dir::Expression>,
         else_expression: Option<dir::LocalNodeId<dir::Expression>>,
     ) {
         state.bind_node(id.into_any());
 
-        match condition {
-            dir::IfCondition::Expression { condition } => {
-                // visit boolean condition
-                self.visit_expression_by_id(state, tree, *condition);
+        // create condition scope when operands bind names
+        if condition.has_binding() {
+            let scope_id = state.insert_child_scope(dir::ScopeKind::Block);
+            state.bind_node_to_scope(id.into_any(), scope_id);
 
-                // visit then branch
-                self.visit_expression_by_id(state, tree, then_expression);
+            state.push_scope(scope_id);
+            self.bind_if_condition_operands(state, tree, &condition.operands);
+            self.visit_expression_by_id(state, tree, then_expression);
+            state.pop_scope();
+        }
+        // otherwise visit operands and then branch in the current scope
+        else {
+            self.bind_if_condition_operands(state, tree, &condition.operands);
+            self.visit_expression_by_id(state, tree, then_expression);
+        }
 
-                // visit optional else branch
-                if let Some(else_expression) = else_expression {
-                    self.visit_expression_by_id(state, tree, else_expression);
+        // visit optional else branch
+        if let Some(else_expression) = else_expression {
+            self.visit_expression_by_id(state, tree, else_expression);
+        }
+    }
+
+    /// Bind one if condition chain.
+    fn bind_if_condition_operands(
+        &self,
+        state: &mut BindState<'_>,
+        tree: &dir::Tree,
+        operands: &[dir::ConditionOperand],
+    ) {
+        let binding = BindingContext {
+            export: None,
+            mutability: None,
+        };
+
+        for operand in operands {
+            match operand {
+                // boolean condition
+                dir::ConditionOperand::Expression { condition } => {
+                    self.visit_expression_by_id(state, tree, *condition);
                 }
-            }
-            dir::IfCondition::Let { declarator, .. } => {
-                // create condition scope
-                let scope_id = state.insert_child_scope(dir::ScopeKind::Block);
-                state.bind_node_to_scope(id.into_any(), scope_id);
-
-                // bind condition declaration and then branch
-                state.push_scope(scope_id);
-                let binding = BindingContext {
-                    export: None,
-                    mutability: None,
-                };
-                self.bind_declarators(state, tree, &[*declarator], binding);
-                self.visit_expression_by_id(state, tree, then_expression);
-                state.pop_scope();
-
-                // visit optional else branch
-                if let Some(else_expression) = else_expression {
-                    self.visit_expression_by_id(state, tree, else_expression);
+                // pattern binding condition
+                dir::ConditionOperand::Binding { declarator, .. } => {
+                    self.bind_declarators(state, tree, &[*declarator], binding);
                 }
             }
         }

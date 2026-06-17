@@ -1,8 +1,9 @@
 use destack_artifact::EmitFormat;
 use destack_dir as dir;
 use dir::{
-    Argument, BinaryOperator, Declarator, Expression, IfCondition, IfForm, LocalNodeId, Mutability,
-    NodeType, Property, ScopeKind, SymbolKind, SymbolRole, Type, TypeLiteral,
+    Argument, BinaryOperator, Condition, ConditionOperand, Declarator, Expression, IfForm,
+    LocalNodeId, Mutability, NodeType, Property, ScopeKind, SymbolKind, SymbolRole, Type,
+    TypeLiteral,
 };
 
 use crate::elaborate::ElaborateState;
@@ -147,9 +148,7 @@ impl Compiler {
             if_id,
             Expression::If {
                 form: IfForm::If,
-                condition: IfCondition::Expression {
-                    condition: binding.condition,
-                },
+                condition: Condition::expression(binding.condition),
                 then_expression: then_assignment,
                 else_expression: Some(else_assignment),
             },
@@ -202,9 +201,7 @@ impl Compiler {
             original_return_id,
             Expression::If {
                 form: IfForm::If,
-                condition: IfCondition::Expression {
-                    condition: binding.condition,
-                },
+                condition: Condition::expression(binding.condition),
                 then_expression: then_return,
                 else_expression: Some(else_return),
             },
@@ -342,15 +339,20 @@ impl Compiler {
                 else_expression,
                 ..
             } => {
-                if let IfCondition::Expression { condition } = condition {
-                    modified |=
-                        self.normalize_nested_coalesce_in_expression(state, scope, condition)?;
-                }
-                if let IfCondition::Let { declarator, .. } = condition {
-                    let declarator = state.tree.get(declarator).clone();
-                    if let Some(value) = declarator.value {
-                        modified |=
-                            self.normalize_nested_coalesce_in_expression(state, scope, value)?;
+                for operand in &condition.operands {
+                    match operand {
+                        ConditionOperand::Expression { condition } => {
+                            modified |= self
+                                .normalize_nested_coalesce_in_expression(state, scope, *condition)?;
+                        }
+                        ConditionOperand::Binding { declarator, .. } => {
+                            let declarator = state.tree.get(*declarator).clone();
+                            if let Some(value) = declarator.value {
+                                modified |= self.normalize_nested_coalesce_in_expression(
+                                    state, scope, value,
+                                )?;
+                            }
+                        }
                     }
                 }
                 modified |=
@@ -476,9 +478,7 @@ impl Compiler {
             if_id,
             Expression::If {
                 form: IfForm::If,
-                condition: IfCondition::Expression {
-                    condition: binding.condition,
-                },
+                condition: Condition::expression(binding.condition),
                 then_expression: right,
                 else_expression: Some(else_value),
             },
