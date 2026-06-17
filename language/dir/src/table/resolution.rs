@@ -5,9 +5,9 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    CallResolution, ConstructResolution, GlobalNodeIdAny, GlobalSymbolId, LabelResolution,
-    MemberResolution, NameResolution, PatternResolution, ReadWriteResolution, ReceiverResolution,
-    SegmentView,
+    AssignPatternResolution, CallResolution, ConstructResolution, GlobalNodeIdAny, GlobalSymbolId,
+    LabelResolution, MemberResolution, NameResolution, PatternResolution, ReadWriteResolution,
+    ReceiverResolution, SegmentView,
 };
 
 /// Cumulative checked resolutions for one DIR module.
@@ -110,6 +110,13 @@ impl<'a> ResolutionTable<'a> {
         self.visible_entries(|segment| &segment.patterns)
     }
 
+    /// Iterate visible assignment pattern resolutions.
+    pub fn assign_pattern_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, &AssignPatternResolution)> + '_ {
+        self.visible_entries(|segment| &segment.assign_patterns)
+    }
+
     /// Get the lexical symbol resolution for a node.
     pub fn symbol_resolution(&self, node_id: GlobalNodeIdAny) -> Option<GlobalSymbolId> {
         self.name_resolution(node_id).map(NameResolution::symbol)
@@ -153,6 +160,14 @@ impl<'a> ResolutionTable<'a> {
     /// Get the pattern resolution for a node.
     pub fn pattern_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&PatternResolution> {
         self.lookup(node_id, |segment| &segment.patterns)
+    }
+
+    /// Get the assignment pattern resolution for a node.
+    pub fn assign_pattern_resolution(
+        &self,
+        node_id: GlobalNodeIdAny,
+    ) -> Option<&AssignPatternResolution> {
+        self.lookup(node_id, |segment| &segment.assign_patterns)
     }
 
     /// Return whether this table has no resolutions.
@@ -220,6 +235,8 @@ pub struct ResolutionSegment {
     pub(crate) constructs: IndexMap<GlobalNodeIdAny, ConstructResolution>,
     /// Checked pattern resolutions keyed by DIR node.
     pub(crate) patterns: IndexMap<GlobalNodeIdAny, PatternResolution>,
+    /// Checked assignment pattern resolutions keyed by DIR node.
+    pub(crate) assign_patterns: IndexMap<GlobalNodeIdAny, AssignPatternResolution>,
 }
 
 impl ResolutionSegment {
@@ -235,6 +252,7 @@ impl ResolutionSegment {
             read_writes: IndexMap::new(),
             constructs: IndexMap::new(),
             patterns: IndexMap::new(),
+            assign_patterns: IndexMap::new(),
         }
     }
 
@@ -270,6 +288,10 @@ impl ResolutionSegment {
 
         if let Some(resolution) = self.patterns.get(&source).cloned() {
             self.patterns.insert(target, resolution);
+        }
+
+        if let Some(resolution) = self.assign_patterns.get(&source).cloned() {
+            self.assign_patterns.insert(target, resolution);
         }
     }
 
@@ -383,6 +405,23 @@ impl ResolutionSegment {
         self.patterns.get(&node_id)
     }
 
+    /// Set the assignment pattern resolution for a node.
+    pub fn set_assign_pattern_resolution(
+        &mut self,
+        node_id: GlobalNodeIdAny,
+        resolution: AssignPatternResolution,
+    ) {
+        self.assign_patterns.insert(node_id, resolution);
+    }
+
+    /// Get the assignment pattern resolution for a node.
+    pub fn assign_pattern_resolution(
+        &self,
+        node_id: GlobalNodeIdAny,
+    ) -> Option<&AssignPatternResolution> {
+        self.assign_patterns.get(&node_id)
+    }
+
     /// Iterate visible name resolutions.
     pub fn name_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &NameResolution)> + '_ {
         self.names
@@ -449,6 +488,15 @@ impl ResolutionSegment {
             .map(|(node_id, resolution)| (*node_id, resolution))
     }
 
+    /// Iterate visible assignment pattern resolutions.
+    pub fn assign_pattern_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, &AssignPatternResolution)> + '_ {
+        self.assign_patterns
+            .iter()
+            .map(|(node_id, resolution)| (*node_id, resolution))
+    }
+
     /// Return whether this segment has no resolutions.
     pub fn is_empty(&self) -> bool {
         self.names.is_empty()
@@ -456,7 +504,9 @@ impl ResolutionSegment {
             && self.receivers.is_empty()
             && self.members.is_empty()
             && self.calls.is_empty()
+            && self.read_writes.is_empty()
             && self.constructs.is_empty()
             && self.patterns.is_empty()
+            && self.assign_patterns.is_empty()
     }
 }

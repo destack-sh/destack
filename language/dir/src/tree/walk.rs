@@ -1,9 +1,10 @@
 use crate::{
-    Argument, AssignPattern, AssignPatternField, Block, Catch, Declaration, Declarator, Decorator,
-    DependencyItem, EnumField, Expression, ForEachBinding, FunctionSignature, GenericArgument,
-    GenericParameter, IfCondition, Key, LocalNodeId, LocalNodeIdAny, MatchCase, MatchSelector,
-    Member, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property, TemplateLiteral,
-    Tree, TupleElement, TypeExpression, TypeMappedParameter, TypeMember, WhereClause,
+    Argument, AssignPattern, AssignPatternField, Block, Catch, ConditionOperand, Declaration,
+    Declarator, Decorator, DependencyItem, EnumField, Expression, ForEachBinding,
+    FunctionSignature, GenericArgument, GenericParameter, Key, LocalNodeId, LocalNodeIdAny,
+    MatchCase, MatchSelector, Member, NodeType, NodeVisitor, Parameter, Pattern, PatternField,
+    Property, TemplateLiteral, Tree, TupleElement, TypeExpression, TypeMappedParameter, TypeMember,
+    WhereClause,
 };
 
 /// Walk any node.
@@ -790,16 +791,19 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             then_expression,
             else_expression,
         } => {
-            match condition {
-                IfCondition::Expression { condition } => {
-                    let cond_expr = tree.get(*condition);
-                    visitor.visit_expression(tree, *condition, cond_expr);
-                }
-                IfCondition::Let { declarator, .. } => {
-                    let declarator_node = tree.get(*declarator);
-                    visitor.visit_declarator(tree, *declarator, declarator_node);
+            for operand in &condition.operands {
+                match operand {
+                    ConditionOperand::Expression { condition } => {
+                        let condition_node = tree.get(*condition);
+                        visitor.visit_expression(tree, *condition, condition_node);
+                    }
+                    ConditionOperand::Binding { declarator, .. } => {
+                        let declarator_node = tree.get(*declarator);
+                        visitor.visit_declarator(tree, *declarator, declarator_node);
+                    }
                 }
             }
+
             let then_expression_node = tree.get(*then_expression);
             visitor.visit_expression(tree, *then_expression, then_expression_node);
             if let Some(else_expression_id) = else_expression {
@@ -1874,17 +1878,13 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *end_id, end_expression);
             }
         }
-        Pattern::TypeExpression { value } => {
-            let value_expression = tree.get(*value);
-            visitor.visit_type_expression(tree, *value, value_expression);
-        }
         Pattern::Tuple { fields } => {
             for field_id in fields {
                 let field = tree.get(*field_id);
                 visitor.visit_pattern_field(tree, *field_id, field);
             }
         }
-        Pattern::Newtype { ty, fields } => {
+        Pattern::NominalTuple { ty, fields } => {
             let ty_expression = tree.get(*ty);
             visitor.visit_type_expression(tree, *ty, ty_expression);
             for field_id in fields {
