@@ -394,6 +394,11 @@ impl<'a> ArtifactReader<'a> {
 }
 
 impl Repository {
+    /// Return a read-only artifact reader for one pinned revision.
+    pub fn artifact_reader(&self, revision: Revision) -> ArtifactReader<'_> {
+        ArtifactReader::new(self, revision)
+    }
+
     /// Return the recorded artifact version for one revision-scoped artifact key.
     pub fn artifact_version(
         &self,

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use destack_artifact::{Host, Platform};
 use serde::{Deserialize, Serialize};
 
-use crate::config::{CompilerRestrictions, Derive, RuntimeOptions, Stage};
+use crate::config::{CompilerRestrictions, Derive, Stage};
 
 /// Normalized profile options.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -13,8 +13,6 @@ use crate::config::{CompilerRestrictions, Derive, RuntimeOptions, Stage};
 pub struct ProfileOptions {
     /// Release stage for this profile.
     pub stage: Option<Stage>,
-    /// Runtime contract for this profile.
-    pub runtime: Option<RuntimeOptions>,
     /// Target platform / operating system for this profile.
     pub platform: Option<Platform>,
     /// Target host environment for this profile.

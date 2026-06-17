@@ -226,7 +226,6 @@
       "description": "Runtime configuration.",
       "$ref": "#/$defs/RuntimeOptions",
       "default": {
-        "runtime": "destack",
         "identity": {
           "name": null,
           "labels": {}
@@ -243,9 +242,7 @@
           "host": null,
           "runtime": null
         },
-        "execution": {
-          "mode": "strict"
-        },
+        "mode": "strict",
         "worker": {
           "limit": null,
           "threadLimit": null,
@@ -1930,11 +1927,6 @@
       "description": "Runtime configuration.",
       "type": "object",
       "properties": {
-        "runtime": {
-          "description": "Runtime implementation family.",
-          "$ref": "#/$defs/Runtime",
-          "default": "destack"
-        },
         "identity": {
           "description": "Runtime topology and policy identity.",
           "$ref": "#/$defs/RuntimeIdentityOptions",
@@ -1959,12 +1951,10 @@
             "runtime": null
           }
         },
-        "execution": {
-          "description": "Runtime execution configuration.",
-          "$ref": "#/$defs/ExecutionOptions",
-          "default": {
-            "mode": "strict"
-          }
+        "mode": {
+          "description": "Execution mode for scheduling and effect handling.",
+          "$ref": "#/$defs/ExecutionMode",
+          "default": "strict"
         },
         "worker": {
           "description": "Runtime worker configuration.",
@@ -2074,21 +2064,6 @@
           }
         }
       }
-    },
-    "Runtime": {
-      "description": "Semantic runtime contract for compiled code.",
-      "oneOf": [
-        {
-          "description": "Destack semantic runtime.",
-          "type": "string",
-          "const": "destack"
-        },
-        {
-          "description": "JavaScript host runtime.",
-          "type": "string",
-          "const": "js"
-        }
-      ]
     },
     "RuntimeIdentityOptions": {
       "description": "Runtime identity used for topology and policy selection.",
@@ -2324,16 +2299,20 @@
         }
       ]
     },
-    "ExecutionOptions": {
-      "description": "Runtime execution configuration.",
-      "type": "object",
-      "properties": {
-        "mode": {
-          "description": "Execution mode for scheduling and effect handling.",
-          "$ref": "#/$defs/ExecutionMode",
-          "default": "strict"
+    "Runtime": {
+      "description": "Semantic runtime contract for compiled code.",
+      "oneOf": [
+        {
+          "description": "Destack native runtime.",
+          "type": "string",
+          "const": "destack"
+        },
+        {
+          "description": "JavaScript host runtime.",
+          "type": "string",
+          "const": "js"
         }
-      }
+      ]
     },
     "ExecutionMode": {
       "description": "Execution mode for runtime scheduling and replay.",
@@ -4567,7 +4546,7 @@
       }
     },
     "Target": {
-      "description": "A build target configuration.\n\nCan be constructed from `destack.json` or programmatically.\nThis is the type used by compiler/codegen, independent of config parsing.",
+      "description": "A build target configuration.",
       "type": "object",
       "properties": {
         "entry": {
@@ -4578,6 +4557,18 @@
           },
           "default": []
         },
+        "entrypoint": {
+          "description": "User callable launched by executable products.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Entrypoint"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "globals": {
           "description": "Global modules added to every target root set.",
           "type": "array",
@@ -4585,37 +4576,6 @@
             "type": "string"
           },
           "default": []
-        },
-        "tree": {
-          "description": "Target tree tag builder override.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "derive": {
-          "description": "Target well-known derives.",
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/Derive"
-          },
-          "default": []
-        },
-        "restrictions": {
-          "description": "Static semantic restrictions for this target.",
-          "$ref": "#/$defs/CompilerRestrictions",
-          "default": {
-            "noManaged": "allow",
-            "noHeap": "allow",
-            "noRuntime": "allow",
-            "noUnsafe": "allow",
-            "noDynamicDispatch": "allow",
-            "noReflection": "allow",
-            "noUnwind": "allow",
-            "noAliasingMutableBorrows": "allow",
-            "noImplicitReceivers": "allow"
-          }
         },
         "include": {
           "description": "Glob patterns for files to include when no entry is declared.",
@@ -4633,151 +4593,6 @@
           },
           "default": []
         },
-        "module": {
-          "description": "JavaScript module format.",
-          "$ref": "#/$defs/JsModuleFormat",
-          "default": "esnext"
-        },
-        "esTarget": {
-          "description": "ECMAScript target version.",
-          "$ref": "#/$defs/EsTarget",
-          "default": "esnext"
-        },
-        "profile": {
-          "description": "Explicit profile name for this target.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "stage": {
-          "description": "Release stage for this target.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Stage"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "modes": {
-          "description": "Active source graph modes for this target.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        },
-        "roles": {
-          "description": "Active source graph roles for this target.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        },
-        "features": {
-          "description": "Active optional features for this target.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        },
-        "tags": {
-          "description": "Active source graph tags for this target.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        },
-        "assembly": {
-          "description": "Assembly topology for this JavaScript target.",
-          "$ref": "#/$defs/BundleMode",
-          "default": "singleFile"
-        },
-        "preserveModules": {
-          "description": "Whether to preserve one emitted module file per reachable module.",
-          "type": "boolean",
-          "default": false
-        },
-        "preserveModulesRoot": {
-          "description": "Root directory for preserved module paths.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "manualChunks": {
-          "description": "Manual chunk assignments keyed by chunk name.",
-          "type": "object",
-          "additionalProperties": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "default": {}
-        },
-        "onlyExplicitManualChunks": {
-          "description": "Whether to only honor explicit manual chunk declarations.",
-          "type": "boolean",
-          "default": false
-        },
-        "bundleDependencies": {
-          "description": "Dependency and resolution options.",
-          "$ref": "#/$defs/BundleDependencyOptions",
-          "default": {
-            "external": [],
-            "neverBundle": [],
-            "alwaysBundle": [],
-            "onlyBundle": []
-          }
-        },
-        "bundleAssets": {
-          "description": "Asset handling options.",
-          "$ref": "#/$defs/BundleAssetOptions",
-          "default": {
-            "mode": "emit",
-            "inlineLimit": null
-          }
-        },
-        "bundleOutput": {
-          "description": "Output configuration for bundled products.",
-          "$ref": "#/$defs/BundleOutputOptions",
-          "default": {
-            "format": null,
-            "name": null,
-            "entryFileNames": null,
-            "chunkFileNames": null,
-            "assetFileNames": null,
-            "publicPath": null,
-            "manifest": false,
-            "legalComments": "inline",
-            "banner": null,
-            "footer": null,
-            "generatedCode": null,
-            "sourcemap": null,
-            "sourcemapExcludeSources": false,
-            "sourcemapDebugIds": false
-          }
-        },
-        "minify": {
-          "description": "Minification options.",
-          "$ref": "#/$defs/BundleMinifyOptions",
-          "default": {
-            "enabled": false,
-            "syntax": false,
-            "whitespace": false,
-            "identifiers": false,
-            "keepNames": false
-          }
-        },
         "policy": {
           "description": "Policy declarations and rules for this target.",
           "$ref": "#/$defs/Policy",
@@ -4791,11 +4606,6 @@
           "$ref": "#/$defs/EmitFormat",
           "default": "js"
         },
-        "runtime": {
-          "description": "Runtime execution contract.",
-          "$ref": "#/$defs/Runtime",
-          "default": "js"
-        },
         "platform": {
           "description": "Target operating system.",
           "$ref": "#/$defs/Platform",
@@ -4806,245 +4616,136 @@
           "$ref": "#/$defs/Host",
           "default": "browser"
         },
-        "targetArch": {
-          "description": "Target architecture for native codegen (e.g., \"x86_64\", \"aarch64\").",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TargetArch"
+        "conditions": {
+          "description": "Source graph conditions for this target.",
+          "$ref": "#/$defs/TargetConditionSet",
+          "default": {
+            "profile": null,
+            "stage": null,
+            "modes": [],
+            "roles": [],
+            "features": [],
+            "tags": []
+          }
+        },
+        "compiler": {
+          "description": "Compiler behavior for this target.",
+          "$ref": "#/$defs/TargetCompilerOptions",
+          "default": {
+            "tree": null,
+            "derive": [],
+            "restrictions": {
+              "noManaged": "allow",
+              "noHeap": "allow",
+              "noRuntime": "allow",
+              "noUnsafe": "allow",
+              "noDynamicDispatch": "allow",
+              "noReflection": "allow",
+              "noUnwind": "allow",
+              "noAliasingMutableBorrows": "allow",
+              "noImplicitReceivers": "allow"
             },
-            {
-              "type": "null"
+            "optimize": "o0",
+            "checks": {
+              "overflow": "debug",
+              "bounds": "debug",
+              "null": "debug",
+              "division": "debug",
+              "shift": "debug",
+              "failure": "panic"
             }
-          ],
-          "default": null
+          }
         },
-        "targetVendor": {
-          "description": "Target vendor for native codegen (e.g., \"apple\", \"pc\", \"unknown\").",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TargetVendor"
+        "output": {
+          "description": "Output paths and metadata options.",
+          "$ref": "#/$defs/TargetOutputOptions",
+          "default": {
+            "directory": "dist",
+            "file": null,
+            "declaration": true,
+            "declarationDirectory": null,
+            "sourceMap": null
+          }
+        },
+        "js": {
+          "description": "JavaScript output configuration.",
+          "$ref": "#/$defs/TargetJsOptions",
+          "default": {
+            "module": "esnext",
+            "target": "esnext",
+            "mode": "singleFile",
+            "preserveModules": false,
+            "preserveModulesRoot": null,
+            "manualChunks": {},
+            "onlyExplicitManualChunks": false,
+            "dependencies": {
+              "external": [],
+              "neverBundle": [],
+              "alwaysBundle": [],
+              "onlyBundle": []
             },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "targetAbi": {
-          "description": "Target ABI for native codegen (e.g., \"gnu\", \"musl\", \"msvc\").",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TargetAbi"
+            "assets": {
+              "mode": "emit",
+              "inlineLimit": null
             },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "cpu": {
-          "description": "CPU name for native codegen (e.g., \"native\", \"x86-64\", \"znver3\").",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "cpuFeatures": {
-          "description": "CPU feature flags for native codegen (e.g., \"+sse4.2\", \"+aes\").",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        },
-        "nativeOutput": {
-          "description": "Native output kind for this target.",
-          "$ref": "#/$defs/NativeOutputKind",
-          "default": "executable"
-        },
-        "linker": {
-          "description": "Explicit linker executable for native targets.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "linkerFlavor": {
-          "description": "Linker driver family.",
-          "$ref": "#/$defs/LinkerFlavor",
-          "default": "auto"
-        },
-        "linkArgs": {
-          "description": "Extra linker arguments for native targets.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        },
-        "sysroot": {
-          "description": "Sysroot path for native toolchains.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "librarySearchPaths": {
-          "description": "Additional library search paths.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        },
-        "libraries": {
-          "description": "Additional libraries to link.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        },
-        "frameworkSearchPaths": {
-          "description": "Additional framework search paths.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        },
-        "frameworks": {
-          "description": "Additional frameworks to link.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        },
-        "rpath": {
-          "description": "Runtime search paths embedded into the final output.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        },
-        "runpath": {
-          "description": "Runtime search paths emitted as runpath entries.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        },
-        "entrySymbol": {
-          "description": "Explicit entry symbol override.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "exportSymbols": {
-          "description": "Explicitly exported symbol names.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        },
-        "symbolVisibility": {
-          "description": "Symbol visibility policy.",
-          "$ref": "#/$defs/SymbolVisibility",
-          "default": "default"
-        },
-        "versionScript": {
-          "description": "Version script for exported symbols.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "linkerScript": {
-          "description": "Linker script for the final link.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "positionIndependent": {
-          "description": "Position independent code policy.",
-          "$ref": "#/$defs/PositionIndependentMode",
-          "default": "default"
-        },
-        "crt": {
-          "description": "C runtime linkage policy.",
-          "$ref": "#/$defs/CrtLinkage",
-          "default": "default"
-        },
-        "soname": {
-          "description": "Shared object soname.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "installName": {
-          "description": "Darwin install name.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "declaration": {
-          "description": "Emit declaration files (e.g., `.d.ts` alongside `.js` output).",
-          "type": "boolean",
-          "default": true
-        },
-        "sourceMapMode": {
-          "description": "Source map emission mode.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/SourceMapMode"
+            "output": {
+              "format": null,
+              "name": null,
+              "entryFileNames": null,
+              "chunkFileNames": null,
+              "assetFileNames": null,
+              "publicPath": null,
+              "manifest": false,
+              "legalComments": "inline",
+              "banner": null,
+              "footer": null,
+              "generatedCode": null,
+              "sourceMap": null,
+              "sourceMapExcludeSources": false,
+              "sourceMapDebugIds": false
             },
-            {
-              "type": "null"
+            "minify": {
+              "enabled": false,
+              "syntax": false,
+              "whitespace": false,
+              "identifiers": false,
+              "keepNames": false
             }
-          ],
-          "default": null
+          }
         },
-        "optimizeLevel": {
-          "description": "Optimization level.",
-          "$ref": "#/$defs/OptimizeLevel",
-          "default": "o0"
+        "native": {
+          "description": "Native codegen and linking configuration.",
+          "$ref": "#/$defs/TargetNativeOptions",
+          "default": {
+            "output": "executable",
+            "arch": null,
+            "vendor": null,
+            "abi": null,
+            "cpu": null,
+            "cpuFeatures": [],
+            "sysroot": null,
+            "crt": "default",
+            "link": {
+              "linker": null,
+              "args": [],
+              "libraryPaths": [],
+              "libraries": [],
+              "frameworkPaths": [],
+              "frameworks": [],
+              "runtimeLibraryPaths": [],
+              "symbolVisibility": "default",
+              "versionScript": null,
+              "linkerScript": null,
+              "positionIndependent": "default",
+              "soname": null,
+              "installName": null
+            }
+          }
         },
-        "ltoMode": {
-          "description": "Link time optimization mode.",
-          "$ref": "#/$defs/LtoMode",
-          "default": "auto"
-        },
-        "floatMath": {
-          "description": "Floating point math optimization policy.",
-          "$ref": "#/$defs/FloatMathPolicy",
-          "default": "strict"
-        },
-        "debugInfo": {
-          "description": "Debug info emission policy.",
-          "$ref": "#/$defs/DebugInfoLevel",
-          "default": "none"
-        },
-        "runtimeOptions": {
+        "execution": {
           "description": "Runtime execution options.",
           "$ref": "#/$defs/RuntimeOptions",
           "default": {
-            "runtime": "js",
             "identity": {
               "name": null,
               "labels": {}
@@ -5061,9 +4762,7 @@
               "host": null,
               "runtime": null
             },
-            "execution": {
-              "mode": "strict"
-            },
+            "mode": "strict",
             "worker": {
               "limit": null,
               "threadLimit": null,
@@ -5144,20 +4843,153 @@
               }
             }
           }
+        }
+      }
+    },
+    "Entrypoint": {
+      "description": "User callable launched by executable Destack products.",
+      "type": "object",
+      "properties": {
+        "module": {
+          "description": "Module containing the exported entrypoint function.",
+          "type": "string"
         },
-        "panic": {
-          "description": "Panic behavior for unrecoverable program failures.",
-          "$ref": "#/$defs/PanicPolicy",
-          "default": "worker"
+        "export": {
+          "description": "Exported function invoked after runtime bootstrap.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "module",
+        "export"
+      ]
+    },
+    "EmitFormat": {
+      "description": "Emitted artifact family for a build target.",
+      "oneOf": [
+        {
+          "description": "JavaScript (.js).",
+          "type": "string",
+          "const": "js"
         },
-        "strip": {
-          "description": "Symbol stripping policy.",
-          "$ref": "#/$defs/StripLevel",
-          "default": "none"
+        {
+          "description": "TypeScript (.ts).",
+          "type": "string",
+          "const": "ts"
+        },
+        {
+          "description": "WebAssembly (.wasm).",
+          "type": "string",
+          "const": "wasm"
+        },
+        {
+          "description": "Native binary.",
+          "type": "string",
+          "const": "native"
+        }
+      ]
+    },
+    "TargetConditionSet": {
+      "description": "Target contribution to the active source graph condition set.",
+      "type": "object",
+      "properties": {
+        "profile": {
+          "description": "Explicit profile name for this target.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "stage": {
+          "description": "Release stage for this target.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "modes": {
+          "description": "Active source graph modes for this target.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "roles": {
+          "description": "Active source graph roles for this target.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "features": {
+          "description": "Active optional features for this target.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "tags": {
+          "description": "Active source graph tags for this target.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      }
+    },
+    "TargetCompilerOptions": {
+      "description": "Target compiler behavior options.",
+      "type": "object",
+      "properties": {
+        "tree": {
+          "description": "Target tree tag builder override.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "derive": {
+          "description": "Target well-known derives.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Derive"
+          },
+          "default": []
+        },
+        "restrictions": {
+          "description": "Static semantic restrictions for this target.",
+          "$ref": "#/$defs/CompilerRestrictions",
+          "default": {
+            "noManaged": "allow",
+            "noHeap": "allow",
+            "noRuntime": "allow",
+            "noUnsafe": "allow",
+            "noDynamicDispatch": "allow",
+            "noReflection": "allow",
+            "noUnwind": "allow",
+            "noAliasingMutableBorrows": "allow",
+            "noImplicitReceivers": "allow"
+          }
+        },
+        "optimize": {
+          "description": "Optimization level.",
+          "$ref": "#/$defs/OptimizeLevel",
+          "default": "o0"
         },
         "checks": {
-          "description": "Runtime checks.",
-          "$ref": "#/$defs/RuntimeChecks",
+          "description": "Generated safety check policies.",
+          "$ref": "#/$defs/CheckPolicySet",
           "default": {
             "overflow": "debug",
             "bounds": "debug",
@@ -5166,13 +4998,120 @@
             "shift": "debug",
             "failure": "panic"
           }
+        }
+      }
+    },
+    "OptimizeLevel": {
+      "description": "Optimization level for builds.",
+      "oneOf": [
+        {
+          "description": "No optimization (O0).",
+          "type": "string",
+          "const": "o0"
         },
-        "outDir": {
-          "description": "Output directory for this target (relative to package, defaults to \"dist\").",
+        {
+          "description": "Basic optimization (O1).",
+          "type": "string",
+          "const": "o1"
+        },
+        {
+          "description": "Standard optimization (O2).",
+          "type": "string",
+          "const": "o2"
+        },
+        {
+          "description": "Aggressive optimization (O3).",
+          "type": "string",
+          "const": "o3"
+        },
+        {
+          "description": "Maximal optimization (O4).",
+          "type": "string",
+          "const": "o4"
+        }
+      ]
+    },
+    "CheckPolicySet": {
+      "description": "Generated check policy set.",
+      "type": "object",
+      "properties": {
+        "overflow": {
+          "description": "Integer overflow check policy.",
+          "$ref": "#/$defs/CheckPolicy",
+          "default": "debug"
+        },
+        "bounds": {
+          "description": "Bounds check policy for array and slice accesses.",
+          "$ref": "#/$defs/CheckPolicy",
+          "default": "debug"
+        },
+        "null": {
+          "description": "Null check policy for reference operations.",
+          "$ref": "#/$defs/CheckPolicy",
+          "default": "debug"
+        },
+        "division": {
+          "description": "Division check policy for divide and remainder operations.",
+          "$ref": "#/$defs/CheckPolicy",
+          "default": "debug"
+        },
+        "shift": {
+          "description": "Shift range check policy.",
+          "$ref": "#/$defs/CheckPolicy",
+          "default": "debug"
+        },
+        "failure": {
+          "description": "Check failure behavior.",
+          "$ref": "#/$defs/CheckFailurePolicy",
+          "default": "panic"
+        }
+      }
+    },
+    "CheckPolicy": {
+      "description": "Generated safety check policy.",
+      "oneOf": [
+        {
+          "description": "Always emit the check.",
+          "type": "string",
+          "const": "always"
+        },
+        {
+          "description": "Emit the check for debug profiles.",
+          "type": "string",
+          "const": "debug"
+        },
+        {
+          "description": "Never emit the check.",
+          "type": "string",
+          "const": "never"
+        }
+      ]
+    },
+    "CheckFailurePolicy": {
+      "description": "Check failure behavior.",
+      "oneOf": [
+        {
+          "description": "Trigger a panic on a failed check.",
+          "type": "string",
+          "const": "panic"
+        },
+        {
+          "description": "Abort execution on a failed check.",
+          "type": "string",
+          "const": "abort"
+        }
+      ]
+    },
+    "TargetOutputOptions": {
+      "description": "Target output paths and metadata options.",
+      "type": "object",
+      "properties": {
+        "directory": {
+          "description": "Output directory for this target.",
           "type": "string",
           "default": "dist"
         },
-        "outFile": {
+        "file": {
           "description": "Output file for single-file targets.",
           "type": [
             "string",
@@ -5180,18 +5119,154 @@
           ],
           "default": null
         },
-        "declarationDir": {
+        "declaration": {
+          "description": "Whether to emit declaration files.",
+          "type": "boolean",
+          "default": false
+        },
+        "declarationDirectory": {
           "description": "Separate directory for declaration files.",
           "type": [
             "string",
             "null"
           ],
           "default": null
+        },
+        "sourceMap": {
+          "description": "Source map emission mode.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceMapMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       }
     },
-    "BundleMode": {
-      "description": "Assembly mode for one JavaScript target.",
+    "SourceMapMode": {
+      "description": "Source map emission mode for one target.",
+      "oneOf": [
+        {
+          "description": "Emit external source map files and reference them from outputs.",
+          "type": "string",
+          "const": "external"
+        },
+        {
+          "description": "Inline source maps into the emitted output text.",
+          "type": "string",
+          "const": "inline"
+        },
+        {
+          "description": "Emit external source map files without referencing them from outputs.",
+          "type": "string",
+          "const": "hidden"
+        }
+      ]
+    },
+    "TargetJsOptions": {
+      "description": "JavaScript output configuration.",
+      "type": "object",
+      "properties": {
+        "module": {
+          "description": "JavaScript module format.",
+          "$ref": "#/$defs/JsModuleFormat",
+          "default": "esnext"
+        },
+        "target": {
+          "description": "ECMAScript target version.",
+          "$ref": "#/$defs/EsTarget",
+          "default": "esnext"
+        },
+        "mode": {
+          "description": "JavaScript output topology.",
+          "$ref": "#/$defs/JsOutputMode",
+          "default": "singleFile"
+        },
+        "preserveModules": {
+          "description": "Whether to preserve one emitted module file per reachable module.",
+          "type": "boolean",
+          "default": false
+        },
+        "preserveModulesRoot": {
+          "description": "Root directory for preserved module paths.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "manualChunks": {
+          "description": "Manual chunk assignments keyed by chunk name.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default": {}
+        },
+        "onlyExplicitManualChunks": {
+          "description": "Whether to only honor explicit manual chunk declarations.",
+          "type": "boolean",
+          "default": false
+        },
+        "dependencies": {
+          "description": "Dependency and resolution options.",
+          "$ref": "#/$defs/JsDependencyOptions",
+          "default": {
+            "external": [],
+            "neverBundle": [],
+            "alwaysBundle": [],
+            "onlyBundle": []
+          }
+        },
+        "assets": {
+          "description": "Asset handling options.",
+          "$ref": "#/$defs/JsAssetOptions",
+          "default": {
+            "mode": "emit",
+            "inlineLimit": null
+          }
+        },
+        "output": {
+          "description": "Output configuration for assembled products.",
+          "$ref": "#/$defs/JsOutputOptions",
+          "default": {
+            "format": null,
+            "name": null,
+            "entryFileNames": null,
+            "chunkFileNames": null,
+            "assetFileNames": null,
+            "publicPath": null,
+            "manifest": false,
+            "legalComments": "inline",
+            "banner": null,
+            "footer": null,
+            "generatedCode": null,
+            "sourceMap": null,
+            "sourceMapExcludeSources": false,
+            "sourceMapDebugIds": false
+          }
+        },
+        "minify": {
+          "description": "Minification options.",
+          "$ref": "#/$defs/JsMinifyOptions",
+          "default": {
+            "enabled": false,
+            "syntax": false,
+            "whitespace": false,
+            "identifiers": false,
+            "keepNames": false
+          }
+        }
+      }
+    },
+    "JsOutputMode": {
+      "description": "Output topology for one JavaScript target.",
       "oneOf": [
         {
           "description": "Assemble one entry rooted bundle.",
@@ -5210,8 +5285,8 @@
         }
       ]
     },
-    "BundleDependencyOptions": {
-      "description": "Bundler dependency options.",
+    "JsDependencyOptions": {
+      "description": "JavaScript dependency options.",
       "type": "object",
       "properties": {
         "external": {
@@ -5248,13 +5323,13 @@
         }
       }
     },
-    "BundleAssetOptions": {
-      "description": "Bundler asset handling options.",
+    "JsAssetOptions": {
+      "description": "JavaScript asset handling options.",
       "type": "object",
       "properties": {
         "mode": {
           "description": "Asset handling mode for referenced assets.",
-          "$ref": "#/$defs/BundleAssetMode",
+          "$ref": "#/$defs/JsAssetMode",
           "default": "emit"
         },
         "inlineLimit": {
@@ -5269,7 +5344,7 @@
         }
       }
     },
-    "BundleAssetMode": {
+    "JsAssetMode": {
       "description": "Asset handling policy for one JavaScript target.",
       "oneOf": [
         {
@@ -5289,15 +5364,15 @@
         }
       ]
     },
-    "BundleOutputOptions": {
-      "description": "Bundler output options.",
+    "JsOutputOptions": {
+      "description": "JavaScript output options.",
       "type": "object",
       "properties": {
         "format": {
-          "description": "Bundle format for assembled JavaScript outputs.",
+          "description": "Format for assembled JavaScript outputs.",
           "anyOf": [
             {
-              "$ref": "#/$defs/BundleFormat"
+              "$ref": "#/$defs/JsOutputFormat"
             },
             {
               "type": "null"
@@ -5352,7 +5427,7 @@
         },
         "legalComments": {
           "description": "Legal comment handling policy.",
-          "$ref": "#/$defs/BundleLegalComment",
+          "$ref": "#/$defs/JsLegalComment",
           "default": "inline"
         },
         "banner": {
@@ -5375,7 +5450,7 @@
           "description": "Generated code controls for final output rendering.",
           "anyOf": [
             {
-              "$ref": "#/$defs/BundleGeneratedCodeOptions"
+              "$ref": "#/$defs/JsGeneratedCodeOptions"
             },
             {
               "type": "null"
@@ -5383,8 +5458,8 @@
           ],
           "default": null
         },
-        "sourcemap": {
-          "description": "Source map emission mode for bundled JavaScript output.",
+        "sourceMap": {
+          "description": "Source map emission mode for JavaScript output.",
           "anyOf": [
             {
               "$ref": "#/$defs/SourceMapMode"
@@ -5395,20 +5470,20 @@
           ],
           "default": null
         },
-        "sourcemapExcludeSources": {
+        "sourceMapExcludeSources": {
           "description": "Whether to omit source contents from source maps.",
           "type": "boolean",
           "default": false
         },
-        "sourcemapDebugIds": {
+        "sourceMapDebugIds": {
           "description": "Whether to include debug ids in source maps.",
           "type": "boolean",
           "default": false
         }
       }
     },
-    "BundleFormat": {
-      "description": "Bundler format for assembled JavaScript outputs.",
+    "JsOutputFormat": {
+      "description": "Format for assembled JavaScript outputs.",
       "oneOf": [
         {
           "description": "Emit ECMAScript modules.",
@@ -5422,7 +5497,7 @@
         }
       ]
     },
-    "BundleLegalComment": {
+    "JsLegalComment": {
       "description": "Legal comment handling for assembled outputs.",
       "oneOf": [
         {
@@ -5442,7 +5517,7 @@
         }
       ]
     },
-    "BundleGeneratedCodeOptions": {
+    "JsGeneratedCodeOptions": {
       "description": "Generated code controls for one output.",
       "type": "object",
       "properties": {
@@ -5464,28 +5539,8 @@
         }
       }
     },
-    "SourceMapMode": {
-      "description": "Source map emission mode for one target.",
-      "oneOf": [
-        {
-          "description": "Emit external source map files and reference them from outputs.",
-          "type": "string",
-          "const": "external"
-        },
-        {
-          "description": "Inline source maps into the emitted output text.",
-          "type": "string",
-          "const": "inline"
-        },
-        {
-          "description": "Emit external source map files without referencing them from outputs.",
-          "type": "string",
-          "const": "hidden"
-        }
-      ]
-    },
-    "BundleMinifyOptions": {
-      "description": "Bundler minification options.",
+    "JsMinifyOptions": {
+      "description": "JavaScript minification options.",
       "type": "object",
       "properties": {
         "enabled": {
@@ -5515,28 +5570,118 @@
         }
       }
     },
-    "EmitFormat": {
-      "description": "Emitted artifact family for a build target.",
+    "TargetNativeOptions": {
+      "description": "Native target configuration.",
+      "type": "object",
+      "properties": {
+        "output": {
+          "description": "Native output shape.",
+          "$ref": "#/$defs/NativeOutputKind",
+          "default": "executable"
+        },
+        "arch": {
+          "description": "Target architecture for native codegen.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetArch"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "vendor": {
+          "description": "Target vendor for native codegen.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetVendor"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "abi": {
+          "description": "Target ABI for native codegen.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetAbi"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "cpu": {
+          "description": "CPU name for native codegen.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "cpuFeatures": {
+          "description": "CPU feature flags for native codegen.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "sysroot": {
+          "description": "Sysroot path for native toolchains.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "crt": {
+          "description": "C runtime linkage policy.",
+          "$ref": "#/$defs/CrtLinkage",
+          "default": "default"
+        },
+        "link": {
+          "description": "Native linker configuration.",
+          "$ref": "#/$defs/TargetLinkOptions",
+          "default": {
+            "linker": null,
+            "args": [],
+            "libraryPaths": [],
+            "libraries": [],
+            "frameworkPaths": [],
+            "frameworks": [],
+            "runtimeLibraryPaths": [],
+            "symbolVisibility": "default",
+            "versionScript": null,
+            "linkerScript": null,
+            "positionIndependent": "default",
+            "soname": null,
+            "installName": null
+          }
+        }
+      }
+    },
+    "NativeOutputKind": {
+      "description": "Native output kind for one target.",
       "oneOf": [
         {
-          "description": "JavaScript (.js).",
+          "description": "Emit one executable program.",
           "type": "string",
-          "const": "js"
+          "const": "executable"
         },
         {
-          "description": "TypeScript (.ts).",
+          "description": "Emit one static library archive.",
           "type": "string",
-          "const": "ts"
+          "const": "staticLibrary"
         },
         {
-          "description": "WebAssembly (.wasm).",
+          "description": "Emit one shared or dynamic library.",
           "type": "string",
-          "const": "wasm"
-        },
-        {
-          "description": "Native binary.",
-          "type": "string",
-          "const": "native"
+          "const": "sharedLibrary"
         }
       ]
     },
@@ -5734,70 +5879,129 @@
         }
       ]
     },
-    "NativeOutputKind": {
-      "description": "Native output kind for one target.",
+    "CrtLinkage": {
+      "description": "C runtime linkage policy for one native target.",
       "oneOf": [
         {
-          "description": "Emit one executable program.",
+          "description": "Use the toolchain default runtime linkage.",
           "type": "string",
-          "const": "executable"
+          "const": "default"
         },
         {
-          "description": "Emit one static library archive.",
+          "description": "Link against one dynamic C runtime.",
           "type": "string",
-          "const": "staticLibrary"
+          "const": "dynamic"
         },
         {
-          "description": "Emit one shared or dynamic library.",
+          "description": "Link against one static C runtime.",
           "type": "string",
-          "const": "sharedLibrary"
+          "const": "static"
         }
       ]
     },
-    "LinkerFlavor": {
-      "description": "Linker driver family for one native target.",
-      "oneOf": [
-        {
-          "description": "Use the compiler default linker driver.",
-          "type": "string",
-          "const": "auto"
+    "TargetLinkOptions": {
+      "description": "Target native linker configuration.",
+      "type": "object",
+      "properties": {
+        "linker": {
+          "description": "Explicit linker executable.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         },
-        {
-          "description": "Use one direct `ld` style linker driver.",
-          "type": "string",
-          "const": "ld"
+        "args": {
+          "description": "Extra linker arguments.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
         },
-        {
-          "description": "Use one C compiler style driver.",
-          "type": "string",
-          "const": "cc"
+        "libraryPaths": {
+          "description": "Additional library search paths.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
         },
-        {
-          "description": "Use clang as the linker driver.",
-          "type": "string",
-          "const": "clang"
+        "libraries": {
+          "description": "Additional libraries to link.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
         },
-        {
-          "description": "Use lld as the linker driver.",
-          "type": "string",
-          "const": "lld"
+        "frameworkPaths": {
+          "description": "Additional framework search paths.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
         },
-        {
-          "description": "Use mold as the linker driver.",
-          "type": "string",
-          "const": "mold"
+        "frameworks": {
+          "description": "Additional frameworks to link.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
         },
-        {
-          "description": "Use the MSVC linker driver.",
-          "type": "string",
-          "const": "msvc"
+        "runtimeLibraryPaths": {
+          "description": "Runtime dynamic library search paths.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
         },
-        {
-          "description": "Use the wasm-ld linker driver.",
-          "type": "string",
-          "const": "wasmLd"
+        "symbolVisibility": {
+          "description": "Symbol visibility policy.",
+          "$ref": "#/$defs/SymbolVisibility",
+          "default": "default"
+        },
+        "versionScript": {
+          "description": "Version script for exported symbols.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "linkerScript": {
+          "description": "Linker script for the final link.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "positionIndependent": {
+          "description": "Position independent code policy.",
+          "$ref": "#/$defs/PositionIndependentMode",
+          "default": "default"
+        },
+        "soname": {
+          "description": "Shared object soname.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "installName": {
+          "description": "Darwin install name.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         }
-      ]
+      }
     },
     "SymbolVisibility": {
       "description": "Symbol visibility policy for one native target.",
@@ -5841,237 +6045,6 @@
           "description": "Emit a static position independent executable.",
           "type": "string",
           "const": "staticPie"
-        }
-      ]
-    },
-    "CrtLinkage": {
-      "description": "C runtime linkage policy for one native target.",
-      "oneOf": [
-        {
-          "description": "Use the toolchain default runtime linkage.",
-          "type": "string",
-          "const": "default"
-        },
-        {
-          "description": "Link against one dynamic C runtime.",
-          "type": "string",
-          "const": "dynamic"
-        },
-        {
-          "description": "Link against one static C runtime.",
-          "type": "string",
-          "const": "static"
-        }
-      ]
-    },
-    "OptimizeLevel": {
-      "description": "Optimization level for builds.",
-      "oneOf": [
-        {
-          "description": "No optimization (O0).",
-          "type": "string",
-          "const": "o0"
-        },
-        {
-          "description": "Basic optimization (O1).",
-          "type": "string",
-          "const": "o1"
-        },
-        {
-          "description": "Standard optimization (O2).",
-          "type": "string",
-          "const": "o2"
-        },
-        {
-          "description": "Aggressive optimization (O3).",
-          "type": "string",
-          "const": "o3"
-        },
-        {
-          "description": "Maximal optimization (O4).",
-          "type": "string",
-          "const": "o4"
-        }
-      ]
-    },
-    "LtoMode": {
-      "description": "Link time optimization mode.",
-      "oneOf": [
-        {
-          "description": "Use defaults based on optimization level.\nAuto enables Thin LTO at O4 and disables LTO at lower levels.",
-          "type": "string",
-          "const": "auto"
-        },
-        {
-          "description": "Disable link time optimization.",
-          "type": "string",
-          "const": "none"
-        },
-        {
-          "description": "Enable Thin LTO at package scope.",
-          "type": "string",
-          "const": "thin"
-        },
-        {
-          "description": "Enable Full LTO at program scope.",
-          "type": "string",
-          "const": "full"
-        }
-      ]
-    },
-    "FloatMathPolicy": {
-      "description": "Floating point math optimization policy.",
-      "oneOf": [
-        {
-          "description": "Strict IEEE semantics.",
-          "type": "string",
-          "const": "strict"
-        },
-        {
-          "description": "Allow reassociation and algebraic simplifications.",
-          "type": "string",
-          "const": "reassociate"
-        },
-        {
-          "description": "Enable fast math optimizations.",
-          "type": "string",
-          "const": "fast"
-        }
-      ]
-    },
-    "DebugInfoLevel": {
-      "description": "Debug info emission policy.",
-      "oneOf": [
-        {
-          "description": "No debug info.",
-          "type": "string",
-          "const": "none"
-        },
-        {
-          "description": "Line tables only.",
-          "type": "string",
-          "const": "line"
-        },
-        {
-          "description": "Full debug info.",
-          "type": "string",
-          "const": "full"
-        }
-      ]
-    },
-    "PanicPolicy": {
-      "description": "Panic behavior for unrecoverable program failures.",
-      "oneOf": [
-        {
-          "description": "Terminate the current worker or isolate.",
-          "type": "string",
-          "const": "worker"
-        },
-        {
-          "description": "Terminate the whole runtime process.",
-          "type": "string",
-          "const": "process"
-        },
-        {
-          "description": "Lower panic to a minimal trap.",
-          "type": "string",
-          "const": "trap"
-        },
-        {
-          "description": "Abort immediately without diagnostics.",
-          "type": "string",
-          "const": "abort"
-        }
-      ]
-    },
-    "StripLevel": {
-      "description": "Symbol stripping policy.",
-      "oneOf": [
-        {
-          "description": "Keep all symbols.",
-          "type": "string",
-          "const": "none"
-        },
-        {
-          "description": "Strip local symbols.",
-          "type": "string",
-          "const": "partial"
-        },
-        {
-          "description": "Strip all symbols.",
-          "type": "string",
-          "const": "full"
-        }
-      ]
-    },
-    "RuntimeChecks": {
-      "description": "Runtime checks emitted by generated code.",
-      "type": "object",
-      "properties": {
-        "overflow": {
-          "description": "Integer overflow check policy.",
-          "$ref": "#/$defs/CheckPolicy",
-          "default": "debug"
-        },
-        "bounds": {
-          "description": "Bounds check policy for array and slice accesses.",
-          "$ref": "#/$defs/CheckPolicy",
-          "default": "debug"
-        },
-        "null": {
-          "description": "Null check policy for reference operations.",
-          "$ref": "#/$defs/CheckPolicy",
-          "default": "debug"
-        },
-        "division": {
-          "description": "Division check policy for divide and remainder operations.",
-          "$ref": "#/$defs/CheckPolicy",
-          "default": "debug"
-        },
-        "shift": {
-          "description": "Shift range check policy.",
-          "$ref": "#/$defs/CheckPolicy",
-          "default": "debug"
-        },
-        "failure": {
-          "description": "Check failure behavior.",
-          "$ref": "#/$defs/CheckFailurePolicy",
-          "default": "panic"
-        }
-      }
-    },
-    "CheckPolicy": {
-      "description": "Runtime check policy for generated safety checks.",
-      "oneOf": [
-        {
-          "description": "Always emit the check.",
-          "type": "string",
-          "const": "always"
-        },
-        {
-          "description": "Emit the check for debug profiles.",
-          "type": "string",
-          "const": "debug"
-        },
-        {
-          "description": "Never emit the check.",
-          "type": "string",
-          "const": "never"
-        }
-      ]
-    },
-    "CheckFailurePolicy": {
-      "description": "Check failure behavior.",
-      "oneOf": [
-        {
-          "description": "Trigger a panic on a failed check.",
-          "type": "string",
-          "const": "panic"
-        },
-        {
-          "description": "Abort execution on a failed check.",
-          "type": "string",
-          "const": "abort"
         }
       ]
     },
@@ -6759,18 +6732,6 @@
           "anyOf": [
             {
               "$ref": "#/$defs/Stage"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "runtime": {
-          "description": "Runtime contract for this profile.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RuntimeOptions"
             },
             {
               "type": "null"

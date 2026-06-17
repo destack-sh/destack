@@ -1,6 +1,39 @@
+use std::collections::BTreeMap;
+use std::path::PathBuf;
+
 use serde::{Deserialize, Serialize};
 
 use super::output::SourceMapMode;
+
+/// JavaScript output configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(default)]
+#[serde(rename_all = "camelCase")]
+pub struct TargetJsOptions {
+    /// JavaScript module format.
+    pub module: JsModuleFormat,
+    /// ECMAScript target version.
+    pub target: EsTarget,
+    /// JavaScript output topology.
+    pub mode: JsOutputMode,
+    /// Whether to preserve one emitted module file per reachable module.
+    pub preserve_modules: bool,
+    /// Root directory for preserved module paths.
+    pub preserve_modules_root: Option<PathBuf>,
+    /// Manual chunk assignments keyed by chunk name.
+    pub manual_chunks: BTreeMap<String, Vec<String>>,
+    /// Whether to only honor explicit manual chunk declarations.
+    pub only_explicit_manual_chunks: bool,
+    /// Dependency and resolution options.
+    pub dependencies: JsDependencyOptions,
+    /// Asset handling options.
+    pub assets: JsAssetOptions,
+    /// Output configuration for assembled products.
+    pub output: JsOutputOptions,
+    /// Minification options.
+    pub minify: JsMinifyOptions,
+}
 
 /// Module format for emitted JavaScript output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
@@ -84,11 +117,11 @@ impl EsTarget {
     }
 }
 
-/// Bundler format for assembled JavaScript outputs.
+/// Format for assembled JavaScript outputs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
-pub enum BundleFormat {
+pub enum JsOutputFormat {
     /// Emit ECMAScript modules.
     #[default]
     Esm,
@@ -96,11 +129,11 @@ pub enum BundleFormat {
     Iife,
 }
 
-/// Assembly mode for one JavaScript target.
+/// Output topology for one JavaScript target.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub enum BundleMode {
+pub enum JsOutputMode {
     /// Assemble one entry rooted bundle.
     #[default]
     SingleFile,
@@ -110,7 +143,7 @@ pub enum BundleMode {
     Chunked,
 }
 
-impl BundleMode {
+impl JsOutputMode {
     /// Return whether this mode emits entry or chunk collections instead of module trees.
     pub fn uses_entry_output_layout(self) -> bool {
         matches!(self, Self::SingleFile | Self::Chunked)
@@ -121,7 +154,7 @@ impl BundleMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub enum BundleLegalComment {
+pub enum JsLegalComment {
     /// Keep legal comments where they were printed.
     #[default]
     Inline,
@@ -135,7 +168,7 @@ pub enum BundleLegalComment {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub enum BundleAssetMode {
+pub enum JsAssetMode {
     /// Emit referenced assets as output files.
     #[default]
     Emit,
@@ -145,12 +178,12 @@ pub enum BundleAssetMode {
     Reference,
 }
 
-/// Bundler dependency options.
+/// JavaScript dependency options.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
-pub struct BundleDependencyOptions {
+pub struct JsDependencyOptions {
     /// Module specifiers to leave external.
     pub external: Vec<String>,
     /// Module specifiers that must remain external.
@@ -161,24 +194,24 @@ pub struct BundleDependencyOptions {
     pub only_bundle: Vec<String>,
 }
 
-/// Bundler asset handling options.
+/// JavaScript asset handling options.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
-pub struct BundleAssetOptions {
+pub struct JsAssetOptions {
     /// Asset handling mode for referenced assets.
-    pub mode: BundleAssetMode,
+    pub mode: JsAssetMode,
     /// Inline asset payloads smaller than this many bytes.
     pub inline_limit: Option<u64>,
 }
 
-/// Bundler minification options.
+/// JavaScript minification options.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
-pub struct BundleMinifyOptions {
+pub struct JsMinifyOptions {
     /// Whether to minify final bundled output.
     pub enabled: bool,
     /// Whether to minify syntax forms.
@@ -191,7 +224,7 @@ pub struct BundleMinifyOptions {
     pub keep_names: bool,
 }
 
-impl BundleMinifyOptions {
+impl JsMinifyOptions {
     /// Return whether any minification pass is enabled.
     pub fn is_enabled(&self) -> bool {
         self.enabled || self.syntax || self.whitespace || self.identifiers
@@ -208,21 +241,21 @@ impl BundleMinifyOptions {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
-pub struct BundleGeneratedCodeOptions {
+pub struct JsGeneratedCodeOptions {
     /// Whether to emit object shorthand properties.
     pub object_shorthand: Option<bool>,
     /// Whether to preserve reserved names as properties.
     pub reserved_names_as_props: Option<bool>,
 }
 
-/// Bundler output options.
+/// JavaScript output options.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
-pub struct BundleOutputOptions {
-    /// Bundle format for assembled JavaScript outputs.
-    pub format: Option<BundleFormat>,
+pub struct JsOutputOptions {
+    /// Format for assembled JavaScript outputs.
+    pub format: Option<JsOutputFormat>,
     /// Global name for IIFE bundles.
     pub name: Option<String>,
     /// Output naming template for entry chunks.
@@ -236,17 +269,17 @@ pub struct BundleOutputOptions {
     /// Whether to emit one build manifest.
     pub manifest: bool,
     /// Legal comment handling policy.
-    pub legal_comments: BundleLegalComment,
+    pub legal_comments: JsLegalComment,
     /// Banner text to prepend to each emitted bundle.
     pub banner: Option<String>,
     /// Footer text to append to each emitted bundle.
     pub footer: Option<String>,
     /// Generated code controls for final output rendering.
-    pub generated_code: Option<BundleGeneratedCodeOptions>,
-    /// Source map emission mode for bundled JavaScript output.
-    pub sourcemap: Option<SourceMapMode>,
+    pub generated_code: Option<JsGeneratedCodeOptions>,
+    /// Source map emission mode for JavaScript output.
+    pub source_map: Option<SourceMapMode>,
     /// Whether to omit source contents from source maps.
-    pub sourcemap_exclude_sources: bool,
+    pub source_map_exclude_sources: bool,
     /// Whether to include debug ids in source maps.
-    pub sourcemap_debug_ids: bool,
+    pub source_map_debug_ids: bool,
 }

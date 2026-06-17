@@ -16,16 +16,6 @@ pub enum ExecutionMode {
     Replay,
 }
 
-/// Runtime execution configuration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(default)]
-#[serde(rename_all = "camelCase")]
-pub struct ExecutionOptions {
-    /// Execution mode for scheduling and effect handling.
-    pub mode: ExecutionMode,
-}
-
 impl std::str::FromStr for ExecutionMode {
     type Err = ();
 

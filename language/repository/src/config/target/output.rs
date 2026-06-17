@@ -1,4 +1,36 @@
+use std::path::PathBuf;
+
 use serde::{Deserialize, Serialize};
+
+/// Target output paths and metadata options.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(default)]
+#[serde(rename_all = "camelCase")]
+pub struct TargetOutputOptions {
+    /// Output directory for this target.
+    pub directory: PathBuf,
+    /// Output file for single-file targets.
+    pub file: Option<PathBuf>,
+    /// Whether to emit declaration files.
+    pub declaration: bool,
+    /// Separate directory for declaration files.
+    pub declaration_directory: Option<PathBuf>,
+    /// Source map emission mode.
+    pub source_map: Option<SourceMapMode>,
+}
+
+impl Default for TargetOutputOptions {
+    fn default() -> Self {
+        Self {
+            directory: PathBuf::from("dist"),
+            file: None,
+            declaration: false,
+            declaration_directory: None,
+            source_map: None,
+        }
+    }
+}
 
 /// How one target chooses its root module set.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

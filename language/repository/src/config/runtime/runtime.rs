@@ -1,16 +1,12 @@
 use std::collections::BTreeMap;
 
-use destack_artifact::Runtime;
 use serde::{Deserialize, Serialize};
 
 use crate::{ConditionSet, ExecutionMode, ReplayPayloadMode};
 
 use super::clock::ClockOptions;
 use super::random::RandomOptions;
-use super::{
-    ExecutionOptions, HeapOptions, HostOptions, RuntimeDiagnosticOptions, TraceOptions,
-    WorkerOptions,
-};
+use super::{HeapOptions, HostOptions, RuntimeDiagnosticOptions, TraceOptions, WorkerOptions};
 
 /// Runtime identity used for topology and policy selection.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
@@ -30,15 +26,13 @@ pub struct RuntimeIdentityOptions {
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeOptions {
-    /// Runtime implementation family.
-    pub runtime: Runtime,
     /// Runtime topology and policy identity.
     pub identity: RuntimeIdentityOptions,
     /// Active source graph conditions for runtime policy selection.
     #[serde(default)]
     pub conditions: ConditionSet,
-    /// Runtime execution configuration.
-    pub execution: ExecutionOptions,
+    /// Execution mode for scheduling and effect handling.
+    pub mode: ExecutionMode,
     /// Runtime worker configuration.
     pub worker: WorkerOptions,
     /// Runtime clock seed configuration.
@@ -58,7 +52,7 @@ pub struct RuntimeOptions {
 impl RuntimeOptions {
     /// Return the configured execution mode.
     pub fn execution_mode(&self) -> ExecutionMode {
-        self.execution.mode
+        self.mode
     }
 
     /// Return the configured trace payload policy.
