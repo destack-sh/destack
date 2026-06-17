@@ -250,7 +250,7 @@ impl<'a, 'b> PreferArrayFilterVisitor<'a, 'b> {
         else {
             return None;
         };
-        let dir::IfCondition::Expression { condition } = condition else {
+        let Some(condition) = condition.as_expression() else {
             return None;
         };
         if else_expression.is_some() {
@@ -259,7 +259,7 @@ impl<'a, 'b> PreferArrayFilterVisitor<'a, 'b> {
 
         // keep then blocks with one push call
         let push_call_id = self.push_call_from_then_expression(*then_expression)?;
-        Some((*condition, push_call_id))
+        Some((condition, push_call_id))
     }
 
     /// Keep then expressions that contain exactly one push call.

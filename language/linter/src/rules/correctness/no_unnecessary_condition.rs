@@ -255,8 +255,8 @@ impl NodeVisitor for UnnecessaryConditionVisitor<'_, '_> {
     ) {
         match expression {
             dir::Expression::If { condition, .. } => {
-                if let dir::IfCondition::Expression { condition } = condition {
-                    self.check_condition(*condition, "if condition");
+                if let Some(condition) = condition.as_expression() {
+                    self.check_condition(condition, "if condition");
                 }
             }
             dir::Expression::For {

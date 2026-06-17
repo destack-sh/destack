@@ -61,9 +61,8 @@ impl LintRule for NoCollapsibleIf {
             else {
                 continue;
             };
-            let outer_condition_id = match outer_condition {
-                dir::IfCondition::Expression { condition } => *condition,
-                dir::IfCondition::Let { .. } => continue,
+            let Some(outer_condition_id) = outer_condition.as_expression() else {
+                continue;
             };
 
             // get the then block
@@ -86,9 +85,8 @@ impl LintRule for NoCollapsibleIf {
             else {
                 continue;
             };
-            let inner_condition_id = match inner_condition {
-                dir::IfCondition::Expression { condition } => *condition,
-                dir::IfCondition::Let { .. } => continue,
+            let Some(inner_condition_id) = inner_condition.as_expression() else {
+                continue;
             };
 
             let severity = ctx.get_effective_severity(meta, node_id);

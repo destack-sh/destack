@@ -126,10 +126,7 @@ pub fn collect_pattern_value_binding_symbols(
 
     // recurse through child patterns
     match pattern {
-        dir::Pattern::Wildcard
-        | dir::Pattern::Expression { .. }
-        | dir::Pattern::Range { .. }
-        | dir::Pattern::TypeExpression { .. } => {}
+        dir::Pattern::Wildcard | dir::Pattern::Expression { .. } | dir::Pattern::Range { .. } => {}
         dir::Pattern::Assign { pattern, .. } => {
             collect_pattern_value_binding_symbols(tree, symbols, *pattern, bindings);
         }
@@ -140,7 +137,7 @@ pub fn collect_pattern_value_binding_symbols(
             collect_pattern_value_binding_symbols(tree, symbols, *inner, bindings);
         }
         dir::Pattern::Tuple { fields }
-        | dir::Pattern::Newtype { fields, .. }
+        | dir::Pattern::NominalTuple { fields, .. }
         | dir::Pattern::Sequence { fields }
         | dir::Pattern::Object { fields }
         | dir::Pattern::NominalObject { fields, .. } => {

@@ -395,12 +395,9 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
 
 /// Return one expression id when an if condition is a plain expression.
 fn if_condition_expression_id(
-    condition: &dir::IfCondition,
+    condition: &dir::Condition,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
-    match condition {
-        dir::IfCondition::Expression { condition } => Some(*condition),
-        dir::IfCondition::Let { .. } => None,
-    }
+    condition.as_expression()
 }
 
 /// Return true when one binary operator uses a value only as a safe receiver test.

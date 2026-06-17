@@ -273,11 +273,8 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
                     return true;
                 }
             }
-            dir::Expression::If {
-                condition: dir::IfCondition::Expression { condition },
-                ..
-            } => {
-                if *condition == expression_id {
+            dir::Expression::If { condition, .. } => {
+                if condition.as_expression() == Some(expression_id) {
                     return true;
                 }
             }

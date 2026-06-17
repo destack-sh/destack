@@ -1324,16 +1324,18 @@ impl dir::NodeVisitor for DuplicateSignatureCollector<'_> {
                 form, condition, ..
             } => {
                 self.push_debug("expr_if_form", *form);
-                match condition {
-                    dir::IfCondition::Expression { .. } => {
-                        self.push_same("expr_if_condition_kind", "expr");
-                    }
-                    dir::IfCondition::Let {
-                        kind, mutability, ..
-                    } => {
-                        self.push_same("expr_if_condition_kind", "let");
-                        self.push_debug("expr_if_let_kind", *kind);
-                        self.push_debug("expr_if_let_mutability", *mutability);
+                for operand in &condition.operands {
+                    match operand {
+                        dir::ConditionOperand::Expression { .. } => {
+                            self.push_same("expr_if_condition_kind", "expr");
+                        }
+                        dir::ConditionOperand::Binding {
+                            kind, mutability, ..
+                        } => {
+                            self.push_same("expr_if_condition_kind", "binding");
+                            self.push_debug("expr_if_binding_kind", *kind);
+                            self.push_debug("expr_if_binding_mutability", *mutability);
+                        }
                     }
                 }
             }
@@ -1650,7 +1652,7 @@ impl dir::NodeVisitor for DuplicateSignatureCollector<'_> {
             dir::Pattern::Binding { name, .. } => {
                 self.push_identifier_id("pattern_binding_name", *name);
             }
-            dir::Pattern::Newtype { .. } | dir::Pattern::NominalObject { .. } => {
+            dir::Pattern::NominalTuple { .. } | dir::Pattern::NominalObject { .. } => {
                 self.push_same("pattern_tagged", "true");
             }
             _ => {}

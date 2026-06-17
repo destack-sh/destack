@@ -55,12 +55,12 @@ impl LintRule for PreferMatch {
                 continue;
             }
 
-            let dir::IfCondition::Expression { condition } = condition else {
+            let Some(condition) = condition.as_expression() else {
                 continue;
             };
 
             // collect if-else-if comparisons over one shared subject
-            let Some(if_chain) = collect_if_chain_for_match(ctx, node_id, *condition, *else_expr)
+            let Some(if_chain) = collect_if_chain_for_match(ctx, node_id, condition, *else_expr)
             else {
                 continue;
             };
@@ -173,12 +173,12 @@ fn collect_if_chain_for_match(
             else_expression: chained_else_expression,
         } = next_else_expression
         {
-            let dir::IfCondition::Expression { condition } = condition else {
+            let Some(condition) = condition.as_expression() else {
                 return None;
             };
 
             let (next_subject_key, _, next_pattern_expression) =
-                comparison_subject_and_pattern(ctx, *condition)?;
+                comparison_subject_and_pattern(ctx, condition)?;
             if next_subject_key != subject_key {
                 return None;
             }
