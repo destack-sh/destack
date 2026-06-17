@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use destack_dir as dir;
 use destack_dir::GuardTable;
 use destack_repository::{ArtifactReader, Module, ProfileId, ProviderContext};
-use dir::{Expression, IfCondition, IfForm, LocalNodeId, MatchForm};
+use dir::{Expression, Condition, IfForm, LocalNodeId, MatchForm};
 
 use crate::elaborate::ElaborateState;
 use crate::{Compiler, ElaborateResult};
@@ -147,7 +147,7 @@ impl Compiler {
                 then_expression,
                 else_expression,
             } => {
-                if let IfCondition::Expression { condition } = condition {
+                if let Some(condition) = condition.as_expression() {
                     self.reify_implicit_casts_in_ternary(
                         state,
                         expression_id,

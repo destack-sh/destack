@@ -33,24 +33,42 @@ impl WalkState<'_, '_> {
     /// ```
     pub(in crate::check) fn narrow_condition(
         &mut self,
-        condition: &dir::IfCondition,
+        condition: &dir::Condition,
         branch: ConditionBranch,
     ) -> CompilerResult<()> {
-        match condition {
-            // if condition
-            dir::IfCondition::Expression { condition } => {
-                self.narrow_expression(*condition, branch)?;
+        // false may stop at any operand
+        if branch == ConditionBranch::False && condition.operands.len() != 1 {
+            return Ok(());
+        }
+
+        // true means every operand succeeded
+        for operand in &condition.operands {
+            match operand {
+                // boolean condition
+                dir::ConditionOperand::Expression { condition } => {
+                    self.narrow_expression(*condition, branch)?;
+                }
+                // pattern binding condition
+                dir::ConditionOperand::Binding { declarator, .. }
+                    if branch == ConditionBranch::True =>
+                {
+                    self.narrow_let_condition(*declarator)?;
+                }
+                // failed binding condition
+                dir::ConditionOperand::Binding { .. } => {}
             }
-            // if let pattern = value
-            dir::IfCondition::Let { declarator, .. } if branch == ConditionBranch::True => {
-                self.mark_declarator_assigned(self.tree.get(*declarator));
-                self.narrow_declarator_match(*declarator)?;
-            }
-            // if let pattern = value
-            dir::IfCondition::Let { .. } => {}
         }
 
         Ok(())
+    }
+
+    /// Narrow flow from a successful let condition.
+    pub(in crate::check) fn narrow_let_condition(
+        &mut self,
+        declarator: dir::LocalNodeId<dir::Declarator>,
+    ) -> CompilerResult<()> {
+        self.mark_declarator_assigned(self.tree.get(declarator));
+        self.narrow_declarator_match(declarator)
     }
 
     /// Narrow flow from one expression condition.

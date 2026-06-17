@@ -103,7 +103,7 @@ impl WalkState<'_, '_> {
             // { name }
             | dir::Pattern::Object { fields }
             // T(a, b)
-            | dir::Pattern::Newtype { fields, .. }
+            | dir::Pattern::NominalTuple { fields, .. }
             // T { name }
             | dir::Pattern::NominalObject { fields, .. } => {
                 // mark each nested field pattern
@@ -125,9 +125,7 @@ impl WalkState<'_, '_> {
             // value
             | dir::Pattern::Expression { .. }
             // start..end
-            | dir::Pattern::Range { .. }
-            // value is T
-            | dir::Pattern::TypeExpression { .. } => {}
+            | dir::Pattern::Range { .. } => {}
         }
     }
 

@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use dir::{
-    Block, Expression, IfCondition, LocalNodeId, LocalScope, LocalScopeId, MatchCase, MatchForm,
+    Block, Expression, Condition, LocalNodeId, LocalScope, LocalScopeId, MatchCase, MatchForm,
     MatchOrigin, MatchSelector, NodeType, Pattern, SymbolKind, SymbolRole, Type, TypeLiteral,
 };
 
@@ -20,9 +20,9 @@ impl Compiler {
                 matches!(
                     state.tree.get(*id),
                     Expression::If {
-                        condition: IfCondition::Let { .. },
+                        condition,
                         ..
-                    }
+                    } if condition.as_binding().is_some()
                 )
             })
             .collect();
@@ -41,7 +41,7 @@ impl Compiler {
             };
 
             // read the if let condition
-            let IfCondition::Let { declarator, .. } = condition else {
+            let Some((_, _, declarator)) = condition.as_binding() else {
                 continue;
             };
 

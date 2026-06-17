@@ -221,10 +221,11 @@ impl WalkState<'_, '_> {
         !matches!(
             expression,
             dir::Expression::LetElse { declarator, .. }
-            | dir::Expression::If {
-                condition: dir::IfCondition::Let { declarator, .. },
-                ..
-            } if declarator == &id
+                if declarator == &id
+        ) && !matches!(
+            expression,
+            dir::Expression::If { condition, .. }
+                if condition.as_binding().is_some_and(|(_, _, declarator)| declarator == id)
         )
     }
 
@@ -285,14 +286,8 @@ impl WalkState<'_, '_> {
                 let ty = self.node_type(value)?;
                 self.narrow_flow_path(path, ty);
             }
-            // value is T
-            dir::Pattern::TypeExpression { value } => {
-                let value = *value;
-                let ty = self.walk_type_expression(value)?;
-                self.narrow_flow_path(path, ty);
-            }
             // T(a, b), T { name }
-            dir::Pattern::Newtype { ty, fields }
+            dir::Pattern::NominalTuple { ty, fields }
             | dir::Pattern::NominalObject { ty, fields } => {
                 let (ty, fields) = (*ty, fields.clone());
                 let narrowed = self.walk_type_expression(ty)?;

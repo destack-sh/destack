@@ -907,7 +907,7 @@ impl WalkState<'_, '_> {
     fn walk_if_expression(
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
-        condition: &dir::IfCondition,
+        condition: &dir::Condition,
         then_expression: dir::LocalNodeId<dir::Expression>,
         else_expression: Option<dir::LocalNodeId<dir::Expression>>,
     ) -> CompilerResult<()> {
@@ -976,18 +976,40 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// if let Some(value) = option { value }
     /// ```
-    fn walk_if_condition(&mut self, condition: &dir::IfCondition) -> CompilerResult<()> {
-        match condition {
-            // if condition
-            dir::IfCondition::Expression { condition } => {
+    fn walk_if_condition(&mut self, condition: &dir::Condition) -> CompilerResult<()> {
+        let before = self.fork_flow();
+        let result = self.walk_if_condition_chain(&condition.operands);
+        self.restore_flow(before);
+
+        result
+    }
+
+    /// Walk one if condition chain.
+    fn walk_if_condition_chain(
+        &mut self,
+        operands: &[dir::ConditionOperand],
+    ) -> CompilerResult<()> {
+        for operand in operands {
+            self.walk_if_condition_operand(operand)?;
+        }
+
+        Ok(())
+    }
+
+    /// Walk one operand in an if condition chain.
+    fn walk_if_condition_operand(&mut self, operand: &dir::ConditionOperand) -> CompilerResult<()> {
+        match operand {
+            // boolean condition
+            dir::ConditionOperand::Expression { condition } => {
                 let condition = *condition;
                 self.walk_expression(condition, self.tree.get(condition))?;
                 self.expect_boolean_condition(condition)?;
             }
-            // if let pattern = value
-            dir::IfCondition::Let { declarator, .. } => {
+            // pattern binding condition
+            dir::ConditionOperand::Binding { declarator, .. } => {
                 let declarator = *declarator;
                 self.walk_declarator(declarator, self.tree.get(declarator))?;
+                self.narrow_let_condition(declarator)?;
             }
         }
 
@@ -1956,6 +1978,12 @@ impl WalkState<'_, '_> {
 
                 // assignments invalidate narrowings under the target
                 self.clear_mutated_expression_narrowings(target);
+
+                let resolution =
+                    dir::AssignPatternResolution::Place(dir::AssignPatternPlaceResolution {
+                        target: target.into_global_any(self.module),
+                    });
+                self.record_assign_pattern(id, resolution)?;
             }
             // x = default
             dir::AssignPattern::Assign {
@@ -1965,19 +1993,127 @@ impl WalkState<'_, '_> {
                 let (pattern, default) = (*pattern, *default);
                 self.walk_expression(default, self.tree.get(default))?;
                 self.walk_assign_pattern(pattern, value, value_node, access)?;
+
+                let resolution =
+                    dir::AssignPatternResolution::Default(dir::AssignPatternDefaultResolution {
+                        pattern: pattern.into_global_any(self.module),
+                        value: default.into_global_any(self.module),
+                    });
+                self.record_assign_pattern(id, resolution)?;
             }
-            // [a, , ...rest] = values, { x, y: z } = point
-            dir::AssignPattern::Sequence { fields } | dir::AssignPattern::Object { fields } => {
-                // destructured components resolve at selection
-                // TODO(check): project sequence and object components onto
-                // their assignment fields once assign selection lands.
+            // [a, , ...rest] = values
+            dir::AssignPattern::Sequence { fields } => {
                 for field in fields.clone() {
                     self.walk_assign_pattern_field(field, value, value_node, access)?;
                 }
+
+                let resolution = self.sequence_assign_pattern_resolution(fields);
+                self.record_assign_pattern(id, resolution)?;
+            }
+            // { x, y: z } = point
+            dir::AssignPattern::Object { fields } => {
+                for field in fields.clone() {
+                    self.walk_assign_pattern_field(field, value, value_node, access)?;
+                }
+
+                let resolution = self.object_assign_pattern_resolution(fields);
+                self.record_assign_pattern(id, resolution)?;
             }
         }
 
         Ok(())
+    }
+
+    /// Record one assignment pattern decision.
+    fn record_assign_pattern(
+        &mut self,
+        id: dir::LocalNodeId<dir::AssignPattern>,
+        resolution: dir::AssignPatternResolution,
+    ) -> CompilerResult<()> {
+        self.check.record_decision(
+            id.into_global_any(self.module),
+            Decision::AssignPattern(resolution),
+        )
+    }
+
+    /// Return the structural resolution for one sequence assignment target.
+    fn sequence_assign_pattern_resolution(
+        &self,
+        fields: &[dir::LocalNodeId<dir::AssignPatternField>],
+    ) -> dir::AssignPatternResolution {
+        let mut rows = Vec::with_capacity(fields.len());
+        let mut rest = None;
+        let mut position = 0usize;
+        for field in fields {
+            match self.tree.get(*field) {
+                dir::AssignPatternField::Positional { pattern } => {
+                    rows.push(dir::AssignPatternFieldResolution {
+                        source: field.into_global_any(self.module),
+                        target: dir::PatternFieldTarget::Index(position),
+                        pattern: Some(pattern.into_global_any(self.module)),
+                    });
+                    position += 1;
+                }
+                dir::AssignPatternField::Spread { pattern } => {
+                    rest = Some(dir::AssignPatternRestResolution {
+                        source: field.into_global_any(self.module),
+                        pattern: pattern.map(|pattern| pattern.into_global_any(self.module)),
+                    });
+                }
+                dir::AssignPatternField::Elision => {
+                    position += 1;
+                }
+                dir::AssignPatternField::Named { .. }
+                | dir::AssignPatternField::Computed { .. } => {}
+            }
+        }
+
+        dir::AssignPatternResolution::Sequence(dir::AssignPatternSequenceResolution {
+            fields: rows,
+            rest,
+        })
+    }
+
+    /// Return the structural resolution for one object assignment target.
+    fn object_assign_pattern_resolution(
+        &self,
+        fields: &[dir::LocalNodeId<dir::AssignPatternField>],
+    ) -> dir::AssignPatternResolution {
+        let mut rows = Vec::with_capacity(fields.len());
+        let mut rest = None;
+        for field in fields {
+            match self.tree.get(*field) {
+                dir::AssignPatternField::Named { name, pattern, .. } => {
+                    rows.push(dir::AssignPatternFieldResolution {
+                        source: field.into_global_any(self.module),
+                        target: dir::PatternFieldTarget::Key(name.static_key()),
+                        pattern: pattern.map(|pattern| pattern.into_global_any(self.module)),
+                    });
+                }
+                dir::AssignPatternField::Computed { key, pattern } => {
+                    let Some(key) = self.tree.get(*key).static_key() else {
+                        continue;
+                    };
+                    rows.push(dir::AssignPatternFieldResolution {
+                        source: field.into_global_any(self.module),
+                        target: dir::PatternFieldTarget::Key(key),
+                        pattern: Some(pattern.into_global_any(self.module)),
+                    });
+                }
+                dir::AssignPatternField::Spread { pattern } => {
+                    rest = Some(dir::AssignPatternRestResolution {
+                        source: field.into_global_any(self.module),
+                        pattern: pattern.map(|pattern| pattern.into_global_any(self.module)),
+                    });
+                }
+                dir::AssignPatternField::Positional { .. } | dir::AssignPatternField::Elision => {}
+            }
+        }
+
+        dir::AssignPatternResolution::Object(dir::AssignPatternObjectResolution {
+            fields: rows,
+            rest,
+        })
     }
 
     /// Walk one assignment pattern field against the destructured value.

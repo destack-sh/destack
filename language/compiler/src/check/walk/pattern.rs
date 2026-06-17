@@ -105,12 +105,6 @@ impl WalkState<'_, '_> {
                     self.restore_flow(before_end);
                 }
             }
-            // value is T
-            dir::Pattern::TypeExpression { value } => {
-                let value = *value;
-                let expected = self.walk_type_expression(value)?;
-                self.declare_node_type(id, expected)?;
-            }
             // [a, b], [...items], { name }
             dir::Pattern::Tuple { fields }
             | dir::Pattern::Sequence { fields }
@@ -121,7 +115,7 @@ impl WalkState<'_, '_> {
                 }
             }
             // T(a, b), T { name }
-            dir::Pattern::Newtype { ty, fields } | dir::Pattern::NominalObject { ty, fields } => {
+            dir::Pattern::NominalTuple { ty, fields } | dir::Pattern::NominalObject { ty, fields } => {
                 let (ty, fields) = (*ty, fields.clone());
                 let tag = self.walk_type_expression(ty)?;
                 for field in fields {

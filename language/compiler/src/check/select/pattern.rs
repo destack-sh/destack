@@ -107,13 +107,6 @@ impl CheckState<'_> {
                 self.select_literal_pattern(node, origin, value)
             }
 
-            // value is T
-            dir::Pattern::TypeExpression { .. } => {
-                // TODO(check): record a dedicated type-test resolution once
-                // DIR grows one; coverage still checks through node types.
-                self.record_pattern(node, dir::PatternResolution::Wildcard)
-            }
-
             // start..end
             dir::Pattern::Range {
                 start,
@@ -147,7 +140,7 @@ impl CheckState<'_> {
             }
 
             // T(value), T { name }
-            dir::Pattern::Newtype { ty, fields } => {
+            dir::Pattern::NominalTuple { ty, fields } => {
                 let (ty, fields) = (*ty, fields.iter().copied().collect::<SmallVec<[_; 4]>>());
 
                 self.select_newtype_pattern(node, origin, ty, &fields)

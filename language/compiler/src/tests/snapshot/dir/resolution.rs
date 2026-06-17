@@ -37,6 +37,10 @@ impl SnapshotTable for dir::ResolutionSegment {
             add_pattern_resolution_row(builder, node_id, resolution);
         }
 
+        for (node_id, resolution) in self.assign_pattern_entries() {
+            add_assign_pattern_resolution_row(builder, node_id, resolution);
+        }
+
         let name_count = self.name_entries().count();
         let label_count = self.label_entries().count();
         let receiver_count = self.receiver_entries().count();
@@ -45,6 +49,7 @@ impl SnapshotTable for dir::ResolutionSegment {
         let read_write_count = self.read_write_entries().count();
         let construct_count = self.construct_entries().count();
         let pattern_count = self.pattern_entries().count();
+        let assign_pattern_count = self.assign_pattern_entries().count();
         if name_count == 0
             && label_count == 0
             && receiver_count == 0
@@ -53,6 +58,7 @@ impl SnapshotTable for dir::ResolutionSegment {
             && read_write_count == 0
             && construct_count == 0
             && pattern_count == 0
+            && assign_pattern_count == 0
         {
             return;
         }
@@ -64,7 +70,8 @@ impl SnapshotTable for dir::ResolutionSegment {
             .count_field("members", member_count)
             .count_field("calls", call_count)
             .count_field("constructs", construct_count)
-            .count_field("patterns", pattern_count);
+            .count_field("patterns", pattern_count)
+            .count_field("assign_patterns", assign_pattern_count);
         builder.push(row);
     }
 }
@@ -317,13 +324,12 @@ fn add_pattern_resolution_row(
             .optional_field("arguments", arguments_label(builder, &newtype.arguments))
             .optional_field("value", newtype.value.map(|node| builder.node_label(node))),
         dir::PatternResolution::Variant(variant) => row
-            .field("target", builder.symbol_path_label(variant.symbol))
+            .field("owner", builder.symbol_path_label(variant.owner))
+            .field("variant", builder.symbol_path_label(variant.variant))
             .optional_field("arguments", arguments_label(builder, &variant.arguments))
-            .optional_field(
+            .field(
                 "discriminant",
-                variant
-                    .discriminant
-                    .map(|value| builder.scalar_literal_label(&value)),
+                builder.scalar_literal_label(&variant.discriminant),
             )
             .list_field("fields", pattern_field_labels(builder, &variant.fields)),
         dir::PatternResolution::Union(union) => row.list_field(
@@ -398,6 +404,62 @@ fn pattern_resolution_label(resolution: &dir::PatternResolution) -> &'static str
         dir::PatternResolution::Borrow(_) => "borrow",
         dir::PatternResolution::Move(_) => "move",
         dir::PatternResolution::Dereference(_) => "dereference",
+    }
+}
+
+/// Add one assignment pattern resolution row.
+fn add_assign_pattern_resolution_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    resolution: &dir::AssignPatternResolution,
+) {
+    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "assign_pattern")
+        .optional_field("source", builder.node_source(node_id))
+        .field("kind", assign_pattern_resolution_label(resolution));
+
+    let row = match resolution {
+        dir::AssignPatternResolution::Place(place) => {
+            row.field("target", builder.node_label(place.target))
+        }
+        dir::AssignPatternResolution::Default(default) => row
+            .field("pattern", builder.node_label(default.pattern))
+            .field("value", builder.node_label(default.value)),
+        dir::AssignPatternResolution::Sequence(sequence) => row
+            .list_field(
+                "fields",
+                assign_pattern_field_labels(builder, &sequence.fields),
+            )
+            .optional_field(
+                "rest",
+                sequence
+                    .rest
+                    .as_ref()
+                    .map(|rest| assign_pattern_rest_label(builder, rest)),
+            ),
+        dir::AssignPatternResolution::Object(object) => row
+            .list_field(
+                "fields",
+                assign_pattern_field_labels(builder, &object.fields),
+            )
+            .optional_field(
+                "rest",
+                object
+                    .rest
+                    .as_ref()
+                    .map(|rest| assign_pattern_rest_label(builder, rest)),
+            ),
+    };
+
+    builder.push(row);
+}
+
+/// Return one assignment pattern resolution label.
+fn assign_pattern_resolution_label(resolution: &dir::AssignPatternResolution) -> &'static str {
+    match resolution {
+        dir::AssignPatternResolution::Place(_) => "place",
+        dir::AssignPatternResolution::Default(_) => "default",
+        dir::AssignPatternResolution::Sequence(_) => "sequence",
+        dir::AssignPatternResolution::Object(_) => "object",
     }
 }
 
@@ -498,10 +560,53 @@ fn pattern_field_label(
     format!("{target}: {pattern}")
 }
 
+/// Return assignment pattern field labels.
+fn assign_pattern_field_labels<'a>(
+    builder: &'a DirSnapshotBuilder<'_>,
+    fields: &'a [dir::AssignPatternFieldResolution],
+) -> impl Iterator<Item = String> + 'a {
+    fields
+        .iter()
+        .map(|field| assign_pattern_field_label(builder, field))
+}
+
+/// Return one assignment pattern field label.
+fn assign_pattern_field_label(
+    builder: &DirSnapshotBuilder<'_>,
+    field: &dir::AssignPatternFieldResolution,
+) -> String {
+    let target = match field.target {
+        dir::PatternFieldTarget::Key(key) => builder.static_key(key),
+        dir::PatternFieldTarget::Index(index) => format!("#{index}"),
+    };
+
+    let Some(pattern) = field.pattern else {
+        return target;
+    };
+
+    let pattern = builder.node_label(pattern);
+
+    format!("{target}: {pattern}")
+}
+
 /// Return one pattern rest label.
 fn pattern_rest_label(
     builder: &DirSnapshotBuilder<'_>,
     rest: &dir::PatternRestResolution,
+) -> String {
+    let Some(pattern) = rest.pattern else {
+        return "...".to_string();
+    };
+
+    let pattern = builder.node_label(pattern);
+
+    format!("...{pattern}")
+}
+
+/// Return one assignment pattern rest label.
+fn assign_pattern_rest_label(
+    builder: &DirSnapshotBuilder<'_>,
+    rest: &dir::AssignPatternRestResolution,
 ) -> String {
     let Some(pattern) = rest.pattern else {
         return "...".to_string();

@@ -983,22 +983,19 @@ impl ModuleLowerer<'_> {
                 else_expression,
             } => match form {
                 dir::IfForm::Ternary => {
-                    let condition = match condition {
-                        dir::IfCondition::Expression { condition } => self
-                            .lower_expression_as_anchored::<js::Expression>(
-                                *condition,
-                                condition.into_global_any(self.module.id),
-                            )?,
-                        dir::IfCondition::Let { .. } => {
-                            return Err(self.unsupported_construct(
-                                expression_id.into_global_any(self.module.id),
-                                Some(
-                                    "if let conditions should be elaborated before JS emit"
-                                        .to_string(),
-                                ),
-                            ));
-                        }
+                    let Some(condition) = condition.as_expression() else {
+                        // TODO #Broken: condition chains need elaborate lowering
+                        return Err(self.unsupported_construct(
+                            expression_id.into_global_any(self.module.id),
+                            Some(
+                                "condition chains should be elaborated before JS emit".to_string(),
+                            ),
+                        ));
                     };
+                    let condition = self.lower_expression_as_anchored::<js::Expression>(
+                        condition,
+                        condition.into_global_any(self.module.id),
+                    )?;
                     let then_expression =
                         self.lower_expression_as::<js::Expression>(*then_expression)?;
                     let else_expression = else_expression
@@ -1016,22 +1013,19 @@ impl ModuleLowerer<'_> {
                         .into_any()
                 }
                 dir::IfForm::If => {
-                    let condition = match condition {
-                        dir::IfCondition::Expression { condition } => self
-                            .lower_expression_as_anchored::<js::Expression>(
-                                *condition,
-                                condition.into_global_any(self.module.id),
-                            )?,
-                        dir::IfCondition::Let { .. } => {
-                            return Err(self.unsupported_construct(
-                                expression_id.into_global_any(self.module.id),
-                                Some(
-                                    "if let conditions should be elaborated before JS emit"
-                                        .to_string(),
-                                ),
-                            ));
-                        }
+                    let Some(condition) = condition.as_expression() else {
+                        // TODO #Broken: condition chains need elaborate lowering
+                        return Err(self.unsupported_construct(
+                            expression_id.into_global_any(self.module.id),
+                            Some(
+                                "condition chains should be elaborated before JS emit".to_string(),
+                            ),
+                        ));
                     };
+                    let condition = self.lower_expression_as_anchored::<js::Expression>(
+                        condition,
+                        condition.into_global_any(self.module.id),
+                    )?;
                     let then_block = self.lower_expression_as_block(*then_expression)?;
                     let else_block = else_expression
                         .map(|else_expression| self.lower_expression_as_block(else_expression))

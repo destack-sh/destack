@@ -23,6 +23,8 @@ pub(in crate::check) enum Decision {
     Construct(dir::ConstructResolution),
     /// Resolved pattern meaning.
     Pattern(dir::PatternResolution),
+    /// Resolved assignment pattern meaning.
+    AssignPattern(dir::AssignPatternResolution),
     /// Rejected node with reported diagnostics.
     Rejected,
 }
