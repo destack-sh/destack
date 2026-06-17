@@ -1,5 +1,5 @@
 use crate::tests::TestParser;
-use destack_dir::{Expression, IfCondition, IfForm, Key, ScalarLiteral};
+use destack_dir::{Expression, IfForm, Key, ScalarLiteral};
 use destack_source::LanguageType;
 
 use crate::{assert_expression_path, assert_node, assert_string};
@@ -68,9 +68,8 @@ fn test_parse_key_computed_ternary() {
     assert!(matches!(key, Key::Expression(_)));
     assert_node!(parser.tree, match key { Key::Expression(key) => key, _ => unreachable!() }, Expression::If { form, condition, then_expression, else_expression } => {
         assert_eq!(*form, IfForm::Ternary);
-        assert_node!(condition, IfCondition::Expression { condition } => {
-            assert_expression_path!(parser, parser.tree.get(*condition), "hasCjsFormat");
-        });
+        let condition = condition.as_expression().expect("expected expression condition");
+        assert_expression_path!(parser, parser.tree.get(condition), "hasCjsFormat");
         assert_node!(parser.tree, *then_expression, Expression::ScalarLiteral(ScalarLiteral::String(string)) => {
             assert_string!(parser, *string, "module");
         });

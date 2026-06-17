@@ -1,9 +1,8 @@
 use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_node, assert_string};
 use destack_dir::{
-    Argument, BinaryOperator, Declaration, Declarator, Expression, FunctionDeclaration,
-    IfCondition, IfForm, LocalNodeId, Parameter, PostfixPosition, ScalarLiteral, TypeExpression,
-    TypeLiteral,
+    Argument, BinaryOperator, Declaration, Declarator, Expression, FunctionDeclaration, IfForm,
+    LocalNodeId, Parameter, PostfixPosition, ScalarLiteral, TypeExpression, TypeLiteral,
 };
 use destack_source::LanguageType;
 
@@ -155,10 +154,7 @@ fn test_parse_identifier_question_expression_as_ternary() {
     test.assert_no_errors(&parser);
     assert_node!(parser.tree, expression_id, Expression::If { form, condition, then_expression, else_expression } => {
         assert_eq!(*form, IfForm::Ternary);
-        let condition_id = match condition {
-            IfCondition::Expression { condition } => *condition,
-            IfCondition::Let { .. } => panic!("expected expression condition"),
-        };
+        let condition_id = condition.as_expression().expect("expected expression condition");
         assert_expression_path!(parser, parser.tree.get(condition_id), "a");
         assert_expression_path!(parser, parser.tree.get(*then_expression), "b");
         assert_expression_path!(parser, parser.tree.get(else_expression.expect("expected else expression")), "c");

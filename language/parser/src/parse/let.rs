@@ -58,7 +58,7 @@ impl Parser {
         // parse declarators
         let mut declarators = Vec::new();
         loop {
-            let declarator_id = self.eat_declarator(true, false)?;
+            let declarator_id = self.eat_declarator(true, false, None)?;
             declarators.push(declarator_id);
 
             if self.peek_is(TokenType::Comma) || self.next_token_type() == TokenType::Comma {
@@ -139,7 +139,9 @@ impl Parser {
 
     /// Return let kind and mutability for a declaration keyword.
     #[inline]
-    fn let_kind_and_mutability_for_keyword(keyword: Keyword) -> Option<(LetKind, Mutability)> {
+    pub(super) fn let_kind_and_mutability_for_keyword(
+        keyword: Keyword,
+    ) -> Option<(LetKind, Mutability)> {
         match keyword {
             Keyword::Let => Some((LetKind::Let, Mutability::Mutable)),
             Keyword::Const | Keyword::Readonly => Some((LetKind::Const, Mutability::Immutable)),
@@ -155,7 +157,7 @@ impl Parser {
         kind: LetKind,
         mutability: Mutability,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        let first_declarator = self.eat_declarator(false, true)?;
+        let first_declarator = self.eat_declarator(false, true, None)?;
 
         // let else
         if self.is_keyword(Keyword::Else) {
@@ -208,7 +210,7 @@ impl Parser {
         loop {
             if self.peek_is(TokenType::Comma) || self.next_token_type() == TokenType::Comma {
                 self.bump(); // eat comma
-                let declarator_id = self.eat_declarator(false, false)?;
+                let declarator_id = self.eat_declarator(false, false, None)?;
                 declarators.push(declarator_id);
                 continue;
             }
@@ -302,6 +304,7 @@ impl Parser {
         &mut self,
         require_value: bool,
         allow_match_pattern: bool,
+        value_minimum_precedence: Option<u16>,
     ) -> ParserResult<LocalNodeId<Declarator>> {
         let start = self.span_start();
         let pattern_flags = self
@@ -402,8 +405,11 @@ impl Parser {
                 let operator_span = self.get_span_from(&operator_start);
 
                 let value_flags = self.flags.not_in_position().not_in_sequence_expression();
-                let value =
-                    self.eat_expression_or_recover_missing(value_flags, NodeType::Declarator)?;
+                let value = if let Some(value_minimum_precedence) = value_minimum_precedence {
+                    self.eat_expression_at_precedence(value_flags, value_minimum_precedence)?
+                } else {
+                    self.eat_expression_or_recover_missing(value_flags, NodeType::Declarator)?
+                };
 
                 (Some(value), Some(operator_span))
             } else if require_value {
@@ -452,7 +458,6 @@ impl Parser {
     fn declarator_pattern_is_valid_binding(&self, pattern_id: LocalNodeId<Pattern>) -> bool {
         match self.tree.get(pattern_id) {
             Pattern::Expression { value } => self.declarator_expression_is_valid_binding(*value),
-            Pattern::TypeExpression { .. } => false,
             _ => true,
         }
     }

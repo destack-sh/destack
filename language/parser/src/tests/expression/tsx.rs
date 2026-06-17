@@ -2,8 +2,7 @@ use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_name, assert_node, assert_path, assert_string};
 use destack_dir::{
     Argument, BinaryOperator, Declaration, Expression, FunctionDeclaration, FunctionForm,
-    GenericParameter, IfCondition, IfForm, NodeType, Parameter, ScalarLiteral, TypeExpression,
-    TypeLiteral,
+    GenericParameter, IfForm, NodeType, Parameter, ScalarLiteral, TypeExpression, TypeLiteral,
 };
 use destack_source::LanguageType;
 
@@ -139,10 +138,9 @@ fn test_parse_ternary_typed_arrow_function_before_tree() {
     let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::If { form, condition, then_expression, else_expression } => {
         assert_eq!(*form, IfForm::Ternary);
-        assert_node!(condition, IfCondition::Expression { condition } => {
-            assert_node!(parser.tree, *condition, Expression::Binary { operator, .. } => {
+        let condition = condition.as_expression().expect("expected expression condition");
+        assert_node!(parser.tree, condition, Expression::Binary { operator, .. } => {
                 assert_eq!(*operator, BinaryOperator::GreaterThan);
-            });
         });
         assert_node!(parser.tree, *then_expression, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
@@ -176,10 +174,9 @@ fn test_parse_ternary_parenthesized_typed_arrow_function_before_tree() {
     let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::If { form, condition, then_expression, else_expression } => {
         assert_eq!(*form, IfForm::Ternary);
-        assert_node!(condition, IfCondition::Expression { condition } => {
-            assert_node!(parser.tree, *condition, Expression::Binary { operator, .. } => {
+        let condition = condition.as_expression().expect("expected expression condition");
+        assert_node!(parser.tree, condition, Expression::Binary { operator, .. } => {
                 assert_eq!(*operator, BinaryOperator::GreaterThan);
-            });
         });
         assert_node!(parser.tree, *then_expression, Expression::Parenthesized { expression } => {
             assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {

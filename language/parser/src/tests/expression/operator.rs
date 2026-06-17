@@ -2,7 +2,7 @@ use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_name, assert_node, assert_string};
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, AssignPatternField, BinaryOperator, Expression,
-    IfCondition, IfForm, LocalNodeId, ScalarLiteral, TypeExpression, TypeLiteral,
+    IfForm, LocalNodeId, ScalarLiteral, TypeExpression, TypeLiteral,
 };
 use destack_source::LanguageType;
 
@@ -1031,11 +1031,12 @@ fn test_parse_precedence_assignment_rhs_conditional() {
                 *right,
                 Expression::If {
                     form: IfForm::Ternary,
-                    condition: IfCondition::Expression { condition },
+                    condition,
                     then_expression,
                     else_expression,
                 } => {
-                    assert_expression_path!(parser, parser.tree.get(*condition), "commit.files");
+                    let condition = condition.as_expression().expect("expected expression condition");
+                    assert_expression_path!(parser, parser.tree.get(condition), "commit.files");
                     assert_node!(parser.tree, *then_expression, Expression::Call { .. });
                     let else_expression = else_expression.expect("expected ternary else branch");
                     assert_node!(parser.tree, else_expression, Expression::ArrayExpression { elements } => {

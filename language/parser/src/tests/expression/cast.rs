@@ -2,8 +2,8 @@ use crate::tests::TestParser;
 use crate::{assert_comment, assert_expression_path, assert_node, assert_path, assert_string};
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, CommentKind, Declaration,
-    Expression, FunctionDeclaration, FunctionForm, GenericArgument, IfCondition, IfForm, NodeType,
-    Parameter, PostfixPosition, ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral,
+    Expression, FunctionDeclaration, FunctionForm, GenericArgument, IfForm, NodeType, Parameter,
+    PostfixPosition, ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral,
 };
 use destack_source::LanguageType;
 
@@ -411,10 +411,7 @@ fn test_parse_typed_arrow_with_as_parameter_in_ternary_condition() {
 
                     // i < 0 || i > as.length ? _.none : _.some(...)
                     assert_node!(parser.tree, body.expect("expected body"), Expression::If { condition, then_expression, else_expression, .. } => {
-                        let condition_id = match condition {
-                            IfCondition::Expression { condition } => *condition,
-                            IfCondition::Let { .. } => panic!("expected expression condition"),
-                        };
+                        let condition_id = condition.as_expression().expect("expected expression condition");
                         assert_node!(parser.tree, condition_id, Expression::Binary { left, operator, right } => {
                             assert_eq!(*operator, BinaryOperator::Or);
                             assert_node!(parser.tree, *left, Expression::Binary { left, operator, right } => {
@@ -795,8 +792,8 @@ fn test_parse_cast_followed_by_ternary_expression() {
     // perFileCache === (resolvedModuleNames as unknown) ? resolved : fallback
     assert_node!(parser.tree, expr_id, Expression::If { form, condition, then_expression, else_expression } => {
         assert_eq!(*form, IfForm::Ternary);
-        assert_node!(condition, IfCondition::Expression { condition } => {
-            assert_node!(parser.tree, *condition, Expression::Binary { left, operator, right, .. } => {
+        let condition = condition.as_expression().expect("expected expression condition");
+        assert_node!(parser.tree, condition, Expression::Binary { left, operator, right, .. } => {
                 assert_eq!(*operator, BinaryOperator::EqualStrict);
                 assert_expression_path!(parser, parser.tree.get(*left), "perFileCache");
                 assert_node!(parser.tree, *right, Expression::As { expression, target_type } => {
@@ -805,7 +802,6 @@ fn test_parse_cast_followed_by_ternary_expression() {
                         assert_eq!(*value, TypeLiteral::Unknown);
                     });
                 });
-            });
         });
         assert_expression_path!(parser, parser.tree.get(*then_expression), "resolved");
         assert_expression_path!(parser, parser.tree.get(else_expression.expect("expected else expression")), "fallback");
@@ -824,11 +820,10 @@ fn test_parse_satisfies_followed_by_ternary_expression() {
 
     assert_node!(parser.tree, expr_id, Expression::If { form, condition, then_expression, else_expression } => {
         assert_eq!(*form, IfForm::Ternary);
-        assert_node!(condition, IfCondition::Expression { condition } => {
-            assert_node!(parser.tree, *condition, Expression::Satisfies { expression, target_type } => {
+        let condition = condition.as_expression().expect("expected expression condition");
+        assert_node!(parser.tree, condition, Expression::Satisfies { expression, target_type } => {
                 assert_expression_path!(parser, parser.tree.get(*expression), "value");
                 assert_expression_path!(parser, parser.tree.get(*target_type), "SomeType");
-            });
         });
         assert_expression_path!(parser, parser.tree.get(*then_expression), "yes");
         assert_expression_path!(parser, parser.tree.get(else_expression.expect("expected else expression")), "no");

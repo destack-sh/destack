@@ -1,6 +1,9 @@
 use crate::parse::flags::ParserFlags;
 use crate::{Parser, ParserResult, ParserSpanStart};
-use destack_dir::{Expression, IfCondition, IfForm, Keyword, LocalNodeId, NodeType, TokenType};
+use destack_dir::{
+    Condition, ConditionOperand, Expression, IfForm, Keyword, LocalNodeId, NodeType,
+    OperatorPrecedence, TokenType,
+};
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 /// The parsed head of one if expression.
@@ -8,7 +11,7 @@ pub(crate) struct IfHead {
     /// The source start for the if expression.
     pub(crate) start: ParserSpanStart,
     /// The parsed if condition.
-    pub(crate) condition: IfCondition,
+    pub(crate) condition: Condition,
 }
 
 impl Parser {
@@ -101,7 +104,7 @@ impl Parser {
         self.eat_token(TokenType::OpenParenthesis)?;
 
         // condition
-        let condition: IfCondition = self.with_flags(self.if_condition_flags(), |parser| {
+        let condition: Condition = self.with_flags(self.if_condition_flags(), |parser| {
             parser.eat_if_condition()
         })?;
 
@@ -118,20 +121,65 @@ impl Parser {
     }
 
     /// Eat one if condition.
-    fn eat_if_condition(&mut self) -> ParserResult<IfCondition> {
-        if matches!(self.peek_any_keyword().ok(), Some(Keyword::Let)) {
-            let (kind, mutability) = self.eat_let_kind()?;
-            let declarator = self.eat_declarator(true, true)?;
+    fn eat_if_condition(&mut self) -> ParserResult<Condition> {
+        let checkpoint = self.checkpoint();
+        let tree_mark = self.tree.next_id();
+        let first = self.eat_if_condition_operand()?;
+        let mut operands = Vec::new();
 
-            Ok(IfCondition::Let {
+        // collect top-level logical-and operands
+        while self.peek_is(TokenType::LogicalAnd) {
+            self.bump();
+
+            if operands.is_empty() {
+                operands.push(first.clone());
+            }
+
+            let operand = self.eat_if_condition_operand()?;
+            operands.push(operand);
+        }
+
+        // return a binding condition chain
+        if !operands.is_empty() {
+            let condition = Condition { operands };
+            if condition.has_binding() {
+                return Ok(condition);
+            }
+        } else if matches!(first, ConditionOperand::Binding { .. }) {
+            return Ok(Condition {
+                operands: vec![first],
+            });
+        }
+
+        // otherwise parse the whole condition as a regular expression
+        self.restore(checkpoint, tree_mark);
+        let condition = self.eat_expression(self.flags)?;
+
+        Ok(Condition::expression(condition))
+    }
+
+    /// Eat one operand in an if condition chain.
+    fn eat_if_condition_operand(&mut self) -> ParserResult<ConditionOperand> {
+        let keyword = self.peek_any_keyword().ok();
+        let is_binding = keyword
+            .and_then(Self::let_kind_and_mutability_for_keyword)
+            .is_some();
+
+        if is_binding {
+            let (kind, mutability) = self.eat_let_kind()?;
+            let minimum_precedence = OperatorPrecedence::LogicalAnd as u16 + 1;
+            let declarator = self.eat_declarator(true, true, Some(minimum_precedence))?;
+
+            Ok(ConditionOperand::Binding {
                 kind,
                 mutability,
                 declarator,
             })
         } else {
-            let condition = self.eat_expression(self.flags)?;
+            let minimum_precedence = OperatorPrecedence::LogicalAnd as u16 + 1;
+            let condition = self.eat_expression_at_precedence(self.flags, minimum_precedence)?;
 
-            Ok(IfCondition::Expression { condition })
+            Ok(ConditionOperand::Expression { condition })
         }
     }
 
