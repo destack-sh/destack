@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
-use destack_repository::FloatMathPolicy;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
@@ -52,14 +51,14 @@ impl FunctionPass for Reassociate {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
-        ctx: &PipelineContext<'_>,
+        _ctx: &PipelineContext<'_>,
         analyses: &mir::FunctionAnalyses,
     ) -> Mutation {
         // collect constant propagation state
         let constants = { analyses.get::<ConstantPropagation>(function, tree).clone() };
 
         // run reassociation
-        let changed = run_reassociate(function, tree, &constants, ctx.options.float_math);
+        let changed = run_reassociate(function, tree, &constants);
 
         // report what this pass changed
         if changed {
@@ -83,7 +82,6 @@ fn run_reassociate(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     constants: &ConstantPropagation,
-    float_math: FloatMathPolicy,
 ) -> bool {
     // build lookup for value definitions
     let mut value_to_instruction = build_value_instruction_refs(function, tree);
@@ -134,7 +132,6 @@ fn run_reassociate(
                     instruction_index,
                     &block_constants,
                     &value_to_instruction,
-                    float_math,
                 );
 
                 // apply reassociation when available
@@ -275,10 +272,9 @@ fn reassociate_binary(
     instruction_index: usize,
     constants: &ConstantMap,
     value_to_instruction: &HashMap<mir::Value, InstructionRef>,
-    float_math: FloatMathPolicy,
 ) -> Option<ReassociatePlan> {
     // only reassociate associative and commutative operators
-    if !binary_operator_is_associative(operator, float_math) {
+    if !binary_operator_is_associative(operator) {
         return None;
     }
 
@@ -539,42 +535,22 @@ fn resolve_constant_value(
 }
 
 /// Check if a binary operator is associative and commutative.
-fn binary_operator_is_associative(
-    operator: mir::BinaryOperator,
-    float_math: FloatMathPolicy,
-) -> bool {
+fn binary_operator_is_associative(operator: mir::BinaryOperator) -> bool {
     // restrict to integer associative and commutative operators
-    if matches!(
+    matches!(
         operator,
         mir::BinaryOperator::Add
             | mir::BinaryOperator::Multiply
             | mir::BinaryOperator::And
             | mir::BinaryOperator::Or
             | mir::BinaryOperator::Xor
-    ) {
-        return true;
-    }
-
-    // enable float reassociation with explicit policy
-    if matches!(
-        operator,
-        mir::BinaryOperator::FloatAdd | mir::BinaryOperator::FloatMultiply
-    ) {
-        return matches!(
-            float_math,
-            FloatMathPolicy::Reassociate | FloatMathPolicy::Fast
-        );
-    }
-
-    false
+    )
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::optimize::PipelineOptions;
     use crate::optimize::common::tests::TestProgram;
     use crate::optimize::passes::Reassociate;
-    use destack_repository::FloatMathPolicy;
 
     /// Constant reassociation combines adjacent constants.
     #[test]
@@ -623,42 +599,6 @@ entry(v0: float64):
         let mut test = TestProgram::new(input);
         test.run_pass(&Reassociate);
         test.assert_output(input);
-    }
-
-    /// Float reassociation runs with reassociate policy.
-    #[test]
-    fn test_reassociate_float_policy() {
-        let input = r#"
-function test(v0: float64): float64 {
-entry(v0: float64):
-    v1: float64 = 1
-    v2: float64 = 2
-    v3: float64 = float.add v0, v1
-    v4: float64 = float.add v3, v2
-    return v4
-}
-"#;
-        let expected = r#"
-function test(v0: float64): float64 {
-entry(v0: float64):
-    v1: float64 = 1
-    v2: float64 = 2
-    v3: float64 = float.add v0, v1
-    v5: float64 = 3
-    v4: float64 = float.add v0, v5
-    return v4
-}
-"#;
-
-        let mut test = TestProgram::new(input);
-        test.run_pass_with_options(
-            &Reassociate,
-            PipelineOptions {
-                float_math: FloatMathPolicy::Reassociate,
-                ..PipelineOptions::default()
-            },
-        );
-        test.assert_output(expected);
     }
 
     /// Reassociation does not fire without adjacent constants.
