@@ -30,7 +30,7 @@ function label({ name, age }: { name: string; age: int32 }): string {
 /// @type.symbol symbol=label type=({ name: string; age: int32 }) => string
 /// @type.symbol symbol=name source=name type=string
 /// @type.symbol symbol=age source=age type=int32
-/// @resolution.pattern source="{ name, age }" kind=object fields=[name, age]
+/// @resolution.pattern source="{ name, age }" kind=object fields={ name, age }
 
     name satisfies string;
     /// @type.node source="name satisfies string" type=string
@@ -74,7 +74,7 @@ function first([head]: int32[]): int32 {
 function first([head]: int32[]): int32 {
 /// @type.symbol symbol=first type=(Array<int32>) => int32
 /// @type.symbol symbol=head source=head type=int32
-/// @resolution.pattern source=[head] kind=sequence sequence=array fields=[0: head]
+/// @resolution.pattern source=[head] kind=sequence sequence=array fields=[head]
 /// @resolution.pattern source=head kind=binding target=head
 
     head

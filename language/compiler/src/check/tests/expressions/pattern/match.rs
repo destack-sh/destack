@@ -199,7 +199,7 @@ const result = match (point) {
     { x, y } if (x == x) => y
     /// @type.symbol symbol=x source=x type=int32
     /// @type.symbol symbol=y source=y type=int32
-    /// @resolution.pattern source="{ x, y }" kind=object fields=[x, y]
+    /// @resolution.pattern source="{ x, y }" kind=object fields={ x, y }
     /// @type.node source="x == x" type=boolean
     /// @type.node source=x type=int32
     /// @resolution.name source=x target=x
@@ -263,7 +263,7 @@ match (config) {
     { enabled, retries } => {
     /// @type.symbol symbol=enabled source=enabled type=boolean
     /// @type.symbol symbol=retries source=retries type=int32
-    /// @resolution.pattern source="{ enabled, retries }" kind=object fields=[enabled, retries]
+    /// @resolution.pattern source="{ enabled, retries }" kind=object fields={ enabled, retries }
 
         enabled satisfies boolean;
         /// @type.node source="enabled satisfies boolean" type=boolean
@@ -327,9 +327,9 @@ match (packet) {
     /// @type.symbol symbol=y source=y type=int32
     /// @type.symbol symbol=first source=first type=string
     /// @type.symbol symbol=second source=second type=string
-    /// @resolution.pattern source="{ point: { x, y }, labels: [first, second] }" kind=object fields=[point: pattern, labels: pattern]
-    /// @resolution.pattern source="{ x, y }" kind=object fields=[x, y]
-    /// @resolution.pattern source="[first, second]" kind=sequence sequence=fixed_array length=2 fields=[0: first, 1: second]
+    /// @resolution.pattern source="{ point: { x, y }, labels: [first, second] }" kind=object fields={ point: pattern, labels: pattern }
+    /// @resolution.pattern source="{ x, y }" kind=object fields={ x, y }
+    /// @resolution.pattern source="[first, second]" kind=sequence sequence=fixed_array length=2 fields=[first, second]
 
         x satisfies int32;
         /// @type.node source="x satisfies int32" type=int32
@@ -409,7 +409,7 @@ match (user) {
 
     User { name } => name satisfies string
     /// @type.symbol symbol=name source=name type=string
-    /// @resolution.pattern source="User { name }" kind=nominal_object target=User fields=[name]
+    /// @resolution.pattern source="User { name }" kind=nominal_object target=User fields={ name }
     /// @resolution.name source=User target=User
     /// @type.node source="name satisfies string" type=string
     /// @type.node source=name type=string
@@ -460,7 +460,7 @@ match (values) {
     [head, ...tail] => {
     /// @type.symbol symbol=head source=head type=int32
     /// @type.symbol symbol=tail source=tail type=Array<int32>
-    /// @resolution.pattern source="[head, ...tail]" kind=sequence sequence=array fields=[0: head] rest=...tail
+    /// @resolution.pattern source="[head, ...tail]" kind=sequence sequence=array fields=[head] rest=...tail
 
         head satisfies int32;
         /// @type.node source="head satisfies int32" type=int32
@@ -512,8 +512,8 @@ match (value) {
     { left: item } | { right: item } => item satisfies int32
     /// @type.symbol symbol=item source=item type=int32
     /// @resolution.pattern source="{ left: item } | { right: item }" kind=union alternatives=[pattern, pattern]
-    /// @resolution.pattern source="{ left: item }" kind=object fields=[left: item]
-    /// @resolution.pattern source="{ right: item }" kind=object fields=[right: item]
+    /// @resolution.pattern source="{ left: item }" kind=object fields={ left: item }
+    /// @resolution.pattern source="{ right: item }" kind=object fields={ right: item }
     /// @type.node source="item satisfies int32" type=int32
     /// @type.node source=item type=int32
     /// @resolution.name source=item target=item

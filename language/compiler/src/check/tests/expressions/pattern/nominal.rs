@@ -115,7 +115,7 @@ match (point) {
     /// @type.symbol symbol=y source=y type=int32
     /// @type.node source=Point type=Point
     /// @resolution.name source=Point target=Point
-    /// @resolution.pattern source="Point { x, y }" kind=nominal_object target=Point fields=[x, y]
+    /// @resolution.pattern source="Point { x, y }" kind=nominal_object target=Point fields={ x, y }
     /// @type.node source="x + y" type=int32
     /// @type.node source=x type=int32
     /// @resolution.name source=x target=x
@@ -254,7 +254,7 @@ match (user) {
 
     User { displayName } => displayName
     /// @type.symbol symbol=displayName source=displayName type=<error>
-    /// @resolution.pattern source="User { displayName }" kind=nominal_object target=User fields=[displayName]
+    /// @resolution.pattern source="User { displayName }" kind=nominal_object target=User fields={ displayName }
     /// @resolution.name source=User target=User
     /// @type.node source=displayName type=<error>
     /// @resolution.name source=displayName target=displayName

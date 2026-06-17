@@ -33,7 +33,7 @@ if (let (count, label) = pair) {
 /// @type.node type=void | void
 /// @type.symbol symbol=count source=count type=int32
 /// @type.symbol symbol=label source=label type=string
-/// @resolution.pattern source="(count, label)" kind=tuple fields=[0: count, 1: label]
+/// @resolution.pattern source="(count, label)" kind=tuple fields=[count, label]
 /// @resolution.pattern source=count kind=binding target=count
 /// @resolution.pattern source=label kind=binding target=label
 /// @type.node source=pair type=(int32, string) | null
@@ -87,7 +87,7 @@ if (let { enabled, retries } = config) {
 /// @type.node type=void | void
 /// @type.symbol symbol=enabled source=enabled type=boolean
 /// @type.symbol symbol=retries source=retries type=int32
-/// @resolution.pattern source="{ enabled, retries }" kind=object fields=[enabled, retries]
+/// @resolution.pattern source="{ enabled, retries }" kind=object fields={ enabled, retries }
 /// @resolution.pattern source=enabled kind=binding target=enabled
 /// @resolution.pattern source=retries kind=binding target=retries
 /// @type.node source=config type={ enabled: boolean; retries: int32 } | null
@@ -145,7 +145,7 @@ if (ready && let (count, label) = pair && count > 0) {
 /// @resolution.name source=ready target=ready
 /// @type.symbol symbol=count source=count type=int32
 /// @type.symbol symbol=label source=label type=string
-/// @resolution.pattern source="(count, label)" kind=tuple fields=[0: count, 1: label]
+/// @resolution.pattern source="(count, label)" kind=tuple fields=[count, label]
 /// @resolution.pattern source=count kind=binding target=count
 /// @resolution.pattern source=label kind=binding target=label
 /// @type.node source=pair type=(int32, string) | null
@@ -312,7 +312,7 @@ if (ready && let { name } = user) {
 /// @type.node source=ready type=boolean
 /// @resolution.name source=ready target=ready
 /// @type.symbol symbol=name source=name type=string
-/// @resolution.pattern source="{ name }" kind=object fields=[name]
+/// @resolution.pattern source="{ name }" kind=object fields={ name }
 /// @resolution.pattern source=name kind=binding target=name
 /// @type.node source=user type={ name: string } | null
 /// @resolution.name source=user target=user
@@ -357,7 +357,7 @@ declare const user: { name: string } | null;
 if (let { name } = user && name.length > 0) {
 /// @type.node type=void | void
 /// @type.symbol symbol=name source=name type=string
-/// @resolution.pattern source="{ name }" kind=object fields=[name]
+/// @resolution.pattern source="{ name }" kind=object fields={ name }
 /// @resolution.pattern source=name kind=binding target=name
 /// @type.node source=user type={ name: string } | null
 /// @resolution.name source=user target=user
@@ -412,11 +412,11 @@ declare const point: { x: int32 } | null;
 if (let { name } = user && let { x } = point) {
 /// @type.node type=void | void
 /// @type.symbol symbol=name source=name type=string
-/// @resolution.pattern source="{ name }" kind=object fields=[name]
+/// @resolution.pattern source="{ name }" kind=object fields={ name }
 /// @type.node source=user type={ name: string } | null
 /// @resolution.name source=user target=user
 /// @type.symbol symbol=x source=x type=int32
-/// @resolution.pattern source="{ x }" kind=object fields=[x]
+/// @resolution.pattern source="{ x }" kind=object fields={ x }
 /// @type.node source=point type={ x: int32 } | null
 /// @resolution.name source=point target=point
 
@@ -469,7 +469,7 @@ declare const user: { name: string } | null;
 if (let { name } = user) {
 /// @type.node type=void | void
 /// @type.symbol symbol=name source=name type=string
-/// @resolution.pattern source="{ name }" kind=object fields=[name]
+/// @resolution.pattern source="{ name }" kind=object fields={ name }
 /// @type.node source=user type={ name: string } | null
 /// @resolution.name source=user target=user
 

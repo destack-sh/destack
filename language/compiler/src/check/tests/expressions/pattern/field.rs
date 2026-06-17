@@ -25,7 +25,7 @@ declare const point: { x: int32 };
 
 let { y } = point;
 /// @type.symbol symbol=y source=y type=<error>
-/// @resolution.pattern source="{ y }" kind=object fields=[y]
+/// @resolution.pattern source="{ y }" kind=object fields={ y }
 /// @resolution.pattern source=y kind=binding target=y
 /// @type.node source=point type={ x: int32 }
 /// @resolution.name source=point target=point
@@ -63,7 +63,7 @@ declare const point: { x: int32 };
 let { x, x: other } = point;
 /// @type.symbol symbol=x source=x type=int32
 /// @type.symbol symbol=other source=other type=int32
-/// @resolution.pattern source="{ x, x: other }" kind=object fields=[x, x: other]
+/// @resolution.pattern source="{ x, x: other }" kind=object fields={ x, x: other }
 /// @resolution.pattern source=x kind=binding target=x
 /// @resolution.pattern source=other kind=binding target=other
 /// @type.node source=point type={ x: int32 }
@@ -101,7 +101,7 @@ declare const pair: { left: int32; right: int32 };
 
 let { left: value, right: value } = pair;
 /// @type.symbol symbol=value source=value type=int32
-/// @resolution.pattern source="{ left: value, right: value }" kind=object fields=[left: value, right: value]
+/// @resolution.pattern source="{ left: value, right: value }" kind=object fields={ left: value, right: value }
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=pair type={ left: int32; right: int32 }

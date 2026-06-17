@@ -33,7 +33,7 @@ for (const { name, value } of items) {
 /// @type.node type=void
 /// @type.symbol symbol=name source=name type=string
 /// @type.symbol symbol=value source=value type=int32
-/// @resolution.pattern source="{ name, value }" kind=object fields=[name, value]
+/// @resolution.pattern source="{ name, value }" kind=object fields={ name, value }
 /// @type.node source=items type=Array<{ name: string; value: int32 }>
 /// @resolution.name source=items target=items
 
@@ -82,7 +82,7 @@ declare const item: { name: string };
 for (const { name } in item) {
 /// @type.node type=void
 /// @type.symbol symbol=name source=name type=<error>
-/// @resolution.pattern source="{ name }" kind=object fields=[name]
+/// @resolution.pattern source="{ name }" kind=object fields={ name }
 /// @type.node source=item type={ name: string }
 /// @resolution.name source=item target=item
 
