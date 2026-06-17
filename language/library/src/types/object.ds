@@ -1,4 +1,5 @@
 /// Type of valid object property keys.
+@languageItem("types.PropertyKey")
 export type PropertyKey = string | usize | symbol;
 
 /// Object type with keys `K` and values `V`.
@@ -8,17 +9,28 @@ export type Record<K: PropertyKey, V> = {
 };
 
 /// Make each field of `T` optional.
+@languageItem("types.Partial")
 export type Partial<T> = {
     [K in keyof T]?: T[K];
 };
 
 /// Make each field of `T` required.
+@languageItem("types.Required")
 export type Required<T> = {
     [K in keyof T]-?: T[K];
 };
 
 /// Make `T` deeply readonly.
+@languageItem("types.Readonly")
 export type Readonly<T> = readonly T;
+
+/// Recursively unwrap promise-like values.
+@languageItem("types.Awaited")
+export type Awaited<T> = T extends null | undefined
+    ? T
+    : T extends { then(onFulfilled: (value: infer U) => unknown): unknown }
+      ? Awaited<U>
+      : T;
 
 /// Make each field of `T` mutable.
 export type MutableFields<T> = {
@@ -26,18 +38,31 @@ export type MutableFields<T> = {
 };
 
 /// Keep fields `K` from `T`.
+@languageItem("types.Pick")
 export type Pick<T, K: keyof T> = {
     [P in K]: T[P];
 };
 
 /// Remove fields `K` from `T`.
+@languageItem("types.Omit")
 export type Omit<T, K: PropertyKey> = Pick<T, Exclude<keyof T, K>>;
 
 /// Keep union members of `T` assignable to `U`.
+@languageItem("types.Extract")
 export type Extract<T, U> = T extends U ? T : never;
 
 /// Remove union members of `T` assignable to `U`.
+@languageItem("types.Exclude")
 export type Exclude<T, U> = T extends U ? never : T;
 
+/// Block inference from this use of `T`.
+@languageItem("types.NoInfer")
+export type NoInfer<T> = intrinsic;
+
 /// Remove `null` and `undefined` from `T`.
+@languageItem("types.NonNullable")
 export type NonNullable<T> = Exclude<T, null | undefined>;
+
+/// Marker for contextual object `this` typing.
+@languageItem("types.ThisType")
+export interface ThisType<T> {}
