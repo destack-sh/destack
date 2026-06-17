@@ -51,7 +51,7 @@ pub enum CheckError {
     /// Parsed type form is not part of the language model.
     ///
     /// ```ds
-    /// let value: unsupported;
+    /// let value: object;
     /// ```
     #[diagnostic(code = "EC104", message = "unsupported type: {name}")]
     UnsupportedType {
@@ -111,6 +111,8 @@ pub enum CheckError {
     /// Type does not satisfy a required structural or generic constraint.
     ///
     /// ```ds
+    /// declare const value: {};
+    ///
     /// value satisfies { name: string };
     /// ```
     #[diagnostic(
@@ -148,6 +150,10 @@ pub enum CheckError {
     /// Type does not implement a required interface.
     ///
     /// ```ds
+    /// interface Serializable {
+    ///     serialize(): string;
+    /// }
+    ///
     /// class User implements Serializable {}
     /// ```
     #[diagnostic(
@@ -168,6 +174,8 @@ pub enum CheckError {
     /// Assignment target does not designate storage.
     ///
     /// ```ds
+    /// let value = 1;
+    ///
     /// (value + 1) = 2;
     /// ```
     #[diagnostic(
@@ -179,59 +187,6 @@ pub enum CheckError {
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
-    },
-
-    /// Assignment writes to an immutable binding.
-    ///
-    /// ```ds
-    /// const value = 1;
-    /// value = 2;
-    /// ```
-    #[diagnostic(
-        code = "EC212",
-        message = "cannot assign to immutable binding '{name}'"
-    )]
-    CannotAssignImmutableBinding {
-        /// Report the mutation.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-        /// The written binding name.
-        name: String,
-    },
-
-    /// Assignment writes to an imported binding.
-    ///
-    /// ```ds
-    /// import { value } from "./value.ds";
-    /// value = 2;
-    /// ```
-    #[diagnostic(code = "EC213", message = "cannot assign to imported binding '{name}'")]
-    CannotAssignImportedBinding {
-        /// Report the mutation.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-        /// The written binding name.
-        name: String,
-    },
-
-    /// Assignment writes to a readonly member.
-    ///
-    /// ```ds
-    /// value.readonly = 2;
-    /// ```
-    #[diagnostic(
-        code = "EC214",
-        message = "cannot assign to readonly member '{member}'"
-    )]
-    CannotAssignReadonlyMember {
-        /// Report the mutation.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-        /// The written member key.
-        member: String,
     },
 
     /// Fresh object literal contains a property that the target cannot accept.
@@ -257,7 +212,7 @@ pub enum CheckError {
     /// Type cannot be explicitly cast to the requested target type.
     ///
     /// ```ds
-    /// const value = user as int32;
+    /// const value = "text" as int32;
     /// ```
     #[diagnostic(
         code = "EC206",
@@ -303,6 +258,8 @@ pub enum CheckError {
     /// Argument type is not assignable to its parameter type.
     ///
     /// ```ds
+    /// declare function parse(input: string): int32;
+    ///
     /// parse(1);
     /// ```
     #[diagnostic(
@@ -358,12 +315,114 @@ pub enum CheckError {
         source: String,
     },
 
+    /// Assignment writes to an immutable binding.
+    ///
+    /// ```ds
+    /// const value = 1;
+    /// value = 2;
+    /// ```
+    #[diagnostic(
+        code = "EC212",
+        message = "cannot assign to immutable binding '{name}'"
+    )]
+    CannotAssignImmutableBinding {
+        /// Report the mutation.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The written binding name.
+        name: String,
+    },
+
+    /// Assignment writes to an imported binding.
+    ///
+    /// ```ds
+    /// import { value } from "./value.ds";
+    /// value = 2;
+    /// ```
+    #[diagnostic(code = "EC213", message = "cannot assign to imported binding '{name}'")]
+    CannotAssignImportedBinding {
+        /// Report the mutation.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The written binding name.
+        name: String,
+    },
+
+    /// Assignment writes to a readonly member.
+    ///
+    /// ```ds
+    /// declare const value: { readonly count: int32 };
+    ///
+    /// value.count = 2;
+    /// ```
+    #[diagnostic(
+        code = "EC214",
+        message = "cannot assign to readonly member '{member}'"
+    )]
+    CannotAssignReadonlyMember {
+        /// Report the mutation.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The written member key.
+        member: String,
+    },
+
+    /// Assigned object is missing a required property.
+    ///
+    /// ```ds
+    /// const value: { name: string } = {};
+    /// ```
+    #[diagnostic(
+        code = "EC215",
+        message = "missing required property '{key}' for type '{target}'"
+    )]
+    MissingRequiredProperty {
+        /// Report the object expression or source type.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The missing property key.
+        key: String,
+        /// The receiving target type.
+        target: String,
+    },
+
+    /// Writable index signature requires `IndexSet` support.
+    ///
+    /// ```ds
+    /// type Bag = { [key: string]: int32 };
+    /// declare function write(bag: Bag): void;
+    ///
+    /// write({ x: 1 });
+    /// ```
+    #[diagnostic(
+        code = "EC216",
+        message = "type '{source}' is missing IndexSet<{key}, {value}> for writable index signature"
+    )]
+    WritableIndexRequiresIndexSet {
+        /// Report the source type.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The assigned source type.
+        source: String,
+        /// The required index key type.
+        key: String,
+        /// The required index value type.
+        value: String,
+    },
+
     // -------------------------------------------------------------------------
     // 3xx: selection
     // -------------------------------------------------------------------------
     /// Receiver type does not contain a selected member.
     ///
     /// ```ds
+    /// declare const user: { name: string };
+    ///
     /// user.missing;
     /// ```
     #[diagnostic(
@@ -403,6 +462,8 @@ pub enum CheckError {
     /// No overload matches the supplied arguments.
     ///
     /// ```ds
+    /// declare function parse(input: string): int32;
+    ///
     /// parse(1, 2, 3);
     /// ```
     #[diagnostic(
@@ -449,7 +510,12 @@ pub enum CheckError {
     /// Selected member is not accessible from the current scope.
     ///
     /// ```ds
-    /// user.privateName;
+    /// class User {
+    ///     private value: int32 = 0;
+    /// }
+    ///
+    /// const user = new User();
+    /// user.value;
     /// ```
     #[diagnostic(code = "EC305", message = "member '{key}' is {visibility}")]
     InaccessibleMember {
@@ -466,7 +532,7 @@ pub enum CheckError {
     /// No operator overload matches the supplied operands.
     ///
     /// ```ds
-    /// user + settings;
+    /// 1 + true;
     /// ```
     #[diagnostic(
         code = "EC306",
@@ -486,6 +552,10 @@ pub enum CheckError {
     /// Strict equality operands do not have identity-compatible types.
     ///
     /// ```ds
+    /// class User {}
+    ///
+    /// declare const user: User;
+    ///
     /// user === 1;
     /// ```
     #[diagnostic(
@@ -556,6 +626,10 @@ pub enum CheckError {
     /// Member access reads through a possibly nullish value.
     ///
     /// ```ds
+    /// class User {
+    ///     name: string = "";
+    /// }
+    ///
     /// declare const user: User | undefined;
     /// user.name;
     /// ```
@@ -572,7 +646,9 @@ pub enum CheckError {
     /// Type cannot be constructed with `new`.
     ///
     /// ```ds
-    /// new Point(1, 2);
+    /// struct Point {}
+    ///
+    /// new Point();
     /// ```
     #[diagnostic(
         code = "EC313",
@@ -610,6 +686,43 @@ pub enum CheckError {
         supplied: usize,
     },
 
+    /// Value does not support indexed access.
+    ///
+    /// ```ds
+    /// type Value = int32["name"];
+    /// ```
+    #[diagnostic(code = "EC315", message = "type '{receiver}' cannot be indexed")]
+    InvalidIndexReceiver {
+        /// Report the index expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The indexed receiver type.
+        receiver: String,
+    },
+
+    /// Index key type is not valid for the receiver.
+    ///
+    /// ```ds
+    /// type User = { name: string };
+    ///
+    /// type Value = User["missing"];
+    /// ```
+    #[diagnostic(
+        code = "EC316",
+        message = "type '{receiver}' cannot be indexed by type '{key}'"
+    )]
+    InvalidIndexKey {
+        /// Report the index expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The indexed receiver type.
+        receiver: String,
+        /// The supplied index key type.
+        key: String,
+    },
+
     // -------------------------------------------------------------------------
     // 4xx: expressions
     // -------------------------------------------------------------------------
@@ -641,7 +754,7 @@ pub enum CheckError {
         code = "EC401",
         message = "static condition must evaluate to a boolean"
     )]
-    InvalidCondition {
+    InvalidStaticCondition {
         /// Report the static condition expression.
         anchor: DiagnosticAnchor,
         /// The module being checked.
@@ -664,6 +777,8 @@ pub enum CheckError {
     /// Pattern matching does not cover every possible value.
     ///
     /// ```ds
+    /// declare const value: true | false;
+    ///
     /// match (value) {
     ///     true => 1,
     /// }
@@ -700,7 +815,9 @@ pub enum CheckError {
     /// Refutable pattern appears outside a matching context.
     ///
     /// ```ds
-    /// let value! = maybe;
+    /// declare const state: "ready" | "error";
+    ///
+    /// let "ready" = state;
     /// ```
     #[diagnostic(
         code = "EC406",
@@ -718,6 +835,8 @@ pub enum CheckError {
     /// Await expression appears outside an async context.
     ///
     /// ```ds
+    /// declare const promise: Promise<int32>;
+    ///
     /// const value = await promise;
     /// ```
     #[diagnostic(code = "EC407", message = "await expression requires an async context")]
@@ -731,6 +850,8 @@ pub enum CheckError {
     /// Yield expression appears outside a generator.
     ///
     /// ```ds
+    /// declare const value: int32;
+    ///
     /// yield value;
     /// ```
     #[diagnostic(code = "EC408", message = "yield expression requires a generator")]
@@ -779,8 +900,10 @@ pub enum CheckError {
     /// Nominal pattern names a tag that is not a nominal type.
     ///
     /// ```ds
+    /// type Point = { x: int32; y: int32 };
+    ///
     /// match (value) {
-    ///     { x: int32 }(inner) => inner,
+    ///     Point { x, y } => x + y,
     /// }
     /// ```
     #[diagnostic(code = "EC411", message = "pattern tag '{ty}' is not a nominal type")]
@@ -809,7 +932,7 @@ pub enum CheckError {
     /// Return expression appears outside a function body.
     ///
     /// ```ds
-    /// return value;
+    /// return;
     /// ```
     #[diagnostic(code = "EC413", message = "return statement is outside a function")]
     ReturnOutsideFunction {
@@ -848,7 +971,9 @@ pub enum CheckError {
     /// Let-else fallback can complete normally.
     ///
     /// ```ds
-    /// let Some(value) = option else { 0 };
+    /// declare const status: "ready" | "error";
+    ///
+    /// let "ready" = status else { 0 };
     /// ```
     #[diagnostic(code = "EC416", message = "else branch of let-else must diverge")]
     LetElseBranchCanComplete {
@@ -874,8 +999,10 @@ pub enum CheckError {
     /// Expression pattern did not close to a literal.
     ///
     /// ```ds
+    /// declare const settings: { ready: string };
+    ///
     /// match (value) {
-    ///     other => 1,
+    ///     settings.ready => 1,
     /// }
     /// ```
     #[diagnostic(code = "EC418", message = "expression pattern must close to a literal")]
@@ -902,7 +1029,7 @@ pub enum CheckError {
     /// Try propagation appears outside a function body.
     ///
     /// ```ds
-    /// value?;
+    /// 1?;
     /// ```
     #[diagnostic(
         code = "EC420",
@@ -962,6 +1089,8 @@ pub enum CheckError {
     /// Pattern tries to destructure a value that has no tuple shape.
     ///
     /// ```ds
+    /// declare const value: { x: int32; y: int32 };
+    ///
     /// const (left, right) = value;
     /// ```
     #[diagnostic(
@@ -980,13 +1109,15 @@ pub enum CheckError {
     /// Pattern tries to destructure a value that has no sequence shape.
     ///
     /// ```ds
+    /// declare const value: { x: int32; y: int32 };
+    ///
     /// const [head, ...tail] = value;
     /// ```
     #[diagnostic(
         code = "EC425",
         message = "type '{source}' cannot be destructured as a sequence pattern"
     )]
-    PatternSourceNotSequence {
+    PatternSourceNotSequenceShaped {
         /// Report the sequence pattern.
         anchor: DiagnosticAnchor,
         /// The module being checked.
@@ -998,6 +1129,8 @@ pub enum CheckError {
     /// Pattern names a field that does not exist on the matched type.
     ///
     /// ```ds
+    /// declare const value: { name: string };
+    ///
     /// const { missing } = value;
     /// ```
     #[diagnostic(
@@ -1040,6 +1173,8 @@ pub enum CheckError {
     /// Pattern repeats the same field in one destructuring shape.
     ///
     /// ```ds
+    /// declare const user: { name: string };
+    ///
     /// const { name, name: alias } = user;
     /// ```
     #[diagnostic(
@@ -1058,6 +1193,8 @@ pub enum CheckError {
     /// Pattern binds the same name more than once.
     ///
     /// ```ds
+    /// declare const pair: { left: int32; right: int32 };
+    ///
     /// const { left: value, right: value } = pair;
     /// ```
     #[diagnostic(
@@ -1076,6 +1213,8 @@ pub enum CheckError {
     /// Rest pattern appears before another field.
     ///
     /// ```ds
+    /// declare const values: int32[];
+    ///
     /// const [head, ...middle, tail] = values;
     /// ```
     #[diagnostic(code = "EC430", message = "rest pattern must be last")]
@@ -1089,7 +1228,9 @@ pub enum CheckError {
     /// Pattern contains more than one rest field.
     ///
     /// ```ds
-    /// const [head, ...middle, ...tail] = values;
+    /// declare const values: int32[];
+    ///
+    /// const [head, ...tail, ...rest] = values;
     /// ```
     #[diagnostic(code = "EC431", message = "pattern can contain at most one rest field")]
     MultipleRestPatterns {
@@ -1099,16 +1240,19 @@ pub enum CheckError {
         module: ModuleId,
     },
 
-    /// Computed pattern key is not statically known.
+    /// Computed pattern key is not valid for the matched source.
     ///
     /// ```ds
-    /// const { [runtimeKey]: value } = object;
+    /// declare const key: string;
+    /// declare const point: { x: int32 };
+    ///
+    /// const { [key]: value } = point;
     /// ```
     #[diagnostic(
         code = "EC432",
-        message = "computed pattern key must be statically known"
+        message = "computed pattern key is not valid for the source type"
     )]
-    ComputedPatternKeyNotStatic {
+    ComputedPatternKeyNotValid {
         /// Report the computed key expression.
         anchor: DiagnosticAnchor,
         /// The module being checked.
@@ -1118,6 +1262,8 @@ pub enum CheckError {
     /// Range pattern applies to a non-scalar domain.
     ///
     /// ```ds
+    /// declare const value: { min: int32; max: int32 };
+    ///
     /// match (value) {
     ///     0..10 => true
     /// }
@@ -1135,6 +1281,9 @@ pub enum CheckError {
     /// Range pattern bound does not close to a valid scalar literal.
     ///
     /// ```ds
+    /// declare const start: int32;
+    /// declare const end: int32;
+    ///
     /// match (value) {
     ///     start..end => true
     /// }
@@ -1184,13 +1333,35 @@ pub enum CheckError {
         module: ModuleId,
     },
 
+    /// Refutable pattern appears as a catch binding.
+    ///
+    /// ```ds
+    /// try {
+    ///     read()?
+    /// } catch ("missing") {}
+    /// ```
+    #[diagnostic(
+        code = "EC437",
+        message = "catch pattern must be irrefutable: '{missing}' is not covered"
+    )]
+    RefutableCatchPattern {
+        /// Report the refutable catch pattern.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// One uncovered value or type.
+        missing: String,
+    },
+
     // -------------------------------------------------------------------------
     // 5xx: representation
     // -------------------------------------------------------------------------
     /// Type is not concrete and therefore has no layout.
     ///
     /// ```ds
-    /// sizeOf<T>();
+    /// function size<T>(): usize {
+    ///     return comptime sizeOf<T>();
+    /// }
     /// ```
     #[diagnostic(code = "EC500", message = "type '{ty}' has no concrete layout")]
     LayoutNotConcrete {
@@ -1216,6 +1387,50 @@ pub enum CheckError {
         module: ModuleId,
         /// Describe why the representation is invalid.
         message: String,
+    },
+
+    /// Interval type has no finite bounds.
+    ///
+    /// ```ds
+    /// type Values = 1..;
+    /// ```
+    #[diagnostic(code = "EC502", message = "interval type must be bounded")]
+    UnboundedIntervalType {
+        /// Report the interval type.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Interval type uses a non-discrete scalar domain.
+    ///
+    /// ```ds
+    /// type Values = 0.0..1.0;
+    /// ```
+    #[diagnostic(
+        code = "EC503",
+        message = "interval type bounds must be integer, bigint, or char literals"
+    )]
+    InvalidIntervalDomain {
+        /// Report the interval type.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Dynamic erasure requires a dynamic-safe constraint.
+    ///
+    /// ```ds
+    /// const value: Dynamic<<T>(T) => T>;
+    /// ```
+    #[diagnostic(code = "EC504", message = "type '{ty}' is not dynamic-safe")]
+    DynamicSafetyNotSatisfied {
+        /// Report the erased type.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The type that failed dynamic-safety checking.
+        ty: String,
     },
 
     // -------------------------------------------------------------------------
@@ -1244,6 +1459,10 @@ pub enum CheckError {
     /// Concrete type does not implement an abstract member.
     ///
     /// ```ds
+    /// abstract class Entity {
+    ///     abstract id(): string;
+    /// }
+    ///
     /// class User extends Entity {}
     /// ```
     #[diagnostic(
@@ -1262,6 +1481,8 @@ pub enum CheckError {
     /// Abstract type cannot be constructed.
     ///
     /// ```ds
+    /// abstract class AbstractUser {}
+    ///
     /// new AbstractUser();
     /// ```
     #[diagnostic(
@@ -1295,6 +1516,9 @@ pub enum CheckError {
     /// Two implementations claim the same interface for the same type.
     ///
     /// ```ds
+    /// newtype interface Show {}
+    /// class User {}
+    ///
     /// extension of User implements Show {}
     /// extension of User implements Show {}
     /// ```
@@ -1317,6 +1541,9 @@ pub enum CheckError {
     /// the interface's package.
     ///
     /// ```ds
+    /// newtype interface Equal {}
+    /// newtype interface PartialEqual {}
+    ///
     /// extension<T: Equal> of T implements PartialEqual {}
     /// ```
     #[diagnostic(
@@ -1335,6 +1562,10 @@ pub enum CheckError {
     /// Member shadows an inherited member without the override modifier.
     ///
     /// ```ds
+    /// class User {
+    ///     show(): string {}
+    /// }
+    ///
     /// class Admin extends User {
     ///     show(): string {}
     /// }
@@ -1355,6 +1586,10 @@ pub enum CheckError {
     /// Override targets an inherited member that is not overridable.
     ///
     /// ```ds
+    /// class User {
+    ///     show(): string {}
+    /// }
+    ///
     /// class Admin extends User {
     ///     override show(): string {}
     /// }
@@ -1375,6 +1610,8 @@ pub enum CheckError {
     /// Class extends a final base class.
     ///
     /// ```ds
+    /// final class FinalUser {}
+    ///
     /// class Admin extends FinalUser {}
     /// ```
     #[diagnostic(code = "EC608", message = "final class '{ty}' cannot be extended")]
@@ -1410,6 +1647,10 @@ pub enum CheckError {
     /// Override declaration is not assignable to the inherited member.
     ///
     /// ```ds
+    /// class User {
+    ///     virtual show(): string {}
+    /// }
+    ///
     /// class Admin extends User {
     ///     override show(): int32 {}
     /// }
@@ -1446,13 +1687,33 @@ pub enum CheckError {
         name: String,
     },
 
+    /// Class field is not definitely initialized.
+    ///
+    /// ```ds
+    /// class User {
+    ///     name: string;
+    /// }
+    /// ```
+    #[diagnostic(
+        code = "EC613",
+        message = "field '{field}' is not initialized on every constructor path"
+    )]
+    FieldNotDefinitelyInitialized {
+        /// Report the field declaration.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The uninitialized field name.
+        field: String,
+    },
+
     /// Ambient signature elides a result lifetime.
     ///
     /// ```ds
     /// declare function only(value: &Node): &Node;
     /// ```
     #[diagnostic(
-        code = "EC612",
+        code = "EC614",
         message = "ambient signatures must spell result lifetimes explicitly"
     )]
     AmbientLifetimeElided {

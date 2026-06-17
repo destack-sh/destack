@@ -9,8 +9,10 @@ pub enum CheckWarning {
     /// Code follows an expression that always transfers control.
     ///
     /// ```ds
-    /// return value;
-    /// process();
+    /// function run(): void {
+    ///     return;
+    ///     process();
+    /// }
     /// ```
     #[diagnostic(code = "WC100", message = "unreachable code")]
     UnreachableCode {
