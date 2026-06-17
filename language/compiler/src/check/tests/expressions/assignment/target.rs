@@ -43,8 +43,8 @@ state.count = 1;
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-const state: { readonly count: int32 } = { count: 0 };
-state.count = 1;
+const state: { readonly count: int32 } = { count: 0 as int32 };
+state.count = 1 as int32;
 
 === checked ===
 const state: { readonly count: int32 } = { count: 0 };
@@ -63,7 +63,7 @@ state.count = 1;
 /// @check.stats.solve variables=1 types=8 constraints=3 obligations=1 solutions=1 bounds=1 decisions=2
 "#,
         r#"
-/// @diagnostic.error code=EC204 message="cannot assign to '{ count: int32 }.count': member 'count' is readonly"
+/// @diagnostic.error code=EC214 message="cannot assign to readonly member 'count'"
 /// @diagnostic.label line=3 column=1 source="state.count = 1;"
 "#,
     );
