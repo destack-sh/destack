@@ -48,20 +48,17 @@ impl LintRule for NoDuplicateElseIf {
             };
 
             // keep only expression-style conditions
-            let dir::IfCondition::Expression {
-                condition: condition_id,
-            } = condition
-            else {
+            let Some(condition_id) = condition.as_expression() else {
                 continue;
             };
 
             // skip conditions that are not duplicate or already covered
-            if !condition_is_duplicate_or_covered(ctx, node_id, *condition_id) {
+            if !condition_is_duplicate_or_covered(ctx, node_id, condition_id) {
                 continue;
             }
 
             // resolve lint severity for this test expression
-            let severity = ctx.get_effective_severity(meta, *condition_id);
+            let severity = ctx.get_effective_severity(meta, condition_id);
             if !severity.is_enabled() {
                 continue;
             }
@@ -73,13 +70,13 @@ impl LintRule for NoDuplicateElseIf {
                 NO_DUPLICATE_ELSE_IF.category,
                 severity,
                 "this branch can never execute, condition is duplicate or already covered",
-                ctx.dir.get_span(*condition_id),
+                ctx.dir.get_span(condition_id),
             )
             .label("this condition is already handled by earlier branch conditions");
 
             // attach one focused fix only for exact duplicate else-if branches
             if ctx.compute_fixes
-                && has_exact_duplicate_in_ancestor_chain(ctx, node_id, *condition_id)
+                && has_exact_duplicate_in_ancestor_chain(ctx, node_id, condition_id)
                 && let Some(fix) = no_duplicate_else_if_fix(ctx, node_id)
             {
                 diagnostic = diagnostic.fix(fix);
@@ -119,8 +116,8 @@ fn ancestor_else_if_conditions(
         }
 
         // keep one expression condition from this parent
-        if let dir::IfCondition::Expression { condition } = condition {
-            parent_conditions.push(*condition);
+        if let Some(condition) = condition.as_expression() {
+            parent_conditions.push(condition);
         }
 
         // continue with next parent in the chain

@@ -107,10 +107,8 @@ fn no_constant_condition_fix(
         ..
     } = expression
     {
-        let dir::IfCondition::Expression { condition } = condition else {
-            return None;
-        };
-        let condition_is_true = ctx.const_bool(*condition)?;
+        let condition = condition.as_expression()?;
+        let condition_is_true = ctx.const_bool(condition)?;
 
         // keep the selected branch text
         if condition_is_true {

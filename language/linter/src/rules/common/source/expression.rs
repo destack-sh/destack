@@ -264,10 +264,7 @@ pub fn control_flow_condition_expression(
     expression: &dir::Expression,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     match expression {
-        dir::Expression::If { condition, .. } => match condition {
-            dir::IfCondition::Expression { condition } => Some(*condition),
-            dir::IfCondition::Let { .. } => None,
-        },
+        dir::Expression::If { condition, .. } => condition.as_expression(),
         dir::Expression::While { condition, .. } => Some(*condition),
         dir::Expression::For {
             condition: Some(condition),

@@ -287,11 +287,10 @@ impl NodeVisitor for MisusedPromiseVisitor<'_, '_> {
     ) {
         // check Promise misuse in conditionals and callback positions
         match expression {
-            dir::Expression::If {
-                condition: dir::IfCondition::Expression { condition },
-                ..
-            } => {
-                self.check_conditional_expression(id, *condition);
+            dir::Expression::If { condition, .. } => {
+                if let Some(condition) = condition.as_expression() {
+                    self.check_conditional_expression(id, condition);
+                }
             }
             dir::Expression::For {
                 condition: Some(condition),

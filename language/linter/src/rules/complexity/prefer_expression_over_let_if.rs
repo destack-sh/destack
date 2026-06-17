@@ -141,7 +141,7 @@ impl LintRule for PreferExpressionOverLetIf {
                 else {
                     continue;
                 };
-                let dir::IfCondition::Expression { condition } = condition else {
+                let Some(condition) = condition.as_expression() else {
                     continue;
                 };
 
@@ -172,7 +172,7 @@ impl LintRule for PreferExpressionOverLetIf {
                         ctx,
                         let_expression_id,
                         if_expression_id,
-                        *condition,
+                        condition,
                         *then_expression,
                         *else_expr,
                         var_name,

@@ -69,9 +69,8 @@ fn pattern_assignment_value_expression_id(
         | dir::Pattern::Binding { pattern: None, .. }
         | dir::Pattern::Expression { .. }
         | dir::Pattern::Range { .. }
-        | dir::Pattern::TypeExpression { .. }
         | dir::Pattern::Tuple { .. }
-        | dir::Pattern::Newtype { .. }
+        | dir::Pattern::NominalTuple { .. }
         | dir::Pattern::Sequence { .. }
         | dir::Pattern::Object { .. }
         | dir::Pattern::NominalObject { .. }

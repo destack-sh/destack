@@ -258,13 +258,11 @@ impl NodeVisitor for PreferNullishCoalescingVisitor<'_, '_> {
             else_expression: Some(else_expression),
             ..
         } = expression
-            && let dir::IfCondition::Expression {
-                condition: condition_expression_id,
-            } = condition
+            && let Some(condition_expression_id) = condition.as_expression()
         {
             self.check_ternary(
                 id,
-                *condition_expression_id,
+                condition_expression_id,
                 *then_expression,
                 *else_expression,
             );
@@ -582,9 +580,7 @@ fn expression_is_condition(
         let parent = tree.get(parent_id.into_typed::<dir::Expression>());
         match parent {
             dir::Expression::If { condition, .. } => {
-                if let dir::IfCondition::Expression { condition } = condition {
-                    return *condition == expression_id;
-                }
+                return condition.as_expression() == Some(expression_id);
             }
             dir::Expression::For {
                 condition: Some(condition),

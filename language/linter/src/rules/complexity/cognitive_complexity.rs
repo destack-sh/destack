@@ -243,18 +243,18 @@ impl NodeVisitor for CognitiveComplexityVisitor {
             // every if adds structural and nesting complexity
             self.add_nesting_complexity();
 
-            // visit condition expression at current nesting
-            match condition {
-                dir::IfCondition::Expression {
-                    condition: condition_expression_id,
-                } => {
-                    let condition_expression = tree.get(*condition_expression_id);
-                    self.visit_expression(tree, *condition_expression_id, condition_expression);
-                }
-                dir::IfCondition::Let { declarator, .. } => {
-                    let declarator_id = *declarator;
-                    let declarator = tree.get(declarator_id);
-                    self.visit_declarator(tree, declarator_id, declarator);
+            // visit condition operands at current nesting
+            for operand in &condition.operands {
+                match operand {
+                    dir::ConditionOperand::Expression { condition } => {
+                        let condition_expression = tree.get(*condition);
+                        self.visit_expression(tree, *condition, condition_expression);
+                    }
+                    dir::ConditionOperand::Binding { declarator, .. } => {
+                        let declarator_id = *declarator;
+                        let declarator = tree.get(declarator_id);
+                        self.visit_declarator(tree, declarator_id, declarator);
+                    }
                 }
             }
 

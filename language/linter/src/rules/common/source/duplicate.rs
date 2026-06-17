@@ -350,21 +350,25 @@ fn hash_argument_shape(
 fn hash_if_condition_shape(
     ctx: &LintModuleContext<'_>,
     hasher: &mut StableHasher,
-    condition: &dir::IfCondition,
+    condition: &dir::Condition,
 ) {
-    std::mem::discriminant(condition).hash(hasher);
+    condition.operands.len().hash(hasher);
 
-    match condition {
-        dir::IfCondition::Expression { condition } => {
-            hash_expression_kind(ctx, hasher, *condition);
-        }
-        dir::IfCondition::Let {
-            kind,
-            mutability,
-            declarator: _,
-        } => {
-            hash_debug_into(hasher, kind);
-            hash_debug_into(hasher, mutability);
+    for operand in &condition.operands {
+        std::mem::discriminant(operand).hash(hasher);
+
+        match operand {
+            dir::ConditionOperand::Expression { condition } => {
+                hash_expression_kind(ctx, hasher, *condition);
+            }
+            dir::ConditionOperand::Binding {
+                kind,
+                mutability,
+                declarator: _,
+            } => {
+                hash_debug_into(hasher, kind);
+                hash_debug_into(hasher, mutability);
+            }
         }
     }
 }

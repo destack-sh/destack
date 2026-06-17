@@ -1,8 +1,8 @@
 use crate::LintMeta;
 use destack_core::StringId;
 use destack_dir::{
-    self as dir, AssignOperator, Block, Declarator, Expression, IfCondition, IfForm, LetKind,
-    LocalNodeId, Pattern, Tree,
+    self as dir, AssignOperator, Block, Declarator, Expression, IfForm, LetKind, LocalNodeId,
+    Pattern, Tree,
 };
 use destack_repository::LintSeverity;
 
@@ -226,16 +226,14 @@ fn if_assignment_pattern(
     };
 
     // keep explicit expression conditions
-    let IfCondition::Expression { condition } = condition else {
-        return None;
-    };
+    let condition = condition.as_expression()?;
 
     // keep one assignment in each branch
     let then_value_expression_id = branch_assigned_value(tree, *then_expression, variable_name)?;
     let else_value_expression_id = branch_assigned_value(tree, *else_expression, variable_name)?;
 
     Some((
-        *condition,
+        condition,
         then_value_expression_id,
         else_value_expression_id,
     ))

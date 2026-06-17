@@ -431,7 +431,7 @@ fn assignment_can_become_const_declaration(
 fn pattern_is_destructuring(tree: &dir::Tree, pattern_id: LocalNodeId<dir::Pattern>) -> bool {
     match tree.get(pattern_id) {
         dir::Pattern::Tuple { .. }
-        | dir::Pattern::Newtype { .. }
+        | dir::Pattern::NominalTuple { .. }
         | dir::Pattern::Sequence { .. }
         | dir::Pattern::Object { .. }
         | dir::Pattern::NominalObject { .. } => true,
@@ -446,7 +446,6 @@ fn pattern_is_destructuring(tree: &dir::Tree, pattern_id: LocalNodeId<dir::Patte
         | dir::Pattern::Binding { .. }
         | dir::Pattern::Expression { .. }
         | dir::Pattern::Range { .. }
-        | dir::Pattern::TypeExpression { .. }
         | dir::Pattern::Union { .. } => false,
     }
 }

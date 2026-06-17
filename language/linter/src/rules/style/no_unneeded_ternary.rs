@@ -47,9 +47,8 @@ impl LintRule for NoUnneededTernary {
                 continue;
             };
 
-            let condition_id = match condition {
-                dir::IfCondition::Expression { condition } => *condition,
-                dir::IfCondition::Let { .. } => continue,
+            let Some(condition_id) = condition.as_expression() else {
+                continue;
             };
             let then_expr = ctx.dir.get(*then_expression);
             let else_expr = ctx.dir.get(*else_expression);

@@ -44,7 +44,7 @@ impl LintRule for NoRedundantPattern {
                     | dir::Pattern::Sequence { .. }
                     | dir::Pattern::Tuple { .. }
                     | dir::Pattern::NominalObject { .. }
-                    | dir::Pattern::Newtype { .. }
+                    | dir::Pattern::NominalTuple { .. }
             );
 
             if !is_destructuring {
@@ -88,10 +88,8 @@ fn binds_anything(ctx: &LintModuleContext<'_>, pattern_id: dir::LocalNodeId<dir:
         // binding always binds something
         dir::Pattern::Binding { .. } => true,
 
-        // expression patterns don't bind (they match)
-        dir::Pattern::Expression { .. }
-        | dir::Pattern::Range { .. }
-        | dir::Pattern::TypeExpression { .. } => false,
+        // expression patterns don't bind
+        dir::Pattern::Expression { .. } | dir::Pattern::Range { .. } => false,
 
         // check nested patterns
         dir::Pattern::Object { fields }
@@ -100,9 +98,11 @@ fn binds_anything(ctx: &LintModuleContext<'_>, pattern_id: dir::LocalNodeId<dir:
             .iter()
             .any(|field_id| field_binds_anything(ctx, *field_id)),
 
-        dir::Pattern::NominalObject { fields, .. } | dir::Pattern::Newtype { fields, .. } => fields
-            .iter()
-            .any(|field_id| field_binds_anything(ctx, *field_id)),
+        dir::Pattern::NominalObject { fields, .. } | dir::Pattern::NominalTuple { fields, .. } => {
+            fields
+                .iter()
+                .any(|field_id| field_binds_anything(ctx, *field_id))
+        }
 
         // union patterns bind if any arm binds
         dir::Pattern::Union { patterns } => patterns.iter().any(|p| binds_anything(ctx, *p)),

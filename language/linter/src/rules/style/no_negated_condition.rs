@@ -51,9 +51,8 @@ impl LintRule for NoNegatedCondition {
             }
 
             // check if condition is negated
-            let condition_id = match condition {
-                dir::IfCondition::Expression { condition } => *condition,
-                dir::IfCondition::Let { .. } => continue,
+            let Some(condition_id) = condition.as_expression() else {
+                continue;
             };
             if !is_negated_condition(ctx, condition_id) {
                 continue;
