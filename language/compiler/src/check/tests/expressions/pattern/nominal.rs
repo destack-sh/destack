@@ -1,0 +1,187 @@
+use crate::tests::{DirRows, TestSession};
+
+#[test]
+fn test_newtype_pattern_unwraps_backing_value() {
+    let session = TestSession::single(
+        r#"
+newtype UserId = int64;
+
+declare const id: UserId;
+
+if (let UserId(value) = id) {
+    value satisfies int64;
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+newtype UserId = int64;
+
+declare const id: UserId;
+
+if (let UserId(value) = id) {
+    value satisfies int64;
+}
+
+=== checked ===
+newtype UserId = int64;
+/// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
+/// @definition.newtype symbol=UserId source="newtype UserId = int64" value=int64
+
+declare const id: UserId;
+/// @type.symbol symbol=id source=id type=UserId
+/// @resolution.name source=UserId target=UserId
+
+if (let UserId(value) = id) {
+/// @type.node type=void | void
+/// @type.symbol symbol=value source=value type=int64
+/// @type.node source=UserId type=UserId
+/// @resolution.name source=UserId target=UserId
+/// @resolution.pattern source=UserId(value) kind=newtype target=UserId value=pattern
+/// @resolution.pattern source=value kind=binding target=value
+/// @type.node source=id type=UserId
+/// @resolution.name source=id target=id
+
+    value satisfies int64;
+    /// @type.node source="value satisfies int64" type=int64
+    /// @type.node source=value type=int64
+    /// @resolution.name source=value target=value
+
+}
+"#,
+    );
+}
+
+#[test]
+fn test_nominal_object_pattern_binds_struct_fields() {
+    let session = TestSession::single(
+        r#"
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+declare const point: Point;
+
+match (point) {
+    Point { x, y } => x + y
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+declare const point: Point;
+
+match (point) {
+    Point { x, y } => x + y
+}
+
+=== checked ===
+struct Point {
+/// @type.symbol symbol=Point type=Point
+/// @definition.struct symbol=Point
+
+    x: int32;
+    /// @type.symbol symbol=Point.x source="x: int32" type=int32
+
+    y: int32;
+    /// @type.symbol symbol=Point.y source="y: int32" type=int32
+
+}
+
+declare const point: Point;
+/// @type.symbol symbol=point source=point type=Point
+/// @resolution.name source=Point target=Point
+
+match (point) {
+/// @type.node source=point type=Point
+/// @resolution.name source=point target=point
+
+    Point { x, y } => x + y
+    /// @type.symbol symbol=x source=x type=int32
+    /// @type.symbol symbol=y source=y type=int32
+    /// @type.node source=Point type=Point
+    /// @resolution.name source=Point target=Point
+    /// @resolution.pattern source="Point { x, y }" kind=nominal_object target=Point fields=[x, y]
+    /// @type.node source="x + y" type=int32
+    /// @type.node source=x type=int32
+    /// @resolution.name source=x target=x
+    /// @resolution.call source="x + y" parameters=(int32, int32) return=int32 kind=builtin builtin=binary.add
+    /// @type.node source=y type=int32
+    /// @resolution.name source=y target=y
+}
+"#,
+    );
+}
+
+#[test]
+fn test_nominal_object_pattern_rejects_structural_tag() {
+    let session = TestSession::single(
+        r#"
+type Point = { x: int32; y: int32 };
+
+declare const point: Point;
+
+match (point) {
+    Point { x, y } => x + y
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+type Point = { x: int32; y: int32 };
+
+declare const point: Point;
+
+match (point) {
+    Point { x, y } => x + y
+}
+
+=== checked ===
+type Point = { x: int32; y: int32 };
+/// @type.symbol symbol=Point source="type Point = { x: int32; y: int32 }" type={ x: int32; y: int32 }
+/// @definition.type symbol=Point source="type Point = { x: int32; y: int32 }" value={ x: int32; y: int32 }
+
+declare const point: Point;
+/// @type.symbol symbol=point source=point type={ x: int32; y: int32 }
+/// @resolution.name source=Point target=Point
+
+match (point) {
+/// @type.node source=point type={ x: int32; y: int32 }
+/// @resolution.name source=point target=point
+
+    Point { x, y } => x + y
+    /// @type.symbol symbol=x source=x type=<error>
+    /// @type.symbol symbol=y source=y type=<error>
+    /// @type.node source=Point type={ x: int32; y: int32 }
+    /// @resolution.name source=Point target=Point
+    /// @type.node source="x + y" type=<error>
+    /// @type.node source=x type=<error>
+    /// @resolution.name source=x target=x
+    /// @type.node source=y type=<error>
+    /// @resolution.name source=y target=y
+}
+"#,
+        r#"
+/// @diagnostic.error code=EC411 message="pattern tag '{ x: int32; y: int32 }' is not a nominal type"
+/// @diagnostic.label line=7 column=5 source="Point { x, y }"
+"#,
+    );
+}

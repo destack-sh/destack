@@ -1,0 +1,183 @@
+use crate::tests::{DirRows, TestSession};
+
+#[test]
+fn test_range_pattern_narrows_interval() {
+    let session = TestSession::single(
+        r#"
+function isByte(value: int32): boolean {
+    return match (value) {
+        0..=255 => {
+            value satisfies 0..=255;
+            true
+        }
+        _ => false
+    };
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+function isByte(value: int32): boolean {
+    return match (value) {
+        0..=255 => {
+            value satisfies 0..=255;
+            true
+        }
+        _ => false
+    };
+}
+
+=== checked ===
+function isByte(value: int32): boolean {
+/// @type.symbol symbol=isByte type=(value: int32) => boolean
+/// @type.symbol symbol=value source="value: int32" type=int32
+
+    return match (value) {
+    /// @type.node source=value type=int32
+    /// @resolution.name source=value target=value
+
+        0..=255 => {
+        /// @type.node source=0 type=0
+        /// @type.node source=255 type=255
+        /// @resolution.pattern source=0..=255 kind=range domain=int32 start=0 end=255 bound=inclusive
+
+            value satisfies 0..=255;
+            /// @type.node source="value satisfies 0..=255" type=0..=255
+            /// @type.node source=value type=0..=255
+            /// @resolution.name source=value target=value
+
+            true
+            /// @type.node source=true type=true
+
+        }
+        _ => false
+        /// @resolution.pattern source=_ kind=wildcard
+        /// @type.node source=false type=false
+    };
+
+}
+"#,
+    );
+}
+
+#[test]
+fn test_range_patterns_cover_integer_interval() {
+    let session = TestSession::single(
+        r#"
+type Tiny = 0..=2;
+
+declare const value: Tiny;
+
+const label = match (value) {
+    0..=1 => "low"
+    2 => "two"
+};
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+type Tiny = 0..=2;
+
+declare const value: Tiny;
+
+const label: "low" | "two" = match (value) {
+    0..=1 => "low"
+    2 => "two"
+};
+
+=== checked ===
+type Tiny = 0..=2;
+/// @type.symbol symbol=Tiny source="type Tiny = 0..=2" type=0..=2
+/// @definition.type symbol=Tiny source="type Tiny = 0..=2" value=0..=2
+
+declare const value: Tiny;
+/// @type.symbol symbol=value source=value type=0..=2
+/// @resolution.name source=Tiny target=Tiny
+
+const label = match (value) {
+/// @type.symbol symbol=label source=label type="low" | "two"
+/// @type.node source=value type=0..=2
+/// @resolution.name source=value target=value
+
+    0..=1 => "low"
+    /// @type.node source=0 type=0
+    /// @type.node source=1 type=1
+    /// @resolution.pattern source=0..=1 kind=range domain=0..=2 start=0 end=1 bound=inclusive
+    /// @type.node source="\"low\"" type="low"
+
+    2 => "two"
+    /// @resolution.pattern source=2 kind=literal value=2
+    /// @type.node source="\"two\"" type="two"
+
+};
+"#,
+    );
+}
+
+#[test]
+fn test_range_patterns_cover_character_interval() {
+    let session = TestSession::single(
+        r#"
+type LowerAscii = 'a'..='z';
+
+declare const value: LowerAscii;
+
+const isEarly = match (value) {
+    'a'..='m' => true
+    'n'..='z' => false
+};
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+type LowerAscii = 'a'..='z';
+
+declare const value: LowerAscii;
+
+const isEarly: boolean = match (value) {
+    'a'..='m' => true
+    'n'..='z' => false
+};
+
+=== checked ===
+type LowerAscii = 'a'..='z';
+/// @type.symbol symbol=LowerAscii source="type LowerAscii = 'a'..='z'" type='a'..='z'
+/// @definition.type symbol=LowerAscii source="type LowerAscii = 'a'..='z'" value='a'..='z'
+
+declare const value: LowerAscii;
+/// @type.symbol symbol=value source=value type='a'..='z'
+/// @resolution.name source=LowerAscii target=LowerAscii
+
+const isEarly = match (value) {
+/// @type.symbol symbol=isEarly source=isEarly type=boolean
+/// @type.node source=value type='a'..='z'
+/// @resolution.name source=value target=value
+
+    'a'..='m' => true
+    /// @type.node source='a' type='a'
+    /// @type.node source='m' type='m'
+    /// @resolution.pattern source="'a'..='m'" kind=range domain='a'..='z' start='a' end='m' bound=inclusive
+    /// @type.node source=true type=true
+
+    'n'..='z' => false
+    /// @type.node source='n' type='n'
+    /// @type.node source='z' type='z'
+    /// @resolution.pattern source="'n'..='z'" kind=range domain='a'..='z' start='n' end='z' bound=inclusive
+    /// @type.node source=false type=false
+
+};
+"#,
+    );
+}

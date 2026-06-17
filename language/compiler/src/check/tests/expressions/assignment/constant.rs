@@ -14,19 +14,19 @@ value = 2;
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-const value: int32 = 1 as int32;
-value = 2 as int32;
+const value: int32 = 1;
+value = 2;
 
 === checked ===
 const value: int32 = 1;
 /// @type.symbol symbol=value source=value type=int32
-/// @type.node source=1 type=1
+/// @type.node source=1 type=int32
 
 value = 2;
-/// @type.node source="value = 2" type=2
+/// @type.node source="value = 2" type=int32
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=value
-/// @type.node source=2 type=2
+/// @type.node source=2 type=int32
 
 /// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
@@ -51,19 +51,19 @@ value += 2;
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-const value: int32 = 1 as int32;
-value += 2 as int32;
+const value: int32 = 1;
+value += 2;
 
 === checked ===
 const value: int32 = 1;
 /// @type.symbol symbol=value source=value type=int32
-/// @type.node source=1 type=1
+/// @type.node source=1 type=int32
 
 value += 2;
 /// @type.node source="value += 2" type=int32
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=value
-/// @type.node source=2 type=2
+/// @type.node source=2 type=int32
 /// @resolution.call source="value += 2" parameters=() return=int32 kind=builtin builtin=binary.add
 
 /// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=1
@@ -89,22 +89,22 @@ state.count = 1;
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-const state: { count: int32 } = { count: 0 as int32 };
-state.count = 1 as int32;
+const state: { count: int32 } = { count: 0 };
+state.count = 1;
 
 === checked ===
 const state: { count: int32 } = { count: 0 };
 /// @type.symbol symbol=state source=state type={ count: int32 }
-/// @type.node source="{ count: 0 }" type=Managed<{ count: 0 }>
-/// @type.node source=0 type=0
+/// @type.node source="{ count: 0 }" type=Managed<{ count: int32 }>
+/// @type.node source=0 type=int32
 
 state.count = 1;
-/// @type.node source="state.count = 1" type=1
+/// @type.node source="state.count = 1" type=int32
 /// @type.node source=state type={ count: int32 }
 /// @type.node source=state.count type=int32
 /// @resolution.name source=state target=state
 /// @resolution.member source=state.count receiver={ count: int32 } kind=field key=count
-/// @type.node source=1 type=1
+/// @type.node source=1 type=int32
 
 /// @check.stats.solve variables=1 types=8 constraints=3 obligations=1 solutions=1 bounds=1 decisions=2
 "#,

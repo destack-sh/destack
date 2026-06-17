@@ -1,0 +1,16 @@
+mod assignment;
+mod binding;
+mod catch;
+mod computed;
+mod condition;
+mod default;
+mod diagnostic;
+mod r#let;
+mod r#loop;
+mod r#match;
+mod nominal;
+mod parameter;
+mod range;
+mod rest;
+mod shape;
+mod variant;
