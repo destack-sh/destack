@@ -53,6 +53,7 @@ Bindings are strict-mode `const` and `let` with definite assignment, and the leg
 | Feature | Example | Ruling |
 | --- | --- | --- |
 | **Var declarations** | `var x` | not supported, `var` scoping is unnecessary with `const` and `let` |
+| **Destructuring** | `const { name } = user` | supported in declarations, assignments, parameters, catch bindings, and loops |
 | **Shadowable `undefined`** | `let undefined = value` | not supported, `undefined` is a literal keyword just like `null` |
 | **Sequence expressions** | `(a, b, c)` | not supported, parenthesized comma lists are explicit tuples in `.ds` |
 | **Definite assignment assertions** | `let x!: T`, `field!: T` | rejected in `.ds`, locals and fields must be initialized before use |
@@ -69,6 +70,8 @@ The TypeScript primitives keep their meaning, but we support more scalar types.
 | **Integer and float widths** | `int32`, `uint8`, `float32`, ... | added as real scalar types |
 | **Single-quoted literals** | `'A'` | `char` in `.ds`, string in `.ts` / `.tsx` |
 | **String indexing** | `text[0]` | yields `char` in `.ds`, and traps on a lone surrogate |
+| **`symbol`** | `let key: symbol` | supported as a regular property key type |
+| **`unique symbol`** | `const key: unique symbol` | supported for statically known singleton keys |
 
 #### Characters
 
@@ -137,6 +140,7 @@ Object shapes are static and exact: no prototype tricks, no runtime mutation, an
 | --- | --- | --- |
 | **Interchangeable `type` / `interface`** | data-shaped `interface Point` in a field | diverges in storage positions |
 | **`Record<K, V>`** | `Record<string, User>` | closed utility type, use `Map<K, V>` for dynamic keyed storage |
+| **`object`** | `let value: object` | not supported, use a structural shape, `unknown`, or an  interface |
 | **Declaration expressions** | `const C = class {}` | not supported, runtime type generation is not statically knowable |
 | **Prototype objects** | `.prototype`, `.__proto__`, `Object.setPrototypeOf` | not supported |
 | **Shape mutation** | `delete obj.x`, `Object.defineProperty` | forbidden, object shapes must stay statically known |
@@ -189,6 +193,7 @@ Classes keep their TypeScript surface but become properly nominal.
 | --- | --- | --- |
 | **Structural classes** | same-shaped classes interchangeable | classes are nominal, structure does not substitute for declarations |
 | **Private fields** | `#field` | not supported, redundant with real `private` in `.ds` |
+| **Parameter properties** | `constructor(private name: string)` | not supported, declare fields and assignments explicitly |
 | **Class index signatures** | `class C { [key: string]: T }` | not supported, classes have fixed declared members |
 
 #### Nominality
@@ -228,6 +233,7 @@ Generics work as in TypeScript, with explicitness required where inference would
 | Feature | Example | Ruling |
 | --- | --- | --- |
 | **Declaration parameter inference** | `function f(x = 1) {}` | not supported, public declaration surfaces need explicit parameter types |
+| **Bodyless concrete overloads** | `function f(x: string);` | not supported outside declaration contexts, just write multiple bodies |
 
 ### Variance
 
@@ -259,6 +265,7 @@ Flow narrowing works as in TypeScript; only the guards themselves change.
 | --- | --- | --- |
 | **Truthiness** | `if (value)` | boolean values only, control flow needs explicit tests |
 | **Runtime `typeof` narrowing** | `typeof x === "string"` | not supported, use `is` or `instanceof` |
+| **Type queries** | `typeof value` | supported in type position only |
 | **Type predicate / assertion signatures** | `value is T`, `asserts value is T` | not supported, callable type guards claim refinements that cannot be checked |
 
 #### Truthiness
@@ -330,10 +337,13 @@ Callable context is explicit: no ambient `arguments`, no dynamic `this` rebindin
 ### Loops
 
 Every loop form works unchanged; only the manual iteration protocol is replaced.
+(e.g., `switch` still has TypeScript fallthrough semantics)
 
 | Feature | Example | Ruling |
 | --- | --- | --- |
 | **Manual iterator protocol** | `iter.next().done` | not supported, iteration is the nominal `Iterator` protocol, while `for-of` and spread lower unchanged |
+| **Destructuring in `for-of`** | `for (const { name } of users)` | supported |
+| **`for-in`** | `for (const key in object)` | supported for object-shaped receivers and yields `string` keys |
 
 ### Trees
 
@@ -351,6 +361,7 @@ Failures are `Result` values: `throw` is gone, and a `Promise` never rejects.
 | --- | --- | --- |
 | **Exceptions** | executing `throw` | not supported in native Destack code |
 | **`try` / `catch` / `finally`** | `try { ... } catch (e) { ... }` | works, as sugar over `Result` control flow |
+| **Catch destructuring** | `catch ({ message })` | supported when the pattern is irrefutable for the failure value |
 | **Promise rejection** | `.catch`, `Promise.reject` | gone, a `Promise<T>` always fulfills |
 | **Rejection-shaped APIs** | `Promise.any`, `allSettled`, two-arg `then` | gone with rejection |
 | **Floating promises** | bare `refresh();` statement | denied by default, await it, return it, or hand it to a scope |
