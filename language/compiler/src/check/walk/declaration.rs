@@ -1,8 +1,9 @@
 use destack_dir as dir;
 
 use crate::check::{
-    Decision, GenericInductionDeclaration, GenericTemplateId, HeritageObligation, LayoutObligation,
-    Obligation, Origin, Receiver, ReceiverBinding, Relation, WalkState,
+    CoherenceObligation, Decision, GenericInductionDeclaration, GenericTemplateId,
+    HeritageObligation, LayoutObligation, Obligation, Origin, Receiver, ReceiverBinding, Relation,
+    WalkState,
 };
 use crate::{CheckError, CompilerError, CompilerResult};
 
@@ -667,11 +668,24 @@ impl WalkState<'_, '_> {
         });
         self.check.insert_definition(symbol, source, definition)?;
 
-        // coherence rules report at the later declaration
-        self.check
-            .check_extension_coherence(self.module, source, symbol)?;
+        self.oblige_extension_coherence(source, symbol);
 
         Ok(())
+    }
+
+    /// Queue one extension coherence obligation under the active guard.
+    fn oblige_extension_coherence(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+    ) {
+        let condition = self.active_static_guard();
+        self.check
+            .push_obligation(Obligation::Coherence(CoherenceObligation {
+                source,
+                condition,
+                symbol,
+            }));
     }
 
     /// Queue one class heritage obligation under the active guard.

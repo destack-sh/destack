@@ -51,12 +51,18 @@ pub(in crate::check) enum Obligation {
     Match(MatchObligation),
     /// Binding patterns in non-matching positions must always succeed.
     Pattern(PatternObligation),
+    /// Catch patterns must handle every failure value.
+    CatchPattern(PatternObligation),
     /// Try propagation must fit the enclosing return type.
     Try(TryObligation),
     /// A place assignment must target writable storage.
     Place(PlaceObligation),
     /// A type at a representation slot must have a computed layout.
     Layout(LayoutObligation),
+    /// A runtime-erased type must have a checkable dynamic surface.
+    DynamicSafe(DynamicSafeObligation),
+    /// An extension must satisfy implementation coherence rules.
+    Coherence(CoherenceObligation),
     /// A class declaration must satisfy its heritage rules.
     Heritage(HeritageObligation),
 }
@@ -67,9 +73,12 @@ impl Obligation {
         match self {
             Self::Match(obligation) => obligation.source,
             Self::Pattern(obligation) => obligation.source,
+            Self::CatchPattern(obligation) => obligation.source,
             Self::Try(obligation) => obligation.source,
             Self::Place(obligation) => obligation.place.source,
             Self::Layout(obligation) => obligation.source,
+            Self::DynamicSafe(obligation) => obligation.source,
+            Self::Coherence(obligation) => obligation.source,
             Self::Heritage(obligation) => obligation.source,
         }
     }
@@ -79,9 +88,12 @@ impl Obligation {
         match self {
             Self::Match(obligation) => &obligation.condition,
             Self::Pattern(obligation) => &obligation.condition,
+            Self::CatchPattern(obligation) => &obligation.condition,
             Self::Try(obligation) => &obligation.condition,
             Self::Place(obligation) => &obligation.condition,
             Self::Layout(obligation) => &obligation.condition,
+            Self::DynamicSafe(obligation) => &obligation.condition,
+            Self::Coherence(obligation) => &obligation.condition,
             Self::Heritage(obligation) => &obligation.condition,
         }
     }
@@ -104,7 +116,7 @@ pub(in crate::check) struct MatchObligation {
     pub(in crate::check) cases: Vec<MatchCase>,
 }
 
-/// One irrefutable binding pattern obligation.
+/// One irrefutable pattern obligation.
 ///
 /// ```ds
 /// let { name } = user;
@@ -179,6 +191,36 @@ pub(in crate::check) struct LayoutObligation {
     pub(in crate::check) condition: Condition,
     /// The type that must have one fixed representation.
     pub(in crate::check) ty: dir::GlobalTypeId,
+}
+
+/// One dynamic-safety obligation.
+///
+/// ```ds
+/// value is Printable
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) struct DynamicSafeObligation {
+    /// The source requiring runtime erasure.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
+    /// The static condition under which this obligation exists.
+    pub(in crate::check) condition: Condition,
+    /// The type that must support runtime erasure.
+    pub(in crate::check) ty: dir::GlobalTypeId,
+}
+
+/// One extension coherence obligation.
+///
+/// ```ds
+/// extension of User implements Display {}
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) struct CoherenceObligation {
+    /// The extension declaration node.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
+    /// The static condition under which this obligation exists.
+    pub(in crate::check) condition: Condition,
+    /// The checked extension symbol.
+    pub(in crate::check) symbol: dir::GlobalSymbolId,
 }
 
 /// Collected obligations with completion tracking.
@@ -321,6 +363,27 @@ impl CheckState<'_> {
                 obligation.source,
                 obligation.pattern,
                 obligation.value,
+                |anchor, module, missing| {
+                    CheckError::RefutablePattern {
+                        anchor,
+                        module,
+                        missing,
+                    }
+                    .help("handle the uncovered values with 'if let' or 'match'")
+                },
+            ),
+            Obligation::CatchPattern(obligation) => self.check_irrefutable_pattern(
+                obligation.source,
+                obligation.pattern,
+                obligation.value,
+                |anchor, module, missing| {
+                    CheckError::RefutableCatchPattern {
+                        anchor,
+                        module,
+                        missing,
+                    }
+                    .help("catch bindings must handle every failure value")
+                },
             ),
             Obligation::Try(obligation) => self.check_try_propagates(
                 obligation.source,
@@ -329,6 +392,12 @@ impl CheckState<'_> {
             ),
             Obligation::Place(obligation) => self.check_writable_place(obligation.place),
             Obligation::Layout(obligation) => self.check_layout(obligation.source, obligation.ty),
+            Obligation::DynamicSafe(obligation) => {
+                self.check_dynamic_safe(obligation.source, obligation.ty)
+            }
+            Obligation::Coherence(obligation) => {
+                self.check_extension_coherence(obligation.source, obligation.symbol)
+            }
             Obligation::Heritage(obligation) => {
                 self.check_class_heritage(obligation.source, obligation.symbol)
             }

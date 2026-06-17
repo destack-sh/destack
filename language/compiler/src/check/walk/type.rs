@@ -2,7 +2,10 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Decision, GenericInductionParameter, NameLookup, Origin, WalkState, Widening};
+use crate::check::{
+    Decision, DynamicSafeObligation, GenericInductionParameter, NameLookup, Obligation, Origin,
+    WalkState, Widening,
+};
 
 impl WalkState<'_, '_> {
     /// Lower one annotation node to its working type.
@@ -577,11 +580,32 @@ impl WalkState<'_, '_> {
         // apply written arguments over the declared parameters
         let applied = self.walk_generic_arguments(generic_arguments)?;
         let arguments = self.canonical_generic_arguments(id.into_any(), symbol, &applied)?;
+        if self
+            .check
+            .environment
+            .language
+            .item(symbol)
+            .is_some_and(|item| item == dir::LanguageItem::Dynamic)
+            && let [constraint] = arguments.as_slice()
+        {
+            self.oblige_dynamic_safe(source, *constraint);
+        }
 
         self.push_type(
             dir::Type::Reference(dir::GenericInstance { symbol, arguments }),
             id.into_any(),
         )
+    }
+
+    /// Queue one dynamic-safety obligation under the active guard.
+    fn oblige_dynamic_safe(&mut self, source: dir::GlobalNodeIdAny, ty: dir::GlobalTypeId) {
+        let condition = self.active_static_guard();
+        self.check
+            .push_obligation(Obligation::DynamicSafe(DynamicSafeObligation {
+                source,
+                condition,
+                ty,
+            }));
     }
 
     /// Lower one type path that names a base then projects its trailing segments.

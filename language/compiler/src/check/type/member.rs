@@ -1,3 +1,4 @@
+use destack_artifact::DiagnosticBuilder;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use indexmap::IndexSet;
@@ -543,12 +544,11 @@ impl CheckState<'_> {
     /// Each conflict reports once, at the later declaration.
     pub(in crate::check) fn check_extension_coherence(
         &mut self,
-        module: ModuleId,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
         let Some(dir::Definition::Extension(extension)) = self.definition(symbol) else {
-            return Ok(());
+            return Ok(Answer::Ready(None));
         };
         let target = extension.target;
         let implements = extension
@@ -557,8 +557,9 @@ impl CheckState<'_> {
             .map(|heritage| heritage.symbol)
             .collect::<SmallVec<[_; 2]>>();
         if implements.is_empty() {
-            return Ok(());
+            return Ok(Answer::Ready(None));
         }
+        let module = source.module_id;
         let package = module.package_id;
         let (module, anchor) = self.source_anchor(source);
 
@@ -603,7 +604,7 @@ impl CheckState<'_> {
             }
         }
 
-        Ok(())
+        Ok(Answer::Ready(None))
     }
 
     /// Report visible implementations conflicting with one new extension.
