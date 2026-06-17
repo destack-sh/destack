@@ -99,7 +99,11 @@ impl CheckState<'_> {
                     fields.push("…".to_string());
                 }
 
-                format!("{{ {} }}", fields.join("; "))
+                if fields.is_empty() {
+                    "{}".to_string()
+                } else {
+                    format!("{{ {} }}", fields.join("; "))
+                }
             }
             dir::Type::Function(function) => {
                 let mut parameters = Vec::new();

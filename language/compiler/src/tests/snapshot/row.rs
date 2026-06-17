@@ -52,6 +52,20 @@ impl SnapshotRow {
         self
     }
 
+    /// Add one object-shaped field to the row.
+    pub(crate) fn object_field(
+        mut self,
+        key: impl Into<Cow<'static, str>>,
+        value: impl Into<String>,
+    ) -> Self {
+        self.fields.push(SnapshotField {
+            key: key.into(),
+            value: value.into(),
+            style: SnapshotFieldStyle::Object,
+        });
+        self
+    }
+
     /// Add one list field to the row.
     pub(crate) fn list_field<I>(self, key: &'static str, values: I) -> Self
     where
@@ -162,4 +176,6 @@ pub(crate) enum SnapshotFieldStyle {
     Plain,
     /// Render the field as DIR type text.
     Type,
+    /// Render the field as object-shaped text.
+    Object,
 }
