@@ -395,7 +395,7 @@ fn pattern_is_direct_object_or_array_like(tree: &Tree, pattern_id: LocalNodeId<P
         Pattern::Object { .. }
         | Pattern::NominalObject { .. }
         | Pattern::Sequence { .. }
-        | Pattern::Newtype { .. }
+        | Pattern::NominalTuple { .. }
         | Pattern::Tuple { .. } => true,
 
         // assignment wrappers stay owned by assignment-like layout
@@ -417,7 +417,6 @@ fn pattern_is_direct_object_or_array_like(tree: &Tree, pattern_id: LocalNodeId<P
         | Pattern::Wildcard
         | Pattern::Expression { .. }
         | Pattern::Range { .. }
-        | Pattern::TypeExpression { .. }
         | Pattern::Union { .. } => false,
     }
 }
@@ -865,13 +864,12 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
             } => {
                 format_range_pattern(f, *start, *end, *end_kind)?;
             }
-            Pattern::TypeExpression { value } => write!(f, [value])?,
 
             Pattern::Tuple { fields } => {
                 format_pattern_field_list(f, node_id, "(", ")", fields, false)?;
             }
 
-            Pattern::Newtype { ty, fields } => {
+            Pattern::NominalTuple { ty, fields } => {
                 if let Some(payload) = newtype_object_payload(f.context().tree, fields) {
                     format_newtype_object_pattern(f, *ty, payload)?;
                 } else {

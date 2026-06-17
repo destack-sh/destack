@@ -2,9 +2,8 @@ use crate::DestackFormatContext;
 use crate::declaration::expression_is_in_statement_context;
 use crate::operator::{binary_operator_format_precedence, should_flatten_binary};
 use destack_dir::{
-    Argument, AssignPattern, BinaryOperator, Declaration, Expression, FunctionForm, IfCondition,
-    IfForm, LocalNodeId, MatchCase, MatchForm, NodeType, OperatorPrecedence, Property,
-    TypeExpression,
+    Argument, AssignPattern, BinaryOperator, Declaration, Expression, FunctionForm, IfForm,
+    LocalNodeId, MatchCase, MatchForm, NodeType, OperatorPrecedence, Property, TypeExpression,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
@@ -360,10 +359,7 @@ fn expression_lambda_needs_parentheses_in_parent(
             form: IfForm::Ternary,
             condition,
             ..
-        } if matches!(
-            condition,
-            IfCondition::Expression { condition } if *condition == parent_child_id
-        )
+        } if condition.as_expression() == Some(parent_child_id)
     ) {
         return true;
     }
@@ -459,10 +455,7 @@ fn expression_await_like_needs_parentheses_in_parent(
             form: IfForm::Ternary,
             condition,
             ..
-        } if matches!(
-            condition,
-            IfCondition::Expression { condition } if *condition == parent_child_id
-        )
+        } if condition.as_expression() == Some(parent_child_id)
     ) {
         return true;
     }
@@ -927,10 +920,7 @@ pub(crate) fn expression_needs_parentheses_in_parent(
                     form: IfForm::Ternary,
                     condition,
                     ..
-                } if matches!(
-                    condition,
-                    IfCondition::Expression { condition } if *condition == parent_child_id
-                )
+                } if condition.as_expression() == Some(parent_child_id)
             );
     }
 

@@ -1,8 +1,8 @@
 use crate::DestackFormatContext;
 use crate::operator::assign_pattern_target_expression;
 use destack_dir::{
-    Argument, Expression, IfCondition, IfForm, LocalNodeId, NodeType, Pattern, Property,
-    ScalarLiteral, TokenType, Tree, TypeExpression, UnaryOperator,
+    Argument, Expression, IfForm, LocalNodeId, NodeType, Pattern, Property, ScalarLiteral,
+    TokenType, Tree, TypeExpression, UnaryOperator,
 };
 use destack_source::Span;
 
@@ -53,9 +53,9 @@ impl ExpressionLeftSide {
             Expression::TaggedTemplateExpression { tag, .. } => Some(*tag),
             Expression::If {
                 form: IfForm::Ternary,
-                condition: IfCondition::Expression { condition },
+                condition,
                 ..
-            } => Some(*condition),
+            } => condition.as_expression(),
             _ => None,
         }?;
 
@@ -210,7 +210,7 @@ pub fn is_pattern_breakable(tree: &Tree, pattern_id: LocalNodeId<Pattern>) -> bo
         Pattern::Object { fields } | Pattern::NominalObject { fields, .. } => !fields.is_empty(),
         Pattern::Sequence { fields }
         | Pattern::Tuple { fields }
-        | Pattern::Newtype { fields, .. } => !fields.is_empty(),
+        | Pattern::NominalTuple { fields, .. } => !fields.is_empty(),
         _ => false,
     }
 }

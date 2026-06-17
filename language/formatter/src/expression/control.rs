@@ -24,9 +24,10 @@ use crate::tree::tree_literal_should_break;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::StringId;
 use destack_dir::{
-    Asynchrony, BindingKeyword, Block, BlockForm, Catch, DecoratorPosition, Expression,
-    ForEachBinding, ForEachOperator, IfCondition, IfForm, Keyword, LetKind, LocalNodeId, MatchCase,
-    MatchForm, MatchSelector, NodeType, Pattern, TypeExpression, WhileForm, YieldCardinality,
+    Asynchrony, BindingKeyword, Block, BlockForm, Catch, Condition, ConditionOperand,
+    DecoratorPosition, Expression, ForEachBinding, ForEachOperator, IfForm, Keyword, LetKind,
+    LocalNodeId, MatchCase, MatchForm, MatchSelector, NodeType, Pattern, TypeExpression, WhileForm,
+    YieldCardinality,
 };
 use destack_fir::format::{Buffer, Format, FormatError, FormatResult};
 use destack_fir::prelude::{
@@ -736,7 +737,7 @@ fn expression_has_effective_prefix_annotation(
 /// Write one grouped `if (...) <body>` clause.
 fn write_if_clause<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    condition: &IfCondition,
+    condition: &Condition,
     then_expression_id: LocalNodeId<Expression>,
     expand_branch_bodies: bool,
 ) -> FormatResult<()> {
@@ -748,24 +749,7 @@ fn write_if_clause<'ast>(
     };
 
     let head = format_with(|f| {
-        match condition {
-            IfCondition::Expression { condition } => {
-                write_if_or_while_test_expression(f, *condition)?;
-            }
-            IfCondition::Let {
-                kind,
-                mutability: _,
-                declarator,
-            } => {
-                match kind {
-                    LetKind::Let => write!(f, [Keyword::Let])?,
-                    LetKind::Const => write!(f, [Keyword::Const])?,
-                }
-
-                write!(f, [space()])?;
-                format_declarator(f, f.context().tree, *declarator)?;
-            }
-        }
+        write_condition(f, condition)?;
 
         if let Some(empty_statement_body) = empty_statement_body {
             write_comments_for_empty_statement_body(f, empty_statement_body)?;
@@ -788,6 +772,51 @@ fn write_if_clause<'ast>(
             body,
         ])]
     )
+}
+
+/// Write one condition.
+fn write_condition<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    condition: &Condition,
+) -> FormatResult<()> {
+    for (index, operand) in condition.operands.iter().enumerate() {
+        if index > 0 {
+            write!(f, [space(), token("&&"), space()])?;
+        }
+
+        write_condition_operand(f, operand)?;
+    }
+
+    Ok(())
+}
+
+/// Write one condition operand.
+fn write_condition_operand<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    operand: &ConditionOperand,
+) -> FormatResult<()> {
+    match operand {
+        // boolean condition
+        ConditionOperand::Expression { condition } => {
+            write_if_or_while_test_expression(f, *condition)?;
+        }
+        // pattern binding condition
+        ConditionOperand::Binding {
+            kind,
+            mutability: _,
+            declarator,
+        } => {
+            match kind {
+                LetKind::Let => write!(f, [Keyword::Let])?,
+                LetKind::Const => write!(f, [Keyword::Const])?,
+            }
+
+            write!(f, [space()])?;
+            format_declarator(f, f.context().tree, *declarator)?;
+        }
+    }
+
+    Ok(())
 }
 
 /// Write one control branch after its head.

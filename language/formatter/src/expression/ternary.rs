@@ -5,7 +5,7 @@ use crate::chain::{expression_trivia_anchor_end, transparent_inner_expression};
 use crate::tree::expression_source_extent_trailing_line_comments;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
-    Argument, Comment, Expression, IfCondition, IfForm, LocalNodeId, NodeType, ScalarLiteral, Tree,
+    Argument, Comment, Expression, IfForm, LocalNodeId, NodeType, ScalarLiteral, Tree,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
@@ -46,10 +46,7 @@ fn ternary_parts(
         return None;
     };
 
-    let condition_id = match condition {
-        IfCondition::Expression { condition } => *condition,
-        IfCondition::Let { .. } => return None,
-    };
+    let condition_id = condition.as_expression()?;
 
     Some((condition_id, *then_expression, *else_expression))
 }

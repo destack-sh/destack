@@ -15,8 +15,8 @@ use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, AssignPatternField, BinaryOperator, Comment,
     Declaration, Declarator, DecoratorPosition, Expression, FunctionDeclaration, FunctionForm,
-    GenericArgument, IfCondition, IfForm, LocalNodeId, NodeType, Pattern, PatternField,
-    ScalarLiteral, TemplateLiteral, TokenType, TypeExpression,
+    GenericArgument, IfForm, LocalNodeId, NodeType, Pattern, PatternField, ScalarLiteral,
+    TemplateLiteral, TokenType, TypeExpression,
 };
 use destack_fir::format::{
     Buffer, Format, FormatError, FormatNode as FirFormatNode, FormatNodes, FormatResult,
@@ -634,10 +634,7 @@ fn declarator_pattern_has_default_assignment(
         Pattern::Assign { .. } => true,
 
         // leaf patterns
-        Pattern::Wildcard
-        | Pattern::Expression { .. }
-        | Pattern::Range { .. }
-        | Pattern::TypeExpression { .. } => false,
+        Pattern::Wildcard | Pattern::Expression { .. } | Pattern::Range { .. } => false,
 
         // transparent wrappers
         Pattern::Must(inner_pattern_id)
@@ -660,7 +657,7 @@ fn declarator_pattern_has_default_assignment(
 
         // field collections
         Pattern::Tuple { fields }
-        | Pattern::Newtype { fields, .. }
+        | Pattern::NominalTuple { fields, .. }
         | Pattern::Sequence { fields }
         | Pattern::Object { fields }
         | Pattern::NominalObject { fields, .. } => fields
@@ -1648,9 +1645,9 @@ pub(crate) fn assignment_rhs_prefers_break_after_operator<'ast>(
             form: IfForm::Ternary,
             condition,
             ..
-        } => match condition {
-            IfCondition::Expression { condition } => {
-                let condition = transparent_inner_expression(context, *condition);
+        } => {
+            if let Some(condition) = condition.as_expression() {
+                let condition = transparent_inner_expression(context, condition);
 
                 match context.tree.get(condition) {
                     Expression::Binary {
@@ -1675,9 +1672,10 @@ pub(crate) fn assignment_rhs_prefers_break_after_operator<'ast>(
                     }
                     _ => false,
                 }
+            } else {
+                false
             }
-            IfCondition::Let { .. } => false,
-        },
+        }
 
         _ if matches!(
             assignment_rhs_innermost_expression(context, right),

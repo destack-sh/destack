@@ -8,8 +8,8 @@ use crate::chain::{
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
     Argument, Block, BlockForm, Comment, Declaration, Expression, FunctionDeclaration,
-    FunctionForm, IfCondition, IfForm, LocalNodeId, MatchCase, Node, NodeType, ScalarLiteral,
-    TokenType, Tree, TreeStore,
+    FunctionForm, IfForm, LocalNodeId, MatchCase, Node, NodeType, ScalarLiteral, TokenType, Tree,
+    TreeStore,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{hard_line_break, space};
@@ -189,7 +189,7 @@ pub(crate) fn tree_child_should_inline_braced_expression(
                 return false;
             }
 
-            matches!(condition, IfCondition::Expression { .. })
+            condition.as_expression().is_some()
         }
         Expression::Declaration(declaration_id) => matches!(
             context.tree.get(*declaration_id),
@@ -284,10 +284,9 @@ pub(crate) fn tree_child_breaks_element(
             else_expression,
             ..
         } => {
-            let condition_has_line_comment = match condition {
-                IfCondition::Expression { condition } => node_has_line_comment(context, *condition),
-                IfCondition::Let { .. } => true,
-            };
+            let condition_has_line_comment = condition
+                .as_expression()
+                .is_none_or(|condition| node_has_line_comment(context, condition));
 
             node_has_line_comment(context, value_id)
                 || condition_has_line_comment
