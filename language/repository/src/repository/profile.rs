@@ -267,6 +267,7 @@ impl Repository {
     ) -> Option<&'a ProfileOptions> {
         let config = config?;
         let profile_name = environment.selection.profile.as_ref().or(target
+            .conditions
             .profile
             .as_ref()
             .or(compiler_options.profile.as_ref()))?;

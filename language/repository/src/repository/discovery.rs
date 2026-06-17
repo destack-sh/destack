@@ -32,6 +32,7 @@ impl Repository {
         if let Some(config) = config.as_ref() {
             global_paths.extend(config.compiler.globals.clone());
             if let Some(profile) = target
+                .conditions
                 .profile
                 .as_ref()
                 .or(config.compiler.profile.as_ref())

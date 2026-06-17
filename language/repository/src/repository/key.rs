@@ -2,7 +2,7 @@ use destack_artifact::ProfileKey;
 
 use crate::{
     CompilerOptions, ConditionSelection, ConditionSet, Destack, Environment, Product,
-    ProfileOptions, Stage, Target, profile_flags_for_compiler_options,
+    ProfileOptions, Stage, Target,
 };
 
 /// The builtin prelude global grounding every profile.
@@ -40,9 +40,7 @@ pub(crate) fn profile_key_for_target(
     let emit = target.emit;
 
     // runtime surface
-    let runtime = profile_config
-        .and_then(|profile| profile.runtime.as_ref().map(|runtime| runtime.runtime))
-        .unwrap_or(target.runtime);
+    let runtime = target.runtime();
     let platform = profile_config
         .and_then(|profile| profile.platform)
         .unwrap_or(target.platform);
@@ -63,29 +61,50 @@ pub(crate) fn profile_key_for_target(
         .map(|keys| environment.key_whitelist(keys))
         .unwrap_or_else(|| environment.key_all());
 
-    // compiler flags
-    let flags = profile_flags_for_compiler_options(&compiler_options);
+    // compiler identity
+    let restrictions = &compiler_options.restrictions;
+    let no_managed = !restrictions.no_managed.is_allow();
+    let no_heap = !restrictions.no_heap.is_allow();
+    let no_runtime = !restrictions.no_runtime.is_allow();
+    let no_dynamic_dispatch = !restrictions.no_dynamic_dispatch.is_allow();
+    let no_unsafe = !restrictions.no_unsafe.is_allow();
+    let no_reflection = !restrictions.no_reflection.is_allow();
+    let no_unwind = !restrictions.no_unwind.is_allow();
+    let no_aliasing_mutable_borrows = !restrictions.no_aliasing_mutable_borrows.is_allow();
+    let no_implicit_receivers = !restrictions.no_implicit_receivers.is_allow();
+    let emit_checked_types = compiler_options.emit_checked_types;
 
-    let globals = profile_globals(&compiler_options);
+    let globals = normalize_profile_names(profile_globals(&compiler_options));
     let tree = compiler_options.tree.clone();
-    let derive = compiler_options
-        .derive
-        .iter()
-        .map(|derive| derive.key().to_string())
-        .collect();
+    let derive = normalize_profile_names(
+        compiler_options
+            .derive
+            .iter()
+            .map(|derive| derive.key().to_string())
+            .collect(),
+    );
 
-    ProfileKey::new(
+    ProfileKey {
         emit,
         conditions,
-        target.target_arch.clone(),
-        target.target_vendor.clone(),
-        target.target_abi.clone(),
+        target_arch: target.native.arch.clone(),
+        target_vendor: target.native.vendor.clone(),
+        target_abi: target.native.abi.clone(),
         globals,
         tree,
         derive,
         env,
-        flags,
-    )
+        no_managed,
+        no_heap,
+        no_runtime,
+        no_dynamic_dispatch,
+        no_unsafe,
+        no_reflection,
+        no_unwind,
+        no_aliasing_mutable_borrows,
+        no_implicit_receivers,
+        emit_checked_types,
+    }
 }
 
 /// Build one condition set from already resolved compiler options.
@@ -171,6 +190,14 @@ fn profile_globals(compiler_options: &CompilerOptions) -> Vec<String> {
     globals
 }
 
+/// Normalize profile key names.
+fn normalize_profile_names(mut names: Vec<String>) -> Vec<String> {
+    names.sort();
+    names.dedup();
+
+    names
+}
+
 /// Build compiler options after profile, product, and target modifiers.
 fn profile_compiler_options_for_target(
     target: &Target,
@@ -225,6 +252,7 @@ fn resolved_stage(
     target: &Target,
 ) -> Option<Stage> {
     target
+        .conditions
         .stage
         .or_else(|| product_config.and_then(|product| product.stage))
         .or_else(|| profile_config.and_then(|profile| profile.stage))
