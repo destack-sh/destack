@@ -1299,6 +1299,7 @@ match (result /* Result<T, E> */) {
 }
 ```
 
+Guarded arms narrow their own bodies, but they do not contribute to exhaustiveness by themselves (because the guard can reject a value that the pattern matched).
 Like with other conditional expressions, the resulting type of a match expression is the union of its arms' types.
 
 ```ds
@@ -1326,7 +1327,7 @@ let value! = maybe else {
 };
 ```
 
-It should be noted that unlike with construction (`{ ... }` for objects, `T { ... }` for structs, `new T(...)` for classes), the pattern destructuring unifies structs and classes into a single nominal object pattern (`T { ... }`).
+Unlike with construction (`{ ... }` for objects, `T { ... }` for structs, `new T(...)` for classes), the pattern destructuring unifies structs and classes into a single nominal object pattern (`T { ... }`).
 Admittedly, this is a little suboptimal since it's not perfectly symmetrical, but we couldn't think of a more reasonable syntax that's not ambiguous or "magic" in some worse way.
 
 ```ds
