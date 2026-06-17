@@ -39,7 +39,11 @@ impl CodegenCraneliftBackend {
 
         Ok(Self {
             isa,
-            debug: target.modes.iter().any(|mode| mode == Mode::DEBUG.name),
+            debug: target
+                .conditions
+                .modes
+                .iter()
+                .any(|mode| mode == Mode::DEBUG.name),
         })
     }
 
@@ -76,7 +80,7 @@ impl CodegenCraneliftBackend {
     ) -> Result<Arc<dyn TargetIsa>, CodegenCraneliftError> {
         // configure
         let mut flags_builder = settings::builder();
-        let opt_level = match target.optimize_level {
+        let opt_level = match target.compiler.optimize {
             OptimizeLevel::O0 => "none",
             OptimizeLevel::O1 => "speed",
             OptimizeLevel::O2 => "speed",
