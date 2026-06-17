@@ -54,3 +54,14 @@ type A = never | string;
 const value: A = "hello";
 value satisfies string;
 ```
+
+### void union with never keeps void
+
+`void` stays the printed spelling when it appears in the union.
+
+```ds
+type Value = void | never;
+
+const value: Value = ();
+value satisfies void;
+```

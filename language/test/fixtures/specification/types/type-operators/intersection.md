@@ -70,6 +70,18 @@ let value: Both = "ok";
 
 - contains: not assignable
 
+### void intersections with never collapse to never
+
+`void & never` rejects the unit value.
+
+```ds
+type Value = void & never;
+
+let value: Value = ();
+```
+
+- contains: not assignable
+
 ### intersections keep stricter overlapping member constraints
 
 The narrower side wins for shared keys.

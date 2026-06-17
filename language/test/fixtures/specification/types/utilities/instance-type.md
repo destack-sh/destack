@@ -6,14 +6,14 @@
 
 ### InstanceType extracts class instances
 
-The constructor type yields its instance type.
+The class declaration yields its instance type.
 
 ```ds
 class User {
     name: string = "";
 }
 
-type Value = InstanceType<typeof User>;
+type Value = InstanceType<User>;
 
 const ok: Value = new User();
 ok.name satisfies string;
@@ -32,7 +32,7 @@ class Project {
     title: string = "";
 }
 
-type Value = InstanceType<typeof User>;
+type Value = InstanceType<User>;
 
 const bad: Value = new Project();
 ```

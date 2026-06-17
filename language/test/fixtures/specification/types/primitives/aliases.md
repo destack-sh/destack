@@ -1,6 +1,6 @@
-# Numeric Aliases
+# Primitive Aliases
 
-The numeric aliases name the same types as their spelled-out forms.
+Primitive aliases name the same types as their spelled-out forms.
 
 ## integer aliases
 
@@ -85,3 +85,23 @@ let narrow: int32 = value;
 ```
 
 - contains: not assignable
+
+## unit aliases
+
+### void uses unit
+
+`void` is TypeScript's spelling for the unit type `()`.
+
+```ds
+const value: void = ();
+value satisfies ();
+```
+
+### unit uses void
+
+`()` and `void` are mutually assignable.
+
+```ds
+const value: () = ();
+value satisfies void;
+```

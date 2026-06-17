@@ -6,14 +6,14 @@
 
 ### ConstructorParameters extracts constructor arguments
 
-The constructor's parameter list becomes a tuple.
+The class declaration's constructor parameter list becomes a tuple.
 
 ```ds
 class User {
     constructor(name: string, age: number) {}
 }
 
-type Args = ConstructorParameters<typeof User>;
+type Args = ConstructorParameters<User>;
 
 const ok: Args = ("Ada", 42);
 ok satisfies (string, number);
@@ -28,7 +28,7 @@ class User {
     constructor(name: string, age: number) {}
 }
 
-type Args = ConstructorParameters<typeof User>;
+type Args = ConstructorParameters<User>;
 
 const bad: Args = ("Ada", "old");
 ```
