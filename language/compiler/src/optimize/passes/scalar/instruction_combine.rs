@@ -3,15 +3,13 @@ use std::collections::HashMap;
 use crate::optimize::declare_pass;
 use destack_mir as mir;
 
-use destack_repository::FloatMathPolicy;
-
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     ConstantMap, ConstantPropagation, Mutation, RangeAnalysis, RangeMap, TypeContext,
-    constant_all_ones_like, constant_is_all_ones, constant_is_float_one, constant_is_float_zero,
-    constant_is_one, constant_is_zero, constant_zero_like, evaluate_integer_range_comparison,
-    fold_binary, fold_cast, fold_unary, instruction_substitute_uses_in_tree,
-    remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
+    constant_all_ones_like, constant_is_all_ones, constant_is_one, constant_is_zero,
+    constant_zero_like, evaluate_integer_range_comparison, fold_binary, fold_cast, fold_unary,
+    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
+    resolve_substitution_chains, terminator_substitute_uses,
 };
 
 /// Maximum recursion depth for chained field.set/element.set simplification.
@@ -71,16 +69,8 @@ impl FunctionPass for InstructionCombine {
         // collect analyses and options
         let constants = analyses.get::<ConstantPropagation>(function, tree).clone();
         let ranges = analyses.get::<RangeAnalysis>(function, tree).clone();
-        let float_math = ctx.options.float_math;
-
-        let changed = run_instruction_combine(
-            function,
-            tree,
-            &constants,
-            &ranges,
-            float_math,
-            ctx.type_context(),
-        );
+        let changed =
+            run_instruction_combine(function, tree, &constants, &ranges, ctx.type_context());
 
         // report what this pass changed
         if changed {
@@ -141,7 +131,6 @@ fn run_instruction_combine(
     tree: &mut mir::Tree,
     constants: &ConstantPropagation,
     ranges: &RangeAnalysis,
-    float_math: FloatMathPolicy,
     type_context: TypeContext,
 ) -> bool {
     let mut value_to_instruction: HashMap<mir::Value, mir::Instruction> = HashMap::new();
@@ -283,7 +272,6 @@ fn run_instruction_combine(
                         *right,
                         &constant_lookup,
                         &block_ranges,
-                        float_math,
                     ),
 
                     mir::Instruction::Unary {
@@ -423,7 +411,6 @@ fn simplify_binary_operator(
     right: mir::Value,
     constants: &ConstantLookup<'_>,
     ranges: &RangeMap,
-    float_math: FloatMathPolicy,
 ) -> Option<Simplification> {
     // read constant operands
     let left_const = constants.get(left);
@@ -565,40 +552,6 @@ fn simplify_binary_operator(
                 return Some(Simplification::Constant(constant_zero_like(
                     left_const_ref.unwrap(),
                 )));
-            }
-        }
-
-        // float: x + 0.0 = x (not for -0.0, but we simplify for 0.0)
-        mir::BinaryOperator::FloatAdd => {
-            if allow_float_identities(float_math) && constant_is_float_zero(right_const_ref) {
-                return Some(Simplification::Substitute(left));
-            }
-            if allow_float_identities(float_math) && constant_is_float_zero(left_const_ref) {
-                return Some(Simplification::Substitute(right));
-            }
-        }
-
-        // float: x - 0.0 = x
-        mir::BinaryOperator::FloatSubtract => {
-            if allow_float_identities(float_math) && constant_is_float_zero(right_const_ref) {
-                return Some(Simplification::Substitute(left));
-            }
-        }
-
-        // float: x * 1.0 = x
-        mir::BinaryOperator::FloatMultiply => {
-            if allow_float_identities(float_math) && constant_is_float_one(right_const_ref) {
-                return Some(Simplification::Substitute(left));
-            }
-            if allow_float_identities(float_math) && constant_is_float_one(left_const_ref) {
-                return Some(Simplification::Substitute(right));
-            }
-        }
-
-        // float: x / 1.0 = x
-        mir::BinaryOperator::FloatDivide => {
-            if allow_float_identities(float_math) && constant_is_float_one(right_const_ref) {
-                return Some(Simplification::Substitute(left));
             }
         }
 
@@ -803,11 +756,6 @@ fn update_constant_map(
     }
 }
 
-/// Check if float identity simplifications are allowed.
-fn allow_float_identities(policy: FloatMathPolicy) -> bool {
-    matches!(policy, FloatMathPolicy::Fast)
-}
-
 /// Try to simplify a unary operation.
 fn simplify_unary_operator(
     _destination: mir::Value,
@@ -955,9 +903,7 @@ fn simplify_element_set(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::optimize::PipelineOptions;
     use crate::optimize::common::tests::TestProgram;
-    use destack_repository::FloatMathPolicy;
 
     /// x + 0 simplifies to x (instruction removed, uses substituted).
     #[test]
@@ -1653,9 +1599,9 @@ entry(v0: uint32):
         test.assert_output(expected);
     }
 
-    /// Float x + 0.0 simplifies to x.
+    /// Float identity expressions preserve strict semantics.
     #[test]
-    fn test_simplify_fadd_zero() {
+    fn test_preserve_float_add_zero() {
         let input = r#"
 function test(v0: float32): float32 {
 entry(v0: float32):
@@ -1664,117 +1610,10 @@ entry(v0: float32):
     return v2
 }
 "#;
-        // 0.0f32 becomes 0f32 after roundtrip
-        let expected = r#"
-function test(v0: float32): float32 {
-entry(v0: float32):
-    v1: float32 = 0
-    return v0
-}
-"#;
 
         let mut test = TestProgram::new(input);
-        test.run_pass_with_options(
-            &InstructionCombine,
-            PipelineOptions {
-                float_math: FloatMathPolicy::Fast,
-                ..PipelineOptions::default()
-            },
-        );
-        test.assert_output(expected);
-    }
-
-    /// Float x * 1.0 simplifies to x.
-    #[test]
-    fn test_simplify_fmul_one() {
-        let input = r#"
-function test(v0: float32): float32 {
-entry(v0: float32):
-    v1: float32 = 1
-    v2: float32 = float.mul v0, v1
-    return v2
-}
-"#;
-        // 1.0f32 becomes 1f32 after roundtrip
-        let expected = r#"
-function test(v0: float32): float32 {
-entry(v0: float32):
-    v1: float32 = 1
-    return v0
-}
-"#;
-
-        let mut test = TestProgram::new(input);
-        test.run_pass_with_options(
-            &InstructionCombine,
-            PipelineOptions {
-                float_math: FloatMathPolicy::Fast,
-                ..PipelineOptions::default()
-            },
-        );
-        test.assert_output(expected);
-    }
-
-    /// Float x / 1.0 simplifies to x.
-    #[test]
-    fn test_simplify_fdiv_one() {
-        let input = r#"
-function test(v0: float32): float32 {
-entry(v0: float32):
-    v1: float32 = 1
-    v2: float32 = float.div v0, v1
-    return v2
-}
-"#;
-        // 1.0f32 becomes 1f32 after roundtrip
-        let expected = r#"
-function test(v0: float32): float32 {
-entry(v0: float32):
-    v1: float32 = 1
-    return v0
-}
-"#;
-
-        let mut test = TestProgram::new(input);
-        test.run_pass_with_options(
-            &InstructionCombine,
-            PipelineOptions {
-                float_math: FloatMathPolicy::Fast,
-                ..PipelineOptions::default()
-            },
-        );
-        test.assert_output(expected);
-    }
-
-    /// Float x - 0.0 simplifies to x.
-    #[test]
-    fn test_simplify_fsub_zero() {
-        let input = r#"
-function test(v0: float32): float32 {
-entry(v0: float32):
-    v1: float32 = 0
-    v2: float32 = float.sub v0, v1
-    return v2
-}
-"#;
-        // 0.0f32 becomes 0f32 after roundtrip
-        let expected = r#"
-function test(v0: float32): float32 {
-entry(v0: float32):
-    v1: float32 = 0
-    return v0
-}
-"#;
-
-        let mut test = TestProgram::new(input);
-        test.run_pass_with_options(
-            &InstructionCombine,
-            PipelineOptions {
-                float_math: FloatMathPolicy::Fast,
-                ..PipelineOptions::default()
-            },
-        );
-        test.assert_output(expected);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(input);
     }
 
     /// Double negation !!x simplifies to x.

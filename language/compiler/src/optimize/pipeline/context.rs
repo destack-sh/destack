@@ -4,7 +4,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use destack_artifact::{DiagnosticBuilder, ProgramAnalysis};
 use destack_core::StringPool;
 use destack_mir as mir;
-use destack_repository::FloatMathPolicy;
 use destack_source::{FileId, ModuleId, PackageId, ProfileId, Span, TargetId};
 use parking_lot::Mutex;
 
@@ -100,8 +99,6 @@ pub struct PipelineOptions {
     pub strict_borrow_mode: bool,
     /// Maximum array elements for SROA to split (larger arrays are left intact).
     pub sroa_max_array_elements: usize,
-    /// Floating point math optimization policy.
-    pub float_math: FloatMathPolicy,
     /// Type context for layout sensitive optimizations.
     pub type_context: TypeContext,
     /// Loop unroll threshold in instructions.
@@ -117,7 +114,6 @@ impl Default for PipelineOptions {
         Self {
             strict_borrow_mode: false,
             sroa_max_array_elements: 8,
-            float_math: FloatMathPolicy::Strict,
             type_context: TypeContext::default(),
             unroll_threshold: 200,
             inline_budget_scale_percent: 100,

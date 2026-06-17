@@ -184,4 +184,4 @@ Target pipelines evolve with new analyses, but the expected layering is:
 - `O1`: verify, SSA/memory canonicalization, light scalar fixed point, type cleanup
 - `O2`: `O1` + global scalar fixed point islands around memory, loop, and type transforms
 - `O3`: `O2` + more aggressive fixed point islands and loop transforms
-- `O4`: `O3` + extra fixed point rounds and LTO based on ltoMode
+- `O4`: `O3` + extra fixed point rounds and whole-program optimization when available

@@ -154,7 +154,7 @@ impl Compiler {
     /// Resolve the optimization level for a target configuration.
     fn optimization_level_for_target_config(&self, target: &Target) -> OptimizationLevel {
         // map target optimize level to pipeline level
-        match target.optimize_level {
+        match target.compiler.optimize {
             WorkspaceOptimizeLevel::O0 => OptimizationLevel::O0,
             WorkspaceOptimizeLevel::O1 => OptimizationLevel::O1,
             WorkspaceOptimizeLevel::O2 => OptimizationLevel::O2,
@@ -185,7 +185,6 @@ impl Compiler {
         );
         PipelineOptions {
             strict_borrow_mode: true,
-            float_math: target.float_math,
             type_context: TypeContext { pointer_width_bits },
             unroll_threshold,
             inline_budget_scale_percent,
@@ -229,7 +228,7 @@ impl Compiler {
             }
         }
 
-        if let Some(target_arch) = target.target_arch.as_ref() {
+        if let Some(target_arch) = target.native.arch.as_ref() {
             let bits = match target_arch {
                 TargetArch::X86_64
                 | TargetArch::Aarch64
