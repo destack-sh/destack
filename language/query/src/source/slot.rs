@@ -592,7 +592,7 @@ fn collect_pattern_binding_names(
         dir::Pattern::Tuple { fields }
         | dir::Pattern::Sequence { fields }
         | dir::Pattern::Object { fields }
-        | dir::Pattern::Newtype { fields, .. }
+        | dir::Pattern::NominalTuple { fields, .. }
         | dir::Pattern::NominalObject { fields, .. } => {
             for field_id in fields {
                 let field = parsed_tree.get(*field_id);
@@ -628,9 +628,6 @@ fn collect_pattern_binding_names(
                 collect_pattern_binding_names(parsed_tree, *pattern_id, names);
             }
         }
-        dir::Pattern::Wildcard
-        | dir::Pattern::Expression { .. }
-        | dir::Pattern::Range { .. }
-        | dir::Pattern::TypeExpression { .. } => {}
+        dir::Pattern::Wildcard | dir::Pattern::Expression { .. } | dir::Pattern::Range { .. } => {}
     }
 }

@@ -756,7 +756,7 @@ impl ModuleQueryContext<'_> {
                 ctx.collect_pattern_bindings(dir_tree, *inner, bindings);
             }
             dir::Pattern::Tuple { fields }
-            | dir::Pattern::Newtype { fields, .. }
+            | dir::Pattern::NominalTuple { fields, .. }
             | dir::Pattern::Sequence { fields }
             | dir::Pattern::Object { fields }
             | dir::Pattern::NominalObject { fields, .. } => {
@@ -771,8 +771,7 @@ impl ModuleQueryContext<'_> {
             }
             dir::Pattern::Wildcard
             | dir::Pattern::Expression { .. }
-            | dir::Pattern::Range { .. }
-            | dir::Pattern::TypeExpression { .. } => {}
+            | dir::Pattern::Range { .. } => {}
         }
     }
 
@@ -843,7 +842,7 @@ impl ModuleQueryContext<'_> {
                 ctx.pattern_access_path_object_fields(strings, dir_tree, fields, target_symbol)
             }
             dir::Pattern::Tuple { fields }
-            | dir::Pattern::Newtype { fields, .. }
+            | dir::Pattern::NominalTuple { fields, .. }
             | dir::Pattern::Sequence { fields } => {
                 ctx.pattern_access_path_indexed(strings, dir_tree, fields, target_symbol)
             }
@@ -863,8 +862,7 @@ impl ModuleQueryContext<'_> {
             }
             dir::Pattern::Wildcard
             | dir::Pattern::Expression { .. }
-            | dir::Pattern::Range { .. }
-            | dir::Pattern::TypeExpression { .. } => None,
+            | dir::Pattern::Range { .. } => None,
         }
     }
 
