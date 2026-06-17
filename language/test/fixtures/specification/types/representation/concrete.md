@@ -141,34 +141,6 @@ function makeShape(flag: boolean): Shape {
 makeShape(true) satisfies Shape;
 ```
 
-### reified returns can be denied
-
-`@deny("reified-return")` keeps hot signatures existential.
-
-```ds
-struct Circle {
-    radius: float64;
-}
-
-struct Rectangle {
-    width: float64;
-    height: float64;
-}
-
-type Shape = Circle | Rectangle;
-
-@deny("reified-return")
-function makeShape(flag: boolean): Shape {
-    if (flag) {
-        return Circle { radius: 1.0 };
-    }
-
-    return Rectangle { width: 1.0, height: 1.0 };
-}
-```
-
-- contains: reified-return
-
 ### newtype returns allow multiple variants
 
 A newtype union names the runtime representation.

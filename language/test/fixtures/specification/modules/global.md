@@ -263,7 +263,7 @@ declare global {
 }
 
 const values = [1, 2, 3];
-values.length satisfies number;
+values.length satisfies usize;
 values.first() satisfies number | undefined;
 ```
 

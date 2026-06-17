@@ -90,10 +90,10 @@ value?.();
 Chained optional access preserves undefined in the result.
 
 ```ds
-type User = { name?: { length: number } };
+type User = { name?: { length: usize } };
 
 declare const user: User | null;
 
 const length = user?.name?.length;
-length satisfies number | undefined;
+length satisfies usize | undefined;
 ```

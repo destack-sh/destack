@@ -154,7 +154,7 @@ Arrays expose length.
 
 ```ds
 const values = [1, 2, 3];
-values.length satisfies number;
+values.length satisfies usize;
 ```
 
 ### array push checks element types
