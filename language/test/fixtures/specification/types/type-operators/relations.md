@@ -132,6 +132,18 @@ const bad: IsDrawable = true;
 
 ## top and bottom
 
+### void and unit extend each other
+
+`void` is TypeScript's spelling for `()`.
+
+```ds
+type VoidExtendsUnit = void extends ();
+type UnitExtendsVoid = () extends void;
+
+const left: VoidExtendsUnit = true;
+const right: UnitExtendsVoid = true;
+```
+
 ### unknown does not extend concrete types
 
 `unknown` could be anything.
@@ -162,6 +174,18 @@ type IsNever = never extends string;
 const ok: IsNever = true;
 ```
 
+### never extends void and unit
+
+Bottom extends both unit spellings.
+
+```ds
+type NeverExtendsVoid = never extends void;
+type NeverExtendsUnit = never extends ();
+
+const left: NeverExtendsVoid = true;
+const right: NeverExtendsUnit = true;
+```
+
 ### concrete types do not extend never
 
 Nothing inhabits `never`.
@@ -170,4 +194,16 @@ Nothing inhabits `never`.
 type IsNever = string extends never;
 
 const ok: IsNever = false;
+```
+
+### void and unit do not extend never
+
+Unit values still inhabit a real type.
+
+```ds
+type VoidExtendsNever = void extends never;
+type UnitExtendsNever = () extends never;
+
+const left: VoidExtendsNever = false;
+const right: UnitExtendsNever = false;
 ```
