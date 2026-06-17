@@ -468,15 +468,14 @@ impl DirQueryContext<'_> {
                 ctx.rename_pattern_binding_name(strings, dir_tree, *pattern, target_symbol)
             }
             dir::Pattern::Tuple { .. }
-            | dir::Pattern::Newtype { .. }
+            | dir::Pattern::NominalTuple { .. }
             | dir::Pattern::Sequence { .. }
             | dir::Pattern::Object { .. }
             | dir::Pattern::NominalObject { .. }
             | dir::Pattern::Union { .. }
             | dir::Pattern::Wildcard
             | dir::Pattern::Expression { .. }
-            | dir::Pattern::Range { .. }
-            | dir::Pattern::TypeExpression { .. } => None,
+            | dir::Pattern::Range { .. } => None,
         }
     }
 }

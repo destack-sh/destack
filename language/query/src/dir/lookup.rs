@@ -883,9 +883,8 @@ impl ModuleQueryContext<'_> {
             | dir::Pattern::DereferenceOf { right: inner } => {
                 Self::pattern_symbol_at_offset(ctx, dir_tree, *inner, offset)
             }
-            dir::Pattern::TypeExpression { .. } => None,
             dir::Pattern::Tuple { fields }
-            | dir::Pattern::Newtype { fields, .. }
+            | dir::Pattern::NominalTuple { fields, .. }
             | dir::Pattern::Sequence { fields }
             | dir::Pattern::Object { fields }
             | dir::Pattern::NominalObject { fields, .. } => {
