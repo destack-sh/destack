@@ -17,10 +17,8 @@ export type Required<T> = {
     [K in keyof T]-?: T[K];
 };
 
-/// Make each field of `T` readonly.
-export type Readonly<T> = {
-    readonly [K in keyof T]: T[K];
-};
+/// Make `T` deeply readonly.
+export type Readonly<T> = readonly T;
 
 /// Make each field of `T` mutable.
 export type MutableFields<T> = {
