@@ -87,3 +87,34 @@ const size = comptime sizeOf<Writer>();
 ```
 
 - contains: no concrete representation
+
+## representation attributes
+
+### explicit alignment sets aggregate alignment
+
+Alignment attributes raise the aggregate alignment and round the total size accordingly.
+
+```ds
+@repr({ align: 16 })
+struct Block {
+    value: uint8;
+}
+
+const alignment = comptime alignOf<Block>();
+alignment satisfies 16;
+```
+
+### enum backing representation selects storage
+
+Enum representation attributes select the integer backing layout.
+
+```ds
+@repr("uint8")
+enum Mode {
+    read,
+    write,
+}
+
+const size = comptime sizeOf<Mode>();
+size satisfies 1;
+```

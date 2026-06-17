@@ -58,4 +58,4 @@ const state: { readonly count: number } = { count: 0 };
 state.count = 1;
 ```
 
-- contains: cannot assign to readonly property 'count'
+- contains: cannot assign to readonly member 'count'

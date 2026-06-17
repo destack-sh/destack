@@ -61,6 +61,18 @@ const lookup: Lookup = value;
 
 - contains: not assignable
 
+### record with string keys accepts maps
+
+Maps provide writable index access and therefore satisfy broad string records.
+
+```ds
+type Lookup = Record<string, string>;
+
+declare const map: Map<string, string>;
+const lookup: Lookup = map;
+lookup["name"] satisfies string | undefined;
+```
+
 ### record supports symbol keys
 
 Unique symbol keys work.

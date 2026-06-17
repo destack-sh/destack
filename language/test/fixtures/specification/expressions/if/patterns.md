@@ -2,6 +2,41 @@
 
 If let uses the same pattern families as bindings and match arms.
 
+## condition chains
+
+### if conditions chain boolean and pattern operands
+
+Pattern operands bind names for later operands and for the true branch.
+
+```ds
+type Shape =
+    | { kind: "circle"; radius: int32 }
+    | { kind: "square"; side: int32 };
+
+declare const ready: boolean;
+declare const shape: Shape;
+
+if (ready && let { kind: "circle", radius } = shape && radius > 0) {
+    radius satisfies int32;
+}
+```
+
+### condition chain bindings do not escape
+
+Pattern operands bind only later operands and the true branch.
+
+```ds
+declare const pair: (int32, string) | null;
+
+if (let (count, label) = pair && count > 0) {
+    label satisfies string;
+}
+
+count;
+```
+
+- contains: missing symbol
+
 ## tuple patterns
 
 ### if (let ...) tuple patterns bind elements
