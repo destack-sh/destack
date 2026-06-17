@@ -335,6 +335,7 @@ impl<'a> SnapshotRenderer<'a> {
         match field.style {
             SnapshotFieldStyle::Plain => Self::quote_value(&field.value),
             SnapshotFieldStyle::Type => field.value.to_string(),
+            SnapshotFieldStyle::Object => field.value.to_string(),
         }
     }
 

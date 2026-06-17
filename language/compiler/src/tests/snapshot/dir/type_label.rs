@@ -478,6 +478,10 @@ impl DirSnapshotBuilder<'_> {
             fields.push(self.index_signature_label(types, signature));
         }
 
+        if fields.is_empty() {
+            return "{}".to_string();
+        }
+
         let fields = fields.join("; ");
 
         format!("{{ {fields} }}")
