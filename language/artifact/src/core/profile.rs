@@ -1,39 +1,9 @@
 use destack_core::stable_hash_key_value_128;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    ConditionSet, EmitFormat, EnvironmentKey, TargetAbi, TargetArch, TargetVendor,
-    normalize_profile_keys,
-};
+use crate::{ConditionSet, EmitFormat, EnvironmentKey, TargetAbi, TargetArch, TargetVendor};
 
 const PROFILE_ID_DOMAIN: &[u8] = b"profile";
-
-/// Flags that affect profile identity.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize,
-)]
-pub struct ProfileFlags {
-    /// Forbid managed memory features.
-    pub no_managed: bool,
-    /// Forbid heap allocation.
-    pub no_heap: bool,
-    /// Forbid runtime features.
-    pub no_runtime: bool,
-    /// Require static dispatch.
-    pub no_dynamic_dispatch: bool,
-    /// Forbid unsafe operations.
-    pub no_unsafe: bool,
-    /// Forbid runtime reflection.
-    pub no_reflection: bool,
-    /// Forbid unwinding.
-    pub no_unwind: bool,
-    /// Forbid aliasing mutable borrows.
-    pub no_aliasing_mutable_borrows: bool,
-    /// Forbid implicit method receivers.
-    pub no_implicit_receivers: bool,
-    /// Emit checked type sidecars.
-    pub emit_checked_types: bool,
-}
 
 /// Canonical profile key for semantic identity.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -56,42 +26,29 @@ pub struct ProfileKey {
     pub derive: Vec<String>,
     /// Compile-time environment identity for `import.meta.env`.
     pub env: EnvironmentKey,
-    /// Flags that affect semantic behavior.
-    pub flags: ProfileFlags,
+    /// Forbid managed memory features.
+    pub no_managed: bool,
+    /// Forbid heap allocation.
+    pub no_heap: bool,
+    /// Forbid runtime features.
+    pub no_runtime: bool,
+    /// Require static dispatch.
+    pub no_dynamic_dispatch: bool,
+    /// Forbid unsafe operations.
+    pub no_unsafe: bool,
+    /// Forbid runtime reflection.
+    pub no_reflection: bool,
+    /// Forbid unwinding.
+    pub no_unwind: bool,
+    /// Forbid aliasing mutable borrows.
+    pub no_aliasing_mutable_borrows: bool,
+    /// Forbid implicit method receivers.
+    pub no_implicit_receivers: bool,
+    /// Emit checked type sidecars.
+    pub emit_checked_types: bool,
 }
 
-#[allow(clippy::too_many_arguments)]
 impl ProfileKey {
-    /// Create a profile key with normalized global entries.
-    pub fn new(
-        emit: EmitFormat,
-        conditions: ConditionSet,
-        target_arch: Option<TargetArch>,
-        target_vendor: Option<TargetVendor>,
-        target_abi: Option<TargetAbi>,
-        globals: Vec<String>,
-        tree: Option<String>,
-        derive: Vec<String>,
-        env: EnvironmentKey,
-        flags: ProfileFlags,
-    ) -> Self {
-        let globals = normalize_profile_keys(globals);
-        let derive = normalize_profile_keys(derive);
-
-        Self {
-            emit,
-            conditions,
-            target_arch,
-            target_vendor,
-            target_abi,
-            globals,
-            tree,
-            derive,
-            env,
-            flags,
-        }
-    }
-
     /// Hash this profile key into one stable cache identity.
     pub fn stable_hash(&self) -> u128 {
         let bytes = postcard::to_allocvec(self).unwrap_or_else(|error| {
