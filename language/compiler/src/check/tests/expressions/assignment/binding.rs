@@ -14,8 +14,8 @@ value = 2;
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-let value: int32 = 1;
-value = 2;
+let value: int32 = 1 as int32;
+value = 2 as int32;
 
 === checked ===
 let value: int32 = 1;
@@ -47,7 +47,7 @@ value = "text";
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-let value: int32 = 1;
+let value: int32 = 1 as int32;
 value = "text";
 
 === checked ===
@@ -70,6 +70,40 @@ value = "text";
 }
 
 #[test]
+fn test_mutable_binding_accepts_compound_assignment() {
+    let session = TestSession::single(
+        r#"
+let value: int32 = 1;
+value += 2;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_check_stats(),
+        r#"
+=== annotated ===
+let value: int32 = 1 as int32;
+value += 2 as int32;
+
+=== checked ===
+let value: int32 = 1;
+/// @type.symbol symbol=value source=value type=int32
+/// @type.node source=1 type=1
+
+value += 2;
+/// @type.node source="value += 2" type=int32
+/// @type.node source=value type=int32
+/// @resolution.name source=value target=value
+/// @type.node source=2 type=2
+/// @resolution.call source="value += 2" parameters=() return=int32 kind=builtin builtin=binary.add
+
+/// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=1
+"#,
+    );
+}
+
+#[test]
 fn test_mutable_binding_uses_widened_initializer_type() {
     let session = TestSession::single(
         r#"
@@ -83,8 +117,8 @@ value = 2;
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-let value: float64 = 1;
-value = 2;
+let value: float64 = 1 as float64;
+value = 2 as float64;
 
 === checked ===
 let value = 1;
@@ -116,7 +150,7 @@ value = "text";
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-let value: float64 = 1;
+let value: float64 = 1 as float64;
 value = "text";
 
 === checked ===
@@ -153,7 +187,7 @@ value = 1;
         r#"
 === annotated ===
 let value: int32;
-value = 1;
+value = 1 as int32;
 
 === checked ===
 let value: int32;
@@ -185,7 +219,7 @@ values = [1, 2];
         r#"
 === annotated ===
 let values: int32[];
-values = [1, 2];
+values = [1 as int32, 2 as int32];
 
 === checked ===
 let values: int32[];
@@ -251,17 +285,17 @@ values = [1, 2];
         r#"
 === annotated ===
 let values: [int32; 2];
-values = [1, 2];
+values = [1 as int32, 2 as int32];
 
 === checked ===
 let values: [int32; 2];
 /// @type.symbol symbol=values source=values type=FixedArray<int32, 2>
 
 values = [1, 2];
-/// @type.node source="values = [1, 2]" type=Array<1 | 2>
+/// @type.node source="values = [1, 2]" type=FixedArray<int32, 2>
 /// @type.node source=values type=FixedArray<int32, 2>
 /// @resolution.name source=values target=values
-/// @type.node source=[1, 2] type=Array<1 | 2>
+/// @type.node source=[1, 2] type=FixedArray<int32, 2>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
@@ -285,7 +319,7 @@ values = [1, 2, 3];
         r#"
 === annotated ===
 let values: [int32; 2];
-values = [1, 2, 3];
+values = [1 as int32, 2 as int32, 3 as int32];
 
 === checked ===
 let values: [int32; 2];
@@ -378,7 +412,8 @@ const copy = value;
 
 "#,
         r#"
-
+/// @diagnostic.error code=EC405 message="'value' is used before being assigned"
+/// @diagnostic.label line=3 column=14 source=value
 "#,
     );
 }

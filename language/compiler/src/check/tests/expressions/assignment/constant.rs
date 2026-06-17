@@ -14,8 +14,8 @@ value = 2;
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-const value: int32 = 1;
-value = 2;
+const value: int32 = 1 as int32;
+value = 2 as int32;
 
 === checked ===
 const value: int32 = 1;
@@ -31,8 +31,46 @@ value = 2;
 /// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
-/// @diagnostic.error code=EC204 message="cannot assign to 'value': it is not declared mutable"
+/// @diagnostic.error code=EC212 message="cannot assign to immutable binding 'value'"
 /// @diagnostic.label line=3 column=1 source="value = 2;"
+"#,
+    );
+}
+
+#[test]
+fn test_const_binding_rejects_compound_assignment() {
+    let session = TestSession::single(
+        r#"
+const value: int32 = 1;
+value += 2;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_check_stats(),
+        r#"
+=== annotated ===
+const value: int32 = 1 as int32;
+value += 2 as int32;
+
+=== checked ===
+const value: int32 = 1;
+/// @type.symbol symbol=value source=value type=int32
+/// @type.node source=1 type=1
+
+value += 2;
+/// @type.node source="value += 2" type=int32
+/// @type.node source=value type=int32
+/// @resolution.name source=value target=value
+/// @type.node source=2 type=2
+/// @resolution.call source="value += 2" parameters=() return=int32 kind=builtin builtin=binary.add
+
+/// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=1
+"#,
+        r#"
+/// @diagnostic.error code=EC212 message="cannot assign to immutable binding 'value'"
+/// @diagnostic.label line=3 column=1 source="value += 2;"
 "#,
     );
 }
@@ -51,8 +89,8 @@ state.count = 1;
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-const state: { count: int32 } = { count: 0 };
-state.count = 1;
+const state: { count: int32 } = { count: 0 as int32 };
+state.count = 1 as int32;
 
 === checked ===
 const state: { count: int32 } = { count: 0 };
