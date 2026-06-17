@@ -1,7 +1,7 @@
 use destack_dir::{
     Argument, BinaryOperator, CommentKind, Declaration, Expression, FloatType, FunctionDeclaration,
-    FunctionForm, GenericArgument, GenericParameter, IfCondition, IfForm, IntegerType, Key, Name,
-    Parameter, Property, ScalarLiteral, TemplateLiteral, TokenType, TypeExpression, TypeLiteral,
+    FunctionForm, GenericArgument, GenericParameter, IfForm, IntegerType, Key, Name, Parameter,
+    Property, ScalarLiteral, TemplateLiteral, TokenType, TypeExpression, TypeLiteral,
 };
 use destack_source::LanguageType;
 
@@ -1298,10 +1298,7 @@ fn test_parse_ternary_with_and_in_tree() {
     assert_node!(parser.tree, expr, Expression::If { form, condition, then_expression, else_expression } => {
         assert_eq!(*form, IfForm::Ternary);
         // condition: a
-        let condition_id = match condition {
-            IfCondition::Expression { condition } => *condition,
-            IfCondition::Let { .. } => panic!("expected expression condition"),
-        };
+        let condition_id = condition.as_expression().expect("expected expression condition");
         assert_node!(parser.tree, condition_id, Expression::Identifier { name } => {
             assert_string!(parser, *name, "a");
         });
@@ -2221,9 +2218,8 @@ fn test_parse_tree_ternary_fragment_with_text_fallback() {
     let expression = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expression, Expression::If { form, condition, then_expression, else_expression } => {
         assert_eq!(*form, IfForm::Ternary);
-        assert_node!(condition, IfCondition::Expression { condition } => {
-            assert_expression_path!(parser, parser.tree.get(*condition), "shouldShow");
-        });
+        let condition = condition.as_expression().expect("expected expression condition");
+        assert_expression_path!(parser, parser.tree.get(condition), "shouldShow");
 
         assert_node!(parser.tree, *then_expression, Expression::TreeExpression { left, elements, .. } => {
             assert!(left.is_none());

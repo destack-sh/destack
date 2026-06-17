@@ -2,8 +2,8 @@ use crate::tests::TestParser;
 use crate::{assert_comment, assert_expression_path, assert_node, assert_string};
 use destack_dir::{
     AssignOperator, BinaryOperator, Block, CommentKind, Declaration, Declarator, ExportKind,
-    Expression, FunctionDeclaration, FunctionForm, IfCondition, IfForm, Key, Name, Pattern,
-    Property, ScalarLiteral,
+    Expression, FunctionDeclaration, FunctionForm, IfForm, Key, Name, Pattern, Property,
+    ScalarLiteral,
 };
 use destack_source::LanguageType;
 
@@ -14,10 +14,7 @@ fn test_parse_if_ternary() {
     let mut parser = test.prepare();
     let if_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
-        let condition_id = match condition {
-            IfCondition::Expression { condition } => *condition,
-            IfCondition::Let { .. } => panic!("expected expression condition"),
-        };
+        let condition_id = condition.as_expression().expect("expected expression condition");
         assert_node!(parser.tree, condition_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
         assert_node!(parser.tree, *then_expression, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         assert_node!(parser.tree, else_expression.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
@@ -35,10 +32,7 @@ fn test_parse_if_ternary_multiline() {
     let mut parser = test.prepare();
     let if_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
-        let condition_id = match condition {
-            IfCondition::Expression { condition } => *condition,
-            IfCondition::Let { .. } => panic!("expected expression condition"),
-        };
+        let condition_id = condition.as_expression().expect("expected expression condition");
         assert_node!(parser.tree, condition_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
         assert_node!(parser.tree, *then_expression, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         assert_node!(parser.tree, else_expression.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
@@ -60,10 +54,7 @@ fn test_parse_if_ternary_multiline_with_comments() {
 
     let if_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
-        let condition_id = match condition {
-            IfCondition::Expression { condition } => *condition,
-            IfCondition::Let { .. } => panic!("expected expression condition"),
-        };
+        let condition_id = condition.as_expression().expect("expected expression condition");
 
         // cond
         assert_expression_path!(parser, parser.tree.get(condition_id), "cond");
@@ -89,10 +80,7 @@ fn test_parse_if_ternary_boundary_comments_attach_to_branch_owners() {
 
     assert_node!(parser.tree, expression_id, Expression::If { condition, then_expression, else_expression, .. } => {
         let else_expression_id = else_expression.expect("expected ternary else branch");
-        let condition_id = match condition {
-            IfCondition::Expression { condition } => *condition,
-            IfCondition::Let { .. } => panic!("unexpected ternary let condition"),
-        };
+        let condition_id = condition.as_expression().expect("unexpected ternary let condition");
 
         let condition_annotations = parser.tree.get_decorators(condition_id.id);
         assert!(condition_annotations.is_empty());
@@ -200,10 +188,7 @@ fn test_parse_if_ternary_with_parenthesis() {
     let mut parser = test.prepare();
     let if_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
-        let condition_id = match condition {
-            IfCondition::Expression { condition } => *condition,
-            IfCondition::Let { .. } => panic!("expected expression condition"),
-        };
+        let condition_id = condition.as_expression().expect("expected expression condition");
         assert_node!(parser.tree, condition_id, Expression::Identifier { name } => {
             assert_string!(parser, *name, "x");
         });
@@ -223,10 +208,7 @@ fn test_parse_if_ternary_with_brackets() {
     let mut parser = test.prepare();
     let if_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
-        let condition_id = match condition {
-            IfCondition::Expression { condition } => *condition,
-            IfCondition::Let { .. } => panic!("expected expression condition"),
-        };
+        let condition_id = condition.as_expression().expect("expected expression condition");
         assert_node!(parser.tree, condition_id, Expression::Identifier { name } => {
             assert_string!(parser, *name, "x");
         });
@@ -246,10 +228,7 @@ fn test_parse_if_ternary_with_braces() {
     let mut parser = test.prepare();
     let if_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
-        let condition_id = match condition {
-            IfCondition::Expression { condition } => *condition,
-            IfCondition::Let { .. } => panic!("expected expression condition"),
-        };
+        let condition_id = condition.as_expression().expect("expected expression condition");
         assert_node!(parser.tree, condition_id, Expression::Identifier { name } => {
             assert_string!(parser, *name, "x");
         });
@@ -269,10 +248,7 @@ fn test_parse_if_ternary_with_binary_condition() {
     let mut parser = test.prepare();
     let if_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
-        let condition_id = match condition {
-            IfCondition::Expression { condition } => *condition,
-            IfCondition::Let { .. } => panic!("expected expression condition"),
-        };
+        let condition_id = condition.as_expression().expect("expected expression condition");
         assert_node!(parser.tree, condition_id, Expression::Binary { left, operator, right } => {
             assert_eq!(*operator, BinaryOperator::Equal);
             assert_node!(parser.tree, *left, Expression::Identifier { name } => {
@@ -405,11 +381,12 @@ fn test_parse_assignment_object_spread_ternary_value() {
             assert_node!(parser.tree, properties[0], Property::Spread { value, .. } => {
                 assert_node!(parser.tree, *value, Expression::If {
                     form: IfForm::Ternary,
-                    condition: IfCondition::Expression { condition },
+                    condition,
                     then_expression,
                     else_expression,
                 } => {
-                    assert_expression_path!(parser, parser.tree.get(*condition), "tls");
+                    let condition = condition.as_expression().expect("expected expression condition");
+                    assert_expression_path!(parser, parser.tree.get(condition), "tls");
                     assert_node!(parser.tree, *then_expression, Expression::ObjectExpression { properties, .. } => {
                         assert_eq!(properties.len(), 1);
                     });

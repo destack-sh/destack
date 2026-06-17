@@ -3,7 +3,7 @@ use crate::parse::scope::{CONDITIONAL_PRECEDENCE, ExpressionScope};
 use crate::parse::r#type::operator::{TypeBinaryOperator, TypeInfixOperator};
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 use destack_dir::{
-    BinaryOperator, Expression, IfCondition, IfForm, Keyword, LocalNodeId, NodeType,
+    BinaryOperator, Condition, Expression, IfForm, Keyword, LocalNodeId, NodeType,
     OperatorPrecedence, RangeEnd, TokenType, TypeExpression,
 };
 use destack_source::Span;
@@ -719,9 +719,7 @@ impl Parser {
             let span = Span::new(self.file_id, frame.start.token_start(), else_span.end);
             let expression = Expression::If {
                 form: IfForm::Ternary,
-                condition: IfCondition::Expression {
-                    condition: frame.condition,
-                },
+                condition: Condition::expression(frame.condition),
                 then_expression: frame.then_expression,
                 else_expression: Some(else_expression),
             };

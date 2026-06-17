@@ -1,7 +1,7 @@
 use crate::tests::{TestParser, block_expression_ids};
 use destack_dir::{
-    Argument, BinaryOperator, Block, Expression, IfCondition, IfForm, Key, Name, Parameter,
-    Property, ScalarLiteral, TypeExpression, UnaryOperator,
+    Argument, BinaryOperator, Block, Expression, IfForm, Key, Name, Parameter, Property,
+    ScalarLiteral, TypeExpression, UnaryOperator,
 };
 use std::sync::Arc;
 
@@ -447,8 +447,8 @@ fn test_parse_extension_identifier_in_ternary_expression() {
 
     assert_node!(parser.tree, expr_id, Expression::If { form, condition, then_expression, else_expression } => {
         assert_eq!(*form, IfForm::Ternary);
-        assert_node!(condition, IfCondition::Expression { condition } => {
-            assert_node!(parser.tree, *condition, Expression::Binary { left, operator, right } => {
+        let condition = condition.as_expression().expect("expected expression condition");
+        assert_node!(parser.tree, condition, Expression::Binary { left, operator, right } => {
                 assert_eq!(*operator, BinaryOperator::EqualStrict);
                 assert_node!(parser.tree, *left, Expression::Unary { operator, right } => {
                     assert_eq!(*operator, UnaryOperator::Typeof);
@@ -457,7 +457,6 @@ fn test_parse_extension_identifier_in_ternary_expression() {
                 assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::String(string)) => {
                     assert_string!(parser, *string, "function");
                 });
-            });
         });
 
         assert_node!(parser.tree, *then_expression, Expression::Call { left, arguments, .. } => {

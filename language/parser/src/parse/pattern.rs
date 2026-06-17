@@ -207,7 +207,7 @@ impl Parser {
                         },
                         self.get_span_from(&start),
                     );
-                    let pattern = Pattern::Newtype {
+                    let pattern = Pattern::NominalTuple {
                         ty: expression_id,
                         fields,
                     };

@@ -3,8 +3,8 @@ use crate::{assert_comment, assert_expression_path, assert_node, assert_string};
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, BinaryOperator, Block, BlockForm, ClassDeclaration,
     CommentKind, Declaration, Declarator, DependencyBinding, DependencyForm, DependencyItem,
-    Expression, FunctionDeclaration, IfCondition, ImportAttributeClauseKind, Key, Name, NodeType,
-    Parameter, Pattern, Property, ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral,
+    Expression, FunctionDeclaration, ImportAttributeClauseKind, Key, Name, NodeType, Parameter,
+    Pattern, Property, ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral,
 };
 use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
 
@@ -65,10 +65,7 @@ fn test_parse_if_extends_type_reference() {
 
     assert_node!(parser.tree, expression_id, Expression::If { condition, then_expression, else_expression, .. } => {
         assert!(else_expression.is_none());
-        let condition_id = match condition {
-            IfCondition::Expression { condition } => *condition,
-            IfCondition::Let { .. } => panic!("expected expression condition"),
-        };
+        let condition_id = condition.as_expression().expect("expected expression condition");
         // x extends Foo
         assert_node!(parser.tree, condition_id, Expression::Type { value } => {
             assert_node!(parser.tree, *value, TypeExpression::Extends { left, right } => {
@@ -127,10 +124,7 @@ fn test_parse_if_instanceof_type_reference() {
 
     assert_node!(parser.tree, expression_id, Expression::If { condition, then_expression, else_expression, .. } => {
         assert!(else_expression.is_none());
-        let condition_id = match condition {
-            IfCondition::Expression { condition } => *condition,
-            IfCondition::Let { .. } => panic!("expected expression condition"),
-        };
+        let condition_id = condition.as_expression().expect("expected expression condition");
         // T instanceof Foo
         assert_node!(parser.tree, condition_id, Expression::InstanceOf { value, target } => {
             assert_expression_path!(parser, parser.tree.get(*value), "T");
@@ -164,10 +158,7 @@ if (value is string) {
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::If { condition, then_expression, .. } => {
-        let condition_id = match condition {
-            IfCondition::Expression { condition } => *condition,
-            IfCondition::Let { .. } => panic!("expected expression condition"),
-        };
+        let condition_id = condition.as_expression().expect("expected expression condition");
 
         // value is string
         assert_node!(parser.tree, condition_id, Expression::Is { value, target_type } => {
@@ -206,10 +197,7 @@ fn test_parse_if_is_type_guard_comment_boundaries() {
     assert_eq!(parser.tree.comments().len(), 2);
 
     assert_node!(parser.tree, expression_id, Expression::If { condition, .. } => {
-        let condition_id = match condition {
-            IfCondition::Expression { condition } => *condition,
-            IfCondition::Let { .. } => panic!("expected expression condition"),
-        };
+        let condition_id = condition.as_expression().expect("expected expression condition");
 
         // value /* checked value */ is /* expected type */ string
         assert_node!(parser.tree, condition_id, Expression::Is { value, target_type } => {

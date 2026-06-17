@@ -279,7 +279,7 @@ fn test_parse_pattern_dereference_tagged_tuple() {
     let pattern_id = parser.eat_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
-        assert_node!(parser.tree, *right, Pattern::Newtype { ty, fields } => {
+        assert_node!(parser.tree, *right, Pattern::NominalTuple { ty, fields } => {
             assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments: _ } => {
                 assert_path!(parser, *path, "Result.Ok");
             });
@@ -594,7 +594,7 @@ fn test_parse_pattern_tuple_with_path() {
     let pattern_id = parser.eat_pattern().unwrap();
 
     // Result.Success(_, ..)
-    assert_node!(parser.tree, pattern_id, Pattern::Newtype { ty, fields } => {
+    assert_node!(parser.tree, pattern_id, Pattern::NominalTuple { ty, fields } => {
         // Result.Success
         let _ = ty; // ty is required for Newtype
         assert_eq!(fields.len(), 2);
