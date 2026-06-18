@@ -1086,6 +1086,8 @@ impl<'a> FunctionLowerer<'a> {
             // slice views require descriptor lowering
             mir::Instruction::SliceView { .. } => return unsupported("slice.view"),
             mir::Instruction::SliceLength { .. } => return unsupported("slice.length"),
+            mir::Instruction::DynamicPayload { .. } => return unsupported("dynamic.payload"),
+            mir::Instruction::DynamicType { .. } => return unsupported("dynamic.type"),
             mir::Instruction::VariantTag { .. } => return unsupported("variant.tag"),
             mir::Instruction::VariantPayload { .. } => return unsupported("variant.payload"),
 

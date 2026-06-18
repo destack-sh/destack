@@ -1288,6 +1288,8 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::Tree) -> u64 {
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::SliceView { .. }
         | mir::Instruction::SliceLength { .. }
+        | mir::Instruction::DynamicPayload { .. }
+        | mir::Instruction::DynamicType { .. }
         | mir::Instruction::VariantTag { .. }
         | mir::Instruction::VariantPayload { .. }
         | mir::Instruction::Assume { .. }
