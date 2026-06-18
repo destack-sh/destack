@@ -1,5 +1,6 @@
 mod attribute;
 mod constant;
+mod cursor;
 mod error;
 mod function;
 mod instruction;

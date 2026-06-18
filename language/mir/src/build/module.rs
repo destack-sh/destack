@@ -1,6 +1,7 @@
 use destack_core::{StringId, StringPool};
 
 use crate::Tree;
+use crate::build::FunctionHeaderBuilder;
 
 /// Builder for constructing a MIR module (collection of functions and types).
 #[derive(Debug)]
@@ -48,6 +49,11 @@ impl ModuleBuilder {
     /// Intern a string and return its id.
     pub fn intern(&mut self, s: &str) -> StringId {
         self.strings.intern(s)
+    }
+
+    /// Start a function header.
+    pub fn function_header(&mut self, name: &str) -> FunctionHeaderBuilder<'_> {
+        FunctionHeaderBuilder::new(&mut self.strings, name)
     }
 
     /// Finish building the module.

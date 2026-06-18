@@ -2,12 +2,13 @@ use crate::source::TokenType;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
-    AllocationMode, Attribute, AttributeArgs, AttributeIdentifier, Copy, Function,
-    FunctionParameter, Global, GlobalInitializer, Linkage, LocalNodeId, Mutability, Symbol, Type,
-    TypeAlias, TypeDeclarationSpans, TypeId, Value,
+    AllocationMode, Attribute, AttributeArgs, AttributeIdentifier, Copy, Function, Global,
+    GlobalInitializer, Linkage, LocalNodeId, Mutability, Symbol, Type, TypeAlias,
+    TypeDeclarationSpans, TypeId,
 };
 
 use super::error::{ParseError, ParseResult};
+use super::function::FunctionHeaderMode;
 use super::parser::Parser;
 
 impl Parser {
@@ -196,7 +197,7 @@ impl Parser {
 
             if self.peek_token(TokenType::Function) {
                 let lifetime_scope_count = self.lifetime_scopes.len();
-                let _ = self.scan_function_placeholder_signature(linkage);
+                let _ = self.seed_function_signature(linkage);
                 self.restore_lifetime_scopes(lifetime_scope_count);
                 continue;
             }
@@ -208,7 +209,7 @@ impl Parser {
         self.current_function = saved_function;
     }
 
-    /// Skip attributes during the placeholder pre scan.
+    /// Skip attributes during the placeholder scan.
     fn skip_attribute_tokens(&mut self) {
         while self.peek_token(TokenType::At) {
             self.bump();
@@ -230,39 +231,15 @@ impl Parser {
         }
     }
 
-    /// Scan one function header and seed the placeholder signature.
-    fn scan_function_placeholder_signature(&mut self, linkage: Linkage) -> ParseResult<()> {
-        // function header
-        self.eat_token(TokenType::Function)?;
-        let (name, _) = self.parse_symbol_name()?;
-        let lifetimes = self.parse_lifetimes()?;
-
-        // parameter list
-        let parameters = self.scan_function_placeholder_parameters(linkage)?;
-
-        // return type
-        self.eat_token(TokenType::Colon)?;
-        let return_type =
-            if self.peek_token(TokenType::OpenBrace) && !self.is_return_structural_type_start() {
-                self.error_type()
-            } else {
-                let return_type = self.parse_type()?;
-                let lifetimes = self.parse_type_lifetime_arguments()?;
-                self.apply_type_lifetimes(return_type, lifetimes)?
-            };
-
-        // seed the placeholder signature now so forward calls can resolve immediately
-        let Some(function_id) = self.function_map.get(&name).copied() else {
-            return Err(ParseError::new(
-                format!("function placeholder missing for {name}"),
-                self.pos(),
-            ));
-        };
+    /// Seed one placeholder function signature.
+    fn seed_function_signature(&mut self, linkage: Linkage) -> ParseResult<()> {
+        let header = self.parse_function_header(linkage, FunctionHeaderMode::Placeholder)?;
+        let function_id = header.function_id;
         let function = self.tree.get_mut(function_id);
-        function.parameters = parameters;
-        function.lifetimes = lifetimes;
-        function.return_type = return_type;
-        self.pop_lifetimes();
+        function.parameters = header.parameters;
+        function.lifetimes = header.lifetimes;
+        function.return_type = header.return_type;
+        self.pop_lifetime_scope();
 
         // imports stop at the signature
         if linkage.is_import() {
@@ -274,85 +251,6 @@ impl Parser {
         self.skip_optional_braced_body();
 
         Ok(())
-    }
-
-    /// Scan one function parameter list for placeholder seeding.
-    fn scan_function_placeholder_parameters(
-        &mut self,
-        linkage: Linkage,
-    ) -> ParseResult<Vec<FunctionParameter>> {
-        self.eat_token(TokenType::OpenParenthesis)?;
-
-        let parameters = if linkage.is_import() {
-            let mut parameters = Vec::new();
-            while !self.peek_token(TokenType::CloseParenthesis) {
-                let ty = self.parse_type()?;
-                let lifetimes = self.parse_type_lifetime_arguments()?;
-                let ty = self.apply_type_lifetimes(ty, lifetimes)?;
-                let obligations = self.parse_borrow_obligations()?;
-                let value = Value::new(parameters.len() as u32);
-                parameters.push(FunctionParameter {
-                    value,
-                    ty,
-                    obligations,
-                });
-                if !self.eat_token_maybe(TokenType::Comma) {
-                    break;
-                }
-            }
-
-            parameters
-        } else {
-            let mut parameters = Vec::new();
-            let mut next_value_id = 0u32;
-
-            while !self.peek_token(TokenType::CloseParenthesis) {
-                let value = self.scan_function_placeholder_value(&mut next_value_id)?;
-                self.eat_token(TokenType::Colon)?;
-                let ty = self.parse_type()?;
-                let lifetimes = self.parse_type_lifetime_arguments()?;
-                let ty = self.apply_type_lifetimes(ty, lifetimes)?;
-                let obligations = self.parse_borrow_obligations()?;
-                parameters.push(FunctionParameter {
-                    value,
-                    ty,
-                    obligations,
-                });
-                if !self.eat_token_maybe(TokenType::Comma) {
-                    break;
-                }
-            }
-
-            parameters
-        };
-
-        self.eat_token(TokenType::CloseParenthesis)?;
-
-        Ok(parameters)
-    }
-
-    /// Scan one value definition for placeholder signature seeding.
-    fn scan_function_placeholder_value(&mut self, next_value_id: &mut u32) -> ParseResult<Value> {
-        let token = self
-            .peek()
-            .ok_or_else(|| ParseError::unexpected_end("value definition", self.pos()))?;
-        let kind = self.token_type(token);
-        let token_start = token.start;
-
-        match kind {
-            TokenType::Identifier => {
-                self.bump();
-
-                let value = Value::new(*next_value_id);
-                *next_value_id += 1;
-                Ok(value)
-            }
-            _ => Err(ParseError::unexpected(
-                "value definition",
-                kind,
-                token_start,
-            )),
-        }
     }
 
     /// Skip one braced body when present.
@@ -395,7 +293,7 @@ impl Parser {
                 name_start,
             ));
         }
-        let lifetimes = self.parse_lifetimes()?;
+        let lifetimes = self.parse_lifetime_parameters()?;
 
         // resolve placeholder
         let placeholder_id = match self.type_alias_map.get(&name).copied() {
@@ -460,7 +358,7 @@ impl Parser {
             self.tree.metadata.copy_type_metadata(ty, placeholder_id);
         }
         self.type_alias_definitions.insert(name);
-        self.pop_lifetimes();
+        self.pop_lifetime_scope();
 
         // optional declaration terminator
         self.eat_token_maybe(TokenType::Semicolon);

@@ -1,3 +1,4 @@
+use destack_core::StringId;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::source::{Token, TokenType};
@@ -10,6 +11,44 @@ use crate::{
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
+
+/// Parsed function header.
+#[derive(Debug)]
+pub(super) struct ParsedFunctionHeader {
+    /// The resolved function id.
+    pub(super) function_id: LocalNodeId<Function>,
+    /// The function keyword span.
+    pub(super) keyword_span: Span,
+    /// The parsed function name.
+    pub(super) name: String,
+    /// The parsed function name span.
+    pub(super) name_span: Span,
+    /// The parsed lifetime parameters.
+    pub(super) lifetimes: Vec<crate::LifetimeParameter>,
+    /// The parsed function parameters.
+    pub(super) parameters: Vec<FunctionParameter>,
+    /// The parsed parameter spans.
+    pub(super) parameter_spans: Vec<TypedValueSpan>,
+    /// The parsed return type.
+    pub(super) return_type: TypeId,
+    /// The full signature span.
+    pub(super) signature_span: Span,
+    /// The opening parenthesis span.
+    pub(super) open_paren_span: Span,
+    /// The closing parenthesis span.
+    pub(super) close_paren_span: Span,
+    /// The return colon span.
+    pub(super) return_colon_span: Span,
+}
+
+/// Function header parse mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum FunctionHeaderMode {
+    /// Parse only enough to seed forward references.
+    Placeholder,
+    /// Parse the real header and record value names for the body.
+    Definition,
+}
 
 impl Parser {
     /// Resolve attributes into function metadata.
@@ -50,6 +89,60 @@ impl Parser {
         Ok(environment_type)
     }
 
+    /// Parse one function header.
+    pub(super) fn parse_function_header(
+        &mut self,
+        linkage: Linkage,
+        mode: FunctionHeaderMode,
+    ) -> ParseResult<ParsedFunctionHeader> {
+        // keyword and name
+        let keyword_token = self.eat_token(TokenType::Function)?;
+        let keyword_start = keyword_token.start;
+        let keyword_length = self.tree.source_text(keyword_token.span).len();
+        let keyword_span = self.span_at(keyword_start, keyword_length);
+        let (name, name_start) = self.parse_symbol_name()?;
+        let name_span = self.span_at(name_start, name.len());
+        let function_id = self.function_map.get(&name).copied().ok_or_else(|| {
+            ParseError::new(format!("function '{name}' is not declared"), name_start)
+        })?;
+
+        // lifetime scope
+        let lifetimes = self.parse_lifetime_parameters()?;
+
+        // body value namespace
+        if mode == FunctionHeaderMode::Definition {
+            self.current_function = Some(function_id);
+            self.reset_function_parse_state();
+        }
+
+        // parameters and result
+        let signature_start = self.pos();
+        let (parameters, parameter_spans, open_paren_span, close_paren_span) =
+            self.parse_function_parameters(linkage, mode)?;
+        let return_colon_token = self.eat_token(TokenType::Colon)?;
+        let return_colon_start = return_colon_token.start;
+        let return_colon_length = self.tree.source_text(return_colon_token.span).len();
+        let return_colon_span = self.span_at(return_colon_start, return_colon_length);
+        let (return_type, return_type_span) =
+            self.parse_function_return_type(return_colon_token, mode)?;
+        let signature_span = self.span_between(signature_start, return_type_span.end as usize);
+
+        Ok(ParsedFunctionHeader {
+            function_id,
+            keyword_span,
+            name,
+            name_span,
+            lifetimes,
+            parameters,
+            parameter_spans,
+            return_type,
+            signature_span,
+            open_paren_span,
+            close_paren_span,
+            return_colon_span,
+        })
+    }
+
     /// Parse a function definition or declaration.
     pub(super) fn parse_function(
         &mut self,
@@ -58,47 +151,23 @@ impl Parser {
         attributes: Vec<Attribute>,
         attribute_spans: Vec<Span>,
     ) -> ParseResult<LocalNodeId<Function>> {
-        // function keyword and name
-        let keyword_token = self.eat_token(TokenType::Function)?;
-        let keyword_start = keyword_token.start;
-        let keyword_length = self.tree.source_text(keyword_token.span).len();
-        let keyword_span = self.span_at(keyword_start, keyword_length);
-
-        // function name
-        let (name, name_start) = self.parse_symbol_name()?;
-        let name_span = self.span_at(name_start, name.len());
-        let lifetimes = self.parse_lifetimes()?;
-        let function_id = self.function_map.get(&name).copied().ok_or_else(|| {
-            ParseError::new(format!("function '{name}' is not declared"), name_start)
-        })?;
-        self.current_function = Some(function_id);
-        self.reset_function_parse_state();
+        // function signature
+        let header = self.parse_function_header(linkage, FunctionHeaderMode::Definition)?;
+        let function_id = header.function_id;
 
         // function metadata
         let environment_type = self.resolve_function_attributes(&attributes)?;
-
-        // parameters
-        let signature_start = self.pos();
-        let (parameters, parameter_spans, open_paren_span, close_paren_span) =
-            self.parse_function_parameters(linkage)?;
-        let parameter_names = parameters
-            .iter()
-            .map(|parameter| self.tree.get(function_id).value_name(parameter.value))
-            .collect::<Vec<_>>();
-
-        // return type
-        let return_colon_token = self.eat_token(TokenType::Colon)?;
-        let return_colon_start = return_colon_token.start;
-        let return_colon_length = self.tree.source_text(return_colon_token.span).len();
-        let return_colon_span = self.span_at(return_colon_start, return_colon_length);
-        let (return_type, return_type_span) = self.parse_return_type_use_after(return_colon_token);
-        let signature_span = self.span_between(signature_start, return_type_span.end as usize);
+        let parameter_names = self.header_parameter_names(function_id, &header.parameters);
 
         // external function body
         if linkage.is_import() {
-            let name_id = self.strings.intern(&name);
-            let mut function = Function::import(name_id, parameters, return_type);
-            function.lifetimes = lifetimes;
+            let name_id = self.strings.intern(&header.name);
+            let mut function = Function::import(
+                name_id,
+                header.lifetimes,
+                header.parameters,
+                header.return_type,
+            );
             function.parameter_names = parameter_names;
             function.environment = environment_type;
             function.allocation = AllocationMode::Any; // #Incomplete: set proper MIR allocation mode?
@@ -106,28 +175,28 @@ impl Parser {
             // update the placeholder with the parsed signature
             self.tree
                 .set_text_span(function_id, self.span_from_parse_start(item_start));
-            self.tree.set_keyword_span(function_id, keyword_span);
-            self.tree.set_main_span(function_id, name_span);
+            self.tree.set_keyword_span(function_id, header.keyword_span);
+            self.tree.set_main_span(function_id, header.name_span);
             self.tree.set_side_span(
                 function_id,
                 NodeSpanType::Region(NodeSpanRegion::Type),
-                signature_span,
+                header.signature_span,
             );
             self.tree.set_attribute_spans(function_id, attribute_spans);
             self.tree
-                .set_function_parameter_spans(function_id, parameter_spans);
+                .set_function_parameter_spans(function_id, header.parameter_spans);
             self.tree.set_function_header_spans(
                 function_id,
                 FunctionHeaderSpans::new(
-                    open_paren_span,
-                    close_paren_span,
-                    return_colon_span,
+                    header.open_paren_span,
+                    header.close_paren_span,
+                    header.return_colon_span,
                     None,
                 ),
             );
             *self.tree.get_mut(function_id) = function;
             self.current_function = None;
-            self.pop_lifetimes();
+            self.pop_lifetime_scope();
 
             // record attributes
             if !attributes.is_empty() {
@@ -141,31 +210,34 @@ impl Parser {
         }
 
         // seed signature data before mutating the placeholder
-        let name_id = self.strings.intern(&name);
+        let name_id = self.strings.intern(&header.name);
         let id = function_id;
         self.tree
             .set_text_span(id, self.span_from_parse_start(item_start));
-        self.tree.set_keyword_span(id, keyword_span);
-        self.tree.set_main_span(id, name_span);
+        self.tree.set_keyword_span(id, header.keyword_span);
+        self.tree.set_main_span(id, header.name_span);
         self.tree.set_side_span(
             id,
             NodeSpanType::Region(NodeSpanRegion::Type),
-            signature_span,
+            header.signature_span,
         );
         self.tree.set_attribute_spans(id, attribute_spans);
-        self.tree.set_function_parameter_spans(id, parameter_spans);
+        self.tree
+            .set_function_parameter_spans(id, header.parameter_spans);
+        let parameters = header.parameters;
         let (_, value_types) = Function::parameter_state(&parameters);
 
         // populate signature fields
         let function = self.tree.get_mut(id);
         function.name = name_id;
-        function.parameters = parameters.clone();
-        function.lifetimes = lifetimes;
+        function.parameters = parameters;
+        function.lifetimes = header.lifetimes;
         function.parameter_names = parameter_names;
         function.value_types = value_types;
-        function.return_type = return_type;
+        function.return_type = header.return_type;
         function.linkage = linkage;
         function.environment = environment_type;
+
         // body
         let open_brace_token = self.eat_token(TokenType::OpenBrace)?;
         let open_brace_start = open_brace_token.start;
@@ -174,9 +246,9 @@ impl Parser {
         self.tree.set_function_header_spans(
             id,
             FunctionHeaderSpans::new(
-                open_paren_span,
-                close_paren_span,
-                return_colon_span,
+                header.open_paren_span,
+                header.close_paren_span,
+                header.return_colon_span,
                 Some(open_brace_span),
             ),
         );
@@ -230,7 +302,7 @@ impl Parser {
         function.next_value_id = function.value_types.len() as u32;
 
         self.current_function = None;
-        self.pop_lifetimes();
+        self.pop_lifetime_scope();
         self.tree
             .set_text_span(id, self.span_from_parse_start(item_start));
 
@@ -246,6 +318,7 @@ impl Parser {
     fn parse_function_parameters(
         &mut self,
         linkage: Linkage,
+        mode: FunctionHeaderMode,
     ) -> ParseResult<(Vec<FunctionParameter>, Vec<TypedValueSpan>, Span, Span)> {
         let open_paren_token = self.eat_token(TokenType::OpenParenthesis)?;
         let open_paren_start = open_paren_token.start;
@@ -276,11 +349,17 @@ impl Parser {
         } else {
             let mut parameters = Vec::new();
             let mut parameter_spans = Vec::new();
+            let mut next_value_id = 0u32;
             while self.is_value_definition_start() {
                 let parameter_start = self.pos();
-                let (value, name_span) = self.parse_value_definition_part()?;
+                let (value, name_span) = match mode {
+                    FunctionHeaderMode::Placeholder => {
+                        self.parse_placeholder_parameter(&mut next_value_id)?
+                    }
+                    FunctionHeaderMode::Definition => self.parse_value_definition_part()?,
+                };
                 let colon_token = self.eat_token(TokenType::Colon)?;
-                let (ty, type_span) = self.parse_type_use_after(colon_token, "parameter type");
+                let (ty, type_span) = self.parse_function_parameter_type(colon_token, mode)?;
                 let obligations = self.parse_borrow_obligations()?;
                 let parameter_span = self.span_from_parse_start(parameter_start);
                 parameters.push(FunctionParameter {
@@ -312,6 +391,82 @@ impl Parser {
             open_paren_span,
             close_paren_span,
         ))
+    }
+
+    /// Parse one function parameter type.
+    fn parse_function_parameter_type(
+        &mut self,
+        colon_token: Token,
+        mode: FunctionHeaderMode,
+    ) -> ParseResult<(TypeId, Span)> {
+        // real definitions recover and report local type holes
+        if mode == FunctionHeaderMode::Definition {
+            return Ok(self.parse_type_use_after(colon_token, "parameter type"));
+        }
+
+        self.parse_type_use_part()
+    }
+
+    /// Parse one function return type.
+    fn parse_function_return_type(
+        &mut self,
+        colon_token: Token,
+        mode: FunctionHeaderMode,
+    ) -> ParseResult<(TypeId, Span)> {
+        // real definitions recover and report local type holes
+        if mode == FunctionHeaderMode::Definition {
+            return Ok(self.parse_return_type_use_after(colon_token));
+        }
+
+        // placeholder scanning must not treat a body brace as a return type
+        if self.peek_token(TokenType::OpenBrace) && !self.is_return_structural_type_start() {
+            let start = colon_token.span.end as usize;
+            let span = self.span_at(start, 0);
+            let ty = self.error_type();
+
+            return Ok((ty, span));
+        }
+
+        self.parse_type_use_part()
+    }
+
+    /// Parse one named parameter without recording it in the body namespace.
+    fn parse_placeholder_parameter(
+        &mut self,
+        next_value_id: &mut u32,
+    ) -> ParseResult<(Value, Span)> {
+        let token = self
+            .peek()
+            .ok_or_else(|| ParseError::unexpected_end("value definition", self.pos()))?;
+        let span = token.span;
+
+        match self.token_type(token) {
+            TokenType::Identifier => {
+                self.bump();
+
+                let value = Value::new(*next_value_id);
+                *next_value_id += 1;
+
+                Ok((value, span))
+            }
+            _ => Err(ParseError::unexpected(
+                "value definition",
+                self.token_type(token),
+                token.start,
+            )),
+        }
+    }
+
+    /// Return the parsed parameter names in value order.
+    fn header_parameter_names(
+        &self,
+        function_id: LocalNodeId<Function>,
+        parameters: &[FunctionParameter],
+    ) -> Vec<Option<StringId>> {
+        parameters
+            .iter()
+            .map(|parameter| self.tree.get(function_id).value_name(parameter.value))
+            .collect()
     }
 
     /// Parse a local variable declaration.

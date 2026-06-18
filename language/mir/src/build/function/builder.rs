@@ -1,7 +1,7 @@
-use destack_core::{StringId, StringPool};
+use destack_core::StringPool;
 use indexmap::{IndexMap, IndexSet};
 
-use crate::build::{BuildError, BuildResult, Variable};
+use crate::build::{BuildError, BuildResult, FunctionHeader, Variable};
 use crate::{
     AllocationMode, AllocationSize, Block, Function, FunctionBehavior, FunctionParameter,
     Instruction, Linkage, LocalNodeId, MemoryEffect, Symbol, Tree, Type, TypeId, Value,
@@ -67,35 +67,30 @@ pub struct FunctionBuilder<'a> {
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
     /// Create a new function builder.
-    pub fn new(
-        tree: &'a mut Tree,
-        strings: &'a StringPool,
-        name: StringId,
-        parameter_types: &[LocalNodeId<Type>],
-        return_type: LocalNodeId<Type>,
-    ) -> Self {
+    pub fn new(tree: &'a mut Tree, strings: &'a StringPool, header: FunctionHeader) -> Self {
+        let FunctionHeader {
+            name,
+            lifetimes,
+            parameters,
+            result,
+        } = header;
+
         // create parameter values
-        let mut next_value_id = 0u32;
-        let parameters: Vec<FunctionParameter> = parameter_types
-            .iter()
-            .map(|&ty| {
-                let value = Value::new(next_value_id);
-                next_value_id += 1;
-                FunctionParameter::new(value, TypeId::from(ty))
-            })
-            .collect();
+        let parameter_count = parameters.len();
+        let parameters = FunctionHeader::parameters_from_types(parameters);
         let (_, value_types) = Function::parameter_state(&parameters);
+        let next_value_id = value_types.len() as u32;
 
         // blank function (entry will be set in finish())
         let function = Function {
             name,
             symbol: Symbol(name),
             parameters,
-            lifetimes: Vec::new(),
-            parameter_names: vec![None; parameter_types.len()],
+            lifetimes,
+            parameter_names: vec![None; parameter_count],
             value_names: vec![None; next_value_id as usize],
             value_types,
-            return_type: TypeId::from(return_type),
+            return_type: TypeId::from(result),
             linkage: Linkage::Local,
             allocation: AllocationMode::Any,
             suspension: None,

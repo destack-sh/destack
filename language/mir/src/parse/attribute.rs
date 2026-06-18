@@ -9,7 +9,6 @@ use crate::{
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
 
-#[allow(clippy::type_complexity)]
 impl Parser {
     /// Parse an attribute list prefix and retain each attribute span.
     pub(super) fn parse_attributes(&mut self) -> ParseResult<(Vec<Attribute>, Vec<Span>)> {

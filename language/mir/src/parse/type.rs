@@ -2,7 +2,7 @@ use crate::source::{Token, TokenType};
 use destack_source::Span;
 
 use crate::{
-    Access, Attribute, BorrowObligation, Copy, Field, FieldSpan, Lifetime, LifetimeSlot,
+    Access, Attribute, BorrowObligation, Copy, Field, FieldSpan, Lifetime, LifetimeParameter,
     LifetimeTerm, LocalNodeId, Nullability, ReferenceKind, SignatureParameter, Space,
     TensorDimension, TensorDimensionOrder, TensorLayout, TensorViewLayout, Type,
     TypeDeclarationSpans, TypeId, VariantCase,
@@ -17,12 +17,12 @@ use super::parser::Parser;
 struct ReferenceQualifiers {
     /// The reference ownership kind.
     kind: Option<ReferenceKind>,
-    /// The explicit borrowed lifetime.
+    /// The explicit reference lifetime.
     lifetime: Lifetime,
     /// The referenced space.
     space: Space,
     /// The exposed access mode.
-    access: Access,
+    access: Option<Access>,
     /// The accepted nullish values.
     nullability: Nullability,
 }
@@ -34,7 +34,7 @@ impl ReferenceQualifiers {
             kind: None,
             lifetime: Lifetime::empty(),
             space: Space::Local,
-            access: Access::Mutable,
+            access: None,
             nullability,
         }
     }
@@ -49,15 +49,17 @@ impl ReferenceQualifiers {
             .kind
             .ok_or_else(|| ParseError::invalid(expected, pos))?;
 
-        if kind != ReferenceKind::Borrowed && !self.lifetime.is_empty() {
-            return Err(ParseError::invalid("borrowed lifetime", pos));
+        if matches!(kind, ReferenceKind::Unique | ReferenceKind::Raw) && !self.lifetime.is_empty() {
+            return Err(ParseError::invalid("reference lifetime", pos));
         }
 
         Ok(ResolvedReferenceQualifiers {
             kind,
             lifetime: self.lifetime,
             space: self.space,
-            access: self.access,
+            access: self
+                .access
+                .ok_or_else(|| ParseError::invalid("reference access", pos))?,
             nullability: self.nullability,
         })
     }
@@ -68,7 +70,7 @@ impl ReferenceQualifiers {
 struct ResolvedReferenceQualifiers {
     /// The reference ownership kind.
     kind: ReferenceKind,
-    /// The explicit borrowed lifetime.
+    /// The explicit reference lifetime.
     lifetime: Lifetime,
     /// The referenced space.
     space: Space,
@@ -105,37 +107,29 @@ impl Parser {
         delimiter: Token,
         expected: &'static str,
     ) -> (TypeId, Span) {
-        self.parse_type_use_after_with_structural_type(delimiter, expected, true)
+        self.parse_type_use_recovering(delimiter, expected, true)
     }
 
     /// Parse a return type use after its required delimiter.
     pub(super) fn parse_return_type_use_after(&mut self, delimiter: Token) -> (TypeId, Span) {
         let is_structural_type_allowed = self.is_return_structural_type_start();
 
-        self.parse_type_use_after_with_structural_type(
-            delimiter,
-            "return type",
-            is_structural_type_allowed,
-        )
+        self.parse_type_use_recovering(delimiter, "return type", is_structural_type_allowed)
     }
 
-    /// Parse a type use after one required delimiter.
-    fn parse_type_use_after_with_structural_type(
+    /// Parse a type use after one required delimiter and recover holes locally.
+    fn parse_type_use_recovering(
         &mut self,
         delimiter: Token,
         expected: &'static str,
-        is_structural_type_allowed: bool,
+        allow_structural_type: bool,
     ) -> (TypeId, Span) {
         let hole_position = delimiter.span.end as usize;
 
-        if self.is_missing_type_position(&delimiter, is_structural_type_allowed) {
+        if self.is_missing_type_position(&delimiter, allow_structural_type) {
             let error = ParseError::new(format!("expected {expected}"), hole_position);
-            self.diagnostics
-                .insert(error.to_diagnostic(self.content_id, self.file_id));
 
-            let ty = self.error_type();
-
-            return (ty, self.span_at(hole_position, 0));
+            return self.recovered_type(error, false);
         }
 
         let type_start = self.pos();
@@ -153,37 +147,26 @@ impl Parser {
 
                     (ty, span)
                 }
-                Err(error) => {
-                    self.diagnostics
-                        .insert(error.to_diagnostic(self.content_id, self.file_id));
-
-                    if self.peek().is_some() {
-                        self.bump();
-                    }
-
-                    let error_end = self.pos();
-                    let span =
-                        self.span_at(error.position, error_end.saturating_sub(error.position));
-                    let ty = self.error_type();
-
-                    (ty, span)
-                }
+                Err(error) => self.recovered_type(error, true),
             },
-            Err(error) => {
-                self.diagnostics
-                    .insert(error.to_diagnostic(self.content_id, self.file_id));
-
-                if self.peek().is_some() {
-                    self.bump();
-                }
-
-                let error_end = self.pos();
-                let span = self.span_at(error.position, error_end.saturating_sub(error.position));
-                let ty = self.error_type();
-
-                (ty, span)
-            }
+            Err(error) => self.recovered_type(error, true),
         }
+    }
+
+    /// Emit one type recovery diagnostic and return the canonical error type.
+    fn recovered_type(&mut self, error: ParseError, should_advance: bool) -> (TypeId, Span) {
+        self.diagnostics
+            .insert(error.to_diagnostic(self.content_id, self.file_id));
+
+        if should_advance && self.peek().is_some() {
+            self.bump();
+        }
+
+        let error_end = self.pos();
+        let span = self.span_at(error.position, error_end.saturating_sub(error.position));
+        let ty = self.error_type();
+
+        (ty, span)
     }
 
     /// Parse optional lifetime arguments on a type use.
@@ -259,6 +242,7 @@ impl Parser {
                 | TokenType::Tensor
                 | TokenType::Vector
                 | TokenType::Newtype
+                | TokenType::LessThan
                 | TokenType::OpenParenthesis
                 | TokenType::OpenBracket
                 | TokenType::OpenBrace
@@ -399,6 +383,9 @@ impl Parser {
             TokenType::Tensor => self.parse_tensor_type()?,
             TokenType::Vector => self.parse_vector_type()?,
             TokenType::Newtype => self.parse_newtype_type()?,
+            TokenType::LessThan => {
+                return self.parse_lifetime_signature_type();
+            }
             TokenType::OpenParenthesis => self.parse_parenthesized_type()?,
             TokenType::OpenBracket => self.parse_array_type()?,
             TokenType::OpenBrace => {
@@ -443,9 +430,7 @@ impl Parser {
     /// Parse a function pointer type.
     fn parse_function_pointer_type(&mut self) -> ParseResult<Type> {
         self.bump();
-        let parameters = self.parse_parenthesized_type_parameters()?;
-        self.eat_token(TokenType::FatArrow)?;
-        let signature = self.parse_function_signature(parameters)?;
+        let signature = self.parse_signature(Vec::new())?;
 
         Ok(Type::FunctionPointer { signature })
     }
@@ -538,7 +523,7 @@ impl Parser {
         let parameters = self.parse_parenthesized_type_parameters()?;
 
         if self.eat_token_maybe(TokenType::FatArrow) {
-            let signature = self.parse_function_signature(parameters)?;
+            let signature = self.parse_signature_result(Vec::new(), parameters)?;
             let environment = self.tree.ensure_closure_environment_type();
 
             return Ok(Type::Closure {
@@ -567,6 +552,11 @@ impl Parser {
         })
     }
 
+    /// Parse an explicitly lifetime-polymorphic function signature type.
+    fn parse_lifetime_signature_type(&mut self) -> ParseResult<LocalNodeId<Type>> {
+        self.parse_lifetime_scope(|parser, lifetimes| parser.parse_signature(lifetimes))
+    }
+
     /// Parse type parameters enclosed in parentheses.
     pub(super) fn parse_parenthesized_type_parameters(
         &mut self,
@@ -589,13 +579,29 @@ impl Parser {
         Ok(parameters)
     }
 
-    /// Parse a function signature result after parameter types.
-    fn parse_function_signature(
+    /// Parse a function signature type.
+    pub(super) fn parse_signature(
         &mut self,
+        lifetimes: Vec<LifetimeParameter>,
+    ) -> ParseResult<LocalNodeId<Type>> {
+        let parameters = self.parse_parenthesized_type_parameters()?;
+        self.eat_token(TokenType::FatArrow)?;
+
+        self.parse_signature_result(lifetimes, parameters)
+    }
+
+    /// Parse a function signature result after its parameter types.
+    fn parse_signature_result(
+        &mut self,
+        lifetimes: Vec<LifetimeParameter>,
         parameters: Vec<SignatureParameter>,
     ) -> ParseResult<LocalNodeId<Type>> {
         let (result, _) = self.parse_type_use_part()?;
-        self.intern_type(Type::FunctionSignature { parameters, result })
+        self.intern_type(Type::FunctionSignature {
+            lifetimes,
+            parameters,
+            result,
+        })
     }
 
     /// Parse a fixed-size array type.
@@ -909,12 +915,17 @@ impl Parser {
         }
 
         if self.eat_token_maybe(TokenType::Readonly) {
-            qualifiers.access = Access::Readonly;
+            qualifiers.access = Some(Access::Readonly);
+            return Ok(());
+        }
+
+        if self.eat_identifier_text("mutable") {
+            qualifiers.access = Some(Access::Mutable);
             return Ok(());
         }
 
         if self.eat_identifier_text("exclusive") {
-            qualifiers.access = Access::Exclusive;
+            qualifiers.access = Some(Access::Exclusive);
             return Ok(());
         }
 
@@ -1039,12 +1050,6 @@ impl Parser {
                         self.bump();
                     }
                 },
-                TokenType::Integer => {
-                    let index = self.parse_int_literal()?;
-                    let index = u32::try_from(index)
-                        .map_err(|_| ParseError::invalid("lifetime slot", self.pos()))?;
-                    terms.push(LifetimeTerm::Slot(LifetimeSlot(index)));
-                }
                 _ => {
                     return Err(ParseError::unexpected(
                         "lifetime origin",
