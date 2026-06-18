@@ -419,6 +419,7 @@ impl ModuleBuilder {
             .collect();
 
         self.tree.insert_type(Type::FunctionSignature {
+            lifetimes: Vec::new(),
             parameters,
             result: result.into(),
         })

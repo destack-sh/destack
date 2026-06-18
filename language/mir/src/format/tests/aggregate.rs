@@ -99,7 +99,7 @@ type Writer {
 function dynamicAccess(v0: dynamic<Writer>): typeId {
 entry(v0: dynamic<Writer>):
     v1: typeId = dynamic.type v0
-    v2: ref<void, raw> = dynamic.payload v0
+    v2: ref<void, raw, mutable> = dynamic.payload v0
     return v1
 }
 "#,

@@ -596,6 +596,7 @@ mod tests {
 
         let fn_ptr_ty = TypeKey::FunctionPointer {
             signature: Box::new(TypeKey::FunctionSignature {
+                lifetimes: Vec::new(),
                 parameters: vec![(
                     TypeKey::Int {
                         width: 32,

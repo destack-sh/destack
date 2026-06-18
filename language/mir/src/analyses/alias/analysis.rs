@@ -235,8 +235,8 @@ type Point {
 
 function test(): void {
 entry:
-    v0: ref<Point, managed> = new.zeroed Point
-    v1: ref<Point, managed> = new.zeroed Point
+    v0: ref<Point, managed, mutable> = new.zeroed Point
+    v1: ref<Point, managed, mutable> = new.zeroed Point
     return
 }
 "#,
@@ -257,8 +257,8 @@ entry:
             r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 42
     store v0, v2
     v3: int32 = load v1
@@ -287,8 +287,8 @@ entry:
             r#"
 function test(): void {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 42
     store v0, v2
     return
@@ -324,9 +324,9 @@ global g2: int32 = 0
 
 function test(): void {
 entry:
-    v0: ref<int32, raw, space(static)> = global.address g1
-    v1: ref<int32, raw, space(static)> = global.address g2
-    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(static)> = global.address g1
+    v1: ref<int32, raw, mutable, space(static)> = global.address g2
+    v2: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     return
 }
 "#,
@@ -350,8 +350,8 @@ entry:
             r#"
 function test(): void {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<float64, raw, space(frame)> = frame.alloc.zeroed float64
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<float64, raw, mutable, space(frame)> = frame.alloc.zeroed float64
     return
 }
 "#,
@@ -381,10 +381,10 @@ entry:
     fn test_call_metadata_no_memory_mod_ref() {
         let mut program = TestProgram::new(
             r#"
-external function imported(ref<int32, raw>): void
+external function imported(ref<int32, raw, mutable>): void
 
-function test(v0: ref<int32, raw>): void {
-entry(v0: ref<int32, raw>):
+function test(v0: ref<int32, raw, mutable>): void {
+entry(v0: ref<int32, raw, mutable>):
     call imported(v0)
     return
 }

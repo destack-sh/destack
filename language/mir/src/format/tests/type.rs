@@ -38,8 +38,8 @@ entry(v0: float16, v1: bfloat16, v2: float32, v3: float64):
 fn test_format_managed_and_unique_references() {
     assert_format(
         r#"
-function refs(v0: ref<int32, managed, nullable>, v1: ref<int32, unique, readonly>): ref<int32, managed, nullable> {
-entry(v0: ref<int32, managed, nullable>, v1: ref<int32, unique, readonly>):
+function refs(v0: ref<int32, managed, mutable, nullable>, v1: ref<int32, unique, readonly>): ref<int32, managed, mutable, nullable> {
+entry(v0: ref<int32, managed, mutable, nullable>, v1: ref<int32, unique, readonly>):
     return v0
 }
 "#,
@@ -51,8 +51,8 @@ entry(v0: ref<int32, managed, nullable>, v1: ref<int32, unique, readonly>):
 fn test_format_raw_spaces() {
     assert_format(
         r#"
-function rawSpaces(v0: ref<int32, raw, space(shared)>, v1: ref<int32, raw, space(static)>): ref<int32, raw, space(shared)> {
-entry(v0: ref<int32, raw, space(shared)>, v1: ref<int32, raw, space(static)>):
+function rawSpaces(v0: ref<int32, raw, mutable, space(shared)>, v1: ref<int32, raw, mutable, space(static)>): ref<int32, raw, mutable, space(shared)> {
+entry(v0: ref<int32, raw, mutable, space(shared)>, v1: ref<int32, raw, mutable, space(static)>):
     return v0
 }
 "#,
@@ -64,8 +64,8 @@ entry(v0: ref<int32, raw, space(shared)>, v1: ref<int32, raw, space(static)>):
 fn test_format_parameter_borrow_lifetime() {
     assert_format(
         r#"
-function borrowParam(v0: ref<int32, borrowed, lifetime(0)>): ref<int32, borrowed, lifetime(0)> {
-entry(v0: ref<int32, borrowed, lifetime(0)>):
+function borrowParam<L0: lifetime>(v0: ref<int32, borrowed, lifetime(L0), mutable>): ref<int32, borrowed, lifetime(L0), mutable> {
+entry(v0: ref<int32, borrowed, lifetime(L0), mutable>):
     return v0
 }
 "#,
@@ -77,8 +77,8 @@ entry(v0: ref<int32, borrowed, lifetime(0)>):
 fn test_format_static_borrow_lifetime() {
     assert_format(
         r#"
-function staticBorrow(v0: ref<int32, borrowed, lifetime(static)>): ref<int32, borrowed, lifetime(static)> {
-entry(v0: ref<int32, borrowed, lifetime(static)>):
+function staticBorrow(v0: ref<int32, borrowed, lifetime(static), mutable>): ref<int32, borrowed, lifetime(static), mutable> {
+entry(v0: ref<int32, borrowed, lifetime(static), mutable>):
     return v0
 }
 "#,
@@ -91,12 +91,12 @@ fn test_format_named_lifetimes() {
     assert_format(
         r#"
 type Player<LWorld: lifetime, LMesh: lifetime> {
-    world: ref<int32, borrowed, lifetime(LWorld)>;
-    mesh: ref<float64, borrowed, lifetime(LMesh)>;
+    world: ref<int32, borrowed, lifetime(LWorld), mutable>;
+    mesh: ref<float64, borrowed, lifetime(LMesh), mutable>;
 }
 
-function tickPlayer<LPlayer: lifetime, LWorld: lifetime, LMesh: lifetime>(v0: ref<Player<lifetime(LWorld), lifetime(LMesh)>, borrowed, lifetime(LPlayer)>): void {
-entry(v0: ref<Player<lifetime(LWorld), lifetime(LMesh)>, borrowed, lifetime(LPlayer)>):
+function tickPlayer<LPlayer: lifetime, LWorld: lifetime, LMesh: lifetime>(v0: ref<Player<lifetime(LWorld), lifetime(LMesh)>, borrowed, lifetime(LPlayer), mutable>): void {
+entry(v0: ref<Player<lifetime(LWorld), lifetime(LMesh)>, borrowed, lifetime(LPlayer), mutable>):
     return
 }
 "#,
@@ -108,9 +108,9 @@ entry(v0: ref<Player<lifetime(LWorld), lifetime(LMesh)>, borrowed, lifetime(LPla
 fn test_format_callable_suspension_contract() {
     assert_format(
         r#"
-function callContract(v0: (ref<int32, borrowed, readonly> @suspensionSafe(0)) => int32, v1: ref<int32, borrowed, readonly>): int32 {
-entry(v0: (ref<int32, borrowed, readonly> @suspensionSafe(0)) => int32, v1: ref<int32, borrowed, readonly>):
-    v2: int32 = call.indirect v0(v1): (ref<int32, borrowed, readonly> @suspensionSafe(0)) => int32
+function callContract(v0: <L0: lifetime>(ref<int32, borrowed, lifetime(L0), readonly> @suspensionSafe(L0)) => int32, v1: ref<int32, borrowed, readonly>): int32 {
+entry(v0: <L0: lifetime>(ref<int32, borrowed, lifetime(L0), readonly> @suspensionSafe(L0)) => int32, v1: ref<int32, borrowed, readonly>):
+    v2: int32 = call.indirect v0(v1): <L0: lifetime>(ref<int32, borrowed, lifetime(L0), readonly> @suspensionSafe(L0)) => int32
     return v2
 }
 "#,
@@ -122,8 +122,8 @@ entry(v0: (ref<int32, borrowed, readonly> @suspensionSafe(0)) => int32, v1: ref<
 fn test_format_borrowed_shaped_views() {
     assert_format(
         r#"
-function views(v0: slice<int32, borrowed, lifetime(0), readonly>, v1: tensorView<int32, borrowed, lifetime(0), (4, 4)>): void {
-entry(v0: slice<int32, borrowed, lifetime(0), readonly>, v1: tensorView<int32, borrowed, lifetime(0), (4, 4)>):
+function views<L0: lifetime>(v0: slice<int32, borrowed, lifetime(L0), readonly>, v1: tensorView<int32, borrowed, lifetime(L0), mutable, (4, 4)>): void {
+entry(v0: slice<int32, borrowed, lifetime(L0), readonly>, v1: tensorView<int32, borrowed, lifetime(L0), mutable, (4, 4)>):
     return
 }
 "#,
@@ -135,8 +135,8 @@ entry(v0: slice<int32, borrowed, lifetime(0), readonly>, v1: tensorView<int32, b
 fn test_format_tensor_shapes_and_layouts() {
     assert_format(
         r#"
-function tensors(v0: tensor<float32, (batch, dynamic, 64), layout(dense(columnMajor))>, v1: tensorView<float32, borrowed, lifetime(0), readonly, (batch, dynamic, 64), layout(strided)>): void {
-entry(v0: tensor<float32, (batch, dynamic, 64), layout(dense(columnMajor))>, v1: tensorView<float32, borrowed, lifetime(0), readonly, (batch, dynamic, 64), layout(strided)>):
+function tensors<L0: lifetime>(v0: tensor<float32, (batch, dynamic, 64), layout(dense(columnMajor))>, v1: tensorView<float32, borrowed, lifetime(L0), readonly, (batch, dynamic, 64), layout(strided)>): void {
+entry(v0: tensor<float32, (batch, dynamic, 64), layout(dense(columnMajor))>, v1: tensorView<float32, borrowed, lifetime(L0), readonly, (batch, dynamic, 64), layout(strided)>):
     return
 }
 "#,
@@ -211,11 +211,11 @@ type Point {
 
 type Node {
     value: int64;
-    next: ref<Node, managed>;
+    next: ref<Node, managed, mutable>;
 }
 
-function usePoint(v0: ref<Point, managed>, v1: ref<Node, managed>): ref<Point, managed> {
-entry(v0: ref<Point, managed>, v1: ref<Node, managed>):
+function usePoint(v0: ref<Point, managed, mutable>, v1: ref<Node, managed, mutable>): ref<Point, managed, mutable> {
+entry(v0: ref<Point, managed, mutable>, v1: ref<Node, managed, mutable>):
     return v0
 }
 "#,
@@ -227,11 +227,11 @@ type Point {
 
 type Node {
     value: int64;
-    next: ref<Node, managed>;
+    next: ref<Node, managed, mutable>;
 }
 
-function usePoint(v0: ref<Point, managed>, v1: ref<Node, managed>): ref<Point, managed> {
-entry(v0: ref<Point, managed>, v1: ref<Node, managed>):
+function usePoint(v0: ref<Point, managed, mutable>, v1: ref<Node, managed, mutable>): ref<Point, managed, mutable> {
+entry(v0: ref<Point, managed, mutable>, v1: ref<Node, managed, mutable>):
     return v0
 }
 "#,
@@ -244,8 +244,8 @@ fn test_format_type_copy_markers() {
     assert_format(
         r#"
 type OwnedPair {
-    ref<int32, unique>;
-    ref<int32, unique>;
+    ref<int32, unique, mutable>;
+    ref<int32, unique, mutable>;
 }
 
 @copy
@@ -342,6 +342,7 @@ fn test_format_struct_fields_with_attributes_without_parsed_spans() {
 
     assert_output_eq(
         r#"
+@copy
 type Point {
     @packed
     x: int32;

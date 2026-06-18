@@ -41,7 +41,7 @@ function localAddr(): void {
     local l0: int32
 
 entry:
-    v0: ref<int32, borrowed, space(frame)> = local.address l0
+    v0: ref<int32, borrowed, mutable, space(frame)> = local.address l0
     return
 }
 "#,
@@ -85,17 +85,17 @@ entry:
 fn test_format_closure_environment() {
     assert_format(
         r#"
-@environment(ref<void, managed>)
+@environment(ref<void, managed, mutable>)
 function callee(v0: int32): int32 {
 entry(v0: int32):
-    v1: ref<void, managed> = closure.environment
+    v1: ref<void, managed, mutable> = closure.environment
     return v0
 }
 
-@environment(ref<void, managed>)
+@environment(ref<void, managed, mutable>)
 function caller(): int32 {
 entry:
-    v0: ref<void, managed> = closure.environment
+    v0: ref<void, managed, mutable> = closure.environment
     v1: (int32) => int32 = closure.bind callee, v0
     v2: int32 = 1
     v3: int32 = call.indirect v1(v2): (int32) => int32
@@ -131,8 +131,8 @@ entry:
 fn test_format_reference_access_preserved() {
     assert_format(
         r#"
-function refMutability(v0: ref<int32, managed>, v1: ref<int32, unique, readonly>): ref<int32, managed> {
-entry(v0: ref<int32, managed>, v1: ref<int32, unique, readonly>):
+function refMutability(v0: ref<int32, managed, mutable>, v1: ref<int32, unique, readonly>): ref<int32, managed, mutable> {
+entry(v0: ref<int32, managed, mutable>, v1: ref<int32, unique, readonly>):
     return v0
 }
 "#,

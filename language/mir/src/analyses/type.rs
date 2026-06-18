@@ -117,6 +117,7 @@ pub enum TypeKey {
     },
     /// Bare function signature.
     FunctionSignature {
+        lifetimes: Vec<mir::LifetimeParameter>,
         parameters: Vec<(TypeKey, Vec<mir::BorrowObligation>)>,
         result: Box<TypeKey>,
     },
@@ -323,7 +324,11 @@ impl TypeKey {
                 nullability: *nullability,
             },
 
-            mir::Type::FunctionSignature { parameters, result } => {
+            mir::Type::FunctionSignature {
+                lifetimes,
+                parameters,
+                result,
+            } => {
                 let parameters = parameters
                     .iter()
                     .map(|parameter| {
@@ -334,6 +339,7 @@ impl TypeKey {
                     })
                     .collect();
                 TypeKey::FunctionSignature {
+                    lifetimes: lifetimes.clone(),
                     parameters,
                     result: Box::new(Self::from_type_id(result, tree)),
                 }
@@ -611,15 +617,18 @@ fn types_are_equal_inner(
         // function pointers: compare parameter and result types
         (
             mir::Type::FunctionSignature {
+                lifetimes: l1,
                 parameters: p1,
                 result: r1,
             },
             mir::Type::FunctionSignature {
+                lifetimes: l2,
                 parameters: p2,
                 result: r2,
             },
         ) => {
-            p1.len() == p2.len()
+            l1 == l2
+                && p1.len() == p2.len()
                 && p1.iter().zip(p2.iter()).all(|(a, b)| {
                     a.obligations == b.obligations
                         && type_ids_are_equal(&a.ty, &b.ty, tree, visiting)

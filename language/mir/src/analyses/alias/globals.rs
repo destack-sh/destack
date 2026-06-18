@@ -253,8 +253,8 @@ global g2: int32 = 0
 
 function test(): void {
 entry:
-    v0: ref<int32, raw, space(static)> = global.address g1
-    v1: ref<int32, raw, space(static)> = global.address g2
+    v0: ref<int32, raw, mutable, space(static)> = global.address g1
+    v1: ref<int32, raw, mutable, space(static)> = global.address g2
     v2: int32 = 1
     store v0, v2
     store v1, v2
@@ -281,8 +281,8 @@ global g: int32 = 0
 
 function test(): void {
 entry:
-    v0: ref<int32, raw, space(static)> = global.address g
-    v1: ref<int32, raw, space(static)> = global.address g
+    v0: ref<int32, raw, mutable, space(static)> = global.address g
+    v1: ref<int32, raw, mutable, space(static)> = global.address g
     return
 }
 "#,
@@ -306,7 +306,7 @@ global g: int32 = 0
 
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(static)> = global.address g
+    v0: ref<int32, raw, mutable, space(static)> = global.address g
     v1: int32 = load v0
     return v1
 }
@@ -331,7 +331,7 @@ global g: int32 = 0
 
 function test(): void {
 entry:
-    v0: ref<int32, raw, space(static)> = global.address g
+    v0: ref<int32, raw, mutable, space(static)> = global.address g
     v1: int32 = 42
     store v0, v1
     return
@@ -355,11 +355,11 @@ entry:
             r#"
 global g: int32 = 0
 
-external function imported(ref<int32, raw>): void
+external function imported(ref<int32, raw, mutable>): void
 
 function test(): void {
 entry:
-    v0: ref<int32, raw, space(static)> = global.address g
+    v0: ref<int32, raw, mutable, space(static)> = global.address g
     call imported(v0)
     return
 }
@@ -388,9 +388,9 @@ entry:
             r#"
 global g: int32 = 0
 
-function test(v0: ref<ref<int32, raw>, raw>): void {
-entry(v0: ref<ref<int32, raw>, raw>):
-    v1: ref<int32, raw, space(static)> = global.address g
+function test(v0: ref<ref<int32, raw, mutable>, raw, mutable>): void {
+entry(v0: ref<ref<int32, raw, mutable>, raw, mutable>):
+    v1: ref<int32, raw, mutable, space(static)> = global.address g
     store v0, v1
     return
 }
@@ -414,9 +414,9 @@ entry(v0: ref<ref<int32, raw>, raw>):
             r#"
 global g: int32 = 0
 
-function test(v0: ref<int32, raw>): void {
-entry(v0: ref<int32, raw>):
-    v1: ref<int32, raw, space(static)> = global.address g
+function test(v0: ref<int32, raw, mutable>): void {
+entry(v0: ref<int32, raw, mutable>):
+    v1: ref<int32, raw, mutable, space(static)> = global.address g
     v2: int32 = 42
     store v1, v2
     return
@@ -452,8 +452,8 @@ global g: Point = {0int32, 0int32}
 
 function test(): void {
 entry:
-    v0: ref<Point, raw, space(static)> = global.address g
-    v1: ref<int32, borrowed> = field.address v0, 0
+    v0: ref<Point, raw, mutable, space(static)> = global.address g
+    v1: ref<int32, borrowed, mutable> = field.address v0, 0
     v2: int32 = 42
     store v1, v2
     return

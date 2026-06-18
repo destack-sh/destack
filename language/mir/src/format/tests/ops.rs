@@ -5,8 +5,8 @@ use super::assert_format;
 fn test_format_vector_tensor_ops() {
     assert_format(
         r#"
-function vectorTensorOps(v0: vector<int32, 4>, v1: int32, v2: tensor<int32, (2, 2)>, v3: tensorView<int32, borrowed, (2, 2)>): tensor<int32, (2, 2)> {
-entry(v0: vector<int32, 4>, v1: int32, v2: tensor<int32, (2, 2)>, v3: tensorView<int32, borrowed, (2, 2)>):
+function vectorTensorOps(v0: vector<int32, 4>, v1: int32, v2: tensor<int32, (2, 2)>, v3: tensorView<int32, borrowed, mutable, (2, 2)>): tensor<int32, (2, 2)> {
+entry(v0: vector<int32, 4>, v1: int32, v2: tensor<int32, (2, 2)>, v3: tensorView<int32, borrowed, mutable, (2, 2)>):
     v4: vector<int32, 4> = vector.splat v1
     v5: int32 = vector.extract v4, v1
     v6: vector<int32, 4> = vector.insert v4, v1, v1
@@ -24,7 +24,7 @@ entry(v0: vector<int32, 4>, v1: int32, v2: tensor<int32, (2, 2)>, v3: tensorView
     v15: tensor<int32, (2, 2)> = tensor.broadcast v2, dimensions(0, 1)
     v16: tensor<int32, (2, 2)> = tensor.transpose v2, permutation(1, 0)
     v17: tensor<int32, (2, 2)> = tensor.cast v2
-    v18: tensorView<int32, borrowed, (2, 2)> = tensor.view v3, offsets(v11, v11), sizes(v12, v12), strides(v12, v12)
+    v18: tensorView<int32, borrowed, mutable, (2, 2)> = tensor.view v3, offsets(v11, v11), sizes(v12, v12), strides(v12, v12)
     v19: tensor<int32, (2, 2)> = tensor.slice v2, offsets(v11, v11), sizes(v12, v12), strides(v12, v12)
     v20: tensor<int32, (2, 2)> = tensor.pad v2, value(v11), low(v11, v11), high(v11, v11), interior(v11, v11)
     v21: tensor<int32, (2, 2)> = tensor.concat tensors(v2, v2), axis(0)

@@ -475,33 +475,24 @@ fn format_type_inner<'a>(
             }
             write!(f, [token(">")])
         }
-        Type::FunctionSignature { parameters, result } => {
-            write!(f, [token("(")])?;
-            for (i, param) in parameters.iter().enumerate() {
-                if i > 0 {
-                    write!(f, [token(","), space()])?;
-                }
-                format_signature_parameter(param, f)?;
-            }
-            write!(f, [token(")"), space(), token("=>"), space()])?;
-            format_type_id(*result, f)
-        }
+        Type::FunctionSignature {
+            lifetimes,
+            parameters,
+            result,
+        } => format_function_signature(lifetimes, parameters, *result, f),
         Type::FunctionPointer { signature } | Type::Closure { signature, .. } => {
             let signature_type = f.context().tree.get(*signature);
-            if let Type::FunctionSignature { parameters, result } = signature_type {
+            if let Type::FunctionSignature {
+                lifetimes,
+                parameters,
+                result,
+            } = signature_type
+            {
                 if matches!(ty, Type::FunctionPointer { .. }) {
                     write!(f, [token("fn")])?;
                 }
 
-                write!(f, [token("(")])?;
-                for (i, param) in parameters.iter().enumerate() {
-                    if i > 0 {
-                        write!(f, [token(","), space()])?;
-                    }
-                    format_signature_parameter(param, f)?;
-                }
-                write!(f, [token(")"), space(), token("=>"), space()])?;
-                format_type_id(*result, f)?;
+                format_function_signature(lifetimes, parameters, *result, f)?;
                 return Ok(());
             }
 
@@ -674,6 +665,31 @@ pub(super) fn format_signature_parameter<'a>(
     format_borrow_obligations(&parameter.obligations, f)
 }
 
+pub(super) fn format_function_signature<'a>(
+    lifetimes: &[LifetimeParameter],
+    parameters: &[crate::SignatureParameter],
+    result: TypeId,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    let previous_lifetimes =
+        std::mem::replace(&mut f.context_mut().current_lifetimes, lifetimes.to_vec());
+    format_lifetimes(lifetimes, f)?;
+
+    write!(f, [token("(")])?;
+    for (index, parameter) in parameters.iter().enumerate() {
+        if index > 0 {
+            write!(f, [token(","), space()])?;
+        }
+        format_signature_parameter(parameter, f)?;
+    }
+    write!(f, [token(")"), space(), token("=>"), space()])?;
+    format_type_id(result, f)?;
+
+    f.context_mut().current_lifetimes = previous_lifetimes;
+
+    Ok(())
+}
+
 pub(super) fn format_borrow_obligations<'a>(
     obligations: &[BorrowObligation],
     f: &mut MirFormatter<'a, '_>,
@@ -742,7 +758,7 @@ fn format_lifetimes<'a>(
 fn format_access<'a>(access: Access, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
     match access {
         Access::Readonly => write!(f, [token(","), space(), token("readonly")]),
-        Access::Mutable => Ok(()),
+        Access::Mutable => write!(f, [token(","), space(), token("mutable")]),
         Access::Exclusive => write!(f, [token(","), space(), token("exclusive")]),
     }
 }

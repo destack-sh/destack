@@ -684,8 +684,8 @@ type Point {
 
 function test(): void {
 entry:
-    v0: ref<Point, managed> = new.zeroed Point
-    v1: ref<Point, managed> = new.zeroed Point
+    v0: ref<Point, managed, mutable> = new.zeroed Point
+    v1: ref<Point, managed, mutable> = new.zeroed Point
     v2: int32 = 1
     store v0, v2
     store v1, v2
@@ -710,8 +710,8 @@ entry:
             r#"
 function test(): void {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int8 = 0
     v3: int64 = 4
     intrinsic.memory.raw.setBytes(v1, v2, v3)
@@ -752,7 +752,7 @@ function test(): void {
     local l0: int32
 
 entry:
-    v0: ref<int32, raw, space(frame)> = local.address l0
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int8 = 0
     v2: int64 = 4
     intrinsic.memory.raw.setBytes(v0, v1, v2)
@@ -817,7 +817,7 @@ type Point {
 
 function test(): void {
 entry:
-    v0: ref<Point, managed> = new.zeroed Point
+    v0: ref<Point, managed, mutable> = new.zeroed Point
     return
 }
 "#,
@@ -843,9 +843,9 @@ type Point {
 
 function test(): void {
 entry:
-    v0: ref<Point, managed> = new.zeroed Point
-    v1: ref<int32, borrowed> = field.address v0, 0
-    v2: ref<int32, borrowed> = field.address v0, 1
+    v0: ref<Point, managed, mutable> = new.zeroed Point
+    v1: ref<int32, borrowed, mutable> = field.address v0, 0
+    v2: ref<int32, borrowed, mutable> = field.address v0, 1
     v3: int32 = 1
     store v1, v3
     store v2, v3
@@ -870,8 +870,8 @@ entry:
             r#"
 function test(): void {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, managed> = new.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, managed, mutable> = new.zeroed int32
     v2: int32 = 1
     store v0, v2
     store v1, v2
@@ -898,8 +898,8 @@ global g: int32 = 0
 
 function test(): void {
 entry:
-    v0: ref<int32, raw, space(static)> = global.address g
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(static)> = global.address g
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 1
     store v0, v2
     store v1, v2
@@ -926,11 +926,11 @@ type Arr = [int32; 10];
 
 function test(): void {
 entry:
-    v0: ref<Arr, raw, space(frame)> = frame.alloc.zeroed Arr
+    v0: ref<Arr, raw, mutable, space(frame)> = frame.alloc.zeroed Arr
     v1: int64 = 0
     v2: int64 = 1
-    v3: ref<int32, borrowed> = element.address v0, v1
-    v4: ref<int32, borrowed> = element.address v0, v2
+    v3: ref<int32, borrowed, mutable> = element.address v0, v1
+    v4: ref<int32, borrowed, mutable> = element.address v0, v2
     v5: int32 = 42
     store v3, v5
     store v4, v5
@@ -953,8 +953,8 @@ entry:
     fn test_parameters_may_alias() {
         let program = TestProgram::new(
             r#"
-function test(v0: ref<int32, raw>, v1: ref<int32, raw>): void {
-entry(v0: ref<int32, raw>, v1: ref<int32, raw>):
+function test(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>): void {
+entry(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>):
     v2: int32 = 1
     store v0, v2
     store v1, v2
@@ -981,7 +981,7 @@ entry(v0: ref<int32, raw>, v1: ref<int32, raw>):
             r#"
 function test(): void {
 entry:
-    v0: ref<int64, raw, space(frame)> = frame.alloc.zeroed int64
+    v0: ref<int64, raw, mutable, space(frame)> = frame.alloc.zeroed int64
     return
 }
 "#,
@@ -1008,7 +1008,7 @@ entry:
             r#"
 function test(): void {
 entry:
-    v0: ref<int64, raw, space(frame)> = frame.alloc.zeroed int64
+    v0: ref<int64, raw, mutable, space(frame)> = frame.alloc.zeroed int64
     return
 }
 "#,
@@ -1035,8 +1035,8 @@ entry:
             r#"
 function test(): void {
 entry:
-    v0: ref<int64, raw, space(frame)> = frame.alloc.zeroed int64
-    v1: ref<int64, managed> = new.zeroed int64
+    v0: ref<int64, raw, mutable, space(frame)> = frame.alloc.zeroed int64
+    v1: ref<int64, managed, mutable> = new.zeroed int64
     return
 }
 "#,
@@ -1059,9 +1059,9 @@ entry:
             r#"
 function test(): void {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v2: ref<int8, raw> = cast.bit v0 -> ref<int8, raw>
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int8, raw, mutable> = cast.bit v0 -> ref<int8, raw, mutable>
     return
 }
 "#,
@@ -1092,9 +1092,9 @@ type Arr = [int32; 10];
 
 function test(v0: int64): void {
 entry(v0: int64):
-    v1: ref<Arr, raw, space(frame)> = frame.alloc.zeroed Arr
-    v2: ref<int32, borrowed> = element.address v1, v0
-    v3: ref<int32, borrowed> = element.address v1, v0
+    v1: ref<Arr, raw, mutable, space(frame)> = frame.alloc.zeroed Arr
+    v2: ref<int32, borrowed, mutable> = element.address v1, v0
+    v3: ref<int32, borrowed, mutable> = element.address v1, v0
     return
 }
 "#,
@@ -1128,11 +1128,11 @@ type Outer {
 
 function test(): void {
 entry:
-    v0: ref<Outer, raw, space(frame)> = frame.alloc.zeroed Outer
-    v1: ref<Inner, borrowed> = field.address v0, 0
-    v2: ref<Inner, borrowed> = field.address v0, 1
-    v3: ref<int32, borrowed> = field.address v1, 0
-    v4: ref<int32, borrowed> = field.address v2, 0
+    v0: ref<Outer, raw, mutable, space(frame)> = frame.alloc.zeroed Outer
+    v1: ref<Inner, borrowed, mutable> = field.address v0, 0
+    v2: ref<Inner, borrowed, mutable> = field.address v0, 1
+    v3: ref<int32, borrowed, mutable> = field.address v1, 0
+    v4: ref<int32, borrowed, mutable> = field.address v2, 0
     return
 }
 "#,

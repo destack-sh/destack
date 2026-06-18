@@ -109,8 +109,8 @@ entry(v0: int32, v1: int32):
     fn test_resolve_none_for_undeclared_borrowed_return() {
         let program = TestProgram::new(
             r#"
-function identity(v0: ref<int32, borrowed>): ref<int32, borrowed> {
-entry(v0: ref<int32, borrowed>):
+function identity(v0: ref<int32, borrowed, mutable>): ref<int32, borrowed, mutable> {
+entry(v0: ref<int32, borrowed, mutable>):
     return v0
 }
 "#,
@@ -130,8 +130,8 @@ entry(v0: ref<int32, borrowed>):
     fn test_resolve_declared_multiple_parameter_lifetime() {
         let program = TestProgram::new(
             r#"
-function pick(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>): ref<int32, borrowed, lifetime(0, 1)> {
-entry(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
+function pick<L0: lifetime, L1: lifetime>(v0: ref<int32, borrowed, lifetime(L0), mutable>, v1: ref<int32, borrowed, lifetime(L1), mutable>): ref<int32, borrowed, lifetime(L0, L1), mutable> {
+entry(v0: ref<int32, borrowed, lifetime(L0), mutable>, v1: ref<int32, borrowed, lifetime(L1), mutable>):
     return v0
 }
 "#,
@@ -152,8 +152,8 @@ entry(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
     fn test_resolve_none_for_void_return() {
         let program = TestProgram::new(
             r#"
-function consume(v0: ref<int32, borrowed>): void {
-entry(v0: ref<int32, borrowed>):
+function consume(v0: ref<int32, borrowed, mutable>): void {
+entry(v0: ref<int32, borrowed, mutable>):
     return
 }
 "#,
@@ -173,9 +173,9 @@ entry(v0: ref<int32, borrowed>):
     fn test_resolve_none_for_owned_return() {
         let program = TestProgram::new(
             r#"
-function create(): ref<int32, raw, space(frame)> {
+function create(): ref<int32, raw, mutable, space(frame)> {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     return v0
 }
 "#,
@@ -195,8 +195,8 @@ entry:
     fn test_resolve_none_for_mixed_undeclared_borrowed_return() {
         let program = TestProgram::new(
             r#"
-function mixed(v0: int32, v1: ref<int32, borrowed>, v2: int32): ref<int32, borrowed> {
-entry(v0: int32, v1: ref<int32, borrowed>, v2: int32):
+function mixed(v0: int32, v1: ref<int32, borrowed, mutable>, v2: int32): ref<int32, borrowed, mutable> {
+entry(v0: int32, v1: ref<int32, borrowed, mutable>, v2: int32):
     return v1
 }
 "#,
@@ -216,8 +216,8 @@ entry(v0: int32, v1: ref<int32, borrowed>, v2: int32):
     fn test_resolve_explicit_static_lifetime() {
         let program = TestProgram::new(
             r#"
-function getGlobal(v0: ref<int32, borrowed>): ref<int32, borrowed, lifetime(static)> {
-entry(v0: ref<int32, borrowed>):
+function getGlobal(v0: ref<int32, borrowed, mutable>): ref<int32, borrowed, lifetime(static), mutable> {
+entry(v0: ref<int32, borrowed, mutable>):
     return v0
 }
 "#,
@@ -238,8 +238,8 @@ entry(v0: ref<int32, borrowed>):
     fn test_resolve_explicit_param_lifetime() {
         let program = TestProgram::new(
             r#"
-function pickFirst(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>): ref<int32, borrowed, lifetime(0)> {
-entry(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
+function pickFirst<L0: lifetime, L1: lifetime>(v0: ref<int32, borrowed, lifetime(L0), mutable>, v1: ref<int32, borrowed, lifetime(L1), mutable>): ref<int32, borrowed, lifetime(L0), mutable> {
+entry(v0: ref<int32, borrowed, lifetime(L0), mutable>, v1: ref<int32, borrowed, lifetime(L1), mutable>):
     return v0
 }
 "#,
@@ -262,9 +262,9 @@ entry(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
     fn test_resolve_none_for_undeclared_static_borrow() {
         let program = TestProgram::new(
             r#"
-function getStatic(v0: int32): ref<int32, borrowed> {
+function getStatic(v0: int32): ref<int32, borrowed, mutable> {
 entry(v0: int32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     return v1
 }
 "#,
@@ -296,6 +296,7 @@ entry:
             is_signed: true,
         });
         let signature = program.tree.insert_type(mir::Type::FunctionSignature {
+            lifetimes: Vec::new(),
             parameters: vec![int_ty.into()],
             result: int_ty.into(),
         });
@@ -329,6 +330,7 @@ entry:
             nullability: mir::Nullability::None,
         });
         let signature = program.tree.insert_type(mir::Type::FunctionSignature {
+            lifetimes: Vec::new(),
             parameters: vec![int_ty.into()],
             result: borrowed_ref.into(),
         });
@@ -362,6 +364,7 @@ entry:
             nullability: mir::Nullability::None,
         });
         let signature = program.tree.insert_type(mir::Type::FunctionSignature {
+            lifetimes: Vec::new(),
             parameters: vec![int_ty.into(), borrowed_ref.into()],
             result: borrowed_ref.into(),
         });
@@ -399,6 +402,7 @@ entry:
             lifetimes: vec![mir::Lifetime::slot(2)],
         });
         let signature = program.tree.insert_type(mir::Type::FunctionSignature {
+            lifetimes: vec![mir::LifetimeParameter::new(None)],
             parameters: vec![applied_ref.into()],
             result: applied_ref.into(),
         });
@@ -418,8 +422,8 @@ type Pair<A: lifetime, B: lifetime> {
     ref<int32, borrowed, lifetime(B), readonly>;
 }
 
-function test(v0: Pair<lifetime(0), lifetime(1)>): void {
-entry(v0: Pair<lifetime(0), lifetime(1)>):
+function test<L0: lifetime, L1: lifetime>(v0: Pair<lifetime(L0), lifetime(L1)>): void {
+entry(v0: Pair<lifetime(L0), lifetime(L1)>):
     return
 }
 "#,
