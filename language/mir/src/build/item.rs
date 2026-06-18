@@ -62,7 +62,7 @@ impl ModuleBuilder {
         let name_id = self.strings.intern(name);
         FunctionBuilder::new(
             &mut self.tree,
-            &mut self.strings,
+            &self.strings,
             name_id,
             parameter_types,
             return_type,
@@ -74,7 +74,7 @@ impl ModuleBuilder {
         &mut self,
         function_id: LocalNodeId<Function>,
     ) -> BuildResult<FunctionBuilder<'_>> {
-        FunctionBuilder::from_declared(&mut self.tree, &mut self.strings, function_id)
+        FunctionBuilder::from_declared(&mut self.tree, &self.strings, function_id)
     }
 
     /// Declare a local function without a body.
@@ -93,7 +93,7 @@ impl ModuleBuilder {
         let function_id =
             self.tree
                 .insert(Function::declare(name_id, parameters, return_type.into()));
-        finalize_function_names(&mut self.tree, &mut self.strings, function_id);
+        finalize_function_names(&mut self.tree, &self.strings, function_id);
 
         function_id
     }
@@ -114,7 +114,7 @@ impl ModuleBuilder {
         let function_id =
             self.tree
                 .insert(Function::import(name_id, parameters, return_type.into()));
-        finalize_function_names(&mut self.tree, &mut self.strings, function_id);
+        finalize_function_names(&mut self.tree, &self.strings, function_id);
 
         function_id
     }

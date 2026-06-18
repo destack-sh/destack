@@ -110,6 +110,41 @@ pub fn terminator_arguments_for_successor<'a>(
     }
 }
 
+/// Return successor parameters bound by explicit terminator arguments.
+pub fn terminator_argument_parameters_for_successor<'a>(
+    tree: &'a mir::Tree,
+    terminator: &mir::Terminator,
+    successor: mir::LocalNodeId<mir::Block>,
+) -> &'a [mir::BlockParameter] {
+    let arguments = terminator_arguments_for_successor(tree, terminator, successor);
+    let block = tree.get(successor);
+    let parameters = block.parameters.as_slice();
+
+    // skip the leading result parameter on call and yield resume edges
+    if parameters.len() == arguments.len() + 1
+        && terminator_has_successor_result(terminator, successor)
+    {
+        &parameters[1..]
+    } else {
+        parameters
+    }
+}
+
+/// Return whether one successor receives an implicit terminator result.
+pub fn terminator_has_successor_result(
+    terminator: &mir::Terminator,
+    successor: mir::LocalNodeId<mir::Block>,
+) -> bool {
+    match terminator {
+        mir::Terminator::Yield { resume, .. } => Some(resume.block) == Some(successor),
+        mir::Terminator::Call { target, .. }
+        | mir::Terminator::CallIndirect { target, .. }
+        | mir::Terminator::CallVirtual { target, .. }
+        | mir::Terminator::CallDynamic { target, .. } => Some(target.block) == Some(successor),
+        _ => false,
+    }
+}
+
 /// Return one block target with appended arguments.
 fn block_target_with_arguments(
     tree: &mut mir::Tree,
