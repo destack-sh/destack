@@ -2544,6 +2544,34 @@ print(*name);                           // still reads the borrowed profile
 
 The hidden slot is just a compiler temporary, and borrows of temporaries follow the same extension rules as Rust: a borrow that initializes a binding extends its temporary to the binding's lifetime, and any other temporary lives to the end of the enclosing statement.
 
+#### Definite Assignment
+
+In general, all binding must be definitely assigned to _something_ before they can be used in any way (read, moved, borrowed, returned, or implicitly dropped):
+
+```ds
+let value: Buffer;
+
+if (enabled) {
+    value = Buffer.open();
+}
+
+process(value); // ERROR: `value` is not assigned on every path
+```
+
+When "maybe" state is explicitly desired, we can represent it with a nullish union (or any other union as needed)_
+
+```ds
+let value: Buffer | undefined;
+
+if (enabled) {
+    value = Buffer.open();
+}
+
+if (value != undefined) {
+    process(value);
+}
+```
+
 ### Lifetimes
 
 Lifetimes tie a borrow to its source, and in Destack they are just generics: `<comptime L: Lifetime>` parameters on `Borrowed<T, L>`, available to all the regular TypeScript-style type algebra and inference (including flow typing and narrowing).
@@ -2671,7 +2699,7 @@ There is no hidden suspension - no implicit awaits, no preemption points, no sus
 
 Whenever the lifetime of a value ends and it is deallocated, Destack supports running a `Drop` finalizer, similar to Rust's `Drop`.
 This happens when the compiler inserts a drop for an owned local after its last use, when an owned field is being destroyed, and when the runtime reclaims an unreachable managed allocation.
-Drop sites are statically known: a place conditionally moved on one branch is an error at the join, so there are no runtime drop flags, and drops lower to plain calls.
+Drop sites are statically known: maybe-present state must be represented as an explicit type like `T | undefined`, and a place conditionally moved on one branch is an error at the join, so there are no runtime drop flags, and drops lower to plain calls.
 
 ```ds
 function run(): void {
