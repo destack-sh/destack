@@ -144,7 +144,7 @@ impl LoopAnalysis {
             let terminator = tree.get(block.terminator);
 
             // check each outgoing edge
-            for successor in tree.terminator_successors(terminator) {
+            for successor in terminator.successors(tree) {
                 // back edge: successor dominates the current block
                 if domtree.dominates(successor, block_id) {
                     back_edges.entry(successor).or_default().push(block_id);
@@ -249,7 +249,7 @@ impl LoopAnalysis {
             let terminator = tree.get(block.terminator);
             let mut is_exiting = false;
 
-            for successor in tree.terminator_successors(terminator) {
+            for successor in terminator.successors(tree) {
                 if !body.contains(&successor) {
                     exit_blocks_set.insert(successor);
                     is_exiting = true;

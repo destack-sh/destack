@@ -181,7 +181,7 @@ pub fn collect_non_escaping_frame_allocs(
                 );
             }
             mir::Terminator::Jump { target } => {
-                for arg in tree.block_target_values(target).iter().copied() {
+                for arg in target.arguments(tree).iter().copied() {
                     record_stack_escape_reference(
                         arg,
                         definitions,
@@ -198,10 +198,10 @@ pub fn collect_non_escaping_frame_allocs(
                 else_target,
                 ..
             } => {
-                for arg in tree
-                    .block_target_values(then_target)
+                for arg in then_target
+                    .arguments(tree)
                     .iter()
-                    .chain(tree.block_target_values(else_target).iter())
+                    .chain(else_target.arguments(tree).iter())
                     .copied()
                 {
                     record_stack_escape_reference(
@@ -218,10 +218,10 @@ pub fn collect_non_escaping_frame_allocs(
             mir::Terminator::Check {
                 success, failure, ..
             } => {
-                for arg in tree
-                    .block_target_values(success)
+                for arg in success
+                    .arguments(tree)
                     .iter()
-                    .chain(tree.block_target_values(failure).iter())
+                    .chain(failure.arguments(tree).iter())
                     .copied()
                 {
                     record_stack_escape_reference(
@@ -241,10 +241,10 @@ pub fn collect_non_escaping_frame_allocs(
             | mir::Terminator::NewUninitTry {
                 success, failure, ..
             } => {
-                for arg in tree
-                    .block_target_values(success)
+                for arg in success
+                    .arguments(tree)
                     .iter()
-                    .chain(tree.block_target_values(failure).iter())
+                    .chain(failure.arguments(tree).iter())
                     .copied()
                 {
                     record_stack_escape_reference(
@@ -280,10 +280,10 @@ pub fn collect_non_escaping_frame_allocs(
                     &mut escaping,
                 );
 
-                for arg in tree
-                    .block_target_values(success)
+                for arg in success
+                    .arguments(tree)
                     .iter()
-                    .chain(tree.block_target_values(failure).iter())
+                    .chain(failure.arguments(tree).iter())
                     .copied()
                 {
                     record_stack_escape_reference(
@@ -298,7 +298,7 @@ pub fn collect_non_escaping_frame_allocs(
                 }
             }
             mir::Terminator::Switch { cases, default, .. } => {
-                for arg in tree.block_target_values(default).iter().copied() {
+                for arg in default.arguments(tree).iter().copied() {
                     record_stack_escape_reference(
                         arg,
                         definitions,
@@ -310,7 +310,7 @@ pub fn collect_non_escaping_frame_allocs(
                     );
                 }
                 for case in tree.get_switch_cases(*cases) {
-                    for arg in tree.block_target_values(&case.target).iter().copied() {
+                    for arg in case.target.arguments(tree).iter().copied() {
                         record_stack_escape_reference(
                             arg,
                             definitions,
@@ -337,7 +337,7 @@ pub fn collect_non_escaping_frame_allocs(
                     &frame_allocs,
                     &mut escaping,
                 );
-                for arg in tree.block_target_values(resume).iter().copied() {
+                for arg in resume.arguments(tree).iter().copied() {
                     record_stack_escape_reference(
                         arg,
                         definitions,
@@ -349,7 +349,7 @@ pub fn collect_non_escaping_frame_allocs(
                     );
                 }
                 if let Some(unwind) = unwind {
-                    for arg in tree.block_target_values(unwind).iter().copied() {
+                    for arg in unwind.arguments(tree).iter().copied() {
                         record_stack_escape_reference(
                             arg,
                             definitions,
@@ -366,7 +366,7 @@ pub fn collect_non_escaping_frame_allocs(
                 for arg in tree
                     .get_values(call.arguments)
                     .iter()
-                    .chain(tree.block_target_values(target).iter())
+                    .chain(target.arguments(tree).iter())
                     .copied()
                 {
                     record_stack_escape_reference(
@@ -398,7 +398,7 @@ pub fn collect_non_escaping_frame_allocs(
                 for arg in tree
                     .get_values(call.arguments)
                     .iter()
-                    .chain(tree.block_target_values(target).iter())
+                    .chain(target.arguments(tree).iter())
                     .copied()
                 {
                     record_stack_escape_reference(
@@ -430,7 +430,7 @@ pub fn collect_non_escaping_frame_allocs(
                 for arg in tree
                     .get_values(call.arguments)
                     .iter()
-                    .chain(tree.block_target_values(target).iter())
+                    .chain(target.arguments(tree).iter())
                     .copied()
                 {
                     record_stack_escape_reference(
@@ -462,7 +462,7 @@ pub fn collect_non_escaping_frame_allocs(
                 for arg in tree
                     .get_values(call.arguments)
                     .iter()
-                    .chain(tree.block_target_values(target).iter())
+                    .chain(target.arguments(tree).iter())
                     .copied()
                 {
                     record_stack_escape_reference(
@@ -706,10 +706,7 @@ fn add_param_defs(
 
     let target_block = tree.get(block_id);
     let target_params = &target_block.parameters;
-    for (param, arg) in target_params
-        .iter()
-        .zip(tree.block_target_values(target).iter())
-    {
+    for (param, arg) in target_params.iter().zip(target.arguments(tree).iter()) {
         let param = param.value;
         let arg = *arg;
 

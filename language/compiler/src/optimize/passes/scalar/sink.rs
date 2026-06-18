@@ -130,7 +130,7 @@ fn run_sink(
         // load the block and its successors
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
-        let successors = tree.terminator_successors(terminator);
+        let successors = terminator.successors(tree);
 
         if successors.is_empty() {
             continue;
@@ -170,7 +170,7 @@ fn run_sink(
             let destination_value = destination;
 
             // check that the value is not used in the terminator
-            let terminator_uses: Vec<_> = tree.terminator_uses(terminator).into_iter().collect();
+            let terminator_uses: Vec<_> = terminator.uses(tree).into_iter().collect();
             if terminator_uses.contains(&destination) {
                 continue;
             }

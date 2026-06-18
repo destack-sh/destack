@@ -2,7 +2,6 @@ use std::collections::{HashMap, VecDeque};
 
 use crate::verify::value::{instruction_consumes, instruction_uses, terminator_consumes};
 use destack_mir as mir;
-use destack_mir::terminator_arguments_for_successor;
 
 use super::owned::OwnedValues;
 use super::state::DropState;
@@ -122,7 +121,7 @@ impl<'a> DropPlan<'a> {
             // revisit successors after changed exits
             let block = self.tree.get(block_id);
             let terminator = self.tree.get(block.terminator);
-            for successor in self.tree.terminator_successors(terminator) {
+            for successor in terminator.successors(self.tree) {
                 if !worklist.contains(&successor) {
                     worklist.push_back(successor);
                 }
@@ -217,7 +216,7 @@ impl<'a> DropPlan<'a> {
     ) -> DropState {
         let predecessor = self.tree.get(predecessor);
         let terminator = self.tree.get(predecessor.terminator);
-        let arguments = terminator_arguments_for_successor(self.tree, terminator, successor);
+        let arguments = terminator.arguments_for_successor(self.tree, successor);
         let successor_block = self.tree.get(successor);
 
         // transfer ownership to matching successor parameters
@@ -382,8 +381,8 @@ impl<'a> DropPlan<'a> {
         let mut carried = OwnedValues::default();
 
         // keep edge argument ownership alive in successor parameters
-        for successor in self.tree.terminator_successors(terminator) {
-            let arguments = terminator_arguments_for_successor(self.tree, terminator, successor);
+        for successor in terminator.successors(self.tree) {
+            let arguments = terminator.arguments_for_successor(self.tree, successor);
             let successor_block = self.tree.get(successor);
 
             // keep each carried value alive in successor parameters

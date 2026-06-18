@@ -388,7 +388,7 @@ impl ReachabilityCache {
                 // enqueue successors for traversal
                 let block = tree.get(block_id);
                 let terminator = tree.get(block.terminator);
-                for successor in tree.terminator_successors(terminator) {
+                for successor in terminator.successors(tree) {
                     if visited.contains(&successor) {
                         continue;
                     }

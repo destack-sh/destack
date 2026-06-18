@@ -1639,7 +1639,7 @@ impl<'a> MemoryRenamer<'a> {
         // wire phi incoming edges for successors
         let block_data = self.tree.get(block);
         let terminator = self.tree.get(block_data.terminator);
-        for successor in self.tree.terminator_successors(terminator) {
+        for successor in terminator.successors(self.tree) {
             if let Some(phi_id) = ssa.block_phis.get(&successor).copied()
                 && let Some(MemoryAccess::Phi(phi)) = ssa.accesses.get_mut(phi_id.index())
             {

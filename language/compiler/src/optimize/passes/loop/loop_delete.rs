@@ -217,7 +217,7 @@ fn find_deletable_loop(
 
         // check terminator uses
         let terminator = tree.get(block.terminator);
-        for used_value in tree.terminator_uses(terminator) {
+        for used_value in terminator.uses(tree) {
             if loop_defined_values.contains(&used_value) {
                 return None;
             }

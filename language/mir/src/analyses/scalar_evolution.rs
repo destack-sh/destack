@@ -6,7 +6,7 @@ use destack_core::{float_from_bits, float_to_bits};
 use crate::{
     Analysis, AnalysisId, BlockParamForwarding, FunctionAnalyses, FunctionAnalysis, TypeContext,
     constant_is_one, constant_is_zero, constant_zero_for_type, constant_zero_like, fold_binary,
-    fold_cast, instruction_is_pure, terminator_arguments_for_successor,
+    fold_cast, instruction_is_pure,
 };
 
 use super::{ControlFlowGraph, Loop, LoopAnalysis};
@@ -863,7 +863,7 @@ fn header_argument_from_pred(
     // collect predecessor arguments for the header edge
     let pred_block = tree.get(pred);
     let pred_terminator = tree.get(pred_block.terminator);
-    let args = terminator_arguments_for_successor(tree, pred_terminator, header);
+    let args = pred_terminator.arguments_for_successor(tree, header);
 
     args.get(param_index).copied()
 }

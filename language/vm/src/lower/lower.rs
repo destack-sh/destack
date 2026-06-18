@@ -375,7 +375,7 @@ fn compute_value_use_counts(
                 }
             }
         }
-        for value in tree.terminator_uses(terminator) {
+        for value in terminator.uses(tree) {
             record_use(value);
         }
     }

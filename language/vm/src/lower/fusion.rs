@@ -61,8 +61,8 @@ impl<'a> BlockLowerer<'a> {
 
         let then_target_block = then_target.block;
         let else_target_block = else_target.block;
-        let then_arguments = self.target_values(then_target);
-        let else_arguments = self.target_values(else_target);
+        let then_arguments = self.target_arguments(then_target);
+        let else_arguments = self.target_arguments(else_target);
         let then_index = self.block_index_by_id[&then_target_block];
         let else_index = self.block_index_by_id[&else_target_block];
         let then_parameters = self.block_parameter[then_index].as_slice();

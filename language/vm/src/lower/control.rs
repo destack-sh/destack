@@ -155,7 +155,7 @@ impl<'a> BlockLowerer<'a> {
 
             mir::Terminator::Jump { target } => {
                 let target_block = target.block;
-                let arguments = self.target_values(target);
+                let arguments = self.target_arguments(target);
                 let target_index = self.block_index_by_id[&target_block];
                 let target_parameters = self.block_parameter[target_index].as_slice();
                 let moves = pool.edge_moves(target_parameters, arguments)?;
@@ -171,8 +171,8 @@ impl<'a> BlockLowerer<'a> {
                 let condition = *condition;
                 let then_target_block = then_target.block;
                 let else_target_block = else_target.block;
-                let then_arguments = self.target_values(then_target);
-                let else_arguments = self.target_values(else_target);
+                let then_arguments = self.target_arguments(then_target);
+                let else_arguments = self.target_arguments(else_target);
                 let then_index = self.block_index_by_id[&then_target_block];
                 let else_index = self.block_index_by_id[&else_target_block];
                 let then_parameters = self.block_parameter[then_index].as_slice();
@@ -198,8 +198,8 @@ impl<'a> BlockLowerer<'a> {
             } => {
                 let success_block = success.block;
                 let failure_block = failure.block;
-                let success_arguments = self.target_values(success);
-                let failure_arguments = self.target_values(failure);
+                let success_arguments = self.target_arguments(success);
+                let failure_arguments = self.target_arguments(failure);
                 let success_index = self.block_index_by_id[&success_block];
                 let failure_index = self.block_index_by_id[&failure_block];
                 let success_parameters = self.block_parameter[success_index].as_slice();
@@ -220,7 +220,7 @@ impl<'a> BlockLowerer<'a> {
             } => {
                 let value = *value;
                 let default_block = default.block;
-                let default_arguments = self.target_values(default);
+                let default_arguments = self.target_arguments(default);
                 let default_index = self.block_index_by_id[&default_block];
                 let default_parameters = self.block_parameter[default_index].as_slice();
                 let default_moves = pool.edge_moves(default_parameters, default_arguments)?;

@@ -26,7 +26,7 @@ impl ControlFlowGraph {
             let block = tree.get(block_id);
             let terminator = tree.get(block.terminator);
 
-            for successor in tree.terminator_successors(terminator) {
+            for successor in terminator.successors(tree) {
                 if let Some(block_predecessors) = predecessors.get_mut(&successor) {
                     block_predecessors.push(block_id);
                 }

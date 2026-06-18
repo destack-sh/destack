@@ -239,7 +239,7 @@ impl<'a> BlockLowerer<'a> {
         let Some((&result, remaining_parameters)) = target_parameters.split_first() else {
             return Err(Error::invalid_program("allocation success parameter"));
         };
-        let arguments = self.target_values(target);
+        let arguments = self.target_arguments(target);
         let moves = pool.edge_moves(remaining_parameters, arguments)?;
         let edge = Edge {
             target: target_index as u32,
@@ -254,7 +254,7 @@ impl<'a> BlockLowerer<'a> {
         let target_block = target.block;
         let target_index = self.block_index_by_id[&target_block];
         let target_parameters = self.block_parameter[target_index].as_slice();
-        let arguments = self.target_values(target);
+        let arguments = self.target_arguments(target);
         let moves = pool.edge_moves(target_parameters, arguments)?;
 
         Ok(Edge {

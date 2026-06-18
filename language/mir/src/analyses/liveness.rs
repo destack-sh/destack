@@ -88,7 +88,7 @@ impl FunctionLiveness {
             }
 
             // terminator uses
-            for used in tree.terminator_uses(terminator) {
+            for used in terminator.uses(tree) {
                 if !seen_value_defs.contains(&used) {
                     block_facts.value_use.insert(used);
                 }
@@ -208,7 +208,7 @@ impl FunctionLiveness {
         let mut next_value_live_out = HashSet::new();
         let mut next_local_live_out = HashSet::new();
 
-        for successor in tree.terminator_successors(terminator) {
+        for successor in terminator.successors(tree) {
             if let Some(successor_live_in) = liveness.value_live_in.get(&successor) {
                 next_value_live_out.extend(successor_live_in.iter().copied());
             }
@@ -359,8 +359,8 @@ impl FunctionLiveness {
         }
 
         // terminator
-        if tree
-            .terminator_uses(terminator)
+        if terminator
+            .uses(tree)
             .iter()
             .copied()
             .any(|used| used == value)
@@ -408,7 +408,7 @@ impl FunctionLiveness {
         }
 
         // terminator
-        for used in tree.terminator_uses(terminator) {
+        for used in terminator.uses(tree) {
             live.insert(used);
         }
 

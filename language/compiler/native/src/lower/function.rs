@@ -1175,9 +1175,8 @@ impl<'a> FunctionLowerer<'a> {
             mir::Terminator::Jump { target } => {
                 let target_id = target.block;
                 let target_block = block_map[&target_id];
-                let arguments: Vec<cir::BlockArg> = self
-                    .tree
-                    .block_target_values(target)
+                let arguments: Vec<cir::BlockArg> = target
+                    .arguments(self.tree)
                     .iter()
                     .map(|value| {
                         let value = *value;
@@ -1199,18 +1198,16 @@ impl<'a> FunctionLowerer<'a> {
                 let else_block_id = else_target.block;
                 let then_block = block_map[&then_block_id];
                 let else_block = block_map[&else_block_id];
-                let then_arguments: Vec<cir::BlockArg> = self
-                    .tree
-                    .block_target_values(then_target)
+                let then_arguments: Vec<cir::BlockArg> = then_target
+                    .arguments(self.tree)
                     .iter()
                     .map(|value| {
                         let value = *value;
                         Ok(cir::BlockArg::from(value_map[&value]))
                     })
                     .collect::<CodegenCraneliftResult<_>>()?;
-                let else_arguments: Vec<cir::BlockArg> = self
-                    .tree
-                    .block_target_values(else_target)
+                let else_arguments: Vec<cir::BlockArg> = else_target
+                    .arguments(self.tree)
                     .iter()
                     .map(|value| {
                         let value = *value;
@@ -1255,7 +1252,7 @@ impl<'a> FunctionLowerer<'a> {
                 self.lower_switch(
                     value_map[&value],
                     block_map[&default_block_id],
-                    self.tree.block_target_values(default),
+                    default.arguments(self.tree),
                     self.tree.get_switch_cases(*cases),
                     builder,
                     value_map,
@@ -1392,7 +1389,7 @@ impl<'a> FunctionLowerer<'a> {
         let has_block_arguments = !default_arguments.is_empty()
             || cases
                 .iter()
-                .any(|case| !self.tree.block_target_values(&case.target).is_empty());
+                .any(|case| !case.target.arguments(self.tree).is_empty());
         // fall back to chain of brif for cases with arguments
         if has_block_arguments {
             self.lower_switch_with_arguments(
@@ -1452,9 +1449,9 @@ impl<'a> FunctionLowerer<'a> {
                     .icmp(cir::condcodes::IntCC::Equal, switch_value, case_const);
             let case_block_id = case.target.block;
             let case_block = block_map[&case_block_id];
-            let case_arguments: Vec<cir::BlockArg> = self
-                .tree
-                .block_target_values(&case.target)
+            let case_arguments: Vec<cir::BlockArg> = case
+                .target
+                .arguments(self.tree)
                 .iter()
                 .map(|value| {
                     let value = *value;

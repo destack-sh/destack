@@ -475,7 +475,7 @@ pub fn instruction_collect_used_values(
         }
 
         // collect uses from terminator
-        for value in tree.terminator_uses(terminator) {
+        for value in terminator.uses(tree) {
             used.insert(value);
         }
     }
@@ -1786,7 +1786,7 @@ pub fn build_use_def_maps(function: &mir::Function, tree: &mir::Tree) -> UseDefM
 
         // terminator uses
         let terminator = tree.get(block.terminator);
-        for use_value in tree.terminator_uses(terminator) {
+        for use_value in terminator.uses(tree) {
             use_blocks.entry(use_value).or_default().push(block_id);
         }
     }

@@ -6,7 +6,7 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     AliasAnalysis, ControlFlowGraph, DominatorTree, EdgeSplitPolicy, MemoryAccess, MemoryAccessId,
-    MemorySSA, Mutation, append_successor_arguments, apply_substitutions_in_function,
+    MemorySSA, Mutation, append_edge_arguments, apply_substitutions_in_function,
     build_use_def_maps, effect_is_trackable, ensure_edge_block,
     instruction_allows_read_only_motion, instruction_has_side_effects,
     instruction_is_read_only_access, instruction_is_speculatable, resolve_edge_value,
@@ -263,7 +263,7 @@ fn run_load_pre(
                 };
 
                 // append the load argument to the successor edge
-                append_successor_arguments(tree, insertion_block, load.block, &[load_value]);
+                append_edge_arguments(tree, insertion_block, load.block, &[load_value]);
             }
 
             // record substitution and remove the original load

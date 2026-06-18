@@ -8,8 +8,7 @@ use destack_mir::{
     BlockParamForwarding, CallsiteHotness, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis,
     Mutation, ScalarEvolution, Scev, ValueTypeMap, block_hotness_from_counts, build_use_def_maps,
     build_value_definition_map, clone_instruction_metadata, clone_loop_blocks,
-    instruction_is_speculatable, instruction_map, terminator_arguments_for_successor,
-    terminator_remap,
+    instruction_is_speculatable, instruction_map, terminator_remap,
 };
 
 declare_pass! {
@@ -646,13 +645,14 @@ fn find_unroll_candidate(
     let latch = lp.latches[0];
     let latch_block = tree.get(latch);
     let latch_terminator = tree.get(latch_block.terminator);
-    if !tree
-        .terminator_successors(latch_terminator)
-        .contains(&lp.header)
+    if !latch_terminator
+        .successors(tree)
+        .iter()
+        .any(|successor| *successor == lp.header)
     {
         return None;
     }
-    let _latch_arguments = terminator_arguments_for_successor(tree, latch_terminator, lp.header);
+    let _latch_arguments = latch_terminator.arguments_for_successor(tree, lp.header);
 
     // require guard either in header or latch
     let guard_at_latch = exiting_block == latch;
@@ -926,7 +926,7 @@ fn find_jam_candidate(
     let entry_block = inner_preheader.unwrap_or(outer_header);
     let entry_block_data = tree.get(entry_block);
     let entry_terminator = tree.get(entry_block_data.terminator);
-    let entry_args = terminator_arguments_for_successor(tree, entry_terminator, inner_header);
+    let entry_args = entry_terminator.arguments_for_successor(tree, inner_header);
     let outer_entry_index = entry_args
         .iter()
         .position(|&arg| forwarding.resolve(arg) == forwarding.resolve(outer_guard.induction))?;
@@ -939,7 +939,7 @@ fn find_jam_candidate(
     // locate the outer latch parameter carrying the induction
     let inner_header_block = tree.get(inner_header);
     let inner_header_terminator = tree.get(inner_header_block.terminator);
-    let exit_args = terminator_arguments_for_successor(tree, inner_header_terminator, inner_exit);
+    let exit_args = inner_header_terminator.arguments_for_successor(tree, inner_exit);
     let outer_latch_index = exit_args
         .iter()
         .position(|&arg| forwarding.resolve(arg) == forwarding.resolve(inner_outer_param))?;
@@ -1143,7 +1143,7 @@ fn outer_step_from_latch(
     // read the latch argument for the induction parameter
     let latch_block = tree.get(latch);
     let latch_terminator = tree.get(latch_block.terminator);
-    let args = terminator_arguments_for_successor(tree, latch_terminator, header);
+    let args = latch_terminator.arguments_for_successor(tree, header);
     let update_value = *args.get(param_index)?;
     let update_value = forwarding.resolve(update_value);
     let induction = forwarding.resolve(induction);
@@ -1218,7 +1218,7 @@ fn trip_count_from_header(
     // read the starting induction argument
     let entry_block = tree.get(entry_pred);
     let entry_terminator = tree.get(entry_block.terminator);
-    let args = terminator_arguments_for_successor(tree, entry_terminator, header);
+    let args = entry_terminator.arguments_for_successor(tree, header);
     let start_value = *args.get(param_index)?;
     let start_const = constant_value_for(start_value, function, tree, forwarding)?;
     let bound_const = constant_value_for(guard.bound, function, tree, forwarding)?;
@@ -1319,7 +1319,7 @@ fn inner_body_is_jammable(
         // check terminator uses
         let terminator = tree.get(block.terminator);
         if !inner_uses_are_safe(
-            &tree.terminator_uses(terminator),
+            &terminator.uses(tree),
             inner,
             Some(inner_induction),
             Some(inner_outer_param),
@@ -1720,9 +1720,9 @@ fn inner_update_info(
     // find the update value passed to the header
     let latch_block = tree.get(candidate.inner_latch);
     let latch_terminator = tree.get(latch_block.terminator);
-    let update_value =
-        terminator_arguments_for_successor(tree, latch_terminator, candidate.inner_header)
-            .get(candidate.inner_param_index)?;
+    let update_value = latch_terminator
+        .arguments_for_successor(tree, candidate.inner_header)
+        .get(candidate.inner_param_index)?;
 
     // locate the defining instruction
     let update_instruction = *def_map.get(update_value)?;
@@ -2295,11 +2295,14 @@ fn rewrite_latch_to_jump(
 ) -> bool {
     // locate the loop backedge arguments
     let terminator = tree.get(block.terminator).clone();
-    let latch_has_edge = tree.terminator_successors(&terminator).contains(&header);
+    let latch_has_edge = terminator
+        .successors(tree)
+        .iter()
+        .any(|successor| *successor == header);
     if !latch_has_edge {
         return false;
     }
-    let latch_args = terminator_arguments_for_successor(tree, &terminator, header).to_vec();
+    let latch_args = terminator.arguments_for_successor(tree, header).to_vec();
     let latch_args = tree.add_values(&latch_args);
 
     // replace the latch terminator with a jump
@@ -2324,14 +2327,16 @@ fn rewrite_latch_block(
     let terminator = tree.get(block.terminator).clone();
 
     // extract latch arguments
-    let latch_has_edge = tree
-        .terminator_successors(&terminator)
-        .contains(&iteration.header);
+    let latch_has_edge = terminator
+        .successors(tree)
+        .iter()
+        .any(|successor| *successor == iteration.header);
     if !latch_has_edge {
         return false;
     }
-    let latch_args =
-        terminator_arguments_for_successor(tree, &terminator, iteration.header).to_vec();
+    let latch_args = terminator
+        .arguments_for_successor(tree, iteration.header)
+        .to_vec();
 
     // handle non last iterations
     if !is_last {
@@ -2785,8 +2790,8 @@ fn guard_exit_arguments(
             else_target,
             ..
         } => (
-            tree.block_target_values(then_target).to_vec(),
-            tree.block_target_values(else_target).to_vec(),
+            then_target.arguments(tree).to_vec(),
+            else_target.arguments(tree).to_vec(),
         ),
         _ => return None,
     };

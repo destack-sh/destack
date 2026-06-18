@@ -220,7 +220,7 @@ fn build_value_use_maps(
 
             // collect terminator uses
             let terminator = tree.get(block.terminator);
-            for value in tree.terminator_uses(terminator) {
+            for value in terminator.uses(tree) {
                 terminator_uses.insert(value);
             }
         }

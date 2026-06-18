@@ -396,7 +396,7 @@ fn propagate_allocation_target_edge(
 
     let parameters = block.parameters.iter().skip(1);
 
-    for (parameter, argument) in parameters.zip(tree.block_target_values(target).iter()) {
+    for (parameter, argument) in parameters.zip(target.arguments(tree).iter()) {
         let Some(argument_shape) = value_shape_map.get(*argument) else {
             continue;
         };
@@ -424,7 +424,7 @@ fn propagate_target_edge(
 ) -> bool {
     let mut is_changed = false;
     let target_block = tree.get(target.block);
-    let arguments = tree.block_target_values(target);
+    let arguments = target.arguments(tree);
 
     for (parameter, argument) in target_block.parameters.iter().zip(arguments.iter()) {
         let Some(argument_shape) = value_shape_map.get(*argument) else {

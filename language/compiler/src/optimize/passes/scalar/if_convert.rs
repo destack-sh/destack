@@ -173,8 +173,8 @@ fn find_if_convert_candidate(
                 condition,
                 then_target.block,
                 else_target.block,
-                tree.block_target_values(then_target).to_vec(),
-                tree.block_target_values(else_target).to_vec(),
+                then_target.arguments(tree).to_vec(),
+                else_target.arguments(tree).to_vec(),
             ),
             _ => return None,
         };
@@ -487,7 +487,7 @@ fn instructions_speculatable(
 /// Read jump arguments from a block terminator.
 fn jump_arguments(tree: &mir::Tree, terminator: &mir::Terminator) -> Option<Vec<mir::Value>> {
     match terminator {
-        mir::Terminator::Jump { target } => Some(tree.block_target_values(target).to_vec()),
+        mir::Terminator::Jump { target } => Some(target.arguments(tree).to_vec()),
         _ => None,
     }
 }

@@ -132,8 +132,8 @@ fn run_code_hoisting(
         let then_block = then_target.block;
         let else_block = else_target.block;
 
-        let then_arguments = tree.block_target_values(&then_target).to_vec();
-        let else_arguments = tree.block_target_values(&else_target).to_vec();
+        let then_arguments = then_target.arguments(tree).to_vec();
+        let else_arguments = else_target.arguments(tree).to_vec();
 
         // reject degenerate branches
         if then_block == else_block {

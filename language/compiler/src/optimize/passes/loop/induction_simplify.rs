@@ -7,8 +7,7 @@ use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     BlockParamForwarding, ControlFlowGraph, LoopAnalysis, Mutation, ScalarEvolution, Scev, TypeKey,
     constant_is_zero, fold_binary, instruction_substitute_uses_in_tree,
-    remap_instruction_memory_accesses, resolve_substitution_chains,
-    terminator_arguments_for_successor, terminator_substitute_uses,
+    remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
 };
 
 declare_pass! {
@@ -614,7 +613,7 @@ fn param_signature(
     for &pred in cfg.predecessors(header) {
         let pred_block = tree.get(pred);
         let pred_terminator = tree.get(pred_block.terminator);
-        let args = terminator_arguments_for_successor(tree, pred_terminator, header);
+        let args = pred_terminator.arguments_for_successor(tree, header);
         let arg = *args.get(param_index)?;
         let arg = forwarding.resolve(arg);
         arguments.push((pred, arg));
