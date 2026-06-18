@@ -2,9 +2,10 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::source::{Token, TokenType};
 use crate::{
-    AllocationMode, Attribute, AttributeArgs, AttributeValue, Block, BlockTarget, Call,
-    CheckConstraint, Function, FunctionHeaderSpans, Instruction, Linkage, Local, LocalNodeId,
-    Mutability, Parameter, SwitchCase, Terminator, TrapKind, TypeId, TypedValueSpan, Value,
+    AllocationMode, Attribute, AttributeArgs, AttributeValue, Block, BlockParameter, BlockTarget,
+    Call, CheckConstraint, Function, FunctionHeaderSpans, FunctionParameter, Instruction, Linkage,
+    Local, LocalNodeId, Mutability, SwitchCase, Terminator, TrapKind, TypeId, TypedValueSpan,
+    Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -228,8 +229,6 @@ impl Parser {
         function.entry = Some(entry);
         function.next_value_id = function.value_types.len() as u32;
 
-        self.tree.rebuild_function_places(id);
-
         self.current_function = None;
         self.pop_lifetimes();
         self.tree
@@ -247,38 +246,59 @@ impl Parser {
     fn parse_function_parameters(
         &mut self,
         linkage: Linkage,
-    ) -> ParseResult<(Vec<Parameter>, Vec<TypedValueSpan>, Span, Span)> {
+    ) -> ParseResult<(Vec<FunctionParameter>, Vec<TypedValueSpan>, Span, Span)> {
         let open_paren_token = self.eat_token(TokenType::OpenParenthesis)?;
         let open_paren_start = open_paren_token.start;
         let open_paren_length = self.tree.source_text(open_paren_token.span).len();
         let open_paren_span = self.span_at(open_paren_start, open_paren_length);
 
         let (parameters, parameter_spans) = if linkage.is_import() {
-            let mut parameter_types = Vec::new();
+            let mut parameters = Vec::new();
             let mut parameter_spans = Vec::new();
             while !self.peek_token(TokenType::CloseParenthesis) {
                 let parameter_start = self.pos();
                 let (ty, type_span) = self.parse_type_use_part()?;
+                let obligations = self.parse_borrow_obligations()?;
                 let parameter_span = self.span_from_parse_start(parameter_start);
-                parameter_types.push(ty);
+                let value = Value::new(parameters.len() as u32);
+                parameters.push(FunctionParameter {
+                    value,
+                    ty,
+                    obligations,
+                });
                 parameter_spans.push(TypedValueSpan::new(parameter_span, None, type_span));
                 if !self.eat_token_maybe(TokenType::Comma) {
                     break;
                 }
             }
 
-            let parameters = parameter_types
-                .into_iter()
-                .enumerate()
-                .map(|(index, ty)| Parameter {
-                    value: Value::new(index as u32),
-                    ty,
-                })
-                .collect();
-
             (parameters, parameter_spans)
         } else {
-            self.parse_typed_values()?
+            let mut parameters = Vec::new();
+            let mut parameter_spans = Vec::new();
+            while self.is_value_definition_start() {
+                let parameter_start = self.pos();
+                let (value, name_span) = self.parse_value_definition_part()?;
+                let colon_token = self.eat_token(TokenType::Colon)?;
+                let (ty, type_span) = self.parse_type_use_after(colon_token, "parameter type");
+                let obligations = self.parse_borrow_obligations()?;
+                let parameter_span = self.span_from_parse_start(parameter_start);
+                parameters.push(FunctionParameter {
+                    value,
+                    ty,
+                    obligations,
+                });
+                parameter_spans.push(TypedValueSpan::new(
+                    parameter_span,
+                    Some(name_span),
+                    type_span,
+                ));
+                if !self.eat_token_maybe(TokenType::Comma) {
+                    break;
+                }
+            }
+
+            (parameters, parameter_spans)
         };
 
         let close_paren_token = self.eat_token(TokenType::CloseParenthesis)?;
@@ -643,14 +663,20 @@ impl Parser {
     }
 
     /// Parse the entry block parameter mirror and reuse the function parameters.
-    fn parse_entry_block_parameters(&mut self) -> ParseResult<Vec<Parameter>> {
+    fn parse_entry_block_parameters(&mut self) -> ParseResult<Vec<BlockParameter>> {
         let function_id = self.current_function.ok_or_else(|| {
             ParseError::new(
                 "entry block parameters require a current function",
                 self.pos(),
             )
         })?;
-        let parameters = self.tree.get(function_id).parameters.clone();
+        let parameters = self
+            .tree
+            .get(function_id)
+            .parameters
+            .iter()
+            .map(FunctionParameter::block_parameter)
+            .collect::<Vec<_>>();
 
         for (parameter_index, parameter) in parameters.iter().enumerate() {
             let (value, _) = self.parse_entry_block_parameter()?;

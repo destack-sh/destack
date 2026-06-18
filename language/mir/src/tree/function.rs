@@ -2,8 +2,8 @@ use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Block, Lifetime, LifetimeParameter, Linkage, Local, LocalNodeId, Node, NodeType, Parameter,
-    Place, PlaceEffect, Projection, Symbol, Tree, Type, TypeId, Value,
+    Block, FunctionParameter, LifetimeParameter, Linkage, Local, LocalNodeId, Node, NodeType,
+    Symbol, Tree, Type, TypeId, Value,
 };
 
 /// Memory allocation restrictions for a function.
@@ -90,7 +90,7 @@ pub struct Function {
     pub linkage: Linkage,
 
     /// Function parameters as typed SSA slots.
-    pub parameters: Vec<Parameter>,
+    pub parameters: Vec<FunctionParameter>,
     /// Lifetime parameters in function-local slot order.
     pub lifetimes: Vec<LifetimeParameter>,
     /// Optional parameter names for diagnostics.
@@ -100,15 +100,11 @@ pub struct Function {
     pub value_names: Vec<Option<StringId>>,
     /// SSA value types keyed by value id.
     pub value_types: Vec<Option<LocalNodeId<Type>>>,
-    /// Memory places keyed by SSA value.
-    pub value_places: Vec<Option<Place>>,
     /// Counter for allocating unique SSA value IDs.
     pub(crate) next_value_id: u32,
 
     /// The return type.
     pub return_type: TypeId,
-    /// Borrow obligations required by this function body.
-    pub borrow_obligations: Vec<BorrowObligation>,
     /// The hidden environment type for this function when present.
     pub environment: Option<TypeId>,
     /// Local variables (stack-allocated slots for mutable bindings).
@@ -124,16 +120,6 @@ pub struct Function {
     pub suspension: Option<SuspensionKind>,
 }
 
-/// Borrow source proof required by a function body.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum BorrowObligation {
-    /// Borrow source must be stable across suspension.
-    SuspensionStable {
-        /// The lifetime whose source must be stable.
-        lifetime: Lifetime,
-    },
-}
-
 impl Node for Function {
     const TYPE: NodeType = NodeType::Function;
 }
@@ -141,7 +127,7 @@ impl Node for Function {
 impl Function {
     /// Build parameter-derived SSA tables.
     pub(crate) fn parameter_state(
-        parameters: &[Parameter],
+        parameters: &[FunctionParameter],
     ) -> (u32, Vec<Option<LocalNodeId<Type>>>) {
         // derive the next value id from parameters
         let next_value_id = parameters
@@ -173,7 +159,7 @@ impl Function {
     /// Create one function from its signature facts.
     fn with_signature(
         name: StringId,
-        parameters: Vec<Parameter>,
+        parameters: Vec<FunctionParameter>,
         return_type: TypeId,
         linkage: Linkage,
         entry: Option<LocalNodeId<Block>>,
@@ -191,9 +177,7 @@ impl Function {
             parameter_names,
             value_names: vec![None; next_value_id as usize],
             value_types,
-            value_places: vec![None; next_value_id as usize],
             return_type,
-            borrow_obligations: Vec::new(),
             linkage,
             allocation: AllocationMode::Any,
             suspension: None,
@@ -206,14 +190,18 @@ impl Function {
     }
 
     /// Create a local function declaration without a body.
-    pub fn declare(name: StringId, parameters: Vec<Parameter>, return_type: TypeId) -> Self {
+    pub fn declare(
+        name: StringId,
+        parameters: Vec<FunctionParameter>,
+        return_type: TypeId,
+    ) -> Self {
         Self::with_signature(name, parameters, return_type, Linkage::Local, None)
     }
 
     /// Create a new local (private) function with the given signature.
     pub fn local(
         name: StringId,
-        parameters: Vec<Parameter>,
+        parameters: Vec<FunctionParameter>,
         return_type: TypeId,
         entry: LocalNodeId<Block>,
     ) -> Self {
@@ -221,7 +209,7 @@ impl Function {
     }
 
     /// Create an imported function declaration (no body).
-    pub fn import(name: StringId, parameters: Vec<Parameter>, return_type: TypeId) -> Self {
+    pub fn import(name: StringId, parameters: Vec<FunctionParameter>, return_type: TypeId) -> Self {
         Self::with_signature(name, parameters, return_type, Linkage::Import, None)
     }
 
@@ -233,13 +221,6 @@ impl Function {
     /// Get the explicit name for an SSA value when one exists.
     pub fn value_name(&self, value: Value) -> Option<StringId> {
         self.value_names.get(value.0 as usize).copied().flatten()
-    }
-
-    /// Get the place for an SSA value.
-    pub fn value_place(&self, value: Value) -> Option<&Place> {
-        self.value_places
-            .get(value.0 as usize)
-            .and_then(Option::as_ref)
     }
 
     /// Get the type for an SSA value or panic if missing.
@@ -266,86 +247,6 @@ impl Function {
         self.value_types[index] = Some(ty);
     }
 
-    /// Record the place for an SSA value.
-    pub fn set_value_place(&mut self, value: Value, place: Place) {
-        self.place_slot_mut(value).replace(place);
-    }
-
-    /// Record a projected place for an SSA value.
-    pub fn set_projected_place(&mut self, value: Value, base: Value, projection: Projection) {
-        let place = self
-            .value_place(base)
-            .cloned()
-            .unwrap_or_else(|| Place::value(base))
-            .with_projection(projection);
-
-        self.set_value_place(value, place);
-    }
-
-    /// Copy a place from one SSA value to another.
-    pub fn copy_value_place(&mut self, value: Value, source: Value) {
-        let Some(place) = self.value_place(source).cloned() else {
-            return;
-        };
-
-        self.set_value_place(value, place);
-    }
-
-    /// Record one place table effect.
-    pub(crate) fn record_place_effect(&mut self, effect: PlaceEffect) {
-        match effect {
-            PlaceEffect::Root { value, place } => {
-                self.set_value_place(value, place);
-            }
-            PlaceEffect::Projection {
-                value,
-                base,
-                projection,
-            } => {
-                self.set_projected_place(value, base, projection);
-            }
-            PlaceEffect::Copy { value, source } => {
-                self.copy_value_place(value, source);
-            }
-        }
-    }
-
-    /// Replace value references inside stored places.
-    pub fn replace_place_values(&mut self, from: Value, to: Value) {
-        if from == to {
-            return;
-        }
-
-        // rewrite projected operands
-        for place in self.value_places.iter_mut().flatten() {
-            place.replace_value(from, to);
-        }
-
-        // move place ownership
-        let from_index = from.0 as usize;
-        let from_place = self.value_places.get(from_index).cloned().flatten();
-
-        let to_index = to.0 as usize;
-        if to_index >= self.value_places.len() {
-            self.value_places.resize(to_index + 1, None);
-        }
-
-        if self.value_places[to_index].is_none() {
-            self.value_places[to_index] = from_place;
-        }
-
-        if let Some(slot) = self.value_places.get_mut(from_index) {
-            *slot = None;
-        }
-    }
-
-    /// Return the mutable place slot for one value.
-    fn place_slot_mut(&mut self, value: Value) -> &mut Option<Place> {
-        let index = self.resize_value_slots(value);
-
-        &mut self.value_places[index]
-    }
-
     /// Resize SSA side tables for one value.
     fn resize_value_slots(&mut self, value: Value) -> usize {
         let index = value.0 as usize;
@@ -357,10 +258,6 @@ impl Function {
 
         if self.value_names.len() < value_count {
             self.value_names.resize(value_count, None);
-        }
-
-        if self.value_places.len() < value_count {
-            self.value_places.resize(value_count, None);
         }
 
         index

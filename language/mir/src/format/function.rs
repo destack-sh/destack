@@ -3,6 +3,7 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use super::attribute::{write_attribute, write_attributes};
+use super::r#type::format_borrow_obligations;
 
 use crate::{
     FormatMirNode, Function, FunctionHeaderSpans, LifetimeParameter, Linkage, Local, LocalNodeId,
@@ -320,6 +321,7 @@ fn format_function_parameters<'a>(
             } else {
                 write!(f, [&param.value, token(":"), space(), param.ty])?;
             }
+            format_borrow_obligations(&param.obligations, f)?;
         }
         write!(f, [token(")")])?;
         return Ok(());
@@ -350,6 +352,7 @@ fn format_function_parameters<'a>(
                     } else {
                         write!(f, [&parameter.value, token(":"), space(), parameter.ty])?;
                     }
+                    format_borrow_obligations(&parameter.obligations, f)?;
 
                     let next_boundary = if let Some(next_span) = parameter_spans.get(index + 1) {
                         next_span.span.start

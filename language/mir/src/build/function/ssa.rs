@@ -1,5 +1,5 @@
 use crate::build::{BuildError, FunctionBuilder, Variable};
-use crate::{Block, BlockTarget, LocalNodeId, Parameter, Terminator, Type, Value};
+use crate::{Block, BlockParameter, BlockTarget, LocalNodeId, Terminator, Type, Value};
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
@@ -54,7 +54,10 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let value = self.allocate_value();
         let block_data = self.tree.get_mut(block);
-        block_data.parameters.push(Parameter { value, ty });
+        block_data.parameters.push(BlockParameter {
+            value: value.into(),
+            ty: ty.into(),
+        });
         self.define_value(value, ty);
         value
     }

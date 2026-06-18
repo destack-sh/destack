@@ -3,7 +3,7 @@ use destack_core::StringId;
 use crate::build::ModuleBuilder;
 use crate::{
     Access, Constant, Copy, Field, FloatType, Lifetime, LocalNodeId, Nullability, ReferenceKind,
-    Space, TensorDimension, TensorLayout, TensorViewLayout, Type, VariantCase,
+    Space, TensorDimension, TensorLayout, TensorViewLayout, Type, TypeId, VariantCase,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -413,12 +413,14 @@ impl ModuleBuilder {
         parameters: Vec<LocalNodeId<Type>>,
         result: LocalNodeId<Type>,
     ) -> LocalNodeId<Type> {
-        let parameters = parameters.into_iter().collect();
+        let parameters = parameters
+            .into_iter()
+            .map(|ty| crate::SignatureParameter::new(TypeId::from(ty)))
+            .collect();
 
         self.tree.insert_type(Type::FunctionSignature {
             parameters,
-            result,
-            borrow_obligations: Vec::new(),
+            result: result.into(),
         })
     }
 

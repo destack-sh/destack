@@ -13,7 +13,7 @@ pub(super) struct FunctionAA {
     /// Map from value to its defining instruction.
     pub definitions: HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     /// Function parameters.
-    pub parameters: Vec<mir::Parameter>,
+    pub parameters: Vec<mir::FunctionParameter>,
 }
 
 impl FunctionAA {

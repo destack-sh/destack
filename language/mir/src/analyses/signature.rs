@@ -7,8 +7,8 @@ use crate::TypeKey;
 /// Signature key used for matching function types.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SignatureKey {
-    /// Parameter type keys for the signature.
-    pub parameters: Vec<TypeKey>,
+    /// Parameter type keys and caller obligations for the signature.
+    pub parameters: Vec<(TypeKey, Vec<mir::BorrowObligation>)>,
     /// Return type key for the signature.
     pub result: TypeKey,
 }
@@ -20,7 +20,12 @@ impl SignatureKey {
         let parameters = function
             .parameters
             .iter()
-            .map(|param| TypeKey::from_type_id(&param.ty, tree))
+            .map(|parameter| {
+                (
+                    TypeKey::from_type_id(&parameter.ty, tree),
+                    parameter.obligations.clone(),
+                )
+            })
             .collect();
 
         // collect result type key
@@ -37,7 +42,12 @@ impl SignatureKey {
         // collect parameter type keys
         let parameters = parameters
             .iter()
-            .map(|param| TypeKey::from_type_id(param, tree))
+            .map(|parameter| {
+                (
+                    TypeKey::from_type_id(&parameter.ty, tree),
+                    parameter.obligations.clone(),
+                )
+            })
             .collect();
 
         // collect result type key
@@ -143,13 +153,16 @@ pub fn build_signature_type(
 ) -> mir::LocalNodeId<mir::Type> {
     // collect parameter types from the function signature
     let function = tree.get(function_id);
-    let parameters = function.parameters.iter().map(|param| param.ty).collect();
+    let parameters = function
+        .parameters
+        .iter()
+        .map(mir::FunctionParameter::signature_parameter)
+        .collect();
 
     // insert the function pointer type
     tree.insert_type(mir::Type::FunctionSignature {
         parameters,
-        result: function.return_type,
-        borrow_obligations: function.borrow_obligations.clone(),
+        result: function.return_type.clone(),
     })
 }
 
@@ -169,11 +182,13 @@ pub fn required_parameter_indices(
         }
     }
 
-    // include borrow obligation lifetime slots
-    for obligation in &function.borrow_obligations {
-        let mir::BorrowObligation::SuspensionStable { lifetime } = obligation;
-        for index in lifetime.slot_indices() {
-            required.insert(index as usize);
+    // include caller obligation lifetime slots
+    for parameter in &function.parameters {
+        for obligation in &parameter.obligations {
+            let mir::BorrowObligation::SuspensionStable { lifetime } = obligation;
+            for index in lifetime.slot_indices() {
+                required.insert(index as usize);
+            }
         }
     }
 

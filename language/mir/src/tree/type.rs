@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use destack_core::{FloatFormat, StringId};
 
 use crate::{
-    BorrowObligation, Constant, Lifetime, LifetimeParameter, LocalNodeId, Node, NodeType, TypeId,
+    Constant, Lifetime, LifetimeParameter, LocalNodeId, Node, NodeType, SignatureParameter, TypeId,
 };
 
 /// Mutability of a storage binding.
@@ -388,11 +388,9 @@ pub enum Type {
     /// Bare function signature.
     FunctionSignature {
         /// The parameters of the function.
-        parameters: Vec<TypeId>,
+        parameters: Vec<SignatureParameter>,
         /// The result type of the function.
         result: TypeId,
-        /// Borrow obligations callers must satisfy.
-        borrow_obligations: Vec<BorrowObligation>,
     },
     /// Function pointer type.
     FunctionPointer {
@@ -737,8 +735,8 @@ pub fn callable_signature(ty: &Type) -> Option<TypeId> {
     }
 }
 
-/// Return the parameter and result types of one function signature.
-pub fn function_signature_parts(ty: &Type) -> Option<(&[TypeId], TypeId)> {
+/// Return the parameters and result type of one function signature.
+pub fn function_signature_parts(ty: &Type) -> Option<(&[SignatureParameter], TypeId)> {
     match ty {
         Type::FunctionSignature {
             parameters, result, ..

@@ -238,41 +238,6 @@ impl Tree {
         tree
     }
 
-    /// Rebuild place facts for one function body.
-    pub fn rebuild_function_places(&mut self, function_id: LocalNodeId<Function>) {
-        let function_index = self.local_id_for_node_id(function_id.id);
-        let blocks = self.functions.get(function_index).blocks.clone();
-        let mut instruction_indices = Vec::new();
-
-        // collect raw arena indexes before mutating the function
-        for block_id in blocks {
-            let block_index = self.local_id_for_node_id(block_id.id);
-            let block = self.blocks.get(block_index);
-
-            instruction_indices.extend(
-                block
-                    .instructions
-                    .iter()
-                    .map(|instruction_id| self.local_id_for_node_id(instruction_id.id)),
-            );
-        }
-
-        let instruction_arena = &self.instructions;
-        let function = self.functions.get_mut(function_index);
-
-        function.value_places.clear();
-
-        // rebuild places in instruction order
-        for instruction_index in instruction_indices {
-            let instruction = instruction_arena.get(instruction_index);
-            let Some(effect) = instruction.place_effect() else {
-                continue;
-            };
-
-            function.record_place_effect(effect);
-        }
-    }
-
     /// Infer the return lifetime for one function signature.
     pub fn infer_function_return_lifetime(&self, function_id: LocalNodeId<Function>) -> Lifetime {
         let function = self.get(function_id);

@@ -3,9 +3,9 @@ use destack_source::Span;
 
 use crate::{
     Access, Attribute, BorrowObligation, Copy, Field, FieldSpan, Lifetime, LifetimeSlot,
-    LifetimeTerm, LocalNodeId, Nullability, ReferenceKind, Space, TensorDimension,
-    TensorDimensionOrder, TensorLayout, TensorViewLayout, Type, TypeDeclarationSpans, TypeId,
-    VariantCase,
+    LifetimeTerm, LocalNodeId, Nullability, ReferenceKind, SignatureParameter, Space,
+    TensorDimension, TensorDimensionOrder, TensorLayout, TensorViewLayout, Type,
+    TypeDeclarationSpans, TypeId, VariantCase,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -240,7 +240,7 @@ impl Parser {
         &mut self,
         segment_spans: &mut Vec<Span>,
     ) -> ParseResult<LocalNodeId<Type>> {
-        let (ty, span) = self.parse_type_part()?;
+        let (ty, span) = self.parse_type_use_part()?;
         segment_spans.push(span);
 
         Ok(ty)
@@ -547,20 +547,37 @@ impl Parser {
             });
         }
 
+        // reject callable-only parameter obligations on tuple elements
+        if parameters
+            .iter()
+            .any(|parameter| !parameter.obligations.is_empty())
+        {
+            return Err(ParseError::invalid(
+                "tuple type parameter obligation",
+                self.pos(),
+            ));
+        }
+
         Ok(Type::Tuple {
-            elements: parameters,
+            elements: parameters
+                .into_iter()
+                .map(|parameter| parameter.ty)
+                .collect(),
             copy: Copy::default(),
         })
     }
 
     /// Parse type parameters enclosed in parentheses.
-    fn parse_parenthesized_type_parameters(&mut self) -> ParseResult<Vec<TypeId>> {
+    pub(super) fn parse_parenthesized_type_parameters(
+        &mut self,
+    ) -> ParseResult<Vec<SignatureParameter>> {
         self.eat_token(TokenType::OpenParenthesis)?;
         let mut parameters = Vec::new();
 
         while !self.peek_token(TokenType::CloseParenthesis) {
-            let (parameter, _) = self.parse_type_use_part()?;
-            parameters.push(parameter);
+            let (ty, _) = self.parse_type_use_part()?;
+            let obligations = self.parse_borrow_obligations()?;
+            parameters.push(SignatureParameter { ty, obligations });
 
             if !self.eat_token_maybe(TokenType::Comma) {
                 break;
@@ -575,15 +592,10 @@ impl Parser {
     /// Parse a function signature result after parameter types.
     fn parse_function_signature(
         &mut self,
-        parameters: Vec<TypeId>,
+        parameters: Vec<SignatureParameter>,
     ) -> ParseResult<LocalNodeId<Type>> {
         let (result, _) = self.parse_type_use_part()?;
-        let borrow_obligations = self.parse_borrow_obligations()?;
-        self.intern_type(Type::FunctionSignature {
-            parameters,
-            result,
-            borrow_obligations,
-        })
+        self.intern_type(Type::FunctionSignature { parameters, result })
     }
 
     /// Parse a fixed-size array type.
@@ -1060,22 +1072,27 @@ impl Parser {
         let mut obligations = Vec::new();
 
         // parse trailing suspension source requirements
-        while self.peek_token(TokenType::At) {
+        while self.peek_borrow_obligation() {
             self.eat_token(TokenType::At)?;
-            let name_token = self.eat_token(TokenType::Identifier)?;
-            let name_text = self.tree.source_text(name_token.span);
-            if name_text != "suspensionSafe" {
-                return Err(ParseError::invalid(
-                    &format!("borrow obligation '@{name_text}'"),
-                    name_token.start,
-                ));
-            }
+            self.eat_token(TokenType::Identifier)?;
 
             let lifetime = self.parse_lifetime_group()?;
             obligations.push(BorrowObligation::SuspensionStable { lifetime });
         }
 
         Ok(obligations)
+    }
+
+    /// Return whether the next tokens start a borrow obligation.
+    fn peek_borrow_obligation(&self) -> bool {
+        if !self.peek_token(TokenType::At) {
+            return false;
+        }
+
+        self.peek_nth_token(1).is_some_and(|token| {
+            self.token_type(token) == TokenType::Identifier
+                && self.tree.source_text(token.span) == "suspensionSafe"
+        })
     }
 
     /// Parse an optional trailing tensor layout assignment.

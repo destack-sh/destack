@@ -276,33 +276,6 @@ impl Place {
     }
 }
 
-/// Place table effect produced by one instruction.
-pub(crate) enum PlaceEffect {
-    /// Assign a concrete place to one SSA value.
-    Root {
-        /// The value receiving the place.
-        value: Value,
-        /// The assigned place.
-        place: Place,
-    },
-    /// Project a place from an existing SSA value.
-    Projection {
-        /// The value receiving the projected place.
-        value: Value,
-        /// The base value whose place is projected.
-        base: Value,
-        /// The projection to append.
-        projection: Projection,
-    },
-    /// Copy a place from one SSA value to another.
-    Copy {
-        /// The value receiving the copied place.
-        value: Value,
-        /// The source value whose place is copied.
-        source: Value,
-    },
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

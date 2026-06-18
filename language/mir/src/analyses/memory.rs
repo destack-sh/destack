@@ -1237,7 +1237,7 @@ pub struct PointerDecomposer<'a> {
     /// The MIR tree.
     tree: &'a mir::Tree,
     /// Function parameters for noalias checking.
-    parameters: &'a [mir::Parameter],
+    parameters: &'a [mir::FunctionParameter],
     /// Whether strict borrow mode is enabled.
     strict_borrow_mode: bool,
     /// Value type map for element sizing.
@@ -1252,7 +1252,7 @@ impl<'a> PointerDecomposer<'a> {
         constants: &'a HashMap<mir::Value, i64>,
         definitions: &'a HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
         tree: &'a mir::Tree,
-        parameters: &'a [mir::Parameter],
+        parameters: &'a [mir::FunctionParameter],
         strict_borrow_mode: bool,
         value_types: &'a ValueTypeMap,
         type_context: TypeContext,
@@ -1402,7 +1402,7 @@ impl<'a> PointerDecomposer<'a> {
     }
 
     /// Check if a parameter has noalias semantics.
-    fn is_parameter_noalias(&self, parameter: &mir::Parameter) -> bool {
+    fn is_parameter_noalias(&self, parameter: &mir::FunctionParameter) -> bool {
         // in strict borrow mode, exclusive parameters are noalias
         if self.strict_borrow_mode {
             let ty = self.tree.get(parameter.ty);

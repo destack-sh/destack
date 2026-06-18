@@ -58,7 +58,11 @@ impl ScopedNoAliasAA {
     }
 
     /// Check if a parameter has noalias semantics.
-    fn is_noalias_parameter(parameter: &mir::Parameter, tree: &mir::Tree, strict: bool) -> bool {
+    fn is_noalias_parameter(
+        parameter: &mir::FunctionParameter,
+        tree: &mir::Tree,
+        strict: bool,
+    ) -> bool {
         if !strict {
             return false;
         }

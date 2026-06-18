@@ -1,19 +1,15 @@
 use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
-use crate::{Instruction, LocalNodeId, Node, NodeType, Parameter, Terminator};
+use crate::{BlockParameter, Instruction, LocalNodeId, Node, NodeType, Terminator};
 
-/// A basic block is a sequence of instructions with:
-/// - A single entry point (can have parameters for SSA)
-/// - A single exit point (the terminator)
-/// - No control flow within the block
+/// A basic block is a sequence of instructions with.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Block {
     /// Optional explicit block label.
     pub name: Option<StringId>,
     /// SSA parameters passed from predecessor blocks.
-    /// Replaces traditional phi nodes with a cleaner model.
-    pub parameters: Vec<Parameter>,
+    pub parameters: Vec<BlockParameter>,
     /// Instructions in execution order.
     pub instructions: Vec<LocalNodeId<Instruction>>,
     /// How control flow leaves this block.
@@ -37,7 +33,7 @@ impl Block {
 
     /// Create a block with parameters.
     pub fn with_parameters(
-        parameters: Vec<Parameter>,
+        parameters: Vec<BlockParameter>,
         terminator: LocalNodeId<Terminator>,
     ) -> Self {
         Self {

@@ -108,9 +108,9 @@ entry(v0: ref<Player<lifetime(LWorld), lifetime(LMesh)>, borrowed, lifetime(LPla
 fn test_format_callable_suspension_contract() {
     assert_format(
         r#"
-function callContract(v0: (ref<int32, borrowed, readonly>) => int32 @suspensionSafe(0), v1: ref<int32, borrowed, readonly>): int32 {
-entry(v0: (ref<int32, borrowed, readonly>) => int32 @suspensionSafe(0), v1: ref<int32, borrowed, readonly>):
-    v2: int32 = call.indirect v0(v1): (ref<int32, borrowed, readonly>) => int32 @suspensionSafe(0)
+function callContract(v0: (ref<int32, borrowed, readonly> @suspensionSafe(0)) => int32, v1: ref<int32, borrowed, readonly>): int32 {
+entry(v0: (ref<int32, borrowed, readonly> @suspensionSafe(0)) => int32, v1: ref<int32, borrowed, readonly>):
+    v2: int32 = call.indirect v0(v1): (ref<int32, borrowed, readonly> @suspensionSafe(0)) => int32
     return v2
 }
 "#,

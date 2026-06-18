@@ -3,9 +3,9 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::build::{BuildError, BuildResult, Variable};
 use crate::{
-    AllocationMode, AllocationSize, Block, Function, FunctionBehavior, Instruction, Linkage,
-    LocalNodeId, MemoryEffect, Parameter, Place, Projection, Symbol, Tree, Type, TypeId, Value,
-    finalize_function_names,
+    AllocationMode, AllocationSize, Block, Function, FunctionBehavior, FunctionParameter,
+    Instruction, Linkage, LocalNodeId, MemoryEffect, Place, Projection, Symbol, Tree, Type, TypeId,
+    Value, finalize_function_names,
 };
 
 /// Builder for constructing a single MIR function with automatic SSA construction.
@@ -78,15 +78,12 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Self {
         // create parameter values
         let mut next_value_id = 0u32;
-        let parameters: Vec<Parameter> = parameter_types
+        let parameters: Vec<FunctionParameter> = parameter_types
             .iter()
             .map(|&ty| {
                 let value = Value::new(next_value_id);
                 next_value_id += 1;
-                Parameter {
-                    value,
-                    ty: TypeId::from(ty),
-                }
+                FunctionParameter::new(value, TypeId::from(ty))
             })
             .collect();
         let (_, value_types) = Function::parameter_state(&parameters);
@@ -100,9 +97,7 @@ impl<'a> FunctionBuilder<'a> {
             parameter_names: vec![None; parameter_types.len()],
             value_names: vec![None; next_value_id as usize],
             value_types,
-            value_places: vec![None; next_value_id as usize],
             return_type: TypeId::from(return_type),
-            borrow_obligations: Vec::new(),
             linkage: Linkage::Local,
             allocation: AllocationMode::Any,
             suspension: None,
@@ -240,10 +235,9 @@ impl<'a> FunctionBuilder<'a> {
         &mut self,
         value: Value,
         ty: LocalNodeId<Type>,
-        place: Place,
+        _: Place,
     ) {
         self.define_value(value, ty);
-        self.define_place(value, place);
     }
 
     /// Record the type and projected place for an SSA value.
@@ -251,11 +245,10 @@ impl<'a> FunctionBuilder<'a> {
         &mut self,
         value: Value,
         ty: LocalNodeId<Type>,
-        base: Value,
-        projection: Projection,
+        _: Value,
+        _: Projection,
     ) {
         self.define_value(value, ty);
-        self.define_projection(value, base, projection);
     }
 
     /// Record the type and copied place for an SSA value.
@@ -263,28 +256,9 @@ impl<'a> FunctionBuilder<'a> {
         &mut self,
         value: Value,
         ty: LocalNodeId<Type>,
-        source: Value,
+        _: Value,
     ) {
         self.define_value(value, ty);
-        self.propagate_place(value, source);
-    }
-
-    /// Record the place for an SSA value.
-    pub(super) fn define_place(&mut self, value: Value, place: Place) {
-        let function = self.tree.get_mut(self.function_id);
-        function.set_value_place(value, place)
-    }
-
-    /// Record a projected place for an SSA value.
-    pub(super) fn define_projection(&mut self, value: Value, base: Value, projection: Projection) {
-        let function = self.tree.get_mut(self.function_id);
-        function.set_projected_place(value, base, projection)
-    }
-
-    /// Copy a place from one SSA value to another.
-    pub(super) fn propagate_place(&mut self, value: Value, source: Value) {
-        let function = self.tree.get_mut(self.function_id);
-        function.copy_value_place(value, source)
     }
 
     /// Get the type of an existing SSA value.
@@ -349,7 +323,11 @@ impl<'a> FunctionBuilder<'a> {
         // capture function parameters for entry block checks
         let parameters = {
             let function = self.tree.get(self.function_id);
-            function.parameters.clone()
+            function
+                .parameters
+                .iter()
+                .map(FunctionParameter::block_parameter)
+                .collect::<Vec<_>>()
         };
 
         // ensure entry block parameters match function parameters

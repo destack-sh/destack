@@ -334,7 +334,7 @@ fn clone_loop_blocks_internal(
         let original = tree.get(*block_id);
 
         // build new block parameters and value mapping
-        let new_params: Vec<mir::Parameter> = original
+        let new_params: Vec<mir::BlockParameter> = original
             .parameters
             .iter()
             .map(|param| match (Some(param.value), Some(param.ty)) {
@@ -342,9 +342,9 @@ fn clone_loop_blocks_internal(
                     let new_value = function.next_typed_value(ty);
                     value_map.insert(value, new_value);
 
-                    mir::Parameter {
-                        value: new_value,
-                        ty,
+                    mir::BlockParameter {
+                        value: new_value.into(),
+                        ty: ty.into(),
                     }
                 }
                 _ => *param,
