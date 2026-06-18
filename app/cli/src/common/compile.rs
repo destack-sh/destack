@@ -11,7 +11,7 @@ use destack_repository::{Ref, Repository, Revision};
 use destack_session::{Edit, Session, SessionEventHandler};
 use destack_source::{DiagnosticCollection, FileType, ModuleId, ProfileId, TargetId};
 
-use crate::common::{DiagnosticArgs, InputArgs, InputSource, ProgramArgs, print_diagnostics};
+use crate::common::{print_diagnostics, DiagnosticArgs, InputArgs, InputSource, ProgramArgs};
 use crate::console;
 use crate::error::{CliError, CliResult};
 
@@ -247,7 +247,8 @@ impl CompilerContext {
                     })?;
                 let package_id = module_ref.package_id;
                 let target_id = TargetId::new(package_id, target);
-                root_artifact_keys.push(ArtifactKey::module_output(module, target_id));
+                let root = self.root_artifact_key(revision, module, target_id)?;
+                root_artifact_keys.push(root);
             }
         }
 
@@ -415,6 +416,33 @@ impl CompilerContext {
             .map_err(|error| CliError::message(error.to_string()))?;
 
         Ok(profile.id())
+    }
+
+    /// Return the build root artifact key for one module target.
+    fn root_artifact_key(
+        &self,
+        revision: Revision,
+        module_id: ModuleId,
+        target_id: TargetId,
+    ) -> CliResult<ArtifactKey> {
+        let target = self
+            .repository
+            .target_or_builtin(revision, target_id)
+            .map_err(|error| CliError::message(error.to_string()))?
+            .ok_or_else(|| CliError::message(format!("missing target {target_id}")))?;
+
+        // select the module asset root
+        if target.emits_per_module_output() {
+            return Ok(ArtifactKey::asset(module_id, target_id));
+        }
+
+        // select the executable program root
+        if target.uses_native_emit_pipeline() {
+            return Ok(ArtifactKey::program(target_id.package_id(), target_id));
+        }
+
+        // select the package bundle root
+        Ok(ArtifactKey::bundle(target_id.package_id(), target_id))
     }
 }
 

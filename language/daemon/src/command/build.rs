@@ -4,9 +4,9 @@ use destack_artifact::ArtifactKey;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use super::CommandResult;
 use super::context::{CommandContext, SelectedTarget};
 use super::dispatch::CommandOutcome;
+use super::CommandResult;
 
 /// Options for the build command.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
@@ -79,6 +79,17 @@ impl CommandContext<'_> {
 impl SelectedTarget {
     /// Return the build root for one module.
     fn build_root(&self, module_id: ModuleId) -> ArtifactKey {
-        ArtifactKey::module_output(module_id, self.id)
+        // select the module asset root
+        if self.target.emits_per_module_output() {
+            return ArtifactKey::asset(module_id, self.id);
+        }
+
+        // select the executable program root
+        if self.target.uses_native_emit_pipeline() {
+            return ArtifactKey::program(self.id.package_id(), self.id);
+        }
+
+        // select the package bundle root
+        ArtifactKey::bundle(self.id.package_id(), self.id)
     }
 }
