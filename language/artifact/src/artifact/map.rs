@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 /// The stable source map version.
 pub const SOURCE_MAP_VERSION: u32 = 3;
 
-/// One emitted or linked source map payload.
+/// One emitted or linked source map.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SourceMapArtifact {
+pub struct SourceMap {
     /// The source map version.
     pub version: u32,
     /// The emitted file name when one exists.
@@ -36,7 +36,7 @@ pub struct SourceMapArtifact {
     pub debug_id: Option<String>,
 }
 
-impl SourceMapArtifact {
+impl SourceMap {
     /// Create one empty source map for a single source.
     pub fn empty(source: String) -> Self {
         Self {
