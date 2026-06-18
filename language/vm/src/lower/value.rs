@@ -593,6 +593,8 @@ fn infer_instruction_shape(
             value_shape_from_type(tree, *result_type)
         }
         mir::Instruction::SliceLength { destination, .. }
+        | mir::Instruction::DynamicPayload { destination, .. }
+        | mir::Instruction::DynamicType { destination, .. }
         | mir::Instruction::VariantTag { destination, .. }
         | mir::Instruction::VariantPayload { destination, .. } => {
             let ty = value_type_for_value(*destination, value_types)?;

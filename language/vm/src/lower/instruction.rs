@@ -157,6 +157,10 @@ impl<'a> BlockLowerer<'a> {
 
             mir::Instruction::SliceLength { .. } => return Err(Error::invalid_instruction()),
 
+            mir::Instruction::DynamicPayload { .. } => return Err(Error::invalid_instruction()),
+
+            mir::Instruction::DynamicType { .. } => return Err(Error::invalid_instruction()),
+
             mir::Instruction::VariantTag { .. } => return Err(Error::invalid_instruction()),
 
             mir::Instruction::VariantPayload { .. } => return Err(Error::invalid_instruction()),
