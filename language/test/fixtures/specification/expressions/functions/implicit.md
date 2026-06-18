@@ -12,7 +12,7 @@ Parameters without annotations or defaults are rejected.
 function handle(value) {}
 ```
 
-- contains: implicit any type
+- contains: missing type annotation
 
 ### parameter defaults infer parameter types
 
@@ -34,4 +34,4 @@ Bindings without annotations or initializers are rejected.
 let pending;
 ```
 
-- contains: implicit any type
+- contains: missing type annotation
