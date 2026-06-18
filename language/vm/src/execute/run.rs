@@ -1,6 +1,6 @@
-use destack_engine as engine;
 use destack_mir as mir;
-use engine::StaticSpace;
+use destack_program as program;
+use program::StaticSpace;
 
 use super::frame::{dematerialize_value, frame_value_type};
 use super::{dispatch_block, dispatch_block_counted};
@@ -8,8 +8,8 @@ use crate::Cell;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Activation, Continuation, Frame, Machine, Outcome};
 use crate::options::LimitOptions;
-use crate::program::{CallTarget, Program};
 use destack_heap::{AllocationCache, GcWorker, Heap, SharedHeap};
+use destack_program::vm::{CallTarget, Program};
 
 impl Machine {
     /// Execute a function by id.
@@ -21,17 +21,19 @@ impl Machine {
         program: &Program,
         limits: LimitOptions,
         statics: &mut StaticSpace,
+        shared_static: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
         shared_gc: &GcWorker,
         function_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Cell],
-    ) -> RuntimeResult<engine::Value> {
+    ) -> RuntimeResult<program::Value> {
         let outcome = self.execute_function_cells_yielding(
             program,
             limits,
             statics,
+            shared_static,
             heap,
             shared,
             shared_cache,
@@ -54,6 +56,7 @@ impl Machine {
         program: &Program,
         limits: LimitOptions,
         statics: &mut StaticSpace,
+        shared_static: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
@@ -64,10 +67,10 @@ impl Machine {
         self.reset_stack(limits)?;
 
         // resolve the function target before entering the main loop
-        match program.functions.call_target(function_id) {
+        match program.functions().call_target(function_id) {
             Some(CallTarget::Import) => {
-                let function = program.tree.get(function_id);
-                let name = program.strings.get(function.name).to_string();
+                let function = program.tree().get(function_id);
+                let name = program.strings().get(function.name).to_string();
 
                 return Err(self.runtime_error(Error::import_forbidden(name)));
             }
@@ -83,6 +86,7 @@ impl Machine {
             program,
             limits,
             statics,
+            shared_static,
             heap,
             shared,
             shared_cache,
@@ -100,17 +104,14 @@ impl Machine {
         program: &Program,
         limits: LimitOptions,
         statics: &mut StaticSpace,
+        shared_static: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
         shared_gc: &GcWorker,
         continuation: Continuation,
-        received_value: engine::Value,
+        received_value: program::Value,
     ) -> RuntimeResult<Outcome> {
-        if continuation.machine_id != self.id {
-            return Err(self.runtime_error(Error::invalid_continuation()));
-        }
-
         if !self.frames.is_empty() {
             return Err(self.runtime_error(Error::invalid_continuation()));
         }
@@ -122,6 +123,7 @@ impl Machine {
             program,
             limits,
             statics,
+            shared_static,
             heap,
             shared,
             shared_cache,
@@ -138,13 +140,14 @@ impl Machine {
         program: &Program,
         limits: LimitOptions,
         statics: &mut StaticSpace,
+        shared_static: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
         shared_gc: &GcWorker,
         resume_frame_index: usize,
-        frame_state: engine::FrameStateId,
-        received_value: engine::Value,
+        frame_state: program::FrameStateId,
+        received_value: program::Value,
     ) -> RuntimeResult<Outcome> {
         let frame_entry = program.frame_entry(frame_state);
         let received_value_slot = frame_entry
@@ -178,13 +181,21 @@ impl Machine {
             anchor: error.anchor,
         })?;
 
-        let mut activation = Activation::new(self, statics, heap, shared, shared_gc, shared_cache);
+        let mut activation = Activation::new(
+            self,
+            statics,
+            shared_static,
+            heap,
+            shared,
+            shared_gc,
+            shared_cache,
+        );
 
         activation.run_loop(program, limits)
     }
 
     /// Assemble a completed execution outcome.
-    pub(crate) fn complete_execution(&mut self, value: engine::Value) -> Outcome {
+    pub(crate) fn complete_execution(&mut self, value: program::Value) -> Outcome {
         Outcome::Completed { value }
     }
 
@@ -194,6 +205,7 @@ impl Machine {
         program: &Program,
         limits: LimitOptions,
         statics: &mut StaticSpace,
+        shared_static: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
@@ -203,7 +215,7 @@ impl Machine {
     ) -> RuntimeResult<Outcome> {
         // resolve the lowered entry metadata
         let function = program
-            .functions
+            .functions()
             .function_by_id(function_id)
             .ok_or_else(|| RuntimeError::new(Error::undefined_function(function_id)))?;
         let entry_block = function.entry;
@@ -236,7 +248,15 @@ impl Machine {
             )));
         }
 
-        let mut activation = Activation::new(self, statics, heap, shared, shared_gc, shared_cache);
+        let mut activation = Activation::new(
+            self,
+            statics,
+            shared_static,
+            heap,
+            shared,
+            shared_gc,
+            shared_cache,
+        );
 
         // bind explicit entry arguments through the same frame move path as MIR values
         let frame_index = activation.machine.frames.len() - 1;
@@ -300,7 +320,7 @@ impl Activation<'_> {
             };
 
             let current_func = program
-                .functions
+                .functions()
                 .function_by_id(function_id)
                 .ok_or_else(|| RuntimeError::new(Error::undefined_function(function_id)))?;
 
@@ -336,7 +356,7 @@ impl Activation<'_> {
                 let function_id = frame.function();
 
                 program
-                    .functions
+                    .functions()
                     .function_by_id(function_id)
                     .ok_or_else(|| RuntimeError::new(Error::undefined_function(function_id)))?
             };

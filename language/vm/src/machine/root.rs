@@ -1,9 +1,9 @@
-use destack_engine as engine;
 use destack_heap::{HeapResult, RootSlot};
+use destack_program as program;
 
 use super::Frame;
 use crate::diagnostic::Error;
-use crate::program::{Layout, Program};
+use destack_program::vm::{Layout, Program};
 
 impl Frame {
     /// Visit mutable heap root slots in this frame.
@@ -23,7 +23,7 @@ impl Frame {
     pub(crate) fn visit_materialized_root_slots(
         &mut self,
         program: &Program,
-        materialization: &engine::FrameMaterialization,
+        materialization: &program::FrameMaterialization,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Error> {
         let layout = materialized_layout(program, materialization)?;
@@ -36,8 +36,8 @@ impl Frame {
 
 /// Visit each full-frame root slot.
 fn visit_frame_slots(
-    layout: &engine::FrameLayout,
-    mut visit: impl FnMut(&engine::FrameSlot) -> Result<(), Error>,
+    layout: &program::FrameLayout,
+    mut visit: impl FnMut(&program::FrameSlot) -> Result<(), Error>,
 ) -> Result<(), Error> {
     // ssa values
     for slot in layout.values() {
@@ -59,9 +59,9 @@ fn visit_frame_slots(
 
 /// Visit each materialized frame slot once.
 pub(crate) fn visit_materialized_slots(
-    layout: &engine::FrameLayout,
-    materialization: &engine::FrameMaterialization,
-    mut visit: impl FnMut(&engine::FrameSlot) -> Result<(), Error>,
+    layout: &program::FrameLayout,
+    materialization: &program::FrameMaterialization,
+    mut visit: impl FnMut(&program::FrameSlot) -> Result<(), Error>,
 ) -> Result<(), Error> {
     for slot in materialization.copied_slots() {
         let slot = layout.slot(slot).ok_or(Error::invalid_continuation())?;
@@ -74,7 +74,7 @@ pub(crate) fn visit_materialized_slots(
 /// Visit mutable heap roots stored in one frame slot byte range.
 pub(crate) fn visit_frame_slot_root_slots(
     program: &Program,
-    slot: &engine::FrameSlot,
+    slot: &program::FrameSlot,
     bytes: &mut [u8],
     visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
 ) -> Result<(), Error> {
@@ -83,7 +83,9 @@ pub(crate) fn visit_frame_slot_root_slots(
 
     // aggregate slots may contain several heap roots
     if !layout.is_cell() {
-        return program.visit_byte_root_slots(ty, bytes, visit);
+        program.visit_byte_root_slots(ty, bytes, visit)?;
+
+        return Ok(());
     }
 
     // local scalar root
@@ -99,7 +101,10 @@ pub(crate) fn visit_frame_slot_root_slots(
 }
 
 /// Return the physical frame layout for one live frame.
-fn frame_layout<'a>(program: &'a Program, frame: &Frame) -> Result<&'a engine::FrameLayout, Error> {
+fn frame_layout<'a>(
+    program: &'a Program,
+    frame: &Frame,
+) -> Result<&'a program::FrameLayout, Error> {
     let function = frame.function();
 
     program.frame_layout(function).ok_or_else(|| {
@@ -112,8 +117,8 @@ fn frame_layout<'a>(program: &'a Program, frame: &Frame) -> Result<&'a engine::F
 /// Return the physical frame layout for one materialization.
 fn materialized_layout<'a>(
     program: &'a Program,
-    materialization: &engine::FrameMaterialization,
-) -> Result<&'a engine::FrameLayout, Error> {
+    materialization: &program::FrameMaterialization,
+) -> Result<&'a program::FrameLayout, Error> {
     program
         .frame_layout_by_id(materialization.frame_layout)
         .ok_or_else(|| {
@@ -127,7 +132,7 @@ fn materialized_layout<'a>(
 /// Return the physical layout for one frame slot.
 fn frame_slot_layout<'a>(
     program: &'a Program,
-    slot: &engine::FrameSlot,
+    slot: &program::FrameSlot,
 ) -> Result<&'a Layout, Error> {
     program.layout_for_storage_id(slot.layout).ok_or_else(|| {
         Error::internal(format!(

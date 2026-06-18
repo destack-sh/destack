@@ -1,6 +1,6 @@
 use crate::Cell;
-use destack_engine as engine;
 use destack_mir as mir;
+use destack_program as program;
 
 use super::frame::{
     FrameValue, load_arguments, load_moved_arguments, move_arguments_between_frames, move_values,
@@ -9,7 +9,7 @@ use super::frame::{
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Activation, Frame, Outcome};
 use crate::options::LimitOptions;
-use crate::program::{ArgumentRange, CallTarget, Function, MoveRange, Program};
+use destack_program::vm::{ArgumentRange, CallTarget, Function, MoveRange, Program};
 
 /// Local lowered function target.
 struct LocalFunction<'a> {
@@ -34,7 +34,7 @@ impl Activation<'_> {
 
         // load the lowered function body
         let function = program
-            .functions
+            .functions()
             .function_by_index(function_index)
             .ok_or_else(|| RuntimeError::new(Error::undefined_function(function_id)))?;
 
@@ -47,8 +47,8 @@ impl Activation<'_> {
         program: &Program,
         function_id: mir::LocalNodeId<mir::Function>,
     ) -> RuntimeError {
-        let function = program.tree.get(function_id);
-        let name = program.strings.get(function.name).to_string();
+        let function = program.tree().get(function_id);
+        let name = program.strings().get(function.name).to_string();
 
         self.machine.runtime_error(Error::import_forbidden(name))
     }
@@ -64,7 +64,7 @@ impl Activation<'_> {
         env: Option<Cell>,
         moves: Option<MoveRange>,
         resume_pc: usize,
-        return_state: Option<engine::FrameStateId>,
+        return_state: Option<program::FrameStateId>,
     ) -> RuntimeResult<()> {
         // reject stack overflow before allocating anything
         if self.machine.frames.len() >= limits.max_stack_depth {
@@ -233,7 +233,7 @@ impl Activation<'_> {
         target: CallTarget,
         arguments: ArgumentRange,
         env: Option<Cell>,
-        target_state: engine::FrameStateId,
+        target_state: program::FrameStateId,
     ) -> RuntimeResult<()> {
         // classify the call target
         let function_id = mir::LocalNodeId::<mir::Function>::new(function);
@@ -253,7 +253,7 @@ impl Activation<'_> {
 
         // resume after the terminator once the callee returns
         let function = program
-            .functions
+            .functions()
             .function_by_id(caller.function())
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         let resume_pc = function

@@ -1,7 +1,7 @@
 use destack_mir as mir;
 
-use crate::program::{Instruction, Op};
 use crate::{Error, Result};
+use destack_program::vm::{Instruction, Op};
 
 use super::lower::BlockLowerer;
 use super::pool::Pool;
@@ -78,7 +78,7 @@ impl<'a> BlockLowerer<'a> {
                 operator,
                 argument,
                 to_type,
-            } => self.lower_cast(*destination, *operator, *argument, to_type.clone(), pool)?,
+            } => self.lower_cast(*destination, *operator, *argument, *to_type, pool)?,
 
             mir::Instruction::Select {
                 destination,
@@ -253,7 +253,7 @@ impl<'a> BlockLowerer<'a> {
             } => self.lower_new(
                 pool,
                 *destination,
-                layout.clone(),
+                *layout,
                 super::allocation::AllocationInitialization::Zeroed,
             )?,
 
@@ -264,7 +264,7 @@ impl<'a> BlockLowerer<'a> {
             } => self.lower_new(
                 pool,
                 *destination,
-                layout.clone(),
+                *layout,
                 super::allocation::AllocationInitialization::Uninit,
             )?,
 
@@ -281,9 +281,9 @@ impl<'a> BlockLowerer<'a> {
             } => self.lower_new_slice(
                 pool,
                 *destination,
-                element.clone(),
+                *element,
                 *length,
-                result_type.clone(),
+                *result_type,
                 super::allocation::AllocationInitialization::Zeroed,
             )?,
 
@@ -296,9 +296,9 @@ impl<'a> BlockLowerer<'a> {
             } => self.lower_new_slice(
                 pool,
                 *destination,
-                element.clone(),
+                *element,
                 *length,
-                result_type.clone(),
+                *result_type,
                 super::allocation::AllocationInitialization::Uninit,
             )?,
 
@@ -308,7 +308,7 @@ impl<'a> BlockLowerer<'a> {
                 ..
             } => self.lower_frame_alloc(
                 *destination,
-                layout.clone(),
+                *layout,
                 super::allocation::AllocationInitialization::Zeroed,
             )?,
 
@@ -318,7 +318,7 @@ impl<'a> BlockLowerer<'a> {
                 ..
             } => self.lower_frame_alloc(
                 *destination,
-                layout.clone(),
+                *layout,
                 super::allocation::AllocationInitialization::Uninit,
             )?,
 

@@ -1,11 +1,11 @@
 use destack_mir as mir;
 
-use crate::program::{
+use crate::{Error, Result};
+use destack_program::vm::{
     AddressSpace, AtomicAddress, AtomicCompareExchange, AtomicOrder, AtomicReadModifyWriteOperator,
     AtomicReadModifyWriteShape, AtomicShape, AtomicWidth, CellLayout, Instruction, Op,
     address_space_from_reference, cell_layout_from_type, repr_type,
 };
-use crate::{Error, Result};
 
 use super::frame::cell_offset;
 use super::lower::BlockLowerer;

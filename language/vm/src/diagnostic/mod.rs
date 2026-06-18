@@ -1,6 +1,7 @@
+mod anchor;
 mod error;
+mod runtime;
 
-pub use error::{
-    DiagnosticAnchor, Error, ImportError, ProgramError, ReferenceKind, ResourceError, Result,
-    RuntimeError, RuntimeResult, StackTraceFrame, Trap,
-};
+pub use anchor::{DiagnosticAnchor, StackTraceFrame};
+pub use error::{Error, ImportError, ProgramError, ReferenceKind, ResourceError, Trap};
+pub use runtime::{Result, RuntimeError, RuntimeResult};

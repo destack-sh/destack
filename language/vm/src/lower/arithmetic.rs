@@ -1,12 +1,12 @@
 use destack_mir as mir;
 use destack_mir::Type;
 
-use crate::program::{
+use crate::{Error, Result};
+use destack_program::vm::{
     BinaryFloat, BinaryFloatKernel, ElementBinaryKernel, ElementUnaryKernel, Instruction, Op,
     TensorBinary, TensorContiguousBinary, TensorContiguousUnary, TensorLayout, TensorUnary,
     UnaryFloat, UnaryFloatKernel, ValueShape, VectorBinary, VectorUnary, value_shape_from_type,
 };
-use crate::{Error, Result};
 
 use super::frame::{cell_offset, value_offset};
 use super::lower::BlockLowerer;

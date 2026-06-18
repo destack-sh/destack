@@ -1,8 +1,8 @@
-use destack_engine as engine;
 use destack_mir as mir;
+use destack_program as program;
 
-use crate::program::{Instruction, Op, Projection};
 use crate::{Error, Result};
+use destack_program::vm::{Instruction, Op, Projection};
 
 use super::frame::{cell_offset, value_offset};
 use super::lower::BlockLowerer;
@@ -216,7 +216,7 @@ impl<'a> BlockLowerer<'a> {
 pub(super) fn frame_value_slot<'a>(
     lowerer: &'a BlockLowerer<'_>,
     value: mir::Value,
-) -> Result<&'a engine::FrameSlot> {
+) -> Result<&'a program::FrameSlot> {
     lowerer
         .frame_layout
         .value(value.0)
@@ -227,7 +227,7 @@ pub(super) fn frame_value_slot<'a>(
 fn frame_local_slot<'a>(
     lowerer: &'a BlockLowerer<'_>,
     local: mir::LocalNodeId<mir::Local>,
-) -> Result<&'a engine::FrameSlot> {
+) -> Result<&'a program::FrameSlot> {
     let local = lowerer.local_index(local)?;
 
     lowerer

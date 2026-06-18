@@ -20,7 +20,7 @@ use super::scalar::{
 use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
-use crate::program::{
+use destack_program::vm::{
     CellLayout, ElementBinaryKernel, ElementUnaryKernel, Instruction, Projection, ScalarLayout,
     TensorAddress, TensorBinary, TensorBroadcast, TensorConcat, TensorContiguousBinary,
     TensorContiguousUnary, TensorConvert, TensorConvolution, TensorCopy, TensorDot, TensorExtract,

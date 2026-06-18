@@ -1,12 +1,14 @@
 use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
-use crate::program::{
-    BoundsCheck, Check, CheckId, Edge, EdgeId, Instruction, MoveRange, NarrowCheck, Op,
-    OverflowCheck, ShiftRangeCheck, SwitchCasesId, SwitchTableId, Transfer, VariantCheck,
-};
-use destack_engine as engine;
+
+use super::Transfer;
 use destack_mir as mir;
+use destack_program as program;
+use destack_program::vm::{
+    BoundsCheck, Check, CheckId, Edge, EdgeId, Instruction, MoveRange, NarrowCheck, Op,
+    OverflowCheck, ShiftRangeCheck, SwitchCasesId, SwitchTableId, VariantCheck,
+};
 
 const SWITCH_SIGN_BIT: u32 = 1 << 16;
 const SWITCH_WIDTH_MASK: u32 = SWITCH_SIGN_BIT - 1;
@@ -463,7 +465,7 @@ pub(crate) fn execute_yield_cell(
 ) -> Transfer {
     let yield_value = activation.load_cell_at(instruction.a);
     let source_type = mir::LocalNodeId::new(instruction.b);
-    let frame_state = engine::FrameStateId(instruction.c);
+    let frame_state = program::FrameStateId(instruction.c);
 
     Transfer::Yield {
         value: yield_value,
@@ -479,7 +481,7 @@ pub(crate) fn execute_yield_address(
 ) -> Transfer {
     let yield_value = frame_address(activation, instruction.a);
     let source_type = mir::LocalNodeId::new(instruction.b);
-    let frame_state = engine::FrameStateId(instruction.c);
+    let frame_state = program::FrameStateId(instruction.c);
 
     Transfer::Yield {
         value: yield_value,

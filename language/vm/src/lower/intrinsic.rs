@@ -1,7 +1,7 @@
 use destack_mir as mir;
 
-use crate::program::{Instruction, Intrinsic, IntrinsicDest, Op};
 use crate::{Error, Result};
+use destack_program::vm::{Instruction, Intrinsic, IntrinsicDest, Op};
 
 use super::frame::cell_offset;
 use super::lower::BlockLowerer;
@@ -34,7 +34,6 @@ impl<'a> BlockLowerer<'a> {
         // resolve the optional destination
         let dest = match destination {
             Some(destination) => {
-                let destination = destination;
                 let slot = self
                     .frame_layout
                     .value(destination.0)

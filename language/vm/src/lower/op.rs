@@ -1,7 +1,7 @@
 use destack_mir as mir;
 
 use crate::diagnostic::Error;
-use crate::program::{AddressSpace, CellLayout, Op, Projection, ValueShape};
+use destack_program::vm::{AddressSpace, CellLayout, Op, Projection, ValueShape};
 
 use super::value::ValueShapeMap;
 

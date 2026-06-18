@@ -1,11 +1,11 @@
 use destack_heap::{AllocationClass, AllocationShape, HeapOptions, SharedHeapOptions};
 use destack_mir as mir;
 
-use crate::program::{
+use crate::{Error, Result};
+use destack_program::vm::{
     AddressSpace, AllocationBranch, AllocationSite, Edge, Instruction, Layout, Op,
     SliceAllocationBranch, SmallAllocationSite, address_space_from_reference, repr_type,
 };
-use crate::{Error, Result};
 
 use super::frame::{cell_offset, value_offset};
 use super::lower::BlockLowerer;

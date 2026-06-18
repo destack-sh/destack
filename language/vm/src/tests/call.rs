@@ -1,6 +1,6 @@
 use crate::diagnostic::{Error, ImportError};
 use crate::tests::{assert_runtime_error_matches, run_mir, run_mir_expect};
-use destack_engine::Value;
+use destack_program::Value;
 
 /// function.address produces a function pointer for call.indirect.
 #[test]

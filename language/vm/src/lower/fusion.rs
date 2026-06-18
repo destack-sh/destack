@@ -1,6 +1,6 @@
 use destack_mir as mir;
 
-use crate::program::Instruction;
+use destack_program::vm::Instruction;
 
 use super::frame::cell_offset;
 use super::lower::BlockLowerer;

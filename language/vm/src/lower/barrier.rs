@@ -1,7 +1,7 @@
 use destack_mir as mir;
 
-use crate::program::{AddressSpace, Instruction, Op, ValueShape, value_shape_from_type};
 use crate::{Error, Result};
+use destack_program::vm::{AddressSpace, Instruction, Op, ValueShape, value_shape_from_type};
 
 use super::frame::cell_offset;
 use super::lower::BlockLowerer;
@@ -15,9 +15,6 @@ impl<'a> BlockLowerer<'a> {
         byte_len: mir::Value,
     ) -> Result<Instruction> {
         // require SSA values
-        let object = object;
-        let offset = offset;
-        let byte_len = byte_len;
 
         // encode the collector that owns this reference
         let object_type = self.value_type_for_value(object)?;

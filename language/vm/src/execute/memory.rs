@@ -3,8 +3,8 @@ use destack_mir as mir;
 
 use crate::diagnostic::Error;
 use crate::machine::Activation;
-use crate::program::{Instruction, Projection, ProjectionId};
 use crate::{Cell, FramePointer};
+use destack_program::vm::{Instruction, Projection, ProjectionId};
 
 /// Execute frame cell move.
 #[inline(always)]

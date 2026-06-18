@@ -7,14 +7,14 @@ use destack_mir as mir;
 use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
-use crate::program::{
+use destack_program::vm::{
     AtomicAddress, AtomicCompareExchange, AtomicOrder, AtomicReadModifyWriteOperator,
     AtomicReadModifyWriteShape, AtomicShape, AtomicWidth, Instruction,
 };
 
 macro_rules! atomic_ref {
     ($address:expr, $atomic:ty, $value:ty) => {{
-        // lowered layouts guarantee atomic width and alignment
+        // SAFETY: lowered layouts guarantee atomic width and alignment
         unsafe { <$atomic>::from_ptr($address as *mut $value) }
     }};
 }

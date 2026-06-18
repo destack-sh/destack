@@ -1,11 +1,11 @@
 use destack_mir as mir;
 
-use crate::program::{
+use crate::{Error, Result};
+use destack_program::vm::{
     ElementBinaryKernel, Instruction, Op, Projection, ScalarLayout, VectorBinary, VectorConvert,
     VectorExtract, VectorInsert, VectorReduce, VectorSelect, VectorShuffle, VectorSplat,
     cell_layout_from_type, scalar_layout_from_type, value_shape_from_type,
 };
-use crate::{Error, Result};
 
 use super::arithmetic::element_binary_kernel;
 use super::frame::{cell_offset, value_offset};
@@ -62,8 +62,6 @@ impl<'a> BlockLowerer<'a> {
         value: mir::Value,
     ) -> Result<Instruction> {
         // resolve SSA operands
-        let destination = destination;
-        let value = value;
         let destination_type = self.value_type_for_value(destination)?;
         let (dest_element, element_count, element_type) =
             self.vector_element_projection(destination_type)?;
@@ -109,9 +107,6 @@ impl<'a> BlockLowerer<'a> {
         index: mir::Value,
     ) -> Result<Instruction> {
         // resolve SSA operands
-        let destination = destination;
-        let vector = vector;
-        let index = index;
         let vector_type = self.value_type_for_value(vector)?;
         let (vector_element, element_count, _) = self.vector_element_projection(vector_type)?;
 
@@ -138,10 +133,6 @@ impl<'a> BlockLowerer<'a> {
         value: mir::Value,
     ) -> Result<Instruction> {
         // resolve SSA operands
-        let destination = destination;
-        let vector = vector;
-        let index = index;
-        let value = value;
 
         let destination_type = self.value_type_for_value(destination)?;
         let vector_type = self.value_type_for_value(vector)?;
@@ -173,9 +164,6 @@ impl<'a> BlockLowerer<'a> {
         mask: mir::IndexSlice,
     ) -> Result<Instruction> {
         // resolve SSA operands
-        let destination = destination;
-        let left = left;
-        let right = right;
 
         let destination_type = self.value_type_for_value(destination)?;
         let left_type = self.value_type_for_value(left)?;
@@ -212,10 +200,6 @@ impl<'a> BlockLowerer<'a> {
         else_value: mir::Value,
     ) -> Result<Instruction> {
         // resolve SSA operands
-        let destination = destination;
-        let mask = mask;
-        let then_value = then_value;
-        let else_value = else_value;
 
         let mask_type = self.value_type_for_value(mask)?;
         let then_type = self.value_type_for_value(then_value)?;
@@ -257,8 +241,6 @@ impl<'a> BlockLowerer<'a> {
         vector: mir::Value,
     ) -> Result<Instruction> {
         // resolve SSA operands
-        let destination = destination;
-        let vector = vector;
 
         let vector_type = self.value_type_for_value(vector)?;
         let (vector_element, element_count, element) =
@@ -288,9 +270,6 @@ impl<'a> BlockLowerer<'a> {
         right: mir::Value,
     ) -> Result<Instruction> {
         // resolve SSA operands
-        let destination = destination;
-        let left = left;
-        let right = right;
 
         let left_type = self.value_type_for_value(left)?;
         let right_type = self.value_type_for_value(right)?;
@@ -337,8 +316,6 @@ impl<'a> BlockLowerer<'a> {
         vector: mir::Value,
     ) -> Result<Instruction> {
         // resolve SSA operands
-        let destination = destination;
-        let vector = vector;
         let dest_type = self.value_type_for_value(destination)?;
         let source_type = self.value_type_for_value(vector)?;
         let (dest_element, dest_count, dest_element_type) =

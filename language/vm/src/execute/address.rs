@@ -1,10 +1,10 @@
-use destack_engine::StaticAddress;
 use destack_heap::{HeapReference, SharedHeapReference};
+use destack_program::StaticAddress;
 
 use crate::diagnostic::Error;
 use crate::machine::Activation;
-use crate::program::Projection;
 use crate::{Cell, FramePointer, StackPointer};
+use destack_program::vm::Projection;
 
 /// Return one element byte offset.
 #[inline(always)]

@@ -1,5 +1,5 @@
 use crate::tests::run_mir_expect;
-use destack_engine::Value;
+use destack_program::Value;
 
 /// Vector splat and extract return the selected element value.
 #[test]

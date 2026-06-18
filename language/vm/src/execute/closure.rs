@@ -5,7 +5,7 @@ use crate::diagnostic::Error;
 use crate::machine::Activation;
 use destack_mir as mir;
 
-use crate::program::{CellLayout, ClosureEnvironment, ClosureObjectLayout};
+use destack_program::vm::{CellLayout, ClosureEnvironment, ClosureObjectLayout};
 
 use super::access;
 
@@ -30,7 +30,7 @@ fn decode_closure_object(
     let environment_layout = activation
         .machine
         .program
-        .functions
+        .functions()
         .environment_layout(activation.machine.tree(), function_id)
         .ok_or(Error::invalid_instruction())?;
     let environment_value =

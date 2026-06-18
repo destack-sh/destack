@@ -3,7 +3,7 @@ use super::{access, address};
 use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
-use crate::program::{Instruction, SliceProjection, SliceProjectionId};
+use destack_program::vm::{Instruction, SliceProjection, SliceProjectionId};
 
 /// Load one slice length value as a host usize.
 #[inline(always)]

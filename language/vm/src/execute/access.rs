@@ -1,12 +1,12 @@
 use std::ptr;
 
-use destack_engine::StaticAddress;
 use destack_heap::{HeapReference, SharedHeapReference};
+use destack_program::StaticAddress;
 
 use crate::diagnostic::Error;
 use crate::machine::Activation;
-use crate::program::{CellLayout, Projection, SlotProjection};
 use crate::{Cell, FramePointer, StackPointer};
+use destack_program::vm::{CellLayout, Projection, SlotProjection};
 
 const POINTER_BYTE_LEN: usize = usize::BITS as usize / 8;
 

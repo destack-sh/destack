@@ -1,6 +1,7 @@
 use destack_mir as mir;
 
-use crate::program::{
+use crate::{Error, Result};
+use destack_program::vm::{
     AddressSpace, Instruction, Op, Projection, ScalarLayout, TensorAddress, TensorBinary,
     TensorBroadcast, TensorConcat, TensorContiguousBinary, TensorConvert, TensorConvolution,
     TensorCopy, TensorDot, TensorExtract, TensorFill, TensorGather, TensorIndexReduce,
@@ -8,7 +9,6 @@ use crate::program::{
     TensorScatter, TensorSelect, TensorSlice, TensorStore, TensorTranspose, TensorView, U32RangeId,
     scalar_layout_from_type, value_shape_from_type,
 };
-use crate::{Error, Result};
 
 use super::arithmetic::{element_binary_kernel, same_contiguous_tensor_order};
 use super::frame::{cell_offset, value_offset};

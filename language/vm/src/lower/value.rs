@@ -2,7 +2,7 @@ use destack_mir as mir;
 
 use crate::{Error, ReferenceMeta};
 
-use crate::program::{
+use destack_program::vm::{
     AddressSpace, ValueShape, address_space_from_reference, repr_type, value_shape_from_type,
 };
 

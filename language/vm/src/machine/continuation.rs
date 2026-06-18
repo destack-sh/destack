@@ -1,4 +1,4 @@
-use destack_engine as engine;
+use destack_program as program;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -6,14 +6,12 @@ use super::{
 };
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::options::MachineOptions;
-use crate::program::Program;
 use destack_heap::{HeapResult, RootSlot};
+use destack_program::vm::Program;
 
 /// Suspended machine state captured at a yield terminator.
 #[derive(Debug)]
 pub struct Continuation {
-    /// The engine id used to validate the continuation.
-    pub(crate) machine_id: engine::EngineId,
     /// Page-backed stack bytes captured with this continuation.
     pub(crate) stack: Stack,
     /// The frame stack for the suspended execution.
@@ -21,14 +19,12 @@ pub struct Continuation {
     /// The frame index to resume execution in.
     pub(crate) resume_frame_index: usize,
     /// The frame state for this continuation.
-    pub(crate) frame_state: engine::FrameStateId,
+    pub(crate) frame_state: program::FrameStateId,
 }
 
 /// Immutable continuation image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ContinuationImage {
-    /// The engine identity used to validate resumption.
-    pub engine_id: engine::EngineId,
     /// The captured stack bytes.
     pub stack: StackImage,
     /// The captured frames from outermost to innermost.
@@ -50,7 +46,6 @@ impl Continuation {
         }
 
         Ok(Self {
-            machine_id: self.machine_id,
             stack,
             frames,
             resume_frame_index: self.resume_frame_index,
@@ -74,11 +69,7 @@ impl Continuation {
             })
             .collect::<RuntimeResult<Vec<_>>>()?;
 
-        Ok(ContinuationImage {
-            engine_id: self.machine_id,
-            stack,
-            frames,
-        })
+        Ok(ContinuationImage { stack, frames })
     }
 
     /// Visit mutable heap root slots referenced by this continuation.
@@ -158,7 +149,6 @@ impl Continuation {
             .frame_state;
 
         Ok(Self {
-            machine_id: image.engine_id,
             stack,
             frames,
             resume_frame_index,
@@ -172,7 +162,7 @@ impl Continuation {
         program: &'a Program,
         frame: &Frame,
         frame_index: usize,
-    ) -> Result<&'a engine::FrameMaterialization, Error> {
+    ) -> Result<&'a program::FrameMaterialization, Error> {
         let (_frame_state, materialization) =
             self.frame_state_and_materialization(program, frame, frame_index)?;
 
@@ -185,7 +175,7 @@ impl Continuation {
         program: &'a Program,
         frame: &Frame,
         frame_index: usize,
-    ) -> Result<(engine::FrameStateId, &'a engine::FrameMaterialization), Error> {
+    ) -> Result<(program::FrameStateId, &'a program::FrameMaterialization), Error> {
         let frame_state = self.frame_state(program, frame, frame_index)?;
 
         let frame_materialization =
@@ -210,7 +200,7 @@ impl Continuation {
         program: &Program,
         frame: &Frame,
         frame_index: usize,
-    ) -> Result<engine::FrameStateId, Error> {
+    ) -> Result<program::FrameStateId, Error> {
         if frame_index == self.resume_frame_index {
             return Ok(self.frame_state);
         }
@@ -231,7 +221,7 @@ impl Continuation {
 
 impl FrameSnapshot {
     /// Capture one frame snapshot from one live frame.
-    fn capture(frame: &Frame, frame_state: engine::FrameStateId) -> Self {
+    fn capture(frame: &Frame, frame_state: program::FrameStateId) -> Self {
         Self {
             frame_state,
             return_state: frame.return_state,
@@ -268,7 +258,7 @@ impl FrameSnapshot {
         let function_id = point.function;
         let block_id = point.block;
         let function = program
-            .functions
+            .functions()
             .function_by_id(function_id)
             .ok_or_else(|| RuntimeError::new(Error::undefined_function(function_id)))?;
         let layout = program
@@ -297,7 +287,7 @@ impl FrameSnapshot {
     fn materialization<'a>(
         &self,
         program: &'a Program,
-    ) -> Result<(&'a engine::FrameLayout, &'a engine::FrameMaterialization), Error> {
+    ) -> Result<(&'a program::FrameLayout, &'a program::FrameMaterialization), Error> {
         let materialization = program
             .frame_materialization(self.frame_state)
             .ok_or(Error::invalid_continuation())?;
@@ -316,7 +306,7 @@ impl FrameSnapshot {
         &mut self,
         stack: &mut StackImage,
         program: &Program,
-        slot: &engine::FrameSlot,
+        slot: &program::FrameSlot,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Error> {
         let start = slot.offset as usize;

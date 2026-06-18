@@ -1,6 +1,6 @@
 use crate::diagnostic::Error;
 use crate::tests::{assert_runtime_error, run_mir, run_mir_expect};
-use destack_engine::Value;
+use destack_program::Value;
 
 /// Integer addition produces the sum of two i32 values.
 #[test]

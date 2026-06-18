@@ -1,11 +1,11 @@
 use destack_mir as mir;
 
-use crate::program::{
+use crate::{Error, Result};
+use destack_program::vm::{
     FloatCast, FloatToIntCast, FrameSelect, Instruction, IntToFloatCast, IntegerCast, Op,
     PointerCast, TensorViewCast, ValueShape, WideIntegerCast, cell_layout_from_type,
     value_shape_from_type,
 };
-use crate::{Error, Result};
 
 use super::frame::{cell_offset, value_offset};
 use super::lower::BlockLowerer;
@@ -22,9 +22,6 @@ impl<'a> BlockLowerer<'a> {
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         // require SSA values and the target type
-        let destination = destination;
-        let argument = argument;
-        let to_type = to_type;
         let destination_type = self.value_type_for_value(destination)?;
         let argument_type = self.value_type_for_value(argument)?;
 
@@ -108,10 +105,6 @@ impl<'a> BlockLowerer<'a> {
         else_value: mir::Value,
     ) -> Result<Instruction> {
         // require SSA values
-        let destination = destination;
-        let condition = condition;
-        let then_value = then_value;
-        let else_value = else_value;
 
         // select cell values without touching frame bytes
         let destination_type = self.value_type_for_value(destination)?;

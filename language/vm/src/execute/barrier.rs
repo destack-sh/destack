@@ -1,6 +1,6 @@
 use crate::diagnostic::Error;
 use crate::machine::Activation;
-use crate::program::Instruction;
+use destack_program::vm::Instruction;
 
 /// Execute a local heap barrier write.
 pub(crate) fn execute_barrier_write_heap(

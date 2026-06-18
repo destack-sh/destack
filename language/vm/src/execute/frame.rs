@@ -1,18 +1,18 @@
 use std::ptr;
 
-use destack_engine as engine;
 use destack_heap::{AllocationCache, GcWorker, Heap, SharedHeap};
 use destack_mir as mir;
+use destack_program as program;
 use smallvec::SmallVec;
 
 use crate::diagnostic::{Error, ReferenceKind};
 use crate::machine::{Activation, Frame};
-use crate::program::{
+use crate::{Cell, FramePointer};
+use destack_program::vm::{
     AddressSpace, ArgumentRange, Instruction, MovePair, MoveRange, MoveSlot, MoveSource, Program,
     Projection, ProjectionId, ValueShape, address_space_from_reference, encode_cell_bytes,
     repr_type, value_shape_from_type,
 };
-use crate::{Cell, FramePointer};
 
 use super::access;
 
@@ -442,7 +442,7 @@ pub(crate) fn materialize_value(
     shared_cache: &mut AllocationCache,
     shared_gc: &GcWorker,
     value: FrameValue,
-) -> Result<engine::Value, Error> {
+) -> Result<program::Value, Error> {
     match value.body {
         FrameValueBody::Cell(cell) => materialize_cell(program, value.ty, cell),
         FrameValueBody::Bytes(bytes) => {
@@ -460,7 +460,7 @@ pub(crate) fn materialize_value(
                     let site = heap.options().allocation_site_for_shape(shape);
                     let reference = heap.allocate_bytes(site, shape.trace_map, &bytes)?;
 
-                    Ok(engine::Value::HeapReference(reference))
+                    Ok(program::Value::HeapReference(reference))
                 }
                 AddressSpace::Shared => {
                     let site = shared.options().allocation_site_for_shape(shape);
@@ -473,7 +473,7 @@ pub(crate) fn materialize_value(
                         program.trace_table(),
                     )?;
 
-                    Ok(engine::Value::SharedHeapReference(reference))
+                    Ok(program::Value::SharedHeapReference(reference))
                 }
                 address_space => Err(Error::invalid_pointer_type(format!("{address_space:?}"))),
             }
@@ -486,9 +486,9 @@ fn materialize_scalar_bytes(
     program: &Program,
     ty: mir::LocalNodeId<mir::Type>,
     bytes: &[u8],
-) -> Result<Option<engine::Value>, Error> {
-    let ty = repr_type(&program.tree, ty);
-    let mir::Type::Int { width, is_signed } = program.tree.get(ty) else {
+) -> Result<Option<program::Value>, Error> {
+    let ty = repr_type(program.tree(), ty);
+    let mir::Type::Int { width, is_signed } = program.tree().get(ty) else {
         return Ok(None);
     };
 
@@ -506,13 +506,13 @@ fn materialize_scalar_bytes(
     if *is_signed {
         let value = sign_extend_i128(raw, *width);
 
-        return Ok(Some(engine::Value::Int {
+        return Ok(Some(program::Value::Int {
             value,
             width: *width,
         }));
     }
 
-    Ok(Some(engine::Value::UInt {
+    Ok(Some(program::Value::UInt {
         value: raw,
         width: *width,
     }))
@@ -531,9 +531,9 @@ fn sign_extend_i128(value: u128, width: u16) -> i128 {
 
 /// Return the address space used to package one non-cell boundary value.
 fn boundary_address_space(program: &Program, ty: mir::LocalNodeId<mir::Type>) -> AddressSpace {
-    let ty = repr_type(&program.tree, ty);
+    let ty = repr_type(program.tree(), ty);
 
-    match program.tree.get(ty) {
+    match program.tree().get(ty) {
         mir::Type::Slice { kind, space, .. } => address_space_from_reference(space.clone(), *kind),
         _ => AddressSpace::Local,
     }
@@ -545,7 +545,7 @@ pub(crate) fn dematerialize_value(
     heap: &Heap,
     shared: &SharedHeap,
     ty: mir::LocalNodeId<mir::Type>,
-    value: &engine::Value,
+    value: &program::Value,
 ) -> Result<FrameValue, Error> {
     let layout = program.layout(ty).ok_or(Error::invalid_instruction())?;
     if !layout.is_cell() {
@@ -553,18 +553,18 @@ pub(crate) fn dematerialize_value(
     }
 
     let cell = match value {
-        engine::Value::Void => Cell::ZERO,
-        engine::Value::Bool(value) => Cell::bool(*value),
-        engine::Value::Int { value, width } => Cell::int(*value as i64, *width as u8),
-        engine::Value::UInt { value, width } => Cell::uint(*value as u64, *width as u8),
-        engine::Value::Float16 { bits } => Cell::from_bits(u64::from(*bits)),
-        engine::Value::Bfloat16 { bits } => Cell::from_bits(u64::from(*bits)),
-        engine::Value::Float32 { bits } => Cell::float32(f32::from_bits(*bits)),
-        engine::Value::Float64 { bits } => Cell::float64(f64::from_bits(*bits)),
-        engine::Value::Char(value) => Cell::char(*value),
-        engine::Value::HeapReference(reference) => Cell::heap_reference(*reference),
-        engine::Value::SharedHeapReference(reference) => Cell::shared_heap_reference(*reference),
-        engine::Value::Address(address) => Cell::address(*address),
+        program::Value::Void => Cell::ZERO,
+        program::Value::Bool(value) => Cell::bool(*value),
+        program::Value::Int { value, width } => Cell::int(*value as i64, *width as u8),
+        program::Value::UInt { value, width } => Cell::uint(*value as u64, *width as u8),
+        program::Value::Float16 { bits } => Cell::from_bits(u64::from(*bits)),
+        program::Value::Bfloat16 { bits } => Cell::from_bits(u64::from(*bits)),
+        program::Value::Float32 { bits } => Cell::float32(f32::from_bits(*bits)),
+        program::Value::Float64 { bits } => Cell::float64(f64::from_bits(*bits)),
+        program::Value::Char(value) => Cell::char(*value),
+        program::Value::HeapReference(reference) => Cell::heap_reference(*reference),
+        program::Value::SharedHeapReference(reference) => Cell::shared_heap_reference(*reference),
+        program::Value::Address(address) => Cell::address(*address),
     };
 
     Ok(FrameValue::cell(ty, cell))
@@ -576,7 +576,7 @@ fn dematerialize_bytes(
     heap: &Heap,
     shared: &SharedHeap,
     ty: mir::LocalNodeId<mir::Type>,
-    value: &engine::Value,
+    value: &program::Value,
 ) -> Result<FrameValue, Error> {
     if let Some(bytes) = dematerialize_scalar_bytes(program, ty, value)? {
         return Ok(FrameValue::bytes(ty, bytes));
@@ -586,12 +586,12 @@ fn dematerialize_bytes(
     let mut bytes = vec![0u8; layout.byte_len];
 
     match (boundary_address_space(program, ty), value) {
-        (AddressSpace::Local, engine::Value::HeapReference(reference)) => {
+        (AddressSpace::Local, program::Value::HeapReference(reference)) => {
             let address = heap.heap_base_address() + reference.offset();
 
             copy_address_to_slice(address, &mut bytes);
         }
-        (AddressSpace::Shared, engine::Value::SharedHeapReference(reference)) => {
+        (AddressSpace::Shared, program::Value::SharedHeapReference(reference)) => {
             let address = shared.heap_base_address() + reference.offset();
 
             copy_address_to_slice(address, &mut bytes);
@@ -611,10 +611,10 @@ fn dematerialize_bytes(
 fn dematerialize_scalar_bytes(
     program: &Program,
     ty: mir::LocalNodeId<mir::Type>,
-    value: &engine::Value,
+    value: &program::Value,
 ) -> Result<Option<Box<[u8]>>, Error> {
-    let ty = repr_type(&program.tree, ty);
-    let mir::Type::Int { width, is_signed } = program.tree.get(ty) else {
+    let ty = repr_type(program.tree(), ty);
+    let mir::Type::Int { width, is_signed } = program.tree().get(ty) else {
         return Ok(None);
     };
 
@@ -622,14 +622,14 @@ fn dematerialize_scalar_bytes(
     let raw = match (is_signed, value) {
         (
             true,
-            engine::Value::Int {
+            program::Value::Int {
                 value,
                 width: value_width,
             },
         ) if value_width == width => *value as u128,
         (
             false,
-            engine::Value::UInt {
+            program::Value::UInt {
                 value,
                 width: value_width,
             },
@@ -664,62 +664,62 @@ pub(crate) fn materialize_cell(
     program: &Program,
     ty: mir::LocalNodeId<mir::Type>,
     value: Cell,
-) -> Result<engine::Value, Error> {
-    match value_shape_from_type(&program.tree, ty) {
-        Some(ValueShape::Void) => Ok(engine::Value::Void),
-        Some(ValueShape::Bool) => Ok(engine::Value::Bool(value.as_bool())),
+) -> Result<program::Value, Error> {
+    match value_shape_from_type(program.tree(), ty) {
+        Some(ValueShape::Void) => Ok(program::Value::Void),
+        Some(ValueShape::Bool) => Ok(program::Value::Bool(value.as_bool())),
         Some(ValueShape::Int {
             width,
             signed: true,
-        }) => Ok(engine::Value::Int {
+        }) => Ok(program::Value::Int {
             value: value.as_i64() as i128,
             width,
         }),
         Some(ValueShape::Int {
             width,
             signed: false,
-        }) => Ok(engine::Value::UInt {
+        }) => Ok(program::Value::UInt {
             value: value.as_u64() as u128,
             width,
         }),
         Some(ValueShape::Float {
             format: mir::FloatType::Float16,
-        }) => Ok(engine::Value::float16_bits(value.bits() as u16)),
+        }) => Ok(program::Value::float16_bits(value.bits() as u16)),
         Some(ValueShape::Float {
             format: mir::FloatType::Bfloat16,
-        }) => Ok(engine::Value::bfloat16_bits(value.bits() as u16)),
+        }) => Ok(program::Value::bfloat16_bits(value.bits() as u16)),
         Some(ValueShape::Float {
             format: mir::FloatType::Float32,
-        }) => Ok(engine::Value::Float32 {
+        }) => Ok(program::Value::Float32 {
             bits: value.as_f32().to_bits(),
         }),
         Some(ValueShape::Float {
             format: mir::FloatType::Float64,
-        }) => Ok(engine::Value::Float64 {
+        }) => Ok(program::Value::Float64 {
             bits: value.as_f64().to_bits(),
         }),
         Some(ValueShape::Char) => {
             let value = value.as_char().ok_or(Error::invalid_instruction())?;
 
-            Ok(engine::Value::Char(value))
+            Ok(program::Value::Char(value))
         }
         Some(ValueShape::Pointer {
             address_space: AddressSpace::Local,
             ..
-        }) => Ok(engine::Value::HeapReference(value.as_heap_reference())),
+        }) => Ok(program::Value::HeapReference(value.as_heap_reference())),
         Some(ValueShape::Pointer {
             address_space: AddressSpace::Shared,
             ..
-        }) => Ok(engine::Value::SharedHeapReference(
+        }) => Ok(program::Value::SharedHeapReference(
             value.as_shared_heap_reference(),
         )),
         Some(ValueShape::Pointer {
             address_space: AddressSpace::Raw,
             ..
-        }) => Ok(engine::Value::Address(value.as_address())),
+        }) => Ok(program::Value::Address(value.as_address())),
         _ => Err(Error::type_mismatch(
             "cell value",
-            format!("{:?}", value_shape_from_type(&program.tree, ty)),
+            format!("{:?}", value_shape_from_type(program.tree(), ty)),
         )),
     }
 }

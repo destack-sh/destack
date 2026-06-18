@@ -3,9 +3,9 @@ use crate::tests::{
     create_machine, create_machine_with_data_layout, run_mir_expect, run_mir_ok,
     run_mir_with_frame_ok,
 };
-use destack_engine::Value;
 use destack_heap::{HeapReference, SharedHeap, SharedHeapReference};
 use destack_mir::{DataLayout, TraceMap};
+use destack_program::Value;
 
 /// Decode one native-width heap reference from materialized bytes.
 fn decode_heap_reference(bytes: &[u8], offset: usize) -> HeapReference {

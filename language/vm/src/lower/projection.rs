@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use destack_mir as mir;
 
-use crate::program::{
+use destack_program::vm::{
     AddressSpace, CellLayout, Layout, Projection, SliceProjection, SlotProjection, ValueShape,
     address_space_from_reference, cell_layout_from_address_space, cell_layout_from_type, repr_type,
 };

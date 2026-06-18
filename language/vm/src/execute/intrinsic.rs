@@ -6,7 +6,7 @@ use smallvec::SmallVec;
 
 use crate::Cell;
 use crate::diagnostic::{Error, RuntimeResult};
-use crate::program::{
+use destack_program::vm::{
     AddressSpace, ArgumentRange, Instruction, Intrinsic, IntrinsicDest, ValueShape,
 };
 
