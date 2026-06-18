@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::host::binding::{BindingId, CodecId};
-use crate::runtime::engine::Entry;
+use crate::runtime::executor::Entry;
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::scheduler::{MicrotaskId, TaskId};
 use crate::runtime::time::Instant;
@@ -35,7 +35,7 @@ pub struct EntrypointCall {
     /// Replayable entrypoint reference.
     pub entry: Entry,
     /// Invocation arguments.
-    pub args: Vec<destack_engine::Value>,
+    pub args: Vec<destack_program::Value>,
 }
 
 /// One observed outcome that replay cannot derive.

@@ -1,10 +1,10 @@
-use destack_engine as engine;
+use destack_program as program;
 use serde::{Deserialize, Serialize};
 
 use super::{EventLoop, Readiness, Task, Wake, WakeKey};
 use crate::diagnostic::RuntimeResult;
 use crate::host::{HostEventKind, ResourceId};
-use crate::runtime::engine::{Continuation, ContinuationImage, Engine};
+use crate::runtime::executor::{Continuation, ContinuationImage, Executor};
 
 /// Suspended continuation that resumes when one wake source fires.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -12,7 +12,7 @@ pub struct Waiter {
     /// Runnable continuation image to restore when dispatched.
     pub runnable: ContinuationImage,
     /// Resume value passed into the continuation.
-    pub resume_value: engine::Value,
+    pub resume_value: program::Value,
     /// Task priority used when queueing the resumed task.
     pub priority: u8,
 }
@@ -23,11 +23,11 @@ impl EventLoop {
         &mut self,
         resource_id: ResourceId,
         runnable: Continuation,
-        resume_value: engine::Value,
+        resume_value: program::Value,
         priority: u8,
-        engine: &mut Engine,
+        executor: &mut Executor,
     ) -> RuntimeResult<()> {
-        let waiter = self.capture_waiter(runnable, resume_value, priority, engine)?;
+        let waiter = self.capture_waiter(runnable, resume_value, priority, executor)?;
         self.waiters.insert(WakeKey::Timer(resource_id), waiter);
 
         Ok(())
@@ -44,11 +44,11 @@ impl EventLoop {
         resource_id: ResourceId,
         readiness: Readiness,
         runnable: Continuation,
-        resume_value: engine::Value,
+        resume_value: program::Value,
         priority: u8,
-        engine: &mut Engine,
+        executor: &mut Executor,
     ) -> RuntimeResult<()> {
-        let waiter = self.capture_waiter(runnable, resume_value, priority, engine)?;
+        let waiter = self.capture_waiter(runnable, resume_value, priority, executor)?;
         self.waiters.insert(
             WakeKey::Resource {
                 resource_id,
@@ -73,11 +73,11 @@ impl EventLoop {
         &mut self,
         kind: HostEventKind,
         runnable: Continuation,
-        resume_value: engine::Value,
+        resume_value: program::Value,
         priority: u8,
-        engine: &mut Engine,
+        executor: &mut Executor,
     ) -> RuntimeResult<()> {
-        let waiter = self.capture_waiter(runnable, resume_value, priority, engine)?;
+        let waiter = self.capture_waiter(runnable, resume_value, priority, executor)?;
         self.waiters.insert(WakeKey::Host(kind), waiter);
 
         Ok(())
@@ -92,14 +92,14 @@ impl EventLoop {
     pub fn task_for_wake(
         &mut self,
         wake: Wake,
-        engine: &mut Engine,
+        executor: &mut Executor,
     ) -> RuntimeResult<Option<Task>> {
         let key = wake.key();
         let is_inactive_timer = matches!(key, WakeKey::Timer(resource_id) if !self.timers.has_active_timer(resource_id));
         let Some(waiter) = self.waiters.get(&key) else {
             return Ok(None);
         };
-        let Ok(runnable) = engine.restore_continuation_image(&waiter.runnable) else {
+        let Ok(runnable) = executor.restore_continuation_image(&waiter.runnable) else {
             return Ok(None);
         };
         let resume_value = waiter.resume_value.clone();
@@ -123,11 +123,11 @@ impl EventLoop {
     fn capture_waiter(
         &self,
         runnable: Continuation,
-        resume_value: engine::Value,
+        resume_value: program::Value,
         priority: u8,
-        engine: &mut Engine,
+        executor: &mut Executor,
     ) -> RuntimeResult<Waiter> {
-        let runnable = engine.continuation_image(&runnable)?;
+        let runnable = executor.continuation_image(&runnable)?;
 
         Ok(Waiter {
             runnable,

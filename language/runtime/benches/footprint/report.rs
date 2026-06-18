@@ -1,11 +1,11 @@
 use std::mem::size_of;
 use std::sync::Once;
 
-use destack_engine::StaticSpace;
 use destack_heap::{
     AllocationCache, Allocator, GcWorker, Heap, HeapOptions, SharedHeap, SharedHeapOptions,
     SizeClassTable,
 };
+use destack_program::StaticSpace;
 use destack_repository::{Environment, RuntimeOptions};
 use destack_runtime::diagnostic::DiagnosticStore;
 use destack_runtime::host::HostPollResult;
@@ -60,7 +60,7 @@ fn print_type_sizes() {
         ),
         ("workspace", "Environment", size_of::<Environment>()),
         ("workspace", "RuntimeOptions", size_of::<RuntimeOptions>()),
-        ("engine", "StaticSpace", size_of::<StaticSpace>()),
+        ("executor", "StaticSpace", size_of::<StaticSpace>()),
         ("vm", "Machine", size_of::<Machine>()),
         ("vm", "Continuation", size_of::<Continuation>()),
         ("vm", "ContinuationImage", size_of::<ContinuationImage>()),
@@ -90,7 +90,7 @@ fn print_component_sizes() {
         ("host", "ResourceTable", size_of::<ResourceTable>()),
         ("host", "BindingRegistry", size_of::<BindingRegistry>()),
         ("runtime", "EventLoop", size_of::<EventLoop>()),
-        ("engine", "StaticSpace", size_of::<StaticSpace>()),
+        ("executor", "StaticSpace", size_of::<StaticSpace>()),
     ];
 
     eprintln!();
@@ -105,11 +105,11 @@ fn print_component_sizes() {
 /// Print retained allocation samples.
 fn print_allocations(runtime: &RuntimeSetup, vm: VmSetup) {
     let mut world = runtime.world();
-    let engine = runtime.engine();
-    let runtime_spawn = ALLOCATOR.measure(|| runtime.spawn_runtime(&mut world, engine));
+    let backend = runtime.backend();
+    let runtime_spawn = ALLOCATOR.measure(|| runtime.spawn_runtime(&mut world, backend));
     let (mut world, runtime_id) = runtime.world_with_runtime();
-    let engine = runtime.engine();
-    let worker_spawn = ALLOCATOR.measure(|| runtime.spawn_worker(&mut world, runtime_id, engine));
+    let backend = runtime.backend();
+    let worker_spawn = ALLOCATOR.measure(|| runtime.spawn_worker(&mut world, runtime_id, backend));
 
     let machine_new = ALLOCATOR.measure(|| vm.machine());
     let mut machine = vm.machine();

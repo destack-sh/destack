@@ -25,8 +25,8 @@ fn bench_footprint(criterion: &mut Criterion) {
 
     group.bench_function("runtime.spawn.empty.vm", |bencher| {
         bencher.iter_batched(
-            || (runtime.world(), runtime.engine()),
-            |(mut world, engine)| black_box(runtime.spawn_runtime(&mut world, engine)),
+            || (runtime.world(), runtime.backend()),
+            |(mut world, backend)| black_box(runtime.spawn_runtime(&mut world, backend)),
             BatchSize::SmallInput,
         )
     });
@@ -35,12 +35,12 @@ fn bench_footprint(criterion: &mut Criterion) {
         bencher.iter_batched(
             || {
                 let (world, runtime_id) = runtime.world_with_runtime();
-                let engine = runtime.engine();
+                let backend = runtime.backend();
 
-                (world, runtime_id, engine)
+                (world, runtime_id, backend)
             },
-            |(mut world, runtime_id, engine)| {
-                runtime.spawn_worker(&mut world, runtime_id, engine);
+            |(mut world, runtime_id, backend)| {
+                runtime.spawn_worker(&mut world, runtime_id, backend);
 
                 black_box(())
             },
