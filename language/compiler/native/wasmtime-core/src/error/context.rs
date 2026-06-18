@@ -1,4 +1,5 @@
-use crate::error::{Error, ErrorExt, OutOfMemory, Result, boxed::try_new_uninit_box};
+use crate::error::boxed::try_new_uninit_box;
+use crate::error::{Error, ErrorExt, OutOfMemory, Result};
 use core::any::TypeId;
 use core::fmt;
 use core::ptr::NonNull;

@@ -2,7 +2,8 @@
 
 use cranelift_control::ControlPlane;
 
-use crate::ir::{self, types::*};
+use crate::ir::types::*;
+use crate::ir::{self};
 use crate::isa::aarch64;
 use crate::isa::aarch64::inst::*;
 use crate::trace;

@@ -1,8 +1,7 @@
 //! Lexical analysis for .clif files.
 
 use crate::error::Location;
-use cranelift_codegen::ir::types;
-use cranelift_codegen::ir::{Block, Value};
+use cranelift_codegen::ir::{Block, Value, types};
 use std::str::CharIndices;
 use std::u16;
 

@@ -6,9 +6,8 @@ use crate::ir::{Block, Function, Layout, ProgramPoint};
 use crate::packed_option::PackedOption;
 use crate::timing;
 use alloc::vec::Vec;
-use core::cmp;
 use core::cmp::Ordering;
-use core::mem;
+use core::{cmp, mem};
 
 mod simple;
 

@@ -2,7 +2,8 @@
 
 use crate::isa::unwind::systemv::RegisterMappingError;
 use crate::machinst::{Reg, RegClass};
-use gimli::{Encoding, Format, Register, write::CommonInformationEntry};
+use gimli::write::CommonInformationEntry;
+use gimli::{Encoding, Format, Register};
 
 /// Creates a new s390x common information entry (CIE).
 pub fn create_cie() -> CommonInformationEntry {

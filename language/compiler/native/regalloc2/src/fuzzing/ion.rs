@@ -1,6 +1,7 @@
 //! Fuzz the `ion` register allocator.
 
-use crate::{checker, fuzzing::func, ion};
+use crate::fuzzing::func;
+use crate::{checker, ion};
 use arbitrary::{Arbitrary, Result, Unstructured};
 use core::cell::RefCell;
 use std::thread_local;

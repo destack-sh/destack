@@ -1,17 +1,13 @@
 //! Implementation of a standard AArch64 ABI.
 
-use crate::CodegenResult;
-use crate::ir;
-use crate::ir::MemFlags;
-use crate::ir::types;
 use crate::ir::types::*;
-use crate::ir::{ExternalName, LibCall, Signature, dynamic_to_fixed};
-use crate::isa;
-use crate::isa::aarch64::{inst::*, settings as aarch64_settings};
+use crate::ir::{ExternalName, LibCall, MemFlags, Signature, dynamic_to_fixed, types};
+use crate::isa::aarch64::inst::*;
+use crate::isa::aarch64::settings as aarch64_settings;
 use crate::isa::unwind::UnwindInst;
 use crate::isa::winch;
 use crate::machinst::*;
-use crate::settings;
+use crate::{CodegenResult, ir, isa, settings};
 use alloc::borrow::ToOwned;
 use alloc::boxed::Box;
 use alloc::vec::Vec;

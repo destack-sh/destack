@@ -167,8 +167,10 @@ where
 mod tests {
     use super::*;
     use crate::error::{Result, ensure};
-    use core::{cell::Cell, cmp};
-    use std::{panic, string::ToString};
+    use core::cell::Cell;
+    use core::cmp;
+    use std::panic;
+    use std::string::ToString;
 
     #[derive(Default)]
     struct Counter {

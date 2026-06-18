@@ -3,7 +3,8 @@
  * exception. See `LICENSE` for details.
  */
 
-use crate::{ion::data_structures::u64_key, Allocation, PReg};
+use crate::ion::data_structures::u64_key;
+use crate::{Allocation, PReg};
 use core::fmt::Debug;
 use smallvec::{smallvec, SmallVec};
 

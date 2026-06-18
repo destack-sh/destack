@@ -20,8 +20,7 @@
 //! format.
 
 use crate::entity::entity_impl;
-use core::fmt;
-use core::u32;
+use core::{fmt, u32};
 #[cfg(feature = "enable-serde")]
 use serde_derive::{Deserialize, Serialize};
 

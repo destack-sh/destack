@@ -2,7 +2,9 @@ use crate::cdsl::formats::InstructionFormat;
 use crate::cdsl::instructions::AllInstructions;
 use crate::error;
 use cranelift_srcgen::{Formatter, Language, fmtln};
-use std::{borrow::Cow, cmp::Ordering, rc::Rc};
+use std::borrow::Cow;
+use std::cmp::Ordering;
+use std::rc::Rc;
 
 /// Which ISLE target are we generating code for?
 #[derive(Clone, Copy, PartialEq, Eq)]

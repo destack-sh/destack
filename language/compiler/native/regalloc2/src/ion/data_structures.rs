@@ -16,13 +16,11 @@ use super::liveranges::SpillWeight;
 use crate::cfg::{CFGInfo, CFGInfoCtx};
 use crate::index::ContainerComparator;
 use crate::indexset::IndexSet;
-use crate::Vec2;
 use crate::{
     define_index, Allocation, Block, Bump, Edit, Function, FxHashMap, FxHashSet, MachineEnv,
-    Operand, Output, PReg, ProgPoint, RegClass, VReg,
+    Operand, Output, PReg, ProgPoint, RegClass, VReg, Vec2,
 };
-use alloc::collections::BTreeMap;
-use alloc::collections::VecDeque;
+use alloc::collections::{BTreeMap, VecDeque};
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::cmp::Ordering;

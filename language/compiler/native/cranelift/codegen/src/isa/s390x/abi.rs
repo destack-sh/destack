@@ -132,18 +132,13 @@
 //!   (low address)
 //! ```
 
-use crate::CodegenResult;
-use crate::ir;
-use crate::ir::MemFlags;
-use crate::ir::Signature;
-use crate::ir::Type;
 use crate::ir::condcodes::IntCC;
-use crate::ir::types;
-use crate::isa;
-use crate::isa::s390x::{inst::*, settings as s390x_settings};
+use crate::ir::{MemFlags, Signature, Type, types};
+use crate::isa::s390x::inst::*;
+use crate::isa::s390x::settings as s390x_settings;
 use crate::isa::unwind::UnwindInst;
 use crate::machinst::*;
-use crate::settings;
+use crate::{CodegenResult, ir, isa, settings};
 use alloc::borrow::ToOwned;
 use alloc::vec::Vec;
 use regalloc2::{MachineEnv, PRegSet};

@@ -1,5 +1,6 @@
 use super::*;
-use core::{cmp, fmt, hash, ops::Deref};
+use core::ops::Deref;
+use core::{cmp, fmt, hash};
 use std_alloc::borrow::Borrow;
 
 /// Like [`std::borrow::ToOwned`] but returns an [`OutOfMemory`] error on
