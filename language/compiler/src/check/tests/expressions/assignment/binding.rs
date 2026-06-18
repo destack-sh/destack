@@ -450,3 +450,117 @@ const copy = value;
 "#,
     );
 }
+
+#[test]
+fn test_branch_assignment_requires_all_paths() {
+    let session = TestSession::single(
+        r#"
+declare const condition: boolean;
+
+let value: string;
+if (condition) {
+    value = "ready";
+}
+const copy = value;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_check_stats(),
+        r#"
+=== annotated ===
+declare const condition: boolean;
+
+let value: string;
+if (condition) {
+    value = "ready";
+}
+const copy: string = value;
+
+=== checked ===
+declare const condition: boolean;
+/// @type.symbol symbol=condition source=condition type=boolean
+
+let value: string;
+/// @type.symbol symbol=value source=value type=string
+
+if (condition) {
+/// @type.node source="if (condition) {\n    value = \"ready\";\n}" type=void | void
+/// @type.node source=condition type=boolean
+/// @resolution.name source=condition target=condition
+    value = "ready";
+    /// @type.node source="value = \"ready\"" type=string
+    /// @type.node source=value type=string
+    /// @resolution.name source=value target=value
+    /// @type.node source="\"ready\"" type=string
+}
+const copy = value;
+/// @type.symbol symbol=copy source=copy type=string
+/// @type.node source=value type=string
+/// @resolution.name source=value target=value
+
+/// @check.stats.solve variables=0 types=6 constraints=1 obligations=1 solutions=0 bounds=0 decisions=3
+
+"#,
+        r#"
+/// @diagnostic.error code=EC405 message="'value' is used before being assigned"
+/// @diagnostic.label line=8 column=14 source=value
+"#,
+    );
+}
+
+#[test]
+fn test_undefined_initializer_models_optional_state() {
+    let session = TestSession::single(
+        r#"
+declare const condition: boolean;
+
+let value: string | undefined = undefined;
+if (condition) {
+    value = "ready";
+}
+const copy = value;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_check_stats(),
+        r#"
+=== annotated ===
+declare const condition: boolean;
+
+let value: string | undefined = undefined;
+if (condition) {
+    value = "ready";
+}
+const copy: string | undefined = value;
+
+=== checked ===
+declare const condition: boolean;
+/// @type.symbol symbol=condition source=condition type=boolean
+
+let value: string | undefined = undefined;
+/// @type.symbol symbol=value source=value type=string | undefined
+/// @type.node source=undefined type=undefined
+
+if (condition) {
+/// @type.node source="if (condition) {\n    value = \"ready\";\n}" type=void | void
+/// @type.node source=condition type=boolean
+/// @resolution.name source=condition target=condition
+    value = "ready";
+    /// @type.node source="value = \"ready\"" type=string
+    /// @type.node source=value type=string | undefined
+    /// @resolution.name source=value target=value
+    /// @type.node source="\"ready\"" type=string
+}
+const copy = value;
+/// @type.symbol symbol=copy source=copy type=string | undefined
+/// @type.node source=value type=string | undefined
+/// @resolution.name source=value target=value
+
+/// @check.stats.solve variables=0 types=9 constraints=2 obligations=1 solutions=0 bounds=0 decisions=3
+"#,
+    );
+}
