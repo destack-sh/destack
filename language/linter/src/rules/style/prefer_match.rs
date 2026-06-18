@@ -173,9 +173,7 @@ fn collect_if_chain_for_match(
             else_expression: chained_else_expression,
         } = next_else_expression
         {
-            let Some(condition) = condition.as_expression() else {
-                return None;
-            };
+            let condition = condition.as_expression()?;
 
             let (next_subject_key, _, next_pattern_expression) =
                 comparison_subject_and_pattern(ctx, condition)?;
