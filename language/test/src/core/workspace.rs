@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 use destack_artifact::{ArtifactKey, MemoryCacheStore};
 use destack_compiler::Compiler;
@@ -14,7 +14,7 @@ use destack_session::Session;
 use destack_source::{
     Content, DiagnosticCollection, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId,
 };
-use serde_json::{Map, Value, json};
+use serde_json::{json, Map, Value};
 
 /// One shared in memory workspace for suite execution.
 #[derive(Debug)]
@@ -340,7 +340,9 @@ pub fn module_target_artifact_diagnostics(
     let keys = [
         ArtifactKey::mir_lowered(module_id, profile, target_id),
         ArtifactKey::mir_optimized(module_id, profile, target_id),
-        ArtifactKey::module_output(module_id, target_id),
+        ArtifactKey::script(module_id, target_id),
+        ArtifactKey::object(module_id, target_id),
+        ArtifactKey::asset(module_id, target_id),
     ];
 
     // gather target scoped diagnostics after the profile scoped surface
