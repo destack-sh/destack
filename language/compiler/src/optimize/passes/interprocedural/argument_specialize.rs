@@ -782,6 +782,7 @@ entry:
                 .expect("call signature should be concrete"),
         );
         let expected_signature = mir::Type::FunctionSignature {
+            lifetimes: Vec::new(),
             parameters: callee
                 .parameters
                 .iter()

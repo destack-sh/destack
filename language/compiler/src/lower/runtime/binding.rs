@@ -126,9 +126,12 @@ impl ModuleLowerer<'_> {
         let signature_type = self.builder.type_function_pointer(signature);
         self.assign_signature_metadata_name(signature_type, symbol, anchor)?;
 
-        let function_id =
-            self.builder
-                .external_function(&binding.name, &parameters, status_layout.ty);
+        let header = self
+            .builder
+            .function_header(&binding.name)
+            .parameters(parameters.iter().copied())
+            .result(status_layout.ty);
+        let function_id = self.builder.external_function(header);
         self.register_function_binding_for_symbol(symbol, function_id, signature)?;
         self.binding_symbols.insert(symbol);
 

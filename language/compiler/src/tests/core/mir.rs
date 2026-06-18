@@ -6,9 +6,10 @@ use destack_core::StringPool;
 use destack_mir as mir;
 use destack_repository::{ProviderContext, Revision};
 use destack_source::{
-    ContentId, DiagnosticCollection, DiagnosticLabel, FileId, ModuleId, PackageId, ProfileId, Span,
-    TargetId,
+    DiagnosticCollection, DiagnosticLabel, File, FileId, FileType, ModuleId, PackageId, ProfileId,
+    Span, TargetId, Uri,
 };
+use std::sync::Arc;
 
 /// MIR program under compiler tests.
 pub(crate) struct TestProgram {
@@ -23,15 +24,24 @@ pub(crate) struct TestProgram {
 impl TestProgram {
     /// Parse one MIR program.
     pub(crate) fn mir(source: &str) -> Self {
+        let file_id = FileId::new(0);
+        let file = Arc::new(File::from_text(
+            file_id,
+            "<test.mir>".to_string(),
+            Uri::from_string("<test.mir>"),
+            None,
+            FileType::Destack,
+            source.to_string(),
+        ));
         let (tree, strings) =
-            mir::parse::Parser::parse(FileId::new(0), source, mir::parse::ParseOptions::default())
+            mir::parse::Parser::parse(file_id, source, mir::parse::ParseOptions::default())
                 .finish()
                 .expect("failed to parse MIR");
 
         Self {
             tree,
             strings,
-            provider: TestMirProvider,
+            provider: TestMirProvider { file },
         }
     }
 
@@ -52,7 +62,10 @@ impl TestProgram {
 }
 
 /// Provider context used by raw MIR tests.
-pub(crate) struct TestMirProvider;
+pub(crate) struct TestMirProvider {
+    /// The raw MIR source file.
+    pub(crate) file: Arc<File>,
+}
 
 impl DiagnosticContext for TestMirProvider {
     /// Resolve one diagnostic anchor into a source label.
@@ -65,11 +78,11 @@ impl DiagnosticContext for TestMirProvider {
             DiagnosticAnchor::Span(span) => *span,
             DiagnosticAnchor::File(_)
             | DiagnosticAnchor::Module(_)
-            | DiagnosticAnchor::Package(_) => Span::empty(FileId::new(0)),
+            | DiagnosticAnchor::Package(_) => Span::empty(self.file.id),
         };
 
         Ok(DiagnosticLabel {
-            content: ContentId::new(0),
+            content: self.file.content_id(),
             span,
             message,
         })
