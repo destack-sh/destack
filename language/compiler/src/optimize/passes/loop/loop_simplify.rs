@@ -204,12 +204,12 @@ struct ExitWork {
 
 /// Create fresh parameters matching an existing parameter list.
 fn fresh_parameters_like(
-    parameters: &[mir::Parameter],
+    parameters: &[mir::BlockParameter],
     function: &mut mir::Function,
-) -> Vec<mir::Parameter> {
+) -> Vec<mir::BlockParameter> {
     parameters
         .iter()
-        .map(|parameter| mir::Parameter {
+        .map(|parameter| mir::BlockParameter {
             value: function.next_typed_value(parameter.ty),
             ty: parameter.ty,
         })
@@ -289,7 +289,11 @@ fn insert_preheader(
 
     // keep entry parameters mirrored on the new entry block
     let preheader_params = if is_entry_header {
-        function.parameters.clone()
+        function
+            .parameters
+            .iter()
+            .map(mir::FunctionParameter::block_parameter)
+            .collect()
     } else {
         fresh_parameters_like(&header_params, function)
     };
@@ -360,8 +364,8 @@ fn insert_preheader(
 
 /// Build one value substitution map from paired parameter lists.
 fn parameter_substitutions(
-    from: &[mir::Parameter],
-    to: &[mir::Parameter],
+    from: &[mir::BlockParameter],
+    to: &[mir::BlockParameter],
 ) -> HashMap<mir::Value, mir::Value> {
     from.iter()
         .zip(to.iter())

@@ -753,7 +753,7 @@ fn clone_callee_blocks(
         let original = tree.get(*block_id);
 
         // allocate new values for block parameters
-        let new_params: Vec<mir::Parameter> = original
+        let new_params: Vec<mir::BlockParameter> = original
             .parameters
             .iter()
             .map(|param| {
@@ -761,9 +761,9 @@ fn clone_callee_blocks(
                 let ty = param.ty;
                 let new_value = caller.next_typed_value(ty);
                 value_map.insert(value, new_value);
-                mir::Parameter {
-                    value: new_value,
-                    ty,
+                mir::BlockParameter {
+                    value: new_value.into(),
+                    ty: ty.into(),
                 }
             })
             .collect();
@@ -805,7 +805,7 @@ fn split_block_for_inline(
     inline_entry: mir::LocalNodeId<mir::Block>,
     return_type: mir::LocalNodeId<mir::Type>,
     destination: Option<mir::Value>,
-    entry_params: &[mir::Parameter],
+    entry_params: &[mir::BlockParameter],
     argument_map: &HashMap<mir::Value, mir::Value>,
 ) -> Option<InlineSplit> {
     // load the call block for editing
@@ -828,9 +828,9 @@ fn split_block_for_inline(
     // allocate a continuation parameter when a value is returned
     if destination.is_some() {
         let new_value = caller.next_typed_value(return_type);
-        continuation_block.parameters.push(mir::Parameter {
-            value: new_value,
-            ty: return_type,
+        continuation_block.parameters.push(mir::BlockParameter {
+            value: new_value.into(),
+            ty: return_type.into(),
         });
         result_value = Some(new_value);
     }
@@ -1286,7 +1286,10 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::Tree) -> u64 {
         | mir::Instruction::ClosureBind { .. }
         | mir::Instruction::ClosureEnvironment { .. }
         | mir::Instruction::LocalAddr { .. }
-        | mir::Instruction::Slice { .. }
+        | mir::Instruction::SliceView { .. }
+        | mir::Instruction::SliceLength { .. }
+        | mir::Instruction::VariantTag { .. }
+        | mir::Instruction::VariantPayload { .. }
         | mir::Instruction::Assume { .. }
         | mir::Instruction::ProfileIncrement { .. }
         | mir::Instruction::ProfileValue { .. } => INLINE_COST_SIMPLE,
@@ -1357,7 +1360,6 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::Tree) -> u64 {
         | mir::Instruction::Free { .. }
         | mir::Instruction::Pin { .. }
         | mir::Instruction::Unpin { .. }
-        | mir::Instruction::Drop { .. }
         | mir::Instruction::FrameAllocZeroed { .. }
         | mir::Instruction::FrameAllocUninit { .. } => INLINE_COST_ALLOC,
         mir::Instruction::Intrinsic { intrinsic, .. } => {

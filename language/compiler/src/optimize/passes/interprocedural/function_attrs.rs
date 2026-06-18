@@ -716,9 +716,7 @@ fn effects_for_instruction(
             let effect = mir::MemoryEffect::read_write(spaces);
             (effect, mir::FunctionBehavior::none())
         }
-        mir::Instruction::Pin { .. }
-        | mir::Instruction::Unpin { .. }
-        | mir::Instruction::Drop { .. } => (
+        mir::Instruction::Pin { .. } | mir::Instruction::Unpin { .. } => (
             mir::MemoryEffect::unknown(),
             mir::FunctionBehavior::unknown(),
         ),

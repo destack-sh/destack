@@ -696,9 +696,9 @@ fn apply_candidates_for_loop(
 
     // append new parameters in header order
     for item in &plan_items {
-        header_block.parameters.push(mir::Parameter {
-            value: item.new_param.value,
-            ty: item.new_param.ty,
+        header_block.parameters.push(mir::BlockParameter {
+            value: item.new_param.value.into(),
+            ty: item.new_param.ty.into(),
         });
     }
     tree.set(header, header_block);

@@ -706,17 +706,17 @@ b2(v6: int32):
         test.assert_output(expected);
     }
 
-    /// Loop with drop is preserved (drop has side effects).
+    /// Loop with free is preserved because storage release has side effects.
     #[test]
-    fn test_preserve_drop_side_effects() {
+    fn test_preserve_free_side_effects() {
         let input = r#"
-function test(v0: int32): void {
-entry(v0: int32):
+function test(v0: ref<int32, unique>): void {
+entry(v0: ref<int32, unique>):
     v1: boolean = false
     jump b1
 
 b1:
-    drop v0
+    free v0
     branch v1, b1, b2
 
 b2:

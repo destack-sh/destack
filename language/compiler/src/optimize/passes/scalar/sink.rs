@@ -434,10 +434,10 @@ b2:
     #[test]
     fn test_preserve_side_effects() {
         let input = r#"
-function test(v0: int32, v1: boolean): int32 {
-entry(v0: int32, v1: boolean):
+function test(v0: ref<int32, unique>, v1: boolean): int32 {
+entry(v0: ref<int32, unique>, v1: boolean):
     v2: int32 = 1
-    drop v0
+    free v0
     branch v1, b1, b2
 
 b1:
@@ -448,14 +448,11 @@ b2:
     return v3
 }
 "#;
-        // v2 is used only in block1, so it could sink if not for drop ordering
-        // however, drop has side effects and cannot be reordered
-        // v2 is computed before drop, so sinking v2 past drop would reorder them
-        // actually, v2 has no dependency on drop, so v2 CAN sink to block1
+        // free must stay ordered, but v2 can sink because it has no dependency
         let expected = r#"
-function test(v0: int32, v1: boolean): int32 {
-entry(v0: int32, v1: boolean):
-    drop v0
+function test(v0: ref<int32, unique>, v1: boolean): int32 {
+entry(v0: ref<int32, unique>, v1: boolean):
+    free v0
     branch v1, b1, b2
 
 b1:

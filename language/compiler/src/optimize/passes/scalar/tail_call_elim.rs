@@ -179,17 +179,16 @@ fn try_accumulator_transform(
 
     let entry = tree.get(entry_block);
     let mut new_entry = entry.clone();
-    new_entry.parameters.push(mir::Parameter {
-        value: acc_value,
-        ty: return_type,
+    new_entry.parameters.push(mir::BlockParameter {
+        value: acc_value.into(),
+        ty: return_type.into(),
     });
     tree.set(entry_block, new_entry);
 
     // also add to function parameters
-    function.parameters.push(mir::Parameter {
-        value: acc_value,
-        ty: return_type,
-    });
+    function
+        .parameters
+        .push(mir::FunctionParameter::new(acc_value, return_type.into()));
 
     // update all external call sites to pass the identity constant
     let mut call_sites_by_function: HashMap<_, Vec<_>> = HashMap::new();
@@ -285,17 +284,16 @@ fn try_accumulator_transform_exported(
 
     let impl_entry = tree.get(impl_entry_block);
     let mut new_impl_entry = impl_entry.clone();
-    new_impl_entry.parameters.push(mir::Parameter {
-        value: acc_value,
-        ty: return_type,
+    new_impl_entry.parameters.push(mir::BlockParameter {
+        value: acc_value.into(),
+        ty: return_type.into(),
     });
     tree.set(impl_entry_block, new_impl_entry);
 
     // add to impl function parameters
-    impl_function.parameters.push(mir::Parameter {
-        value: acc_value,
-        ty: return_type,
-    });
+    impl_function
+        .parameters
+        .push(mir::FunctionParameter::new(acc_value, return_type.into()));
 
     // transform impl function's accumulator blocks
     for pattern in &impl_patterns {
