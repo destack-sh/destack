@@ -1,6 +1,6 @@
 use destack_core::{Capture, CaptureMode};
-use destack_engine as engine;
 use destack_native as native;
+use destack_program as program;
 use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 
 use crate::host::poller::{
@@ -9,12 +9,12 @@ use crate::host::poller::{
 };
 use crate::host::time::TimerClock;
 use crate::host::{HostEventKind, LifecycleState, ResourceId};
-use crate::runtime::engine::{Continuation, Engine};
+use crate::runtime::executor::{Backend, Continuation, Executor, ExecutorId};
 use crate::runtime::scheduler::{
     EventLoop, Microtask, MicrotaskId, Readiness, ScheduledTimer, Task, TaskId, TimerDeadline, Wake,
 };
 use crate::runtime::tests::{
-    TestEngine, TestRuntime, TestWorldRuntime, start_worker_continuation, test_resource_id,
+    TestBackend, TestRuntime, TestWorldRuntime, start_worker_continuation, test_resource_id,
 };
 use crate::runtime::time::Nanos;
 use crate::runtime::{TickResult, Worker};
@@ -22,17 +22,17 @@ use crate::world::World;
 
 /// Build runtime options with one explicit execution mode.
 fn runtime_options_with_execution(mode: ExecutionMode) -> RuntimeOptions {
-    let mut options = RuntimeOptions::default();
-    options.mode = mode;
-
-    options
+    RuntimeOptions {
+        mode,
+        ..Default::default()
+    }
 }
 
 /// Executes one queued task in one tick.
 #[test]
 fn test_tick_executes_one_task() {
     // create runtime state with one queued task
-    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestEngine::default());
+    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestBackend::default());
     runtime.enqueue_task_native(7, 1, 0);
 
     // execute one tick and verify one resume
@@ -48,7 +48,7 @@ fn test_tick_executes_one_task() {
 #[test]
 fn test_tick_until_idle_drains_yielded_tasks() {
     // create runtime state with one queued task
-    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestEngine::default());
+    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestBackend::default());
     runtime.enqueue_task_native(11, 9, 0);
 
     // run ticks until the queue is drained
@@ -64,7 +64,7 @@ fn test_tick_until_idle_drains_yielded_tasks() {
 #[test]
 fn test_tick_dispatches_timer_waiter_task() {
     // create runtime state with one timer waiter registration
-    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestEngine::default());
+    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestBackend::default());
     runtime.add_timer_waiter_native(77, 31, 0);
     runtime.schedule_timer(77, 0, None);
 
@@ -87,7 +87,7 @@ fn test_tick_dispatches_timer_waiter_task() {
 #[test]
 fn test_tick_dispatches_event_waiter_task() {
     // create runtime state with one resource waiter registration
-    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestEngine::default());
+    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestBackend::default());
     runtime.add_resource_waiter_native(5, 41, 0);
     runtime.enqueue_io_event(5, 91, 9);
 
@@ -104,7 +104,7 @@ fn test_tick_dispatches_event_waiter_task() {
 #[test]
 fn test_tick_dispatches_host_event_waiter_task() {
     // create runtime state with one lifecycle host waiter registration
-    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestEngine::default());
+    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestBackend::default());
     runtime.add_host_waiter_native(HostEventKind::Lifecycle, 42, 0);
     runtime.enqueue_lifecycle_host_event(LifecycleState::Running);
 
@@ -121,7 +121,7 @@ fn test_tick_dispatches_host_event_waiter_task() {
 #[test]
 fn test_tick_dispatches_event_waiter_by_task_priority() {
     // create runtime state with one queued high-priority task
-    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestEngine::default());
+    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestBackend::default());
     runtime.enqueue_task_native(301, 91, 200);
 
     // register one low-priority resource waiter and enqueue one wake
@@ -150,13 +150,13 @@ fn test_event_loop_drains_microtasks_before_tasks() {
     event_loop.enqueue_task(Task {
         id: TaskId::new(501),
         runnable: native_continuation(601),
-        resume_value: engine::Value::Void,
+        resume_value: program::Value::Void,
         priority: 0,
     });
     event_loop.enqueue_microtask(Microtask {
         id: MicrotaskId::new(502),
         continuation: native_continuation(602),
-        resume_value: engine::Value::Void,
+        resume_value: program::Value::Void,
     });
 
     // verify microtask dispatch precedes task dispatch
@@ -175,13 +175,13 @@ fn test_event_loop_pop_task_prioritizes_higher_task_priority() {
     event_loop.enqueue_task(Task {
         id: TaskId::new(503),
         runnable: native_continuation(603),
-        resume_value: engine::Value::Void,
+        resume_value: program::Value::Void,
         priority: 1,
     });
     event_loop.enqueue_task(Task {
         id: TaskId::new(504),
         runnable: native_continuation(604),
-        resume_value: engine::Value::Void,
+        resume_value: program::Value::Void,
         priority: 200,
     });
 
@@ -198,13 +198,13 @@ fn test_event_loop_suspend_rejects_native_continuations() {
     event_loop.enqueue_task(Task {
         id: TaskId::new(601),
         runnable: native_continuation(701),
-        resume_value: engine::Value::Void,
+        resume_value: program::Value::Void,
         priority: 0,
     });
 
     // suspend capture should fail loudly
-    let mut engine = Engine::from(TestEngine::default());
-    let result = event_loop.capture_image(CaptureMode::Suspend, &mut engine);
+    let mut executor = test_engine();
+    let result = event_loop.capture_image(CaptureMode::Suspend, &mut executor);
 
     assert!(result.is_err(), "native suspend capture should fail loudly");
 }
@@ -234,13 +234,13 @@ fn test_event_loop_suspend_roundtrip_preserves_pending_state() {
         .expect("schedule timer");
 
     // capture and restore one suspend image
-    let mut engine = Engine::from(TestEngine::default());
+    let mut executor = test_engine();
     let image = event_loop
-        .capture_image(CaptureMode::Suspend, &mut engine)
+        .capture_image(CaptureMode::Suspend, &mut executor)
         .expect("capture suspend image");
     let mut restored = EventLoop::default();
     restored
-        .restore_image(&image, &mut engine)
+        .restore_image(&image, &mut executor)
         .expect("restore suspend image");
 
     // ready timer stays ahead of queued resource wakes
@@ -291,7 +291,7 @@ fn test_event_loop_cancel_timer_drops_ready_timer_before_dispatch() {
 fn test_run_loop_until_task_complete_returns_idle_for_virtual_time_waits() {
     // build one runtime with a runtime-owned clock source
     let options = runtime_options_with_execution(ExecutionMode::Strict);
-    let mut runtime = TestRuntime::build(&options, TestEngine::default());
+    let mut runtime = TestRuntime::build(&options, TestBackend::default());
 
     // enqueue one timer that is not yet ready
     runtime.schedule_timer(900, 1_000_000, None);
@@ -308,7 +308,7 @@ fn test_run_loop_until_task_complete_returns_idle_for_virtual_time_waits() {
 fn test_runtime_tick_advances_virtual_time_before_dispatch() {
     // configure one virtual runtime with one future timer
     let options = runtime_options_with_execution(ExecutionMode::Strict);
-    let mut runtime = TestWorldRuntime::build(&options, TestEngine::default());
+    let mut runtime = TestWorldRuntime::build(&options, TestBackend::default());
     let default_worker_id = runtime.default_worker_id();
     let mono_before = runtime.mono_nanos();
     let fire_at_nanos = runtime.wall_nanos().saturating_add(5_000);
@@ -347,7 +347,7 @@ fn test_world_tick_drives_runtime() {
         .spawn_runtime(
             destack_repository::Environment::default(),
             &options,
-            TestEngine::default(),
+            TestBackend::default(),
         )
         .expect("runtime should spawn");
     // enqueue one ready task on the default worker
@@ -361,24 +361,28 @@ fn test_world_tick_drives_runtime() {
     let runtime = runtimes.get_mut(&runtime_id).expect("runtime should exist");
     let default_worker_id = runtime.default_worker_id();
     runtime
-        .with_worker(default_worker_id, |shared, runtime_static, worker| {
-            let continuation = start_worker_continuation(
-                worker,
-                host.as_ref(),
-                host_queue,
-                state,
-                shared,
-                runtime_static,
-                "test.complete",
-                211,
-            );
-            worker.event_loop.enqueue_task(Task {
-                id: TaskId::new(1),
-                runnable: continuation,
-                resume_value: engine::Value::Void,
-                priority: 0,
-            });
-        })
+        .with_worker(
+            default_worker_id,
+            |shared, shared_static, constant_space, worker| {
+                let continuation = start_worker_continuation(
+                    worker,
+                    host.as_ref(),
+                    host_queue,
+                    state,
+                    shared,
+                    shared_static,
+                    constant_space,
+                    "test.complete",
+                    211,
+                );
+                worker.event_loop.enqueue_task(Task {
+                    id: TaskId::new(1),
+                    runnable: continuation,
+                    resume_value: program::Value::Void,
+                    priority: 0,
+                });
+            },
+        )
         .expect("default worker should exist");
 
     // world tick should delegate through the runtime and execute the task
@@ -390,9 +394,9 @@ fn test_world_tick_drives_runtime() {
 fn test_runtime_tick_orders_equal_deadline_timers_by_worker_id() {
     // configure one virtual runtime with two workers and one equal deadline
     let options = runtime_options_with_execution(ExecutionMode::Strict);
-    let mut runtime = TestWorldRuntime::build(&options, TestEngine::default());
+    let mut runtime = TestWorldRuntime::build(&options, TestBackend::default());
     let default_worker_id = runtime.default_worker_id();
-    let secondary_worker_id = runtime.spawn_worker(TestEngine::default());
+    let secondary_worker_id = runtime.spawn_worker(TestBackend::default());
     let fire_at_nanos = runtime.wall_nanos().saturating_add(10_000);
     let default_continuation = runtime.completing_continuation(default_worker_id, 201);
     let secondary_continuation = runtime.completing_continuation(secondary_worker_id, 202);
@@ -425,7 +429,7 @@ fn register_timer_waiter(
         .add_timer_waiter(
             ResourceId::new(worker.worker_id(), handle),
             continuation,
-            engine::Value::Void,
+            program::Value::Void,
             priority,
         )
         .expect("timer waiter should register");
@@ -454,10 +458,15 @@ fn schedule_timer(
 
 /// Build one native continuation for mismatch tests.
 fn native_continuation(value: u64) -> Continuation {
-    Continuation::Native(native::Continuation::new(
-        engine::MaterializedContinuation {
-            engine_id: engine::EngineId::new(value),
+    Continuation::Native {
+        executor: ExecutorId::new(value),
+        continuation: native::Continuation::new(program::MaterializedContinuation {
             frames: Vec::new(),
-        },
-    ))
+        }),
+    }
+}
+
+/// Build one test executor for scheduler image tests.
+fn test_engine() -> Executor {
+    Executor::new(ExecutorId::new(1), Backend::from(TestBackend::default()))
 }

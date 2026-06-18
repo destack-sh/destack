@@ -1,7 +1,7 @@
-use destack_engine as engine;
+use destack_program as program;
 use serde::{Deserialize, Serialize};
 
-use crate::runtime::engine::Continuation;
+use crate::runtime::executor::Continuation;
 
 /// Microtask metadata for Promise jobs.
 #[derive(Debug)]
@@ -11,7 +11,7 @@ pub struct Microtask {
     /// Runnable continuation for this microtask.
     pub continuation: Continuation,
     /// Resume payload passed back into the executor.
-    pub resume_value: engine::Value,
+    pub resume_value: program::Value,
 }
 
 /// Opaque microtask identifier used by the event loop.

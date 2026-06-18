@@ -233,8 +233,10 @@ impl World {
             Some(header.max_chunk_size_bytes / (1024 * 1024))
         };
 
-        let mut options = RuntimeOptions::default();
-        options.mode = ExecutionMode::Replay;
+        let mut options = RuntimeOptions {
+            mode: ExecutionMode::Replay,
+            ..Default::default()
+        };
         options.trace.chunk_size_mb = replay_chunk_size_mb;
         options.trace.payload = replay_payload;
 

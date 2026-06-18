@@ -4,7 +4,7 @@ use crate::host::poller::{HostPoller, PollerEvent};
 use crate::host::resource::ResourceRebinders;
 use crate::host::{Host, HostEvent};
 use crate::runtime::SharedCollector;
-use crate::runtime::engine::{Engine, Entry};
+use crate::runtime::executor::{Backend, Entry, Executor, ExecutorId};
 use crate::runtime::heap::RuntimeHeap;
 use crate::runtime::scheduler::{
     HostWake, Readiness, ResourceWake, ScheduledTimer, TickResult, Wake,
@@ -13,8 +13,8 @@ use crate::runtime::time::Instant;
 use crate::runtime::worker::{Worker, WorkerId, WorkerImage, WorkerOptions, WorkerOptionsImage};
 use crate::world::{RuntimeId, WorkerWake, WorldState};
 use destack_core::CaptureMode;
-use destack_engine as engine;
 use destack_heap as heap;
+use destack_program as program;
 use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -30,8 +30,10 @@ pub struct Runtime {
     options: Arc<RuntimeOptions>,
     /// Runtime-owned shared heap and GC state.
     pub(crate) heap: RuntimeHeap,
-    /// Runtime-owned static byte space.
-    statics: engine::StaticSpace,
+    /// Immutable program constant space.
+    pub(crate) constant_space: program::StaticSpace,
+    /// Runtime-owned shared static space.
+    pub(crate) shared_static: program::StaticSpace,
     /// All active workers keyed by identifier.
     workers: BTreeMap<WorkerId, Box<Worker>>,
     /// Default worker used by convenience accessors.
@@ -49,8 +51,8 @@ pub struct RuntimeImage {
     pub options: Arc<RuntimeOptions>,
     /// Captured runtime-owned shared heap state.
     pub shared_heap: heap::SharedHeapSnapshot,
-    /// Captured runtime-owned static bytes.
-    pub statics: engine::StaticSpace,
+    /// Captured runtime-owned shared static bytes.
+    pub shared_static: program::StaticSpace,
     /// Default worker identifier for this runtime.
     pub default_worker_id: WorkerId,
     /// The next worker slot to schedule first.
@@ -79,23 +81,32 @@ impl Runtime {
         world: &mut WorldState,
         allocator: Arc<heap::Allocator>,
         collector: Arc<SharedCollector>,
-        engine: impl Into<Engine>,
+        backend: impl Into<Backend>,
     ) -> RuntimeResult<Self> {
         let environment = environment.into();
-        let engine = engine.into();
-        let trace_table = engine.trace_table()?;
+        let backend = backend.into();
+        let trace_table = backend.trace_table()?;
+        let constant_space = backend.constants();
+        let mut shared_static = backend.shared_statics();
         let shared = RuntimeHeap::new(allocator, collector, options, trace_table)?;
-        let statics = engine::StaticSpace::empty();
         let default_worker = Worker::new_in_world(
             environment.clone(),
             options,
             world,
             &shared,
-            &statics,
+            &mut shared_static,
+            &constant_space,
             WorkerOptions::default(),
-            engine,
+            backend,
         )?;
-        let runtime = Self::new(environment, options, shared, statics, default_worker)?;
+        let runtime = Self::new(
+            environment,
+            options,
+            shared,
+            constant_space,
+            shared_static,
+            default_worker,
+        )?;
 
         Ok(runtime)
     }
@@ -130,13 +141,15 @@ impl Runtime {
         self.workers.len()
     }
 
-    /// Borrow runtime-owned static bytes.
-    pub(crate) fn statics(&self) -> &engine::StaticSpace {
-        &self.statics
-    }
-
-    /// Visit roots from every worker owned by this runtime.
+    /// Visit roots from runtime shared statics and every worker.
     pub fn visit_roots(&mut self, roots: &mut impl heap::RootSink) -> RuntimeResult<()> {
+        let worker = self
+            .workers
+            .get_mut(&self.default_worker_id)
+            .map(Box::as_mut)
+            .ok_or_else(|| RuntimeError::worker_not_found(self.default_worker_id.0).boxed())?;
+        worker.visit_static_roots(&mut self.shared_static, roots)?;
+
         for worker in self.workers.values_mut() {
             worker.visit_roots(roots)?;
         }
@@ -182,11 +195,17 @@ impl Runtime {
     pub(crate) fn with_worker<R>(
         &mut self,
         worker_id: WorkerId,
-        callback: impl FnOnce(&RuntimeHeap, &engine::StaticSpace, &mut Worker) -> R,
+        callback: impl FnOnce(
+            &RuntimeHeap,
+            &mut program::StaticSpace,
+            &program::StaticSpace,
+            &mut Worker,
+        ) -> R,
     ) -> RuntimeResult<R> {
         let Runtime {
             heap,
-            statics,
+            constant_space,
+            shared_static,
             workers,
             ..
         } = self;
@@ -195,7 +214,7 @@ impl Runtime {
             .map(Box::as_mut)
             .ok_or_else(|| RuntimeError::worker_not_found(worker_id.0).boxed())?;
 
-        Ok(callback(heap, statics, worker))
+        Ok(callback(heap, shared_static, constant_space, worker))
     }
 
     /// Spawn one additional worker in this runtime.
@@ -203,7 +222,7 @@ impl Runtime {
         &mut self,
         world: &mut WorldState,
         worker_options: WorkerOptions,
-        engine: impl Into<Engine>,
+        backend: impl Into<Backend>,
     ) -> RuntimeResult<WorkerId> {
         // create one new worker attached to the runtime world
         let worker = Worker::new_in_runtime(
@@ -211,10 +230,11 @@ impl Runtime {
             &self.options,
             world,
             &self.heap,
-            &self.statics,
+            &mut self.shared_static,
+            &self.constant_space,
             self.id,
             worker_options,
-            engine,
+            backend,
         )?;
 
         self.insert_worker(worker)
@@ -252,8 +272,8 @@ impl Runtime {
         poller: &mut dyn HostPoller,
         worker_id: WorkerId,
         entry: &Entry,
-        args: &[engine::Value],
-    ) -> RuntimeResult<engine::Value> {
+        args: &[program::Value],
+    ) -> RuntimeResult<program::Value> {
         let worker = self
             .workers
             .get_mut(&worker_id)
@@ -262,7 +282,8 @@ impl Runtime {
         worker.run_entrypoint(
             world,
             &self.heap,
-            &self.statics,
+            &mut self.shared_static,
+            &self.constant_space,
             host,
             host_queue,
             entry,
@@ -286,11 +307,19 @@ impl Runtime {
             self.next_worker_cursor % worker_count
         };
         let shared = &self.heap;
-        let statics = &self.statics;
+        let shared_static = &mut self.shared_static;
+        let constant_space = &self.constant_space;
         let workers = &mut self.workers;
 
         for (worker_index, worker) in workers.values_mut().enumerate().skip(start_index) {
-            if worker.tick(world, shared, statics, host, host_queue)? {
+            if worker.tick(
+                world,
+                shared,
+                shared_static,
+                constant_space,
+                host,
+                host_queue,
+            )? {
                 self.next_worker_cursor = (worker_index + 1) % worker_count;
 
                 return Ok(TickResult::Progress);
@@ -298,7 +327,14 @@ impl Runtime {
         }
 
         for (worker_index, worker) in workers.values_mut().enumerate().take(start_index) {
-            if worker.tick(world, shared, statics, host, host_queue)? {
+            if worker.tick(
+                world,
+                shared,
+                shared_static,
+                constant_space,
+                host,
+                host_queue,
+            )? {
                 self.next_worker_cursor = worker_index + 1;
 
                 return Ok(TickResult::Progress);
@@ -313,7 +349,8 @@ impl Runtime {
         environment: Arc<Environment>,
         options: &RuntimeOptions,
         shared: RuntimeHeap,
-        runtime_static: engine::StaticSpace,
+        constant_space: program::StaticSpace,
+        shared_static: program::StaticSpace,
         default_worker: Worker,
     ) -> RuntimeResult<Self> {
         // seed runtime identity from runtime options
@@ -330,7 +367,8 @@ impl Runtime {
             environment,
             options,
             heap: shared,
-            statics: runtime_static,
+            constant_space,
+            shared_static,
             workers,
             default_worker_id,
             next_worker_cursor: 0,
@@ -523,14 +561,19 @@ impl Runtime {
             environment: self.environment.clone(),
             options: self.options.clone(),
             shared_heap: self.heap.snapshot()?,
-            statics: self.statics.clone(),
+            shared_static: self.shared_static.clone(),
             next_worker_cursor: self.next_worker_cursor,
         });
 
         // worker images
         let mut worker_images = BTreeMap::new();
         for worker in self.workers.values_mut() {
-            let mut image = worker.capture_image(mode, &self.heap, &self.statics)?;
+            let mut image = worker.capture_image(
+                mode,
+                &self.heap,
+                &mut self.shared_static,
+                &self.constant_space,
+            )?;
 
             // collapse one shared options payload across matching workers
             if let Some(options) = image.options.explicit_options() {
@@ -563,7 +606,12 @@ impl Runtime {
             .get_mut(&worker_id)
             .ok_or_else(|| RuntimeError::worker_not_found(worker_id.0).boxed())?;
 
-        worker.capture_image(mode, &self.heap, &self.statics)
+        worker.capture_image(
+            mode,
+            &self.heap,
+            &mut self.shared_static,
+            &self.constant_space,
+        )
     }
 
     /// Fork one live runtime when all owned workers are quiescent.
@@ -573,13 +621,19 @@ impl Runtime {
         collector: Arc<SharedCollector>,
     ) -> RuntimeResult<Option<Self>> {
         let shared = self.heap.fork(collector)?;
+        let mut shared_static = self.shared_static.clone();
 
         // fork each owned worker first
         let mut workers = BTreeMap::new();
         for (worker_id, worker) in &mut self.workers {
             let shared_gc_worker = shared.register_collector_worker();
-            let Some(worker) =
-                worker.try_fork(execution_mode, &shared, &self.statics, shared_gc_worker)?
+            let Some(worker) = worker.try_fork(
+                execution_mode,
+                &shared,
+                &mut shared_static,
+                &self.constant_space,
+                shared_gc_worker,
+            )?
             else {
                 return Ok(None);
             };
@@ -591,7 +645,8 @@ impl Runtime {
             environment: self.environment.clone(),
             options: self.options.clone(),
             heap: shared,
-            statics: self.statics.clone(),
+            constant_space: self.constant_space.clone(),
+            shared_static,
             workers,
             default_worker_id: self.default_worker_id,
             next_worker_cursor: self.next_worker_cursor,
@@ -610,14 +665,18 @@ impl Runtime {
     ) -> RuntimeResult<Self> {
         // runtime-wide reconstructed state
         let environment = image.environment.clone();
-        let Some((_, first_worker_image)) = worker_images.first_key_value() else {
+        let Some((first_worker_id, first_worker_image)) = worker_images.first_key_value() else {
             return Err(RuntimeError::Internal {
                 message: "runtime image has no workers".to_string(),
             }
             .boxed());
         };
-        let first_engine = Engine::from_image(&first_worker_image.engine_image)?;
-        let trace_table = first_engine.trace_table()?;
+        let first_executor = Executor::from_image(
+            ExecutorId::new(first_worker_id.0),
+            &first_worker_image.executor_image,
+        )?;
+        let trace_table = first_executor.trace_table()?;
+        let constant_space = first_executor.constants();
         let shared = RuntimeHeap::from_snapshot(
             &image.shared_heap,
             &image.options,
@@ -625,7 +684,7 @@ impl Runtime {
             collector,
             trace_table,
         )?;
-        let statics = image.statics.clone();
+        let mut shared_static = image.shared_static.clone();
         let mut workers = BTreeMap::new();
 
         // workers
@@ -633,7 +692,8 @@ impl Runtime {
             let worker = Worker::from_image(
                 world,
                 &shared,
-                &statics,
+                &mut shared_static,
+                &constant_space,
                 runtime_id,
                 *worker_id,
                 environment.clone(),
@@ -662,7 +722,8 @@ impl Runtime {
             environment,
             options: image.options.clone(),
             heap: shared,
-            statics,
+            constant_space,
+            shared_static,
             workers,
             default_worker_id: image.default_worker_id,
             next_worker_cursor: image.next_worker_cursor,
@@ -698,13 +759,13 @@ mod tests {
         HostEvent, HostEventKind, LifecycleEvent, LifecycleSourceKind, LifecycleState,
         compile_target_host,
     };
-    use crate::runtime::tests::{TestEngine, TestWorldRuntime, start_worker_continuation};
+    use crate::runtime::tests::{TestBackend, TestWorldRuntime, start_worker_continuation};
     use crate::runtime::{RuntimeHeap, TickResult, Worker, WorkerOptions};
     use crate::world::World;
     use destack_core::CaptureMode;
-    use destack_engine as engine;
     use destack_heap::{AllocationShape, SharedHeap};
     use destack_mir::{TraceMap, TraceTable};
+    use destack_program as program;
     use destack_repository::{Environment, RuntimeOptions};
 
     /// Allocate one shared byte payload for runtime tests.
@@ -747,8 +808,8 @@ mod tests {
         options.conditions.roles.insert("server".to_string());
         options.conditions.features.insert("payments".to_string());
 
-        let mut runtime = TestWorldRuntime::build(&options, TestEngine::default());
-        let worker_id = runtime.spawn_worker(TestEngine::default());
+        let mut runtime = TestWorldRuntime::build(&options, TestBackend::default());
+        let worker_id = runtime.spawn_worker(TestBackend::default());
 
         runtime.with_worker_mut(worker_id, |worker| {
             assert!(worker.options.conditions.contains_mode("test"));
@@ -765,15 +826,18 @@ mod tests {
             World::new(&options, Environment::default()).expect("world should construct");
         let shared = runtime_shared_heap(&world, &options);
         let world_state = &mut world.state;
+        let constant_space = program::StaticSpace::empty();
+        let mut shared_static = program::StaticSpace::empty();
 
         let mut worker = Worker::new_in_world(
             destack_repository::Environment::default(),
             &options,
             world_state,
             &shared,
-            &engine::StaticSpace::empty(),
+            &mut shared_static,
+            &constant_space,
             WorkerOptions::default(),
-            TestEngine::default(),
+            TestBackend::default(),
         )
         .expect("worker should construct");
         let worker_id = worker.id;
@@ -789,7 +853,8 @@ mod tests {
             &host_queue,
             world_state,
             &shared,
-            &engine::StaticSpace::empty(),
+            &mut shared_static,
+            &constant_space,
             "test.task",
             7,
         );
@@ -798,7 +863,7 @@ mod tests {
             .add_host_waiter(
                 HostEventKind::Lifecycle,
                 continuation,
-                engine::Value::SharedHeapReference(shared_root),
+                program::Value::SharedHeapReference(shared_root),
                 0,
             )
             .expect("host waiter should register");
@@ -807,7 +872,8 @@ mod tests {
             Arc::new(destack_repository::Environment::default()),
             &options,
             shared,
-            engine::StaticSpace::empty(),
+            constant_space,
+            shared_static,
             worker,
         )
         .expect("runtime should construct");
@@ -850,14 +916,17 @@ mod tests {
             World::new(&options, Environment::default()).expect("world should construct");
         let shared = runtime_shared_heap(&world, &options);
         let world_state = &mut world.state;
+        let constant_space = program::StaticSpace::empty();
+        let mut shared_static = program::StaticSpace::empty();
         let mut worker = Worker::new_in_world(
             destack_repository::Environment::default(),
             &options,
             world_state,
             &shared,
-            &engine::StaticSpace::empty(),
+            &mut shared_static,
+            &constant_space,
             WorkerOptions::default(),
-            TestEngine::default(),
+            TestBackend::default(),
         )
         .expect("worker should construct");
         let trace_map = TraceMap::Empty;
@@ -882,7 +951,8 @@ mod tests {
             Arc::new(destack_repository::Environment::default()),
             &options,
             shared,
-            engine::StaticSpace::empty(),
+            constant_space,
+            shared_static,
             worker,
         )
         .expect("runtime should construct");
@@ -903,15 +973,18 @@ mod tests {
             World::new(&options, Environment::default()).expect("world should construct");
         let shared = runtime_shared_heap(&world, &options);
         let world_state = &mut world.state;
+        let constant_space = program::StaticSpace::empty();
+        let mut shared_static = program::StaticSpace::empty();
 
         let mut worker = Worker::new_in_world(
             destack_repository::Environment::default(),
             &options,
             world_state,
             &shared,
-            &engine::StaticSpace::empty(),
+            &mut shared_static,
+            &constant_space,
             WorkerOptions::default(),
-            TestEngine::default(),
+            TestBackend::default(),
         )
         .expect("worker should construct");
         let worker_id = worker.id;
@@ -927,7 +1000,8 @@ mod tests {
             &host_queue,
             world_state,
             &shared,
-            &engine::StaticSpace::empty(),
+            &mut shared_static,
+            &constant_space,
             "test.task",
             9,
         );
@@ -936,7 +1010,7 @@ mod tests {
             .add_host_waiter(
                 HostEventKind::Lifecycle,
                 continuation,
-                engine::Value::SharedHeapReference(shared_root),
+                program::Value::SharedHeapReference(shared_root),
                 0,
             )
             .expect("host waiter should register");
@@ -945,7 +1019,8 @@ mod tests {
             Arc::new(destack_repository::Environment::default()),
             &options,
             shared,
-            engine::StaticSpace::empty(),
+            constant_space,
+            shared_static,
             worker,
         )
         .expect("runtime should construct");

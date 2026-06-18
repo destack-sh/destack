@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use destack_engine as engine;
+use destack_program as program;
 use destack_repository::{Environment, RuntimeOptions};
 
 use crate::diagnostic::RuntimeResult;
-use crate::runtime::engine::{Engine, Entry};
+use crate::runtime::executor::{Backend, Entry};
 use crate::world::{RuntimeId, World};
 
 /// Complete startup request for one Destack world.
@@ -14,11 +14,11 @@ pub struct Launch {
     /// Ambient environment exposed to the launched runtime.
     pub environment: Arc<Environment>,
     /// Execution backend installed into the initial worker.
-    pub engine: Engine,
+    pub backend: Backend,
     /// User entrypoint invoked after runtime bootstrap.
     pub entry: Entry,
     /// Values passed to the user entrypoint.
-    pub entry_args: Vec<engine::Value>,
+    pub entry_args: Vec<program::Value>,
 }
 
 /// Result of launching one Destack world.
@@ -29,7 +29,7 @@ pub struct LaunchResult {
     /// Initial runtime identifier.
     pub runtime_id: RuntimeId,
     /// Value returned by the user entrypoint.
-    pub value: engine::Value,
+    pub value: program::Value,
 }
 
 impl std::fmt::Debug for Launch {
@@ -37,7 +37,7 @@ impl std::fmt::Debug for Launch {
         f.debug_struct("Launch")
             .field("options", &self.options)
             .field("environment", &self.environment)
-            .field("engine", &"<launch engine>")
+            .field("backend", &self.backend)
             .field("entry", &self.entry)
             .field("entry_args", &self.entry_args)
             .finish()
@@ -49,13 +49,13 @@ impl Launch {
     pub fn new(
         options: RuntimeOptions,
         environment: impl Into<Arc<Environment>>,
-        engine: impl Into<Engine>,
+        backend: impl Into<Backend>,
         entry: Entry,
     ) -> Self {
         Self {
             options,
             environment: environment.into(),
-            engine: engine.into(),
+            backend: backend.into(),
             entry,
             entry_args: Vec::new(),
         }
@@ -66,14 +66,14 @@ impl Launch {
         let Launch {
             options,
             environment,
-            engine,
+            backend,
             entry,
             entry_args,
         } = self;
         let mut world = World::new(&options, environment.clone())?;
 
         // bootstrap the initial runtime
-        let runtime_id = world.spawn_runtime(environment, &options, engine)?;
+        let runtime_id = world.spawn_runtime(environment, &options, backend)?;
         let value = world.run_entrypoint(runtime_id, &entry, &entry_args)?;
 
         // drain work scheduled by the entrypoint

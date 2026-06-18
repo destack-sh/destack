@@ -2,12 +2,12 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use destack_core::CaptureMode;
-use destack_engine as engine;
+use destack_program as program;
 use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::resource::ResourceRebinders;
-use crate::runtime::engine::{Engine, Entry};
+use crate::runtime::executor::{Backend, Entry};
 use crate::runtime::{Runtime, RuntimeImage, Worker, WorkerId, WorkerImage, WorkerOptions};
 use crate::world::trace::{EntrypointCall, Outcome, SpawnedWorkerImage};
 
@@ -19,7 +19,7 @@ impl World {
         &mut self,
         environment: impl Into<Arc<Environment>>,
         options: &RuntimeOptions,
-        engine: impl Into<Engine>,
+        backend: impl Into<Backend>,
     ) -> RuntimeResult<RuntimeId> {
         let environment = environment.into();
         let mode = self.state.trace.mode();
@@ -32,7 +32,7 @@ impl World {
             world,
             allocator,
             collector,
-            engine,
+            backend,
         )?;
         let runtime_id = runtime.runtime_id();
 
@@ -102,7 +102,7 @@ impl World {
         &mut self,
         runtime_id: RuntimeId,
         worker_options: WorkerOptions,
-        engine: impl Into<Engine>,
+        backend: impl Into<Backend>,
     ) -> RuntimeResult<WorkerId> {
         let mode = self.state.trace.mode();
         let world = &mut self.state;
@@ -111,7 +111,7 @@ impl World {
             .get_mut(&runtime_id)
             .ok_or_else(|| RuntimeError::runtime_not_found(runtime_id.0).boxed())?;
 
-        let worker_id = runtime.spawn_worker(world, worker_options, engine)?;
+        let worker_id = runtime.spawn_worker(world, worker_options, backend)?;
 
         // record structural spawn state for replay
         let replay_image = if mode == ExecutionMode::Record {
@@ -139,8 +139,8 @@ impl World {
         &mut self,
         runtime_id: RuntimeId,
         entry: &Entry,
-        args: &[engine::Value],
-    ) -> RuntimeResult<engine::Value> {
+        args: &[program::Value],
+    ) -> RuntimeResult<program::Value> {
         let invocation = EntrypointCall {
             runtime_id,
             entry: entry.clone(),
@@ -209,8 +209,8 @@ impl World {
         &mut self,
         runtime_id: RuntimeId,
         entry: &Entry,
-        args: &[engine::Value],
-    ) -> RuntimeResult<engine::Value> {
+        args: &[program::Value],
+    ) -> RuntimeResult<program::Value> {
         let runtime = self
             .runtimes
             .get_mut(&runtime_id)
@@ -299,13 +299,14 @@ impl World {
         world.register_worker_topology(runtime_id, worker_id, worker_entity)?;
         let runtime = self
             .runtimes
-            .get(&runtime_id)
+            .get_mut(&runtime_id)
             .ok_or_else(|| RuntimeError::runtime_not_found(runtime_id.0).boxed())?;
         let worker = {
             Worker::from_image(
                 world,
                 &runtime.heap,
-                runtime.statics(),
+                &mut runtime.shared_static,
+                &runtime.constant_space,
                 runtime_id,
                 worker_id,
                 environment,
@@ -314,11 +315,6 @@ impl World {
                 rebind_context,
             )?
         };
-
-        let runtime = self
-            .runtimes
-            .get_mut(&runtime_id)
-            .ok_or_else(|| RuntimeError::runtime_not_found(runtime_id.0).boxed())?;
 
         runtime.insert_restored_worker(worker)?;
 

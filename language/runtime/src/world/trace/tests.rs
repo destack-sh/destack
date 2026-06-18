@@ -8,7 +8,7 @@ use crate::host::binding::{
 };
 use crate::host::{HostError, ResourceId};
 use crate::runtime::WorkerId;
-use crate::runtime::engine::Entry;
+use crate::runtime::executor::Entry;
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::time::Instant;
 use crate::world::policy::{ActionSelector, Rule};
@@ -394,7 +394,7 @@ fn test_record_replay_entrypoint_and_world_mutation() {
     let invocation = EntrypointCall {
         runtime_id: RuntimeId(7),
         entry: Entry::new("test.entry"),
-        args: vec![destack_engine::Value::Int {
+        args: vec![destack_program::Value::Int {
             value: 11,
             width: 32,
         }],

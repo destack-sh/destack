@@ -1,15 +1,15 @@
 use std::sync::Arc;
 
-use destack_engine::{EngineId, StaticSpace};
 use destack_heap::{
     AllocationCache, Allocator, GcWorker, Heap, HeapLimits, HeapOptions, SharedHeap,
     SharedHeapLimits, SharedHeapOptions,
 };
 use destack_mir::parse::{ParseOptions, Parser};
+use destack_program::StaticSpace;
 use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 use destack_runtime::launch::Launch;
 use destack_runtime::runtime::WorkerOptions;
-use destack_runtime::runtime::engine::{Engine, Entry};
+use destack_runtime::runtime::executor::{Backend, Entry};
 use destack_runtime::world::{RuntimeId, World};
 use destack_source::FileId;
 use destack_vm::{Continuation, ContinuationImage, Machine, MachineOptions, Outcome};
@@ -45,8 +45,10 @@ pub(crate) struct RuntimeSetup {
 impl RuntimeSetup {
     /// Create one default runtime footprint setup.
     pub(crate) fn new() -> Self {
-        let mut options = RuntimeOptions::default();
-        options.execution.mode = ExecutionMode::Strict;
+        let options = RuntimeOptions {
+            mode: ExecutionMode::Strict,
+            ..Default::default()
+        };
 
         Self {
             options,
@@ -60,25 +62,25 @@ impl RuntimeSetup {
     }
 
     /// Spawn one VM runtime into an existing world.
-    pub(crate) fn spawn_runtime(&self, world: &mut World, engine: Engine) -> RuntimeId {
+    pub(crate) fn spawn_runtime(&self, world: &mut World, backend: Backend) -> RuntimeId {
         world
-            .spawn_runtime(self.environment.clone(), &self.options, engine)
+            .spawn_runtime(self.environment.clone(), &self.options, backend)
             .expect("footprint runtime should spawn")
     }
 
     /// Create one world with one VM runtime.
     pub(crate) fn world_with_runtime(&self) -> (World, RuntimeId) {
         let mut world = self.world();
-        let engine = self.engine();
-        let runtime_id = self.spawn_runtime(&mut world, engine);
+        let backend = self.backend();
+        let runtime_id = self.spawn_runtime(&mut world, backend);
 
         (world, runtime_id)
     }
 
     /// Spawn one VM worker into an existing runtime.
-    pub(crate) fn spawn_worker(&self, world: &mut World, runtime_id: RuntimeId, engine: Engine) {
+    pub(crate) fn spawn_worker(&self, world: &mut World, runtime_id: RuntimeId, backend: Backend) {
         world
-            .spawn_worker(runtime_id, WorkerOptions::default(), engine)
+            .spawn_worker(runtime_id, WorkerOptions::default(), backend)
             .expect("footprint worker should spawn");
     }
 
@@ -87,16 +89,16 @@ impl RuntimeSetup {
         Launch::new(
             self.options.clone(),
             self.environment.clone(),
-            self.engine(),
+            self.backend(),
             Entry::new("bench.entry"),
         )
         .run()
         .expect("footprint launch should run");
     }
 
-    /// Build one VM engine.
-    pub(crate) fn engine(&self) -> Engine {
-        Engine::from(build_machine())
+    /// Build one VM backend.
+    pub(crate) fn backend(&self) -> Backend {
+        Backend::from(build_machine())
     }
 }
 
@@ -210,7 +212,7 @@ fn build_machine() -> Machine {
         .finish()
         .expect("footprint MIR should parse");
 
-    Machine::build_with_options(EngineId::new(1), tree, strings, MachineOptions::unbounded())
+    Machine::build_with_options(tree, strings, MachineOptions::unbounded())
         .expect("footprint machine should build")
 }
 
