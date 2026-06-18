@@ -33,8 +33,8 @@ b0(v0: int64):
 #[test]
 fn test_load_double_indirection() {
     let mir = r#"
-function read_ptr_ptr(v0: ref<ref<int32, raw>, raw, readonly>): int32 {
-entry(v0: ref<ref<int32, raw>, raw, readonly>):
+function read_ptr_ptr(v0: ref<ref<int32, raw, mutable>, raw, readonly>): int32 {
+entry(v0: ref<ref<int32, raw, mutable>, raw, readonly>):
     v1: ref<int32, raw, readonly> = load v0
     v2: int32 = load v1
     return v2

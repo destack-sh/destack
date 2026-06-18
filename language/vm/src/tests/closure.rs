@@ -8,42 +8,42 @@ use destack_program::Value;
 fn test_environment_multiple_calls_same_machine() {
     let mir = r#"
 type Env {
-    count: ref<int32, managed>;
+    count: ref<int32, managed, mutable>;
     base: int32;
 }
 
-@environment(ref<Env, managed>)
+@environment(ref<Env, managed, mutable>)
 function step(): int32 {
 entry:
-    v0: ref<Env, managed> = closure.environment
-    v1: ref<ref<int32, managed>, managed> = field.address v0, 0
-    v2: ref<int32, managed> = load v1
+    v0: ref<Env, managed, mutable> = closure.environment
+    v1: ref<ref<int32, managed, mutable>, managed, mutable> = field.address v0, 0
+    v2: ref<int32, managed, mutable> = load v1
     v3: int32 = load v2
     v4: int32 = 1
     v5: int32 = int.add v3, v4
     store v2, v5
-    v6: ref<int32, managed> = field.address v0, 1
+    v6: ref<int32, managed, mutable> = field.address v0, 1
     v7: int32 = load v6
     v8: int32 = int.add v5, v7
     return v8
 }
 
-function makeEnv(): ref<Env, managed> {
+function makeEnv(): ref<Env, managed, mutable> {
 entry:
-    v0: ref<int32, managed> = new.zeroed int32
+    v0: ref<int32, managed, mutable> = new.zeroed int32
     v1: int32 = 0
     store v0, v1
-    v2: ref<Env, managed> = new.zeroed Env
-    v3: ref<ref<int32, managed>, managed> = field.address v2, 0
+    v2: ref<Env, managed, mutable> = new.zeroed Env
+    v3: ref<ref<int32, managed, mutable>, managed, mutable> = field.address v2, 0
     store v3, v0
-    v4: ref<int32, managed> = field.address v2, 1
+    v4: ref<int32, managed, mutable> = field.address v2, 1
     v5: int32 = 10
     store v4, v5
     return v2
 }
 
-function callOnce(v0: ref<Env, managed>): int32 {
-entry(v0: ref<Env, managed>):
+function callOnce(v0: ref<Env, managed, mutable>): int32 {
+entry(v0: ref<Env, managed, mutable>):
     v1: () => int32 = closure.bind step, v0
     v2: int32 = call.indirect v1(): () => int32
     return v2
@@ -79,7 +79,7 @@ entry:
 
 function caller(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 41
     store v0, v1
     v2: ref<int32, raw, readonly, space(frame)> = cast.bit v0 -> ref<int32, raw, readonly, space(frame)>
@@ -96,17 +96,17 @@ entry:
 #[test]
 fn test_tailcall_indirect_environment() {
     let mir = r#"
-@environment(ref<int32, managed>)
+@environment(ref<int32, managed, mutable>)
 function readEnv(): int32 {
 b0:
-    v0: ref<int32, managed> = closure.environment
+    v0: ref<int32, managed, mutable> = closure.environment
     v1: int32 = load v0
     return v1
 }
 
 function caller(): int32 {
 b0:
-    v0: ref<int32, managed> = new.zeroed int32
+    v0: ref<int32, managed, mutable> = new.zeroed int32
     v1: int32 = 99int32
     store v0, v1
     v2: () => int32 = closure.bind readEnv, v0
@@ -120,14 +120,14 @@ b0:
 #[test]
 fn test_environment_heap_reference_cell() {
     let mir = r#"
-type Env { cell: ref<int32, managed> }
+type Env { cell: ref<int32, managed, mutable> }
 
-@environment(ref<Env, managed>)
+@environment(ref<Env, managed, mutable>)
 function increment(): int32 {
 b0:
-    v0: ref<Env, managed> = closure.environment
-    v1: ref<ref<int32, managed>, managed> = field.address v0, 0
-    v2: ref<int32, managed> = load v1
+    v0: ref<Env, managed, mutable> = closure.environment
+    v1: ref<ref<int32, managed, mutable>, managed, mutable> = field.address v0, 0
+    v2: ref<int32, managed, mutable> = load v1
     v3: int32 = load v2
     v4: int32 = 1int32
     v5: int32 = int.add v3, v4
@@ -137,11 +137,11 @@ b0:
 
 function caller(): int32 {
 b0:
-    v0: ref<int32, managed> = new.zeroed int32
+    v0: ref<int32, managed, mutable> = new.zeroed int32
     v1: int32 = 0int32
     store v0, v1
-    v2: ref<Env, managed> = new.zeroed Env
-    v3: ref<ref<int32, managed>, managed> = field.address v2, 0
+    v2: ref<Env, managed, mutable> = new.zeroed Env
+    v3: ref<ref<int32, managed, mutable>, managed, mutable> = field.address v2, 0
     store v3, v0
     v4: () => int32 = closure.bind increment, v2
     v5: int32 = call.indirect v4(): () => int32
@@ -158,11 +158,11 @@ fn test_environment_by_value_field() {
     let mir = r#"
 type Env { value: int32 }
 type Reader = () => int32;
-@environment(ref<Env, managed>)
+@environment(ref<Env, managed, mutable>)
 function readEnv(): int32 {
 b0:
-    v0: ref<Env, managed> = closure.environment
-    v1: ref<int32, managed> = field.address v0, 0
+    v0: ref<Env, managed, mutable> = closure.environment
+    v1: ref<int32, managed, mutable> = field.address v0, 0
     v2: int32 = load v1
     v3: int32 = 2int32
     v4: int32 = int.add v2, v3
@@ -171,8 +171,8 @@ b0:
 
 function caller(): int32 {
 b0:
-    v0: ref<Env, managed> = new.zeroed Env
-    v1: ref<int32, managed> = field.address v0, 0
+    v0: ref<Env, managed, mutable> = new.zeroed Env
+    v1: ref<int32, managed, mutable> = field.address v0, 0
     v2: int32 = 40int32
     store v1, v2
     v3: () => int32 = closure.bind readEnv, v0
@@ -189,21 +189,21 @@ fn test_environment_selects_callsite_environment() {
     let mir = r#"
 type Env { value: int32 }
 
-@environment(ref<Env, managed>)
+@environment(ref<Env, managed, mutable>)
 function readEnv(): int32 {
 b0:
-    v0: ref<Env, managed> = closure.environment
-    v1: ref<int32, managed> = field.address v0, 0
+    v0: ref<Env, managed, mutable> = closure.environment
+    v1: ref<int32, managed, mutable> = field.address v0, 0
     v2: int32 = load v1
     return v2
 }
 
 function caller(): int32 {
 b0:
-    v0: ref<Env, managed> = new.zeroed Env
-    v1: ref<Env, managed> = new.zeroed Env
-    v2: ref<int32, managed> = field.address v0, 0
-    v3: ref<int32, managed> = field.address v1, 0
+    v0: ref<Env, managed, mutable> = new.zeroed Env
+    v1: ref<Env, managed, mutable> = new.zeroed Env
+    v2: ref<int32, managed, mutable> = field.address v0, 0
+    v3: ref<int32, managed, mutable> = field.address v1, 0
     v4: int32 = 10int32
     v5: int32 = 20int32
     store v2, v4
@@ -225,25 +225,25 @@ fn test_environment_switches_in_machine() {
     let mir = r#"
 type Env { value: int32 }
 
-@environment(ref<Env, managed>)
+@environment(ref<Env, managed, mutable>)
 function readEnv(): int32 {
 b0:
-    v0: ref<Env, managed> = closure.environment
-    v1: ref<int32, managed> = field.address v0, 0
+    v0: ref<Env, managed, mutable> = closure.environment
+    v1: ref<int32, managed, mutable> = field.address v0, 0
     v2: int32 = load v1
     return v2
 }
 
-function makeEnv(v0: int32): ref<Env, managed> {
+function makeEnv(v0: int32): ref<Env, managed, mutable> {
 b0(v0: int32):
-    v1: ref<Env, managed> = new.zeroed Env
-    v2: ref<int32, managed> = field.address v1, 0
+    v1: ref<Env, managed, mutable> = new.zeroed Env
+    v2: ref<int32, managed, mutable> = field.address v1, 0
     store v2, v0
     return v1
 }
 
-function callOnce(v0: ref<Env, managed>): int32 {
-b0(v0: ref<Env, managed>):
+function callOnce(v0: ref<Env, managed, mutable>): int32 {
+b0(v0: ref<Env, managed, mutable>):
     v1: () => int32 = closure.bind readEnv, v0
     v2: int32 = call.indirect v1(): () => int32
     return v2
@@ -284,28 +284,28 @@ type Holder {
     fun: () => int32;
 }
 
-@environment(ref<Env, managed>)
+@environment(ref<Env, managed, mutable>)
 function readEnv(): int32 {
 entry:
-    v0: ref<Env, managed> = closure.environment
-    v1: ref<int32, managed> = field.address v0, 0
+    v0: ref<Env, managed, mutable> = closure.environment
+    v1: ref<int32, managed, mutable> = field.address v0, 0
     v2: int32 = load v1
     return v2
 }
 
-function makeEnv(v0: int32): ref<Env, managed> {
+function makeEnv(v0: int32): ref<Env, managed, mutable> {
 entry(v0: int32):
-    v1: ref<Env, managed> = new.zeroed Env
-    v2: ref<int32, managed> = field.address v1, 0
+    v1: ref<Env, managed, mutable> = new.zeroed Env
+    v2: ref<int32, managed, mutable> = field.address v1, 0
     store v2, v0
     return v1
 }
 
 function caller(v0: int32): int32 {
 entry(v0: int32):
-    v1: ref<Env, managed> = call makeEnv(v0)
-    v2: ref<Holder, managed> = new.zeroed Holder
-    v3: ref<() => int32, managed> = field.address v2, 0
+    v1: ref<Env, managed, mutable> = call makeEnv(v0)
+    v2: ref<Holder, managed, mutable> = new.zeroed Holder
+    v3: ref<() => int32, managed, mutable> = field.address v2, 0
     v4: () => int32 = closure.bind readEnv, v1
     store v3, v4
     v5: () => int32 = load v3
@@ -324,38 +324,38 @@ fn test_environment_chain_calls_inner() {
 type InnerEnv { value: int32 }
 type OuterEnv { fun: () => int32 }
 
-@environment(ref<InnerEnv, managed>)
+@environment(ref<InnerEnv, managed, mutable>)
 function inner(): int32 {
 b0:
-    v0: ref<InnerEnv, managed> = closure.environment
-    v1: ref<int32, managed> = field.address v0, 0
+    v0: ref<InnerEnv, managed, mutable> = closure.environment
+    v1: ref<int32, managed, mutable> = field.address v0, 0
     v2: int32 = load v1
     return v2
 }
 
-@environment(ref<OuterEnv, managed>)
+@environment(ref<OuterEnv, managed, mutable>)
 function outer(): int32 {
 b0:
-    v0: ref<OuterEnv, managed> = closure.environment
-    v1: ref<() => int32, managed> = field.address v0, 0
+    v0: ref<OuterEnv, managed, mutable> = closure.environment
+    v1: ref<() => int32, managed, mutable> = field.address v0, 0
     v2: () => int32 = load v1
     v3: int32 = call.indirect v2(): () => int32
     return v3
 }
 
-function makeInner(v0: int32): ref<InnerEnv, managed> {
+function makeInner(v0: int32): ref<InnerEnv, managed, mutable> {
 b0(v0: int32):
-    v1: ref<InnerEnv, managed> = new.zeroed InnerEnv
-    v2: ref<int32, managed> = field.address v1, 0
+    v1: ref<InnerEnv, managed, mutable> = new.zeroed InnerEnv
+    v2: ref<int32, managed, mutable> = field.address v1, 0
     store v2, v0
     return v1
 }
 
-function makeOuter(v0: int32): ref<OuterEnv, managed> {
+function makeOuter(v0: int32): ref<OuterEnv, managed, mutable> {
 b0(v0: int32):
-    v1: ref<InnerEnv, managed> = call makeInner(v0): (int32) => ref<InnerEnv, managed>
-    v2: ref<OuterEnv, managed> = new.zeroed OuterEnv
-    v3: ref<() => int32, managed> = field.address v2, 0
+    v1: ref<InnerEnv, managed, mutable> = call makeInner(v0): (int32) => ref<InnerEnv, managed, mutable>
+    v2: ref<OuterEnv, managed, mutable> = new.zeroed OuterEnv
+    v3: ref<() => int32, managed, mutable> = field.address v2, 0
     v4: () => int32 = closure.bind inner, v1
     store v3, v4
     return v2
@@ -363,7 +363,7 @@ b0(v0: int32):
 
 function caller(v0: int32): int32 {
 b0(v0: int32):
-    v1: ref<OuterEnv, managed> = call makeOuter(v0): (int32) => ref<OuterEnv, managed>
+    v1: ref<OuterEnv, managed, mutable> = call makeOuter(v0): (int32) => ref<OuterEnv, managed, mutable>
     v2: () => int32 = closure.bind outer, v1
     v3: int32 = call.indirect v2(): () => int32
     return v3
@@ -386,8 +386,8 @@ b0(v0: int32):
 
 function caller(v0: int32): int32 {
 b0(v0: int32):
-    v1: ref<Holder, managed> = new.zeroed Holder
-    v2: ref<fn(int32) => int32, managed> = field.address v1, 0
+    v1: ref<Holder, managed, mutable> = new.zeroed Holder
+    v2: ref<fn(int32) => int32, managed, mutable> = field.address v1, 0
     v3: fn(int32) => int32 = function.address double
     store v2, v3
     v4: fn(int32) => int32 = load v2
@@ -418,7 +418,7 @@ b0:
 
 function caller(): int32 {
 b0:
-    v0: ref<Env, raw, space(frame)> = frame.alloc.zeroed Env
+    v0: ref<Env, raw, mutable, space(frame)> = frame.alloc.zeroed Env
     v1: ref<int32, raw, readonly, space(frame)> = field.address v0, 0
     v2: ref<int32, raw, readonly, space(frame)> = field.address v0, 1
     v3: int32 = 20int32
@@ -440,26 +440,26 @@ fn test_environment_loaded_from_array() {
     let mir = r#"
 type Env { value: int32 }
 type Reader = () => int32;
-@environment(ref<Env, managed>)
+@environment(ref<Env, managed, mutable>)
 function readEnv(): int32 {
 b0:
-    v0: ref<Env, managed> = closure.environment
-    v1: ref<int32, managed> = field.address v0, 0
+    v0: ref<Env, managed, mutable> = closure.environment
+    v1: ref<int32, managed, mutable> = field.address v0, 0
     v2: int32 = load v1
     return v2
 }
 
-function makeEnv(v0: int32): ref<Env, managed> {
+function makeEnv(v0: int32): ref<Env, managed, mutable> {
 b0(v0: int32):
-    v1: ref<Env, managed> = new.zeroed Env
-    v2: ref<int32, managed> = field.address v1, 0
+    v1: ref<Env, managed, mutable> = new.zeroed Env
+    v2: ref<int32, managed, mutable> = field.address v1, 0
     store v2, v0
     return v1
 }
 
 function caller(v0: int32): int32 {
 b0(v0: int32):
-    v1: ref<Env, managed> = call makeEnv(v0): (int32) => ref<Env, managed>
+    v1: ref<Env, managed, mutable> = call makeEnv(v0): (int32) => ref<Env, managed, mutable>
     v2: Reader = closure.bind readEnv, v1
     v3: [Reader; 1] = array [Reader; 1] (v2)
     v4: Reader = element.get v3, 0

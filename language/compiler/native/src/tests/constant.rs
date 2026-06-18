@@ -71,7 +71,7 @@ global counter: int32, space(static) = 0
 
 function increment(): int32 {
 entry:
-    v0: ref<int32, raw, space(static)> = global.address counter
+    v0: ref<int32, raw, mutable, space(static)> = global.address counter
     v1: int32 = load v0
     v2: int32 = 1
     v3: int32 = int.add v1, v2
@@ -99,7 +99,7 @@ global data: int64, space(static) = zeroInit
 
 function get_data(): int64 {
 entry:
-    v0: ref<int64, raw, space(static)> = global.address data
+    v0: ref<int64, raw, mutable, space(static)> = global.address data
     v1: int64 = load v0
     return v1
 }

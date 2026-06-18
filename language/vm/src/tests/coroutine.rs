@@ -300,7 +300,7 @@ function yieldFramePointer(): int32 {
 b0:
     v0: int32 = 1int32
     local.set l0, v0
-    v1: ref<int32, borrowed, space(frame)> = local.address l0
+    v1: ref<int32, borrowed, mutable, space(frame)> = local.address l0
     v2: int32 = 2int32
     yield v2 => b1
 b1(v3: int32):
