@@ -1,4 +1,4 @@
-use destack_engine::Value;
+use destack_program::Value;
 
 use crate::{CompilerPhase, TestProgram};
 

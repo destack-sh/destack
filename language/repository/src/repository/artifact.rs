@@ -10,7 +10,7 @@ use destack_artifact::{
     ModuleLinted, ModuleQueryIndex, Object, PackageIndex, PackageLinted, Product, ProgramAnalysis,
     Script, WorkspaceLinted, WorkspaceQueryIndex,
 };
-use destack_engine::Program;
+use destack_program::Program;
 use destack_source::{
     ComponentId, DiagnosticCollection, ModuleId, PackageId, ProductId, ProfileId, TargetId,
 };

@@ -1,5 +1,5 @@
-use destack_engine::{EngineId, Value};
 use destack_mir::Tree;
+use destack_program::Value;
 use destack_repository::{ArtifactReader, Environment, ProviderError, Repository, Revision};
 use destack_source::{ModuleId, ProfileId, TargetId};
 use destack_vm::{Machine, MachineOptions};
@@ -22,7 +22,7 @@ pub fn create_machine(
     let strings = repository.string_pool().as_ref().clone();
 
     // construct the machine from mir state
-    Machine::build_with_options(EngineId::new(1), tree, strings, options)
+    Machine::build_with_options(tree, strings, options)
         .map_err(|error| CliError::message(error.to_string()))
 }
 

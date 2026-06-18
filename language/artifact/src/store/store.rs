@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use destack_core::StringPool;
-use destack_engine::Program;
+use destack_program::Program;
 use destack_source::{ContentId, DiagnosticCollection};
 use serde::Serialize;
 
