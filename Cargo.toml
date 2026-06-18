@@ -26,7 +26,7 @@ members = [
 	"language/compiler/native/wasmtime-core",
 	"language/core",
 	"language/dir",
-	"language/engine",
+	"language/program",
 	"language/fir",
 	"language/formatter",
 	"language/heap",
@@ -81,7 +81,7 @@ destack_codegen_native = { path = "language/compiler/native" }
 destack_compiler = { path = "language/compiler" }
 destack_core = { path = "language/core" }
 destack_dir = { path = "language/dir" }
-destack_engine = { path = "language/engine" }
+destack_program = { path = "language/program" }
 destack_fir = { path = "language/fir" }
 destack_formatter = { path = "language/formatter" }
 destack_heap = { path = "language/heap" }
