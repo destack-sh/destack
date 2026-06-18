@@ -46,6 +46,78 @@ impl Runtime {
     }
 }
 
+/// Build distribution profile.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize,
+)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum BuildProfile {
+    /// Full Destack build.
+    #[default]
+    Full,
+    /// Smaller Destack build with optional services omitted when possible.
+    Minimal,
+    /// Freestanding output without the normal Destack runtime contract.
+    Freestanding,
+}
+
+impl std::str::FromStr for BuildProfile {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "full" => Ok(Self::Full),
+            "minimal" => Ok(Self::Minimal),
+            "freestanding" => Ok(Self::Freestanding),
+            _ => Err(()),
+        }
+    }
+}
+
+impl BuildProfile {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
+/// Build payload linkage.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize,
+)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum BuildLinkage {
+    /// Ship a portable Destack payload consumed by a runtime.
+    #[default]
+    Portable,
+    /// Link the build payload into the produced platform binary.
+    Static,
+    /// Ship the build payload as a dynamic library.
+    Dynamic,
+}
+
+impl std::str::FromStr for BuildLinkage {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "portable" => Ok(Self::Portable),
+            "static" => Ok(Self::Static),
+            "dynamic" => Ok(Self::Dynamic),
+            _ => Err(()),
+        }
+    }
+}
+
+impl BuildLinkage {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
 /// Operating system component of a target.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize,

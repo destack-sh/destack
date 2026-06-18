@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use destack_core::StringPool;
+use destack_engine::Program;
 use destack_source::{ContentId, DiagnosticCollection};
 use serde::Serialize;
 
@@ -11,11 +12,11 @@ use super::pin::ArtifactPin;
 use super::record::ArtifactRecord;
 use crate::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactPayloadRef,
-    ArtifactVersion, ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent,
-    DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
-    GlobalEnvironment, MirAnalyzed, MirLowered, MirOptimized, MirVerified, ModuleIndex,
-    ModuleLinted, ModuleOutput, ModuleQueryIndex, PackageIndex, PackageLinted, PackageOutput,
-    ProductOutput, ProgramAnalysis, WorkspaceLinted, WorkspaceQueryIndex,
+    ArtifactVersion, Asset, Build, Bundle, ComponentGraph, Data, DirBound, DirChecked,
+    DirCheckedComponent, DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized,
+    DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed, MirLowered, MirOptimized, MirVerified,
+    ModuleIndex, ModuleLinted, ModuleQueryIndex, Object, PackageIndex, PackageLinted, Product,
+    ProgramAnalysis, Script, WorkspaceLinted, WorkspaceQueryIndex,
 };
 
 /// One versioned artifact family map.
@@ -78,12 +79,21 @@ pub struct ArtifactCache {
     /// Query indexes by workspace and profile.
     workspace_query_index: ArtifactMap<WorkspaceQueryIndex>,
 
-    /// Emitted module outputs by module and target.
-    module_output: ArtifactMap<ModuleOutput>,
-    /// Output entries by package and target.
-    package_output: ArtifactMap<PackageOutput>,
-    /// Output entries by product.
-    product_output: ArtifactMap<ProductOutput>,
+    /// Structured linker inputs by module and target.
+    script: ArtifactMap<Script>,
+    /// Compiled-code linker inputs by module and target.
+    object: ArtifactMap<Object>,
+    /// Opaque linker inputs by module and target.
+    asset: ArtifactMap<Asset>,
+    /// Build payloads by target.
+    build: ArtifactMap<Build>,
+    /// Bundles by package and target.
+    bundle: ArtifactMap<Bundle>,
+    /// Executable programs by package and target.
+    program: ArtifactMap<Program>,
+    /// Products by product id.
+    product: ArtifactMap<Product>,
+
     /// Module lint surfaces by module and profile.
     module_linted: ArtifactMap<ModuleLinted>,
     /// Package lint surfaces by package.
@@ -179,9 +189,13 @@ impl ArtifactCache {
         self.module_query_index.retain(|version, _| keep(version));
         self.workspace_query_index
             .retain(|version, _| keep(version));
-        self.module_output.retain(|version, _| keep(version));
-        self.package_output.retain(|version, _| keep(version));
-        self.product_output.retain(|version, _| keep(version));
+        self.script.retain(|version, _| keep(version));
+        self.object.retain(|version, _| keep(version));
+        self.asset.retain(|version, _| keep(version));
+        self.build.retain(|version, _| keep(version));
+        self.bundle.retain(|version, _| keep(version));
+        self.program.retain(|version, _| keep(version));
+        self.product.retain(|version, _| keep(version));
         self.module_linted.retain(|version, _| keep(version));
         self.package_linted.retain(|version, _| keep(version));
         self.workspace_linted.retain(|version, _| keep(version));
@@ -255,9 +269,13 @@ impl ArtifactCache {
             ArtifactKey::WorkspaceQueryIndex { .. } => {
                 self.workspace_query_index.contains_key(version)
             }
-            ArtifactKey::ModuleOutput { .. } => self.module_output.contains_key(version),
-            ArtifactKey::PackageOutput { .. } => self.package_output.contains_key(version),
-            ArtifactKey::ProductOutput { .. } => self.product_output.contains_key(version),
+            ArtifactKey::Script { .. } => self.script.contains_key(version),
+            ArtifactKey::Object { .. } => self.object.contains_key(version),
+            ArtifactKey::Asset { .. } => self.asset.contains_key(version),
+            ArtifactKey::Build { .. } => self.build.contains_key(version),
+            ArtifactKey::Bundle { .. } => self.bundle.contains_key(version),
+            ArtifactKey::Program { .. } => self.program.contains_key(version),
+            ArtifactKey::Product { .. } => self.product.contains_key(version),
             ArtifactKey::ModuleLinted { .. } => self.module_linted.contains_key(version),
             ArtifactKey::PackageLinted { .. } => self.package_linted.contains_key(version),
             ArtifactKey::WorkspaceLinted => self.workspace_linted.contains_key(version),
@@ -567,12 +585,12 @@ impl ArtifactCache {
                     )
                 })
                 .transpose(),
-            ArtifactKey::ModuleOutput { .. } => self
-                .module_output(version)
+            ArtifactKey::Script { .. } => self
+                .script(version)
                 .map(|payload| {
                     Self::record_from_payload(
                         version,
-                        ArtifactPayloadRef::ModuleOutput(payload.as_ref()),
+                        ArtifactPayloadRef::Script(payload.as_ref()),
                         strings,
                         &dependencies,
                         &diagnostics,
@@ -580,12 +598,12 @@ impl ArtifactCache {
                     )
                 })
                 .transpose(),
-            ArtifactKey::PackageOutput { .. } => self
-                .package_output(version)
+            ArtifactKey::Object { .. } => self
+                .object(version)
                 .map(|payload| {
                     Self::record_from_payload(
                         version,
-                        ArtifactPayloadRef::PackageOutput(payload.as_ref()),
+                        ArtifactPayloadRef::Object(payload.as_ref()),
                         strings,
                         &dependencies,
                         &diagnostics,
@@ -593,12 +611,64 @@ impl ArtifactCache {
                     )
                 })
                 .transpose(),
-            ArtifactKey::ProductOutput { .. } => self
-                .product_output(version)
+            ArtifactKey::Asset { .. } => self
+                .asset(version)
                 .map(|payload| {
                     Self::record_from_payload(
                         version,
-                        ArtifactPayloadRef::ProductOutput(payload.as_ref()),
+                        ArtifactPayloadRef::Asset(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::Build { .. } => self
+                .build(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::Build(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::Bundle { .. } => self
+                .bundle(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::Bundle(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::Program { .. } => self
+                .program(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::Program(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::Product { .. } => self
+                .product(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::Product(payload.as_ref()),
                         strings,
                         &dependencies,
                         &diagnostics,
@@ -856,26 +926,54 @@ impl ArtifactCache {
                 matches!(&version.key, ArtifactKey::WorkspaceQueryIndex { .. }),
                 "WorkspaceQueryIndex",
             ),
-            ArtifactPayload::ModuleOutput(payload) => Self::insert_payload(
-                &self.module_output,
+            ArtifactPayload::Script(payload) => Self::insert_payload(
+                &self.script,
                 version,
                 payload,
-                matches!(&version.key, ArtifactKey::ModuleOutput { .. }),
-                "ModuleOutput",
+                matches!(&version.key, ArtifactKey::Script { .. }),
+                "Script",
             ),
-            ArtifactPayload::PackageOutput(payload) => Self::insert_payload(
-                &self.package_output,
+            ArtifactPayload::Object(payload) => Self::insert_payload(
+                &self.object,
                 version,
                 payload,
-                matches!(&version.key, ArtifactKey::PackageOutput { .. }),
-                "PackageOutput",
+                matches!(&version.key, ArtifactKey::Object { .. }),
+                "Object",
             ),
-            ArtifactPayload::ProductOutput(payload) => Self::insert_payload(
-                &self.product_output,
+            ArtifactPayload::Asset(payload) => Self::insert_payload(
+                &self.asset,
                 version,
                 payload,
-                matches!(&version.key, ArtifactKey::ProductOutput { .. }),
-                "ProductOutput",
+                matches!(&version.key, ArtifactKey::Asset { .. }),
+                "Asset",
+            ),
+            ArtifactPayload::Build(payload) => Self::insert_payload(
+                &self.build,
+                version,
+                payload,
+                matches!(&version.key, ArtifactKey::Build { .. }),
+                "Build",
+            ),
+            ArtifactPayload::Bundle(payload) => Self::insert_payload(
+                &self.bundle,
+                version,
+                payload,
+                matches!(&version.key, ArtifactKey::Bundle { .. }),
+                "Bundle",
+            ),
+            ArtifactPayload::Program(payload) => Self::insert_payload(
+                &self.program,
+                version,
+                payload,
+                matches!(&version.key, ArtifactKey::Program { .. }),
+                "Program",
+            ),
+            ArtifactPayload::Product(payload) => Self::insert_payload(
+                &self.product,
+                version,
+                payload,
+                matches!(&version.key, ArtifactKey::Product { .. }),
+                "Product",
             ),
             ArtifactPayload::ModuleLinted(payload) => Self::insert_payload(
                 &self.module_linted,
@@ -1081,42 +1179,71 @@ impl ArtifactCache {
             .map(|entry| entry.value().clone())
     }
 
-    /// Get one module output artifact.
-    pub fn module_output(&self, version: &ArtifactVersion) -> Option<Arc<ModuleOutput>> {
-        self.module_output
-            .get(version)
-            .map(|entry| entry.value().clone())
+    /// Get one structured script artifact.
+    pub fn script(&self, version: &ArtifactVersion) -> Option<Arc<Script>> {
+        self.script.get(version).map(|entry| entry.value().clone())
     }
 
-    /// Get one package output artifact.
-    pub fn package_output(&self, version: &ArtifactVersion) -> Option<Arc<PackageOutput>> {
-        self.package_output
-            .get(version)
-            .map(|entry| entry.value().clone())
+    /// Get one compiled-code object artifact.
+    pub fn object(&self, version: &ArtifactVersion) -> Option<Arc<Object>> {
+        self.object.get(version).map(|entry| entry.value().clone())
     }
 
-    /// Get one product output artifact.
-    pub fn product_output(&self, version: &ArtifactVersion) -> Option<Arc<ProductOutput>> {
-        self.product_output
-            .get(version)
-            .map(|entry| entry.value().clone())
+    /// Get one asset artifact.
+    pub fn asset(&self, version: &ArtifactVersion) -> Option<Arc<Asset>> {
+        self.asset.get(version).map(|entry| entry.value().clone())
+    }
+
+    /// Get one build payload.
+    pub fn build(&self, version: &ArtifactVersion) -> Option<Arc<Build>> {
+        self.build.get(version).map(|entry| entry.value().clone())
+    }
+
+    /// Get one bundle artifact.
+    pub fn bundle(&self, version: &ArtifactVersion) -> Option<Arc<Bundle>> {
+        self.bundle.get(version).map(|entry| entry.value().clone())
+    }
+
+    /// Get one program artifact.
+    pub fn program(&self, version: &ArtifactVersion) -> Option<Arc<Program>> {
+        self.program.get(version).map(|entry| entry.value().clone())
+    }
+
+    /// Get one product artifact.
+    pub fn product(&self, version: &ArtifactVersion) -> Option<Arc<Product>> {
+        self.product.get(version).map(|entry| entry.value().clone())
     }
 
     /// Return content ids referenced by one exact artifact payload.
     pub fn content_ids(&self, version: &ArtifactVersion) -> Vec<ContentId> {
         match &version.key {
-            ArtifactKey::ModuleOutput { .. } => {
-                if let Some(payload) = self.module_output(version) {
+            ArtifactKey::Object { .. } => {
+                if let Some(payload) = self.object(version) {
                     return payload.content_ids();
                 }
             }
-            ArtifactKey::PackageOutput { .. } => {
-                if let Some(payload) = self.package_output(version) {
+            ArtifactKey::Asset { .. } => {
+                if let Some(payload) = self.asset(version) {
                     return payload.content_ids();
                 }
             }
-            ArtifactKey::ProductOutput { .. } => {
-                if let Some(payload) = self.product_output(version) {
+            ArtifactKey::Build { .. } => {
+                if let Some(payload) = self.build(version) {
+                    return payload.content_ids();
+                }
+            }
+            ArtifactKey::Bundle { .. } => {
+                if let Some(payload) = self.bundle(version) {
+                    return payload.content_ids();
+                }
+            }
+            ArtifactKey::Program { .. } => {
+                if let Some(payload) = self.program(version) {
+                    return payload.content_ids();
+                }
+            }
+            ArtifactKey::Product { .. } => {
+                if let Some(payload) = self.product(version) {
                     return payload.content_ids();
                 }
             }
