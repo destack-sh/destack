@@ -1,13 +1,14 @@
 use std::sync::Arc;
 
+use destack_engine::Program;
 use destack_source::ContentId;
 
 use crate::{
-    ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirElaborated, DirExpanded,
-    DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment,
-    MirAnalyzed, MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted, ModuleOutput,
-    ModuleQueryIndex, PackageIndex, PackageLinted, PackageOutput, ProductOutput, ProgramAnalysis,
-    WorkspaceLinted, WorkspaceQueryIndex,
+    Asset, Build, Bundle, ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent,
+    DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
+    GlobalEnvironment, MirAnalyzed, MirLowered, MirOptimized, MirVerified, ModuleIndex,
+    ModuleLinted, ModuleQueryIndex, Object, PackageIndex, PackageLinted, Product, ProgramAnalysis,
+    Script, WorkspaceLinted, WorkspaceQueryIndex,
 };
 use serde::{Deserialize, Serialize};
 
@@ -58,12 +59,20 @@ pub enum ArtifactPayload {
     ModuleQueryIndex(Arc<ModuleQueryIndex>),
     /// Query index for one workspace profile.
     WorkspaceQueryIndex(Arc<WorkspaceQueryIndex>),
-    /// One emitted module output for one target.
-    ModuleOutput(Arc<ModuleOutput>),
-    /// Output entries for one package target.
-    PackageOutput(Arc<PackageOutput>),
-    /// Output entries for one product.
-    ProductOutput(Arc<ProductOutput>),
+    /// One structured linker input for one target.
+    Script(Arc<Script>),
+    /// One compiled-code linker input for one target.
+    Object(Arc<Object>),
+    /// One opaque linker input for one target.
+    Asset(Arc<Asset>),
+    /// Target-built toolchain payload.
+    Build(Arc<Build>),
+    /// Linked file graph for one package target.
+    Bundle(Arc<Bundle>),
+    /// Executable program for one package target.
+    Program(Arc<Program>),
+    /// Linked product assembled from configured target artifacts.
+    Product(Arc<Product>),
     /// Realized lint diagnostics for one module profile.
     ModuleLinted(Arc<ModuleLinted>),
     /// Realized lint diagnostics for one package.
@@ -119,12 +128,20 @@ pub enum ArtifactPayloadRef<'a> {
     ModuleQueryIndex(&'a ModuleQueryIndex),
     /// Query index for one workspace profile.
     WorkspaceQueryIndex(&'a WorkspaceQueryIndex),
-    /// One emitted module output for one target.
-    ModuleOutput(&'a ModuleOutput),
-    /// Output entries for one package target.
-    PackageOutput(&'a PackageOutput),
-    /// Output entries for one product.
-    ProductOutput(&'a ProductOutput),
+    /// One structured linker input for one target.
+    Script(&'a Script),
+    /// One compiled-code linker input for one target.
+    Object(&'a Object),
+    /// One opaque linker input for one target.
+    Asset(&'a Asset),
+    /// Target-built toolchain payload.
+    Build(&'a Build),
+    /// Linked file graph for one package target.
+    Bundle(&'a Bundle),
+    /// Executable program for one package target.
+    Program(&'a Program),
+    /// Linked product assembled from configured target artifacts.
+    Product(&'a Product),
     /// Realized lint diagnostics for one module profile.
     ModuleLinted(&'a ModuleLinted),
     /// Realized lint diagnostics for one package.
@@ -159,9 +176,13 @@ impl ArtifactPayload {
             Self::MirOptimized(_) => "mir_optimized",
             Self::ModuleQueryIndex(_) => "module_query_index",
             Self::WorkspaceQueryIndex(_) => "workspace_query_index",
-            Self::ModuleOutput(_) => "module_output",
-            Self::PackageOutput(_) => "package_output",
-            Self::ProductOutput(_) => "product_output",
+            Self::Script(_) => "script",
+            Self::Object(_) => "object",
+            Self::Asset(_) => "asset",
+            Self::Build(_) => "build",
+            Self::Bundle(_) => "bundle",
+            Self::Program(_) => "program",
+            Self::Product(_) => "product",
             Self::ModuleLinted(_) => "module_linted",
             Self::PackageLinted(_) => "package_linted",
             Self::WorkspaceLinted(_) => "workspace_linted",
@@ -171,9 +192,12 @@ impl ArtifactPayload {
     /// Return all content ids referenced by this payload.
     pub fn content_ids(&self) -> Vec<ContentId> {
         match self {
-            Self::ModuleOutput(payload) => payload.content_ids(),
-            Self::PackageOutput(payload) => payload.content_ids(),
-            Self::ProductOutput(payload) => payload.content_ids(),
+            Self::Object(payload) => payload.content_ids(),
+            Self::Asset(payload) => payload.content_ids(),
+            Self::Build(payload) => payload.content_ids(),
+            Self::Bundle(payload) => payload.content_ids(),
+            Self::Program(payload) => payload.content_ids(),
+            Self::Product(payload) => payload.content_ids(),
             _ => Vec::new(),
         }
     }
@@ -333,24 +357,52 @@ impl From<WorkspaceQueryIndex> for ArtifactPayload {
     }
 }
 
-impl From<ModuleOutput> for ArtifactPayload {
+impl From<Script> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
-    fn from(payload: ModuleOutput) -> Self {
-        Self::ModuleOutput(Arc::new(payload))
+    fn from(payload: Script) -> Self {
+        Self::Script(Arc::new(payload))
     }
 }
 
-impl From<PackageOutput> for ArtifactPayload {
+impl From<Object> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
-    fn from(payload: PackageOutput) -> Self {
-        Self::PackageOutput(Arc::new(payload))
+    fn from(payload: Object) -> Self {
+        Self::Object(Arc::new(payload))
     }
 }
 
-impl From<ProductOutput> for ArtifactPayload {
+impl From<Asset> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
-    fn from(payload: ProductOutput) -> Self {
-        Self::ProductOutput(Arc::new(payload))
+    fn from(payload: Asset) -> Self {
+        Self::Asset(Arc::new(payload))
+    }
+}
+
+impl From<Build> for ArtifactPayload {
+    /// Convert a typed artifact into an artifact payload.
+    fn from(payload: Build) -> Self {
+        Self::Build(Arc::new(payload))
+    }
+}
+
+impl From<Bundle> for ArtifactPayload {
+    /// Convert a typed artifact into an artifact payload.
+    fn from(payload: Bundle) -> Self {
+        Self::Bundle(Arc::new(payload))
+    }
+}
+
+impl From<Program> for ArtifactPayload {
+    /// Convert a typed artifact into an artifact payload.
+    fn from(payload: Program) -> Self {
+        Self::Program(Arc::new(payload))
+    }
+}
+
+impl From<Product> for ArtifactPayload {
+    /// Convert a typed artifact into an artifact payload.
+    fn from(payload: Product) -> Self {
+        Self::Product(Arc::new(payload))
     }
 }
 

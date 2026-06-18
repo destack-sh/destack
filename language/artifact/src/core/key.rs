@@ -18,6 +18,9 @@ pub enum ArtifactProvider {
 /// Semantic artifact identity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum ArtifactKey {
+    /// Toolchain build payload for one target.
+    Build { target: TargetId },
+
     /// Parsed module DIR.
     DirParsed { module: ModuleId },
     /// Parsed non-code module data.
@@ -118,15 +121,24 @@ pub enum ArtifactKey {
     /// Query index for one workspace profile.
     WorkspaceQueryIndex { profile: ProfileId },
 
-    /// One emitted module output for one target.
-    ModuleOutput { module: ModuleId, target: TargetId },
-    /// Output entries for one package target.
-    PackageOutput {
+    /// One structured linker input for one target.
+    Script { module: ModuleId, target: TargetId },
+    /// One compiled-code linker input for one target.
+    Object { module: ModuleId, target: TargetId },
+    /// One opaque linker input for one target.
+    Asset { module: ModuleId, target: TargetId },
+    /// Linked file graph for one package target.
+    Bundle {
         package: PackageId,
         target: TargetId,
     },
-    /// Output entries for one product.
-    ProductOutput {
+    /// Executable program for one package target.
+    Program {
+        package: PackageId,
+        target: TargetId,
+    },
+    /// Linked product assembled from configured target artifacts.
+    Product {
         package: PackageId,
         product: ProductId,
     },
@@ -145,6 +157,8 @@ pub enum ArtifactKey {
 /// High-level toolchain stage that owns one artifact kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ArtifactStage {
+    /// Build initialization: environment and dependency resolution.
+    Init,
     /// Source parsing into DIR.
     Parse,
     /// Name binding through import, export, and symbol resolution.
@@ -163,14 +177,27 @@ pub enum ArtifactStage {
     Lint,
     /// Query indexes serving editors and tooling.
     Query,
-    /// Build initialization: environment and dependency resolution.
-    Init,
 }
 
 impl ArtifactStage {
+    /// All artifact stages in display order.
+    pub const ALL: [Self; 10] = [
+        Self::Init,
+        Self::Parse,
+        Self::Bind,
+        Self::Macro,
+        Self::Check,
+        Self::Lower,
+        Self::Emit,
+        Self::Link,
+        Self::Lint,
+        Self::Query,
+    ];
+
     /// Return this stage's display name.
     pub fn name(self) -> &'static str {
         match self {
+            Self::Init => "init",
             Self::Parse => "parse",
             Self::Bind => "bind",
             Self::Macro => "macro",
@@ -180,7 +207,6 @@ impl ArtifactStage {
             Self::Link => "link",
             Self::Lint => "lint",
             Self::Query => "query",
-            Self::Init => "init",
         }
     }
 }
@@ -208,9 +234,13 @@ impl ArtifactKey {
             | Self::MirVerified { .. }
             | Self::MirAnalyzed { .. }
             | Self::MirOptimized { .. }
-            | Self::ModuleOutput { .. }
-            | Self::PackageOutput { .. }
-            | Self::ProductOutput { .. } => ArtifactProvider::Compiler,
+            | Self::Script { .. }
+            | Self::Object { .. }
+            | Self::Asset { .. }
+            | Self::Build { .. }
+            | Self::Bundle { .. }
+            | Self::Program { .. }
+            | Self::Product { .. } => ArtifactProvider::Compiler,
             Self::ModuleLinted { .. } | Self::PackageLinted { .. } | Self::WorkspaceLinted => {
                 ArtifactProvider::Linter
             }
@@ -223,8 +253,10 @@ impl ArtifactKey {
     /// Return the package referenced by this artifact key when one exists.
     pub fn package_id(&self) -> Option<PackageId> {
         match self {
-            Self::PackageOutput { package, .. }
-            | Self::ProductOutput { package, .. }
+            Self::Build { target } => Some(target.package_id()),
+            Self::Bundle { package, .. }
+            | Self::Program { package, .. }
+            | Self::Product { package, .. }
             | Self::PackageLinted { package } => Some(*package),
             _ => None,
         }
@@ -364,19 +396,39 @@ impl ArtifactKey {
         Self::WorkspaceQueryIndex { profile }
     }
 
-    /// Build one module output key.
-    pub fn module_output(module: ModuleId, target: TargetId) -> Self {
-        Self::ModuleOutput { module, target }
+    /// Build one structured script key.
+    pub fn script(module: ModuleId, target: TargetId) -> Self {
+        Self::Script { module, target }
     }
 
-    /// Build one package output artifact key.
-    pub fn package_output(package: PackageId, target: TargetId) -> Self {
-        Self::PackageOutput { package, target }
+    /// Build one compiled-code object key.
+    pub fn object(module: ModuleId, target: TargetId) -> Self {
+        Self::Object { module, target }
     }
 
-    /// Build one product output artifact key.
-    pub fn product_output(package: PackageId, product: ProductId) -> Self {
-        Self::ProductOutput { package, product }
+    /// Build one opaque asset key.
+    pub fn asset(module: ModuleId, target: TargetId) -> Self {
+        Self::Asset { module, target }
+    }
+
+    /// Build one toolchain build key.
+    pub fn build(target: TargetId) -> Self {
+        Self::Build { target }
+    }
+
+    /// Build one bundle artifact key.
+    pub fn bundle(package: PackageId, target: TargetId) -> Self {
+        Self::Bundle { package, target }
+    }
+
+    /// Build one program artifact key.
+    pub fn program(package: PackageId, target: TargetId) -> Self {
+        Self::Program { package, target }
+    }
+
+    /// Build one product artifact key.
+    pub fn product(package: PackageId, product: ProductId) -> Self {
+        Self::Product { package, product }
     }
 
     /// Build one module lint artifact key.
@@ -412,8 +464,11 @@ impl ArtifactKey {
             | Self::MirAnalyzed { .. }
             | Self::ProgramAnalysis { .. }
             | Self::MirOptimized { .. } => ArtifactStage::Lower,
-            Self::ModuleOutput { .. } => ArtifactStage::Emit,
-            Self::PackageOutput { .. } | Self::ProductOutput { .. } => ArtifactStage::Link,
+            Self::Script { .. } | Self::Object { .. } | Self::Asset { .. } => ArtifactStage::Emit,
+            Self::Build { .. } => ArtifactStage::Init,
+            Self::Bundle { .. } | Self::Program { .. } | Self::Product { .. } => {
+                ArtifactStage::Link
+            }
             Self::ModuleLinted { .. } | Self::PackageLinted { .. } | Self::WorkspaceLinted => {
                 ArtifactStage::Lint
             }
@@ -449,9 +504,13 @@ impl ArtifactKey {
             Self::MirOptimized { .. } => "mir.optimize",
             Self::ModuleQueryIndex { .. } => "module.index",
             Self::WorkspaceQueryIndex { .. } => "workspace.index",
-            Self::ModuleOutput { .. } => "module.emit",
-            Self::PackageOutput { .. } => "package.link",
-            Self::ProductOutput { .. } => "product.link",
+            Self::Script { .. } => "script.emit",
+            Self::Object { .. } => "object.emit",
+            Self::Asset { .. } => "asset.emit",
+            Self::Build { .. } => "build",
+            Self::Bundle { .. } => "bundle.link",
+            Self::Program { .. } => "program.link",
+            Self::Product { .. } => "product.link",
             Self::ModuleLinted { .. } => "module.lint",
             Self::PackageLinted { .. } => "package.lint",
             Self::WorkspaceLinted => "workspace.lint",
@@ -483,9 +542,13 @@ impl ArtifactKey {
             Self::MirOptimized { .. } => "mir_optimized",
             Self::ModuleQueryIndex { .. } => "module_query_index",
             Self::WorkspaceQueryIndex { .. } => "workspace_query_index",
-            Self::ModuleOutput { .. } => "module_output",
-            Self::PackageOutput { .. } => "package_output",
-            Self::ProductOutput { .. } => "product_output",
+            Self::Script { .. } => "script",
+            Self::Object { .. } => "object",
+            Self::Asset { .. } => "asset",
+            Self::Build { .. } => "build",
+            Self::Bundle { .. } => "bundle",
+            Self::Program { .. } => "program",
+            Self::Product { .. } => "product",
             Self::ModuleLinted { .. } => "module_linted",
             Self::PackageLinted { .. } => "package_linted",
             Self::WorkspaceLinted => "workspace_linted",
@@ -511,7 +574,9 @@ impl ArtifactKey {
             | Self::MirAnalyzed { module, .. }
             | Self::MirOptimized { module, .. }
             | Self::ModuleQueryIndex { module, .. }
-            | Self::ModuleOutput { module, .. }
+            | Self::Script { module, .. }
+            | Self::Object { module, .. }
+            | Self::Asset { module, .. }
             | Self::ModuleLinted { module, .. } => Some(*module),
             Self::GlobalEnvironment { .. }
             | Self::PackageIndex { .. }
@@ -519,8 +584,10 @@ impl ArtifactKey {
             | Self::ComponentGraph { .. }
             | Self::ProgramAnalysis { .. }
             | Self::WorkspaceQueryIndex { .. }
-            | Self::PackageOutput { .. }
-            | Self::ProductOutput { .. }
+            | Self::Build { .. }
+            | Self::Bundle { .. }
+            | Self::Program { .. }
+            | Self::Product { .. }
             | Self::PackageLinted { .. }
             | Self::WorkspaceLinted => None,
         }
@@ -531,7 +598,12 @@ impl ArtifactKey {
     /// Return the target id encoded in this key when one exists.
     pub fn target_id(&self) -> Option<TargetId> {
         match self {
-            Self::ModuleOutput { target, .. } | Self::PackageOutput { target, .. } => Some(*target),
+            Self::Script { target, .. }
+            | Self::Object { target, .. }
+            | Self::Asset { target, .. }
+            | Self::Build { target }
+            | Self::Bundle { target, .. }
+            | Self::Program { target, .. } => Some(*target),
             _ => None,
         }
     }
@@ -539,7 +611,7 @@ impl ArtifactKey {
     /// Return the product id encoded in this key when one exists.
     pub fn product_id(&self) -> Option<ProductId> {
         match self {
-            Self::ProductOutput { product, .. } => Some(*product),
+            Self::Product { product, .. } => Some(*product),
             _ => None,
         }
     }
@@ -570,9 +642,13 @@ impl ArtifactKey {
             | Self::ModuleLinted { profile, .. } => Some(*profile),
             Self::DirParsed { .. }
             | Self::Data { .. }
-            | Self::ModuleOutput { .. }
-            | Self::PackageOutput { .. }
-            | Self::ProductOutput { .. }
+            | Self::Script { .. }
+            | Self::Object { .. }
+            | Self::Asset { .. }
+            | Self::Build { .. }
+            | Self::Bundle { .. }
+            | Self::Program { .. }
+            | Self::Product { .. }
             | Self::PackageLinted { .. }
             | Self::WorkspaceLinted => None,
         }
