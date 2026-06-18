@@ -572,14 +572,6 @@ impl<'a> FunctionLowerer<'a> {
                 ));
             }
 
-            // drop markers must be elaborated before codegen
-            mir::Instruction::Drop { .. } => {
-                return Err(CodegenCraneliftError::unsupported_instruction(
-                    "drop",
-                    instruction_id.into_any(),
-                ));
-            }
-
             // optimizer only markers
             mir::Instruction::Assume { .. }
             | mir::Instruction::ProfileIncrement { .. }
@@ -1092,7 +1084,10 @@ impl<'a> FunctionLowerer<'a> {
             }
 
             // slice views require descriptor lowering
-            mir::Instruction::Slice { .. } => return unsupported("slice"),
+            mir::Instruction::SliceView { .. } => return unsupported("slice.view"),
+            mir::Instruction::SliceLength { .. } => return unsupported("slice.length"),
+            mir::Instruction::VariantTag { .. } => return unsupported("variant.tag"),
+            mir::Instruction::VariantPayload { .. } => return unsupported("variant.payload"),
 
             // vector ops: lower only after explicit lowering (#Incomplete)
             mir::Instruction::VectorSplat { .. } => return unsupported("vector.splat"),
@@ -1526,8 +1521,8 @@ impl<'a> FunctionLowerer<'a> {
         // build signature
         let call_conv = self.isa.default_call_conv();
         let mut signature = cir::Signature::new(call_conv);
-        for param_ty in parameters {
-            let ty = lower_type(self.tree, *param_ty, self.pointer_bytes)?;
+        for parameter in parameters {
+            let ty = lower_type(self.tree, parameter.ty, self.pointer_bytes)?;
             signature.params.push(cir::AbiParam::new(ty));
         }
         if has_environment {
