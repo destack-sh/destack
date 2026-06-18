@@ -46,14 +46,14 @@ b3(v2: uninit<slice<int32, managed>>):
     );
 }
 
-/// Formats slice descriptors canonically.
+/// Formats slice views canonically.
 #[test]
-fn test_format_slice_descriptor() {
+fn test_format_slice_view() {
     assert_format(
         r#"
 function subslice(v0: slice<int32, borrowed, lifetime(0)>, v1: int64, v2: int64): slice<int32, borrowed, lifetime(0)> {
 entry(v0: slice<int32, borrowed, lifetime(0)>, v1: int64, v2: int64):
-    v3: slice<int32, borrowed, lifetime(0)> = slice v0, v1, v2
+    v3: slice<int32, borrowed, lifetime(0)> = slice.view v0, v1, v2
     return v3
 }
 "#,
@@ -152,40 +152,6 @@ function cleanup(v0: ref<int32, managed>): void {
 entry(v0: ref<int32, managed>):
     v1: ref<int32, managed> = pin v0
     unpin v1
-    drop v0
-    return
-}
-"#,
-    );
-}
-
-/// Formats projected drops canonically.
-#[test]
-fn test_format_projected_drop() {
-    assert_format(
-        r#"
-function cleanup(v0: slice<int32, unique>, v1: int64, v2: int64): void {
-entry(v0: slice<int32, unique>, v1: int64, v2: int64):
-    drop place(v0, slice(v1, v2))
-    return
-}
-"#,
-    );
-}
-
-/// Formats place projections canonically.
-#[test]
-fn test_format_place_projection_family() {
-    assert_format(
-        r#"
-function cleanup(v0: slice<int32, unique>, v1: int64, v2: int64): void {
-entry(v0: slice<int32, unique>, v1: int64, v2: int64):
-    drop place(v0, field(0))
-    drop place(v0, element(1))
-    drop place(v0, element(any))
-    drop place(v0, index(v1))
-    drop place(v0, slice(v1, v2))
-    drop place(v0, variant(7int32))
     return
 }
 "#,

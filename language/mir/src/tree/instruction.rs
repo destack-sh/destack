@@ -7,7 +7,7 @@ use smallvec::{SmallVec, smallvec};
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CompareExchangeAccess, Constant,
     CounterId, DispatchSlot, FenceAccess, FunctionId, GlobalId, IndexSlice, Intrinsic, LocalId,
-    Node, NodeType, Place, TensorConvertMode, TensorImmediateId, TensorIndexReduceOperator,
+    Node, NodeType, TensorConvertMode, TensorImmediateId, TensorIndexReduceOperator,
     TensorIndexTieBreak, TensorReduceOperator, TensorScatterMode, TypeId, UnaryOperator, Value,
     ValueSlice, VectorConvertMode, VectorReduceOperator,
 };
@@ -178,7 +178,42 @@ pub enum Instruction {
         value: Value,
     },
 
-    // aggregate operations (field.get, field.address, field.set, element.get, element.address, element.set)
+    // aggregate construction
+    /// Construct a struct from field values.
+    ///
+    /// Fields must be provided in layout order.
+    Struct {
+        /// The SSA value to define with the constructed struct.
+        destination: Value,
+        /// The struct type to construct.
+        ty: TypeId,
+        /// The field values (stored in Tree's argument buffer).
+        fields: ValueSlice,
+    },
+    /// Construct a tuple from element values.
+    ///
+    /// Elements must be provided in order.
+    Tuple {
+        /// The SSA value to define with the constructed tuple.
+        destination: Value,
+        /// The tuple type to construct.
+        ty: TypeId,
+        /// The element values (stored in Tree's argument buffer).
+        elements: ValueSlice,
+    },
+    /// Construct an array from element values.
+    ///
+    /// Elements must be provided in index order.
+    Array {
+        /// The SSA value to define with the constructed array.
+        destination: Value,
+        /// The array type to construct.
+        ty: TypeId,
+        /// The element values (stored in Tree's argument buffer).
+        elements: ValueSlice,
+    },
+
+    // field and element access
     /// Extract a field from an aggregate value (field.get).
     FieldGet {
         /// The SSA value to define with the extracted field.
@@ -241,42 +276,11 @@ pub enum Instruction {
         /// The value to insert at the index.
         value: Value,
     },
-    /// Construct a struct from field values.
-    ///
-    /// Fields must be provided in layout order.
-    Struct {
-        /// The SSA value to define with the constructed struct.
-        destination: Value,
-        /// The struct type to construct.
-        ty: TypeId,
-        /// The field values (stored in Tree's argument buffer).
-        fields: ValueSlice,
-    },
-    /// Construct a tuple from element values.
-    ///
-    /// Elements must be provided in order.
-    Tuple {
-        /// The SSA value to define with the constructed tuple.
-        destination: Value,
-        /// The tuple type to construct.
-        ty: TypeId,
-        /// The element values (stored in Tree's argument buffer).
-        elements: ValueSlice,
-    },
-    /// Construct an array from element values.
-    ///
-    /// Elements must be provided in index order.
-    Array {
-        /// The SSA value to define with the constructed array.
-        destination: Value,
-        /// The array type to construct.
-        ty: TypeId,
-        /// The element values (stored in Tree's argument buffer).
-        elements: ValueSlice,
-    },
-    /// Construct a non-owning slice descriptor from a contiguous source region.
-    Slice {
-        /// The SSA value to define with the constructed slice.
+
+    // slice descriptors
+    /// Form a non-owning slice view over a contiguous source region.
+    SliceView {
+        /// The SSA value to define with the slice view.
         destination: Value,
         /// The source slice value.
         source: Value,
@@ -286,6 +290,31 @@ pub enum Instruction {
         length: Value,
         /// The result slice type.
         result_type: TypeId,
+    },
+    /// Read the runtime length from a slice descriptor.
+    SliceLength {
+        /// The SSA value to define with the length.
+        destination: Value,
+        /// The slice value whose length is read.
+        slice: Value,
+    },
+
+    // variant representation
+    /// Read the active tag from a physical tagged sum value.
+    VariantTag {
+        /// The SSA value to define with the active tag.
+        destination: Value,
+        /// The variant value whose tag is read.
+        variant: Value,
+    },
+    /// Extract the payload selected by a concrete variant tag.
+    VariantPayload {
+        /// The SSA value to define with the payload.
+        destination: Value,
+        /// The variant value whose payload is extracted.
+        variant: Value,
+        /// The selected variant tag.
+        tag: Constant,
     },
 
     // vector operations
@@ -757,15 +786,6 @@ pub enum Instruction {
         result_type: TypeId,
     },
 
-    // ownership end
-    /// End ownership of a place (`drop`).
-    ///
-    /// Drop elaboration consumes this instruction before runtime lowering.
-    Drop {
-        /// The place to drop.
-        place: Place,
-    },
-
     // address stability
     /// Stabilize one heap value against movement (`pin`).
     ///
@@ -910,16 +930,19 @@ impl Instruction {
             Instruction::ClosureEnvironment { destination, .. } => Some(*destination),
             Instruction::Load { destination, .. } => Some(*destination),
             Instruction::Store { .. } => None,
+            Instruction::Struct { destination, .. } => Some(*destination),
+            Instruction::Tuple { destination, .. } => Some(*destination),
+            Instruction::Array { destination, .. } => Some(*destination),
             Instruction::FieldGet { destination, .. } => Some(*destination),
             Instruction::FieldAddr { destination, .. } => Some(*destination),
             Instruction::FieldSet { destination, .. } => Some(*destination),
             Instruction::ElementGet { destination, .. } => Some(*destination),
             Instruction::ElementAddr { destination, .. } => Some(*destination),
             Instruction::ElementSet { destination, .. } => Some(*destination),
-            Instruction::Struct { destination, .. } => Some(*destination),
-            Instruction::Tuple { destination, .. } => Some(*destination),
-            Instruction::Array { destination, .. } => Some(*destination),
-            Instruction::Slice { destination, .. } => Some(*destination),
+            Instruction::SliceView { destination, .. } => Some(*destination),
+            Instruction::SliceLength { destination, .. } => Some(*destination),
+            Instruction::VariantTag { destination, .. } => Some(*destination),
+            Instruction::VariantPayload { destination, .. } => Some(*destination),
             Instruction::VectorSplat { destination, .. } => Some(*destination),
             Instruction::VectorExtract { destination, .. } => Some(*destination),
             Instruction::VectorInsert { destination, .. } => Some(*destination),
@@ -963,7 +986,6 @@ impl Instruction {
             | Instruction::FrameAllocZeroed { destination, .. }
             | Instruction::FrameAllocUninit { destination, .. } => Some(*destination),
             Instruction::Free { .. } => None,
-            Instruction::Drop { .. } => None,
             Instruction::Pin { destination, .. } => Some(*destination),
             Instruction::Unpin { .. } => None,
             Instruction::BarrierWrite { .. } => None,
@@ -1005,6 +1027,10 @@ impl Instruction {
             Instruction::ClosureEnvironment { .. } => smallvec![],
             Instruction::Load { pointer, .. } => smallvec![*pointer],
             Instruction::Store { pointer, value, .. } => smallvec![*pointer, *value],
+            // arguments stored externally
+            Instruction::Struct { .. } => smallvec![],
+            Instruction::Tuple { .. } => smallvec![],
+            Instruction::Array { .. } => smallvec![],
             Instruction::FieldGet { aggregate, .. } => smallvec![*aggregate],
             Instruction::FieldAddr { aggregate, .. } => smallvec![*aggregate],
             Instruction::FieldSet {
@@ -1013,16 +1039,15 @@ impl Instruction {
             Instruction::ElementGet { array, .. } => smallvec![*array],
             Instruction::ElementAddr { array, index, .. } => smallvec![*array, *index],
             Instruction::ElementSet { array, value, .. } => smallvec![*array, *value],
-            Instruction::Slice {
+            Instruction::SliceView {
                 source,
                 start,
                 length,
                 ..
             } => smallvec![*source, *start, *length],
-            // arguments stored externally - return empty
-            Instruction::Struct { .. } => smallvec![],
-            Instruction::Tuple { .. } => smallvec![],
-            Instruction::Array { .. } => smallvec![],
+            Instruction::SliceLength { slice, .. } => smallvec![*slice],
+            Instruction::VariantTag { variant, .. } => smallvec![*variant],
+            Instruction::VariantPayload { variant, .. } => smallvec![*variant],
             Instruction::VectorSplat { value, .. } => smallvec![*value],
             Instruction::VectorExtract { vector, index, .. } => smallvec![*vector, *index],
             Instruction::VectorInsert {
@@ -1091,7 +1116,6 @@ impl Instruction {
             Instruction::NewSliceZeroed { length, .. }
             | Instruction::NewSliceUninit { length, .. } => smallvec![*length],
             Instruction::Free { value } => smallvec![*value],
-            Instruction::Drop { place } => place.values(),
             Instruction::Pin { value, .. } => smallvec![*value],
             Instruction::Unpin { value } => smallvec![*value],
             Instruction::BarrierWrite {

@@ -11,39 +11,6 @@ fn clone_call_with_arguments<A: Clone>(call: &mir::Call<A>, arguments: A) -> mir
     }
 }
 
-/// Substitute values inside one place.
-fn place_substitute_uses(
-    place: &mir::Place,
-    substitutions: &HashMap<mir::Value, mir::Value>,
-) -> mir::Place {
-    let mut place = place.clone();
-
-    // apply value substitutions to origins and dynamic projections
-    for (from, to) in substitutions {
-        place.replace_value(*from, *to);
-    }
-
-    place
-}
-
-/// Remap values and locals inside one place.
-fn place_map_values_and_locals(
-    place: &mir::Place,
-    value_map: &HashMap<mir::Value, mir::Value>,
-    local_map: &HashMap<mir::LocalNodeId<mir::Local>, mir::LocalNodeId<mir::Local>>,
-) -> mir::Place {
-    let mut place = place_substitute_uses(place, value_map);
-
-    // remap local origins
-    if let mir::PlaceOrigin::Local(local) = &mut place.origin
-        && let Some(mapped) = local_map.get(local)
-    {
-        *local = *mapped;
-    }
-
-    place
-}
-
 /// Check if an instruction is pure (result depends only on operands).
 ///
 /// A pure instruction has no side effects AND does not read mutable state.
@@ -71,7 +38,14 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         mir::Instruction::Struct { .. }
         | mir::Instruction::Tuple { .. }
         | mir::Instruction::Array { .. }
-        | mir::Instruction::Slice { .. }
+        | mir::Instruction::FieldGet { .. }
+        | mir::Instruction::FieldSet { .. }
+        | mir::Instruction::ElementGet { .. }
+        | mir::Instruction::ElementSet { .. }
+        | mir::Instruction::SliceView { .. }
+        | mir::Instruction::SliceLength { .. }
+        | mir::Instruction::VariantTag { .. }
+        | mir::Instruction::VariantPayload { .. }
         | mir::Instruction::VectorSplat { .. }
         | mir::Instruction::VectorExtract { .. }
         | mir::Instruction::VectorInsert { .. }
@@ -98,11 +72,7 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::TensorScatter { .. }
         | mir::Instruction::TensorCompare { .. }
         | mir::Instruction::TensorSelect { .. }
-        | mir::Instruction::TensorConvert { .. }
-        | mir::Instruction::FieldGet { .. }
-        | mir::Instruction::FieldSet { .. }
-        | mir::Instruction::ElementGet { .. }
-        | mir::Instruction::ElementSet { .. } => true,
+        | mir::Instruction::TensorConvert { .. } => true,
 
         // immutable global references
         mir::Instruction::GlobalAddr { .. }
@@ -137,10 +107,8 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::AtomicFence { .. }
         | mir::Instruction::BarrierWrite { .. } => false,
 
-        // pinning and drops have side effects
-        mir::Instruction::Pin { .. }
-        | mir::Instruction::Unpin { .. }
-        | mir::Instruction::Drop { .. } => false,
+        // pinning has side effects
+        mir::Instruction::Pin { .. } | mir::Instruction::Unpin { .. } => false,
 
         // calls may have side effects
         mir::Instruction::Call { .. }
@@ -246,7 +214,14 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::Struct { .. }
         | mir::Instruction::Tuple { .. }
         | mir::Instruction::Array { .. }
-        | mir::Instruction::Slice { .. }
+        | mir::Instruction::FieldGet { .. }
+        | mir::Instruction::FieldAddr { .. }
+        | mir::Instruction::ElementGet { .. }
+        | mir::Instruction::ElementAddr { .. }
+        | mir::Instruction::SliceView { .. }
+        | mir::Instruction::SliceLength { .. }
+        | mir::Instruction::VariantTag { .. }
+        | mir::Instruction::VariantPayload { .. }
         | mir::Instruction::VectorSplat { .. }
         | mir::Instruction::VectorExtract { .. }
         | mir::Instruction::VectorInsert { .. }
@@ -275,10 +250,6 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::TensorCompare { .. }
         | mir::Instruction::TensorSelect { .. }
         | mir::Instruction::TensorConvert { .. }
-        | mir::Instruction::FieldGet { .. }
-        | mir::Instruction::FieldAddr { .. }
-        | mir::Instruction::ElementGet { .. }
-        | mir::Instruction::ElementAddr { .. }
         | mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
         | mir::Instruction::ClosureBind { .. }
@@ -306,10 +277,8 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         // side effects if the result is unused (they produce new values, not mutate)
         mir::Instruction::FieldSet { .. } | mir::Instruction::ElementSet { .. } => false,
 
-        // pinning and drops have side effects
-        mir::Instruction::Pin { .. }
-        | mir::Instruction::Unpin { .. }
-        | mir::Instruction::Drop { .. } => true,
+        // pinning has side effects
+        mir::Instruction::Pin { .. } | mir::Instruction::Unpin { .. } => true,
 
         // calls may have side effects
         mir::Instruction::Call { .. }
@@ -392,7 +361,6 @@ pub fn instruction_may_affect_memory(instruction: &mir::Instruction) -> bool {
             | mir::Instruction::Free { .. }
             | mir::Instruction::Pin { .. }
             | mir::Instruction::Unpin { .. }
-            | mir::Instruction::Drop { .. }
             | mir::Instruction::FrameAllocZeroed { .. }
             | mir::Instruction::FrameAllocUninit { .. }
     )
@@ -663,9 +631,6 @@ pub fn instruction_substitute_uses(
         mir::Instruction::Free { value } => mir::Instruction::Free {
             value: substitute(value),
         },
-        mir::Instruction::Drop { place } => mir::Instruction::Drop {
-            place: place_substitute_uses(place, substitutions),
-        },
         mir::Instruction::FieldGet {
             destination,
             aggregate,
@@ -728,18 +693,38 @@ pub fn instruction_substitute_uses(
             index: *index,
             value: substitute(value),
         },
-        mir::Instruction::Slice {
+        mir::Instruction::SliceView {
             destination,
             source,
             start,
             length,
             result_type,
-        } => mir::Instruction::Slice {
+        } => mir::Instruction::SliceView {
             destination: *destination,
             source: substitute(source),
             start: substitute(start),
             length: substitute(length),
             result_type: *result_type,
+        },
+        mir::Instruction::SliceLength { destination, slice } => mir::Instruction::SliceLength {
+            destination: *destination,
+            slice: substitute(slice),
+        },
+        mir::Instruction::VariantTag {
+            destination,
+            variant,
+        } => mir::Instruction::VariantTag {
+            destination: *destination,
+            variant: substitute(variant),
+        },
+        mir::Instruction::VariantPayload {
+            destination,
+            variant,
+            tag,
+        } => mir::Instruction::VariantPayload {
+            destination: *destination,
+            variant: substitute(variant),
+            tag: tag.clone(),
         },
         mir::Instruction::VectorSplat { destination, value } => mir::Instruction::VectorSplat {
             destination: *destination,
@@ -2105,9 +2090,6 @@ pub fn instruction_map(
         mir::Instruction::Free { value } => mir::Instruction::Free {
             value: remap(*value),
         },
-        mir::Instruction::Drop { place } => mir::Instruction::Drop {
-            place: place_substitute_uses(place, value_map),
-        },
         mir::Instruction::FieldGet {
             destination,
             aggregate,
@@ -2170,18 +2152,38 @@ pub fn instruction_map(
             index: *index,
             value: remap(*value),
         },
-        mir::Instruction::Slice {
+        mir::Instruction::SliceView {
             destination,
             source,
             start,
             length,
             result_type,
-        } => mir::Instruction::Slice {
+        } => mir::Instruction::SliceView {
             destination: remap(*destination),
             source: remap(*source),
             start: remap(*start),
             length: remap(*length),
             result_type: *result_type,
+        },
+        mir::Instruction::SliceLength { destination, slice } => mir::Instruction::SliceLength {
+            destination: remap(*destination),
+            slice: remap(*slice),
+        },
+        mir::Instruction::VariantTag {
+            destination,
+            variant,
+        } => mir::Instruction::VariantTag {
+            destination: remap(*destination),
+            variant: remap(*variant),
+        },
+        mir::Instruction::VariantPayload {
+            destination,
+            variant,
+            tag,
+        } => mir::Instruction::VariantPayload {
+            destination: remap(*destination),
+            variant: remap(*variant),
+            tag: tag.clone(),
         },
         mir::Instruction::LocalGet { destination, local } => mir::Instruction::LocalGet {
             destination: remap(*destination),
@@ -3294,18 +3296,38 @@ pub fn instruction_map_with_locals(
             index: *index,
             value: remap(*value),
         },
-        mir::Instruction::Slice {
+        mir::Instruction::SliceView {
             destination,
             source,
             start,
             length,
             result_type,
-        } => mir::Instruction::Slice {
+        } => mir::Instruction::SliceView {
             destination: remap(*destination),
             source: remap(*source),
             start: remap(*start),
             length: remap(*length),
             result_type: *result_type,
+        },
+        mir::Instruction::SliceLength { destination, slice } => mir::Instruction::SliceLength {
+            destination: remap(*destination),
+            slice: remap(*slice),
+        },
+        mir::Instruction::VariantTag {
+            destination,
+            variant,
+        } => mir::Instruction::VariantTag {
+            destination: remap(*destination),
+            variant: remap(*variant),
+        },
+        mir::Instruction::VariantPayload {
+            destination,
+            variant,
+            tag,
+        } => mir::Instruction::VariantPayload {
+            destination: remap(*destination),
+            variant: remap(*variant),
+            tag: tag.clone(),
         },
         mir::Instruction::NewZeroed {
             destination,
@@ -3370,9 +3392,6 @@ pub fn instruction_map_with_locals(
         },
         mir::Instruction::Free { value } => mir::Instruction::Free {
             value: remap(*value),
-        },
-        mir::Instruction::Drop { place } => mir::Instruction::Drop {
-            place: place_map_values_and_locals(place, value_map, local_map),
         },
         mir::Instruction::FrameAllocZeroed {
             destination,

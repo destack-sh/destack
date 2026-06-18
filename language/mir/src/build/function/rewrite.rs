@@ -114,6 +114,15 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::TensorConvert {
                     tensor: argument, ..
                 }
+                | Instruction::SliceLength {
+                    slice: argument, ..
+                }
+                | Instruction::VariantTag {
+                    variant: argument, ..
+                }
+                | Instruction::VariantPayload {
+                    variant: argument, ..
+                }
                 | Instruction::Free { value: argument }
                 | Instruction::Pin {
                     value: argument, ..
@@ -132,9 +141,6 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(object, from, to);
                     Self::replace_value_in_slot(offset, from, to);
                     Self::replace_value_in_slot(byte_len, from, to);
-                }
-                Instruction::Drop { place } => {
-                    place.replace_value(from, to);
                 }
                 Instruction::CallIndirect { callee, .. } => {
                     Self::replace_value_in_slot(callee, from, to);
@@ -281,7 +287,7 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(array, from, to);
                     Self::replace_value_in_slot(value, from, to);
                 }
-                Instruction::Slice {
+                Instruction::SliceView {
                     source,
                     start,
                     length,

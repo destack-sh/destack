@@ -275,6 +275,52 @@ impl<'a> ValueEquivalence<'a> {
                     && self.equivalent(left_else, right_else)
             }
             (
+                mir::Instruction::Struct {
+                    ty: left_type,
+                    fields: left_fields,
+                    ..
+                },
+                mir::Instruction::Struct {
+                    ty: right_type,
+                    fields: right_fields,
+                    ..
+                },
+            ) => {
+                let left_key = self.type_key(*left_type);
+                let right_key = self.type_key(*right_type);
+
+                left_key == right_key && self.arguments_equivalent(*left_fields, *right_fields)
+            }
+            (
+                mir::Instruction::Tuple {
+                    ty: left_type,
+                    elements: left_elements,
+                    ..
+                },
+                mir::Instruction::Tuple {
+                    ty: right_type,
+                    elements: right_elements,
+                    ..
+                },
+            )
+            | (
+                mir::Instruction::Array {
+                    ty: left_type,
+                    elements: left_elements,
+                    ..
+                },
+                mir::Instruction::Array {
+                    ty: right_type,
+                    elements: right_elements,
+                    ..
+                },
+            ) => {
+                let left_key = self.type_key(*left_type);
+                let right_key = self.type_key(*right_type);
+
+                left_key == right_key && self.arguments_equivalent(*left_elements, *right_elements)
+            }
+            (
                 mir::Instruction::FieldGet {
                     aggregate: left_aggregate,
                     index: left_index,
@@ -338,52 +384,6 @@ impl<'a> ValueEquivalence<'a> {
                 let right_index = *right_index;
 
                 self.equivalent(left_array, right_array) && self.equivalent(left_index, right_index)
-            }
-            (
-                mir::Instruction::Struct {
-                    ty: left_type,
-                    fields: left_fields,
-                    ..
-                },
-                mir::Instruction::Struct {
-                    ty: right_type,
-                    fields: right_fields,
-                    ..
-                },
-            ) => {
-                let left_key = self.type_key(*left_type);
-                let right_key = self.type_key(*right_type);
-
-                left_key == right_key && self.arguments_equivalent(*left_fields, *right_fields)
-            }
-            (
-                mir::Instruction::Tuple {
-                    ty: left_type,
-                    elements: left_elements,
-                    ..
-                },
-                mir::Instruction::Tuple {
-                    ty: right_type,
-                    elements: right_elements,
-                    ..
-                },
-            )
-            | (
-                mir::Instruction::Array {
-                    ty: left_type,
-                    elements: left_elements,
-                    ..
-                },
-                mir::Instruction::Array {
-                    ty: right_type,
-                    elements: right_elements,
-                    ..
-                },
-            ) => {
-                let left_key = self.type_key(*left_type);
-                let right_key = self.type_key(*right_type);
-
-                left_key == right_key && self.arguments_equivalent(*left_elements, *right_elements)
             }
             _ => false,
         }
@@ -565,7 +565,6 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::Free { .. }
         | mir::Instruction::Pin { .. }
         | mir::Instruction::Unpin { .. }
-        | mir::Instruction::Drop { .. }
         | mir::Instruction::FrameAllocZeroed { .. }
         | mir::Instruction::FrameAllocUninit { .. }
         | mir::Instruction::Struct { .. }
@@ -608,7 +607,7 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::BarrierWrite { .. }
         | mir::Instruction::FieldSet { .. }
         | mir::Instruction::ElementSet { .. }
-        | mir::Instruction::Slice { .. }
+        | mir::Instruction::SliceView { .. }
         | mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
         | mir::Instruction::ClosureBind { .. }
@@ -617,6 +616,9 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::FieldAddr { .. }
         | mir::Instruction::ElementAddr { .. }
         | mir::Instruction::Assume { .. }
+        | mir::Instruction::SliceLength { .. }
+        | mir::Instruction::VariantTag { .. }
+        | mir::Instruction::VariantPayload { .. }
         | mir::Instruction::ProfileIncrement { .. }
         | mir::Instruction::ProfileValue { .. } => None,
     }
