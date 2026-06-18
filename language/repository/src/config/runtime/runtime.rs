@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use destack_artifact::{BuildLinkage, BuildProfile};
 use serde::{Deserialize, Serialize};
 
 use crate::{ConditionSet, ExecutionMode, ReplayPayloadMode};
@@ -28,6 +29,10 @@ pub struct RuntimeIdentityOptions {
 pub struct RuntimeOptions {
     /// Runtime topology and policy identity.
     pub identity: RuntimeIdentityOptions,
+    /// Build distribution profile.
+    pub profile: BuildProfile,
+    /// Build payload linkage.
+    pub linkage: BuildLinkage,
     /// Active source graph conditions for runtime policy selection.
     #[serde(default)]
     pub conditions: ConditionSet,

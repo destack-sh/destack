@@ -883,6 +883,7 @@ dependencies = [
  "dashmap",
  "destack_core",
  "destack_dir",
+ "destack_engine",
  "destack_js",
  "destack_mir",
  "destack_qir",
@@ -1114,6 +1115,8 @@ version = "0.55.4"
 dependencies = [
  "destack_core",
  "destack_heap",
+ "destack_mir",
+ "destack_source",
  "serde",
 ]
 
@@ -1372,6 +1375,7 @@ dependencies = [
  "destack_artifact",
  "destack_core",
  "destack_dir",
+ "destack_engine",
  "destack_heap",
  "destack_mir",
  "destack_source",
