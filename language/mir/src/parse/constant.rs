@@ -222,15 +222,7 @@ impl Parser {
         let token = self.eat_token(TokenType::Integer)?;
         let text = self.tree.source_text(token.span).to_string();
 
-        // strip type suffix and parse
-        let digits: String = text
-            .chars()
-            .take_while(|c| c.is_ascii_digit() || *c == '-')
-            .collect();
-
-        digits
-            .parse()
-            .map_err(|_| ParseError::invalid("integer", token.start))
+        self.parse_int_literal_payload(&text, token.start)
     }
 
     /// Parse an integer literal and return its span.
@@ -241,16 +233,21 @@ impl Parser {
         let token_length = token_text.len();
         let span = self.span_at(token_start, token_length);
 
-        // strip type suffix and parse
-        let digits: String = token_text
+        let value = self.parse_int_literal_payload(&token_text, token_start)?;
+
+        Ok((value, span))
+    }
+
+    /// Parse the unsuffixed integer payload from one MIR integer token.
+    fn parse_int_literal_payload(&self, text: &str, start: usize) -> ParseResult<i128> {
+        let digits: String = text
             .chars()
             .take_while(|c| c.is_ascii_digit() || *c == '-')
             .collect();
-        let value = digits
-            .parse()
-            .map_err(|_| ParseError::invalid("integer", token_start))?;
 
-        Ok((value, span))
+        digits
+            .parse()
+            .map_err(|_| ParseError::invalid("integer", start))
     }
 
     /// Parse an integer literal and append its span as one source segment.

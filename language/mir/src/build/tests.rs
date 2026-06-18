@@ -17,7 +17,8 @@ fn test_build_empty_function() {
     let void_type = module.type_void();
 
     // build empty function
-    let mut builder = module.function("empty", &[], void_type);
+    let header = module.function_header("empty").result(void_type);
+    let mut builder = module.function(header);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     builder.return_(None);
@@ -43,7 +44,11 @@ fn test_build_function_with_parameters() {
     let i32_type = module.type_i32();
 
     // build add function
-    let mut builder = module.function("add", &[i32_type, i32_type], i32_type);
+    let header = module
+        .function_header("add")
+        .parameters([i32_type, i32_type])
+        .result(i32_type);
+    let mut builder = module.function(header);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let left_value = builder.function_parameter(0);
@@ -73,7 +78,8 @@ fn test_build_function_with_locals() {
     let i64_type = module.type_i64();
 
     // build function with local
-    let mut builder = module.function("withLocal", &[], i64_type);
+    let header = module.function_header("withLocal").result(i64_type);
+    let mut builder = module.function(header);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -111,7 +117,11 @@ fn test_build_function_with_branch() {
     let i32_type = module.type_i32();
 
     // build function with branch
-    let mut builder = module.function("select", &[bool_type], i32_type);
+    let header = module
+        .function_header("select")
+        .parameters([bool_type])
+        .result(i32_type);
+    let mut builder = module.function(header);
 
     // create blocks
     let entry_block = builder.block();
@@ -173,10 +183,18 @@ fn test_build_function_with_call_terminator() {
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
     let signature = module.type_function_signature(vec![i32_type], i32_type);
-    let callee = module.external_function("callee", &[i32_type], i32_type);
+    let callee_header = module
+        .function_header("callee")
+        .parameters([i32_type])
+        .result(i32_type);
+    let callee = module.external_function(callee_header);
 
     // build function
-    let mut builder = module.function("caller", &[i32_type], i32_type);
+    let header = module
+        .function_header("caller")
+        .parameters([i32_type])
+        .result(i32_type);
+    let mut builder = module.function(header);
     let entry_block = builder.block();
     let target_block = builder.block();
 
@@ -219,7 +237,8 @@ fn test_build_function_with_trap_terminator() {
     let void_type = module.type_void();
 
     // build function
-    let mut builder = module.function("trapper", &[], void_type);
+    let header = module.function_header("trapper").result(void_type);
+    let mut builder = module.function(header);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let payload = builder.null(string_type);
@@ -247,7 +266,8 @@ fn test_ssa_define_use_single_block() {
     let i32_type = module.type_i32();
 
     // build function
-    let mut builder = module.function("varTest", &[], i32_type);
+    let header = module.function_header("varTest").result(i32_type);
+    let mut builder = module.function(header);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -284,7 +304,8 @@ fn test_ssa_redefine_variable() {
     let i32_type = module.type_i32();
 
     // build function
-    let mut builder = module.function("redefine", &[], i32_type);
+    let header = module.function_header("redefine").result(i32_type);
+    let mut builder = module.function(header);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -325,7 +346,11 @@ fn test_ssa_branch_with_phi() {
     let i32_type = module.type_i32();
 
     // build function
-    let mut builder = module.function("phiTest", &[bool_type], i32_type);
+    let header = module
+        .function_header("phiTest")
+        .parameters([bool_type])
+        .result(i32_type);
+    let mut builder = module.function(header);
 
     // create blocks
     let entry_block = builder.block();
@@ -394,7 +419,11 @@ fn test_ssa_trivial_phi_removal() {
     let i32_type = module.type_i32();
 
     // build function
-    let mut builder = module.function("trivialPhi", &[bool_type], i32_type);
+    let header = module
+        .function_header("trivialPhi")
+        .parameters([bool_type])
+        .result(i32_type);
+    let mut builder = module.function(header);
 
     // create blocks
     let entry_block = builder.block();
@@ -460,7 +489,11 @@ fn test_ssa_trivial_phi_unsealed() {
     let i32_type = module.type_i32();
 
     // build function
-    let mut builder = module.function("trivialPhiUnsealed", &[bool_type], i32_type);
+    let header = module
+        .function_header("trivialPhiUnsealed")
+        .parameters([bool_type])
+        .result(i32_type);
+    let mut builder = module.function(header);
 
     // create blocks
     let entry_block = builder.block();
@@ -524,7 +557,11 @@ fn test_build_arithmetic_operations() {
     let i32_type = module.type_i32();
 
     // build function
-    let mut builder = module.function("arithmetic", &[i32_type, i32_type], i32_type);
+    let header = module
+        .function_header("arithmetic")
+        .parameters([i32_type, i32_type])
+        .result(i32_type);
+    let mut builder = module.function(header);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -564,7 +601,11 @@ fn test_build_comparison_operations() {
     let bool_type = module.type_boolean();
 
     // build function
-    let mut builder = module.function("compare", &[i32_type, i32_type], bool_type);
+    let header = module
+        .function_header("compare")
+        .parameters([i32_type, i32_type])
+        .result(bool_type);
+    let mut builder = module.function(header);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -663,7 +704,8 @@ fn test_seal_all_blocks() {
     let void_type = module.type_void();
 
     // build multi-block function
-    let mut builder = module.function("multiBlock", &[], void_type);
+    let header = module.function_header("multiBlock").result(void_type);
+    let mut builder = module.function(header);
     let b0 = builder.block();
     let b1 = builder.block();
     let b2 = builder.block();
@@ -781,7 +823,8 @@ fn test_build_new_zeroed() {
     let ref_type = module.type_managed_reference(i32_type);
 
     // build function with new.zeroed
-    let mut builder = module.function("allocTest", &[], ref_type);
+    let header = module.function_header("allocTest").result(ref_type);
+    let mut builder = module.function(header);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let allocated_value = builder.new_zeroed(i32_type, ref_type);
@@ -811,7 +854,11 @@ fn test_build_new_slice_zeroed() {
     let slice_type = module.type_slice(i32_type);
 
     // build function with new.slice.zeroed
-    let mut builder = module.function("allocArrayTest", &[i64_type], slice_type);
+    let header = module
+        .function_header("allocArrayTest")
+        .parameters([i64_type])
+        .result(slice_type);
+    let mut builder = module.function(header);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let length_value = builder.function_parameter(0);
@@ -824,9 +871,9 @@ fn test_build_new_slice_zeroed() {
     let (tree, strings) = module.finish();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function allocArrayTest(v0: int64): slice<int32, managed> {
+function allocArrayTest(v0: int64): slice<int32, managed, mutable> {
 entry(v0: int64):
-    v1: slice<int32, managed> = new.slice.zeroed int32, v0
+    v1: slice<int32, managed, mutable> = new.slice.zeroed int32, v0
     return v1
 }";
     assert_eq!(output, expected);
@@ -849,7 +896,12 @@ fn test_build_slice_view() {
     );
 
     // build function with slice view
-    let mut builder = module.function("sliceTest", &[source_type, i64_type, i64_type], slice_type);
+    let header = module
+        .function_header("sliceTest")
+        .lifetime("L0")
+        .parameters([source_type, i64_type, i64_type])
+        .result(slice_type);
+    let mut builder = module.function(header);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let source_value = builder.function_parameter(0);
@@ -864,9 +916,9 @@ fn test_build_slice_view() {
     let (tree, strings) = module.finish();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function sliceTest(v0: slice<int32, managed>, v1: int64, v2: int64): slice<int32, borrowed, lifetime(0)> {
-entry(v0: slice<int32, managed>, v1: int64, v2: int64):
-    v3: slice<int32, borrowed, lifetime(0)> = slice.view v0, v1, v2
+function sliceTest<L0: lifetime>(v0: slice<int32, managed, mutable>, v1: int64, v2: int64): slice<int32, borrowed, lifetime(L0), mutable> {
+entry(v0: slice<int32, managed, mutable>, v1: int64, v2: int64):
+    v3: slice<int32, borrowed, lifetime(L0), mutable> = slice.view v0, v1, v2
     return v3
 }";
     assert_eq!(output, expected);
@@ -888,7 +940,10 @@ fn test_build_frame_alloc_zeroed() {
     });
 
     // build function with frame.alloc.zeroed
-    let mut builder = module.function("stackAllocTest", &[], raw_ref_type);
+    let header = module
+        .function_header("stackAllocTest")
+        .result(raw_ref_type);
+    let mut builder = module.function(header);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let allocated_value = builder.frame_alloc_zeroed(i32_type, raw_ref_type);
@@ -918,7 +973,11 @@ fn test_build_intrinsics() {
     let f64_type = module.type_f64();
 
     // build function with intrinsics
-    let mut builder = module.function("intrinsicTest", &[f64_type, f64_type], f64_type);
+    let header = module
+        .function_header("intrinsicTest")
+        .parameters([f64_type, f64_type])
+        .result(f64_type);
+    let mut builder = module.function(header);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -954,7 +1013,8 @@ fn test_build_void_intrinsic() {
     let void_type = module.type_void();
 
     // build function with void intrinsic
-    let mut builder = module.function("fenceTest", &[], void_type);
+    let header = module.function_header("fenceTest").result(void_type);
+    let mut builder = module.function(header);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let access = FenceAccess::new(
@@ -994,7 +1054,11 @@ fn test_build_struct() {
     let struct_type = module.type_struct(vec![value0, value1], Copy::Yes);
 
     // build function that constructs a struct
-    let mut builder = module.function("makePoint", &[i32_type, f64_type], struct_type);
+    let header = module
+        .function_header("makePoint")
+        .parameters([i32_type, f64_type])
+        .result(struct_type);
+    let mut builder = module.function(header);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -1027,7 +1091,11 @@ fn test_build_tuple() {
     let tuple_type = module.type_tuple(vec![i32_type, bool_type], Copy::Yes);
 
     // build function that constructs a tuple
-    let mut builder = module.function("makePair", &[i32_type, bool_type], tuple_type);
+    let header = module
+        .function_header("makePair")
+        .parameters([i32_type, bool_type])
+        .result(tuple_type);
+    let mut builder = module.function(header);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -1059,7 +1127,8 @@ fn test_build_array() {
     let array_type = module.type_array(i32_type, 3, Copy::Yes);
 
     // build function that constructs an array
-    let mut builder = module.function("makeArray", &[], array_type);
+    let header = module.function_header("makeArray").result(array_type);
+    let mut builder = module.function(header);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -1098,7 +1167,11 @@ fn test_build_field_get_struct() {
     let struct_type = module.type_struct(vec![value0, value1], Copy::Yes);
 
     // build function that extracts the second field
-    let mut builder = module.function("getY", &[struct_type], f64_type);
+    let header = module
+        .function_header("getY")
+        .parameters([struct_type])
+        .result(f64_type);
+    let mut builder = module.function(header);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -1130,7 +1203,11 @@ fn test_build_field_get_tuple() {
     let tuple_type = module.type_tuple(vec![i32_type, bool_type], Copy::Yes);
 
     // build function that extracts the first element
-    let mut builder = module.function("getFirst", &[tuple_type], i32_type);
+    let header = module
+        .function_header("getFirst")
+        .parameters([tuple_type])
+        .result(i32_type);
+    let mut builder = module.function(header);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -1162,7 +1239,11 @@ fn test_build_element_get_array() {
     let array_type = module.type_array(i32_type, 3, Copy::Yes);
 
     // build function that extracts one fixed element
-    let mut builder = module.function("getElement", &[array_type, i64_type], i32_type);
+    let header = module
+        .function_header("getElement")
+        .parameters([array_type, i64_type])
+        .result(i32_type);
+    let mut builder = module.function(header);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
@@ -1202,7 +1283,11 @@ fn test_ssa_passthrough_intermediate_block() {
     let bool_type = module.type_boolean();
 
     // build function
-    let mut builder = module.function("passthrough", &[bool_type], i32_type);
+    let header = module
+        .function_header("passthrough")
+        .parameters([bool_type])
+        .result(i32_type);
+    let mut builder = module.function(header);
 
     // create blocks
     let b0 = builder.block(); // init
@@ -1296,7 +1381,11 @@ fn test_ssa_multiple_phis_at_merge() {
     let i32_type = module.type_i32();
 
     // build function
-    let mut builder = module.function("multiPhi", &[bool_type], i32_type);
+    let header = module
+        .function_header("multiPhi")
+        .parameters([bool_type])
+        .result(i32_type);
+    let mut builder = module.function(header);
 
     // create blocks: diamond CFG
     let entry = builder.block();

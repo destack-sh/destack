@@ -229,9 +229,9 @@ b0:
 #[test]
 fn test_parse_restores_lifetime_scope_after_type_error() {
     let source = r#"
-type Broken<L: lifetime> = ref<int32, borrowed, lifetime(Missing)>
+type Broken<L: lifetime> = ref<int32, borrowed, lifetime(Missing), mutable>
 
-type Later = ref<int32, borrowed, lifetime(L)>
+type Later = ref<int32, borrowed, lifetime(L), mutable>
 
 function later(): void {
 b0:

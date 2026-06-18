@@ -400,7 +400,7 @@ impl Parser {
                         let fields = self.tree.add_values(&fields);
                         Instruction::Struct {
                             destination,
-                            ty: ty.into(),
+                            ty,
                             fields,
                         }
                     }
@@ -410,7 +410,7 @@ impl Parser {
                         let elements = self.tree.add_values(&elements);
                         Instruction::Tuple {
                             destination,
-                            ty: ty.into(),
+                            ty,
                             elements,
                         }
                     }
@@ -420,7 +420,7 @@ impl Parser {
                         let elements = self.tree.add_values(&elements);
                         Instruction::Array {
                             destination,
-                            ty: ty.into(),
+                            ty,
                             elements,
                         }
                     }
@@ -517,7 +517,7 @@ impl Parser {
                             source,
                             start,
                             length,
-                            result_type: destination_type.into(),
+                            result_type: destination_type,
                         }
                     }
                     "slice.length" => {
@@ -531,7 +531,7 @@ impl Parser {
                         Instruction::DynamicPayload {
                             destination,
                             dynamic,
-                            result_type: destination_type.into(),
+                            result_type: destination_type,
                         }
                     }
                     "dynamic.type" => {
@@ -1053,7 +1053,7 @@ impl Parser {
                         Instruction::Pin {
                             destination,
                             value,
-                            result_type: destination_type.into(),
+                            result_type: destination_type,
                         }
                     }
 
@@ -1868,8 +1868,13 @@ impl Parser {
             .map(|parameter| parameter.signature_parameter())
             .collect();
         let result = function.return_type;
+        let lifetimes = function.lifetimes.clone();
 
-        self.intern_type(Type::FunctionSignature { parameters, result })
+        self.intern_type(Type::FunctionSignature {
+            lifetimes,
+            parameters,
+            result,
+        })
     }
 
     /// Parse one virtual call target and signature.
@@ -1953,13 +1958,14 @@ impl Parser {
     ) -> ParseResult<TypeId> {
         let signature_start = self.pos();
         self.eat_token(TokenType::Colon)?;
-        let parameters = self.parse_parenthesized_type_parameters()?;
-        self.eat_token(TokenType::FatArrow)?;
-        let (result, _) = self.parse_type_use_part()?;
-        let signature_span = self.span_from_parse_start(signature_start);
-        segment_spans.push(signature_span);
 
-        self.intern_type(Type::FunctionSignature { parameters, result })
+        self.parse_lifetime_scope(|parser, lifetimes| {
+            let signature = parser.parse_signature(lifetimes)?;
+            let signature_span = parser.span_from_parse_start(signature_start);
+            segment_spans.push(signature_span);
+
+            Ok(signature)
+        })
     }
 
     /// Parse one atomic access suffix.

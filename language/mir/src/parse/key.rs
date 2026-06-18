@@ -128,6 +128,7 @@ pub(super) enum TypeKey {
     },
     /// Bare function signature.
     FunctionSignature {
+        lifetimes: Vec<crate::LifetimeParameter>,
         parameters: Vec<SignatureParameter>,
         result: TypeId,
     },
@@ -271,9 +272,14 @@ impl TypeKey {
                 nullability: *nullability,
             },
 
-            Type::FunctionSignature { parameters, result } => TypeKey::FunctionSignature {
+            Type::FunctionSignature {
+                lifetimes,
+                parameters,
+                result,
+            } => TypeKey::FunctionSignature {
+                lifetimes: lifetimes.clone(),
                 parameters: parameters.clone(),
-                result: result.clone(),
+                result: *result,
             },
             Type::FunctionPointer { signature } => TypeKey::FunctionPointer {
                 signature: *signature,

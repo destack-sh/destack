@@ -1,7 +1,6 @@
-use crate::build::{BuildResult, FunctionBuilder, ModuleBuilder};
+use crate::build::{BuildResult, FunctionBuilder, FunctionHeader, ModuleBuilder};
 use crate::{
-    Function, FunctionParameter, Global, GlobalInitializer, LocalNodeId, Mutability, Type, Value,
-    finalize_function_names,
+    Function, Global, GlobalInitializer, LocalNodeId, Mutability, Type, finalize_function_names,
 };
 
 impl ModuleBuilder {
@@ -53,20 +52,8 @@ impl ModuleBuilder {
     }
 
     /// Start building a new function.
-    pub fn function(
-        &mut self,
-        name: &str,
-        parameter_types: &[LocalNodeId<Type>],
-        return_type: LocalNodeId<Type>,
-    ) -> FunctionBuilder<'_> {
-        let name_id = self.strings.intern(name);
-        FunctionBuilder::new(
-            &mut self.tree,
-            &self.strings,
-            name_id,
-            parameter_types,
-            return_type,
-        )
+    pub fn function(&mut self, header: FunctionHeader) -> FunctionBuilder<'_> {
+        FunctionBuilder::new(&mut self.tree, &self.strings, header)
     }
 
     /// Start building a body for an existing declared function.
@@ -78,42 +65,37 @@ impl ModuleBuilder {
     }
 
     /// Declare a local function without a body.
-    pub fn declare_function(
-        &mut self,
-        name: &str,
-        parameter_types: &[LocalNodeId<Type>],
-        return_type: LocalNodeId<Type>,
-    ) -> LocalNodeId<Function> {
-        let name_id = self.strings.intern(name);
-        let parameters: Vec<FunctionParameter> = parameter_types
-            .iter()
-            .enumerate()
-            .map(|(index, &ty)| FunctionParameter::new(Value::new(index as u32), ty.into()))
-            .collect();
-        let function_id =
-            self.tree
-                .insert(Function::declare(name_id, parameters, return_type.into()));
+    pub fn declare_function(&mut self, header: FunctionHeader) -> LocalNodeId<Function> {
+        let FunctionHeader {
+            name,
+            lifetimes,
+            parameters,
+            result,
+        } = header;
+        let parameters = FunctionHeader::parameters_from_types(parameters);
+        let function_id = self.tree.insert(Function::declare(
+            name,
+            lifetimes,
+            parameters,
+            result.into(),
+        ));
         finalize_function_names(&mut self.tree, &self.strings, function_id);
 
         function_id
     }
 
     /// Declare an external function (defined elsewhere).
-    pub fn external_function(
-        &mut self,
-        name: &str,
-        parameter_types: &[LocalNodeId<Type>],
-        return_type: LocalNodeId<Type>,
-    ) -> LocalNodeId<Function> {
-        let name_id = self.strings.intern(name);
-        let parameters: Vec<FunctionParameter> = parameter_types
-            .iter()
-            .enumerate()
-            .map(|(index, &ty)| FunctionParameter::new(Value::new(index as u32), ty.into()))
-            .collect();
+    pub fn external_function(&mut self, header: FunctionHeader) -> LocalNodeId<Function> {
+        let FunctionHeader {
+            name,
+            lifetimes,
+            parameters,
+            result,
+        } = header;
+        let parameters = FunctionHeader::parameters_from_types(parameters);
         let function_id =
             self.tree
-                .insert(Function::import(name_id, parameters, return_type.into()));
+                .insert(Function::import(name, lifetimes, parameters, result.into()));
         finalize_function_names(&mut self.tree, &self.strings, function_id);
 
         function_id
