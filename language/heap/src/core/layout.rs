@@ -25,7 +25,7 @@ pub struct AllocationShape<'a> {
 }
 
 /// One explicit allocation site.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AllocationSite {
     /// The exact payload byte length.
     pub byte_len: usize,
@@ -117,7 +117,7 @@ impl<'a> AllocationShape<'a> {
 }
 
 /// One allocator-ready allocation class.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AllocationClass {
     /// One block backed by a small-span slot.
     Small(SmallAllocationPlan),
@@ -163,7 +163,7 @@ impl<'a> AllocationPlan<'a> {
 }
 
 /// One explicit small allocation site.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SmallAllocationSite {
     /// The exact payload byte length.
     pub byte_len: usize,
@@ -198,7 +198,7 @@ impl SmallCacheIndex {
 }
 
 /// One allocator-ready small allocation plan.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SmallAllocationPlan {
     /// The exact mutator-cache index for this class.
     pub(crate) cache_index: SmallCacheIndex,
