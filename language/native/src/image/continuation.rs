@@ -1,4 +1,4 @@
-use destack_engine::MaterializedContinuation;
+use destack_program::MaterializedContinuation;
 use serde::{Deserialize, Serialize};
 
 /// Native continuation materialized at a managed safepoint.

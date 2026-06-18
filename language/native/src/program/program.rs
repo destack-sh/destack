@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use destack_engine::{ProgramLayout, StaticSpace};
 use destack_mir as mir;
+use destack_program::{ProgramLayout, StaticSpace};
 
 use crate::{CodeMapping, Entry, EntryId, EntrySymbol, Object};
 
@@ -36,9 +36,19 @@ impl Program {
         self.code
     }
 
-    /// Borrow the immutable program static memory.
-    pub fn static_space(&self) -> &StaticSpace {
-        &self.object.static_space
+    /// Borrow immutable program constants.
+    pub fn constants(&self) -> &StaticSpace {
+        &self.object.constant_space
+    }
+
+    /// Borrow initial shared static storage.
+    pub fn shared_statics(&self) -> &StaticSpace {
+        &self.object.shared_static_space
+    }
+
+    /// Borrow initial local static storage.
+    pub fn local_statics(&self) -> &StaticSpace {
+        &self.object.local_static_space
     }
 
     /// Borrow the program layout.

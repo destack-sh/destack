@@ -1,6 +1,6 @@
 use std::fmt;
 
-use destack_engine::{EngineId, Value};
+use destack_program::Value;
 
 use crate::{NativeStatusError, NativeTrap, NativeTrapError, NativeValueError};
 
@@ -38,15 +38,8 @@ pub enum Error {
     InvalidTrap(NativeTrapError),
     /// A native ABI value could not be decoded.
     Value(NativeValueError),
-    /// Native continuation state is not resumable by this engine.
+    /// Native continuation state is not resumable by this executor.
     ContinuationUnavailable,
-    /// A native image belongs to another engine.
-    ImageEngineMismatch {
-        /// The current engine id.
-        engine_id: EngineId,
-        /// The captured image engine id.
-        image_engine_id: EngineId,
-    },
     /// Native root metadata is not available.
     RootMapUnavailable,
 }
@@ -79,15 +72,6 @@ impl fmt::Display for Error {
             Self::ContinuationUnavailable => {
                 write!(formatter, "native continuation is not resumable")
             }
-            Self::ImageEngineMismatch {
-                engine_id,
-                image_engine_id,
-            } => write!(
-                formatter,
-                "native image belongs to engine {}, not {}",
-                image_engine_id.get(),
-                engine_id.get()
-            ),
             Self::RootMapUnavailable => write!(formatter, "native root map is not available"),
         }
     }
