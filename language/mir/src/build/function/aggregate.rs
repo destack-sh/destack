@@ -1,10 +1,10 @@
 use crate::build::FunctionBuilder;
 use crate::{
-    BinaryOperator, Instruction, LocalNodeId, Projection, TensorConvertMode,
-    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
-    TensorGatherDimensionNumbers, TensorIndexReduceOperator, TensorIndexTieBreak,
-    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, Type, TypeId, Value,
-    VectorConvertMode, VectorReduceOperator,
+    BinaryOperator, Instruction, LocalNodeId, TensorConvertMode, TensorConvolutionDimensionNumbers,
+    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
+    TensorIndexReduceOperator, TensorIndexTieBreak, TensorReduceOperator,
+    TensorScatterDimensionNumbers, TensorScatterMode, Type, TypeId, Value, VectorConvertMode,
+    VectorReduceOperator,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -37,12 +37,7 @@ impl<'a> FunctionBuilder<'a> {
             index,
             result_type,
         });
-        self.define_value_from_projection(
-            destination,
-            result_type,
-            aggregate,
-            Projection::Field { index },
-        );
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -88,12 +83,7 @@ impl<'a> FunctionBuilder<'a> {
             index,
             result_type,
         });
-        self.define_value_from_projection(
-            destination,
-            result_type,
-            array,
-            Projection::Index { index },
-        );
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -113,12 +103,7 @@ impl<'a> FunctionBuilder<'a> {
             length,
             result_type,
         });
-        self.define_value_from_projection(
-            destination,
-            result_type,
-            source,
-            Projection::Slice { start, length },
-        );
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -416,7 +401,7 @@ impl<'a> FunctionBuilder<'a> {
             tensor,
             dimensions,
         });
-        self.define_value_from_place(destination, result_type, tensor);
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -445,7 +430,7 @@ impl<'a> FunctionBuilder<'a> {
             destination,
             tensor,
         });
-        self.define_value_from_place(destination, result_type, tensor);
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -476,7 +461,7 @@ impl<'a> FunctionBuilder<'a> {
             sizes_count,
             strides_count,
         });
-        self.define_value_from_place(destination, result_type, view);
+        self.define_value(destination, result_type);
         destination
     }
 

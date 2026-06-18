@@ -63,12 +63,39 @@ impl LifetimeAnalysis {
     fn build(tree: &mir::Tree) -> Self {
         let mut function_lifetimes = HashMap::new();
 
-        for (function_id, _) in tree.iter_nodes::<mir::Function>() {
-            let resolved = tree.infer_function_return_lifetime(function_id);
+        for (function_id, function) in tree.iter_nodes::<mir::Function>() {
+            let resolved = Self::resolve_function(function, tree);
             function_lifetimes.insert(function_id, resolved);
         }
 
         Self { function_lifetimes }
+    }
+
+    /// Resolve a return lifetime from a function definition.
+    fn resolve_function(function: &mir::Function, tree: &mir::Tree) -> mir::Lifetime {
+        if let Some(lifetime) = tree.type_lifetime(function.return_type) {
+            return lifetime;
+        }
+
+        if !tree.type_contains_borrowed_refs(function.return_type) {
+            return mir::Lifetime::empty();
+        }
+
+        let indices = function
+            .parameters
+            .iter()
+            .enumerate()
+            .filter_map(|(index, parameter)| {
+                let paths = tree.type_borrowed_source_paths(parameter.ty);
+                (!paths.is_empty()).then_some(index as u32)
+            })
+            .collect::<Vec<_>>();
+
+        if indices.is_empty() {
+            mir::Lifetime::static_storage()
+        } else {
+            mir::Lifetime::slot_set(indices)
+        }
     }
 }
 
