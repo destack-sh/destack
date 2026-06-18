@@ -627,7 +627,6 @@ fn find_unroll_candidate(
         } => {
             let then_target = then_target.block;
             let else_target = else_target.block;
-            let condition = condition;
             let then_in_loop = lp.blocks.contains(&then_target);
             let else_in_loop = lp.blocks.contains(&else_target);
             if then_in_loop == else_in_loop {
@@ -649,8 +648,7 @@ fn find_unroll_candidate(
     let latch_terminator = tree.get(latch_block.terminator);
     if !tree
         .terminator_successors(latch_terminator)
-        .iter()
-        .any(|successor| *successor == lp.header)
+        .contains(&lp.header)
     {
         return None;
     }
@@ -813,7 +811,6 @@ fn find_jam_candidate(
         } => {
             let then_target = then_target.block;
             let else_target = else_target.block;
-            let condition = condition;
             let then_in_loop = outer.blocks.contains(&then_target);
             let else_in_loop = outer.blocks.contains(&else_target);
             if then_in_loop == else_in_loop {
@@ -1679,7 +1676,7 @@ fn peel_jam_remainder(
     let preheader_terminator_id = tree.get(preheader).terminator;
     let preheader_args = tree.add_values(&preheader_args);
     let preheader_terminator = mir::Terminator::Jump {
-        target: mir::BlockTarget::new(first_iteration.header.into(), preheader_args),
+        target: mir::BlockTarget::new(first_iteration.header, preheader_args),
     };
     tree.set(preheader_terminator_id, preheader_terminator);
 
@@ -1728,7 +1725,7 @@ fn inner_update_info(
             .get(candidate.inner_param_index)?;
 
     // locate the defining instruction
-    let update_instruction = *def_map.get(&update_value)?;
+    let update_instruction = *def_map.get(update_value)?;
     let update_index = latch_block
         .instructions
         .iter()
@@ -1836,17 +1833,17 @@ fn rewrite_outer_latch_step(
     // build the scaled induction update
     let const_value = function.next_typed_value_like(current_value);
     let const_instruction = mir::Instruction::Const {
-        destination: const_value.into(),
+        destination: const_value,
         value: scaled_constant,
     };
     let const_id = tree.insert(const_instruction);
 
     let updated_value = function.next_typed_value_like(current_value);
     let add_instruction = mir::Instruction::Binary {
-        destination: updated_value.into(),
+        destination: updated_value,
         operator: mir::BinaryOperator::Add,
-        left: current_value.into(),
-        right: const_value.into(),
+        left: current_value,
+        right: const_value,
     };
     let add_id = tree.insert(add_instruction);
 
@@ -1857,7 +1854,7 @@ fn rewrite_outer_latch_step(
     arguments[candidate.outer_param_index] = updated_value;
 
     let new_terminator = mir::Terminator::Jump {
-        target: mir::BlockTarget::new(candidate.outer_header.into(), tree.add_values(&arguments)),
+        target: mir::BlockTarget::new(candidate.outer_header, tree.add_values(&arguments)),
     };
     tree.set(latch_block.terminator, new_terminator);
 
@@ -1898,7 +1895,7 @@ fn jam_inner_body(
 
         let offset_const_value = function.next_typed_value_like(candidate.inner_outer_param);
         let offset_const_instruction = mir::Instruction::Const {
-            destination: offset_const_value.into(),
+            destination: offset_const_value,
             value: step_constant,
         };
         let offset_const_id = tree.insert(offset_const_instruction);
@@ -1906,10 +1903,10 @@ fn jam_inner_body(
 
         let offset_value = function.next_typed_value_like(candidate.inner_outer_param);
         let offset_add_instruction = mir::Instruction::Binary {
-            destination: offset_value.into(),
+            destination: offset_value,
             operator: mir::BinaryOperator::Add,
-            left: candidate.inner_outer_param.into(),
-            right: offset_const_value.into(),
+            left: candidate.inner_outer_param,
+            right: offset_const_value,
         };
         let offset_add_id = tree.insert(offset_add_instruction);
         new_instructions.push(offset_add_id);
@@ -2225,7 +2222,7 @@ fn peel_remainder(
     let preheader_terminator_id = tree.get(preheader).terminator;
     let preheader_args = tree.add_values(&preheader_args);
     let preheader_terminator = mir::Terminator::Jump {
-        target: mir::BlockTarget::new(first_iteration.header.into(), preheader_args),
+        target: mir::BlockTarget::new(first_iteration.header, preheader_args),
     };
     tree.set(preheader_terminator_id, preheader_terminator);
 
@@ -2298,10 +2295,7 @@ fn rewrite_latch_to_jump(
 ) -> bool {
     // locate the loop backedge arguments
     let terminator = tree.get(block.terminator).clone();
-    let latch_has_edge = tree
-        .terminator_successors(&terminator)
-        .iter()
-        .any(|successor| *successor == header);
+    let latch_has_edge = tree.terminator_successors(&terminator).contains(&header);
     if !latch_has_edge {
         return false;
     }
@@ -2310,7 +2304,7 @@ fn rewrite_latch_to_jump(
 
     // replace the latch terminator with a jump
     let new_terminator = mir::Terminator::Jump {
-        target: mir::BlockTarget::new(next_header.into(), latch_args),
+        target: mir::BlockTarget::new(next_header, latch_args),
     };
     tree.set(block.terminator, new_terminator);
 
@@ -2332,8 +2326,7 @@ fn rewrite_latch_block(
     // extract latch arguments
     let latch_has_edge = tree
         .terminator_successors(&terminator)
-        .iter()
-        .any(|successor| *successor == iteration.header);
+        .contains(&iteration.header);
     if !latch_has_edge {
         return false;
     }
@@ -2349,7 +2342,7 @@ fn rewrite_latch_block(
         // redirect to the next iteration header
         let latch_args = tree.add_values(&latch_args);
         let new_terminator = mir::Terminator::Jump {
-            target: mir::BlockTarget::new(next.header.into(), latch_args),
+            target: mir::BlockTarget::new(next.header, latch_args),
         };
         tree.set(block.terminator, new_terminator);
 
@@ -2372,7 +2365,7 @@ fn rewrite_latch_block(
         let exit_arguments = tree.add_values(&exit_arguments);
 
         let new_terminator = mir::Terminator::Jump {
-            target: mir::BlockTarget::new(candidate.exit_block.into(), exit_arguments),
+            target: mir::BlockTarget::new(candidate.exit_block, exit_arguments),
         };
         tree.set(block.terminator, new_terminator);
 
@@ -2383,7 +2376,7 @@ fn rewrite_latch_block(
     if !candidate.guard_at_latch {
         let latch_args = tree.add_values(&latch_args);
         let new_terminator = mir::Terminator::Jump {
-            target: mir::BlockTarget::new(candidate.header.into(), latch_args),
+            target: mir::BlockTarget::new(candidate.header, latch_args),
         };
         tree.set(block.terminator, new_terminator);
 
@@ -2410,17 +2403,17 @@ fn rewrite_latch_block(
         condition,
         then_target: mir::BlockTarget::new(
             if candidate.in_loop_is_then {
-                candidate.header.into()
+                candidate.header
             } else {
-                candidate.exit_block.into()
+                candidate.exit_block
             },
             then_arguments,
         ),
         else_target: mir::BlockTarget::new(
             if candidate.in_loop_is_then {
-                candidate.exit_block.into()
+                candidate.exit_block
             } else {
-                candidate.header.into()
+                candidate.header
             },
             else_arguments,
         ),

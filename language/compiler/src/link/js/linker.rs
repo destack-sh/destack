@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use destack_artifact::{Data, ModuleOutput};
+use destack_artifact::{Data, Script};
 use destack_repository::{ArtifactReader, Module, ProviderContext, Revision, Target};
 use destack_source::{File, FileId, ModuleId, PackageId, ProfileId, Span, TargetId};
 
@@ -89,15 +89,15 @@ impl<'a> JsLinker<'a> {
             .map_err(|error| self.link_error(error))
     }
 
-    /// Return one emitted module output for this target.
-    pub(crate) fn module_output(&self, module_id: ModuleId) -> LinkResult<Arc<ModuleOutput>> {
+    /// Return one structured script for this target.
+    pub(crate) fn script(&self, module_id: ModuleId) -> LinkResult<Arc<Script>> {
         self.artifacts
-            .module_output(module_id, *self.target_id)
+            .script(module_id, *self.target_id)
             .map_err(|error| LinkError::Internal {
                 anchor: (self.package_id).into(),
                 package: self.package_id,
                 message: format!(
-                    "missing module output for module {:?} target '{}': {error:?}",
+                    "missing script for module {:?} target '{}': {error:?}",
                     module_id,
                     self.target_name()
                 ),

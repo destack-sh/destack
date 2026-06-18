@@ -319,14 +319,14 @@ fn apply_if_convert(
 
         let destination = function.next_typed_value_like(then_value);
         let select = mir::Instruction::Select {
-            destination: destination.into(),
-            condition: candidate.condition.into(),
-            then_value: then_value.into(),
-            else_value: else_value.into(),
+            destination,
+            condition: candidate.condition,
+            then_value,
+            else_value,
         };
         let select_id = tree.insert(select);
         new_instructions.push(select_id);
-        select_args.push(destination.into());
+        select_args.push(destination);
     }
 
     // update header block
@@ -334,7 +334,7 @@ fn apply_if_convert(
     header.instructions = new_instructions;
     let select_args = tree.add_values(&select_args);
     let new_terminator = mir::Terminator::Jump {
-        target: mir::BlockTarget::new(candidate.merge_block.into(), select_args),
+        target: mir::BlockTarget::new(candidate.merge_block, select_args),
     };
     tree.set(candidate.header, header);
     tree.set(tree.get(candidate.header).terminator, new_terminator);

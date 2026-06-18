@@ -432,12 +432,12 @@ fn insert_store_for_candidate(
     // build the new store instruction
     let instruction = match candidate.kind {
         StoreKind::Store => mir::Instruction::Store {
-            pointer: candidate.pointer.expect("store pointer required").into(),
-            value: candidate.value.into(),
+            pointer: candidate.pointer.expect("store pointer required"),
+            value: candidate.value,
         },
         StoreKind::LocalSet => mir::Instruction::LocalSet {
-            local: candidate.local.expect("local target required").into(),
-            value: candidate.value.into(),
+            local: candidate.local.expect("local target required"),
+            value: candidate.value,
         },
     };
 

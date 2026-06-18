@@ -697,8 +697,8 @@ fn apply_candidates_for_loop(
     // append new parameters in header order
     for item in &plan_items {
         header_block.parameters.push(mir::Parameter {
-            value: item.new_param.value.into(),
-            ty: item.new_param.ty.into(),
+            value: item.new_param.value,
+            ty: item.new_param.ty,
         });
     }
     tree.set(header, header_block);
@@ -709,10 +709,10 @@ fn apply_candidates_for_loop(
     // insert recurrence updates into the latch
     for item in &plan_items {
         let instruction = mir::Instruction::Binary {
-            destination: item.next_value.into(),
+            destination: item.next_value,
             operator: mir::BinaryOperator::Add,
-            left: item.new_param.value.into(),
-            right: item.step_value.into(),
+            left: item.new_param.value,
+            right: item.step_value,
         };
         let instruction_id = tree.insert(instruction);
         latch_block.instructions.push(instruction_id);
@@ -1045,7 +1045,7 @@ fn append_arguments_for_successor(
     match terminator {
         mir::Terminator::Jump { target } => {
             // ensure the jump targets the successor
-            if target.block != successor.into() {
+            if target.block != successor {
                 return None;
             }
 
@@ -1065,13 +1065,13 @@ fn append_arguments_for_successor(
             let mut updated_else = else_target.arguments;
             let mut touched = false;
 
-            if then_target.block == successor.into() {
+            if then_target.block == successor {
                 updated_then = appended_arguments(tree, then_target.arguments, new_args);
                 touched = true;
             }
 
             // update else arguments when needed
-            if else_target.block == successor.into() {
+            if else_target.block == successor {
                 updated_else = appended_arguments(tree, else_target.arguments, new_args);
                 touched = true;
             }
@@ -1097,13 +1097,13 @@ fn append_arguments_for_successor(
             let mut updated_failure = failure.arguments;
             let mut touched = false;
 
-            if success.block == successor.into() {
+            if success.block == successor {
                 updated_success = appended_arguments(tree, success.arguments, new_args);
                 touched = true;
             }
 
             // update failure arguments when needed
-            if failure.block == successor.into() {
+            if failure.block == successor {
                 updated_failure = appended_arguments(tree, failure.arguments, new_args);
                 touched = true;
             }
@@ -1130,7 +1130,7 @@ fn append_arguments_for_successor(
             let mut touched = false;
 
             // update default arguments when needed
-            if default.block == successor.into() {
+            if default.block == successor {
                 updated_default = appended_arguments(tree, default.arguments, new_args);
                 touched = true;
             }
@@ -1139,7 +1139,7 @@ fn append_arguments_for_successor(
             let cases = tree.get_switch_cases(*cases).to_vec();
             for case in cases {
                 let mut updated_case_args = case.target.arguments;
-                if case.target.block == successor.into() {
+                if case.target.block == successor {
                     updated_case_args = appended_arguments(tree, case.target.arguments, new_args);
                     touched = true;
                 }
@@ -1506,7 +1506,7 @@ impl<'a> ScevMaterializer<'a> {
         // allocate a new constant instruction
         let destination = function.next_typed_value(type_id);
         let instruction = mir::Instruction::Const {
-            destination: destination.into(),
+            destination,
             value: constant.clone(),
         };
         self.insert_instruction(instruction);
@@ -1605,8 +1605,6 @@ impl<'a> ScevMaterializer<'a> {
 
         // materialize inline operands
         for operand in instruction.uses() {
-            let operand = operand;
-
             let mapped = self.materialize_value(function, operand)?;
             value_map.insert(operand, mapped);
         }
@@ -1615,8 +1613,6 @@ impl<'a> ScevMaterializer<'a> {
         if let Some(args_slice) = instruction.argument_slice() {
             let arguments = self.tree.get_values(args_slice).to_vec();
             for operand in arguments {
-                let operand = operand;
-
                 let mapped = self.materialize_value(function, operand)?;
                 value_map.insert(operand, mapped);
             }
@@ -1643,10 +1639,10 @@ impl<'a> ScevMaterializer<'a> {
         // allocate a destination value
         let destination = function.next_typed_value_like(left);
         let instruction = mir::Instruction::Binary {
-            destination: destination.into(),
+            destination,
             operator,
-            left: left.into(),
-            right: right.into(),
+            left,
+            right,
         };
         self.insert_instruction(instruction);
         destination
@@ -1662,9 +1658,9 @@ impl<'a> ScevMaterializer<'a> {
         // allocate a destination value
         let destination = function.next_typed_value_like(argument);
         let instruction = mir::Instruction::Unary {
-            destination: destination.into(),
+            destination,
             operator,
-            argument: argument.into(),
+            argument,
         };
         self.insert_instruction(instruction);
         destination
@@ -1681,10 +1677,10 @@ impl<'a> ScevMaterializer<'a> {
         // allocate a destination value
         let destination = function.next_typed_value(to_type);
         let instruction = mir::Instruction::Cast {
-            destination: destination.into(),
+            destination,
             operator,
-            argument: argument.into(),
-            to_type: to_type.into(),
+            argument,
+            to_type,
         };
         self.insert_instruction(instruction);
         destination

@@ -272,7 +272,7 @@ impl<'a> DropPlan<'a> {
         available.remove_consumed(&consumed);
         for value in self.drops_before_terminator(block_id, available, &carried) {
             self.add_value_drop(block_id, end_index, value, &available.moved);
-            available.move_place(mir::Place::value(value.into()));
+            available.move_place(mir::Place::value(value));
         }
     }
 
@@ -300,7 +300,7 @@ impl<'a> DropPlan<'a> {
             }
 
             self.add_value_drop(block_id, index + 1, value, &available.moved);
-            available.move_place(mir::Place::value(value.into()));
+            available.move_place(mir::Place::value(value));
         }
     }
 
@@ -420,7 +420,7 @@ impl<'a> DropPlan<'a> {
         value: mir::Value,
         moved: &[mir::Place],
     ) {
-        let place = self.place_for_value(value.into());
+        let place = self.place_for_value(value);
         let ty = self
             .type_for_value(value)
             .expect("owned value must have a type");
@@ -541,7 +541,7 @@ impl<'a> DropPlan<'a> {
                         mir::Projection::Field {
                             index: index as u32,
                         },
-                        field.ty.clone(),
+                        field.ty,
                         moved,
                     )
                 })
@@ -555,7 +555,7 @@ impl<'a> DropPlan<'a> {
                         mir::Projection::Field {
                             index: index as u32,
                         },
-                        element.clone(),
+                        *element,
                         moved,
                     )
                 })
@@ -569,17 +569,14 @@ impl<'a> DropPlan<'a> {
                         mir::Projection::Element {
                             index: index as u32,
                         },
-                        element.clone(),
+                        *element,
                         moved,
                     )
                 })
                 .collect(),
-            mir::Type::Newtype { inner, .. } => self.drop_child_place(
-                &place,
-                mir::Projection::Field { index: 0 },
-                inner.clone(),
-                moved,
-            ),
+            mir::Type::Newtype { inner, .. } => {
+                self.drop_child_place(&place, mir::Projection::Field { index: 0 }, *inner, moved)
+            }
             mir::Type::Variant { .. } => {
                 panic!("partial union drops require active variant metadata")
             }

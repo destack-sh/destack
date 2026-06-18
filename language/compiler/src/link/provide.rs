@@ -3,7 +3,7 @@ use super::js::JsLinker;
 use super::native::NativeLinker;
 use super::state::LinkState;
 use crate::{Compiler, CompilerError, CompilerResult, LinkError};
-use destack_artifact::{ArtifactDependencySet, ArtifactPayload, EmitFormat, PackageOutput};
+use destack_artifact::{ArtifactDependencySet, ArtifactPayload, Bundle, EmitFormat};
 use destack_repository::{ArtifactReader, ProviderContext, RepositoryError, Target};
 use destack_source::{ModuleId, PackageId, ProductId, TargetId};
 use std::path::PathBuf;
@@ -22,8 +22,8 @@ struct TargetLinkSetup {
 }
 
 impl Compiler {
-    /// Collect inputs for one package output.
-    pub(crate) fn collect_package_output(
+    /// Collect inputs for one bundle.
+    pub(crate) fn collect_bundle(
         &self,
         package: PackageId,
         target: TargetId,
@@ -47,8 +47,8 @@ impl Compiler {
         Ok(dependencies)
     }
 
-    /// Build one package output.
-    pub(crate) fn provide_package_output(
+    /// Build one bundle.
+    pub(crate) fn provide_bundle(
         &self,
         package: PackageId,
         target: TargetId,
@@ -58,11 +58,45 @@ impl Compiler {
         let artifacts = self.artifact_reader(context.revision());
         let output = self.link_target(state.package, &state.target, state.context, &artifacts)?;
 
-        Ok(ArtifactPayload::PackageOutput(Arc::new(output)))
+        Ok(ArtifactPayload::Bundle(Arc::new(output)))
     }
 
-    /// Collect inputs for one product output.
-    pub(crate) fn collect_product_output(
+    /// Collect inputs for one executable program.
+    pub(crate) fn collect_program(
+        &self,
+        package: PackageId,
+        target: TargetId,
+        context: &dyn ProviderContext,
+    ) -> CompilerResult<ArtifactDependencySet> {
+        self.target_link_setup(package, &target, context)?;
+
+        // observe target package configuration
+        let mut dependencies = ArtifactDependencySet::default();
+        self.observe_package_config(context, package, &mut dependencies)?;
+
+        Ok(dependencies)
+    }
+
+    /// Build one executable program.
+    pub(crate) fn provide_program(
+        &self,
+        package: PackageId,
+        target: TargetId,
+        context: &dyn ProviderContext,
+    ) -> CompilerResult<ArtifactPayload> {
+        let setup = self.target_link_setup(package, &target, context)?;
+        let target_name = self.target_name(context.revision(), target)?;
+
+        Err(CompilerError::Internal {
+            message: format!(
+                "program linking is not implemented for target '{target_name}' ({})",
+                setup.target.emit.canonical_tag()
+            ),
+        })
+    }
+
+    /// Collect inputs for one product.
+    pub(crate) fn collect_product(
         &self,
         package: PackageId,
         product: ProductId,
@@ -71,8 +105,8 @@ impl Compiler {
         ProductLinker::new(self, package, product, context)?.collect()
     }
 
-    /// Build one product output.
-    pub(crate) fn provide_product_output(
+    /// Build one product.
+    pub(crate) fn provide_product(
         &self,
         package: PackageId,
         product: ProductId,
@@ -81,7 +115,7 @@ impl Compiler {
         let artifacts = self.artifact_reader(context.revision());
         let output = ProductLinker::new(self, package, product, context)?.link(&artifacts)?;
 
-        Ok(ArtifactPayload::ProductOutput(Arc::new(output)))
+        Ok(ArtifactPayload::Product(Arc::new(output)))
     }
 
     /// Link all modules for one target.
@@ -91,7 +125,7 @@ impl Compiler {
         target_id: &'a TargetId,
         context: &'a dyn ProviderContext,
         artifacts: &'a ArtifactReader<'a>,
-    ) -> CompilerResult<PackageOutput> {
+    ) -> CompilerResult<Bundle> {
         let setup = self.target_link_setup(package_id, target_id, context)?;
 
         // dispatch through the selected linker family

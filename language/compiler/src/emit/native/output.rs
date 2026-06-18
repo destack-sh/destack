@@ -1,13 +1,13 @@
 use crate::{Compiler, CompilerError, CompilerResult, DiagnosticAnchor, EmitError};
-use destack_artifact::{ModuleOutput, NativeOutput};
+use destack_artifact::{Object, ObjectFormat};
 use destack_codegen_native::CodegenCraneliftError;
 use destack_mir as mir;
 use destack_repository::{ArtifactReader, ProfileId, ProviderContext, Target};
 use destack_source::{Content, ModuleId, TargetId};
 
 impl Compiler {
-    /// Emit one native module output through the native backend.
-    pub(in crate::emit) fn emit_native_module_output(
+    /// Emit one native object through the native backend.
+    pub(in crate::emit) fn emit_object(
         &self,
         module_id: ModuleId,
         target: &Target,
@@ -15,7 +15,7 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
         artifacts: &ArtifactReader<'_>,
-    ) -> CompilerResult<ModuleOutput> {
+    ) -> CompilerResult<Object> {
         // load the owning module once for backend context
         let module = self.module(context.revision(), module_id)?;
 
@@ -54,9 +54,17 @@ impl Compiler {
         let content = self.repository.intern_content(Content::Binary {
             content: output.bytes,
         })?;
-        let artifact = NativeOutput::new(output.file_type, content, output.source_map);
+        let Some(format) = ObjectFormat::from_file_type(output.file_type) else {
+            return Err(EmitError::Internal {
+                anchor: module_id.into(),
+                module: module_id,
+                message: format!("unsupported native object file type {:?}", output.file_type),
+            }
+            .into());
+        };
+        let object = Object::new(format, content, output.source_map);
 
-        Ok(ModuleOutput::Native(Box::new(artifact)))
+        Ok(object)
     }
 
     /// Map one native backend error to a compiler error.

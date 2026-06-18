@@ -350,7 +350,7 @@ fn delete_loop(function: &mut mir::Function, tree: &mut mir::Tree, candidate: &D
     let preheader = tree.get(candidate.preheader).clone();
     let new_terminator = mir::Terminator::Jump {
         target: mir::BlockTarget::new(
-            candidate.exit_block.into(),
+            candidate.exit_block,
             tree.add_values(&candidate.exit_arguments),
         ),
     };

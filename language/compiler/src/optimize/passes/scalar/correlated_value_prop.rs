@@ -291,7 +291,7 @@ fn equality_condition(
         ..
     } = instruction
         && true
-        && let Some(nested) = value_to_instruction.get(&argument)
+        && let Some(nested) = value_to_instruction.get(argument)
         && let mir::Instruction::Binary {
             operator,
             left,
@@ -368,11 +368,11 @@ fn range_constraints_for_condition(
 
     // populate the constraint pair
     constraints.then_constraint = Some(RangeConstraint {
-        value: value,
+        value,
         range: then_range,
     });
     constraints.else_constraint = Some(RangeConstraint {
-        value: value,
+        value,
         range: else_range,
     });
 
@@ -571,7 +571,7 @@ fn apply_range_constraint(
             // replace with a constant when the outcome is known
             if let Some(result) = comparison {
                 let new_instruction = mir::Instruction::Const {
-                    destination: destination.into(),
+                    destination,
                     value: mir::Constant::Boolean { value: result },
                 };
                 tree.set(instruction_id, new_instruction);

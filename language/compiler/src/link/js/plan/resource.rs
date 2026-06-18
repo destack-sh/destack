@@ -1,7 +1,7 @@
 use crate::emit::js;
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use destack_artifact::{Data, EmitFormat, JsDeclaration, JsLanguage, JsOutput};
+use destack_artifact::{Data, Declaration, EmitFormat, Script, ScriptBody, ScriptLanguage};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_repository::Module;
@@ -289,14 +289,14 @@ impl<'a> JsLinker<'a> {
         Ok(target_layout.runtime_reference(current_output, &output_location))
     }
 
-    /// Build one resource JS output for one non-code module.
+    /// Build one asset JS output for one non-code module.
     pub(in crate::link::js) fn build_resource_js_output(
         &self,
         output_id: OutputId,
         module_id: ModuleId,
         output_graph: &OutputGraph,
         plan: &Plan,
-    ) -> LinkResult<JsOutput> {
+    ) -> LinkResult<Script> {
         let source_module = self.module(module_id)?;
         let source_module = source_module.as_ref();
         let profile_id = self.profile_id_for_module(module_id)?;
@@ -307,7 +307,7 @@ impl<'a> JsLinker<'a> {
                 anchor: (self.package_id).into(),
                 package: self.package_id,
                 message: format!(
-                    "missing bound DIR for resource module {:?} target '{}': {error:?}",
+                    "missing bound DIR for asset module {:?} target '{}': {error:?}",
                     module_id,
                     self.target_name()
                 ),
@@ -338,7 +338,7 @@ impl<'a> JsLinker<'a> {
         );
         let mut roots = vec![let_statement.into_any()];
 
-        // standalone resource outputs still need one module default export
+        // standalone asset outputs still need one module default export
         if should_export_default {
             let export_statement = insert_default_export_statement(
                 &mut tree,
@@ -356,8 +356,8 @@ impl<'a> JsLinker<'a> {
             strings,
         };
         let language = match self.target.emit {
-            EmitFormat::Js => JsLanguage::JavaScript,
-            EmitFormat::Ts => JsLanguage::TypeScript,
+            EmitFormat::Js => ScriptLanguage::JavaScript,
+            EmitFormat::Ts => ScriptLanguage::TypeScript,
             other => {
                 return Err(LinkError::Internal {
                     anchor: (self.package_id).into(),
@@ -368,21 +368,21 @@ impl<'a> JsLinker<'a> {
         };
         let declaration =
             if self.target.output.declaration && matches!(self.target.emit, EmitFormat::Js) {
-                Some(JsDeclaration::default())
+                Some(Declaration::default())
             } else {
                 None
             };
 
-        Ok(JsOutput {
+        Ok(Script {
             language,
-            module: script_module,
+            body: ScriptBody::EcmaScript(script_module),
             declaration,
-            source_map: None,
+            map: None,
             has_top_level_side_effects: false,
         })
     }
 
-    /// Link one final resource value for one non-code module.
+    /// Link one final asset value for one non-code module.
     fn resource_value(
         &self,
         output_id: OutputId,
@@ -474,7 +474,7 @@ impl<'a> JsLinker<'a> {
             anchor: (self.package_id).into(),
             package: self.package_id,
             message: format!(
-                "unsupported resource loader '{}' for module '{}'",
+                "unsupported asset loader '{}' for module '{}'",
                 module.loader.as_str(),
                 module.uri
             ),

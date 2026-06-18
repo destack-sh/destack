@@ -48,9 +48,7 @@ impl<'a> DropInsert<'a> {
                 match drop.release {
                     DropRelease::None => {}
                     DropRelease::Free(value) => {
-                        let instruction_id = self.tree.insert(mir::Instruction::Free {
-                            value: value.into(),
-                        });
+                        let instruction_id = self.tree.insert(mir::Instruction::Free { value });
                         let block = self.tree.get_mut(block_id);
 
                         block

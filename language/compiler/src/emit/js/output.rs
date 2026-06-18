@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    DirBound, DirCheckedModule, DirExpanded, DirImported, DirParsed, EmitFormat, JsDeclaration,
-    JsLanguage, JsOutput,
+    Declaration, DirBound, DirCheckedModule, DirExpanded, DirImported, DirParsed, EmitFormat,
+    Script, ScriptBody, ScriptLanguage,
 };
 use destack_core::StringPool;
 use destack_repository::{Module, Target};
@@ -11,9 +11,9 @@ use crate::EmitError;
 
 use super::lower::lower_module;
 
-/// One generator for JS module outputs.
+/// One generator for structured scripts.
 #[derive(Debug)]
-pub(crate) struct JsOutputGenerator<'a> {
+pub(crate) struct ScriptGenerator<'a> {
     /// The current module snapshot.
     module: Arc<Module>,
     /// The current parsed DIR.
@@ -32,8 +32,8 @@ pub(crate) struct JsOutputGenerator<'a> {
     target: &'a Target,
 }
 
-impl<'a> JsOutputGenerator<'a> {
-    /// Create one JS output generator.
+impl<'a> ScriptGenerator<'a> {
+    /// Create one script generator.
     pub(crate) fn new(
         module: Arc<Module>,
         parsed: Arc<DirParsed>,
@@ -56,8 +56,8 @@ impl<'a> JsOutputGenerator<'a> {
         }
     }
 
-    /// Emit one JS output.
-    pub(crate) fn emit(self) -> Result<(JsOutput, Vec<EmitError>), EmitError> {
+    /// Emit one structured script.
+    pub(crate) fn emit(self) -> Result<(Script, Vec<EmitError>), EmitError> {
         // validate target
         if !self.target.uses_js_emit_pipeline() {
             return Err(self.unsupported_target("expected JS, TS, or HTML".to_string()));
@@ -71,10 +71,10 @@ impl<'a> JsOutputGenerator<'a> {
         let expanded = self.expanded.as_ref();
         let checked = self.checked.as_ref();
 
-        // resource modules are linked directly in the JS linker
+        // asset modules are linked directly in the JS linker
         if !module.is_code() {
             return Err(self.internal_error(format!(
-                "resource JS outputs are linked directly for module '{}'",
+                "asset modules are linked directly for module '{}'",
                 module.uri
             )));
         }
@@ -92,29 +92,29 @@ impl<'a> JsOutputGenerator<'a> {
         let errors = lower.errors;
         let declaration =
             if self.target.output.declaration && matches!(self.target.emit, EmitFormat::Js) {
-                Some(JsDeclaration::default())
+                Some(Declaration::default())
             } else {
                 None
             };
 
         // language selection
         let language = match self.target.emit {
-            EmitFormat::Js => JsLanguage::JavaScript,
-            EmitFormat::Ts => JsLanguage::TypeScript,
+            EmitFormat::Js => ScriptLanguage::JavaScript,
+            EmitFormat::Ts => ScriptLanguage::TypeScript,
             _ => {
                 return Err(self.unsupported_target("expected JS, TS, or HTML".to_string()));
             }
         };
 
-        let artifact = JsOutput {
+        let script = Script {
             language,
-            module: lower.module,
+            body: ScriptBody::EcmaScript(lower.module),
             declaration,
-            source_map: None,
+            map: None,
             has_top_level_side_effects: true,
         };
 
-        Ok((artifact, errors))
+        Ok((script, errors))
     }
 
     /// Build one unsupported target error.

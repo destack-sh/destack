@@ -1,7 +1,7 @@
 use std::collections::{HashSet, VecDeque};
 
 use crate::emit::js::DependencyForm;
-use destack_artifact::{ArtifactDependencySet, ArtifactKey, ModuleOutput};
+use destack_artifact::{ArtifactDependencySet, ArtifactKey};
 use destack_repository::ProviderError;
 use destack_source::ModuleId;
 use indexmap::IndexSet;
@@ -113,14 +113,13 @@ impl<'a> JsLinker<'a> {
                 continue;
             }
 
-            let artifact = self.module_output(*module_id)?;
-
-            let ModuleOutput::Js(script) = artifact.as_ref() else {
+            let script = self.script(*module_id)?;
+            let Some(script) = script.ecmascript_module() else {
                 continue;
             };
 
             // retained static externals
-            for dependency in static_js_dependencies(&script.module) {
+            for dependency in static_js_dependencies(script) {
                 if !self.should_bundle_js_dependency(
                     self.module_anchor_span(*module_id)?,
                     self.package_id,
@@ -135,7 +134,7 @@ impl<'a> JsLinker<'a> {
             }
 
             // retained and bundled dynamic edges
-            for dependency in dynamic_js_dependencies(&script.module) {
+            for dependency in dynamic_js_dependencies(script) {
                 let Some(dependency_target) = &dependency.target else {
                     module_set.has_opaque_dynamic_imports = true;
                     continue;
@@ -209,7 +208,7 @@ impl<'a> JsLinker<'a> {
             let module = self.module(module_id)?;
             let profile_id = self.profile_id_for_module(module_id)?;
 
-            // resource modules link directly from patched module state
+            // asset modules link directly from patched module state
             if !module.is_code() {
                 dependencies.require(ArtifactKey::dir_checked(module_id, profile_id));
                 required_modules.push(module_id);
@@ -217,13 +216,13 @@ impl<'a> JsLinker<'a> {
             }
 
             // code modules link from emitted output and the checked dir
-            let output_key = ArtifactKey::module_output(module_id, *self.target_id);
+            let output_key = ArtifactKey::script(module_id, *self.target_id);
             dependencies.require(output_key);
             dependencies.require(ArtifactKey::dir_checked(module_id, profile_id));
             required_modules.push(module_id);
 
             // the bundle closure is revealed once the emitted output is built
-            match self.artifacts.module_output(module_id, *self.target_id) {
+            match self.artifacts.script(module_id, *self.target_id) {
                 Ok(_) => {}
                 Err(ProviderError::Blocked { .. }) => continue,
                 Err(error) => return Err(CompilerError::from(error)),
@@ -256,14 +255,14 @@ impl<'a> JsLinker<'a> {
         }
 
         let profile_id = self.profile_id_for_module(module_id)?;
-        let artifact = self.module_output(module_id)?;
-        let ModuleOutput::Js(script) = artifact.as_ref() else {
+        let script = self.script(module_id)?;
+        let Some(script) = script.ecmascript_module() else {
             return Ok(Vec::new());
         };
         let mut requirements = IndexSet::new();
 
         // collect bundled static dependency export tables
-        for dependency in static_js_dependencies(&script.module) {
+        for dependency in static_js_dependencies(script) {
             if dependency.form == DependencyForm::Type {
                 continue;
             }

@@ -562,7 +562,7 @@ fn replace_constant_calls(
         }
 
         // skip return constants that do not match the return type
-        let return_type = tree.get(function).return_type.clone();
+        let return_type = tree.get(function).return_type;
         let constant_type = constant_type_of(constant);
         if !constant_matches_type(
             constant_type,

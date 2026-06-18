@@ -1,4 +1,4 @@
-use destack_artifact::SourceMapArtifact;
+use destack_artifact::SourceMap;
 use destack_fir as fir;
 use destack_source::File;
 
@@ -67,11 +67,11 @@ impl SourceMapBuilder {
         &self,
         emitted_code: &str,
         trailing_unmapped_line_count: usize,
-    ) -> SourceMapArtifact {
+    ) -> SourceMap {
         let mappings =
             encode_source_map_mappings(emitted_code, trailing_unmapped_line_count, &self.markers);
 
-        SourceMapArtifact {
+        SourceMap {
             version: destack_artifact::SOURCE_MAP_VERSION,
             file: None,
             source_root: None,

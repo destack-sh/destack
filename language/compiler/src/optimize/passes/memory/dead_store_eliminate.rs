@@ -906,7 +906,6 @@ entry:
         let arg0 = mir::CallArgumentEffect {
             access: mir::ArgumentAccess::None,
             escape: mir::ArgumentEscape::None,
-            ..Default::default()
         };
 
         let call = mir::CallSite::Instruction(call_inst);

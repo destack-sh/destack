@@ -1772,18 +1772,17 @@ impl<'a> FunctionLowerer<'a> {
                 let field_id = fields.get(index as usize).ok_or_else(|| {
                     CodegenCraneliftError::out_of_bounds(node, index, fields.len())
                 })?;
-                self.tree.get(*field_id).ty.clone()
+                self.tree.get(*field_id).ty
             }
-            mir::Type::Tuple { elements, .. } => elements
+            mir::Type::Tuple { elements, .. } => *elements
                 .get(index as usize)
-                .ok_or_else(|| CodegenCraneliftError::out_of_bounds(node, index, elements.len()))?
-                .clone(),
+                .ok_or_else(|| CodegenCraneliftError::out_of_bounds(node, index, elements.len()))?,
             mir::Type::Closure {
                 signature,
                 environment,
             } => match index {
-                0 => signature.clone(),
-                1 => environment.clone(),
+                0 => *signature,
+                1 => *environment,
                 _ => return Err(CodegenCraneliftError::out_of_bounds(node, index, 2)),
             },
             _ => {
@@ -1792,8 +1791,6 @@ impl<'a> FunctionLowerer<'a> {
                 });
             }
         };
-
-        let field_type = field_type;
 
         let layout = self.tree.type_layout(aggregate_type).ok_or_else(|| {
             CodegenCraneliftError::unsupported_type("missing aggregate layout metadata", node)

@@ -174,10 +174,10 @@ fn run_reassociate(
 
                     // update the binary instruction with the rebuilt operands
                     let new_instruction = mir::Instruction::Binary {
-                        destination: destination.into(),
+                        destination,
                         operator,
-                        left: base.into(),
-                        right: last.into(),
+                        left: base,
+                        right: last,
                     };
                     tree.set(*instruction_id, new_instruction.clone());
                     value_to_instruction.insert(
@@ -462,10 +462,10 @@ fn rebuild_chain(
     for operand in &operands[1..operands.len() - 1] {
         let destination = function.next_typed_value(result_type);
         let instruction = mir::Instruction::Binary {
-            destination: destination.into(),
+            destination,
             operator,
-            left: current.into(),
-            right: (*operand).into(),
+            left: current,
+            right: (*operand),
         };
         let instruction_id = tree.insert(instruction);
         new_instructions.push(instruction_id);
@@ -523,7 +523,7 @@ fn resolve_constant_value(
     // insert a new constant instruction
     let destination = function.next_typed_value(result_type);
     let instruction = mir::Instruction::Const {
-        destination: destination.into(),
+        destination,
         value: constant,
     };
     let instruction_id = tree.insert(instruction);

@@ -620,7 +620,7 @@ fn unswitch_loop(
     let branch_block = tree.get(candidate.branch_block).clone();
     let branch_terminator = mir::Terminator::Jump {
         target: mir::BlockTarget::new(
-            candidate.then_target.into(),
+            candidate.then_target,
             tree.add_values(&candidate.then_arguments),
         ),
     };
@@ -640,7 +640,7 @@ fn unswitch_loop(
         .map(|v| *value_map.get(v).unwrap_or(v))
         .collect();
     let cloned_terminator = mir::Terminator::Jump {
-        target: mir::BlockTarget::new(else_target.into(), tree.add_values(&else_arguments)),
+        target: mir::BlockTarget::new(else_target, tree.add_values(&else_arguments)),
     };
     tree.set(cloned.terminator, cloned_terminator);
     tree.set(cloned_branch_block, cloned);
@@ -663,13 +663,13 @@ fn unswitch_loop(
         candidate.condition
     };
     let preheader_terminator = mir::Terminator::Branch {
-        condition: condition_value.into(),
+        condition: condition_value,
         then_target: mir::BlockTarget::new(
-            candidate.header.into(),
+            candidate.header,
             tree.add_values(&candidate.preheader_to_header_args),
         ),
         else_target: mir::BlockTarget::new(
-            cloned_header.into(),
+            cloned_header,
             tree.add_values(&candidate.preheader_to_header_args),
         ),
     };

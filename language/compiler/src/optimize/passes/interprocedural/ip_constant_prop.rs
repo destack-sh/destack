@@ -181,11 +181,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                     if let mir::CallDispatchKind::Direct = dispatch
                         && let mir::Instruction::Call { function, call, .. } = instruction
                     {
-                        let arguments = tree
-                            .get_values(call.arguments)
-                            .iter()
-                            .copied()
-                            .collect::<Vec<_>>();
+                        let arguments = tree.get_values(call.arguments).to_vec();
 
                         data.direct_calls
                             .entry(*function)

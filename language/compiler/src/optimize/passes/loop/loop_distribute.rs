@@ -463,7 +463,7 @@ fn collect_group_instructions(
         }
 
         // enqueue operand uses
-        worklist.extend(instruction.uses().into_iter());
+        worklist.extend(instruction.uses());
     }
 
     Some(instructions)
@@ -636,7 +636,7 @@ fn apply_distribution(
     let preheader_block = tree.get(candidate.preheader).clone();
     let new_terminator = mir::Terminator::Jump {
         target: mir::BlockTarget::new(
-            loop_instances[0].header.into(),
+            loop_instances[0].header,
             tree.add_values(&candidate.preheader_args),
         ),
     };
@@ -729,7 +729,7 @@ fn update_header_exit(
     } else {
         mir::ValueSlice::default()
     };
-    let exit_target = mir::BlockTarget::new(exit_target.into(), exit_arguments);
+    let exit_target = mir::BlockTarget::new(exit_target, exit_arguments);
 
     // rewrite the header terminator
     let new_terminator = if in_loop_is_then {

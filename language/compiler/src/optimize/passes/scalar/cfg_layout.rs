@@ -621,7 +621,7 @@ fn rewrite_hot_edge_target(
         && jump_target.block == target
     {
         return Some(mir::Terminator::Jump {
-            target: mir::BlockTarget::new(new_target.into(), mir::ValueSlice::default()),
+            target: mir::BlockTarget::new(new_target, mir::ValueSlice::default()),
         });
     }
 
@@ -635,10 +635,7 @@ fn rewrite_hot_edge_target(
             mir::Successor::BranchThen if then_target.block == target => {
                 Some(mir::Terminator::Branch {
                     condition: *condition,
-                    then_target: mir::BlockTarget::new(
-                        new_target.into(),
-                        mir::ValueSlice::default(),
-                    ),
+                    then_target: mir::BlockTarget::new(new_target, mir::ValueSlice::default()),
                     else_target: else_target.clone(),
                 })
             }
@@ -646,10 +643,7 @@ fn rewrite_hot_edge_target(
                 Some(mir::Terminator::Branch {
                     condition: *condition,
                     then_target: then_target.clone(),
-                    else_target: mir::BlockTarget::new(
-                        new_target.into(),
-                        mir::ValueSlice::default(),
-                    ),
+                    else_target: mir::BlockTarget::new(new_target, mir::ValueSlice::default()),
                 })
             }
             _ => None,
@@ -666,7 +660,7 @@ fn rewrite_hot_edge_target(
         return match successor {
             mir::Successor::CheckSuccess if success.block == target => {
                 let mut updated_success = success.clone();
-                updated_success.block = new_target.into();
+                updated_success.block = new_target;
                 updated_success.arguments = mir::ValueSlice::default();
                 Some(mir::Terminator::Check {
                     constraint: constraint.clone(),
@@ -676,7 +670,7 @@ fn rewrite_hot_edge_target(
             }
             mir::Successor::CheckFailure if failure.block == target => {
                 let mut updated_failure = failure.clone();
-                updated_failure.block = new_target.into();
+                updated_failure.block = new_target;
                 updated_failure.arguments = mir::ValueSlice::default();
                 Some(mir::Terminator::Check {
                     constraint: constraint.clone(),

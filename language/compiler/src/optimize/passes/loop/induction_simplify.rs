@@ -440,7 +440,7 @@ fn insert_offset_value(
     // materialize the offset constant
     let const_value = function.next_typed_value_like(base_value);
     let const_instruction = mir::Instruction::Const {
-        destination: const_value.into(),
+        destination: const_value,
         value: offset,
     };
     let const_id = tree.insert(const_instruction);
@@ -448,10 +448,10 @@ fn insert_offset_value(
     // materialize the adjusted value
     let adjusted_value = function.next_typed_value_like(base_value);
     let add_instruction = mir::Instruction::Binary {
-        destination: adjusted_value.into(),
+        destination: adjusted_value,
         operator: mir::BinaryOperator::Add,
-        left: base_value.into(),
-        right: const_value.into(),
+        left: base_value,
+        right: const_value,
     };
     let add_id = tree.insert(add_instruction);
 

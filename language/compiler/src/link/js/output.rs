@@ -7,7 +7,7 @@ use crate::emit::js::{
 use crate::link::{OutputLayout, SourceMapBuilder, SourceMapMarker};
 use crate::{Compiler, CompilerError, CompilerResult, JsLinker};
 use base64::Engine as _;
-use destack_artifact::{EmitFormat, JsOutput, OutputFile, SourceMapArtifact};
+use destack_artifact::{BundleFile, BundleSection, EmitFormat, Script, SourceMap};
 use destack_repository::{Module, ProviderContext, SourceMapMode, Target};
 use destack_source::{Content, FileType, ModuleId, Uri};
 
@@ -51,20 +51,20 @@ impl<'a> JsTextOutputPolicy<'a> {
     }
 
     /// Append one source map reference when the target wants one.
-    fn annotate_js_text_with_source_map(
+    fn annotate_js_text_with_map(
         self,
         code: String,
-        source_map: Option<&SourceMapArtifact>,
-        source_map_reference: Option<String>,
+        map: Option<&SourceMap>,
+        map_reference: Option<String>,
     ) -> Result<String, String> {
         // inline source maps stay in the text payload only
         if self.target.uses_inline_source_maps() {
-            let Some(source_map) = source_map else {
+            let Some(map) = map else {
                 return Ok(code);
             };
-            let inline_map = self.inline_source_map_url(source_map)?;
+            let inline_map = self.inline_map_url(map)?;
 
-            return Ok(self.append_source_map_reference(code, &inline_map));
+            return Ok(self.append_map_reference(code, &inline_map));
         }
 
         // hidden maps emit sidecar outputs but do not annotate the text payload
@@ -74,11 +74,11 @@ impl<'a> JsTextOutputPolicy<'a> {
             return Ok(code);
         }
 
-        let Some(source_map_reference) = source_map_reference else {
+        let Some(map_reference) = map_reference else {
             return Ok(code);
         };
 
-        Ok(self.append_source_map_reference(code, &source_map_reference))
+        Ok(self.append_map_reference(code, &map_reference))
     }
 
     /// Apply configured banner and footer text to one final JS payload.
@@ -129,16 +129,12 @@ impl<'a> JsTextOutputPolicy<'a> {
     }
 
     /// Return the number of unmapped annotation lines appended after mapped JS code.
-    fn source_map_annotation_line_count(
-        self,
-        has_source_map: bool,
-        has_source_map_reference: bool,
-    ) -> usize {
-        if self.target.uses_inline_source_maps() && has_source_map {
+    fn map_annotation_line_count(self, has_map: bool, has_map_reference: bool) -> usize {
+        if self.target.uses_inline_source_maps() && has_map {
             return 1;
         }
 
-        if has_source_map_reference {
+        if has_map_reference {
             return 1;
         }
 
@@ -146,10 +142,10 @@ impl<'a> JsTextOutputPolicy<'a> {
     }
 
     /// Build one inline source map data URL.
-    fn inline_source_map_url(self, source_map: &SourceMapArtifact) -> Result<String, String> {
-        let source_map = serde_json::to_string(source_map)
+    fn inline_map_url(self, map: &SourceMap) -> Result<String, String> {
+        let map = serde_json::to_string(map)
             .map_err(|error| format!("failed to serialize inline source map: {error}"))?;
-        let encoded = base64::engine::general_purpose::STANDARD.encode(source_map.as_bytes());
+        let encoded = base64::engine::general_purpose::STANDARD.encode(map.as_bytes());
 
         Ok(format!(
             "data:application/json;charset=utf-8;base64,{encoded}"
@@ -157,7 +153,7 @@ impl<'a> JsTextOutputPolicy<'a> {
     }
 
     /// Append one source map reference comment to one text payload.
-    fn append_source_map_reference(self, mut code: String, reference: &str) -> String {
+    fn append_map_reference(self, mut code: String, reference: &str) -> String {
         if !code.is_empty() && !code.ends_with('\n') {
             code.push('\n');
         }
@@ -203,7 +199,7 @@ impl JsLinker<'_> {
     }
 
     /// Build one source map builder for one linked JS module.
-    fn script_module_source_map(
+    fn script_module_map(
         &self,
         package_dir: &Path,
         module: &Module,
@@ -233,19 +229,19 @@ impl JsLinker<'_> {
         file_type: FileType,
         output_path: &Path,
         printed: PrintedJsModule,
-        source_map_path: Option<&Path>,
+        map_path: Option<&Path>,
         context: &dyn ProviderContext,
-    ) -> CompilerResult<Vec<OutputFile>> {
+    ) -> CompilerResult<Vec<BundleFile>> {
         // source map
-        let source_map = self.script_module_source_map(package_dir, module, &printed, context)?;
+        let map = self.script_module_map(package_dir, module, &printed, context)?;
 
         self.link_script_text_files(
             target,
             file_type,
             output_path,
             printed.code,
-            Some(source_map),
-            source_map_path,
+            Some(map),
+            map_path,
         )
         .map_err(|message| CompilerError::Internal { message })
     }
@@ -254,17 +250,21 @@ impl JsLinker<'_> {
     fn link_printed_script_files(
         &self,
         module: &Module,
-        artifact: &JsOutput,
+        artifact: &Script,
         target: &Target,
         package_dir: &Path,
         file_type: FileType,
         output_path: &Path,
-        source_map_path: Option<&Path>,
+        map_path: Option<&Path>,
         context: &dyn ProviderContext,
-    ) -> CompilerResult<Vec<OutputFile>> {
+    ) -> CompilerResult<Vec<BundleFile>> {
         // print once
-        let printed =
-            self.print_js_module(module.id, target, file_type, &artifact.module, context)?;
+        let Some(script) = artifact.ecmascript_module() else {
+            return Err(CompilerError::Internal {
+                message: format!("expected ECMAScript script for module {:?}", module.id),
+            });
+        };
+        let printed = self.print_js_module(module.id, target, file_type, script, context)?;
 
         // JS text
         if matches!(file_type, FileType::JavaScript | FileType::TypeScript) {
@@ -275,7 +275,7 @@ impl JsLinker<'_> {
                 file_type,
                 output_path,
                 printed,
-                source_map_path,
+                map_path,
                 context,
             );
         }
@@ -293,7 +293,7 @@ impl JsLinker<'_> {
         target: &Target,
         package_dir: &Path,
         root_dir: Option<&Path>,
-    ) -> Result<OutputFile, String> {
+    ) -> Result<BundleFile, String> {
         let output_path = OutputLayout::module_output_path(
             package_dir,
             root_dir,
@@ -306,6 +306,7 @@ impl JsLinker<'_> {
 
         self.compiler
             .intern_output_file(
+                BundleSection::Declaration,
                 Uri::from_path(&output_path),
                 FileType::TypeScriptDeclaration,
                 content,
@@ -318,16 +319,16 @@ impl JsLinker<'_> {
     pub(crate) fn link_js_output_files(
         &self,
         module: &Module,
-        artifact: &JsOutput,
+        artifact: &Script,
         target: &Target,
         package_dir: &Path,
         root_dir: Option<&Path>,
         context: &dyn ProviderContext,
-    ) -> CompilerResult<Vec<OutputFile>> {
+    ) -> CompilerResult<Vec<BundleFile>> {
         let mut entries = Vec::new();
         let file_types = linked_script_file_types(target)
             .map_err(|message| CompilerError::Internal { message })?;
-        let source_map_path = file_types
+        let map_path = file_types
             .contains(&FileType::SourceMap)
             .then(|| {
                 OutputLayout::module_output_path(
@@ -361,7 +362,7 @@ impl JsLinker<'_> {
                 package_dir,
                 *file_type,
                 &output_path,
-                source_map_path.as_deref(),
+                map_path.as_deref(),
                 context,
             )?;
 
@@ -395,57 +396,58 @@ impl JsLinker<'_> {
         file_type: FileType,
         output_path: &Path,
         code: String,
-        source_map: Option<SourceMapBuilder>,
-        source_map_path: Option<&Path>,
-    ) -> Result<Vec<OutputFile>, String> {
+        map: Option<SourceMapBuilder>,
+        map_path: Option<&Path>,
+    ) -> Result<Vec<BundleFile>, String> {
         let output_policy = JsTextOutputPolicy::new(target);
-        let source_map_reference =
-            source_map_path.map(|path| relative_source_map_reference(output_path, path));
+        let map_reference = map_path.map(|path| relative_map_reference(output_path, path));
         let shaped_code = output_policy.shape_js_text(code, file_type)?;
-        let mut source_map = source_map;
-        let has_source_map = source_map.is_some();
+        let mut map = map;
+        let has_map = map.is_some();
 
         // banner bytes shift every emitted marker forward in the final output
-        if let Some(source_map) = &mut source_map {
-            source_map.prepend_emitted_bytes(output_policy.js_banner_prefix_byte_count());
+        if let Some(map) = &mut map {
+            map.prepend_emitted_bytes(output_policy.js_banner_prefix_byte_count());
         }
-        let source_map = source_map.map(|source_map| {
-            source_map.build(
+        let map = map.map(|map| {
+            map.build(
                 &shaped_code,
-                output_policy.source_map_annotation_line_count(
-                    has_source_map,
-                    source_map_reference.is_some(),
-                ),
+                output_policy.map_annotation_line_count(has_map, map_reference.is_some()),
             )
         });
 
-        let code = output_policy.annotate_js_text_with_source_map(
-            shaped_code,
-            source_map.as_ref(),
-            source_map_reference,
-        )?;
+        let code =
+            output_policy.annotate_js_text_with_map(shaped_code, map.as_ref(), map_reference)?;
         let content = output_policy.js_content(file_type, code)?;
+        let section = self.bundle_section_for_file(file_type);
         let mut files = vec![
             self.compiler
-                .intern_output_file(Uri::from_path(output_path), file_type, content, None)
+                .intern_output_file(
+                    section,
+                    Uri::from_path(output_path),
+                    file_type,
+                    content,
+                    None,
+                )
                 .map_err(|error| error.to_string())?,
         ];
 
-        let Some(source_map) = source_map.as_ref() else {
+        let Some(map) = map.as_ref() else {
             return Ok(files);
         };
 
-        let Some(source_map_path) = source_map_path else {
+        let Some(map_path) = map_path else {
             return Ok(files);
         };
 
-        let content = Compiler::source_map_content(source_map)
+        let content = Compiler::source_map_content(map)
             .map_err(|error| format!("failed to serialize source map: {error}"))?;
 
         files.push(
             self.compiler
                 .intern_output_file(
-                    Uri::from_path(source_map_path),
+                    BundleSection::SourceMap,
+                    Uri::from_path(map_path),
                     FileType::SourceMap,
                     content,
                     None,
@@ -458,8 +460,8 @@ impl JsLinker<'_> {
 }
 
 /// Build one relative source map reference from one output path.
-fn relative_source_map_reference(output_path: &Path, source_map_path: &Path) -> String {
-    let relative = relative_path_between(output_path, source_map_path);
+fn relative_map_reference(output_path: &Path, map_path: &Path) -> String {
+    let relative = relative_path_between(output_path, map_path);
     let relative = relative.to_string_lossy().replace('\\', "/");
 
     if relative.starts_with('.') {

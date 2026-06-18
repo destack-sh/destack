@@ -1,4 +1,4 @@
-use destack_artifact::OutputFile;
+use destack_artifact::{BundleFile, BundleSection};
 use destack_repository::RepositoryError;
 use destack_source::{Content, FileType, ModuleId, Uri};
 
@@ -95,8 +95,9 @@ impl Asset {
         &self,
         output_location: &OutputLocation,
         compiler: &Compiler,
-    ) -> Result<OutputFile, RepositoryError> {
+    ) -> Result<BundleFile, RepositoryError> {
         compiler.intern_output_file(
+            BundleSection::Asset,
             Uri::from_path(output_location.path()),
             self.file_type,
             self.content.clone(),

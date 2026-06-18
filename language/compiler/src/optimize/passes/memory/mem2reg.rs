@@ -185,11 +185,11 @@ fn find_promotable_locals(
         .locals
         .iter()
         .filter(|local_id| !address_taken.contains(local_id))
-        .filter_map(|&local_id| {
+        .map(|&local_id| {
             let local = tree.get(local_id);
             let ty = local.ty;
 
-            Some((local_id, PromotableLocal { ty }))
+            (local_id, PromotableLocal { ty })
         })
         .collect()
 }
@@ -404,8 +404,8 @@ fn insert_block_parameters(
             let param_value = function.next_typed_value(ty);
 
             block.parameters.push(mir::Parameter {
-                value: param_value.into(),
-                ty: ty.into(),
+                value: param_value,
+                ty,
             });
 
             block_params.insert((block_id, local), param_value);
@@ -713,7 +713,7 @@ fn update_terminator_arguments(
                 },
                 mir::CheckConstraint::Type { value, expected } => mir::CheckConstraint::Type {
                     value: remap_value_reference(*value, substitutions),
-                    expected: expected.clone(),
+                    expected: *expected,
                 },
                 mir::CheckConstraint::Variant { value, expected } => {
                     mir::CheckConstraint::Variant {
@@ -724,13 +724,13 @@ fn update_terminator_arguments(
                 mir::CheckConstraint::ReceiverType { receiver, expected } => {
                     mir::CheckConstraint::ReceiverType {
                         receiver: remap_value_reference(*receiver, substitutions),
-                        expected: expected.clone(),
+                        expected: *expected,
                     }
                 }
                 mir::CheckConstraint::Implements { receiver, expected } => {
                     mir::CheckConstraint::Implements {
                         receiver: remap_value_reference(*receiver, substitutions),
-                        expected: expected.clone(),
+                        expected: *expected,
                     }
                 }
             };
@@ -745,7 +745,7 @@ fn update_terminator_arguments(
             success,
             failure,
         } => mir::Terminator::NewZeroedTry {
-            layout: layout.clone(),
+            layout: *layout,
             success: extend_target(tree, success, block_params, value_stacks, substitutions),
             failure: extend_target(tree, failure, block_params, value_stacks, substitutions),
         },
@@ -754,7 +754,7 @@ fn update_terminator_arguments(
             success,
             failure,
         } => mir::Terminator::NewUninitTry {
-            layout: layout.clone(),
+            layout: *layout,
             success: extend_target(tree, success, block_params, value_stacks, substitutions),
             failure: extend_target(tree, failure, block_params, value_stacks, substitutions),
         },
@@ -764,7 +764,7 @@ fn update_terminator_arguments(
             success,
             failure,
         } => mir::Terminator::NewSliceZeroedTry {
-            element: element.clone(),
+            element: *element,
             length: remap_value_reference(*length, substitutions),
             success: extend_target(tree, success, block_params, value_stacks, substitutions),
             failure: extend_target(tree, failure, block_params, value_stacks, substitutions),
@@ -775,7 +775,7 @@ fn update_terminator_arguments(
             success,
             failure,
         } => mir::Terminator::NewSliceUninitTry {
-            element: element.clone(),
+            element: *element,
             length: remap_value_reference(*length, substitutions),
             success: extend_target(tree, success, block_params, value_stacks, substitutions),
             failure: extend_target(tree, failure, block_params, value_stacks, substitutions),
@@ -868,7 +868,7 @@ fn update_terminator_arguments(
         } => mir::Terminator::CallVirtual {
             receiver: remap_value_reference(*receiver, substitutions),
             call: remap_call(tree, call, substitutions),
-            class: class.clone(),
+            class: *class,
             slot: *slot,
             target: extend_target(tree, target, block_params, value_stacks, substitutions),
             unwind: unwind.as_ref().map(|unwind| {
@@ -885,7 +885,7 @@ fn update_terminator_arguments(
         } => mir::Terminator::CallDynamic {
             receiver: remap_value_reference(*receiver, substitutions),
             call: remap_call(tree, call, substitutions),
-            constraint: constraint.clone(),
+            constraint: *constraint,
             slot: *slot,
             target: extend_target(tree, target, block_params, value_stacks, substitutions),
             unwind: unwind.as_ref().map(|unwind| {
@@ -916,7 +916,7 @@ fn update_terminator_arguments(
         } => mir::Terminator::TailCallVirtual {
             receiver: remap_value_reference(*receiver, substitutions),
             call: remap_call(tree, call, substitutions),
-            class: class.clone(),
+            class: *class,
             slot: *slot,
         },
         mir::Terminator::TailCallDynamic {
@@ -927,7 +927,7 @@ fn update_terminator_arguments(
         } => mir::Terminator::TailCallDynamic {
             receiver: remap_value_reference(*receiver, substitutions),
             call: remap_call(tree, call, substitutions),
-            constraint: constraint.clone(),
+            constraint: *constraint,
             slot: *slot,
         },
         mir::Terminator::TailCallIndirect { callee, call } => mir::Terminator::TailCallIndirect {
@@ -1016,7 +1016,7 @@ fn extend_arguments(
                 )
             });
 
-        args.push(resolve_value(value, substitutions).into());
+        args.push(resolve_value(value, substitutions));
     }
 
     args

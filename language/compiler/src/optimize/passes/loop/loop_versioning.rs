@@ -286,8 +286,8 @@ fn run_loop_versioning(
         let preheader_args = tree.add_values(&preheader_args);
         let preheader_terminator = mir::Terminator::Branch {
             condition,
-            then_target: mir::BlockTarget::new(fast_header.into(), preheader_args),
-            else_target: mir::BlockTarget::new(header.into(), preheader_args),
+            then_target: mir::BlockTarget::new(fast_header, preheader_args),
+            else_target: mir::BlockTarget::new(header, preheader_args),
         };
         tree.set(preheader_block.terminator, preheader_terminator);
         tree.set(preheader, preheader_block);
@@ -365,7 +365,7 @@ fn guard_from_header(
     }
 
     // locate the guard instruction that produces the condition
-    let definition = use_def.def_block.get(&condition)?;
+    let definition = use_def.def_block.get(condition)?;
     let block = tree.get(*definition);
     let inst_id = block
         .instructions
@@ -398,7 +398,7 @@ fn guard_from_header(
         .iter()
         .map(|parameter| parameter.value)
         .collect();
-    if !header_params.contains(&induction) {
+    if !header_params.contains(induction) {
         return None;
     }
 
@@ -517,10 +517,10 @@ fn insert_preheader_guard(
     let bool_type = tree.boolean_type();
     let destination = function.next_typed_value(bool_type);
     let guard = mir::Instruction::Binary {
-        destination: destination.into(),
+        destination,
         operator: mir::BinaryOperator::UnsignedLessEqual,
-        left: bound.into(),
-        right: length.into(),
+        left: bound,
+        right: length,
     };
     let guard_id = tree.insert(guard);
 
@@ -573,17 +573,17 @@ fn preheader_guard_bound(
     // build a constant one value for the add
     let one_value = function.next_typed_value_like(bound);
     let one_inst = tree.insert(mir::Instruction::Const {
-        destination: one_value.into(),
+        destination: one_value,
         value: mir::Constant::UInt { value: 1, width },
     });
 
     // build the incremented bound
     let add_value = function.next_typed_value_like(bound);
     let add_inst = tree.insert(mir::Instruction::Binary {
-        destination: add_value.into(),
+        destination: add_value,
         operator: mir::BinaryOperator::Add,
-        left: bound.into(),
-        right: one_value.into(),
+        left: bound,
+        right: one_value,
     });
 
     Some((vec![one_inst, add_inst], add_value))

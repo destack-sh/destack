@@ -1,13 +1,10 @@
 use crate::{Compiler, CompilerResult, LinkError};
-use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ProductEntry, ProductManifest, ProductOutput, ProductUnit,
-    TargetOutputName,
-};
+use destack_artifact::{ArtifactDependencySet, ArtifactKey, Product, ProductTarget};
 use destack_repository::{ArtifactReader, ProviderContext, RepositoryError, Target};
 use destack_source::{PackageId, ProductId, TargetId};
 use indexmap::IndexMap;
 
-/// Linker for one product image.
+/// Linker for one product.
 pub(crate) struct ProductLinker<'a> {
     /// The active compiler.
     compiler: &'a Compiler,
@@ -17,7 +14,7 @@ pub(crate) struct ProductLinker<'a> {
     package: PackageId,
     /// The configured product name.
     product_name: String,
-    /// The configured product target bindings in stable role order.
+    /// The configured product target bindings in stable order.
     targets: Vec<(String, String, TargetId, Target)>,
 }
 
@@ -47,65 +44,65 @@ impl<'a> ProductLinker<'a> {
         })
     }
 
-    /// Collect inputs for this product output.
+    /// Collect inputs for this product.
     pub(crate) fn collect(&self) -> CompilerResult<ArtifactDependencySet> {
         let mut dependencies = ArtifactDependencySet::default();
         self.compiler
             .observe_package_config(self.context, self.package, &mut dependencies)?;
 
-        // require each linked package target in stable role order
-        for (_, _, target_id, _) in &self.targets {
-            dependencies.require(ArtifactKey::package_output(self.package, *target_id));
+        // require each linked target artifact in stable order
+        for (_, _, target_id, target) in &self.targets {
+            for key in self.required_artifact_keys(*target_id, target) {
+                dependencies.require(key);
+            }
         }
 
         Ok(dependencies)
     }
 
-    /// Link this product output.
-    pub(crate) fn link(&self, artifacts: &ArtifactReader<'_>) -> CompilerResult<ProductOutput> {
-        let mut units = IndexMap::with_capacity(self.targets.len());
-        let mut entries = Vec::new();
-        let mut files = Vec::new();
+    /// Link this product.
+    pub(crate) fn link(&self, _artifacts: &ArtifactReader<'_>) -> CompilerResult<Product> {
+        let mut targets = IndexMap::with_capacity(self.targets.len());
 
-        // gather each already-linked package target output into product units
+        // gather each already-linked target artifact into the product
         for (key, target_name, target_id, target) in &self.targets {
-            let output = artifacts.package_output(self.package, *target_id)?;
-            let mut unit_outputs = IndexMap::with_capacity(output.outputs.len());
-
-            // record unit file groups and launchable entries
-            for (output_name, output_files) in &output.outputs {
-                let uris = output_files
-                    .iter()
-                    .map(|file| file.uri.clone())
-                    .collect::<Vec<_>>();
-
-                if *output_name == TargetOutputName::Entry {
-                    entries.extend(
-                        uris.iter()
-                            .cloned()
-                            .map(|uri| ProductEntry::new(key.clone(), uri)),
-                    );
-                }
-
-                unit_outputs.insert(*output_name, uris);
-            }
-
-            // copy package files into the product image
-            files.extend(output.files().cloned());
-
-            let unit = ProductUnit::new(
-                target_name.clone(),
-                target.runtime(),
-                target.host,
-                target.platform,
-                unit_outputs,
-            );
-            units.insert(key.clone(), unit);
+            let linked_target = self.linked_target(target_name.clone(), *target_id, target);
+            targets.insert(key.clone(), linked_target);
         }
 
-        let manifest = ProductManifest::new(self.product_name.clone(), units, entries);
+        Ok(Product::new(self.product_name.clone(), targets))
+    }
 
-        Ok(ProductOutput::new(manifest, files))
+    /// Return the artifacts required by one product target.
+    fn required_artifact_keys(&self, target: TargetId, config: &Target) -> Vec<ArtifactKey> {
+        if config.emit.is_native_family() {
+            vec![ArtifactKey::program(self.package, target)]
+        } else {
+            vec![ArtifactKey::bundle(self.package, target)]
+        }
+    }
+
+    /// Link one product target descriptor.
+    fn linked_target(
+        &self,
+        target_name: String,
+        target: TargetId,
+        config: &Target,
+    ) -> ProductTarget {
+        let includes_bundle = !config.emit.is_native_family();
+
+        let includes_program = config.emit.is_native_family();
+
+        ProductTarget::new(
+            target_name,
+            target,
+            config.runtime(),
+            config.host,
+            config.platform,
+            false,
+            includes_bundle,
+            includes_program,
+        )
     }
 }
 

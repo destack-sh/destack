@@ -151,7 +151,7 @@ impl TestModuleBuilder {
             position: js::PostfixPosition::Direct,
             left,
             generic_arguments: vec![],
-            arguments: arguments,
+            arguments,
         })
     }
 

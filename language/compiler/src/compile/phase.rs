@@ -1,7 +1,7 @@
 /// Phase label for compiler diagnostics.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
-pub enum CompilePhase {
+pub enum CompilerPhase {
     /// Bind source into base DIR.
     Bind = 1,
     /// Resolve import specifiers into module tables.
@@ -24,19 +24,19 @@ pub enum CompilePhase {
     Verify = 10,
     /// Optimize MIR.
     Optimize = 11,
-    /// Emit module output artifacts from compiler products.
+    /// Emit per-module target artifacts.
     Emit = 12,
-    /// Link emitted artifacts into package artifacts.
+    /// Link target and product artifacts.
     Link = 13,
 }
 
-impl std::fmt::Display for CompilePhase {
+impl std::fmt::Display for CompilerPhase {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(formatter, "{}", self.letter())
     }
 }
 
-impl CompilePhase {
+impl CompilerPhase {
     /// Return the numeric code for this phase.
     pub fn code(&self) -> u8 {
         *self as u8
@@ -75,8 +75,8 @@ impl CompilePhase {
             Self::Lower => "lower DIR into MIR",
             Self::Verify => "verify MIR semantic invariants",
             Self::Optimize => "optimize MIR",
-            Self::Emit => "emit module output artifacts",
-            Self::Link => "link emitted artifacts",
+            Self::Emit => "emit per-module target artifacts",
+            Self::Link => "link target and product artifacts",
         }
     }
 
@@ -100,7 +100,7 @@ impl CompilePhase {
     }
 
     /// All phases in build order.
-    pub const ALL: [CompilePhase; 13] = [
+    pub const ALL: [CompilerPhase; 13] = [
         Self::Bind,
         Self::Import,
         Self::Expand,
@@ -117,7 +117,7 @@ impl CompilePhase {
     ];
 
     /// Iterate over all phases in build order.
-    pub fn all() -> impl Iterator<Item = CompilePhase> {
+    pub fn all() -> impl Iterator<Item = CompilerPhase> {
         Self::ALL.into_iter()
     }
 }

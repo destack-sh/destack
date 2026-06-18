@@ -1,15 +1,13 @@
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, BuildManifest, BuildManifestFile, ModuleOutput, OutputFile,
-    PackageOutput, TargetOutputName,
+    ArtifactDependencySet, ArtifactKey, BuildManifest, BuildManifestFile, Bundle, BundleFile,
 };
-use destack_source::{FileType, ModuleId};
-use indexmap::IndexMap;
+use destack_source::ModuleId;
 
 use crate::link::TargetLocation;
 use crate::{Compiler, CompilerError, CompilerResult, LinkError, LinkResult};
 
 use super::NativeLinker;
-use super::output::link_native_output_files;
+use super::output::link_object_files;
 
 impl<'a> NativeLinker<'a> {
     /// Declare the emitted outputs needed to link one native target.
@@ -19,15 +17,12 @@ impl<'a> NativeLinker<'a> {
         dependencies: &mut ArtifactDependencySet,
     ) {
         for module_id in discovered_modules {
-            dependencies.require(ArtifactKey::module_output(*module_id, *self.target_id));
+            dependencies.require(ArtifactKey::object(*module_id, *self.target_id));
         }
     }
 
     /// Link one discovered native target.
-    pub(crate) fn link_target(
-        &self,
-        discovered_modules: &[ModuleId],
-    ) -> CompilerResult<PackageOutput> {
+    pub(crate) fn link_target(&self, discovered_modules: &[ModuleId]) -> CompilerResult<Bundle> {
         let mut module_ids = discovered_modules.to_vec();
         module_ids.sort_unstable();
         module_ids.dedup();
@@ -35,11 +30,11 @@ impl<'a> NativeLinker<'a> {
         self.link(&module_ids).map_err(CompilerError::from)
     }
 
-    /// Link one native target from emitted module outputs.
-    pub(crate) fn link(&self, module_ids: &[ModuleId]) -> LinkResult<PackageOutput> {
+    /// Link one native target from emitted objects.
+    pub(crate) fn link(&self, module_ids: &[ModuleId]) -> LinkResult<Bundle> {
         // rendered files
         let files = self.render_files(module_ids)?;
-        let mut output = self.build_package_output(files);
+        let mut output = self.build_bundle(files);
 
         // optional manifest
         if self.target.js.output.manifest {
@@ -63,45 +58,33 @@ impl<'a> NativeLinker<'a> {
         Ok(output)
     }
 
-    /// Render final output files from emitted native outputs.
-    fn render_files(&self, module_ids: &[ModuleId]) -> LinkResult<Vec<OutputFile>> {
+    /// Render final output files from emitted object assets.
+    fn render_files(&self, module_ids: &[ModuleId]) -> LinkResult<Vec<BundleFile>> {
         let mut files = Vec::new();
 
-        // render each emitted native output into final target files
+        // render each emitted object into final target files
         for module_id in module_ids {
-            let artifact = self
+            let object = self
                 .artifacts
-                .module_output(*module_id, *self.target_id)
+                .object(*module_id, *self.target_id)
                 .map_err(|error| LinkError::Internal {
                     anchor: (self.package_id).into(),
                     package: self.package_id,
                     message: format!(
-                        "missing module output for module {:?} target '{}': {error:?}",
+                        "missing object for module {:?} target '{}': {error:?}",
                         module_id,
                         self.target_name()
                     ),
                 })?;
 
-            let ModuleOutput::Native(native) = artifact.as_ref() else {
-                return Err(LinkError::Internal {
-                    anchor: (self.package_id).into(),
-                    package: self.package_id,
-                    message: format!(
-                        "expected native output for module {:?} target '{}'",
-                        module_id,
-                        self.target_name()
-                    ),
-                });
-            };
-
             let module = self
                 .compiler
                 .module(self.context.revision(), *module_id)
                 .map_err(|error| Compiler::link_error(self.package_id, error))?;
-            let native_files = link_native_output_files(
+            let native_files = link_object_files(
                 self.compiler,
                 module.as_ref(),
-                native,
+                object.as_ref(),
                 self.target,
                 self.package_dir,
                 self.root_dir,
@@ -110,7 +93,7 @@ impl<'a> NativeLinker<'a> {
                 anchor: (self.package_id).into(),
                 package: self.package_id,
                 message: format!(
-                    "failed to render native output for module {:?}: unsupported file type {:?}",
+                    "failed to render object for module {:?}: unsupported file type {:?}",
                     module_id, error.file_type
                 ),
             })?;
@@ -122,56 +105,41 @@ impl<'a> NativeLinker<'a> {
     }
 
     /// Build the packaged native output groups for this target.
-    fn build_package_output(&self, files: Vec<OutputFile>) -> PackageOutput {
-        let mut outputs = IndexMap::new();
-
-        // group linked native files by their emitted output role
-        for file in files {
-            let output_name = self.target_output_name_for_file(file.file_type);
-
-            outputs
-                .entry(output_name)
-                .or_insert_with(Vec::new)
-                .push(file);
-        }
-
-        PackageOutput::new(
+    fn build_bundle(&self, files: Vec<BundleFile>) -> Bundle {
+        Bundle::new(
             self.target.emit,
             Compiler::package_assembly(self.target.js.mode),
-            outputs,
+            files,
         )
     }
 
     /// Build the public build manifest for this native target.
-    fn build_manifest(&self, output: &PackageOutput) -> BuildManifest {
+    fn build_manifest(&self, output: &Bundle) -> BuildManifest {
         let output_layout = TargetLocation::new(self.package_dir, self.target, self.target_name());
         let mut files = output
-            .outputs
-            .values()
-            .flat_map(|files| {
-                files.iter().map(|file| {
-                    let path = self
-                        .compiler
-                        .file_output_location(&output_layout, file)
-                        .map(|output_location| output_layout.manifest_path(&output_location))
-                        .unwrap_or_else(|| {
-                            self.compiler
-                                .package_relative_uri_path(self.package_dir, &file.uri)
-                        });
+            .files()
+            .map(|file| {
+                let path = self
+                    .compiler
+                    .file_output_location(&output_layout, file)
+                    .map(|output_location| output_layout.manifest_path(&output_location))
+                    .unwrap_or_else(|| {
+                        self.compiler
+                            .package_relative_uri_path(self.package_dir, &file.uri)
+                    });
 
-                    BuildManifestFile {
-                        path,
-                        r#type: self.compiler.build_manifest_file_type(file),
-                        loader: self.compiler.build_manifest_loader(file),
-                        name: None,
-                        input: None,
-                        is_entry: None,
-                        is_dynamic_entry: None,
-                        imports: Vec::new(),
-                        dynamic_imports: Vec::new(),
-                        stylesheets: Vec::new(),
-                    }
-                })
+                BuildManifestFile {
+                    path,
+                    r#type: self.compiler.build_manifest_file_type(file),
+                    loader: self.compiler.build_manifest_loader(file),
+                    name: None,
+                    input: None,
+                    is_entry: None,
+                    is_dynamic_entry: None,
+                    imports: Vec::new(),
+                    dynamic_imports: Vec::new(),
+                    stylesheets: Vec::new(),
+                }
             })
             .collect::<Vec<_>>();
 
@@ -179,14 +147,5 @@ impl<'a> NativeLinker<'a> {
         files.sort_by(|left, right| left.path.cmp(&right.path));
 
         BuildManifest { index: None, files }
-    }
-
-    /// Return the grouped output name for one emitted native file.
-    fn target_output_name_for_file(&self, file_type: FileType) -> TargetOutputName {
-        match file_type {
-            FileType::SourceMap => TargetOutputName::Maps,
-            FileType::Object | FileType::Wasm => TargetOutputName::Native,
-            _ => TargetOutputName::Assets,
-        }
     }
 }
