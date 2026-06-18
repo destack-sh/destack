@@ -403,9 +403,9 @@ fn insert_block_parameters(
             let ty = promotable[&local].ty;
             let param_value = function.next_typed_value(ty);
 
-            block.parameters.push(mir::Parameter {
-                value: param_value,
-                ty,
+            block.parameters.push(mir::BlockParameter {
+                value: param_value.into(),
+                ty: ty.into(),
             });
 
             block_params.insert((block_id, local), param_value);

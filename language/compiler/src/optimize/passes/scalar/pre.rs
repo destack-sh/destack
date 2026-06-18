@@ -118,7 +118,7 @@ struct PhiPlacement {
     /// The expression key this phi represents.
     key: ExpressionKey,
     /// The block parameter inserted for the expression.
-    param: mir::Parameter,
+    param: mir::BlockParameter,
     /// The ordering index used for insertion.
     order: usize,
 }
@@ -275,9 +275,9 @@ fn run_pre(
 
             // allocate a new parameter for the expression
             let param_value = function.next_typed_value(value_type);
-            let param = mir::Parameter {
-                value: param_value,
-                ty: value_type,
+            let param = mir::BlockParameter {
+                value: param_value.into(),
+                ty: value_type.into(),
             };
             let order = occs.iter().map(|occ| occ.order).min().unwrap_or(usize::MAX);
             phi_map.entry(phi_block).or_default().push(PhiPlacement {

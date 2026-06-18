@@ -782,9 +782,12 @@ entry:
                 .expect("call signature should be concrete"),
         );
         let expected_signature = mir::Type::FunctionSignature {
-            parameters: callee.parameters.iter().map(|param| param.ty).collect(),
+            parameters: callee
+                .parameters
+                .iter()
+                .map(mir::FunctionParameter::signature_parameter)
+                .collect(),
             result: callee.return_type,
-            borrow_obligations: Vec::new(),
         };
 
         assert!(metadata.arguments.is_empty());

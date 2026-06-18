@@ -18,7 +18,7 @@ use destack_mir::{
 #[derive(Debug, Clone)]
 struct ReturnBlockInfo {
     /// Block parameters for the return block.
-    params: Vec<mir::Parameter>,
+    params: Vec<mir::BlockParameter>,
     /// The returned value, if any.
     return_value: Option<mir::Value>,
 }
@@ -1548,9 +1548,9 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Tree
         canonical_id
     } else {
         let return_value = function.next_typed_value(return_type_id);
-        let param = mir::Parameter {
-            value: return_value,
-            ty: return_type_id,
+        let param = mir::BlockParameter {
+            value: return_value.into(),
+            ty: return_type_id.into(),
         };
         let terminator = tree.insert(mir::Terminator::Return {
             value: Some(return_value),
@@ -2523,7 +2523,7 @@ fn split_critical_edge_target(
         let ty = param.ty;
 
         let value = function.next_typed_value(ty);
-        new_parameters.push(mir::Parameter { value, ty });
+        new_parameters.push(mir::BlockParameter { value, ty });
         new_arguments.push(value);
     }
 

@@ -501,9 +501,8 @@ fn process_block(
 
             mir::Instruction::Pin { .. }
             | mir::Instruction::Unpin { .. }
-            | mir::Instruction::Free { .. }
-            | mir::Instruction::Drop { .. } => {
-                // clear across destructor boundaries
+            | mir::Instruction::Free { .. } => {
+                // clear across storage release boundaries
                 available.clear();
             }
 

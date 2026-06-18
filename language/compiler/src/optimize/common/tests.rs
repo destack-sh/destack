@@ -431,7 +431,7 @@ impl TestProgram {
         let param_tys = callee_function
             .parameters
             .iter()
-            .map(|param| param.ty)
+            .map(mir::FunctionParameter::signature_parameter)
             .collect::<Vec<_>>();
         let return_ty = callee_function.return_type;
 
@@ -439,7 +439,6 @@ impl TestProgram {
         self.tree.insert_type(mir::Type::FunctionSignature {
             parameters: param_tys,
             result: return_ty,
-            borrow_obligations: Vec::new(),
         })
     }
 
