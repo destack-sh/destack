@@ -1,11 +1,27 @@
 use crate::build::{BuildError, BuildResult, FunctionBuilder};
 use crate::{
-    Access, Global, Instruction, Lifetime, Local, LocalNodeId, Mutability, Nullability, Place,
+    Access, Global, Instruction, Lifetime, Local, LocalNodeId, Mutability, Nullability,
     ReferenceKind, Space, Type, Value, callable_signature, function_signature_parts,
 };
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
+    /// Return the existing or inserted pointer-sized unsigned integer type.
+    pub fn ensure_usize_type(&mut self) -> LocalNodeId<Type> {
+        if let Some(ty) = self.tree.metadata.types.usize_type() {
+            return ty;
+        }
+        if let Some((ty, _)) = self
+            .tree
+            .iter_nodes::<Type>()
+            .find(|(_, ty)| matches!(ty, Type::Usize))
+        {
+            return ty;
+        }
+
+        self.tree.insert_type(Type::Usize)
+    }
+
     /// Create a local variable (stack slot).
     pub fn local(&mut self, ty: LocalNodeId<Type>, mutability: Mutability) -> LocalNodeId<Local> {
         let local = self.tree.insert(Local::new(ty, mutability));
@@ -54,7 +70,7 @@ impl<'a> FunctionBuilder<'a> {
             local,
             result_type,
         });
-        self.define_value_with_place(destination, result_type, Place::local(local));
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -75,7 +91,7 @@ impl<'a> FunctionBuilder<'a> {
             global,
             result_type,
         });
-        self.define_value_with_place(destination, result_type, Place::global(global));
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -103,7 +119,7 @@ impl<'a> FunctionBuilder<'a> {
             pointer: pointer_value,
             result_type,
         });
-        self.define_value_with_place(destination, result_type, Place::value(destination));
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -258,7 +274,7 @@ impl<'a> FunctionBuilder<'a> {
             layout,
             result_type,
         });
-        self.define_value_with_place(destination, result_type, Place::value(destination));
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -274,7 +290,7 @@ impl<'a> FunctionBuilder<'a> {
             layout,
             result_type,
         });
-        self.define_value_with_place(destination, result_type, Place::value(destination));
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -286,7 +302,7 @@ impl<'a> FunctionBuilder<'a> {
             value,
             result_type,
         });
-        self.define_value_with_place(destination, result_type, Place::value(destination));
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -304,7 +320,7 @@ impl<'a> FunctionBuilder<'a> {
             length,
             result_type,
         });
-        self.define_value_with_place(destination, result_type, Place::value(destination));
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -322,7 +338,7 @@ impl<'a> FunctionBuilder<'a> {
             length,
             result_type,
         });
-        self.define_value_with_place(destination, result_type, Place::value(destination));
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -343,7 +359,7 @@ impl<'a> FunctionBuilder<'a> {
             layout,
             result_type,
         });
-        self.define_value_with_place(destination, result_type, Place::value(destination));
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -359,7 +375,7 @@ impl<'a> FunctionBuilder<'a> {
             layout,
             result_type,
         });
-        self.define_value_with_place(destination, result_type, Place::value(destination));
+        self.define_value(destination, result_type);
         destination
     }
 

@@ -4,8 +4,8 @@ use indexmap::{IndexMap, IndexSet};
 use crate::build::{BuildError, BuildResult, Variable};
 use crate::{
     AllocationMode, AllocationSize, Block, Function, FunctionBehavior, FunctionParameter,
-    Instruction, Linkage, LocalNodeId, MemoryEffect, Place, Projection, Symbol, Tree, Type, TypeId,
-    Value, finalize_function_names,
+    Instruction, Linkage, LocalNodeId, MemoryEffect, Symbol, Tree, Type, TypeId, Value,
+    finalize_function_names,
 };
 
 /// Builder for constructing a single MIR function with automatic SSA construction.
@@ -50,14 +50,12 @@ pub struct FunctionBuilder<'a> {
     /// Next variable id to allocate.
     pub(super) next_variable_id: u32,
     /// Variable definitions: (block, variable) → value.
-    /// Tracks the SSA value of each variable at the end of each block.
     pub(super) variable_definitions: IndexMap<(LocalNodeId<Block>, Variable), Value>,
     /// Sealed blocks (all predecessors known).
     pub(super) sealed_blocks: IndexSet<LocalNodeId<Block>>,
     /// Block predecessors: block → list of predecessor blocks.
     pub(super) predecessors: IndexMap<LocalNodeId<Block>, Vec<LocalNodeId<Block>>>,
     /// Incomplete block parameters that need resolution when the block is sealed.
-    /// Maps block → list of (variable, parameter value) pairs.
     pub(super) incomplete_phis: IndexMap<LocalNodeId<Block>, Vec<(Variable, Value)>>,
     /// Variable types (needed for creating block parameters).
     pub(super) variable_types: IndexMap<Variable, LocalNodeId<Type>>,
@@ -230,37 +228,6 @@ impl<'a> FunctionBuilder<'a> {
         function.set_value_type(value, ty);
     }
 
-    /// Record the type and root place for an SSA value.
-    pub(super) fn define_value_with_place(
-        &mut self,
-        value: Value,
-        ty: LocalNodeId<Type>,
-        _: Place,
-    ) {
-        self.define_value(value, ty);
-    }
-
-    /// Record the type and projected place for an SSA value.
-    pub(super) fn define_value_from_projection(
-        &mut self,
-        value: Value,
-        ty: LocalNodeId<Type>,
-        _: Value,
-        _: Projection,
-    ) {
-        self.define_value(value, ty);
-    }
-
-    /// Record the type and copied place for an SSA value.
-    pub(super) fn define_value_from_place(
-        &mut self,
-        value: Value,
-        ty: LocalNodeId<Type>,
-        _: Value,
-    ) {
-        self.define_value(value, ty);
-    }
-
     /// Get the type of an existing SSA value.
     pub(super) fn value_type(&self, value: Value) -> Option<LocalNodeId<Type>> {
         let function = self.tree.get(self.function_id);
@@ -333,7 +300,6 @@ impl<'a> FunctionBuilder<'a> {
         // ensure entry block parameters match function parameters
         let is_entry_mismatch = {
             let block = self.tree.get_mut(entry_block);
-            // populate entry block parameters when missing
             if block.parameters.is_empty() {
                 block.parameters = parameters.clone();
             }

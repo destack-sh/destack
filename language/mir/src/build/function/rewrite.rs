@@ -277,6 +277,10 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(array, from, to);
                     Self::replace_value_in_slot(index, from, to);
                 }
+                Instruction::ElementSet { array, value, .. } => {
+                    Self::replace_value_in_slot(array, from, to);
+                    Self::replace_value_in_slot(value, from, to);
+                }
                 Instruction::Slice {
                     source,
                     start,
@@ -286,10 +290,6 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(source, from, to);
                     Self::replace_value_in_slot(start, from, to);
                     Self::replace_value_in_slot(length, from, to);
-                }
-                Instruction::ElementSet { array, value, .. } => {
-                    Self::replace_value_in_slot(array, from, to);
-                    Self::replace_value_in_slot(value, from, to);
                 }
                 Instruction::NewComplete { value, .. } => {
                     Self::replace_value_in_slot(value, from, to);

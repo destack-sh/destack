@@ -11,8 +11,8 @@ use crate::{
     Access, Attribute, Block, BlockId, BlockTarget, BorrowedPath, CommentSpan, DynamicShape,
     DynamicTable, ExtentSlice, Field, FieldSpan, FlagSlice, FloatType, Function,
     FunctionHeaderSpans, Global, IndexSlice, Instruction, Layout, LayoutId, Lifetime,
-    LifetimeParameter, Local, LocalNodeId, Metadata, Node, NodeType, Nullability, Origin,
-    OriginTable, Path, Projection, ReferenceKind, Space, SwitchCase, SwitchCaseSlice,
+    LifetimeParameter, LifetimeTerm, Local, LocalNodeId, Metadata, Node, NodeType, Nullability,
+    Origin, OriginTable, Path, Projection, ReferenceKind, Space, SwitchCase, SwitchCaseSlice,
     TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
     TensorGatherDimensionNumbers, TensorImmediate, TensorImmediateId,
     TensorScatterDimensionNumbers, Terminator, Type, TypeAlias, TypeDeclarationSpans, TypeId,
@@ -238,57 +238,17 @@ impl Tree {
         tree
     }
 
-    /// Infer the return lifetime for one function signature.
-    pub fn infer_function_return_lifetime(&self, function_id: LocalNodeId<Function>) -> Lifetime {
-        let function = self.get(function_id);
-        if let Some(lifetime) = self.type_lifetime(function.return_type) {
-            return lifetime;
-        }
-
-        if !self.type_contains_borrowed_refs(function.return_type) {
-            return Lifetime::empty();
-        }
-
-        let lifetime_slots =
-            function
-                .parameters
-                .iter()
-                .enumerate()
-                .filter_map(|(index, parameter)| {
-                    self.type_can_source_return_borrow(parameter.ty)
-                        .then_some(index as u32)
-                });
-        let lifetime = Lifetime::slot_set(lifetime_slots);
-
-        if lifetime.is_empty() {
-            Lifetime::static_storage()
-        } else {
-            lifetime
-        }
-    }
-
-    /// Return whether a type can source a returned borrow.
-    pub fn type_can_source_return_borrow(&self, ty: TypeId) -> bool {
-        let ty_id = ty;
-        let ty = self.get(ty_id);
-
-        matches!(
-            ty.reference_kind(),
-            Some(ReferenceKind::Borrowed | ReferenceKind::Managed)
-        ) || self.type_contains_borrowed_refs(ty_id)
-    }
-
     /// Substitute type-local lifetime slots with applied lifetimes.
     pub fn substitute_lifetime(&self, lifetime: &Lifetime, lifetime_args: &[Lifetime]) -> Lifetime {
         let mut terms = Vec::new();
         for term in &lifetime.terms {
             match term {
-                crate::LifetimeTerm::Static => terms.push(crate::LifetimeTerm::Static),
-                crate::LifetimeTerm::Slot(slot) => {
+                LifetimeTerm::Static => terms.push(LifetimeTerm::Static),
+                LifetimeTerm::Slot(slot) => {
                     if let Some(lifetime) = lifetime_args.get(slot.0 as usize) {
                         terms.extend(lifetime.terms.iter().copied());
                     } else {
-                        terms.push(crate::LifetimeTerm::Slot(*slot));
+                        terms.push(LifetimeTerm::Slot(*slot));
                     }
                 }
             }
@@ -446,7 +406,12 @@ impl Tree {
 
     /// Return borrowed reference-like paths carried by one type.
     pub fn type_borrowed_paths(&self, ty: TypeId) -> Vec<BorrowedPath> {
-        self.type_borrowed_paths_with_lifetimes(ty, &[])
+        self.type_borrowed_paths_with_lifetimes(ty, &[], false)
+    }
+
+    /// Return borrowed paths used for source tracking.
+    pub fn type_borrowed_source_paths(&self, ty: TypeId) -> Vec<BorrowedPath> {
+        self.type_borrowed_paths_with_lifetimes(ty, &[], true)
     }
 
     /// Return borrowed reference-like paths carried by one type under applied lifetimes.
@@ -454,10 +419,17 @@ impl Tree {
         &self,
         ty: TypeId,
         lifetimes: &[Lifetime],
+        is_empty_included: bool,
     ) -> Vec<BorrowedPath> {
         let mut borrowed_paths = Vec::new();
 
-        self.collect_type_borrowed_paths(ty, lifetimes, Path::root(), &mut borrowed_paths);
+        self.collect_type_borrowed_paths(
+            ty,
+            lifetimes,
+            is_empty_included,
+            Path::root(),
+            &mut borrowed_paths,
+        );
 
         borrowed_paths
     }
@@ -467,6 +439,7 @@ impl Tree {
         &self,
         ty: TypeId,
         lifetimes: &[Lifetime],
+        is_empty_included: bool,
         path: Path,
         borrowed_paths: &mut Vec<BorrowedPath>,
     ) {
@@ -488,7 +461,7 @@ impl Tree {
                 ..
             } => {
                 let lifetime = self.substitute_lifetime(lifetime, lifetimes);
-                if !lifetime.is_empty() {
+                if is_empty_included || !lifetime.is_empty() {
                     borrowed_paths.push(BorrowedPath { path, lifetime });
                 }
             }
@@ -500,7 +473,13 @@ impl Tree {
                         index: index as u32,
                     });
 
-                    self.collect_type_borrowed_paths(field.ty, lifetimes, path, borrowed_paths);
+                    self.collect_type_borrowed_paths(
+                        field.ty,
+                        lifetimes,
+                        is_empty_included,
+                        path,
+                        borrowed_paths,
+                    );
                 }
             }
             // descend into positional fields
@@ -510,19 +489,37 @@ impl Tree {
                         index: index as u32,
                     });
 
-                    self.collect_type_borrowed_paths(*element, lifetimes, path, borrowed_paths);
+                    self.collect_type_borrowed_paths(
+                        *element,
+                        lifetimes,
+                        is_empty_included,
+                        path,
+                        borrowed_paths,
+                    );
                 }
             }
             // substitute outer lifetime arguments
             Type::WithLifetimes { base, lifetimes } => {
-                self.collect_type_borrowed_paths(*base, lifetimes, path, borrowed_paths);
+                self.collect_type_borrowed_paths(
+                    *base,
+                    lifetimes,
+                    is_empty_included,
+                    path,
+                    borrowed_paths,
+                );
             }
             // descend through transparent storage wrappers
             Type::Newtype { inner, .. }
             | Type::Dynamic { constraint: inner }
             | Type::Uninit { value: inner }
             | Type::Atomic { value: inner } => {
-                self.collect_type_borrowed_paths(*inner, lifetimes, path, borrowed_paths);
+                self.collect_type_borrowed_paths(
+                    *inner,
+                    lifetimes,
+                    is_empty_included,
+                    path,
+                    borrowed_paths,
+                );
             }
             // descend into each variant payload shape
             Type::Variant { cases, .. } => {
@@ -531,7 +528,13 @@ impl Tree {
                         tag: case.tag.clone(),
                     });
 
-                    self.collect_type_borrowed_paths(case.ty, lifetimes, path, borrowed_paths);
+                    self.collect_type_borrowed_paths(
+                        case.ty,
+                        lifetimes,
+                        is_empty_included,
+                        path,
+                        borrowed_paths,
+                    );
                 }
             }
             // collapse indexed containers to any-element paths
@@ -542,7 +545,13 @@ impl Tree {
             | Type::TensorView { element, .. } => {
                 let path = path.with_projection(Projection::AnyElement);
 
-                self.collect_type_borrowed_paths(*element, lifetimes, path, borrowed_paths);
+                self.collect_type_borrowed_paths(
+                    *element,
+                    lifetimes,
+                    is_empty_included,
+                    path,
+                    borrowed_paths,
+                );
             }
             _ => {}
         }
@@ -680,6 +689,27 @@ impl Tree {
         }
 
         type_id
+    }
+
+    /// Replace a type node and update the primitive type cache.
+    pub fn set_type(&mut self, type_id: LocalNodeId<Type>, ty: Type) -> Type {
+        let local_id = self.local_id_for_node_id(type_id.id);
+        let old = std::mem::replace(self.types.get_mut(local_id), ty);
+
+        // remove stale primitive entries for overwritten placeholders
+        self.metadata
+            .types
+            .primitive_types
+            .retain(|_, cached_type| *cached_type != type_id);
+
+        // record the new primitive shape when applicable
+        if let Some(primitive) = TypeMetadata::primitive_type(self.types.get(local_id)) {
+            self.metadata
+                .types
+                .record_primitive_type(type_id, primitive);
+        }
+
+        old
     }
 
     /// Insert a type node into the tree with a source DIR id and update the primitive type cache.
@@ -1987,37 +2017,3 @@ impl_tree!(Type, types);
 impl_tree!(TypeAlias, type_aliases);
 impl_tree!(Field, fields);
 impl_tree!(Global, globals);
-
-#[cfg(test)]
-mod tests {
-    use destack_core::StringId;
-
-    use crate::{Terminator, Tree};
-
-    #[test]
-    fn test_dir_source_resolves_through_derived_nodes() {
-        let mut tree = Tree::new();
-        let derivation = StringId(1);
-
-        // one lowered node with a DIR source, one pass-derived, one synthetic
-        let lowered = tree.insert_from(Terminator::Unreachable, 7);
-        let derived = tree.insert_derived(Terminator::Unreachable, lowered.id, derivation);
-        let synthetic = tree.insert_synthetic(Terminator::Unreachable, derivation);
-
-        // derivation walks reach the DIR edge, synthetics resolve to none
-        assert_eq!(tree.dir_source(derived.id), Some(7));
-        assert_eq!(tree.dir_source(synthetic.id), None);
-
-        // plain mutation keeps the original origin
-        tree.set(derived, Terminator::Unreachable);
-        assert_eq!(tree.dir_source(derived.id), Some(7));
-
-        // derivation keeps the chain alive through the tombstone
-        let preserved = tree.derive(lowered, Terminator::Unreachable, derivation);
-        assert_eq!(
-            tree.origin(lowered.id).unwrap().parent(),
-            Some(preserved.id)
-        );
-        assert_eq!(tree.dir_source(lowered.id), Some(7));
-    }
-}

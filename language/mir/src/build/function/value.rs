@@ -54,6 +54,19 @@ impl<'a> FunctionBuilder<'a> {
         self.iconst(value as i128, 64, true)
     }
 
+    /// Insert a pointer-sized unsigned integer constant.
+    pub fn usize_const(&mut self, value: u128) -> Value {
+        let destination = self.allocate_value();
+        let ty = self.ensure_usize_type();
+        let width = self.tree.pointer_bits();
+        self.insert_instruction(Instruction::Const {
+            destination,
+            value: Constant::UInt { value, width },
+        });
+        self.define_value(destination, ty);
+        destination
+    }
+
     /// Insert a boolean constant.
     pub fn bconst(&mut self, value: bool) -> Value {
         let destination = self.allocate_value();
@@ -239,7 +252,7 @@ impl<'a> FunctionBuilder<'a> {
             argument,
             to_type,
         });
-        self.define_value_from_place(destination, to_type, argument);
+        self.define_value(destination, to_type);
         destination
     }
 
