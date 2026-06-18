@@ -4,8 +4,8 @@ use std::error::Error;
 use std::fmt;
 use std::sync::Arc;
 
-use destack_engine::{ProgramLayout, StaticSpace};
 use destack_mir as mir;
+use destack_program::{ProgramLayout, StaticSpace};
 use serde::{Deserialize, Serialize};
 
 use crate::{EntryId, EntrySymbol, Text};
@@ -15,8 +15,12 @@ use crate::{EntryId, EntrySymbol, Text};
 pub struct Object {
     /// The code bytes.
     pub text: Text,
-    /// The program static memory.
-    pub static_space: StaticSpace,
+    /// Immutable constant storage owned by this program.
+    pub constant_space: StaticSpace,
+    /// Initial shared static storage for each runtime.
+    pub shared_static_space: StaticSpace,
+    /// Initial local static storage for each worker.
+    pub local_static_space: StaticSpace,
     /// Runtime layout tables for this program.
     pub layout: ProgramLayout,
     /// Heap trace table for managed allocation metadata.
@@ -31,7 +35,9 @@ impl Object {
     /// Create one native object.
     pub fn new(
         text: Text,
-        static_space: StaticSpace,
+        constant_space: StaticSpace,
+        shared_static_space: StaticSpace,
+        local_static_space: StaticSpace,
         layout: ProgramLayout,
         trace_table: Arc<mir::TraceTable>,
         entries: Vec<EntrySymbol>,
@@ -62,7 +68,9 @@ impl Object {
 
         Ok(Self {
             text,
-            static_space,
+            constant_space,
+            shared_static_space,
+            local_static_space,
             layout,
             trace_table,
             entries,

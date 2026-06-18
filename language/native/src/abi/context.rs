@@ -1,4 +1,4 @@
-use destack_engine::HostCall;
+use destack_program::HostCall;
 
 use crate::{NativeTrapCode, NativeValue};
 

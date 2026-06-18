@@ -1,8 +1,8 @@
 use std::error::Error;
 use std::fmt;
 
-use destack_engine::{Value, ValueType};
 use destack_heap::{HeapReference, SharedHeapReference};
+use destack_program::{Value, ValueType};
 
 /// Native ABI value tag.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,8 +65,8 @@ impl NativeValue {
         }
     }
 
-    /// Encode one engine value.
-    pub fn from_engine(value: &Value) -> Self {
+    /// Encode one program value.
+    pub fn from_value(value: &Value) -> Self {
         match value {
             Value::Void => Self::VOID,
             Value::Bool(value) => Self::new(NativeValueTag::Bool, 1, u64::from(*value), 0),
@@ -103,8 +103,8 @@ impl NativeValue {
         }
     }
 
-    /// Decode one engine value.
-    pub fn to_engine(self) -> Result<Value, NativeValueError> {
+    /// Decode one program value.
+    pub fn to_value(self) -> Result<Value, NativeValueError> {
         let tag = NativeValueTag::try_from(self.tag)?;
 
         match tag {

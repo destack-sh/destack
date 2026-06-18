@@ -1,4 +1,4 @@
-use destack_engine::StaticId;
+use destack_program::StaticId;
 use serde::{Deserialize, Serialize};
 
 use crate::{CodeOffset, NativeImport};
