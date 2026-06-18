@@ -474,7 +474,12 @@ fn render_from_payload_variant(
     let label = variant.label();
 
     text.line(format!("    if (value.kind === {label:?}) {{"));
-    text.raw(render_payload_bindings(variant, payload_names, "value"));
+    text.raw(render_payload_bindings(
+        backend,
+        variant,
+        payload_names,
+        "value",
+    ));
     text.line("        return {");
     text.line(format!("            kind: {label:?},"));
     text.raw(render_public_payload_fields(
@@ -570,7 +575,12 @@ fn render_public_payload_fields(
 }
 
 /// Render required payload bindings.
-fn render_payload_bindings(variant: &Variant, payload_names: &PayloadNames, value: &str) -> String {
+fn render_payload_bindings(
+    backend: Backend,
+    variant: &Variant,
+    payload_names: &PayloadNames,
+    value: &str,
+) -> String {
     let mut text = Text::new();
 
     match &variant.payload {
@@ -578,13 +588,13 @@ fn render_payload_bindings(variant: &Variant, payload_names: &PayloadNames, valu
         Payload::Tuple(_) => {
             let label = variant.payload_field_name();
 
-            text.raw(render_required_binding(value, &label));
+            text.raw(render_required_binding(backend, value, &label));
         }
         Payload::Struct(fields) => {
             for field in fields {
                 let label = payload_names.field_label(variant, field);
 
-                text.raw(render_required_binding(value, &label));
+                text.raw(render_required_binding(backend, value, &label));
             }
         }
     }
@@ -593,11 +603,12 @@ fn render_payload_bindings(variant: &Variant, payload_names: &PayloadNames, valu
 }
 
 /// Render one required payload field binding.
-fn render_required_binding(value: &str, label: &str) -> String {
+fn render_required_binding(backend: Backend, value: &str, label: &str) -> String {
     let mut text = Text::new();
     let binding = payload_binding_name(label);
+    let source = payload_field_source(backend, value, label);
 
-    text.line(format!("        const {binding} = {value}.{label};"));
+    text.line(format!("        const {binding} = {source};"));
     text.line(format!("        if ({binding} == null) {{"));
     text.line(format!(
         "            throw new Error(\"{label} payload is missing\");"
@@ -606,6 +617,28 @@ fn render_required_binding(value: &str, label: &str) -> String {
     text.blank();
 
     text.finish()
+}
+
+/// Return one payload field source expression.
+fn payload_field_source(backend: Backend, value: &str, label: &str) -> String {
+    match backend {
+        Backend::Napi => format!("{value}.{label}"),
+        Backend::Wasm => format!("{value}.{}()", wasm_payload_getter_name(label)),
+    }
+}
+
+/// Return one WASM payload getter name.
+fn wasm_payload_getter_name(label: &str) -> String {
+    let mut characters = label.chars();
+    let Some(first) = characters.next() else {
+        return "get".to_string();
+    };
+
+    let mut name = String::from("get");
+    name.extend(first.to_uppercase());
+    name.extend(characters);
+
+    name
 }
 
 /// Return one payload local binding name.
@@ -718,6 +751,11 @@ fn to_value(schema: &Schema, backend: Backend, value: &str, ty: &Type) -> String
 
             format!("{value} == null ? undefined : {item}")
         }
+        Type::Named(name) if schema.items.contains_key(name) && schema.is_unit_enum(name) => {
+            let function = to_name(backend, name);
+
+            format!("{function}({value})")
+        }
         Type::Named(name) if schema.items.contains_key(name) => {
             let function = to_name(backend, name);
             match backend {
@@ -758,7 +796,10 @@ fn backend_type(schema: &Schema, backend: Backend, item: &Item) -> String {
         return "string".to_string();
     }
 
-    format!("{}.{name}", backend.namespace(), name = item.name)
+    match backend {
+        Backend::Napi => format!("Napi.{}", item.javascript_name()),
+        Backend::Wasm => format!("Wasm.{}", item.name),
+    }
 }
 
 /// Return one backend conversion function name.

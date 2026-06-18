@@ -10,6 +10,11 @@ extern "C" {
 #endif
 
 void destack_artifact_key_destroy(DestackArtifactKey *value);
+DestackStatus destack_artifact_key_build(
+    DestackTargetId target,
+    DestackArtifactKey **out,
+    DestackError **error
+);
 DestackStatus destack_artifact_key_dir_parsed(
     DestackModuleId module,
     DestackArtifactKey **out,
@@ -140,19 +145,37 @@ DestackStatus destack_artifact_key_workspace_query_index(
     DestackArtifactKey **out,
     DestackError **error
 );
-DestackStatus destack_artifact_key_module_output(
+DestackStatus destack_artifact_key_script(
     DestackModuleId module,
     DestackTargetId target,
     DestackArtifactKey **out,
     DestackError **error
 );
-DestackStatus destack_artifact_key_package_output(
+DestackStatus destack_artifact_key_object(
+    DestackModuleId module,
+    DestackTargetId target,
+    DestackArtifactKey **out,
+    DestackError **error
+);
+DestackStatus destack_artifact_key_asset(
+    DestackModuleId module,
+    DestackTargetId target,
+    DestackArtifactKey **out,
+    DestackError **error
+);
+DestackStatus destack_artifact_key_bundle(
     DestackPackageId package,
     DestackTargetId target,
     DestackArtifactKey **out,
     DestackError **error
 );
-DestackStatus destack_artifact_key_product_output(
+DestackStatus destack_artifact_key_program(
+    DestackPackageId package,
+    DestackTargetId target,
+    DestackArtifactKey **out,
+    DestackError **error
+);
+DestackStatus destack_artifact_key_product(
     DestackPackageId package,
     DestackProductId product,
     DestackArtifactKey **out,

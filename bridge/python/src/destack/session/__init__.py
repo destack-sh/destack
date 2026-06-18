@@ -3,6 +3,16 @@
 from .file import (
     SessionFile,
 )
+from .format import (
+    Document,
+    FormatRequest,
+    FormatOutput,
+)
+from .lint import (
+    Scope,
+    LintRequest,
+    LintOutput,
+)
 from .module import (
     Module,
 )
@@ -21,6 +31,12 @@ from .source.update import (
 
 __all__ = [
     "SessionFile",
+    "Document",
+    "FormatRequest",
+    "FormatOutput",
+    "Scope",
+    "LintRequest",
+    "LintOutput",
     "Module",
     "Change",
     "Source",

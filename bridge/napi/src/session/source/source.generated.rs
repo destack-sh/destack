@@ -8,7 +8,7 @@ use crate::Edit;
 
 /// Source input used to open a live session.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "Source")]
 pub struct Source {
     /// Payload variant label.
     pub kind: String,

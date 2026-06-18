@@ -160,7 +160,7 @@ impl PayloadNames {
 
     /// Return the transport field label for one struct payload field.
     pub(crate) fn field_label(&self, variant: &Variant, field: &Field) -> String {
-        if self.ambiguous.contains(&field.name) {
+        if self.ambiguous.contains(&field.name) || field.label() == variant.label() {
             let variant = lower_camel(&variant.name);
             let field = upper_camel(&field.name);
 
@@ -389,6 +389,20 @@ impl Item {
         render_docs(&self.docs)
     }
 
+    /// Return this item as a JavaScript transport type name.
+    pub(crate) fn javascript_name(&self) -> String {
+        if is_javascript_global_type(&self.name) {
+            format!("Bridge{}", self.name)
+        } else {
+            self.name.clone()
+        }
+    }
+
+    /// Return this item as a JavaScript transport Rust identifier.
+    pub(crate) fn javascript_ident(&self) -> proc_macro2::Ident {
+        ident(&self.javascript_name())
+    }
+
     /// Return this unit enum parse helper identifier.
     pub(crate) fn parse_ident(&self) -> proc_macro2::Ident {
         ident(&format!("parse_{}", to_snake(&self.name)))
@@ -478,12 +492,19 @@ impl Item {
                 | "ComponentId"
                 | "TargetId"
                 | "ProductId"
+                | "ContentId"
                 | "ArtifactKey"
                 | "Source"
                 | "TextRange"
                 | "TextEdit"
                 | "Edit"
                 | "Module"
+                | "ModuleBuildKind"
+                | "Document"
+                | "Scope"
+                | "BuildRequest"
+                | "FormatRequest"
+                | "LintRequest"
         )
     }
 
@@ -523,12 +544,40 @@ impl Item {
                 | "ArtifactSidecar"
                 | "ArtifactString"
                 | "ArtifactRecord"
+                | "BuildProfile"
+                | "BuildLinkage"
+                | "EmitFormat"
+                | "FileType"
+                | "SourceMapSource"
+                | "SourceMap"
+                | "Declaration"
+                | "ScriptLanguage"
+                | "Script"
+                | "ObjectFormat"
+                | "Object"
+                | "Asset"
+                | "Build"
+                | "BundleSection"
+                | "BundleMode"
+                | "BundleFile"
+                | "Bundle"
+                | "ProgramFormat"
+                | "ProgramHeader"
+                | "Program"
+                | "Runtime"
+                | "Host"
+                | "ProductTarget"
+                | "Product"
+                | "ModuleBuildKind"
                 | "DirParsedFile"
                 | "DirParsed"
                 | "DirResolved"
                 | "DirChecked"
                 | "SessionFile"
                 | "Module"
+                | "BuildOutput"
+                | "FormatOutput"
+                | "LintOutput"
                 | "Change"
                 | "Commit"
         )
@@ -556,6 +605,31 @@ impl Item {
 
         Ok(())
     }
+}
+
+/// Return whether this name collides with a JavaScript global type.
+fn is_javascript_global_type(name: &str) -> bool {
+    matches!(
+        name,
+        "Array"
+            | "ArrayBuffer"
+            | "Boolean"
+            | "Date"
+            | "Error"
+            | "Function"
+            | "Map"
+            | "Number"
+            | "Object"
+            | "Promise"
+            | "Record"
+            | "RegExp"
+            | "Set"
+            | "String"
+            | "Symbol"
+            | "Uint8Array"
+            | "WeakMap"
+            | "WeakSet"
+    )
 }
 
 impl Payload {
@@ -614,7 +688,7 @@ impl Type {
     pub(crate) fn needs_wasm_into_bridge_conversion(&self, schema: &Schema) -> bool {
         match self {
             Self::Vec(ty) | Self::Option(ty) => ty.needs_wasm_into_bridge_conversion(schema),
-            Self::Named(name) => schema.items.contains_key(name) && !schema.is_unit_enum(name),
+            Self::Named(name) => schema.items.contains_key(name),
             _ => false,
         }
     }
@@ -697,6 +771,11 @@ impl Field {
     /// Return this field as a Rust identifier.
     pub(crate) fn ident(&self) -> proc_macro2::Ident {
         ident(&self.name)
+    }
+
+    /// Return this field getter as a Rust identifier.
+    pub(crate) fn getter_ident(&self) -> proc_macro2::Ident {
+        ident(&format!("get_{}", self.name))
     }
 
     /// Return this field documentation as Rust doc attributes.

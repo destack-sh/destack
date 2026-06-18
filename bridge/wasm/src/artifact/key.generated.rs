@@ -16,6 +16,11 @@ pub struct ArtifactKey {
 /// Concrete payload enum content.
 #[derive(Debug, Clone)]
 enum ArtifactKeyContent {
+    /// Toolchain build payload for one target.
+    Build {
+        /// Build target.
+        target: TargetId,
+    },
     /// Parsed module DIR.
     DirParsed {
         /// Source module.
@@ -166,22 +171,43 @@ enum ArtifactKeyContent {
         /// Semantic profile.
         profile: ProfileId,
     },
-    /// One generated module output for one target.
-    ModuleOutput {
+    /// One structured linker input for one target.
+    Script {
         /// Source module.
         module: ModuleId,
         /// Build target.
         target: TargetId,
     },
-    /// Output entries for one package target.
-    PackageOutput {
+    /// One compiled-code linker input for one target.
+    Object {
+        /// Source module.
+        module: ModuleId,
+        /// Build target.
+        target: TargetId,
+    },
+    /// One opaque linker input for one target.
+    Asset {
+        /// Source module.
+        module: ModuleId,
+        /// Build target.
+        target: TargetId,
+    },
+    /// Linked file graph for one package target.
+    Bundle {
         /// Source package.
         package: PackageId,
         /// Build target.
         target: TargetId,
     },
-    /// Output entries for one product.
-    ProductOutput {
+    /// Executable program for one package target.
+    Program {
+        /// Source package.
+        package: PackageId,
+        /// Build target.
+        target: TargetId,
+    },
+    /// Linked product assembled from configured target artifacts.
+    Product {
         /// Source package.
         package: PackageId,
         /// Product.
@@ -205,6 +231,14 @@ enum ArtifactKeyContent {
 
 #[wasm_bindgen]
 impl ArtifactKey {
+    /// Create one payload variant.
+    #[wasm_bindgen(js_name = "build")]
+    pub fn build(target: TargetId) -> Self {
+        Self {
+            content: ArtifactKeyContent::Build { target },
+        }
+    }
+
     /// Create one payload variant.
     #[wasm_bindgen(js_name = "dirParsed")]
     pub fn dir_parsed(module: ModuleId) -> Self {
@@ -406,26 +440,50 @@ impl ArtifactKey {
     }
 
     /// Create one payload variant.
-    #[wasm_bindgen(js_name = "moduleOutput")]
-    pub fn module_output(module: ModuleId, target: TargetId) -> Self {
+    #[wasm_bindgen(js_name = "script")]
+    pub fn script(module: ModuleId, target: TargetId) -> Self {
         Self {
-            content: ArtifactKeyContent::ModuleOutput { module, target },
+            content: ArtifactKeyContent::Script { module, target },
         }
     }
 
     /// Create one payload variant.
-    #[wasm_bindgen(js_name = "packageOutput")]
-    pub fn package_output(package: PackageId, target: TargetId) -> Self {
+    #[wasm_bindgen(js_name = "object")]
+    pub fn object(module: ModuleId, target: TargetId) -> Self {
         Self {
-            content: ArtifactKeyContent::PackageOutput { package, target },
+            content: ArtifactKeyContent::Object { module, target },
         }
     }
 
     /// Create one payload variant.
-    #[wasm_bindgen(js_name = "productOutput")]
-    pub fn product_output(package: PackageId, product: ProductId) -> Self {
+    #[wasm_bindgen(js_name = "asset")]
+    pub fn asset(module: ModuleId, target: TargetId) -> Self {
         Self {
-            content: ArtifactKeyContent::ProductOutput { package, product },
+            content: ArtifactKeyContent::Asset { module, target },
+        }
+    }
+
+    /// Create one payload variant.
+    #[wasm_bindgen(js_name = "bundle")]
+    pub fn bundle(package: PackageId, target: TargetId) -> Self {
+        Self {
+            content: ArtifactKeyContent::Bundle { package, target },
+        }
+    }
+
+    /// Create one payload variant.
+    #[wasm_bindgen(js_name = "program")]
+    pub fn program(package: PackageId, target: TargetId) -> Self {
+        Self {
+            content: ArtifactKeyContent::Program { package, target },
+        }
+    }
+
+    /// Create one payload variant.
+    #[wasm_bindgen(js_name = "product")]
+    pub fn product(package: PackageId, product: ProductId) -> Self {
+        Self {
+            content: ArtifactKeyContent::Product { package, product },
         }
     }
 
@@ -457,6 +515,7 @@ impl ArtifactKey {
     #[wasm_bindgen(getter, js_name = "kind")]
     pub fn kind(&self) -> String {
         let label = match &self.content {
+            ArtifactKeyContent::Build { .. } => "build",
             ArtifactKeyContent::DirParsed { .. } => "dirParsed",
             ArtifactKeyContent::Data { .. } => "data",
             ArtifactKeyContent::GlobalEnvironment { .. } => "globalEnvironment",
@@ -479,9 +538,12 @@ impl ArtifactKey {
             ArtifactKeyContent::MirOptimized { .. } => "mirOptimized",
             ArtifactKeyContent::ModuleQueryIndex { .. } => "moduleQueryIndex",
             ArtifactKeyContent::WorkspaceQueryIndex { .. } => "workspaceQueryIndex",
-            ArtifactKeyContent::ModuleOutput { .. } => "moduleOutput",
-            ArtifactKeyContent::PackageOutput { .. } => "packageOutput",
-            ArtifactKeyContent::ProductOutput { .. } => "productOutput",
+            ArtifactKeyContent::Script { .. } => "script",
+            ArtifactKeyContent::Object { .. } => "object",
+            ArtifactKeyContent::Asset { .. } => "asset",
+            ArtifactKeyContent::Bundle { .. } => "bundle",
+            ArtifactKeyContent::Program { .. } => "program",
+            ArtifactKeyContent::Product { .. } => "product",
             ArtifactKeyContent::ModuleLinted { .. } => "moduleLinted",
             ArtifactKeyContent::PackageLinted { .. } => "packageLinted",
             ArtifactKeyContent::WorkspaceLinted => "workspaceLinted",
@@ -489,9 +551,28 @@ impl ArtifactKey {
         label.to_string()
     }
 
+    /// Build target.
+    #[wasm_bindgen(js_name = "getTarget")]
+    pub fn get_target(&self) -> Option<TargetId> {
+        match &self.content {
+            ArtifactKeyContent::Build { target: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::ProgramAnalysis { target: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::MirLowered { target: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::MirVerified { target: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::MirAnalyzed { target: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::MirOptimized { target: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::Script { target: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::Object { target: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::Asset { target: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::Bundle { target: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::Program { target: value, .. } => Some(value.clone()),
+            _ => None,
+        }
+    }
+
     /// Source module.
-    #[wasm_bindgen(getter, js_name = "module")]
-    pub fn module(&self) -> Option<ModuleId> {
+    #[wasm_bindgen(js_name = "getModule")]
+    pub fn get_module(&self) -> Option<ModuleId> {
         match &self.content {
             ArtifactKeyContent::DirParsed { module: value, .. } => Some(value.clone()),
             ArtifactKeyContent::Data { module: value, .. } => Some(value.clone()),
@@ -508,15 +589,17 @@ impl ArtifactKey {
             ArtifactKeyContent::MirAnalyzed { module: value, .. } => Some(value.clone()),
             ArtifactKeyContent::MirOptimized { module: value, .. } => Some(value.clone()),
             ArtifactKeyContent::ModuleQueryIndex { module: value, .. } => Some(value.clone()),
-            ArtifactKeyContent::ModuleOutput { module: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::Script { module: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::Object { module: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::Asset { module: value, .. } => Some(value.clone()),
             ArtifactKeyContent::ModuleLinted { module: value, .. } => Some(value.clone()),
             _ => None,
         }
     }
 
     /// Semantic profile.
-    #[wasm_bindgen(getter, js_name = "profile")]
-    pub fn profile(&self) -> Option<ProfileId> {
+    #[wasm_bindgen(js_name = "getProfile")]
+    pub fn get_profile(&self) -> Option<ProfileId> {
         match &self.content {
             ArtifactKeyContent::GlobalEnvironment { profile: value, .. } => Some(value.clone()),
             ArtifactKeyContent::PackageIndex { profile: value, .. } => Some(value.clone()),
@@ -543,24 +626,9 @@ impl ArtifactKey {
         }
     }
 
-    /// Build target.
-    #[wasm_bindgen(getter, js_name = "target")]
-    pub fn target(&self) -> Option<TargetId> {
-        match &self.content {
-            ArtifactKeyContent::ProgramAnalysis { target: value, .. } => Some(value.clone()),
-            ArtifactKeyContent::MirLowered { target: value, .. } => Some(value.clone()),
-            ArtifactKeyContent::MirVerified { target: value, .. } => Some(value.clone()),
-            ArtifactKeyContent::MirAnalyzed { target: value, .. } => Some(value.clone()),
-            ArtifactKeyContent::MirOptimized { target: value, .. } => Some(value.clone()),
-            ArtifactKeyContent::ModuleOutput { target: value, .. } => Some(value.clone()),
-            ArtifactKeyContent::PackageOutput { target: value, .. } => Some(value.clone()),
-            _ => None,
-        }
-    }
-
     /// Component entry module.
-    #[wasm_bindgen(getter, js_name = "entry")]
-    pub fn entry(&self) -> Option<ModuleId> {
+    #[wasm_bindgen(js_name = "getEntry")]
+    pub fn get_entry(&self) -> Option<ModuleId> {
         match &self.content {
             ArtifactKeyContent::DirCheckedComponent { entry: value, .. } => Some(value.clone()),
             _ => None,
@@ -568,8 +636,8 @@ impl ArtifactKey {
     }
 
     /// Checked component id.
-    #[wasm_bindgen(getter, js_name = "component")]
-    pub fn component(&self) -> Option<ComponentId> {
+    #[wasm_bindgen(js_name = "getComponent")]
+    pub fn get_component(&self) -> Option<ComponentId> {
         match &self.content {
             ArtifactKeyContent::DirCheckedComponent {
                 component: value, ..
@@ -579,21 +647,22 @@ impl ArtifactKey {
     }
 
     /// Source package.
-    #[wasm_bindgen(getter, js_name = "package")]
-    pub fn package(&self) -> Option<PackageId> {
+    #[wasm_bindgen(js_name = "getPackage")]
+    pub fn get_package(&self) -> Option<PackageId> {
         match &self.content {
-            ArtifactKeyContent::PackageOutput { package: value, .. } => Some(value.clone()),
-            ArtifactKeyContent::ProductOutput { package: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::Bundle { package: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::Program { package: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::Product { package: value, .. } => Some(value.clone()),
             ArtifactKeyContent::PackageLinted { package: value, .. } => Some(value.clone()),
             _ => None,
         }
     }
 
     /// Product.
-    #[wasm_bindgen(getter, js_name = "product")]
-    pub fn product(&self) -> Option<ProductId> {
+    #[wasm_bindgen(js_name = "getProductProduct")]
+    pub fn get_product_product(&self) -> Option<ProductId> {
         match &self.content {
-            ArtifactKeyContent::ProductOutput { product: value, .. } => Some(value.clone()),
+            ArtifactKeyContent::Product { product: value, .. } => Some(value.clone()),
             _ => None,
         }
     }
@@ -603,6 +672,9 @@ impl ArtifactKey {
     /// Convert this WASM payload enum into one bridge enum.
     pub(crate) fn into_bridge(self) -> bridge::ArtifactKey {
         match self.content {
+            ArtifactKeyContent::Build { target } => bridge::ArtifactKey::Build {
+                target: target.into_bridge(),
+            },
             ArtifactKeyContent::DirParsed { module } => bridge::ArtifactKey::DirParsed {
                 module: module.into_bridge(),
             },
@@ -729,24 +801,30 @@ impl ArtifactKey {
                     profile: profile.into_bridge(),
                 }
             }
-            ArtifactKeyContent::ModuleOutput { module, target } => {
-                bridge::ArtifactKey::ModuleOutput {
-                    module: module.into_bridge(),
-                    target: target.into_bridge(),
-                }
-            }
-            ArtifactKeyContent::PackageOutput { package, target } => {
-                bridge::ArtifactKey::PackageOutput {
-                    package: package.into_bridge(),
-                    target: target.into_bridge(),
-                }
-            }
-            ArtifactKeyContent::ProductOutput { package, product } => {
-                bridge::ArtifactKey::ProductOutput {
-                    package: package.into_bridge(),
-                    product: product.into_bridge(),
-                }
-            }
+            ArtifactKeyContent::Script { module, target } => bridge::ArtifactKey::Script {
+                module: module.into_bridge(),
+                target: target.into_bridge(),
+            },
+            ArtifactKeyContent::Object { module, target } => bridge::ArtifactKey::Object {
+                module: module.into_bridge(),
+                target: target.into_bridge(),
+            },
+            ArtifactKeyContent::Asset { module, target } => bridge::ArtifactKey::Asset {
+                module: module.into_bridge(),
+                target: target.into_bridge(),
+            },
+            ArtifactKeyContent::Bundle { package, target } => bridge::ArtifactKey::Bundle {
+                package: package.into_bridge(),
+                target: target.into_bridge(),
+            },
+            ArtifactKeyContent::Program { package, target } => bridge::ArtifactKey::Program {
+                package: package.into_bridge(),
+                target: target.into_bridge(),
+            },
+            ArtifactKeyContent::Product { package, product } => bridge::ArtifactKey::Product {
+                package: package.into_bridge(),
+                product: product.into_bridge(),
+            },
             ArtifactKeyContent::ModuleLinted { module, profile } => {
                 bridge::ArtifactKey::ModuleLinted {
                     module: module.into_bridge(),
@@ -765,6 +843,11 @@ impl ArtifactKey {
     /// Convert one bridge payload enum into one WASM payload enum.
     pub(crate) fn from_bridge(value: bridge::ArtifactKey) -> Self {
         match value {
+            bridge::ArtifactKey::Build { target } => Self {
+                content: ArtifactKeyContent::Build {
+                    target: TargetId::from_bridge(target),
+                },
+            },
             bridge::ArtifactKey::DirParsed { module } => Self {
                 content: ArtifactKeyContent::DirParsed {
                     module: ModuleId::from_bridge(module),
@@ -915,20 +998,38 @@ impl ArtifactKey {
                     profile: ProfileId::from_bridge(profile),
                 },
             },
-            bridge::ArtifactKey::ModuleOutput { module, target } => Self {
-                content: ArtifactKeyContent::ModuleOutput {
+            bridge::ArtifactKey::Script { module, target } => Self {
+                content: ArtifactKeyContent::Script {
                     module: ModuleId::from_bridge(module),
                     target: TargetId::from_bridge(target),
                 },
             },
-            bridge::ArtifactKey::PackageOutput { package, target } => Self {
-                content: ArtifactKeyContent::PackageOutput {
+            bridge::ArtifactKey::Object { module, target } => Self {
+                content: ArtifactKeyContent::Object {
+                    module: ModuleId::from_bridge(module),
+                    target: TargetId::from_bridge(target),
+                },
+            },
+            bridge::ArtifactKey::Asset { module, target } => Self {
+                content: ArtifactKeyContent::Asset {
+                    module: ModuleId::from_bridge(module),
+                    target: TargetId::from_bridge(target),
+                },
+            },
+            bridge::ArtifactKey::Bundle { package, target } => Self {
+                content: ArtifactKeyContent::Bundle {
                     package: PackageId::from_bridge(package),
                     target: TargetId::from_bridge(target),
                 },
             },
-            bridge::ArtifactKey::ProductOutput { package, product } => Self {
-                content: ArtifactKeyContent::ProductOutput {
+            bridge::ArtifactKey::Program { package, target } => Self {
+                content: ArtifactKeyContent::Program {
+                    package: PackageId::from_bridge(package),
+                    target: TargetId::from_bridge(target),
+                },
+            },
+            bridge::ArtifactKey::Product { package, product } => Self {
+                content: ArtifactKeyContent::Product {
                     package: PackageId::from_bridge(package),
                     product: ProductId::from_bridge(product),
                 },

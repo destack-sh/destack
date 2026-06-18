@@ -1,4 +1,35 @@
 export { ArtifactKey } from "./artifact/key.generated.js";
+export {
+    BuildOutput,
+    BuildRequest,
+} from "./artifact/output.generated.js";
+export type {
+    Asset,
+    Build,
+    BuildLinkage,
+    BuildProfile,
+    Bundle,
+    BundleFile,
+    BundleMode,
+    BundleSection,
+    Declaration,
+    EmitFormat,
+    FileType,
+    Host,
+    ModuleBuildKind,
+    Object,
+    ObjectFormat,
+    Product,
+    ProductTarget,
+    Program,
+    ProgramFormat,
+    ProgramHeader,
+    Runtime,
+    Script,
+    ScriptLanguage,
+    SourceMap,
+    SourceMapSource,
+} from "./artifact/output.generated.js";
 export type {
     ArtifactDependency,
     ArtifactDirectoryEntry,
@@ -41,6 +72,7 @@ export type {
 } from "./source/file.generated.js";
 export type { ModuleId } from "./source/module.generated.js";
 export type { PackageId } from "./source/package.generated.js";
+export type { ProductId } from "./source/product.generated.js";
 export type { ProfileId } from "./source/profile.generated.js";
 export type {
     LabeledSpan,
@@ -48,6 +80,16 @@ export type {
 } from "./source/span.generated.js";
 export type { TargetId } from "./source/target.generated.js";
 export type { SessionFile } from "./session/file.generated.js";
+export { Document } from "./session/format.generated.js";
+export type {
+    FormatOutput,
+    FormatRequest,
+} from "./session/format.generated.js";
+export { Scope } from "./session/lint.generated.js";
+export type {
+    LintOutput,
+    LintRequest,
+} from "./session/lint.generated.js";
 export type { Module } from "./session/module.generated.js";
 export {
     Edit,

@@ -8,7 +8,7 @@ use crate::FileId;
 
 /// Source byte span crossing bridge boundaries.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "Span")]
 pub struct Span {
     /// File containing this span.
     pub file: FileId,
@@ -31,7 +31,7 @@ impl Span {
 
 /// Source span with a display label.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "LabeledSpan")]
 pub struct LabeledSpan {
     /// Source span.
     pub span: Span,

@@ -13,6 +13,35 @@ from .artifact.dependency import (
 from .artifact.key import (
     ArtifactKey,
 )
+from .artifact.output import (
+    BuildProfile,
+    BuildLinkage,
+    EmitFormat,
+    FileType,
+    SourceMapSource,
+    SourceMap,
+    Declaration,
+    ScriptLanguage,
+    Script,
+    ObjectFormat,
+    Object,
+    Asset,
+    Build,
+    BundleSection,
+    BundleMode,
+    BundleFile,
+    Bundle,
+    ProgramFormat,
+    ProgramHeader,
+    Program,
+    Runtime,
+    Host,
+    ProductTarget,
+    Product,
+    ModuleBuildKind,
+    BuildRequest,
+    BuildOutput,
+)
 from .artifact.record import (
     ArtifactString,
     ArtifactRecord,
@@ -53,6 +82,16 @@ from .repository.revision import (
 )
 from .session.file import (
     SessionFile,
+)
+from .session.format import (
+    Document,
+    FormatRequest,
+    FormatOutput,
+)
+from .session.lint import (
+    Scope,
+    LintRequest,
+    LintOutput,
 )
 from .session.module import (
     Module,
@@ -124,11 +163,23 @@ class Session:
 
     def artifact_record(self, revision: Revision, key: ArtifactKey) -> ArtifactRecord: ...
 
+    def build(self, revision: Revision, request: BuildRequest) -> BuildOutput: ...
+
+    def content(self, id: ContentId) -> Content: ...
+
+    def text(self, id: ContentId) -> str: ...
+
+    def bytes(self, id: ContentId) -> bytes: ...
+
     def parse(self, revision: Revision, module: Module) -> DirParsed: ...
 
     def resolve(self, revision: Revision, module: Module, profile: ProfileId) -> DirResolved: ...
 
     def check(self, revision: Revision, module: Module, profile: ProfileId) -> DirChecked: ...
+
+    def format(self, revision: Revision, request: FormatRequest) -> FormatOutput: ...
+
+    def lint(self, revision: Revision, request: LintRequest) -> LintOutput: ...
 
     def diagnostics(self, revision: Revision, key: ArtifactKey | None = None) -> list[Diagnostic]: ...
 

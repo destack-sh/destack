@@ -15,10 +15,17 @@ const ROOTS: &[&str] = &[
     "ArtifactRecord",
     "ArtifactSidecar",
     "ArtifactVersion",
+    "BuildOutput",
+    "BuildRequest",
+    "Content",
     "Diagnostic",
     "DirChecked",
     "DirParsed",
     "DirResolved",
+    "FormatOutput",
+    "FormatRequest",
+    "LintOutput",
+    "LintRequest",
     "Commit",
     "Module",
     "Revision",
@@ -223,6 +230,11 @@ impl<'schema> Header<'schema> {
         text.line("    size_t len;");
         text.line("} DestackByteArray;");
         text.blank();
+        text.line("typedef struct DestackStringArray {");
+        text.line("    char **ptr;");
+        text.line("    size_t len;");
+        text.line("} DestackStringArray;");
+        text.blank();
         text.line("typedef struct DestackOptionalString {");
         text.line("    bool is_some;");
         text.line("    char *value;");
@@ -230,6 +242,7 @@ impl<'schema> Header<'schema> {
         text.blank();
 
         text.line("void destack_byte_array_destroy(DestackByteArray array);");
+        text.line("void destack_string_array_destroy(DestackStringArray array);");
         text.line("void destack_optional_string_destroy(DestackOptionalString value);");
 
         text.blank();
@@ -430,11 +443,9 @@ impl<'schema> Header<'schema> {
         let name = c_type_name(&item.name);
         text.line(format!("typedef struct {name} {{"));
         text.line(format!("    {kind} kind;"));
-        for variant in variants {
-            for field in payload_fields(&names, variant) {
-                let declaration = c_declaration(&field.name, &field.ty, self.projection);
-                text.line(format!("    {declaration};"));
-            }
+        for field in payload_storage_fields(&names, variants) {
+            let declaration = c_declaration(&field.name, field.ty, self.projection);
+            text.line(format!("    {declaration};"));
         }
         text.line(format!("}} {name};"));
     }
@@ -508,6 +519,16 @@ impl<'schema> Rust<'schema> {
                 pub(crate) len: usize,
             }
 
+            /// C ABI owned string array.
+            #[repr(C)]
+            #[derive(Debug)]
+            pub struct DestackStringArray {
+                /// Owned string pointer.
+                pub(crate) ptr: *mut *mut c_char,
+                /// String count.
+                pub(crate) len: usize,
+            }
+
             /// C ABI optional owned string.
             #[repr(C)]
             #[derive(Debug)]
@@ -539,6 +560,53 @@ impl<'schema> Rust<'schema> {
 
                     unsafe {
                         destroy_array(self.ptr, self.len, |_| {});
+                    }
+                    self.ptr = ptr::null_mut();
+                    self.len = 0;
+                }
+            }
+
+            impl DestackStringArray {
+                /// Convert Rust strings into one C ABI string array.
+                pub(crate) fn from_bridge(values: Vec<String>) -> Result<Self, String> {
+                    let mut converted = Vec::with_capacity(values.len());
+                    for value in values {
+                        converted.push(c_string(value)?);
+                    }
+                    let (ptr, len) = owned_array(converted);
+
+                    Ok(Self { ptr, len })
+                }
+
+                /// Convert this C ABI string array into Rust strings.
+                pub(crate) fn to_bridge(&self) -> Result<Vec<String>, String> {
+                    if self.len == 0 {
+                        return Ok(Vec::new());
+                    }
+                    if self.ptr.is_null() {
+                        return Err("string array pointer is null".to_string());
+                    }
+
+                    let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+                    let mut converted = Vec::with_capacity(values.len());
+                    for value in values {
+                        converted.push(read_string(*value)?);
+                    }
+
+                    Ok(converted)
+                }
+
+                /// Destroy this C ABI string array.
+                pub(crate) fn destroy(&mut self) {
+                    if self.ptr.is_null() {
+                        return;
+                    }
+
+                    unsafe {
+                        destroy_array(self.ptr, self.len, |value| {
+                            destroy_string(*value);
+                            *value = ptr::null_mut();
+                        });
                     }
                     self.ptr = ptr::null_mut();
                     self.len = 0;
@@ -593,6 +661,12 @@ impl<'schema> Rust<'schema> {
             /// Destroy one owned byte array.
             #[unsafe(no_mangle)]
             pub unsafe extern "C" fn destack_byte_array_destroy(mut array: DestackByteArray) {
+                array.destroy();
+            }
+
+            /// Destroy one owned string array.
+            #[unsafe(no_mangle)]
+            pub unsafe extern "C" fn destack_string_array_destroy(mut array: DestackStringArray) {
                 array.destroy();
             }
 
@@ -869,19 +943,15 @@ impl<'schema> Rust<'schema> {
             }
         });
         let names = PayloadNames::new(variants);
-        let field_defs = variants
+        let all_fields = payload_storage_fields(&names, variants);
+        let field_defs = all_fields
             .iter()
-            .flat_map(|variant| payload_fields(&names, variant))
             .map(|field| {
                 let name = format_ident!("{}", field.name);
                 let ty = rust_c_type(&field.ty, self.projection);
 
                 quote!(pub(crate) #name: #ty,)
             })
-            .collect::<Vec<_>>();
-        let all_fields = variants
-            .iter()
-            .flat_map(|variant| payload_fields(&names, variant))
             .collect::<Vec<_>>();
         let empty_fields = all_fields.iter().map(|field| {
             let name = format_ident!("{}", field.name);
@@ -932,13 +1002,10 @@ impl<'schema> Rust<'schema> {
                 }
             }
         });
-        let destroy_fields = variants
-            .iter()
-            .flat_map(|variant| payload_fields(&names, variant))
-            .map(|field| {
-                let name = format_ident!("{}", field.name);
-                destroy_value(&field.ty, quote!(self.#name), self.projection)
-            });
+        let destroy_fields = all_fields.iter().map(|field| {
+            let name = format_ident!("{}", field.name);
+            destroy_value(&field.ty, quote!(self.#name), self.projection)
+        });
 
         quote! {
             /// C ABI bridge enum kind.
@@ -1113,6 +1180,7 @@ impl Text {
 }
 
 /// One C ABI payload field.
+#[derive(Clone)]
 struct PayloadField<'schema> {
     /// Rust field name in the source variant.
     source_name: String,
@@ -1120,6 +1188,26 @@ struct PayloadField<'schema> {
     name: String,
     /// Field type.
     ty: &'schema Type,
+}
+
+/// Return unique storage fields for one payload enum.
+fn payload_storage_fields<'schema>(
+    names: &PayloadNames,
+    variants: &'schema [Variant],
+) -> Vec<PayloadField<'schema>> {
+    let mut fields = Vec::new();
+    let mut inserted = BTreeSet::new();
+
+    for variant in variants {
+        for field in payload_fields(names, variant) {
+            let key = (field.name.clone(), field.ty.clone());
+            if inserted.insert(key) {
+                fields.push(field);
+            }
+        }
+    }
+
+    fields
 }
 
 /// Return fields for one payload variant.
@@ -1455,6 +1543,7 @@ fn c_type(ty: &Type, projection: &Projection) -> String {
         Type::U32 => "uint32_t".to_string(),
         Type::Usize => "size_t".to_string(),
         Type::Vec(inner) if **inner == Type::U8 => "DestackByteArray".to_string(),
+        Type::Vec(inner) if **inner == Type::String => "DestackStringArray".to_string(),
         Type::Vec(inner) => format!("Destack{}Array", named_type(inner)),
         Type::Option(inner) if **inner == Type::String => "DestackOptionalString".to_string(),
         Type::Option(inner) => format!("DestackOptional{}", named_type(inner)),
@@ -1481,6 +1570,7 @@ fn rust_c_type(ty: &Type, projection: &Projection) -> TokenStream {
         Type::U32 => quote!(u32),
         Type::Usize => quote!(usize),
         Type::Vec(inner) if **inner == Type::U8 => quote!(DestackByteArray),
+        Type::Vec(inner) if **inner == Type::String => quote!(DestackStringArray),
         Type::Vec(inner) => {
             let ty = format_ident!("Destack{}Array", named_type(inner));
 
@@ -1511,6 +1601,9 @@ fn from_bridge_value(ty: &Type, value: TokenStream, projection: &Projection) -> 
         Type::String => quote!(c_string(#value)?),
         Type::Bool | Type::U8 | Type::U32 | Type::Usize => value,
         Type::Vec(inner) if **inner == Type::U8 => quote!(DestackByteArray::from_vec(#value)),
+        Type::Vec(inner) if **inner == Type::String => {
+            quote!(DestackStringArray::from_bridge(#value)?)
+        }
         Type::Vec(inner) => {
             let ty = format_ident!("Destack{}Array", named_type(inner));
 
@@ -1543,6 +1636,7 @@ fn into_bridge_value(ty: &Type, value: TokenStream, projection: &Projection) -> 
         Type::String => quote!(read_string(#value)?),
         Type::Bool | Type::U8 | Type::U32 | Type::Usize => value,
         Type::Vec(inner) if **inner == Type::U8 => quote!(#value.into_vec()?),
+        Type::Vec(inner) if **inner == Type::String => quote!(#value.to_bridge()?),
         Type::Vec(_) => quote!(#value.to_bridge()?),
         Type::Option(inner) if **inner == Type::String => quote!(#value.to_bridge()?),
         Type::Option(_) => quote!(#value.to_bridge()?),
@@ -1564,6 +1658,7 @@ fn to_bridge_value(ty: &Type, value: TokenStream, projection: &Projection) -> To
         Type::Vec(inner) if **inner == Type::U8 => {
             quote!(read_bytes(#value.ptr.cast_const(), #value.len)?)
         }
+        Type::Vec(inner) if **inner == Type::String => quote!(#value.to_bridge()?),
         Type::Vec(_) | Type::Option(_) => quote!(#value.to_bridge()?),
         Type::Named(name) if projection.is_handle(name) => {
             quote!({
@@ -1583,6 +1678,7 @@ fn destroy_value(ty: &Type, value: TokenStream, projection: &Projection) -> Toke
             #value = ptr::null_mut();
         },
         Type::Vec(inner) if **inner == Type::U8 => quote!(#value.destroy();),
+        Type::Vec(inner) if **inner == Type::String => quote!(#value.destroy();),
         Type::Named(name) if projection.is_handle(name) => {
             let destroy = format_ident!("destack_{}_destroy", to_snake(name));
 
@@ -1607,6 +1703,10 @@ fn empty_value(ty: &Type, projection: &Projection) -> TokenStream {
         Type::Bool => quote!(false),
         Type::U8 | Type::U32 | Type::Usize => quote!(0),
         Type::Vec(inner) if **inner == Type::U8 => quote!(DestackByteArray {
+            ptr: ptr::null_mut(),
+            len: 0,
+        }),
+        Type::Vec(inner) if **inner == Type::String => quote!(DestackStringArray {
             ptr: ptr::null_mut(),
             len: 0,
         }),

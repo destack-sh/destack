@@ -1,10 +1,13 @@
 import type { SessionFile } from "./file.generated.js";
+import type { FormatOutput, FormatRequest } from "./format.generated.js";
+import type { LintOutput, LintRequest } from "./lint.generated.js";
 import type { Module } from "./module.generated.js";
 import type { Change } from "./source/file.generated.js";
 import type { Source as SourceInput } from "./source/source.generated.js";
 import type { Commit, TextEdit } from "./source/update.generated.js";
 import type * as update from "./source/update.generated.js";
 import type { ArtifactKey } from "../artifact/key.generated.js";
+import type { BuildOutput, BuildRequest } from "../artifact/output.generated.js";
 import type { ArtifactRecord } from "../artifact/record.generated.js";
 import type { ArtifactSidecar } from "../artifact/sidecar.generated.js";
 import type { ArtifactVersion } from "../artifact/version.generated.js";
@@ -12,6 +15,7 @@ import type { DirChecked } from "../dir/checked.generated.js";
 import type { DirParsed } from "../dir/parsed.generated.js";
 import type { DirResolved } from "../dir/resolved.generated.js";
 import type { Diagnostic } from "../diagnostic/diagnostic.generated.js";
+import type { Content, ContentId } from "../source/file.generated.js";
 import type { ProfileId } from "../source/profile.generated.js";
 import type { Revision } from "../repository/revision.generated.js";
 import { openNapiSession } from "../napi/session.js";
@@ -83,12 +87,24 @@ export interface Session {
     require(revision: Revision, key: ArtifactKey): ArtifactVersion;
     /** Return one raw artifact record for one immutable revision. */
     artifactRecord(revision: Revision, key: ArtifactKey): ArtifactRecord;
+    /** Build one typed language output for one immutable revision. */
+    build(revision: Revision, request: BuildRequest): BuildOutput;
+    /** Return one shared content payload by exact content id. */
+    content(id: ContentId): Content;
+    /** Return one text content payload by exact content id. */
+    text(id: ContentId): string;
+    /** Return one binary content payload by exact content id. */
+    bytes(id: ContentId): Uint8Array;
     /** Return the parsed DIR artifact for one loaded module. */
     parse(revision: Revision, module: Module): DirParsed;
     /** Return the resolved DIR artifact for one loaded module profile. */
     resolve(revision: Revision, module: Module, profile: ProfileId): DirResolved;
     /** Return the checked DIR facade artifact for one loaded module profile. */
     check(revision: Revision, module: Module, profile: ProfileId): DirChecked;
+    /** Format one document for one immutable revision. */
+    format(revision: Revision, request: FormatRequest): FormatOutput;
+    /** Lint one scope for one immutable revision. */
+    lint(revision: Revision, request: LintRequest): LintOutput;
     /** Return diagnostics for one immutable revision. */
     diagnostics(revision: Revision, key?: ArtifactKey): readonly Diagnostic[];
     /** Return sidecars for one artifact key in one immutable revision. */

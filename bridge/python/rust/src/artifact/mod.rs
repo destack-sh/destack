@@ -2,6 +2,8 @@
 mod dependency;
 #[path = "key.generated.rs"]
 mod key;
+#[path = "output.generated.rs"]
+mod output;
 #[path = "record.generated.rs"]
 mod record;
 mod registry;
@@ -12,6 +14,7 @@ mod version;
 
 pub use dependency::*;
 pub use key::*;
+pub use output::*;
 pub use record::*;
 pub(crate) use registry::register;
 pub use sidecar::*;

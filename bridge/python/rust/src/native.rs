@@ -4,9 +4,10 @@ use pyo3::prelude::*;
 use pyo3::types::PyModule;
 
 use crate::{
-    ArtifactKey, ArtifactRecord, ArtifactSidecar, ArtifactVersion, Change, Commit, Diagnostic,
-    DirChecked, DirParsed, DirResolved, Edit, Module, ProfileId, Revision, SessionFile, Source,
-    artifact, diagnostic, dir, repository, session, source,
+    ArtifactKey, ArtifactRecord, ArtifactSidecar, ArtifactVersion, BuildOutput, BuildRequest,
+    Change, Commit, Content, ContentId, Diagnostic, DirChecked, DirParsed, DirResolved, Edit,
+    FormatOutput, FormatRequest, LintOutput, LintRequest, Module, ProfileId, Revision, SessionFile,
+    Source, artifact, diagnostic, dir, repository, session, source,
 };
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -111,6 +112,33 @@ impl Session {
         Ok(ArtifactRecord::from_bridge(record))
     }
 
+    /// Build one typed language output for one immutable revision.
+    pub fn build(&self, revision: Revision, request: BuildRequest) -> PyResult<BuildOutput> {
+        let output = self
+            .session
+            .build(revision.into_bridge(), request.into_bridge())
+            .map_err(to_error)?;
+
+        Ok(BuildOutput::from_bridge(output))
+    }
+
+    /// Return one shared content payload by exact content id.
+    pub fn content(&self, id: ContentId) -> PyResult<Content> {
+        let content = self.session.content(id.into_bridge()).map_err(to_error)?;
+
+        Ok(Content::from_bridge(content))
+    }
+
+    /// Return one text content payload by exact content id.
+    pub fn text(&self, id: ContentId) -> PyResult<String> {
+        self.session.text(id.into_bridge()).map_err(to_error)
+    }
+
+    /// Return one binary content payload by exact content id.
+    pub fn bytes(&self, id: ContentId) -> PyResult<Vec<u8>> {
+        self.session.bytes(id.into_bridge()).map_err(to_error)
+    }
+
     /// Return the parsed DIR artifact for one loaded module.
     pub fn parse(&self, revision: Revision, module: Module) -> PyResult<DirParsed> {
         let parsed = self
@@ -157,6 +185,26 @@ impl Session {
             .map_err(to_error)?;
 
         Ok(DirChecked::from_bridge(checked))
+    }
+
+    /// Format one document for one immutable revision.
+    pub fn format(&self, revision: Revision, request: FormatRequest) -> PyResult<FormatOutput> {
+        let output = self
+            .session
+            .format(revision.into_bridge(), request.into_bridge())
+            .map_err(to_error)?;
+
+        Ok(FormatOutput::from_bridge(output))
+    }
+
+    /// Lint one scope for one immutable revision.
+    pub fn lint(&self, revision: Revision, request: LintRequest) -> PyResult<LintOutput> {
+        let output = self
+            .session
+            .lint(revision.into_bridge(), request.into_bridge())
+            .map_err(to_error)?;
+
+        Ok(LintOutput::from_bridge(output))
     }
 
     /// Return diagnostics for one immutable revision.

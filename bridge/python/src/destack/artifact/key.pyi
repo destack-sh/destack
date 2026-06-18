@@ -31,6 +31,10 @@ from destack.source.target import (
 class ArtifactKey:
     """External artifact key crossing bridge boundaries."""
 
+    """Toolchain build payload for one target."""
+    @staticmethod
+    def build(target: TargetId) -> ArtifactKey: ...
+
     """Parsed module DIR."""
     @staticmethod
     def dir_parsed(module: ModuleId) -> ArtifactKey: ...
@@ -119,17 +123,29 @@ class ArtifactKey:
     @staticmethod
     def workspace_query_index(profile: ProfileId) -> ArtifactKey: ...
 
-    """One generated module output for one target."""
+    """One structured linker input for one target."""
     @staticmethod
-    def module_output(module: ModuleId, target: TargetId) -> ArtifactKey: ...
+    def script(module: ModuleId, target: TargetId) -> ArtifactKey: ...
 
-    """Output entries for one package target."""
+    """One compiled-code linker input for one target."""
     @staticmethod
-    def package_output(package: PackageId, target: TargetId) -> ArtifactKey: ...
+    def object(module: ModuleId, target: TargetId) -> ArtifactKey: ...
 
-    """Output entries for one product."""
+    """One opaque linker input for one target."""
     @staticmethod
-    def product_output(package: PackageId, product: ProductId) -> ArtifactKey: ...
+    def asset(module: ModuleId, target: TargetId) -> ArtifactKey: ...
+
+    """Linked file graph for one package target."""
+    @staticmethod
+    def bundle(package: PackageId, target: TargetId) -> ArtifactKey: ...
+
+    """Executable program for one package target."""
+    @staticmethod
+    def program(package: PackageId, target: TargetId) -> ArtifactKey: ...
+
+    """Linked product assembled from configured target artifacts."""
+    @staticmethod
+    def product(package: PackageId, product: ProductId) -> ArtifactKey: ...
 
     """Realized lint diagnostics for one module profile."""
     @staticmethod
@@ -159,7 +175,7 @@ class ArtifactKey:
     def package(self) -> PackageId | None: ...
 
     @property
-    def product(self) -> ProductId | None: ...
+    def product_product(self) -> ProductId | None: ...
 
     @property
     def profile(self) -> ProfileId | None: ...

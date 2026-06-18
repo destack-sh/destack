@@ -8,7 +8,7 @@ use crate::{ArtifactDependency, ArtifactSidecar, ArtifactVersion, Diagnostic};
 
 /// One interned string carried by an artifact record.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "ArtifactString")]
 pub struct ArtifactString {
     /// Canonical lowercase hex string id.
     pub id: String,
@@ -28,7 +28,7 @@ impl ArtifactString {
 
 /// Self-contained raw artifact body crossing bridge boundaries.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "ArtifactRecord")]
 pub struct ArtifactRecord {
     /// The exact artifact version.
     pub version: ArtifactVersion,

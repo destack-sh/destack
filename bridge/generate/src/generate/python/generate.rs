@@ -542,6 +542,12 @@ fn session_stub_methods() -> Vec<StubMethod> {
         StubMethod::new("artifact_record", "ArtifactRecord")
             .with_argument("revision: Revision")
             .with_argument("key: ArtifactKey"),
+        StubMethod::new("build", "BuildOutput")
+            .with_argument("revision: Revision")
+            .with_argument("request: BuildRequest"),
+        StubMethod::new("content", "Content").with_argument("id: ContentId"),
+        StubMethod::new("text", "str").with_argument("id: ContentId"),
+        StubMethod::new("bytes", "bytes").with_argument("id: ContentId"),
         StubMethod::new("parse", "DirParsed")
             .with_argument("revision: Revision")
             .with_argument("module: Module"),
@@ -553,6 +559,12 @@ fn session_stub_methods() -> Vec<StubMethod> {
             .with_argument("revision: Revision")
             .with_argument("module: Module")
             .with_argument("profile: ProfileId"),
+        StubMethod::new("format", "FormatOutput")
+            .with_argument("revision: Revision")
+            .with_argument("request: FormatRequest"),
+        StubMethod::new("lint", "LintOutput")
+            .with_argument("revision: Revision")
+            .with_argument("request: LintRequest"),
         StubMethod::new("diagnostics", "list[Diagnostic]")
             .with_argument("revision: Revision")
             .with_argument("key: ArtifactKey | None = None"),
@@ -927,9 +939,10 @@ fn render_payload_enum(schema: &Schema, item: &Item, variants: &[Variant]) -> To
     let constructors = variants
         .iter()
         .map(|variant| render_payload_constructor(schema, item, variant));
+    let variant_count = variants.len();
     let getters = payload_getters(variants)
         .into_iter()
-        .map(|getter| render_payload_getter(schema, item, getter));
+        .map(|getter| render_payload_getter(schema, item, variant_count, getter));
     let labels = variants.iter().map(|variant| {
         let variant_name = variant.ident();
         let label = variant.label();
@@ -1021,13 +1034,20 @@ fn payload_getters(variants: &[Variant]) -> Vec<PayloadGetter<'_>> {
 }
 
 /// Render one Python payload getter.
-fn render_payload_getter(schema: &Schema, item: &Item, getter: PayloadGetter<'_>) -> TokenStream {
-    let method = format_ident!("{}", getter.name);
+fn render_payload_getter(
+    schema: &Schema,
+    item: &Item,
+    variant_count: usize,
+    getter: PayloadGetter<'_>,
+) -> TokenStream {
+    let method = format_ident!("get_{}", getter.name);
     let output = render_type(schema, &getter.ty);
     let arms = getter
         .arms
         .iter()
-        .map(|arm| render_payload_getter_arm(schema, item, &getter.ty, arm));
+        .map(|arm| render_payload_getter_arm(schema, item, &getter.ty, arm))
+        .collect::<Vec<_>>();
+    let fallback = (arms.len() < variant_count).then(|| quote!(_ => None,));
 
     quote! {
         /// Return this payload field when present.
@@ -1035,7 +1055,7 @@ fn render_payload_getter(schema: &Schema, item: &Item, getter: PayloadGetter<'_>
         pub fn #method(&self) -> Option<#output> {
             match &self.value {
                 #(#arms)*
-                _ => None,
+                #fallback
             }
         }
     }

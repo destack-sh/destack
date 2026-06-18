@@ -6,7 +6,7 @@ use napi_derive::napi;
 
 /// One editable file visible to a live session.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "SessionFile")]
 pub struct SessionFile {
     /// Repository logical path.
     pub path: String,

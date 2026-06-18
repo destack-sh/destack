@@ -45,7 +45,7 @@ impl Source {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn edits(&self) -> Option<Vec<Edit>> {
+    pub fn get_edits(&self) -> Option<Vec<Edit>> {
         match &self.value {
             bridge::Source::Memory { edits, .. } => Some(
                 edits
@@ -60,7 +60,7 @@ impl Source {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn path(&self) -> Option<String> {
+    pub fn get_path(&self) -> Option<String> {
         match &self.value {
             bridge::Source::FileSystem { path, .. } => Some(path.clone()),
             _ => None,
@@ -69,7 +69,7 @@ impl Source {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn root(&self) -> Option<String> {
+    pub fn get_root(&self) -> Option<String> {
         match &self.value {
             bridge::Source::Memory { root, .. } => Some(root.clone()),
             _ => None,

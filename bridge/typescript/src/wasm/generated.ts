@@ -9,6 +9,35 @@ import type {
 } from "../artifact/dependency.generated.js";
 import type { ArtifactKey } from "../artifact/key.generated.js";
 import type {
+    BuildProfile,
+    BuildLinkage,
+    EmitFormat,
+    FileType,
+    SourceMapSource,
+    SourceMap,
+    Declaration,
+    ScriptLanguage,
+    Script,
+    ObjectFormat,
+    Object,
+    Asset,
+    Build,
+    BundleSection,
+    BundleMode,
+    BundleFile,
+    Bundle,
+    ProgramFormat,
+    ProgramHeader,
+    Program,
+    Runtime,
+    Host,
+    ProductTarget,
+    Product,
+    ModuleBuildKind,
+    BuildRequest,
+    BuildOutput,
+} from "../artifact/output.generated.js";
+import type {
     ArtifactString,
     ArtifactRecord,
 } from "../artifact/record.generated.js";
@@ -37,6 +66,16 @@ import type { DirParsed } from "../dir/parsed.generated.js";
 import type { DirResolved } from "../dir/resolved.generated.js";
 import type { Revision } from "../repository/revision.generated.js";
 import type { SessionFile } from "../session/file.generated.js";
+import type {
+    Document,
+    FormatRequest,
+    FormatOutput,
+} from "../session/format.generated.js";
+import type {
+    Scope,
+    LintRequest,
+    LintOutput,
+} from "../session/lint.generated.js";
 import type { Module } from "../session/module.generated.js";
 import type { Change } from "../session/source/file.generated.js";
 import type { Source } from "../session/source/source.generated.js";
@@ -88,12 +127,12 @@ export function fromWasmArtifactSourceDependency(
     value: Wasm.ArtifactSourceDependency,
 ): ArtifactSourceDependency {
     if (value.kind === "pathState") {
-        const payload_path = value.path;
+        const payload_path = value.getPath();
         if (payload_path == null) {
             throw new Error("path payload is missing");
         }
 
-        const payload_state = value.state;
+        const payload_state = value.getState();
         if (payload_state == null) {
             throw new Error("state payload is missing");
         }
@@ -106,12 +145,12 @@ export function fromWasmArtifactSourceDependency(
     }
 
     if (value.kind === "directoryEntries") {
-        const payload_directory = value.directory;
+        const payload_directory = value.getDirectory();
         if (payload_directory == null) {
             throw new Error("directory payload is missing");
         }
 
-        const payload_entries = value.entries;
+        const payload_entries = value.getEntries();
         if (payload_entries == null) {
             throw new Error("entries payload is missing");
         }
@@ -124,12 +163,12 @@ export function fromWasmArtifactSourceDependency(
     }
 
     if (value.kind === "fileContent") {
-        const payload_file = value.file;
+        const payload_file = value.getFile();
         if (payload_file == null) {
             throw new Error("file payload is missing");
         }
 
-        const payload_content = value.content;
+        const payload_content = value.getContent();
         if (payload_content == null) {
             throw new Error("content payload is missing");
         }
@@ -147,7 +186,7 @@ export function fromWasmArtifactSourceDependency(
 /** Convert one WASM ArtifactDependency into the public bridge shape. */
 export function fromWasmArtifactDependency(value: Wasm.ArtifactDependency): ArtifactDependency {
     if (value.kind === "artifact") {
-        const payload_version = value.version;
+        const payload_version = value.getVersion();
         if (payload_version == null) {
             throw new Error("version payload is missing");
         }
@@ -159,7 +198,7 @@ export function fromWasmArtifactDependency(value: Wasm.ArtifactDependency): Arti
     }
 
     if (value.kind === "source") {
-        const payload_dependency = value.dependency;
+        const payload_dependency = value.getDependency();
         if (payload_dependency == null) {
             throw new Error("dependency payload is missing");
         }
@@ -178,6 +217,10 @@ export function toWasmArtifactKey(
     wasm: WasmModule,
     value: ArtifactKey,
 ): Wasm.ArtifactKey {
+    if (value.kind === "build") {
+        return wasm.ArtifactKey.build(toWasmTargetId(wasm, value.target));
+    }
+
     if (value.kind === "dirParsed") {
         return wasm.ArtifactKey.dirParsed(toWasmModuleId(wasm, value.module));
     }
@@ -316,22 +359,43 @@ export function toWasmArtifactKey(
         return wasm.ArtifactKey.workspaceQueryIndex(toWasmProfileId(wasm, value.profile));
     }
 
-    if (value.kind === "moduleOutput") {
-        return wasm.ArtifactKey.moduleOutput(
+    if (value.kind === "script") {
+        return wasm.ArtifactKey.script(
             toWasmModuleId(wasm, value.module),
             toWasmTargetId(wasm, value.target),
         );
     }
 
-    if (value.kind === "packageOutput") {
-        return wasm.ArtifactKey.packageOutput(
+    if (value.kind === "object") {
+        return wasm.ArtifactKey.object(
+            toWasmModuleId(wasm, value.module),
+            toWasmTargetId(wasm, value.target),
+        );
+    }
+
+    if (value.kind === "asset") {
+        return wasm.ArtifactKey.asset(
+            toWasmModuleId(wasm, value.module),
+            toWasmTargetId(wasm, value.target),
+        );
+    }
+
+    if (value.kind === "bundle") {
+        return wasm.ArtifactKey.bundle(
             toWasmPackageId(wasm, value.package),
             toWasmTargetId(wasm, value.target),
         );
     }
 
-    if (value.kind === "productOutput") {
-        return wasm.ArtifactKey.productOutput(
+    if (value.kind === "program") {
+        return wasm.ArtifactKey.program(
+            toWasmPackageId(wasm, value.package),
+            toWasmTargetId(wasm, value.target),
+        );
+    }
+
+    if (value.kind === "product") {
+        return wasm.ArtifactKey.product(
             toWasmPackageId(wasm, value.package),
             toWasmProductId(wasm, value.product),
         );
@@ -357,8 +421,20 @@ export function toWasmArtifactKey(
 
 /** Convert one WASM ArtifactKey into the public bridge shape. */
 export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
+    if (value.kind === "build") {
+        const payload_target = value.getTarget();
+        if (payload_target == null) {
+            throw new Error("target payload is missing");
+        }
+
+        return {
+            kind: "build",
+            target: fromWasmTargetId(payload_target),
+        };
+    }
+
     if (value.kind === "dirParsed") {
-        const payload_module = value.module;
+        const payload_module = value.getModule();
         if (payload_module == null) {
             throw new Error("module payload is missing");
         }
@@ -370,7 +446,7 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
     }
 
     if (value.kind === "data") {
-        const payload_module = value.module;
+        const payload_module = value.getModule();
         if (payload_module == null) {
             throw new Error("module payload is missing");
         }
@@ -382,7 +458,7 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
     }
 
     if (value.kind === "globalEnvironment") {
-        const payload_profile = value.profile;
+        const payload_profile = value.getProfile();
         if (payload_profile == null) {
             throw new Error("profile payload is missing");
         }
@@ -394,7 +470,7 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
     }
 
     if (value.kind === "packageIndex") {
-        const payload_profile = value.profile;
+        const payload_profile = value.getProfile();
         if (payload_profile == null) {
             throw new Error("profile payload is missing");
         }
@@ -406,7 +482,7 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
     }
 
     if (value.kind === "moduleIndex") {
-        const payload_profile = value.profile;
+        const payload_profile = value.getProfile();
         if (payload_profile == null) {
             throw new Error("profile payload is missing");
         }
@@ -418,7 +494,7 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
     }
 
     if (value.kind === "componentGraph") {
-        const payload_profile = value.profile;
+        const payload_profile = value.getProfile();
         if (payload_profile == null) {
             throw new Error("profile payload is missing");
         }
@@ -430,12 +506,12 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
     }
 
     if (value.kind === "programAnalysis") {
-        const payload_profile = value.profile;
+        const payload_profile = value.getProfile();
         if (payload_profile == null) {
             throw new Error("profile payload is missing");
         }
 
-        const payload_target = value.target;
+        const payload_target = value.getTarget();
         if (payload_target == null) {
             throw new Error("target payload is missing");
         }
@@ -448,12 +524,12 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
     }
 
     if (value.kind === "dirBound") {
-        const payload_module = value.module;
+        const payload_module = value.getModule();
         if (payload_module == null) {
             throw new Error("module payload is missing");
         }
 
-        const payload_profile = value.profile;
+        const payload_profile = value.getProfile();
         if (payload_profile == null) {
             throw new Error("profile payload is missing");
         }
@@ -466,12 +542,12 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
     }
 
     if (value.kind === "dirImported") {
-        const payload_module = value.module;
+        const payload_module = value.getModule();
         if (payload_module == null) {
             throw new Error("module payload is missing");
         }
 
-        const payload_profile = value.profile;
+        const payload_profile = value.getProfile();
         if (payload_profile == null) {
             throw new Error("profile payload is missing");
         }
@@ -484,12 +560,12 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
     }
 
     if (value.kind === "dirExpanded") {
-        const payload_module = value.module;
+        const payload_module = value.getModule();
         if (payload_module == null) {
             throw new Error("module payload is missing");
         }
 
-        const payload_profile = value.profile;
+        const payload_profile = value.getProfile();
         if (payload_profile == null) {
             throw new Error("profile payload is missing");
         }
@@ -502,12 +578,12 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
     }
 
     if (value.kind === "dirExported") {
-        const payload_module = value.module;
+        const payload_module = value.getModule();
         if (payload_module == null) {
             throw new Error("module payload is missing");
         }
 
-        const payload_profile = value.profile;
+        const payload_profile = value.getProfile();
         if (payload_profile == null) {
             throw new Error("profile payload is missing");
         }
@@ -520,12 +596,12 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
     }
 
     if (value.kind === "dirResolved") {
-        const payload_module = value.module;
+        const payload_module = value.getModule();
         if (payload_module == null) {
             throw new Error("module payload is missing");
         }
 
-        const payload_profile = value.profile;
+        const payload_profile = value.getProfile();
         if (payload_profile == null) {
             throw new Error("profile payload is missing");
         }
@@ -538,17 +614,17 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
     }
 
     if (value.kind === "dirCheckedComponent") {
-        const payload_entry = value.entry;
+        const payload_entry = value.getEntry();
         if (payload_entry == null) {
             throw new Error("entry payload is missing");
         }
 
-        const payload_component = value.component;
+        const payload_component = value.getComponent();
         if (payload_component == null) {
             throw new Error("component payload is missing");
         }
 
-        const payload_profile = value.profile;
+        const payload_profile = value.getProfile();
         if (payload_profile == null) {
             throw new Error("profile payload is missing");
         }
@@ -562,12 +638,12 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
     }
 
     if (value.kind === "dirChecked") {
-        const payload_module = value.module;
+        const payload_module = value.getModule();
         if (payload_module == null) {
             throw new Error("module payload is missing");
         }
 
-        const payload_profile = value.profile;
+        const payload_profile = value.getProfile();
         if (payload_profile == null) {
             throw new Error("profile payload is missing");
         }
@@ -580,12 +656,12 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
     }
 
     if (value.kind === "dirMaterialized") {
-        const payload_module = value.module;
+        const payload_module = value.getModule();
         if (payload_module == null) {
             throw new Error("module payload is missing");
         }
 
-        const payload_profile = value.profile;
+        const payload_profile = value.getProfile();
         if (payload_profile == null) {
             throw new Error("profile payload is missing");
         }
@@ -598,12 +674,12 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
     }
 
     if (value.kind === "dirElaborated") {
-        const payload_module = value.module;
+        const payload_module = value.getModule();
         if (payload_module == null) {
             throw new Error("module payload is missing");
         }
 
-        const payload_profile = value.profile;
+        const payload_profile = value.getProfile();
         if (payload_profile == null) {
             throw new Error("profile payload is missing");
         }
@@ -616,17 +692,17 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
     }
 
     if (value.kind === "mirLowered") {
-        const payload_module = value.module;
+        const payload_module = value.getModule();
         if (payload_module == null) {
             throw new Error("module payload is missing");
         }
 
-        const payload_profile = value.profile;
+        const payload_profile = value.getProfile();
         if (payload_profile == null) {
             throw new Error("profile payload is missing");
         }
 
-        const payload_target = value.target;
+        const payload_target = value.getTarget();
         if (payload_target == null) {
             throw new Error("target payload is missing");
         }
@@ -640,17 +716,17 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
     }
 
     if (value.kind === "mirVerified") {
-        const payload_module = value.module;
+        const payload_module = value.getModule();
         if (payload_module == null) {
             throw new Error("module payload is missing");
         }
 
-        const payload_profile = value.profile;
+        const payload_profile = value.getProfile();
         if (payload_profile == null) {
             throw new Error("profile payload is missing");
         }
 
-        const payload_target = value.target;
+        const payload_target = value.getTarget();
         if (payload_target == null) {
             throw new Error("target payload is missing");
         }
@@ -664,17 +740,17 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
     }
 
     if (value.kind === "mirAnalyzed") {
-        const payload_module = value.module;
+        const payload_module = value.getModule();
         if (payload_module == null) {
             throw new Error("module payload is missing");
         }
 
-        const payload_profile = value.profile;
+        const payload_profile = value.getProfile();
         if (payload_profile == null) {
             throw new Error("profile payload is missing");
         }
 
-        const payload_target = value.target;
+        const payload_target = value.getTarget();
         if (payload_target == null) {
             throw new Error("target payload is missing");
         }
@@ -688,17 +764,17 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
     }
 
     if (value.kind === "mirOptimized") {
-        const payload_module = value.module;
+        const payload_module = value.getModule();
         if (payload_module == null) {
             throw new Error("module payload is missing");
         }
 
-        const payload_profile = value.profile;
+        const payload_profile = value.getProfile();
         if (payload_profile == null) {
             throw new Error("profile payload is missing");
         }
 
-        const payload_target = value.target;
+        const payload_target = value.getTarget();
         if (payload_target == null) {
             throw new Error("target payload is missing");
         }
@@ -712,12 +788,12 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
     }
 
     if (value.kind === "moduleQueryIndex") {
-        const payload_module = value.module;
+        const payload_module = value.getModule();
         if (payload_module == null) {
             throw new Error("module payload is missing");
         }
 
-        const payload_profile = value.profile;
+        const payload_profile = value.getProfile();
         if (payload_profile == null) {
             throw new Error("profile payload is missing");
         }
@@ -730,7 +806,7 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
     }
 
     if (value.kind === "workspaceQueryIndex") {
-        const payload_profile = value.profile;
+        const payload_profile = value.getProfile();
         if (payload_profile == null) {
             throw new Error("profile payload is missing");
         }
@@ -741,67 +817,121 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
         };
     }
 
-    if (value.kind === "moduleOutput") {
-        const payload_module = value.module;
+    if (value.kind === "script") {
+        const payload_module = value.getModule();
         if (payload_module == null) {
             throw new Error("module payload is missing");
         }
 
-        const payload_target = value.target;
+        const payload_target = value.getTarget();
         if (payload_target == null) {
             throw new Error("target payload is missing");
         }
 
         return {
-            kind: "moduleOutput",
+            kind: "script",
             module: fromWasmModuleId(payload_module),
             target: fromWasmTargetId(payload_target),
         };
     }
 
-    if (value.kind === "packageOutput") {
-        const payload_package = value.package;
-        if (payload_package == null) {
-            throw new Error("package payload is missing");
+    if (value.kind === "object") {
+        const payload_module = value.getModule();
+        if (payload_module == null) {
+            throw new Error("module payload is missing");
         }
 
-        const payload_target = value.target;
+        const payload_target = value.getTarget();
         if (payload_target == null) {
             throw new Error("target payload is missing");
         }
 
         return {
-            kind: "packageOutput",
+            kind: "object",
+            module: fromWasmModuleId(payload_module),
+            target: fromWasmTargetId(payload_target),
+        };
+    }
+
+    if (value.kind === "asset") {
+        const payload_module = value.getModule();
+        if (payload_module == null) {
+            throw new Error("module payload is missing");
+        }
+
+        const payload_target = value.getTarget();
+        if (payload_target == null) {
+            throw new Error("target payload is missing");
+        }
+
+        return {
+            kind: "asset",
+            module: fromWasmModuleId(payload_module),
+            target: fromWasmTargetId(payload_target),
+        };
+    }
+
+    if (value.kind === "bundle") {
+        const payload_package = value.getPackage();
+        if (payload_package == null) {
+            throw new Error("package payload is missing");
+        }
+
+        const payload_target = value.getTarget();
+        if (payload_target == null) {
+            throw new Error("target payload is missing");
+        }
+
+        return {
+            kind: "bundle",
             package: fromWasmPackageId(payload_package),
             target: fromWasmTargetId(payload_target),
         };
     }
 
-    if (value.kind === "productOutput") {
-        const payload_package = value.package;
+    if (value.kind === "program") {
+        const payload_package = value.getPackage();
         if (payload_package == null) {
             throw new Error("package payload is missing");
         }
 
-        const payload_product = value.product;
-        if (payload_product == null) {
-            throw new Error("product payload is missing");
+        const payload_target = value.getTarget();
+        if (payload_target == null) {
+            throw new Error("target payload is missing");
         }
 
         return {
-            kind: "productOutput",
+            kind: "program",
             package: fromWasmPackageId(payload_package),
-            product: fromWasmProductId(payload_product),
+            target: fromWasmTargetId(payload_target),
+        };
+    }
+
+    if (value.kind === "product") {
+        const payload_package = value.getPackage();
+        if (payload_package == null) {
+            throw new Error("package payload is missing");
+        }
+
+        const payload_productProduct = value.getProductProduct();
+        if (payload_productProduct == null) {
+            throw new Error("productProduct payload is missing");
+        }
+
+        return {
+            kind: "product",
+            package: fromWasmPackageId(payload_package),
+            product: fromWasmProductId(payload_productProduct),
         };
     }
 
     if (value.kind === "moduleLinted") {
-        const payload_module = value.module;
+        const payload_module = value.getModule();
         if (payload_module == null) {
             throw new Error("module payload is missing");
         }
 
-        const payload_profile = value.profile;
+        const payload_profile = value.getProfile();
         if (payload_profile == null) {
             throw new Error("profile payload is missing");
         }
@@ -814,7 +944,7 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
     }
 
     if (value.kind === "packageLinted") {
-        const payload_package = value.package;
+        const payload_package = value.getPackage();
         if (payload_package == null) {
             throw new Error("package payload is missing");
         }
@@ -832,6 +962,408 @@ export function fromWasmArtifactKey(value: Wasm.ArtifactKey): ArtifactKey {
     }
 
     throw new Error("unknown ArtifactKey");
+}
+
+/** Convert one BuildProfile from the WASM transport shape. */
+export function fromWasmBuildProfile(value: string): BuildProfile {
+    if (value === "full" || value === "minimal" || value === "freestanding") {
+        return value;
+    }
+
+    throw new Error(`unknown BuildProfile: ${value}`);
+}
+
+/** Convert one BuildLinkage from the WASM transport shape. */
+export function fromWasmBuildLinkage(value: string): BuildLinkage {
+    if (value === "portable" || value === "static" || value === "dynamic") {
+        return value;
+    }
+
+    throw new Error(`unknown BuildLinkage: ${value}`);
+}
+
+/** Convert one EmitFormat from the WASM transport shape. */
+export function fromWasmEmitFormat(value: string): EmitFormat {
+    if (value === "js" || value === "ts" || value === "wasm" || value === "native") {
+        return value;
+    }
+
+    throw new Error(`unknown EmitFormat: ${value}`);
+}
+
+/** Convert one FileType from the WASM transport shape. */
+export function fromWasmFileType(value: string): FileType {
+    if (value === "destack" || value === "destackDeclaration" || value === "javaScript" || value === "javaScriptXml" || value === "typeScript" || value === "typeScriptXml" || value === "typeScriptDeclaration" || value === "text" || value === "toml" || value === "yaml" || value === "json" || value === "env" || value === "html" || value === "markdown" || value === "css" || value === "svg" || value === "wasm" || value === "node" || value === "sourceMap" || value === "object" || value === "image" || value === "font" || value === "audio" || value === "video" || value === "model" || value === "neural" || value === "document" || value === "binary" || value === "unknown") {
+        return value;
+    }
+
+    throw new Error(`unknown FileType: ${value}`);
+}
+
+/** Convert one WASM SourceMapSource into the public bridge shape. */
+export function fromWasmSourceMapSource(value: Wasm.SourceMapSource): SourceMapSource {
+    return {
+        name: value.name,
+        content: value.content == null ? undefined : value.content,
+    };
+}
+
+/** Convert one WASM SourceMap into the public bridge shape. */
+export function fromWasmSourceMap(value: Wasm.SourceMap): SourceMap {
+    return {
+        version: value.version,
+        file: value.file == null ? undefined : value.file,
+        sourceRoot: value.sourceRoot == null ? undefined : value.sourceRoot,
+        sources: value.sources.map((item) => fromWasmSourceMapSource(item)),
+        names: value.names.map((item) => item),
+        mappings: value.mappings,
+        debugId: value.debugId == null ? undefined : value.debugId,
+    };
+}
+
+/** Convert one WASM Declaration into the public bridge shape. */
+export function fromWasmDeclaration(value: Wasm.Declaration): Declaration {
+    return {
+        text: value.text,
+    };
+}
+
+/** Convert one ScriptLanguage from the WASM transport shape. */
+export function fromWasmScriptLanguage(value: string): ScriptLanguage {
+    if (value === "javaScript" || value === "typeScript") {
+        return value;
+    }
+
+    throw new Error(`unknown ScriptLanguage: ${value}`);
+}
+
+/** Convert one WASM Script into the public bridge shape. */
+export function fromWasmScript(value: Wasm.Script): Script {
+    return {
+        language: fromWasmScriptLanguage(value.language),
+        declaration: value.declaration == null ? undefined : fromWasmDeclaration(value.declaration),
+        map: value.map == null ? undefined : fromWasmSourceMap(value.map),
+        hasTopLevelSideEffects: value.hasTopLevelSideEffects,
+    };
+}
+
+/** Convert one ObjectFormat from the WASM transport shape. */
+export function fromWasmObjectFormat(value: string): ObjectFormat {
+    if (value === "object" || value === "wasm") {
+        return value;
+    }
+
+    throw new Error(`unknown ObjectFormat: ${value}`);
+}
+
+/** Convert one WASM Object into the public bridge shape. */
+export function fromWasmObject(value: Wasm.Object): Object {
+    return {
+        format: fromWasmObjectFormat(value.format),
+        content: fromWasmContentId(value.content),
+        map: value.map == null ? undefined : fromWasmSourceMap(value.map),
+    };
+}
+
+/** Convert one WASM Asset into the public bridge shape. */
+export function fromWasmAsset(value: Wasm.Asset): Asset {
+    return {
+        fileType: fromWasmFileType(value.fileType),
+        content: fromWasmContentId(value.content),
+        source: value.source == null ? undefined : value.source,
+        map: value.map == null ? undefined : fromWasmSourceMap(value.map),
+    };
+}
+
+/** Convert one WASM Build into the public bridge shape. */
+export function fromWasmBuild(value: Wasm.Build): Build {
+    return {
+        profile: fromWasmBuildProfile(value.profile),
+        linkage: fromWasmBuildLinkage(value.linkage),
+        content: fromWasmContentId(value.content),
+    };
+}
+
+/** Convert one BundleSection from the WASM transport shape. */
+export function fromWasmBundleSection(value: string): BundleSection {
+    if (value === "module" || value === "entry" || value === "declaration" || value === "asset" || value === "manifest" || value === "sourceMap" || value === "native") {
+        return value;
+    }
+
+    throw new Error(`unknown BundleSection: ${value}`);
+}
+
+/** Convert one BundleMode from the WASM transport shape. */
+export function fromWasmBundleMode(value: string): BundleMode {
+    if (value === "preserveModules" || value === "singleFile" || value === "chunked") {
+        return value;
+    }
+
+    throw new Error(`unknown BundleMode: ${value}`);
+}
+
+/** Convert one WASM BundleFile into the public bridge shape. */
+export function fromWasmBundleFile(value: Wasm.BundleFile): BundleFile {
+    return {
+        section: fromWasmBundleSection(value.section),
+        uri: value.uri,
+        fileType: fromWasmFileType(value.fileType),
+        content: fromWasmContentId(value.content),
+        source: value.source == null ? undefined : value.source,
+    };
+}
+
+/** Convert one WASM Bundle into the public bridge shape. */
+export function fromWasmBundle(value: Wasm.Bundle): Bundle {
+    return {
+        emit: fromWasmEmitFormat(value.emit),
+        mode: fromWasmBundleMode(value.mode),
+        files: value.files.map((item) => fromWasmBundleFile(item)),
+    };
+}
+
+/** Convert one ProgramFormat from the WASM transport shape. */
+export function fromWasmProgramFormat(value: string): ProgramFormat {
+    if (value === "vm" || value === "native") {
+        return value;
+    }
+
+    throw new Error(`unknown ProgramFormat: ${value}`);
+}
+
+/** Convert one WASM ProgramHeader into the public bridge shape. */
+export function fromWasmProgramHeader(value: Wasm.ProgramHeader): ProgramHeader {
+    return {
+        name: value.name == null ? undefined : value.name,
+        fingerprint: value.fingerprint == null ? undefined : value.fingerprint,
+        target: value.target == null ? undefined : value.target,
+    };
+}
+
+/** Convert one WASM Program into the public bridge shape. */
+export function fromWasmProgram(value: Wasm.Program): Program {
+    return {
+        header: fromWasmProgramHeader(value.header),
+        format: fromWasmProgramFormat(value.format),
+        contents: value.contents.map((item) => fromWasmContentId(item)),
+    };
+}
+
+/** Convert one Runtime from the WASM transport shape. */
+export function fromWasmRuntime(value: string): Runtime {
+    if (value === "destack" || value === "js") {
+        return value;
+    }
+
+    throw new Error(`unknown Runtime: ${value}`);
+}
+
+/** Convert one Host from the WASM transport shape. */
+export function fromWasmHost(value: string): Host {
+    if (value === "native" || value === "browser" || value === "wasi" || value === "emscripten" || value === "freestanding") {
+        return value;
+    }
+
+    throw new Error(`unknown Host: ${value}`);
+}
+
+/** Convert one WASM ProductTarget into the public bridge shape. */
+export function fromWasmProductTarget(value: Wasm.ProductTarget): ProductTarget {
+    return {
+        name: value.name,
+        target: fromWasmTargetId(value.target),
+        runtime: fromWasmRuntime(value.runtime),
+        host: fromWasmHost(value.host),
+        platform: value.platform,
+        includesBuild: value.includesBuild,
+        includesBundle: value.includesBundle,
+        includesProgram: value.includesProgram,
+    };
+}
+
+/** Convert one WASM Product into the public bridge shape. */
+export function fromWasmProduct(value: Wasm.Product): Product {
+    return {
+        name: value.name,
+        targets: value.targets.map((item) => fromWasmProductTarget(item)),
+    };
+}
+
+/** Convert one ModuleBuildKind into the WASM transport shape. */
+export function toWasmModuleBuildKind(value: ModuleBuildKind): string {
+    if (value === "script" || value === "object" || value === "asset") {
+        return value;
+    }
+
+    throw new Error(`unknown ModuleBuildKind: ${value}`);
+}
+
+/** Convert one ModuleBuildKind from the WASM transport shape. */
+export function fromWasmModuleBuildKind(value: string): ModuleBuildKind {
+    if (value === "script" || value === "object" || value === "asset") {
+        return value;
+    }
+
+    throw new Error(`unknown ModuleBuildKind: ${value}`);
+}
+
+/** Convert one BuildRequest into the WASM transport shape. */
+export function toWasmBuildRequest(
+    wasm: WasmModule,
+    value: BuildRequest,
+): Wasm.BuildRequest {
+    if (value.kind === "module") {
+        return wasm.BuildRequest.module(
+            toWasmModule(wasm, value.module),
+            toWasmTargetId(wasm, value.target),
+            toWasmModuleBuildKind(value.output),
+        );
+    }
+
+    if (value.kind === "build") {
+        return wasm.BuildRequest.build(toWasmTargetId(wasm, value.target));
+    }
+
+    if (value.kind === "target") {
+        return wasm.BuildRequest.target(toWasmTargetId(wasm, value.target));
+    }
+
+    if (value.kind === "product") {
+        return wasm.BuildRequest.product(toWasmProductId(wasm, value.product));
+    }
+
+    throw new Error("unknown BuildRequest");
+}
+
+/** Convert one WASM BuildOutput into the public bridge shape. */
+export function fromWasmBuildOutput(value: Wasm.BuildOutput): BuildOutput {
+    if (value.kind === "script") {
+        const payload_version = value.getVersion();
+        if (payload_version == null) {
+            throw new Error("version payload is missing");
+        }
+
+        const payload_scriptScript = value.getScriptScript();
+        if (payload_scriptScript == null) {
+            throw new Error("scriptScript payload is missing");
+        }
+
+        return {
+            kind: "script",
+            version: fromWasmArtifactVersion(payload_version),
+            script: fromWasmScript(payload_scriptScript),
+        };
+    }
+
+    if (value.kind === "object") {
+        const payload_version = value.getVersion();
+        if (payload_version == null) {
+            throw new Error("version payload is missing");
+        }
+
+        const payload_objectObject = value.getObjectObject();
+        if (payload_objectObject == null) {
+            throw new Error("objectObject payload is missing");
+        }
+
+        return {
+            kind: "object",
+            version: fromWasmArtifactVersion(payload_version),
+            object: fromWasmObject(payload_objectObject),
+        };
+    }
+
+    if (value.kind === "asset") {
+        const payload_version = value.getVersion();
+        if (payload_version == null) {
+            throw new Error("version payload is missing");
+        }
+
+        const payload_assetAsset = value.getAssetAsset();
+        if (payload_assetAsset == null) {
+            throw new Error("assetAsset payload is missing");
+        }
+
+        return {
+            kind: "asset",
+            version: fromWasmArtifactVersion(payload_version),
+            asset: fromWasmAsset(payload_assetAsset),
+        };
+    }
+
+    if (value.kind === "build") {
+        const payload_version = value.getVersion();
+        if (payload_version == null) {
+            throw new Error("version payload is missing");
+        }
+
+        const payload_buildBuild = value.getBuildBuild();
+        if (payload_buildBuild == null) {
+            throw new Error("buildBuild payload is missing");
+        }
+
+        return {
+            kind: "build",
+            version: fromWasmArtifactVersion(payload_version),
+            build: fromWasmBuild(payload_buildBuild),
+        };
+    }
+
+    if (value.kind === "bundle") {
+        const payload_version = value.getVersion();
+        if (payload_version == null) {
+            throw new Error("version payload is missing");
+        }
+
+        const payload_bundleBundle = value.getBundleBundle();
+        if (payload_bundleBundle == null) {
+            throw new Error("bundleBundle payload is missing");
+        }
+
+        return {
+            kind: "bundle",
+            version: fromWasmArtifactVersion(payload_version),
+            bundle: fromWasmBundle(payload_bundleBundle),
+        };
+    }
+
+    if (value.kind === "program") {
+        const payload_version = value.getVersion();
+        if (payload_version == null) {
+            throw new Error("version payload is missing");
+        }
+
+        const payload_programProgram = value.getProgramProgram();
+        if (payload_programProgram == null) {
+            throw new Error("programProgram payload is missing");
+        }
+
+        return {
+            kind: "program",
+            version: fromWasmArtifactVersion(payload_version),
+            program: fromWasmProgram(payload_programProgram),
+        };
+    }
+
+    if (value.kind === "product") {
+        const payload_version = value.getVersion();
+        if (payload_version == null) {
+            throw new Error("version payload is missing");
+        }
+
+        const payload_productProduct = value.getProductProduct();
+        if (payload_productProduct == null) {
+            throw new Error("productProduct payload is missing");
+        }
+
+        return {
+            kind: "product",
+            version: fromWasmArtifactVersion(payload_version),
+            product: fromWasmProduct(payload_productProduct),
+        };
+    }
+
+    throw new Error("unknown BuildOutput");
 }
 
 /** Convert one WASM ArtifactString into the public bridge shape. */
@@ -1031,6 +1563,75 @@ export function fromWasmSessionFile(value: Wasm.SessionFile): SessionFile {
     };
 }
 
+/** Convert one Document into the WASM transport shape. */
+export function toWasmDocument(
+    wasm: WasmModule,
+    value: Document,
+): Wasm.Document {
+    if (value.kind === "module") {
+        return wasm.Document.module(toWasmModule(wasm, value.module));
+    }
+
+    if (value.kind === "text") {
+        return wasm.Document.text(value.path, value.text);
+    }
+
+    throw new Error("unknown Document");
+}
+
+/** Convert one FormatRequest into the WASM transport shape. */
+export function toWasmFormatRequest(
+    wasm: WasmModule,
+    value: FormatRequest,
+): Wasm.FormatRequest {
+    return new wasm.FormatRequest(toWasmDocument(wasm, value.document));
+}
+
+/** Convert one WASM FormatOutput into the public bridge shape. */
+export function fromWasmFormatOutput(value: Wasm.FormatOutput): FormatOutput {
+    return {
+        text: value.text,
+    };
+}
+
+/** Convert one Scope into the WASM transport shape. */
+export function toWasmScope(
+    wasm: WasmModule,
+    value: Scope,
+): Wasm.Scope {
+    if (value.kind === "module") {
+        return wasm.Scope.module(
+            toWasmModule(wasm, value.module),
+            toWasmProfileId(wasm, value.profile),
+        );
+    }
+
+    if (value.kind === "package") {
+        return wasm.Scope.package(toWasmPackageId(wasm, value.package));
+    }
+
+    if (value.kind === "workspace") {
+        return wasm.Scope.workspace();
+    }
+
+    throw new Error("unknown Scope");
+}
+
+/** Convert one LintRequest into the WASM transport shape. */
+export function toWasmLintRequest(
+    wasm: WasmModule,
+    value: LintRequest,
+): Wasm.LintRequest {
+    return new wasm.LintRequest(toWasmScope(wasm, value.scope));
+}
+
+/** Convert one WASM LintOutput into the public bridge shape. */
+export function fromWasmLintOutput(value: Wasm.LintOutput): LintOutput {
+    return {
+        diagnostics: value.diagnostics.map((item) => fromWasmDiagnostic(item)),
+    };
+}
+
 /** Convert one Module into the WASM transport shape. */
 export function toWasmModule(
     wasm: WasmModule,
@@ -1150,6 +1751,14 @@ export function fromWasmFileId(value: Wasm.FileId): FileId {
     };
 }
 
+/** Convert one ContentId into the WASM transport shape. */
+export function toWasmContentId(
+    wasm: WasmModule,
+    value: ContentId,
+): Wasm.ContentId {
+    return new wasm.ContentId(value.id);
+}
+
 /** Convert one WASM ContentId into the public bridge shape. */
 export function fromWasmContentId(value: Wasm.ContentId): ContentId {
     return {
@@ -1160,7 +1769,7 @@ export function fromWasmContentId(value: Wasm.ContentId): ContentId {
 /** Convert one WASM Content into the public bridge shape. */
 export function fromWasmContent(value: Wasm.Content): Content {
     if (value.kind === "text") {
-        const payload_textContent = value.textContent;
+        const payload_textContent = value.getTextContent();
         if (payload_textContent == null) {
             throw new Error("textContent payload is missing");
         }
@@ -1172,7 +1781,7 @@ export function fromWasmContent(value: Wasm.Content): Content {
     }
 
     if (value.kind === "binary") {
-        const payload_binaryContent = value.binaryContent;
+        const payload_binaryContent = value.getBinaryContent();
         if (payload_binaryContent == null) {
             throw new Error("binaryContent payload is missing");
         }

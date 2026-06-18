@@ -8,7 +8,7 @@ use crate::{FileId, Span};
 
 /// One source replacement crossing bridge boundaries.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "Replacement")]
 pub struct Replacement {
     /// Source span to replace.
     pub span: Span,
@@ -28,7 +28,7 @@ impl Replacement {
 
 /// Edits for a single file.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "FilePatch")]
 pub struct FilePatch {
     /// Edited file.
     pub file: FileId,
@@ -52,7 +52,7 @@ impl FilePatch {
 
 /// Edits across multiple files.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "BatchEdit")]
 pub struct BatchEdit {
     /// Per-file edits.
     pub files: Vec<FilePatch>,

@@ -8,7 +8,7 @@ use crate::{ArtifactVersion, ModuleId, ProfileId};
 
 /// Typed projection of one resolved DIR artifact.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "DirResolved")]
 pub struct DirResolved {
     /// Exact resolved artifact version.
     pub version: ArtifactVersion,

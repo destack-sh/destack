@@ -6,7 +6,7 @@ use napi_derive::napi;
 
 /// External revision value crossing bridge boundaries.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "Revision")]
 pub struct Revision {
     /// Displayed repository revision id.
     pub id: String,

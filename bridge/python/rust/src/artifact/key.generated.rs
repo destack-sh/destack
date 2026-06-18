@@ -15,6 +15,16 @@ pub struct ArtifactKey {
 
 #[pymethods]
 impl ArtifactKey {
+    /// Toolchain build payload for one target.
+    #[staticmethod]
+    pub fn build(target: TargetId) -> Self {
+        Self {
+            value: bridge::ArtifactKey::Build {
+                target: target.into_bridge(),
+            },
+        }
+    }
+
     /// Parsed module DIR.
     #[staticmethod]
     pub fn dir_parsed(module: ModuleId) -> Self {
@@ -259,33 +269,66 @@ impl ArtifactKey {
         }
     }
 
-    /// One generated module output for one target.
+    /// One structured linker input for one target.
     #[staticmethod]
-    pub fn module_output(module: ModuleId, target: TargetId) -> Self {
+    pub fn script(module: ModuleId, target: TargetId) -> Self {
         Self {
-            value: bridge::ArtifactKey::ModuleOutput {
+            value: bridge::ArtifactKey::Script {
                 module: module.into_bridge(),
                 target: target.into_bridge(),
             },
         }
     }
 
-    /// Output entries for one package target.
+    /// One compiled-code linker input for one target.
     #[staticmethod]
-    pub fn package_output(package: PackageId, target: TargetId) -> Self {
+    pub fn object(module: ModuleId, target: TargetId) -> Self {
         Self {
-            value: bridge::ArtifactKey::PackageOutput {
+            value: bridge::ArtifactKey::Object {
+                module: module.into_bridge(),
+                target: target.into_bridge(),
+            },
+        }
+    }
+
+    /// One opaque linker input for one target.
+    #[staticmethod]
+    pub fn asset(module: ModuleId, target: TargetId) -> Self {
+        Self {
+            value: bridge::ArtifactKey::Asset {
+                module: module.into_bridge(),
+                target: target.into_bridge(),
+            },
+        }
+    }
+
+    /// Linked file graph for one package target.
+    #[staticmethod]
+    pub fn bundle(package: PackageId, target: TargetId) -> Self {
+        Self {
+            value: bridge::ArtifactKey::Bundle {
                 package: package.into_bridge(),
                 target: target.into_bridge(),
             },
         }
     }
 
-    /// Output entries for one product.
+    /// Executable program for one package target.
     #[staticmethod]
-    pub fn product_output(package: PackageId, product: ProductId) -> Self {
+    pub fn program(package: PackageId, target: TargetId) -> Self {
         Self {
-            value: bridge::ArtifactKey::ProductOutput {
+            value: bridge::ArtifactKey::Program {
+                package: package.into_bridge(),
+                target: target.into_bridge(),
+            },
+        }
+    }
+
+    /// Linked product assembled from configured target artifacts.
+    #[staticmethod]
+    pub fn product(package: PackageId, product: ProductId) -> Self {
+        Self {
+            value: bridge::ArtifactKey::Product {
                 package: package.into_bridge(),
                 product: product.into_bridge(),
             },
@@ -325,6 +368,7 @@ impl ArtifactKey {
     #[getter]
     pub fn kind(&self) -> &'static str {
         match &self.value {
+            bridge::ArtifactKey::Build { .. } => "build",
             bridge::ArtifactKey::DirParsed { .. } => "dirParsed",
             bridge::ArtifactKey::Data { .. } => "data",
             bridge::ArtifactKey::GlobalEnvironment { .. } => "globalEnvironment",
@@ -347,9 +391,12 @@ impl ArtifactKey {
             bridge::ArtifactKey::MirOptimized { .. } => "mirOptimized",
             bridge::ArtifactKey::ModuleQueryIndex { .. } => "moduleQueryIndex",
             bridge::ArtifactKey::WorkspaceQueryIndex { .. } => "workspaceQueryIndex",
-            bridge::ArtifactKey::ModuleOutput { .. } => "moduleOutput",
-            bridge::ArtifactKey::PackageOutput { .. } => "packageOutput",
-            bridge::ArtifactKey::ProductOutput { .. } => "productOutput",
+            bridge::ArtifactKey::Script { .. } => "script",
+            bridge::ArtifactKey::Object { .. } => "object",
+            bridge::ArtifactKey::Asset { .. } => "asset",
+            bridge::ArtifactKey::Bundle { .. } => "bundle",
+            bridge::ArtifactKey::Program { .. } => "program",
+            bridge::ArtifactKey::Product { .. } => "product",
             bridge::ArtifactKey::ModuleLinted { .. } => "moduleLinted",
             bridge::ArtifactKey::PackageLinted { .. } => "packageLinted",
             bridge::ArtifactKey::WorkspaceLinted => "workspaceLinted",
@@ -358,7 +405,7 @@ impl ArtifactKey {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn component(&self) -> Option<ComponentId> {
+    pub fn get_component(&self) -> Option<ComponentId> {
         match &self.value {
             bridge::ArtifactKey::DirCheckedComponent { component, .. } => {
                 Some(ComponentId::from_bridge(component.clone()))
@@ -369,7 +416,7 @@ impl ArtifactKey {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn entry(&self) -> Option<ModuleId> {
+    pub fn get_entry(&self) -> Option<ModuleId> {
         match &self.value {
             bridge::ArtifactKey::DirCheckedComponent { entry, .. } => {
                 Some(ModuleId::from_bridge(entry.clone()))
@@ -380,7 +427,7 @@ impl ArtifactKey {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn module(&self) -> Option<ModuleId> {
+    pub fn get_module(&self) -> Option<ModuleId> {
         match &self.value {
             bridge::ArtifactKey::DirParsed { module, .. } => {
                 Some(ModuleId::from_bridge(module.clone()))
@@ -425,7 +472,13 @@ impl ArtifactKey {
             bridge::ArtifactKey::ModuleQueryIndex { module, .. } => {
                 Some(ModuleId::from_bridge(module.clone()))
             }
-            bridge::ArtifactKey::ModuleOutput { module, .. } => {
+            bridge::ArtifactKey::Script { module, .. } => {
+                Some(ModuleId::from_bridge(module.clone()))
+            }
+            bridge::ArtifactKey::Object { module, .. } => {
+                Some(ModuleId::from_bridge(module.clone()))
+            }
+            bridge::ArtifactKey::Asset { module, .. } => {
                 Some(ModuleId::from_bridge(module.clone()))
             }
             bridge::ArtifactKey::ModuleLinted { module, .. } => {
@@ -437,12 +490,15 @@ impl ArtifactKey {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn package(&self) -> Option<PackageId> {
+    pub fn get_package(&self) -> Option<PackageId> {
         match &self.value {
-            bridge::ArtifactKey::PackageOutput { package, .. } => {
+            bridge::ArtifactKey::Bundle { package, .. } => {
                 Some(PackageId::from_bridge(package.clone()))
             }
-            bridge::ArtifactKey::ProductOutput { package, .. } => {
+            bridge::ArtifactKey::Program { package, .. } => {
+                Some(PackageId::from_bridge(package.clone()))
+            }
+            bridge::ArtifactKey::Product { package, .. } => {
                 Some(PackageId::from_bridge(package.clone()))
             }
             bridge::ArtifactKey::PackageLinted { package, .. } => {
@@ -454,9 +510,9 @@ impl ArtifactKey {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn product(&self) -> Option<ProductId> {
+    pub fn get_product_product(&self) -> Option<ProductId> {
         match &self.value {
-            bridge::ArtifactKey::ProductOutput { product, .. } => {
+            bridge::ArtifactKey::Product { product, .. } => {
                 Some(ProductId::from_bridge(product.clone()))
             }
             _ => None,
@@ -465,7 +521,7 @@ impl ArtifactKey {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn profile(&self) -> Option<ProfileId> {
+    pub fn get_profile(&self) -> Option<ProfileId> {
         match &self.value {
             bridge::ArtifactKey::GlobalEnvironment { profile, .. } => {
                 Some(ProfileId::from_bridge(profile.clone()))
@@ -536,8 +592,11 @@ impl ArtifactKey {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn target(&self) -> Option<TargetId> {
+    pub fn get_target(&self) -> Option<TargetId> {
         match &self.value {
+            bridge::ArtifactKey::Build { target, .. } => {
+                Some(TargetId::from_bridge(target.clone()))
+            }
             bridge::ArtifactKey::ProgramAnalysis { target, .. } => {
                 Some(TargetId::from_bridge(target.clone()))
             }
@@ -553,10 +612,19 @@ impl ArtifactKey {
             bridge::ArtifactKey::MirOptimized { target, .. } => {
                 Some(TargetId::from_bridge(target.clone()))
             }
-            bridge::ArtifactKey::ModuleOutput { target, .. } => {
+            bridge::ArtifactKey::Script { target, .. } => {
                 Some(TargetId::from_bridge(target.clone()))
             }
-            bridge::ArtifactKey::PackageOutput { target, .. } => {
+            bridge::ArtifactKey::Object { target, .. } => {
+                Some(TargetId::from_bridge(target.clone()))
+            }
+            bridge::ArtifactKey::Asset { target, .. } => {
+                Some(TargetId::from_bridge(target.clone()))
+            }
+            bridge::ArtifactKey::Bundle { target, .. } => {
+                Some(TargetId::from_bridge(target.clone()))
+            }
+            bridge::ArtifactKey::Program { target, .. } => {
                 Some(TargetId::from_bridge(target.clone()))
             }
             _ => None,

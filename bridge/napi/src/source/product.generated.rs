@@ -8,7 +8,7 @@ use crate::PackageId;
 
 /// External product id crossing bridge boundaries.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "ProductId")]
 pub struct ProductId {
     /// Owning package.
     pub package: PackageId,

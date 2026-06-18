@@ -56,6 +56,13 @@ impl ContentId {
 }
 
 impl ContentId {
+    /// Convert this WASM value into one bridge value.
+    pub(crate) fn into_bridge(self) -> bridge::ContentId {
+        bridge::ContentId { id: self.id }
+    }
+}
+
+impl ContentId {
     /// Convert one bridge value into one WASM value.
     pub(crate) fn from_bridge(value: bridge::ContentId) -> Self {
         Self { id: value.id }
@@ -113,8 +120,8 @@ impl Content {
     }
 
     /// Text content.
-    #[wasm_bindgen(getter, js_name = "textContent")]
-    pub fn text_content(&self) -> Option<String> {
+    #[wasm_bindgen(js_name = "getTextContent")]
+    pub fn get_text_content(&self) -> Option<String> {
         match &self.content {
             ContentContent::Text { content: value, .. } => Some(value.clone()),
             _ => None,
@@ -122,8 +129,8 @@ impl Content {
     }
 
     /// Binary content.
-    #[wasm_bindgen(getter, js_name = "binaryContent")]
-    pub fn binary_content(&self) -> Option<Vec<u8>> {
+    #[wasm_bindgen(js_name = "getBinaryContent")]
+    pub fn get_binary_content(&self) -> Option<Vec<u8>> {
         match &self.content {
             ContentContent::Binary { content: value, .. } => Some(value.clone()),
             _ => None,

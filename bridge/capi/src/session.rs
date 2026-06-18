@@ -3,11 +3,13 @@ use std::slice;
 
 use destack as rust;
 
-use crate::core::{DestackError, DestackStatus, read_string, return_status, write_out};
+use crate::core::{DestackError, DestackStatus, c_string, read_string, return_status, write_out};
 use crate::generated::{
     DestackArtifactKey, DestackArtifactRecord, DestackArtifactSidecarArray, DestackArtifactVersion,
-    DestackChangeArray, DestackCommit, DestackDiagnosticArray, DestackDirChecked, DestackDirParsed,
-    DestackDirResolved, DestackModule, DestackProfileId, DestackRevision, DestackSessionFileArray,
+    DestackBuildOutput, DestackBuildRequest, DestackByteArray, DestackChangeArray, DestackCommit,
+    DestackContent, DestackContentId, DestackDiagnosticArray, DestackDirChecked, DestackDirParsed,
+    DestackDirResolved, DestackFormatOutput, DestackFormatRequest, DestackLintOutput,
+    DestackLintRequest, DestackModule, DestackProfileId, DestackRevision, DestackSessionFileArray,
 };
 use crate::source::{DestackEdits, DestackSource};
 
@@ -211,6 +213,81 @@ pub unsafe extern "C" fn destack_session_artifact_record(
     })
 }
 
+/// Build one typed language output for one immutable revision.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_session_build(
+    session: *const DestackSession,
+    revision: DestackRevision,
+    request: *const DestackBuildRequest,
+    out: *mut DestackBuildOutput,
+    error: *mut *mut DestackError,
+) -> DestackStatus {
+    return_status(error, || {
+        let session = unsafe { session.as_ref() }.ok_or("session is null")?;
+        let request = unsafe { request.as_ref() }.ok_or("build request is null")?;
+        let revision = revision.to_bridge()?;
+        let request = request.to_bridge()?;
+        let output = bridge(session.session.build(revision, request))?;
+        let output = DestackBuildOutput::from_bridge(output)?;
+
+        write_out(out, output, "build output is null")
+    })
+}
+
+/// Return one shared content payload by exact content id.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_session_content(
+    session: *const DestackSession,
+    id: DestackContentId,
+    out: *mut DestackContent,
+    error: *mut *mut DestackError,
+) -> DestackStatus {
+    return_status(error, || {
+        let session = unsafe { session.as_ref() }.ok_or("session is null")?;
+        let id = id.to_bridge()?;
+        let content = bridge(session.session.content(id))?;
+        let content = DestackContent::from_bridge(content)?;
+
+        write_out(out, content, "content output is null")
+    })
+}
+
+/// Return one text content payload by exact content id.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_session_text(
+    session: *const DestackSession,
+    id: DestackContentId,
+    out: *mut *mut c_char,
+    error: *mut *mut DestackError,
+) -> DestackStatus {
+    return_status(error, || {
+        let session = unsafe { session.as_ref() }.ok_or("session is null")?;
+        let id = id.to_bridge()?;
+        let text = bridge(session.session.text(id))?;
+        let text = c_string(text)?;
+
+        write_out(out, text, "text output is null")
+    })
+}
+
+/// Return one binary content payload by exact content id.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_session_bytes(
+    session: *const DestackSession,
+    id: DestackContentId,
+    out: *mut DestackByteArray,
+    error: *mut *mut DestackError,
+) -> DestackStatus {
+    return_status(error, || {
+        let session = unsafe { session.as_ref() }.ok_or("session is null")?;
+        let id = id.to_bridge()?;
+        let bytes = bridge(session.session.bytes(id))?;
+        let bytes = DestackByteArray::from_vec(bytes);
+
+        write_out(out, bytes, "byte array output is null")
+    })
+}
+
 /// Return the parsed DIR artifact for one loaded module.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_session_parse(
@@ -272,6 +349,48 @@ pub unsafe extern "C" fn destack_session_check(
         let checked = DestackDirChecked::from_bridge(checked)?;
 
         write_out(out, checked, "checked DIR output is null")
+    })
+}
+
+/// Format one document for one immutable revision.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_session_format(
+    session: *const DestackSession,
+    revision: DestackRevision,
+    request: *const DestackFormatRequest,
+    out: *mut DestackFormatOutput,
+    error: *mut *mut DestackError,
+) -> DestackStatus {
+    return_status(error, || {
+        let session = unsafe { session.as_ref() }.ok_or("session is null")?;
+        let request = unsafe { request.as_ref() }.ok_or("format request is null")?;
+        let revision = revision.to_bridge()?;
+        let request = request.to_bridge()?;
+        let output = bridge(session.session.format(revision, request))?;
+        let output = DestackFormatOutput::from_bridge(output)?;
+
+        write_out(out, output, "format output is null")
+    })
+}
+
+/// Lint one scope for one immutable revision.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_session_lint(
+    session: *const DestackSession,
+    revision: DestackRevision,
+    request: *const DestackLintRequest,
+    out: *mut DestackLintOutput,
+    error: *mut *mut DestackError,
+) -> DestackStatus {
+    return_status(error, || {
+        let session = unsafe { session.as_ref() }.ok_or("session is null")?;
+        let request = unsafe { request.as_ref() }.ok_or("lint request is null")?;
+        let revision = revision.to_bridge()?;
+        let request = request.to_bridge()?;
+        let output = bridge(session.session.lint(revision, request))?;
+        let output = DestackLintOutput::from_bridge(output)?;
+
+        write_out(out, output, "lint output is null")
     })
 }
 

@@ -40,6 +40,9 @@ fn render_module(schema: &Schema, names: &[String]) -> TokenStream {
                 items.push(render_struct(schema, ty, fields));
             }
             Shape::Enum(variants) if schema.is_unit_enum(&ty.name) => {
+                if schema.unit_enum_needs_parse(&ty.name) {
+                    helpers.push(render_unit_enum_parse(ty, variants));
+                }
                 if schema.unit_enum_needs_label(&ty.name) {
                     helpers.push(render_unit_enum_label(ty, variants));
                 }
@@ -309,24 +312,42 @@ fn render_payload_field_getter(
     content_name: &proc_macro2::Ident,
     field: &Field,
 ) -> TokenStream {
-    let field_name = field.ident();
-    let label = field.label();
+    let method_name = field.getter_ident();
+    let label = wasm_getter_label(&field.label());
     let ty = render_type(schema, &field.ty);
-    let arms = variants.iter().filter_map(|variant| {
-        render_payload_field_getter_arm(content_name, variant, payload_names, field)
-    });
+    let arms = variants
+        .iter()
+        .filter_map(|variant| {
+            render_payload_field_getter_arm(content_name, variant, payload_names, field)
+        })
+        .collect::<Vec<_>>();
     let docs = field.docs();
+    let fallback = (arms.len() < variants.len()).then(|| quote!(_ => None,));
 
     quote! {
         #docs
-        #[wasm_bindgen(getter, js_name = #label)]
-        pub fn #field_name(&self) -> Option<#ty> {
+        #[wasm_bindgen(js_name = #label)]
+        pub fn #method_name(&self) -> Option<#ty> {
             match &self.content {
                 #(#arms)*
-                _ => None,
+                #fallback
             }
         }
     }
+}
+
+/// Return one WASM payload field getter label.
+fn wasm_getter_label(label: &str) -> String {
+    let mut characters = label.chars();
+    let Some(first) = characters.next() else {
+        return "get".to_string();
+    };
+
+    let mut name = String::from("get");
+    name.extend(first.to_uppercase());
+    name.extend(characters);
+
+    name
 }
 
 /// Render one payload field getter arm when a variant carries the field.
@@ -645,6 +666,28 @@ fn render_unit_enum_label(ty: &Item, variants: &[Variant]) -> TokenStream {
     }
 }
 
+/// Render one unit enum parse helper.
+fn render_unit_enum_parse(ty: &Item, variants: &[Variant]) -> TokenStream {
+    let name = ty.ident();
+    let helper = ty.parse_ident();
+    let arms = variants.iter().map(|variant| {
+        let variant_name = variant.ident();
+        let label = variant.label();
+
+        quote!(#label => bridge::#name::#variant_name,)
+    });
+
+    quote! {
+        /// Parse one unit enum label.
+        fn #helper(value: &str) -> bridge::#name {
+            match value {
+                #(#arms)*
+                _ => wasm_bindgen::throw_str(&format!("unknown {}: {value}", stringify!(#name))),
+            }
+        }
+    }
+}
+
 /// Render one WASM type reference.
 fn render_type(schema: &Schema, ty: &Type) -> TokenStream {
     match ty {
@@ -709,7 +752,11 @@ fn render_into_bridge_value(schema: &Schema, value: TokenStream, ty: &Type) -> T
 
             quote!(#value.map(|item| #item))
         }
-        Type::Named(name) if schema.is_unit_enum(name) => quote!(#value),
+        Type::Named(name) if schema.is_unit_enum(name) => {
+            let helper = schema.item(name).parse_ident();
+
+            quote!(#helper(#value.as_str()))
+        }
         Type::Named(_) => quote!(#value.into_bridge()),
         _ => value,
     }

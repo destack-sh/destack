@@ -129,6 +129,31 @@ DestackStatus destack_session_artifact_record(
     DestackArtifactRecord *out,
     DestackError **error
 );
+DestackStatus destack_session_build(
+    const DestackSession *session,
+    DestackRevision revision,
+    const DestackBuildRequest *request,
+    DestackBuildOutput *out,
+    DestackError **error
+);
+DestackStatus destack_session_content(
+    const DestackSession *session,
+    DestackContentId id,
+    DestackContent *out,
+    DestackError **error
+);
+DestackStatus destack_session_text(
+    const DestackSession *session,
+    DestackContentId id,
+    char **out,
+    DestackError **error
+);
+DestackStatus destack_session_bytes(
+    const DestackSession *session,
+    DestackContentId id,
+    DestackByteArray *out,
+    DestackError **error
+);
 DestackStatus destack_session_parse(
     const DestackSession *session,
     DestackRevision revision,
@@ -150,6 +175,20 @@ DestackStatus destack_session_check(
     DestackModule module,
     DestackProfileId profile,
     DestackDirChecked *out,
+    DestackError **error
+);
+DestackStatus destack_session_format(
+    const DestackSession *session,
+    DestackRevision revision,
+    const DestackFormatRequest *request,
+    DestackFormatOutput *out,
+    DestackError **error
+);
+DestackStatus destack_session_lint(
+    const DestackSession *session,
+    DestackRevision revision,
+    const DestackLintRequest *request,
+    DestackLintOutput *out,
     DestackError **error
 );
 DestackStatus destack_session_diagnostics(

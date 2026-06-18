@@ -1,5 +1,6 @@
 import type * as Napi from "@destack/language-napi";
 import type { ArtifactKey } from "../artifact/key.generated.js";
+import type { BuildOutput, BuildRequest } from "../artifact/output.generated.js";
 import type { ArtifactRecord } from "../artifact/record.generated.js";
 import type { ArtifactSidecar } from "../artifact/sidecar.generated.js";
 import type { ArtifactVersion } from "../artifact/version.generated.js";
@@ -8,7 +9,10 @@ import type { DirParsed } from "../dir/parsed.generated.js";
 import type { DirResolved } from "../dir/resolved.generated.js";
 import type { Diagnostic } from "../diagnostic/diagnostic.generated.js";
 import type { SessionFile } from "../session/file.generated.js";
+import type { FormatOutput, FormatRequest } from "../session/format.generated.js";
+import type { LintOutput, LintRequest } from "../session/lint.generated.js";
 import type { Module } from "../session/module.generated.js";
+import type { Content, ContentId } from "../source/file.generated.js";
 import type { ProfileId } from "../source/profile.generated.js";
 import type { Change } from "../session/source/file.generated.js";
 import type { Source } from "../session/source/source.generated.js";
@@ -20,14 +24,22 @@ import {
     fromNapiArtifactRecord,
     fromNapiArtifactSidecar,
     fromNapiArtifactVersion,
+    fromNapiBuildOutput,
     fromNapiDiagnostic,
     fromNapiDirChecked,
     fromNapiDirParsed,
     fromNapiDirResolved,
+    fromNapiContent,
+    fromNapiFormatOutput,
+    fromNapiLintOutput,
     fromNapiModule,
     fromNapiSessionFile,
     fromNapiCommit,
     toNapiArtifactKey,
+    toNapiBuildRequest,
+    toNapiContentId,
+    toNapiFormatRequest,
+    toNapiLintRequest,
     toNapiModule,
     toNapiProfileId,
     toNapiSource,
@@ -91,6 +103,26 @@ class NativeSession implements Session {
         return fromNapiArtifactRecord(record);
     }
 
+    public build(revision: Revision, request: BuildRequest): BuildOutput {
+        const output = this.session.build(revision, toNapiBuildRequest(request));
+
+        return fromNapiBuildOutput(output);
+    }
+
+    public content(id: ContentId): Content {
+        const content = this.session.content(toNapiContentId(id));
+
+        return fromNapiContent(content);
+    }
+
+    public text(id: ContentId): string {
+        return this.session.text(toNapiContentId(id));
+    }
+
+    public bytes(id: ContentId): Uint8Array {
+        return Uint8Array.from(this.session.bytes(toNapiContentId(id)));
+    }
+
     public parse(revision: Revision, module: Module): DirParsed {
         const parsed = this.session.parse(revision, toNapiModule(module));
 
@@ -115,6 +147,18 @@ class NativeSession implements Session {
         );
 
         return fromNapiDirChecked(checked);
+    }
+
+    public format(revision: Revision, request: FormatRequest): FormatOutput {
+        const output = this.session.format(revision, toNapiFormatRequest(request));
+
+        return fromNapiFormatOutput(output);
+    }
+
+    public lint(revision: Revision, request: LintRequest): LintOutput {
+        const output = this.session.lint(revision, toNapiLintRequest(request));
+
+        return fromNapiLintOutput(output);
     }
 
     public diagnostics(revision: Revision, key?: ArtifactKey): readonly Diagnostic[] {

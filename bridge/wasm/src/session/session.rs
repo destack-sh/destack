@@ -3,9 +3,10 @@ use js_sys::Array;
 use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 
 use crate::{
-    ArtifactKey, ArtifactRecord, ArtifactSidecar, ArtifactVersion, Change, Commit, Diagnostic,
-    DirChecked, DirParsed, DirResolved, Edit, Module, ProfileId, Revision, SessionFile, Source,
-    js_error,
+    ArtifactKey, ArtifactRecord, ArtifactSidecar, ArtifactVersion, BuildOutput, BuildRequest,
+    Change, Commit, Content, ContentId, Diagnostic, DirChecked, DirParsed, DirResolved, Edit,
+    FormatOutput, FormatRequest, LintOutput, LintRequest, Module, ProfileId, Revision, SessionFile,
+    Source, js_error,
 };
 
 /// Live language session exposed to WebAssembly bindings.
@@ -141,6 +142,41 @@ impl Session {
         Ok(ArtifactRecord::from_bridge(record))
     }
 
+    /// Build one typed language output for one immutable revision.
+    #[wasm_bindgen]
+    pub fn build(&self, revision: Revision, request: BuildRequest) -> Result<BuildOutput, JsValue> {
+        let revision = revision.into_bridge();
+        let request = request.into_bridge();
+        let output = self.session.build(revision, request).map_err(js_error)?;
+
+        Ok(BuildOutput::from_bridge(output))
+    }
+
+    /// Return one shared content payload by exact content id.
+    #[wasm_bindgen]
+    pub fn content(&self, id: ContentId) -> Result<Content, JsValue> {
+        let id = id.into_bridge();
+        let content = self.session.content(id).map_err(js_error)?;
+
+        Ok(Content::from_bridge(content))
+    }
+
+    /// Return one text content payload by exact content id.
+    #[wasm_bindgen]
+    pub fn text(&self, id: ContentId) -> Result<String, JsValue> {
+        let id = id.into_bridge();
+
+        self.session.text(id).map_err(js_error)
+    }
+
+    /// Return one binary content payload by exact content id.
+    #[wasm_bindgen]
+    pub fn bytes(&self, id: ContentId) -> Result<Vec<u8>, JsValue> {
+        let id = id.into_bridge();
+
+        self.session.bytes(id).map_err(js_error)
+    }
+
     /// Return the parsed DIR artifact for one loaded module.
     #[wasm_bindgen]
     pub fn parse(&self, revision: Revision, module: Module) -> Result<DirParsed, JsValue> {
@@ -187,6 +223,30 @@ impl Session {
             .map_err(js_error)?;
 
         Ok(DirChecked::from_bridge(checked))
+    }
+
+    /// Format one document for one immutable revision.
+    #[wasm_bindgen]
+    pub fn format(
+        &self,
+        revision: Revision,
+        request: FormatRequest,
+    ) -> Result<FormatOutput, JsValue> {
+        let revision = revision.into_bridge();
+        let request = request.into_bridge();
+        let output = self.session.format(revision, request).map_err(js_error)?;
+
+        Ok(FormatOutput::from_bridge(output))
+    }
+
+    /// Lint one scope for one immutable revision.
+    #[wasm_bindgen]
+    pub fn lint(&self, revision: Revision, request: LintRequest) -> Result<LintOutput, JsValue> {
+        let revision = revision.into_bridge();
+        let request = request.into_bridge();
+        let output = self.session.lint(revision, request).map_err(js_error)?;
+
+        Ok(LintOutput::from_bridge(output))
     }
 
     /// Return diagnostics for one immutable revision.

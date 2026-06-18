@@ -8,7 +8,7 @@ use crate::{ArtifactVersion, ComponentId, ModuleId, ProfileId};
 
 /// Typed projection of one checked DIR module artifact.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "DirChecked")]
 pub struct DirChecked {
     /// Exact checked facade artifact version.
     pub version: ArtifactVersion,
