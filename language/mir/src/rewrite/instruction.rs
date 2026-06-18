@@ -44,6 +44,8 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::ElementSet { .. }
         | mir::Instruction::SliceView { .. }
         | mir::Instruction::SliceLength { .. }
+        | mir::Instruction::DynamicPayload { .. }
+        | mir::Instruction::DynamicType { .. }
         | mir::Instruction::VariantTag { .. }
         | mir::Instruction::VariantPayload { .. }
         | mir::Instruction::VectorSplat { .. }
@@ -220,6 +222,8 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::ElementAddr { .. }
         | mir::Instruction::SliceView { .. }
         | mir::Instruction::SliceLength { .. }
+        | mir::Instruction::DynamicPayload { .. }
+        | mir::Instruction::DynamicType { .. }
         | mir::Instruction::VariantTag { .. }
         | mir::Instruction::VariantPayload { .. }
         | mir::Instruction::VectorSplat { .. }
@@ -709,6 +713,22 @@ pub fn instruction_substitute_uses(
         mir::Instruction::SliceLength { destination, slice } => mir::Instruction::SliceLength {
             destination: *destination,
             slice: substitute(slice),
+        },
+        mir::Instruction::DynamicPayload {
+            destination,
+            dynamic,
+            result_type,
+        } => mir::Instruction::DynamicPayload {
+            destination: *destination,
+            dynamic: substitute(dynamic),
+            result_type: result_type.clone(),
+        },
+        mir::Instruction::DynamicType {
+            destination,
+            dynamic,
+        } => mir::Instruction::DynamicType {
+            destination: *destination,
+            dynamic: substitute(dynamic),
         },
         mir::Instruction::VariantTag {
             destination,
@@ -2169,6 +2189,22 @@ pub fn instruction_map(
             destination: remap(*destination),
             slice: remap(*slice),
         },
+        mir::Instruction::DynamicPayload {
+            destination,
+            dynamic,
+            result_type,
+        } => mir::Instruction::DynamicPayload {
+            destination: remap(*destination),
+            dynamic: remap(*dynamic),
+            result_type: result_type.clone(),
+        },
+        mir::Instruction::DynamicType {
+            destination,
+            dynamic,
+        } => mir::Instruction::DynamicType {
+            destination: remap(*destination),
+            dynamic: remap(*dynamic),
+        },
         mir::Instruction::VariantTag {
             destination,
             variant,
@@ -3312,6 +3348,22 @@ pub fn instruction_map_with_locals(
         mir::Instruction::SliceLength { destination, slice } => mir::Instruction::SliceLength {
             destination: remap(*destination),
             slice: remap(*slice),
+        },
+        mir::Instruction::DynamicPayload {
+            destination,
+            dynamic,
+            result_type,
+        } => mir::Instruction::DynamicPayload {
+            destination: remap(*destination),
+            dynamic: remap(*dynamic),
+            result_type: result_type.clone(),
+        },
+        mir::Instruction::DynamicType {
+            destination,
+            dynamic,
+        } => mir::Instruction::DynamicType {
+            destination: remap(*destination),
+            dynamic: remap(*dynamic),
         },
         mir::Instruction::VariantTag {
             destination,

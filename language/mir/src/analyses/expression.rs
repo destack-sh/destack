@@ -617,6 +617,8 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::ElementAddr { .. }
         | mir::Instruction::Assume { .. }
         | mir::Instruction::SliceLength { .. }
+        | mir::Instruction::DynamicPayload { .. }
+        | mir::Instruction::DynamicType { .. }
         | mir::Instruction::VariantTag { .. }
         | mir::Instruction::VariantPayload { .. }
         | mir::Instruction::ProfileIncrement { .. }

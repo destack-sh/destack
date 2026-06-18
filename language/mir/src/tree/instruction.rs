@@ -299,6 +299,24 @@ pub enum Instruction {
         slice: Value,
     },
 
+    // dynamic descriptors
+    /// Read the erased payload from a dynamic value.
+    DynamicPayload {
+        /// The SSA value to define with the payload.
+        destination: Value,
+        /// The dynamic value whose payload is read.
+        dynamic: Value,
+        /// The result type of the payload value.
+        result_type: TypeId,
+    },
+    /// Read the concrete type id from a dynamic value.
+    DynamicType {
+        /// The SSA value to define with the type id.
+        destination: Value,
+        /// The dynamic value whose concrete type is read.
+        dynamic: Value,
+    },
+
     // variant representation
     /// Read the active tag from a physical tagged sum value.
     VariantTag {
@@ -941,6 +959,8 @@ impl Instruction {
             Instruction::ElementSet { destination, .. } => Some(*destination),
             Instruction::SliceView { destination, .. } => Some(*destination),
             Instruction::SliceLength { destination, .. } => Some(*destination),
+            Instruction::DynamicPayload { destination, .. } => Some(*destination),
+            Instruction::DynamicType { destination, .. } => Some(*destination),
             Instruction::VariantTag { destination, .. } => Some(*destination),
             Instruction::VariantPayload { destination, .. } => Some(*destination),
             Instruction::VectorSplat { destination, .. } => Some(*destination),
@@ -1046,6 +1066,8 @@ impl Instruction {
                 ..
             } => smallvec![*source, *start, *length],
             Instruction::SliceLength { slice, .. } => smallvec![*slice],
+            Instruction::DynamicPayload { dynamic, .. } => smallvec![*dynamic],
+            Instruction::DynamicType { dynamic, .. } => smallvec![*dynamic],
             Instruction::VariantTag { variant, .. } => smallvec![*variant],
             Instruction::VariantPayload { variant, .. } => smallvec![*variant],
             Instruction::VectorSplat { value, .. } => smallvec![*value],

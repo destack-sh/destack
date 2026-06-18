@@ -506,6 +506,43 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
+            Instruction::DynamicPayload {
+                destination,
+                dynamic,
+                ..
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("dynamic.payload"),
+                        space(),
+                        dynamic
+                    ]
+                )
+            }
+
+            Instruction::DynamicType {
+                destination,
+                dynamic,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("dynamic.type"),
+                        space(),
+                        dynamic
+                    ]
+                )
+            }
+
             Instruction::VariantTag {
                 destination,
                 variant,

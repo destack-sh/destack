@@ -525,6 +525,23 @@ impl Parser {
                         Instruction::SliceLength { destination, slice }
                     }
 
+                    // dynamic descriptors
+                    "dynamic.payload" => {
+                        let dynamic = self.parse_value_segment(&mut segment_spans)?;
+                        Instruction::DynamicPayload {
+                            destination,
+                            dynamic,
+                            result_type: destination_type.into(),
+                        }
+                    }
+                    "dynamic.type" => {
+                        let dynamic = self.parse_value_segment(&mut segment_spans)?;
+                        Instruction::DynamicType {
+                            destination,
+                            dynamic,
+                        }
+                    }
+
                     // variant representation
                     "variant.tag" => {
                         let variant = self.parse_value_segment(&mut segment_spans)?;
