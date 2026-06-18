@@ -42,8 +42,8 @@ impl<'a> FunctionBuilder<'a> {
         let Some(parameter) = function.parameters.get(index) else {
             return self.expect_build(Err(BuildError::MissingConcreteFunctionParameter { index }));
         };
-        let value = parameter.value;
-        value
+
+        parameter.value
     }
 
     /// Add a block parameter and return its value.
@@ -54,10 +54,7 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let value = self.allocate_value();
         let block_data = self.tree.get_mut(block);
-        block_data.parameters.push(Parameter {
-            value: value.into(),
-            ty: ty.into(),
-        });
+        block_data.parameters.push(Parameter { value, ty });
         self.define_value(value, ty);
         value
     }

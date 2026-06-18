@@ -9,7 +9,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn null(&mut self, reference_type: LocalNodeId<Type>) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::Const {
-            destination: destination.into(),
+            destination,
             value: Constant::Null,
         });
         self.define_value(destination, reference_type);
@@ -37,7 +37,7 @@ impl<'a> FunctionBuilder<'a> {
         };
         let ty_id = self.tree.insert_type(ty);
         self.insert_instruction(Instruction::Const {
-            destination: destination.into(),
+            destination,
             value: constant,
         });
         self.define_value(destination, ty_id);
@@ -58,7 +58,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn bconst(&mut self, value: bool) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::Const {
-            destination: destination.into(),
+            destination,
             value: Constant::Boolean { value },
         });
         let ty_id = self.tree.insert_type(Type::Boolean);
@@ -71,7 +71,7 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let bits = destack_core::float_to_bits(float_type.format(), value);
         self.insert_instruction(Instruction::Const {
-            destination: destination.into(),
+            destination,
             value: Constant::Float {
                 bits,
                 format: float_type,
@@ -99,10 +99,10 @@ impl<'a> FunctionBuilder<'a> {
             }));
         }
         self.insert_instruction(Instruction::Binary {
-            destination: destination.into(),
+            destination,
             operator,
-            left: left_value.into(),
-            right: right_value.into(),
+            left: left_value,
+            right: right_value,
         });
         if operator.is_comparison() {
             let bool_type = self.tree.insert_type(Type::Boolean);
@@ -205,9 +205,9 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let argument_type = self.expect_value_type(argument_value, "unary argument");
         self.insert_instruction(Instruction::Unary {
-            destination: destination.into(),
+            destination,
             operator,
-            argument: argument_value.into(),
+            argument: argument_value,
         });
         self.define_value(destination, argument_type);
         destination
@@ -234,10 +234,10 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::Cast {
-            destination: destination.into(),
+            destination,
             operator,
-            argument: argument.into(),
-            to_type: to_type.into(),
+            argument,
+            to_type,
         });
         self.define_value_from_place(destination, to_type, argument);
         destination
@@ -282,10 +282,10 @@ impl<'a> FunctionBuilder<'a> {
             }));
         }
         self.insert_instruction(Instruction::Select {
-            destination: destination.into(),
-            condition: condition.into(),
-            then_value: then_value.into(),
-            else_value: else_value.into(),
+            destination,
+            condition,
+            then_value,
+            else_value,
         });
         self.define_value(destination, then_type);
         destination
@@ -301,10 +301,10 @@ impl<'a> FunctionBuilder<'a> {
         args: Vec<Value>,
     ) -> Value {
         let destination = self.allocate_value();
-        let arguments = args.into_iter().map(Value::from).collect::<Vec<_>>();
+        let arguments = args.into_iter().collect::<Vec<_>>();
         let arguments = self.tree.add_values(&arguments);
         self.insert_instruction(Instruction::Intrinsic {
-            destination: Some(destination.into()),
+            destination: Some(destination),
             intrinsic,
             arguments,
         });
@@ -314,7 +314,7 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Call an intrinsic with no return value.
     pub fn intrinsic_void(&mut self, intrinsic: Intrinsic, args: Vec<Value>) {
-        let arguments = args.into_iter().map(Value::from).collect::<Vec<_>>();
+        let arguments = args.into_iter().collect::<Vec<_>>();
         let arguments = self.tree.add_values(&arguments);
         self.insert_instruction(Instruction::Intrinsic {
             destination: None,
@@ -332,9 +332,9 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::AtomicLoad {
-            destination: destination.into(),
-            pointer: pointer.into(),
-            result_type: result_type.into(),
+            destination,
+            pointer,
+            result_type,
             access,
         });
         self.define_value(destination, result_type);
@@ -344,8 +344,8 @@ impl<'a> FunctionBuilder<'a> {
     /// Store one value atomically.
     pub fn atomic_store(&mut self, pointer: Value, value: Value, access: AtomicAccess) {
         self.insert_instruction(Instruction::AtomicStore {
-            pointer: pointer.into(),
-            value: value.into(),
+            pointer,
+            value,
             access,
         });
     }
@@ -362,10 +362,10 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::AtomicCompareExchange {
-            destination: destination.into(),
-            pointer: pointer.into(),
-            expected: expected.into(),
-            new_value: new_value.into(),
+            destination,
+            pointer,
+            expected,
+            new_value,
             is_weak,
             access,
         });
@@ -384,10 +384,10 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::AtomicRmw {
-            destination: destination.into(),
+            destination,
             operator,
-            pointer: pointer.into(),
-            value: value.into(),
+            pointer,
+            value,
             access,
         });
         self.define_value(destination, result_type);

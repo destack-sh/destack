@@ -175,7 +175,7 @@ pub fn control_instructions_for_latch(
     let header_block = tree.get(header);
     for instruction_id in &header_block.instructions {
         let instruction = tree.get(*instruction_id);
-        control_values.extend(instruction.uses().into_iter());
+        control_values.extend(instruction.uses());
     }
     let header_terminator = tree.get(header_block.terminator);
     control_values.extend(terminator_used_values(tree, header_terminator));
@@ -203,7 +203,7 @@ pub fn control_instructions_for_latch(
         }
 
         let instruction = tree.get(*definition);
-        worklist.extend(instruction.uses().into_iter());
+        worklist.extend(instruction.uses());
     }
 
     control_instructions
@@ -343,11 +343,11 @@ fn clone_loop_blocks_internal(
                     value_map.insert(value, new_value);
 
                     mir::Parameter {
-                        value: new_value.into(),
-                        ty: ty.into(),
+                        value: new_value,
+                        ty,
                     }
                 }
-                _ => param.clone(),
+                _ => *param,
             })
             .collect();
 

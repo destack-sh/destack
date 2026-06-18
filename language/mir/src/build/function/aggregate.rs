@@ -15,8 +15,8 @@ impl<'a> FunctionBuilder<'a> {
         let aggregate_type = self.expect_value_type(aggregate, "field.get aggregate");
         let field_type = self.expect_build(self.field_type_for_aggregate(aggregate_type, index));
         self.insert_instruction(Instruction::FieldGet {
-            destination: destination.into(),
-            aggregate: aggregate.into(),
+            destination,
+            aggregate,
             index,
         });
         self.define_value(destination, field_type);
@@ -32,10 +32,10 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::FieldAddr {
-            destination: destination.into(),
-            aggregate: aggregate.into(),
+            destination,
+            aggregate,
             index,
-            result_type: result_type.into(),
+            result_type,
         });
         self.define_value_from_projection(
             destination,
@@ -51,10 +51,10 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let aggregate_type = self.expect_value_type(aggregate, "field.set aggregate");
         self.insert_instruction(Instruction::FieldSet {
-            destination: destination.into(),
-            aggregate: aggregate.into(),
+            destination,
+            aggregate,
             index,
-            value: value.into(),
+            value,
         });
         self.define_value(destination, aggregate_type);
         destination
@@ -66,8 +66,8 @@ impl<'a> FunctionBuilder<'a> {
         let array_type = self.expect_value_type(array, "element.get array");
         let element_type = self.expect_build(self.element_type_for_array(array_type));
         self.insert_instruction(Instruction::ElementGet {
-            destination: destination.into(),
-            array: array.into(),
+            destination,
+            array,
             index,
         });
         self.define_value(destination, element_type);
@@ -83,18 +83,16 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::ElementAddr {
-            destination: destination.into(),
-            array: array.into(),
-            index: index.into(),
-            result_type: result_type.into(),
+            destination,
+            array,
+            index,
+            result_type,
         });
         self.define_value_from_projection(
             destination,
             result_type,
             array,
-            Projection::Index {
-                index: index.into(),
-            },
+            Projection::Index { index },
         );
         destination
     }
@@ -109,20 +107,17 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::Slice {
-            destination: destination.into(),
-            source: source.into(),
-            start: start.into(),
-            length: length.into(),
-            result_type: result_type.into(),
+            destination,
+            source,
+            start,
+            length,
+            result_type,
         });
         self.define_value_from_projection(
             destination,
             result_type,
             source,
-            Projection::Slice {
-                start: start.into(),
-                length: length.into(),
-            },
+            Projection::Slice { start, length },
         );
         destination
     }
@@ -132,10 +127,10 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let array_type = self.expect_value_type(array, "element.set array");
         self.insert_instruction(Instruction::ElementSet {
-            destination: destination.into(),
-            array: array.into(),
+            destination,
+            array,
             index,
-            value: value.into(),
+            value,
         });
         self.define_value(destination, array_type);
         destination
@@ -146,13 +141,10 @@ impl<'a> FunctionBuilder<'a> {
     /// Fields must be provided in layout order.
     pub fn struct_(&mut self, ty: LocalNodeId<Type>, field_values: Vec<Value>) -> Value {
         let destination = self.allocate_value();
-        let field_values = field_values
-            .into_iter()
-            .map(Value::from)
-            .collect::<Vec<_>>();
+        let field_values = field_values.into_iter().collect::<Vec<_>>();
         let fields = self.tree.add_values(&field_values);
         self.insert_instruction(Instruction::Struct {
-            destination: destination.into(),
+            destination,
             ty: TypeId::from(ty),
             fields,
         });
@@ -165,13 +157,10 @@ impl<'a> FunctionBuilder<'a> {
     /// Elements must be provided in order.
     pub fn tuple(&mut self, ty: LocalNodeId<Type>, element_values: Vec<Value>) -> Value {
         let destination = self.allocate_value();
-        let element_values = element_values
-            .into_iter()
-            .map(Value::from)
-            .collect::<Vec<_>>();
+        let element_values = element_values.into_iter().collect::<Vec<_>>();
         let elements = self.tree.add_values(&element_values);
         self.insert_instruction(Instruction::Tuple {
-            destination: destination.into(),
+            destination,
             ty: TypeId::from(ty),
             elements,
         });
@@ -184,13 +173,10 @@ impl<'a> FunctionBuilder<'a> {
     /// Elements must be provided in index order.
     pub fn array(&mut self, ty: LocalNodeId<Type>, element_values: Vec<Value>) -> Value {
         let destination = self.allocate_value();
-        let element_values = element_values
-            .into_iter()
-            .map(Value::from)
-            .collect::<Vec<_>>();
+        let element_values = element_values.into_iter().collect::<Vec<_>>();
         let elements = self.tree.add_values(&element_values);
         self.insert_instruction(Instruction::Array {
-            destination: destination.into(),
+            destination,
             ty: TypeId::from(ty),
             elements,
         });
@@ -203,10 +189,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Broadcast a scalar to all vector lanes.
     pub fn vector_splat(&mut self, vector_type: LocalNodeId<Type>, value: Value) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::VectorSplat {
-            destination: destination.into(),
-            value: value.into(),
-        });
+        self.insert_instruction(Instruction::VectorSplat { destination, value });
         self.define_value(destination, vector_type);
         destination
     }
@@ -217,9 +200,9 @@ impl<'a> FunctionBuilder<'a> {
         let vector_type = self.expect_value_type(vector, "vector.extract vector");
         let element_type = self.expect_build(self.element_type_for_vector(vector_type));
         self.insert_instruction(Instruction::VectorExtract {
-            destination: destination.into(),
-            vector: vector.into(),
-            index: index.into(),
+            destination,
+            vector,
+            index,
         });
         self.define_value(destination, element_type);
         destination
@@ -230,10 +213,10 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let vector_type = self.expect_value_type(vector, "vector.insert vector");
         self.insert_instruction(Instruction::VectorInsert {
-            destination: destination.into(),
-            vector: vector.into(),
-            index: index.into(),
-            value: value.into(),
+            destination,
+            vector,
+            index,
+            value,
         });
         self.define_value(destination, vector_type);
         destination
@@ -250,9 +233,9 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let mask = self.tree.add_indices(&mask);
         self.insert_instruction(Instruction::VectorShuffle {
-            destination: destination.into(),
-            left: left.into(),
-            right: right.into(),
+            destination,
+            left,
+            right,
             mask,
         });
         self.define_value(destination, vector_type);
@@ -264,10 +247,10 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let vector_type = self.expect_value_type(then_value, "vector.select then_value");
         self.insert_instruction(Instruction::VectorSelect {
-            destination: destination.into(),
-            mask: mask.into(),
-            then_value: then_value.into(),
-            else_value: else_value.into(),
+            destination,
+            mask,
+            then_value,
+            else_value,
         });
         self.define_value(destination, vector_type);
         destination
@@ -279,9 +262,9 @@ impl<'a> FunctionBuilder<'a> {
         let vector_type = self.expect_value_type(vector, "vector.reduce vector");
         let element_type = self.expect_build(self.element_type_for_vector(vector_type));
         self.insert_instruction(Instruction::VectorReduce {
-            destination: destination.into(),
+            destination,
             operator,
-            vector: vector.into(),
+            vector,
         });
         self.define_value(destination, element_type);
         destination
@@ -297,10 +280,10 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::VectorCompare {
-            destination: destination.into(),
+            destination,
             operator,
-            left: left.into(),
-            right: right.into(),
+            left,
+            right,
         });
         self.define_value(destination, result_type);
         destination
@@ -315,9 +298,9 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::VectorConvert {
-            destination: destination.into(),
+            destination,
             mode,
-            vector: vector.into(),
+            vector,
         });
         self.define_value(destination, result_type);
         destination
@@ -328,10 +311,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Broadcast a scalar to all tensor elements.
     pub fn tensor_splat(&mut self, tensor_type: LocalNodeId<Type>, value: Value) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::TensorSplat {
-            destination: destination.into(),
-            value: value.into(),
-        });
+        self.insert_instruction(Instruction::TensorSplat { destination, value });
         self.define_value(destination, tensor_type);
         destination
     }
@@ -341,10 +321,10 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let tensor_type = self.expect_value_type(then_value, "tensor.select then_value");
         self.insert_instruction(Instruction::TensorSelect {
-            destination: destination.into(),
-            mask: mask.into(),
-            then_value: then_value.into(),
-            else_value: else_value.into(),
+            destination,
+            mask,
+            then_value,
+            else_value,
         });
         self.define_value(destination, tensor_type);
         destination
@@ -355,11 +335,11 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let view_type = self.expect_value_type(view, "tensor.load view");
         let element_type = self.expect_build(self.element_type_for_tensor_view(view_type));
-        let indices = indices.into_iter().map(Value::from).collect::<Vec<_>>();
+        let indices = indices.into_iter().collect::<Vec<_>>();
         let indices = self.tree.add_values(&indices);
         self.insert_instruction(Instruction::TensorLoad {
-            destination: destination.into(),
-            view: view.into(),
+            destination,
+            view,
             indices,
         });
         self.define_value(destination, element_type);
@@ -371,11 +351,11 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let tensor_type = self.expect_value_type(tensor, "tensor.extract tensor");
         let element_type = self.expect_build(self.element_type_for_tensor(tensor_type));
-        let indices = indices.into_iter().map(Value::from).collect::<Vec<_>>();
+        let indices = indices.into_iter().collect::<Vec<_>>();
         let indices = self.tree.add_values(&indices);
         self.insert_instruction(Instruction::TensorExtract {
-            destination: destination.into(),
-            tensor: tensor.into(),
+            destination,
+            tensor,
             indices,
         });
         self.define_value(destination, element_type);
@@ -384,29 +364,23 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Store a tensor element into a tensor reference.
     pub fn tensor_store(&mut self, view: Value, indices: Vec<Value>, value: Value) {
-        let indices = indices.into_iter().map(Value::from).collect::<Vec<_>>();
+        let indices = indices.into_iter().collect::<Vec<_>>();
         let indices = self.tree.add_values(&indices);
         self.insert_instruction(Instruction::TensorStore {
-            view: view.into(),
+            view,
             indices,
-            value: value.into(),
+            value,
         });
     }
 
     /// Fill a tensor reference with a scalar value.
     pub fn tensor_fill(&mut self, view: Value, value: Value) {
-        self.insert_instruction(Instruction::TensorFill {
-            view: view.into(),
-            value: value.into(),
-        });
+        self.insert_instruction(Instruction::TensorFill { view, value });
     }
 
     /// Copy elements from a source tensor reference into a destination tensor reference.
     pub fn tensor_copy(&mut self, target: Value, source: Value) {
-        self.insert_instruction(Instruction::TensorCopy {
-            target: target.into(),
-            source: source.into(),
-        });
+        self.insert_instruction(Instruction::TensorCopy { target, source });
     }
 
     /// Reshape a tensor value into a new shape.
@@ -417,14 +391,11 @@ impl<'a> FunctionBuilder<'a> {
         shape_values: Vec<Value>,
     ) -> Value {
         let destination = self.allocate_value();
-        let shape = shape_values
-            .into_iter()
-            .map(Value::from)
-            .collect::<Vec<_>>();
+        let shape = shape_values.into_iter().collect::<Vec<_>>();
         let shape = self.tree.add_values(&shape);
         self.insert_instruction(Instruction::TensorReshape {
-            destination: destination.into(),
-            tensor: tensor.into(),
+            destination,
+            tensor,
             shape,
         });
         self.define_value(destination, result_type);
@@ -441,8 +412,8 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let dimensions = self.tree.add_indices(&dimensions);
         self.insert_instruction(Instruction::TensorBroadcast {
-            destination: destination.into(),
-            tensor: tensor.into(),
+            destination,
+            tensor,
             dimensions,
         });
         self.define_value_from_place(destination, result_type, tensor);
@@ -459,8 +430,8 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let permutation = self.tree.add_indices(&permutation);
         self.insert_instruction(Instruction::TensorTranspose {
-            destination: destination.into(),
-            tensor: tensor.into(),
+            destination,
+            tensor,
             permutation,
         });
         self.define_value(destination, result_type);
@@ -471,8 +442,8 @@ impl<'a> FunctionBuilder<'a> {
     pub fn tensor_cast(&mut self, result_type: LocalNodeId<Type>, tensor: Value) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::TensorCast {
-            destination: destination.into(),
-            tensor: tensor.into(),
+            destination,
+            tensor,
         });
         self.define_value_from_place(destination, result_type, tensor);
         destination
@@ -495,11 +466,11 @@ impl<'a> FunctionBuilder<'a> {
         values.extend_from_slice(&offsets);
         values.extend_from_slice(&sizes);
         values.extend_from_slice(&strides);
-        let arguments = values.into_iter().map(Value::from).collect::<Vec<_>>();
+        let arguments = values.into_iter().collect::<Vec<_>>();
         let arguments = self.tree.add_values(&arguments);
         self.insert_instruction(Instruction::TensorView {
-            destination: destination.into(),
-            view: view.into(),
+            destination,
+            view,
             arguments,
             offsets_count,
             sizes_count,
@@ -526,11 +497,11 @@ impl<'a> FunctionBuilder<'a> {
         values.extend_from_slice(&offsets);
         values.extend_from_slice(&sizes);
         values.extend_from_slice(&strides);
-        let arguments = values.into_iter().map(Value::from).collect::<Vec<_>>();
+        let arguments = values.into_iter().collect::<Vec<_>>();
         let arguments = self.tree.add_values(&arguments);
         self.insert_instruction(Instruction::TensorSlice {
-            destination: destination.into(),
-            tensor: tensor.into(),
+            destination,
+            tensor,
             arguments,
             offsets_count,
             sizes_count,
@@ -559,16 +530,16 @@ impl<'a> FunctionBuilder<'a> {
         values.extend_from_slice(&low);
         values.extend_from_slice(&high);
         values.extend_from_slice(&interior);
-        let arguments = values.into_iter().map(Value::from).collect::<Vec<_>>();
+        let arguments = values.into_iter().collect::<Vec<_>>();
         let arguments = self.tree.add_values(&arguments);
         self.insert_instruction(Instruction::TensorPad {
-            destination: destination.into(),
-            tensor: tensor.into(),
+            destination,
+            tensor,
             arguments,
             low_count,
             high_count,
             interior_count,
-            value: value.into(),
+            value,
         });
         self.define_value(destination, result_type);
         destination
@@ -582,10 +553,10 @@ impl<'a> FunctionBuilder<'a> {
         axis: u32,
     ) -> Value {
         let destination = self.allocate_value();
-        let tensors = tensors.into_iter().map(Value::from).collect::<Vec<_>>();
+        let tensors = tensors.into_iter().collect::<Vec<_>>();
         let tensors = self.tree.add_values(&tensors);
         self.insert_instruction(Instruction::TensorConcat {
-            destination: destination.into(),
+            destination,
             tensors,
             axis,
         });
@@ -603,10 +574,10 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::TensorCompare {
-            destination: destination.into(),
+            destination,
             operator,
-            left: left.into(),
-            right: right.into(),
+            left,
+            right,
         });
         self.define_value(destination, result_type);
         destination
@@ -624,10 +595,10 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let axes = self.tree.add_indices(&axes);
         self.insert_instruction(Instruction::TensorReduce {
-            destination: destination.into(),
+            destination,
             operator,
-            tensor: tensor.into(),
-            initial: initial.into(),
+            tensor,
+            initial,
             axes,
         });
         self.define_value(destination, result_type);
@@ -645,9 +616,9 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::TensorIndexReduce {
-            destination: destination.into(),
+            destination,
             operator,
-            tensor: tensor.into(),
+            tensor,
             axis,
             tie_break,
         });
@@ -666,9 +637,9 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let immediate = self.tree.add_tensor_dot_immediate(dimensions);
         self.insert_instruction(Instruction::TensorDot {
-            destination: destination.into(),
-            left: left.into(),
-            right: right.into(),
+            destination,
+            left,
+            right,
             immediate,
         });
         self.define_value(destination, result_type);
@@ -694,9 +665,9 @@ impl<'a> FunctionBuilder<'a> {
             batch_group_count,
         );
         self.insert_instruction(Instruction::TensorConvolution {
-            destination: destination.into(),
-            input: input.into(),
-            kernel: kernel.into(),
+            destination,
+            input,
+            kernel,
             immediate,
         });
         self.define_value(destination, result_type);
@@ -717,9 +688,9 @@ impl<'a> FunctionBuilder<'a> {
             .tree
             .add_tensor_gather_immediate(dimensions, &slice_sizes);
         self.insert_instruction(Instruction::TensorGather {
-            destination: destination.into(),
-            operand: operand.into(),
-            indices: indices.into(),
+            destination,
+            operand,
+            indices,
             immediate,
         });
         self.define_value(destination, result_type);
@@ -739,10 +710,10 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let immediate = self.tree.add_tensor_scatter_immediate(dimensions);
         self.insert_instruction(Instruction::TensorScatter {
-            destination: destination.into(),
-            operand: operand.into(),
-            indices: indices.into(),
-            updates: updates.into(),
+            destination,
+            operand,
+            indices,
+            updates,
             immediate,
             mode,
         });
@@ -759,9 +730,9 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::TensorConvert {
-            destination: destination.into(),
+            destination,
             mode,
-            tensor: tensor.into(),
+            tensor,
         });
         self.define_value(destination, result_type);
         destination

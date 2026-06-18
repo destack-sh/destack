@@ -166,7 +166,7 @@ impl Parser {
                         self.span_at(error.position, error_end.saturating_sub(error.position));
                     let ty = self.error_type();
 
-                    return (ty, span);
+                    (ty, span)
                 }
             },
             Err(error) => {
@@ -447,9 +447,7 @@ impl Parser {
         self.eat_token(TokenType::FatArrow)?;
         let signature = self.parse_function_signature(parameters)?;
 
-        Ok(Type::FunctionPointer {
-            signature: signature.into(),
-        })
+        Ok(Type::FunctionPointer { signature })
     }
 
     /// Parse a slice type.
@@ -544,8 +542,8 @@ impl Parser {
             let environment = self.tree.ensure_closure_environment_type();
 
             return Ok(Type::Closure {
-                signature: signature.into(),
-                environment: environment.into(),
+                signature,
+                environment,
             });
         }
 
@@ -783,7 +781,7 @@ impl Parser {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
         let tag_type = self.parse_type()?;
-        let tag = tag_type.into();
+        let tag = tag_type;
         self.eat_token(TokenType::Comma)?;
         let (storage, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::GreaterThan)?;

@@ -14,7 +14,7 @@ impl ModuleBuilder {
     ) -> LocalNodeId<Global> {
         let name_id = self.strings.intern(name);
         self.tree
-            .insert(Global::new(name_id, ty.into(), Mutability::Mutable, init))
+            .insert(Global::new(name_id, ty, Mutability::Mutable, init))
     }
 
     /// Create a global constant (immutable).
@@ -26,7 +26,7 @@ impl ModuleBuilder {
     ) -> LocalNodeId<Global> {
         let name_id = self.strings.intern(name);
         self.tree
-            .insert(Global::new(name_id, ty.into(), Mutability::Immutable, init))
+            .insert(Global::new(name_id, ty, Mutability::Immutable, init))
     }
 
     /// Create a global with explicit mutability.
@@ -38,8 +38,7 @@ impl ModuleBuilder {
         init: GlobalInitializer,
     ) -> LocalNodeId<Global> {
         let name_id = self.strings.intern(name);
-        self.tree
-            .insert(Global::new(name_id, ty.into(), mutability, init))
+        self.tree.insert(Global::new(name_id, ty, mutability, init))
     }
 
     /// Declare an external global (defined elsewhere).
@@ -50,8 +49,7 @@ impl ModuleBuilder {
         mutability: Mutability,
     ) -> LocalNodeId<Global> {
         let name_id = self.strings.intern(name);
-        self.tree
-            .insert(Global::import(name_id, ty.into(), mutability))
+        self.tree.insert(Global::import(name_id, ty, mutability))
     }
 
     /// Start building a new function.
@@ -91,13 +89,13 @@ impl ModuleBuilder {
             .iter()
             .enumerate()
             .map(|(index, &ty)| Parameter {
-                value: Value::new(index as u32).into(),
-                ty: ty.into(),
+                value: Value::new(index as u32),
+                ty,
             })
             .collect();
-        let function_id =
-            self.tree
-                .insert(Function::declare(name_id, parameters, return_type.into()));
+        let function_id = self
+            .tree
+            .insert(Function::declare(name_id, parameters, return_type));
         finalize_function_names(&mut self.tree, &mut self.strings, function_id);
 
         function_id
@@ -115,13 +113,13 @@ impl ModuleBuilder {
             .iter()
             .enumerate()
             .map(|(index, &ty)| Parameter {
-                value: Value::new(index as u32).into(),
-                ty: ty.into(),
+                value: Value::new(index as u32),
+                ty,
             })
             .collect();
-        let function_id =
-            self.tree
-                .insert(Function::import(name_id, parameters, return_type.into()));
+        let function_id = self
+            .tree
+            .insert(Function::import(name_id, parameters, return_type));
         finalize_function_names(&mut self.tree, &mut self.strings, function_id);
 
         function_id

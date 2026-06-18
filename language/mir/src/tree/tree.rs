@@ -88,11 +88,7 @@ impl NodeIndexEntry {
     }
 }
 
-/// MIR tree for a single module.
-///
-/// This is the main storage for all MIR nodes in a module. All nodes
-/// (functions, blocks, instructions, locals, types) are stored in arenas
-/// and referenced by `LocalNodeId<T>`.
+/// MIR tree for a single unit.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Tree {
     /// The first global node id stored in this tree.

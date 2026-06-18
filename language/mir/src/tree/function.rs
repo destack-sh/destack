@@ -276,7 +276,7 @@ impl Function {
         let place = self
             .value_place(base)
             .cloned()
-            .unwrap_or_else(|| Place::value(base.into()))
+            .unwrap_or_else(|| Place::value(base))
             .with_projection(projection);
 
         self.set_value_place(value, place);

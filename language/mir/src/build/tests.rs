@@ -883,7 +883,7 @@ fn test_build_frame_alloc_zeroed() {
         lifetime: Lifetime::empty(),
         space: Space::Frame,
         access: Access::Readonly,
-        pointee: i32_type.into(),
+        pointee: i32_type,
         nullability: Nullability::None,
     });
 

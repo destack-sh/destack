@@ -8,7 +8,7 @@ use crate::{
 impl<'a> FunctionBuilder<'a> {
     /// Create a local variable (stack slot).
     pub fn local(&mut self, ty: LocalNodeId<Type>, mutability: Mutability) -> LocalNodeId<Local> {
-        let local = self.tree.insert(Local::new(ty.into(), mutability));
+        let local = self.tree.insert(Local::new(ty, mutability));
         let function = self.tree.get_mut(self.function_id);
         function.locals.push(local);
         local
@@ -28,7 +28,7 @@ impl<'a> FunctionBuilder<'a> {
             lifetime: Lifetime::empty(),
             space,
             access,
-            pointee: pointee.into(),
+            pointee,
             nullability,
         })
     }
@@ -36,10 +36,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Load from a local variable.
     pub fn local_get(&mut self, local: LocalNodeId<Local>) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::LocalGet {
-            destination: destination.into(),
-            local: local.into(),
-        });
+        self.insert_instruction(Instruction::LocalGet { destination, local });
         let local_ty = self.tree.get(local).ty;
         self.define_value(destination, local_ty);
         destination
@@ -53,20 +50,17 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::LocalAddr {
-            destination: destination.into(),
-            local: local.into(),
-            result_type: result_type.into(),
+            destination,
+            local,
+            result_type,
         });
-        self.define_value_with_place(destination, result_type, Place::local(local.into()));
+        self.define_value_with_place(destination, result_type, Place::local(local));
         destination
     }
 
     /// Store to a local variable.
     pub fn local_set(&mut self, local: LocalNodeId<Local>, value: Value) {
-        self.insert_instruction(Instruction::LocalSet {
-            local: local.into(),
-            value: value.into(),
-        });
+        self.insert_instruction(Instruction::LocalSet { local, value });
     }
 
     /// Get the address of a mutable global variable.
@@ -77,11 +71,11 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::GlobalAddr {
-            destination: destination.into(),
-            global: global.into(),
-            result_type: result_type.into(),
+            destination,
+            global,
+            result_type,
         });
-        self.define_value_with_place(destination, result_type, Place::global(global.into()));
+        self.define_value_with_place(destination, result_type, Place::global(global));
         destination
     }
 
@@ -105,19 +99,19 @@ impl<'a> FunctionBuilder<'a> {
     pub fn load(&mut self, pointer_value: Value, result_type: LocalNodeId<Type>) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::Load {
-            destination: destination.into(),
-            pointer: pointer_value.into(),
-            result_type: result_type.into(),
+            destination,
+            pointer: pointer_value,
+            result_type,
         });
-        self.define_value_with_place(destination, result_type, Place::value(destination.into()));
+        self.define_value_with_place(destination, result_type, Place::value(destination));
         destination
     }
 
     /// Store to a pointer.
     pub fn store(&mut self, pointer_value: Value, value: Value) {
         self.insert_instruction(Instruction::Store {
-            pointer: pointer_value.into(),
-            value: value.into(),
+            pointer: pointer_value,
+            value,
         });
     }
 
@@ -249,9 +243,7 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Create a linear uninitialized allocation token type.
     pub fn type_uninit(&mut self, value: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::Uninit {
-            value: value.into(),
-        })
+        self.tree.insert_type(Type::Uninit { value })
     }
 
     /// Allocate zeroed heap storage.
@@ -262,11 +254,11 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::NewZeroed {
-            destination: destination.into(),
-            layout: layout.into(),
-            result_type: result_type.into(),
+            destination,
+            layout,
+            result_type,
         });
-        self.define_value_with_place(destination, result_type, Place::value(destination.into()));
+        self.define_value_with_place(destination, result_type, Place::value(destination));
         destination
     }
 
@@ -278,11 +270,11 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::NewUninit {
-            destination: destination.into(),
-            layout: layout.into(),
-            result_type: result_type.into(),
+            destination,
+            layout,
+            result_type,
         });
-        self.define_value_with_place(destination, result_type, Place::value(destination.into()));
+        self.define_value_with_place(destination, result_type, Place::value(destination));
         destination
     }
 
@@ -290,11 +282,11 @@ impl<'a> FunctionBuilder<'a> {
     pub fn new_complete(&mut self, value: Value, result_type: LocalNodeId<Type>) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::NewComplete {
-            destination: destination.into(),
-            value: value.into(),
-            result_type: result_type.into(),
+            destination,
+            value,
+            result_type,
         });
-        self.define_value_with_place(destination, result_type, Place::value(destination.into()));
+        self.define_value_with_place(destination, result_type, Place::value(destination));
         destination
     }
 
@@ -307,12 +299,12 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::NewSliceZeroed {
-            destination: destination.into(),
-            element: element.into(),
-            length: length.into(),
-            result_type: result_type.into(),
+            destination,
+            element,
+            length,
+            result_type,
         });
-        self.define_value_with_place(destination, result_type, Place::value(destination.into()));
+        self.define_value_with_place(destination, result_type, Place::value(destination));
         destination
     }
 
@@ -325,20 +317,18 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::NewSliceUninit {
-            destination: destination.into(),
-            element: element.into(),
-            length: length.into(),
-            result_type: result_type.into(),
+            destination,
+            element,
+            length,
+            result_type,
         });
-        self.define_value_with_place(destination, result_type, Place::value(destination.into()));
+        self.define_value_with_place(destination, result_type, Place::value(destination));
         destination
     }
 
     /// Free unique heap storage after drop elaboration.
     pub fn free(&mut self, value: Value) {
-        self.insert_instruction(Instruction::Free {
-            value: value.into(),
-        });
+        self.insert_instruction(Instruction::Free { value });
     }
 
     /// Allocate zeroed frame storage.
@@ -349,11 +339,11 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::FrameAllocZeroed {
-            destination: destination.into(),
-            layout: layout.into(),
-            result_type: result_type.into(),
+            destination,
+            layout,
+            result_type,
         });
-        self.define_value_with_place(destination, result_type, Place::value(destination.into()));
+        self.define_value_with_place(destination, result_type, Place::value(destination));
         destination
     }
 
@@ -365,11 +355,11 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::FrameAllocUninit {
-            destination: destination.into(),
-            layout: layout.into(),
-            result_type: result_type.into(),
+            destination,
+            layout,
+            result_type,
         });
-        self.define_value_with_place(destination, result_type, Place::value(destination.into()));
+        self.define_value_with_place(destination, result_type, Place::value(destination));
         destination
     }
 
@@ -377,8 +367,6 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Assume a condition is true (UB if false).
     pub fn assume(&mut self, condition: Value) {
-        self.insert_instruction(Instruction::Assume {
-            condition: condition.into(),
-        });
+        self.insert_instruction(Instruction::Assume { condition });
     }
 }

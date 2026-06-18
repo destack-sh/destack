@@ -143,16 +143,12 @@ pub fn build_signature_type(
 ) -> mir::LocalNodeId<mir::Type> {
     // collect parameter types from the function signature
     let function = tree.get(function_id);
-    let parameters = function
-        .parameters
-        .iter()
-        .map(|param| param.ty.clone())
-        .collect();
+    let parameters = function.parameters.iter().map(|param| param.ty).collect();
 
     // insert the function pointer type
     tree.insert_type(mir::Type::FunctionSignature {
         parameters,
-        result: function.return_type.clone(),
+        result: function.return_type,
         borrow_obligations: function.borrow_obligations.clone(),
     })
 }

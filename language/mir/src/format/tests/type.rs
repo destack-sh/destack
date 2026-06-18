@@ -272,11 +272,11 @@ fn test_format_synthetic_move_only_marker() {
 
     let left = tree.insert(Field {
         name: None,
-        ty: int32_type.into(),
+        ty: int32_type,
     });
     let right = tree.insert(Field {
         name: None,
-        ty: int32_type.into(),
+        ty: int32_type,
     });
     let struct_type = tree.insert_type(Type::Struct {
         fields: vec![left, right],
@@ -285,7 +285,7 @@ fn test_format_synthetic_move_only_marker() {
     tree.insert(TypeAlias {
         name: alias_name,
         lifetimes: Vec::new(),
-        ty: struct_type.into(),
+        ty: struct_type,
     });
 
     let output = format_tree_with_options(&tree, &strings, MirFormatOptions::default());
@@ -319,7 +319,7 @@ fn test_format_struct_fields_with_attributes_without_parsed_spans() {
 
     let field_id = tree.insert(Field {
         name: Some(field_name),
-        ty: int32_type.into(),
+        ty: int32_type,
     });
     tree.set_attributes(
         field_id,
@@ -336,7 +336,7 @@ fn test_format_struct_fields_with_attributes_without_parsed_spans() {
     tree.insert(TypeAlias {
         name: alias_name,
         lifetimes: Vec::new(),
-        ty: struct_type.into(),
+        ty: struct_type,
     });
 
     let output = format_tree_with_options(&tree, &strings, MirFormatOptions::default());

@@ -34,7 +34,7 @@ impl Parser {
                 }
 
                 let env_type = match &attribute.args {
-                    AttributeArgs::Value(AttributeValue::Type(value)) => value.clone(),
+                    AttributeArgs::Value(AttributeValue::Type(value)) => *value,
                     _ => {
                         return Err(ParseError::new(
                             "environment expects a type value",
@@ -1008,7 +1008,7 @@ impl Parser {
                 let (success, failure) = self.parse_allocation_targets()?;
 
                 Ok(Terminator::NewZeroedTry {
-                    layout: layout.into(),
+                    layout,
                     success,
                     failure,
                 })
@@ -1018,7 +1018,7 @@ impl Parser {
                 let (success, failure) = self.parse_allocation_targets()?;
 
                 Ok(Terminator::NewUninitTry {
-                    layout: layout.into(),
+                    layout,
                     success,
                     failure,
                 })
@@ -1030,7 +1030,7 @@ impl Parser {
                 let (success, failure) = self.parse_allocation_targets()?;
 
                 Ok(Terminator::NewSliceZeroedTry {
-                    element: element.into(),
+                    element,
                     length,
                     success,
                     failure,
@@ -1043,7 +1043,7 @@ impl Parser {
                 let (success, failure) = self.parse_allocation_targets()?;
 
                 Ok(Terminator::NewSliceUninitTry {
-                    element: element.into(),
+                    element,
                     length,
                     success,
                     failure,

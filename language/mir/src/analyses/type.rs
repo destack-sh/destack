@@ -745,7 +745,7 @@ mod tests {
         // array type
         let i32_id = tree.insert_type(mir::Type::INT32);
         let array_id = tree.insert_type(mir::Type::Array {
-            element: i32_id.into(),
+            element: i32_id,
             length: 10,
             copy: mir::Copy::Yes,
         });
@@ -775,12 +775,12 @@ mod tests {
         assert_ne!(i32_id_1, i32_id_2);
 
         let array_id_1 = tree.insert_type(mir::Type::Array {
-            element: i32_id_1.into(),
+            element: i32_id_1,
             length: 5,
             copy: mir::Copy::Yes,
         });
         let array_id_2 = tree.insert_type(mir::Type::Array {
-            element: i32_id_2.into(),
+            element: i32_id_2,
             length: 5,
             copy: mir::Copy::Yes,
         });
@@ -797,12 +797,12 @@ mod tests {
 
         let i32_id = tree.insert_type(mir::Type::INT32);
         let array_trivial_id = tree.insert_type(mir::Type::Array {
-            element: i32_id.into(),
+            element: i32_id,
             length: 4,
             copy: mir::Copy::Yes,
         });
         let array_linear_id = tree.insert_type(mir::Type::Array {
-            element: i32_id.into(),
+            element: i32_id,
             length: 4,
             copy: mir::Copy::No,
         });
