@@ -8,7 +8,7 @@ use crate::{ArtifactVersion, ContentId, FileId};
 
 /// One exact directory entry observed by one artifact computation.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "ArtifactDirectoryEntry")]
 pub struct ArtifactDirectoryEntry {
     /// The entry path identity.
     pub path: FileId,
@@ -28,7 +28,7 @@ impl ArtifactDirectoryEntry {
 
 /// One primitive source observation read while building an artifact.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "ArtifactSourceDependency")]
 pub struct ArtifactSourceDependency {
     /// Payload variant label.
     pub kind: String,
@@ -88,7 +88,7 @@ impl ArtifactSourceDependency {
 
 /// One exact dependency read while building an artifact.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "ArtifactDependency")]
 pub struct ArtifactDependency {
     /// Payload variant label.
     pub kind: String,

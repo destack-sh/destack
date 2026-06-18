@@ -116,8 +116,8 @@ impl ArtifactSourceDependency {
     }
 
     /// The source path identity.
-    #[wasm_bindgen(getter, js_name = "path")]
-    pub fn path(&self) -> Option<FileId> {
+    #[wasm_bindgen(js_name = "getPath")]
+    pub fn get_path(&self) -> Option<FileId> {
         match &self.content {
             ArtifactSourceDependencyContent::PathState { path: value, .. } => Some(value.clone()),
             _ => None,
@@ -125,8 +125,8 @@ impl ArtifactSourceDependency {
     }
 
     /// The exact path state.
-    #[wasm_bindgen(getter, js_name = "state")]
-    pub fn state(&self) -> Option<String> {
+    #[wasm_bindgen(js_name = "getState")]
+    pub fn get_state(&self) -> Option<String> {
         match &self.content {
             ArtifactSourceDependencyContent::PathState { state: value, .. } => Some(value.clone()),
             _ => None,
@@ -134,8 +134,8 @@ impl ArtifactSourceDependency {
     }
 
     /// The source directory path identity.
-    #[wasm_bindgen(getter, js_name = "directory")]
-    pub fn directory(&self) -> Option<FileId> {
+    #[wasm_bindgen(js_name = "getDirectory")]
+    pub fn get_directory(&self) -> Option<FileId> {
         match &self.content {
             ArtifactSourceDependencyContent::DirectoryEntries {
                 directory: value, ..
@@ -145,8 +145,8 @@ impl ArtifactSourceDependency {
     }
 
     /// The direct entries in deterministic order.
-    #[wasm_bindgen(getter, js_name = "entries")]
-    pub fn entries(&self) -> Option<Vec<ArtifactDirectoryEntry>> {
+    #[wasm_bindgen(js_name = "getEntries")]
+    pub fn get_entries(&self) -> Option<Vec<ArtifactDirectoryEntry>> {
         match &self.content {
             ArtifactSourceDependencyContent::DirectoryEntries { entries: value, .. } => {
                 Some(value.clone())
@@ -156,8 +156,8 @@ impl ArtifactSourceDependency {
     }
 
     /// The source file id.
-    #[wasm_bindgen(getter, js_name = "file")]
-    pub fn file(&self) -> Option<FileId> {
+    #[wasm_bindgen(js_name = "getFile")]
+    pub fn get_file(&self) -> Option<FileId> {
         match &self.content {
             ArtifactSourceDependencyContent::FileContent { file: value, .. } => Some(value.clone()),
             _ => None,
@@ -165,8 +165,8 @@ impl ArtifactSourceDependency {
     }
 
     /// The exact source content id.
-    #[wasm_bindgen(getter, js_name = "content")]
-    pub fn content(&self) -> Option<ContentId> {
+    #[wasm_bindgen(js_name = "getContent")]
+    pub fn get_content(&self) -> Option<ContentId> {
         match &self.content {
             ArtifactSourceDependencyContent::FileContent { content: value, .. } => {
                 Some(value.clone())
@@ -256,8 +256,8 @@ impl ArtifactDependency {
     }
 
     /// The exact artifact version depended on.
-    #[wasm_bindgen(getter, js_name = "version")]
-    pub fn version(&self) -> Option<ArtifactVersion> {
+    #[wasm_bindgen(js_name = "getVersion")]
+    pub fn get_version(&self) -> Option<ArtifactVersion> {
         match &self.content {
             ArtifactDependencyContent::Artifact { version: value, .. } => Some(value.clone()),
             _ => None,
@@ -265,8 +265,8 @@ impl ArtifactDependency {
     }
 
     /// The primitive source observation.
-    #[wasm_bindgen(getter, js_name = "dependency")]
-    pub fn dependency(&self) -> Option<ArtifactSourceDependency> {
+    #[wasm_bindgen(js_name = "getDependency")]
+    pub fn get_dependency(&self) -> Option<ArtifactSourceDependency> {
         match &self.content {
             ArtifactDependencyContent::Source {
                 dependency: value, ..

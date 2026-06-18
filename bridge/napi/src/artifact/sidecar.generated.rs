@@ -8,7 +8,7 @@ use crate::Content;
 
 /// One stable sidecar label crossing bridge boundaries.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "ArtifactSidecarLabel")]
 pub struct ArtifactSidecarLabel {
     /// Label key.
     pub key: String,
@@ -28,7 +28,7 @@ impl ArtifactSidecarLabel {
 
 /// One named artifact sidecar crossing bridge boundaries.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "ArtifactSidecar")]
 pub struct ArtifactSidecar {
     /// Sidecar name.
     pub name: String,

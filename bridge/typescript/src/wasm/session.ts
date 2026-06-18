@@ -1,5 +1,6 @@
 import type * as Wasm from "@destack/language-wasm";
 import type { ArtifactKey } from "../artifact/key.generated.js";
+import type { BuildOutput, BuildRequest } from "../artifact/output.generated.js";
 import type { ArtifactRecord } from "../artifact/record.generated.js";
 import type { ArtifactSidecar } from "../artifact/sidecar.generated.js";
 import type { ArtifactVersion } from "../artifact/version.generated.js";
@@ -8,7 +9,10 @@ import type { DirParsed } from "../dir/parsed.generated.js";
 import type { DirResolved } from "../dir/resolved.generated.js";
 import type { Diagnostic } from "../diagnostic/diagnostic.generated.js";
 import type { SessionFile } from "../session/file.generated.js";
+import type { FormatOutput, FormatRequest } from "../session/format.generated.js";
+import type { LintOutput, LintRequest } from "../session/lint.generated.js";
 import type { Module } from "../session/module.generated.js";
+import type { Content, ContentId } from "../source/file.generated.js";
 import type { ProfileId } from "../source/profile.generated.js";
 import type { Change } from "../session/source/file.generated.js";
 import type { Source } from "../session/source/source.generated.js";
@@ -19,14 +23,22 @@ import {
     fromWasmChange,
     fromWasmArtifactRecord,
     fromWasmArtifactSidecar,
+    fromWasmBuildOutput,
+    fromWasmContent,
     fromWasmDiagnostic,
     fromWasmDirChecked,
     fromWasmDirParsed,
     fromWasmDirResolved,
+    fromWasmFormatOutput,
+    fromWasmLintOutput,
     fromWasmModule,
     fromWasmSessionFile,
     fromWasmCommit,
     toWasmArtifactKey,
+    toWasmBuildRequest,
+    toWasmContentId,
+    toWasmFormatRequest,
+    toWasmLintRequest,
     toWasmModule,
     toWasmProfileId,
     toWasmRevision,
@@ -109,6 +121,29 @@ class WasmSession implements Session {
         return fromWasmArtifactRecord(record);
     }
 
+    public build(revision: Revision, request: BuildRequest): BuildOutput {
+        const output = this.session.build(
+            toWasmRevision(this.wasm, revision),
+            toWasmBuildRequest(this.wasm, request),
+        );
+
+        return fromWasmBuildOutput(output);
+    }
+
+    public content(id: ContentId): Content {
+        const content = this.session.content(toWasmContentId(this.wasm, id));
+
+        return fromWasmContent(content);
+    }
+
+    public text(id: ContentId): string {
+        return this.session.text(toWasmContentId(this.wasm, id));
+    }
+
+    public bytes(id: ContentId): Uint8Array {
+        return this.session.bytes(toWasmContentId(this.wasm, id));
+    }
+
     public parse(revision: Revision, module: Module): DirParsed {
         const parsed = this.session.parse(
             toWasmRevision(this.wasm, revision),
@@ -136,6 +171,24 @@ class WasmSession implements Session {
         );
 
         return fromWasmDirChecked(checked);
+    }
+
+    public format(revision: Revision, request: FormatRequest): FormatOutput {
+        const output = this.session.format(
+            toWasmRevision(this.wasm, revision),
+            toWasmFormatRequest(this.wasm, request),
+        );
+
+        return fromWasmFormatOutput(output);
+    }
+
+    public lint(revision: Revision, request: LintRequest): LintOutput {
+        const output = this.session.lint(
+            toWasmRevision(this.wasm, revision),
+            toWasmLintRequest(this.wasm, request),
+        );
+
+        return fromWasmLintOutput(output);
     }
 
     public diagnostics(revision: Revision, key?: ArtifactKey): readonly Diagnostic[] {

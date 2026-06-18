@@ -8,7 +8,7 @@ use crate::ModuleId;
 
 /// One file change observed by a session.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "Change")]
 pub struct Change {
     /// Repository logical path.
     pub path: String,

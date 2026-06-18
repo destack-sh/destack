@@ -8,7 +8,7 @@ use crate::ModuleId;
 
 /// One module loaded through a live session.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "Module")]
 pub struct Module {
     /// Stable source module id.
     pub id: ModuleId,

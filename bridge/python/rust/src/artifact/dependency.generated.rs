@@ -188,7 +188,7 @@ impl ArtifactSourceDependency {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn content(&self) -> Option<ContentId> {
+    pub fn get_content(&self) -> Option<ContentId> {
         match &self.value {
             bridge::ArtifactSourceDependency::FileContent { content, .. } => {
                 Some(ContentId::from_bridge(content.clone()))
@@ -199,7 +199,7 @@ impl ArtifactSourceDependency {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn directory(&self) -> Option<FileId> {
+    pub fn get_directory(&self) -> Option<FileId> {
         match &self.value {
             bridge::ArtifactSourceDependency::DirectoryEntries { directory, .. } => {
                 Some(FileId::from_bridge(directory.clone()))
@@ -210,7 +210,7 @@ impl ArtifactSourceDependency {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn entries(&self) -> Option<Vec<ArtifactDirectoryEntry>> {
+    pub fn get_entries(&self) -> Option<Vec<ArtifactDirectoryEntry>> {
         match &self.value {
             bridge::ArtifactSourceDependency::DirectoryEntries { entries, .. } => Some(
                 entries
@@ -225,7 +225,7 @@ impl ArtifactSourceDependency {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn file(&self) -> Option<FileId> {
+    pub fn get_file(&self) -> Option<FileId> {
         match &self.value {
             bridge::ArtifactSourceDependency::FileContent { file, .. } => {
                 Some(FileId::from_bridge(file.clone()))
@@ -236,7 +236,7 @@ impl ArtifactSourceDependency {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn path(&self) -> Option<FileId> {
+    pub fn get_path(&self) -> Option<FileId> {
         match &self.value {
             bridge::ArtifactSourceDependency::PathState { path, .. } => {
                 Some(FileId::from_bridge(path.clone()))
@@ -247,7 +247,7 @@ impl ArtifactSourceDependency {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn state(&self) -> Option<ArtifactPathState> {
+    pub fn get_state(&self) -> Option<ArtifactPathState> {
         match &self.value {
             bridge::ArtifactSourceDependency::PathState { state, .. } => {
                 Some(ArtifactPathState::from_bridge(state.clone()))
@@ -313,7 +313,7 @@ impl ArtifactDependency {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn dependency(&self) -> Option<ArtifactSourceDependency> {
+    pub fn get_dependency(&self) -> Option<ArtifactSourceDependency> {
         match &self.value {
             bridge::ArtifactDependency::Source { dependency, .. } => {
                 Some(ArtifactSourceDependency::from_bridge(dependency.clone()))
@@ -324,7 +324,7 @@ impl ArtifactDependency {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn version(&self) -> Option<ArtifactVersion> {
+    pub fn get_version(&self) -> Option<ArtifactVersion> {
         match &self.value {
             bridge::ArtifactDependency::Artifact { version, .. } => {
                 Some(ArtifactVersion::from_bridge(version.clone()))

@@ -10,6 +10,11 @@ use crate::{
 #[bridge(capi_handle)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ArtifactKey {
+    /// Toolchain build payload for one target.
+    Build {
+        /// Build target.
+        target: TargetId,
+    },
     /// Parsed module DIR.
     DirParsed {
         /// Source module.
@@ -160,22 +165,43 @@ pub enum ArtifactKey {
         /// Semantic profile.
         profile: ProfileId,
     },
-    /// One generated module output for one target.
-    ModuleOutput {
+    /// One structured linker input for one target.
+    Script {
         /// Source module.
         module: ModuleId,
         /// Build target.
         target: TargetId,
     },
-    /// Output entries for one package target.
-    PackageOutput {
+    /// One compiled-code linker input for one target.
+    Object {
+        /// Source module.
+        module: ModuleId,
+        /// Build target.
+        target: TargetId,
+    },
+    /// One opaque linker input for one target.
+    Asset {
+        /// Source module.
+        module: ModuleId,
+        /// Build target.
+        target: TargetId,
+    },
+    /// Linked file graph for one package target.
+    Bundle {
         /// Source package.
         package: PackageId,
         /// Build target.
         target: TargetId,
     },
-    /// Output entries for one product.
-    ProductOutput {
+    /// Executable program for one package target.
+    Program {
+        /// Source package.
+        package: PackageId,
+        /// Build target.
+        target: TargetId,
+    },
+    /// Linked product assembled from configured target artifacts.
+    Product {
         /// Source package.
         package: PackageId,
         /// Product.
@@ -201,6 +227,9 @@ impl ArtifactKey {
     /// Convert one artifact key into one bridge artifact key.
     pub fn from_artifact(key: artifact::ArtifactKey) -> Self {
         match key {
+            artifact::ArtifactKey::Build { target } => Self::Build {
+                target: target.into(),
+            },
             artifact::ArtifactKey::DirParsed { module } => Self::DirParsed {
                 module: module.into(),
             },
@@ -307,15 +336,27 @@ impl ArtifactKey {
             artifact::ArtifactKey::WorkspaceQueryIndex { profile } => Self::WorkspaceQueryIndex {
                 profile: profile.into(),
             },
-            artifact::ArtifactKey::ModuleOutput { module, target } => Self::ModuleOutput {
+            artifact::ArtifactKey::Script { module, target } => Self::Script {
                 module: module.into(),
                 target: target.into(),
             },
-            artifact::ArtifactKey::PackageOutput { package, target } => Self::PackageOutput {
+            artifact::ArtifactKey::Object { module, target } => Self::Object {
+                module: module.into(),
+                target: target.into(),
+            },
+            artifact::ArtifactKey::Asset { module, target } => Self::Asset {
+                module: module.into(),
+                target: target.into(),
+            },
+            artifact::ArtifactKey::Bundle { package, target } => Self::Bundle {
                 package: package.into(),
                 target: target.into(),
             },
-            artifact::ArtifactKey::ProductOutput { package, product } => Self::ProductOutput {
+            artifact::ArtifactKey::Program { package, target } => Self::Program {
+                package: package.into(),
+                target: target.into(),
+            },
+            artifact::ArtifactKey::Product { package, product } => Self::Product {
                 package: package.into(),
                 product: product.into(),
             },
@@ -333,6 +374,9 @@ impl ArtifactKey {
     /// Convert this bridge artifact key into one artifact key.
     pub fn into_artifact(self) -> Result<artifact::ArtifactKey, ArtifactBridgeError> {
         match self {
+            Self::Build { target } => Ok(artifact::ArtifactKey::Build {
+                target: target.into_source()?,
+            }),
             Self::DirParsed { module } => Ok(artifact::ArtifactKey::DirParsed {
                 module: module.into_source()?,
             }),
@@ -447,15 +491,27 @@ impl ArtifactKey {
                     profile: profile.into_source()?,
                 })
             }
-            Self::ModuleOutput { module, target } => Ok(artifact::ArtifactKey::ModuleOutput {
+            Self::Script { module, target } => Ok(artifact::ArtifactKey::Script {
                 module: module.into_source()?,
                 target: target.into_source()?,
             }),
-            Self::PackageOutput { package, target } => Ok(artifact::ArtifactKey::PackageOutput {
+            Self::Object { module, target } => Ok(artifact::ArtifactKey::Object {
+                module: module.into_source()?,
+                target: target.into_source()?,
+            }),
+            Self::Asset { module, target } => Ok(artifact::ArtifactKey::Asset {
+                module: module.into_source()?,
+                target: target.into_source()?,
+            }),
+            Self::Bundle { package, target } => Ok(artifact::ArtifactKey::Bundle {
                 package: package.into_source()?,
                 target: target.into_source()?,
             }),
-            Self::ProductOutput { package, product } => Ok(artifact::ArtifactKey::ProductOutput {
+            Self::Program { package, target } => Ok(artifact::ArtifactKey::Program {
+                package: package.into_source()?,
+                target: target.into_source()?,
+            }),
+            Self::Product { package, product } => Ok(artifact::ArtifactKey::Product {
                 package: package.into_source()?,
                 product: product.into_source()?,
             }),

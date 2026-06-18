@@ -6,7 +6,7 @@ use napi_derive::napi;
 
 /// External profile id crossing bridge boundaries.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "ProfileId")]
 pub struct ProfileId {
     /// Canonical lowercase hex profile id.
     pub id: String,

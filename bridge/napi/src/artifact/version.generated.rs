@@ -8,7 +8,7 @@ use crate::ArtifactKey;
 
 /// External artifact version crossing bridge boundaries.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "ArtifactVersion")]
 pub struct ArtifactVersion {
     /// Semantic artifact slot.
     pub key: ArtifactKey,

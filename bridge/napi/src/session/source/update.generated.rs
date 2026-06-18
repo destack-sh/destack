@@ -8,7 +8,7 @@ use crate::{Change, Revision};
 
 /// One text range in byte offsets.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "TextRange")]
 pub struct TextRange {
     /// Inclusive start byte offset.
     pub start: u32,
@@ -28,7 +28,7 @@ impl TextRange {
 
 /// One text replacement.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "TextEdit")]
 pub struct TextEdit {
     /// Replaced byte range.
     pub range: TextRange,
@@ -48,7 +48,7 @@ impl TextEdit {
 
 /// One edit accepted by a session.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "Edit")]
 pub struct Edit {
     /// Payload variant label.
     pub kind: String,
@@ -208,7 +208,7 @@ fn unexpected_payload(kind: &str) -> napi::Error {
 
 /// One committed edit batch.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "Commit")]
 pub struct Commit {
     /// Previous revision.
     pub before: Revision,

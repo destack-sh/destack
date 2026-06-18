@@ -114,7 +114,7 @@ impl Content {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn binary_content(&self) -> Option<Vec<u8>> {
+    pub fn get_binary_content(&self) -> Option<Vec<u8>> {
         match &self.value {
             bridge::Content::Binary { content, .. } => Some(content.clone()),
             _ => None,
@@ -123,7 +123,7 @@ impl Content {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn text_content(&self) -> Option<String> {
+    pub fn get_text_content(&self) -> Option<String> {
         match &self.value {
             bridge::Content::Text { content, .. } => Some(content.clone()),
             _ => None,

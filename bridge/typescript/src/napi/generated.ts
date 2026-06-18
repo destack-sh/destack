@@ -9,6 +9,35 @@ import type {
 } from "../artifact/dependency.generated.js";
 import type { ArtifactKey } from "../artifact/key.generated.js";
 import type {
+    BuildProfile,
+    BuildLinkage,
+    EmitFormat,
+    FileType,
+    SourceMapSource,
+    SourceMap,
+    Declaration,
+    ScriptLanguage,
+    Script,
+    ObjectFormat,
+    Object,
+    Asset,
+    Build,
+    BundleSection,
+    BundleMode,
+    BundleFile,
+    Bundle,
+    ProgramFormat,
+    ProgramHeader,
+    Program,
+    Runtime,
+    Host,
+    ProductTarget,
+    Product,
+    ModuleBuildKind,
+    BuildRequest,
+    BuildOutput,
+} from "../artifact/output.generated.js";
+import type {
     ArtifactString,
     ArtifactRecord,
 } from "../artifact/record.generated.js";
@@ -37,6 +66,16 @@ import type { DirParsed } from "../dir/parsed.generated.js";
 import type { DirResolved } from "../dir/resolved.generated.js";
 import type { Revision } from "../repository/revision.generated.js";
 import type { SessionFile } from "../session/file.generated.js";
+import type {
+    Document,
+    FormatRequest,
+    FormatOutput,
+} from "../session/format.generated.js";
+import type {
+    Scope,
+    LintRequest,
+    LintOutput,
+} from "../session/lint.generated.js";
 import type { Module } from "../session/module.generated.js";
 import type { Change } from "../session/source/file.generated.js";
 import type { Source } from "../session/source/source.generated.js";
@@ -173,6 +212,13 @@ export function fromNapiArtifactDependency(value: Napi.ArtifactDependency): Arti
 
 /** Convert one ArtifactKey into the NAPI transport shape. */
 export function toNapiArtifactKey(value: ArtifactKey): Napi.ArtifactKey {
+    if (value.kind === "build") {
+        return {
+            kind: "build",
+            target: toNapiTargetId(value.target),
+        };
+    }
+
     if (value.kind === "dirParsed") {
         return {
             kind: "dirParsed",
@@ -347,27 +393,51 @@ export function toNapiArtifactKey(value: ArtifactKey): Napi.ArtifactKey {
         };
     }
 
-    if (value.kind === "moduleOutput") {
+    if (value.kind === "script") {
         return {
-            kind: "moduleOutput",
+            kind: "script",
             module: toNapiModuleId(value.module),
             target: toNapiTargetId(value.target),
         };
     }
 
-    if (value.kind === "packageOutput") {
+    if (value.kind === "object") {
         return {
-            kind: "packageOutput",
+            kind: "object",
+            module: toNapiModuleId(value.module),
+            target: toNapiTargetId(value.target),
+        };
+    }
+
+    if (value.kind === "asset") {
+        return {
+            kind: "asset",
+            module: toNapiModuleId(value.module),
+            target: toNapiTargetId(value.target),
+        };
+    }
+
+    if (value.kind === "bundle") {
+        return {
+            kind: "bundle",
             package: toNapiPackageId(value.package),
             target: toNapiTargetId(value.target),
         };
     }
 
-    if (value.kind === "productOutput") {
+    if (value.kind === "program") {
         return {
-            kind: "productOutput",
+            kind: "program",
             package: toNapiPackageId(value.package),
-            product: toNapiProductId(value.product),
+            target: toNapiTargetId(value.target),
+        };
+    }
+
+    if (value.kind === "product") {
+        return {
+            kind: "product",
+            package: toNapiPackageId(value.package),
+            productProduct: toNapiProductId(value.product),
         };
     }
 
@@ -397,6 +467,18 @@ export function toNapiArtifactKey(value: ArtifactKey): Napi.ArtifactKey {
 
 /** Convert one NAPI ArtifactKey into the public bridge shape. */
 export function fromNapiArtifactKey(value: Napi.ArtifactKey): ArtifactKey {
+    if (value.kind === "build") {
+        const payload_target = value.target;
+        if (payload_target == null) {
+            throw new Error("target payload is missing");
+        }
+
+        return {
+            kind: "build",
+            target: fromNapiTargetId(payload_target),
+        };
+    }
+
     if (value.kind === "dirParsed") {
         const payload_module = value.module;
         if (payload_module == null) {
@@ -781,7 +863,7 @@ export function fromNapiArtifactKey(value: Napi.ArtifactKey): ArtifactKey {
         };
     }
 
-    if (value.kind === "moduleOutput") {
+    if (value.kind === "script") {
         const payload_module = value.module;
         if (payload_module == null) {
             throw new Error("module payload is missing");
@@ -793,13 +875,49 @@ export function fromNapiArtifactKey(value: Napi.ArtifactKey): ArtifactKey {
         }
 
         return {
-            kind: "moduleOutput",
+            kind: "script",
             module: fromNapiModuleId(payload_module),
             target: fromNapiTargetId(payload_target),
         };
     }
 
-    if (value.kind === "packageOutput") {
+    if (value.kind === "object") {
+        const payload_module = value.module;
+        if (payload_module == null) {
+            throw new Error("module payload is missing");
+        }
+
+        const payload_target = value.target;
+        if (payload_target == null) {
+            throw new Error("target payload is missing");
+        }
+
+        return {
+            kind: "object",
+            module: fromNapiModuleId(payload_module),
+            target: fromNapiTargetId(payload_target),
+        };
+    }
+
+    if (value.kind === "asset") {
+        const payload_module = value.module;
+        if (payload_module == null) {
+            throw new Error("module payload is missing");
+        }
+
+        const payload_target = value.target;
+        if (payload_target == null) {
+            throw new Error("target payload is missing");
+        }
+
+        return {
+            kind: "asset",
+            module: fromNapiModuleId(payload_module),
+            target: fromNapiTargetId(payload_target),
+        };
+    }
+
+    if (value.kind === "bundle") {
         const payload_package = value.package;
         if (payload_package == null) {
             throw new Error("package payload is missing");
@@ -811,27 +929,45 @@ export function fromNapiArtifactKey(value: Napi.ArtifactKey): ArtifactKey {
         }
 
         return {
-            kind: "packageOutput",
+            kind: "bundle",
             package: fromNapiPackageId(payload_package),
             target: fromNapiTargetId(payload_target),
         };
     }
 
-    if (value.kind === "productOutput") {
+    if (value.kind === "program") {
         const payload_package = value.package;
         if (payload_package == null) {
             throw new Error("package payload is missing");
         }
 
-        const payload_product = value.product;
-        if (payload_product == null) {
-            throw new Error("product payload is missing");
+        const payload_target = value.target;
+        if (payload_target == null) {
+            throw new Error("target payload is missing");
         }
 
         return {
-            kind: "productOutput",
+            kind: "program",
             package: fromNapiPackageId(payload_package),
-            product: fromNapiProductId(payload_product),
+            target: fromNapiTargetId(payload_target),
+        };
+    }
+
+    if (value.kind === "product") {
+        const payload_package = value.package;
+        if (payload_package == null) {
+            throw new Error("package payload is missing");
+        }
+
+        const payload_productProduct = value.productProduct;
+        if (payload_productProduct == null) {
+            throw new Error("productProduct payload is missing");
+        }
+
+        return {
+            kind: "product",
+            package: fromNapiPackageId(payload_package),
+            product: fromNapiProductId(payload_productProduct),
         };
     }
 
@@ -872,6 +1008,415 @@ export function fromNapiArtifactKey(value: Napi.ArtifactKey): ArtifactKey {
     }
 
     throw new Error("unknown ArtifactKey");
+}
+
+/** Convert one BuildProfile from the NAPI transport shape. */
+export function fromNapiBuildProfile(value: string): BuildProfile {
+    if (value === "full" || value === "minimal" || value === "freestanding") {
+        return value;
+    }
+
+    throw new Error(`unknown BuildProfile: ${value}`);
+}
+
+/** Convert one BuildLinkage from the NAPI transport shape. */
+export function fromNapiBuildLinkage(value: string): BuildLinkage {
+    if (value === "portable" || value === "static" || value === "dynamic") {
+        return value;
+    }
+
+    throw new Error(`unknown BuildLinkage: ${value}`);
+}
+
+/** Convert one EmitFormat from the NAPI transport shape. */
+export function fromNapiEmitFormat(value: string): EmitFormat {
+    if (value === "js" || value === "ts" || value === "wasm" || value === "native") {
+        return value;
+    }
+
+    throw new Error(`unknown EmitFormat: ${value}`);
+}
+
+/** Convert one FileType from the NAPI transport shape. */
+export function fromNapiFileType(value: string): FileType {
+    if (value === "destack" || value === "destackDeclaration" || value === "javaScript" || value === "javaScriptXml" || value === "typeScript" || value === "typeScriptXml" || value === "typeScriptDeclaration" || value === "text" || value === "toml" || value === "yaml" || value === "json" || value === "env" || value === "html" || value === "markdown" || value === "css" || value === "svg" || value === "wasm" || value === "node" || value === "sourceMap" || value === "object" || value === "image" || value === "font" || value === "audio" || value === "video" || value === "model" || value === "neural" || value === "document" || value === "binary" || value === "unknown") {
+        return value;
+    }
+
+    throw new Error(`unknown FileType: ${value}`);
+}
+
+/** Convert one NAPI SourceMapSource into the public bridge shape. */
+export function fromNapiSourceMapSource(value: Napi.SourceMapSource): SourceMapSource {
+    return {
+        name: value.name,
+        content: value.content == null ? undefined : value.content,
+    };
+}
+
+/** Convert one NAPI SourceMap into the public bridge shape. */
+export function fromNapiSourceMap(value: Napi.SourceMap): SourceMap {
+    return {
+        version: value.version,
+        file: value.file == null ? undefined : value.file,
+        sourceRoot: value.sourceRoot == null ? undefined : value.sourceRoot,
+        sources: value.sources.map((item) => fromNapiSourceMapSource(item)),
+        names: value.names.map((item) => item),
+        mappings: value.mappings,
+        debugId: value.debugId == null ? undefined : value.debugId,
+    };
+}
+
+/** Convert one NAPI Declaration into the public bridge shape. */
+export function fromNapiDeclaration(value: Napi.Declaration): Declaration {
+    return {
+        text: value.text,
+    };
+}
+
+/** Convert one ScriptLanguage from the NAPI transport shape. */
+export function fromNapiScriptLanguage(value: string): ScriptLanguage {
+    if (value === "javaScript" || value === "typeScript") {
+        return value;
+    }
+
+    throw new Error(`unknown ScriptLanguage: ${value}`);
+}
+
+/** Convert one NAPI Script into the public bridge shape. */
+export function fromNapiScript(value: Napi.Script): Script {
+    return {
+        language: fromNapiScriptLanguage(value.language),
+        declaration: value.declaration == null ? undefined : fromNapiDeclaration(value.declaration),
+        map: value.map == null ? undefined : fromNapiSourceMap(value.map),
+        hasTopLevelSideEffects: value.hasTopLevelSideEffects,
+    };
+}
+
+/** Convert one ObjectFormat from the NAPI transport shape. */
+export function fromNapiObjectFormat(value: string): ObjectFormat {
+    if (value === "object" || value === "wasm") {
+        return value;
+    }
+
+    throw new Error(`unknown ObjectFormat: ${value}`);
+}
+
+/** Convert one NAPI Object into the public bridge shape. */
+export function fromNapiObject(value: Napi.BridgeObject): Object {
+    return {
+        format: fromNapiObjectFormat(value.format),
+        content: fromNapiContentId(value.content),
+        map: value.map == null ? undefined : fromNapiSourceMap(value.map),
+    };
+}
+
+/** Convert one NAPI Asset into the public bridge shape. */
+export function fromNapiAsset(value: Napi.Asset): Asset {
+    return {
+        fileType: fromNapiFileType(value.fileType),
+        content: fromNapiContentId(value.content),
+        source: value.source == null ? undefined : value.source,
+        map: value.map == null ? undefined : fromNapiSourceMap(value.map),
+    };
+}
+
+/** Convert one NAPI Build into the public bridge shape. */
+export function fromNapiBuild(value: Napi.Build): Build {
+    return {
+        profile: fromNapiBuildProfile(value.profile),
+        linkage: fromNapiBuildLinkage(value.linkage),
+        content: fromNapiContentId(value.content),
+    };
+}
+
+/** Convert one BundleSection from the NAPI transport shape. */
+export function fromNapiBundleSection(value: string): BundleSection {
+    if (value === "module" || value === "entry" || value === "declaration" || value === "asset" || value === "manifest" || value === "sourceMap" || value === "native") {
+        return value;
+    }
+
+    throw new Error(`unknown BundleSection: ${value}`);
+}
+
+/** Convert one BundleMode from the NAPI transport shape. */
+export function fromNapiBundleMode(value: string): BundleMode {
+    if (value === "preserveModules" || value === "singleFile" || value === "chunked") {
+        return value;
+    }
+
+    throw new Error(`unknown BundleMode: ${value}`);
+}
+
+/** Convert one NAPI BundleFile into the public bridge shape. */
+export function fromNapiBundleFile(value: Napi.BundleFile): BundleFile {
+    return {
+        section: fromNapiBundleSection(value.section),
+        uri: value.uri,
+        fileType: fromNapiFileType(value.fileType),
+        content: fromNapiContentId(value.content),
+        source: value.source == null ? undefined : value.source,
+    };
+}
+
+/** Convert one NAPI Bundle into the public bridge shape. */
+export function fromNapiBundle(value: Napi.Bundle): Bundle {
+    return {
+        emit: fromNapiEmitFormat(value.emit),
+        mode: fromNapiBundleMode(value.mode),
+        files: value.files.map((item) => fromNapiBundleFile(item)),
+    };
+}
+
+/** Convert one ProgramFormat from the NAPI transport shape. */
+export function fromNapiProgramFormat(value: string): ProgramFormat {
+    if (value === "vm" || value === "native") {
+        return value;
+    }
+
+    throw new Error(`unknown ProgramFormat: ${value}`);
+}
+
+/** Convert one NAPI ProgramHeader into the public bridge shape. */
+export function fromNapiProgramHeader(value: Napi.ProgramHeader): ProgramHeader {
+    return {
+        name: value.name == null ? undefined : value.name,
+        fingerprint: value.fingerprint == null ? undefined : value.fingerprint,
+        target: value.target == null ? undefined : value.target,
+    };
+}
+
+/** Convert one NAPI Program into the public bridge shape. */
+export function fromNapiProgram(value: Napi.Program): Program {
+    return {
+        header: fromNapiProgramHeader(value.header),
+        format: fromNapiProgramFormat(value.format),
+        contents: value.contents.map((item) => fromNapiContentId(item)),
+    };
+}
+
+/** Convert one Runtime from the NAPI transport shape. */
+export function fromNapiRuntime(value: string): Runtime {
+    if (value === "destack" || value === "js") {
+        return value;
+    }
+
+    throw new Error(`unknown Runtime: ${value}`);
+}
+
+/** Convert one Host from the NAPI transport shape. */
+export function fromNapiHost(value: string): Host {
+    if (value === "native" || value === "browser" || value === "wasi" || value === "emscripten" || value === "freestanding") {
+        return value;
+    }
+
+    throw new Error(`unknown Host: ${value}`);
+}
+
+/** Convert one NAPI ProductTarget into the public bridge shape. */
+export function fromNapiProductTarget(value: Napi.ProductTarget): ProductTarget {
+    return {
+        name: value.name,
+        target: fromNapiTargetId(value.target),
+        runtime: fromNapiRuntime(value.runtime),
+        host: fromNapiHost(value.host),
+        platform: value.platform,
+        includesBuild: value.includesBuild,
+        includesBundle: value.includesBundle,
+        includesProgram: value.includesProgram,
+    };
+}
+
+/** Convert one NAPI Product into the public bridge shape. */
+export function fromNapiProduct(value: Napi.Product): Product {
+    return {
+        name: value.name,
+        targets: value.targets.map((item) => fromNapiProductTarget(item)),
+    };
+}
+
+/** Convert one ModuleBuildKind into the NAPI transport shape. */
+export function toNapiModuleBuildKind(value: ModuleBuildKind): string {
+    if (value === "script" || value === "object" || value === "asset") {
+        return value;
+    }
+
+    throw new Error(`unknown ModuleBuildKind: ${value}`);
+}
+
+/** Convert one ModuleBuildKind from the NAPI transport shape. */
+export function fromNapiModuleBuildKind(value: string): ModuleBuildKind {
+    if (value === "script" || value === "object" || value === "asset") {
+        return value;
+    }
+
+    throw new Error(`unknown ModuleBuildKind: ${value}`);
+}
+
+/** Convert one BuildRequest into the NAPI transport shape. */
+export function toNapiBuildRequest(value: BuildRequest): Napi.BuildRequest {
+    if (value.kind === "module") {
+        return {
+            kind: "module",
+            moduleModule: toNapiModule(value.module),
+            target: toNapiTargetId(value.target),
+            output: toNapiModuleBuildKind(value.output),
+        };
+    }
+
+    if (value.kind === "build") {
+        return {
+            kind: "build",
+            target: toNapiTargetId(value.target),
+        };
+    }
+
+    if (value.kind === "target") {
+        return {
+            kind: "target",
+            targetTarget: toNapiTargetId(value.target),
+        };
+    }
+
+    if (value.kind === "product") {
+        return {
+            kind: "product",
+            productProduct: toNapiProductId(value.product),
+        };
+    }
+
+    throw new Error("unknown BuildRequest");
+}
+
+/** Convert one NAPI BuildOutput into the public bridge shape. */
+export function fromNapiBuildOutput(value: Napi.BuildOutput): BuildOutput {
+    if (value.kind === "script") {
+        const payload_version = value.version;
+        if (payload_version == null) {
+            throw new Error("version payload is missing");
+        }
+
+        const payload_scriptScript = value.scriptScript;
+        if (payload_scriptScript == null) {
+            throw new Error("scriptScript payload is missing");
+        }
+
+        return {
+            kind: "script",
+            version: fromNapiArtifactVersion(payload_version),
+            script: fromNapiScript(payload_scriptScript),
+        };
+    }
+
+    if (value.kind === "object") {
+        const payload_version = value.version;
+        if (payload_version == null) {
+            throw new Error("version payload is missing");
+        }
+
+        const payload_objectObject = value.objectObject;
+        if (payload_objectObject == null) {
+            throw new Error("objectObject payload is missing");
+        }
+
+        return {
+            kind: "object",
+            version: fromNapiArtifactVersion(payload_version),
+            object: fromNapiObject(payload_objectObject),
+        };
+    }
+
+    if (value.kind === "asset") {
+        const payload_version = value.version;
+        if (payload_version == null) {
+            throw new Error("version payload is missing");
+        }
+
+        const payload_assetAsset = value.assetAsset;
+        if (payload_assetAsset == null) {
+            throw new Error("assetAsset payload is missing");
+        }
+
+        return {
+            kind: "asset",
+            version: fromNapiArtifactVersion(payload_version),
+            asset: fromNapiAsset(payload_assetAsset),
+        };
+    }
+
+    if (value.kind === "build") {
+        const payload_version = value.version;
+        if (payload_version == null) {
+            throw new Error("version payload is missing");
+        }
+
+        const payload_buildBuild = value.buildBuild;
+        if (payload_buildBuild == null) {
+            throw new Error("buildBuild payload is missing");
+        }
+
+        return {
+            kind: "build",
+            version: fromNapiArtifactVersion(payload_version),
+            build: fromNapiBuild(payload_buildBuild),
+        };
+    }
+
+    if (value.kind === "bundle") {
+        const payload_version = value.version;
+        if (payload_version == null) {
+            throw new Error("version payload is missing");
+        }
+
+        const payload_bundleBundle = value.bundleBundle;
+        if (payload_bundleBundle == null) {
+            throw new Error("bundleBundle payload is missing");
+        }
+
+        return {
+            kind: "bundle",
+            version: fromNapiArtifactVersion(payload_version),
+            bundle: fromNapiBundle(payload_bundleBundle),
+        };
+    }
+
+    if (value.kind === "program") {
+        const payload_version = value.version;
+        if (payload_version == null) {
+            throw new Error("version payload is missing");
+        }
+
+        const payload_programProgram = value.programProgram;
+        if (payload_programProgram == null) {
+            throw new Error("programProgram payload is missing");
+        }
+
+        return {
+            kind: "program",
+            version: fromNapiArtifactVersion(payload_version),
+            program: fromNapiProgram(payload_programProgram),
+        };
+    }
+
+    if (value.kind === "product") {
+        const payload_version = value.version;
+        if (payload_version == null) {
+            throw new Error("version payload is missing");
+        }
+
+        const payload_productProduct = value.productProduct;
+        if (payload_productProduct == null) {
+            throw new Error("productProduct payload is missing");
+        }
+
+        return {
+            kind: "product",
+            version: fromNapiArtifactVersion(payload_version),
+            product: fromNapiProduct(payload_productProduct),
+        };
+    }
+
+    throw new Error("unknown BuildOutput");
 }
 
 /** Convert one NAPI ArtifactString into the public bridge shape. */
@@ -1070,6 +1615,80 @@ export function fromNapiSessionFile(value: Napi.SessionFile): SessionFile {
     };
 }
 
+/** Convert one Document into the NAPI transport shape. */
+export function toNapiDocument(value: Document): Napi.Document {
+    if (value.kind === "module") {
+        return {
+            kind: "module",
+            moduleModule: toNapiModule(value.module),
+        };
+    }
+
+    if (value.kind === "text") {
+        return {
+            kind: "text",
+            path: value.path,
+            textText: value.text,
+        };
+    }
+
+    throw new Error("unknown Document");
+}
+
+/** Convert one FormatRequest into the NAPI transport shape. */
+export function toNapiFormatRequest(value: FormatRequest): Napi.FormatRequest {
+    return {
+        document: toNapiDocument(value.document),
+    };
+}
+
+/** Convert one NAPI FormatOutput into the public bridge shape. */
+export function fromNapiFormatOutput(value: Napi.FormatOutput): FormatOutput {
+    return {
+        text: value.text,
+    };
+}
+
+/** Convert one Scope into the NAPI transport shape. */
+export function toNapiScope(value: Scope): Napi.Scope {
+    if (value.kind === "module") {
+        return {
+            kind: "module",
+            moduleModule: toNapiModule(value.module),
+            profile: toNapiProfileId(value.profile),
+        };
+    }
+
+    if (value.kind === "package") {
+        return {
+            kind: "package",
+            packagePackage: toNapiPackageId(value.package),
+        };
+    }
+
+    if (value.kind === "workspace") {
+        return {
+            kind: "workspace",
+        };
+    }
+
+    throw new Error("unknown Scope");
+}
+
+/** Convert one LintRequest into the NAPI transport shape. */
+export function toNapiLintRequest(value: LintRequest): Napi.LintRequest {
+    return {
+        scope: toNapiScope(value.scope),
+    };
+}
+
+/** Convert one NAPI LintOutput into the public bridge shape. */
+export function fromNapiLintOutput(value: Napi.LintOutput): LintOutput {
+    return {
+        diagnostics: value.diagnostics.map((item) => fromNapiDiagnostic(item)),
+    };
+}
+
 /** Convert one Module into the NAPI transport shape. */
 export function toNapiModule(value: Module): Napi.Module {
     return {
@@ -1199,6 +1818,13 @@ export function fromNapiComponentId(value: Napi.ComponentId): ComponentId {
 
 /** Convert one NAPI FileId into the public bridge shape. */
 export function fromNapiFileId(value: Napi.FileId): FileId {
+    return {
+        id: value.id,
+    };
+}
+
+/** Convert one ContentId into the NAPI transport shape. */
+export function toNapiContentId(value: ContentId): Napi.ContentId {
     return {
         id: value.id,
     };

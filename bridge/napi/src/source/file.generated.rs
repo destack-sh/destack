@@ -6,7 +6,7 @@ use napi_derive::napi;
 
 /// External file id crossing bridge boundaries.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "FileId")]
 pub struct FileId {
     /// Canonical lowercase hex file id.
     pub id: String,
@@ -21,10 +21,17 @@ impl FileId {
 
 /// External content id crossing bridge boundaries.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "ContentId")]
 pub struct ContentId {
     /// Canonical lowercase hex content id.
     pub id: String,
+}
+
+impl ContentId {
+    /// Convert this NAPI value into one bridge value.
+    pub(crate) fn into_bridge(self) -> napi::Result<bridge::ContentId> {
+        Ok(bridge::ContentId { id: self.id })
+    }
 }
 
 impl ContentId {
@@ -36,7 +43,7 @@ impl ContentId {
 
 /// Full content crossing bridge boundaries.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "Content")]
 pub struct Content {
     /// Payload variant label.
     pub kind: String,

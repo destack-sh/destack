@@ -8,7 +8,7 @@ use crate::{BatchEdit, ContentId, Span};
 
 /// One concrete source label in a diagnostic.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "DiagnosticLabel")]
 pub struct DiagnosticLabel {
     /// Exact content containing the span.
     pub content: ContentId,
@@ -31,7 +31,7 @@ impl DiagnosticLabel {
 
 /// Extra context for understanding a diagnostic.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "DiagnosticNote")]
 pub struct DiagnosticNote {
     /// Note message.
     pub message: String,
@@ -48,7 +48,7 @@ impl DiagnosticNote {
 
 /// Guidance for fixing or avoiding a diagnostic.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "DiagnosticHelp")]
 pub struct DiagnosticHelp {
     /// Help message.
     pub message: String,
@@ -65,7 +65,7 @@ impl DiagnosticHelp {
 
 /// One suggested source change for a diagnostic.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "DiagnosticSuggestion")]
 pub struct DiagnosticSuggestion {
     /// Exact source edits for machine application.
     pub edits: BatchEdit,
@@ -95,7 +95,7 @@ impl DiagnosticSuggestion {
 
 /// One final renderable diagnostic.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "Diagnostic")]
 pub struct Diagnostic {
     /// Stable diagnostic code.
     pub code: String,

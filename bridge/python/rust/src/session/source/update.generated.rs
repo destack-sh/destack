@@ -161,7 +161,7 @@ impl Edit {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn bytes(&self) -> Option<Vec<u8>> {
+    pub fn get_bytes(&self) -> Option<Vec<u8>> {
         match &self.value {
             bridge::Edit::SetBytes { bytes, .. } => Some(bytes.clone()),
             _ => None,
@@ -170,7 +170,7 @@ impl Edit {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn edits(&self) -> Option<Vec<TextEdit>> {
+    pub fn get_edits(&self) -> Option<Vec<TextEdit>> {
         match &self.value {
             bridge::Edit::EditText { edits, .. } => Some(
                 edits
@@ -185,7 +185,7 @@ impl Edit {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn from(&self) -> Option<String> {
+    pub fn get_from(&self) -> Option<String> {
         match &self.value {
             bridge::Edit::Move { from, .. } => Some(from.clone()),
             _ => None,
@@ -194,7 +194,7 @@ impl Edit {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn path(&self) -> Option<String> {
+    pub fn get_path(&self) -> Option<String> {
         match &self.value {
             bridge::Edit::SetText { path, .. } => Some(path.clone()),
             bridge::Edit::EditText { path, .. } => Some(path.clone()),
@@ -206,7 +206,7 @@ impl Edit {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn text(&self) -> Option<String> {
+    pub fn get_text(&self) -> Option<String> {
         match &self.value {
             bridge::Edit::SetText { text, .. } => Some(text.clone()),
             _ => None,
@@ -215,7 +215,7 @@ impl Edit {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn to(&self) -> Option<String> {
+    pub fn get_to(&self) -> Option<String> {
         match &self.value {
             bridge::Edit::Move { to, .. } => Some(to.clone()),
             _ => None,

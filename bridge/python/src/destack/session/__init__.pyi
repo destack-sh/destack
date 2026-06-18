@@ -5,6 +5,16 @@ from __future__ import annotations
 from .file import (
     SessionFile,
 )
+from .format import (
+    Document,
+    FormatRequest,
+    FormatOutput,
+)
+from .lint import (
+    Scope,
+    LintRequest,
+    LintOutput,
+)
 from .module import (
     Module,
 )

@@ -3,8 +3,10 @@ use napi::Result;
 use napi_derive::napi;
 
 use crate::{
-    ArtifactKey, ArtifactRecord, ArtifactSidecar, ArtifactVersion, Change, Commit, Diagnostic,
-    DirChecked, DirParsed, DirResolved, Edit, Module, ProfileId, Revision, SessionFile, Source,
+    ArtifactKey, ArtifactRecord, ArtifactSidecar, ArtifactVersion, BuildOutput, BuildRequest,
+    Change, Commit, Content, ContentId, Diagnostic, DirChecked, DirParsed, DirResolved, Edit,
+    FormatOutput, FormatRequest, LintOutput, LintRequest, Module, ProfileId, Revision, SessionFile,
+    Source,
 };
 
 /// Live language session exposed to Node API bindings.
@@ -120,6 +122,41 @@ impl Session {
         Ok(ArtifactRecord::from_bridge(record))
     }
 
+    /// Build one typed language output for one immutable revision.
+    #[napi]
+    pub fn build(&self, revision: Revision, request: BuildRequest) -> Result<BuildOutput> {
+        let revision = revision.into_bridge()?;
+        let request = request.into_bridge()?;
+        let output = self.session.build(revision, request).map_err(to_error)?;
+
+        Ok(BuildOutput::from_bridge(output))
+    }
+
+    /// Return one shared content payload by exact content id.
+    #[napi]
+    pub fn content(&self, id: ContentId) -> Result<Content> {
+        let id = id.into_bridge()?;
+        let content = self.session.content(id).map_err(to_error)?;
+
+        Ok(Content::from_bridge(content))
+    }
+
+    /// Return one text content payload by exact content id.
+    #[napi]
+    pub fn text(&self, id: ContentId) -> Result<String> {
+        let id = id.into_bridge()?;
+
+        self.session.text(id).map_err(to_error)
+    }
+
+    /// Return one binary content payload by exact content id.
+    #[napi]
+    pub fn bytes(&self, id: ContentId) -> Result<Vec<u8>> {
+        let id = id.into_bridge()?;
+
+        self.session.bytes(id).map_err(to_error)
+    }
+
     /// Return the parsed DIR artifact for one loaded module.
     #[napi]
     pub fn parse(&self, revision: Revision, module: Module) -> Result<DirParsed> {
@@ -166,6 +203,26 @@ impl Session {
             .map_err(to_error)?;
 
         Ok(DirChecked::from_bridge(checked))
+    }
+
+    /// Format one document for one immutable revision.
+    #[napi]
+    pub fn format(&self, revision: Revision, request: FormatRequest) -> Result<FormatOutput> {
+        let revision = revision.into_bridge()?;
+        let request = request.into_bridge()?;
+        let output = self.session.format(revision, request).map_err(to_error)?;
+
+        Ok(FormatOutput::from_bridge(output))
+    }
+
+    /// Lint one scope for one immutable revision.
+    #[napi]
+    pub fn lint(&self, revision: Revision, request: LintRequest) -> Result<LintOutput> {
+        let revision = revision.into_bridge()?;
+        let request = request.into_bridge()?;
+        let output = self.session.lint(revision, request).map_err(to_error)?;
+
+        Ok(LintOutput::from_bridge(output))
     }
 
     /// Return diagnostics for one immutable revision.

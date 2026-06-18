@@ -71,14 +71,15 @@ fn render_imports(schema: &Schema, names: &[String]) -> TokenStream {
         return quote!();
     }
 
-    let imports = imports.iter().map(|item| item.ident());
+    let imports = imports.iter().map(|item| item.javascript_ident());
 
     quote!(use crate::{#(#imports,)*};)
 }
 
 /// Render one NAPI struct.
 fn render_struct(schema: &Schema, ty: &Item, fields: &[Field]) -> TokenStream {
-    let name = ty.ident();
+    let name = ty.javascript_ident();
+    let js_name = ty.javascript_name();
     let docs = ty.docs();
     let fields = fields
         .iter()
@@ -93,7 +94,7 @@ fn render_struct(schema: &Schema, ty: &Item, fields: &[Field]) -> TokenStream {
     quote! {
         #docs
         #[derive(Debug)]
-        #[napi(object)]
+        #[napi(object, js_name = #js_name)]
         pub struct #name {
             #(#fields)*
         }
@@ -117,7 +118,8 @@ fn render_struct_field(schema: &Schema, field: &Field) -> TokenStream {
 
 /// Render one NAPI struct to bridge conversion.
 fn render_struct_into_bridge(schema: &Schema, ty: &Item) -> TokenStream {
-    let name = ty.ident();
+    let name = ty.javascript_ident();
+    let bridge_name = ty.ident();
     let fields = match &ty.shape {
         Shape::Struct(fields) => fields,
         Shape::Enum(_) => unreachable!("struct conversion requires struct"),
@@ -132,8 +134,8 @@ fn render_struct_into_bridge(schema: &Schema, ty: &Item) -> TokenStream {
     quote! {
         impl #name {
             /// Convert this NAPI value into one bridge value.
-            pub(crate) fn into_bridge(self) -> napi::Result<bridge::#name> {
-                Ok(bridge::#name {
+            pub(crate) fn into_bridge(self) -> napi::Result<bridge::#bridge_name> {
+                Ok(bridge::#bridge_name {
                     #(#field_values)*
                 })
             }
@@ -143,7 +145,8 @@ fn render_struct_into_bridge(schema: &Schema, ty: &Item) -> TokenStream {
 
 /// Render one bridge to NAPI struct conversion.
 fn render_struct_from_bridge(schema: &Schema, ty: &Item) -> TokenStream {
-    let name = ty.ident();
+    let name = ty.javascript_ident();
+    let bridge_name = ty.ident();
     let fields = match &ty.shape {
         Shape::Struct(fields) => fields,
         Shape::Enum(_) => unreachable!("struct conversion requires struct"),
@@ -158,7 +161,7 @@ fn render_struct_from_bridge(schema: &Schema, ty: &Item) -> TokenStream {
     quote! {
         impl #name {
             /// Convert one bridge value into one NAPI value.
-            pub(crate) fn from_bridge(value: bridge::#name) -> Self {
+            pub(crate) fn from_bridge(value: bridge::#bridge_name) -> Self {
                 Self {
                     #(#field_values)*
                 }
@@ -169,7 +172,8 @@ fn render_struct_from_bridge(schema: &Schema, ty: &Item) -> TokenStream {
 
 /// Render one NAPI payload enum object.
 fn render_payload_enum(schema: &Schema, ty: &Item, variants: &[Variant]) -> TokenStream {
-    let name = ty.ident();
+    let name = ty.javascript_ident();
+    let js_name = ty.javascript_name();
     let docs = ty.docs();
     let payload_names = PayloadNames::new(variants);
     let payload_fields = payload_enum_fields(variants, &payload_names);
@@ -186,7 +190,7 @@ fn render_payload_enum(schema: &Schema, ty: &Item, variants: &[Variant]) -> Toke
     quote! {
         #docs
         #[derive(Debug)]
-        #[napi(object)]
+        #[napi(object, js_name = #js_name)]
         pub struct #name {
             /// Payload variant label.
             pub kind: String,
@@ -253,7 +257,8 @@ fn render_payload_enum_into_bridge(
     ty: &Item,
     variants: &[Variant],
 ) -> TokenStream {
-    let name = ty.ident();
+    let name = ty.javascript_ident();
+    let bridge_name = ty.ident();
     let payload_names = PayloadNames::new(variants);
     let payload_fields = payload_enum_fields(variants, &payload_names);
     let arms = variants.iter().map(|variant| {
@@ -267,7 +272,7 @@ fn render_payload_enum_into_bridge(
                 #label => {
                     #unexpected_payloads
 
-                    Ok(bridge::#name::#variant_name)
+                    Ok(bridge::#bridge_name::#variant_name)
                 }
             },
             Payload::Tuple(ty) => {
@@ -282,7 +287,7 @@ fn render_payload_enum_into_bridge(
                             return Err(missing_payload(#label));
                         };
 
-                        Ok(bridge::#name::#variant_name(#value))
+                        Ok(bridge::#bridge_name::#variant_name(#value))
                     }
                 }
             }
@@ -312,7 +317,7 @@ fn render_payload_enum_into_bridge(
 
                         #(#payload)*
 
-                        Ok(bridge::#name::#variant_name {
+                        Ok(bridge::#bridge_name::#variant_name {
                             #(#field_values)*
                         })
                     }
@@ -324,7 +329,7 @@ fn render_payload_enum_into_bridge(
     quote! {
         impl #name {
             /// Convert this NAPI payload enum into one bridge enum.
-            pub(crate) fn into_bridge(self) -> napi::Result<bridge::#name> {
+            pub(crate) fn into_bridge(self) -> napi::Result<bridge::#bridge_name> {
                 match self.kind.as_str() {
                     #(#arms)*
                     _ => Err(napi::Error::from_reason(format!(
@@ -391,7 +396,8 @@ fn render_payload_enum_from_bridge(
     variants: &[Variant],
     payload_fields: &[Field],
 ) -> TokenStream {
-    let name = ty.ident();
+    let name = ty.javascript_ident();
+    let bridge_name = ty.ident();
     let payload_names = PayloadNames::new(variants);
     let arms = variants.iter().map(|variant| {
         let label = variant.label();
@@ -408,7 +414,7 @@ fn render_payload_enum_from_bridge(
 
         match &variant.payload {
             Payload::Unit => quote! {
-                bridge::#name::#variant_name => Self {
+                bridge::#bridge_name::#variant_name => Self {
                     kind: #label.to_string(),
                     #(#empty_fields)*
                 },
@@ -418,7 +424,7 @@ fn render_payload_enum_from_bridge(
                 let field_value = render_from_bridge_value(schema, quote!(value), ty);
 
                 quote! {
-                    bridge::#name::#variant_name(value) => Self {
+                    bridge::#bridge_name::#variant_name(value) => Self {
                         kind: #label.to_string(),
                         #field: Some(#field_value),
                         #(#empty_fields)*
@@ -437,7 +443,7 @@ fn render_payload_enum_from_bridge(
                 });
 
                 quote! {
-                    bridge::#name::#variant_name { #(#bindings,)* } => Self {
+                    bridge::#bridge_name::#variant_name { #(#bindings,)* } => Self {
                         kind: #label.to_string(),
                         #(#field_values)*
                         #(#empty_fields)*
@@ -450,7 +456,7 @@ fn render_payload_enum_from_bridge(
     quote! {
         impl #name {
             /// Convert one bridge payload enum into one NAPI payload enum.
-            pub(crate) fn from_bridge(value: bridge::#name) -> Self {
+            pub(crate) fn from_bridge(value: bridge::#bridge_name) -> Self {
                 match value {
                     #(#arms)*
                 }
@@ -527,7 +533,7 @@ fn render_type(schema: &Schema, ty: &Type) -> TokenStream {
         }
         Type::Named(name) if schema.is_unit_enum(name) => quote!(String),
         Type::Named(name) => {
-            let name = schema.item(name).ident();
+            let name = schema.item(name).javascript_ident();
 
             quote!(#name)
         }
@@ -592,7 +598,7 @@ fn render_from_bridge_value(schema: &Schema, value: TokenStream, ty: &Type) -> T
             quote!(#helper(#value))
         }
         Type::Named(name) => {
-            let name = schema.item(name).ident();
+            let name = schema.item(name).javascript_ident();
 
             quote!(#name::from_bridge(#value))
         }

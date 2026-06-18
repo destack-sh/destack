@@ -6,7 +6,7 @@ use napi_derive::napi;
 
 /// External package id crossing bridge boundaries.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "PackageId")]
 pub struct PackageId {
     /// Canonical lowercase hex package id.
     pub id: String,

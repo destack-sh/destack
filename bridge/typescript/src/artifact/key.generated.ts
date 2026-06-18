@@ -9,6 +9,12 @@ import type { TargetId } from "../source/target.generated.js";
 
 /** External artifact key crossing bridge boundaries. */
 export type ArtifactKey =
+    /** Toolchain build payload for one target. */
+    | {
+          readonly kind: "build";
+          /** Build target. */
+          readonly target: TargetId;
+      }
     /** Parsed module DIR. */
     | {
           readonly kind: "dirParsed";
@@ -181,25 +187,49 @@ export type ArtifactKey =
           /** Semantic profile. */
           readonly profile: ProfileId;
       }
-    /** One generated module output for one target. */
+    /** One structured linker input for one target. */
     | {
-          readonly kind: "moduleOutput";
+          readonly kind: "script";
           /** Source module. */
           readonly module: ModuleId;
           /** Build target. */
           readonly target: TargetId;
       }
-    /** Output entries for one package target. */
+    /** One compiled-code linker input for one target. */
     | {
-          readonly kind: "packageOutput";
+          readonly kind: "object";
+          /** Source module. */
+          readonly module: ModuleId;
+          /** Build target. */
+          readonly target: TargetId;
+      }
+    /** One opaque linker input for one target. */
+    | {
+          readonly kind: "asset";
+          /** Source module. */
+          readonly module: ModuleId;
+          /** Build target. */
+          readonly target: TargetId;
+      }
+    /** Linked file graph for one package target. */
+    | {
+          readonly kind: "bundle";
           /** Source package. */
           readonly package: PackageId;
           /** Build target. */
           readonly target: TargetId;
       }
-    /** Output entries for one product. */
+    /** Executable program for one package target. */
     | {
-          readonly kind: "productOutput";
+          readonly kind: "program";
+          /** Source package. */
+          readonly package: PackageId;
+          /** Build target. */
+          readonly target: TargetId;
+      }
+    /** Linked product assembled from configured target artifacts. */
+    | {
+          readonly kind: "product";
           /** Source package. */
           readonly package: PackageId;
           /** Product. */
@@ -226,6 +256,11 @@ export type ArtifactKey =
 ;
 
 export const ArtifactKey = {
+    /** Toolchain build payload for one target. */
+    build(target: TargetId): ArtifactKey {
+        return { kind: "build", target };
+    },
+
     /** Parsed module DIR. */
     dirParsed(module: ModuleId): ArtifactKey {
         return { kind: "dirParsed", module };
@@ -336,19 +371,34 @@ export const ArtifactKey = {
         return { kind: "workspaceQueryIndex", profile };
     },
 
-    /** One generated module output for one target. */
-    moduleOutput(module: ModuleId, target: TargetId): ArtifactKey {
-        return { kind: "moduleOutput", module, target };
+    /** One structured linker input for one target. */
+    script(module: ModuleId, target: TargetId): ArtifactKey {
+        return { kind: "script", module, target };
     },
 
-    /** Output entries for one package target. */
-    packageOutput(packageValue: PackageId, target: TargetId): ArtifactKey {
-        return { kind: "packageOutput", package: packageValue, target };
+    /** One compiled-code linker input for one target. */
+    object(module: ModuleId, target: TargetId): ArtifactKey {
+        return { kind: "object", module, target };
     },
 
-    /** Output entries for one product. */
-    productOutput(packageValue: PackageId, product: ProductId): ArtifactKey {
-        return { kind: "productOutput", package: packageValue, product };
+    /** One opaque linker input for one target. */
+    asset(module: ModuleId, target: TargetId): ArtifactKey {
+        return { kind: "asset", module, target };
+    },
+
+    /** Linked file graph for one package target. */
+    bundle(packageValue: PackageId, target: TargetId): ArtifactKey {
+        return { kind: "bundle", package: packageValue, target };
+    },
+
+    /** Executable program for one package target. */
+    program(packageValue: PackageId, target: TargetId): ArtifactKey {
+        return { kind: "program", package: packageValue, target };
+    },
+
+    /** Linked product assembled from configured target artifacts. */
+    product(packageValue: PackageId, product: ProductId): ArtifactKey {
+        return { kind: "product", package: packageValue, product };
     },
 
     /** Realized lint diagnostics for one module profile. */

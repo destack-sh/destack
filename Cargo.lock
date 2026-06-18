@@ -866,8 +866,10 @@ dependencies = [
 name = "destack"
 version = "0.55.4"
 dependencies = [
+ "destack_artifact",
  "destack_bridge_language",
  "destack_compiler",
+ "destack_formatter",
  "destack_linter",
  "destack_query",
  "destack_repository",
@@ -925,6 +927,7 @@ dependencies = [
  "destack_artifact",
  "destack_bridge_language_macros",
  "destack_core",
+ "destack_program",
  "destack_repository",
  "destack_session",
  "destack_source",

@@ -6,7 +6,7 @@ use napi_derive::napi;
 
 /// External component id crossing bridge boundaries.
 #[derive(Debug)]
-#[napi(object)]
+#[napi(object, js_name = "ComponentId")]
 pub struct ComponentId {
     /// Canonical lowercase hex component id.
     pub id: String,
