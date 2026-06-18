@@ -121,12 +121,7 @@ extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N> impl
     /// The indexed output type.
     type Output = Slice<T>;
 
-    /// Return the selected range by value.
-    index(range: R): Slice<T> {
-        todo("FixedArray.indexRange")
-    }
-
-    /// Borrow the selected range.
+    /// Borrow the selected range as a view.
     index<comptime A: Access = "readonly">(
         this: WithAccess<&FixedArray<T, N>, A>,
         range: R,
@@ -368,7 +363,7 @@ extension<T> of Array<T> implements
     }
 
     /// Return a copy of the selected range.
-    slice(start?: number, end?: number): ^Array<T> {
+    slice(start?: usize, end?: usize): ^Array<T> {
         todo("Array.slice")
     }
 

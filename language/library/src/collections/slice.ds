@@ -5,7 +5,7 @@ import { Access, Copy, Default, Raw, WithAccess } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
 import { Bound, RangeBounds } from "destack:range";
 
-/// Well-known library type for the builtin slice form `[T]`.
+/// Well-known library type for the builtin slice descriptor form `[T]`.
 @languageItem("collections.Slice")
 export newtype Slice<T> = [T];
 
@@ -37,7 +37,7 @@ extension<T> of Slice<T> implements
         Slice.new()
     }
 
-    /// Build a raw slice from raw storage.
+    /// Build a raw slice descriptor from raw storage.
     @unsafe
     @intrinsic("collections.slice.fromRaw")
     static fromRaw(data: *T, length: usize): Raw<Slice<T>>;
@@ -100,7 +100,7 @@ extension<T> of Slice<T> implements
         todo("Slice.last")
     }
 
-    /// Borrow a contiguous range.
+    /// Borrow a contiguous range as a view.
     @intrinsic("collections.slice.subslice")
     subslice<comptime A: Access = "readonly">(
         this: WithAccess<&Slice<T>, A>,
@@ -108,19 +108,19 @@ extension<T> of Slice<T> implements
         length: usize,
     ): WithAccess<&Slice<T>, A>;
 
-    /// Borrow a selected range.
+    /// Borrow a selected range as a view.
     slice<comptime A: Access = "readonly">(
         this: WithAccess<&Slice<T>, A>,
-        start?: number,
-        end?: number,
+        start?: usize,
+        end?: usize,
     ): WithAccess<&Slice<T>, A> {
         todo("Slice.slice")
     }
 
-    /// Split this slice into two borrowed ranges.
+    /// Split this slice into two borrowed views.
     splitAt<comptime A: Access = "readonly">(
         this: WithAccess<&Slice<T>, A>,
-        index: number,
+        index: usize,
     ): (WithAccess<&Slice<T>, A>, WithAccess<&Slice<T>, A>) {
         todo("Slice.splitAt")
     }
@@ -217,12 +217,7 @@ extension<T, R: RangeBounds<usize>> of Slice<T> implements Index<R> {
         (start, end - start)
     }
 
-    /// Return the selected range by value.
-    index(range: R): Slice<T> {
-        todo("Slice.indexRange")
-    }
-
-    /// Borrow the selected range.
+    /// Borrow the selected range as a view.
     index<comptime A: Access = "readonly">(
         this: WithAccess<&Slice<T>, A>,
         range: R,
