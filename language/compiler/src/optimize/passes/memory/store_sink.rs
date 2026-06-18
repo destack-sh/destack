@@ -157,7 +157,7 @@ fn run_store_sink(
     for candidate in candidates {
         let block = tree.get(candidate.block);
         let terminator = tree.get(block.terminator);
-        let successors = tree.terminator_successors(terminator);
+        let successors = terminator.successors(tree);
 
         // require multiple successors
         if successors.len() < 2 {
@@ -413,7 +413,7 @@ fn successor_reaches_use(
 
         let block = tree.get(block);
         let terminator = tree.get(block.terminator);
-        for successor in tree.terminator_successors(terminator) {
+        for successor in terminator.successors(tree) {
             if visited.insert(successor) {
                 queue.push_back(successor);
             }

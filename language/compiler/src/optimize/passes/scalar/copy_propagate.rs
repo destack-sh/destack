@@ -88,7 +88,7 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
         let block = tree.get(block_id).clone();
         let terminator = tree.get(block.terminator);
         let mut record_predecessor = |target: &mir::BlockTarget| {
-            let arguments = tree.block_target_values(target).to_vec();
+            let arguments = target.arguments(tree).to_vec();
             predecessors
                 .get_mut(&target.block)
                 .unwrap()
@@ -445,7 +445,7 @@ fn filter_target_arguments(
         return (target.arguments, false);
     };
 
-    let arguments = tree.block_target_values(target);
+    let arguments = target.arguments(tree);
     let arguments = filter_indices(arguments, indices);
     let arguments = tree.add_values(&arguments);
 

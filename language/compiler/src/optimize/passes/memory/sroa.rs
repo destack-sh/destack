@@ -7,7 +7,7 @@ use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     ConstantPropagation, Mutation, instruction_requires_exact_access,
     instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
-    terminator_substitute_uses, terminator_uses,
+    terminator_substitute_uses,
 };
 
 declare_pass! {
@@ -433,7 +433,7 @@ fn analyze_uses(
 
             // check terminator uses
             let terminator = tree.get(block.terminator);
-            if terminator_uses(tree, terminator, value) {
+            if terminator.uses(tree).contains(&value) {
                 // value used in terminator, escapes
                 return None;
             }

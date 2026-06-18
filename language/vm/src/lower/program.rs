@@ -883,7 +883,7 @@ impl ProgramBuilder {
 
                 match terminator {
                     mir::Terminator::Yield { resume, .. } => {
-                        Some((resume.block, self.tree.block_target_values(resume).to_vec()))
+                        Some((resume.block, resume.arguments(&self.tree).to_vec()))
                     }
                     _ => None,
                 }
@@ -914,7 +914,7 @@ impl ProgramBuilder {
                     | mir::Terminator::CallIndirect { target, .. }
                     | mir::Terminator::CallVirtual { target, .. }
                     | mir::Terminator::CallDynamic { target, .. } => {
-                        Some((target.block, self.tree.block_target_values(target).to_vec()))
+                        Some((target.block, target.arguments(&self.tree).to_vec()))
                     }
                     _ => None,
                 }

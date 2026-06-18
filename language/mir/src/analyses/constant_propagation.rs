@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use crate as mir;
 
 use crate::{
-    Analysis, AnalysisId, ConstantLookup, FunctionAnalyses, FunctionAnalysis, SuccessorArguments,
-    TypeContext, fold_binary, fold_cast, fold_unary, terminator_arguments_for_successor_checked,
+    Analysis, AnalysisId, ConstantLookup, EdgeArguments, FunctionAnalyses, FunctionAnalysis,
+    TypeContext, fold_binary, fold_cast, fold_unary,
 };
 
 use super::{ControlFlowGraph, Lattice};
@@ -195,7 +195,7 @@ impl ConstantPropagation {
                     // enqueue successors
                     let block = tree.get(block_id);
                     let terminator = tree.get(block.terminator);
-                    for succ in tree.terminator_successors(terminator) {
+                    for succ in terminator.successors(tree) {
                         if in_worklist.insert(succ) {
                             worklist.push_back(succ);
                         }
@@ -345,15 +345,14 @@ fn resolve_block_param_constants(
         // collect arguments for this edge
         let pred_block = tree.get(pred);
         let pred_terminator = tree.get(pred_block.terminator);
-        let args = match terminator_arguments_for_successor_checked(tree, pred_terminator, block_id)
-        {
-            SuccessorArguments::Missing => continue,
-            SuccessorArguments::Conflict => {
+        let args = match pred_terminator.edge_arguments(tree, block_id) {
+            EdgeArguments::Missing => continue,
+            EdgeArguments::Conflict => {
                 states.fill(ParamState::Overdefined);
                 is_seen = true;
                 continue;
             }
-            SuccessorArguments::Consistent(args) => args,
+            EdgeArguments::Found(args) => args,
         };
 
         // mark that we saw a predecessor
@@ -678,7 +677,7 @@ b3(v5: boolean):
 
     /// Conflicting arguments to a single target are not treated as constants.
     #[test]
-    fn test_conflicting_target_values() {
+    fn test_conflicting_target_arguments() {
         let test = TestProgram::new(
             r#"
 function test(v0: boolean): boolean {

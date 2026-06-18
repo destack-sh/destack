@@ -113,7 +113,10 @@ fn run_loop_simplify(
                     .filter(|&&eb| {
                         let block = tree.get(eb);
                         let terminator = tree.get(block.terminator);
-                        tree.terminator_successors(terminator).contains(&exit_block)
+                        terminator
+                            .successors(tree)
+                            .iter()
+                            .any(|target| *target == exit_block)
                     })
                     .copied()
                     .collect();
@@ -250,7 +253,7 @@ fn needs_preheader(
         let pred = *outside_preds[0];
         let pred_block = tree.get(pred);
         let pred_terminator = tree.get(pred_block.terminator);
-        if tree.terminator_successors(pred_terminator).len() > 1 {
+        if pred_terminator.successors(tree).len() > 1 {
             return true;
         }
     }

@@ -5,10 +5,10 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
-    CallsiteHotness, ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, Mutation, RangeAnalysis,
-    SuccessorArguments, block_hotness_from_counts, bool_from_range, build_value_definition_map,
+    CallsiteHotness, ControlFlowGraph, DominatorTree, EdgeArguments, Loop, LoopAnalysis, Mutation,
+    RangeAnalysis, block_hotness_from_counts, bool_from_range, build_value_definition_map,
     clone_instruction_metadata, clone_loop_blocks, instruction_is_speculatable,
-    instruction_map_with_locals, terminator_arguments_for_successor_checked, terminator_remap,
+    instruction_map_with_locals, terminator_remap,
 };
 
 declare_pass! {
@@ -565,13 +565,9 @@ fn collect_header_param_rewrites(
             // read arguments flowing into the header
             let pred_block = tree.get(pred);
             let pred_terminator = tree.get(pred_block.terminator);
-            let args = match terminator_arguments_for_successor_checked(
-                tree,
-                pred_terminator,
-                lp.header,
-            ) {
-                SuccessorArguments::Consistent(args) => args,
-                SuccessorArguments::Missing | SuccessorArguments::Conflict => {
+            let args = match pred_terminator.edge_arguments(tree, lp.header) {
+                EdgeArguments::Found(args) => args,
+                EdgeArguments::Missing | EdgeArguments::Conflict => {
                     return HashMap::new();
                 }
             };

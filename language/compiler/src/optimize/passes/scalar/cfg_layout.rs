@@ -275,7 +275,7 @@ fn outline_cold_edges(
         // inspect successor edges for cold targets
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
-        for successor in tree.terminator_successors(terminator) {
+        for successor in terminator.successors(tree) {
             if !cold_blocks.contains(&successor) {
                 continue;
             }
@@ -348,11 +348,7 @@ fn duplicate_hot_edges(
 
         match terminator {
             mir::Terminator::Jump { target } => {
-                record_edge(
-                    mir::Successor::Jump,
-                    target,
-                    tree.block_target_values(target),
-                );
+                record_edge(mir::Successor::Jump, target, target.arguments(tree));
             }
             mir::Terminator::Branch {
                 then_target,
@@ -362,12 +358,12 @@ fn duplicate_hot_edges(
                 record_edge(
                     mir::Successor::BranchThen,
                     then_target,
-                    tree.block_target_values(then_target),
+                    then_target.arguments(tree),
                 );
                 record_edge(
                     mir::Successor::BranchElse,
                     else_target,
-                    tree.block_target_values(else_target),
+                    else_target.arguments(tree),
                 );
             }
             mir::Terminator::Check {
@@ -376,12 +372,12 @@ fn duplicate_hot_edges(
                 record_edge(
                     mir::Successor::CheckSuccess,
                     success,
-                    tree.block_target_values(success),
+                    success.arguments(tree),
                 );
                 record_edge(
                     mir::Successor::CheckFailure,
                     failure,
-                    tree.block_target_values(failure),
+                    failure.arguments(tree),
                 );
             }
             _ => {}
@@ -725,7 +721,7 @@ fn select_hot_successor(
     let terminator = tree.get(block.terminator);
     let mut best: Option<(u64, u64, mir::LocalNodeId<mir::Block>)> = None;
 
-    for successor in tree.terminator_successors(terminator) {
+    for successor in terminator.successors(tree) {
         // skip successors already placed or marked cold
         if placed.contains(&successor) || cold_blocks.contains(&successor) {
             continue;

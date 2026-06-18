@@ -4,7 +4,6 @@ use crate::verify::value::{instruction_consumes, instruction_uses, terminator_co
 use crate::verify::{BorrowObligationRecord, VerifyError, VerifyState};
 use destack_artifact::DiagnosticBuilder;
 use destack_mir as mir;
-use destack_mir::terminator_arguments_for_successor;
 
 use super::alias::PlaceAlias;
 use super::borrow::{BorrowSource, BorrowSources, BorrowSuspension};
@@ -98,7 +97,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             // revisit successors after changed exits
             let block = self.tree.get(block_id);
             let terminator = self.tree.get(block.terminator);
-            for successor in self.tree.terminator_successors(terminator) {
+            for successor in terminator.successors(self.tree) {
                 if !worklist.contains(&successor) {
                     worklist.push_back(successor);
                 }
@@ -149,7 +148,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         let predecessor_id = predecessor;
         let predecessor = self.tree.get(predecessor_id);
         let terminator = self.tree.get(predecessor.terminator);
-        let arguments = terminator_arguments_for_successor(self.tree, terminator, successor);
+        let arguments = terminator.arguments_for_successor(self.tree, successor);
         let successor_block = self.tree.get(successor);
 
         // bind edge arguments to successor block parameters
@@ -464,7 +463,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         let anchor = terminator_id.into_any();
 
         // check terminator uses against initialized values
-        for value in self.tree.terminator_uses(terminator) {
+        for value in terminator.uses(self.tree) {
             self.check_value_use(value, anchor);
         }
 
@@ -1337,7 +1336,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         value: mir::Value,
         target: &mir::BlockTarget,
     ) -> bool {
-        if self.tree.block_target_values(target).contains(&value) {
+        if target.arguments(self.tree).contains(&value) {
             return true;
         }
 
@@ -1435,8 +1434,10 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         });
         let is_used_by_terminator = self
             .tree
-            .terminator_uses(self.tree.get(block.terminator))
-            .contains(&value);
+            .get(block.terminator)
+            .uses(self.tree)
+            .iter()
+            .any(|used| *used == value);
 
         is_used_by_instruction || is_used_by_terminator
     }

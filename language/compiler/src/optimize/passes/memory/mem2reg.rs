@@ -343,7 +343,7 @@ fn compute_local_liveness(
 
             // live_out is union of successor live_in sets
             let mut new_live_out: HashSet<mir::LocalNodeId<mir::Local>> = HashSet::new();
-            for successor in tree.terminator_successors(terminator) {
+            for successor in terminator.successors(tree) {
                 if let Some(successor_live_in) = live_in.get(&successor) {
                     new_live_out.extend(successor_live_in.iter().copied());
                 }

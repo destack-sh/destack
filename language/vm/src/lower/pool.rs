@@ -364,7 +364,7 @@ fn switch_case_range(
         let target = case.target.block;
         let target_index = block_index_map[&target];
         let target_parameters = block_parameters[target_index].as_slice();
-        let arguments = tree.block_target_values(&case.target);
+        let arguments = case.target.arguments(tree);
         let moves = move_range(frame_layout, move_pool, target_parameters, arguments)?;
         lowered_cases.push(SwitchCase {
             value: case.value,
@@ -435,7 +435,7 @@ fn switch_table_range(
         let target = case.target.block;
         let target_index = block_index_map[&target];
         let target_parameters = block_parameters[target_index].as_slice();
-        let arguments = tree.block_target_values(&case.target);
+        let arguments = case.target.arguments(tree);
         let moves = move_range(frame_layout, move_pool, target_parameters, arguments)?;
         let offset = (case_value - min_value) as usize;
         let entry = &mut table[offset];

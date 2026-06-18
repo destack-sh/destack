@@ -399,7 +399,7 @@ impl<'a> SccpState<'a> {
             }
             mir::Terminator::Jump { target } => {
                 let target_block = target.block;
-                let arguments = self.tree.block_target_values(target);
+                let arguments = target.arguments(self.tree);
 
                 self.mark_edge_executable(block_id, target_block, arguments);
             }
@@ -417,16 +417,16 @@ impl<'a> SccpState<'a> {
                 // mark executable edges for the branch
                 if let LatticeValue::Constant(mir::Constant::Boolean { value }) = condition_state {
                     if value {
-                        let arguments = self.tree.block_target_values(then_target);
+                        let arguments = then_target.arguments(self.tree);
                         self.mark_edge_executable(block_id, then_block, arguments);
                     } else {
-                        let arguments = self.tree.block_target_values(else_target);
+                        let arguments = else_target.arguments(self.tree);
                         self.mark_edge_executable(block_id, else_block, arguments);
                     }
                 } else {
-                    let then_arguments = self.tree.block_target_values(then_target);
+                    let then_arguments = then_target.arguments(self.tree);
                     self.mark_edge_executable(block_id, then_block, then_arguments);
-                    let else_arguments = self.tree.block_target_values(else_target);
+                    let else_arguments = else_target.arguments(self.tree);
                     self.mark_edge_executable(block_id, else_block, else_arguments);
                 }
             }
@@ -436,9 +436,9 @@ impl<'a> SccpState<'a> {
                 let success_block = success.block;
                 let failure_block = failure.block;
 
-                let success_arguments = self.tree.block_target_values(success);
+                let success_arguments = success.arguments(self.tree);
                 self.mark_edge_executable(block_id, success_block, success_arguments);
-                let failure_arguments = self.tree.block_target_values(failure);
+                let failure_arguments = failure.arguments(self.tree);
                 self.mark_edge_executable(block_id, failure_block, failure_arguments);
             }
             mir::Terminator::NewZeroedTry {
@@ -450,9 +450,9 @@ impl<'a> SccpState<'a> {
                 let success_block = success.block;
                 let failure_block = failure.block;
 
-                let success_arguments = self.tree.block_target_values(success);
+                let success_arguments = success.arguments(self.tree);
                 self.mark_edge_executable(block_id, success_block, success_arguments);
-                let failure_arguments = self.tree.block_target_values(failure);
+                let failure_arguments = failure.arguments(self.tree);
                 self.mark_edge_executable(block_id, failure_block, failure_arguments);
             }
             mir::Terminator::NewSliceZeroedTry {
@@ -470,9 +470,9 @@ impl<'a> SccpState<'a> {
                 let success_block = success.block;
                 let failure_block = failure.block;
 
-                let success_arguments = self.tree.block_target_values(success);
+                let success_arguments = success.arguments(self.tree);
                 self.mark_edge_executable(block_id, success_block, success_arguments);
-                let failure_arguments = self.tree.block_target_values(failure);
+                let failure_arguments = failure.arguments(self.tree);
                 self.mark_edge_executable(block_id, failure_block, failure_arguments);
 
                 self.edge_use_blocks
@@ -496,31 +496,31 @@ impl<'a> SccpState<'a> {
                         let cases = self.tree.get_switch_cases(*cases);
                         if let Some(target) = select_switch_target(value, cases) {
                             let target_block = target.target.block;
-                            let arguments = self.tree.block_target_values(&target.target);
+                            let arguments = target.target.arguments(self.tree);
 
                             self.mark_edge_executable(block_id, target_block, arguments);
                         } else {
-                            let arguments = self.tree.block_target_values(default);
+                            let arguments = default.arguments(self.tree);
                             self.mark_edge_executable(block_id, default_block, arguments);
                         }
                     } else {
-                        let arguments = self.tree.block_target_values(default);
+                        let arguments = default.arguments(self.tree);
                         self.mark_edge_executable(block_id, default_block, arguments);
                         let cases = self.tree.get_switch_cases(*cases);
                         for case in cases {
                             let case_block = case.target.block;
-                            let arguments = self.tree.block_target_values(&case.target);
+                            let arguments = case.target.arguments(self.tree);
 
                             self.mark_edge_executable(block_id, case_block, arguments);
                         }
                     }
                 } else {
-                    let arguments = self.tree.block_target_values(default);
+                    let arguments = default.arguments(self.tree);
                     self.mark_edge_executable(block_id, default_block, arguments);
                     let cases = self.tree.get_switch_cases(*cases);
                     for case in cases {
                         let case_block = case.target.block;
-                        let arguments = self.tree.block_target_values(&case.target);
+                        let arguments = case.target.arguments(self.tree);
 
                         self.mark_edge_executable(block_id, case_block, arguments);
                     }
@@ -528,13 +528,13 @@ impl<'a> SccpState<'a> {
             }
             mir::Terminator::Yield { resume, unwind, .. } => {
                 let resume_block = resume.block;
-                let arguments = self.tree.block_target_values(resume);
+                let arguments = resume.arguments(self.tree);
 
                 self.mark_edge_executable(block_id, resume_block, arguments);
 
                 if let Some(unwind) = unwind {
                     let unwind_block = unwind.block;
-                    let arguments = self.tree.block_target_values(unwind);
+                    let arguments = unwind.arguments(self.tree);
 
                     self.mark_edge_executable(block_id, unwind_block, arguments);
                 }
@@ -544,11 +544,11 @@ impl<'a> SccpState<'a> {
             | mir::Terminator::CallVirtual { target, unwind, .. }
             | mir::Terminator::CallDynamic { target, unwind, .. } => {
                 let target_block = target.block;
-                let arguments = self.tree.block_target_values(target);
+                let arguments = target.arguments(self.tree);
 
                 self.mark_edge_executable(block_id, target_block, arguments);
                 if let Some(unwind) = unwind {
-                    let arguments = self.tree.block_target_values(unwind);
+                    let arguments = unwind.arguments(self.tree);
                     self.mark_edge_executable(block_id, unwind.block, arguments);
                 }
             }

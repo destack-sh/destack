@@ -116,7 +116,7 @@ fn run_dead_code_elimination(
 
         // record terminator uses as live
         let terminator = tree.get(block.terminator);
-        for value in tree.terminator_uses(terminator) {
+        for value in terminator.uses(tree) {
             if let Some(&instruction_id) = value_to_instruction.get(&value)
                 && live.insert(instruction_id)
             {

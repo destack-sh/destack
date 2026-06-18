@@ -174,7 +174,7 @@ impl<'a> FunctionContext<'a> {
 
     /// Return arguments stored on one MIR block target.
     #[inline]
-    pub(super) fn target_values(&self, target: &mir::BlockTarget) -> &'a [mir::Value] {
-        self.tree.block_target_values(target)
+    pub(super) fn target_arguments(&self, target: &mir::BlockTarget) -> &'a [mir::Value] {
+        target.arguments(self.tree)
     }
 }

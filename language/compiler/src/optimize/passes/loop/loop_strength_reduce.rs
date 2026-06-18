@@ -264,7 +264,7 @@ impl ValueUses {
 
             // scan terminator uses
             let terminator = tree.get(block.terminator);
-            for value in tree.terminator_uses(terminator) {
+            for value in terminator.uses(tree) {
                 uses.entry(value).or_default().insert(block_id);
             }
         }
@@ -1026,7 +1026,7 @@ fn terminator_has_successor(
     successor: mir::LocalNodeId<mir::Block>,
 ) -> bool {
     // check successor list
-    tree.terminator_successors(terminator).contains(&successor)
+    terminator.successors(tree).contains(&successor)
 }
 
 /// Append arguments for a successor edge.

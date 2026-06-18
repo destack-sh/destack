@@ -6,10 +6,10 @@ use destack_mir as mir;
 use crate::optimize::{FunctionPass, PipelineContext};
 use destack_mir::{
     AvailableExpressions, ControlFlowGraph, DominatorTree, EdgeSplitPolicy, ExpressionKey,
-    Mutation, UseDefMaps, ValueTypeMap, append_successor_arguments,
-    apply_substitutions_in_function, build_use_def_maps, collect_reachable_blocks,
-    compute_dominance_frontiers, ensure_edge_block, expression_key_from_instruction,
-    expression_key_substitute, instruction_has_side_effects, instruction_is_speculatable,
+    Mutation, UseDefMaps, ValueTypeMap, append_edge_arguments, apply_substitutions_in_function,
+    build_use_def_maps, collect_reachable_blocks, compute_dominance_frontiers, ensure_edge_block,
+    expression_key_from_instruction, expression_key_substitute, instruction_has_side_effects,
+    instruction_is_speculatable,
 };
 
 declare_pass! {
@@ -391,7 +391,7 @@ fn run_pre(
 
             if !args.is_empty() {
                 // append the arguments on the chosen edge
-                append_successor_arguments(tree, insertion_block, block_id, &args);
+                append_edge_arguments(tree, insertion_block, block_id, &args);
                 changed = true;
             }
         }

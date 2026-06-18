@@ -33,7 +33,7 @@ impl DenseControlFlow {
             let block_data = tree.get(block);
             let terminator = tree.get(block_data.terminator);
 
-            for successor in tree.terminator_successors(terminator) {
+            for successor in terminator.successors(tree) {
                 let successor_index = block_index[&successor];
                 successors[index].push(successor_index);
             }

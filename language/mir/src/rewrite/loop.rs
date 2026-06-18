@@ -6,7 +6,7 @@ use crate::{
     ControlFlowGraph, DominatorTree, MemoryAccess, MemoryAccessEffect, MemoryAccessLocation,
     MemorySSA, clone_instruction_metadata, instruction_has_atomic_ordering,
     instruction_is_borrow_address, instruction_is_read_only_access, instruction_is_speculatable,
-    instruction_map, terminator_used_values,
+    instruction_map,
 };
 
 /// Guard branch metadata for loop headers.
@@ -52,8 +52,8 @@ pub fn loop_guard_branch(
 
     let then_block = then_target.block;
     let else_block = else_target.block;
-    let then_arguments = tree.block_target_values(then_target).to_vec();
-    let else_arguments = tree.block_target_values(else_target).to_vec();
+    let then_arguments = then_target.arguments(tree).to_vec();
+    let else_arguments = else_target.arguments(tree).to_vec();
 
     // reject non loop in loop target
     if !loop_blocks.contains(&in_loop) {
@@ -154,7 +154,7 @@ pub fn loop_preheader(
     let preheader_terminator = tree.get(preheader_block.terminator);
     let arguments = match preheader_terminator {
         mir::Terminator::Jump { target } if target.block == header => {
-            tree.block_target_values(target).to_vec()
+            target.arguments(tree).to_vec()
         }
         _ => return None,
     };
@@ -178,12 +178,12 @@ pub fn control_instructions_for_latch(
         control_values.extend(instruction.uses());
     }
     let header_terminator = tree.get(header_block.terminator);
-    control_values.extend(terminator_used_values(tree, header_terminator));
+    control_values.extend(header_terminator.uses(tree));
 
     let latch_block = tree.get(latch);
     let latch_terminator = tree.get(latch_block.terminator);
     if let mir::Terminator::Jump { target } = latch_terminator {
-        control_values.extend(tree.block_target_values(target).iter().copied());
+        control_values.extend(target.arguments(tree).iter().copied());
     }
 
     // walk backward from control values to latch definitions
