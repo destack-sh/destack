@@ -8,8 +8,8 @@ use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CompareExchangeAccess, Constant,
     CounterId, DispatchSlot, FenceAccess, FunctionId, GlobalId, IndexSlice, Intrinsic, LocalId,
     Node, NodeType, TensorConvertMode, TensorImmediateId, TensorIndexReduceOperator,
-    TensorIndexTieBreak, TensorReduceOperator, TensorScatterMode, TypeId, UnaryOperator, Value,
-    ValueSlice, VectorConvertMode, VectorReduceOperator,
+    TensorIndexTieBreak, TensorReduceOperator, TensorScatterMode, Tree, TypeId, UnaryOperator,
+    Value, ValueSlice, VectorConvertMode, VectorReduceOperator,
 };
 
 /// Dispatch kind for a call instruction.
@@ -1164,6 +1164,131 @@ impl Instruction {
             // Arguments stored externally - return empty
             Instruction::Intrinsic { .. } => smallvec![],
         }
+    }
+
+    /// Return every value read by this instruction.
+    pub fn reads(&self, tree: &Tree) -> SmallVec<[Value; 8]> {
+        let mut values = self.uses().into_iter().collect::<SmallVec<[Value; 8]>>();
+
+        if let Some(arguments) = self.argument_slice() {
+            values.extend(tree.get_values(arguments).iter().copied());
+        }
+
+        values
+    }
+
+    /// Return values consumed by this instruction.
+    pub fn consumes(&self, tree: &Tree) -> SmallVec<[Value; 8]> {
+        match self {
+            Instruction::LocalSet { value, .. }
+            | Instruction::Store { value, .. }
+            | Instruction::NewComplete { value, .. }
+            | Instruction::TensorStore { value, .. }
+            | Instruction::TensorFill { value, .. }
+            | Instruction::Free { value } => smallvec![*value],
+            Instruction::AtomicStore { value, .. } | Instruction::AtomicRmw { value, .. } => {
+                smallvec![*value]
+            }
+            Instruction::AtomicCompareExchange {
+                expected,
+                new_value,
+                ..
+            } => smallvec![*expected, *new_value],
+            Instruction::FieldSet {
+                aggregate, value, ..
+            }
+            | Instruction::ElementSet {
+                array: aggregate,
+                value,
+                ..
+            } => smallvec![*aggregate, *value],
+            Instruction::ClosureBind { environment, .. }
+            | Instruction::VectorSplat {
+                value: environment, ..
+            }
+            | Instruction::TensorSplat {
+                value: environment, ..
+            } => smallvec![*environment],
+            Instruction::VectorInsert { vector, value, .. }
+            | Instruction::TensorPad {
+                tensor: vector,
+                value,
+                ..
+            } => smallvec![*vector, *value],
+            Instruction::TensorExtract { tensor, .. }
+            | Instruction::TensorReshape { tensor, .. }
+            | Instruction::TensorBroadcast { tensor, .. }
+            | Instruction::TensorTranspose { tensor, .. }
+            | Instruction::TensorCast { tensor, .. }
+            | Instruction::TensorSlice { tensor, .. }
+            | Instruction::TensorReduce { tensor, .. }
+            | Instruction::TensorIndexReduce { tensor, .. }
+            | Instruction::TensorConvert { tensor, .. } => smallvec![*tensor],
+            Instruction::TensorDot { left, right, .. }
+            | Instruction::TensorCompare { left, right, .. } => smallvec![*left, *right],
+            Instruction::TensorConvolution { input, kernel, .. } => {
+                smallvec![*input, *kernel]
+            }
+            Instruction::TensorGather {
+                operand, indices, ..
+            } => smallvec![*operand, *indices],
+            Instruction::TensorScatter {
+                operand,
+                indices,
+                updates,
+                ..
+            } => smallvec![*operand, *indices, *updates],
+            Instruction::Struct { .. }
+            | Instruction::Tuple { .. }
+            | Instruction::Array { .. }
+            | Instruction::TensorConcat { .. } => self.argument_slice_values(tree),
+            Instruction::Call { call, .. } => tree
+                .get_values(call.arguments)
+                .iter()
+                .copied()
+                .collect::<SmallVec<[Value; 8]>>(),
+            Instruction::CallVirtual { receiver, call, .. }
+            | Instruction::CallDynamic { receiver, call, .. } => {
+                let mut values = smallvec![*receiver];
+                values.extend(tree.get_values(call.arguments).iter().copied());
+
+                values
+            }
+            Instruction::CallIndirect { callee, call, .. } => {
+                let mut values = smallvec![*callee];
+                values.extend(tree.get_values(call.arguments).iter().copied());
+
+                values
+            }
+            Instruction::Intrinsic {
+                intrinsic,
+                arguments,
+                ..
+            } => {
+                let arguments = tree.get_values(*arguments);
+                let mut values = SmallVec::<[Value; 8]>::new();
+
+                for &index in intrinsic.consumed_arguments() {
+                    let Some(&value) = arguments.get(index as usize) else {
+                        continue;
+                    };
+
+                    values.push(value);
+                }
+
+                values
+            }
+            _ => smallvec![],
+        }
+    }
+
+    /// Return externally stored values for this instruction.
+    fn argument_slice_values(&self, tree: &Tree) -> SmallVec<[Value; 8]> {
+        let Some(arguments) = self.argument_slice() else {
+            return smallvec![];
+        };
+
+        tree.get_values(arguments).iter().copied().collect()
     }
 
     /// Get the argument slice for instructions that have externalized arguments.

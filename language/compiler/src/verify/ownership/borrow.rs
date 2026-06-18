@@ -5,16 +5,16 @@ use destack_mir as mir;
 pub(super) enum BorrowSource {
     /// Global or static storage.
     Static,
-    /// Lifetime slot by index.
-    Slot(u32),
+    /// Explicit lifetime slot.
+    Lifetime(mir::LifetimeSlot),
     /// Owned storage.
     Owned,
     /// Managed storage.
     Managed {
         /// The storage space.
         space: mir::Space,
-        /// The parameter keeping this managed handle alive.
-        parameter: Option<u32>,
+        /// The explicit lifetime keeping this managed handle alive.
+        lifetime: Option<mir::Lifetime>,
     },
 }
 
@@ -37,7 +37,7 @@ impl BorrowSource {
                 space: mir::Space::Shared,
                 ..
             } => !access.is_exclusive(),
-            Self::Static | Self::Slot(_) | Self::Owned | Self::Managed { .. } => true,
+            Self::Static | Self::Lifetime(_) | Self::Owned | Self::Managed { .. } => true,
         }
     }
 
@@ -45,7 +45,11 @@ impl BorrowSource {
     fn suspension(&self) -> BorrowSuspension {
         match self {
             Self::Static | Self::Owned => BorrowSuspension::Stable,
-            Self::Slot(index) => BorrowSuspension::Requires(vec![mir::Lifetime::slot(*index)]),
+            Self::Lifetime(slot) => {
+                BorrowSuspension::Requires(vec![mir::Lifetime::new([mir::LifetimeTerm::Slot(
+                    *slot,
+                )])])
+            }
             Self::Managed { .. } => BorrowSuspension::Rejected,
         }
     }
@@ -54,8 +58,8 @@ impl BorrowSource {
     pub(super) fn is_function_local(&self) -> bool {
         match self {
             Self::Owned => true,
-            Self::Managed { parameter, .. } => parameter.is_none(),
-            Self::Static | Self::Slot(_) => false,
+            Self::Managed { lifetime, .. } => lifetime.is_none(),
+            Self::Static | Self::Lifetime(_) => false,
         }
     }
 
@@ -63,11 +67,14 @@ impl BorrowSource {
     pub(super) fn is_covered_by(&self, required: &mir::Lifetime) -> bool {
         match self {
             Self::Static => required.includes_static(),
-            Self::Slot(index) => required.includes_slot(*index),
+            Self::Lifetime(slot) => required.includes_slot(slot.0),
             Self::Managed {
-                parameter: Some(index),
+                lifetime: Some(lifetime),
                 ..
-            } => required.includes_slot(*index),
+            } => lifetime
+                .terms
+                .iter()
+                .all(|term| required.terms.contains(term)),
             Self::Owned | Self::Managed { .. } => false,
         }
     }
@@ -128,11 +135,6 @@ impl BorrowSources {
     /// Return whether the source set is empty.
     pub(super) fn is_empty(&self) -> bool {
         self.sources.is_empty()
-    }
-
-    /// Iterate over stored sources.
-    pub(super) fn iter(&self) -> impl Iterator<Item = &BorrowSource> {
-        self.sources.iter()
     }
 
     /// Return whether every source allows safe borrow creation.

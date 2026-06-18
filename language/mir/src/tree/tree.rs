@@ -761,7 +761,9 @@ impl Tree {
     /// Return the void type id.
     pub fn void_type(&self) -> LocalNodeId<Type> {
         // use the primitive type cache when available
-        if let Some(type_id) = self.metadata.types.void_type() {
+        if let Some(type_id) = self.metadata.types.void_type()
+            && matches!(self.get(type_id), Type::Void)
+        {
             return type_id;
         }
 

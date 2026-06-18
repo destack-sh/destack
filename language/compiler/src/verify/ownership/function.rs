@@ -1,7 +1,6 @@
 use std::collections::{HashMap, VecDeque};
 
-use crate::verify::value::{instruction_consumes, instruction_uses, terminator_consumes};
-use crate::verify::{BorrowObligationRecord, VerifyError, VerifyState};
+use crate::verify::{VerifyError, VerifyState};
 use destack_artifact::DiagnosticBuilder;
 use destack_mir as mir;
 
@@ -13,6 +12,8 @@ use super::r#move::{MoveState, MoveUse};
 
 /// Ownership verifier for one function.
 pub(super) struct FunctionVerifyState<'a, 'b> {
+    /// The function node being verified.
+    function_id: mir::LocalNodeId<mir::Function>,
     /// The function being verified.
     function: &'a mir::Function,
     /// The MIR tree.
@@ -23,8 +24,10 @@ pub(super) struct FunctionVerifyState<'a, 'b> {
     liveness: mir::FunctionLiveness,
     /// Place alias relation.
     aliases: PlaceAlias,
-    /// Whether this pass should emit diagnostics.
-    is_diagnostics_enabled: bool,
+    /// Diagnostics produced by the active transfer.
+    diagnostics: Vec<DiagnosticBuilder<VerifyError>>,
+    /// Borrow obligations produced by the active transfer.
+    borrow_obligations: Vec<mir::BorrowObligation>,
     /// Current flow state.
     flow: FlowState,
 }
@@ -32,17 +35,20 @@ pub(super) struct FunctionVerifyState<'a, 'b> {
 impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     /// Create a function verifier.
     pub(super) fn new(
+        function_id: mir::LocalNodeId<mir::Function>,
         function: &'a mir::Function,
         tree: &'a mir::Tree,
         context: &'a mut VerifyState<'b>,
     ) -> Self {
         Self {
+            function_id,
             function,
             tree,
             context,
             liveness: mir::FunctionLiveness::build(function, tree),
             aliases: PlaceAlias::new(function, tree),
-            is_diagnostics_enabled: true,
+            diagnostics: Vec::new(),
+            borrow_obligations: Vec::new(),
             flow: FlowState::new(),
         }
     }
@@ -52,17 +58,49 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         let entries = self.solve_entries();
 
         // replay blocks with fixed entry states
-        self.replay_blocks(entries);
+        let obligations = self.replay_blocks(entries);
+        self.check_declared_borrow_obligations(&obligations);
     }
 
     /// Replay reachable blocks with diagnostics enabled.
-    fn replay_blocks(&mut self, entries: HashMap<mir::LocalNodeId<mir::Block>, FlowState>) {
+    fn replay_blocks(
+        &mut self,
+        entries: HashMap<mir::LocalNodeId<mir::Block>, FlowState>,
+    ) -> Vec<mir::BorrowObligation> {
+        let mut obligations = Vec::new();
+
         for &block_id in &self.function.blocks {
             let Some(entry) = entries.get(&block_id).cloned() else {
                 continue;
             };
 
-            self.transfer_block(block_id, entry, true);
+            self.transfer_block(block_id, entry);
+            self.flush_diagnostics();
+            self.append_borrow_obligations(&mut obligations);
+        }
+
+        obligations
+    }
+
+    /// Check that the lowered signature carries every body-required obligation.
+    fn check_declared_borrow_obligations(&mut self, obligations: &[mir::BorrowObligation]) {
+        let declared = self
+            .function
+            .parameters
+            .iter()
+            .flat_map(|parameter| parameter.obligations.iter())
+            .collect::<Vec<_>>();
+
+        // report obligations not written into the function parameter surface
+        for obligation in obligations {
+            if declared.contains(&obligation) {
+                continue;
+            }
+
+            self.context
+                .emit_error(VerifyError::UndeclaredBorrowObligation {
+                    anchor: self.context.anchor(self.tree, self.function_id.into()),
+                });
         }
     }
 
@@ -84,7 +122,9 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         while let Some(block_id) = worklist.pop_front() {
             let entry_state = self.solve_entry(block_id, &graph, &entries, &exits);
             let old_entry = entries.insert(block_id, entry_state.clone());
-            let exit_state = self.transfer_block(block_id, entry_state, false);
+            let exit_state = self.transfer_block(block_id, entry_state);
+            self.discard_diagnostics();
+            self.discard_borrow_obligations();
             let old_exit = exits.insert(block_id, exit_state);
 
             // skip successors when the block state is stable
@@ -149,23 +189,21 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         let predecessor = self.tree.get(predecessor_id);
         let terminator = self.tree.get(predecessor.terminator);
         let arguments = terminator.arguments_for_successor(self.tree, successor);
-        let successor_block = self.tree.get(successor);
+        let parameters = terminator.argument_parameters_for_successor(self.tree, successor);
 
         // bind edge arguments to successor block parameters
-        for (parameter, argument) in successor_block
-            .parameters
-            .iter()
-            .zip(arguments.iter().copied())
-        {
+        for (parameter, argument) in parameters.iter().zip(arguments.iter().copied()) {
             flow.bind(argument, parameter.value);
         }
 
         // bind the implicit call result when the continuation receives one
-        if successor_block.parameters.len() == arguments.len() + 1 {
+        if terminator.has_successor_result(successor) {
             let bindings = self.call_terminator_result_sources(predecessor_id, terminator, &flow);
-            let parameter = successor_block
+            let parameter = self
+                .tree
+                .get(successor)
                 .parameters
-                .last()
+                .first()
                 .map(|parameter| parameter.value);
             if let (Some(bindings), Some(parameter)) = (bindings, parameter) {
                 flow.borrows.insert_bindings(parameter, bindings);
@@ -184,10 +222,10 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         &mut self,
         block_id: mir::LocalNodeId<mir::Block>,
         flow: FlowState,
-        is_diagnostics_enabled: bool,
     ) -> FlowState {
         self.flow = flow;
-        self.is_diagnostics_enabled = is_diagnostics_enabled;
+        self.diagnostics.clear();
+        self.borrow_obligations.clear();
 
         let block = self.tree.get(block_id);
 
@@ -209,8 +247,8 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         let mut flow = FlowState::new();
 
         // seed parameter borrow sources from declared types
-        for (index, parameter) in self.function.parameters.iter().enumerate() {
-            for (path, sources) in self.parameter_source_bindings(index as u32, parameter.ty) {
+        for parameter in &self.function.parameters {
+            for (path, sources) in self.parameter_source_bindings(parameter.ty) {
                 flow.borrows.insert_at(parameter.value, path, sources);
             }
         }
@@ -219,35 +257,23 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     }
 
     /// Return borrow source bindings implied by one parameter type.
-    fn parameter_source_bindings(
-        &self,
-        index: u32,
-        ty: mir::TypeId,
-    ) -> Vec<(mir::Path, BorrowSources)> {
+    fn parameter_source_bindings(&self, ty: mir::TypeId) -> Vec<(mir::Path, BorrowSources)> {
         let ty_id = ty;
         let ty = self.tree.get(ty_id);
 
         match ty.reference_kind() {
-            // track managed parameters as managed sources
             Some(mir::ReferenceKind::Managed) => {
-                vec![(
-                    mir::Path::root(),
-                    self.managed_source_for_type(ty, Some(index)),
-                )]
+                vec![(mir::Path::root(), self.managed_source_for_type(ty))]
             }
-            // prefer explicit borrowed lifetimes over parameter defaults
             Some(mir::ReferenceKind::Borrowed) => {
                 let Some(lifetime) = ty.reference_lifetime() else {
                     return Vec::new();
                 };
 
-                vec![(
-                    mir::Path::root(),
-                    self.sources_from_lifetime_or_parameter(lifetime, index),
-                )]
+                vec![(mir::Path::root(), self.sources_from_lifetime(lifetime))]
             }
             _ => {
-                let borrowed_paths = self.tree.type_borrowed_paths(ty_id);
+                let borrowed_paths = self.tree.type_borrowed_source_paths(ty_id);
                 if borrowed_paths.is_empty() {
                     return Vec::new();
                 }
@@ -257,8 +283,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
 
                 // derive aggregate sources from contained borrowed references
                 for borrowed_path in borrowed_paths {
-                    let sources =
-                        self.sources_from_lifetime_or_parameter(&borrowed_path.lifetime, index);
+                    let sources = self.sources_from_lifetime(&borrowed_path.lifetime);
                     root_sources = root_sources.merge(&sources);
                     bindings.push((borrowed_path.path, sources));
                 }
@@ -281,6 +306,9 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
 
         // check uses against initialized places
         self.check_instruction_uses(instruction, anchor);
+
+        // record places defined by this instruction
+        self.flow.apply_instruction(instruction);
 
         // update loans and borrow sources from instruction forms
         match instruction {
@@ -305,7 +333,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             } => {
                 self.create_projection_loan(*destination, *array, anchor);
             }
-            mir::Instruction::Slice {
+            mir::Instruction::SliceView {
                 destination,
                 source,
                 ..
@@ -331,6 +359,15 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 let projection = mir::Projection::Element { index: *index };
                 self.move_projection_value(*destination, *array, projection.clone(), anchor);
                 self.propagate_projection_sources(*array, projection, *destination);
+            }
+            mir::Instruction::VariantPayload {
+                destination,
+                variant,
+                tag,
+            } => {
+                let projection = mir::Projection::Variant { tag: tag.clone() };
+                self.move_projection_value(*destination, *variant, projection.clone(), anchor);
+                self.propagate_projection_sources(*variant, projection, *destination);
             }
             mir::Instruction::LocalAddr {
                 destination, local, ..
@@ -397,12 +434,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             }
             mir::Instruction::Call { function, call, .. } => {
                 let arguments = self.tree.get_values(call.arguments).to_vec();
-                self.check_call_obligations(
-                    Some(*function),
-                    &call.signature,
-                    arguments.clone(),
-                    anchor,
-                );
+                self.check_call_obligations(&call.signature, arguments.clone(), anchor);
                 self.define_call_result_sources(
                     instruction.destination(),
                     Some(*function),
@@ -413,7 +445,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             mir::Instruction::CallVirtual { receiver, call, .. } => {
                 let arguments = self.call_arguments_with_receiver(*receiver, call.arguments);
                 let function = self.resolved_instruction_target(instruction_id, instruction);
-                self.check_call_obligations(function, &call.signature, arguments.clone(), anchor);
+                self.check_call_obligations(&call.signature, arguments.clone(), anchor);
                 self.define_call_result_sources(
                     instruction.destination(),
                     function,
@@ -423,7 +455,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             }
             mir::Instruction::CallDynamic { receiver, call, .. } => {
                 let arguments = self.call_arguments_with_receiver(*receiver, call.arguments);
-                self.check_call_obligations(None, &call.signature, arguments.clone(), anchor);
+                self.check_call_obligations(&call.signature, arguments.clone(), anchor);
                 self.define_call_result_sources(
                     instruction.destination(),
                     None,
@@ -433,7 +465,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             }
             mir::Instruction::CallIndirect { call, .. } => {
                 let arguments = self.tree.get_values(call.arguments).to_vec();
-                self.check_call_obligations(None, &call.signature, arguments.clone(), anchor);
+                self.check_call_obligations(&call.signature, arguments.clone(), anchor);
                 self.define_call_result_sources(
                     instruction.destination(),
                     None,
@@ -445,7 +477,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         }
 
         // move values consumed by the instruction
-        for value in instruction_consumes(instruction, self.tree) {
+        for value in instruction.consumes(self.tree) {
             self.move_value(value, anchor);
         }
 
@@ -473,7 +505,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         }
 
         // check callee borrow obligations at the call site
-        self.check_terminator_call_obligations(block_id, terminator, anchor);
+        self.check_terminator_call_obligations(terminator, anchor);
 
         // check tail-call result borrows against the function return lifetime
         self.check_tail_call_return(block_id, terminator, anchor);
@@ -484,7 +516,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         }
 
         // move terminator arguments consumed by the current function
-        for value in terminator_consumes(self.tree, terminator) {
+        for value in terminator.consumes(self.tree) {
             self.move_value(value, anchor);
         }
     }
@@ -519,12 +551,16 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 let projection = mir::Projection::Element { index: *index };
                 self.check_projection_use(*array, projection, anchor);
             }
+            mir::Instruction::VariantPayload { variant, tag, .. } => {
+                let projection = mir::Projection::Variant { tag: tag.clone() };
+                self.check_projection_use(*variant, projection, anchor);
+            }
             mir::Instruction::ElementAddr { array, index, .. } => {
                 let projection = mir::Projection::Index { index: *index };
                 self.check_projection_use(*array, projection, anchor);
                 self.check_value_use(*index, anchor);
             }
-            mir::Instruction::Slice {
+            mir::Instruction::SliceView {
                 source,
                 start,
                 length,
@@ -539,7 +575,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 self.check_value_use(*length, anchor);
             }
             _ => {
-                for value in instruction_uses(instruction, self.tree) {
+                for value in instruction.reads(self.tree) {
                     self.check_value_use(value, anchor);
                 }
             }
@@ -634,8 +670,8 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             return;
         }
 
-        // reject partial moves through custom drop glue
-        if !self.is_union_value(base) && self.has_custom_drop(base) {
+        // reject partial moves through custom drop hooks
+        if !self.is_variant_value(base) && self.has_custom_drop(base) {
             self.emit_error(VerifyError::PartialMoveOfCustomDrop {
                 anchor: self.context.anchor(self.tree, anchor),
             });
@@ -834,28 +870,36 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         bindings: Vec<(mir::Path, BorrowSources)>,
         anchor: mir::LocalNodeIdAny,
     ) {
+        let mut has_error = false;
+
         for (path, sources) in bindings {
+            // reject borrowed returns without a source proof
             if sources.is_empty() {
-                continue;
+                has_error = true;
+                break;
             }
 
             // reject frame-local borrows escaping the function
             if sources.has_function_local_source() {
-                self.emit_error(VerifyError::BorrowOutlivesOrigin {
-                    anchor: self.context.anchor(self.tree, anchor),
-                });
-                continue;
+                has_error = true;
+                break;
             }
 
             // apply the matching explicit return lifetime when one exists
             let Some(required) = self.return_lifetime_for_path(&path) else {
-                continue;
+                has_error = true;
+                break;
             };
             if !sources.is_covered_by(&required) {
-                self.emit_error(VerifyError::BorrowOutlivesOrigin {
-                    anchor: self.context.anchor(self.tree, anchor),
-                });
+                has_error = true;
+                break;
             }
+        }
+
+        if has_error {
+            self.emit_error(VerifyError::BorrowOutlivesOrigin {
+                anchor: self.context.anchor(self.tree, anchor),
+            });
         }
     }
 
@@ -889,20 +933,13 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     fn require_suspension_sources(
         &mut self,
         lifetimes: Vec<mir::Lifetime>,
-        anchor: mir::LocalNodeIdAny,
+        _anchor: mir::LocalNodeIdAny,
     ) {
-        let diagnostic_anchor = self
-            .is_diagnostics_enabled
-            .then(|| self.context.anchor(self.tree, anchor));
-
         // record one proof obligation for each required lifetime
         for lifetime in lifetimes {
             let obligation = mir::BorrowObligation::SuspensionStable { lifetime };
-            if let Some(anchor) = &diagnostic_anchor {
-                self.context.require_borrow(BorrowObligationRecord {
-                    obligation,
-                    anchor: anchor.clone(),
-                });
+            if !self.borrow_obligations.contains(&obligation) {
+                self.borrow_obligations.push(obligation);
             }
         }
     }
@@ -910,15 +947,12 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     /// Check call-site borrow obligations for one terminator.
     fn check_terminator_call_obligations(
         &mut self,
-        block_id: mir::LocalNodeId<mir::Block>,
         terminator: &mir::Terminator,
         anchor: mir::LocalNodeIdAny,
     ) {
         match terminator {
-            mir::Terminator::Call { function, call, .. }
-            | mir::Terminator::TailCall { function, call } => {
+            mir::Terminator::Call { call, .. } | mir::Terminator::TailCall { call, .. } => {
                 self.check_call_obligations(
-                    Some(*function),
                     &call.signature,
                     self.tree.get_values(call.arguments).to_vec(),
                     anchor,
@@ -927,18 +961,16 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             mir::Terminator::CallVirtual { receiver, call, .. }
             | mir::Terminator::TailCallVirtual { receiver, call, .. } => {
                 let arguments = self.call_arguments_with_receiver(*receiver, call.arguments);
-                let function = self.resolved_terminator_target(block_id, terminator);
-                self.check_call_obligations(function, &call.signature, arguments, anchor);
+                self.check_call_obligations(&call.signature, arguments, anchor);
             }
             mir::Terminator::CallDynamic { receiver, call, .. }
             | mir::Terminator::TailCallDynamic { receiver, call, .. } => {
                 let arguments = self.call_arguments_with_receiver(*receiver, call.arguments);
-                self.check_call_obligations(None, &call.signature, arguments, anchor);
+                self.check_call_obligations(&call.signature, arguments, anchor);
             }
             mir::Terminator::CallIndirect { call, .. }
             | mir::Terminator::TailCallIndirect { call, .. } => {
                 self.check_call_obligations(
-                    None,
                     &call.signature,
                     self.tree.get_values(call.arguments).to_vec(),
                     anchor,
@@ -1014,34 +1046,37 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     /// Check callee obligations against call arguments.
     fn check_call_obligations(
         &mut self,
-        function: Option<mir::LocalNodeId<mir::Function>>,
         signature: &mir::TypeId,
         arguments: Vec<mir::Value>,
         anchor: mir::LocalNodeIdAny,
     ) {
-        let obligations = self.call_borrow_obligations(function, signature);
+        let obligations = self.signature_borrow_obligations(signature);
+        let parameter_types = self.call_parameter_types(signature);
 
         // prove every callee obligation from the actual argument sources
         for obligation in obligations {
             match obligation {
                 mir::BorrowObligation::SuspensionStable { lifetime } => {
-                    self.check_stable_lifetime_arguments(&lifetime, &arguments, anchor);
+                    self.check_stable_lifetime_arguments(
+                        &lifetime,
+                        &parameter_types,
+                        &arguments,
+                        anchor,
+                    );
                 }
             }
         }
     }
 
-    /// Return the borrow obligations for one call target.
-    fn call_borrow_obligations(
-        &self,
-        function: Option<mir::LocalNodeId<mir::Function>>,
-        signature: &mir::TypeId,
-    ) -> Vec<mir::BorrowObligation> {
-        let mut obligations = self.signature_borrow_obligations(signature);
+    /// Return the borrow obligations encoded in one signature type.
+    fn signature_borrow_obligations(&self, signature: &mir::TypeId) -> Vec<mir::BorrowObligation> {
+        let mir::Type::FunctionSignature { parameters, .. } = self.tree.get(*signature) else {
+            return Vec::new();
+        };
 
-        // add concrete function obligations discovered by verification
-        if let Some(function) = function {
-            for obligation in &self.tree.get(function).borrow_obligations {
+        let mut obligations = Vec::new();
+        for parameter in parameters {
+            for obligation in &parameter.obligations {
                 if !obligations.contains(obligation) {
                     obligations.push(obligation.clone());
                 }
@@ -1049,18 +1084,6 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         }
 
         obligations
-    }
-
-    /// Return the borrow obligations encoded in one signature type.
-    fn signature_borrow_obligations(&self, signature: &mir::TypeId) -> Vec<mir::BorrowObligation> {
-        let mir::Type::FunctionSignature {
-            borrow_obligations, ..
-        } = self.tree.get(*signature)
-        else {
-            return Vec::new();
-        };
-
-        borrow_obligations.clone()
     }
 
     /// Define borrow sources for one call result.
@@ -1095,11 +1118,17 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             .filter(|paths| !paths.is_empty())
             .unwrap_or_else(|| self.signature_return_borrowed_paths(signature));
         if !paths.is_empty() {
+            let parameter_types = self.call_parameter_types(signature);
+
             return paths
                 .into_iter()
                 .map(|borrowed_path| {
-                    let sources =
-                        self.sources_from_callee_lifetime(&borrowed_path.lifetime, arguments, flow);
+                    let sources = self.sources_from_callee_lifetime(
+                        &borrowed_path.lifetime,
+                        &parameter_types,
+                        arguments,
+                        flow,
+                    );
 
                     (borrowed_path.path, sources)
                 })
@@ -1112,9 +1141,20 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         let Some(lifetime) = lifetime else {
             return Vec::new();
         };
-        let sources = self.sources_from_callee_lifetime(&lifetime, arguments, flow);
+        let parameter_types = self.call_parameter_types(signature);
+        let sources =
+            self.sources_from_callee_lifetime(&lifetime, &parameter_types, arguments, flow);
 
         vec![(mir::Path::root(), sources)]
+    }
+
+    /// Return call parameter types from the lowered signature.
+    fn call_parameter_types(&self, signature: &mir::TypeId) -> Vec<mir::TypeId> {
+        let mir::Type::FunctionSignature { parameters, .. } = self.tree.get(*signature) else {
+            return Vec::new();
+        };
+
+        parameters.iter().map(|parameter| parameter.ty).collect()
     }
 
     /// Return borrowed return paths for one known function.
@@ -1148,101 +1188,78 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         self.tree
             .type_lifetime(function.return_type)
             .filter(|lifetime| !lifetime.is_empty())
-            .or_else(|| {
-                Some(self.tree.infer_function_return_lifetime(function_id))
-                    .filter(|lifetime| !lifetime.is_empty())
-            })
     }
 
     /// Return the declared return lifetime for one signature type.
     fn signature_return_lifetime(&self, signature: &mir::TypeId) -> Option<mir::Lifetime> {
-        let mir::Type::FunctionSignature {
-            parameters, result, ..
-        } = self.tree.get(*signature)
-        else {
+        let mir::Type::FunctionSignature { result, .. } = self.tree.get(*signature) else {
             return None;
         };
 
-        if let Some(lifetime) = self.tree.type_lifetime(*result) {
-            return Some(lifetime);
-        }
-        if !self.tree.type_contains_borrowed_refs(*result) {
-            return None;
-        }
-
-        let lifetime_slots = parameters
-            .iter()
-            .enumerate()
-            .filter_map(|(index, parameter)| {
-                self.tree
-                    .type_can_source_return_borrow(*parameter)
-                    .then_some(index as u32)
-            });
-        let lifetime = mir::Lifetime::slot_set(lifetime_slots);
-
-        Some(lifetime).filter(|lifetime| !lifetime.is_empty())
+        self.tree
+            .type_lifetime(*result)
+            .filter(|lifetime| !lifetime.is_empty())
     }
 
     /// Map callee lifetime origins to caller-side borrow sources.
     fn sources_from_callee_lifetime(
         &self,
         lifetime: &mir::Lifetime,
+        parameter_types: &[mir::TypeId],
         arguments: &[mir::Value],
         flow: &FlowState,
     ) -> BorrowSources {
-        let mut sources = Vec::new();
+        let mut sources = BorrowSources::none();
 
-        // map each external origin to the actual argument source
+        // map static origins directly
         for origin in &lifetime.terms {
-            match origin {
-                mir::LifetimeTerm::Static => {
-                    sources.push(BorrowSource::Static);
-                }
-                mir::LifetimeTerm::Slot(index) => {
-                    let Some(argument) = arguments.get(index.0 as usize) else {
-                        continue;
-                    };
-                    let argument_sources = self.sources_for_value_in_flow(*argument, flow);
-                    sources.extend(argument_sources.iter().cloned());
-                }
+            if matches!(origin, mir::LifetimeTerm::Static) {
+                sources = sources.merge(&BorrowSources::one(BorrowSource::Static));
             }
         }
 
-        BorrowSources::new(sources)
+        // map lifetime slots through parameter path facts
+        for (index, ty) in parameter_types.iter().enumerate() {
+            let Some(argument) = arguments.get(index) else {
+                continue;
+            };
+
+            for (path, callee_sources) in self.parameter_source_bindings(*ty) {
+                if !callee_sources.is_covered_by(lifetime) {
+                    continue;
+                }
+
+                let argument_sources = self.sources_for_value_path_in_flow(*argument, &path, flow);
+                sources = sources.merge(&argument_sources);
+            }
+        }
+
+        sources
     }
 
     /// Check one callee lifetime against actual argument sources.
     fn check_stable_lifetime_arguments(
         &mut self,
         lifetime: &mir::Lifetime,
+        parameter_types: &[mir::TypeId],
         arguments: &[mir::Value],
         anchor: mir::LocalNodeIdAny,
     ) {
-        for origin in &lifetime.terms {
-            match origin {
-                mir::LifetimeTerm::Static => {}
-                mir::LifetimeTerm::Slot(index) => {
-                    let Some(argument) = arguments.get(index.0 as usize) else {
-                        continue;
-                    };
+        let sources =
+            self.sources_from_callee_lifetime(lifetime, parameter_types, arguments, &self.flow);
 
-                    self.check_stable_argument_source(*argument, anchor);
-                }
-            }
-        }
+        self.check_stable_sources(sources, anchor);
     }
 
-    /// Check whether one argument can satisfy a suspension-stable source.
-    fn check_stable_argument_source(&mut self, argument: mir::Value, anchor: mir::LocalNodeIdAny) {
-        let sources = self.sources_for_value(argument);
+    /// Check whether sources can satisfy a suspension-stable obligation.
+    fn check_stable_sources(&mut self, sources: BorrowSources, anchor: mir::LocalNodeIdAny) {
         match sources.suspension() {
             BorrowSuspension::Stable => {}
             BorrowSuspension::Requires(lifetimes) => {
                 self.require_suspension_sources(lifetimes, anchor);
             }
             BorrowSuspension::Rejected => {
-                let borrowed_at = self.anchor_for_borrowed_reference(argument, anchor);
-                let borrowed_at = self.context.anchor(self.tree, borrowed_at);
+                let borrowed_at = self.context.anchor(self.tree, anchor);
                 self.emit_error(
                     VerifyError::ManagedBorrowAcrossSuspension {
                         anchor: self.context.anchor(self.tree, anchor),
@@ -1430,43 +1447,38 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         }
 
         let is_used_by_instruction = block.instructions.iter().any(|instruction_id| {
-            instruction_uses(self.tree.get(*instruction_id), self.tree).contains(&value)
+            self.tree
+                .get(*instruction_id)
+                .reads(self.tree)
+                .contains(&value)
         });
-        let is_used_by_terminator = self
-            .tree
-            .get(block.terminator)
-            .uses(self.tree)
-            .iter()
-            .any(|used| *used == value);
+        let terminator = self.tree.get(block.terminator);
+        let is_used_by_terminator = terminator.uses(self.tree).contains(&value);
 
         is_used_by_instruction || is_used_by_terminator
     }
 
     /// Return whether a value is move-only.
     fn is_move_only(&self, value: mir::Value) -> bool {
-        let Some(ty) = self.type_for_value(value) else {
+        let Some(ty) = self.function.value_type(value) else {
             return false;
         };
 
         self.tree.get(ty).copy().is_no()
     }
 
-    /// Return whether a value has custom drop glue.
+    /// Return whether a value has a custom drop hook.
     fn has_custom_drop(&self, value: mir::Value) -> bool {
-        let Some(ty) = self.type_for_value(value) else {
+        let Some(ty) = self.function.value_type(value) else {
             return false;
         };
 
-        self.tree
-            .metadata
-            .drop
-            .drop_glue(ty)
-            .is_some_and(|glue| !matches!(glue, mir::DropGlue::None))
+        self.tree.metadata.drop.drop_hook(ty).is_some()
     }
 
-    /// Return whether one value has a union type.
-    fn is_union_value(&self, value: mir::Value) -> bool {
-        let Some(ty) = self.type_for_value(value) else {
+    /// Return whether one value has a variant type.
+    fn is_variant_value(&self, value: mir::Value) -> bool {
+        let Some(ty) = self.function.value_type(value) else {
             return false;
         };
 
@@ -1475,7 +1487,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
 
     /// Return whether one value is a borrowed reference-like value.
     fn is_borrowed_reference(&self, value: mir::Value) -> bool {
-        let Some(ty) = self.type_for_value(value) else {
+        let Some(ty) = self.function.value_type(value) else {
             return false;
         };
 
@@ -1484,7 +1496,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
 
     /// Return access for one reference-like value.
     fn reference_access(&self, value: mir::Value) -> Option<mir::Access> {
-        let ty = self.type_for_value(value)?;
+        let ty = self.function.value_type(value)?;
 
         self.tree.get(ty).reference_access()
     }
@@ -1534,13 +1546,13 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         let root_sources = self.sources_for_place(place);
         self.flow.borrows.insert(destination, root_sources);
 
-        let Some(destination_type) = self.type_for_value(destination) else {
+        let Some(destination_type) = self.function.value_type(destination) else {
             return;
         };
         let destination_type = mir::TypeId::from(destination_type);
 
         // propagate nested borrowed paths without collapsing sibling fields
-        for borrowed_path in self.tree.type_borrowed_paths(destination_type) {
+        for borrowed_path in self.tree.type_borrowed_source_paths(destination_type) {
             let path = place.path.clone().with_path(&borrowed_path.path);
             let place = mir::Place {
                 origin: place.origin,
@@ -1556,7 +1568,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
 
     /// Return whether one value can carry borrowed source metadata.
     fn value_can_carry_sources(&self, value: mir::Value) -> bool {
-        let Some(ty) = self.type_for_value(value) else {
+        let Some(ty) = self.function.value_type(value) else {
             return false;
         };
         let ty = mir::TypeId::from(ty);
@@ -1580,14 +1592,18 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
 
     /// Return borrow source bindings for one value.
     fn source_bindings_for_value(&self, value: mir::Value) -> Vec<(mir::Path, BorrowSources)> {
-        let Some(ty) = self.type_for_value(value) else {
+        let Some(ty) = self.function.value_type(value) else {
             return Vec::new();
         };
 
         let ty = mir::TypeId::from(ty);
-        let borrowed_paths = self.tree.type_borrowed_paths(ty);
+        let borrowed_paths = self.tree.type_borrowed_source_paths(ty);
         if borrowed_paths.is_empty() {
             let sources = self.sources_for_value(value);
+            if sources.is_empty() {
+                return Vec::new();
+            }
+
             return vec![(mir::Path::root(), sources)];
         }
 
@@ -1637,7 +1653,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
 
     /// Return borrow sources implied by one value type.
     fn type_sources(&self, value: mir::Value) -> BorrowSources {
-        let Some(ty) = self.type_for_value(value) else {
+        let Some(ty) = self.function.value_type(value) else {
             return BorrowSources::none();
         };
 
@@ -1664,19 +1680,68 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         if let Some(sources) = self.flow.borrows.get_at(value, path) {
             return sources.clone();
         }
+        if !path.is_root()
+            && let Some(sources) = self.flow.borrows.get_at(value, &mir::Path::root())
+        {
+            return sources.clone();
+        }
 
-        let Some(ty) = self.type_for_value(value) else {
+        let Some(ty) = self.function.value_type(value) else {
             return BorrowSources::none();
         };
 
         let ty = self.storage_type(ty);
         let ty = self.tree.get(ty);
         match ty.reference_kind() {
-            // keep managed storage alive through the managed handle
-            Some(mir::ReferenceKind::Managed) => self.managed_source_for_type(ty, None),
+            // keep projected reference storage tied to the reference root
+            Some(mir::ReferenceKind::Managed | mir::ReferenceKind::Borrowed) => self
+                .flow
+                .borrows
+                .get_at(value, &mir::Path::root())
+                .cloned()
+                .unwrap_or_else(|| self.reference_source_for_type(ty)),
             // keep owned storage alive through the unique handle
             Some(mir::ReferenceKind::Unique) => BorrowSources::one(BorrowSource::Owned),
-            // preserve explicit lifetime sources for borrowed storage
+            Some(mir::ReferenceKind::Raw) => BorrowSources::none(),
+            _ => BorrowSources::none(),
+        }
+    }
+
+    /// Return borrow sources implied by a storage-producing destination.
+    fn sources_for_destination_storage(&self, destination: mir::Value) -> BorrowSources {
+        let Some(ty) = self.function.value_type(destination) else {
+            return BorrowSources::none();
+        };
+
+        let ty = self.storage_type(ty);
+        let ty = self.tree.get(ty);
+        match ty.reference_kind() {
+            Some(mir::ReferenceKind::Managed) => self.managed_source_for_type(ty),
+            Some(mir::ReferenceKind::Unique | mir::ReferenceKind::Raw) => {
+                BorrowSources::one(BorrowSource::Owned)
+            }
+            Some(mir::ReferenceKind::Borrowed) | None => BorrowSources::none(),
+        }
+    }
+
+    /// Return a managed borrow source for one type.
+    fn managed_source_for_type(&self, ty: &mir::Type) -> BorrowSources {
+        let Some(space) = Self::reference_space(ty).cloned() else {
+            return BorrowSources::none();
+        };
+
+        let lifetime = ty
+            .reference_lifetime()
+            .filter(|lifetime| !lifetime.is_empty())
+            .cloned();
+
+        BorrowSources::one(BorrowSource::Managed { space, lifetime })
+    }
+
+    /// Return the borrow source for a reference-like type.
+    fn reference_source_for_type(&self, ty: &mir::Type) -> BorrowSources {
+        match ty.reference_kind() {
+            Some(mir::ReferenceKind::Managed) => self.managed_source_for_type(ty),
             Some(mir::ReferenceKind::Borrowed) => {
                 let Some(lifetime) = ty.reference_lifetime() else {
                     return BorrowSources::none();
@@ -1687,34 +1752,9 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
 
                 self.sources_from_lifetime(lifetime)
             }
-            _ => BorrowSources::none(),
+            Some(mir::ReferenceKind::Unique) => BorrowSources::one(BorrowSource::Owned),
+            Some(mir::ReferenceKind::Raw) | None => BorrowSources::none(),
         }
-    }
-
-    /// Return borrow sources implied by a storage-producing destination.
-    fn sources_for_destination_storage(&self, destination: mir::Value) -> BorrowSources {
-        let Some(ty) = self.type_for_value(destination) else {
-            return BorrowSources::none();
-        };
-
-        let ty = self.storage_type(ty);
-        let ty = self.tree.get(ty);
-        match ty.reference_kind() {
-            Some(mir::ReferenceKind::Managed) => self.managed_source_for_type(ty, None),
-            Some(mir::ReferenceKind::Unique | mir::ReferenceKind::Raw) => {
-                BorrowSources::one(BorrowSource::Owned)
-            }
-            Some(mir::ReferenceKind::Borrowed) | None => BorrowSources::none(),
-        }
-    }
-
-    /// Return a managed borrow source for one type.
-    fn managed_source_for_type(&self, ty: &mir::Type, parameter: Option<u32>) -> BorrowSources {
-        let Some(space) = Self::reference_space(ty).cloned() else {
-            return BorrowSources::none();
-        };
-
-        BorrowSources::one(BorrowSource::Managed { space, parameter })
     }
 
     /// Return the initialized storage type represented by one type.
@@ -1736,24 +1776,11 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         }
     }
 
-    /// Return borrow sources from an explicit lifetime or default parameter.
-    fn sources_from_lifetime_or_parameter(
-        &self,
-        lifetime: &mir::Lifetime,
-        parameter: u32,
-    ) -> BorrowSources {
-        if lifetime.is_empty() {
-            return BorrowSources::one(BorrowSource::Slot(parameter));
-        }
-
-        self.sources_from_lifetime(lifetime)
-    }
-
     /// Return borrow sources from a MIR lifetime.
     fn sources_from_lifetime(&self, lifetime: &mir::Lifetime) -> BorrowSources {
         BorrowSources::new(lifetime.terms.iter().map(|origin| match origin {
             mir::LifetimeTerm::Static => BorrowSource::Static,
-            mir::LifetimeTerm::Slot(index) => BorrowSource::Slot(index.0),
+            mir::LifetimeTerm::Slot(slot) => BorrowSource::Lifetime(*slot),
         }))
     }
 
@@ -1781,10 +1808,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
 
     /// Return the best known place for one value.
     fn place_for_value(&self, value: mir::Value) -> mir::Place {
-        self.function
-            .value_place(value)
-            .cloned()
-            .unwrap_or_else(|| mir::Place::value(value))
+        self.flow.place_for_value(value)
     }
 
     /// Return the projected place for one base value.
@@ -1802,30 +1826,41 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         projection: mir::Projection,
     ) -> mir::Place {
         let place = self.place_for_value(base);
-        if self.is_union_value(base) {
+        if self.is_variant_value(base) {
             return place;
         }
 
         place.with_projection(projection)
     }
 
-    /// Return the known type for one value.
-    fn type_for_value(&self, value: mir::Value) -> Option<mir::LocalNodeId<mir::Type>> {
-        if let Some(ty) = self.function.value_type(value) {
-            return Some(ty);
-        }
-
-        self.function
-            .parameters
-            .iter()
-            .find(|parameter| parameter.value == value)
-            .map(|parameter| parameter.ty)
-    }
-
     /// Emit one error when diagnostics are enabled.
     fn emit_error(&mut self, error: impl Into<DiagnosticBuilder<VerifyError>>) {
-        if self.is_diagnostics_enabled {
-            self.context.emit_error(error);
+        self.diagnostics.push(error.into());
+    }
+
+    /// Flush active transfer diagnostics into verify state.
+    fn flush_diagnostics(&mut self) {
+        for diagnostic in self.diagnostics.drain(..) {
+            self.context.emit_error(diagnostic);
         }
+    }
+
+    /// Discard active transfer diagnostics.
+    fn discard_diagnostics(&mut self) {
+        self.diagnostics.clear();
+    }
+
+    /// Append active transfer obligations to an output vector.
+    fn append_borrow_obligations(&mut self, obligations: &mut Vec<mir::BorrowObligation>) {
+        for obligation in self.borrow_obligations.drain(..) {
+            if !obligations.contains(&obligation) {
+                obligations.push(obligation);
+            }
+        }
+    }
+
+    /// Discard active transfer obligations.
+    fn discard_borrow_obligations(&mut self) {
+        self.borrow_obligations.clear();
     }
 }

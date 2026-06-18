@@ -1,9 +1,9 @@
-use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, MirVerified};
+use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload};
 use destack_repository::{ProfileId, ProviderContext};
 use destack_source::{ModuleId, TargetId};
 use std::sync::Arc;
 
-use crate::verify::{DropInsert, OwnershipCheck, VerifyState};
+use crate::verify::VerifyState;
 use crate::{Compiler, CompilerError, CompilerResult};
 
 impl Compiler {
@@ -29,26 +29,31 @@ impl Compiler {
         target: TargetId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        let mut state = VerifyState::new(module, profile, target, context);
-        let artifacts = self.artifact_reader(state.context.revision());
-
-        // load provider inputs
+        let artifacts = self.artifact_reader(context.revision());
         let lowered = artifacts
-            .mir_lowered(state.module, state.profile, state.target)
+            .mir_lowered(module, profile, target)
             .map_err(CompilerError::from)?;
-        let mut tree = lowered.tree.clone();
+        let mut state = VerifyState::new(
+            module,
+            profile,
+            target,
+            context,
+            lowered.tree.clone(),
+            self.strings(),
+        );
 
-        OwnershipCheck::new(&mut tree, &mut state).run();
+        state.check_ownership();
         if !state.has_errors() {
-            DropInsert::new(&mut tree).run();
+            state.generate_drop_glue();
+            state.insert_drops();
         }
 
         for diagnostic in state.take_diagnostics() {
             state.context.emit(diagnostic.as_ref())?;
         }
 
-        Ok(ArtifactPayload::MirVerified(Arc::new(
-            MirVerified::from_tree(tree),
-        )))
+        let verified = state.finish();
+
+        Ok(ArtifactPayload::MirVerified(Arc::new(verified)))
     }
 }

@@ -8,8 +8,8 @@ pub enum VerifyError {
     /// Value used after ownership was transferred.
     ///
     /// ```mir
-    /// v1: ref<int32, unique> = field.get v0, 0
-    /// v2: ref<int32, unique> = field.get v0, 0 // moved by v1
+    /// v1: ref<int32, unique, mutable> = field.get v0, 0
+    /// v2: ref<int32, unique, mutable> = field.get v0, 0 // moved by v1
     /// ```
     #[diagnostic(code = "EV100", message = "use of moved value")]
     UseAfterMove {
@@ -39,11 +39,11 @@ pub enum VerifyError {
         moved_at: DiagnosticAnchor,
     },
 
-    /// Cannot partially move a type with custom drop glue.
+    /// Cannot partially move a type with a custom drop hook.
     ///
     /// ```mir
     /// v1: Row = struct Row (v0, v2)
-    /// v3: ref<int32, unique> = field.get v1, 0 // Row has custom drop
+    /// v3: ref<int32, unique, mutable> = field.get v1, 0 // Row has custom drop
     /// ```
     #[diagnostic(
         code = "EV102",
@@ -71,7 +71,7 @@ pub enum VerifyError {
     /// Cannot invalidate a place while an overlapping loan is live.
     ///
     /// ```mir
-    /// v1: ref<int32, borrowed> = field.address v0, 0
+    /// v1: ref<int32, borrowed, mutable> = field.address v0, 0
     /// call consume(v0) // moves the borrowed root
     /// ```
     #[diagnostic(code = "EV201", message = "cannot invalidate borrowed place")]
@@ -100,7 +100,7 @@ pub enum VerifyError {
     ///
     /// ```mir
     /// v1: ref<int32, borrowed, exclusive, space(shared)> = field.address v0, 0
-    /// // v0: ref<User, managed, space(shared)>
+    /// // v0: ref<User, managed, mutable, space(shared)>
     /// ```
     #[diagnostic(
         code = "EV204",
@@ -128,14 +128,30 @@ pub enum VerifyError {
     /// An escaping borrow is not covered by the required lifetime.
     ///
     /// ```mir
-    /// function test(v0: ref<User, managed>): ref<int32, borrowed, lifetime(static)> {
-    ///     v1: ref<int32, borrowed> = field.address v0, 0
+    /// function test(v0: ref<User, managed, mutable>): ref<int32, borrowed, lifetime(static), mutable> {
+    ///     v1: ref<int32, borrowed, mutable> = field.address v0, 0
     ///     return v1 // managed borrow is not static
     /// }
     /// ```
     #[diagnostic(code = "EV300", message = "borrow does not live long enough")]
     BorrowOutlivesOrigin {
         /// The escaping borrow.
+        anchor: DiagnosticAnchor,
+    },
+
+    /// A function body requires a borrow obligation not declared by its signature.
+    ///
+    /// ```mir
+    /// function test(v0: ref<int32, borrowed, readonly>): void {
+    ///     yield v0 => b1(v0) // v0 needs @suspensionSafe
+    /// }
+    /// ```
+    #[diagnostic(
+        code = "EV301",
+        message = "invalid MIR: function signature is missing borrow obligation"
+    )]
+    UndeclaredBorrowObligation {
+        /// The function with an incomplete signature.
         anchor: DiagnosticAnchor,
     },
 }

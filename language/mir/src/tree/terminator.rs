@@ -658,6 +658,35 @@ impl Terminator {
         }
     }
 
+    /// Return values consumed by this terminator.
+    pub fn consumes(&self, tree: &Tree) -> SmallVec<[Value; 8]> {
+        match self {
+            Terminator::Return { value: Some(value) } | Terminator::Yield { value, .. } => {
+                smallvec![*value]
+            }
+            Terminator::Call { call, .. } | Terminator::TailCall { call, .. } => {
+                tree.get_values(call.arguments).iter().copied().collect()
+            }
+            Terminator::CallIndirect { callee, call, .. }
+            | Terminator::TailCallIndirect { callee, call, .. } => {
+                let mut values = smallvec![*callee];
+                values.extend(tree.get_values(call.arguments).iter().copied());
+
+                values
+            }
+            Terminator::CallVirtual { receiver, call, .. }
+            | Terminator::CallDynamic { receiver, call, .. }
+            | Terminator::TailCallVirtual { receiver, call, .. }
+            | Terminator::TailCallDynamic { receiver, call, .. } => {
+                let mut values = smallvec![*receiver];
+                values.extend(tree.get_values(call.arguments).iter().copied());
+
+                values
+            }
+            _ => smallvec![],
+        }
+    }
+
     /// Return the arguments passed to one successor block.
     pub fn arguments_for_successor<'a>(
         &self,

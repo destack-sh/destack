@@ -1,29 +1,17 @@
 use std::collections::{HashMap, VecDeque};
 
-use crate::verify::value::{instruction_consumes, instruction_uses, terminator_consumes};
 use destack_mir as mir;
 
 use super::owned::OwnedValues;
 use super::state::DropState;
 
-/// One explicit lifetime end marker.
+/// One planned ownership drop point.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct DropMarker {
-    /// Instruction index where the marker is inserted.
+pub(super) struct DropPoint {
+    /// Instruction index where drop is inserted.
     pub(super) index: usize,
-    /// Place whose lifetime ends.
+    /// Place whose owned storage is dropped.
     pub(super) place: mir::Place,
-    /// Storage release required before the marker.
-    pub(super) release: DropRelease,
-}
-
-/// Storage release required before one drop marker.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum DropRelease {
-    /// No storage release is needed.
-    None,
-    /// Release unique heap storage.
-    Free(mir::Value),
 }
 
 /// Drop plan for one function.
@@ -34,12 +22,14 @@ pub(super) struct DropPlan<'a> {
     tree: &'a mir::Tree,
     /// Move-only values in this function.
     owned: OwnedValues,
+    /// Receiver consumed by a custom drop function.
+    drop_receiver: Option<mir::Value>,
     /// SSA value liveness.
     liveness: mir::FunctionLiveness,
     /// Available owned values at block entry.
     available_at_entry: HashMap<mir::LocalNodeId<mir::Block>, DropState>,
     /// Planned drops by block.
-    drops: HashMap<mir::LocalNodeId<mir::Block>, Vec<DropMarker>>,
+    drops: HashMap<mir::LocalNodeId<mir::Block>, Vec<DropPoint>>,
 }
 
 impl<'a> DropPlan<'a> {
@@ -47,13 +37,15 @@ impl<'a> DropPlan<'a> {
     pub(super) fn build(
         function: &'a mir::Function,
         tree: &'a mir::Tree,
-    ) -> HashMap<mir::LocalNodeId<mir::Block>, Vec<DropMarker>> {
+        drop_receiver: Option<mir::Value>,
+    ) -> HashMap<mir::LocalNodeId<mir::Block>, Vec<DropPoint>> {
         let liveness = mir::FunctionLiveness::build(function, tree);
 
         let mut plan = Self {
             function,
             tree,
-            owned: OwnedValues::default(),
+            owned: OwnedValues::new(function.value_types.len()),
+            drop_receiver,
             liveness,
             available_at_entry: HashMap::new(),
             drops: HashMap::new(),
@@ -65,13 +57,17 @@ impl<'a> DropPlan<'a> {
         plan.drops
     }
 
-    /// Collect move-only values that need an explicit lifetime end.
+    /// Collect move-only values that need explicit drop.
     fn collect_owned_values(&self) -> OwnedValues {
-        let mut owned = OwnedValues::default();
+        let mut owned = OwnedValues::new(self.function.value_types.len());
 
         // seed parameters owned at function entry
         for parameter in &self.function.parameters {
             let value = parameter.value;
+            if Some(value) == self.drop_receiver {
+                continue;
+            }
+
             if self.is_owned_value(value) {
                 owned.insert(value);
             }
@@ -79,11 +75,16 @@ impl<'a> DropPlan<'a> {
 
         // track instruction destinations by value type
         for (index, ty) in self.function.value_types.iter().enumerate() {
+            let value = mir::Value::new(index as u32);
+            if Some(value) == self.drop_receiver {
+                continue;
+            }
+
             let Some(ty) = ty else {
                 continue;
             };
             if self.tree.get(*ty).copy().is_no() {
-                owned.insert(mir::Value::new(index as u32));
+                owned.insert(value);
             }
         }
 
@@ -190,19 +191,25 @@ impl<'a> DropPlan<'a> {
         for &instruction_id in &block.instructions {
             let instruction = self.tree.get(instruction_id);
             let consumed = self.consumed_by_instruction(instruction);
-            let moved_places = self.places_moved_by_instruction(instruction);
+            let moved_places = self.places_moved_by_instruction(instruction, &available);
 
             available.remove_consumed(&consumed);
             for place in moved_places {
                 available.move_place(place);
             }
+            available.apply_instruction(instruction);
             available.insert_destination(instruction, &self.owned);
         }
 
         // move terminator values into the caller or successor edges
         let terminator = self.tree.get(block.terminator);
         let consumed = self.consumed_by_terminator(terminator);
+        let carried = self.carried_by_terminator(terminator, &available);
+
         available.remove_consumed(&consumed);
+        for value in self.drops_before_terminator(block_id, &available, &carried) {
+            available.move_place(mir::Place::value(value));
+        }
 
         available
     }
@@ -217,17 +224,11 @@ impl<'a> DropPlan<'a> {
         let predecessor = self.tree.get(predecessor);
         let terminator = self.tree.get(predecessor.terminator);
         let arguments = terminator.arguments_for_successor(self.tree, successor);
-        let successor_block = self.tree.get(successor);
+        let parameters = terminator.argument_parameters_for_successor(self.tree, successor);
 
         // transfer ownership to matching successor parameters
-        for (parameter, argument) in successor_block.parameters.iter().zip(arguments) {
-            let parameter = parameter.value;
-            if !available.contains(*argument) || !self.owned.contains(parameter) {
-                continue;
-            }
-
-            available.move_place(mir::Place::value(*argument));
-            available.owned.insert(parameter);
+        for (parameter, argument) in parameters.iter().zip(arguments) {
+            available.bind(*argument, parameter.value, &self.owned);
         }
 
         available
@@ -252,12 +253,13 @@ impl<'a> DropPlan<'a> {
         for (index, &instruction_id) in block.instructions.iter().enumerate() {
             let instruction = self.tree.get(instruction_id);
             let consumed = self.consumed_by_instruction(instruction);
-            let moved_places = self.places_moved_by_instruction(instruction);
+            let moved_places = self.places_moved_by_instruction(instruction, available);
 
             available.remove_consumed(&consumed);
             for place in moved_places {
                 available.move_place(place);
             }
+            available.apply_instruction(instruction);
             self.plan_after_instruction(block_id, index, instruction, available, &consumed);
             available.insert_destination(instruction, &self.owned);
         }
@@ -270,7 +272,7 @@ impl<'a> DropPlan<'a> {
 
         available.remove_consumed(&consumed);
         for value in self.drops_before_terminator(block_id, available, &carried) {
-            self.add_value_drop(block_id, end_index, value, &available.moved);
+            self.add_drops_for_value(block_id, end_index, value, &available.moved);
             available.move_place(mir::Place::value(value));
         }
     }
@@ -297,17 +299,50 @@ impl<'a> DropPlan<'a> {
             {
                 continue;
             }
+            if self.has_live_borrow_after_instruction(block_id, index, value, available) {
+                continue;
+            }
 
-            self.add_value_drop(block_id, index + 1, value, &available.moved);
+            self.add_drops_for_value(block_id, index + 1, value, &available.moved);
             available.move_place(mir::Place::value(value));
         }
     }
 
+    /// Return whether a borrow derived from one value is still live.
+    fn has_live_borrow_after_instruction(
+        &self,
+        block_id: mir::LocalNodeId<mir::Block>,
+        index: usize,
+        value: mir::Value,
+        available: &DropState,
+    ) -> bool {
+        available.values_derived_from(value).any(|borrow| {
+            if !self.is_borrowed_reference(borrow) {
+                return false;
+            }
+
+            self.liveness
+                .is_value_live_after_instruction(block_id, index, borrow, self.tree)
+        })
+    }
+
+    /// Return whether a borrow derived from one value is live after one terminator.
+    fn has_live_borrow_after_terminator(
+        &self,
+        block_id: mir::LocalNodeId<mir::Block>,
+        value: mir::Value,
+        available: &DropState,
+    ) -> bool {
+        available.values_derived_from(value).any(|borrow| {
+            self.is_borrowed_reference(borrow) && self.liveness.is_value_live_out(block_id, borrow)
+        })
+    }
+
     /// Return owned values used by one instruction.
     fn owned_instruction_uses(&self, instruction: &mir::Instruction) -> OwnedValues {
-        let mut values = OwnedValues::default();
+        let mut values = OwnedValues::new(self.function.value_types.len());
 
-        for value in instruction_uses(instruction, self.tree) {
+        for value in instruction.reads(self.tree) {
             values.insert_reference(value, &self.owned);
         }
 
@@ -316,9 +351,9 @@ impl<'a> DropPlan<'a> {
 
     /// Return owned values consumed by one instruction.
     fn consumed_by_instruction(&self, instruction: &mir::Instruction) -> OwnedValues {
-        let mut values = OwnedValues::default();
+        let mut values = OwnedValues::new(self.function.value_types.len());
 
-        for value in instruction_consumes(instruction, self.tree) {
+        for value in instruction.consumes(self.tree) {
             values.insert_reference(value, &self.owned);
         }
 
@@ -326,7 +361,11 @@ impl<'a> DropPlan<'a> {
     }
 
     /// Return places moved by one instruction.
-    fn places_moved_by_instruction(&self, instruction: &mir::Instruction) -> Vec<mir::Place> {
+    fn places_moved_by_instruction(
+        &self,
+        instruction: &mir::Instruction,
+        available: &DropState,
+    ) -> Vec<mir::Place> {
         // move known fields when extracting move-only values
         if let mir::Instruction::FieldGet {
             destination,
@@ -334,38 +373,50 @@ impl<'a> DropPlan<'a> {
             index,
             ..
         } = instruction
-            && self.is_owned_reference(*destination)
+            && self.is_owned_value(*destination)
         {
-            return vec![
-                self.place_moved_by_projection(
-                    *aggregate,
-                    mir::Projection::Field { index: *index },
-                ),
-            ];
+            vec![self.place_moved_by_projection(
+                available,
+                *aggregate,
+                mir::Projection::Field { index: *index },
+            )]
         }
-
         // move known elements when extracting move-only values
-        if let mir::Instruction::ElementGet {
+        else if let mir::Instruction::ElementGet {
             destination,
             array,
             index,
             ..
         } = instruction
-            && self.is_owned_reference(*destination)
+            && self.is_owned_value(*destination)
         {
-            return vec![
-                self.place_moved_by_projection(*array, mir::Projection::Element { index: *index }),
-            ];
+            vec![self.place_moved_by_projection(
+                available,
+                *array,
+                mir::Projection::Element { index: *index },
+            )]
         }
-
-        Vec::new()
+        // move the full variant when extracting a move-only payload
+        else if let mir::Instruction::VariantPayload {
+            destination,
+            variant,
+            ..
+        } = instruction
+            && self.is_owned_value(*destination)
+        {
+            vec![self.place_for_value(available, *variant)]
+        }
+        // nothing
+        else {
+            Vec::new()
+        }
     }
 
     /// Return owned values consumed by one terminator.
     fn consumed_by_terminator(&self, terminator: &mir::Terminator) -> OwnedValues {
-        let mut values = OwnedValues::default();
+        let mut values = OwnedValues::new(self.function.value_types.len());
 
-        for value in terminator_consumes(self.tree, terminator) {
+        for value in terminator.consumes(self.tree) {
             values.insert_reference(value, &self.owned);
         }
 
@@ -378,15 +429,15 @@ impl<'a> DropPlan<'a> {
         terminator: &mir::Terminator,
         available: &DropState,
     ) -> OwnedValues {
-        let mut carried = OwnedValues::default();
+        let mut carried = OwnedValues::new(self.function.value_types.len());
 
         // keep edge argument ownership alive in successor parameters
         for successor in terminator.successors(self.tree) {
             let arguments = terminator.arguments_for_successor(self.tree, successor);
-            let successor_block = self.tree.get(successor);
+            let parameters = terminator.argument_parameters_for_successor(self.tree, successor);
 
             // keep each carried value alive in successor parameters
-            for (_, argument) in successor_block.parameters.iter().zip(arguments) {
+            for (_, argument) in parameters.iter().zip(arguments) {
                 if available.contains(*argument) {
                     carried.insert(*argument);
                 }
@@ -407,21 +458,44 @@ impl<'a> DropPlan<'a> {
             .owned
             .values()
             .filter(|value| !carried.contains(*value))
+            .filter(|value| !self.is_value_used_by_terminator(block_id, *value))
             .filter(|value| !self.liveness.is_value_live_out(block_id, *value))
+            .filter(|value| !self.has_live_borrow_after_terminator(block_id, *value, available))
             .collect()
     }
 
+    /// Return whether one value is needed by the terminator itself.
+    fn is_value_used_by_terminator(
+        &self,
+        block_id: mir::LocalNodeId<mir::Block>,
+        value: mir::Value,
+    ) -> bool {
+        let block = self.tree.get(block_id);
+        let terminator = self.tree.get(block.terminator);
+        let consumed = self.consumed_by_terminator(terminator);
+        if consumed.contains(value) {
+            return false;
+        }
+
+        terminator
+            .uses(self.tree)
+            .iter()
+            .copied()
+            .any(|used| used == value)
+    }
+
     /// Add planned drops for one value.
-    fn add_value_drop(
+    fn add_drops_for_value(
         &mut self,
         block: mir::LocalNodeId<mir::Block>,
         index: usize,
         value: mir::Value,
         moved: &[mir::Place],
     ) {
-        let place = self.place_for_value(value);
+        let place = mir::Place::value(value);
         let ty = self
-            .type_for_value(value)
+            .function
+            .value_type(value)
             .expect("owned value must have a type");
 
         for place in self.drop_places_for(place, ty, moved) {
@@ -431,78 +505,57 @@ impl<'a> DropPlan<'a> {
 
     /// Add one planned drop.
     fn add_drop(&mut self, block: mir::LocalNodeId<mir::Block>, index: usize, place: mir::Place) {
-        let release = self.release_for_place(&place);
-
-        self.drops.entry(block).or_default().push(DropMarker {
-            index,
-            place,
-            release,
-        });
+        self.drops
+            .entry(block)
+            .or_default()
+            .push(DropPoint { index, place });
     }
 
     /// Return whether one value has move-only ownership.
     fn is_owned_value(&self, value: mir::Value) -> bool {
-        let Some(ty) = self.type_for_value(value) else {
+        let Some(ty) = self.function.value_type(value) else {
             return false;
         };
 
         self.tree.get(ty).copy().is_no()
     }
 
-    /// Return whether one value reference has move-only ownership.
-    fn is_owned_reference(&self, value: mir::Value) -> bool {
-        self.is_owned_value(value)
-    }
-
     /// Return the moved place for one projection.
     fn place_moved_by_projection(
         &self,
+        available: &DropState,
         value: mir::Value,
         projection: mir::Projection,
     ) -> mir::Place {
-        let place = self.place_for_value(value);
-        if self.is_union_value(value) {
+        let place = self.place_for_value(available, value);
+        if self.is_variant_value(value) {
             return place;
         }
 
         place.with_projection(projection)
     }
 
-    /// Return whether one value has a union type.
-    fn is_union_value(&self, value: mir::Value) -> bool {
-        let Some(ty) = self.type_for_value(value) else {
+    /// Return whether one value has a variant type.
+    fn is_variant_value(&self, value: mir::Value) -> bool {
+        let Some(ty) = self.function.value_type(value) else {
             return false;
         };
 
         matches!(self.tree.get(ty), mir::Type::Variant { .. })
     }
 
-    /// Return the storage release required for one place.
-    fn release_for_place(&self, place: &mir::Place) -> DropRelease {
-        let mir::PlaceOrigin::Value(value) = place.origin else {
-            return DropRelease::None;
+    /// Return whether one value is a borrowed reference-like value.
+    fn is_borrowed_reference(&self, value: mir::Value) -> bool {
+        let Some(ty) = self.function.value_type(value) else {
+            return false;
         };
-        if !place.path.is_root() {
-            return DropRelease::None;
-        }
 
-        let ty = self
-            .type_for_value(value)
-            .expect("owned value must have a type");
-
-        if self.tree.get(ty).is_unique_reference() {
-            DropRelease::Free(value)
-        } else {
-            DropRelease::None
-        }
+        self.tree.get(ty).is_borrowed_reference()
     }
 
     /// Return the best known place for one value.
-    fn place_for_value(&self, value: mir::Value) -> mir::Place {
-        self.function
-            .value_place(value)
-            .cloned()
-            .unwrap_or_else(|| mir::Place::value(value))
+    fn place_for_value(&self, available: &DropState, value: mir::Value) -> mir::Place {
+        available.place_for_value(value)
     }
 
     /// Return minimal initialized places that need drops.
@@ -576,12 +629,8 @@ impl<'a> DropPlan<'a> {
             mir::Type::Newtype { inner, .. } => {
                 self.drop_child_place(&place, mir::Projection::Field { index: 0 }, *inner, moved)
             }
-            mir::Type::Variant { .. } => {
-                panic!("partial union drops require active variant metadata")
-            }
-            ty => {
-                panic!("partial drop is not defined for type {ty:?}")
-            }
+            mir::Type::Variant { .. } | mir::Type::Slice { .. } => Vec::new(),
+            _ => Vec::new(),
         }
     }
 
@@ -600,18 +649,5 @@ impl<'a> DropPlan<'a> {
         let place = parent.clone().with_projection(projection);
 
         self.drop_places_for(place, ty, moved)
-    }
-
-    /// Return the known type for one value.
-    fn type_for_value(&self, value: mir::Value) -> Option<mir::LocalNodeId<mir::Type>> {
-        if let Some(ty) = self.function.value_type(value) {
-            return Some(ty);
-        }
-
-        self.function
-            .parameters
-            .iter()
-            .find(|parameter| parameter.value == value)
-            .map(|parameter| parameter.ty)
     }
 }
