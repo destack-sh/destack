@@ -26,7 +26,7 @@ global counter: int32 = 0
 
 function increment(): int32 {
 entry:
-    v0: ref<int32, raw> = global.address counter
+    v0: ref<int32, raw, mutable> = global.address counter
     v1: int32 = load v0
     v2: int32 = 1
     v3: int32 = int.add v1, v2
@@ -70,7 +70,7 @@ global counter: int32 = 0
 
 function inc(): void {
 entry:
-    v0: ref<int32, raw> = global.address counter
+    v0: ref<int32, raw, mutable> = global.address counter
     v1: int32 = load v0
     v2: int32 = 1
     v3: int32 = int.add v1, v2
@@ -80,7 +80,7 @@ entry:
 
 function get(): int32 {
 entry:
-    v0: ref<int32, raw> = global.address counter
+    v0: ref<int32, raw, mutable> = global.address counter
     v1: int32 = load v0
     return v1
 }
@@ -105,7 +105,7 @@ global data: int32 = zeroInit
 
 function read(): int32 {
 entry:
-    v0: ref<int32, raw> = global.address data
+    v0: ref<int32, raw, mutable> = global.address data
     v1: int32 = load v0
     return v1
 }
@@ -121,7 +121,7 @@ global data: float64 = zeroInit
 
 function read(): float64 {
 entry:
-    v0: ref<float64, raw> = global.address data
+    v0: ref<float64, raw, mutable> = global.address data
     v1: float64 = load v0
     return v1
 }
@@ -137,7 +137,7 @@ global flag: boolean = zeroInit
 
 function read(): boolean {
 entry:
-    v0: ref<boolean, raw> = global.address flag
+    v0: ref<boolean, raw, mutable> = global.address flag
     v1: boolean = load v0
     return v1
 }
@@ -195,7 +195,7 @@ entry:
     v1: int32 = load v0
     v2: ref<int32, raw, readonly> = global.address second
     v3: int32 = load v2
-    v4: ref<int32, raw> = global.address third
+    v4: ref<int32, raw, mutable> = global.address third
     v5: int32 = load v4
     v6: int32 = int.add v1, v3
     v7: int32 = int.add v6, v5
@@ -213,7 +213,7 @@ global value: int32 = 0
 
 function test(): int32 {
 entry:
-    v0: ref<int32, raw> = global.address value
+    v0: ref<int32, raw, mutable> = global.address value
     v1: int32 = 10
     store v0, v1
     v2: int32 = 20
@@ -270,7 +270,7 @@ global flag: boolean = true
 
 function toggle(): boolean {
 entry:
-    v0: ref<boolean, raw> = global.address flag
+    v0: ref<boolean, raw, mutable> = global.address flag
     v1: boolean = load v0
     v2: boolean = int.not v1
     store v0, v2

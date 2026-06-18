@@ -377,7 +377,7 @@ entry(v0: int32):
 
 b1:
     v3: int32 = 1
-    v4: ref<[int32; 512], raw, space(frame)> = frame.alloc.zeroed [int32; 512]
+    v4: ref<[int32; 512], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 512]
     v5: int32 = int.sub v0, v3
     tail.call countdown(v5)
 

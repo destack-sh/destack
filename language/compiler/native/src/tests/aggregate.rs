@@ -5,7 +5,7 @@ use super::compile_mir_to_normalized_clif;
 fn test_struct_construction_i32_i32() {
     // aggregates in cranelift are always pointers, so return ref type
     let mir = r#"
-function make_point(): ref<{ int32, int32 }, raw> {
+function make_point(): ref<{ int32, int32 }, raw, mutable> {
 entry:
     v0: int32 = 10
     v1: int32 = 20
@@ -36,7 +36,7 @@ b0:
 #[test]
 fn test_tuple_construction_i32_i32() {
     let mir = r#"
-function make_pair(): ref<(int32, int32), raw> {
+function make_pair(): ref<(int32, int32), raw, mutable> {
 entry:
     v0: int32 = 42
     v1: int32 = 99
@@ -67,7 +67,7 @@ b0:
 #[test]
 fn test_array_construction_i32_3() {
     let mir = r#"
-function make_array(): ref<[int32; 3], raw> {
+function make_array(): ref<[int32; 3], raw, mutable> {
 entry:
     v0: int32 = 1
     v1: int32 = 2
@@ -101,7 +101,7 @@ b0:
 #[test]
 fn test_struct_construction_mixed_types() {
     let mir = r#"
-function make_mixed(): ref<{ int8, int32, int16 }, raw> {
+function make_mixed(): ref<{ int8, int32, int16 }, raw, mutable> {
 entry:
     v0: int8 = 1
     v1: int32 = 100
@@ -136,7 +136,7 @@ b0:
 #[test]
 fn test_array_construction_i64_2() {
     let mir = r#"
-function make_array(): ref<[int64; 2], raw> {
+function make_array(): ref<[int64; 2], raw, mutable> {
 entry:
     v0: int64 = 100
     v1: int64 = 200

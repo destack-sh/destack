@@ -202,10 +202,10 @@ fn test_shared_heap_reference_value_roundtrip() {
 #[test]
 fn test_new_slice_allocates_slice_value() {
     let mir = r#"
-function allocArray(): slice<int32, managed> {
+function allocArray(): slice<int32, managed, mutable> {
 entry:
     v0: int64 = 10
-    v1: slice<int32, managed> = new.slice.zeroed int32, v0
+    v1: slice<int32, managed, mutable> = new.slice.zeroed int32, v0
     return v1
 }
 "#;
@@ -261,9 +261,9 @@ fn test_slice_element_address_loads_and_stores() {
 function accessSlice(): int32 {
 entry:
     v0: int64 = 3
-    v1: slice<int32, managed> = new.slice.zeroed int32, v0
+    v1: slice<int32, managed, mutable> = new.slice.zeroed int32, v0
     v2: int64 = 1
-    v3: ref<int32, managed> = element.address v1, v2
+    v3: ref<int32, managed, mutable> = element.address v1, v2
     v4: int32 = 42
     store v3, v4
     v5: int32 = load v3
@@ -691,10 +691,10 @@ entry:
 #[test]
 fn test_new_slice_uses_pointer_stride_for_heap_references() {
     let mir = r#"
-function allocArray(): slice<ref<int32, managed, readonly>, managed> {
+function allocArray(): slice<ref<int32, managed, readonly>, managed, mutable> {
 entry:
     v0: int64 = 2
-    v1: slice<ref<int32, managed, readonly>, managed> = new.slice.zeroed ref<int32, managed, readonly>, v0
+    v1: slice<ref<int32, managed, readonly>, managed, mutable> = new.slice.zeroed ref<int32, managed, readonly>, v0
     return v1
 }
 "#;

@@ -185,7 +185,7 @@ fn test_atomic_cas_success_flag() {
     let mir = r#"
 function test(): boolean {
 entry:
-    v0: ref<atomic<int32>, raw, space(frame)> = frame.alloc.zeroed atomic<int32>
+    v0: ref<atomic<int32>, raw, mutable, space(frame)> = frame.alloc.zeroed atomic<int32>
     v1: int32 = 10
     atomic.store v0, v1, relaxed
     v2: int32 = 10
@@ -203,7 +203,7 @@ fn test_atomic_cas_success_value() {
     let mir = r#"
 function test(): int32 {
 entry:
-    v0: ref<atomic<int32>, raw, space(frame)> = frame.alloc.zeroed atomic<int32>
+    v0: ref<atomic<int32>, raw, mutable, space(frame)> = frame.alloc.zeroed atomic<int32>
     v1: int32 = 10
     atomic.store v0, v1, relaxed
     v2: int32 = 10
@@ -221,7 +221,7 @@ fn test_atomic_cas_failure_flag() {
     let mir = r#"
 function test(): boolean {
 entry:
-    v0: ref<atomic<int32>, raw, space(frame)> = frame.alloc.zeroed atomic<int32>
+    v0: ref<atomic<int32>, raw, mutable, space(frame)> = frame.alloc.zeroed atomic<int32>
     v1: int32 = 10
     atomic.store v0, v1, relaxed
     v2: int32 = 11
@@ -239,7 +239,7 @@ fn test_atomic_cas_weak_success() {
     let mir = r#"
 function test(): boolean {
 entry:
-    v0: ref<atomic<int32>, raw, space(frame)> = frame.alloc.zeroed atomic<int32>
+    v0: ref<atomic<int32>, raw, mutable, space(frame)> = frame.alloc.zeroed atomic<int32>
     v1: int32 = 5
     atomic.store v0, v1, relaxed
     v2: int32 = 5
@@ -257,7 +257,7 @@ fn test_atomic_fetch_umin() {
     let mir = r#"
 function test(): uint32 {
 entry:
-    v0: ref<atomic<uint32>, raw, space(frame)> = frame.alloc.zeroed atomic<uint32>
+    v0: ref<atomic<uint32>, raw, mutable, space(frame)> = frame.alloc.zeroed atomic<uint32>
     v1: uint32 = 40
     atomic.store v0, v1, relaxed
     v2: uint32 = 10
@@ -275,7 +275,7 @@ fn test_atomic_fetch_umax() {
     let mir = r#"
 function test(): uint32 {
 entry:
-    v0: ref<atomic<uint32>, raw, space(frame)> = frame.alloc.zeroed atomic<uint32>
+    v0: ref<atomic<uint32>, raw, mutable, space(frame)> = frame.alloc.zeroed atomic<uint32>
     v1: uint32 = 12
     atomic.store v0, v1, relaxed
     v2: uint32 = 20
@@ -293,7 +293,7 @@ fn test_atomic_store_load_managed_heap() {
     let mir = r#"
 function test(): int32 {
 entry:
-    v0: ref<atomic<int32>, managed> = new.zeroed atomic<int32>
+    v0: ref<atomic<int32>, managed, mutable> = new.zeroed atomic<int32>
     v1: int32 = 42
     atomic.store v0, v1, relaxed
     v2: int32 = atomic.load v0, relaxed
@@ -308,7 +308,7 @@ fn test_atomic_store_load_shared_heap() {
     let mir = r#"
 function test(): int32 {
 entry:
-    v0: ref<atomic<int32>, managed, space(shared)> = new.zeroed atomic<int32>
+    v0: ref<atomic<int32>, managed, mutable, space(shared)> = new.zeroed atomic<int32>
     v1: int32 = 37
     atomic.store v0, v1, relaxed
     v2: int32 = atomic.load v0, relaxed
@@ -323,7 +323,7 @@ fn test_atomic_store_load_unique_heap() {
     let mir = r#"
 function test(): int32 {
 entry:
-    v0: ref<atomic<int32>, unique> = new.zeroed atomic<int32>
+    v0: ref<atomic<int32>, unique, mutable> = new.zeroed atomic<int32>
     v1: int32 = 43
     atomic.store v0, v1, relaxed
     v2: int32 = atomic.load v0, relaxed
@@ -339,7 +339,7 @@ fn test_atomic_store_load_unique_shared_heap() {
     let mir = r#"
 function test(): int32 {
 entry:
-    v0: ref<atomic<int32>, unique, space(shared)> = new.zeroed atomic<int32>
+    v0: ref<atomic<int32>, unique, mutable, space(shared)> = new.zeroed atomic<int32>
     v1: int32 = 44
     atomic.store v0, v1, relaxed
     v2: int32 = atomic.load v0, relaxed
@@ -355,7 +355,7 @@ fn test_atomic_fetch_fadd() {
     let mir = r#"
 function test(): float64 {
 entry:
-    v0: ref<atomic<float64>, raw, space(frame)> = frame.alloc.zeroed atomic<float64>
+    v0: ref<atomic<float64>, raw, mutable, space(frame)> = frame.alloc.zeroed atomic<float64>
     v1: float64 = 1.5
     atomic.store v0, v1, relaxed
     v2: float64 = 2.25
@@ -373,7 +373,7 @@ fn test_atomic_fetch_fmin() {
     let mir = r#"
 function test(): float64 {
 entry:
-    v0: ref<atomic<float64>, raw, space(frame)> = frame.alloc.zeroed atomic<float64>
+    v0: ref<atomic<float64>, raw, mutable, space(frame)> = frame.alloc.zeroed atomic<float64>
     v1: float64 = 3.5
     atomic.store v0, v1, relaxed
     v2: float64 = 1.25
@@ -391,7 +391,7 @@ fn test_atomic_fetch_fmax() {
     let mir = r#"
 function test(): float64 {
 entry:
-    v0: ref<atomic<float64>, raw, space(frame)> = frame.alloc.zeroed atomic<float64>
+    v0: ref<atomic<float64>, raw, mutable, space(frame)> = frame.alloc.zeroed atomic<float64>
     v1: float64 = 3.5
     atomic.store v0, v1, relaxed
     v2: float64 = 7.25

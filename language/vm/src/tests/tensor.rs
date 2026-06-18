@@ -135,8 +135,8 @@ fn test_tensor_load_store() {
     let mir = r#"
 function tensorLoadStore(): int32 {
 entry:
-    v0: ref<[int32; 4], raw, space(frame)> = frame.alloc.zeroed [int32; 4]
-    v1: tensorView<int32, raw, space(frame), (2, 2)> = cast.bit v0 -> tensorView<int32, raw, space(frame), (2, 2)>
+    v0: ref<[int32; 4], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 4]
+    v1: tensorView<int32, raw, mutable, space(frame), (2, 2)> = cast.bit v0 -> tensorView<int32, raw, mutable, space(frame), (2, 2)>
     v2: int32 = 42
     v3: int32 = 1
     v4: int32 = 0
@@ -154,10 +154,10 @@ fn test_tensor_fill_copy() {
     let mir = r#"
 function tensorFillCopy(): int32 {
 entry:
-    v0: ref<[int32; 4], raw, space(frame)> = frame.alloc.zeroed [int32; 4]
-    v1: ref<[int32; 4], raw, space(frame)> = frame.alloc.zeroed [int32; 4]
-    v2: tensorView<int32, raw, space(frame), (2, 2)> = cast.bit v0 -> tensorView<int32, raw, space(frame), (2, 2)>
-    v3: tensorView<int32, raw, space(frame), (2, 2)> = cast.bit v1 -> tensorView<int32, raw, space(frame), (2, 2)>
+    v0: ref<[int32; 4], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 4]
+    v1: ref<[int32; 4], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 4]
+    v2: tensorView<int32, raw, mutable, space(frame), (2, 2)> = cast.bit v0 -> tensorView<int32, raw, mutable, space(frame), (2, 2)>
+    v3: tensorView<int32, raw, mutable, space(frame), (2, 2)> = cast.bit v1 -> tensorView<int32, raw, mutable, space(frame), (2, 2)>
     v4: int32 = 5
     tensor.fill v2, v4
     tensor.copy v3, v2
@@ -663,8 +663,8 @@ fn test_tensor_view() {
     let mir = r#"
 function tensorViewValue(): int32 {
 entry:
-    v0: ref<[int32; 4], raw, space(frame)> = frame.alloc.zeroed [int32; 4]
-    v1: tensorView<int32, raw, space(frame), (2, 2)> = cast.bit v0 -> tensorView<int32, raw, space(frame), (2, 2)>
+    v0: ref<[int32; 4], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 4]
+    v1: tensorView<int32, raw, mutable, space(frame), (2, 2)> = cast.bit v0 -> tensorView<int32, raw, mutable, space(frame), (2, 2)>
     v2: int32 = 0
     v3: int32 = 1
     v4: int32 = 2
@@ -673,7 +673,7 @@ entry:
     tensor.store v1, [v2, v3], v4
     tensor.store v1, [v3, v2], v5
     tensor.store v1, [v3, v3], v4
-    v6: tensorView<int32, raw, space(frame), (2, 1)> = tensor.view v1, offsets(v2, v3), sizes(v4, v3), strides(v3, v3)
+    v6: tensorView<int32, raw, mutable, space(frame), (2, 1)> = tensor.view v1, offsets(v2, v3), sizes(v4, v3), strides(v3, v3)
     v7: int32 = tensor.load v6, [v2, v2]
     return v7
 }
@@ -687,8 +687,8 @@ fn test_tensor_view_strided() {
     let mir = r#"
 function tensorViewStrided(): int32 {
 entry:
-    v0: ref<[int32; 6], raw, space(frame)> = frame.alloc.zeroed [int32; 6]
-    v1: tensorView<int32, raw, space(frame), (2, 3)> = cast.bit v0 -> tensorView<int32, raw, space(frame), (2, 3)>
+    v0: ref<[int32; 6], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 6]
+    v1: tensorView<int32, raw, mutable, space(frame), (2, 3)> = cast.bit v0 -> tensorView<int32, raw, mutable, space(frame), (2, 3)>
     v2: int32 = 0
     v3: int32 = 1
     v4: int32 = 2
@@ -702,7 +702,7 @@ entry:
     tensor.store v1, [v3, v2], v6
     tensor.store v1, [v3, v3], v7
     tensor.store v1, [v3, v4], v8
-    v9: tensorView<int32, raw, space(frame), (2, 2), layout(strided)> = tensor.view v1, offsets(v2, v2), sizes(v4, v4), strides(v3, v4)
+    v9: tensorView<int32, raw, mutable, space(frame), (2, 2), layout(strided)> = tensor.view v1, offsets(v2, v2), sizes(v4, v4), strides(v3, v4)
     v10: int32 = tensor.load v9, [v3, v3]
     return v10
 }
