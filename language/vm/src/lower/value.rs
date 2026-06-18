@@ -556,6 +556,9 @@ fn infer_instruction_shape(
         }
         mir::Instruction::ClosureEnvironment { destination } => value_shape_map.get(*destination),
         mir::Instruction::Load { result_type, .. } => value_shape_from_type(tree, *result_type),
+        mir::Instruction::Struct { ty, .. }
+        | mir::Instruction::Tuple { ty, .. }
+        | mir::Instruction::Array { ty, .. } => value_shape_from_type(tree, *ty),
         mir::Instruction::FieldGet {
             aggregate: base,
             index,
@@ -586,10 +589,15 @@ fn infer_instruction_shape(
             pointer_result_shape_from_source(tree, *result_type, source_shape)
         }
         mir::Instruction::ElementSet { array, .. } => value_shape_map.get(*array),
-        mir::Instruction::Struct { ty, .. }
-        | mir::Instruction::Tuple { ty, .. }
-        | mir::Instruction::Array { ty, .. } => value_shape_from_type(tree, *ty),
-        mir::Instruction::Slice { result_type, .. } => value_shape_from_type(tree, *result_type),
+        mir::Instruction::SliceView { result_type, .. } => {
+            value_shape_from_type(tree, *result_type)
+        }
+        mir::Instruction::SliceLength { destination, .. }
+        | mir::Instruction::VariantTag { destination, .. }
+        | mir::Instruction::VariantPayload { destination, .. } => {
+            let ty = value_type_for_value(*destination, value_types)?;
+            value_shape_from_type(tree, ty)
+        }
         mir::Instruction::TensorExtract { destination, .. } => {
             let ty = value_type_for_value(*destination, value_types)?;
             value_shape_from_type(tree, ty)
@@ -657,7 +665,6 @@ fn infer_instruction_shape(
         | mir::Instruction::AtomicFence { .. }
         | mir::Instruction::BarrierWrite { .. }
         | mir::Instruction::Free { .. }
-        | mir::Instruction::Drop { .. }
         | mir::Instruction::Pin { .. }
         | mir::Instruction::Unpin { .. }
         | mir::Instruction::Assume { .. }

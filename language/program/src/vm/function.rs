@@ -154,7 +154,7 @@ fn function_signature_matches(
         .parameters
         .iter()
         .zip(parameters.iter())
-        .all(|(actual, expected)| actual.ty == *expected);
+        .all(|(actual, expected)| actual.ty == expected.ty);
     let result_matches = function.return_type == *result;
 
     Ok(parameters_match && result_matches)

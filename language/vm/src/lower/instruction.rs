@@ -87,36 +87,6 @@ impl<'a> BlockLowerer<'a> {
                 else_value,
             } => self.lower_select(pool, *destination, *condition, *then_value, *else_value)?,
 
-            mir::Instruction::Call {
-                destination,
-                function,
-                call,
-                ..
-            } => self.lower_call(*destination, *function, call, pool)?,
-
-            mir::Instruction::CallVirtual {
-                destination,
-                receiver,
-                slot: method,
-                call,
-                ..
-            } => self.lower_virtual_call(*destination, *receiver, *method, call, pool)?,
-
-            mir::Instruction::CallDynamic {
-                destination,
-                receiver,
-                slot: method,
-                call,
-                ..
-            } => self.lower_dynamic_call(*destination, *receiver, *method, call, pool)?,
-
-            mir::Instruction::CallIndirect {
-                destination,
-                callee,
-                call,
-                ..
-            } => self.lower_indirect_call(*destination, *callee, call, pool)?,
-
             mir::Instruction::LocalGet { destination, local } => {
                 self.lower_local_get(*destination, *local)?
             }
@@ -155,17 +125,11 @@ impl<'a> BlockLowerer<'a> {
                 self.lower_store(pool, *pointer, *value)?
             }
 
-            mir::Instruction::Pin {
-                destination, value, ..
-            } => self.lower_pin(*destination, *value)?,
+            mir::Instruction::Struct { .. } => return Err(Error::invalid_instruction()),
 
-            mir::Instruction::Unpin { value } => self.lower_unpin(*value)?,
+            mir::Instruction::Tuple { .. } => return Err(Error::invalid_instruction()),
 
-            mir::Instruction::Drop { .. } => return Err(Error::invalid_instruction()),
-
-            mir::Instruction::Free { value } => self.lower_free(*value)?,
-
-            mir::Instruction::Assume { condition: _ } => Instruction::new(Op::Assume, 0, 0, 0, 0),
+            mir::Instruction::Array { .. } => return Err(Error::invalid_instruction()),
 
             mir::Instruction::FieldGet { .. } => return Err(Error::invalid_instruction()),
 
@@ -189,11 +153,13 @@ impl<'a> BlockLowerer<'a> {
 
             mir::Instruction::ElementSet { .. } => return Err(Error::invalid_instruction()),
 
-            mir::Instruction::Struct { .. } => return Err(Error::invalid_instruction()),
+            mir::Instruction::SliceView { .. } => return Err(Error::invalid_instruction()),
 
-            mir::Instruction::Tuple { .. } => return Err(Error::invalid_instruction()),
+            mir::Instruction::SliceLength { .. } => return Err(Error::invalid_instruction()),
 
-            mir::Instruction::Array { .. } => return Err(Error::invalid_instruction()),
+            mir::Instruction::VariantTag { .. } => return Err(Error::invalid_instruction()),
+
+            mir::Instruction::VariantPayload { .. } => return Err(Error::invalid_instruction()),
 
             mir::Instruction::VectorSplat { destination, value } => {
                 self.lower_vector_splat(pool, *destination, *value)?
@@ -245,6 +211,36 @@ impl<'a> BlockLowerer<'a> {
             } => self.lower_vector_convert(pool, *destination, *mode, *vector)?,
 
             inst if is_tensor_instruction(inst) => self.lower_tensor(inst, pool)?,
+
+            mir::Instruction::Call {
+                destination,
+                function,
+                call,
+                ..
+            } => self.lower_call(*destination, *function, call, pool)?,
+
+            mir::Instruction::CallVirtual {
+                destination,
+                receiver,
+                slot: method,
+                call,
+                ..
+            } => self.lower_virtual_call(*destination, *receiver, *method, call, pool)?,
+
+            mir::Instruction::CallDynamic {
+                destination,
+                receiver,
+                slot: method,
+                call,
+                ..
+            } => self.lower_dynamic_call(*destination, *receiver, *method, call, pool)?,
+
+            mir::Instruction::CallIndirect {
+                destination,
+                callee,
+                call,
+                ..
+            } => self.lower_indirect_call(*destination, *callee, call, pool)?,
 
             mir::Instruction::NewZeroed {
                 destination,
@@ -302,6 +298,8 @@ impl<'a> BlockLowerer<'a> {
                 super::allocation::AllocationInitialization::Uninit,
             )?,
 
+            mir::Instruction::Free { value } => self.lower_free(*value)?,
+
             mir::Instruction::FrameAllocZeroed {
                 destination,
                 layout,
@@ -322,11 +320,17 @@ impl<'a> BlockLowerer<'a> {
                 super::allocation::AllocationInitialization::Uninit,
             )?,
 
-            mir::Instruction::Intrinsic {
-                destination,
-                intrinsic,
-                arguments,
-            } => self.lower_intrinsic(*destination, *intrinsic, *arguments, pool)?,
+            mir::Instruction::Pin {
+                destination, value, ..
+            } => self.lower_pin(*destination, *value)?,
+
+            mir::Instruction::Unpin { value } => self.lower_unpin(*value)?,
+
+            mir::Instruction::BarrierWrite {
+                object,
+                offset,
+                byte_len,
+            } => self.lower_barrier_write(*object, *offset, *byte_len)?,
 
             mir::Instruction::AtomicLoad {
                 destination,
@@ -368,11 +372,13 @@ impl<'a> BlockLowerer<'a> {
 
             mir::Instruction::AtomicFence { access } => self.lower_atomic_fence(pool, *access),
 
-            mir::Instruction::BarrierWrite {
-                object,
-                offset,
-                byte_len,
-            } => self.lower_barrier_write(*object, *offset, *byte_len)?,
+            mir::Instruction::Assume { condition: _ } => Instruction::new(Op::Assume, 0, 0, 0, 0),
+
+            mir::Instruction::Intrinsic {
+                destination,
+                intrinsic,
+                arguments,
+            } => self.lower_intrinsic(*destination, *intrinsic, *arguments, pool)?,
             _ => return Err(Error::invalid_instruction()),
         })
     }
@@ -391,6 +397,8 @@ fn is_tensor_instruction(inst: &mir::Instruction) -> bool {
             | mir::Instruction::TensorReshape { .. }
             | mir::Instruction::TensorBroadcast { .. }
             | mir::Instruction::TensorTranspose { .. }
+            | mir::Instruction::TensorCast { .. }
+            | mir::Instruction::TensorView { .. }
             | mir::Instruction::TensorSlice { .. }
             | mir::Instruction::TensorPad { .. }
             | mir::Instruction::TensorConcat { .. }
@@ -403,7 +411,5 @@ fn is_tensor_instruction(inst: &mir::Instruction) -> bool {
             | mir::Instruction::TensorCompare { .. }
             | mir::Instruction::TensorSelect { .. }
             | mir::Instruction::TensorConvert { .. }
-            | mir::Instruction::TensorCast { .. }
-            | mir::Instruction::TensorView { .. }
     )
 }
