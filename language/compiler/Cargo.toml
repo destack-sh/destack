@@ -18,7 +18,7 @@ destack_artifact_macros = { workspace = true }
 destack_codegen_native = { workspace = true, optional = true }
 destack_core = { workspace = true }
 destack_dir = { workspace = true }
-destack_engine = { workspace = true }
+destack_program = { workspace = true }
 destack_fir = { workspace = true }
 destack_formatter = { workspace = true }
 destack_js = { workspace = true }

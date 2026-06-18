@@ -5,7 +5,7 @@ use destack_core::{FloatFormat, float_to_bits};
 use destack_heap::{HeapReference, SharedHeapReference};
 use serde::{Deserialize, Serialize};
 
-/// One engine value type.
+/// One program value type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ValueType {
     /// The void type.
@@ -34,7 +34,7 @@ pub enum ValueType {
     Address,
 }
 
-/// Engine value type mismatch.
+/// Program value type mismatch.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValueTypeMismatch {
     /// The expected value type.
@@ -44,7 +44,7 @@ pub struct ValueTypeMismatch {
 }
 
 impl ValueTypeMismatch {
-    /// Create one engine value type mismatch.
+    /// Create one program value type mismatch.
     pub const fn new(expected: ValueType, actual: ValueType) -> Self {
         Self { expected, actual }
     }
@@ -80,7 +80,7 @@ pub struct UnsignedInt {
     pub width: u16,
 }
 
-/// One engine value.
+/// One program value.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Value {
     /// The void value.

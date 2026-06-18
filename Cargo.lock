@@ -883,9 +883,9 @@ dependencies = [
  "dashmap",
  "destack_core",
  "destack_dir",
- "destack_engine",
  "destack_js",
  "destack_mir",
+ "destack_program",
  "destack_qir",
  "destack_source",
  "fs2",
@@ -952,7 +952,6 @@ dependencies = [
  "destack_compiler",
  "destack_daemon",
  "destack_dir",
- "destack_engine",
  "destack_fir",
  "destack_formatter",
  "destack_json",
@@ -960,6 +959,7 @@ dependencies = [
  "destack_lsp",
  "destack_mir",
  "destack_parser",
+ "destack_program",
  "destack_query",
  "destack_repository",
  "destack_runtime",
@@ -1014,13 +1014,13 @@ dependencies = [
  "destack_codegen_native",
  "destack_core",
  "destack_dir",
- "destack_engine",
  "destack_fir",
  "destack_formatter",
  "destack_js",
  "destack_linter",
  "destack_mir",
  "destack_parser",
+ "destack_program",
  "destack_query",
  "destack_repository",
  "destack_session",
@@ -1107,17 +1107,6 @@ dependencies = [
  "serde_json",
  "smallvec",
  "tracing",
-]
-
-[[package]]
-name = "destack_engine"
-version = "0.55.4"
-dependencies = [
- "destack_core",
- "destack_heap",
- "destack_mir",
- "destack_source",
- "serde",
 ]
 
 [[package]]
@@ -1310,9 +1299,9 @@ dependencies = [
 name = "destack_native"
 version = "0.55.4"
 dependencies = [
- "destack_engine",
  "destack_heap",
  "destack_mir",
+ "destack_program",
  "serde",
 ]
 
@@ -1332,6 +1321,17 @@ dependencies = [
  "rustc-hash 2.1.2",
  "smallvec",
  "tracing",
+]
+
+[[package]]
+name = "destack_program"
+version = "0.55.4"
+dependencies = [
+ "destack_core",
+ "destack_heap",
+ "destack_mir",
+ "destack_source",
+ "serde",
 ]
 
 [[package]]
@@ -1375,9 +1375,9 @@ dependencies = [
  "destack_artifact",
  "destack_core",
  "destack_dir",
- "destack_engine",
  "destack_heap",
  "destack_mir",
+ "destack_program",
  "destack_source",
  "filetime",
  "fs2",
@@ -1402,11 +1402,11 @@ dependencies = [
  "destack_artifact",
  "destack_core",
  "destack_dir",
- "destack_engine",
  "destack_fir",
  "destack_heap",
  "destack_mir",
  "destack_native",
+ "destack_program",
  "destack_query",
  "destack_repository",
  "destack_source",
@@ -1508,10 +1508,10 @@ dependencies = [
  "clap",
  "criterion",
  "destack_core",
- "destack_engine",
  "destack_heap",
  "destack_memory",
  "destack_mir",
+ "destack_program",
  "destack_source",
  "postcard",
  "pprof",
