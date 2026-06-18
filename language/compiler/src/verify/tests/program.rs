@@ -139,9 +139,9 @@ impl TestProgram {
         self.tree.metadata.drop.set_drop_glue(ty, glue);
     }
 
-    /// Mark one type as having known function drop glue.
+    /// Mark one type as having a custom drop hook.
     #[track_caller]
-    pub(in crate::verify::tests) fn mark_function_drop(&mut self, name: &str, function_name: &str) {
+    pub(in crate::verify::tests) fn mark_drop_hook(&mut self, name: &str, function_name: &str) {
         let ty = self.type_by_name(name);
         let function = self
             .tree
@@ -150,9 +150,9 @@ impl TestProgram {
                 (self.strings.get(function.name) == function_name).then_some(id)
             })
             .unwrap_or_else(|| panic!("missing MIR function {function_name}"));
-        let glue = mir::DropGlue::Custom { function };
+        let hook = mir::DropHook { function };
 
-        self.tree.metadata.drop.set_drop_glue(ty, glue);
+        self.tree.metadata.drop.set_drop_hook(ty, hook);
     }
 
     /// Assert no ownership errors.

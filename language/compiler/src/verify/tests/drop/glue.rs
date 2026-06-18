@@ -1,7 +1,7 @@
 use crate::tests::TestProgram;
 
 #[test]
-fn test_insert_drop_calls_known_function_glue() {
+fn test_insert_drop_calls_generated_glue_for_custom_hook() {
     let mut program = TestProgram::mir(
         r#"
 type Box {
@@ -17,7 +17,7 @@ entry(v0: ref<int32, unique, mutable>):
 }
 "#,
     );
-    program.mark_function_drop("Box", "dropBox");
+    program.mark_drop_hook("Box", "dropBox");
 
     program.assert_drop_mir(
         r#"
@@ -30,7 +30,15 @@ external function dropBox(Box): void
 function test(v0: ref<int32, unique, mutable>): void {
 entry(v0: ref<int32, unique, mutable>):
     v1: Box = struct Box (v0)
-    call dropBox(v1)
+    call Box.drop(v1)
+    return
+}
+
+function Box.drop(v0: Box): void {
+entry(v0: Box):
+    call dropBox(v0)
+    v1: ref<int32, unique, mutable> = field.get v0, 0
+    free v1
     return
 }
 "#,
@@ -38,7 +46,7 @@ entry(v0: ref<int32, unique, mutable>):
 }
 
 #[test]
-fn test_insert_drop_inside_custom_drop_function() {
+fn test_insert_drop_skips_receiver_inside_custom_hook() {
     let mut program = TestProgram::mir(
         r#"
 type Box {
@@ -47,7 +55,6 @@ type Box {
 
 function dropBox(v0: Box): void {
 entry(v0: Box):
-    v1: ref<int32, unique, mutable> = field.get v0, 0
     return
 }
 
@@ -58,7 +65,7 @@ entry(v0: ref<int32, unique, mutable>):
 }
 "#,
     );
-    program.mark_function_drop("Box", "dropBox");
+    program.mark_drop_hook("Box", "dropBox");
 
     program.assert_drop_mir(
         r#"
@@ -68,15 +75,21 @@ type Box {
 
 function dropBox(v0: Box): void {
 entry(v0: Box):
-    v1: ref<int32, unique, mutable> = field.get v0, 0
-    free v1
     return
 }
 
 function test(v0: ref<int32, unique, mutable>): void {
 entry(v0: ref<int32, unique, mutable>):
     v1: Box = struct Box (v0)
-    call dropBox(v1)
+    call Box.drop(v1)
+    return
+}
+
+function Box.drop(v0: Box): void {
+entry(v0: Box):
+    call dropBox(v0)
+    v1: ref<int32, unique, mutable> = field.get v0, 0
+    free v1
     return
 }
 "#,
@@ -203,6 +216,84 @@ function Entry.drop(v0: Entry): void {
 entry(v0: Entry):
     v1: dynamic<Writer> = field.get v0, 0
     call.dynamic v1, Writer, 0(): (dynamic<Writer>) => void
+    return
+}
+"#,
+    );
+}
+
+#[test]
+fn test_generate_struct_drop_glue_with_unique_slice_field() {
+    let mut program = TestProgram::mir(
+        r#"
+type Buffer {
+    items: slice<int32, unique, mutable>;
+}
+
+function test(v0: slice<int32, unique, mutable>): void {
+entry(v0: slice<int32, unique, mutable>):
+    v1: Buffer = struct Buffer (v0)
+    return
+}
+"#,
+    );
+
+    program.assert_verified_mir(
+        r#"
+type Buffer {
+    items: slice<int32, unique, mutable>;
+}
+
+function test(v0: slice<int32, unique, mutable>): void {
+entry(v0: slice<int32, unique, mutable>):
+    v1: Buffer = struct Buffer (v0)
+    call Buffer.drop(v1)
+    return
+}
+
+function Buffer.drop(v0: Buffer): void {
+entry(v0: Buffer):
+    v1: slice<int32, unique, mutable> = field.get v0, 0
+    free v1
+    return
+}
+"#,
+    );
+}
+
+#[test]
+fn test_generate_struct_drop_glue_with_unique_tensor_view_field() {
+    let mut program = TestProgram::mir(
+        r#"
+type Buffer {
+    items: tensorView<int32, unique, mutable, (2, 2)>;
+}
+
+function test(v0: tensorView<int32, unique, mutable, (2, 2)>): void {
+entry(v0: tensorView<int32, unique, mutable, (2, 2)>):
+    v1: Buffer = struct Buffer (v0)
+    return
+}
+"#,
+    );
+
+    program.assert_verified_mir(
+        r#"
+type Buffer {
+    items: tensorView<int32, unique, mutable, (2, 2)>;
+}
+
+function test(v0: tensorView<int32, unique, mutable, (2, 2)>): void {
+entry(v0: tensorView<int32, unique, mutable, (2, 2)>):
+    v1: Buffer = struct Buffer (v0)
+    call Buffer.drop(v1)
+    return
+}
+
+function Buffer.drop(v0: Buffer): void {
+entry(v0: Buffer):
+    v1: tensorView<int32, unique, mutable, (2, 2)> = field.get v0, 0
+    free v1
     return
 }
 "#,

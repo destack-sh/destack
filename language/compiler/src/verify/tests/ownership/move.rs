@@ -107,7 +107,7 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
 }
 "#,
     );
-    program.mark_function_drop("Row", "dropRow");
+    program.mark_drop_hook("Row", "dropRow");
 
     program.assert_error_partial_move_of_custom_drop();
 }

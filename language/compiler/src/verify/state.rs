@@ -1,19 +1,11 @@
-use destack_artifact::{DiagnosticBuilder, DiagnosticLike};
+use destack_artifact::{DiagnosticBuilder, DiagnosticLike, MirVerified};
+use destack_core::StringPool;
 use destack_mir as mir;
 use destack_repository::{ProfileId, ProviderContext};
 use destack_source::{ModuleId, TargetId};
 
 use crate::DiagnosticAnchor;
 use crate::verify::VerifyError;
-
-/// Borrow obligation with a source anchor.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct BorrowObligationRecord {
-    /// The borrow obligation.
-    pub obligation: mir::BorrowObligation,
-    /// The suspension point that needs the proof.
-    pub anchor: DiagnosticAnchor,
-}
 
 /// State for one verify phase provider run.
 pub(crate) struct VerifyState<'a> {
@@ -25,10 +17,12 @@ pub(crate) struct VerifyState<'a> {
     pub(in crate::verify) target: TargetId,
     /// The provider attempt that receives diagnostics.
     pub(in crate::verify) context: &'a dyn ProviderContext,
+    /// The MIR tree being verified.
+    pub(in crate::verify) tree: mir::Tree,
+    /// Strings needed by generated MIR names.
+    pub(in crate::verify) strings: &'a StringPool,
     /// Accumulated errors.
     errors: Vec<DiagnosticBuilder<VerifyError>>,
-    /// Accumulated borrow obligations.
-    borrow_obligations: Vec<BorrowObligationRecord>,
 }
 
 impl std::fmt::Debug for VerifyState<'_> {
@@ -37,8 +31,8 @@ impl std::fmt::Debug for VerifyState<'_> {
             .field("module", &self.module)
             .field("profile", &self.profile)
             .field("target", &self.target)
+            .field("tree", &"mir::Tree")
             .field("errors", &self.errors.len())
-            .field("borrow_obligations", &self.borrow_obligations.len())
             .finish()
     }
 }
@@ -50,15 +44,23 @@ impl<'a> VerifyState<'a> {
         profile: ProfileId,
         target: TargetId,
         context: &'a dyn ProviderContext,
+        tree: mir::Tree,
+        strings: &'a StringPool,
     ) -> Self {
         Self {
             module,
             profile,
             target,
             context,
+            tree,
+            strings,
             errors: Vec::new(),
-            borrow_obligations: Vec::new(),
         }
+    }
+
+    /// Finish verified MIR.
+    pub(crate) fn finish(self) -> MirVerified {
+        MirVerified::from_tree(self.tree)
     }
 
     /// Create a source anchor for one MIR node.
@@ -75,13 +77,6 @@ impl<'a> VerifyState<'a> {
         self.errors.push(error.into());
     }
 
-    /// Record one borrow obligation.
-    pub(crate) fn require_borrow(&mut self, obligation: BorrowObligationRecord) {
-        if !self.borrow_obligations.contains(&obligation) {
-            self.borrow_obligations.push(obligation);
-        }
-    }
-
     /// Return true when any errors were emitted.
     pub(crate) fn has_errors(&self) -> bool {
         !self.errors.is_empty()
@@ -91,12 +86,6 @@ impl<'a> VerifyState<'a> {
     #[cfg(test)]
     pub(crate) fn errors(&self) -> &[DiagnosticBuilder<VerifyError>] {
         &self.errors
-    }
-
-    /// Return accumulated borrow obligations.
-    #[cfg(test)]
-    pub(crate) fn borrow_obligations(&self) -> &[BorrowObligationRecord] {
-        &self.borrow_obligations
     }
 
     /// Drain all diagnostics.
