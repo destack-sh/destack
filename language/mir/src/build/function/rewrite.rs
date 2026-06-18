@@ -117,6 +117,12 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::SliceLength {
                     slice: argument, ..
                 }
+                | Instruction::DynamicPayload {
+                    dynamic: argument, ..
+                }
+                | Instruction::DynamicType {
+                    dynamic: argument, ..
+                }
                 | Instruction::VariantTag {
                     variant: argument, ..
                 }

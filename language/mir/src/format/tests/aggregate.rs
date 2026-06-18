@@ -86,3 +86,22 @@ entry(v0: (int32, float64), v1: [int32; 10]):
 "#,
     );
 }
+
+/// Formats dynamic descriptor projections canonically.
+#[test]
+fn test_format_dynamic_access() {
+    assert_format(
+        r#"
+type Writer {
+    write: fn() => uint32;
+}
+
+function dynamicAccess(v0: dynamic<Writer>): typeId {
+entry(v0: dynamic<Writer>):
+    v1: typeId = dynamic.type v0
+    v2: ref<void, raw> = dynamic.payload v0
+    return v1
+}
+"#,
+    );
+}

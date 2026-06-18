@@ -178,6 +178,30 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
+    /// Read the erased payload from a dynamic value.
+    pub fn dynamic_payload(&mut self, dynamic: Value, result_type: LocalNodeId<Type>) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::DynamicPayload {
+            destination,
+            dynamic,
+            result_type: result_type.into(),
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Read the concrete type id from a dynamic value.
+    pub fn dynamic_type(&mut self, dynamic: Value) -> Value {
+        let destination = self.allocate_value();
+        let type_id = self.tree.type_id_type();
+        self.insert_instruction(Instruction::DynamicType {
+            destination,
+            dynamic,
+        });
+        self.define_value(destination, type_id);
+        destination
+    }
+
     /// Read the active tag from a physical tagged sum value.
     pub fn variant_tag(&mut self, variant: Value) -> Value {
         let destination = self.allocate_value();

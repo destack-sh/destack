@@ -781,6 +781,8 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::ElementSet { .. }
             | mir::Instruction::SliceView { .. }
             | mir::Instruction::SliceLength { .. }
+            | mir::Instruction::DynamicPayload { .. }
+            | mir::Instruction::DynamicType { .. }
             | mir::Instruction::VariantTag { .. }
             | mir::Instruction::VariantPayload { .. }
             | mir::Instruction::VectorSplat { .. }
