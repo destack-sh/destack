@@ -4,7 +4,8 @@ use crate::moves::{MoveAndScratchResolver, ParallelMoves};
 use crate::{Allocation, PReg, RegClass, SpillSlot};
 use arbitrary::{Arbitrary, Result, Unstructured};
 use std::collections::{HashMap, HashSet};
-use std::{vec, vec::Vec};
+use std::vec;
+use std::vec::Vec;
 
 fn is_stack_alloc(alloc: Allocation) -> bool {
     // Treat registers 20..=29 as fixed stack slots.

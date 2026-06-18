@@ -4,7 +4,14 @@
 pub mod generated_code;
 
 // Types that the generated ISLE code uses via `use super::*`.
-use crate::ir::ExternalName;
+use crate::ir::condcodes::*;
+use crate::ir::immediates::*;
+use crate::ir::types::*;
+use crate::ir::{
+    AtomicRmwOp, BlockCall, Endianness, ExternalName, Inst, InstructionData, KnownSymbol, MemFlags,
+    Opcode, TrapCode, Value, ValueList,
+};
+use crate::isa::CallConv;
 use crate::isa::s390x::S390xBackend;
 use crate::isa::s390x::abi::REG_SAVE_AREA_SIZE;
 use crate::isa::s390x::inst::{
@@ -13,16 +20,9 @@ use crate::isa::s390x::inst::{
     writable_gpr, zero_reg,
 };
 use crate::machinst::isle::*;
-use crate::machinst::{CallInfo, MachLabel, Reg, TryCallInfo, non_writable_value_regs};
-use crate::{
-    ir::{
-        AtomicRmwOp, BlockCall, Endianness, Inst, InstructionData, KnownSymbol, MemFlags, Opcode,
-        TrapCode, Value, ValueList, condcodes::*, immediates::*, types::*,
-    },
-    isa::CallConv,
-    machinst::{
-        ArgPair, CallArgList, CallRetList, InstOutput, MachInst, VCodeConstant, VCodeConstantData,
-    },
+use crate::machinst::{
+    ArgPair, CallArgList, CallInfo, CallRetList, InstOutput, MachInst, MachLabel, Reg, TryCallInfo,
+    VCodeConstant, VCodeConstantData, non_writable_value_regs,
 };
 use alloc::boxed::Box;
 use alloc::vec::Vec;

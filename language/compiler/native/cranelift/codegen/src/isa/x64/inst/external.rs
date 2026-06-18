@@ -1,10 +1,12 @@
 //! Interface with the external assembler crate.
 
+use super::args::FromWritableReg;
 use super::{
     Amode, Gpr, Inst, LabelUse, MachBuffer, MachLabel, OperandVisitor, OperandVisitorImpl,
-    SyntheticAmode, VCodeConstant, WritableGpr, WritableXmm, Xmm, args::FromWritableReg,
+    SyntheticAmode, VCodeConstant, WritableGpr, WritableXmm, Xmm,
 };
-use crate::{Reg, Writable, ir::TrapCode};
+use crate::ir::TrapCode;
+use crate::{Reg, Writable};
 use alloc::string::String;
 use cranelift_assembler_x64 as asm;
 use regalloc2::{PReg, RegClass};

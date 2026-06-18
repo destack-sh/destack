@@ -6,9 +6,8 @@ use clap::Parser;
 use cranelift_codegen::ir::Function;
 use cranelift_reader::parse_functions;
 use std::fs::File;
-use std::io;
 use std::io::prelude::*;
-use std::process;
+use std::{io, process};
 
 fn call_ser(file: &str, pretty: bool) -> Result<(), String> {
     let ret_of_parse = parse_functions(file);

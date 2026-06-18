@@ -22,7 +22,8 @@ pub use try_new::{TryNew, try_new};
 pub use vec::TryVec;
 
 use crate::error::OutOfMemory;
-use core::{alloc::Layout, ptr::NonNull};
+use core::alloc::Layout;
+use core::ptr::NonNull;
 
 /// Try to allocate a block of memory that fits the given layout, or return an
 /// `OutOfMemory` error.

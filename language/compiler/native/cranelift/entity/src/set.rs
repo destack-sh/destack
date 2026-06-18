@@ -199,7 +199,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloc::{format, vec::Vec};
+    use alloc::format;
+    use alloc::vec::Vec;
     use core::u32;
 
     // `EntityRef` impl for testing.

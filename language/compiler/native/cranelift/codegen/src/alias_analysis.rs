@@ -61,17 +61,16 @@
 //! must be correct likely reduce the potential benefit, we don't yet
 //! do this.
 
-use crate::{FxHashMap, FxHashSet};
-use crate::{
-    cursor::{Cursor, FuncCursor},
-    dominator_tree::DominatorTree,
-    inst_predicates::{
-        has_memory_fence_semantics, inst_addr_offset_type, inst_store_data, visit_block_succs,
-    },
-    ir::{AliasRegion, Block, Function, Inst, Opcode, Type, Value, immediates::Offset32},
-    trace,
+use crate::cursor::{Cursor, FuncCursor};
+use crate::dominator_tree::DominatorTree;
+use crate::inst_predicates::{
+    has_memory_fence_semantics, inst_addr_offset_type, inst_store_data, visit_block_succs,
 };
-use cranelift_entity::{EntityRef, packed_option::PackedOption};
+use crate::ir::immediates::Offset32;
+use crate::ir::{AliasRegion, Block, Function, Inst, Opcode, Type, Value};
+use crate::{FxHashMap, FxHashSet, trace};
+use cranelift_entity::EntityRef;
+use cranelift_entity::packed_option::PackedOption;
 
 /// For a given program point, the vector of last-store instruction
 /// indices for each disjoint category of abstract state.

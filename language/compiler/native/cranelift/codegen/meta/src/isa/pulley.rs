@@ -1,4 +1,5 @@
-use crate::cdsl::{isa::TargetIsa, settings::SettingGroupBuilder};
+use crate::cdsl::isa::TargetIsa;
+use crate::cdsl::settings::SettingGroupBuilder;
 
 pub(crate) fn define() -> TargetIsa {
     let mut settings = SettingGroupBuilder::new("pulley");

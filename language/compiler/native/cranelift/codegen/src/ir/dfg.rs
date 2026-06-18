@@ -13,11 +13,8 @@ use crate::ir::{
 };
 use crate::packed_option::ReservedValue;
 use crate::write::write_operands;
-use core::fmt;
-use core::iter;
-use core::mem;
 use core::ops::{Index, IndexMut};
-use core::u16;
+use core::{fmt, iter, mem, u16};
 
 use alloc::collections::BTreeMap;
 #[cfg(feature = "enable-serde")]

@@ -1,5 +1,6 @@
 use crate::error::{Error, OomOrDynError};
-use core::{fmt, mem, ptr::NonNull};
+use core::ptr::NonNull;
+use core::{fmt, mem};
 
 /// An out-of-memory (OOM) error.
 ///

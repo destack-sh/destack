@@ -1,8 +1,6 @@
-use crate::ir::Type;
-use crate::ir::types;
+use crate::ir::{Type, types};
 use crate::settings::{self, LibcallCallConv};
-use core::fmt;
-use core::str;
+use core::{fmt, str};
 use target_lexicon::{CallingConvention, Triple};
 
 #[cfg(feature = "enable-serde")]

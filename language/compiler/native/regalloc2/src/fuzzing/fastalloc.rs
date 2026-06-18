@@ -1,6 +1,7 @@
 //! Fuzz the `fastalloc` register allocator.
 
-use crate::{checker, fastalloc, fuzzing::func};
+use crate::fuzzing::func;
+use crate::{checker, fastalloc};
 use arbitrary::{Arbitrary, Result, Unstructured};
 
 /// `fastalloc`-specific options for generating functions.

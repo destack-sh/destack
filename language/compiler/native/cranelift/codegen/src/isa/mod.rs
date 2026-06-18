@@ -46,17 +46,16 @@
 use crate::dominator_tree::DominatorTree;
 pub use crate::isa::call_conv::CallConv;
 
-use crate::CodegenResult;
 use crate::ir::{self, Function, Type};
 #[cfg(feature = "unwind")]
 use crate::isa::unwind::{UnwindInfoKind, systemv::RegisterMappingError};
 use crate::machinst::{CompiledCodeStencil, TextSectionBuilder};
-use crate::settings;
-use crate::settings::Configurable;
-use crate::settings::SetResult;
-use crate::{Reg, flowgraph};
+use crate::settings::{Configurable, SetResult};
+use crate::{CodegenResult, Reg, flowgraph, settings};
+use alloc::boxed::Box;
 use alloc::string::String;
-use alloc::{boxed::Box, sync::Arc, vec::Vec};
+use alloc::sync::Arc;
+use alloc::vec::Vec;
 use core::fmt;
 use core::fmt::{Debug, Formatter};
 use cranelift_control::ControlPlane;

@@ -140,7 +140,8 @@ impl ObjectBuilder {
 /// See the following for details:
 /// <https://github.com/rust-lang/rust/blob/1.95.0/compiler/rustc_codegen_ssa/src/back/metadata.rs#L408-L425>
 fn macho_build_version(triple: &Triple) -> Option<object::write::MachOBuildVersion> {
-    use target_lexicon::{DeploymentTarget, OperatingSystem::*};
+    use target_lexicon::DeploymentTarget;
+    use target_lexicon::OperatingSystem::*;
 
     fn pack_version(v: DeploymentTarget) -> u32 {
         let (major, minor, patch) = (v.major as u32, v.minor as u32, v.patch as u32);

@@ -1,6 +1,5 @@
 //! Support for egraphs represented in the DataFlowGraph.
 
-use crate::FxHashSet;
 use crate::alias_analysis::{AliasAnalysis, LastStores, OptResult};
 use crate::ctxhash::{CtxEq, CtxHash, NullCtx};
 use crate::cursor::{Cursor, CursorPosition, FuncCursor};
@@ -15,7 +14,7 @@ use crate::opts::IsleContext;
 use crate::opts::generated_code::SkeletonInstSimplification;
 use crate::scoped_hash_map::{Entry as ScopedEntry, ScopedHashMap};
 use crate::take_and_replace::TakeAndReplace;
-use crate::trace;
+use crate::{FxHashSet, trace};
 use alloc::vec::Vec;
 use core::cmp::Ordering;
 use core::hash::Hasher;

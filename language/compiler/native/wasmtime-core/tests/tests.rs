@@ -2,15 +2,12 @@ extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
 
-use alloc::{
-    format,
-    string::{String, ToString},
-    sync::Arc,
-};
-use core::{
-    fmt,
-    sync::atomic::{AtomicU32, Ordering::SeqCst},
-};
+use alloc::format;
+use alloc::string::{String, ToString};
+use alloc::sync::Arc;
+use core::fmt;
+use core::sync::atomic::AtomicU32;
+use core::sync::atomic::Ordering::SeqCst;
 #[cfg(feature = "std")]
 use std::backtrace::BacktraceStatus;
 use wasmtime_internal_core::error::{

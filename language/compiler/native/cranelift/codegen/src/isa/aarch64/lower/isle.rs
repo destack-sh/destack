@@ -12,24 +12,22 @@ use super::{
     UImm5, UImm12Scaled, VecMisc2, VectorSize, fp_reg, lower_condcode, lower_fp_condcode,
     stack_reg, writable_link_reg, writable_zero_reg, zero_reg,
 };
-use crate::ir::{ArgumentExtension, condcodes};
+use crate::binemit::CodeOffset;
+use crate::ir::immediates::*;
+use crate::ir::types::*;
+use crate::ir::{
+    ArgumentExtension, AtomicRmwOp, BlockCall, ExternalName, Inst, InstructionData, MemFlags,
+    TrapCode, Value, ValueList, condcodes,
+};
 use crate::isa;
 use crate::isa::aarch64::AArch64Backend;
-use crate::isa::aarch64::inst::{FPULeftShiftImm, FPURightShiftImm, ReturnCallInfo};
+use crate::isa::aarch64::abi::AArch64MachineDeps;
+use crate::isa::aarch64::inst::args::{ShiftOp, ShiftOpShiftImm};
+use crate::isa::aarch64::inst::{FPULeftShiftImm, FPURightShiftImm, ReturnCallInfo, SImm7Scaled};
+use crate::machinst::abi::ArgPair;
 use crate::machinst::isle::*;
-use crate::{
-    binemit::CodeOffset,
-    ir::{
-        AtomicRmwOp, BlockCall, ExternalName, Inst, InstructionData, MemFlags, TrapCode, Value,
-        ValueList, immediates::*, types::*,
-    },
-    isa::aarch64::abi::AArch64MachineDeps,
-    isa::aarch64::inst::SImm7Scaled,
-    isa::aarch64::inst::args::{ShiftOp, ShiftOpShiftImm},
-    machinst::{
-        CallArgList, CallRetList, InstOutput, MachInst, VCodeConstant, VCodeConstantData,
-        abi::ArgPair, ty_bits,
-    },
+use crate::machinst::{
+    CallArgList, CallRetList, InstOutput, MachInst, VCodeConstant, VCodeConstantData, ty_bits,
 };
 use alloc::boxed::Box;
 use alloc::vec::Vec;
