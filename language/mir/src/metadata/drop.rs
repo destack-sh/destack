@@ -40,8 +40,13 @@ impl DropMetadata {
 pub enum DropGlue {
     /// No custom drop work is required.
     None,
-    /// Call a known drop function.
-    Function {
+    /// Call a user-authored drop function.
+    Custom {
+        /// The drop function.
+        function: LocalNodeId<Function>,
+    },
+    /// Call compiler-generated drop glue.
+    Generated {
         /// The drop function.
         function: LocalNodeId<Function>,
     },
@@ -50,4 +55,24 @@ pub enum DropGlue {
         /// The drop dispatch slot.
         slot: DispatchSlot,
     },
+}
+
+impl DropGlue {
+    /// Return the concrete function backing this glue.
+    pub fn function(&self) -> Option<LocalNodeId<Function>> {
+        match self {
+            DropGlue::Custom { function } | DropGlue::Generated { function } => Some(*function),
+            DropGlue::None | DropGlue::Dynamic { .. } => None,
+        }
+    }
+
+    /// Return whether this glue is generated for the given function.
+    pub fn is_generated_function(&self, target: LocalNodeId<Function>) -> bool {
+        matches!(self, DropGlue::Generated { function } if *function == target)
+    }
+
+    /// Return whether this glue is custom for the given function.
+    pub fn is_custom_function(&self, target: LocalNodeId<Function>) -> bool {
+        matches!(self, DropGlue::Custom { function } if *function == target)
+    }
 }
