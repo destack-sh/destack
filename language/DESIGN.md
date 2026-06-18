@@ -1572,7 +1572,6 @@ Ranges work in patterns and subscripts exactly like one would expect from other 
 ```ds
 let values: Slice<int32> = [1, 2, 3, 4, 5];
 
-values[1..4] satisfies Slice<int32>;
 (&values)[1..4] satisfies &Slice<int32>;
 (&readonly values)[1..4] satisfies &readonly Slice<int32>;
 (&exclusive values)[1..4] satisfies &exclusive Slice<int32>;
