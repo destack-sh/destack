@@ -6,7 +6,7 @@ use destack_repository::{
     ArtifactReader, Environment, Profile, ProviderError, Repository, Revision,
 };
 use destack_runtime::runtime::World;
-use destack_runtime::runtime::engine::{EngineId, Entry, Value};
+use destack_runtime::runtime::executor::{Entry, Value};
 use destack_source::{ModuleId, ProfileId, TargetId};
 use destack_vm::{Machine, MachineOptions};
 use serde::{Deserialize, Serialize};
@@ -352,12 +352,7 @@ fn create_machine(
     let tree = machine_mir_tree(&artifacts, module_id, profile_id, *target_id)?;
     let strings = repository.string_pool().as_ref().clone();
 
-    let machine_id = EngineId::new(1);
-
-    Ok(
-        Machine::build_with_options(machine_id, tree, strings, options)
-            .map_err(|error| error.to_string())?,
-    )
+    Ok(Machine::build_with_options(tree, strings, options).map_err(|error| error.to_string())?)
 }
 
 /// Return the best available MIR tree for VM execution.

@@ -1,4 +1,4 @@
-use destack_engine::Value;
+use destack_program::Value;
 use destack_mir as mir;
 
 use crate::TestProgram;

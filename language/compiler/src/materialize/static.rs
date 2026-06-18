@@ -2,20 +2,20 @@ use crate::{Compiler, MaterializeError, MaterializeResult};
 
 use destack_source::ModuleId;
 use destack_repository::ProfileId;
-use {destack_dir as dir, destack_engine as engine, destack_heap as heap, destack_vm as vm};
+use {destack_dir as dir, destack_program as program, destack_heap as heap, destack_vm as vm};
 
 #[allow(dead_code)]
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Convert a static term into an engine boundary value.
-    pub(crate) fn static_term_to_value(&self, value: &dir::StaticTerm) -> Option<engine::Value> {
+    pub(crate) fn static_term_to_value(&self, value: &dir::StaticTerm) -> Option<program::Value> {
         match value {
             dir::StaticTerm::ScalarLiteral { value } => match value {
-                dir::ScalarLiteral::Boolean(value) => Some(engine::Value::bool(*value)),
-                dir::ScalarLiteral::Integer(value) => Some(engine::Value::int64(*value)),
-                dir::ScalarLiteral::Bigint(value) => Some(engine::Value::int64(*value)),
-                dir::ScalarLiteral::Float(value) => Some(engine::Value::float64(*value)),
-                dir::ScalarLiteral::Character(value) => Some(engine::Value::char(*value)),
+                dir::ScalarLiteral::Boolean(value) => Some(program::Value::bool(*value)),
+                dir::ScalarLiteral::Integer(value) => Some(program::Value::int64(*value)),
+                dir::ScalarLiteral::Bigint(value) => Some(program::Value::int64(*value)),
+                dir::ScalarLiteral::Float(value) => Some(program::Value::float64(*value)),
+                dir::ScalarLiteral::Character(value) => Some(program::Value::char(*value)),
                 dir::ScalarLiteral::Null => None,
                 dir::ScalarLiteral::String(_) => None,
                 dir::ScalarLiteral::RegexString { .. } => None,
@@ -29,21 +29,21 @@ impl Compiler {
         &self,
         _machine: &vm::Machine,
         _heap: &heap::Heap,
-        value: &engine::Value,
+        value: &program::Value,
     ) -> Option<dir::StaticTerm> {
         let scalar = match value {
-            engine::Value::Bool(value) => dir::ScalarLiteral::Boolean(*value),
-            engine::Value::Int { value, .. } => {
+            program::Value::Bool(value) => dir::ScalarLiteral::Boolean(*value),
+            program::Value::Int { value, .. } => {
                 dir::ScalarLiteral::Integer(i64::try_from(*value).ok()?)
             }
-            engine::Value::UInt { value, .. } => {
+            program::Value::UInt { value, .. } => {
                 dir::ScalarLiteral::Integer((*value).try_into().ok()?)
             }
-            engine::Value::Float32 { bits } => {
+            program::Value::Float32 { bits } => {
                 dir::ScalarLiteral::Float(f32::from_bits(*bits) as f64)
             }
-            engine::Value::Float64 { bits } => dir::ScalarLiteral::Float(f64::from_bits(*bits)),
-            engine::Value::Char(value) => dir::ScalarLiteral::Character(*value),
+            program::Value::Float64 { bits } => dir::ScalarLiteral::Float(f64::from_bits(*bits)),
+            program::Value::Char(value) => dir::ScalarLiteral::Character(*value),
 
             // #Incomplete: support more complex static values in comptime
             _ => return None,
