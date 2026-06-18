@@ -1,126 +1,14 @@
 use crate::build::FunctionBuilder;
 use crate::{
-    BinaryOperator, Instruction, LocalNodeId, TensorConvertMode, TensorConvolutionDimensionNumbers,
-    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
-    TensorIndexReduceOperator, TensorIndexTieBreak, TensorReduceOperator,
-    TensorScatterDimensionNumbers, TensorScatterMode, Type, TypeId, Value, VectorConvertMode,
-    VectorReduceOperator,
+    BinaryOperator, Constant, Instruction, LocalNodeId, TensorConvertMode,
+    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
+    TensorGatherDimensionNumbers, TensorIndexReduceOperator, TensorIndexTieBreak,
+    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, Type, TypeId, Value,
+    VectorConvertMode, VectorReduceOperator,
 };
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
-    /// Extract a field from a struct or tuple.
-    pub fn field_get(&mut self, aggregate: Value, index: u32) -> Value {
-        let destination = self.allocate_value();
-        let aggregate_type = self.expect_value_type(aggregate, "field.get aggregate");
-        let field_type = self.expect_build(self.field_type_for_aggregate(aggregate_type, index));
-        self.insert_instruction(Instruction::FieldGet {
-            destination,
-            aggregate,
-            index,
-        });
-        self.define_value(destination, field_type);
-        destination
-    }
-
-    /// Get the address of a field from a struct or tuple.
-    pub fn field_addr(
-        &mut self,
-        aggregate: Value,
-        index: u32,
-        result_type: LocalNodeId<Type>,
-    ) -> Value {
-        let destination = self.allocate_value();
-        self.insert_instruction(Instruction::FieldAddr {
-            destination,
-            aggregate,
-            index,
-            result_type,
-        });
-        self.define_value(destination, result_type);
-        destination
-    }
-
-    /// Insert a value into a struct or tuple field.
-    pub fn field_set(&mut self, aggregate: Value, index: u32, value: Value) -> Value {
-        let destination = self.allocate_value();
-        let aggregate_type = self.expect_value_type(aggregate, "field.set aggregate");
-        self.insert_instruction(Instruction::FieldSet {
-            destination,
-            aggregate,
-            index,
-            value,
-        });
-        self.define_value(destination, aggregate_type);
-        destination
-    }
-
-    /// Extract an element from an array.
-    pub fn element_get(&mut self, array: Value, index: u32) -> Value {
-        let destination = self.allocate_value();
-        let array_type = self.expect_value_type(array, "element.get array");
-        let element_type = self.expect_build(self.element_type_for_array(array_type));
-        self.insert_instruction(Instruction::ElementGet {
-            destination,
-            array,
-            index,
-        });
-        self.define_value(destination, element_type);
-        destination
-    }
-
-    /// Get the address of an element from an array.
-    pub fn element_addr(
-        &mut self,
-        array: Value,
-        index: Value,
-        result_type: LocalNodeId<Type>,
-    ) -> Value {
-        let destination = self.allocate_value();
-        self.insert_instruction(Instruction::ElementAddr {
-            destination,
-            array,
-            index,
-            result_type,
-        });
-        self.define_value(destination, result_type);
-        destination
-    }
-
-    /// Construct a non-owning slice descriptor from a contiguous source region.
-    pub fn slice(
-        &mut self,
-        source: Value,
-        start: Value,
-        length: Value,
-        result_type: LocalNodeId<Type>,
-    ) -> Value {
-        let destination = self.allocate_value();
-        self.insert_instruction(Instruction::Slice {
-            destination,
-            source,
-            start,
-            length,
-            result_type,
-        });
-        self.define_value(destination, result_type);
-        destination
-    }
-
-    /// Insert a value into an array element.
-    pub fn element_set(&mut self, array: Value, index: u32, value: Value) -> Value {
-        let destination = self.allocate_value();
-        let array_type = self.expect_value_type(array, "element.set array");
-        self.insert_instruction(Instruction::ElementSet {
-            destination,
-            array,
-            index,
-            value,
-        });
-        self.define_value(destination, array_type);
-        destination
-    }
-
     /// Construct a struct from field values.
     ///
     /// Fields must be provided in layout order.
@@ -166,6 +54,154 @@ impl<'a> FunctionBuilder<'a> {
             elements,
         });
         self.define_value(destination, ty);
+        destination
+    }
+
+    /// Extract a field from a struct or tuple.
+    pub fn field_get(&mut self, aggregate: Value, index: u32) -> Value {
+        let destination = self.allocate_value();
+        let aggregate_type = self.expect_value_type(aggregate, "field.get aggregate");
+        let field_type = self.expect_build(self.field_type_for_aggregate(aggregate_type, index));
+        self.insert_instruction(Instruction::FieldGet {
+            destination: destination.into(),
+            aggregate: aggregate.into(),
+            index,
+        });
+        self.define_value(destination, field_type);
+        destination
+    }
+
+    /// Get the address of a field from a struct or tuple.
+    pub fn field_addr(
+        &mut self,
+        aggregate: Value,
+        index: u32,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::FieldAddr {
+            destination: destination.into(),
+            aggregate: aggregate.into(),
+            index,
+            result_type: result_type.into(),
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Insert a value into a struct or tuple field.
+    pub fn field_set(&mut self, aggregate: Value, index: u32, value: Value) -> Value {
+        let destination = self.allocate_value();
+        let aggregate_type = self.expect_value_type(aggregate, "field.set aggregate");
+        self.insert_instruction(Instruction::FieldSet {
+            destination: destination.into(),
+            aggregate: aggregate.into(),
+            index,
+            value: value.into(),
+        });
+        self.define_value(destination, aggregate_type);
+        destination
+    }
+
+    /// Extract an element from an array.
+    pub fn element_get(&mut self, array: Value, index: u32) -> Value {
+        let destination = self.allocate_value();
+        let array_type = self.expect_value_type(array, "element.get array");
+        let element_type = self.expect_build(self.element_type_for_array(array_type));
+        self.insert_instruction(Instruction::ElementGet {
+            destination: destination.into(),
+            array: array.into(),
+            index,
+        });
+        self.define_value(destination, element_type);
+        destination
+    }
+
+    /// Get the address of an element from an array.
+    pub fn element_addr(
+        &mut self,
+        array: Value,
+        index: Value,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::ElementAddr {
+            destination: destination.into(),
+            array: array.into(),
+            index: index.into(),
+            result_type: result_type.into(),
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Insert a value into an array element.
+    pub fn element_set(&mut self, array: Value, index: u32, value: Value) -> Value {
+        let destination = self.allocate_value();
+        let array_type = self.expect_value_type(array, "element.set array");
+        self.insert_instruction(Instruction::ElementSet {
+            destination: destination.into(),
+            array: array.into(),
+            index,
+            value: value.into(),
+        });
+        self.define_value(destination, array_type);
+        destination
+    }
+
+    /// Form a non-owning slice view over a contiguous source region.
+    pub fn slice_view(
+        &mut self,
+        source: Value,
+        start: Value,
+        length: Value,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::SliceView {
+            destination: destination.into(),
+            source: source.into(),
+            start: start.into(),
+            length: length.into(),
+            result_type: result_type.into(),
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Read the runtime length from a slice descriptor.
+    pub fn slice_length(&mut self, slice: Value) -> Value {
+        let destination = self.allocate_value();
+        let usize_type = self.ensure_usize_type();
+        self.insert_instruction(Instruction::SliceLength { destination, slice });
+        self.define_value(destination, usize_type);
+        destination
+    }
+
+    /// Read the active tag from a physical tagged sum value.
+    pub fn variant_tag(&mut self, variant: Value) -> Value {
+        let destination = self.allocate_value();
+        let variant_type = self.expect_value_type(variant, "variant.tag variant");
+        let tag_type = self.expect_build(self.variant_tag_type(variant_type));
+        self.insert_instruction(Instruction::VariantTag {
+            destination,
+            variant,
+        });
+        self.define_value(destination, tag_type);
+        destination
+    }
+
+    /// Extract the payload selected by a concrete variant tag.
+    pub fn variant_payload(&mut self, variant: Value, tag: Constant) -> Value {
+        let destination = self.allocate_value();
+        let variant_type = self.expect_value_type(variant, "variant.payload variant");
+        let payload_type = self.expect_build(self.variant_payload_type(variant_type, &tag));
+        self.insert_instruction(Instruction::VariantPayload {
+            destination,
+            variant,
+            tag,
+        });
+        self.define_value(destination, payload_type);
         destination
     }
 

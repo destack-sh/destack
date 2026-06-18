@@ -834,7 +834,7 @@ entry(v0: int64):
 
 /// Slice descriptor instruction: slice.
 #[test]
-fn test_build_slice_descriptor() {
+fn test_build_slice_view() {
     // setup
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
@@ -848,14 +848,14 @@ fn test_build_slice_descriptor() {
         Space::Local,
     );
 
-    // build function with slice
+    // build function with slice view
     let mut builder = module.function("sliceTest", &[source_type, i64_type, i64_type], slice_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let source_value = builder.function_parameter(0);
     let start_value = builder.function_parameter(1);
     let length_value = builder.function_parameter(2);
-    let slice_value = builder.slice(source_value, start_value, length_value, slice_type);
+    let slice_value = builder.slice_view(source_value, start_value, length_value, slice_type);
     builder.return_(Some(slice_value));
     builder.seal_block(entry_block);
     builder.finish().unwrap();
@@ -866,7 +866,7 @@ fn test_build_slice_descriptor() {
     let expected = "\
 function sliceTest(v0: slice<int32, managed>, v1: int64, v2: int64): slice<int32, borrowed, lifetime(0)> {
 entry(v0: slice<int32, managed>, v1: int64, v2: int64):
-    v3: slice<int32, borrowed, lifetime(0)> = slice v0, v1, v2
+    v3: slice<int32, borrowed, lifetime(0)> = slice.view v0, v1, v2
     return v3
 }";
     assert_eq!(output, expected);

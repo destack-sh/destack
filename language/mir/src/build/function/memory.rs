@@ -1,6 +1,6 @@
 use crate::build::{BuildError, BuildResult, FunctionBuilder};
 use crate::{
-    Access, Global, Instruction, Lifetime, Local, LocalNodeId, Mutability, Nullability,
+    Access, Constant, Global, Instruction, Lifetime, Local, LocalNodeId, Mutability, Nullability,
     ReferenceKind, Space, Type, Value, callable_signature, function_signature_parts,
 };
 
@@ -169,6 +169,33 @@ impl<'a> FunctionBuilder<'a> {
             },
             Type::Closure { .. } => Err(BuildError::InvalidFieldOwner { ty: aggregate_type }),
             _ => Err(BuildError::InvalidFieldOwner { ty: aggregate_type }),
+        }
+    }
+
+    /// Resolve the tag type for one variant aggregate.
+    pub(super) fn variant_tag_type(
+        &self,
+        variant_type: LocalNodeId<Type>,
+    ) -> BuildResult<LocalNodeId<Type>> {
+        match self.tree.get(variant_type) {
+            Type::Variant { tag, .. } => Ok(*tag),
+            _ => Err(BuildError::InvalidFieldOwner { ty: variant_type }),
+        }
+    }
+
+    /// Resolve the payload type for one variant case.
+    pub(super) fn variant_payload_type(
+        &self,
+        variant_type: LocalNodeId<Type>,
+        tag: &Constant,
+    ) -> BuildResult<LocalNodeId<Type>> {
+        match self.tree.get(variant_type) {
+            Type::Variant { cases, .. } => cases
+                .iter()
+                .find(|case| case.tag == *tag)
+                .map(|case| case.ty)
+                .ok_or(BuildError::InvalidFieldOwner { ty: variant_type }),
+            _ => Err(BuildError::InvalidFieldOwner { ty: variant_type }),
         }
     }
 

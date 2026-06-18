@@ -6,11 +6,11 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CastOperator, CompareExchangeAccess,
     CounterId, DispatchSlot, FenceAccess, FunctionId, Instruction, LocalNodeId, MemoryFlags,
-    MemoryOrdering, MemoryScope, Place, PlaceOrigin, Projection, SpaceSet, SyncScope,
-    TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
-    TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorIndexReduceOperator,
-    TensorIndexTieBreak, TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode,
-    Type, TypeId, UnaryOperator, Value, ValueSlice, VectorConvertMode, VectorReduceOperator,
+    MemoryOrdering, MemoryScope, SpaceSet, SyncScope, TensorConvertMode,
+    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
+    TensorGatherDimensionNumbers, TensorIndexReduceOperator, TensorIndexTieBreak,
+    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, Type, TypeId,
+    UnaryOperator, Value, ValueSlice, VectorConvertMode, VectorReduceOperator,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -92,17 +92,17 @@ impl Parser {
                 opcode_text,
                 "local.set"
                     | "store"
+                    | "tensor.store"
+                    | "tensor.fill"
+                    | "tensor.copy"
                     | "free"
-                    | "drop"
+                    | "unpin"
                     | "barrier.write"
                     | "atomic.store"
                     | "atomic.fence"
                     | "assume"
                     | "profile.increment"
                     | "profile.value"
-                    | "tensor.store"
-                    | "tensor.fill"
-                    | "tensor.copy"
             )
         {
             return Err(ParseError::invalid(
@@ -127,60 +127,6 @@ impl Parser {
                 self.eat_token(TokenType::Comma)?;
                 let value = self.parse_value_segment(&mut segment_spans)?;
                 Instruction::Store { pointer, value }
-            }
-            "unpin" => {
-                let value = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::Unpin { value }
-            }
-            "drop" => {
-                let (place, span) = self.parse_place_part()?;
-                segment_spans.push(span);
-                Instruction::Drop { place }
-            }
-            "free" => {
-                let value = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::Free { value }
-            }
-            "barrier.write" => {
-                let object = self.parse_value_segment(&mut segment_spans)?;
-                self.eat_token(TokenType::Comma)?;
-                let offset = self.parse_value_segment(&mut segment_spans)?;
-                self.eat_token(TokenType::Comma)?;
-                let byte_len = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::BarrierWrite {
-                    object,
-                    offset,
-                    byte_len,
-                }
-            }
-            "atomic.store" => {
-                let pointer = self.parse_value_segment(&mut segment_spans)?;
-                self.eat_token(TokenType::Comma)?;
-                let value = self.parse_value_segment(&mut segment_spans)?;
-                let access = self.parse_atomic_access()?;
-                Instruction::AtomicStore {
-                    pointer,
-                    value,
-                    access,
-                }
-            }
-            "atomic.fence" => {
-                let access = self.parse_fence_access()?;
-                Instruction::AtomicFence { access }
-            }
-            "assume" => {
-                let condition = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::Assume { condition }
-            }
-            "profile.increment" => {
-                let counter = self.parse_profile_counter_segment(&mut segment_spans)?;
-                Instruction::ProfileIncrement { counter }
-            }
-            "profile.value" => {
-                let counter = self.parse_profile_counter_segment(&mut segment_spans)?;
-                self.eat_token(TokenType::Comma)?;
-                let value = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::ProfileValue { counter, value }
             }
 
             // tensor side effects
@@ -256,6 +202,65 @@ impl Parser {
                     call: Call::new(arguments, signature),
                 }
             }
+
+            // allocation and frame protocol
+            "free" => {
+                let value = self.parse_value_segment(&mut segment_spans)?;
+                Instruction::Free { value }
+            }
+            "unpin" => {
+                let value = self.parse_value_segment(&mut segment_spans)?;
+                Instruction::Unpin { value }
+            }
+            "barrier.write" => {
+                let object = self.parse_value_segment(&mut segment_spans)?;
+                self.eat_token(TokenType::Comma)?;
+                let offset = self.parse_value_segment(&mut segment_spans)?;
+                self.eat_token(TokenType::Comma)?;
+                let byte_len = self.parse_value_segment(&mut segment_spans)?;
+                Instruction::BarrierWrite {
+                    object,
+                    offset,
+                    byte_len,
+                }
+            }
+
+            // atomic memory operations
+            "atomic.store" => {
+                let pointer = self.parse_value_segment(&mut segment_spans)?;
+                self.eat_token(TokenType::Comma)?;
+                let value = self.parse_value_segment(&mut segment_spans)?;
+                let access = self.parse_atomic_access()?;
+                Instruction::AtomicStore {
+                    pointer,
+                    value,
+                    access,
+                }
+            }
+            "atomic.fence" => {
+                let access = self.parse_fence_access()?;
+                Instruction::AtomicFence { access }
+            }
+
+            // assumptions and hints
+            "assume" => {
+                let condition = self.parse_value_segment(&mut segment_spans)?;
+                Instruction::Assume { condition }
+            }
+
+            // profile instrumentation
+            "profile.increment" => {
+                let counter = self.parse_profile_counter_segment(&mut segment_spans)?;
+                Instruction::ProfileIncrement { counter }
+            }
+            "profile.value" => {
+                let counter = self.parse_profile_counter_segment(&mut segment_spans)?;
+                self.eat_token(TokenType::Comma)?;
+                let value = self.parse_value_segment(&mut segment_spans)?;
+                Instruction::ProfileValue { counter, value }
+            }
+
+            // intrinsics
             _ if opcode_text.starts_with("intrinsic.") => {
                 let intrinsic = self.parse_intrinsic_name(opcode_text, opcode_start)?;
                 let arguments = self.parse_call_argument_segments(&mut segment_spans)?;
@@ -350,15 +355,6 @@ impl Parser {
                             result_type: destination_type,
                         }
                     }
-                    "pin" => {
-                        let value = self.parse_value_segment(&mut segment_spans)?;
-                        Instruction::Pin {
-                            destination,
-                            value,
-                            result_type: destination_type,
-                        }
-                    }
-
                     // global operations
                     "global.address" => {
                         let global = self.parse_global_segment(&mut segment_spans)?;
@@ -397,7 +393,39 @@ impl Parser {
                         }
                     }
 
-                    // aggregate operations
+                    // aggregate construction
+                    "struct" => {
+                        let ty = self.parse_type_segment(&mut segment_spans)?;
+                        let fields = self.parse_call_argument_segments(&mut segment_spans)?;
+                        let fields = self.tree.add_values(&fields);
+                        Instruction::Struct {
+                            destination,
+                            ty: ty.into(),
+                            fields,
+                        }
+                    }
+                    "tuple" => {
+                        let ty = self.parse_type_segment(&mut segment_spans)?;
+                        let elements = self.parse_call_argument_segments(&mut segment_spans)?;
+                        let elements = self.tree.add_values(&elements);
+                        Instruction::Tuple {
+                            destination,
+                            ty: ty.into(),
+                            elements,
+                        }
+                    }
+                    "array" => {
+                        let ty = self.parse_type_segment(&mut segment_spans)?;
+                        let elements = self.parse_call_argument_segments(&mut segment_spans)?;
+                        let elements = self.tree.add_values(&elements);
+                        Instruction::Array {
+                            destination,
+                            ty: ty.into(),
+                            elements,
+                        }
+                    }
+
+                    // field and element access
                     "field.get" => {
                         let aggregate = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
@@ -461,20 +489,6 @@ impl Parser {
                             result_type: destination_type,
                         }
                     }
-                    "slice" => {
-                        let source = self.parse_value_segment(&mut segment_spans)?;
-                        self.eat_token(TokenType::Comma)?;
-                        let start = self.parse_value_segment(&mut segment_spans)?;
-                        self.eat_token(TokenType::Comma)?;
-                        let length = self.parse_value_segment(&mut segment_spans)?;
-                        Instruction::Slice {
-                            destination,
-                            source,
-                            start,
-                            length,
-                            result_type: destination_type,
-                        }
-                    }
                     "element.set" => {
                         let array = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
@@ -490,36 +504,46 @@ impl Parser {
                             value,
                         }
                     }
-                    "struct" => {
-                        let ty = self.parse_type_segment(&mut segment_spans)?;
-                        let fields = self.parse_call_argument_segments(&mut segment_spans)?;
-                        let fields = self.tree.add_values(&fields);
-                        Instruction::Struct {
+
+                    // slice descriptors
+                    "slice.view" => {
+                        let source = self.parse_value_segment(&mut segment_spans)?;
+                        self.eat_token(TokenType::Comma)?;
+                        let start = self.parse_value_segment(&mut segment_spans)?;
+                        self.eat_token(TokenType::Comma)?;
+                        let length = self.parse_value_segment(&mut segment_spans)?;
+                        Instruction::SliceView {
                             destination,
-                            ty,
-                            fields,
+                            source,
+                            start,
+                            length,
+                            result_type: destination_type.into(),
                         }
                     }
-                    "tuple" => {
-                        let ty = self.parse_type_segment(&mut segment_spans)?;
-                        let elements = self.parse_call_argument_segments(&mut segment_spans)?;
-                        let elements = self.tree.add_values(&elements);
-                        Instruction::Tuple {
+                    "slice.length" => {
+                        let slice = self.parse_value_segment(&mut segment_spans)?;
+                        Instruction::SliceLength { destination, slice }
+                    }
+
+                    // variant representation
+                    "variant.tag" => {
+                        let variant = self.parse_value_segment(&mut segment_spans)?;
+                        Instruction::VariantTag {
                             destination,
-                            ty,
-                            elements,
+                            variant,
                         }
                     }
-                    "array" => {
-                        let ty = self.parse_type_segment(&mut segment_spans)?;
-                        let elements = self.parse_call_argument_segments(&mut segment_spans)?;
-                        let elements = self.tree.add_values(&elements);
-                        Instruction::Array {
+                    "variant.payload" => {
+                        let variant = self.parse_value_segment(&mut segment_spans)?;
+                        self.eat_token(TokenType::Comma)?;
+                        let tag = self.parse_constant()?;
+                        Instruction::VariantPayload {
                             destination,
-                            ty,
-                            elements,
+                            variant,
+                            tag,
                         }
                     }
+
                     // vector operations
                     "vector.splat" => {
                         let value = self.parse_value_segment(&mut segment_spans)?;
@@ -1006,6 +1030,16 @@ impl Parser {
                         }
                     }
 
+                    // address stability
+                    "pin" => {
+                        let value = self.parse_value_segment(&mut segment_spans)?;
+                        Instruction::Pin {
+                            destination,
+                            value,
+                            result_type: destination_type.into(),
+                        }
+                    }
+
                     // atomic memory operations
                     "atomic.load" => {
                         let pointer = self.parse_value()?;
@@ -1299,115 +1333,6 @@ impl Parser {
         };
 
         Ok(*value)
-    }
-
-    /// Parse one MIR place.
-    fn parse_place_part(&mut self) -> ParseResult<(Place, Span)> {
-        let start = self.pos();
-        if !self.eat_identifier_text("place") {
-            let (value, span) = self.parse_value_reference_part()?;
-
-            return Ok((Place::value(value), span));
-        }
-
-        self.eat_token(TokenType::OpenParenthesis)?;
-        let origin = self.parse_place_origin()?;
-        let mut place = Place::new(origin);
-
-        while self.eat_token_maybe(TokenType::Comma) {
-            let projection = self.parse_place_projection()?;
-            place.push(projection);
-        }
-
-        self.eat_token(TokenType::CloseParenthesis)?;
-
-        Ok((place, self.span_from_parse_start(start)))
-    }
-
-    /// Parse one MIR place origin.
-    fn parse_place_origin(&mut self) -> ParseResult<PlaceOrigin> {
-        let token = self
-            .peek()
-            .ok_or_else(|| ParseError::unexpected_end("place origin", self.pos()))?;
-
-        match self.token_type(token) {
-            TokenType::Identifier => {
-                let name = self.tree.source_text(token.span).to_string();
-                if let Some(value) = self.value_name_map.get(&name).copied() {
-                    self.bump();
-
-                    return Ok(PlaceOrigin::Value(value));
-                }
-
-                if let Some(local) = self.local_name_map.get(&name).copied() {
-                    self.bump();
-
-                    return Ok(PlaceOrigin::Local(local));
-                }
-
-                let (global, _) = self.parse_global_reference_part()?;
-
-                Ok(PlaceOrigin::Global(global))
-            }
-            _ => Err(ParseError::unexpected_token("place origin", token)),
-        }
-    }
-
-    /// Parse one MIR place projection.
-    fn parse_place_projection(&mut self) -> ParseResult<Projection> {
-        if self.eat_identifier_text("field") {
-            self.eat_token(TokenType::OpenParenthesis)?;
-            let index = self.parse_int_literal()?;
-            let index =
-                u32::try_from(index).map_err(|_| ParseError::invalid("place index", self.pos()))?;
-            self.eat_token(TokenType::CloseParenthesis)?;
-
-            return Ok(Projection::Field { index });
-        }
-
-        if self.eat_identifier_text("element") {
-            self.eat_token(TokenType::OpenParenthesis)?;
-            if self.eat_identifier_text("any") {
-                self.eat_token(TokenType::CloseParenthesis)?;
-
-                return Ok(Projection::AnyElement);
-            }
-
-            let index = self.parse_int_literal()?;
-            let index =
-                u32::try_from(index).map_err(|_| ParseError::invalid("place index", self.pos()))?;
-            self.eat_token(TokenType::CloseParenthesis)?;
-
-            return Ok(Projection::Element { index });
-        }
-
-        if self.eat_identifier_text("index") {
-            self.eat_token(TokenType::OpenParenthesis)?;
-            let index = self.parse_value()?;
-            self.eat_token(TokenType::CloseParenthesis)?;
-
-            return Ok(Projection::Index { index });
-        }
-
-        if self.eat_identifier_text("slice") {
-            self.eat_token(TokenType::OpenParenthesis)?;
-            let start = self.parse_value()?;
-            self.eat_token(TokenType::Comma)?;
-            let length = self.parse_value()?;
-            self.eat_token(TokenType::CloseParenthesis)?;
-
-            return Ok(Projection::Slice { start, length });
-        }
-
-        if self.eat_identifier_text("variant") {
-            self.eat_token(TokenType::OpenParenthesis)?;
-            let tag = self.parse_constant()?;
-            self.eat_token(TokenType::CloseParenthesis)?;
-
-            return Ok(Projection::Variant { tag });
-        }
-
-        Err(ParseError::invalid("place projection", self.pos()))
     }
 
     /// Parse one named group header like `name(`.
@@ -2013,7 +1938,7 @@ impl Parser {
         self.eat_token(TokenType::Colon)?;
         let parameters = self.parse_parenthesized_type_parameters()?;
         self.eat_token(TokenType::FatArrow)?;
-        let result = self.parse_type()?;
+        let (result, _) = self.parse_type_use_part()?;
         let signature_span = self.span_from_parse_start(signature_start);
         segment_spans.push(signature_span);
 

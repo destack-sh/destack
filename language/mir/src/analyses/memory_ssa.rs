@@ -770,16 +770,19 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::ClosureBind { .. }
             | mir::Instruction::ClosureEnvironment { .. }
             | mir::Instruction::LocalAddr { .. }
+            | mir::Instruction::Struct { .. }
+            | mir::Instruction::Tuple { .. }
+            | mir::Instruction::Array { .. }
             | mir::Instruction::FieldGet { .. }
             | mir::Instruction::FieldAddr { .. }
             | mir::Instruction::FieldSet { .. }
             | mir::Instruction::ElementGet { .. }
             | mir::Instruction::ElementAddr { .. }
             | mir::Instruction::ElementSet { .. }
-            | mir::Instruction::Struct { .. }
-            | mir::Instruction::Tuple { .. }
-            | mir::Instruction::Array { .. }
-            | mir::Instruction::Slice { .. }
+            | mir::Instruction::SliceView { .. }
+            | mir::Instruction::SliceLength { .. }
+            | mir::Instruction::VariantTag { .. }
+            | mir::Instruction::VariantPayload { .. }
             | mir::Instruction::VectorSplat { .. }
             | mir::Instruction::VectorExtract { .. }
             | mir::Instruction::VectorInsert { .. }
@@ -1009,7 +1012,6 @@ impl<'a> MemoryAccessCollector<'a> {
             }
             mir::Instruction::CallIndirect { .. } => self.call_effects(instruction_id, instruction),
             mir::Instruction::Free { .. }
-            | mir::Instruction::Drop { .. }
             | mir::Instruction::Pin { .. }
             | mir::Instruction::Unpin { .. }
             | mir::Instruction::NewZeroed { .. }
@@ -2207,14 +2209,14 @@ entry:
         assert_eq!(memory_ssa.defining_access(load_access), Some(store_access));
     }
 
-    /// Drop effects are modeled as unknown read and write accesses.
+    /// Free effects are modeled as unknown read and write accesses.
     #[test]
-    fn test_memory_ssa_drop_effect_unknown() {
+    fn test_memory_ssa_free_effect_unknown() {
         let test = TestProgram::new(
             r#"
-function test(v0: int32): int32 {
-entry(v0: int32):
-    drop v0
+function test(v0: ref<int32, unique>): int32 {
+entry(v0: ref<int32, unique>):
+    free v0
     v1: int32 = 0
     return v1
 }
@@ -2223,17 +2225,17 @@ entry(v0: int32):
 
         let function_id = test.first_function_id();
         let instructions = test.entry_instructions(function_id);
-        let drop_inst = instructions[0];
+        let free_inst = instructions[0];
 
         let function = test.tree.get(function_id);
         let analyses = test.function_analyses();
         let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
         let memory_ssa = memory_ssa.as_ref();
 
-        let drop_access = memory_ssa
-            .access_for_instruction(drop_inst)
-            .expect("missing drop access");
-        let effect = access_effect(memory_ssa, drop_access);
+        let free_access = memory_ssa
+            .access_for_instruction(free_inst)
+            .expect("missing free access");
+        let effect = access_effect(memory_ssa, free_access);
 
         assert!(effect.reads);
         assert!(effect.writes);

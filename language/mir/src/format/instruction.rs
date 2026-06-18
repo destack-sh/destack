@@ -256,85 +256,70 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
-            Instruction::TensorStore {
-                view,
-                indices,
-                value,
-            } => {
-                write!(
-                    f,
-                    [token("tensor.store"), space(), view, token(","), space()]
-                )?;
-                let args = f.context().tree.get_values(*indices);
-                format_value_bracket_list(args, f)?;
-                write!(f, [token(","), space(), value])
-            }
-
-            Instruction::TensorFill { view, value } => {
-                write!(
-                    f,
-                    [
-                        token("tensor.fill"),
-                        space(),
-                        view,
-                        token(","),
-                        space(),
-                        value
-                    ]
-                )
-            }
-
-            Instruction::TensorCopy { target, source } => {
-                write!(
-                    f,
-                    [
-                        token("tensor.copy"),
-                        space(),
-                        target,
-                        token(","),
-                        space(),
-                        source
-                    ]
-                )
-            }
-
-            Instruction::Pin {
-                destination, value, ..
+            Instruction::Struct {
+                destination,
+                ty,
+                fields,
             } => {
                 format_typed_destination(*destination, f)?;
                 write!(
                     f,
-                    [space(), token("="), space(), token("pin"), space(), value]
-                )
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("struct"),
+                        space(),
+                        ty,
+                        space()
+                    ]
+                )?;
+                let args = f.context().tree.get_values(*fields);
+                format_value_list(args, f)
             }
 
-            Instruction::Unpin { value } => write!(f, [token("unpin"), space(), value]),
+            Instruction::Tuple {
+                destination,
+                ty,
+                elements,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("tuple"),
+                        space(),
+                        ty,
+                        space()
+                    ]
+                )?;
+                let args = f.context().tree.get_values(*elements);
+                format_value_list(args, f)
+            }
 
-            Instruction::Free { value } => write!(f, [token("free"), space(), value]),
-
-            Instruction::Drop { place } => write!(f, [token("drop"), space(), place]),
-
-            Instruction::BarrierWrite {
-                object,
-                offset,
-                byte_len,
-            } => write!(
-                f,
-                [
-                    token("barrier.write"),
-                    space(),
-                    object,
-                    token(","),
-                    space(),
-                    offset,
-                    token(","),
-                    space(),
-                    byte_len
-                ]
-            ),
-
-            Instruction::Assume { condition } => {
-                write!(f, [token("assume"), space(), condition])
+            Instruction::Array {
+                destination,
+                ty,
+                elements,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("array"),
+                        space(),
+                        ty,
+                        space()
+                    ]
+                )?;
+                let args = f.context().tree.get_values(*elements);
+                format_value_list(args, f)
             }
 
             Instruction::FieldGet {
@@ -453,33 +438,6 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
-            Instruction::Slice {
-                destination,
-                source,
-                start,
-                length,
-                ..
-            } => {
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        token("slice"),
-                        space(),
-                        source,
-                        token(","),
-                        space(),
-                        start,
-                        token(","),
-                        space(),
-                        length
-                    ]
-                )
-            }
-
             Instruction::ElementSet {
                 destination,
                 array,
@@ -506,10 +464,12 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
-            Instruction::Struct {
+            Instruction::SliceView {
                 destination,
-                ty,
-                fields,
+                source,
+                start,
+                length,
+                ..
             } => {
                 format_typed_destination(*destination, f)?;
                 write!(
@@ -518,21 +478,20 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("struct"),
+                        token("slice.view"),
                         space(),
-                        ty,
-                        space()
+                        source,
+                        token(","),
+                        space(),
+                        start,
+                        token(","),
+                        space(),
+                        length
                     ]
-                )?;
-                let args = f.context().tree.get_values(*fields);
-                format_value_list(args, f)
+                )
             }
 
-            Instruction::Tuple {
-                destination,
-                ty,
-                elements,
-            } => {
+            Instruction::SliceLength { destination, slice } => {
                 format_typed_destination(*destination, f)?;
                 write!(
                     f,
@@ -540,20 +499,16 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("tuple"),
+                        token("slice.length"),
                         space(),
-                        ty,
-                        space()
+                        slice
                     ]
-                )?;
-                let args = f.context().tree.get_values(*elements);
-                format_value_list(args, f)
+                )
             }
 
-            Instruction::Array {
+            Instruction::VariantTag {
                 destination,
-                ty,
-                elements,
+                variant,
             } => {
                 format_typed_destination(*destination, f)?;
                 write!(
@@ -562,14 +517,33 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("array"),
+                        token("variant.tag"),
                         space(),
-                        ty,
-                        space()
+                        variant
                     ]
-                )?;
-                let args = f.context().tree.get_values(*elements);
-                format_value_list(args, f)
+                )
+            }
+
+            Instruction::VariantPayload {
+                destination,
+                variant,
+                tag,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("variant.payload"),
+                        space(),
+                        variant,
+                        token(","),
+                        space(),
+                        tag
+                    ]
+                )
             }
 
             Instruction::VectorSplat { destination, value } => {
@@ -813,6 +787,48 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )?;
                 let args = f.context().tree.get_values(*indices);
                 format_value_bracket_list(args, f)
+            }
+
+            Instruction::TensorStore {
+                view,
+                indices,
+                value,
+            } => {
+                write!(
+                    f,
+                    [token("tensor.store"), space(), view, token(","), space()]
+                )?;
+                let args = f.context().tree.get_values(*indices);
+                format_value_bracket_list(args, f)?;
+                write!(f, [token(","), space(), value])
+            }
+
+            Instruction::TensorFill { view, value } => {
+                write!(
+                    f,
+                    [
+                        token("tensor.fill"),
+                        space(),
+                        view,
+                        token(","),
+                        space(),
+                        value
+                    ]
+                )
+            }
+
+            Instruction::TensorCopy { target, source } => {
+                write!(
+                    f,
+                    [
+                        token("tensor.copy"),
+                        space(),
+                        target,
+                        token(","),
+                        space(),
+                        source
+                    ]
+                )
             }
 
             Instruction::TensorReshape {
@@ -1488,6 +1504,8 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
+            Instruction::Free { value } => write!(f, [token("free"), space(), value]),
+
             Instruction::FrameAllocZeroed {
                 destination,
                 layout,
@@ -1525,6 +1543,37 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                     ]
                 )
             }
+
+            Instruction::Pin {
+                destination, value, ..
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [space(), token("="), space(), token("pin"), space(), value]
+                )
+            }
+
+            Instruction::Unpin { value } => write!(f, [token("unpin"), space(), value]),
+
+            Instruction::BarrierWrite {
+                object,
+                offset,
+                byte_len,
+            } => write!(
+                f,
+                [
+                    token("barrier.write"),
+                    space(),
+                    object,
+                    token(","),
+                    space(),
+                    offset,
+                    token(","),
+                    space(),
+                    byte_len
+                ]
+            ),
 
             Instruction::AtomicLoad {
                 destination,
@@ -1624,6 +1673,10 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             Instruction::AtomicFence { access } => {
                 write!(f, [token("atomic.fence")])?;
                 format_fence_access(*access, f)
+            }
+
+            Instruction::Assume { condition } => {
+                write!(f, [token("assume"), space(), condition])
             }
 
             Instruction::ProfileIncrement { counter } => {

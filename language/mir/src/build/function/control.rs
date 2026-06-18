@@ -1,7 +1,7 @@
 use crate::build::FunctionBuilder;
 use crate::{
     Block, BlockTarget, Call, CallSite, CheckConstraint, DispatchSlot, Function, LocalNodeId,
-    Terminator, TrapKind, Type, Value,
+    SwitchCase, Terminator, TrapKind, Type, Value,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -51,6 +51,40 @@ impl<'a> FunctionBuilder<'a> {
             condition: condition_value,
             then_target: BlockTarget::new(then_block, then_arguments),
             else_target: BlockTarget::new(else_block, else_arguments),
+        };
+    }
+
+    /// Switch on an integer value.
+    pub fn switch(
+        &mut self,
+        value: Value,
+        default_block: LocalNodeId<Block>,
+        cases: Vec<(i128, LocalNodeId<Block>)>,
+    ) {
+        let block = self.current_block();
+        self.add_predecessor(block, default_block);
+        let default_arguments = self.tree.add_values(&[]);
+        let cases = cases
+            .into_iter()
+            .map(|(value, target_block)| {
+                self.add_predecessor(block, target_block);
+                let target_arguments = self.tree.add_values(&[]);
+
+                SwitchCase {
+                    value,
+                    target: BlockTarget::new(target_block.into(), target_arguments),
+                }
+            })
+            .collect::<Vec<_>>();
+        let cases = self.tree.add_switch_cases(&cases);
+
+        let terminator_id = self.tree.get(block).terminator;
+        let terminator = self.tree.get_mut(terminator_id);
+
+        *terminator = Terminator::Switch {
+            value: value.into(),
+            default: BlockTarget::new(default_block.into(), default_arguments),
+            cases,
         };
     }
 
