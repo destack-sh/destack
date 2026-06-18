@@ -118,7 +118,7 @@ impl<'layout, 'table> Pool<'layout, 'table> {
     /// Return one parameter move range from the pool.
     pub(super) fn parameter_move_range(
         &mut self,
-        parameters: &[mir::Parameter],
+        parameters: &[mir::FunctionParameter],
         arguments: &[mir::Value],
     ) -> Result<MoveRange> {
         let frame_layout = self.frame_layout;
@@ -307,7 +307,7 @@ fn move_range(
 fn parameter_move_range(
     frame_layout: &program::FrameLayout,
     pool: &mut Vec<MovePair>,
-    parameters: &[mir::Parameter],
+    parameters: &[mir::FunctionParameter],
     arguments: &[mir::Value],
 ) -> Result<MoveRange> {
     // empty move range
