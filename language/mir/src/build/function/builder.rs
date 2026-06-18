@@ -38,7 +38,7 @@ pub struct FunctionBuilder<'a> {
     /// The tree this function is being built in.
     pub(super) tree: &'a mut Tree,
     /// The string pool used for generated MIR names.
-    pub(super) strings: &'a mut StringPool,
+    pub(super) strings: &'a StringPool,
     /// The id of the function being built.
     pub(super) function_id: LocalNodeId<Function>,
     /// Current block we're inserting into.
@@ -69,7 +69,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Create a new function builder.
     pub fn new(
         tree: &'a mut Tree,
-        strings: &'a mut StringPool,
+        strings: &'a StringPool,
         name: StringId,
         parameter_types: &[LocalNodeId<Type>],
         return_type: LocalNodeId<Type>,
@@ -126,7 +126,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Create a function builder for an existing declared function.
     pub fn from_declared(
         tree: &'a mut Tree,
-        strings: &'a mut StringPool,
+        strings: &'a StringPool,
         function_id: LocalNodeId<Function>,
     ) -> BuildResult<Self> {
         // validate the declared function is still empty

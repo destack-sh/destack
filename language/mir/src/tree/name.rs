@@ -5,7 +5,7 @@ use crate::{Function, LocalNodeId, Tree, Value};
 /// Finalize missing block and SSA value names for one function.
 pub(crate) fn finalize_function_names(
     tree: &mut Tree,
-    strings: &mut StringPool,
+    strings: &StringPool,
     function_id: LocalNodeId<Function>,
 ) {
     let function = tree.get(function_id).clone();
