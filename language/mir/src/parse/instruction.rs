@@ -33,7 +33,7 @@ impl Parser {
                 self.parse_typed_destination_parts()?;
             self.record_value_type(parsed_destination, parsed_type)?;
             self.eat_token(TokenType::Equal)?;
-            destination = Some(parsed_destination.into());
+            destination = Some(parsed_destination);
             destination_type = Some(parsed_type);
             destination_span = Some(parsed_span);
             destination_type_span = Some(parsed_type_span);
@@ -318,7 +318,7 @@ impl Parser {
                             destination,
                             operator,
                             argument,
-                            to_type: to_type.into(),
+                            to_type,
                         }
                     }
 
@@ -347,7 +347,7 @@ impl Parser {
                         Instruction::LocalAddr {
                             destination,
                             local,
-                            result_type: destination_type.into(),
+                            result_type: destination_type,
                         }
                     }
                     "pin" => {
@@ -355,7 +355,7 @@ impl Parser {
                         Instruction::Pin {
                             destination,
                             value,
-                            result_type: destination_type.into(),
+                            result_type: destination_type,
                         }
                     }
 
@@ -365,7 +365,7 @@ impl Parser {
                         Instruction::GlobalAddr {
                             destination,
                             global,
-                            result_type: destination_type.into(),
+                            result_type: destination_type,
                         }
                     }
                     "function.address" => {
@@ -393,7 +393,7 @@ impl Parser {
                         Instruction::Load {
                             destination,
                             pointer,
-                            result_type: destination_type.into(),
+                            result_type: destination_type,
                         }
                     }
 
@@ -420,7 +420,7 @@ impl Parser {
                             destination,
                             aggregate,
                             index,
-                            result_type: destination_type.into(),
+                            result_type: destination_type,
                         }
                     }
                     "field.set" => {
@@ -458,7 +458,7 @@ impl Parser {
                             destination,
                             array,
                             index,
-                            result_type: destination_type.into(),
+                            result_type: destination_type,
                         }
                     }
                     "slice" => {
@@ -472,7 +472,7 @@ impl Parser {
                             source,
                             start,
                             length,
-                            result_type: destination_type.into(),
+                            result_type: destination_type,
                         }
                     }
                     "element.set" => {
@@ -496,7 +496,7 @@ impl Parser {
                         let fields = self.tree.add_values(&fields);
                         Instruction::Struct {
                             destination,
-                            ty: ty.into(),
+                            ty,
                             fields,
                         }
                     }
@@ -506,7 +506,7 @@ impl Parser {
                         let elements = self.tree.add_values(&elements);
                         Instruction::Tuple {
                             destination,
-                            ty: ty.into(),
+                            ty,
                             elements,
                         }
                     }
@@ -516,7 +516,7 @@ impl Parser {
                         let elements = self.tree.add_values(&elements);
                         Instruction::Array {
                             destination,
-                            ty: ty.into(),
+                            ty,
                             elements,
                         }
                     }
@@ -947,16 +947,16 @@ impl Parser {
                         let layout = self.parse_type()?;
                         Instruction::NewZeroed {
                             destination,
-                            layout: layout.into(),
-                            result_type: destination_type.into(),
+                            layout,
+                            result_type: destination_type,
                         }
                     }
                     "new.uninit" => {
                         let layout = self.parse_type()?;
                         Instruction::NewUninit {
                             destination,
-                            layout: layout.into(),
-                            result_type: destination_type.into(),
+                            layout,
+                            result_type: destination_type,
                         }
                     }
                     "new.complete" => {
@@ -964,7 +964,7 @@ impl Parser {
                         Instruction::NewComplete {
                             destination,
                             value,
-                            result_type: destination_type.into(),
+                            result_type: destination_type,
                         }
                     }
                     "new.slice.zeroed" => {
@@ -973,9 +973,9 @@ impl Parser {
                         let length = self.parse_value()?;
                         Instruction::NewSliceZeroed {
                             destination,
-                            element: element.into(),
+                            element,
                             length,
-                            result_type: destination_type.into(),
+                            result_type: destination_type,
                         }
                     }
                     "new.slice.uninit" => {
@@ -984,25 +984,25 @@ impl Parser {
                         let length = self.parse_value()?;
                         Instruction::NewSliceUninit {
                             destination,
-                            element: element.into(),
+                            element,
                             length,
-                            result_type: destination_type.into(),
+                            result_type: destination_type,
                         }
                     }
                     "frame.alloc.zeroed" => {
                         let layout = self.parse_type()?;
                         Instruction::FrameAllocZeroed {
                             destination,
-                            layout: layout.into(),
-                            result_type: destination_type.into(),
+                            layout,
+                            result_type: destination_type,
                         }
                     }
                     "frame.alloc.uninit" => {
                         let layout = self.parse_type()?;
                         Instruction::FrameAllocUninit {
                             destination,
-                            layout: layout.into(),
-                            result_type: destination_type.into(),
+                            layout,
+                            result_type: destination_type,
                         }
                     }
 
@@ -1013,7 +1013,7 @@ impl Parser {
                         Instruction::AtomicLoad {
                             destination,
                             pointer,
-                            result_type: destination_type.into(),
+                            result_type: destination_type,
                             access,
                         }
                     }
@@ -1336,13 +1336,13 @@ impl Parser {
                 if let Some(value) = self.value_name_map.get(&name).copied() {
                     self.bump();
 
-                    return Ok(PlaceOrigin::Value(value.into()));
+                    return Ok(PlaceOrigin::Value(value));
                 }
 
                 if let Some(local) = self.local_name_map.get(&name).copied() {
                     self.bump();
 
-                    return Ok(PlaceOrigin::Local(local.into()));
+                    return Ok(PlaceOrigin::Local(local));
                 }
 
                 let (global, _) = self.parse_global_reference_part()?;
@@ -1923,18 +1923,16 @@ impl Parser {
         let parameters = function
             .parameters
             .iter()
-            .map(|parameter| parameter.ty.clone())
+            .map(|parameter| parameter.ty)
             .collect();
-        let result = function.return_type.clone();
+        let result = function.return_type;
         let borrow_obligations = function.borrow_obligations.clone();
 
-        Ok(self
-            .intern_type(Type::FunctionSignature {
-                parameters,
-                result,
-                borrow_obligations,
-            })?
-            .into())
+        self.intern_type(Type::FunctionSignature {
+            parameters,
+            result,
+            borrow_obligations,
+        })
     }
 
     /// Parse one virtual call target and signature.
@@ -1961,7 +1959,7 @@ impl Parser {
         let arguments = self.parse_call_argument_segments(segment_spans)?;
         let signature = self.parse_required_call_signature_segment(segment_spans)?;
 
-        Ok((receiver, class.into(), slot, arguments, signature))
+        Ok((receiver, class, slot, arguments, signature))
     }
 
     /// Parse one dynamic call target and signature.
@@ -1988,7 +1986,7 @@ impl Parser {
         let arguments = self.parse_call_argument_segments(segment_spans)?;
         let signature = self.parse_required_call_signature_segment(segment_spans)?;
 
-        Ok((receiver, constraint.into(), slot, arguments, signature))
+        Ok((receiver, constraint, slot, arguments, signature))
     }
 
     /// Parse one indirect call target and signature.
@@ -2022,7 +2020,7 @@ impl Parser {
 
         let mut parameters = Vec::new();
         while !self.peek_token(TokenType::CloseParenthesis) {
-            parameters.push(self.parse_type()?.into());
+            parameters.push(self.parse_type()?);
             if !self.eat_token_maybe(TokenType::Comma) {
                 break;
             }
@@ -2035,13 +2033,11 @@ impl Parser {
         segment_spans.push(signature_span);
         let borrow_obligations = self.parse_borrow_obligations()?;
 
-        Ok(self
-            .intern_type(Type::FunctionSignature {
-                parameters,
-                result: result.into(),
-                borrow_obligations,
-            })?
-            .into())
+        self.intern_type(Type::FunctionSignature {
+            parameters,
+            result,
+            borrow_obligations,
+        })
     }
 
     /// Parse one atomic access suffix.

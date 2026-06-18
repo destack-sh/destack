@@ -84,7 +84,7 @@ impl<'a> FunctionBuilder<'a> {
                 let value = Value::new(next_value_id);
                 next_value_id += 1;
                 Parameter {
-                    value: value,
+                    value,
                     ty: TypeId::from(ty),
                 }
             })

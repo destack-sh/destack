@@ -13,7 +13,7 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::Return {
-            value: return_value.map(Into::into),
+            value: return_value,
         };
     }
 
@@ -27,7 +27,7 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::Jump {
-            target: BlockTarget::new(target_block.into(), arguments),
+            target: BlockTarget::new(target_block, arguments),
         };
     }
 
@@ -48,9 +48,9 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::Branch {
-            condition: condition_value.into(),
-            then_target: BlockTarget::new(then_block.into(), then_arguments),
-            else_target: BlockTarget::new(else_block.into(), else_arguments),
+            condition: condition_value,
+            then_target: BlockTarget::new(then_block, then_arguments),
+            else_target: BlockTarget::new(else_block, else_arguments),
         };
     }
 
@@ -72,8 +72,8 @@ impl<'a> FunctionBuilder<'a> {
 
         *terminator = Terminator::Check {
             constraint,
-            success: BlockTarget::new(success_block.into(), success_arguments),
-            failure: BlockTarget::new(failure_block.into(), failure_arguments),
+            success: BlockTarget::new(success_block, success_arguments),
+            failure: BlockTarget::new(failure_block, failure_arguments),
         };
     }
 
@@ -95,9 +95,7 @@ impl<'a> FunctionBuilder<'a> {
         let terminator_id = self.tree.get(block).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
-        *terminator = Terminator::Panic {
-            payload: payload.map(Into::into),
-        };
+        *terminator = Terminator::Panic { payload };
     }
 
     /// Continue the active unwind after cleanup.
@@ -127,9 +125,9 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::Call {
-            function: function.into(),
-            call: Call::new(arguments, signature.into()),
-            target: BlockTarget::new(target_block.into(), target_arguments),
+            function,
+            call: Call::new(arguments, signature),
+            target: BlockTarget::new(target_block, target_arguments),
             unwind: None,
         };
     }
@@ -152,9 +150,9 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::CallIndirect {
-            callee: callee.into(),
-            call: Call::new(arguments, signature.into()),
-            target: BlockTarget::new(target_block.into(), target_arguments),
+            callee,
+            call: Call::new(arguments, signature),
+            target: BlockTarget::new(target_block, target_arguments),
             unwind: None,
         };
     }
@@ -180,11 +178,11 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::CallVirtual {
-            receiver: receiver.into(),
-            class: class.into(),
+            receiver,
+            class,
             slot,
-            call: Call::new(arguments, signature.into()),
-            target: BlockTarget::new(target_block.into(), target_arguments),
+            call: Call::new(arguments, signature),
+            target: BlockTarget::new(target_block, target_arguments),
             unwind: None,
         };
         if let Some(target) = target {
@@ -216,11 +214,11 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::CallDynamic {
-            receiver: receiver.into(),
-            constraint: constraint.into(),
+            receiver,
+            constraint,
             slot,
-            call: Call::new(arguments, signature.into()),
-            target: BlockTarget::new(target_block.into(), target_arguments),
+            call: Call::new(arguments, signature),
+            target: BlockTarget::new(target_block, target_arguments),
             unwind: None,
         };
     }
@@ -241,8 +239,8 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::TailCall {
-            function: function.into(),
-            call: Call::new(arguments, signature.into()),
+            function,
+            call: Call::new(arguments, signature),
         };
     }
 
@@ -265,10 +263,10 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::TailCallVirtual {
-            receiver: receiver.into(),
-            class: class.into(),
+            receiver,
+            class,
             slot,
-            call: Call::new(arguments, signature.into()),
+            call: Call::new(arguments, signature),
         };
         if let Some(target) = target {
             self.tree
@@ -297,10 +295,10 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::TailCallDynamic {
-            receiver: receiver.into(),
-            constraint: constraint.into(),
+            receiver,
+            constraint,
             slot,
-            call: Call::new(arguments, signature.into()),
+            call: Call::new(arguments, signature),
         };
     }
 
@@ -320,8 +318,8 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::TailCallIndirect {
-            callee: callee.into(),
-            call: Call::new(arguments, signature.into()),
+            callee,
+            call: Call::new(arguments, signature),
         };
     }
 }

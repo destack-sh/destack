@@ -562,7 +562,7 @@ pub fn instruction_substitute_uses(
             destination: *destination,
             operator: *operator,
             argument: substitute(argument),
-            to_type: to_type.clone(),
+            to_type: *to_type,
         },
         mir::Instruction::Select {
             destination,
@@ -582,7 +582,7 @@ pub fn instruction_substitute_uses(
         } => mir::Instruction::Load {
             destination: *destination,
             pointer: substitute(pointer),
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::Store { pointer, value } => mir::Instruction::Store {
             pointer: substitute(pointer),
@@ -596,7 +596,7 @@ pub fn instruction_substitute_uses(
         } => mir::Instruction::AtomicLoad {
             destination: *destination,
             pointer: substitute(pointer),
-            result_type: result_type.clone(),
+            result_type: *result_type,
             access: *access,
         },
         mir::Instruction::AtomicStore {
@@ -655,7 +655,7 @@ pub fn instruction_substitute_uses(
         } => mir::Instruction::Pin {
             destination: *destination,
             value: substitute(value),
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::Unpin { value } => mir::Instruction::Unpin {
             value: substitute(value),
@@ -684,7 +684,7 @@ pub fn instruction_substitute_uses(
             destination: *destination,
             aggregate: substitute(aggregate),
             index: *index,
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::FieldSet {
             destination,
@@ -715,7 +715,7 @@ pub fn instruction_substitute_uses(
             destination: *destination,
             array: substitute(array),
             index: substitute(index),
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::ElementSet {
             destination,
@@ -739,7 +739,7 @@ pub fn instruction_substitute_uses(
             source: substitute(source),
             start: substitute(start),
             length: substitute(length),
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::VectorSplat { destination, value } => mir::Instruction::VectorSplat {
             destination: *destination,
@@ -774,7 +774,7 @@ pub fn instruction_substitute_uses(
             destination: *destination,
             left: substitute(left),
             right: substitute(right),
-            mask: mask.clone(),
+            mask: *mask,
         },
         mir::Instruction::VectorSelect {
             destination,
@@ -871,7 +871,7 @@ pub fn instruction_substitute_uses(
         } => mir::Instruction::TensorBroadcast {
             destination: *destination,
             tensor: substitute(tensor),
-            dimensions: dimensions.clone(),
+            dimensions: *dimensions,
         },
         mir::Instruction::TensorTranspose {
             destination,
@@ -880,7 +880,7 @@ pub fn instruction_substitute_uses(
         } => mir::Instruction::TensorTranspose {
             destination: *destination,
             tensor: substitute(tensor),
-            permutation: permutation.clone(),
+            permutation: *permutation,
         },
         mir::Instruction::TensorCast {
             destination,
@@ -956,7 +956,7 @@ pub fn instruction_substitute_uses(
             operator: *operator,
             tensor: substitute(tensor),
             initial: substitute(initial),
-            axes: axes.clone(),
+            axes: *axes,
         },
         mir::Instruction::TensorIndexReduce {
             destination,
@@ -1067,7 +1067,7 @@ pub fn instruction_substitute_uses(
             destination: *destination,
             receiver: substitute(receiver),
             call: call.clone(),
-            class: class.clone(),
+            class: *class,
             slot: *slot,
         },
         mir::Instruction::CallDynamic {
@@ -1080,7 +1080,7 @@ pub fn instruction_substitute_uses(
             destination: *destination,
             receiver: substitute(receiver),
             call: call.clone(),
-            constraint: constraint.clone(),
+            constraint: *constraint,
             slot: *slot,
         },
         mir::Instruction::CallIndirect {
@@ -1099,9 +1099,9 @@ pub fn instruction_substitute_uses(
             result_type,
         } => mir::Instruction::NewSliceZeroed {
             destination: *destination,
-            element: element.clone(),
+            element: *element,
             length: substitute(length),
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::NewSliceUninit {
             destination,
@@ -1110,9 +1110,9 @@ pub fn instruction_substitute_uses(
             result_type,
         } => mir::Instruction::NewSliceUninit {
             destination: *destination,
-            element: element.clone(),
+            element: *element,
             length: substitute(length),
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::NewComplete {
             destination,
@@ -1121,7 +1121,7 @@ pub fn instruction_substitute_uses(
         } => mir::Instruction::NewComplete {
             destination: *destination,
             value: substitute(value),
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::ProfileValue { counter, value } => mir::Instruction::ProfileValue {
             counter: *counter,
@@ -1193,7 +1193,7 @@ pub fn instruction_substitute_uses_in_tree(
             fields,
         } => mir::Instruction::Struct {
             destination: *destination,
-            ty: ty.clone(),
+            ty: *ty,
             fields: substitute_arguments(*fields),
         },
         mir::Instruction::Tuple {
@@ -1202,7 +1202,7 @@ pub fn instruction_substitute_uses_in_tree(
             elements,
         } => mir::Instruction::Tuple {
             destination: *destination,
-            ty: ty.clone(),
+            ty: *ty,
             elements: substitute_arguments(*elements),
         },
         mir::Instruction::Array {
@@ -1211,7 +1211,7 @@ pub fn instruction_substitute_uses_in_tree(
             elements,
         } => mir::Instruction::Array {
             destination: *destination,
-            ty: ty.clone(),
+            ty: *ty,
             elements: substitute_arguments(*elements),
         },
         mir::Instruction::VectorSplat { destination, value } => mir::Instruction::VectorSplat {
@@ -1247,7 +1247,7 @@ pub fn instruction_substitute_uses_in_tree(
             destination: *destination,
             left: substitute(*left),
             right: substitute(*right),
-            mask: mask.clone(),
+            mask: *mask,
         },
         mir::Instruction::VectorSelect {
             destination,
@@ -1344,7 +1344,7 @@ pub fn instruction_substitute_uses_in_tree(
         } => mir::Instruction::TensorBroadcast {
             destination: *destination,
             tensor: substitute(*tensor),
-            dimensions: dimensions.clone(),
+            dimensions: *dimensions,
         },
         mir::Instruction::TensorTranspose {
             destination,
@@ -1353,7 +1353,7 @@ pub fn instruction_substitute_uses_in_tree(
         } => mir::Instruction::TensorTranspose {
             destination: *destination,
             tensor: substitute(*tensor),
-            permutation: permutation.clone(),
+            permutation: *permutation,
         },
         mir::Instruction::TensorCast {
             destination,
@@ -1429,7 +1429,7 @@ pub fn instruction_substitute_uses_in_tree(
             operator: *operator,
             tensor: substitute(*tensor),
             initial: substitute(*initial),
-            axes: axes.clone(),
+            axes: *axes,
         },
         mir::Instruction::TensorIndexReduce {
             destination,
@@ -1542,7 +1542,7 @@ pub fn instruction_substitute_uses_in_tree(
             destination: *destination,
             receiver: substitute(*receiver),
             call: clone_call_with_arguments(call, substitute_arguments(call.arguments)),
-            class: class.clone(),
+            class: *class,
             slot: *slot,
         },
         mir::Instruction::CallDynamic {
@@ -1555,7 +1555,7 @@ pub fn instruction_substitute_uses_in_tree(
             destination: *destination,
             receiver: substitute(*receiver),
             call: clone_call_with_arguments(call, substitute_arguments(call.arguments)),
-            constraint: constraint.clone(),
+            constraint: *constraint,
             slot: *slot,
         },
         mir::Instruction::CallIndirect {
@@ -1584,7 +1584,7 @@ pub fn instruction_substitute_uses_in_tree(
         } => mir::Instruction::AtomicLoad {
             destination: *destination,
             pointer: substitute(*pointer),
-            result_type: result_type.clone(),
+            result_type: *result_type,
             access: *access,
         },
         mir::Instruction::AtomicStore {
@@ -2064,7 +2064,7 @@ pub fn instruction_map(
             destination: remap(*destination),
             operator: *operator,
             argument: remap(*argument),
-            to_type: to_type.clone(),
+            to_type: *to_type,
         },
         mir::Instruction::Select {
             destination,
@@ -2084,7 +2084,7 @@ pub fn instruction_map(
         } => mir::Instruction::Load {
             destination: remap(*destination),
             pointer: remap(*pointer),
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::Store { pointer, value } => mir::Instruction::Store {
             pointer: remap(*pointer),
@@ -2097,7 +2097,7 @@ pub fn instruction_map(
         } => mir::Instruction::Pin {
             destination: remap(*destination),
             value: remap(*value),
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::Unpin { value } => mir::Instruction::Unpin {
             value: remap(*value),
@@ -2126,7 +2126,7 @@ pub fn instruction_map(
             destination: remap(*destination),
             aggregate: remap(*aggregate),
             index: *index,
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::FieldSet {
             destination,
@@ -2157,7 +2157,7 @@ pub fn instruction_map(
             destination: remap(*destination),
             array: remap(*array),
             index: remap(*index),
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::ElementSet {
             destination,
@@ -2181,7 +2181,7 @@ pub fn instruction_map(
             source: remap(*source),
             start: remap(*start),
             length: remap(*length),
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::LocalGet { destination, local } => mir::Instruction::LocalGet {
             destination: remap(*destination),
@@ -2201,7 +2201,7 @@ pub fn instruction_map(
         } => mir::Instruction::GlobalAddr {
             destination: remap(*destination),
             global: *global,
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::FunctionAddr {
             destination,
@@ -2231,7 +2231,7 @@ pub fn instruction_map(
         } => mir::Instruction::LocalAddr {
             destination: remap(*destination),
             local: *local,
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::Struct {
             destination,
@@ -2239,7 +2239,7 @@ pub fn instruction_map(
             fields,
         } => mir::Instruction::Struct {
             destination: remap(*destination),
-            ty: ty.clone(),
+            ty: *ty,
             fields: remap_arguments(*fields),
         },
         mir::Instruction::Tuple {
@@ -2248,7 +2248,7 @@ pub fn instruction_map(
             elements,
         } => mir::Instruction::Tuple {
             destination: remap(*destination),
-            ty: ty.clone(),
+            ty: *ty,
             elements: remap_arguments(*elements),
         },
         mir::Instruction::Array {
@@ -2257,7 +2257,7 @@ pub fn instruction_map(
             elements,
         } => mir::Instruction::Array {
             destination: remap(*destination),
-            ty: ty.clone(),
+            ty: *ty,
             elements: remap_arguments(*elements),
         },
         mir::Instruction::VectorSplat { destination, value } => mir::Instruction::VectorSplat {
@@ -2293,7 +2293,7 @@ pub fn instruction_map(
             destination: remap(*destination),
             left: remap(*left),
             right: remap(*right),
-            mask: mask.clone(),
+            mask: *mask,
         },
         mir::Instruction::VectorSelect {
             destination,
@@ -2390,7 +2390,7 @@ pub fn instruction_map(
         } => mir::Instruction::TensorBroadcast {
             destination: remap(*destination),
             tensor: remap(*tensor),
-            dimensions: dimensions.clone(),
+            dimensions: *dimensions,
         },
         mir::Instruction::TensorTranspose {
             destination,
@@ -2399,7 +2399,7 @@ pub fn instruction_map(
         } => mir::Instruction::TensorTranspose {
             destination: remap(*destination),
             tensor: remap(*tensor),
-            permutation: permutation.clone(),
+            permutation: *permutation,
         },
         mir::Instruction::TensorCast {
             destination,
@@ -2475,7 +2475,7 @@ pub fn instruction_map(
             operator: *operator,
             tensor: remap(*tensor),
             initial: remap(*initial),
-            axes: axes.clone(),
+            axes: *axes,
         },
         mir::Instruction::TensorIndexReduce {
             destination,
@@ -2588,7 +2588,7 @@ pub fn instruction_map(
             destination: destination.map(remap),
             receiver: remap(*receiver),
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
-            class: class.clone(),
+            class: *class,
             slot: *slot,
         },
         mir::Instruction::CallDynamic {
@@ -2601,7 +2601,7 @@ pub fn instruction_map(
             destination: destination.map(remap),
             receiver: remap(*receiver),
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
-            constraint: constraint.clone(),
+            constraint: *constraint,
             slot: *slot,
         },
         mir::Instruction::CallIndirect {
@@ -2619,8 +2619,8 @@ pub fn instruction_map(
             result_type,
         } => mir::Instruction::NewZeroed {
             destination: remap(*destination),
-            layout: layout.clone(),
-            result_type: result_type.clone(),
+            layout: *layout,
+            result_type: *result_type,
         },
         mir::Instruction::NewUninit {
             destination,
@@ -2628,8 +2628,8 @@ pub fn instruction_map(
             result_type,
         } => mir::Instruction::NewUninit {
             destination: remap(*destination),
-            layout: layout.clone(),
-            result_type: result_type.clone(),
+            layout: *layout,
+            result_type: *result_type,
         },
         mir::Instruction::NewComplete {
             destination,
@@ -2638,7 +2638,7 @@ pub fn instruction_map(
         } => mir::Instruction::NewComplete {
             destination: remap(*destination),
             value: remap(*value),
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::NewSliceZeroed {
             destination,
@@ -2647,9 +2647,9 @@ pub fn instruction_map(
             result_type,
         } => mir::Instruction::NewSliceZeroed {
             destination: remap(*destination),
-            element: element.clone(),
+            element: *element,
             length: remap(*length),
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::NewSliceUninit {
             destination,
@@ -2658,9 +2658,9 @@ pub fn instruction_map(
             result_type,
         } => mir::Instruction::NewSliceUninit {
             destination: remap(*destination),
-            element: element.clone(),
+            element: *element,
             length: remap(*length),
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::FrameAllocZeroed {
             destination,
@@ -2668,8 +2668,8 @@ pub fn instruction_map(
             result_type,
         } => mir::Instruction::FrameAllocZeroed {
             destination: remap(*destination),
-            layout: layout.clone(),
-            result_type: result_type.clone(),
+            layout: *layout,
+            result_type: *result_type,
         },
         mir::Instruction::FrameAllocUninit {
             destination,
@@ -2677,8 +2677,8 @@ pub fn instruction_map(
             result_type,
         } => mir::Instruction::FrameAllocUninit {
             destination: remap(*destination),
-            layout: layout.clone(),
-            result_type: result_type.clone(),
+            layout: *layout,
+            result_type: *result_type,
         },
         mir::Instruction::Intrinsic {
             destination,
@@ -2697,7 +2697,7 @@ pub fn instruction_map(
         } => mir::Instruction::AtomicLoad {
             destination: remap(*destination),
             pointer: remap(*pointer),
-            result_type: result_type.clone(),
+            result_type: *result_type,
             access: *access,
         },
         mir::Instruction::AtomicStore {
@@ -2820,7 +2820,7 @@ pub fn instruction_map_with_locals(
             destination: remap(*destination),
             operator: *operator,
             argument: remap(*argument),
-            to_type: to_type.clone(),
+            to_type: *to_type,
         },
         mir::Instruction::Select {
             destination,
@@ -2840,7 +2840,7 @@ pub fn instruction_map_with_locals(
         } => mir::Instruction::Load {
             destination: remap(*destination),
             pointer: remap(*pointer),
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::Store { pointer, value } => mir::Instruction::Store {
             pointer: remap(*pointer),
@@ -2864,7 +2864,7 @@ pub fn instruction_map_with_locals(
         } => mir::Instruction::GlobalAddr {
             destination: remap(*destination),
             global: *global,
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::FunctionAddr {
             destination,
@@ -2894,7 +2894,7 @@ pub fn instruction_map_with_locals(
         } => mir::Instruction::LocalAddr {
             destination: remap(*destination),
             local: *local,
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::Struct {
             destination,
@@ -2902,7 +2902,7 @@ pub fn instruction_map_with_locals(
             fields,
         } => mir::Instruction::Struct {
             destination: remap(*destination),
-            ty: ty.clone(),
+            ty: *ty,
             fields: remap_arguments(*fields),
         },
         mir::Instruction::Tuple {
@@ -2911,7 +2911,7 @@ pub fn instruction_map_with_locals(
             elements,
         } => mir::Instruction::Tuple {
             destination: remap(*destination),
-            ty: ty.clone(),
+            ty: *ty,
             elements: remap_arguments(*elements),
         },
         mir::Instruction::Array {
@@ -2920,7 +2920,7 @@ pub fn instruction_map_with_locals(
             elements,
         } => mir::Instruction::Array {
             destination: remap(*destination),
-            ty: ty.clone(),
+            ty: *ty,
             elements: remap_arguments(*elements),
         },
         mir::Instruction::VectorSplat { destination, value } => mir::Instruction::VectorSplat {
@@ -2956,7 +2956,7 @@ pub fn instruction_map_with_locals(
             destination: remap(*destination),
             left: remap(*left),
             right: remap(*right),
-            mask: mask.clone(),
+            mask: *mask,
         },
         mir::Instruction::VectorSelect {
             destination,
@@ -3053,7 +3053,7 @@ pub fn instruction_map_with_locals(
         } => mir::Instruction::TensorBroadcast {
             destination: remap(*destination),
             tensor: remap(*tensor),
-            dimensions: dimensions.clone(),
+            dimensions: *dimensions,
         },
         mir::Instruction::TensorTranspose {
             destination,
@@ -3062,7 +3062,7 @@ pub fn instruction_map_with_locals(
         } => mir::Instruction::TensorTranspose {
             destination: remap(*destination),
             tensor: remap(*tensor),
-            permutation: permutation.clone(),
+            permutation: *permutation,
         },
         mir::Instruction::TensorCast {
             destination,
@@ -3138,7 +3138,7 @@ pub fn instruction_map_with_locals(
             operator: *operator,
             tensor: remap(*tensor),
             initial: remap(*initial),
-            axes: axes.clone(),
+            axes: *axes,
         },
         mir::Instruction::TensorIndexReduce {
             destination,
@@ -3250,7 +3250,7 @@ pub fn instruction_map_with_locals(
             destination: remap(*destination),
             aggregate: remap(*aggregate),
             index: *index,
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::FieldSet {
             destination,
@@ -3281,7 +3281,7 @@ pub fn instruction_map_with_locals(
             destination: remap(*destination),
             array: remap(*array),
             index: remap(*index),
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::ElementSet {
             destination,
@@ -3305,7 +3305,7 @@ pub fn instruction_map_with_locals(
             source: remap(*source),
             start: remap(*start),
             length: remap(*length),
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::NewZeroed {
             destination,
@@ -3313,8 +3313,8 @@ pub fn instruction_map_with_locals(
             result_type,
         } => mir::Instruction::NewZeroed {
             destination: remap(*destination),
-            layout: layout.clone(),
-            result_type: result_type.clone(),
+            layout: *layout,
+            result_type: *result_type,
         },
         mir::Instruction::NewUninit {
             destination,
@@ -3322,8 +3322,8 @@ pub fn instruction_map_with_locals(
             result_type,
         } => mir::Instruction::NewUninit {
             destination: remap(*destination),
-            layout: layout.clone(),
-            result_type: result_type.clone(),
+            layout: *layout,
+            result_type: *result_type,
         },
         mir::Instruction::NewComplete {
             destination,
@@ -3332,7 +3332,7 @@ pub fn instruction_map_with_locals(
         } => mir::Instruction::NewComplete {
             destination: remap(*destination),
             value: remap(*value),
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::NewSliceZeroed {
             destination,
@@ -3341,9 +3341,9 @@ pub fn instruction_map_with_locals(
             result_type,
         } => mir::Instruction::NewSliceZeroed {
             destination: remap(*destination),
-            element: element.clone(),
+            element: *element,
             length: remap(*length),
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::NewSliceUninit {
             destination,
@@ -3352,9 +3352,9 @@ pub fn instruction_map_with_locals(
             result_type,
         } => mir::Instruction::NewSliceUninit {
             destination: remap(*destination),
-            element: element.clone(),
+            element: *element,
             length: remap(*length),
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::Pin {
             destination,
@@ -3363,7 +3363,7 @@ pub fn instruction_map_with_locals(
         } => mir::Instruction::Pin {
             destination: remap(*destination),
             value: remap(*value),
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::Unpin { value } => mir::Instruction::Unpin {
             value: remap(*value),
@@ -3380,8 +3380,8 @@ pub fn instruction_map_with_locals(
             result_type,
         } => mir::Instruction::FrameAllocZeroed {
             destination: remap(*destination),
-            layout: layout.clone(),
-            result_type: result_type.clone(),
+            layout: *layout,
+            result_type: *result_type,
         },
         mir::Instruction::FrameAllocUninit {
             destination,
@@ -3389,8 +3389,8 @@ pub fn instruction_map_with_locals(
             result_type,
         } => mir::Instruction::FrameAllocUninit {
             destination: remap(*destination),
-            layout: layout.clone(),
-            result_type: result_type.clone(),
+            layout: *layout,
+            result_type: *result_type,
         },
         mir::Instruction::Call {
             destination,
@@ -3411,7 +3411,7 @@ pub fn instruction_map_with_locals(
             destination: destination.map(remap),
             receiver: remap(*receiver),
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
-            class: class.clone(),
+            class: *class,
             slot: *slot,
         },
         mir::Instruction::CallDynamic {
@@ -3424,7 +3424,7 @@ pub fn instruction_map_with_locals(
             destination: destination.map(remap),
             receiver: remap(*receiver),
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
-            constraint: constraint.clone(),
+            constraint: *constraint,
             slot: *slot,
         },
         mir::Instruction::CallIndirect {
@@ -3453,7 +3453,7 @@ pub fn instruction_map_with_locals(
         } => mir::Instruction::AtomicLoad {
             destination: remap(*destination),
             pointer: remap(*pointer),
-            result_type: result_type.clone(),
+            result_type: *result_type,
             access: *access,
         },
         mir::Instruction::AtomicStore {
@@ -3530,7 +3530,7 @@ pub fn terminator_remap(
         let block = target.block;
 
         if let Some(&remapped_block) = block_map.get(&block) {
-            target.block = remapped_block.into();
+            target.block = remapped_block;
         }
     };
 

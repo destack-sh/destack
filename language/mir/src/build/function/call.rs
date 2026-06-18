@@ -17,8 +17,8 @@ impl<'a> FunctionBuilder<'a> {
         let result_type = self.expect_build(result_type);
         let arguments = self.tree.add_values(&argument_values);
         self.insert_instruction(Instruction::Call {
-            destination: Some(destination.into()),
-            function: function,
+            destination: Some(destination),
+            function,
             call: Call::new(arguments, TypeId::from(signature)),
         });
         self.define_value(destination, result_type);
@@ -35,7 +35,7 @@ impl<'a> FunctionBuilder<'a> {
         let arguments = self.tree.add_values(&argument_values);
         self.insert_instruction(Instruction::Call {
             destination: None,
-            function: function,
+            function,
             call: Call::new(arguments, TypeId::from(signature)),
         });
     }
@@ -55,9 +55,9 @@ impl<'a> FunctionBuilder<'a> {
         let result_type = self.expect_build(result_type);
         let arguments = self.tree.add_values(&argument_values);
         let instruction = self.insert_instruction(Instruction::CallVirtual {
-            destination: Some(destination.into()),
-            receiver: receiver.into(),
-            class: class.into(),
+            destination: Some(destination),
+            receiver,
+            class,
             slot,
             call: Call::new(arguments, TypeId::from(signature)),
         });
@@ -85,8 +85,8 @@ impl<'a> FunctionBuilder<'a> {
         let arguments = self.tree.add_values(&argument_values);
         let instruction = self.insert_instruction(Instruction::CallVirtual {
             destination: None,
-            receiver: receiver.into(),
-            class: class.into(),
+            receiver,
+            class,
             slot,
             call: Call::new(arguments, TypeId::from(signature)),
         });
@@ -113,9 +113,9 @@ impl<'a> FunctionBuilder<'a> {
         let result_type = self.expect_build(result_type);
         let arguments = self.tree.add_values(&argument_values);
         self.insert_instruction(Instruction::CallDynamic {
-            destination: Some(destination.into()),
-            receiver: receiver.into(),
-            constraint: constraint.into(),
+            destination: Some(destination),
+            receiver,
+            constraint,
             slot,
             call: Call::new(arguments, TypeId::from(signature)),
         });
@@ -135,8 +135,8 @@ impl<'a> FunctionBuilder<'a> {
         let arguments = self.tree.add_values(&argument_values);
         self.insert_instruction(Instruction::CallDynamic {
             destination: None,
-            receiver: receiver.into(),
-            constraint: constraint.into(),
+            receiver,
+            constraint,
             slot,
             call: Call::new(arguments, TypeId::from(signature)),
         });
@@ -150,8 +150,8 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::FunctionAddr {
-            destination: destination.into(),
-            function: function.into(),
+            destination,
+            function,
         });
         self.define_value(destination, signature);
         destination
@@ -166,9 +166,9 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::ClosureBind {
-            destination: destination.into(),
-            function: function.into(),
-            environment: environment.into(),
+            destination,
+            function,
+            environment,
         });
         self.define_value(destination, signature);
         destination
@@ -181,7 +181,7 @@ impl<'a> FunctionBuilder<'a> {
             let requested_environment = TypeId::from(environment_type);
             let function = self.tree.get_mut(self.function_id);
             match &function.environment {
-                Some(existing) if existing != &requested_environment => Some(existing.clone()),
+                Some(existing) if existing != &requested_environment => Some(*existing),
                 Some(_) => None,
                 None => {
                     function.environment = Some(requested_environment);
@@ -197,9 +197,7 @@ impl<'a> FunctionBuilder<'a> {
         }
 
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::ClosureEnvironment {
-            destination: destination.into(),
-        });
+        self.insert_instruction(Instruction::ClosureEnvironment { destination });
         self.define_value(destination, environment_type);
         destination
     }
@@ -216,8 +214,8 @@ impl<'a> FunctionBuilder<'a> {
         let result_type = self.expect_build(result_type);
         let arguments = self.tree.add_values(&args);
         self.insert_instruction(Instruction::CallIndirect {
-            destination: Some(destination.into()),
-            callee: callee.into(),
+            destination: Some(destination),
+            callee,
             call: Call::new(arguments, TypeId::from(signature)),
         });
         self.define_value(destination, result_type);
@@ -234,7 +232,7 @@ impl<'a> FunctionBuilder<'a> {
         let arguments = self.tree.add_values(&args);
         self.insert_instruction(Instruction::CallIndirect {
             destination: None,
-            callee: callee.into(),
+            callee,
             call: Call::new(arguments, TypeId::from(signature)),
         });
     }

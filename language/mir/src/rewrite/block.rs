@@ -385,14 +385,14 @@ pub fn ensure_edge_block(
     // extract the successor arguments for this edge
     let args: Vec<mir::Value> =
         match terminator_arguments_for_successor_checked(tree, pred_terminator, successor) {
-            SuccessorArguments::Consistent(args) => args.iter().copied().collect(),
+            SuccessorArguments::Consistent(args) => args.to_vec(),
             _ => return predecessor,
         };
 
     // build the new edge block
     let edge_arguments = tree.add_values(&args);
     let edge_terminator = tree.insert(mir::Terminator::Jump {
-        target: mir::BlockTarget::new(successor.into(), edge_arguments),
+        target: mir::BlockTarget::new(successor, edge_arguments),
     });
     let edge_block = mir::Block::new(edge_terminator);
     let edge_block_id = tree.insert(edge_block);

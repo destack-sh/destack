@@ -3,7 +3,7 @@ use destack_core::StringId;
 use crate::build::ModuleBuilder;
 use crate::{
     Access, Constant, Copy, Field, FloatType, Lifetime, LocalNodeId, Nullability, ReferenceKind,
-    Space, TensorDimension, TensorLayout, TensorViewLayout, Type, TypeId, VariantCase,
+    Space, TensorDimension, TensorLayout, TensorViewLayout, Type, VariantCase,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -93,9 +93,7 @@ impl ModuleBuilder {
 
     /// Create a dynamic erased value type.
     pub fn type_dynamic(&mut self, constraint: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::Dynamic {
-            constraint: constraint.into(),
-        })
+        self.tree.insert_type(Type::Dynamic { constraint })
     }
 
     /// Create a reference type.
@@ -132,7 +130,7 @@ impl ModuleBuilder {
             lifetime,
             space,
             access,
-            pointee: pointee.into(),
+            pointee,
             nullability,
         })
     }
@@ -264,7 +262,7 @@ impl ModuleBuilder {
         copy: Copy,
     ) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Vector {
-            element: element.into(),
+            element,
             lanes,
             copy,
         })
@@ -279,7 +277,7 @@ impl ModuleBuilder {
         copy: Copy,
     ) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Tensor {
-            element: element.into(),
+            element,
             shape,
             layout,
             copy,
@@ -302,7 +300,7 @@ impl ModuleBuilder {
             lifetime: Lifetime::empty(),
             space,
             access,
-            element: element.into(),
+            element,
             shape,
             layout,
             nullability,
@@ -317,7 +315,7 @@ impl ModuleBuilder {
         copy: Copy,
     ) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Array {
-            element: element.into(),
+            element,
             length,
             copy,
         })
@@ -346,7 +344,7 @@ impl ModuleBuilder {
         self.tree.insert_type(Type::Slice {
             kind,
             lifetime,
-            element: element.into(),
+            element,
             space,
             access,
             nullability: Nullability::None,
@@ -369,7 +367,7 @@ impl ModuleBuilder {
         elements: Vec<LocalNodeId<Type>>,
         copy: Copy,
     ) -> LocalNodeId<Type> {
-        let elements = elements.into_iter().map(TypeId::from).collect();
+        let elements = elements.into_iter().collect();
 
         self.tree.insert_type(Type::Tuple { elements, copy })
     }
@@ -393,12 +391,12 @@ impl ModuleBuilder {
     ) -> LocalNodeId<Type> {
         let cases = cases
             .into_iter()
-            .map(|(tag, ty)| VariantCase { tag, ty: ty.into() })
+            .map(|(tag, ty)| VariantCase { tag, ty })
             .collect();
 
         self.tree.insert_type(Type::Variant {
-            tag: tag.into(),
-            storage: storage.into(),
+            tag,
+            storage,
             cases,
             copy,
         })
@@ -406,10 +404,7 @@ impl ModuleBuilder {
 
     /// Create a field definition for a struct type.
     pub fn field(&mut self, name: Option<StringId>, ty: LocalNodeId<Type>) -> LocalNodeId<Field> {
-        self.tree.insert(Field {
-            name,
-            ty: ty.into(),
-        })
+        self.tree.insert(Field { name, ty })
     }
 
     /// Create a bare function signature type.
@@ -418,20 +413,18 @@ impl ModuleBuilder {
         parameters: Vec<LocalNodeId<Type>>,
         result: LocalNodeId<Type>,
     ) -> LocalNodeId<Type> {
-        let parameters = parameters.into_iter().map(TypeId::from).collect();
+        let parameters = parameters.into_iter().collect();
 
         self.tree.insert_type(Type::FunctionSignature {
             parameters,
-            result: result.into(),
+            result,
             borrow_obligations: Vec::new(),
         })
     }
 
     /// Create a function pointer type.
     pub fn type_function_pointer(&mut self, signature: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::FunctionPointer {
-            signature: signature.into(),
-        })
+        self.tree.insert_type(Type::FunctionPointer { signature })
     }
 
     /// Create a closure type.
@@ -441,8 +434,8 @@ impl ModuleBuilder {
         environment: LocalNodeId<Type>,
     ) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Closure {
-            signature: signature.into(),
-            environment: environment.into(),
+            signature,
+            environment,
         })
     }
 }

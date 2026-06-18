@@ -259,7 +259,7 @@ impl Parser {
             let colon_token = self.eat_token(TokenType::Colon)?;
             let (ty, type_span) = self.parse_type_use_after(colon_token, "parameter type");
             let value_span = self.span_from_parse_start(value_start);
-            values.push(Parameter { value: value, ty });
+            values.push(Parameter { value, ty });
             spans.push(TypedValueSpan::new(value_span, Some(name_span), type_span));
             if !self.eat_token_maybe(TokenType::Comma) {
                 break;

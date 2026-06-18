@@ -130,7 +130,7 @@ impl FunctionLiveness {
     ) {
         match instruction {
             Instruction::LocalGet { local, .. } | Instruction::LocalAddr { local, .. } => {
-                if !seen_local_defs.contains(&local) {
+                if !seen_local_defs.contains(local) {
                     facts.local_use.insert(*local);
                 }
             }

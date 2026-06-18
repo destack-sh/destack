@@ -323,8 +323,8 @@ entry:
             is_signed: true,
         });
         let signature = program.tree.insert_type(mir::Type::FunctionSignature {
-            parameters: vec![int_ty.into()],
-            result: int_ty.into(),
+            parameters: vec![int_ty],
+            result: int_ty,
             borrow_obligations: Vec::new(),
         });
 
@@ -353,12 +353,12 @@ entry:
             lifetime: mir::Lifetime::empty(),
             space: mir::Space::Local,
             access: mir::Access::Readonly,
-            pointee: int_ty.into(),
+            pointee: int_ty,
             nullability: mir::Nullability::None,
         });
         let signature = program.tree.insert_type(mir::Type::FunctionSignature {
-            parameters: vec![int_ty.into()],
-            result: borrowed_ref.into(),
+            parameters: vec![int_ty],
+            result: borrowed_ref,
             borrow_obligations: Vec::new(),
         });
 
@@ -387,12 +387,12 @@ entry:
             lifetime: mir::Lifetime::empty(),
             space: mir::Space::Local,
             access: mir::Access::Readonly,
-            pointee: int_ty.into(),
+            pointee: int_ty,
             nullability: mir::Nullability::None,
         });
         let signature = program.tree.insert_type(mir::Type::FunctionSignature {
-            parameters: vec![int_ty.into(), borrowed_ref.into()],
-            result: borrowed_ref.into(),
+            parameters: vec![int_ty, borrowed_ref],
+            result: borrowed_ref,
             borrow_obligations: Vec::new(),
         });
 
@@ -422,7 +422,7 @@ entry:
             lifetime: mir::Lifetime::slot(0),
             space: mir::Space::Local,
             access: mir::Access::Readonly,
-            pointee: int_ty.into(),
+            pointee: int_ty,
             nullability: mir::Nullability::None,
         });
         let applied_ref = program.tree.insert_type(mir::Type::WithLifetimes {
@@ -430,8 +430,8 @@ entry:
             lifetimes: vec![mir::Lifetime::slot(2)],
         });
         let signature = program.tree.insert_type(mir::Type::FunctionSignature {
-            parameters: vec![applied_ref.into()],
-            result: applied_ref.into(),
+            parameters: vec![applied_ref],
+            result: applied_ref,
             borrow_obligations: Vec::new(),
         });
 

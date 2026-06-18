@@ -311,8 +311,8 @@ mod tests {
     #[test]
     fn test_fields_are_disjoint() {
         let local = LocalNodeId::<Local>::new(0);
-        let left = Place::local(local.into()).with_projection(Projection::Field { index: 0 });
-        let right = Place::local(local.into()).with_projection(Projection::Field { index: 1 });
+        let left = Place::local(local).with_projection(Projection::Field { index: 0 });
+        let right = Place::local(local).with_projection(Projection::Field { index: 1 });
 
         assert!(left.is_definitely_disjoint(&right));
         assert!(!left.may_overlap(&right));
@@ -321,7 +321,7 @@ mod tests {
     #[test]
     fn test_prefix_places_overlap() {
         let local = LocalNodeId::<Local>::new(0);
-        let root = Place::local(local.into());
+        let root = Place::local(local);
         let field = root.clone().with_projection(Projection::Field { index: 0 });
 
         assert!(!root.is_definitely_disjoint(&field));
@@ -331,10 +331,10 @@ mod tests {
     #[test]
     fn test_index_projection_is_conservative() {
         let local = LocalNodeId::<Local>::new(0);
-        let dynamic = Place::local(local.into()).with_projection(Projection::Index {
-            index: Value::new(0).into(),
+        let dynamic = Place::local(local).with_projection(Projection::Index {
+            index: Value::new(0),
         });
-        let fixed = Place::local(local.into()).with_projection(Projection::Element { index: 0 });
+        let fixed = Place::local(local).with_projection(Projection::Element { index: 0 });
 
         assert!(!dynamic.is_definitely_disjoint(&fixed));
         assert!(dynamic.may_overlap(&fixed));
@@ -343,14 +343,11 @@ mod tests {
     #[test]
     fn test_slice_projection_tracks_operands() {
         let local = LocalNodeId::<Local>::new(0);
-        let place = Place::local(local.into()).with_projection(Projection::Slice {
-            start: Value::new(0).into(),
-            length: Value::new(1).into(),
+        let place = Place::local(local).with_projection(Projection::Slice {
+            start: Value::new(0),
+            length: Value::new(1),
         });
 
-        assert_eq!(
-            place.values().as_slice(),
-            &[Value::new(0).into(), Value::new(1).into()]
-        );
+        assert_eq!(place.values().as_slice(), &[Value::new(0), Value::new(1)]);
     }
 }

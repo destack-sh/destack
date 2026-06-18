@@ -852,7 +852,7 @@ pub fn collect_frame_alloc_bases_for_value(
             );
         }
         mir::Instruction::LocalGet { local, .. } => {
-            if let Some(values) = local_defs.get(&local) {
+            if let Some(values) = local_defs.get(local) {
                 for &arg in values {
                     collect_frame_alloc_bases_for_value(
                         arg,
