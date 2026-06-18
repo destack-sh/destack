@@ -437,6 +437,7 @@ impl TestProgram {
 
         // insert the function pointer type
         self.tree.insert_type(mir::Type::FunctionSignature {
+            lifetimes: Vec::new(),
             parameters: param_tys,
             result: return_ty,
         })

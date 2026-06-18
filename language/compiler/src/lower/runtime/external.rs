@@ -215,9 +215,12 @@ impl ModuleLowerer<'_> {
             let signature_type = self.builder.type_function_pointer(signature);
             self.assign_signature_metadata_name(signature_type, target_symbol, anchor)?;
 
-            let function_id =
-                self.builder
-                    .external_function(&extern_name, &abi_parameters, abi_info.ty);
+            let header = self
+                .builder
+                .function_header(&extern_name)
+                .parameters(abi_parameters.iter().copied())
+                .result(abi_info.ty);
+            let function_id = self.builder.external_function(header);
             self.register_function_binding_for_symbol(target_symbol, function_id, signature)?;
             self.binding_symbols.insert(target_symbol);
             if extern_name == "destack.error.takePlatformError" {
@@ -236,9 +239,12 @@ impl ModuleLowerer<'_> {
         self.assign_signature_metadata_name(signature_type, target_symbol, anchor)?;
 
         // declare the external function
-        let function_id =
-            self.builder
-                .external_function(&extern_name, &parameter_types, return_type);
+        let header = self
+            .builder
+            .function_header(&extern_name)
+            .parameters(parameter_types.iter().copied())
+            .result(return_type);
+        let function_id = self.builder.external_function(header);
         // register function binding
         self.register_function_binding_for_symbol(target_symbol, function_id, signature)?;
         if binding.is_binding {

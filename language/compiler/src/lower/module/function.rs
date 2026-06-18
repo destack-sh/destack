@@ -331,9 +331,12 @@ impl ModuleLowerer<'_> {
 
         // declare the function and register bindings
         let allocation_mode = self.allocation_mode_for_symbol(symbol_id);
-        let function_id = self
+        let header = self
             .builder
-            .declare_function(&name, &parameter_types, return_type);
+            .function_header(&name)
+            .parameters(parameter_types.iter().copied())
+            .result(return_type);
+        let function_id = self.builder.declare_function(header);
         {
             let function = self.builder.tree_mut().get_mut(function_id);
             function.parameter_names = parameter_names.clone();
@@ -539,9 +542,12 @@ impl ModuleLowerer<'_> {
         let function_id = if let Some(function_id) = self.function_for_symbol(symbol_id) {
             function_id
         } else {
-            let function_id = self
+            let header = self
                 .builder
-                .declare_function(&name, &parameter_types, return_type);
+                .function_header(&name)
+                .parameters(parameter_types.iter().copied())
+                .result(return_type);
+            let function_id = self.builder.declare_function(header);
             {
                 let function = self.builder.tree_mut().get_mut(function_id);
                 function.parameter_names = parameter_names.clone();
