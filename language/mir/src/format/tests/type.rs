@@ -243,7 +243,6 @@ entry(v0: ref<Point, managed>, v1: ref<Node, managed>):
 fn test_format_type_copy_markers() {
     assert_format(
         r#"
-@moveOnly
 type OwnedPair {
     ref<int32, unique>;
     ref<int32, unique>;
@@ -258,9 +257,9 @@ type CopyPair {
     );
 }
 
-/// Formats synthetic move-only markers for built types.
+/// Formats synthetic copy markers for built types.
 #[test]
-fn test_format_synthetic_move_only_marker() {
+fn test_format_synthetic_copy_marker() {
     let mut tree = Tree::new();
     let strings = StringPool::new();
 
@@ -280,7 +279,7 @@ fn test_format_synthetic_move_only_marker() {
     });
     let struct_type = tree.insert_type(Type::Struct {
         fields: vec![left, right],
-        copy: Copy::No,
+        copy: Copy::Yes,
     });
     tree.insert(TypeAlias {
         name: alias_name,
@@ -292,7 +291,7 @@ fn test_format_synthetic_move_only_marker() {
 
     assert_output_eq(
         r#"
-@moveOnly
+@copy
 type Pair {
     int32;
     int32;

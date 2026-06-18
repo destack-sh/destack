@@ -52,8 +52,8 @@ pub(super) fn format_type_declaration<'a>(
         .unwrap_or_default();
 
     // synthetic copy marker
-    if type_copy(ty) == Some(Copy::No) && !has_copy_marker(attributes, f) {
-        write!(f, [token("@moveOnly"), hard_line_break()])?;
+    if type_copy(ty) == Some(Copy::Yes) && !has_copy_attribute(attributes, f) {
+        write!(f, [token("@copy"), hard_line_break()])?;
     }
 
     // declaration attributes
@@ -110,14 +110,14 @@ fn type_copy(ty: &Type) -> Option<Copy> {
     }
 }
 
-/// Return whether attributes already include an explicit copy marker.
-fn has_copy_marker(attributes: &[Attribute], f: &MirFormatter<'_, '_>) -> bool {
+/// Return whether attributes already include an explicit copy attribute.
+fn has_copy_attribute(attributes: &[Attribute], f: &MirFormatter<'_, '_>) -> bool {
     attributes.iter().any(|attribute| {
         let AttributeIdentifier::Identifier(name) = attribute.name else {
             return false;
         };
 
-        matches!(f.context().strings.get(name), "copy" | "moveOnly")
+        f.context().strings.get(name) == "copy"
     })
 }
 

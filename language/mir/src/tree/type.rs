@@ -128,14 +128,10 @@ impl Nullability {
     }
 }
 
-/// Copy property of a type.
-///
-/// Determines whether values of this type can be duplicated freely
-/// or if each use consumes the value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+/// Copyability of a type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Copy {
     /// Value can be copied freely.
-    #[default]
     Yes,
     /// Each use consumes the value.
     No,
