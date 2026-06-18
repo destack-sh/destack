@@ -117,9 +117,8 @@ pub enum TypeKey {
     },
     /// Bare function signature.
     FunctionSignature {
-        parameters: Vec<TypeKey>,
+        parameters: Vec<(TypeKey, Vec<mir::BorrowObligation>)>,
         result: Box<TypeKey>,
-        borrow_obligations: Vec<mir::BorrowObligation>,
     },
     /// Function pointer type.
     FunctionPointer { signature: Box<TypeKey> },
@@ -324,19 +323,19 @@ impl TypeKey {
                 nullability: *nullability,
             },
 
-            mir::Type::FunctionSignature {
-                parameters,
-                result,
-                borrow_obligations,
-            } => {
+            mir::Type::FunctionSignature { parameters, result } => {
                 let parameters = parameters
                     .iter()
-                    .map(|param| Self::from_type_id(param, tree))
+                    .map(|parameter| {
+                        (
+                            Self::from_type_id(&parameter.ty, tree),
+                            parameter.obligations.clone(),
+                        )
+                    })
                     .collect();
                 TypeKey::FunctionSignature {
                     parameters,
                     result: Box::new(Self::from_type_id(result, tree)),
-                    borrow_obligations: borrow_obligations.clone(),
                 }
             }
             mir::Type::FunctionPointer { signature } => TypeKey::FunctionPointer {
@@ -614,20 +613,17 @@ fn types_are_equal_inner(
             mir::Type::FunctionSignature {
                 parameters: p1,
                 result: r1,
-                borrow_obligations: o1,
             },
             mir::Type::FunctionSignature {
                 parameters: p2,
                 result: r2,
-                borrow_obligations: o2,
             },
         ) => {
-            o1 == o2
-                && p1.len() == p2.len()
-                && p1
-                    .iter()
-                    .zip(p2.iter())
-                    .all(|(a, b)| type_ids_are_equal(a, b, tree, visiting))
+            p1.len() == p2.len()
+                && p1.iter().zip(p2.iter()).all(|(a, b)| {
+                    a.obligations == b.obligations
+                        && type_ids_are_equal(&a.ty, &b.ty, tree, visiting)
+                })
                 && type_ids_are_equal(r1, r2, tree, visiting)
         }
 

@@ -26,7 +26,7 @@ pub fn borrowed_parameter_indices_for_signature(
     let indices = parameters
         .iter()
         .enumerate()
-        .filter(|(_, ty)| tree.type_contains_borrowed_refs(**ty))
+        .filter(|(_, parameter)| tree.type_contains_borrowed_refs(parameter.ty))
         .map(|(index, _)| index)
         .collect();
 

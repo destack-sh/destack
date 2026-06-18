@@ -1,6 +1,6 @@
 use crate::build::{BuildResult, FunctionBuilder, ModuleBuilder};
 use crate::{
-    Function, Global, GlobalInitializer, LocalNodeId, Mutability, Parameter, Type, Value,
+    Function, FunctionParameter, Global, GlobalInitializer, LocalNodeId, Mutability, Type, Value,
     finalize_function_names,
 };
 
@@ -85,17 +85,14 @@ impl ModuleBuilder {
         return_type: LocalNodeId<Type>,
     ) -> LocalNodeId<Function> {
         let name_id = self.strings.intern(name);
-        let parameters: Vec<Parameter> = parameter_types
+        let parameters: Vec<FunctionParameter> = parameter_types
             .iter()
             .enumerate()
-            .map(|(index, &ty)| Parameter {
-                value: Value::new(index as u32),
-                ty,
-            })
+            .map(|(index, &ty)| FunctionParameter::new(Value::new(index as u32), ty.into()))
             .collect();
-        let function_id = self
-            .tree
-            .insert(Function::declare(name_id, parameters, return_type));
+        let function_id =
+            self.tree
+                .insert(Function::declare(name_id, parameters, return_type.into()));
         finalize_function_names(&mut self.tree, &mut self.strings, function_id);
 
         function_id
@@ -109,17 +106,14 @@ impl ModuleBuilder {
         return_type: LocalNodeId<Type>,
     ) -> LocalNodeId<Function> {
         let name_id = self.strings.intern(name);
-        let parameters: Vec<Parameter> = parameter_types
+        let parameters: Vec<FunctionParameter> = parameter_types
             .iter()
             .enumerate()
-            .map(|(index, &ty)| Parameter {
-                value: Value::new(index as u32),
-                ty,
-            })
+            .map(|(index, &ty)| FunctionParameter::new(Value::new(index as u32), ty.into()))
             .collect();
-        let function_id = self
-            .tree
-            .insert(Function::import(name_id, parameters, return_type));
+        let function_id =
+            self.tree
+                .insert(Function::import(name_id, parameters, return_type.into()));
         finalize_function_names(&mut self.tree, &mut self.strings, function_id);
 
         function_id

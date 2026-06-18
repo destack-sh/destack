@@ -475,30 +475,20 @@ fn format_type_inner<'a>(
             }
             write!(f, [token(">")])
         }
-        Type::FunctionSignature {
-            parameters,
-            result,
-            borrow_obligations,
-        } => {
+        Type::FunctionSignature { parameters, result } => {
             write!(f, [token("(")])?;
             for (i, param) in parameters.iter().enumerate() {
                 if i > 0 {
                     write!(f, [token(","), space()])?;
                 }
-                format_type_id(*param, f)?;
+                format_signature_parameter(param, f)?;
             }
             write!(f, [token(")"), space(), token("=>"), space()])?;
-            format_type_id(*result, f)?;
-            format_borrow_obligations(borrow_obligations, f)
+            format_type_id(*result, f)
         }
         Type::FunctionPointer { signature } | Type::Closure { signature, .. } => {
             let signature_type = f.context().tree.get(*signature);
-            if let Type::FunctionSignature {
-                parameters,
-                result,
-                borrow_obligations,
-            } = signature_type
-            {
+            if let Type::FunctionSignature { parameters, result } = signature_type {
                 if matches!(ty, Type::FunctionPointer { .. }) {
                     write!(f, [token("fn")])?;
                 }
@@ -508,11 +498,10 @@ fn format_type_inner<'a>(
                     if i > 0 {
                         write!(f, [token(","), space()])?;
                     }
-                    format_type_id(*param, f)?;
+                    format_signature_parameter(param, f)?;
                 }
                 write!(f, [token(")"), space(), token("=>"), space()])?;
                 format_type_id(*result, f)?;
-                format_borrow_obligations(borrow_obligations, f)?;
                 return Ok(());
             }
 
@@ -675,6 +664,14 @@ fn format_type_application<'a>(
         format_lifetime_group(lifetime, f)?;
     }
     write!(f, [token(">")])
+}
+
+pub(super) fn format_signature_parameter<'a>(
+    parameter: &crate::SignatureParameter,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    format_type_id(parameter.ty, f)?;
+    format_borrow_obligations(&parameter.obligations, f)
 }
 
 pub(super) fn format_borrow_obligations<'a>(

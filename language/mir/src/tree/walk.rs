@@ -195,8 +195,8 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
         Type::FunctionSignature {
             parameters, result, ..
         } => {
-            for parameter_id in parameters {
-                walk_type_id(visitor, tree, parameter_id);
+            for parameter in parameters {
+                walk_type_id(visitor, tree, &parameter.ty);
             }
             walk_type_id(visitor, tree, result);
         }

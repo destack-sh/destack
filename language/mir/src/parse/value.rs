@@ -2,7 +2,8 @@ use crate::source::TokenType;
 use destack_source::Span;
 
 use crate::{
-    BlockId, FunctionId, GlobalId, LocalId, LocalNodeId, Parameter, Type, TypedValueSpan, Value,
+    BlockId, BlockParameter, FunctionId, GlobalId, LocalId, LocalNodeId, Type, TypedValueSpan,
+    Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -32,7 +33,7 @@ impl Parser {
     ) -> ParseResult<(Value, LocalNodeId<Type>, Span, Span)> {
         let (value, value_span) = self.parse_value_definition_part()?;
         self.eat_token(TokenType::Colon)?;
-        let (ty, type_span) = self.parse_type_part()?;
+        let (ty, type_span) = self.parse_type_use_part()?;
         Ok((value, ty, value_span, type_span))
     }
 
@@ -250,7 +251,7 @@ impl Parser {
     /// Parse a comma-separated list of typed values and their spans.
     pub(super) fn parse_typed_values(
         &mut self,
-    ) -> ParseResult<(Vec<Parameter>, Vec<TypedValueSpan>)> {
+    ) -> ParseResult<(Vec<BlockParameter>, Vec<TypedValueSpan>)> {
         let mut values = Vec::new();
         let mut spans = Vec::new();
         while self.is_value_definition_start() {
@@ -259,7 +260,7 @@ impl Parser {
             let colon_token = self.eat_token(TokenType::Colon)?;
             let (ty, type_span) = self.parse_type_use_after(colon_token, "parameter type");
             let value_span = self.span_from_parse_start(value_start);
-            values.push(Parameter { value, ty });
+            values.push(BlockParameter { value: value, ty });
             spans.push(TypedValueSpan::new(value_span, Some(name_span), type_span));
             if !self.eat_token_maybe(TokenType::Comma) {
                 break;

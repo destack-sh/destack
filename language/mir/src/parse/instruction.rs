@@ -1923,16 +1923,11 @@ impl Parser {
         let parameters = function
             .parameters
             .iter()
-            .map(|parameter| parameter.ty)
+            .map(|parameter| parameter.signature_parameter())
             .collect();
         let result = function.return_type;
-        let borrow_obligations = function.borrow_obligations.clone();
 
-        self.intern_type(Type::FunctionSignature {
-            parameters,
-            result,
-            borrow_obligations,
-        })
+        self.intern_type(Type::FunctionSignature { parameters, result })
     }
 
     /// Parse one virtual call target and signature.
@@ -2016,28 +2011,13 @@ impl Parser {
     ) -> ParseResult<TypeId> {
         let signature_start = self.pos();
         self.eat_token(TokenType::Colon)?;
-        self.eat_token(TokenType::OpenParenthesis)?;
-
-        let mut parameters = Vec::new();
-        while !self.peek_token(TokenType::CloseParenthesis) {
-            parameters.push(self.parse_type()?);
-            if !self.eat_token_maybe(TokenType::Comma) {
-                break;
-            }
-        }
-
-        self.eat_token(TokenType::CloseParenthesis)?;
+        let parameters = self.parse_parenthesized_type_parameters()?;
         self.eat_token(TokenType::FatArrow)?;
         let result = self.parse_type()?;
         let signature_span = self.span_from_parse_start(signature_start);
         segment_spans.push(signature_span);
-        let borrow_obligations = self.parse_borrow_obligations()?;
 
-        self.intern_type(Type::FunctionSignature {
-            parameters,
-            result,
-            borrow_obligations,
-        })
+        self.intern_type(Type::FunctionSignature { parameters, result })
     }
 
     /// Parse one atomic access suffix.

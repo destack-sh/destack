@@ -2,7 +2,7 @@ use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use super::r#type::format_borrow_obligations;
+use super::r#type::format_signature_parameter;
 use super::value::{
     format_constant_for_type, format_function_id, format_global_id, format_type_id,
 };
@@ -1728,22 +1728,17 @@ fn format_call_signature_suffix<'a>(
 ) -> FormatResult<()> {
     write!(f, [token(":"), space()])?;
 
-    if let crate::Type::FunctionSignature {
-        parameters,
-        result,
-        borrow_obligations,
-    } = f.context().tree.get(*signature)
+    if let crate::Type::FunctionSignature { parameters, result } = f.context().tree.get(*signature)
     {
         write!(f, [token("(")])?;
         for (index, parameter) in parameters.iter().enumerate() {
             if index > 0 {
                 write!(f, [token(","), space()])?;
             }
-            format_type_id(*parameter, f)?;
+            format_signature_parameter(parameter, f)?;
         }
         write!(f, [token(")"), space(), token("=>"), space()])?;
-        format_type_id(*result, f)?;
-        format_borrow_obligations(borrow_obligations, f)
+        format_type_id(*result, f)
     } else {
         format_type_id(*signature, f)
     }

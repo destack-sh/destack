@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::build::FunctionBuilder;
-use crate::{Block, Instruction, LocalNodeId, Parameter, Terminator, Value, terminator_remap};
+use crate::{Block, BlockParameter, Instruction, LocalNodeId, Terminator, Value, terminator_remap};
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
@@ -16,10 +16,6 @@ impl<'a> FunctionBuilder<'a> {
         for value in self.variable_definitions.values_mut() {
             Self::replace_plain_value(value, from, to);
         }
-
-        // update place facts
-        let function = self.tree.get_mut(self.function_id);
-        function.replace_place_values(from, to);
 
         // update incomplete phis
         for phis in self.incomplete_phis.values_mut() {
@@ -380,7 +376,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Replace values in a parameter list.
-    fn replace_values_in_parameters(parameters: &mut [Parameter], from: Value, to: Value) {
+    fn replace_values_in_parameters(parameters: &mut [BlockParameter], from: Value, to: Value) {
         // update each parameter value
         for parameter in parameters {
             Self::replace_value_in_slot(&mut parameter.value, from, to);

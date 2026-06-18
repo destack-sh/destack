@@ -110,7 +110,7 @@ pub fn constant_for_value(
 /// Resolve constant arguments for a parameter list.
 pub fn constant_arguments_for_parameters(
     arguments: &[mir::Value],
-    parameters: &[mir::Parameter],
+    parameters: &[impl mir::TypedParameter],
     constants: &impl ConstantLookup,
     pointer_width_bits: u16,
     tree: &mir::Tree,
@@ -126,7 +126,7 @@ pub fn constant_arguments_for_parameters(
         let argument = *argument;
         let constant = constants.get_constant(argument).and_then(|constant| {
             let constant_type = constant_type_of(constant);
-            if constant_matches_type(constant_type, parameter.ty, pointer_width_bits, tree) {
+            if constant_matches_type(constant_type, parameter.ty(), pointer_width_bits, tree) {
                 Some(constant.clone())
             } else {
                 None

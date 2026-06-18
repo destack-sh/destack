@@ -596,12 +596,14 @@ mod tests {
 
         let fn_ptr_ty = TypeKey::FunctionPointer {
             signature: Box::new(TypeKey::FunctionSignature {
-                parameters: vec![TypeKey::Int {
-                    width: 32,
-                    signed: true,
-                }],
+                parameters: vec![(
+                    TypeKey::Int {
+                        width: 32,
+                        signed: true,
+                    },
+                    Vec::new(),
+                )],
                 result: Box::new(TypeKey::Void),
-                borrow_obligations: Vec::new(),
             }),
         };
         let int_ty = TypeKey::Int {

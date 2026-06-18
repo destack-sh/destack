@@ -2,9 +2,9 @@ use crate::source::TokenType;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
-    AllocationMode, Attribute, AttributeArgs, AttributeIdentifier, Copy, Function, Global,
-    GlobalInitializer, Linkage, LocalNodeId, Mutability, Symbol, Type, TypeAlias,
-    TypeDeclarationSpans, TypeId, Value,
+    AllocationMode, Attribute, AttributeArgs, AttributeIdentifier, Copy, Function,
+    FunctionParameter, Global, GlobalInitializer, Linkage, LocalNodeId, Mutability, Symbol, Type,
+    TypeAlias, TypeDeclarationSpans, TypeId, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -142,9 +142,7 @@ impl Parser {
                         parameter_names: Vec::new(),
                         value_names: Vec::new(),
                         value_types: Vec::new(),
-                        value_places: Vec::new(),
                         return_type: TypeId::from(void_type),
-                        borrow_obligations: Vec::new(),
                         linkage: Linkage::Local,
                         allocation: AllocationMode::Any,
                         suspension: None,
@@ -282,29 +280,28 @@ impl Parser {
     fn scan_function_placeholder_parameters(
         &mut self,
         linkage: Linkage,
-    ) -> ParseResult<Vec<crate::Parameter>> {
+    ) -> ParseResult<Vec<FunctionParameter>> {
         self.eat_token(TokenType::OpenParenthesis)?;
 
         let parameters = if linkage.is_import() {
-            let mut parameter_types = Vec::new();
+            let mut parameters = Vec::new();
             while !self.peek_token(TokenType::CloseParenthesis) {
                 let ty = self.parse_type()?;
                 let lifetimes = self.parse_type_lifetime_arguments()?;
                 let ty = self.apply_type_lifetimes(ty, lifetimes)?;
-                parameter_types.push(ty);
+                let obligations = self.parse_borrow_obligations()?;
+                let value = Value::new(parameters.len() as u32);
+                parameters.push(FunctionParameter {
+                    value,
+                    ty,
+                    obligations,
+                });
                 if !self.eat_token_maybe(TokenType::Comma) {
                     break;
                 }
             }
 
-            parameter_types
-                .into_iter()
-                .enumerate()
-                .map(|(index, ty)| crate::Parameter {
-                    value: Value::new(index as u32),
-                    ty,
-                })
-                .collect()
+            parameters
         } else {
             let mut parameters = Vec::new();
             let mut next_value_id = 0u32;
@@ -315,7 +312,12 @@ impl Parser {
                 let ty = self.parse_type()?;
                 let lifetimes = self.parse_type_lifetime_arguments()?;
                 let ty = self.apply_type_lifetimes(ty, lifetimes)?;
-                parameters.push(crate::Parameter { value, ty });
+                let obligations = self.parse_borrow_obligations()?;
+                parameters.push(FunctionParameter {
+                    value,
+                    ty,
+                    obligations,
+                });
                 if !self.eat_token_maybe(TokenType::Comma) {
                     break;
                 }
@@ -454,7 +456,7 @@ impl Parser {
             if let Some(copy) = self.copy_attribute(&attributes, item_start)? {
                 set_type_copy(&mut resolved, copy, item_start)?;
             }
-            *self.tree.get_mut(placeholder_id) = resolved;
+            self.tree.set(placeholder_id, resolved);
             self.tree.metadata.copy_type_metadata(ty, placeholder_id);
         }
         self.type_alias_definitions.insert(name);
