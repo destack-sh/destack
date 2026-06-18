@@ -276,8 +276,8 @@ fn run_pre(
             // allocate a new parameter for the expression
             let param_value = function.next_typed_value(value_type);
             let param = mir::Parameter {
-                value: param_value.into(),
-                ty: value_type.into(),
+                value: param_value,
+                ty: value_type,
             };
             let order = occs.iter().map(|occ| occ.order).min().unwrap_or(usize::MAX);
             phi_map.entry(phi_block).or_default().push(PhiPlacement {
@@ -302,7 +302,7 @@ fn run_pre(
     for (&block_id, placements) in &phi_map {
         let mut block = tree.get(block_id).clone();
         for placement in placements {
-            block.parameters.push(placement.param.clone());
+            block.parameters.push(placement.param);
         }
         tree.set(block_id, block);
     }
@@ -422,7 +422,7 @@ fn template_from_instruction(instruction: &mir::Instruction) -> ExpressionTempla
             operator, to_type, ..
         } => ExpressionTemplate::Cast {
             operator: *operator,
-            to_type: to_type.clone(),
+            to_type: *to_type,
         },
         mir::Instruction::Select { .. } => ExpressionTemplate::Select,
         mir::Instruction::FieldGet { index, .. } => ExpressionTemplate::FieldGet { index: *index },
@@ -684,25 +684,25 @@ fn build_instruction_from_key(
     match (key, template) {
         (ExpressionKey::Binary { left, right, .. }, ExpressionTemplate::Binary { operator }) => {
             mir::Instruction::Binary {
-                destination: destination.into(),
+                destination,
                 operator: *operator,
-                left: (*left).into(),
-                right: (*right).into(),
+                left: (*left),
+                right: (*right),
             }
         }
         (ExpressionKey::Unary { argument, .. }, ExpressionTemplate::Unary { operator }) => {
             mir::Instruction::Unary {
-                destination: destination.into(),
+                destination,
                 operator: *operator,
-                argument: (*argument).into(),
+                argument: (*argument),
             }
         }
         (ExpressionKey::Cast { argument, .. }, ExpressionTemplate::Cast { operator, to_type }) => {
             mir::Instruction::Cast {
-                destination: destination.into(),
+                destination,
                 operator: *operator,
-                argument: (*argument).into(),
-                to_type: to_type.clone(),
+                argument: (*argument),
+                to_type: *to_type,
             }
         }
         (
@@ -713,22 +713,22 @@ fn build_instruction_from_key(
             },
             ExpressionTemplate::Select,
         ) => mir::Instruction::Select {
-            destination: destination.into(),
-            condition: (*condition).into(),
-            then_value: (*then_value).into(),
-            else_value: (*else_value).into(),
+            destination,
+            condition: (*condition),
+            then_value: (*then_value),
+            else_value: (*else_value),
         },
         (ExpressionKey::FieldGet { aggregate, .. }, ExpressionTemplate::FieldGet { index }) => {
             mir::Instruction::FieldGet {
-                destination: destination.into(),
-                aggregate: (*aggregate).into(),
+                destination,
+                aggregate: (*aggregate),
                 index: *index,
             }
         }
         (ExpressionKey::ElementGet { array, index }, ExpressionTemplate::ElementGet) => {
             mir::Instruction::ElementGet {
-                destination: destination.into(),
-                array: (*array).into(),
+                destination,
+                array: (*array),
                 index: *index,
             }
         }

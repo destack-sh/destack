@@ -296,15 +296,15 @@ fn rotate_loop(
 
     let preheader_terminator = if candidate.then_to_body {
         mir::Terminator::Branch {
-            condition: preheader_condition.into(),
-            then_target: mir::BlockTarget::new(candidate.body_block.into(), preheader_body_args),
-            else_target: mir::BlockTarget::new(candidate.exit_block.into(), preheader_exit_args),
+            condition: preheader_condition,
+            then_target: mir::BlockTarget::new(candidate.body_block, preheader_body_args),
+            else_target: mir::BlockTarget::new(candidate.exit_block, preheader_exit_args),
         }
     } else {
         mir::Terminator::Branch {
-            condition: preheader_condition.into(),
-            then_target: mir::BlockTarget::new(candidate.exit_block.into(), preheader_exit_args),
-            else_target: mir::BlockTarget::new(candidate.body_block.into(), preheader_body_args),
+            condition: preheader_condition,
+            then_target: mir::BlockTarget::new(candidate.exit_block, preheader_exit_args),
+            else_target: mir::BlockTarget::new(candidate.body_block, preheader_body_args),
         }
     };
 
@@ -324,15 +324,15 @@ fn rotate_loop(
 
     let latch_terminator = if candidate.then_to_body {
         mir::Terminator::Branch {
-            condition: latch_condition.into(),
-            then_target: mir::BlockTarget::new(candidate.body_block.into(), latch_body_args),
-            else_target: mir::BlockTarget::new(candidate.exit_block.into(), latch_exit_args),
+            condition: latch_condition,
+            then_target: mir::BlockTarget::new(candidate.body_block, latch_body_args),
+            else_target: mir::BlockTarget::new(candidate.exit_block, latch_exit_args),
         }
     } else {
         mir::Terminator::Branch {
-            condition: latch_condition.into(),
-            then_target: mir::BlockTarget::new(candidate.exit_block.into(), latch_exit_args),
-            else_target: mir::BlockTarget::new(candidate.body_block.into(), latch_body_args),
+            condition: latch_condition,
+            then_target: mir::BlockTarget::new(candidate.exit_block, latch_exit_args),
+            else_target: mir::BlockTarget::new(candidate.body_block, latch_body_args),
         }
     };
 

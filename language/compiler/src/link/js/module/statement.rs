@@ -1,5 +1,5 @@
 use crate::emit::js;
-use destack_artifact::JsOutput;
+use destack_artifact::Script;
 use destack_repository::Target;
 use destack_source::ModuleId;
 
@@ -12,12 +12,19 @@ impl JsLinker<'_> {
         &self,
         output_id: OutputId,
         module_id: ModuleId,
-        script: &JsOutput,
+        script: &Script,
         output_graph: &OutputGraph,
         output_layout: &OutputLayout,
         target: &Target,
     ) -> LinkResult<js::Module> {
-        let mut module = script.module.clone();
+        let Some(script) = script.ecmascript_module() else {
+            return Err(LinkError::Internal {
+                anchor: module_id.into(),
+                package: self.package_id,
+                message: format!("expected ECMAScript script for module {module_id:?}"),
+            });
+        };
+        let mut module = script.clone();
         let roots = module.roots.clone();
         let mut rewritten_roots = Vec::with_capacity(module.roots.len());
 
@@ -191,7 +198,7 @@ impl JsLinker<'_> {
             return Ok(Vec::new());
         }
 
-        // resource wrapper imports become local value bindings
+        // asset wrapper imports become local value bindings
         if !target_module_ref.is_code() {
             if item_set.is_empty() {
                 return Ok(Vec::new());

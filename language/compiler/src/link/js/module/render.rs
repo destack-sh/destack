@@ -1,6 +1,6 @@
 use crate::emit::js;
 use crate::{Compiler, LinkError, LinkResult};
-use destack_artifact::OutputFile;
+use destack_artifact::BundleFile;
 use destack_repository::JsOutputMode;
 use destack_source::{FileType, ModuleId};
 
@@ -8,7 +8,7 @@ use super::super::plan::Plan;
 use super::super::{JsLinker, OutputId};
 use super::linker::OutputModule;
 use crate::link::{OutputLocation, TargetLocation};
-use destack_artifact::JsOutput;
+use destack_artifact::Script;
 
 impl<'a> JsLinker<'a> {
     /// Build one linked JS text for one output node.
@@ -31,8 +31,15 @@ impl<'a> JsLinker<'a> {
         // rewrite each output member in stable member order
         for module_id in output.modules() {
             let script = self.js_output_for_output(output_id, *module_id, plan)?;
+            let Some(module) = script.into_ecmascript_module() else {
+                return Err(LinkError::Internal {
+                    anchor: (*module_id).into(),
+                    package: self.package_id,
+                    message: format!("expected ECMAScript script for module {module_id:?}"),
+                });
+            };
 
-            modules.push((*module_id, script.module));
+            modules.push((*module_id, module));
         }
 
         // normalize output-local imports before output-level minification and printing
@@ -64,7 +71,7 @@ impl<'a> JsLinker<'a> {
     }
 
     /// Render the JS outputs for the current JS graph.
-    pub(in super::super) fn render_js_graph(&self, plan: &Plan) -> LinkResult<Vec<OutputFile>> {
+    pub(in super::super) fn render_js_graph(&self, plan: &Plan) -> LinkResult<Vec<BundleFile>> {
         self.validate_script_print_format()?;
 
         if plan.output_graph().bundle_mode() == JsOutputMode::PreserveModules {
@@ -75,7 +82,7 @@ impl<'a> JsLinker<'a> {
     }
 
     /// Link preserve-modules outputs for this target.
-    fn link_module_outputs(&self, plan: &Plan) -> LinkResult<Vec<OutputFile>> {
+    fn link_module_outputs(&self, plan: &Plan) -> LinkResult<Vec<BundleFile>> {
         let mut output_files = Vec::new();
 
         // preserve-modules keeps one artifact-level output per module
@@ -114,15 +121,15 @@ impl<'a> JsLinker<'a> {
         output_id: OutputId,
         module_id: ModuleId,
         plan: &Plan,
-    ) -> LinkResult<JsOutput> {
+    ) -> LinkResult<Script> {
         let source_module = self.module(module_id)?;
 
-        // resource modules are synthesized by the linker with final linked values
+        // asset modules are synthesized by the linker with final linked values
         if !source_module.is_code() {
             return self.build_resource_js_output(output_id, module_id, plan.output_graph(), plan);
         }
 
-        let script = self.js_output(module_id)?;
+        let script = self.script_for_module(module_id)?;
         let rewritten_module = self.rewrite_code_script_module(
             output_id,
             module_id,
@@ -133,13 +140,13 @@ impl<'a> JsLinker<'a> {
             self.target,
         )?;
         let mut script = script;
-        script.module = rewritten_module;
+        script.replace_ecmascript_module(rewritten_module);
 
         Ok(script)
     }
 
     /// Link graph-based outputs for this target.
-    fn link_output_graph(&self, plan: &Plan) -> LinkResult<Vec<OutputFile>> {
+    fn link_output_graph(&self, plan: &Plan) -> LinkResult<Vec<BundleFile>> {
         let file_type = self.js_output_file_type()?;
         let target_layout = TargetLocation::new(self.package_dir, self.target, self.target_name());
         let mut output_files = Vec::new();

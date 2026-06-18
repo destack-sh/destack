@@ -1,6 +1,6 @@
 use destack_engine::Value;
 
-use crate::{CompilePhase, TestProgram};
+use crate::{CompilerPhase, TestProgram};
 
 /// Lower struct construction and field access.
 #[test]
@@ -178,7 +178,7 @@ function makePoint(a: number, b: number): Point {
     test.add_target(module_id, "native");
     test.lower_module(module_id, "native");
     test.compile();
-    test.check_no_diagnostics_up_to_excluding_phase(CompilePhase::Lower);
+    test.check_no_diagnostics_up_to_excluding_phase(CompilerPhase::Lower);
     test.check_has_diagnostic("EM200");
 }
 
@@ -207,7 +207,7 @@ function makePoint(a: number): Point {
     test.add_target(module_id, "native");
     test.lower_module(module_id, "native");
     test.compile();
-    test.check_no_diagnostics_up_to_excluding_phase(CompilePhase::Lower);
+    test.check_no_diagnostics_up_to_excluding_phase(CompilerPhase::Lower);
     test.check_has_diagnostic("EM200");
 }
 
@@ -238,7 +238,7 @@ function makePoint(a: number, b: number): Point {
     test.add_target(module_id, "native");
     test.lower_module(module_id, "native");
     test.compile();
-    test.check_no_diagnostics_up_to_excluding_phase(CompilePhase::Lower);
+    test.check_no_diagnostics_up_to_excluding_phase(CompilerPhase::Lower);
     test.check_has_diagnostic("EM200");
 }
 

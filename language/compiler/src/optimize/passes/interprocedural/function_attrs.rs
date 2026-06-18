@@ -476,9 +476,7 @@ fn update_call_metadata(
         let callee_id = {
             let block = tree.get(block_id);
             let terminator = tree.get(block.terminator);
-            terminator
-                .call_direct_target()
-                .and_then(|target| Some(target))
+            terminator.call_direct_target()
         };
         let Some(callee_id) = callee_id else {
             continue;
@@ -615,7 +613,6 @@ fn call_effects_for_dynamic_terminator(
     let terminator = tree.get(block.terminator);
     let callee = terminator
         .call_direct_target()
-        .and_then(|target| Some(target))
         .or_else(|| call_metadata.and_then(|metadata| metadata.target));
 
     // fill missing pieces from direct callee summaries

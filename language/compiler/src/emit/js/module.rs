@@ -1,20 +1,20 @@
 use crate::{Compiler, CompilerError, CompilerResult};
-use destack_artifact::ModuleOutput;
+use destack_artifact::Script;
 use destack_repository::{ArtifactReader, ProfileId, ProviderContext, Target};
 use destack_source::ModuleId;
 
-use super::JsOutputGenerator;
+use super::ScriptGenerator;
 
 impl Compiler {
-    /// Emit one JS module output.
-    pub(in crate::emit) fn emit_js_module_output(
+    /// Emit one structured script.
+    pub(in crate::emit) fn emit_script(
         &self,
         module_id: ModuleId,
         target: &Target,
         profile: ProfileId,
         context: &dyn ProviderContext,
         artifacts: &ArtifactReader<'_>,
-    ) -> CompilerResult<ModuleOutput> {
+    ) -> CompilerResult<Script> {
         // snapshot module for this emit pass
         let module = self.module(context.revision(), module_id)?;
         let parsed = artifacts
@@ -33,8 +33,8 @@ impl Compiler {
             .dir_checked(module_id, profile)
             .map_err(CompilerError::from)?;
 
-        // emit one JS output
-        let (artifact, errors) = JsOutputGenerator::new(
+        // emit one structured script
+        let (script, errors) = ScriptGenerator::new(
             module.clone(),
             parsed.clone(),
             bound.clone(),
@@ -47,11 +47,11 @@ impl Compiler {
         .emit()
         .map_err(CompilerError::from)?;
 
-        // emit JS diagnostics
+        // emit script diagnostics
         for error in errors {
             self.emit_diagnostic(context, error)?;
         }
 
-        Ok(ModuleOutput::Js(Box::new(artifact)))
+        Ok(script)
     }
 }

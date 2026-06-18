@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use base64::Engine as _;
-use destack_artifact::OutputFile;
+use destack_artifact::BundleFile;
 use destack_repository::{JsAssetMode, Module, Target};
 use destack_source::{Content, File, FileType, ModuleId};
 use indexmap::{IndexMap, IndexSet};
@@ -312,7 +312,7 @@ impl<'a> JsLinker<'a> {
         &self,
         module_id: ModuleId,
         output_location: &OutputLocation,
-    ) -> LinkResult<OutputFile> {
+    ) -> LinkResult<BundleFile> {
         let asset = self.asset(module_id)?;
 
         debug_assert_eq!(asset.module_id(), module_id);
@@ -330,7 +330,7 @@ impl<'a> JsLinker<'a> {
     pub(crate) fn emit_asset_files(
         &self,
         asset_reference_map: &IndexMap<ModuleId, AssetReference>,
-    ) -> LinkResult<Vec<OutputFile>> {
+    ) -> LinkResult<Vec<BundleFile>> {
         let mut files = Vec::new();
 
         // emit one copied file for each emitted asset reference

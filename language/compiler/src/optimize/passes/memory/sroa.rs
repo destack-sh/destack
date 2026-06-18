@@ -297,7 +297,7 @@ fn get_element_types(
 
         mir::Type::Tuple { elements, copy: _ } => {
             // collect element types without recursive flattening
-            Some(elements.iter().copied().collect())
+            Some(elements.to_vec())
         }
 
         mir::Type::Array {
@@ -494,7 +494,7 @@ fn split_allocation(
             lifetime: mir::Lifetime::empty(),
             space: candidate.reference_spec.space.clone(),
             access: candidate.reference_spec.access,
-            pointee: elem_type.into(),
+            pointee: elem_type,
             nullability: candidate.reference_spec.nullability,
         });
         let new_value = function.next_typed_value(result_type);
@@ -502,9 +502,9 @@ fn split_allocation(
 
         // create the new FrameAlloc instruction
         let new_inst = mir::Instruction::FrameAllocZeroed {
-            destination: new_value.into(),
-            layout: elem_type.into(),
-            result_type: result_type.into(),
+            destination: new_value,
+            layout: elem_type,
+            result_type,
         };
 
         // insert at the start of the entry block (after existing allocs)
@@ -619,9 +619,9 @@ fn rewrite_base_load(
         let element_type = candidate.element_types[index];
         let element_value = function.next_typed_value(element_type);
         let load_inst = mir::Instruction::Load {
-            destination: element_value.into(),
-            pointer: element_pointer.into(),
-            result_type: element_type.into(),
+            destination: element_value,
+            pointer: element_pointer,
+            result_type: element_type,
         };
         let load_id = tree.insert(load_inst);
         new_instructions.push(load_id);
@@ -666,8 +666,8 @@ fn rewrite_base_store(
         // handle array extraction using element indices
         if is_array {
             let element_get = mir::Instruction::ElementGet {
-                destination: element_value.into(),
-                array: stored_value.into(),
+                destination: element_value,
+                array: stored_value,
                 index: index as u32,
             };
             let element_get_id = tree.insert(element_get);
@@ -677,8 +677,8 @@ fn rewrite_base_store(
         // handle struct or tuple extraction using field indices
         if !is_array {
             let field_get = mir::Instruction::FieldGet {
-                destination: element_value.into(),
-                aggregate: stored_value.into(),
+                destination: element_value,
+                aggregate: stored_value,
                 index: index as u32,
             };
             let field_get_id = tree.insert(field_get);
@@ -687,8 +687,8 @@ fn rewrite_base_store(
 
         // store scalar into the split allocation slot
         let store_inst = mir::Instruction::Store {
-            pointer: element_pointer.into(),
-            value: element_value.into(),
+            pointer: element_pointer,
+            value: element_value,
         };
         let store_id = tree.insert(store_inst);
         new_instructions.push(store_id);
@@ -705,24 +705,24 @@ fn build_aggregate_instruction(
     element_values: &[mir::Value],
 ) -> mir::Instruction {
     // prepare aggregate arguments and layout
-    let arguments: Vec<_> = element_values.iter().copied().map(Into::into).collect();
+    let arguments: Vec<_> = element_values.to_vec();
     let arguments = tree.add_values(&arguments);
     let layout_type = tree.get(layout);
 
     match layout_type {
         mir::Type::Struct { .. } => mir::Instruction::Struct {
-            destination: destination.into(),
-            ty: layout.into(),
+            destination,
+            ty: layout,
             fields: arguments,
         },
         mir::Type::Tuple { .. } => mir::Instruction::Tuple {
-            destination: destination.into(),
-            ty: layout.into(),
+            destination,
+            ty: layout,
             elements: arguments,
         },
         mir::Type::Array { .. } => mir::Instruction::Array {
-            destination: destination.into(),
-            ty: layout.into(),
+            destination,
+            ty: layout,
             elements: arguments,
         },
         _ => panic!("sroa base load expects an aggregate layout type"),

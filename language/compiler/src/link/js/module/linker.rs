@@ -3,7 +3,7 @@ use std::path::Path;
 
 use crate::emit::js;
 use crate::{Compiler, LinkError, LinkResult};
-use destack_artifact::{EmitFormat, JsOutput, ModuleOutput};
+use destack_artifact::{EmitFormat, Script};
 use destack_repository::{JsOutputFormat, JsOutputMode, Target};
 use destack_source::{FileType, ModuleId, PackageId};
 
@@ -180,21 +180,20 @@ impl<'a> JsLinker<'a> {
         Ok(())
     }
 
-    /// Load one emitted JS output for linking.
-    pub(crate) fn js_output(&self, module_id: ModuleId) -> LinkResult<JsOutput> {
-        let artifact = self.module_output(module_id)?;
-
-        let ModuleOutput::Js(script) = artifact.as_ref() else {
+    /// Load one emitted structured script for linking.
+    pub(crate) fn script_for_module(&self, module_id: ModuleId) -> LinkResult<Script> {
+        let script = self.script(module_id)?;
+        if script.ecmascript_module().is_none() {
             return Err(LinkError::Internal {
                 anchor: (self.package_id).into(),
                 package: self.package_id,
                 message: format!(
-                    "expected JS output for module {:?} target '{}'",
+                    "expected ECMAScript script for module {:?} target '{}'",
                     module_id,
                     self.target_name()
                 ),
             });
-        };
+        }
 
         Ok(script.as_ref().clone())
     }
@@ -275,7 +274,7 @@ impl<'a> JsLinker<'a> {
         &self,
         output_id: OutputId,
         module_id: ModuleId,
-        script: &JsOutput,
+        script: &Script,
         module_set: &ModuleSet,
         output_graph: &OutputGraph,
         output_layout: &OutputLayout,

@@ -762,8 +762,8 @@ fn clone_callee_blocks(
                 let new_value = caller.next_typed_value(ty);
                 value_map.insert(value, new_value);
                 mir::Parameter {
-                    value: new_value.into(),
-                    ty: ty.into(),
+                    value: new_value,
+                    ty,
                 }
             })
             .collect();
@@ -829,8 +829,8 @@ fn split_block_for_inline(
     if destination.is_some() {
         let new_value = caller.next_typed_value(return_type);
         continuation_block.parameters.push(mir::Parameter {
-            value: new_value.into(),
-            ty: return_type.into(),
+            value: new_value,
+            ty: return_type,
         });
         result_value = Some(new_value);
     }
@@ -856,7 +856,7 @@ fn split_block_for_inline(
 
     // replace the call with a jump to the inlined entry
     let jump_terminator = mir::Terminator::Jump {
-        target: mir::BlockTarget::new(inline_entry.into(), entry_arguments),
+        target: mir::BlockTarget::new(inline_entry, entry_arguments),
     };
     tree.set(block.terminator, jump_terminator);
     tree.set(block_id, block);
@@ -980,7 +980,7 @@ fn rewrite_inlined_returns(
 
         // replace the return with a jump to the continuation
         let new_terminator = mir::Terminator::Jump {
-            target: mir::BlockTarget::new(continuation.into(), arguments),
+            target: mir::BlockTarget::new(continuation, arguments),
         };
         tree.set(block.terminator, new_terminator);
         tree.set(new_block_id, block);

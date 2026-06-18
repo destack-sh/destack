@@ -135,11 +135,9 @@ impl CheckState<'_> {
                 self.is_dynamic_safe_function(origin, &function, visited)
             }
             dir::Type::Closure(closure) => self.is_dynamic_safe(origin, closure.function, visited),
-            dir::Type::Union(union) => {
-                self.all_dynamic_safe(origin, union.elements.into_iter(), visited)
-            }
+            dir::Type::Union(union) => self.all_dynamic_safe(origin, union.elements, visited),
             dir::Type::Intersection(intersection) => {
-                self.all_dynamic_safe(origin, intersection.elements.into_iter(), visited)
+                self.all_dynamic_safe(origin, intersection.elements, visited)
             }
         }
     }

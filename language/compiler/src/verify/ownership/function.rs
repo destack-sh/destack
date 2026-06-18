@@ -864,7 +864,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     fn check_suspension(&mut self, terminator: &mir::Terminator, anchor: mir::LocalNodeIdAny) {
         // check borrowed values that remain visible after suspension
         for value in self.borrowed_values_across_suspension(terminator) {
-            let sources = self.sources_for_value(value.into());
+            let sources = self.sources_for_value(value);
             match sources.suspension() {
                 BorrowSuspension::Stable => {}
                 BorrowSuspension::Requires(lifetimes) => {
@@ -1431,15 +1431,12 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         }
 
         let is_used_by_instruction = block.instructions.iter().any(|instruction_id| {
-            instruction_uses(self.tree.get(*instruction_id), self.tree)
-                .iter()
-                .any(|used| *used == value)
+            instruction_uses(self.tree.get(*instruction_id), self.tree).contains(&value)
         });
         let is_used_by_terminator = self
             .tree
             .terminator_uses(self.tree.get(block.terminator))
-            .iter()
-            .any(|used| *used == value);
+            .contains(&value);
 
         is_used_by_instruction || is_used_by_terminator
     }

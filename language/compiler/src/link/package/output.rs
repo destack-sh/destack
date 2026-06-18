@@ -3,9 +3,7 @@ use std::path::Path;
 
 use crate::{Compiler, CompilerResult};
 
-use destack_artifact::{
-    BuildManifest, OutputFile, PackageAssembly, PackageOutput, SourceMapArtifact, TargetOutputName,
-};
+use destack_artifact::{BuildManifest, Bundle, BundleFile, BundleMode, BundleSection, SourceMap};
 use destack_repository::{JsOutputMode, RepositoryError, Target};
 use destack_source::{Content, FileType, ModuleId, Uri};
 
@@ -13,11 +11,11 @@ use super::layout::TargetLocation;
 
 impl Compiler {
     /// Lower one bundle mode to the published package assembly shape.
-    pub(crate) fn package_assembly(bundle_mode: JsOutputMode) -> PackageAssembly {
+    pub(crate) fn package_assembly(bundle_mode: JsOutputMode) -> BundleMode {
         match bundle_mode {
-            JsOutputMode::PreserveModules => PackageAssembly::PreserveModules,
-            JsOutputMode::SingleFile => PackageAssembly::SingleFile,
-            JsOutputMode::Chunked => PackageAssembly::Chunked,
+            JsOutputMode::PreserveModules => BundleMode::PreserveModules,
+            JsOutputMode::SingleFile => BundleMode::SingleFile,
+            JsOutputMode::Chunked => BundleMode::Chunked,
         }
     }
 
@@ -53,13 +51,13 @@ impl Compiler {
         Ok(self.package_relative_uri_path(package_dir, &module.uri))
     }
 
-    /// Append one manifest sidecar to one package output.
+    /// Append one manifest sidecar to one bundle.
     pub(crate) fn append_manifest_output(
         &self,
         package_dir: &Path,
         target: &Target,
         target_name: &str,
-        output: &mut PackageOutput,
+        output: &mut Bundle,
         manifest: BuildManifest,
     ) -> Result<(), RepositoryError> {
         let manifest_content = serde_json::to_string_pretty(&manifest)
@@ -69,17 +67,14 @@ impl Compiler {
         let manifest_path = output_layout.manifest_location();
 
         let file = self.intern_output_file(
+            BundleSection::Manifest,
             Uri::from_path(manifest_path.path()),
             FileType::Json,
             Self::text_output_content(manifest_content),
             None,
         )?;
 
-        output
-            .outputs
-            .entry(TargetOutputName::Manifest)
-            .or_default()
-            .push(file);
+        output.files.push(file);
 
         Ok(())
     }
@@ -87,14 +82,15 @@ impl Compiler {
     /// Intern one output file payload and return its artifact record.
     pub(crate) fn intern_output_file(
         &self,
+        section: BundleSection,
         uri: Uri,
         file_type: FileType,
         content: Content,
         source: Option<Uri>,
-    ) -> Result<OutputFile, RepositoryError> {
+    ) -> Result<BundleFile, RepositoryError> {
         let content = self.repository.intern_content(content)?;
 
-        Ok(OutputFile::new(uri, file_type, content, source))
+        Ok(BundleFile::new(section, uri, file_type, content, source))
     }
 
     /// Build one normalized text output payload.
@@ -107,9 +103,7 @@ impl Compiler {
     }
 
     /// Build one source map output payload.
-    pub(crate) fn source_map_content(
-        source_map: &SourceMapArtifact,
-    ) -> Result<Content, serde_json::Error> {
+    pub(crate) fn source_map_content(source_map: &SourceMap) -> Result<Content, serde_json::Error> {
         let content = serde_json::to_string(source_map)?;
 
         Ok(Self::text_output_content(content))

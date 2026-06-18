@@ -1,5 +1,5 @@
 use crate::emit::js;
-use destack_artifact::JsOutput;
+use destack_artifact::Script;
 use destack_repository::{ProviderContext, Target};
 use destack_source::{ModuleId, PackageId, ProfileId, Span, TargetId};
 
@@ -70,7 +70,7 @@ impl JsLinker<'_> {
             return Ok(None);
         }
 
-        // bundled resource imports become local value bindings
+        // bundled asset imports become local value bindings
         if let Some(target_module) = target_module {
             let target_module_ref = self.module(target_module)?;
 
@@ -274,7 +274,7 @@ impl JsLinker<'_> {
     fn rewrite_module(
         &self,
         module_id: ModuleId,
-        script: &JsOutput,
+        script: &Script,
         module_set: &ModuleSet,
         target: &Target,
         target_id: &TargetId,
@@ -282,7 +282,14 @@ impl JsLinker<'_> {
         profile_id: ProfileId,
         context: &dyn ProviderContext,
     ) -> LinkResult<js::Module> {
-        let mut module = script.module.clone();
+        let Some(script) = script.ecmascript_module() else {
+            return Err(LinkError::Internal {
+                anchor: module_id.into(),
+                package: package_id,
+                message: format!("expected ECMAScript script for module {module_id:?}"),
+            });
+        };
+        let mut module = script.clone();
         let mut rewritten_roots = Vec::with_capacity(module.roots.len());
         let roots = module.roots.clone();
 
@@ -374,7 +381,7 @@ impl JsLinker<'_> {
     pub(crate) fn rewrite_script_module(
         &self,
         module_id: ModuleId,
-        script: &JsOutput,
+        script: &Script,
         module_set: &ModuleSet,
         target: &Target,
         target_id: &TargetId,

@@ -448,7 +448,7 @@ fn guard_info(
     };
 
     // resolve the comparison instruction
-    let condition_def = definitions.get(&condition)?;
+    let condition_def = definitions.get(condition)?;
     let instruction = tree.get(*condition_def);
     let mir::Instruction::Binary {
         operator,
@@ -871,7 +871,7 @@ fn apply_fusion(
             condition: *condition,
             then_target: then_target.clone(),
             else_target: mir::BlockTarget::new(
-                candidate.second.exit_block.into(),
+                candidate.second.exit_block,
                 mir::ValueSlice::default(),
             ),
         }
@@ -879,7 +879,7 @@ fn apply_fusion(
         mir::Terminator::Branch {
             condition: *condition,
             then_target: mir::BlockTarget::new(
-                candidate.second.exit_block.into(),
+                candidate.second.exit_block,
                 mir::ValueSlice::default(),
             ),
             else_target: else_target.clone(),

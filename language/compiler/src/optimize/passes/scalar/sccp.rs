@@ -977,7 +977,7 @@ fn apply_sccp_result(
 
             // replace instruction with constant
             let new_instruction = mir::Instruction::Const {
-                destination: destination.into(),
+                destination,
                 value: constant,
             };
             tree.set(instruction_id, new_instruction);
@@ -1067,7 +1067,7 @@ fn function_insert_block_param_constants(
             } else {
                 let new_value = function.next_typed_value(ty);
                 let instruction = mir::Instruction::Const {
-                    destination: new_value.into(),
+                    destination: new_value,
                     value: constant.clone(),
                 };
                 let instruction_id = tree.insert(instruction);

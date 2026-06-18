@@ -86,22 +86,31 @@ impl Compiler {
                 profile,
                 target,
             } => self.collect_mir_optimized(module, profile, target, context),
-            ArtifactKey::ModuleOutput { module, target } => {
+            ArtifactKey::Script { module, target } => {
                 let profile = self.profile_id_for_target(context.revision(), module, &target)?;
 
-                self.collect_module_output(module, profile, target, context)
+                self.collect_script(module, profile, target, context)
             }
-            ArtifactKey::PackageOutput { package, target } => {
-                self.collect_package_output(package, target, context)
+            ArtifactKey::Object { module, target } => {
+                let profile = self.profile_id_for_target(context.revision(), module, &target)?;
+
+                self.collect_object(module, profile, target, context)
             }
-            ArtifactKey::ProductOutput { package, product } => {
-                self.collect_product_output(package, product, context)
+            ArtifactKey::Asset { module, target } => {
+                let profile = self.profile_id_for_target(context.revision(), module, &target)?;
+
+                self.collect_asset(module, profile, target, context)
             }
-            ArtifactKey::ModuleLinted { .. }
-            | ArtifactKey::PackageLinted { .. }
-            | ArtifactKey::WorkspaceLinted
-            | ArtifactKey::ModuleQueryIndex { .. }
-            | ArtifactKey::WorkspaceQueryIndex { .. } => Err(CompilerError::Internal {
+            ArtifactKey::Bundle { package, target } => {
+                self.collect_bundle(package, target, context)
+            }
+            ArtifactKey::Program { package, target } => {
+                self.collect_program(package, target, context)
+            }
+            ArtifactKey::Product { package, product } => {
+                self.collect_product(package, product, context)
+            }
+            _ => Err(CompilerError::Internal {
                 message: format!(
                     "non compiler artifact key reached compiler provider: {artifact_key:?}"
                 ),
@@ -191,22 +200,31 @@ impl Compiler {
                 profile,
                 target,
             } => self.provide_mir_optimized(module, profile, target, context),
-            ArtifactKey::ModuleOutput { module, target } => {
+            ArtifactKey::Script { module, target } => {
                 let profile = self.profile_id_for_target(context.revision(), module, &target)?;
 
-                self.provide_module_output(module, profile, target, context)
+                self.provide_script(module, profile, target, context)
             }
-            ArtifactKey::PackageOutput { package, target } => {
-                self.provide_package_output(package, target, context)
+            ArtifactKey::Object { module, target } => {
+                let profile = self.profile_id_for_target(context.revision(), module, &target)?;
+
+                self.provide_object(module, profile, target, context)
             }
-            ArtifactKey::ProductOutput { package, product } => {
-                self.provide_product_output(package, product, context)
+            ArtifactKey::Asset { module, target } => {
+                let profile = self.profile_id_for_target(context.revision(), module, &target)?;
+
+                self.provide_asset(module, profile, target, context)
             }
-            ArtifactKey::ModuleLinted { .. }
-            | ArtifactKey::PackageLinted { .. }
-            | ArtifactKey::WorkspaceLinted
-            | ArtifactKey::ModuleQueryIndex { .. }
-            | ArtifactKey::WorkspaceQueryIndex { .. } => Err(CompilerError::Internal {
+            ArtifactKey::Bundle { package, target } => {
+                self.provide_bundle(package, target, context)
+            }
+            ArtifactKey::Program { package, target } => {
+                self.provide_program(package, target, context)
+            }
+            ArtifactKey::Product { package, product } => {
+                self.provide_product(package, product, context)
+            }
+            _ => Err(CompilerError::Internal {
                 message: format!(
                     "non compiler artifact key reached compiler provider: {artifact_key:?}"
                 ),

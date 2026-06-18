@@ -464,7 +464,7 @@ fn process_block(
                 let destination = *destination;
 
                 let args = tree.get_values(*fields);
-                value_table.insert_aggregate(destination, args.iter().copied().collect());
+                value_table.insert_aggregate(destination, args.to_vec());
             }
             mir::Instruction::Tuple {
                 destination,
@@ -480,7 +480,7 @@ fn process_block(
                 let destination = *destination;
 
                 let args = tree.get_values(*elements);
-                value_table.insert_aggregate(destination, args.iter().copied().collect());
+                value_table.insert_aggregate(destination, args.to_vec());
             }
             _ => {}
         }

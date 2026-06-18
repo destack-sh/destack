@@ -315,10 +315,9 @@ fn update_call_sites(
 
                 // refresh the signature when arguments are removed
                 let signature = if unused.is_empty() {
-                    call.signature.clone()
+                    call.signature
                 } else {
-                    (*signature_type.get_or_insert_with(|| build_signature_type(function_id, tree)))
-                        .into()
+                    *signature_type.get_or_insert_with(|| build_signature_type(function_id, tree))
                 };
 
                 // update the call instruction with the new argument slice

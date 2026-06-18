@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
 use crate::emit::js::DependencyForm;
-use destack_artifact::{JsOutput, ModuleOutput};
+use destack_artifact::Script;
 use destack_repository::Target;
 use destack_source::{ModuleId, PackageId, Span, TargetId};
 use indexmap::{IndexMap, IndexSet};
@@ -12,33 +12,33 @@ use super::super::{JsDependencyTarget, JsLinker, dynamic_js_dependencies, static
 use super::ModuleSet;
 
 impl JsLinker<'_> {
-    /// Return one linked JS output when the module participates in runtime linking.
-    fn linked_js_output(
+    /// Return one linked script when the module participates in runtime linking.
+    fn linked_script(
         &self,
         module_id: ModuleId,
         target_id: &TargetId,
         package_id: PackageId,
-    ) -> LinkResult<Option<JsOutput>> {
-        let artifact = self
+    ) -> LinkResult<Option<Script>> {
+        let script = self
             .artifacts
-            .module_output(module_id, *target_id)
+            .script(module_id, *target_id)
             .map_err(CompilerError::from)
             .map_err(|error| LinkError::Internal {
                 anchor: (package_id).into(),
                 package: package_id,
                 message: format!(
-                    "missing module output for module {module_id:?} target '{target_id}': {error:?}"
+                    "missing script for module {module_id:?} target '{target_id}': {error:?}"
                 ),
             })?;
-        let ModuleOutput::Js(script) = artifact.as_ref() else {
+        if script.ecmascript_module().is_none() {
             return Err(LinkError::Internal {
                 anchor: (package_id).into(),
                 package: package_id,
                 message: format!(
-                    "expected JS output for module {module_id:?} target '{target_id}'"
+                    "expected ECMAScript script for module {module_id:?} target '{target_id}'"
                 ),
             });
-        };
+        }
 
         Ok(Some(script.as_ref().clone()))
     }
@@ -146,13 +146,16 @@ impl JsLinker<'_> {
         target_id: &TargetId,
         package_id: PackageId,
     ) -> LinkResult<Vec<ModuleId>> {
-        let Some(script) = self.linked_js_output(module_id, target_id, package_id)? else {
+        let Some(script) = self.linked_script(module_id, target_id, package_id)? else {
+            return Ok(Vec::new());
+        };
+        let Some(script) = script.ecmascript_module() else {
             return Ok(Vec::new());
         };
         let mut dependency_modules = Vec::new();
 
         // bundled static imports
-        for dependency in static_js_dependencies(&script.module) {
+        for dependency in static_js_dependencies(script) {
             if dependency.form == DependencyForm::Type {
                 continue;
             }
@@ -187,13 +190,16 @@ impl JsLinker<'_> {
         target_id: &TargetId,
         package_id: PackageId,
     ) -> LinkResult<Vec<ModuleId>> {
-        let Some(script) = self.linked_js_output(module_id, target_id, package_id)? else {
+        let Some(script) = self.linked_script(module_id, target_id, package_id)? else {
+            return Ok(Vec::new());
+        };
+        let Some(script) = script.ecmascript_module() else {
             return Ok(Vec::new());
         };
         let mut dependency_modules = Vec::new();
 
         // bundled dynamic imports
-        for dependency in dynamic_js_dependencies(&script.module) {
+        for dependency in dynamic_js_dependencies(script) {
             let Some(dependency_target) = &dependency.target else {
                 continue;
             };
@@ -228,13 +234,16 @@ impl JsLinker<'_> {
         target_id: &TargetId,
         package_id: PackageId,
     ) -> LinkResult<Vec<String>> {
-        let Some(script) = self.linked_js_output(module_id, target_id, package_id)? else {
+        let Some(script) = self.linked_script(module_id, target_id, package_id)? else {
+            return Ok(Vec::new());
+        };
+        let Some(script) = script.ecmascript_module() else {
             return Ok(Vec::new());
         };
         let mut import_specifiers = Vec::new();
 
         // retained external static imports
-        for dependency in static_js_dependencies(&script.module) {
+        for dependency in static_js_dependencies(script) {
             if dependency.form == DependencyForm::Type {
                 continue;
             }
@@ -265,13 +274,16 @@ impl JsLinker<'_> {
         target_id: &TargetId,
         package_id: PackageId,
     ) -> LinkResult<Vec<String>> {
-        let Some(script) = self.linked_js_output(module_id, target_id, package_id)? else {
+        let Some(script) = self.linked_script(module_id, target_id, package_id)? else {
+            return Ok(Vec::new());
+        };
+        let Some(script) = script.ecmascript_module() else {
             return Ok(Vec::new());
         };
         let mut import_specifiers = Vec::new();
 
         // retained external dynamic imports
-        for dependency in dynamic_js_dependencies(&script.module) {
+        for dependency in dynamic_js_dependencies(script) {
             let Some(dependency_target) = &dependency.target else {
                 continue;
             };

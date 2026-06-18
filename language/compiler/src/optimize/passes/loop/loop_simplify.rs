@@ -113,9 +113,7 @@ fn run_loop_simplify(
                     .filter(|&&eb| {
                         let block = tree.get(eb);
                         let terminator = tree.get(block.terminator);
-                        tree.terminator_successors(terminator)
-                            .iter()
-                            .any(|target| *target == exit_block)
+                        tree.terminator_successors(terminator).contains(&exit_block)
                     })
                     .copied()
                     .collect();
@@ -311,7 +309,7 @@ fn insert_preheader(
         .collect();
     let preheader_args = tree.add_values(&preheader_args);
     let preheader_terminator = tree.insert(mir::Terminator::Jump {
-        target: mir::BlockTarget::new(header.into(), preheader_args),
+        target: mir::BlockTarget::new(header, preheader_args),
     });
     let preheader = mir::Block {
         name: None,
@@ -412,7 +410,7 @@ fn redirect_terminator(
         mir::Terminator::Jump { target } => {
             if target.block == old_target {
                 Some(mir::Terminator::Jump {
-                    target: mir::BlockTarget::new(new_target.into(), target.arguments.clone()),
+                    target: mir::BlockTarget::new(new_target, target.arguments),
                 })
             } else {
                 None
@@ -432,19 +430,19 @@ fn redirect_terminator(
                     condition: *condition,
                     then_target: mir::BlockTarget::new(
                         if redirect_then {
-                            new_target.into()
+                            new_target
                         } else {
                             then_target.block
                         },
-                        then_target.arguments.clone(),
+                        then_target.arguments,
                     ),
                     else_target: mir::BlockTarget::new(
                         if redirect_else {
-                            new_target.into()
+                            new_target
                         } else {
                             else_target.block
                         },
-                        else_target.arguments.clone(),
+                        else_target.arguments,
                     ),
                 })
             } else {
@@ -456,27 +454,27 @@ fn redirect_terminator(
             success,
             failure,
         } => {
-            let redirect_success = success.block == old_target.into();
-            let redirect_failure = failure.block == old_target.into();
+            let redirect_success = success.block == old_target;
+            let redirect_failure = failure.block == old_target;
 
             if redirect_success || redirect_failure {
                 Some(mir::Terminator::Check {
                     constraint: constraint.clone(),
                     success: mir::BlockTarget::new(
                         if redirect_success {
-                            new_target.into()
+                            new_target
                         } else {
                             success.block
                         },
-                        success.arguments.clone(),
+                        success.arguments,
                     ),
                     failure: mir::BlockTarget::new(
                         if redirect_failure {
-                            new_target.into()
+                            new_target
                         } else {
                             failure.block
                         },
-                        failure.arguments.clone(),
+                        failure.arguments,
                     ),
                 })
             } else {
@@ -506,11 +504,11 @@ fn redirect_terminator(
                         value: case.value,
                         target: mir::BlockTarget::new(
                             if redirect {
-                                new_target.into()
+                                new_target
                             } else {
                                 case.target.block
                             },
-                            case.target.arguments.clone(),
+                            case.target.arguments,
                         ),
                     })
                     .collect();
@@ -519,11 +517,11 @@ fn redirect_terminator(
                     value: *value,
                     default: mir::BlockTarget::new(
                         if redirect_default {
-                            new_target.into()
+                            new_target
                         } else {
                             default.block
                         },
-                        default.arguments.clone(),
+                        default.arguments,
                     ),
                     cases: tree.add_switch_cases(&new_cases),
                 })
@@ -543,7 +541,7 @@ fn redirect_terminator(
 
             // redirect resume edge
             if resume.block == old_target {
-                new_resume.block = new_target.into();
+                new_resume.block = new_target;
                 changed = true;
             }
 
@@ -551,7 +549,7 @@ fn redirect_terminator(
             if let Some(unwind) = &mut new_unwind
                 && unwind.block == old_target
             {
-                unwind.block = new_target.into();
+                unwind.block = new_target;
                 changed = true;
             }
 
@@ -601,7 +599,7 @@ fn merge_latches(
         .collect();
     let latch_args = tree.add_values(&latch_args);
     let latch_terminator = tree.insert(mir::Terminator::Jump {
-        target: mir::BlockTarget::new(header.into(), latch_args),
+        target: mir::BlockTarget::new(header, latch_args),
     });
     let new_latch = mir::Block {
         name: None,
@@ -656,7 +654,7 @@ fn insert_dedicated_exit(
         .collect();
     let dedicated_args = tree.add_values(&dedicated_args);
     let dedicated_terminator = tree.insert(mir::Terminator::Jump {
-        target: mir::BlockTarget::new(exit_block.into(), dedicated_args),
+        target: mir::BlockTarget::new(exit_block, dedicated_args),
     });
     let dedicated_exit = mir::Block {
         name: None,

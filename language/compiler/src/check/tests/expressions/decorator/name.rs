@@ -9,7 +9,7 @@ const value = 1;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir_checked_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -89,7 +89,7 @@ const value = 1;
         )
         .build();
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"

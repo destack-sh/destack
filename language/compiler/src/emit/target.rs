@@ -1,13 +1,13 @@
 use crate::{Compiler, CompilerResult, EmitError};
-use destack_artifact::{ArtifactKey, ModuleOutput};
+use destack_artifact::{ArtifactKey, Object, Script};
 use destack_repository::{ArtifactReader, ProviderContext, Target};
 
 use destack_repository::ProfileId;
 use destack_source::{ModuleId, TargetId};
 
 impl Compiler {
-    /// Return the artifact required to emit one module output.
-    pub(super) fn module_output_input(
+    /// Return the artifact required to emit one structured script.
+    pub(super) fn script_input(
         &self,
         module_id: ModuleId,
         profile: ProfileId,
@@ -19,6 +19,25 @@ impl Compiler {
             return Ok(ArtifactKey::dir_checked(module_id, profile));
         }
 
+        Err(EmitError::Internal {
+            anchor: (module_id).into(),
+            module: module_id,
+            message: format!(
+                "unsupported emit script '{:?}' for target '{target_id}'",
+                target.emit
+            ),
+        }
+        .into())
+    }
+
+    /// Return the artifact required to emit one compiled-code object.
+    pub(super) fn object_input(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+        target_id: &TargetId,
+        target: &Target,
+    ) -> CompilerResult<ArtifactKey> {
         // native emit reads optimized MIR
         #[cfg(feature = "native")]
         {
@@ -35,7 +54,7 @@ impl Compiler {
                     anchor: (module_id).into(),
                     module: module_id,
                     message: format!(
-                        "native emit is disabled: cannot emit output '{:?}' for target '{target_id}'",
+                        "native emit is disabled: cannot emit object '{:?}' for target '{target_id}'",
                         target.emit
                     ),
                 }
@@ -47,15 +66,52 @@ impl Compiler {
             anchor: (module_id).into(),
             module: module_id,
             message: format!(
-                "unsupported output '{:?}' for target '{target_id}'",
+                "unsupported emit object '{:?}' for target '{target_id}'",
                 target.emit
             ),
         }
         .into())
     }
 
-    /// Emit one module output for one target.
-    pub(super) fn emit_target_module_output(
+    /// Return the artifact required to emit one opaque asset.
+    pub(super) fn asset_input(
+        &self,
+        module_id: ModuleId,
+        _profile: ProfileId,
+        _target_id: &TargetId,
+        _target: &Target,
+    ) -> CompilerResult<ArtifactKey> {
+        Ok(ArtifactKey::data(module_id))
+    }
+
+    /// Emit one structured script for one target.
+    pub(super) fn emit_target_script(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+        target: &Target,
+        target_name: &str,
+        context: &dyn ProviderContext,
+        artifacts: &ArtifactReader<'_>,
+    ) -> CompilerResult<Script> {
+        // dispatch through the selected emit family
+        if target.uses_js_emit_pipeline() {
+            return self.emit_script(module_id, target, profile, context, artifacts);
+        }
+
+        Err(EmitError::Internal {
+            anchor: (module_id).into(),
+            module: module_id,
+            message: format!(
+                "unsupported emit script '{:?}' for target '{}'",
+                target.emit, target_name
+            ),
+        }
+        .into())
+    }
+
+    /// Emit one compiled-code object for one target.
+    pub(super) fn emit_target_object(
         &self,
         module_id: ModuleId,
         profile: ProfileId,
@@ -64,19 +120,12 @@ impl Compiler {
         target_name: &str,
         context: &dyn ProviderContext,
         artifacts: &ArtifactReader<'_>,
-    ) -> CompilerResult<ModuleOutput> {
-        // dispatch through the selected emit family
-        if target.uses_js_emit_pipeline() {
-            return self.emit_js_module_output(module_id, target, profile, context, artifacts);
-        }
-
+    ) -> CompilerResult<Object> {
         // native emit
         #[cfg(feature = "native")]
         {
             if target.uses_native_emit_pipeline() {
-                return self.emit_native_module_output(
-                    module_id, target, target_id, profile, context, artifacts,
-                );
+                return self.emit_object(module_id, target, target_id, profile, context, artifacts);
             }
         }
 
@@ -88,7 +137,7 @@ impl Compiler {
                     anchor: (module_id).into(),
                     module: module_id,
                     message: format!(
-                        "native emit is disabled: cannot emit output '{:?}' for target '{}'",
+                        "native emit is disabled: cannot emit object '{:?}' for target '{}'",
                         target.emit, target_name
                     ),
                 }
@@ -100,7 +149,7 @@ impl Compiler {
             anchor: (module_id).into(),
             module: module_id,
             message: format!(
-                "unsupported output '{:?}' for target '{}'",
+                "unsupported emit object '{:?}' for target '{}'",
                 target.emit, target_name
             ),
         }

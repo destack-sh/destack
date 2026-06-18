@@ -196,7 +196,7 @@ fn run_sink(
                 }
 
                 // must be a successor
-                if !successors.iter().any(|successor| *successor == use_block) {
+                if !successors.contains(&use_block) {
                     // used in a non successor block
                     // this can happen if the value flows through block parameters
                     target_successor = None;

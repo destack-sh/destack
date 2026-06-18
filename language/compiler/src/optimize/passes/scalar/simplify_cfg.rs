@@ -1309,7 +1309,7 @@ fn lower_single_case_switch(
         }
     };
     let constant_id = tree.insert(mir::Instruction::Const {
-        destination: constant_value.into(),
+        destination: constant_value,
         value: constant,
     });
 
@@ -1317,15 +1317,15 @@ fn lower_single_case_switch(
     let bool_type = tree.boolean_type();
     let condition_value = function.next_typed_value(bool_type);
     let compare_id = tree.insert(mir::Instruction::Binary {
-        destination: condition_value.into(),
+        destination: condition_value,
         operator: mir::BinaryOperator::Equal,
         left: value,
-        right: constant_value.into(),
+        right: constant_value,
     });
 
     // build the conditional branch
     let terminator = mir::Terminator::Branch {
-        condition: condition_value.into(),
+        condition: condition_value,
         then_target: case.target.clone(),
         else_target: default.clone(),
     };
@@ -1549,11 +1549,11 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Tree
     } else {
         let return_value = function.next_typed_value(return_type_id);
         let param = mir::Parameter {
-            value: return_value.into(),
-            ty: return_type_id.into(),
+            value: return_value,
+            ty: return_type_id,
         };
         let terminator = tree.insert(mir::Terminator::Return {
-            value: Some(return_value.into()),
+            value: Some(return_value),
         });
         let block = mir::Block::with_parameters(vec![param], terminator);
         let canonical_id = tree.insert(block);
@@ -1649,7 +1649,7 @@ fn rewrite_return_targets(
             if let Some(arguments) = remapped {
                 let arguments = tree.add_values(&arguments);
                 return mir::Terminator::Jump {
-                    target: mir::BlockTarget::new(canonical_return.into(), arguments),
+                    target: mir::BlockTarget::new(canonical_return, arguments),
                 };
             }
 
@@ -1674,7 +1674,7 @@ fn rewrite_return_targets(
             let new_then_target = if let Some(arguments) = then_remap {
                 remapped = true;
                 let arguments = tree.add_values(&arguments);
-                mir::BlockTarget::new(canonical_return.into(), arguments)
+                mir::BlockTarget::new(canonical_return, arguments)
             } else {
                 record_kept_return(return_blocks, kept_returns, then_target.block);
                 then_target.clone()
@@ -1684,7 +1684,7 @@ fn rewrite_return_targets(
             let new_else_target = if let Some(arguments) = else_remap {
                 remapped = true;
                 let arguments = tree.add_values(&arguments);
-                mir::BlockTarget::new(canonical_return.into(), arguments)
+                mir::BlockTarget::new(canonical_return, arguments)
             } else {
                 record_kept_return(return_blocks, kept_returns, else_target.block);
                 else_target.clone()
@@ -1717,7 +1717,7 @@ fn rewrite_return_targets(
             let new_success = if let Some(arguments) = success_remap {
                 remapped = true;
                 let arguments = tree.add_values(&arguments);
-                mir::BlockTarget::new(canonical_return.into(), arguments)
+                mir::BlockTarget::new(canonical_return, arguments)
             } else {
                 record_kept_return(return_blocks, kept_returns, success.block);
                 success.clone()
@@ -1727,7 +1727,7 @@ fn rewrite_return_targets(
             let new_failure = if let Some(arguments) = failure_remap {
                 remapped = true;
                 let arguments = tree.add_values(&arguments);
-                mir::BlockTarget::new(canonical_return.into(), arguments)
+                mir::BlockTarget::new(canonical_return, arguments)
             } else {
                 record_kept_return(return_blocks, kept_returns, failure.block);
                 failure.clone()
@@ -1758,7 +1758,7 @@ fn rewrite_return_targets(
             let new_default = if let Some(arguments) = default_remap {
                 remapped = true;
                 let arguments = tree.add_values(&arguments);
-                mir::BlockTarget::new(canonical_return.into(), arguments)
+                mir::BlockTarget::new(canonical_return, arguments)
             } else {
                 record_kept_return(return_blocks, kept_returns, default.block);
                 default.clone()
@@ -1777,7 +1777,7 @@ fn rewrite_return_targets(
                     let arguments = tree.add_values(&arguments);
                     new_cases.push(mir::SwitchCase {
                         value: case.value,
-                        target: mir::BlockTarget::new(canonical_return.into(), arguments),
+                        target: mir::BlockTarget::new(canonical_return, arguments),
                     });
                 } else {
                     record_kept_return(return_blocks, kept_returns, case.target.block);
@@ -2180,7 +2180,7 @@ fn tail_duplicate_blocks(
             let pred_block = tree.get(pred.pred).clone();
             let updated_pred = pred_block.clone();
             let new_pred_terminator = mir::Terminator::Jump {
-                target: mir::BlockTarget::new(new_block_id.into(), mir::ValueSlice::default()),
+                target: mir::BlockTarget::new(new_block_id, mir::ValueSlice::default()),
             };
             tree.set(updated_pred.terminator, new_pred_terminator);
             tree.set(pred.pred, updated_pred);
@@ -2201,7 +2201,7 @@ fn values_available_in_block(
 ) -> bool {
     // ensure each value definition dominates the block
     for value in values {
-        let Some(def_block) = value_def_blocks.get(&value) else {
+        let Some(def_block) = value_def_blocks.get(value) else {
             return false;
         };
 
@@ -2506,7 +2506,7 @@ fn split_critical_edge_target(
     // reuse previously split edges for the same source and target
     if let Some(existing) = split_cache.get(&(source, target_block_id)) {
         let arguments = target.arguments;
-        return Some(mir::BlockTarget::new((*existing).into(), arguments));
+        return Some(mir::BlockTarget::new(*existing, arguments));
     }
 
     // read the target block parameters

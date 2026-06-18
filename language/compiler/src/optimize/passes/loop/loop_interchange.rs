@@ -352,7 +352,7 @@ fn apply_interchange(tree: &mut mir::Tree, candidate: &InterchangeCandidate) -> 
     let preheader_block = tree.get(candidate.outer_preheader).clone();
     let preheader_terminator = mir::Terminator::Jump {
         target: mir::BlockTarget::new(
-            candidate.inner_header.into(),
+            candidate.inner_header,
             tree.add_values(&candidate.inner_header_args),
         ),
     };
@@ -380,20 +380,14 @@ fn apply_interchange(tree: &mut mir::Tree, candidate: &InterchangeCandidate) -> 
     let new_inner_terminator = if in_loop_is_then {
         mir::Terminator::Branch {
             condition: *condition,
-            then_target: mir::BlockTarget::new(candidate.outer_header.into(), outer_preheader_args),
-            else_target: mir::BlockTarget::new(
-                candidate.outer_exit.into(),
-                mir::ValueSlice::default(),
-            ),
+            then_target: mir::BlockTarget::new(candidate.outer_header, outer_preheader_args),
+            else_target: mir::BlockTarget::new(candidate.outer_exit, mir::ValueSlice::default()),
         }
     } else {
         mir::Terminator::Branch {
             condition: *condition,
-            then_target: mir::BlockTarget::new(
-                candidate.outer_exit.into(),
-                mir::ValueSlice::default(),
-            ),
-            else_target: mir::BlockTarget::new(candidate.outer_header.into(), outer_preheader_args),
+            then_target: mir::BlockTarget::new(candidate.outer_exit, mir::ValueSlice::default()),
+            else_target: mir::BlockTarget::new(candidate.outer_header, outer_preheader_args),
         }
     };
     tree.set(candidate.inner_header, inner_header_block);
@@ -419,26 +413,14 @@ fn apply_interchange(tree: &mut mir::Tree, candidate: &InterchangeCandidate) -> 
     let new_outer_terminator = if in_loop_is_then {
         mir::Terminator::Branch {
             condition: *condition,
-            then_target: mir::BlockTarget::new(
-                candidate.outer_latch.into(),
-                mir::ValueSlice::default(),
-            ),
-            else_target: mir::BlockTarget::new(
-                candidate.inner_latch.into(),
-                mir::ValueSlice::default(),
-            ),
+            then_target: mir::BlockTarget::new(candidate.outer_latch, mir::ValueSlice::default()),
+            else_target: mir::BlockTarget::new(candidate.inner_latch, mir::ValueSlice::default()),
         }
     } else {
         mir::Terminator::Branch {
             condition: *condition,
-            then_target: mir::BlockTarget::new(
-                candidate.inner_latch.into(),
-                mir::ValueSlice::default(),
-            ),
-            else_target: mir::BlockTarget::new(
-                candidate.outer_latch.into(),
-                mir::ValueSlice::default(),
-            ),
+            then_target: mir::BlockTarget::new(candidate.inner_latch, mir::ValueSlice::default()),
+            else_target: mir::BlockTarget::new(candidate.outer_latch, mir::ValueSlice::default()),
         }
     };
     tree.set(candidate.outer_header, outer_header_block);

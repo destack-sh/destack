@@ -156,7 +156,7 @@ fn run_instruction_combine(
                     let destination = *destination;
 
                     let args = tree.get_values(*fields);
-                    aggregate_operands.insert(destination, args.iter().copied().collect());
+                    aggregate_operands.insert(destination, args.to_vec());
                 }
                 mir::Instruction::Tuple {
                     destination,
@@ -171,7 +171,7 @@ fn run_instruction_combine(
                     let destination = *destination;
 
                     let args = tree.get_values(*elements);
-                    aggregate_operands.insert(destination, args.iter().copied().collect());
+                    aggregate_operands.insert(destination, args.to_vec());
                 }
                 mir::Instruction::FieldSet {
                     destination,
@@ -320,7 +320,7 @@ fn run_instruction_combine(
                     Simplification::Constant(value) => {
                         let dest = instruction.destination().unwrap();
                         let new_instruction = mir::Instruction::Const {
-                            destination: dest.into(),
+                            destination: dest,
                             value: value.clone(),
                         };
                         block_constants.insert(dest, value);

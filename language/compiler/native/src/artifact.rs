@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{EmitFormat, MirLowered, MirOptimized, SourceMapArtifact};
+use destack_artifact::{EmitFormat, MirLowered, MirOptimized, SourceMap};
 use destack_core::StringPool;
 use destack_repository::{Module, Target};
 use destack_source::FileType;
@@ -30,12 +30,12 @@ pub struct NativeOutputBytes {
     /// The emitted native payload bytes.
     pub bytes: Vec<u8>,
     /// The emitted source map payload when one exists.
-    pub source_map: Option<SourceMapArtifact>,
+    pub source_map: Option<SourceMap>,
 }
 
 impl NativeOutputBytes {
     /// Create one native output payload.
-    pub fn new(file_type: FileType, bytes: Vec<u8>, source_map: Option<SourceMapArtifact>) -> Self {
+    pub fn new(file_type: FileType, bytes: Vec<u8>, source_map: Option<SourceMap>) -> Self {
         Self {
             file_type,
             bytes,

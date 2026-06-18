@@ -145,8 +145,8 @@ fn run_narrow(
                 instruction = mir::Instruction::Binary {
                     destination,
                     operator,
-                    left: new_left.into(),
-                    right: new_right.into(),
+                    left: new_left,
+                    right: new_right,
                 };
                 updated = true;
             }
@@ -192,8 +192,8 @@ fn run_narrow(
                 )
             {
                 updated_constraint = mir::CheckConstraint::Bounds {
-                    index: new_index.into(),
-                    length: new_length.into(),
+                    index: new_index,
+                    length: new_length,
                     collection: *collection,
                     is_signed: *is_signed,
                 };
@@ -277,8 +277,6 @@ fn integer_info_for_value(
     value_types: &ValueTypeMap,
     tree: &mut mir::Tree,
 ) -> Option<IntegerInfo> {
-    let value = value;
-
     // fetch the integer range for this value
     let range = ranges.get(value)?;
     let ValueRange::Integer {
@@ -334,12 +332,9 @@ fn narrow_pair(
     ranges: &RangeMap,
     value_types: &ValueTypeMap,
 ) -> Option<(mir::Value, mir::Value)> {
-    let left = left;
-    let right = right;
-
     // compute range info for both operands
-    let left_info = integer_info_for_value(left.into(), ranges, value_types, tree)?;
-    let right_info = integer_info_for_value(right.into(), ranges, value_types, tree)?;
+    let left_info = integer_info_for_value(left, ranges, value_types, tree)?;
+    let right_info = integer_info_for_value(right, ranges, value_types, tree)?;
 
     // require compatible operand types
     if left_info.signed != right_info.signed
@@ -416,10 +411,10 @@ fn narrow_value_to_width(
     // insert a truncating cast before the use
     let destination = function.next_typed_value(ty_id);
     let cast = mir::Instruction::Cast {
-        destination: destination.into(),
+        destination,
         operator: mir::CastOperator::Truncate,
-        argument: value.into(),
-        to_type: ty_id.into(),
+        argument: value,
+        to_type: ty_id,
     };
     let cast_id = tree.insert(cast);
     new_instructions.push(cast_id);

@@ -1,5 +1,5 @@
 use crate::Compiler;
-use destack_artifact::{BuildManifestFileType, BuildManifestLoader, OutputFile};
+use destack_artifact::{BuildManifestFileType, BuildManifestLoader, BundleFile};
 use destack_source::FileType;
 
 use super::layout::{OutputLocation, TargetLocation};
@@ -9,7 +9,7 @@ impl Compiler {
     pub(crate) fn file_output_location(
         &self,
         output_layout: &TargetLocation<'_>,
-        file: &OutputFile,
+        file: &BundleFile,
     ) -> Option<OutputLocation> {
         file.uri
             .to_path_buf()
@@ -17,7 +17,7 @@ impl Compiler {
     }
 
     /// Return the manifest file type for one emitted file.
-    pub(crate) fn build_manifest_file_type(&self, file: &OutputFile) -> BuildManifestFileType {
+    pub(crate) fn build_manifest_file_type(&self, file: &BundleFile) -> BuildManifestFileType {
         match file.file_type {
             FileType::JavaScript | FileType::TypeScript => BuildManifestFileType::Chunk,
             FileType::Object | FileType::Wasm => BuildManifestFileType::Binary,
@@ -26,7 +26,7 @@ impl Compiler {
     }
 
     /// Return the manifest loader string for one emitted file.
-    pub(crate) fn build_manifest_loader(&self, file: &OutputFile) -> BuildManifestLoader {
+    pub(crate) fn build_manifest_loader(&self, file: &BundleFile) -> BuildManifestLoader {
         match file.file_type {
             FileType::JavaScript => BuildManifestLoader::Js,
             FileType::TypeScript => BuildManifestLoader::Ts,

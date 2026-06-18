@@ -203,15 +203,16 @@ fn run_argument_specialize(
         }
 
         // skip cold callsites when profile data is present
-        if !caller_block_counts.contains_key(&callsite.caller) {
-            let counts = mir::profile_block_counts(
-                tree.get(callsite.caller),
-                tree,
-                ctx.profile(),
-                &mir::FunctionAnalyses::new(),
-            );
-            caller_block_counts.insert(callsite.caller, counts);
-        }
+        caller_block_counts
+            .entry(callsite.caller)
+            .or_insert_with(|| {
+                mir::profile_block_counts(
+                    tree.get(callsite.caller),
+                    tree,
+                    ctx.profile(),
+                    &mir::FunctionAnalyses::new(),
+                )
+            });
         let entry_count = ctx
             .profile()
             .and_then(|profile| profile.function(tree.get(callsite.caller).symbol))
@@ -650,11 +651,11 @@ fn update_callsite(
 
     let mut call = call;
     call.arguments = new_slice;
-    call.signature = signature_type.map(Into::into).unwrap_or(call.signature);
+    call.signature = signature_type.unwrap_or(call.signature);
 
     let updated = mir::Instruction::Call {
         destination,
-        function: new_callee.into(),
+        function: new_callee,
         call,
     };
     tree.set(callsite.call_instruction, updated);
@@ -778,16 +779,11 @@ entry:
         let signature = test.tree.get(
             instruction
                 .call_signature()
-                .and_then(|signature| Some(signature))
                 .expect("call signature should be concrete"),
         );
         let expected_signature = mir::Type::FunctionSignature {
-            parameters: callee
-                .parameters
-                .iter()
-                .map(|param| param.ty.clone())
-                .collect(),
-            result: callee.return_type.clone(),
+            parameters: callee.parameters.iter().map(|param| param.ty).collect(),
+            result: callee.return_type,
             borrow_obligations: Vec::new(),
         };
 

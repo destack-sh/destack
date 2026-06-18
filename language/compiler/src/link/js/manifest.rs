@@ -1,8 +1,8 @@
 use crate::link::{OutputLocation, TargetLocation};
 use crate::{LinkError, LinkResult};
 use destack_artifact::{
-    BuildManifest, BuildManifestFile, BuildManifestFileType, BuildManifestLoader, OutputFile,
-    PackageOutput,
+    BuildManifest, BuildManifestFile, BuildManifestFileType, BuildManifestLoader, Bundle,
+    BundleFile,
 };
 use destack_repository::JsOutputMode;
 use destack_source::FileType;
@@ -72,17 +72,15 @@ impl<'a> JsLinker<'a> {
     /// Build one public build manifest for one JS target.
     pub(crate) fn build_js_manifest(
         &self,
-        output: &PackageOutput,
+        output: &Bundle,
         plan: &Plan,
     ) -> LinkResult<BuildManifest> {
         let target_layout = TargetLocation::new(self.package_dir, self.target, self.target_name());
         let mut files = Vec::new();
-        for output_files in output.outputs.values() {
-            for file in output_files {
-                let file = self.build_js_manifest_file(&target_layout, file, plan)?;
+        for file in output.files() {
+            let file = self.build_js_manifest_file(&target_layout, file, plan)?;
 
-                files.push(file);
-            }
+            files.push(file);
         }
 
         files.sort_by(|left, right| left.path.cmp(&right.path));
@@ -94,7 +92,7 @@ impl<'a> JsLinker<'a> {
     fn build_js_manifest_file(
         &self,
         target_layout: &TargetLocation<'_>,
-        file: &OutputFile,
+        file: &BundleFile,
         plan: &Plan,
     ) -> LinkResult<BuildManifestFile> {
         let output_location = self.compiler.file_output_location(target_layout, file);

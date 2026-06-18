@@ -1,6 +1,6 @@
 use crate::{Compiler, CompilerError, CompilerResult, LinkError, LinkResult};
 
-use destack_artifact::{OutputFile, PackageOutput, TargetOutputName};
+use destack_artifact::{Bundle, BundleFile, BundleSection};
 use destack_repository::JsOutputFormat;
 use destack_source::{FileType, ModuleId};
 
@@ -8,7 +8,7 @@ use super::JsLinker;
 
 impl<'a> JsLinker<'a> {
     /// Link one discovered JS target.
-    pub(crate) fn link_target(&self, root_modules: &[ModuleId]) -> CompilerResult<PackageOutput> {
+    pub(crate) fn link_target(&self, root_modules: &[ModuleId]) -> CompilerResult<Bundle> {
         self.validate_target()?;
 
         let plan = self.plan(root_modules)?;
@@ -24,7 +24,7 @@ impl<'a> JsLinker<'a> {
         );
 
         // packaged output
-        let mut output = self.package_output(output_files);
+        let mut output = self.bundle(output_files);
 
         // optional manifest
         if self.target.js.output.manifest {
@@ -71,42 +71,30 @@ impl<'a> JsLinker<'a> {
     }
 
     /// Build the packaged JS output groups for this target.
-    pub(crate) fn package_output(&self, files: Vec<OutputFile>) -> PackageOutput {
-        let mut outputs = indexmap::IndexMap::new();
-
-        // group linked files by their emitted output role
-        for file in files {
-            let output_name = self.target_output_name_for_file(file.file_type);
-
-            outputs
-                .entry(output_name)
-                .or_insert_with(Vec::new)
-                .push(file);
-        }
-
-        PackageOutput::new(
+    pub(crate) fn bundle(&self, files: Vec<BundleFile>) -> Bundle {
+        Bundle::new(
             self.target.emit,
             Compiler::package_assembly(self.target.js.mode),
-            outputs,
+            files,
         )
     }
 
-    /// Return the grouped output name for one emitted file.
-    fn target_output_name_for_file(&self, file_type: FileType) -> TargetOutputName {
+    /// Return the bundle section for one emitted file.
+    pub(crate) fn bundle_section_for_file(&self, file_type: FileType) -> BundleSection {
         match file_type {
-            FileType::TypeScriptDeclaration => TargetOutputName::Types,
-            FileType::SourceMap => TargetOutputName::Maps,
+            FileType::TypeScriptDeclaration => BundleSection::Declaration,
+            FileType::SourceMap => BundleSection::SourceMap,
 
             // single-file JS targets publish an entry file
             FileType::JavaScript | FileType::TypeScript => {
                 if self.target.is_single_file() {
-                    TargetOutputName::Entry
+                    BundleSection::Entry
                 } else {
-                    TargetOutputName::Module
+                    BundleSection::Module
                 }
             }
 
-            _ => TargetOutputName::Assets,
+            _ => BundleSection::Asset,
         }
     }
 }

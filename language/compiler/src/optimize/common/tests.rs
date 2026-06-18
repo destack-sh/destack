@@ -431,9 +431,9 @@ impl TestProgram {
         let param_tys = callee_function
             .parameters
             .iter()
-            .map(|param| param.ty.clone())
+            .map(|param| param.ty)
             .collect::<Vec<_>>();
-        let return_ty = callee_function.return_type.clone();
+        let return_ty = callee_function.return_type;
 
         // insert the function pointer type
         self.tree.insert_type(mir::Type::FunctionSignature {
@@ -1314,7 +1314,7 @@ entry(v0: int32, v1: int32):
             lifetime: mir::Lifetime::empty(),
             space: mir::Space::Frame,
             access: mir::Access::Mutable,
-            pointee: pointee.into(),
+            pointee,
             nullability: mir::Nullability::None,
         });
 
@@ -1325,25 +1325,25 @@ entry(v0: int32, v1: int32):
         let index = mir::Value::new(3);
 
         let local_addr = mir::Instruction::LocalAddr {
-            destination: destination.into(),
-            local: local.into(),
-            result_type: borrowed_ref.into(),
+            destination,
+            local,
+            result_type: borrowed_ref,
         };
         assert!(!instruction_is_speculatable(&local_addr, &tree));
 
         let field_addr = mir::Instruction::FieldAddr {
-            destination: destination.into(),
-            aggregate: aggregate.into(),
+            destination,
+            aggregate,
             index: 0,
-            result_type: borrowed_ref.into(),
+            result_type: borrowed_ref,
         };
         assert!(!instruction_is_speculatable(&field_addr, &tree));
 
         let element_addr = mir::Instruction::ElementAddr {
-            destination: destination.into(),
-            array: array.into(),
-            index: index.into(),
-            result_type: borrowed_ref.into(),
+            destination,
+            array,
+            index,
+            result_type: borrowed_ref,
         };
         assert!(!instruction_is_speculatable(&element_addr, &tree));
     }
@@ -1362,7 +1362,7 @@ entry(v0: int32, v1: int32):
             lifetime: mir::Lifetime::empty(),
             space: mir::Space::Frame,
             access: mir::Access::Mutable,
-            pointee: pointee.into(),
+            pointee,
             nullability: mir::Nullability::None,
         });
         let borrowed_ref = tree.insert_type(mir::Type::Reference {
@@ -1370,7 +1370,7 @@ entry(v0: int32, v1: int32):
             lifetime: mir::Lifetime::empty(),
             space: mir::Space::Frame,
             access: mir::Access::Mutable,
-            pointee: pointee.into(),
+            pointee,
             nullability: mir::Nullability::None,
         });
 
@@ -1378,14 +1378,14 @@ entry(v0: int32, v1: int32):
         let local = mir::LocalNodeId::new(0);
 
         let raw_addr = mir::Instruction::LocalAddr {
-            destination: destination.into(),
-            local: local.into(),
-            result_type: raw_ref.into(),
+            destination,
+            local,
+            result_type: raw_ref,
         };
         let borrowed_addr = mir::Instruction::LocalAddr {
-            destination: destination.into(),
-            local: local.into(),
-            result_type: borrowed_ref.into(),
+            destination,
+            local,
+            result_type: borrowed_ref,
         };
 
         assert!(instruction_is_speculatable(&raw_addr, &tree));

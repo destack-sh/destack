@@ -338,7 +338,10 @@ fn add_pattern_resolution_row(
                     "discriminant",
                     builder.scalar_literal_label(&variant.discriminant),
                 )
-                .optional_field("payload", pattern_variant_payload_label(&variant.fields));
+                .optional_field(
+                    "payload",
+                    pattern_variant_payload_label(&variant.fields).map(str::to_string),
+                );
 
             add_pattern_variant_fields(builder, segment, row, &variant.fields)
         }

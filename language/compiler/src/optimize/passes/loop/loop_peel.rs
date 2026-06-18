@@ -151,7 +151,7 @@ fn run_loop_peel(
         // redirect preheader to the peeled iteration
         let preheader_block = tree.get(preheader).clone();
         let preheader_terminator = mir::Terminator::Jump {
-            target: mir::BlockTarget::new(cloned_header.into(), tree.add_values(&preheader_args)),
+            target: mir::BlockTarget::new(cloned_header, tree.add_values(&preheader_args)),
         };
         tree.set(preheader, preheader_block);
         tree.set(tree.get(preheader).terminator, preheader_terminator);
@@ -236,18 +236,18 @@ fn redirect_backedge(
             let mut new_else = else_target.block;
 
             // rewrite the backedge to the original header
-            if then_target.block == cloned_header.into() {
-                new_then = original_header.into();
-            } else if else_target.block == cloned_header.into() {
-                new_else = original_header.into();
+            if then_target.block == cloned_header {
+                new_then = original_header;
+            } else if else_target.block == cloned_header {
+                new_else = original_header;
             } else {
                 return false;
             }
 
             *terminator = mir::Terminator::Branch {
                 condition: *condition,
-                then_target: mir::BlockTarget::new(new_then, then_target.arguments.clone()),
-                else_target: mir::BlockTarget::new(new_else, else_target.arguments.clone()),
+                then_target: mir::BlockTarget::new(new_then, then_target.arguments),
+                else_target: mir::BlockTarget::new(new_else, else_target.arguments),
             };
         }
         mir::Terminator::Check {
@@ -259,18 +259,18 @@ fn redirect_backedge(
             let mut failure_target = failure.block;
 
             // rewrite the backedge to the original header
-            if success.block == cloned_header.into() {
-                success_target = original_header.into();
-            } else if failure.block == cloned_header.into() {
-                failure_target = original_header.into();
+            if success.block == cloned_header {
+                success_target = original_header;
+            } else if failure.block == cloned_header {
+                failure_target = original_header;
             } else {
                 return false;
             }
 
             *terminator = mir::Terminator::Check {
                 constraint: constraint.clone(),
-                success: mir::BlockTarget::new(success_target, success.arguments.clone()),
-                failure: mir::BlockTarget::new(failure_target, failure.arguments.clone()),
+                success: mir::BlockTarget::new(success_target, success.arguments),
+                failure: mir::BlockTarget::new(failure_target, failure.arguments),
             };
         }
         _ => return false,

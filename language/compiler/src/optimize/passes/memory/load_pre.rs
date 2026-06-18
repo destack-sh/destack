@@ -214,8 +214,8 @@ fn run_load_pre(
             // allocate a new block parameter for the load value
             let param_value = function.next_typed_value(load.result_type);
             let param = mir::Parameter {
-                value: param_value.into(),
-                ty: load.result_type.into(),
+                value: param_value,
+                ty: load.result_type,
             };
             let mut updated_block = tree.get(block_id).clone();
             updated_block.parameters.push(param);
@@ -246,9 +246,9 @@ fn run_load_pre(
                     // insert a new load at the edge block
                     let load_value = function.next_typed_value(load.result_type);
                     let load_instruction = mir::Instruction::Load {
-                        destination: load_value.into(),
-                        pointer: insertion.pointer.into(),
-                        result_type: load.result_type.into(),
+                        destination: load_value,
+                        pointer: insertion.pointer,
+                        result_type: load.result_type,
                     };
                     let load_id = tree.insert(load_instruction);
 

@@ -573,12 +573,12 @@ fn insert_store_for_plan(
     // build the new store instruction
     let instruction = match kind {
         StoreKind::Store => mir::Instruction::Store {
-            pointer: plan.pointer.expect("store pointer required").into(),
-            value: plan.value.into(),
+            pointer: plan.pointer.expect("store pointer required"),
+            value: plan.value,
         },
         StoreKind::LocalSet => mir::Instruction::LocalSet {
-            local: plan.local.expect("local target required").into(),
-            value: plan.value.into(),
+            local: plan.local.expect("local target required"),
+            value: plan.value,
         },
     };
 
