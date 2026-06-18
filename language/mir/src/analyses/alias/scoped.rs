@@ -213,8 +213,8 @@ entry(v0: ref<int32, borrowed, readonly>, v1: ref<int32, borrowed, readonly>):
     fn test_strict_mode_mut_borrows_no_alias() {
         let program = TestProgram::new(
             r#"
-function test(v0: ref<int32, borrowed>, v1: ref<int32, borrowed, readonly>): void {
-entry(v0: ref<int32, borrowed>, v1: ref<int32, borrowed, readonly>):
+function test(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, readonly>): void {
+entry(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, readonly>):
     v2: int32 = 1
     store v0, v2
     store v1, v2
@@ -239,9 +239,9 @@ entry(v0: ref<int32, borrowed>, v1: ref<int32, borrowed, readonly>):
     fn test_mut_borrow_vs_local_no_alias() {
         let program = TestProgram::new(
             r#"
-function test(v0: ref<int32, borrowed>): void {
-entry(v0: ref<int32, borrowed>):
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+function test(v0: ref<int32, borrowed, mutable>): void {
+entry(v0: ref<int32, borrowed, mutable>):
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 1
     store v0, v2
     store v1, v2
@@ -294,8 +294,8 @@ entry(v0: ref<int32, borrowed, readonly>, v1: ref<int32, borrowed, readonly>):
         // in strict mode borrow doesn't alias immutable borrow
         let program = TestProgram::new(
             r#"
-function test(v0: ref<int32, borrowed>, v1: ref<int32, borrowed, readonly>): void {
-entry(v0: ref<int32, borrowed>, v1: ref<int32, borrowed, readonly>):
+function test(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, readonly>): void {
+entry(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, readonly>):
     v2: int32 = 1
     store v0, v2
     v3: int32 = load v1
@@ -327,9 +327,9 @@ type Point {
     int32;
 }
 
-function test(v0: ref<Point, borrowed>, v1: ref<int32, borrowed>): void {
-entry(v0: ref<Point, borrowed>, v1: ref<int32, borrowed>):
-    v2: ref<int32, borrowed> = field.address v0, 0
+function test(v0: ref<Point, borrowed, mutable>, v1: ref<int32, borrowed, mutable>): void {
+entry(v0: ref<Point, borrowed, mutable>, v1: ref<int32, borrowed, mutable>):
+    v2: ref<int32, borrowed, mutable> = field.address v0, 0
     v3: int32 = 1
     store v2, v3
     store v1, v3
@@ -356,8 +356,8 @@ entry(v0: ref<Point, borrowed>, v1: ref<int32, borrowed>):
         // same noalias param accessed twice should may-alias (itself)
         let program = TestProgram::new(
             r#"
-function test(v0: ref<int32, borrowed>): void {
-entry(v0: ref<int32, borrowed>):
+function test(v0: ref<int32, borrowed, mutable>): void {
+entry(v0: ref<int32, borrowed, mutable>):
     v1: int32 = 1
     store v0, v1
     return

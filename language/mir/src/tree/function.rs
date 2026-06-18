@@ -159,6 +159,7 @@ impl Function {
     /// Create one function from its signature facts.
     fn with_signature(
         name: StringId,
+        lifetimes: Vec<LifetimeParameter>,
         parameters: Vec<FunctionParameter>,
         return_type: TypeId,
         linkage: Linkage,
@@ -173,7 +174,7 @@ impl Function {
             name,
             symbol: Symbol(name),
             parameters,
-            lifetimes: Vec::new(),
+            lifetimes,
             parameter_names,
             value_names: vec![None; next_value_id as usize],
             value_types,
@@ -192,25 +193,53 @@ impl Function {
     /// Create a local function declaration without a body.
     pub fn declare(
         name: StringId,
+        lifetimes: Vec<LifetimeParameter>,
         parameters: Vec<FunctionParameter>,
         return_type: TypeId,
     ) -> Self {
-        Self::with_signature(name, parameters, return_type, Linkage::Local, None)
+        Self::with_signature(
+            name,
+            lifetimes,
+            parameters,
+            return_type,
+            Linkage::Local,
+            None,
+        )
     }
 
     /// Create a new local (private) function with the given signature.
     pub fn local(
         name: StringId,
+        lifetimes: Vec<LifetimeParameter>,
         parameters: Vec<FunctionParameter>,
         return_type: TypeId,
         entry: LocalNodeId<Block>,
     ) -> Self {
-        Self::with_signature(name, parameters, return_type, Linkage::Local, Some(entry))
+        Self::with_signature(
+            name,
+            lifetimes,
+            parameters,
+            return_type,
+            Linkage::Local,
+            Some(entry),
+        )
     }
 
     /// Create an imported function declaration (no body).
-    pub fn import(name: StringId, parameters: Vec<FunctionParameter>, return_type: TypeId) -> Self {
-        Self::with_signature(name, parameters, return_type, Linkage::Import, None)
+    pub fn import(
+        name: StringId,
+        lifetimes: Vec<LifetimeParameter>,
+        parameters: Vec<FunctionParameter>,
+        return_type: TypeId,
+    ) -> Self {
+        Self::with_signature(
+            name,
+            lifetimes,
+            parameters,
+            return_type,
+            Linkage::Import,
+            None,
+        )
     }
 
     /// Get the type for an SSA value.

@@ -135,7 +135,7 @@ entry:
     assert_output_eq(
         r#"
 @custom
-@environment(ref<int32, managed>)
+@environment(ref<int32, managed, mutable>)
 // detail
 function kernel(): void {
 entry:

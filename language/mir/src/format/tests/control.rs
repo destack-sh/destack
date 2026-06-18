@@ -104,8 +104,8 @@ entry(v0: ref<void, managed, readonly>):
 fn test_format_check_type_guards() {
     assert_format(
         r#"
-function guard(v0: uint32, v1: ref<void, managed>): int32 {
-entry(v0: uint32, v1: ref<void, managed>):
+function guard(v0: uint32, v1: ref<void, managed, mutable>): int32 {
+entry(v0: uint32, v1: ref<void, managed, mutable>):
     v2: boolean = int.eq v0, v0
     check dynamic.type v0, int32 => b1, b4
 

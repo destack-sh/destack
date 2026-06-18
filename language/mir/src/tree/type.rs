@@ -94,6 +94,18 @@ pub enum ReferenceKind {
     Raw,
 }
 
+impl ReferenceKind {
+    /// Return the canonical MIR name.
+    pub fn name(self) -> &'static str {
+        match self {
+            ReferenceKind::Managed => "managed",
+            ReferenceKind::Unique => "unique",
+            ReferenceKind::Borrowed => "borrowed",
+            ReferenceKind::Raw => "raw",
+        }
+    }
+}
+
 /// Invalid-value niches carried by pointer-like values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum Nullability {
@@ -383,6 +395,8 @@ pub enum Type {
 
     /// Bare function signature.
     FunctionSignature {
+        /// Lifetime parameters in signature-local slot order.
+        lifetimes: Vec<LifetimeParameter>,
         /// The parameters of the function.
         parameters: Vec<SignatureParameter>,
         /// The result type of the function.
@@ -547,6 +561,23 @@ impl Type {
     /// Whether this type is a unique reference.
     pub fn is_unique_reference(&self) -> bool {
         self.reference_kind() == Some(ReferenceKind::Unique)
+    }
+
+    /// Whether this type owns unique storage.
+    pub fn is_unique_storage(&self) -> bool {
+        matches!(
+            self,
+            Type::Reference {
+                kind: ReferenceKind::Unique,
+                ..
+            } | Type::Slice {
+                kind: ReferenceKind::Unique,
+                ..
+            } | Type::TensorView {
+                kind: ReferenceKind::Unique,
+                ..
+            }
+        )
     }
 
     /// Return the reference kind for reference-like values.
@@ -731,12 +762,17 @@ pub fn callable_signature(ty: &Type) -> Option<TypeId> {
     }
 }
 
-/// Return the parameters and result type of one function signature.
-pub fn function_signature_parts(ty: &Type) -> Option<(&[SignatureParameter], TypeId)> {
+/// Return the lifetimes, parameters, and result type of one function signature.
+pub fn function_signature_parts(
+    ty: &Type,
+) -> Option<(&[LifetimeParameter], &[SignatureParameter], TypeId)> {
     match ty {
         Type::FunctionSignature {
-            parameters, result, ..
-        } => Some((parameters.as_slice(), *result)),
+            lifetimes,
+            parameters,
+            result,
+            ..
+        } => Some((lifetimes.as_slice(), parameters.as_slice(), *result)),
         _ => None,
     }
 }

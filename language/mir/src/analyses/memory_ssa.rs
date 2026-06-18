@@ -1878,8 +1878,8 @@ mod tests {
     fn test_memory_ssa_linear_def_use() {
         let test = TestProgram::new(
             r#"
-function test(v0: ref<int32, raw>): int32 {
-entry(v0: ref<int32, raw>):
+function test(v0: ref<int32, raw, mutable>): int32 {
+entry(v0: ref<int32, raw, mutable>):
     v1: int32 = 1
     store v0, v1
     v2: int32 = load v0
@@ -1921,8 +1921,8 @@ entry(v0: ref<int32, raw>):
     fn test_memory_ssa_phi_at_join() {
         let test = TestProgram::new(
             r#"
-function test(v0: ref<int32, raw>, v1: boolean): int32 {
-entry(v0: ref<int32, raw>, v1: boolean):
+function test(v0: ref<int32, raw, mutable>, v1: boolean): int32 {
+entry(v0: ref<int32, raw, mutable>, v1: boolean):
     branch v1, b1, b2
 
 b1:
@@ -1976,8 +1976,8 @@ b3:
             r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 1
     store v0, v2
     v3: int32 = 2
@@ -2018,7 +2018,7 @@ entry:
             r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = load v0
     return v1
 }
@@ -2062,8 +2062,8 @@ entry:
     fn test_memory_ssa_space_disambiguate() {
         let mut test = TestProgram::new(
             r#"
-function test(v0: ref<int32, raw>): int32 {
-entry(v0: ref<int32, raw>):
+function test(v0: ref<int32, raw, mutable>): int32 {
+entry(v0: ref<int32, raw, mutable>):
     v1: int32 = 1
     store v0, v1
     v2: int32 = load v0
@@ -2128,8 +2128,8 @@ entry(v0: ref<int32, raw>):
             r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 1
     store v0, v2
     v3: int32 = 2
@@ -2216,8 +2216,8 @@ entry:
     fn test_memory_ssa_free_effect_unknown() {
         let test = TestProgram::new(
             r#"
-function test(v0: ref<int32, unique>): int32 {
-entry(v0: ref<int32, unique>):
+function test(v0: ref<int32, unique, mutable>): int32 {
+entry(v0: ref<int32, unique, mutable>):
     free v0
     v1: int32 = 0
     return v1
@@ -2253,9 +2253,9 @@ type Point {
     int32;
 }
 
-function test(): ref<Point, managed> {
+function test(): ref<Point, managed, mutable> {
 entry:
-    v0: ref<Point, managed> = new.zeroed Point
+    v0: ref<Point, managed, mutable> = new.zeroed Point
     return v0
 }
 "#,
@@ -2287,8 +2287,8 @@ entry:
             r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int64 = 4
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
     v3: int32 = load v0
@@ -2343,8 +2343,8 @@ entry:
             r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int64 = 4
     v3: int32 = intrinsic.memory.raw.compareBytes(v0, v1, v2)
     return v3
@@ -2378,7 +2378,7 @@ entry:
             r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = load v0
     store v0, v1
     return v1
@@ -2439,7 +2439,7 @@ entry:
             r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = atomic.load v0, acquire, scope(device)
     atomic.store v0, v1, release, scope(device)
     return v1
@@ -2511,10 +2511,10 @@ entry:
     fn test_memory_ssa_call_is_unknown_def() {
         let test = TestProgram::new(
             r#"
-external function imported(ref<int32, raw>): void
+external function imported(ref<int32, raw, mutable>): void
 
-function test(v0: ref<int32, raw>): int32 {
-entry(v0: ref<int32, raw>):
+function test(v0: ref<int32, raw, mutable>): int32 {
+entry(v0: ref<int32, raw, mutable>):
     call imported(v0)
     v1: int32 = 0
     return v1
@@ -2555,10 +2555,10 @@ entry(v0: ref<int32, raw>):
     fn test_memory_ssa_skips_no_memory_call() {
         let mut test = TestProgram::new(
             r#"
-external function imported(ref<int32, raw>): void
+external function imported(ref<int32, raw, mutable>): void
 
-function test(v0: ref<int32, raw>): int32 {
-entry(v0: ref<int32, raw>):
+function test(v0: ref<int32, raw, mutable>): int32 {
+entry(v0: ref<int32, raw, mutable>):
     call imported(v0)
     v1: int32 = 0
     return v1
@@ -2587,10 +2587,10 @@ entry(v0: ref<int32, raw>):
         // build the test test
         let mut test = TestProgram::new(
             r#"
-external function imported(ref<int32, raw>, ref<int32, raw>): void
+external function imported(ref<int32, raw, mutable>, ref<int32, raw, mutable>): void
 
-function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
-entry(v0: ref<int32, raw>, v1: ref<int32, raw>):
+function test(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>): int32 {
+entry(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>):
     call imported(v0, v1)
     v2: int32 = 0
     return v2
@@ -2678,8 +2678,8 @@ entry(v0: ref<int32, raw>, v1: ref<int32, raw>):
     fn test_memory_ssa_loop_phi_in_header() {
         let test = TestProgram::new(
             r#"
-function test(v0: ref<int32, raw>, v1: int32): int32 {
-entry(v0: ref<int32, raw>, v1: int32):
+function test(v0: ref<int32, raw, mutable>, v1: int32): int32 {
+entry(v0: ref<int32, raw, mutable>, v1: int32):
     v2: int32 = 0
     store v0, v2
     jump b1(v2)
@@ -2735,7 +2735,7 @@ entry:
     return v0
 
 b1:
-    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 1
     store v1, v2
     return v2

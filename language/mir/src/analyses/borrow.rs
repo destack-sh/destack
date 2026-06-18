@@ -7,7 +7,7 @@ pub fn signature_return_contains_borrowed_refs(
 ) -> bool {
     // default to borrowed for unknown signatures
     let signature_type = tree.get(*signature_type);
-    let Some((_, result)) = mir::function_signature_parts(signature_type) else {
+    let Some((_, _, result)) = mir::function_signature_parts(signature_type) else {
         return true;
     };
 
@@ -21,7 +21,7 @@ pub fn borrowed_parameter_indices_for_signature(
 ) -> Option<Vec<usize>> {
     let signature_type = tree.get(*signature_type);
 
-    let (parameters, _) = mir::function_signature_parts(signature_type)?;
+    let (_, parameters, _) = mir::function_signature_parts(signature_type)?;
 
     let indices = parameters
         .iter()

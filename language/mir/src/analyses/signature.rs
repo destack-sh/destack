@@ -37,7 +37,7 @@ impl SignatureKey {
     /// Build a signature key from a function pointer type.
     pub fn from_signature_type(tree: &mir::Tree, signature: &mir::TypeId) -> Option<Self> {
         // resolve the function pointer signature
-        let (parameters, result) = mir::function_signature_parts(tree.get(*signature))?;
+        let (_, parameters, result) = mir::function_signature_parts(tree.get(*signature))?;
 
         // collect parameter type keys
         let parameters = parameters
@@ -153,6 +153,7 @@ pub fn build_signature_type(
 ) -> mir::LocalNodeId<mir::Type> {
     // collect parameter types from the function signature
     let function = tree.get(function_id);
+    let lifetimes = function.lifetimes.clone();
     let parameters = function
         .parameters
         .iter()
@@ -161,6 +162,7 @@ pub fn build_signature_type(
 
     // insert the function pointer type
     tree.insert_type(mir::Type::FunctionSignature {
+        lifetimes,
         parameters,
         result: function.return_type.clone(),
     })

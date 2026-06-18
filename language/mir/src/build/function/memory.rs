@@ -272,7 +272,7 @@ impl<'a> FunctionBuilder<'a> {
                     });
                 };
                 let signature_type = self.tree.get(signature_id);
-                let Some((_, result)) = function_signature_parts(signature_type) else {
+                let Some((_, _, result)) = function_signature_parts(signature_type) else {
                     return Err(BuildError::MissingFunctionSignature { ty: signature_id });
                 };
 
