@@ -2698,8 +2698,8 @@ There is no hidden suspension - no implicit awaits, no preemption points, no sus
 ### Drop
 
 Whenever the lifetime of a value ends and it is deallocated, Destack supports running a `Drop` finalizer, similar to Rust's `Drop`.
-This happens when the compiler inserts a drop for an owned local after its last use, when an owned field is being destroyed, and when the runtime reclaims an unreachable managed allocation.
-Drop sites are statically known: maybe-present state must be represented as an explicit type like `T | undefined`, and a place conditionally moved on one branch is an error at the join, so there are no runtime drop flags, and drops lower to plain calls.
+This happens when the compiler inserts a drop for an owned local after its last use, when an owned field is being destroyed, and when the runtime _eventually_ reclaims an unreachable managed allocation.
+Drop sites are statically known: maybe-present state must be represented as an explicit type like `T | undefined`, and a place conditionally moved on one branch is an error at the join, so there are no runtime drop flags as such.
 
 ```ds
 function run(): void {
