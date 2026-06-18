@@ -3,7 +3,7 @@
 The Destack language (`.ds`) is a superset of "strict modern" TypeScript with support for `.ts` and `.tsx` files, true native AOT compilation and a fully integrated toolchain, _and_ it can also "compile" nicely to standard JS/TS targets.
 Strict TypeScript code "just works", but Destack has absolutely **no JavaScript or NPM interoperability**  (see [COMPARISON.md](COMPARISON.md)).
 
-We believe that the ideal way to build correct, optimal, integrated software systems is to build a fully integrated stack, and thus by "language" ("TypeScript++") we mean much more than "just" a coding language: a language, a runtime, a toolchain, plugins, and ultimately, a way of programming.
+We believe that the ideal way to build correct, optimal, integrated software systems is to build a fully integrated computing stack, and thus by "language" ("TypeScript++") we mean much more than "just" the programming language itself: a language, a runtime, a toolchain, plugins, libraries, and ultimately, a way of programming.
 It's all connected, and to leave out a part would be to betray the whole, which is why we need to begin with an _actual_ programming language.
 
 ## Universality and Completeness
@@ -23,11 +23,12 @@ Embracing TypeScript and "the web ecosystem" lets us build a new toolchain that 
 
 # Language
 
-Our `.ds` ("TypeScript++") is a superset of the "strict modern" subset of `.ts` (TypeScript), similar _in spirit_ to TypeScript extensions like `.svelte` or `.vue`.
-Generally, existing TypeScript and TSX _just works_ **if** it follows our strict TypeScript-based type system _and_ uses no exceptions.
+Our `.ds` ("TypeScript++") is a superset of a "strict modern" subset of `.ts` (TypeScript), similar _in spirit_ to familiar ecosystem extensions like `.svelte` or `.vue`.
+Generally, existing TypeScript and TSX _just works_ **if** it is sound _and_ uses no exceptions.
 Fortunately, strict TypeScript is already a best practice - it's what you get when enabling the recommended soundness flags in TSC (mostly) - and converting implicit exceptions to explicit results is a trivial (and worthwhile) one-shot transformation.
 
-There are solid arguments that a language should be minimal (like Zig or Go or even C), but we do not believe "language minimalism" to be pragmatic for the universal language and toolchain we want: Destack aims to be a _complete_ (and coherent and pragmatic) language, not a _minimal_ language.
+There are solid arguments that a language should be minimal like Zig or Go or even C, though programmers 50 years ago would not have called them "minimal" by any stretch.
+Ultimately, we do not believe "language minimalism" to be pragmatic for the universal language and toolchain we want: Destack aims to be a _complete_ (and coherent and pragmatic) language, not a _minimal_ language.
 And since we needed _some_ additions anyway, we took the opportunity to round out the language with modern ergonomics like patterns, operator overloading, reflection, and comptime.
 
 ## Types
@@ -37,15 +38,16 @@ Destack extends TypeScript's type system with precise primitives, nominal types 
 ### Primitives
 
 Destack is based on TypeScript, and TypeScript inherits its main primitive types from JavaScript: `string`, `boolean`, `number`, `bigint`, and `symbol`, plus the `null` and `undefined` sentinels.
+Destack evolves this set into a serious set of primitive types:
 - precise numeric types beyond `number`, with variable-width signed and unsigned integers (`int8`, `uint32`, `int17`) as well as concrete float formats (`float16`, `float32`, `float64`)
 - pointer-sized integers, i.e. integers as wide as the target pointer size, spelled `isize` and `usize`
 - `int` and `uint` as aliases to `int64` and `uint64`
-- `number` as an alias for `float`, and `float` as an alias to `float64`
+- `number` becomes an alias for `float`, and `float` becomes an alias for `float64`
 - `char` as a single Unicode scalar value, distinct from `string`
 
-It should be noted that `string` and `bigint` are not really "special" in Destack, they are just aliases to the standard library `String` and `BigInt` classes, respectively.
-Following the spirit of TypeScript's widening rules, numeric literals start as exact values and can flow into any numeric type that can represent them.
-When no specific numeric context fits, the literals widen as usual to plain `number` (i.e. `float64`).
+It should be noted that `string` and `bigint` are not really "special" in Destack like they are in TypeScript, they are just aliases to the standard library `String` and `BigInt` classes.
+They feel the same, though.
+In general, Destack follows TypeScript behavior as exactly as possible for a sound and strict type system, including the exact same widening rules where numeric literals start as exact values and can flow into any numeric type that can represent them.
 
 ```ds
 const id: uint64 = 12345;
