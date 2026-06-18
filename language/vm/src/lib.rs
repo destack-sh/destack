@@ -10,13 +10,11 @@ pub(crate) mod execute;
 pub mod lower;
 pub mod machine;
 pub mod options;
-pub mod program;
 mod value;
 
 pub use diagnostic::*;
 pub use machine::*;
 pub use options::*;
-pub use program::*;
 pub use value::*;
 
 #[cfg(test)]

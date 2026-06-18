@@ -1,13 +1,13 @@
-use destack_engine as engine;
 use destack_mir as mir;
+use destack_program as program;
 
-use crate::program::{
+use crate::{Error, Result};
+use destack_program::vm::{
     AddressSpace, Call, CallBranch, CallDynamic, CallDynamicBranch, CallIndirect,
     CallIndirectBranch, CallVirtual, CallVirtualBranch, ClosureBind, ClosureEnvironment,
     Instruction, Op, TailCall, TailCallDynamic, TailCallIndirect, TailCallVirtual,
     cell_layout_from_type, closure_object_layout, repr_type,
 };
-use crate::{Error, Result};
 
 use super::frame::{cell_offset, value_offset};
 use super::lower::BlockLowerer;
@@ -74,7 +74,6 @@ impl<'a> BlockLowerer<'a> {
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         // resolve callee and arguments
-        let function = function;
         let arguments = self.tree.get_values(call.arguments);
         let argument_range = pool.argument_range(arguments);
 
@@ -106,7 +105,6 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         // resolve arguments and receiver
         let arguments = pool.argument_range(self.tree.get_values(call.arguments));
-        let receiver = receiver;
 
         // compile the receiver table access
         let address_space = address_space_for_value(self.value_shape_map(), receiver)?;
@@ -141,7 +139,6 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         // resolve arguments and receiver
         let arguments = pool.argument_range(self.tree.get_values(call.arguments));
-        let receiver = receiver;
 
         // compile the receiver table access
         let address_space = address_space_for_value(self.value_shape_map(), receiver)?;
@@ -177,7 +174,6 @@ impl<'a> BlockLowerer<'a> {
         let arguments = pool.argument_range(self.tree.get_values(call.arguments));
 
         // resolve closure shape
-        let callee = callee;
         let callee = self.indirect_callee(callee)?;
 
         // emit the function pointer or closure opcode
@@ -200,9 +196,6 @@ impl<'a> BlockLowerer<'a> {
         environment: mir::Value,
     ) -> Result<Instruction> {
         // resolve closure operands
-        let destination = destination;
-        let function = function;
-        let environment = environment;
 
         // select the environment representation
         let destination_type = self.value_type_for_value(destination)?;
@@ -244,8 +237,6 @@ impl<'a> BlockLowerer<'a> {
 
     /// Lower one closure environment read.
     pub(super) fn lower_closure_environment(&self, destination: mir::Value) -> Result<Instruction> {
-        let destination = destination;
-
         Ok(Instruction::new(
             Op::LoadClosureEnvironment,
             cell_offset(self, destination)?,
@@ -256,7 +247,7 @@ impl<'a> BlockLowerer<'a> {
     }
 
     /// Return the frame state for a call terminator.
-    fn call_target_state(&self) -> Result<engine::FrameStateId> {
+    fn call_target_state(&self) -> Result<program::FrameStateId> {
         self.call_frame_states
             .get(&self.block_id())
             .copied()
@@ -296,7 +287,6 @@ impl<'a> BlockLowerer<'a> {
         call: &mir::Call<mir::ValueSlice>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
-        let function = function;
         let arguments = self.values(call.arguments);
         let arguments = pool.argument_range(arguments);
         let target_state = self.call_target_state()?;
@@ -319,7 +309,6 @@ impl<'a> BlockLowerer<'a> {
         call: &mir::Call<mir::ValueSlice>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
-        let callee = callee;
         let arguments = self.values(call.arguments);
         let arguments = pool.argument_range(arguments);
         let target_state = self.call_target_state()?;
@@ -344,7 +333,6 @@ impl<'a> BlockLowerer<'a> {
         call: &mir::Call<mir::ValueSlice>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
-        let receiver = receiver;
         let arguments = self.values(call.arguments);
         let arguments = pool.argument_range(arguments);
         let target_state = self.call_target_state()?;
@@ -377,7 +365,6 @@ impl<'a> BlockLowerer<'a> {
         call: &mir::Call<mir::ValueSlice>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
-        let receiver = receiver;
         let arguments = self.values(call.arguments);
         let arguments = pool.argument_range(arguments);
         let target_state = self.call_target_state()?;
@@ -409,7 +396,6 @@ impl<'a> BlockLowerer<'a> {
         call: &mir::Call<mir::ValueSlice>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
-        let function = function;
         let arguments = self.values(call.arguments);
         if function == self.function_id {
             let arguments = pool.argument_range(arguments);
@@ -444,7 +430,6 @@ impl<'a> BlockLowerer<'a> {
         call: &mir::Call<mir::ValueSlice>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
-        let callee = callee;
         let arguments = self.values(call.arguments);
         let arguments = pool.argument_range(arguments);
         let callee = self.indirect_callee(callee)?;
@@ -467,7 +452,6 @@ impl<'a> BlockLowerer<'a> {
         call: &mir::Call<mir::ValueSlice>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
-        let receiver = receiver;
         let arguments = self.values(call.arguments);
         let arguments = pool.argument_range(arguments);
         let address_space = address_space_for_value(self.value_shape_map(), receiver)?;
@@ -498,7 +482,6 @@ impl<'a> BlockLowerer<'a> {
         call: &mir::Call<mir::ValueSlice>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
-        let receiver = receiver;
         let arguments = self.values(call.arguments);
         let arguments = pool.argument_range(arguments);
         let address_space = address_space_for_value(self.value_shape_map(), receiver)?;

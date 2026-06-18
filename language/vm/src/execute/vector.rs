@@ -13,12 +13,12 @@ use super::scalar::{
 use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
-use crate::program::{
+use destack_mir as mir;
+use destack_program::vm::{
     ElementBinaryKernel, ElementUnaryKernel, Instruction, Projection, ScalarLayout, VectorBinary,
     VectorConvert, VectorExtract, VectorInsert, VectorReduce, VectorSelect, VectorShuffle,
     VectorSplat, VectorUnary,
 };
-use destack_mir as mir;
 
 macro_rules! packed_binary_executor {
     ($function:ident, $ty:ty, $count:literal, $operation:expr, $doc:literal) => {

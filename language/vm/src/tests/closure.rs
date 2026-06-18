@@ -1,7 +1,7 @@
 use std::slice;
 
 use crate::tests::{create_machine, run_mir_expect};
-use destack_engine::Value;
+use destack_program::Value;
 
 /// Function environment state is preserved across repeated calls in one machine.
 #[test]

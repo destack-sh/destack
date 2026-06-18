@@ -1,11 +1,11 @@
 use crate::Cell;
-use destack_engine as engine;
+use destack_program as program;
 
 use super::frame::{FrameValue, store_frame_value};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Frame, Machine};
-use crate::program::{FrameBinding, Program};
 use destack_mir as mir;
+use destack_program::vm::{FrameBinding, Program};
 
 /// Saved frame value used while binding parameters.
 enum SavedFrameValue {
@@ -17,7 +17,7 @@ enum SavedFrameValue {
 
 /// Bind frame parameters within one frame.
 fn bind_frame_parameters(
-    layout: &engine::FrameLayout,
+    layout: &program::FrameLayout,
     frame: &mut Frame,
     bindings: &[FrameBinding],
 ) -> RuntimeResult<()> {
@@ -73,7 +73,7 @@ impl Machine {
         &mut self,
         program: &Program,
         frame_index: usize,
-        frame_state_id: engine::FrameStateId,
+        frame_state_id: program::FrameStateId,
         received_value: Option<FrameValue>,
     ) -> RuntimeResult<()> {
         // resolve target position
@@ -97,7 +97,7 @@ impl Machine {
         }
 
         let function = program
-            .functions
+            .functions()
             .function_by_id(frame.function())
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         let target_index = function
@@ -141,7 +141,7 @@ impl Machine {
     pub(crate) fn enter_caller_state(
         &mut self,
         program: &Program,
-        frame_state_id: engine::FrameStateId,
+        frame_state_id: program::FrameStateId,
         value: FrameValue,
     ) -> RuntimeResult<()> {
         let frame_index = self

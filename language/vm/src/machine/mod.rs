@@ -1,8 +1,9 @@
 mod activation;
 mod continuation;
-mod engine;
 mod execute;
 mod frame;
+mod global;
+mod heap;
 mod machine;
 mod root;
 mod stack;

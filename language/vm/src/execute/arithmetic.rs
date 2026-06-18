@@ -13,7 +13,7 @@ use super::scalar::{
 use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
-use crate::program::{
+use destack_program::vm::{
     BinaryFloat, ConstValue, ConstValueId, Instruction, ScalarLayout, UnaryFloat,
 };
 
@@ -195,7 +195,7 @@ pub(crate) fn execute_load_const_bytes(
     let value = ConstValueId(instruction.b);
 
     // copy constant bytes
-    let ConstValue::Bytes(bytes) = activation.machine.program.side_table.constant(value);
+    let ConstValue::Bytes(bytes) = activation.machine.program.side_table().constant(value);
     let dest = activation.frame_pointer_at(dest).address() as *mut u8;
     unsafe {
         std::ptr::copy_nonoverlapping(bytes.as_ptr(), dest, bytes.len());

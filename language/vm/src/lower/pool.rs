@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
-use destack_engine as engine;
 use destack_mir as mir;
+use destack_program as program;
 
-use crate::program::{
+use crate::{Error, Result};
+use destack_program::vm::{
     AllocationSite, AllocationSiteId, ArgumentRange, CallTarget, Check, CheckId, ConstValue,
     ConstValueId, Edge, EdgeId, Instruction, MovePair, MoveRange, MoveSlot, MoveSource, Op,
     Projection, ProjectionId, SideRecord, SideTableBuilder, SliceProjection, SliceProjectionId,
@@ -11,12 +12,11 @@ use crate::program::{
     SwitchTableId, TensorConvolutionId, TensorDotId, TensorGatherId, TensorLayout, TensorLayoutId,
     TensorScatterId, TensorWindowId, U32RangeId,
 };
-use crate::{Error, Result};
 
 /// One lowering pool for shared variable-length lowering data.
 pub(super) struct Pool<'layout, 'table> {
     /// The frame layout being lowered.
-    frame_layout: &'layout engine::FrameLayout,
+    frame_layout: &'layout program::FrameLayout,
     /// The canonical program trace table.
     trace_table: &'layout mir::TraceTable,
     /// The pooled argument values.
@@ -31,7 +31,7 @@ impl<'layout, 'table> Pool<'layout, 'table> {
     /// Create one empty lowering pool.
     pub(super) fn new(
         side_table: &'table mut SideTableBuilder,
-        frame_layout: &'layout engine::FrameLayout,
+        frame_layout: &'layout program::FrameLayout,
         trace_table: &'layout mir::TraceTable,
     ) -> Self {
         Self {
@@ -269,7 +269,7 @@ fn argument_range(pool: &mut Vec<mir::Value>, arguments: &[mir::Value]) -> Argum
 
 /// Return one move range from the pool.
 fn move_range(
-    frame_layout: &engine::FrameLayout,
+    frame_layout: &program::FrameLayout,
     pool: &mut Vec<MovePair>,
     parameters: &[mir::Value],
     arguments: &[mir::Value],
@@ -305,7 +305,7 @@ fn move_range(
 
 /// Return one parameter move range from the pool.
 fn parameter_move_range(
-    frame_layout: &engine::FrameLayout,
+    frame_layout: &program::FrameLayout,
     pool: &mut Vec<MovePair>,
     parameters: &[mir::Parameter],
     arguments: &[mir::Value],
@@ -350,7 +350,7 @@ pub(super) fn lookup_call_target(
 
 /// Return one switch-case range from the pool.
 fn switch_case_range(
-    frame_layout: &engine::FrameLayout,
+    frame_layout: &program::FrameLayout,
     move_pool: &mut Vec<MovePair>,
     tree: &mir::Tree,
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
@@ -378,7 +378,7 @@ fn switch_case_range(
 
 /// Return one switch-table range when density is high enough.
 fn switch_table_range(
-    frame_layout: &engine::FrameLayout,
+    frame_layout: &program::FrameLayout,
     move_pool: &mut Vec<MovePair>,
     tree: &mir::Tree,
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
@@ -450,7 +450,7 @@ fn switch_table_range(
 
 /// Return the lowered move source for one argument index.
 fn move_source(
-    frame_layout: &engine::FrameLayout,
+    frame_layout: &program::FrameLayout,
     arguments: &[mir::Value],
     index: usize,
 ) -> Result<MoveSource> {
@@ -462,7 +462,7 @@ fn move_source(
 }
 
 /// Return the lowered frame slot for one SSA value.
-fn move_slot(frame_layout: &engine::FrameLayout, value: mir::Value) -> Result<MoveSlot> {
+fn move_slot(frame_layout: &program::FrameLayout, value: mir::Value) -> Result<MoveSlot> {
     let slot = frame_layout
         .value(value.0)
         .ok_or(Error::invalid_instruction())?;

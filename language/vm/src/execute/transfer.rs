@@ -4,18 +4,86 @@ use crate::Cell;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Activation, Continuation, Outcome, Stack};
 use crate::options::LimitOptions;
-use crate::program::{Function, MoveRange, Program, Transfer};
-use destack_engine as engine;
 use destack_mir as mir;
+use destack_program as program;
+use destack_program::vm::{ArgumentRange, CallTarget, Function, MoveRange, Program};
 
 use super::frame::move_values_within_frame;
+
+/// Control transfer requested by one lowered instruction.
+#[derive(Debug)]
+pub(crate) enum Transfer {
+    /// Continue at the current frame's block.
+    Enter,
+    /// Jump to another block.
+    Jump {
+        /// Target block index.
+        block: u32,
+        /// Move plan for block parameters.
+        moves: MoveRange,
+    },
+    /// Call another function.
+    Call {
+        /// Function to call.
+        function: u32,
+        /// Lowered or imported call target.
+        target: CallTarget,
+        /// Arguments to pass.
+        arguments: ArgumentRange,
+        /// Optional closure environment to pass.
+        env: Option<Cell>,
+        /// Move plan for callee parameters.
+        moves: Option<MoveRange>,
+        /// PC to resume at after call returns.
+        resume_pc: usize,
+    },
+    /// Call another function and enter an explicit continuation.
+    CallBranch {
+        /// Function to call.
+        function: u32,
+        /// Lowered or imported call target.
+        target: CallTarget,
+        /// Arguments to pass.
+        arguments: ArgumentRange,
+        /// Optional closure environment to pass.
+        env: Option<Cell>,
+        /// The continuation frame state.
+        target_state: program::FrameStateId,
+    },
+    /// Tail call another function.
+    TailCall {
+        /// Function to call.
+        function: u32,
+        /// Lowered or imported call target.
+        target: CallTarget,
+        /// Arguments to pass.
+        arguments: ArgumentRange,
+        /// Optional closure environment to pass.
+        env: Option<Cell>,
+        /// Move plan for callee parameters.
+        moves: Option<MoveRange>,
+    },
+    /// Yield from the current function.
+    Yield {
+        /// The value yielded to the caller.
+        value: Cell,
+        /// The yielded value type.
+        source_type: mir::LocalNodeId<mir::Type>,
+        /// The frame state captured in the continuation.
+        frame_state: program::FrameStateId,
+    },
+    /// Return from current function.
+    Return(Cell),
+    /// Runtime error.
+    Error(Error),
+}
 
 impl Activation<'_> {
     /// Capture execution machine into a continuation.
     pub(crate) fn capture_continuation(
         &mut self,
         resume_frame_index: usize,
-        frame_state: engine::FrameStateId,
+        frame_state: program::FrameStateId,
         limits: LimitOptions,
     ) -> RuntimeResult<Continuation> {
         // move execution stack into the continuation
@@ -23,7 +91,6 @@ impl Activation<'_> {
         let frames = mem::take(&mut self.machine.frames);
 
         Ok(Continuation {
-            machine_id: self.machine.id,
             stack,
             frames,
             resume_frame_index,
@@ -65,7 +132,7 @@ impl Activation<'_> {
         limits: LimitOptions,
         value: Cell,
         source_type: mir::LocalNodeId<mir::Type>,
-        frame_state: engine::FrameStateId,
+        frame_state: program::FrameStateId,
     ) -> RuntimeResult<Outcome> {
         // capture the logical yield position first
         let resume_frame_index = self.machine.frames.len() - 1;

@@ -1,7 +1,7 @@
 use destack_mir as mir;
 
-use crate::program::{Layout, Projection};
 use crate::{Error, Result};
+use destack_program::vm::{Layout, Projection};
 
 use super::lower::BlockLowerer;
 use super::projection::{

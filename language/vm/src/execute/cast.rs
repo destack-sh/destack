@@ -5,7 +5,7 @@ use super::scalar::{convert_integer_bytes, integer_bytes_to_cell};
 use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
-use crate::program::{
+use destack_program::vm::{
     CellLayout, FloatCast, FloatToIntCast, FrameSelect, Instruction, IntToFloatCast, IntegerCast,
     PointerCast, WideIntegerCast,
 };

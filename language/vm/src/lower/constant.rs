@@ -2,8 +2,8 @@ use destack_mir as mir;
 
 use destack_heap::{HeapReference, SharedHeapReference};
 
-use crate::program::{ConstValue, Instruction, Op};
 use crate::{Cell, Error, ReferenceSpace, Result};
+use destack_program::vm::{ConstValue, Instruction, Op};
 
 use super::frame::{cell_offset, value_offset};
 use super::lower::BlockLowerer;

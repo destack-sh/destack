@@ -1,7 +1,7 @@
 use destack_mir as mir;
 use serde::{Deserialize, Serialize};
 
-use destack_engine::{StaticAddress, Value};
+use destack_program::{StaticAddress, Value};
 use destack_heap::{HeapReference, SharedHeapReference};
 
 use crate::{FramePointer, FunctionPointer, StackPointer};

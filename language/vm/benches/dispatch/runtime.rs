@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use destack_engine::{EngineId, StaticSpace, Value};
 use destack_heap::{
     AllocationCache, Allocator, GcWorker, Heap, HeapLimits, HeapOptions, SharedHeap,
     SharedHeapLimits, SharedHeapOptions,
 };
 use destack_mir as mir;
+use destack_program::{StaticSpace, Value};
 use destack_source::FileId;
 use destack_vm::{Machine, MachineOptions};
 use mir::parse::{ParseOptions, Parser};
@@ -14,8 +14,10 @@ use mir::parse::{ParseOptions, Parser};
 pub(crate) struct Runtime {
     /// The machine under measurement.
     machine: Machine,
-    /// The worker static byte space.
-    statics: StaticSpace,
+    /// The worker-local static byte space.
+    local_static: StaticSpace,
+    /// The shared static byte space.
+    shared_static: StaticSpace,
     /// The worker heap.
     pub(crate) heap: Heap,
     /// The runtime shared heap.
@@ -37,16 +39,12 @@ impl Runtime {
             .expect("benchmark MIR should parse");
 
         // build the VM machine
-        let mut machine = Machine::build_with_options(
-            EngineId::new(1),
-            tree,
-            strings,
-            MachineOptions::unbounded(),
-        )
-        .expect("benchmark machine should build");
+        let mut machine = Machine::build_with_options(tree, strings, MachineOptions::unbounded())
+            .expect("benchmark machine should build");
 
         // build runtime memory
-        let mut statics = StaticSpace::empty();
+        let mut local_static = StaticSpace::empty();
+        let mut shared_static = StaticSpace::empty();
         let heap = heap();
         let shared = shared_heap();
         let shared_gc = shared.register_collector_worker();
@@ -54,7 +52,7 @@ impl Runtime {
 
         // initialize program statics
         machine
-            .initialize(&heap, &shared, &mut statics)
+            .initialize(&heap, &shared, &mut local_static, &mut shared_static)
             .expect("benchmark machine should initialize");
 
         // resolve the entry once
@@ -64,7 +62,8 @@ impl Runtime {
 
         Self {
             machine,
-            statics,
+            local_static,
+            shared_static,
             heap,
             shared,
             shared_cache,
@@ -88,7 +87,8 @@ impl Runtime {
     ) -> Value {
         self.machine
             .run_function(
-                &mut self.statics,
+                &mut self.local_static,
+                &mut self.shared_static,
                 &mut self.heap,
                 &self.shared,
                 &mut self.shared_cache,

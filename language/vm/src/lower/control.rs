@@ -1,11 +1,11 @@
 use destack_mir as mir;
 
 use crate::lower::allocation::AllocationInitialization;
-use crate::program::{
+use crate::{Error, Result};
+use destack_program::vm::{
     BoundsCheck, Check, Instruction, NarrowCheck, Op, OverflowCheck, ShiftRangeCheck, ValueShape,
     VariantCheck, repr_type,
 };
-use crate::{Error, Result};
 
 use super::frame::{cell_offset, value_offset};
 use super::lower::BlockLowerer;
@@ -101,7 +101,6 @@ impl<'a> BlockLowerer<'a> {
             }
             mir::CheckConstraint::Type { value, expected } => {
                 let value = *value;
-                let expected = expected;
 
                 Ok(Check::Type {
                     value: cell_offset(self, value)?,
@@ -276,7 +275,7 @@ impl<'a> BlockLowerer<'a> {
                 failure,
             } => self.lower_new_try(
                 pool,
-                layout.clone(),
+                *layout,
                 success,
                 failure,
                 AllocationInitialization::Zeroed,
@@ -288,7 +287,7 @@ impl<'a> BlockLowerer<'a> {
                 failure,
             } => self.lower_new_try(
                 pool,
-                layout.clone(),
+                *layout,
                 success,
                 failure,
                 AllocationInitialization::Uninit,
@@ -301,7 +300,7 @@ impl<'a> BlockLowerer<'a> {
                 failure,
             } => self.lower_new_slice_try(
                 pool,
-                element.clone(),
+                *element,
                 *length,
                 success,
                 failure,
@@ -315,7 +314,7 @@ impl<'a> BlockLowerer<'a> {
                 failure,
             } => self.lower_new_slice_try(
                 pool,
-                element.clone(),
+                *element,
                 *length,
                 success,
                 failure,

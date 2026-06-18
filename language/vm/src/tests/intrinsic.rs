@@ -4,8 +4,8 @@ use crate::tests::{
     allocate_local_zeroed, assert_runtime_error_matches, run_mir, run_mir_expect, run_mir_ok,
     run_mir_with_frame, run_mir_with_frame_ok, shared_allocation_site,
 };
-use destack_engine::{UnsignedInt, Value};
 use destack_mir as mir;
+use destack_program::{UnsignedInt, Value};
 
 #[test]
 fn test_intrinsic_clz() {

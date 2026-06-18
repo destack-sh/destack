@@ -1,6 +1,7 @@
+use super::Transfer;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
-use crate::program::{Function, MoveRange, Op, Transfer};
+use destack_program::vm::{Function, MoveRange, Op};
 
 use super::frame::move_values_within_frame;
 
@@ -1295,7 +1296,7 @@ fn dispatch_block_inner(
                         let frame = activation.active_frame();
                         let function_id = frame.function();
                         let block = frame.block;
-                        let Some(next_function) = program.functions.function_by_id(function_id)
+                        let Some(next_function) = program.functions().function_by_id(function_id)
                         else {
                             return Transfer::Error(Error::undefined_function(function_id));
                         };

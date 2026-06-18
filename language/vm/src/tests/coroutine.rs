@@ -1,9 +1,9 @@
 use crate::diagnostic::{Error, Trap};
 use crate::tests::{
     assert_execution_completed, assert_execution_yielded, assert_runtime_error_matches,
-    create_machine, create_machine_with_id,
+    create_machine,
 };
-use destack_engine::{EngineId, Value};
+use destack_program::Value;
 
 /// Yield returns a value and resumes with the provided argument.
 #[test]
@@ -334,32 +334,6 @@ b1(v2: int32, v3: int32):
         result,
         Error::Trap {
             reason: Trap::UnexpectedYield,
-        },
-    );
-}
-
-/// Resume with a continuation from another machine reports an error.
-#[test]
-fn test_resume_invalid_continuation() {
-    let mir = r#"
-function yieldOnce(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 5int32
-    yield v1 => b1(v0)
-b1(v2: int32, v3: int32):
-    v4: int32 = int.add v2, v3
-    return v4
-}"#;
-    let mut machine = create_machine(mir);
-    let (continuation, _value) = assert_execution_yielded(
-        machine.run_function_by_name_yielding("yieldOnce", &[Value::int32(7)]),
-    );
-    let mut other_machine = create_machine_with_id(mir, EngineId::new(2));
-    let result = other_machine.resume(continuation, Value::int32(0));
-    assert_runtime_error_matches!(
-        result,
-        Error::Trap {
-            reason: Trap::InvalidContinuation,
         },
     );
 }

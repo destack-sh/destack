@@ -1,7 +1,7 @@
 use std::hint::black_box;
 
 use criterion::{BatchSize, BenchmarkId, Criterion};
-use destack_engine::Value;
+use destack_program::Value;
 
 use crate::benchmark::{self, ITERATIONS};
 use crate::program::Program;

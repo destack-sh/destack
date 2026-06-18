@@ -4,7 +4,7 @@ use crate::tests::{
     run_mir_ok,
 };
 use crate::{Cell, FunctionPointer};
-use destack_engine::Value;
+use destack_program::Value;
 
 /// Branch instruction takes the true path when condition is true.
 #[test]

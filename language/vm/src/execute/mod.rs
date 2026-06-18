@@ -40,4 +40,5 @@ pub(crate) use intrinsic::*;
 pub(crate) use memory::*;
 pub(crate) use slice::*;
 pub(crate) use tensor::*;
+pub(crate) use transfer::*;
 pub(crate) use vector::*;

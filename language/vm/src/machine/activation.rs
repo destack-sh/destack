@@ -1,5 +1,5 @@
-use destack_engine as engine;
 use destack_heap::{AllocationCache, GcWorker, Heap, SharedHeap};
+use destack_program as program;
 
 use crate::diagnostic::Error;
 
@@ -9,8 +9,10 @@ use super::Machine;
 pub(crate) struct Activation<'run> {
     /// The durable machine state being executed.
     pub(crate) machine: &'run mut Machine,
-    /// Runtime static memory for this execution.
-    pub(crate) statics: &'run mut engine::StaticSpace,
+    /// Local static memory for this execution.
+    pub(crate) local_static: &'run mut program::StaticSpace,
+    /// Shared static memory for this execution.
+    pub(crate) shared_static: &'run mut program::StaticSpace,
     /// Worker local heap for this execution.
     pub(crate) heap: &'run mut Heap,
     /// Runtime shared heap for this execution.
@@ -24,14 +26,15 @@ pub(crate) struct Activation<'run> {
     /// Native address of the active frame bytes.
     pub(crate) frame_base: usize,
     /// Active frame layout.
-    pub(crate) frame_layout: engine::FrameLayoutId,
+    pub(crate) frame_layout: program::FrameLayoutId,
 }
 
 impl<'run> Activation<'run> {
     /// Bind durable machine state to runtime memory for execution.
     pub(crate) fn new(
         machine: &'run mut Machine,
-        statics: &'run mut engine::StaticSpace,
+        local_static: &'run mut program::StaticSpace,
+        shared_static: &'run mut program::StaticSpace,
         heap: &'run mut Heap,
         shared: &'run SharedHeap,
         shared_gc: &'run GcWorker,
@@ -39,14 +42,15 @@ impl<'run> Activation<'run> {
     ) -> Self {
         Self {
             machine,
-            statics,
+            local_static,
+            shared_static,
             heap,
             shared,
             shared_gc,
             shared_cache,
             frame_index: 0,
             frame_base: 0,
-            frame_layout: engine::FrameLayoutId(0),
+            frame_layout: program::FrameLayoutId(0),
         }
     }
 

@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 use std::ops::Deref;
 
-use destack_engine as engine;
 use destack_heap as heap;
 use destack_mir as mir;
+use destack_program as program;
 
-use crate::program::{Block, BlockCode, CallTarget, Function, Layout, SideTableBuilder};
 use crate::{Error, Result};
+use destack_program::vm::{Block, BlockCode, CallTarget, Function, Layout, SideTableBuilder};
 
 use super::block::{BlockOrder, FunctionContext};
 use super::pool::{Pool, lookup_call_target};
@@ -17,7 +17,7 @@ use super::value::{ValueShapeMap, ValueShapeMapBuilder};
 struct FunctionLowerer<'a, 'table> {
     context: FunctionContext<'a>,
     func: &'a mir::Function,
-    frame_layout: &'a engine::FrameLayout,
+    frame_layout: &'a program::FrameLayout,
     pool: Pool<'a, 'table>,
 }
 
@@ -26,9 +26,9 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
     fn new(
         tree: &'a mir::Tree,
         func_id: mir::LocalNodeId<mir::Function>,
-        frame_layout: &'a engine::FrameLayout,
-        yield_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, engine::FrameStateId>,
-        call_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, engine::FrameStateId>,
+        frame_layout: &'a program::FrameLayout,
+        yield_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, program::FrameStateId>,
+        call_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, program::FrameStateId>,
         call_targets: &'a HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
         layouts: &'a HashMap<mir::LocalNodeId<mir::Type>, Layout>,
         layout_id_by_type: &'a HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
@@ -192,9 +192,9 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
 pub(crate) fn lower_function(
     tree: &mir::Tree,
     func_id: mir::LocalNodeId<mir::Function>,
-    frame_layout: &engine::FrameLayout,
-    yield_frame_states: &HashMap<mir::LocalNodeId<mir::Block>, engine::FrameStateId>,
-    call_frame_states: &HashMap<mir::LocalNodeId<mir::Block>, engine::FrameStateId>,
+    frame_layout: &program::FrameLayout,
+    yield_frame_states: &HashMap<mir::LocalNodeId<mir::Block>, program::FrameStateId>,
+    call_frame_states: &HashMap<mir::LocalNodeId<mir::Block>, program::FrameStateId>,
     call_targets: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     layout_id_by_type: &HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,

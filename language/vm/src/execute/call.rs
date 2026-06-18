@@ -1,4 +1,4 @@
-use destack_engine as engine;
+use destack_program as program;
 
 use super::frame::{
     FrameValue, load_arguments, load_moved_arguments, move_values, store_parameters,
@@ -6,14 +6,16 @@ use super::frame::{
 use super::{access, closure};
 use crate::diagnostic::Error;
 use crate::machine::{Activation, Frame};
-use crate::program::{
+use crate::{Cell, FunctionPointer};
+
+use super::Transfer;
+use destack_mir as mir;
+use destack_program::vm::{
     ArgumentRange, Call, CallBranch, CallDynamic, CallDynamicBranch, CallIndirect,
     CallIndirectBranch, CallTarget, CallVirtual, CallVirtualBranch, CellLayout, ClosureBind,
     Function, Instruction, MoveRange, Projection, TailCall, TailCallDynamic, TailCallIndirect,
-    TailCallVirtual, Transfer,
+    TailCallVirtual,
 };
-use crate::{Cell, FunctionPointer};
-use destack_mir as mir;
 
 /// Load one lowered call table field from a receiver.
 fn load_receiver_field<const IS_SHARED: bool>(
@@ -39,11 +41,11 @@ fn load_receiver_field<const IS_SHARED: bool>(
 /// Load one function target from an immutable dispatch table.
 fn load_dispatch_slot(
     activation: &Activation<'_>,
-    table_address: engine::StaticAddress,
+    table_address: program::StaticAddress,
     slot: u32,
 ) -> Result<mir::LocalNodeId<mir::Function>, Error> {
     // dispatch table slots are target pointers
-    let pointer_bytes = activation.machine.program.tree.pointer_bytes() as usize;
+    let pointer_bytes = activation.machine.program.tree().pointer_bytes() as usize;
     let byte_offset = slot as usize * pointer_bytes;
     let entry_address = table_address
         .add_bytes(byte_offset)
@@ -60,7 +62,7 @@ fn load_dispatch_slot(
 /// Load one function address from static memory.
 fn load_function_pointer(
     activation: &Activation<'_>,
-    address: engine::StaticAddress,
+    address: program::StaticAddress,
     pointer_bytes: usize,
 ) -> Result<Cell, Error> {
     let address = activation.static_native_address(address, pointer_bytes)?;
@@ -133,7 +135,7 @@ fn require_call_target(
     activation
         .machine
         .program
-        .functions
+        .functions()
         .call_target(function)
         .ok_or(Error::undefined_function(function))
 }
@@ -247,7 +249,7 @@ fn local_function(activation: &Activation<'_>, target: CallTarget) -> Option<Fun
         CallTarget::Local(index) => activation
             .machine
             .program
-            .functions
+            .functions()
             .function_by_index(index)
             .cloned(),
         CallTarget::Import => None,
@@ -305,7 +307,7 @@ fn enter_local_call(
         match activation
             .machine
             .program
-            .functions
+            .functions()
             .function_by_id(frame.function())
         {
             Some(function) => function,
@@ -371,7 +373,7 @@ fn call_branch_transfer(
     target: CallTarget,
     arguments: ArgumentRange,
     env: Option<Cell>,
-    target_state: engine::FrameStateId,
+    target_state: program::FrameStateId,
 ) -> Transfer {
     // call terminators always use explicit transfer handling
     Transfer::CallBranch {
@@ -665,12 +667,12 @@ fn execute_indirect_call<const HAS_ENVIRONMENT: bool>(
         };
     let function = function_id.id;
 
-    if let Err(error) = activation.machine.program.functions.validate_signature(
+    if let Err(error) = activation.machine.program.functions().validate_signature(
         activation.machine.tree(),
         function_id,
         *signature,
     ) {
-        return Transfer::Error(error);
+        return Transfer::Error(error.into());
     }
 
     // load the lowered call target
@@ -726,12 +728,12 @@ fn execute_indirect_call_branch<const HAS_ENVIRONMENT: bool>(
             Ok(callee) => callee,
             Err(error) => return Transfer::Error(error),
         };
-    if let Err(error) = activation.machine.program.functions.validate_signature(
+    if let Err(error) = activation.machine.program.functions().validate_signature(
         activation.machine.tree(),
         function_id,
         *signature,
     ) {
-        return Transfer::Error(error);
+        return Transfer::Error(error.into());
     }
     let target = match require_call_target(activation, function_id) {
         Ok(target) => target,
@@ -839,7 +841,7 @@ pub(crate) fn execute_tail_call(
     let Some(callee) = activation
         .machine
         .program
-        .functions
+        .functions()
         .function_by_index(local_index)
         .cloned()
     else {
@@ -857,7 +859,7 @@ pub(crate) fn execute_tail_call(
         let current_func = match activation
             .machine
             .program
-            .functions
+            .functions()
             .function_by_id(activation.active_frame().function())
         {
             Some(function) => function,
@@ -903,7 +905,7 @@ pub(crate) fn execute_tail_call_self(
     let Some(function) = activation
         .machine
         .program
-        .functions
+        .functions()
         .function_by_id(function_id)
         .cloned()
     else {
@@ -1115,12 +1117,12 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
         };
     let function = function_id.id;
 
-    if let Err(error) = activation.machine.program.functions.validate_signature(
+    if let Err(error) = activation.machine.program.functions().validate_signature(
         activation.machine.tree(),
         function_id,
         *signature,
     ) {
-        return Transfer::Error(error);
+        return Transfer::Error(error.into());
     }
 
     // load the lowered call target
@@ -1146,7 +1148,7 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
     let Some(callee) = activation
         .machine
         .program
-        .functions
+        .functions()
         .function_by_index(local_index)
         .cloned()
     else {
@@ -1167,7 +1169,7 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
     let caller_function = match activation
         .machine
         .program
-        .functions
+        .functions()
         .function_by_id(caller.function())
     {
         Some(function) => function,

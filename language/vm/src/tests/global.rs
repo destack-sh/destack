@@ -1,6 +1,6 @@
 use crate::diagnostic::{Error, Trap};
 use crate::tests::{assert_runtime_error_matches, run_mir, run_mir_expect, run_mir_ok};
-use destack_engine::Value;
+use destack_program::Value;
 
 /// Global constant can be read.
 #[test]

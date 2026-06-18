@@ -1,12 +1,14 @@
 use super::slice::{load_slice_length_at, store_slice_at};
 use crate::diagnostic::{Error, ReferenceKind, ResourceError};
 use crate::machine::Activation;
-use crate::program::{
-    AllocationBranch, AllocationSiteId, Edge, Instruction, SliceAllocationBranch,
-    SliceProjectionId, SmallAllocationSiteId, Transfer,
-};
 use crate::{Cell, StackPointer};
+
+use super::Transfer;
 use destack_heap::{HeapError, HeapReferenceKind};
+use destack_program::vm::{
+    AllocationBranch, AllocationSiteId, Edge, Instruction, SliceAllocationBranch,
+    SliceProjectionId, SmallAllocationSiteId,
+};
 
 /// Decode one power-of-two alignment from an instruction field.
 fn decode_alignment(alignment_log2: u32) -> usize {

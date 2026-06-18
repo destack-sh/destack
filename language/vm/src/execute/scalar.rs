@@ -6,7 +6,7 @@ use destack_mir as mir;
 
 use crate::Cell;
 use crate::diagnostic::Error;
-use crate::program::{BinaryFloatKernel, ScalarLayout, UnaryFloatKernel};
+use destack_program::vm::{BinaryFloatKernel, ScalarLayout, UnaryFloatKernel};
 
 /// Return one integer scalar layout.
 #[inline(always)]

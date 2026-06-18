@@ -1,8 +1,8 @@
-use destack_engine as engine;
 use destack_mir as mir;
+use destack_program as program;
 
-use crate::program::{Instruction, Op, Projection, cell_layout_from_type};
 use crate::{Error, Result};
+use destack_program::vm::{Instruction, Op, Projection, cell_layout_from_type};
 
 use super::lower::BlockLowerer;
 use super::op::{select_frame_value_load_op, select_frame_value_store_op};
@@ -418,7 +418,7 @@ pub(super) fn value_offset(lowerer: &BlockLowerer<'_>, value: mir::Value) -> Res
 fn frame_slot<'a>(
     lowerer: &'a BlockLowerer<'_>,
     value: mir::Value,
-) -> Result<&'a engine::FrameSlot> {
+) -> Result<&'a program::FrameSlot> {
     lowerer
         .frame_layout
         .value(value.0)

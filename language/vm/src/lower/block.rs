@@ -1,11 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
-use destack_engine as engine;
 use destack_heap as heap;
 use destack_mir as mir;
+use destack_program as program;
 
-use crate::program::{CallTarget, Layout};
 use crate::{Error, Result};
+use destack_program::vm::{CallTarget, Layout};
 
 use super::value::ValueShapeMap;
 
@@ -124,13 +124,13 @@ pub(super) struct FunctionContext<'a> {
     /// The lowered entry block index.
     pub(super) entry_block: u32,
     /// The lowered yield frame state by MIR block id.
-    pub(super) yield_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, engine::FrameStateId>,
+    pub(super) yield_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, program::FrameStateId>,
     /// The lowered call terminator frame state by MIR block id.
-    pub(super) call_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, engine::FrameStateId>,
+    pub(super) call_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, program::FrameStateId>,
     /// The call target by MIR function id.
     pub(super) call_targets: &'a HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
     /// The byte layout for this lowered function frame.
-    pub(super) frame_layout: &'a engine::FrameLayout,
+    pub(super) frame_layout: &'a program::FrameLayout,
     /// The lowered value shape by SSA value id.
     pub(super) value_shape_map: ValueShapeMap,
     /// The lowered value type by SSA value id.

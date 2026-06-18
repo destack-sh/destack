@@ -1,17 +1,17 @@
 use std::sync::{Arc, OnceLock};
 
-use destack_engine::{EngineId, StaticSpace, Value};
 use destack_heap::{
     AllocationCache, AllocationShape, AllocationSite, Allocator, GcStats, GcWorker, Heap,
     HeapLimits, HeapOptions, HeapReference, SharedHeap, SharedHeapLimits, SharedHeapOptions,
 };
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_mir::{DataLayout, TraceTable};
+use destack_program::{StaticSpace, Value};
 use destack_source::FileId;
 
 use crate::diagnostic::{Error, RuntimeResult};
-use crate::program::{Layout, encode_cell_bytes};
 use crate::{Cell, Continuation, Machine, MachineOptions, Outcome};
+use destack_program::vm::{Layout, encode_cell_bytes};
 
 /// The virtual heap-space width used by ordinary VM tests.
 const TEST_LOCAL_SPACE_SIZE_BYTES: usize = 16 * 1024 * 1024;
@@ -26,8 +26,10 @@ pub(crate) fn trace_table() -> &'static TraceTable {
 pub(crate) struct TestMachine {
     /// The VM machine under test.
     pub machine: Machine,
-    /// The worker static space used by the machine.
-    pub statics: StaticSpace,
+    /// The worker-local static space used by the machine.
+    pub local_static: StaticSpace,
+    /// The runtime-shared static space used by the machine.
+    pub shared_static: StaticSpace,
     /// The authoritative heap for the machine.
     pub heap: Heap,
     /// The runtime-shared heap for the machine.
@@ -124,32 +126,28 @@ fn test_machine_options() -> MachineOptions {
 impl TestMachine {
     /// Build one test machine from MIR text.
     pub(crate) fn new(mir_text: &str) -> Self {
-        Self::with_id(mir_text, EngineId::new(1))
-    }
-
-    /// Build one test machine from MIR text with one explicit machine id.
-    pub(crate) fn with_id(mir_text: &str, machine_id: EngineId) -> Self {
         let (tree, strings) = Parser::parse(FileId::new(0), mir_text, ParseOptions::default())
             .finish()
             .expect("failed to parse MIR");
 
-        let mut machine =
-            Machine::build_with_options(machine_id, tree, strings, test_machine_options())
-                .unwrap_or_else(|error| panic!("failed to initialize machine: {error}"));
+        let mut machine = Machine::build_with_options(tree, strings, test_machine_options())
+            .unwrap_or_else(|error| panic!("failed to initialize machine: {error}"));
 
-        let mut statics = StaticSpace::empty();
+        let mut local_static = StaticSpace::empty();
+        let mut shared_static = StaticSpace::empty();
         let heap = create_test_heap();
         let shared_heap = create_test_shared_heap();
         let shared_gc = shared_heap.register_collector_worker();
         let shared_cache = shared_heap.allocation_cache();
 
         machine
-            .initialize(&heap, &shared_heap, &mut statics)
+            .initialize(&heap, &shared_heap, &mut local_static, &mut shared_static)
             .unwrap_or_else(|error| panic!("failed to initialize machine globals: {error}"));
 
         Self {
             machine,
-            statics,
+            local_static,
+            shared_static,
             heap,
             shared_heap,
             shared_gc,
@@ -217,7 +215,8 @@ impl TestMachine {
         let function = self.machine.function_id_by_name(function)?;
 
         self.machine.run_function(
-            &mut self.statics,
+            &mut self.local_static,
+            &mut self.shared_static,
             &mut self.heap,
             &self.shared_heap,
             &mut self.shared_cache,
@@ -236,7 +235,8 @@ impl TestMachine {
         let function = self.machine.function_id_by_name(function)?;
 
         self.machine.run_function_yielding(
-            &mut self.statics,
+            &mut self.local_static,
+            &mut self.shared_static,
             &mut self.heap,
             &self.shared_heap,
             &mut self.shared_cache,
@@ -255,7 +255,8 @@ impl TestMachine {
         let function = self.machine.function_id_by_name(function)?;
 
         self.machine.run_function_cells(
-            &mut self.statics,
+            &mut self.local_static,
+            &mut self.shared_static,
             &mut self.heap,
             &self.shared_heap,
             &mut self.shared_cache,
@@ -272,7 +273,8 @@ impl TestMachine {
         resume_value: Value,
     ) -> RuntimeResult<Outcome> {
         self.machine.resume(
-            &mut self.statics,
+            &mut self.local_static,
+            &mut self.shared_static,
             &mut self.heap,
             &self.shared_heap,
             &mut self.shared_cache,
@@ -294,7 +296,7 @@ impl TestMachine {
     ) -> GcStats {
         let mut shared_roots = Vec::new();
         self.machine
-            .visit_root_slots(&mut self.statics, continuations, &mut |slot| {
+            .visit_root_slots(&mut self.local_static, continuations, &mut |slot| {
                 let root = slot.load()?;
                 destack_heap::RootSink::push(&mut shared_roots, root);
 
@@ -305,7 +307,7 @@ impl TestMachine {
         let mut heap_roots =
             |visit: &mut dyn FnMut(destack_heap::RootSlot<'_>) -> destack_heap::HeapResult<()>| {
                 self.machine
-                    .visit_root_slots(&mut self.statics, continuations, visit)
+                    .visit_root_slots(&mut self.local_static, continuations, visit)
                     .expect("failed to collect mutable root slots");
 
                 Ok::<(), destack_heap::HeapError>(())
@@ -391,7 +393,7 @@ fn write_materialized_value(
     // scalar values encode inline
     if layout.is_cell() {
         let encoded = encode_cell_bytes(machine.tree(), ty, value)
-            .unwrap_or_else(|error| panic!("failed to encode materialized cell: {error}"));
+            .unwrap_or_else(|error| panic!("failed to encode materialized cell: {error:?}"));
         destination[..encoded.len()].copy_from_slice(encoded.as_slice());
 
         return;
@@ -424,11 +426,6 @@ pub(crate) fn create_machine(mir_text: &str) -> TestMachine {
     TestMachine::new(mir_text)
 }
 
-/// Parse MIR text and create one test machine with an explicit machine id.
-pub(crate) fn create_machine_with_id(mir_text: &str, machine_id: EngineId) -> TestMachine {
-    TestMachine::with_id(mir_text, machine_id)
-}
-
 /// Parse MIR text and create one test machine with explicit data layout.
 pub(crate) fn create_machine_with_data_layout(
     mir_text: &str,
@@ -445,21 +442,22 @@ pub(crate) fn create_machine_with_data_layout(
     .expect("failed to parse MIR");
     assert_eq!(tree.metadata.data_layout, data_layout);
 
-    let mut machine =
-        Machine::build_with_options(EngineId::new(1), tree, strings, test_machine_options())
-            .unwrap_or_else(|error| panic!("failed to initialize machine: {error}"));
-    let mut statics = StaticSpace::empty();
+    let mut machine = Machine::build_with_options(tree, strings, test_machine_options())
+        .unwrap_or_else(|error| panic!("failed to initialize machine: {error}"));
+    let mut local_static = StaticSpace::empty();
+    let mut shared_static = StaticSpace::empty();
     let heap = create_test_heap();
     let shared = create_test_shared_heap();
     let shared_gc = shared.register_collector_worker();
     let shared_cache = shared.allocation_cache();
     machine
-        .initialize(&heap, &shared, &mut statics)
+        .initialize(&heap, &shared, &mut local_static, &mut shared_static)
         .unwrap_or_else(|error| panic!("failed to initialize machine globals: {error}"));
 
     TestMachine {
         machine,
-        statics,
+        local_static,
+        shared_static,
         heap,
         shared_heap: shared,
         shared_gc,

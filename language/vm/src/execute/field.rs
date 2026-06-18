@@ -2,7 +2,7 @@ use super::address;
 use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
-use crate::program::Instruction;
+use destack_program::vm::Instruction;
 
 /// Return one directly encoded byte offset.
 #[inline(always)]

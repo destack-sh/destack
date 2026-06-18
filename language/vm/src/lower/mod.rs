@@ -18,6 +18,7 @@ mod lower;
 mod memory;
 mod op;
 mod pool;
+mod program;
 mod projection;
 mod tensor;
 mod tree;
@@ -25,4 +26,5 @@ mod value;
 mod vector;
 
 pub(crate) use lower::lower_function;
+pub(crate) use program::lower_program_with_heap_options;
 pub(crate) use tree::{ValueType, analyze_value_types};

@@ -1,38 +1,8 @@
-use destack_heap as heap;
-use destack_memory as memory;
-use destack_mir as mir;
+use destack_heap::{HeapError, HeapReferenceKind};
+use destack_memory::MemoryError;
+use destack_mir::{Block, Function, Global, Local, LocalNodeId, Value};
+use destack_program::vm;
 use serde::{Deserialize, Serialize};
-
-/// Anchor for MIR-level error locations.
-#[derive(Debug, Clone, PartialEq)]
-pub enum DiagnosticAnchor {
-    /// No specific location.
-    None,
-    /// Specific function.
-    Function(mir::LocalNodeId<mir::Function>),
-    /// Specific block within a function.
-    Block {
-        function: mir::LocalNodeId<mir::Function>,
-        block: mir::LocalNodeId<mir::Block>,
-    },
-    /// Specific instruction within a block.
-    Instruction {
-        function: mir::LocalNodeId<mir::Function>,
-        block: mir::LocalNodeId<mir::Block>,
-        instruction: mir::LocalNodeId<mir::Instruction>,
-    },
-}
-
-/// One frame in a diagnostic call stack.
-#[derive(Debug, Clone, PartialEq)]
-pub struct StackTraceFrame {
-    /// The function being executed.
-    pub function: mir::LocalNodeId<mir::Function>,
-    /// The block being executed.
-    pub block: mir::LocalNodeId<mir::Block>,
-    /// Function name (if available).
-    pub function_name: Option<String>,
-}
 
 /// One VM reference space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -64,19 +34,15 @@ pub enum Error {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ProgramError {
     /// Attempted to execute an undefined function.
-    UndefinedFunction {
-        function: mir::LocalNodeId<mir::Function>,
-    },
+    UndefinedFunction { function: LocalNodeId<Function> },
     /// Attempted to access an undefined value.
-    UndefinedValue { value: mir::Value },
+    UndefinedValue { value: Value },
     /// Attempted to jump to an undefined block.
-    UndefinedBlock { block: mir::LocalNodeId<mir::Block> },
+    UndefinedBlock { block: LocalNodeId<Block> },
     /// Attempted to access an undefined local variable.
-    UndefinedLocal { local: mir::LocalNodeId<mir::Local> },
+    UndefinedLocal { local: LocalNodeId<Local> },
     /// Attempted to access an undefined global variable.
-    UndefinedGlobal {
-        global: mir::LocalNodeId<mir::Global>,
-    },
+    UndefinedGlobal { global: LocalNodeId<Global> },
     /// Type mismatch during execution.
     TypeMismatch { expected: String, actual: String },
     /// Invalid instruction.
@@ -115,9 +81,7 @@ pub enum Trap {
     /// Reference space does not match the pointer value.
     InvalidSpace { expected: String, actual: String },
     /// Attempted to write to an immutable global.
-    ImmutableGlobalWrite {
-        global: mir::LocalNodeId<mir::Global>,
-    },
+    ImmutableGlobalWrite { global: LocalNodeId<Global> },
     /// Attempted to write through a readonly reference.
     ImmutableReferenceWrite { reference: String },
     /// Reached unreachable code.
@@ -169,7 +133,7 @@ pub enum ResourceError {
 impl Error {
     /// Return an undefined function error.
     #[inline]
-    pub fn undefined_function(function: mir::LocalNodeId<mir::Function>) -> Self {
+    pub fn undefined_function(function: LocalNodeId<Function>) -> Self {
         Self::Program {
             reason: ProgramError::UndefinedFunction { function },
         }
@@ -177,7 +141,7 @@ impl Error {
 
     /// Return an undefined value error.
     #[inline]
-    pub fn undefined_value(value: mir::Value) -> Self {
+    pub fn undefined_value(value: Value) -> Self {
         Self::Program {
             reason: ProgramError::UndefinedValue { value },
         }
@@ -185,7 +149,7 @@ impl Error {
 
     /// Return an undefined block error.
     #[inline]
-    pub fn undefined_block(block: mir::LocalNodeId<mir::Block>) -> Self {
+    pub fn undefined_block(block: LocalNodeId<Block>) -> Self {
         Self::Program {
             reason: ProgramError::UndefinedBlock { block },
         }
@@ -193,7 +157,7 @@ impl Error {
 
     /// Return an undefined local error.
     #[inline]
-    pub fn undefined_local(local: mir::LocalNodeId<mir::Local>) -> Self {
+    pub fn undefined_local(local: LocalNodeId<Local>) -> Self {
         Self::Program {
             reason: ProgramError::UndefinedLocal { local },
         }
@@ -201,7 +165,7 @@ impl Error {
 
     /// Return an undefined global error.
     #[inline]
-    pub fn undefined_global(global: mir::LocalNodeId<mir::Global>) -> Self {
+    pub fn undefined_global(global: LocalNodeId<Global>) -> Self {
         Self::Program {
             reason: ProgramError::UndefinedGlobal { global },
         }
@@ -417,7 +381,7 @@ impl Error {
 
     /// Return an immutable global write error.
     #[inline]
-    pub fn immutable_global_write(global: mir::LocalNodeId<mir::Global>) -> Self {
+    pub fn immutable_global_write(global: LocalNodeId<Global>) -> Self {
         Self::Trap {
             reason: Trap::ImmutableGlobalWrite { global },
         }
@@ -738,95 +702,41 @@ impl std::fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
-impl From<heap::HeapError> for Error {
-    fn from(error: heap::HeapError) -> Self {
+impl From<HeapError> for Error {
+    fn from(error: HeapError) -> Self {
         match error {
-            heap::HeapError::LimitExceeded {
+            HeapError::LimitExceeded {
                 region,
                 used_bytes,
                 max_bytes,
             } => Self::heap_limit_exceeded(region.to_string(), used_bytes, max_bytes),
-            heap::HeapError::InvalidReference { kind, .. } => match kind {
-                heap::HeapReferenceKind::Heap => Self::invalid_reference(ReferenceKind::Heap),
-                heap::HeapReferenceKind::SharedHeap => {
-                    Self::invalid_reference(ReferenceKind::SharedHeap)
-                }
+            HeapError::InvalidReference { kind, .. } => match kind {
+                HeapReferenceKind::Heap => Self::invalid_reference(ReferenceKind::Heap),
+                HeapReferenceKind::SharedHeap => Self::invalid_reference(ReferenceKind::SharedHeap),
             },
             error => Self::internal(error.to_string()),
         }
     }
 }
 
-impl From<memory::MemoryError> for Error {
-    fn from(error: memory::MemoryError) -> Self {
+impl From<MemoryError> for Error {
+    fn from(error: MemoryError) -> Self {
         Self::internal(error.to_string())
     }
 }
 
-/// A runtime error with call stack and location information.
-#[derive(Debug, Clone)]
-pub struct RuntimeError {
-    /// The underlying error.
-    pub error: Error,
-    /// The call stack at the time of the error.
-    pub stack: Vec<StackTraceFrame>,
-    /// The location where the error occurred.
-    pub anchor: DiagnosticAnchor,
-}
-
-impl RuntimeError {
-    /// Create a new runtime error.
-    pub fn new(error: Error) -> Self {
-        Self {
-            error,
-            stack: Vec::new(),
-            anchor: DiagnosticAnchor::None,
+impl From<vm::Error> for Error {
+    fn from(error: vm::Error) -> Self {
+        match error {
+            vm::Error::TypeMismatch { expected, actual } => Self::type_mismatch(expected, actual),
+            vm::Error::InvalidInstruction => Self::invalid_instruction(),
+            vm::Error::InvalidCast => Self::invalid_cast(),
+            vm::Error::InvalidPointerType { actual } => Self::invalid_pointer_type(actual),
+            vm::Error::UnsupportedInstruction { name } => Self::unsupported_instruction(name),
+            vm::Error::UnsupportedZeroValue { ty } => Self::unsupported_zero_value(ty),
+            vm::Error::InvalidProgram { context } => Self::invalid_program(context),
+            vm::Error::Internal { context } => Self::internal(context),
+            vm::Error::UndefinedFunction { function } => Self::undefined_function(function),
         }
     }
-
-    /// Add call stack information.
-    pub fn with_call_stack(mut self, stack: Vec<StackTraceFrame>) -> Self {
-        self.stack = stack;
-        self
-    }
-
-    /// Add location information.
-    pub fn with_anchor(mut self, anchor: DiagnosticAnchor) -> Self {
-        self.anchor = anchor;
-        self
-    }
-
-    /// Format a stack trace for display.
-    pub fn format_stack_trace(&self) -> String {
-        if self.stack.is_empty() {
-            return String::new();
-        }
-
-        let mut trace = String::from("\nStack trace:\n");
-        for (i, frame) in self.stack.iter().rev().enumerate() {
-            let name = frame.function_name.as_deref().unwrap_or("<anonymous>");
-            trace.push_str(&format!("  {i}: {name} (block {:?})\n", frame.block));
-        }
-        trace
-    }
 }
-
-impl std::fmt::Display for RuntimeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}{}", self.error, self.format_stack_trace())
-    }
-}
-
-impl std::error::Error for RuntimeError {}
-
-impl From<Error> for RuntimeError {
-    fn from(error: Error) -> Self {
-        Self::new(error)
-    }
-}
-
-/// Result type for VM operations.
-pub type Result<T> = std::result::Result<T, Error>;
-
-/// Result type for runtime operations that include stack traces.
-pub type RuntimeResult<T> = std::result::Result<T, RuntimeError>;

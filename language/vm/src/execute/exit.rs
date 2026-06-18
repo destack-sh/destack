@@ -3,7 +3,7 @@ use crate::Cell;
 use super::frame::{frame_value_from_cell, materialize_value, store_frame_value};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Activation, Outcome};
-use crate::program::Program;
+use destack_program::vm::Program;
 
 impl Activation<'_> {
     /// Complete one return call.
@@ -18,7 +18,7 @@ impl Activation<'_> {
             .frames
             .last()
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
-        let return_type = program.tree.get(callee.function()).return_type;
+        let return_type = program.tree().get(callee.function()).return_type;
         let returned =
             frame_value_from_cell(program, self.machine.frames.as_slice(), return_type, value)
                 .map_err(RuntimeError::new)?;
@@ -70,7 +70,7 @@ impl Activation<'_> {
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         let block = caller.block_id(program).map_err(RuntimeError::new)?;
         let point = program.point(caller.function(), block, caller.pc as u32);
-        if let Some(destination) = program.return_destination_at(point)? {
+        if let Some(destination) = program.return_destination_at(point).map_err(Error::from)? {
             store_frame_value(program, caller, destination, returned).map_err(RuntimeError::new)?;
         }
 
