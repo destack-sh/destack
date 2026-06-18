@@ -247,18 +247,7 @@ impl ProviderTrace {
         let mut total = Duration::ZERO;
         let mut blocked = Duration::ZERO;
         let mut workers = 0usize;
-        let mut stages: [(ArtifactStage, Duration); 10] = [
-            (ArtifactStage::Parse, Duration::ZERO),
-            (ArtifactStage::Bind, Duration::ZERO),
-            (ArtifactStage::Macro, Duration::ZERO),
-            (ArtifactStage::Check, Duration::ZERO),
-            (ArtifactStage::Lower, Duration::ZERO),
-            (ArtifactStage::Emit, Duration::ZERO),
-            (ArtifactStage::Link, Duration::ZERO),
-            (ArtifactStage::Lint, Duration::ZERO),
-            (ArtifactStage::Query, Duration::ZERO),
-            (ArtifactStage::Init, Duration::ZERO),
-        ];
+        let mut stages = ArtifactStage::ALL.map(|stage| (stage, Duration::ZERO));
         let mut emits: Vec<(Option<TargetId>, Duration)> = Vec::new();
         for artifact in artifacts.iter() {
             total = total.max(artifact.start + artifact.duration);

@@ -223,13 +223,13 @@ impl Drop for RevisionPin {
 #[cfg(test)]
 mod tests {
     use std::fs;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
     use std::sync::Arc;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use destack_artifact::{
-        ArtifactKey, ArtifactVersion, DiskCacheStore, EmitFormat, OutputFile, PackageAssembly,
-        PackageOutput, TargetOutputName,
+        ArtifactKey, ArtifactVersion, Bundle, BundleFile, BundleMode, BundleSection,
+        DiskCacheStore, EmitFormat,
     };
     use destack_source::{
         Content, DiagnosticCollection, FileSystem, FileType, PackageId, PhysicalFileSystem,
@@ -240,7 +240,7 @@ mod tests {
     use crate::{DestackLayout, DestackLayoutOverride, Environment, Settings};
 
     /// Create one repository for a test root.
-    fn test_repository(root: &PathBuf) -> Repository {
+    fn test_repository(root: &Path) -> Repository {
         let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
         let environment = Environment::capture_process();
         let layout = DestackLayout::resolve(
@@ -253,7 +253,7 @@ mod tests {
         );
 
         Repository::new(
-            root.clone(),
+            root.to_path_buf(),
             Arc::new(DiskCacheStore::new()),
             file_system,
             environment,
@@ -361,22 +361,18 @@ mod tests {
                 content: "console.log('loaded')\n".to_string(),
             })
             .expect("artifact content should intern");
-        let output = PackageOutput::new(
+        let output = Bundle::new(
             EmitFormat::Js,
-            PackageAssembly::SingleFile,
-            [(
-                TargetOutputName::Entry,
-                vec![OutputFile::new(
-                    Uri::from_string("memory:/out.js"),
-                    FileType::JavaScript,
-                    content,
-                    None,
-                )],
-            )]
-            .into_iter()
-            .collect(),
+            BundleMode::SingleFile,
+            vec![BundleFile::new(
+                BundleSection::Entry,
+                Uri::from_string("memory:/out.js"),
+                FileType::JavaScript,
+                content,
+                None,
+            )],
         );
-        let key = ArtifactKey::package_output(package, target);
+        let key = ArtifactKey::bundle(package, target);
         let version = ArtifactVersion::new(key, repository.build_fingerprint(), []);
 
         repository
@@ -388,7 +384,7 @@ mod tests {
                 DiagnosticCollection::new(),
                 Vec::new(),
             )
-            .expect("package output should publish");
+            .expect("bundle should publish");
 
         let repository = test_repository(&root);
         let revision = repository
@@ -405,12 +401,7 @@ mod tests {
                 .expect("artifact binding should load"),
             Some(version)
         );
-        assert!(
-            repository
-                .artifact_cache()
-                .package_output(&version)
-                .is_some()
-        );
+        assert!(repository.artifact_cache().bundle(&version).is_some());
         assert!(repository.content(content).is_ok());
 
         let _ = fs::remove_dir_all(&root);
@@ -500,23 +491,19 @@ mod tests {
                 content: "console.log('pruned')\n".to_string(),
             })
             .expect("pruned content should intern");
-        let output = PackageOutput::new(
+        let output = Bundle::new(
             EmitFormat::Js,
-            PackageAssembly::SingleFile,
-            [(
-                TargetOutputName::Entry,
-                vec![OutputFile::new(
-                    Uri::from_string("memory:/out.js"),
-                    FileType::JavaScript,
-                    retained,
-                    None,
-                )],
-            )]
-            .into_iter()
-            .collect(),
+            BundleMode::SingleFile,
+            vec![BundleFile::new(
+                BundleSection::Entry,
+                Uri::from_string("memory:/out.js"),
+                FileType::JavaScript,
+                retained,
+                None,
+            )],
         );
         let version = ArtifactVersion::new(
-            ArtifactKey::package_output(package, target),
+            ArtifactKey::bundle(package, target),
             repository.build_fingerprint(),
             [],
         );
@@ -530,7 +517,7 @@ mod tests {
                 DiagnosticCollection::new(),
                 Vec::new(),
             )
-            .expect("package output should publish");
+            .expect("bundle should publish");
         repository
             .prune_unreachable()
             .expect("repository should prune");

@@ -3,13 +3,14 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactCache, ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactOutcome,
-    ArtifactPayload, ArtifactRecord, ArtifactSidecar, ArtifactVersion, ComponentGraph, Data,
-    DirBound, DirCheckedComponent, DirCheckedModule, DirElaborated, DirExpanded, DirExported,
-    DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed,
-    MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted, ModuleOutput,
-    ModuleQueryIndex, PackageIndex, PackageLinted, PackageOutput, ProductOutput, ProgramAnalysis,
-    WorkspaceLinted, WorkspaceQueryIndex,
+    ArtifactPayload, ArtifactRecord, ArtifactSidecar, ArtifactVersion, Asset, Build, Bundle,
+    ComponentGraph, Data, DirBound, DirCheckedComponent, DirCheckedModule, DirElaborated,
+    DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
+    GlobalEnvironment, MirAnalyzed, MirLowered, MirOptimized, MirVerified, ModuleIndex,
+    ModuleLinted, ModuleQueryIndex, Object, PackageIndex, PackageLinted, Product, ProgramAnalysis,
+    Script, WorkspaceLinted, WorkspaceQueryIndex,
 };
+use destack_engine::Program;
 use destack_source::{
     ComponentId, DiagnosticCollection, ModuleId, PackageId, ProductId, ProfileId, TargetId,
 };
@@ -182,7 +183,7 @@ impl<'a> ArtifactReader<'a> {
         )
     }
 
-    /// Read one checked DIR module output.
+    /// Read one checked DIR asset.
     pub fn dir_checked(
         &self,
         module: ModuleId,
@@ -328,39 +329,56 @@ impl<'a> ArtifactReader<'a> {
         )
     }
 
-    /// Read one module output artifact.
-    pub fn module_output(
-        &self,
-        module: ModuleId,
-        target: TargetId,
-    ) -> Result<Arc<ModuleOutput>, ProviderError> {
-        self.read(
-            ArtifactKey::module_output(module, target),
-            ArtifactCache::module_output,
-        )
+    /// Read one structured script artifact.
+    pub fn script(&self, module: ModuleId, target: TargetId) -> Result<Arc<Script>, ProviderError> {
+        self.read(ArtifactKey::script(module, target), ArtifactCache::script)
     }
 
-    /// Read one package output artifact.
-    pub fn package_output(
+    /// Read one compiled-code object artifact.
+    pub fn object(&self, module: ModuleId, target: TargetId) -> Result<Arc<Object>, ProviderError> {
+        self.read(ArtifactKey::object(module, target), ArtifactCache::object)
+    }
+
+    /// Read one asset artifact.
+    pub fn asset(&self, module: ModuleId, target: TargetId) -> Result<Arc<Asset>, ProviderError> {
+        self.read(ArtifactKey::asset(module, target), ArtifactCache::asset)
+    }
+
+    /// Read one build payload.
+    pub fn build(&self, target: TargetId) -> Result<Arc<Build>, ProviderError> {
+        self.read(ArtifactKey::build(target), ArtifactCache::build)
+    }
+
+    /// Read one bundle artifact.
+    pub fn bundle(
         &self,
         package: PackageId,
         target: TargetId,
-    ) -> Result<Arc<PackageOutput>, ProviderError> {
+    ) -> Result<Arc<Bundle>, ProviderError> {
+        self.read(ArtifactKey::bundle(package, target), ArtifactCache::bundle)
+    }
+
+    /// Read one executable program artifact.
+    pub fn program(
+        &self,
+        package: PackageId,
+        target: TargetId,
+    ) -> Result<Arc<Program>, ProviderError> {
         self.read(
-            ArtifactKey::package_output(package, target),
-            ArtifactCache::package_output,
+            ArtifactKey::program(package, target),
+            ArtifactCache::program,
         )
     }
 
-    /// Read one product output artifact.
-    pub fn product_output(
+    /// Read one product artifact.
+    pub fn product(
         &self,
         package: PackageId,
         product: ProductId,
-    ) -> Result<Arc<ProductOutput>, ProviderError> {
+    ) -> Result<Arc<Product>, ProviderError> {
         self.read(
-            ArtifactKey::product_output(package, product),
-            ArtifactCache::product_output,
+            ArtifactKey::product(package, product),
+            ArtifactCache::product,
         )
     }
 
