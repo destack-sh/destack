@@ -250,9 +250,7 @@ impl<'a, 'b> PreferArrayFilterVisitor<'a, 'b> {
         else {
             return None;
         };
-        let Some(condition) = condition.as_expression() else {
-            return None;
-        };
+        let condition = condition.as_expression()?;
         if else_expression.is_some() {
             return None;
         }

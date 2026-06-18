@@ -32,8 +32,6 @@ struct LintReportKey {
 /// Error while linting already-built compiler products.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LinterError {
-    /// The artifact key does not belong to the linter.
-    UnsupportedArtifact { artifact_key: ArtifactKey },
     /// The repository could not resolve revision-scoped lint inputs.
     Repository { message: String },
 }
@@ -41,9 +39,6 @@ pub enum LinterError {
 impl fmt::Display for LinterError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::UnsupportedArtifact { artifact_key } => {
-                write!(f, "unsupported lint artifact key: {artifact_key:?}")
-            }
             Self::Repository { message } => write!(f, "{message}"),
         }
     }
@@ -294,9 +289,9 @@ impl Linter {
             }
             ArtifactKey::PackageLinted { package } => self.collect_package(context, package),
             ArtifactKey::WorkspaceLinted => self.collect_workspace(context),
-            artifact_key => Err(ProviderError::internal(
-                LinterError::UnsupportedArtifact { artifact_key }.to_string(),
-            )
+            artifact_key => Err(ProviderError::internal(format!(
+                "non linter artifact key reached linter provider: {artifact_key:?}"
+            ))
             .into()),
         }
     }
@@ -365,9 +360,9 @@ impl Linter {
             }
             ArtifactKey::PackageLinted { package } => self.provide_package(context, package),
             ArtifactKey::WorkspaceLinted => self.provide_workspace(context),
-            artifact_key => Err(ProviderError::internal(
-                LinterError::UnsupportedArtifact { artifact_key }.to_string(),
-            )
+            artifact_key => Err(ProviderError::internal(format!(
+                "non linter artifact key reached linter provider: {artifact_key:?}"
+            ))
             .into()),
         }
     }
