@@ -516,7 +516,7 @@ impl Parser {
         Ok(Type::Vector {
             element,
             lanes,
-            copy: Copy::default(),
+            copy: Copy::No,
         })
     }
 
@@ -529,7 +529,7 @@ impl Parser {
 
         Ok(Type::Newtype {
             inner,
-            copy: Copy::default(),
+            copy: Copy::No,
         })
     }
 
@@ -563,7 +563,7 @@ impl Parser {
                 .into_iter()
                 .map(|parameter| parameter.ty)
                 .collect(),
-            copy: Copy::default(),
+            copy: Copy::No,
         })
     }
 
@@ -613,7 +613,7 @@ impl Parser {
         Ok(Type::Array {
             element,
             length,
-            copy: Copy::default(),
+            copy: Copy::No,
         })
     }
 
@@ -730,7 +730,7 @@ impl Parser {
 
         let struct_type = Type::Struct {
             fields,
-            copy: Copy::default(),
+            copy: Copy::No,
         };
         let type_id = self.intern_type(struct_type)?;
 
@@ -824,7 +824,7 @@ impl Parser {
             tag,
             storage,
             cases,
-            copy: Copy::default(),
+            copy: Copy::No,
         })
     }
 
@@ -842,7 +842,7 @@ impl Parser {
             element,
             shape,
             layout,
-            copy: Copy::default(),
+            copy: Copy::No,
         })
     }
 

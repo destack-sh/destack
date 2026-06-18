@@ -489,7 +489,6 @@ impl Parser {
             let name = self.strings.get(name);
             let next = match name {
                 "copy" => Some(Copy::Yes),
-                "moveOnly" => Some(Copy::No),
                 _ => None,
             };
             let Some(next) = next else {
