@@ -15,6 +15,38 @@ value satisfies string;
 
 - contains: definitely assigned
 
+### branch assignment requires every path
+
+A branch assignment makes a local readable only when every normally completed branch assigns it.
+
+```ds
+declare const condition: boolean;
+
+let value: string;
+if (condition) {
+    value = "ready";
+}
+
+value satisfies string;
+```
+
+- contains: definitely assigned
+
+### undefined models optional state
+
+Maybe-present state must be written as an initialized union.
+
+```ds
+declare const condition: boolean;
+
+let value: string | undefined = undefined;
+if (condition) {
+    value = "ready";
+}
+
+value satisfies string | undefined;
+```
+
 ### writes make locals readable
 
 A declared local becomes readable after assignment.
