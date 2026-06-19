@@ -44,7 +44,7 @@ impl FilePatch {
             replacements: value
                 .replacements
                 .into_iter()
-                .map(|item| Replacement::from_bridge(item))
+                .map(Replacement::from_bridge)
                 .collect(),
         }
     }
@@ -65,7 +65,7 @@ impl BatchEdit {
             files: value
                 .files
                 .into_iter()
-                .map(|item| FilePatch::from_bridge(item))
+                .map(FilePatch::from_bridge)
                 .collect(),
         }
     }

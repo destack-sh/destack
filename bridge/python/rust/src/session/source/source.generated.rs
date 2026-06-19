@@ -42,39 +42,6 @@ impl Source {
             bridge::Source::Memory { .. } => "memory",
         }
     }
-
-    /// Return this payload field when present.
-    #[getter]
-    pub fn get_edits(&self) -> Option<Vec<Edit>> {
-        match &self.value {
-            bridge::Source::Memory { edits, .. } => Some(
-                edits
-                    .clone()
-                    .into_iter()
-                    .map(|item| Edit::from_bridge(item))
-                    .collect(),
-            ),
-            _ => None,
-        }
-    }
-
-    /// Return this payload field when present.
-    #[getter]
-    pub fn get_path(&self) -> Option<String> {
-        match &self.value {
-            bridge::Source::FileSystem { path, .. } => Some(path.clone()),
-            _ => None,
-        }
-    }
-
-    /// Return this payload field when present.
-    #[getter]
-    pub fn get_root(&self) -> Option<String> {
-        match &self.value {
-            bridge::Source::Memory { root, .. } => Some(root.clone()),
-            _ => None,
-        }
-    }
 }
 
 impl Source {

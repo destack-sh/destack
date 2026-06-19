@@ -85,7 +85,7 @@ impl DiagnosticSuggestion {
             labels: value
                 .labels
                 .into_iter()
-                .map(|item| DiagnosticLabel::from_bridge(item))
+                .map(DiagnosticLabel::from_bridge)
                 .collect(),
             message: value.message,
             applicability: applicability_label(value.applicability),
@@ -128,28 +128,24 @@ impl Diagnostic {
             labels: value
                 .labels
                 .into_iter()
-                .map(|item| DiagnosticLabel::from_bridge(item))
+                .map(DiagnosticLabel::from_bridge)
                 .collect(),
             notes: value
                 .notes
                 .into_iter()
-                .map(|item| DiagnosticNote::from_bridge(item))
+                .map(DiagnosticNote::from_bridge)
                 .collect(),
             helps: value
                 .helps
                 .into_iter()
-                .map(|item| DiagnosticHelp::from_bridge(item))
+                .map(DiagnosticHelp::from_bridge)
                 .collect(),
             suggestions: value
                 .suggestions
                 .into_iter()
-                .map(|item| DiagnosticSuggestion::from_bridge(item))
+                .map(DiagnosticSuggestion::from_bridge)
                 .collect(),
-            tags: value
-                .tags
-                .into_iter()
-                .map(|item| diagnostic_tag_label(item))
-                .collect(),
+            tags: value.tags.into_iter().map(diagnostic_tag_label).collect(),
         }
     }
 }

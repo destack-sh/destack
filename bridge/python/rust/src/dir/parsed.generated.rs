@@ -15,17 +15,6 @@ pub struct DirParsed {
 
 #[pymethods]
 impl DirParsed {
-    /// Create one value.
-    #[new]
-    pub fn new(version: ArtifactVersion, module: ModuleId) -> Self {
-        Self {
-            value: bridge::DirParsed {
-                version: version.into_bridge(),
-                module: module.into_bridge(),
-            },
-        }
-    }
-
     /// Exact parsed artifact version.
     #[getter]
     pub fn version(&self) -> ArtifactVersion {

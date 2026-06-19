@@ -103,9 +103,9 @@ test:
     bun run --cwd typescript test
     cargo build --release --manifest-path capi/Cargo.toml
     python3 -m venv .test-python-venv
-    .test-python-venv/bin/python -m pip install --quiet --disable-pip-version-check maturin
+    .test-python-venv/bin/python -m pip install --quiet --disable-pip-version-check maturin pytest
     cd python && ../.test-python-venv/bin/python -m maturin develop --quiet
-    .test-python-venv/bin/python -m unittest discover -s python/tests
+    .test-python-venv/bin/python -m pytest python/tests
     rm -rf .test-python-venv
     just test-vscode
 

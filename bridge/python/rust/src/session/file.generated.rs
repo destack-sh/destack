@@ -13,14 +13,6 @@ pub struct SessionFile {
 
 #[pymethods]
 impl SessionFile {
-    /// Create one value.
-    #[new]
-    pub fn new(path: String) -> Self {
-        Self {
-            value: bridge::SessionFile { path },
-        }
-    }
-
     /// Repository logical path.
     #[getter]
     pub fn path(&self) -> String {

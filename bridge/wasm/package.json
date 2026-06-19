@@ -39,7 +39,7 @@
         "build": "rm -rf dist && bun x wasm-pack build --release --target web --out-dir dist",
         "test": "bun run build",
         "size:report": "bun ./scripts/size-report.mjs",
-        "size:report:all": "bun ./scripts/size-report.mjs",
+        "size:report:all": "bun ./scripts/size-report.mjs --brotli",
         "prepublishOnly": "bun run build",
         "publish:dry": "npm publish --dry-run --access public",
         "publish:live": "npm publish --access public"

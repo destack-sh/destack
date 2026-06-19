@@ -115,7 +115,7 @@ impl Edit {
                 };
                 let edits = value
                     .into_iter()
-                    .map(|item| Ok::<_, napi::Error>(item.into_bridge()?))
+                    .map(|item| item.into_bridge())
                     .collect::<napi::Result<Vec<_>>>()?;
                 Ok(bridge::Edit::EditText { path, edits })
             }
@@ -224,11 +224,7 @@ impl Commit {
         Self {
             before: Revision::from_bridge(value.before),
             after: Revision::from_bridge(value.after),
-            changes: value
-                .changes
-                .into_iter()
-                .map(|item| Change::from_bridge(item))
-                .collect(),
+            changes: value.changes.into_iter().map(Change::from_bridge).collect(),
         }
     }
 }

@@ -17,7 +17,7 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-destack.workspace = true
+destack = { workspace = true, features = ["native"] }
 destack_bridge_language.workspace = true
 pyo3 = { workspace = true, features = ["extension-module"] }
 

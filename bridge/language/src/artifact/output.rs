@@ -465,6 +465,32 @@ pub enum BuildOutput {
     },
 }
 
+impl BuildRequest {
+    /// Build one module artifact.
+    pub fn module(module: Module, target: TargetId, output: ModuleBuildKind) -> Self {
+        Self::Module {
+            module,
+            target,
+            output,
+        }
+    }
+
+    /// Build one target build payload.
+    pub fn build(target: TargetId) -> Self {
+        Self::Build { target }
+    }
+
+    /// Build one package target.
+    pub fn target(target: TargetId) -> Self {
+        Self::Target { target }
+    }
+
+    /// Build one product.
+    pub fn product(product: ProductId) -> Self {
+        Self::Product { product }
+    }
+}
+
 impl From<artifact::BuildProfile> for BuildProfile {
     /// Convert one artifact build profile into one bridge build profile.
     fn from(profile: artifact::BuildProfile) -> Self {

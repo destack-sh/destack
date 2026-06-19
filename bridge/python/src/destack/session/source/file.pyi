@@ -11,8 +11,6 @@ from destack.source.module import (
 class Change:
     """One file change observed by a session."""
 
-    def __init__(self, path: str, uri: str, is_removed: bool, module_id: ModuleId | None) -> None: ...
-
     """Repository logical path."""
     @property
     def path(self) -> str: ...

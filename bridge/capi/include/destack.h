@@ -90,7 +90,7 @@ DestackStatus destack_session_edit(
     DestackCommit *out,
     DestackError **error
 );
-DestackStatus destack_session_edit_at(
+DestackStatus destack_session_edit_if_current(
     DestackSession *session,
     const DestackRevision *revision,
     const DestackEdits *edits,
@@ -102,7 +102,7 @@ DestackStatus destack_session_reload(
     DestackChangeArray *out,
     DestackError **error
 );
-DestackStatus destack_session_load_module(
+DestackStatus destack_session_module(
     DestackSession *session,
     const char *path,
     DestackModule *out,
@@ -158,7 +158,7 @@ DestackStatus destack_session_parse(
     const DestackSession *session,
     DestackRevision revision,
     DestackModule module,
-    DestackDirParsed *out,
+    DestackParseOutput *out,
     DestackError **error
 );
 DestackStatus destack_session_resolve(
@@ -174,7 +174,7 @@ DestackStatus destack_session_check(
     DestackRevision revision,
     DestackModule module,
     DestackProfileId profile,
-    DestackDirChecked *out,
+    DestackCheckOutput *out,
     DestackError **error
 );
 DestackStatus destack_session_format(

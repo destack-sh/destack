@@ -11,8 +11,6 @@ from destack.source.file import (
 class Span:
     """Source byte span crossing bridge boundaries."""
 
-    def __init__(self, file: FileId, start: int, end: int) -> None: ...
-
     """File containing this span."""
     @property
     def file(self) -> FileId: ...
@@ -24,16 +22,3 @@ class Span:
     """Exclusive end byte offset."""
     @property
     def end(self) -> int: ...
-
-class LabeledSpan:
-    """Source span with a display label."""
-
-    def __init__(self, span: Span, label: str) -> None: ...
-
-    """Source span."""
-    @property
-    def span(self) -> Span: ...
-
-    """Display label."""
-    @property
-    def label(self) -> str: ...

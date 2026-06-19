@@ -65,7 +65,7 @@ impl ArtifactSourceDependency {
                 entries: Some(
                     entries
                         .into_iter()
-                        .map(|item| ArtifactDirectoryEntry::from_bridge(item))
+                        .map(ArtifactDirectoryEntry::from_bridge)
                         .collect(),
                 ),
                 path: None,

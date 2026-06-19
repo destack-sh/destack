@@ -875,6 +875,7 @@ dependencies = [
  "destack_repository",
  "destack_session",
  "destack_source",
+ "destack_workspace",
 ]
 
 [[package]]

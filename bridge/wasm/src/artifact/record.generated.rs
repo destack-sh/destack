@@ -125,22 +125,22 @@ impl ArtifactRecord {
             strings: value
                 .strings
                 .into_iter()
-                .map(|item| ArtifactString::from_bridge(item))
+                .map(ArtifactString::from_bridge)
                 .collect(),
             dependencies: value
                 .dependencies
                 .into_iter()
-                .map(|item| ArtifactDependency::from_bridge(item))
+                .map(ArtifactDependency::from_bridge)
                 .collect(),
             diagnostics: value
                 .diagnostics
                 .into_iter()
-                .map(|item| Diagnostic::from_bridge(item))
+                .map(Diagnostic::from_bridge)
                 .collect(),
             sidecars: value
                 .sidecars
                 .into_iter()
-                .map(|item| ArtifactSidecar::from_bridge(item))
+                .map(ArtifactSidecar::from_bridge)
                 .collect(),
         }
     }

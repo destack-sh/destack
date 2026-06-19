@@ -7,8 +7,6 @@ from collections.abc import Sequence
 class FileId:
     """External file id crossing bridge boundaries."""
 
-    def __init__(self, id: str) -> None: ...
-
     """Canonical lowercase hex file id."""
     @property
     def id(self) -> str: ...
@@ -24,14 +22,6 @@ class ContentId:
 
 class Content:
     """Full content crossing bridge boundaries."""
-
-    """Text content."""
-    @staticmethod
-    def text(content: str) -> Content: ...
-
-    """Binary content."""
-    @staticmethod
-    def binary(content: bytes | bytearray | Sequence[int]) -> Content: ...
 
     @property
     def kind(self) -> str: ...

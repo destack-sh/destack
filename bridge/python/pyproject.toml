@@ -34,3 +34,6 @@ Issues = "https://github.com/destack-sh/destack/issues"
 manifest-path = "rust/Cargo.toml"
 module-name = "destack._native"
 python-source = "src"
+
+[tool.pytest.ini_options]
+python_files = ["*.py"]

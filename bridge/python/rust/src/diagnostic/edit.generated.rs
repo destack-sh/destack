@@ -15,17 +15,6 @@ pub struct Replacement {
 
 #[pymethods]
 impl Replacement {
-    /// Create one value.
-    #[new]
-    pub fn new(span: Span, new_text: String) -> Self {
-        Self {
-            value: bridge::Replacement {
-                span: span.into_bridge(),
-                new_text,
-            },
-        }
-    }
-
     /// Source span to replace.
     #[getter]
     pub fn span(&self) -> Span {
@@ -41,11 +30,6 @@ impl Replacement {
 
 #[allow(dead_code)]
 impl Replacement {
-    /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::Replacement {
-        self.value
-    }
-
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::Replacement) -> Self {
         Self { value }
@@ -61,20 +45,6 @@ pub struct FilePatch {
 
 #[pymethods]
 impl FilePatch {
-    /// Create one value.
-    #[new]
-    pub fn new(file: FileId, replacements: Vec<Replacement>) -> Self {
-        Self {
-            value: bridge::FilePatch {
-                file: file.into_bridge(),
-                replacements: replacements
-                    .into_iter()
-                    .map(|item| item.into_bridge())
-                    .collect(),
-            },
-        }
-    }
-
     /// Edited file.
     #[getter]
     pub fn file(&self) -> FileId {
@@ -88,18 +58,13 @@ impl FilePatch {
             .replacements
             .clone()
             .into_iter()
-            .map(|item| Replacement::from_bridge(item))
+            .map(Replacement::from_bridge)
             .collect()
     }
 }
 
 #[allow(dead_code)]
 impl FilePatch {
-    /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::FilePatch {
-        self.value
-    }
-
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::FilePatch) -> Self {
         Self { value }
@@ -115,16 +80,6 @@ pub struct BatchEdit {
 
 #[pymethods]
 impl BatchEdit {
-    /// Create one value.
-    #[new]
-    pub fn new(files: Vec<FilePatch>) -> Self {
-        Self {
-            value: bridge::BatchEdit {
-                files: files.into_iter().map(|item| item.into_bridge()).collect(),
-            },
-        }
-    }
-
     /// Per-file edits.
     #[getter]
     pub fn files(&self) -> Vec<FilePatch> {
@@ -132,18 +87,13 @@ impl BatchEdit {
             .files
             .clone()
             .into_iter()
-            .map(|item| FilePatch::from_bridge(item))
+            .map(FilePatch::from_bridge)
             .collect()
     }
 }
 
 #[allow(dead_code)]
 impl BatchEdit {
-    /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::BatchEdit {
-        self.value
-    }
-
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::BatchEdit) -> Self {
         Self { value }

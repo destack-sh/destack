@@ -11,8 +11,6 @@ from destack.artifact.key import (
 class ArtifactVersion:
     """External artifact version crossing bridge boundaries."""
 
-    def __init__(self, key: ArtifactKey, fingerprint: str) -> None: ...
-
     """Semantic artifact slot."""
     @property
     def key(self) -> ArtifactKey: ...

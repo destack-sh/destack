@@ -23,8 +23,6 @@ from destack.diagnostic.diagnostic import (
 class ArtifactString:
     """One interned string carried by an artifact record."""
 
-    def __init__(self, id: str, text: str) -> None: ...
-
     """Canonical lowercase hex string id."""
     @property
     def id(self) -> str: ...
@@ -35,8 +33,6 @@ class ArtifactString:
 
 class ArtifactRecord:
     """Self-contained raw artifact body crossing bridge boundaries."""
-
-    def __init__(self, version: ArtifactVersion, payload: bytes | bytearray | Sequence[int], strings: Sequence[ArtifactString], dependencies: Sequence[ArtifactDependency], diagnostics: Sequence[Diagnostic], sidecars: Sequence[ArtifactSidecar]) -> None: ...
 
     """The exact artifact version."""
     @property

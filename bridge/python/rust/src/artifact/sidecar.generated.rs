@@ -19,14 +19,6 @@ pub struct ArtifactSidecarLabel {
 
 #[pymethods]
 impl ArtifactSidecarLabel {
-    /// Create one value.
-    #[new]
-    pub fn new(key: String, value: String) -> Self {
-        Self {
-            value: bridge::ArtifactSidecarLabel { key, value },
-        }
-    }
-
     /// Label key.
     #[getter]
     pub fn key(&self) -> String {
@@ -42,11 +34,6 @@ impl ArtifactSidecarLabel {
 
 #[allow(dead_code)]
 impl ArtifactSidecarLabel {
-    /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::ArtifactSidecarLabel {
-        self.value
-    }
-
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::ArtifactSidecarLabel) -> Self {
         Self { value }
@@ -62,18 +49,6 @@ pub struct ArtifactSidecar {
 
 #[pymethods]
 impl ArtifactSidecar {
-    /// Create one value.
-    #[new]
-    pub fn new(name: String, labels: Vec<ArtifactSidecarLabel>, content: Content) -> Self {
-        Self {
-            value: bridge::ArtifactSidecar {
-                name,
-                labels: labels.into_iter().map(|item| item.into_bridge()).collect(),
-                content: content.into_bridge(),
-            },
-        }
-    }
-
     /// Sidecar name.
     #[getter]
     pub fn name(&self) -> String {
@@ -87,7 +62,7 @@ impl ArtifactSidecar {
             .labels
             .clone()
             .into_iter()
-            .map(|item| ArtifactSidecarLabel::from_bridge(item))
+            .map(ArtifactSidecarLabel::from_bridge)
             .collect()
     }
 
@@ -100,11 +75,6 @@ impl ArtifactSidecar {
 
 #[allow(dead_code)]
 impl ArtifactSidecar {
-    /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::ArtifactSidecar {
-        self.value
-    }
-
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::ArtifactSidecar) -> Self {
         Self { value }

@@ -291,7 +291,7 @@ fn render_type(schema: &Schema, ty: &Type) -> String {
     match ty {
         Type::String => "string".to_string(),
         Type::Bool => "boolean".to_string(),
-        Type::U8 | Type::U32 | Type::Usize => "number".to_string(),
+        Type::U8 | Type::U32 | Type::U64 | Type::Usize => "number".to_string(),
         Type::Vec(ty) if matches!(ty.as_ref(), Type::U8) => {
             "Uint8Array | readonly number[]".to_string()
         }

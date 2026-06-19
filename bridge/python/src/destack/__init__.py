@@ -1,6 +1,6 @@
 # generated bridge target, do not edit
 
-from ._native import VERSION, Session, version
+from ._native import VERSION, Repository, Session, Workspace, version
 from .artifact.dependency import (
     ArtifactPathState,
     ArtifactDirectoryEntry,
@@ -77,18 +77,31 @@ from .dir.resolved import (
 from .repository.revision import (
     Revision,
 )
-from .session.file import (
-    SessionFile,
+from .repository.trace import (
+    TraceReport,
+    TraceStage,
+    TraceArtifact,
+    TraceSpan,
+    TraceCounter,
 )
-from .session.format import (
+from .session.command.check import (
+    CheckOutput,
+)
+from .session.command.format import (
     Document,
     FormatRequest,
     FormatOutput,
 )
-from .session.lint import (
+from .session.command.lint import (
     Scope,
     LintRequest,
     LintOutput,
+)
+from .session.command.parse import (
+    ParseOutput,
+)
+from .session.file import (
+    SessionFile,
 )
 from .session.module import (
     Module,
@@ -127,14 +140,15 @@ from .source.profile import (
 )
 from .source.span import (
     Span,
-    LabeledSpan,
 )
 from .source.target import (
     TargetId,
 )
 
 __all__ = [
+    "Repository",
     "Session",
+    "Workspace",
     "ArtifactPathState",
     "ArtifactDirectoryEntry",
     "ArtifactSourceDependency",
@@ -187,13 +201,20 @@ __all__ = [
     "DirParsed",
     "DirResolved",
     "Revision",
-    "SessionFile",
+    "TraceReport",
+    "TraceStage",
+    "TraceArtifact",
+    "TraceSpan",
+    "TraceCounter",
+    "CheckOutput",
     "Document",
     "FormatRequest",
     "FormatOutput",
     "Scope",
     "LintRequest",
     "LintOutput",
+    "ParseOutput",
+    "SessionFile",
     "Module",
     "Change",
     "Source",
@@ -210,7 +231,6 @@ __all__ = [
     "ProductId",
     "ProfileId",
     "Span",
-    "LabeledSpan",
     "TargetId",
     "VERSION",
     "version",

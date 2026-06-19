@@ -3,7 +3,19 @@
 from .revision import (
     Revision,
 )
+from .trace import (
+    TraceReport,
+    TraceStage,
+    TraceArtifact,
+    TraceSpan,
+    TraceCounter,
+)
 
 __all__ = [
     "Revision",
+    "TraceReport",
+    "TraceStage",
+    "TraceArtifact",
+    "TraceSpan",
+    "TraceCounter",
 ]

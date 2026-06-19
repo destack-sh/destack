@@ -11,8 +11,6 @@ from destack.source.file import (
 class ArtifactSidecarLabel:
     """One stable sidecar label crossing bridge boundaries."""
 
-    def __init__(self, key: str, value: str) -> None: ...
-
     """Label key."""
     @property
     def key(self) -> str: ...
@@ -23,8 +21,6 @@ class ArtifactSidecarLabel:
 
 class ArtifactSidecar:
     """One named artifact sidecar crossing bridge boundaries."""
-
-    def __init__(self, name: str, labels: Sequence[ArtifactSidecarLabel], content: Content) -> None: ...
 
     """Sidecar name."""
     @property

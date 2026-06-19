@@ -16,33 +16,11 @@ from destack.source.file import (
 class ArtifactPathState:
     """Exact source path state observed by one artifact computation."""
 
-    """The path did not exist."""
-    @staticmethod
-    def missing() -> ArtifactPathState: ...
-
-    """The path was a regular file."""
-    @staticmethod
-    def file() -> ArtifactPathState: ...
-
-    """The path was a directory."""
-    @staticmethod
-    def directory() -> ArtifactPathState: ...
-
-    """The path was a symbolic link."""
-    @staticmethod
-    def symlink() -> ArtifactPathState: ...
-
-    """The path existed with another host-specific kind."""
-    @staticmethod
-    def other() -> ArtifactPathState: ...
-
     @property
     def label(self) -> str: ...
 
 class ArtifactDirectoryEntry:
     """One exact directory entry observed by one artifact computation."""
-
-    def __init__(self, path: FileId, state: ArtifactPathState) -> None: ...
 
     """The entry path identity."""
     @property
@@ -54,18 +32,6 @@ class ArtifactDirectoryEntry:
 
 class ArtifactSourceDependency:
     """One primitive source observation read while building an artifact."""
-
-    """The exact state observed for one source path."""
-    @staticmethod
-    def path_state(path: FileId, state: ArtifactPathState) -> ArtifactSourceDependency: ...
-
-    """The exact direct entries observed for one directory."""
-    @staticmethod
-    def directory_entries(directory: FileId, entries: Sequence[ArtifactDirectoryEntry]) -> ArtifactSourceDependency: ...
-
-    """The exact source content read for one file."""
-    @staticmethod
-    def file_content(file: FileId, content: ContentId) -> ArtifactSourceDependency: ...
 
     @property
     def kind(self) -> str: ...
@@ -90,14 +56,6 @@ class ArtifactSourceDependency:
 
 class ArtifactDependency:
     """One exact dependency read while building an artifact."""
-
-    """Another exact artifact version."""
-    @staticmethod
-    def artifact(version: ArtifactVersion) -> ArtifactDependency: ...
-
-    """One exact primitive source observation."""
-    @staticmethod
-    def source(dependency: ArtifactSourceDependency) -> ArtifactDependency: ...
 
     @property
     def kind(self) -> str: ...

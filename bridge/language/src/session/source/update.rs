@@ -78,6 +78,62 @@ pub struct Commit {
     pub changes: Vec<Change>,
 }
 
+impl TextRange {
+    /// Create one text range.
+    pub fn new(start: u32, end: u32) -> Self {
+        Self { start, end }
+    }
+}
+
+impl TextEdit {
+    /// Create one text edit.
+    pub fn new(range: TextRange, text: impl Into<String>) -> Self {
+        Self {
+            range,
+            text: text.into(),
+        }
+    }
+}
+
+impl Edit {
+    /// Replace or create one text file.
+    pub fn set_text(path: impl Into<String>, text: impl Into<String>) -> Self {
+        Self::SetText {
+            path: path.into(),
+            text: text.into(),
+        }
+    }
+
+    /// Apply text replacements to one tracked text file.
+    pub fn edit_text(path: impl Into<String>, edits: Vec<TextEdit>) -> Self {
+        Self::EditText {
+            path: path.into(),
+            edits,
+        }
+    }
+
+    /// Replace or create one binary file.
+    pub fn set_bytes(path: impl Into<String>, bytes: impl Into<Vec<u8>>) -> Self {
+        Self::SetBytes {
+            path: path.into(),
+            bytes: bytes.into(),
+        }
+    }
+
+    /// Remove one file.
+    pub fn remove(path: impl Into<String>) -> Self {
+        Self::Remove { path: path.into() }
+    }
+
+    /// Move one file.
+    pub fn move_file(from: impl Into<String>, to: impl Into<String>) -> Self {
+        Self::Move {
+            from: from.into(),
+            to: to.into(),
+        }
+    }
+}
+
 /// Error returned when a source bridge value cannot become a session value.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SourceBridgeError {

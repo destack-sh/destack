@@ -135,7 +135,7 @@ impl SourceMap {
             sources: value
                 .sources
                 .into_iter()
-                .map(|item| SourceMapSource::from_bridge(item))
+                .map(SourceMapSource::from_bridge)
                 .collect(),
             names: value.names,
             mappings: value.mappings,
@@ -231,8 +231,8 @@ impl Script {
     pub(crate) fn from_bridge(value: bridge::Script) -> Self {
         Self {
             language: script_language_label(value.language),
-            declaration: value.declaration.map(|item| Declaration::from_bridge(item)),
-            map: value.map.map(|item| SourceMap::from_bridge(item)),
+            declaration: value.declaration.map(Declaration::from_bridge),
+            map: value.map.map(SourceMap::from_bridge),
             has_top_level_side_effects: value.has_top_level_side_effects,
         }
     }
@@ -241,14 +241,14 @@ impl Script {
 /// One compiled-code object artifact crossing bridge boundaries.
 #[derive(Debug, Clone)]
 #[wasm_bindgen]
-pub struct Object {
+pub struct BridgeObject {
     format: String,
     content: ContentId,
     map: Option<SourceMap>,
 }
 
 #[wasm_bindgen]
-impl Object {
+impl BridgeObject {
     /// Create one value.
     #[wasm_bindgen(constructor)]
     pub fn new(format: String, content: ContentId, map: Option<SourceMap>) -> Self {
@@ -278,13 +278,13 @@ impl Object {
     }
 }
 
-impl Object {
+impl BridgeObject {
     /// Convert one bridge value into one WASM value.
     pub(crate) fn from_bridge(value: bridge::Object) -> Self {
         Self {
             format: object_format_label(value.format),
             content: ContentId::from_bridge(value.content),
-            map: value.map.map(|item| SourceMap::from_bridge(item)),
+            map: value.map.map(SourceMap::from_bridge),
         }
     }
 }
@@ -349,7 +349,7 @@ impl Asset {
             file_type: file_type_label(value.file_type),
             content: ContentId::from_bridge(value.content),
             source: value.source,
-            map: value.map.map(|item| SourceMap::from_bridge(item)),
+            map: value.map.map(SourceMap::from_bridge),
         }
     }
 }
@@ -525,7 +525,7 @@ impl Bundle {
             files: value
                 .files
                 .into_iter()
-                .map(|item| BundleFile::from_bridge(item))
+                .map(BundleFile::from_bridge)
                 .collect(),
         }
     }
@@ -631,7 +631,7 @@ impl Program {
             contents: value
                 .contents
                 .into_iter()
-                .map(|item| ContentId::from_bridge(item))
+                .map(ContentId::from_bridge)
                 .collect(),
         }
     }
@@ -779,7 +779,7 @@ impl Product {
             targets: value
                 .targets
                 .into_iter()
-                .map(|item| ProductTarget::from_bridge(item))
+                .map(ProductTarget::from_bridge)
                 .collect(),
         }
     }
@@ -908,7 +908,7 @@ enum BuildOutputContent {
         /// Exact artifact version.
         version: ArtifactVersion,
         /// Object payload.
-        object: Object,
+        object: BridgeObject,
     },
     /// Built asset artifact.
     Asset {
@@ -959,7 +959,7 @@ impl BuildOutput {
 
     /// Create one payload variant.
     #[wasm_bindgen(js_name = "object")]
-    pub fn object(version: ArtifactVersion, object: Object) -> Self {
+    pub fn object(version: ArtifactVersion, object: BridgeObject) -> Self {
         Self {
             content: BuildOutputContent::Object { version, object },
         }
@@ -1045,7 +1045,7 @@ impl BuildOutput {
 
     /// Object payload.
     #[wasm_bindgen(js_name = "getObjectObject")]
-    pub fn get_object_object(&self) -> Option<Object> {
+    pub fn get_object_object(&self) -> Option<BridgeObject> {
         match &self.content {
             BuildOutputContent::Object { object: value, .. } => Some(value.clone()),
             _ => None,
@@ -1111,7 +1111,7 @@ impl BuildOutput {
             bridge::BuildOutput::Object { version, object } => Self {
                 content: BuildOutputContent::Object {
                     version: ArtifactVersion::from_bridge(version),
-                    object: Object::from_bridge(object),
+                    object: BridgeObject::from_bridge(object),
                 },
             },
             bridge::BuildOutput::Asset { version, asset } => Self {

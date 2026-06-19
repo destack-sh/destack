@@ -7,7 +7,7 @@ use quote::{format_ident, quote};
 
 use crate::generate::core::{
     Field, Item, ModulePath, Payload, PayloadNames, Schema, SchemaModule, Shape, Type, Variant,
-    write_rust, write_text,
+    to_snake, write_rust, write_text,
 };
 
 /// Generate Python bridge bindings.
@@ -399,7 +399,7 @@ fn render_module_stub_imports(schema: &Schema, module: &SchemaModule) -> String 
 /// Render the root Python facade.
 fn render_root_facade(schema: &Schema) -> String {
     let mut text = Text::generated();
-    text.line("from ._native import VERSION, Session, version");
+    text.line("from ._native import VERSION, Repository, Session, Workspace, version");
     render_reexports(&mut text, schema, "");
     text.blank();
     render_all(&mut text, &root_names(schema));
@@ -419,7 +419,11 @@ fn render_root_stub(schema: &Schema) -> String {
     text.blank();
     text.line("def version() -> str: ...");
     text.blank();
+    text.raw(render_repository_stub());
+    text.blank();
     text.raw(render_session_stub());
+    text.blank();
+    text.raw(render_workspace_stub());
 
     text.finish()
 }
@@ -493,7 +497,9 @@ fn render_all(text: &mut Text, names: &[String]) {
 /// Return names exported by the root package.
 fn root_names(schema: &Schema) -> Vec<String> {
     let mut names = Vec::new();
+    names.push("Repository".to_string());
     names.push("Session".to_string());
+    names.push("Workspace".to_string());
 
     for module in &schema.modules {
         names.extend(module.names.iter().cloned());
@@ -503,6 +509,23 @@ fn root_names(schema: &Schema) -> Vec<String> {
     names.push("version".to_string());
 
     names
+}
+
+/// Render the handwritten native repository API.
+fn render_repository_stub() -> String {
+    let mut text = Text::new();
+    text.line("class Repository:");
+    text.line("    \"\"\"Python language repository.\"\"\"");
+    text.blank();
+
+    StubMethod::new("open", "Repository")
+        .with_decorator("@staticmethod")
+        .with_argument("source: Source")
+        .render(&mut text);
+    StubMethod::new("root", "str").render(&mut text);
+    StubMethod::new("workspace", "Workspace").render(&mut text);
+
+    text.finish()
 }
 
 /// Render the handwritten native session API.
@@ -528,11 +551,19 @@ fn session_stub_methods() -> Vec<StubMethod> {
         StubMethod::new("revision", "Revision"),
         StubMethod::new("files", "list[SessionFile]"),
         StubMethod::new("edit", "Commit").with_argument("edits: Sequence[Edit]"),
-        StubMethod::new("edit_at", "Commit")
+        StubMethod::new("edit_if_current", "Commit")
             .with_argument("revision: Revision")
             .with_argument("edits: Sequence[Edit]"),
         StubMethod::new("reload", "list[Change]"),
-        StubMethod::new("load_module", "Module").with_argument("path: str"),
+        StubMethod::new("module", "Module").with_argument("path: str"),
+        StubMethod::new("target", "TargetId")
+            .with_argument("revision: Revision")
+            .with_argument("package: PackageId")
+            .with_argument("name: str"),
+        StubMethod::new("profile", "ProfileId")
+            .with_argument("revision: Revision")
+            .with_argument("module: Module")
+            .with_argument("name: str"),
         StubMethod::new("provide", "None")
             .with_argument("revision: Revision")
             .with_argument("keys: Sequence[ArtifactKey]"),
@@ -542,20 +573,104 @@ fn session_stub_methods() -> Vec<StubMethod> {
         StubMethod::new("artifact_record", "ArtifactRecord")
             .with_argument("revision: Revision")
             .with_argument("key: ArtifactKey"),
+        StubMethod::new("trace", "TraceReport | None")
+            .with_argument("revision: Revision")
+            .with_argument("detailed: bool"),
         StubMethod::new("build", "BuildOutput")
             .with_argument("revision: Revision")
             .with_argument("request: BuildRequest"),
         StubMethod::new("content", "Content").with_argument("id: ContentId"),
         StubMethod::new("text", "str").with_argument("id: ContentId"),
         StubMethod::new("bytes", "bytes").with_argument("id: ContentId"),
-        StubMethod::new("parse", "DirParsed")
+        StubMethod::new("parse", "ParseOutput")
             .with_argument("revision: Revision")
             .with_argument("module: Module"),
         StubMethod::new("resolve", "DirResolved")
             .with_argument("revision: Revision")
             .with_argument("module: Module")
             .with_argument("profile: ProfileId"),
-        StubMethod::new("check", "DirChecked")
+        StubMethod::new("check", "CheckOutput")
+            .with_argument("revision: Revision")
+            .with_argument("module: Module")
+            .with_argument("profile: ProfileId"),
+        StubMethod::new("format", "FormatOutput")
+            .with_argument("revision: Revision")
+            .with_argument("request: FormatRequest"),
+        StubMethod::new("lint", "LintOutput")
+            .with_argument("revision: Revision")
+            .with_argument("request: LintRequest"),
+        StubMethod::new("diagnostics", "list[Diagnostic]")
+            .with_argument("revision: Revision")
+            .with_argument("key: ArtifactKey | None = None"),
+        StubMethod::new("sidecars", "list[ArtifactSidecar]")
+            .with_argument("revision: Revision")
+            .with_argument("key: ArtifactKey"),
+    ]
+}
+
+/// Render the handwritten native workspace API.
+fn render_workspace_stub() -> String {
+    let mut text = Text::new();
+    text.line("class Workspace:");
+    text.line("    \"\"\"Python language workspace.\"\"\"");
+    text.blank();
+
+    for method in workspace_stub_methods() {
+        method.render(&mut text);
+    }
+
+    text.finish()
+}
+
+/// Return native workspace stub methods.
+fn workspace_stub_methods() -> Vec<StubMethod> {
+    vec![
+        StubMethod::new("open", "Workspace")
+            .with_decorator("@staticmethod")
+            .with_argument("source: Source"),
+        StubMethod::new("root", "str"),
+        StubMethod::new("revision", "Revision"),
+        StubMethod::new("files", "list[SessionFile]"),
+        StubMethod::new("edit", "Commit").with_argument("edits: Sequence[Edit]"),
+        StubMethod::new("edit_if_current", "Commit")
+            .with_argument("revision: Revision")
+            .with_argument("edits: Sequence[Edit]"),
+        StubMethod::new("reload", "list[Change]"),
+        StubMethod::new("module", "Module").with_argument("path: str"),
+        StubMethod::new("target", "TargetId")
+            .with_argument("revision: Revision")
+            .with_argument("package: PackageId")
+            .with_argument("name: str"),
+        StubMethod::new("profile", "ProfileId")
+            .with_argument("revision: Revision")
+            .with_argument("module: Module")
+            .with_argument("name: str"),
+        StubMethod::new("provide", "None")
+            .with_argument("revision: Revision")
+            .with_argument("keys: Sequence[ArtifactKey]"),
+        StubMethod::new("require", "ArtifactVersion")
+            .with_argument("revision: Revision")
+            .with_argument("key: ArtifactKey"),
+        StubMethod::new("artifact_record", "ArtifactRecord")
+            .with_argument("revision: Revision")
+            .with_argument("key: ArtifactKey"),
+        StubMethod::new("trace", "TraceReport | None")
+            .with_argument("revision: Revision")
+            .with_argument("detailed: bool"),
+        StubMethod::new("build", "BuildOutput")
+            .with_argument("revision: Revision")
+            .with_argument("request: BuildRequest"),
+        StubMethod::new("content", "Content").with_argument("id: ContentId"),
+        StubMethod::new("text", "str").with_argument("id: ContentId"),
+        StubMethod::new("bytes", "bytes").with_argument("id: ContentId"),
+        StubMethod::new("parse", "ParseOutput")
+            .with_argument("revision: Revision")
+            .with_argument("module: Module"),
+        StubMethod::new("resolve", "DirResolved")
+            .with_argument("revision: Revision")
+            .with_argument("module: Module")
+            .with_argument("profile: ProfileId"),
+        StubMethod::new("check", "CheckOutput")
             .with_argument("revision: Revision")
             .with_argument("module: Module")
             .with_argument("profile: ProfileId"),
@@ -579,7 +694,7 @@ fn render_stub_item(schema: &Schema, item: &Item) -> String {
     match &item.shape {
         Shape::Struct(fields) => render_struct_stub(schema, item, fields),
         Shape::Enum(variants) if schema.is_unit_enum(&item.name) => {
-            render_unit_enum_stub(item, variants)
+            render_unit_enum_stub(schema, item, variants)
         }
         Shape::Enum(variants) => render_payload_enum_stub(schema, item, variants),
     }
@@ -590,47 +705,53 @@ fn render_struct_stub(schema: &Schema, item: &Item, fields: &[Field]) -> String 
     let mut text = Text::new();
     render_stub_class_header(&mut text, item);
 
-    let arguments = fields
-        .iter()
-        .map(|field| {
-            format!(
-                "{}: {}",
-                python_parameter_name(&field.name),
-                render_input_stub_type(schema, &field.ty)
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(", ");
-    let separator = (!arguments.is_empty()).then_some(", ").unwrap_or("");
-    text.line(format!(
-        "    def __init__(self{separator}{arguments}) -> None: ..."
-    ));
-    text.blank();
-
-    for field in fields {
-        text.doc(field.doc(), "    ");
-        text.line("    @property");
+    if generates_to_bridge(schema, item) {
+        let arguments = fields
+            .iter()
+            .map(|field| {
+                format!(
+                    "{}: {}",
+                    python_parameter_name(&field.name),
+                    render_input_stub_type(schema, &field.ty)
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        let separator = (!arguments.is_empty()).then_some(", ").unwrap_or("");
         text.line(format!(
-            "    def {}(self) -> {}: ...",
-            field.name,
-            render_output_stub_type(schema, &field.ty)
+            "    def __init__(self{separator}{arguments}) -> None: ..."
         ));
         text.blank();
+    }
+
+    if generates_from_bridge(schema, item) {
+        for field in fields {
+            text.doc(field.doc(), "    ");
+            text.line("    @property");
+            text.line(format!(
+                "    def {}(self) -> {}: ...",
+                field.name,
+                render_output_stub_type(schema, &field.ty)
+            ));
+            text.blank();
+        }
     }
 
     text.finish()
 }
 
 /// Render one Python unit enum stub.
-fn render_unit_enum_stub(item: &Item, variants: &[Variant]) -> String {
+fn render_unit_enum_stub(schema: &Schema, item: &Item, variants: &[Variant]) -> String {
     let mut text = Text::new();
     render_stub_class_header(&mut text, item);
 
-    for variant in variants {
-        text.doc(variant.doc(), "    ");
-        StubMethod::new(variant.payload_field_name(), item.name.clone())
-            .with_decorator("@staticmethod")
-            .render(&mut text);
+    if generates_to_bridge(schema, item) {
+        for variant in variants {
+            text.doc(variant.doc(), "    ");
+            StubMethod::new(variant.payload_field_name(), item.name.clone())
+                .with_decorator("@staticmethod")
+                .render(&mut text);
+        }
     }
 
     StubMethod::new("label", "str")
@@ -645,34 +766,37 @@ fn render_payload_enum_stub(schema: &Schema, item: &Item, variants: &[Variant]) 
     let mut text = Text::new();
     render_stub_class_header(&mut text, item);
 
-    for variant in variants {
-        text.doc(variant.doc(), "    ");
+    if generates_to_bridge(schema, item) {
+        for variant in variants {
+            text.doc(variant.doc(), "    ");
 
-        match &variant.payload {
-            Payload::Unit => {
-                StubMethod::new(variant.payload_field_name(), item.name.clone())
-                    .with_decorator("@staticmethod")
-                    .render(&mut text);
-            }
-            Payload::Tuple(ty) => {
-                let name = variant.payload_field_name();
-                let ty = render_input_stub_type(schema, ty);
-                StubMethod::new(name.clone(), item.name.clone())
-                    .with_decorator("@staticmethod")
-                    .with_argument(format!("{name}: {ty}"))
-                    .render(&mut text);
-            }
-            Payload::Struct(fields) => {
-                let mut method = StubMethod::new(variant.payload_field_name(), item.name.clone())
-                    .with_decorator("@staticmethod");
-
-                for field in fields {
-                    let name = python_parameter_name(&field.name);
-                    let ty = render_input_stub_type(schema, &field.ty);
-                    method = method.with_argument(format!("{name}: {ty}"));
+            match &variant.payload {
+                Payload::Unit => {
+                    StubMethod::new(variant.payload_field_name(), item.name.clone())
+                        .with_decorator("@staticmethod")
+                        .render(&mut text);
                 }
+                Payload::Tuple(ty) => {
+                    let name = variant.payload_field_name();
+                    let ty = render_input_stub_type(schema, ty);
+                    StubMethod::new(name.clone(), item.name.clone())
+                        .with_decorator("@staticmethod")
+                        .with_argument(format!("{name}: {ty}"))
+                        .render(&mut text);
+                }
+                Payload::Struct(fields) => {
+                    let mut method =
+                        StubMethod::new(variant.payload_field_name(), item.name.clone())
+                            .with_decorator("@staticmethod");
 
-                method.render(&mut text);
+                    for field in fields {
+                        let name = python_parameter_name(&field.name);
+                        let ty = render_input_stub_type(schema, &field.ty);
+                        method = method.with_argument(format!("{name}: {ty}"));
+                    }
+
+                    method.render(&mut text);
+                }
             }
         }
     }
@@ -681,13 +805,16 @@ fn render_payload_enum_stub(schema: &Schema, item: &Item, variants: &[Variant]) 
         .with_decorator("@property")
         .render(&mut text);
 
-    for getter in payload_getters(variants) {
-        let name = getter.name;
-        let ty = render_output_stub_type(schema, &getter.ty);
+    if generates_from_bridge(schema, item) {
+        let is_self_named_qualified = generates_to_bridge(schema, item);
+        for getter in payload_getters(variants, is_self_named_qualified) {
+            let name = getter.name;
+            let ty = render_output_stub_type(schema, &getter.ty);
 
-        text.line("    @property");
-        text.line(format!("    def {name}(self) -> {ty} | None: ..."));
-        text.blank();
+            text.line("    @property");
+            text.line(format!("    def {name}(self) -> {ty} | None: ..."));
+            text.blank();
+        }
     }
 
     text.finish()
@@ -705,7 +832,7 @@ fn render_input_stub_type(schema: &Schema, ty: &Type) -> String {
     match ty {
         Type::String => "str".to_string(),
         Type::Bool => "bool".to_string(),
-        Type::U8 | Type::U32 | Type::Usize => "int".to_string(),
+        Type::U8 | Type::U32 | Type::U64 | Type::Usize => "int".to_string(),
         Type::Vec(ty) if matches!(ty.as_ref(), Type::U8) => {
             "bytes | bytearray | Sequence[int]".to_string()
         }
@@ -721,7 +848,7 @@ fn render_output_stub_type(schema: &Schema, ty: &Type) -> String {
     match ty {
         Type::String => "str".to_string(),
         Type::Bool => "bool".to_string(),
-        Type::U8 | Type::U32 | Type::Usize => "int".to_string(),
+        Type::U8 | Type::U32 | Type::U64 | Type::Usize => "int".to_string(),
         Type::Vec(ty) => format!("list[{}]", render_output_stub_type(schema, ty)),
         Type::Option(ty) => format!("{} | None", render_output_stub_type(schema, ty)),
         Type::Named(name) if schema.is_unit_enum(name) => name.clone(),
@@ -760,8 +887,16 @@ fn render_struct(schema: &Schema, item: &Item, fields: &[Field]) -> TokenStream 
     let name = item.ident();
     let py_name = &item.name;
     let docs = item.docs();
-    let constructor = render_struct_constructor(schema, item, fields);
-    let getters = fields.iter().map(|field| render_getter(schema, field));
+    let constructor =
+        generates_to_bridge(schema, item).then(|| render_struct_constructor(schema, item, fields));
+    let getters = if generates_from_bridge(schema, item) {
+        fields
+            .iter()
+            .map(|field| render_getter(schema, field))
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
     let helpers = render_struct_helpers(schema, item);
 
     quote! {
@@ -820,7 +955,8 @@ fn render_getter(schema: &Schema, field: &Field) -> TokenStream {
     let docs = field.docs();
     let name = field.ident();
     let ty = render_type(schema, &field.ty);
-    let value = render_from_bridge_value(schema, quote!(self.value.#name.clone()), &field.ty);
+    let source = render_python_field_source(schema, quote!(self.value.#name), &field.ty);
+    let value = render_from_bridge_value(schema, source, &field.ty);
 
     quote! {
         #docs
@@ -865,21 +1001,28 @@ fn render_unit_enum(schema: &Schema, item: &Item, variants: &[Variant]) -> Token
     let name = item.ident();
     let py_name = &item.name;
     let docs = item.docs();
-    let constructors = variants.iter().map(|variant| {
-        let method = variant.payload_method_ident();
-        let variant_name = variant.ident();
-        let docs = variant.docs();
+    let constructors = if generates_to_bridge(schema, item) {
+        variants
+            .iter()
+            .map(|variant| {
+                let method = variant.payload_method_ident();
+                let variant_name = variant.ident();
+                let docs = variant.docs();
 
-        quote! {
-            #docs
-            #[staticmethod]
-            pub fn #method() -> Self {
-                Self {
-                    value: bridge::#name::#variant_name,
+                quote! {
+                    #docs
+                    #[staticmethod]
+                    pub fn #method() -> Self {
+                        Self {
+                            value: bridge::#name::#variant_name,
+                        }
+                    }
                 }
-            }
-        }
-    });
+            })
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
     let labels = variants.iter().map(|variant| {
         let variant_name = variant.ident();
         let label = variant.label();
@@ -936,13 +1079,24 @@ fn render_payload_enum(schema: &Schema, item: &Item, variants: &[Variant]) -> To
     let name = item.ident();
     let py_name = &item.name;
     let docs = item.docs();
-    let constructors = variants
-        .iter()
-        .map(|variant| render_payload_constructor(schema, item, variant));
+    let constructors = if generates_to_bridge(schema, item) {
+        variants
+            .iter()
+            .map(|variant| render_payload_constructor(schema, item, variant))
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
     let variant_count = variants.len();
-    let getters = payload_getters(variants)
-        .into_iter()
-        .map(|getter| render_payload_getter(schema, item, variant_count, getter));
+    let getters = if generates_from_bridge(schema, item) {
+        let is_self_named_qualified = generates_to_bridge(schema, item);
+        payload_getters(variants, is_self_named_qualified)
+            .into_iter()
+            .map(|getter| render_payload_getter(schema, item, variant_count, getter))
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
     let labels = variants.iter().map(|variant| {
         let variant_name = variant.ident();
         let label = variant.label();
@@ -1001,7 +1155,7 @@ fn render_payload_enum(schema: &Schema, item: &Item, variants: &[Variant]) -> To
 }
 
 /// Return Python payload getter groups.
-fn payload_getters(variants: &[Variant]) -> Vec<PayloadGetter<'_>> {
+fn payload_getters(variants: &[Variant], is_self_named_qualified: bool) -> Vec<PayloadGetter<'_>> {
     let names = PayloadNames::new(variants);
     let mut getters = BTreeMap::<(String, Type), Vec<PayloadGetterArm<'_>>>::new();
 
@@ -1017,7 +1171,13 @@ fn payload_getters(variants: &[Variant]) -> Vec<PayloadGetter<'_>> {
             }
             Payload::Struct(fields) => {
                 for field in fields {
-                    let key = (names.field_name(variant, field), field.ty.clone());
+                    let name = python_payload_accessor_name(
+                        &names,
+                        variant,
+                        field,
+                        is_self_named_qualified,
+                    );
+                    let key = (name, field.ty.clone());
                     getters.entry(key).or_default().push(PayloadGetterArm {
                         variant,
                         source: PayloadGetterSource::Struct(field),
@@ -1031,6 +1191,32 @@ fn payload_getters(variants: &[Variant]) -> Vec<PayloadGetter<'_>> {
         .into_iter()
         .map(|((name, ty), arms)| PayloadGetter { name, ty, arms })
         .collect()
+}
+
+/// Return the Python accessor name for one payload field.
+fn python_payload_accessor_name(
+    names: &PayloadNames,
+    variant: &Variant,
+    field: &Field,
+    is_self_named_qualified: bool,
+) -> String {
+    let name = names.field_name_with_self_named(variant, field, false);
+    let is_constructor_collision = is_self_named_qualified && field.label() == variant.label();
+
+    if is_constructor_collision && name == to_snake(&field.label()) {
+        python_payload_type_name(&field.ty).unwrap_or_else(|| format!("{name}_value"))
+    } else {
+        name
+    }
+}
+
+/// Return a Python noun for one payload type.
+fn python_payload_type_name(ty: &Type) -> Option<String> {
+    match ty {
+        Type::Named(name) => Some(to_snake(name)),
+        Type::Option(ty) | Type::Vec(ty) => python_payload_type_name(ty),
+        Type::String | Type::Bool | Type::U8 | Type::U32 | Type::U64 | Type::Usize => None,
+    }
 }
 
 /// Render one Python payload getter.
@@ -1073,13 +1259,15 @@ fn render_payload_getter_arm(
 
     match arm.source {
         PayloadGetterSource::Tuple => {
-            let value = render_from_bridge_value(schema, quote!(value.clone()), ty);
+            let source = render_python_borrowed_source(schema, quote!(value), ty);
+            let value = render_from_bridge_value(schema, source, ty);
 
             quote!(bridge::#name::#variant(value) => Some(#value),)
         }
         PayloadGetterSource::Struct(field) => {
             let field = field.ident();
-            let value = render_from_bridge_value(schema, quote!(#field.clone()), ty);
+            let source = render_python_borrowed_source(schema, quote!(#field), ty);
+            let value = render_from_bridge_value(schema, source, ty);
 
             quote!(bridge::#name::#variant { #field, .. } => Some(#value),)
         }
@@ -1158,6 +1346,7 @@ fn render_type(schema: &Schema, ty: &Type) -> TokenStream {
         Type::Bool => quote!(bool),
         Type::U8 => quote!(u8),
         Type::U32 => quote!(u32),
+        Type::U64 => quote!(u64),
         Type::Usize => quote!(usize),
         Type::Vec(ty) => {
             let ty = render_type(schema, ty);
@@ -1212,20 +1401,30 @@ fn render_from_bridge_value(schema: &Schema, value: TokenStream, ty: &Type) -> T
     match ty {
         Type::Vec(ty) => {
             let source = value;
-            let item = render_from_bridge_value(schema, quote!(item), ty);
 
             if type_needs_conversion(schema, ty) {
-                quote!(#source.into_iter().map(|item| #item).collect())
+                if let Some(mapper) = render_from_bridge_mapper(schema, ty) {
+                    quote!(#source.into_iter().map(#mapper).collect())
+                } else {
+                    let item = render_from_bridge_value(schema, quote!(item), ty);
+
+                    quote!(#source.into_iter().map(|item| #item).collect())
+                }
             } else {
                 quote!(#source)
             }
         }
         Type::Option(ty) => {
             let source = value;
-            let item = render_from_bridge_value(schema, quote!(item), ty);
 
             if type_needs_conversion(schema, ty) {
-                quote!(#source.map(|item| #item))
+                if let Some(mapper) = render_from_bridge_mapper(schema, ty) {
+                    quote!(#source.map(#mapper))
+                } else {
+                    let item = render_from_bridge_value(schema, quote!(item), ty);
+
+                    quote!(#source.map(|item| #item))
+                }
             } else {
                 quote!(#source)
             }
@@ -1239,13 +1438,52 @@ fn render_from_bridge_value(schema: &Schema, value: TokenStream, ty: &Type) -> T
     }
 }
 
+/// Render one Python field source expression.
+fn render_python_field_source(schema: &Schema, value: TokenStream, ty: &Type) -> TokenStream {
+    if is_bridge_copy(schema, ty) {
+        value
+    } else {
+        quote!(#value.clone())
+    }
+}
+
+/// Render one Python borrowed payload source expression.
+fn render_python_borrowed_source(schema: &Schema, value: TokenStream, ty: &Type) -> TokenStream {
+    if is_bridge_copy(schema, ty) {
+        quote!(*#value)
+    } else {
+        quote!(#value.clone())
+    }
+}
+
+/// Return whether one bridge value is Copy.
+fn is_bridge_copy(schema: &Schema, ty: &Type) -> bool {
+    match ty {
+        Type::Bool | Type::U8 | Type::U32 | Type::U64 | Type::Usize => true,
+        Type::Named(name) => schema.item(name).is_copy,
+        Type::String | Type::Vec(_) | Type::Option(_) => false,
+    }
+}
+
+/// Render one direct bridge output mapper when possible.
+fn render_from_bridge_mapper(schema: &Schema, ty: &Type) -> Option<TokenStream> {
+    match ty {
+        Type::Named(name) if schema.items.contains_key(name) => {
+            let name = format_ident!("{name}");
+
+            Some(quote!(#name::from_bridge))
+        }
+        _ => None,
+    }
+}
+
 /// Return whether this item needs an input bridge conversion.
 fn generates_to_bridge(schema: &Schema, item: &Item) -> bool {
     item.generates_into_bridge()
         || schema
             .items
             .values()
-            .any(|other| other.references(&item.name))
+            .any(|other| other.generates_into_bridge() && other.references(&item.name))
 }
 
 /// Return whether this item needs an output bridge conversion.
@@ -1254,7 +1492,7 @@ fn generates_from_bridge(schema: &Schema, item: &Item) -> bool {
         || schema
             .items
             .values()
-            .any(|other| other.references(&item.name))
+            .any(|other| other.generates_from_bridge() && other.references(&item.name))
 }
 
 /// Return whether this Python type needs bridge conversion.
