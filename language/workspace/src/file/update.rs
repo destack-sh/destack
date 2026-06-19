@@ -46,14 +46,14 @@ impl Workspace {
         let path = file_content_edit_path(&edit)?.to_path_buf();
 
         // reject stale client versions before mutating repository state
-        if let Some(current) = self.open_file_version(path.as_path()) {
-            if version <= current {
-                return Err(Error::StaleOpenFile {
-                    path,
-                    incoming: version,
-                    current,
-                });
-            }
+        if let Some(current) = self.open_file_version(path.as_path())
+            && version <= current
+        {
+            return Err(Error::StaleOpenFile {
+                path,
+                incoming: version,
+                current,
+            });
         }
 
         // publish the open content as repository source truth
@@ -86,14 +86,14 @@ impl Workspace {
         changes: Vec<TextChange>,
     ) -> Result<UpdateBatch, Error> {
         // reject stale client versions before computing text
-        if let Some(current) = self.open_file_version(path) {
-            if version <= current {
-                return Err(Error::StaleOpenFile {
-                    path: path.to_path_buf(),
-                    incoming: version,
-                    current,
-                });
-            }
+        if let Some(current) = self.open_file_version(path)
+            && version <= current
+        {
+            return Err(Error::StaleOpenFile {
+                path: path.to_path_buf(),
+                incoming: version,
+                current,
+            });
         }
 
         // apply the patch to the current open text
@@ -489,16 +489,16 @@ impl Workspace {
         let mut update = FileUpdate::from(change);
 
         // attach open file protocol identity when the revision content agrees
-        if let Some(path) = update.file.as_ref().and_then(|file| file.path.as_deref()) {
-            if let Some(file) = self.open_state(path) {
-                update.diagnostic_uri = file.uri;
-                update.diagnostic_version = self.open_file_version_in_revision(
-                    session.repository().as_ref(),
-                    revision,
-                    update.file_id,
-                    path,
-                )?;
-            }
+        if let Some(path) = update.file.as_ref().and_then(|file| file.path.as_deref())
+            && let Some(file) = self.open_state(path)
+        {
+            update.diagnostic_uri = file.uri;
+            update.diagnostic_version = self.open_file_version_in_revision(
+                session.repository().as_ref(),
+                revision,
+                update.file_id,
+                path,
+            )?;
         }
 
         Ok(update)

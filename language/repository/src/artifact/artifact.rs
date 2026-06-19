@@ -676,9 +676,9 @@ impl Repository {
         let file = FileId::from_logical_str(&path);
 
         if self.file_content_id(revision, file)?.is_some() {
-            return Ok(ArtifactPathState::File);
+            Ok(ArtifactPathState::File)
         } else if self.artifact_directory_exists(revision, &path)? {
-            return Ok(ArtifactPathState::Directory);
+            Ok(ArtifactPathState::Directory)
         } else {
             Ok(ArtifactPathState::Missing)
         }
