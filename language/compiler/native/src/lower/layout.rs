@@ -72,7 +72,7 @@ pub(crate) fn compute_type_layout(
             | mir::Type::Variant { .. }
             | mir::Type::Dynamic { .. }
             | mir::Type::FixedArray { .. }
-            | mir::Type::Closure { .. }
+            | mir::Type::Function { .. }
     ) {
         return Err(CodegenCraneliftError::unsupported_type(
             "missing layout metadata",
@@ -142,7 +142,7 @@ pub(crate) fn compute_type_layout(
             access,
             ..
         } => {
-            let (data, _length) = mir::slice_header_types(*kind, *element, *access, space.clone());
+            let (data, _length) = mir::Type::slice(*kind, *element, *access, space.clone());
             let data = tree
                 .iter_nodes::<mir::Type>()
                 .find_map(|(type_id, ty)| (ty == &data).then_some(type_id))
@@ -198,8 +198,8 @@ pub(crate) fn compute_type_layout(
         // uninit tokens use the value representation while enforcing linearity
         mir::Type::Uninit { value } => compute_type_layout(tree, *value, pointer_bytes),
 
-        // closures: read canonical layout metadata
-        mir::Type::Closure { .. } => {
+        // function values read canonical layout metadata
+        mir::Type::Function { .. } => {
             let Some(layout) = tree.metadata.layout.type_layout(type_id) else {
                 return Err(CodegenCraneliftError::unsupported_type(
                     "missing layout metadata",
