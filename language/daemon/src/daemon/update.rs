@@ -107,7 +107,9 @@ impl Workspace {
         edits: Vec<session::Edit>,
     ) -> Result<Commit, DaemonError> {
         let result = match base {
-            Some(base) => self.workspace.apply_source_edits_at(root, base, edits),
+            Some(base) => self
+                .workspace
+                .apply_source_edits_if_current(root, base, edits),
             None => self.workspace.apply_source_edits(root, edits),
         };
 

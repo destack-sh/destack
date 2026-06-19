@@ -104,11 +104,11 @@ impl Session {
     pub fn edit(&self, reference: &Ref, edits: Vec<Edit>) -> Result<Commit, SessionError> {
         let before = self.revision(reference)?;
 
-        self.edit_at(reference, before, edits)
+        self.edit_if_current(reference, before, edits)
     }
 
     /// Edit files when one ref still points at one revision.
-    pub fn edit_at(
+    pub fn edit_if_current(
         &self,
         reference: &Ref,
         revision: Revision,
@@ -316,7 +316,7 @@ fn repository_file_ids(edits: &[destack_repository::Edit]) -> Vec<FileId> {
 
     // collect changed file ids in edit order
     for edit in edits {
-        for file_id in edit.affected_file_ids() {
+        for file_id in edit.changed_file_ids() {
             if seen_file_ids.insert(file_id) {
                 file_ids.push(file_id);
             }
