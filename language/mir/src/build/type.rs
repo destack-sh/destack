@@ -3,7 +3,7 @@ use destack_core::StringId;
 use crate::build::ModuleBuilder;
 use crate::{
     Access, Constant, Copy, Field, FloatType, Lifetime, LocalNodeId, Nullability, ReferenceKind,
-    Space, TensorDimension, TensorLayout, TensorViewLayout, Type, TypeId, VariantCase,
+    Space, TensorDimension, TensorFormat, TensorViewFormat, Type, TypeId, VariantCase,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -273,13 +273,13 @@ impl ModuleBuilder {
         &mut self,
         element: LocalNodeId<Type>,
         shape: Vec<TensorDimension>,
-        layout: TensorLayout,
+        format: TensorFormat,
         copy: Copy,
     ) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Tensor {
             element,
             shape,
-            layout,
+            format,
             copy,
         })
     }
@@ -292,7 +292,7 @@ impl ModuleBuilder {
         access: Access,
         space: Space,
         shape: Vec<TensorDimension>,
-        layout: TensorViewLayout,
+        format: TensorViewFormat,
         nullability: Nullability,
     ) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::TensorView {
@@ -302,7 +302,7 @@ impl ModuleBuilder {
             access,
             element,
             shape,
-            layout,
+            format,
             nullability,
         })
     }
