@@ -1408,6 +1408,9 @@ define_language_items! {
             /// Callable value type.
             Function => (Newtype, "types/function", "Function"),
 
+            /// Thin callable value type.
+            FunctionPointer => (Newtype, "types/function", "FunctionPointer"),
+
             /// Constructor instance alias.
             InstanceType => (Type, "types/function", "InstanceType"),
 
