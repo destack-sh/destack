@@ -411,6 +411,14 @@ impl StringPool {
         state.ensure_text(string_id, text);
     }
 
+    /// Ensure this pool contains one exact string.
+    #[inline]
+    pub fn ensure(&self, string_id: StringId, text: &str) {
+        let mut state = self.inner.write();
+
+        state.ensure_text(string_id, text);
+    }
+
     /// Ensure this pool contains every string from another pool.
     pub fn ensure_all_from(&self, other: &StringPool) {
         if std::ptr::eq(self, other) {
