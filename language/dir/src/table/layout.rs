@@ -245,9 +245,9 @@ pub struct Layout {
     /// The layout shape.
     pub shape: LayoutShape,
     /// The size in bytes.
-    pub size: Option<u32>,
+    pub size: u32,
     /// The alignment in bytes.
-    pub alignment: Option<u32>,
+    pub alignment: u32,
     /// The largest niche of free scalar values, when one exists.
     pub niche: Option<Niche>,
 }
@@ -274,8 +274,8 @@ impl Layout {
     pub fn unit() -> Layout {
         Layout {
             shape: LayoutShape::None,
-            size: Some(0),
-            alignment: Some(1),
+            size: 0,
+            alignment: 1,
             niche: None,
         }
     }
@@ -284,8 +284,8 @@ impl Layout {
     pub fn scalar(size: u32, alignment: u32, niche: Option<Niche>) -> Layout {
         Layout {
             shape: LayoutShape::Scalar,
-            size: Some(size),
-            alignment: Some(alignment),
+            size,
+            alignment,
             niche,
         }
     }
@@ -303,8 +303,8 @@ impl Layout {
 
         Layout {
             shape: LayoutShape::Pointer(PointerLayout { pointee }),
-            size: Some(pointer_bytes),
-            alignment: Some(pointer_bytes),
+            size: pointer_bytes,
+            alignment: pointer_bytes,
             niche,
         }
     }
@@ -313,8 +313,8 @@ impl Layout {
     pub fn dynamic(pointer_bytes: u32) -> Layout {
         Layout {
             shape: LayoutShape::Dynamic,
-            size: Some(pointer_bytes * 2),
-            alignment: Some(pointer_bytes),
+            size: pointer_bytes * 2,
+            alignment: pointer_bytes,
             niche: None,
         }
     }
@@ -323,8 +323,8 @@ impl Layout {
     pub fn function(pointer_bytes: u32) -> Layout {
         Layout {
             shape: LayoutShape::Function,
-            size: Some(pointer_bytes * 2),
-            alignment: Some(pointer_bytes),
+            size: pointer_bytes * 2,
+            alignment: pointer_bytes,
             niche: None,
         }
     }
@@ -373,14 +373,20 @@ pub enum LayoutShape {
     /// Tuple storage.
     Tuple(TupleLayout),
     /// Slice header storage.
-    Slice(SliceLayout),
-    /// Array storage.
-    Array(ArrayLayout),
+    Slice,
+    /// Fixed array storage.
+    Array(ElementLayout),
+    /// Vector value storage.
+    Vector(ElementLayout),
+    /// Tensor handle storage.
+    Tensor(TensorLayout),
+    /// Tensor view descriptor storage.
+    TensorView(TensorViewLayout),
     /// Variant value storage.
     Variant(VariantLayout),
     /// Object storage with a dispatch table header.
     Object(ObjectLayout),
-    /// Pointer-sized erased value storage.
+    /// Runtime dynamic value storage.
     Dynamic,
     /// Runtime function value storage.
     Function,
@@ -411,22 +417,29 @@ pub struct PointerLayout {
     pub pointee: GlobalTypeId,
 }
 
-/// Concrete layout for a slice header.
+/// Layout for inline indexed element storage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SliceLayout {
-    /// The slice element type.
-    pub element: GlobalTypeId,
-}
-
-/// Concrete layout for an array.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ArrayLayout {
-    /// The array element type.
+pub struct ElementLayout {
+    /// The stored element type.
     pub element: GlobalTypeId,
     /// The byte stride between elements.
-    pub stride: Option<u32>,
+    pub stride: u32,
     /// The fixed element count when known.
-    pub count: Option<u32>,
+    pub count: u32,
+}
+
+/// Concrete layout for a tensor handle.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TensorLayout {
+    /// The tensor rank.
+    pub rank: u32,
+}
+
+/// Concrete layout for a tensor view descriptor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TensorViewLayout {
+    /// The tensor rank.
+    pub rank: u32,
 }
 
 /// Concrete layout for a variant value.
@@ -446,9 +459,9 @@ pub struct VariantTagLayout {
     /// The tag type when it has been materialized.
     pub ty: Option<GlobalTypeId>,
     /// The tag size in bytes.
-    pub size: Option<u32>,
+    pub size: u32,
     /// The tag alignment in bytes.
-    pub alignment: Option<u32>,
+    pub alignment: u32,
 }
 
 /// Concrete layout for an object.
@@ -477,11 +490,11 @@ pub struct LayoutField {
     /// The field layout.
     pub layout: LocalLayoutId,
     /// The offset in bytes.
-    pub offset: Option<u32>,
+    pub offset: u32,
     /// The size in bytes.
-    pub size: Option<u32>,
+    pub size: u32,
     /// The alignment in bytes.
-    pub alignment: Option<u32>,
+    pub alignment: u32,
 }
 
 /// Concrete layout for one variant case.
