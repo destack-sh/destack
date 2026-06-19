@@ -5,9 +5,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Once};
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactProvider,
-    ArtifactSidecar, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay, DiagnosticError,
-    DirParsed, DirParsedFile, MemoryBlobStore, ToDiagnostic,
+    ArtifactDependency, ArtifactDependencySet, ArtifactFailure, ArtifactKey, ArtifactPayload,
+    ArtifactProvider, ArtifactSidecar, ArtifactVersion, DiagnosticAnchor, DiagnosticContext,
+    DiagnosticDisplay, DiagnosticError, DirParsed, DirParsedFile, MemoryBlobStore, ToDiagnostic,
 };
 use destack_compiler::Compiler;
 use destack_core::StringPool;
@@ -17,9 +17,9 @@ use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::{Parser, ParserOptions};
 use destack_repository::{
-    ArtifactProduct, Collector, DestackLayoutOverride, Edit as RepositoryEdit, Environment,
-    LintCategory, LintSeverity, LinterOptions, Module, Profile, Provider, ProviderContext,
-    ProviderError, ProviderOutput, ProviderResult, Ref, Repository, Revision, Settings,
+    DependencySetResolution, DestackLayoutOverride, Edit as RepositoryEdit, Environment,
+    LintCategory, LintSeverity, LinterOptions, Module, Profile, ProviderContext, ProviderError,
+    ProviderResult, Ref, Repository, Revision, Settings,
 };
 use destack_session::open_repository_from_fs;
 use destack_source::{
@@ -107,47 +107,6 @@ impl TestProviderContext {
     }
 }
 
-impl Collector for TestProgram {
-    /// Collect the dependency closure for one compiler artifact key.
-    fn collect(
-        &self,
-        revision: Revision,
-        key: ArtifactKey,
-    ) -> ProviderResult<ArtifactDependencySet> {
-        match key.provider() {
-            ArtifactProvider::Loader => collect_loader(self.compiler.as_ref(), revision, key),
-            ArtifactProvider::Compiler => {
-                let context = TestProviderContext::new(self.repository.clone(), revision, key);
-
-                self.compiler.collect(&context)
-            }
-            ArtifactProvider::Linter | ArtifactProvider::Query => Err(ProviderError::internal(
-                format!("unsupported linter test artifact key: {key:?}"),
-            )
-            .into()),
-        }
-    }
-}
-
-impl Provider for TestProgram {
-    /// Build one compiler artifact over its frozen dependency closure.
-    fn provide(&self, revision: Revision, key: ArtifactKey) -> ProviderResult<ProviderOutput> {
-        let context = TestProviderContext::new(self.repository.clone(), revision, key);
-        let result = match key.provider() {
-            ArtifactProvider::Loader => {
-                Ok(provide_loader_artifact(self.compiler.as_ref(), &context))
-            }
-            ArtifactProvider::Compiler => self.compiler.provide(&context),
-            ArtifactProvider::Linter | ArtifactProvider::Query => Err(ProviderError::internal(
-                format!("unsupported linter test artifact key: {key:?}"),
-            )
-            .into()),
-        };
-
-        harvest(&context, result)
-    }
-}
-
 /// Collect the source closure for one loader-owned artifact.
 fn collect_loader(
     compiler: &Compiler,
@@ -191,29 +150,6 @@ fn collect_loader(
     }
 
     Ok(dependencies)
-}
-
-/// Harvest one provider attempt into its terminal output.
-fn harvest(
-    context: &TestProviderContext,
-    result: ProviderResult<ArtifactPayload>,
-) -> ProviderResult<ProviderOutput> {
-    let product = match result {
-        Ok(payload) => ArtifactProduct::Ready(payload),
-        Err(error) => match *error {
-            ProviderError::Failed { failure } => ArtifactProduct::Failed(failure),
-            ProviderError::RequirementFailed { key } => {
-                ArtifactProduct::Failed(ArtifactFailure::requirement(key))
-            }
-            error => return Err(error.into()),
-        },
-    };
-
-    Ok(ProviderOutput {
-        product,
-        diagnostics: context.diagnostics(),
-        sidecars: context.sidecars(),
-    })
 }
 
 /// Seed one loader-owned artifact for linter compiler tests.
@@ -619,6 +555,223 @@ impl TestProgram {
             .expect("workspace revision should be tracked")
     }
 
+    /// Resolve one compiler artifact through the repository dependency-set model.
+    fn resolve_compiler_artifact(
+        &self,
+        revision: Revision,
+        key: ArtifactKey,
+    ) -> ProviderResult<ArtifactVersion> {
+        if let Some(version) = self.terminal_version(revision, key)? {
+            return Ok(version);
+        }
+
+        let mut set = self.collect_compiler_artifact(revision, key)?;
+        loop {
+            match self.repository.resolve_dependency_set(revision, set)? {
+                DependencySetResolution::Incomplete => {
+                    set = self.collect_compiler_artifact(revision, key)?;
+                }
+                DependencySetResolution::Pending {
+                    frontier,
+                    pending_set,
+                } => {
+                    for dependency in frontier {
+                        self.resolve_compiler_artifact(revision, dependency)?;
+                    }
+                    set = if let Some(pending_set) = pending_set {
+                        pending_set
+                    } else {
+                        self.collect_compiler_artifact(revision, key)?
+                    };
+                }
+                DependencySetResolution::Resolved {
+                    dependencies,
+                    failed,
+                } => return self.commit_compiler_artifact(revision, key, dependencies, failed),
+            }
+        }
+    }
+
+    /// Return one terminal artifact binding.
+    fn terminal_version(
+        &self,
+        revision: Revision,
+        key: ArtifactKey,
+    ) -> ProviderResult<Option<ArtifactVersion>> {
+        let version = self
+            .repository
+            .artifact_binding(revision, &key)
+            .map_err(|error| ProviderError::internal(error.to_string()))?;
+        let Some(version) = version else {
+            return Ok(None);
+        };
+
+        Ok(self
+            .repository
+            .artifact_table()
+            .outcome(&version)
+            .map(|_| version))
+    }
+
+    /// Collect the dependency set for one compiler artifact key.
+    fn collect_compiler_artifact(
+        &self,
+        revision: Revision,
+        key: ArtifactKey,
+    ) -> ProviderResult<ArtifactDependencySet> {
+        match key.provider() {
+            ArtifactProvider::Loader => collect_loader(self.compiler.as_ref(), revision, key),
+            ArtifactProvider::Compiler => {
+                let context = TestProviderContext::new(self.repository.clone(), revision, key);
+
+                self.compiler.collect(&context)
+            }
+            ArtifactProvider::Linter | ArtifactProvider::Query => Err(ProviderError::internal(
+                format!("unsupported linter test artifact key: {key:?}"),
+            )
+            .into()),
+        }
+    }
+
+    /// Commit one frozen compiler artifact dependency set.
+    fn commit_compiler_artifact(
+        &self,
+        revision: Revision,
+        key: ArtifactKey,
+        dependencies: Vec<ArtifactDependency>,
+        failed: Option<ArtifactKey>,
+    ) -> ProviderResult<ArtifactVersion> {
+        let version = ArtifactVersion::new(
+            key,
+            self.repository.build_fingerprint(),
+            dependencies.iter().cloned(),
+        );
+        let base = self
+            .repository
+            .artifact_base_version(revision, key)
+            .map_err(|error| ProviderError::internal(error.to_string()))?;
+
+        // record poisoned dependencies without running the provider
+        if let Some(failed) = failed {
+            self.fail_compiler_artifact(
+                revision,
+                version,
+                base,
+                dependencies,
+                DiagnosticCollection::new(),
+                Vec::new(),
+                ArtifactFailure::requirement(failed),
+            )?;
+
+            return Ok(version);
+        }
+
+        // reuse committed memory or disk records before running the provider
+        if self.repository.artifact_table().outcome(&version).is_some() {
+            self.repository
+                .bind_artifact(revision, version)
+                .map_err(|error| ProviderError::internal(error.to_string()))?;
+
+            return Ok(version);
+        }
+        if self
+            .repository
+            .load_artifact(revision, version)
+            .map_err(|error| ProviderError::internal(error.to_string()))?
+        {
+            return Ok(version);
+        }
+
+        // run the local test provider and publish its terminal outcome
+        let context = TestProviderContext::new(self.repository.clone(), revision, key);
+        match self.provide_compiler_artifact(revision, key, &context) {
+            Ok(payload) => {
+                self.repository
+                    .complete_artifact(
+                        revision,
+                        version,
+                        base,
+                        payload,
+                        dependencies,
+                        context.diagnostics(),
+                        context.sidecars(),
+                    )
+                    .map_err(|error| ProviderError::internal(error.to_string()))?;
+            }
+            Err(error) => match *error {
+                ProviderError::Failed { failure } => {
+                    self.fail_compiler_artifact(
+                        revision,
+                        version,
+                        base,
+                        dependencies,
+                        context.diagnostics(),
+                        context.sidecars(),
+                        failure,
+                    )?;
+                }
+                ProviderError::RequirementFailed { key } => {
+                    self.fail_compiler_artifact(
+                        revision,
+                        version,
+                        base,
+                        dependencies,
+                        context.diagnostics(),
+                        context.sidecars(),
+                        ArtifactFailure::requirement(key),
+                    )?;
+                }
+                error => return Err(error.into()),
+            },
+        }
+
+        Ok(version)
+    }
+
+    /// Provide one compiler artifact payload.
+    fn provide_compiler_artifact(
+        &self,
+        _revision: Revision,
+        key: ArtifactKey,
+        context: &TestProviderContext,
+    ) -> ProviderResult<ArtifactPayload> {
+        match key.provider() {
+            ArtifactProvider::Loader => {
+                Ok(provide_loader_artifact(self.compiler.as_ref(), context))
+            }
+            ArtifactProvider::Compiler => self.compiler.provide(context),
+            ArtifactProvider::Linter | ArtifactProvider::Query => Err(ProviderError::internal(
+                format!("unsupported linter test artifact key: {key:?}"),
+            )
+            .into()),
+        }
+    }
+
+    /// Fail one compiler artifact in the test repository.
+    #[allow(clippy::too_many_arguments)]
+    fn fail_compiler_artifact(
+        &self,
+        revision: Revision,
+        version: ArtifactVersion,
+        base: Option<ArtifactVersion>,
+        dependencies: Vec<ArtifactDependency>,
+        diagnostics: DiagnosticCollection,
+        sidecars: Vec<ArtifactSidecar>,
+        failure: ArtifactFailure,
+    ) -> ProviderResult<()> {
+        self.repository
+            .fail_artifact(
+                revision,
+                version,
+                base,
+                dependencies,
+                diagnostics,
+                sidecars,
+                failure,
+            )
+            .map_err(|error| ProviderError::internal(error.to_string()).into())
+    }
+
     /// Return the active profile id for tests.
     fn profile_id(&self) -> destack_source::ProfileId {
         self.profile.id()
@@ -897,8 +1050,7 @@ impl TestProgram {
         let revision = self.current_revision();
 
         for artifact_key in artifact_keys {
-            self.repository
-                .resolve(self, revision, *artifact_key)
+            self.resolve_compiler_artifact(revision, *artifact_key)
                 .unwrap_or_else(|error| {
                     panic!("failed to build linter test artifact {artifact_key:?}: {error}")
                 });

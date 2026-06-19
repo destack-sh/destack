@@ -38,12 +38,16 @@ impl Repository {
     pub fn prune_unreachable(&self) -> Result<(), RepositoryError> {
         let reachable_revisions = self.reachable_file_revisions();
         let reachable_artifacts = self.reachable_artifact_versions(&reachable_revisions);
+        let reachable_artifacts = self.artifact_table().reachable_closure(reachable_artifacts);
         let reachable_contents =
             self.reachable_content_ids(&reachable_revisions, &reachable_artifacts);
 
         self.revisions
             .retain(|revision, _| reachable_revisions.contains(revision));
         self.compact_revision_trees(&reachable_revisions);
+        self.artifacts
+            .versions
+            .retain(|(revision, _key), _version| reachable_revisions.contains(revision));
         self.artifact_table().retain_reachable(&reachable_artifacts);
         self.artifact_store()
             .retain(&reachable_artifacts, self.string_pool())
@@ -63,13 +67,7 @@ impl Repository {
 
     /// Collect all file revisions reachable from refs and revision pins.
     fn reachable_file_revisions(&self) -> HashSet<Revision> {
-        let mut reachable = HashSet::new();
-
-        for revision in self.retained_revisions() {
-            reachable.insert(revision);
-        }
-
-        reachable
+        self.retained_revisions().into_iter().collect()
     }
 
     /// Collect all artifact versions reachable from revisions and artifact pins.
@@ -78,18 +76,13 @@ impl Repository {
         reachable_revisions: &HashSet<Revision>,
     ) -> HashSet<ArtifactVersion> {
         let mut reachable = HashSet::new();
-        let roots = reachable_revisions
-            .iter()
-            .filter_map(|revision| self.revisions.get(revision))
-            .map(|entry| entry.state().artifacts())
-            .collect::<Vec<_>>();
 
-        // collect versions from shared artifact tree nodes once
-        self.artifacts
-            .versions
-            .visit_unique_values(roots, &mut |version| {
+        for entry in self.artifacts.versions.iter() {
+            let ((revision, _key), version) = entry.pair();
+            if reachable_revisions.contains(revision) {
                 reachable.insert(*version);
-            });
+            }
+        }
 
         for artifact_version in self.artifact_table().retained_versions() {
             reachable.insert(artifact_version);
@@ -145,20 +138,6 @@ impl Repository {
             **guard = files;
         }
         drop(file_guards);
-
-        // compact artifact roots
-        let mut artifact_guards = revisions
-            .iter()
-            .map(|revision| revision.write_artifacts())
-            .collect::<Vec<_>>();
-        let mut artifacts = artifact_guards
-            .iter()
-            .map(|artifacts| **artifacts)
-            .collect::<Vec<_>>();
-        self.artifacts.versions.compact(&mut artifacts);
-        for (guard, artifacts) in artifact_guards.iter_mut().zip(artifacts) {
-            **guard = artifacts;
-        }
     }
 
     /// Collect all retained revisions.
@@ -229,7 +208,7 @@ impl RevisionPin {
         self.repository.module(self.revision, module_id)
     }
 
-    /// Return the published artifact version for one artifact key in this pinned revision.
+    /// Return the artifact version valid for one artifact key in this pinned revision.
     pub fn artifact_version(
         &self,
         artifact_key: &ArtifactKey,
@@ -413,6 +392,7 @@ mod tests {
             .complete_artifact(
                 revision,
                 version,
+                None,
                 output.into(),
                 Vec::new(),
                 DiagnosticCollection::new(),
@@ -478,6 +458,7 @@ mod tests {
             .complete_artifact(
                 revision,
                 version,
+                None,
                 output.into(),
                 Vec::new(),
                 DiagnosticCollection::new(),
@@ -525,9 +506,9 @@ mod tests {
         std::env::temp_dir().join(format!("destack-{prefix}-{process_id}-{timestamp}"))
     }
 
-    /// Prune old unpinned revisions after a ref moves.
+    /// Prune old unpinned revisions during explicit retention.
     #[test]
-    fn test_prune_unpinned_revision_after_ref_moves() {
+    fn test_prune_unpinned_revision_during_explicit_retention() {
         let root = unique_test_root("repository-prune");
         fs::create_dir_all(&root).expect("repository history test root should exist");
 
@@ -569,7 +550,14 @@ mod tests {
             .expect("retained file should exist");
         assert_eq!(file.text(), "export const value = 2");
 
-        // old ref state
+        // edit history remains available until retention runs
+        assert!(repository.revision(revision_1).is_ok());
+
+        repository
+            .prune_unreachable()
+            .expect("repository should prune");
+
+        // old unpinned state
         assert!(repository.revision(revision_1).is_err());
 
         let _ = fs::remove_dir_all(&root);
@@ -618,6 +606,7 @@ mod tests {
             .complete_artifact(
                 revision,
                 version,
+                None,
                 output.into(),
                 Vec::new(),
                 DiagnosticCollection::new(),

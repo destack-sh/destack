@@ -20,8 +20,8 @@ pub struct Host {
     blob_store: Arc<dyn BlobStore>,
     /// Clock available to repository tooling.
     clock: Clock,
-    /// Parallel execution available to repository tooling.
-    parallelism: Parallelism,
+    /// Execution available to repository tooling.
+    execution: Execution,
 }
 
 impl Host {
@@ -36,7 +36,7 @@ impl Host {
             files,
             blob_store,
             clock: Clock::default(),
-            parallelism: Parallelism::default(),
+            execution: Execution::default(),
         }
     }
 
@@ -47,9 +47,9 @@ impl Host {
         self
     }
 
-    /// Return this host with one parallelism capability.
-    pub fn with_parallelism(mut self, parallelism: Parallelism) -> Self {
-        self.parallelism = parallelism;
+    /// Return this host with one execution capability.
+    pub fn with_execution(mut self, execution: Execution) -> Self {
+        self.execution = execution;
 
         self
     }
@@ -79,9 +79,9 @@ impl Host {
         self.clock
     }
 
-    /// Return the parallel execution available to repository tooling.
-    pub fn parallelism(&self) -> Parallelism {
-        self.parallelism
+    /// Return the execution available to repository tooling.
+    pub fn execution(&self) -> Execution {
+        self.execution
     }
 }
 
@@ -90,32 +90,32 @@ pub fn default_blob_store() -> Arc<dyn BlobStore> {
     default_platform_blob_store()
 }
 
-/// Parallel execution available to repository tooling.
+/// Execution available to repository tooling.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Parallelism {
+pub enum Execution {
     /// Run work on real host threads.
-    Threads,
+    Threaded,
     /// Run work inline on the calling thread.
     Inline,
 }
 
-impl Default for Parallelism {
-    /// Return the default parallelism capability for this host platform.
+impl Default for Execution {
+    /// Return the default execution capability for this host platform.
     fn default() -> Self {
-        default_parallelism()
+        default_execution()
     }
 }
 
-/// Return the default parallelism on hosts with thread support.
+/// Return threaded execution on hosts with thread support.
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-fn default_parallelism() -> Parallelism {
-    Parallelism::Threads
+fn default_execution() -> Execution {
+    Execution::Threaded
 }
 
-/// Return inline parallelism on bare WebAssembly.
+/// Return inline execution on bare WebAssembly.
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-fn default_parallelism() -> Parallelism {
-    Parallelism::Inline
+fn default_execution() -> Execution {
+    Execution::Inline
 }
 
 /// Return a persistent disk store on native hosts.

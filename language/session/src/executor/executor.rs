@@ -124,7 +124,7 @@ impl Executor {
         let Some(version) = self
             .state
             .repository()
-            .current_artifact_version(revision, &artifact_key)?
+            .artifact_version(revision, &artifact_key)?
         else {
             return Err(SessionError::Internal {
                 detail: format!(

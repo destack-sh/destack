@@ -48,7 +48,7 @@ impl<'a> ArtifactReader<'a> {
     fn version(&self, artifact_key: ArtifactKey) -> Result<ArtifactVersion, ProviderError> {
         let version = self
             .repository
-            .artifact_version(self.revision, &artifact_key)
+            .artifact_binding(self.revision, &artifact_key)
             .map_err(|error| {
                 ProviderError::internal(format!("failed to resolve artifact version: {error}"))
             })?;
