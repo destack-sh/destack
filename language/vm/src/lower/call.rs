@@ -235,10 +235,43 @@ impl<'a> BlockLowerer<'a> {
         ))
     }
 
-    /// Lower one closure environment read.
-    pub(super) fn lower_closure_environment(&self, destination: mir::Value) -> Result<Instruction> {
+    /// Lower one closure function projection.
+    pub(super) fn lower_closure_function(
+        &self,
+        destination: mir::Value,
+        closure: mir::Value,
+    ) -> Result<Instruction> {
+        Ok(Instruction::new(
+            Op::LoadClosureFunction,
+            cell_offset(self, destination)?,
+            value_offset(self, closure)?,
+            0,
+            0,
+        ))
+    }
+
+    /// Lower one closure environment projection.
+    pub(super) fn lower_closure_environment(
+        &self,
+        destination: mir::Value,
+        closure: mir::Value,
+    ) -> Result<Instruction> {
         Ok(Instruction::new(
             Op::LoadClosureEnvironment,
+            cell_offset(self, destination)?,
+            value_offset(self, closure)?,
+            0,
+            0,
+        ))
+    }
+
+    /// Lower one current closure environment read.
+    pub(super) fn lower_closure_environment_current(
+        &self,
+        destination: mir::Value,
+    ) -> Result<Instruction> {
+        Ok(Instruction::new(
+            Op::LoadClosureEnvironmentCurrent,
             cell_offset(self, destination)?,
             0,
             0,

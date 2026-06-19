@@ -115,8 +115,16 @@ macro_rules! dispatch_instruction {
                     instruction
                 ))
             }
+            Op::LoadClosureFunction => {
+                $step!({ super::execute_load_closure_function($activation, instruction) })
+            }
             Op::LoadClosureEnvironment => {
                 $step!({ super::execute_load_closure_environment($activation, instruction) })
+            }
+            Op::LoadClosureEnvironmentCurrent => {
+                $step!({
+                    super::execute_load_closure_environment_current($activation, instruction)
+                })
             }
             Op::LoadHeapU8 => $step!(super::execute_load_heap_scalar::<1, false>(
                 $activation,

@@ -554,7 +554,11 @@ fn infer_instruction_shape(
             let ty = value_type_for_value(*destination, value_types)?;
             value_shape_from_type(tree, ty)
         }
-        mir::Instruction::ClosureEnvironment { destination } => value_shape_map.get(*destination),
+        mir::Instruction::ClosureFunction { destination, .. }
+        | mir::Instruction::ClosureEnvironment { destination, .. }
+        | mir::Instruction::ClosureEnvironmentCurrent { destination } => {
+            value_shape_map.get(*destination)
+        }
         mir::Instruction::Load { result_type, .. } => value_shape_from_type(tree, *result_type),
         mir::Instruction::Struct { ty, .. }
         | mir::Instruction::Tuple { ty, .. }

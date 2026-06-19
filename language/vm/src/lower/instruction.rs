@@ -105,8 +105,16 @@ impl<'a> BlockLowerer<'a> {
                 function,
                 environment,
             } => self.lower_closure_bind(pool, *destination, *function, *environment)?,
-            mir::Instruction::ClosureEnvironment { destination } => {
-                self.lower_closure_environment(*destination)?
+            mir::Instruction::ClosureFunction {
+                destination,
+                closure,
+            } => self.lower_closure_function(*destination, *closure)?,
+            mir::Instruction::ClosureEnvironment {
+                destination,
+                closure,
+            } => self.lower_closure_environment(*destination, *closure)?,
+            mir::Instruction::ClosureEnvironmentCurrent { destination } => {
+                self.lower_closure_environment_current(*destination)?
             }
             mir::Instruction::Load {
                 destination,

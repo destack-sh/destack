@@ -220,12 +220,48 @@ pub(crate) fn execute_bind_closure_address(
     Ok(())
 }
 
-/// Load the closure environment pointer for the current frame.
+/// Load the function pointer from one closure value.
+pub(crate) fn execute_load_closure_function(
+    activation: &mut Activation<'_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let destination = instruction.a;
+    let closure_offset = instruction.b;
+
+    // decode the closure object
+    let closure = activation.load_cell_at(closure_offset);
+    let (function, _) = closure::decode_closure(activation, closure)?;
+
+    // store result
+    activation.store_cell_at(destination, function);
+
+    Ok(())
+}
+
+/// Load the environment from one closure value.
 pub(crate) fn execute_load_closure_environment(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let dest = instruction.a;
+    let destination = instruction.a;
+    let closure_offset = instruction.b;
+
+    // decode the closure object
+    let closure = activation.load_cell_at(closure_offset);
+    let (_, environment) = closure::decode_closure(activation, closure)?;
+
+    // store result
+    activation.store_cell_at(destination, environment);
+
+    Ok(())
+}
+
+/// Load the closure environment pointer for the current frame.
+pub(crate) fn execute_load_closure_environment_current(
+    activation: &mut Activation<'_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let destination = instruction.a;
 
     // load current frame environment
     let environment = activation
@@ -236,7 +272,7 @@ pub(crate) fn execute_load_closure_environment(
     };
 
     // store result
-    activation.store_cell_at(dest, environment);
+    activation.store_cell_at(destination, environment);
 
     Ok(())
 }
