@@ -445,9 +445,9 @@ export declare function convert<U, T, comptime Rank: int>(
     options?: TensorConvertOptions<U, Rank>,
 ): Tensor<U, Rank>;
 
-/// Copy tensor data into a new layout.
-@intrinsic("tensor.relayout")
-export declare function relayout<T, comptime Rank: int>(
+/// Copy tensor data into a new format.
+@intrinsic("tensor.reformat")
+export declare function reformat<T, comptime Rank: int>(
     tensor: Tensor<T, Rank>,
     options?: TensorOutputOptions<T, Rank>,
 ): Tensor<T, Rank>;

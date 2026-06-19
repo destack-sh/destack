@@ -3,10 +3,10 @@ import { todo } from "destack:error";
 import { Access } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
 
-import { ViewLayout } from "./layout.ds";
+import { TensorViewFormat } from "./layout.ds";
 import { Coordinate, Shape } from "./shape.ds";
 
-/// Borrowed view over a tensor buffer.
+/// Borrowed view over tensor storage.
 @languageItem("tensor.TensorView")
 export newtype TensorView<T, comptime Rank: int, comptime A: Access = "mutable"> = intrinsic;
 
@@ -19,9 +19,9 @@ extension<T, comptime Rank: int, comptime A: Access> of TensorView<T, Rank, A> i
     @intrinsic("tensor.view.shape")
     get shape(): Shape<Rank>;
 
-    /// Return the tensor layout.
-    @intrinsic("tensor.view.layout")
-    get layout(): ViewLayout<Rank>;
+    /// Return the tensor view format.
+    @intrinsic("tensor.view.format")
+    get format(): TensorViewFormat<Rank>;
 
     /// Return the total element count.
     @intrinsic("tensor.view.size")
@@ -63,7 +63,7 @@ extension<T, comptime Rank: int> of TensorView<T, Rank, "mutable"> {
     static fromSlice(
         slice: &Slice<T>,
         shape: Shape<Rank>,
-        layout: ViewLayout<Rank> = ViewLayout<Rank>.rowMajor(),
+        format: TensorViewFormat<Rank> = TensorViewFormat<Rank>.rowMajor(),
     ): TensorView<T, Rank, "mutable">;
 }
 
@@ -74,7 +74,7 @@ extension<T, comptime Rank: int> of TensorView<T, Rank, "readonly"> {
     static fromSlice(
         slice: &readonly Slice<T>,
         shape: Shape<Rank>,
-        layout: ViewLayout<Rank> = ViewLayout<Rank>.rowMajor(),
+        format: TensorViewFormat<Rank> = TensorViewFormat<Rank>.rowMajor(),
     ): TensorView<T, Rank, "readonly">;
 }
 
@@ -85,7 +85,7 @@ extension<T, comptime Rank: int> of TensorView<T, Rank, "exclusive"> {
     static fromSlice(
         slice: &exclusive Slice<T>,
         shape: Shape<Rank>,
-        layout: ViewLayout<Rank> = ViewLayout<Rank>.rowMajor(),
+        format: TensorViewFormat<Rank> = TensorViewFormat<Rank>.rowMajor(),
     ): TensorView<T, Rank, "exclusive">;
 }
 
