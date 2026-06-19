@@ -410,7 +410,7 @@ impl CheckState<'_> {
             // accessor reads project the getter's return type
             let ty = if is_getter {
                 match self.ty(ty)? {
-                    dir::Type::Function(function) => function.return_type.unwrap_or(ty),
+                    dir::Type::FunctionSignature(function) => function.return_type.unwrap_or(ty),
                     _ => ty,
                 }
             } else {
@@ -864,7 +864,7 @@ impl CheckState<'_> {
             // accessor reads project the getter's return type
             let ty = if *is_getter {
                 match self.ty(ty)? {
-                    dir::Type::Function(function) => function.return_type.unwrap_or(ty),
+                    dir::Type::FunctionSignature(function) => function.return_type.unwrap_or(ty),
                     _ => ty,
                 }
             } else {

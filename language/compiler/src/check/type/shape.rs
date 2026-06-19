@@ -340,7 +340,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<bool>> {
         // compare signature metadata and collect type pairs in one pure pass
         let pairs = {
-            let (dir::Type::Function(left), dir::Type::Function(right)) =
+            let (dir::Type::FunctionSignature(left), dir::Type::FunctionSignature(right)) =
                 (self.ty(left)?, self.ty(right)?)
             else {
                 return Ok(Answer::Ready(false));
@@ -394,7 +394,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<bool>> {
         // compare signature metadata and collect directed pairs in one pure pass
         let pairs = {
-            let (dir::Type::Function(source), dir::Type::Function(target)) =
+            let (dir::Type::FunctionSignature(source), dir::Type::FunctionSignature(target)) =
                 (self.ty(source)?, self.ty(target)?)
             else {
                 return Ok(Answer::Ready(false));

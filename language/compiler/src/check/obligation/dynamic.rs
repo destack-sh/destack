@@ -131,10 +131,15 @@ impl CheckState<'_> {
                     visited,
                 )
             }
-            dir::Type::Function(function) => {
+            dir::Type::FunctionSignature(function) => {
                 self.is_dynamic_safe_function(origin, &function, visited)
             }
-            dir::Type::Closure(closure) => self.is_dynamic_safe(origin, closure.function, visited),
+            dir::Type::Function(function) => {
+                self.is_dynamic_safe(origin, function.signature, visited)
+            }
+            dir::Type::FunctionPointer(function) => {
+                self.is_dynamic_safe(origin, function.signature, visited)
+            }
             dir::Type::Union(union) => self.all_dynamic_safe(origin, union.elements, visited),
             dir::Type::Intersection(intersection) => {
                 self.all_dynamic_safe(origin, intersection.elements, visited)
@@ -169,7 +174,7 @@ impl CheckState<'_> {
     fn is_dynamic_safe_function(
         &mut self,
         origin: Origin,
-        function: &dir::FunctionType,
+        function: &dir::FunctionSignatureType,
         visited: &mut IndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<bool>> {
         if !function.generic_parameters.is_empty() {

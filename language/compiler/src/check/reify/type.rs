@@ -249,15 +249,22 @@ impl<'a, 'b> Reifier<'a, 'b> {
 
                 dir::TypeExpression::Object { members }
             }
-            dir::Type::Function(function) => {
+            dir::Type::FunctionSignature(function) => {
                 let Some(function) = self.reify_function(function, next)? else {
                     return Ok(None);
                 };
 
                 dir::TypeExpression::Function(function)
             }
-            dir::Type::Closure(closure) => {
-                return self.reify_depth(closure.function, next);
+            dir::Type::Function(function) => {
+                return self.reify_depth(function.signature, next);
+            }
+            dir::Type::FunctionPointer(function) => {
+                let Some(expression) = self.reify_function_pointer(function, next)? else {
+                    return Ok(None);
+                };
+
+                expression
             }
 
             dir::Type::Union(union) => {
@@ -424,7 +431,7 @@ impl<'a, 'b> Reifier<'a, 'b> {
     /// Reify one function type into a function type expression.
     fn reify_function(
         &mut self,
-        function: &dir::FunctionType,
+        function: &dir::FunctionSignatureType,
         depth: usize,
     ) -> CompilerResult<Option<dir::FunctionTypeExpression>> {
         // async, generator, and generic contracts have no annotation spelling
@@ -494,6 +501,71 @@ impl<'a, 'b> Reifier<'a, 'b> {
             parameters,
             return_type: Some(return_type),
         }))
+    }
+
+    /// Reify one function pointer type into its intrinsic type expression.
+    fn reify_function_pointer(
+        &mut self,
+        function: &dir::FunctionPointerType,
+        depth: usize,
+    ) -> CompilerResult<Option<dir::TypeExpression>> {
+        let signature = self.check.shallow_resolve(function.signature)?;
+        let dir::Type::FunctionSignature(signature) = self.check.ty(signature)?.clone() else {
+            return Ok(None);
+        };
+        let Some(parameters) =
+            self.reify_function_pointer_parameters(&signature.parameters, depth)?
+        else {
+            return Ok(None);
+        };
+        let return_type = match signature.return_type {
+            Some(return_type) => match self.reify_depth(return_type, depth)? {
+                Some(return_type) => return_type,
+                None => return Ok(None),
+            },
+            None => self.insert(Self::literal(dir::TypeLiteral::Void)),
+        };
+        let parameters = self.insert(dir::GenericArgument::Type { value: parameters });
+        let return_type = self.insert(dir::GenericArgument::Type { value: return_type });
+
+        Ok(Some(dir::TypeExpression::Reference {
+            path: dir::Path {
+                segments: [self.strings.intern("FunctionPointer")]
+                    .into_iter()
+                    .collect(),
+            },
+            generic_arguments: vec![parameters, return_type],
+        }))
+    }
+
+    /// Reify one function pointer parameter tuple.
+    fn reify_function_pointer_parameters(
+        &mut self,
+        parameters: &[dir::FunctionParameterType],
+        depth: usize,
+    ) -> CompilerResult<Option<dir::LocalNodeId<dir::TypeExpression>>> {
+        let mut elements = Vec::with_capacity(parameters.len());
+        for parameter in parameters {
+            let Some(value) = self.reify_depth(parameter.ty, depth)? else {
+                return Ok(None);
+            };
+            let element = if parameter.is_rest {
+                dir::TupleElement::Spread { label: None, value }
+            } else {
+                dir::TupleElement::Element {
+                    label: None,
+                    value,
+                    is_optional: parameter.is_optional,
+                    is_readonly: false,
+                }
+            };
+
+            elements.push(self.insert(element));
+        }
+        let expression = dir::TypeExpression::Tuple { elements };
+        let expression = self.insert(expression);
+
+        Ok(Some(expression))
     }
 
     /// Reify one type list into type generic arguments.

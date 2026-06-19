@@ -2,6 +2,7 @@ mod decide;
 mod evaluate;
 mod fold;
 mod format;
+mod intrinsic;
 mod layout;
 mod member;
 mod memory;

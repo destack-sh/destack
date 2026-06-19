@@ -105,7 +105,7 @@ impl CheckState<'_> {
                     format!("{{ {} }}", fields.join("; "))
                 }
             }
-            dir::Type::Function(function) => {
+            dir::Type::FunctionSignature(function) => {
                 let mut parameters = Vec::new();
                 for parameter in function.parameters.iter().take(FORMAT_WIDTH) {
                     parameters.push(self.format_depth(parameter.ty, next)?);
@@ -120,7 +120,8 @@ impl CheckState<'_> {
 
                 format!("({}) => {result}", parameters.join(", "))
             }
-            dir::Type::Closure(closure) => self.format_depth(closure.function, next)?,
+            dir::Type::Function(function) => self.format_depth(function.signature, next)?,
+            dir::Type::FunctionPointer(function) => self.format_function_pointer(function, next)?,
 
             dir::Type::Union(union) => {
                 let mut elements = Vec::new();
@@ -167,6 +168,60 @@ impl CheckState<'_> {
         }
 
         Ok(formatted.join(", "))
+    }
+
+    /// Format one function pointer type with its explicit intrinsic spelling.
+    fn format_function_pointer(
+        &self,
+        function: &dir::FunctionPointerType,
+        depth: usize,
+    ) -> CompilerResult<String> {
+        let signature = self.shallow_resolve(function.signature)?;
+        let dir::Type::FunctionSignature(signature) = self.ty(signature)? else {
+            let signature = self.format_depth(function.signature, depth)?;
+
+            return Ok(format!("FunctionPointer<{signature}>"));
+        };
+
+        let mut parameters = Vec::new();
+        for parameter in signature.parameters.iter().take(FORMAT_WIDTH) {
+            let parameter = self.format_function_pointer_parameter(parameter, depth)?;
+
+            parameters.push(parameter);
+        }
+        if signature.parameters.len() > FORMAT_WIDTH {
+            parameters.push("…".to_string());
+        }
+
+        let parameters = match parameters.as_slice() {
+            [] => "()".to_string(),
+            [parameter] => format!("({parameter},)"),
+            _ => format!("({})", parameters.join(", ")),
+        };
+        let result = match signature.return_type {
+            Some(return_type) => self.format_depth(return_type, depth)?,
+            None => "void".to_string(),
+        };
+
+        Ok(format!("FunctionPointer<{parameters}, {result}>"))
+    }
+
+    /// Format one function pointer parameter inside the parameter tuple.
+    fn format_function_pointer_parameter(
+        &self,
+        parameter: &dir::FunctionParameterType,
+        depth: usize,
+    ) -> CompilerResult<String> {
+        let parameter_type = self.format_depth(parameter.ty, depth)?;
+        let parameter_type = if parameter.is_rest {
+            format!("...{parameter_type}")
+        } else if parameter.is_optional {
+            format!("{parameter_type}?")
+        } else {
+            parameter_type
+        };
+
+        Ok(parameter_type)
     }
 
     /// Format one memory form with its written sigil.

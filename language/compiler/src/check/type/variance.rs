@@ -184,7 +184,7 @@ impl CheckState<'_> {
             dir::Type::Parameter(occurrence) if occurrence == parameter => position,
 
             // functions flip inputs and keep outputs
-            dir::Type::Function(function) => {
+            dir::Type::FunctionSignature(function) => {
                 let mut measured = Variance::Bivariant;
                 if let Some(this_parameter) = function.this_parameter {
                     measured = measured.join(self.measure_type(

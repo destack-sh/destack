@@ -176,15 +176,18 @@ impl CheckState<'_> {
             return Ok(false);
         }
 
-        // read the closed callable shape, following closures
+        // read the closed callable shape, following function values
         let mut function_type = match self.evaluate_root(origin, function_type)? {
             Answer::Ready(reduced) => reduced,
             Answer::Pending(_) => return Ok(false),
         };
-        if let dir::Type::Closure(closure) = self.ty(function_type)? {
-            function_type = closure.function;
+        if let dir::Type::Function(function) = self.ty(function_type)? {
+            function_type = function.signature;
         }
-        let dir::Type::Function(function) = self.ty(function_type)? else {
+        if let dir::Type::FunctionPointer(function) = self.ty(function_type)? {
+            function_type = function.signature;
+        }
+        let dir::Type::FunctionSignature(function) = self.ty(function_type)? else {
             return Ok(false);
         };
         let parameters = function
@@ -371,7 +374,9 @@ impl CheckState<'_> {
 
         let mut candidates = SmallVec::new();
         match self.ty(reduced)? {
-            dir::Type::Function(_) | dir::Type::Closure(_) => {
+            dir::Type::FunctionSignature(_)
+            | dir::Type::Function(_)
+            | dir::Type::FunctionPointer(_) => {
                 candidates.push(CalleeCandidate {
                     symbol: None,
                     receiver: None,
@@ -450,7 +455,7 @@ impl CheckState<'_> {
             Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
         };
         let (parameters, return_type) = match self.ty(function_type)? {
-            dir::Type::Function(function) => (
+            dir::Type::FunctionSignature(function) => (
                 function
                     .parameters
                     .iter()
@@ -458,8 +463,13 @@ impl CheckState<'_> {
                     .collect::<SmallVec<[_; 4]>>(),
                 function.return_type,
             ),
-            dir::Type::Closure(closure) => {
-                let function = closure.function;
+            dir::Type::Function(function) => {
+                let function = function.signature;
+
+                return self.attempt_callable(origin, symbol, function, arguments);
+            }
+            dir::Type::FunctionPointer(function) => {
+                let function = function.signature;
 
                 return self.attempt_callable(origin, symbol, function, arguments);
             }
