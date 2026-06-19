@@ -604,7 +604,7 @@ impl Parser {
         })
     }
 
-    /// Parse a fixed-size array type.
+    /// Parse a fixed array type.
     fn parse_array_type(&mut self) -> ParseResult<Type> {
         self.bump();
         let (element, _) = self.parse_type_use_part()?;
@@ -616,7 +616,7 @@ impl Parser {
 
         self.eat_token(TokenType::CloseBracket)?;
 
-        Ok(Type::Array {
+        Ok(Type::FixedArray {
             element,
             length,
             copy: Copy::No,

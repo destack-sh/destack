@@ -151,7 +151,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
         Type::Uninit { value } => {
             walk_type_id(visitor, tree, value);
         }
-        Type::Array { element, .. } => {
+        Type::FixedArray { element, .. } => {
             walk_type_id(visitor, tree, element);
         }
         Type::Slice { element, .. } => {

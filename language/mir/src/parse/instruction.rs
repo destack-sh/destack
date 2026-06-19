@@ -425,7 +425,7 @@ impl Parser {
                         }
                     }
 
-                    // field and element access
+                    // aggregate projection
                     "field.get" => {
                         let aggregate = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
@@ -436,19 +436,6 @@ impl Parser {
                             destination,
                             aggregate,
                             index,
-                        }
-                    }
-                    "field.address" => {
-                        let aggregate = self.parse_value_segment(&mut segment_spans)?;
-                        self.eat_token(TokenType::Comma)?;
-                        let index = self.parse_int_segment(&mut segment_spans)?;
-                        let index = u32::try_from(index)
-                            .map_err(|_| ParseError::invalid("field index", self.pos()))?;
-                        Instruction::FieldAddr {
-                            destination,
-                            aggregate,
-                            index,
-                            result_type: destination_type,
                         }
                     }
                     "field.set" => {
@@ -466,16 +453,17 @@ impl Parser {
                             value,
                         }
                     }
-                    "element.get" => {
-                        let array = self.parse_value_segment(&mut segment_spans)?;
+                    "field.address" => {
+                        let aggregate = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
                         let index = self.parse_int_segment(&mut segment_spans)?;
                         let index = u32::try_from(index)
-                            .map_err(|_| ParseError::invalid("element index", self.pos()))?;
-                        Instruction::ElementGet {
+                            .map_err(|_| ParseError::invalid("field index", self.pos()))?;
+                        Instruction::FieldAddr {
                             destination,
-                            array,
+                            aggregate,
                             index,
+                            result_type: destination_type,
                         }
                     }
                     "element.address" => {
@@ -487,21 +475,6 @@ impl Parser {
                             array,
                             index,
                             result_type: destination_type,
-                        }
-                    }
-                    "element.set" => {
-                        let array = self.parse_value_segment(&mut segment_spans)?;
-                        self.eat_token(TokenType::Comma)?;
-                        let index = self.parse_int_segment(&mut segment_spans)?;
-                        let index = u32::try_from(index)
-                            .map_err(|_| ParseError::invalid("element index", self.pos()))?;
-                        self.eat_token(TokenType::Comma)?;
-                        let value = self.parse_value_segment(&mut segment_spans)?;
-                        Instruction::ElementSet {
-                            destination,
-                            array,
-                            index,
-                            value,
                         }
                     }
 

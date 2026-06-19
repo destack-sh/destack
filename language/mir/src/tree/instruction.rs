@@ -207,52 +207,43 @@ pub enum Instruction {
     Array {
         /// The SSA value to define with the constructed array.
         destination: Value,
-        /// The array type to construct.
+        /// The fixed array type to construct.
         ty: TypeId,
         /// The element values (stored in Tree's argument buffer).
         elements: ValueSlice,
     },
 
-    // field and element access
-    /// Extract a field from an aggregate value (field.get).
+    // aggregate projection
+    /// Extract a static layout slot from an aggregate value (field.get).
     FieldGet {
         /// The SSA value to define with the extracted field.
         destination: Value,
         /// The aggregate value to extract from.
         aggregate: Value,
-        /// The zero-based field index.
+        /// The zero-based layout slot index.
         index: u32,
     },
-    /// Get the address of a field from an addressable aggregate (field.address).
-    FieldAddr {
-        /// The SSA value to define with the field address.
-        destination: Value,
-        /// The aggregate base to project from.
-        aggregate: Value,
-        /// The zero-based field index.
-        index: u32,
-        /// The result type of the address.
-        result_type: TypeId,
-    },
-    /// Insert a value into a struct or tuple field (field.set).
+    /// Insert a value into a static layout slot (field.set).
     FieldSet {
         /// The SSA value to define with the new aggregate.
         destination: Value,
         /// The original aggregate value.
         aggregate: Value,
-        /// The zero-based field index to update.
+        /// The zero-based layout slot index to update.
         index: u32,
         /// The value to insert at the field.
         value: Value,
     },
-    /// Extract an element from an array aggregate (element.get).
-    ElementGet {
-        /// The SSA value to define with the extracted element.
+    /// Get the address of a static layout slot from an addressable aggregate (field.address).
+    FieldAddr {
+        /// The SSA value to define with the field address.
         destination: Value,
-        /// The array value to extract from.
-        array: Value,
-        /// The zero-based element index.
+        /// The aggregate base to project from.
+        aggregate: Value,
+        /// The zero-based layout slot index.
         index: u32,
+        /// The result type of the address.
+        result_type: TypeId,
     },
     /// Get the address of an element from an addressable indexed value (element.address).
     ElementAddr {
@@ -264,17 +255,6 @@ pub enum Instruction {
         index: Value,
         /// The result type of the address.
         result_type: TypeId,
-    },
-    /// Insert a value into an array element (element.set).
-    ElementSet {
-        /// The SSA value to define with the new array.
-        destination: Value,
-        /// The original array value.
-        array: Value,
-        /// The zero-based element index to update.
-        index: u32,
-        /// The value to insert at the index.
-        value: Value,
     },
 
     // slice descriptors
@@ -952,11 +932,9 @@ impl Instruction {
             Instruction::Tuple { destination, .. } => Some(*destination),
             Instruction::Array { destination, .. } => Some(*destination),
             Instruction::FieldGet { destination, .. } => Some(*destination),
-            Instruction::FieldAddr { destination, .. } => Some(*destination),
             Instruction::FieldSet { destination, .. } => Some(*destination),
-            Instruction::ElementGet { destination, .. } => Some(*destination),
+            Instruction::FieldAddr { destination, .. } => Some(*destination),
             Instruction::ElementAddr { destination, .. } => Some(*destination),
-            Instruction::ElementSet { destination, .. } => Some(*destination),
             Instruction::SliceView { destination, .. } => Some(*destination),
             Instruction::SliceLength { destination, .. } => Some(*destination),
             Instruction::DynamicPayload { destination, .. } => Some(*destination),
@@ -1052,13 +1030,11 @@ impl Instruction {
             Instruction::Tuple { .. } => smallvec![],
             Instruction::Array { .. } => smallvec![],
             Instruction::FieldGet { aggregate, .. } => smallvec![*aggregate],
-            Instruction::FieldAddr { aggregate, .. } => smallvec![*aggregate],
             Instruction::FieldSet {
                 aggregate, value, ..
             } => smallvec![*aggregate, *value],
-            Instruction::ElementGet { array, .. } => smallvec![*array],
+            Instruction::FieldAddr { aggregate, .. } => smallvec![*aggregate],
             Instruction::ElementAddr { array, index, .. } => smallvec![*array, *index],
-            Instruction::ElementSet { array, value, .. } => smallvec![*array, *value],
             Instruction::SliceView {
                 source,
                 start,
@@ -1196,11 +1172,6 @@ impl Instruction {
             } => smallvec![*expected, *new_value],
             Instruction::FieldSet {
                 aggregate, value, ..
-            }
-            | Instruction::ElementSet {
-                array: aggregate,
-                value,
-                ..
             } => smallvec![*aggregate, *value],
             Instruction::ClosureBind { environment, .. }
             | Instruction::VectorSplat {

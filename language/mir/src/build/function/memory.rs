@@ -131,7 +131,7 @@ impl<'a> FunctionBuilder<'a> {
         });
     }
 
-    /// Resolve a field type for a struct or tuple aggregate.
+    /// Resolve a static layout slot type for an aggregate.
     pub(super) fn field_type_for_aggregate(
         &self,
         aggregate_type: LocalNodeId<Type>,
@@ -167,6 +167,18 @@ impl<'a> FunctionBuilder<'a> {
                     index,
                 }),
             },
+            Type::FixedArray {
+                element, length, ..
+            } => {
+                if u64::from(index) < *length {
+                    Ok(*element)
+                } else {
+                    Err(BuildError::InvalidFieldIndex {
+                        aggregate: aggregate_type,
+                        index,
+                    })
+                }
+            }
             Type::Closure { .. } => Err(BuildError::InvalidFieldOwner { ty: aggregate_type }),
             _ => Err(BuildError::InvalidFieldOwner { ty: aggregate_type }),
         }
@@ -196,18 +208,6 @@ impl<'a> FunctionBuilder<'a> {
                 .map(|case| case.ty)
                 .ok_or(BuildError::InvalidFieldOwner { ty: variant_type }),
             _ => Err(BuildError::InvalidFieldOwner { ty: variant_type }),
-        }
-    }
-
-    /// Resolve the element type for one indexed collection.
-    pub(super) fn element_type_for_array(
-        &self,
-        array_type: LocalNodeId<Type>,
-    ) -> BuildResult<LocalNodeId<Type>> {
-        let array = self.tree.get(array_type);
-        match array {
-            Type::Array { element, .. } | Type::Slice { element, .. } => Ok(*element),
-            _ => Err(BuildError::InvalidElementOwner { ty: array_type }),
         }
     }
 

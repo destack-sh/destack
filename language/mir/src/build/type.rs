@@ -307,14 +307,14 @@ impl ModuleBuilder {
         })
     }
 
-    /// Create an array type with explicit copy.
-    pub fn type_array(
+    /// Create a fixed array type with explicit copy.
+    pub fn type_fixed_array(
         &mut self,
         element: LocalNodeId<Type>,
         length: u64,
         copy: Copy,
     ) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::Array {
+        self.tree.insert_type(Type::FixedArray {
             element,
             length,
             copy,
@@ -421,7 +421,7 @@ impl ModuleBuilder {
         self.tree.insert_type(Type::FunctionSignature {
             lifetimes: Vec::new(),
             parameters,
-            result: result.into(),
+            result,
         })
     }
 

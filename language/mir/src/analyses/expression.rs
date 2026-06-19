@@ -45,8 +45,6 @@ pub enum ExpressionKey {
     },
     /// Field access from aggregate.
     FieldGet { aggregate: mir::Value, index: u32 },
-    /// Element access from array.
-    ElementGet { array: mir::Value, index: u32 },
 }
 
 /// Cached value equivalence for pure expressions.
@@ -350,23 +348,6 @@ impl<'a> ValueEquivalence<'a> {
                 left_index == right_index && self.equivalent(left_aggregate, right_aggregate)
             }
             (
-                mir::Instruction::ElementGet {
-                    array: left_array,
-                    index: left_index,
-                    ..
-                },
-                mir::Instruction::ElementGet {
-                    array: right_array,
-                    index: right_index,
-                    ..
-                },
-            ) => {
-                let left_array = *left_array;
-                let right_array = *right_array;
-
-                left_index == right_index && self.equivalent(left_array, right_array)
-            }
-            (
                 mir::Instruction::ElementAddr {
                     array: left_array,
                     index: left_index,
@@ -536,12 +517,6 @@ pub fn expression_key_from_instruction(
             index: *index,
         }),
 
-        // element access (pure if no bounds check side effects)
-        mir::Instruction::ElementGet { array, index, .. } => Some(ExpressionKey::ElementGet {
-            array: *array,
-            index: *index,
-        }),
-
         // constants are not CSE'd by expression keys (handled by constant folding)
         // mir::Constant doesn't implement Hash/Eq, and constant deduplication
         // is better handled by dedicated constant merging passes
@@ -606,7 +581,6 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::AtomicFence { .. }
         | mir::Instruction::BarrierWrite { .. }
         | mir::Instruction::FieldSet { .. }
-        | mir::Instruction::ElementSet { .. }
         | mir::Instruction::SliceView { .. }
         | mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
@@ -714,11 +688,6 @@ pub fn expression_key_substitute(
         ExpressionKey::FieldGet { aggregate, index } => {
             let aggregate = *substitutions.get(&aggregate).unwrap_or(&aggregate);
             ExpressionKey::FieldGet { aggregate, index }
-        }
-
-        ExpressionKey::ElementGet { array, index } => {
-            let array = *substitutions.get(&array).unwrap_or(&array);
-            ExpressionKey::ElementGet { array, index }
         }
     }
 }

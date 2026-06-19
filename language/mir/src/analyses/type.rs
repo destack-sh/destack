@@ -54,8 +54,8 @@ pub enum TypeKey {
         pointee: Box<TypeKey>,
         nullability: mir::Nullability,
     },
-    /// Fixed-size array type.
-    Array {
+    /// Fixed array type.
+    FixedArray {
         element: Box<TypeKey>,
         length: u64,
         copy: mir::Copy,
@@ -206,11 +206,11 @@ impl TypeKey {
                 nullability: *nullability,
             },
 
-            mir::Type::Array {
+            mir::Type::FixedArray {
                 element,
                 length,
                 copy,
-            } => TypeKey::Array {
+            } => TypeKey::FixedArray {
                 element: Box::new(Self::from_type_id(element, tree)),
                 length: *length,
                 copy: *copy,
@@ -384,7 +384,7 @@ impl TypeKey {
             TypeKey::Float { format } => bytes_for_width(format.width()),
             TypeKey::Uninit { value } => value.byte_size(pointer_width_bits),
             TypeKey::Newtype { inner, .. } => inner.byte_size(pointer_width_bits),
-            TypeKey::Array {
+            TypeKey::FixedArray {
                 element,
                 length,
                 copy: _,
@@ -525,12 +525,12 @@ fn types_are_equal_inner(
 
         // arrays: compare element type and length
         (
-            mir::Type::Array {
+            mir::Type::FixedArray {
                 element: e1,
                 length: l1,
                 copy: c1,
             },
-            mir::Type::Array {
+            mir::Type::FixedArray {
                 element: e2,
                 length: l2,
                 copy: c2,
@@ -747,9 +747,9 @@ mod tests {
     fn test_type_key_complex_types() {
         let mut tree = mir::Tree::new();
 
-        // array type
+        // fixed array type
         let i32_id = tree.insert_type(mir::Type::INT32);
-        let array_id = tree.insert_type(mir::Type::Array {
+        let array_id = tree.insert_type(mir::Type::FixedArray {
             element: i32_id,
             length: 10,
             copy: mir::Copy::Yes,
@@ -757,7 +757,7 @@ mod tests {
         let key = TypeKey::from_type(array_id, &tree);
         assert_eq!(
             key,
-            TypeKey::Array {
+            TypeKey::FixedArray {
                 element: Box::new(TypeKey::Int {
                     width: 32,
                     signed: true
@@ -774,17 +774,17 @@ mod tests {
     fn test_type_key_structural_equality() {
         let mut tree = mir::Tree::new();
 
-        // create two structurally identical array types with different node IDs
+        // create two structurally identical fixed array types with different node IDs
         let i32_id_1 = tree.insert_type(mir::Type::INT32);
         let i32_id_2 = tree.insert_type(mir::Type::INT32);
         assert_ne!(i32_id_1, i32_id_2);
 
-        let array_id_1 = tree.insert_type(mir::Type::Array {
+        let array_id_1 = tree.insert_type(mir::Type::FixedArray {
             element: i32_id_1,
             length: 5,
             copy: mir::Copy::Yes,
         });
-        let array_id_2 = tree.insert_type(mir::Type::Array {
+        let array_id_2 = tree.insert_type(mir::Type::FixedArray {
             element: i32_id_2,
             length: 5,
             copy: mir::Copy::Yes,
@@ -801,12 +801,12 @@ mod tests {
         let mut tree = mir::Tree::new();
 
         let i32_id = tree.insert_type(mir::Type::INT32);
-        let array_trivial_id = tree.insert_type(mir::Type::Array {
+        let array_trivial_id = tree.insert_type(mir::Type::FixedArray {
             element: i32_id,
             length: 4,
             copy: mir::Copy::Yes,
         });
-        let array_linear_id = tree.insert_type(mir::Type::Array {
+        let array_linear_id = tree.insert_type(mir::Type::FixedArray {
             element: i32_id,
             length: 4,
             copy: mir::Copy::No,

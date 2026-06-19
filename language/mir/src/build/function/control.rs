@@ -72,7 +72,7 @@ impl<'a> FunctionBuilder<'a> {
 
                 SwitchCase {
                     value,
-                    target: BlockTarget::new(target_block.into(), target_arguments),
+                    target: BlockTarget::new(target_block, target_arguments),
                 }
             })
             .collect::<Vec<_>>();
@@ -82,8 +82,8 @@ impl<'a> FunctionBuilder<'a> {
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::Switch {
-            value: value.into(),
-            default: BlockTarget::new(default_block.into(), default_arguments),
+            value,
+            default: BlockTarget::new(default_block, default_arguments),
             cases,
         };
     }

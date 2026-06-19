@@ -92,7 +92,7 @@ impl FunctionHeader {
         parameters
             .into_iter()
             .enumerate()
-            .map(|(index, ty)| FunctionParameter::new(Value::new(index as u32), ty.into()))
+            .map(|(index, ty)| FunctionParameter::new(Value::new(index as u32), ty))
             .collect()
     }
 }

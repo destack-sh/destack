@@ -93,7 +93,7 @@ Instructions perform "operations" and may produce SSA `Value`s.
 | Globals | `global.address` |
 | Functions | `function.address`, `closure.bind`, `closure.environment` |
 | Memory | `load`, `store`, `pin`, `unpin`, `free` |
-| Aggregates | `struct`, `tuple`, `array`, `field.get`, `field.set`, `field.address`, `element.get`, `element.set`, `element.address` |
+| Aggregates | `struct`, `tuple`, `array`, `field.get`, `field.set`, `field.address`, `element.address` |
 | Vector | `vector.*` (splat, extract, insert, shuffle, select, reduce, compare, convert) |
 | Tensor | `tensor.*` (splat, extract, load, store, fill, copy, reshape, broadcast, transpose, cast, view, slice, pad, concat, compare, select, reduce, dot, convolution, gather, scatter, convert) |
 | Calls | `call`, `call.virtual`, `call.dynamic`, `call.indirect` |

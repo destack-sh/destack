@@ -54,10 +54,7 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let value = self.allocate_value();
         let block_data = self.tree.get_mut(block);
-        block_data.parameters.push(BlockParameter {
-            value: value.into(),
-            ty: ty.into(),
-        });
+        block_data.parameters.push(BlockParameter { value, ty });
         self.define_value(value, ty);
         value
     }

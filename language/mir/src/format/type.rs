@@ -99,7 +99,7 @@ pub(super) fn format_type_declaration<'a>(
 /// Return the explicit copy property carried by one aggregate type.
 fn type_copy(ty: &Type) -> Option<Copy> {
     match ty {
-        Type::Array { copy, .. }
+        Type::FixedArray { copy, .. }
         | Type::Tuple { copy, .. }
         | Type::Struct { copy, .. }
         | Type::Newtype { copy, .. }
@@ -295,7 +295,7 @@ fn format_type_inner<'a>(
             )?;
             write!(f, [token(">")])
         }
-        Type::Array {
+        Type::FixedArray {
             element,
             length,
             copy: _,

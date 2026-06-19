@@ -349,7 +349,7 @@ impl Tree {
                 ))
                 .filter(|lifetime| !lifetime.is_empty())
             }
-            Type::Array { element, .. }
+            Type::FixedArray { element, .. }
             | Type::Slice { element, .. }
             | Type::Vector { element, .. }
             | Type::Tensor { element, .. }
@@ -392,7 +392,7 @@ impl Tree {
             Type::Tuple { elements, .. } => elements
                 .iter()
                 .any(|element| self.type_contains_borrowed_refs(*element)),
-            Type::Array { element, .. }
+            Type::FixedArray { element, .. }
             | Type::Slice { element, .. }
             | Type::Vector { element, .. }
             | Type::Tensor { element, .. }
@@ -536,7 +536,7 @@ impl Tree {
                 }
             }
             // collapse indexed containers to any-element paths
-            Type::Array { element, .. }
+            Type::FixedArray { element, .. }
             | Type::Slice { element, .. }
             | Type::Vector { element, .. }
             | Type::Tensor { element, .. }

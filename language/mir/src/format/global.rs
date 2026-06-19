@@ -121,7 +121,7 @@ fn data_init_element_type<'a>(
     let ty = ty?;
 
     match f.context().tree.get(ty) {
-        Type::Array { element, .. }
+        Type::FixedArray { element, .. }
         | Type::Vector { element, .. }
         | Type::Tensor { element, .. } => Some(*element),
         Type::Tuple { elements, .. } => elements.get(index).copied(),
