@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use destack_repository::{
     ArtifactReader, LintCategory, LintPreset, LinterOptions, Module, Package, Profile, ProfileId,
@@ -333,6 +333,7 @@ impl LintRunner {
             .expect("lint DIR pass requires committed checked DIR artifact");
 
         let strings = repository.string_pool().clone();
+        let clock = repository.host().clock();
         let symbols = expanded.binding_table(&bound);
         let modules = expanded.module_table(&imported);
         let types = checked.type_table(&bound, &expanded);
@@ -366,9 +367,11 @@ impl LintRunner {
                 let severity = ctx.get_severity(meta);
                 if let Some(performance) = performance.as_deref_mut() {
                     let diagnostics_before = ctx.diagnostics().len();
-                    let start = Instant::now();
+                    let started = clock.now();
                     rule.check_module(severity, &mut ctx);
-                    let duration = start.elapsed();
+                    let duration = started
+                        .map(|started| clock.elapsed(started))
+                        .unwrap_or(Duration::ZERO);
                     let diagnostics_after = ctx.diagnostics().len();
                     let diagnostics_added = diagnostics_after.saturating_sub(diagnostics_before);
 
@@ -497,6 +500,7 @@ impl LintRunner {
         let Some(workspace) = Self::repository_root(repository.as_ref(), revision) else {
             return LintRunReport::default();
         };
+        let clock = repository.host().clock();
         let session = LintSession::new(repository, revision, profile, options.clone());
         let mut ctx = LintWorkspaceContext::new(session, workspace);
 
@@ -511,9 +515,11 @@ impl LintRunner {
             }
 
             let diagnostics_before = ctx.diagnostics().len();
-            let start = Instant::now();
+            let started = clock.now();
             rule.check_workspace(&mut ctx);
-            let duration = start.elapsed();
+            let duration = started
+                .map(|started| clock.elapsed(started))
+                .unwrap_or(Duration::ZERO);
             let diagnostics_after = ctx.diagnostics().len();
             let diagnostics_added = diagnostics_after.saturating_sub(diagnostics_before);
 
@@ -565,6 +571,7 @@ impl LintRunner {
         else {
             return LintRunReport::default();
         };
+        let clock = repository.host().clock();
         let session = LintSession::new(repository, revision, profile, options.clone());
         let mut ctx = LintPackageContext::new(session, package);
 
@@ -579,9 +586,11 @@ impl LintRunner {
             }
 
             let diagnostics_before = ctx.diagnostics().len();
-            let start = Instant::now();
+            let started = clock.now();
             rule.check_package(&mut ctx);
-            let duration = start.elapsed();
+            let duration = started
+                .map(|started| clock.elapsed(started))
+                .unwrap_or(Duration::ZERO);
             let diagnostics_after = ctx.diagnostics().len();
             let diagnostics_added = diagnostics_after.saturating_sub(diagnostics_before);
 
