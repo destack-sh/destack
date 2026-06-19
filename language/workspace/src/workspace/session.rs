@@ -147,7 +147,7 @@ impl Workspace {
     }
 
     /// Resolve or create the session for a root.
-    pub(crate) fn session(&self, root: &Path) -> Result<Arc<Session>, Error> {
+    pub fn session(&self, root: &Path) -> Result<Arc<Session>, Error> {
         let root = root.to_path_buf();
 
         if !self.roots.contains_key(&root) {

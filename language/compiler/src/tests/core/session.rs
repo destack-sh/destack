@@ -3,13 +3,13 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactCache, ArtifactKey, ArtifactPayload, ArtifactVersion, ComponentGraph, DirBound,
+    ArtifactKey, ArtifactPayload, ArtifactTable, ArtifactVersion, ComponentGraph, DirBound,
     DirCheckedModule, DirExpanded, DirExported, DirImported, DirParsed, DirResolved,
-    MemoryCacheStore, NullArtifactStore,
+    MemoryBlobStore, NullArtifactStore,
 };
 use destack_dir as dir;
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, ProviderError, Ref, Repository,
+    DestackLayout, DestackLayoutOverride, Edit, Environment, Host, ProviderError, Ref, Repository,
     Revision, Settings,
 };
 use destack_source::{
@@ -130,16 +130,14 @@ impl TestSession {
             &DestackLayoutOverride::default(),
             None,
         );
+        let host = Host::new(
+            environment,
+            Arc::new(MemoryFileSystem::new()),
+            shared_blob_store(),
+        );
         let repository = Arc::new(
-            Repository::new(
-                root,
-                shared_cache_store(),
-                Arc::new(MemoryFileSystem::new()),
-                environment,
-                Settings::default(),
-                layout,
-            )
-            .with_artifact_store(Arc::new(NullArtifactStore::new())),
+            Repository::new(root, host, Settings::default(), layout)
+                .with_artifact_store(Arc::new(NullArtifactStore::new())),
         );
         let reference = Ref::for_root(repository.path());
         let revision = repository
@@ -859,9 +857,9 @@ impl TestSession {
         }
     }
 
-    /// Return the repository artifact cache.
-    fn artifacts(&self) -> Arc<ArtifactCache> {
-        self.repository.artifact_cache().clone()
+    /// Return the repository artifact table.
+    fn artifacts(&self) -> Arc<ArtifactTable> {
+        self.repository.artifact_table().clone()
     }
 
     /// Return foreign bound and expanded artifacts needed for labels.
@@ -1078,15 +1076,15 @@ fn update_expectation(caller: &std::panic::Location<'_>, expected: &str, actual:
     true
 }
 
-/// Return the cache store shared by every test session in this process.
+/// Return the blob store shared by every test session in this process.
 ///
-/// Sharing rests on the same invariant the production cache rests on:
+/// Sharing rests on the same invariant the production store rests on:
 /// artifact keys are content addressed, so a hit can only ever replay
 /// the exact computation it names. Tests exploit it so the library
 /// packages every fixture imports check once per process instead of
 /// once per test.
-fn shared_cache_store() -> Arc<MemoryCacheStore> {
-    static STORE: std::sync::OnceLock<Arc<MemoryCacheStore>> = std::sync::OnceLock::new();
+fn shared_blob_store() -> Arc<MemoryBlobStore> {
+    static STORE: std::sync::OnceLock<Arc<MemoryBlobStore>> = std::sync::OnceLock::new();
 
-    Arc::clone(STORE.get_or_init(|| Arc::new(MemoryCacheStore::new())))
+    Arc::clone(STORE.get_or_init(|| Arc::new(MemoryBlobStore::new())))
 }

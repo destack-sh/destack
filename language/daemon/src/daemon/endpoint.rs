@@ -227,9 +227,9 @@ fn endpoint_socket_name(home: &Path, instance_id: &str) -> String {
 mod tests {
     use std::sync::Arc;
 
-    use destack_artifact::DiskCacheStore;
+    use destack_artifact::DiskBlobStore;
     use destack_repository::{
-        DestackLayout, DestackLayoutOverride, Environment, Repository, Settings,
+        DestackLayout, DestackLayoutOverride, Environment, Host, Repository, Settings,
     };
     use destack_source::{FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem};
 
@@ -253,12 +253,11 @@ mod tests {
             &overrides,
             None,
         );
+        let host = Host::new(environment, file_system, Arc::new(DiskBlobStore::new()));
 
         Arc::new(Repository::new(
             root.root().to_path_buf(),
-            Arc::new(DiskCacheStore::new()),
-            file_system,
-            environment,
+            host,
             Settings::default(),
             layout,
         ))

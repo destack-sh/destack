@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
 use destack_artifact::{ArtifactKey, ArtifactRecord};
+use destack_core::StringPool;
 use destack_source::{ModuleId, TargetId};
 use serde::{Deserialize, Serialize};
 
@@ -33,6 +34,8 @@ pub enum CommandInspectView {
 pub struct CommandInspectPayload {
     /// Inspected artifact records.
     pub artifacts: Vec<ArtifactRecord>,
+    /// String pool needed to render inspected artifacts.
+    pub strings: StringPool,
 }
 
 impl CommandContext<'_> {
@@ -85,7 +88,10 @@ impl CommandContext<'_> {
             .map_err(|error| error.to_string())?;
         let exit_code = diagnostics.get_status_code();
         let profile_count = self.inspect_profile_count(revision, &module_targets)?;
-        let payload = CommandInspectPayload { artifacts };
+        let payload = CommandInspectPayload {
+            artifacts,
+            strings: self.repository.string_pool().as_ref().clone(),
+        };
         let data = serde_json::to_value(payload)
             .map_err(|error| format!("invalid inspect payload: {error}"))?;
 
@@ -145,7 +151,7 @@ impl CommandContext<'_> {
             .ok_or_else(|| format!("missing inspected artifact: {key:?}"))?;
         let record = self
             .repository
-            .artifact_cache()
+            .artifact_table()
             .record(&version, self.repository.string_pool())
             .map_err(|error| format!("failed to serialize artifact record: {error}"))?
             .ok_or_else(|| format!("missing inspected artifact payload: {key:?}"))?;

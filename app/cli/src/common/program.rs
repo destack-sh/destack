@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use clap::{Args, ValueEnum};
-use destack_artifact::MemoryCacheStore;
+use destack_artifact::MemoryBlobStore;
 use destack_daemon::protocol::{Client, ManifestOverride};
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Environment, FormatterOptions, LintPreset, LintSeverity,
@@ -338,9 +338,9 @@ impl ProgramArgs {
         )
         .expect("failed to import repository from file system");
 
-        // prefer in memory cache stores for test file systems
+        // prefer in memory blob stores for test file systems
         if has_fs_override {
-            repository = repository.with_cache_store(Arc::new(MemoryCacheStore::new()));
+            repository = repository.with_blob_store(Arc::new(MemoryBlobStore::new()));
         }
 
         let repository = Arc::new(repository);

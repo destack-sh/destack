@@ -1,11 +1,12 @@
 use criterion::profiler::Profiler;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use destack_artifact::{ArtifactKey, DiskCacheStore};
+use destack_artifact::{ArtifactKey, DiskBlobStore};
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Query;
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, Ref, Repository, Revision, Settings,
+    DestackLayout, DestackLayoutOverride, Edit, Environment, Host, Ref, Repository, Revision,
+    Settings,
 };
 use destack_session::Session;
 use destack_source::{FileSystem, FileType, ModuleId, PhysicalFileSystem, TargetId, glob};
@@ -131,11 +132,10 @@ fn build_workspace(
         &DestackLayoutOverride::default(),
         None,
     );
+    let host = Host::new(environment, file_system, Arc::new(DiskBlobStore::new()));
     let repository = Arc::new(Repository::new(
         workspace_root.clone(),
-        Arc::new(DiskCacheStore::new()),
-        file_system,
-        environment,
+        host,
         Settings::default(),
         layout,
     ));

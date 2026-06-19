@@ -218,7 +218,7 @@ impl QueryTestSession {
                 .expect("missing workspace query index version");
             let index = self
                 .repository
-                .artifact_cache()
+                .artifact_table()
                 .workspace_query_index(&version)
                 .expect("missing workspace query index payload");
 

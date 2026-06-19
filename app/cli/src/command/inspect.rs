@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use clap::{Args, ValueEnum};
 use destack_artifact::{ArtifactPayload, ArtifactRecord, ArtifactSidecar};
+use destack_core::StringPool;
 use destack_daemon::protocol::{
     CommandInspectOptions, CommandInspectPayload, CommandInspectView as ProtocolInspectView,
     CommandPayload, CommonCommandOptions,
@@ -220,7 +221,7 @@ fn print_inspect_payload(args: &InspectArgs, payload: &CommandInspectPayload) ->
     match args.format {
         InspectFormat::Text => {
             for artifact in &payload.artifacts {
-                if let Err(error) = print_inspect_artifact(args, artifact) {
+                if let Err(error) = print_inspect_artifact(args, artifact, &payload.strings) {
                     return report_error("inspect", &args.report, &error);
                 }
             }
@@ -235,8 +236,12 @@ fn print_inspect_payload(args: &InspectArgs, payload: &CommandInspectPayload) ->
 }
 
 /// Print one inspected artifact.
-fn print_inspect_artifact(args: &InspectArgs, artifact: &ArtifactRecord) -> Result<(), String> {
-    let text = format_inspect_artifact(args.view, artifact)?;
+fn print_inspect_artifact(
+    args: &InspectArgs,
+    artifact: &ArtifactRecord,
+    strings: &StringPool,
+) -> Result<(), String> {
+    let text = format_inspect_artifact(args.view, artifact, strings)?;
     print!("{text}");
 
     if args.sidecars {
@@ -273,24 +278,28 @@ fn print_sidecar_content(content: &Content) {
 }
 
 /// Format one inspected artifact as text.
-fn format_inspect_artifact(view: InspectView, artifact: &ArtifactRecord) -> Result<String, String> {
+fn format_inspect_artifact(
+    view: InspectView,
+    artifact: &ArtifactRecord,
+    strings: &StringPool,
+) -> Result<String, String> {
     let payload = artifact
         .decode_payload()
         .map_err(|error| format!("failed to decode artifact payload: {error}"))?;
 
     match (view, payload) {
         (InspectView::MirLowered, ArtifactPayload::MirLowered(payload)) => {
-            format_inspect_mir(&payload.tree, artifact)
+            format_inspect_mir(&payload.tree, strings)
         }
         (InspectView::MirVerified, ArtifactPayload::MirVerified(payload)) => {
-            format_inspect_mir(&payload.patch.tree, artifact)
+            format_inspect_mir(&payload.patch.tree, strings)
         }
         (InspectView::MirOptimized, ArtifactPayload::MirOptimized(payload)) => {
             let tree = payload
                 .latest_patch_tree()
                 .ok_or_else(|| "optimized MIR artifact has no patches".to_string())?;
 
-            format_inspect_mir(tree, artifact)
+            format_inspect_mir(tree, strings)
         }
         (InspectView::Diagnostics, _) => {
             Err("diagnostics inspect does not render artifact payloads".to_string())
@@ -303,11 +312,10 @@ fn format_inspect_artifact(view: InspectView, artifact: &ArtifactRecord) -> Resu
 }
 
 /// Format one MIR tree with inspect defaults.
-fn format_inspect_mir(tree: &Tree, artifact: &ArtifactRecord) -> Result<String, String> {
+fn format_inspect_mir(tree: &Tree, strings: &StringPool) -> Result<String, String> {
     let options = MirFormatOptions::default();
 
-    format_mir(tree, &artifact.strings, options)
-        .map_err(|error| format!("failed to format MIR: {error}"))
+    format_mir(tree, strings, options).map_err(|error| format!("failed to format MIR: {error}"))
 }
 
 /// Format text labels for one sidecar header.

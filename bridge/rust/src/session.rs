@@ -219,7 +219,7 @@ impl Session {
         let version = self.session.require(revision, key).map_err(Error::new)?;
         let repository = self.session.repository();
         let record = repository
-            .artifact_cache()
+            .artifact_table()
             .record(&version, repository.string_pool())
             .map_err(Error::new)?
             .ok_or_else(|| Error::new(format!("artifact record is missing for {version:?}")))?;
@@ -242,7 +242,7 @@ impl Session {
         let repository = self.session.repository();
 
         // label artifact keys through the requested revision
-        let report = trace.report(
+        let report = trace.snapshot(
             detailed,
             |key| {
                 key.module_id()
@@ -313,7 +313,7 @@ impl Session {
         let version = self.session.require(revision, key).map_err(Error::new)?;
         let repository = self.session.repository();
         let parsed = repository
-            .artifact_cache()
+            .artifact_table()
             .dir_parsed(&version)
             .ok_or_else(|| Error::new(format!("parsed DIR artifact is missing for {version:?}")))?;
         let parsed = bridge::DirParsed::from_artifact(version, module_id.into(), parsed.as_ref());
@@ -350,7 +350,7 @@ impl Session {
         let version = self.session.require(revision, key).map_err(Error::new)?;
         let repository = self.session.repository();
         let resolved = repository
-            .artifact_cache()
+            .artifact_table()
             .dir_resolved(&version)
             .ok_or_else(|| {
                 Error::new(format!("resolved DIR artifact is missing for {version:?}"))
@@ -380,7 +380,7 @@ impl Session {
         };
         let version = self.session.require(revision, key).map_err(Error::new)?;
         let repository = self.session.repository();
-        let store = repository.artifact_cache();
+        let store = repository.artifact_table();
         let checked = store.dir_checked(&version).ok_or_else(|| {
             Error::new(format!("checked DIR artifact is missing for {version:?}"))
         })?;

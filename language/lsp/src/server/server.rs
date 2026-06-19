@@ -6,7 +6,7 @@ use std::sync::{Arc, OnceLock, RwLock};
 
 use dashmap::{DashMap, DashSet};
 #[cfg(test)]
-use destack_artifact::MemoryCacheStore;
+use destack_artifact::MemoryBlobStore;
 use destack_core::StableHasher;
 use destack_daemon::protocol::DiagnosticSnapshot;
 use destack_lsp_server::{Client, LanguageServer, UriExt, jsonrpc};
@@ -812,7 +812,7 @@ impl LanguageServer for DestackLanguageServer {
         )
         .map_err(|_| jsonrpc::Error::internal_error())?;
         #[cfg(test)]
-        let repository = repository.with_cache_store(Arc::new(MemoryCacheStore::new()));
+        let repository = repository.with_blob_store(Arc::new(MemoryBlobStore::new()));
         let root = repository.path().to_path_buf();
 
         // merge discovery root with initialize roots
