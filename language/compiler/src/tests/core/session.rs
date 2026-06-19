@@ -460,6 +460,7 @@ impl TestSession {
                 .complete_artifact(
                     revision,
                     version,
+                    None,
                     ArtifactPayload::DirParsed(Arc::new(entry.dir_parsed.clone())),
                     dependencies,
                     DiagnosticCollection::new(),
