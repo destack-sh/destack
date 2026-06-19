@@ -20,7 +20,7 @@ pub enum ArtifactAttemptOutcome {
     /// The artifact was restored from the persistent artifact store.
     StoreCached,
     /// The attempt parked on missing requirements.
-    Blocked,
+    Parked,
     /// The attempt failed.
     Failed,
 }
@@ -32,7 +32,7 @@ impl ArtifactAttemptOutcome {
             Self::Built => "built",
             Self::MemoryCached => "memory_cached",
             Self::StoreCached => "store_cached",
-            Self::Blocked => "blocked",
+            Self::Parked => "parked",
             Self::Failed => "failed",
         }
     }
@@ -160,14 +160,14 @@ impl Trace {
         let counters = self.counters.lock();
         let attempts = self.attempts.lock();
 
-        // roll up attempt time per stage, keeping blocked time separate
-        let mut blocked = Duration::ZERO;
+        // roll up attempt time per stage, keeping parked time separate
+        let mut parked = Duration::ZERO;
         let mut workers = 0usize;
         let mut stages = ArtifactStage::ALL.map(|stage| (stage, Duration::ZERO));
         for attempt in attempts.iter() {
             workers = workers.max(attempt.worker + 1);
-            if attempt.outcome == ArtifactAttemptOutcome::Blocked {
-                blocked += attempt.span.duration;
+            if attempt.outcome == ArtifactAttemptOutcome::Parked {
+                parked += attempt.span.duration;
                 continue;
             }
 
@@ -238,7 +238,7 @@ impl Trace {
             spans,
             counters,
             stages,
-            blocked_micros: blocked.as_micros() as u64,
+            parked_micros: parked.as_micros() as u64,
             artifacts,
         }
     }
@@ -310,8 +310,8 @@ pub struct TraceSnapshot {
     pub counters: Vec<TraceCounterSnapshot>,
     /// Busy time per toolchain stage, ordered by stage.
     pub stages: Vec<TraceStageSnapshot>,
-    /// Time spent on attempts that blocked on requirements.
-    pub blocked_micros: u64,
+    /// Time spent on attempts that parked on requirements.
+    pub parked_micros: u64,
     /// The recorded artifact attempts, present only in detailed snapshots.
     pub artifacts: Vec<ArtifactAttemptSnapshot>,
 }

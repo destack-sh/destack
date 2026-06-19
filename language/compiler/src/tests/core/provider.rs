@@ -7,8 +7,7 @@ use destack_artifact::{
     DiagnosticDisplay, DiagnosticError, DiagnosticLike,
 };
 use destack_repository::{
-    ArtifactProduct, Collector, Provider, ProviderContext, ProviderError, ProviderOutput,
-    ProviderResult, Repository, Revision,
+    DependencySetResolution, ProviderContext, ProviderError, ProviderResult, Repository, Revision,
 };
 use destack_source::{ContentId, DiagnosticCollection, DiagnosticLabel, FileId, ModuleId, Span};
 
@@ -43,12 +42,190 @@ impl TestProvider {
 
     /// Require one artifact, building its closure depth first.
     pub(crate) fn require(&self, key: ArtifactKey) -> Result<ArtifactVersion, ProviderError> {
-        self.repository
-            .resolve(self, self.revision, key)
-            .map_err(|error| *error)
+        self.resolve(key).map_err(|error| *error)
     }
 
-    /// Collect the source closure for one loader-owned artifact.
+    /// Resolve one artifact through the repository dependency-set model.
+    fn resolve(&self, key: ArtifactKey) -> ProviderResult<ArtifactVersion> {
+        if let Some(version) = self.terminal_version(key)? {
+            return Ok(version);
+        }
+
+        let mut set = self.collect(key)?;
+        loop {
+            match self.repository.resolve_dependency_set(self.revision, set)? {
+                DependencySetResolution::Incomplete => {
+                    set = self.collect(key)?;
+                }
+                DependencySetResolution::Pending {
+                    frontier,
+                    pending_set,
+                } => {
+                    for dependency in frontier {
+                        self.resolve(dependency)?;
+                    }
+                    set = if let Some(pending_set) = pending_set {
+                        pending_set
+                    } else {
+                        self.collect(key)?
+                    };
+                }
+                DependencySetResolution::Resolved {
+                    dependencies,
+                    failed,
+                } => return self.commit(key, dependencies, failed),
+            }
+        }
+    }
+
+    /// Return one terminal artifact binding.
+    fn terminal_version(&self, key: ArtifactKey) -> ProviderResult<Option<ArtifactVersion>> {
+        let version = self
+            .repository
+            .artifact_binding(self.revision, &key)
+            .map_err(|error| ProviderError::internal(error.to_string()))?;
+        let Some(version) = version else {
+            return Ok(None);
+        };
+
+        Ok(self
+            .repository
+            .artifact_table()
+            .outcome(&version)
+            .map(|_| version))
+    }
+
+    /// Commit one frozen artifact dependency set.
+    fn commit(
+        &self,
+        key: ArtifactKey,
+        dependencies: Vec<ArtifactDependency>,
+        failed: Option<ArtifactKey>,
+    ) -> ProviderResult<ArtifactVersion> {
+        let version = ArtifactVersion::new(
+            key,
+            self.repository.build_fingerprint(),
+            dependencies.iter().cloned(),
+        );
+        let base = self
+            .repository
+            .artifact_base_version(self.revision, key)
+            .map_err(|error| ProviderError::internal(error.to_string()))?;
+
+        // record poisoned dependencies without running the provider
+        if let Some(failed) = failed {
+            self.fail(
+                version,
+                base,
+                dependencies,
+                DiagnosticCollection::new(),
+                Vec::new(),
+                ArtifactFailure::requirement(failed),
+            )?;
+
+            return Ok(version);
+        }
+
+        // reuse committed memory or disk records before running the provider
+        if self.repository.artifact_table().outcome(&version).is_some() {
+            self.repository
+                .bind_artifact(self.revision, version)
+                .map_err(|error| ProviderError::internal(error.to_string()))?;
+
+            return Ok(version);
+        }
+        if self
+            .repository
+            .load_artifact(self.revision, version)
+            .map_err(|error| ProviderError::internal(error.to_string()))?
+        {
+            return Ok(version);
+        }
+
+        // run the local test provider and publish its terminal outcome
+        let context = TestProviderContext::new(self, key);
+        match self.provide(key, &context) {
+            Ok(payload) => {
+                self.repository
+                    .complete_artifact(
+                        self.revision,
+                        version,
+                        base,
+                        payload,
+                        dependencies,
+                        context.diagnostics(),
+                        context.sidecars(),
+                    )
+                    .map_err(|error| ProviderError::internal(error.to_string()))?;
+            }
+            Err(error) => match *error {
+                ProviderError::Failed { failure } => {
+                    self.fail(
+                        version,
+                        base,
+                        dependencies,
+                        context.diagnostics(),
+                        context.sidecars(),
+                        failure,
+                    )?;
+                }
+                ProviderError::RequirementFailed { key } => {
+                    self.fail(
+                        version,
+                        base,
+                        dependencies,
+                        context.diagnostics(),
+                        context.sidecars(),
+                        ArtifactFailure::requirement(key),
+                    )?;
+                }
+                error => return Err(error.into()),
+            },
+        }
+
+        Ok(version)
+    }
+
+    /// Fail one artifact in the test repository.
+    fn fail(
+        &self,
+        version: ArtifactVersion,
+        base: Option<ArtifactVersion>,
+        dependencies: Vec<ArtifactDependency>,
+        diagnostics: DiagnosticCollection,
+        sidecars: Vec<ArtifactSidecar>,
+        failure: ArtifactFailure,
+    ) -> ProviderResult<()> {
+        self.repository
+            .fail_artifact(
+                self.revision,
+                version,
+                base,
+                dependencies,
+                diagnostics,
+                sidecars,
+                failure,
+            )
+            .map_err(|error| ProviderError::internal(error.to_string()).into())
+    }
+
+    /// Collect the dependency set for one artifact key.
+    fn collect(&self, key: ArtifactKey) -> ProviderResult<ArtifactDependencySet> {
+        match key.provider() {
+            ArtifactProvider::Loader => self.collect_loader(key),
+            ArtifactProvider::Compiler => {
+                let context = TestProviderContext::new(self, key);
+
+                self.compiler.collect(&context)
+            }
+            ArtifactProvider::Linter | ArtifactProvider::Query => Err(ProviderError::internal(
+                format!("unsupported test artifact key: {key:?}"),
+            )
+            .into()),
+        }
+    }
+
+    /// Collect the source dependency set for one loader-owned artifact.
     fn collect_loader(&self, key: ArtifactKey) -> ProviderResult<ArtifactDependencySet> {
         let ArtifactKey::DirParsed { module } = key else {
             return Err(ProviderError::internal(format!(
@@ -76,6 +253,28 @@ impl TestProvider {
         Ok(dependencies)
     }
 
+    /// Provide one artifact payload.
+    fn provide(
+        &self,
+        key: ArtifactKey,
+        context: &TestProviderContext<'_>,
+    ) -> ProviderResult<ArtifactPayload> {
+        match key.provider() {
+            ArtifactProvider::Loader => match key {
+                ArtifactKey::DirParsed { module } => self.provide_dir_parsed(module),
+                _ => Err(ProviderError::internal(format!(
+                    "unsupported test loader artifact key: {key:?}"
+                ))
+                .into()),
+            },
+            ArtifactProvider::Compiler => self.compiler.provide(context),
+            ArtifactProvider::Linter | ArtifactProvider::Query => Err(ProviderError::internal(
+                format!("unsupported test artifact key: {key:?}"),
+            )
+            .into()),
+        }
+    }
+
     /// Provide one parsed DIR artifact from source.
     fn provide_dir_parsed(&self, module: ModuleId) -> ProviderResult<ArtifactPayload> {
         let module = self
@@ -95,74 +294,6 @@ impl TestProvider {
             ProviderError::internal(format!("module has no parsed DIR payload: {:?}", module.id))
                 .into(),
         )
-    }
-
-    /// Harvest one provider attempt into its terminal output.
-    fn harvest(
-        context: &TestProviderContext<'_>,
-        result: ProviderResult<ArtifactPayload>,
-    ) -> ProviderResult<ProviderOutput> {
-        let product = match result {
-            Ok(payload) => ArtifactProduct::Ready(payload),
-            Err(error) => match *error {
-                ProviderError::Failed { failure } => ArtifactProduct::Failed(failure),
-                ProviderError::RequirementFailed { key } => {
-                    ArtifactProduct::Failed(ArtifactFailure::requirement(key))
-                }
-                error => return Err(error.into()),
-            },
-        };
-
-        Ok(ProviderOutput {
-            product,
-            diagnostics: context.diagnostics(),
-            sidecars: context.sidecars(),
-        })
-    }
-}
-
-impl Collector for TestProvider {
-    /// Collect the dependency closure for one artifact key.
-    fn collect(
-        &self,
-        _revision: Revision,
-        key: ArtifactKey,
-    ) -> ProviderResult<ArtifactDependencySet> {
-        match key.provider() {
-            ArtifactProvider::Loader => self.collect_loader(key),
-            ArtifactProvider::Compiler => {
-                let context = TestProviderContext::new(self, key);
-
-                self.compiler.collect(&context)
-            }
-            ArtifactProvider::Linter | ArtifactProvider::Query => Err(ProviderError::internal(
-                format!("unsupported test artifact key: {key:?}"),
-            )
-            .into()),
-        }
-    }
-}
-
-impl Provider for TestProvider {
-    /// Build one artifact over its frozen dependency closure.
-    fn provide(&self, _revision: Revision, key: ArtifactKey) -> ProviderResult<ProviderOutput> {
-        let context = TestProviderContext::new(self, key);
-        let result = match key.provider() {
-            ArtifactProvider::Loader => match key {
-                ArtifactKey::DirParsed { module } => self.provide_dir_parsed(module),
-                _ => Err(ProviderError::internal(format!(
-                    "unsupported test loader artifact key: {key:?}"
-                ))
-                .into()),
-            },
-            ArtifactProvider::Compiler => self.compiler.provide(&context),
-            ArtifactProvider::Linter | ArtifactProvider::Query => Err(ProviderError::internal(
-                format!("unsupported test artifact key: {key:?}"),
-            )
-            .into()),
-        };
-
-        Self::harvest(&context, result)
     }
 }
 

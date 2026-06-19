@@ -77,7 +77,7 @@ impl Edit {
     }
 
     /// Return logical file paths changed by this edit.
-    fn changed_logical_paths(&self) -> (&str, Option<&str>) {
+    pub(crate) fn changed_logical_paths(&self) -> (&str, Option<&str>) {
         match self {
             Self::AddFile { logical_path, .. }
             | Self::SetFile { logical_path, .. }

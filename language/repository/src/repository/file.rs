@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_artifact::{ArtifactDirectoryEntry, ArtifactPathState};
 use destack_core::{Treap, TreapRoot};
 use destack_source::{ContentId, File, FileId, FileMetadata, FileType, PathExt, StringId, Uri};
 use rustc_hash::FxHashSet;
@@ -301,76 +300,6 @@ impl Repository {
         Ok(logical_path)
     }
 
-    /// Return the current source path state for one artifact source path.
-    pub(crate) fn source_path_state(
-        &self,
-        revision: Revision,
-        path: StringId,
-    ) -> Result<ArtifactPathState, RepositoryError> {
-        let path = self.string_pool().get(path);
-        let path = self.physical_path(path);
-        let state = match self.file_metadata(revision, &path)? {
-            Some(metadata) if metadata.is_file => ArtifactPathState::File,
-            Some(metadata) if metadata.is_directory => ArtifactPathState::Directory,
-            Some(metadata) if metadata.is_symlink => ArtifactPathState::Symlink,
-            Some(_metadata) => ArtifactPathState::Other,
-            None => ArtifactPathState::Missing,
-        };
-
-        Ok(state)
-    }
-
-    /// Return the current direct source entries for one artifact directory path.
-    pub(crate) fn source_directory_entries(
-        &self,
-        revision: Revision,
-        directory: StringId,
-    ) -> Result<Vec<ArtifactDirectoryEntry>, RepositoryError> {
-        let revision = self.revision(revision)?;
-        let directory = self.string_pool().get(directory);
-        let mut entries = Vec::new();
-
-        // collect editable source paths
-        self.files
-            .entries
-            .visit(revision.files(), &mut |_file_id, entry| {
-                let path = self.logical_path_text(entry.logical_path);
-                if let Some(entry) = self.source_directory_entry(directory, path) {
-                    entries.push(entry);
-                }
-            });
-
-        // collect builtin source paths
-        for builtin in self.builtin.files() {
-            if let Some(entry) = self.source_directory_entry(directory, builtin.uri) {
-                entries.push(entry);
-            }
-        }
-
-        entries.sort_unstable();
-        entries.dedup();
-
-        Ok(entries)
-    }
-
-    /// Return a direct child entry when one source path is inside one directory.
-    fn source_directory_entry(
-        &self,
-        directory: &str,
-        path: &str,
-    ) -> Option<ArtifactDirectoryEntry> {
-        let path = normalize_logical_path(path);
-        let entry_path = direct_child_path(directory, &path)?;
-        let entry = self.intern_logical_path(&entry_path);
-        let state = if entry_path == path {
-            ArtifactPathState::File
-        } else {
-            ArtifactPathState::Directory
-        };
-
-        Some(ArtifactDirectoryEntry::new(entry, state))
-    }
-
     /// Return editable file ids and interned logical paths for one revision.
     pub fn editable_file_logical_paths(
         &self,
@@ -450,23 +379,4 @@ pub(crate) fn normalize_logical_path(value: impl AsRef<str>) -> String {
     let value = value.as_ref();
 
     value.replace('\\', "/")
-}
-
-/// Return the direct child path when one source path is inside one directory.
-fn direct_child_path(directory: &str, path: &str) -> Option<String> {
-    let relative = if directory.is_empty() {
-        path
-    } else {
-        path.strip_prefix(directory)?.strip_prefix('/')?
-    };
-
-    if let Some((child, _descendant)) = relative.split_once('/') {
-        if directory.is_empty() {
-            Some(child.to_string())
-        } else {
-            Some(format!("{directory}/{child}"))
-        }
-    } else {
-        Some(path.to_string())
-    }
 }

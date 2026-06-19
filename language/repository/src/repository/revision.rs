@@ -3,15 +3,14 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use destack_artifact::{ArtifactKey, ArtifactVersion};
-use destack_core::{Treap, TreapRoot, stable_hash_value_256};
+use destack_core::{TreapRoot, stable_hash_value_256};
 use parking_lot::{RwLock, RwLockWriteGuard};
 use serde::{Deserialize, Serialize};
 
 use crate::Environment;
 use crate::repository::RevisionCache;
 
-/// Content identity for one immutable repository revision state.
+/// Content identity for one repository source and environment state.
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -97,14 +96,14 @@ impl From<&str> for Ref {
 /// One retained repository revision.
 #[derive(Debug)]
 pub(crate) struct RevisionEntry {
-    /// The immutable revision state.
+    /// The retained revision state.
     state: Arc<RevisionState>,
     /// The active anonymous pin count.
     pin_count: AtomicUsize,
 }
 
 impl RevisionEntry {
-    /// Build one revision entry from immutable state.
+    /// Build one revision entry from retained state.
     pub(crate) fn new(state: Arc<RevisionState>) -> Self {
         Self {
             state,
@@ -112,7 +111,7 @@ impl RevisionEntry {
         }
     }
 
-    /// Return the immutable revision state.
+    /// Return the retained revision state.
     pub(crate) fn state(&self) -> Arc<RevisionState> {
         Arc::clone(&self.state)
     }
@@ -137,35 +136,30 @@ impl RevisionEntry {
     }
 }
 
-/// Source and environment inputs addressed by one revision identity.
+/// Source inputs, environment inputs, and predecessor bases for one revision.
 #[derive(Debug)]
 pub(crate) struct RevisionState {
     /// File bindings included in this revision.
     files: RwLock<TreapRoot>,
     /// Environment inputs captured in this revision.
     pub environment: Arc<Environment>,
-    /// Artifact bindings derived for this revision.
-    artifacts: RwLock<TreapRoot>,
+    /// Base revisions considered when validating predecessor artifacts.
+    bases: RwLock<Vec<Revision>>,
     /// Lazily derived data for this revision.
     pub cache: RevisionCache,
 }
 
 impl RevisionState {
     /// Build one revision state from explicit parts.
-    pub(crate) fn new(files: TreapRoot, environment: Arc<Environment>) -> Self {
-        Self::with_artifacts(files, environment, TreapRoot::new())
-    }
-
-    /// Build one revision state while inheriting artifact bindings.
-    pub(crate) fn with_artifacts(
+    pub(crate) fn new(
         files: TreapRoot,
         environment: Arc<Environment>,
-        artifacts: TreapRoot,
+        bases: impl Into<Box<[Revision]>>,
     ) -> Self {
         Self {
             files: RwLock::new(files),
             environment,
-            artifacts: RwLock::new(artifacts),
+            bases: RwLock::new(bases.into().into()),
             cache: RevisionCache::new(),
         }
     }
@@ -180,29 +174,26 @@ impl RevisionState {
         *self.files.read()
     }
 
-    /// Return the artifact binding root.
-    pub(crate) fn artifacts(&self) -> TreapRoot {
-        *self.artifacts.read()
+    /// Return this revision's base revisions.
+    pub(crate) fn bases(&self) -> Vec<Revision> {
+        self.bases.read().clone()
+    }
+
+    /// Add base revisions to this revision.
+    pub(crate) fn add_bases(&self, bases: impl IntoIterator<Item = Revision>) {
+        let mut stored = self.bases.write();
+
+        // preserve nearest-first order while deduplicating branch joins
+        for base in bases {
+            if !stored.contains(&base) {
+                stored.push(base);
+            }
+        }
     }
 
     /// Write the file binding root.
     pub(crate) fn write_files(&self) -> RwLockWriteGuard<'_, TreapRoot> {
         self.files.write()
-    }
-
-    /// Write the artifact binding root.
-    pub(crate) fn write_artifacts(&self) -> RwLockWriteGuard<'_, TreapRoot> {
-        self.artifacts.write()
-    }
-
-    /// Bind one artifact version in this revision.
-    pub(crate) fn bind_artifact(
-        &self,
-        version: ArtifactVersion,
-        versions: &Treap<ArtifactKey, ArtifactVersion>,
-    ) {
-        let mut artifacts = self.artifacts.write();
-        *artifacts = versions.insert(*artifacts, version.key, version);
     }
 
     /// Hash this revision state into its deterministic revision identity.

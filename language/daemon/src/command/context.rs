@@ -103,7 +103,7 @@ impl<'a> CommandContext<'a> {
         detailed: bool,
     ) -> Option<serde_json::Value> {
         let trace = self.session.last_trace()?;
-        let report = trace.report(
+        let report = trace.snapshot(
             detailed,
             |key| {
                 key.module_id().and_then(|module| {

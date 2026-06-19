@@ -1,5 +1,6 @@
 use destack_artifact::{
-    ArtifactKey, ArtifactSidecar, DiagnosticContext, DiagnosticError, DiagnosticLike,
+    ArtifactKey, ArtifactSidecar, ArtifactVersion, DiagnosticContext, DiagnosticError,
+    DiagnosticLike,
 };
 use destack_source::DiagnosticCollection;
 
@@ -12,6 +13,11 @@ pub trait ProviderContext: DiagnosticContext {
 
     /// Return the artifact key being built.
     fn artifact_key(&self) -> ArtifactKey;
+
+    /// Return the predecessor artifact selected for this attempt.
+    fn base_artifact(&self) -> Option<ArtifactVersion> {
+        None
+    }
 
     /// Return whether this attempt should emit event traces.
     fn emit_events(&self) -> bool {

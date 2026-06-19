@@ -15,7 +15,6 @@ impl Repository {
     pub fn fork_ref(&self, from: &Ref, to: Ref) -> Result<Revision, RepositoryError> {
         let revision = self.current(from)?;
         self.refs.insert(to, revision);
-        self.prune_unreachable()?;
 
         Ok(revision)
     }
@@ -28,7 +27,6 @@ impl Repository {
     ) -> Result<Revision, RepositoryError> {
         let _revision = self.revision(revision)?;
         self.refs.insert(reference.clone(), revision);
-        self.prune_unreachable()?;
 
         Ok(revision)
     }
@@ -59,10 +57,6 @@ impl Repository {
             }
         };
 
-        if did_advance {
-            self.prune_unreachable()?;
-        }
-
         Ok(did_advance)
     }
 
@@ -76,21 +70,29 @@ impl Repository {
         I: IntoIterator<Item = Edit>,
     {
         let base_revision = self.revision(base_revision_id)?;
+        let edits = edits.into_iter().collect::<Vec<_>>();
         let files = self.apply_edits(base_revision.files(), edits)?;
-        let revision = Arc::new(RevisionState::with_artifacts(
+        let revision = Arc::new(RevisionState::new(
             files,
             Arc::clone(&base_revision.environment),
-            base_revision.artifacts(),
+            [base_revision_id],
         ));
         let revision_id = revision.revision();
 
-        self.revisions
-            .entry(revision_id)
-            .or_insert_with(|| Arc::new(RevisionEntry::new(Arc::clone(&revision))));
+        match self.revisions.entry(revision_id) {
+            // merge branch-local bases for identical source states
+            Entry::Occupied(entry) => {
+                entry.get().state().add_bases([base_revision_id]);
+            }
+
+            // publish a new source state
+            Entry::Vacant(entry) => {
+                entry.insert(Arc::new(RevisionEntry::new(revision)));
+            }
+        }
 
         Ok(revision_id)
     }
-
     /// Load one workspace file payload from the attached file system.
     pub fn load_workspace_file_content(&self, path: &Path) -> Result<Content, RepositoryError> {
         let file_type = FileType::from_path_or_unknown(path);

@@ -86,6 +86,7 @@ impl Repository {
         let initial_revision = Arc::new(RevisionState::new(
             TreapRoot::new(),
             Arc::new(repository.host.environment().clone()),
+            [],
         ));
         let initial_revision_id = initial_revision.revision();
         repository.revisions.insert(
