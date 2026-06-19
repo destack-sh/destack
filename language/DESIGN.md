@@ -669,7 +669,6 @@ Like dynamic parameters, Destack's generic parameters also support `...` forms:
 
 ```ds
 type Callback<...Parameters, Return> = (...parameters: Parameters) => Return;
-type Buffer<comptime ...Shape: readonly usize[]> = TensorBuffer<...Shape>;
 ```
 
 Type inference (including generics) works across modules, even when modules circularly reference one another - though of course, this should be used with caution and can lead to longer compile times because it forces large connected components during inference checking.
