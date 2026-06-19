@@ -4,11 +4,11 @@ use destack_program::Program;
 use destack_source::ContentId;
 
 use crate::{
-    Asset, Build, Bundle, ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent,
-    DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
-    GlobalEnvironment, MirAnalyzed, MirLowered, MirOptimized, MirVerified, ModuleIndex,
-    ModuleLinted, ModuleQueryIndex, Object, PackageIndex, PackageLinted, Product, ProgramAnalysis,
-    Script, WorkspaceLinted, WorkspaceQueryIndex,
+    ArtifactKey, Asset, Build, Bundle, ComponentGraph, Data, DirBound, DirChecked,
+    DirCheckedComponent, DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized,
+    DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed, MirLowered, MirOptimized, MirVerified,
+    ModuleIndex, ModuleLinted, ModuleQueryIndex, Object, PackageIndex, PackageLinted, Product,
+    ProgramAnalysis, Script, WorkspaceLinted, WorkspaceQueryIndex,
 };
 use serde::{Deserialize, Serialize};
 
@@ -151,6 +151,152 @@ pub enum ArtifactPayloadRef<'a> {
 }
 
 impl ArtifactPayload {
+    /// Return whether this payload belongs to one artifact key.
+    pub fn matches_key(&self, key: &ArtifactKey) -> bool {
+        matches!(
+            (key, self),
+            (
+                ArtifactKey::GlobalEnvironment { .. },
+                ArtifactPayload::GlobalEnvironment(_)
+            ) | (
+                ArtifactKey::PackageIndex { .. },
+                ArtifactPayload::PackageIndex(_)
+            ) | (
+                ArtifactKey::ModuleIndex { .. },
+                ArtifactPayload::ModuleIndex(_)
+            ) | (
+                ArtifactKey::ComponentGraph { .. },
+                ArtifactPayload::ComponentGraph(_)
+            ) | (
+                ArtifactKey::ProgramAnalysis { .. },
+                ArtifactPayload::ProgramAnalysis(_)
+            ) | (ArtifactKey::DirParsed { .. }, ArtifactPayload::DirParsed(_))
+                | (ArtifactKey::Data { .. }, ArtifactPayload::Data(_))
+                | (ArtifactKey::DirBound { .. }, ArtifactPayload::DirBound(_))
+                | (
+                    ArtifactKey::DirImported { .. },
+                    ArtifactPayload::DirImported(_)
+                )
+                | (
+                    ArtifactKey::DirExpanded { .. },
+                    ArtifactPayload::DirExpanded(_)
+                )
+                | (
+                    ArtifactKey::DirExported { .. },
+                    ArtifactPayload::DirExported(_)
+                )
+                | (
+                    ArtifactKey::DirResolved { .. },
+                    ArtifactPayload::DirResolved(_)
+                )
+                | (
+                    ArtifactKey::DirCheckedComponent { .. },
+                    ArtifactPayload::DirCheckedComponent(_)
+                )
+                | (
+                    ArtifactKey::DirChecked { .. },
+                    ArtifactPayload::DirChecked(_)
+                )
+                | (
+                    ArtifactKey::DirMaterialized { .. },
+                    ArtifactPayload::DirMaterialized(_)
+                )
+                | (
+                    ArtifactKey::DirElaborated { .. },
+                    ArtifactPayload::DirElaborated(_)
+                )
+                | (
+                    ArtifactKey::MirLowered { .. },
+                    ArtifactPayload::MirLowered(_)
+                )
+                | (
+                    ArtifactKey::MirVerified { .. },
+                    ArtifactPayload::MirVerified(_)
+                )
+                | (
+                    ArtifactKey::MirAnalyzed { .. },
+                    ArtifactPayload::MirAnalyzed(_)
+                )
+                | (
+                    ArtifactKey::MirOptimized { .. },
+                    ArtifactPayload::MirOptimized(_)
+                )
+                | (
+                    ArtifactKey::ModuleQueryIndex { .. },
+                    ArtifactPayload::ModuleQueryIndex(_)
+                )
+                | (
+                    ArtifactKey::WorkspaceQueryIndex { .. },
+                    ArtifactPayload::WorkspaceQueryIndex(_)
+                )
+                | (ArtifactKey::Script { .. }, ArtifactPayload::Script(_))
+                | (ArtifactKey::Object { .. }, ArtifactPayload::Object(_))
+                | (ArtifactKey::Asset { .. }, ArtifactPayload::Asset(_))
+                | (ArtifactKey::Build { .. }, ArtifactPayload::Build(_))
+                | (ArtifactKey::Bundle { .. }, ArtifactPayload::Bundle(_))
+                | (ArtifactKey::Program { .. }, ArtifactPayload::Program(_))
+                | (ArtifactKey::Product { .. }, ArtifactPayload::Product(_))
+                | (
+                    ArtifactKey::ModuleLinted { .. },
+                    ArtifactPayload::ModuleLinted(_)
+                )
+                | (
+                    ArtifactKey::PackageLinted { .. },
+                    ArtifactPayload::PackageLinted(_)
+                )
+                | (
+                    ArtifactKey::WorkspaceLinted,
+                    ArtifactPayload::WorkspaceLinted(_)
+                )
+        )
+    }
+
+    /// Borrow this payload for transport serialization.
+    pub fn as_ref(&self) -> ArtifactPayloadRef<'_> {
+        match self {
+            Self::DirParsed(payload) => ArtifactPayloadRef::DirParsed(payload.as_ref()),
+            Self::Data(payload) => ArtifactPayloadRef::Data(payload.as_ref()),
+            Self::GlobalEnvironment(payload) => {
+                ArtifactPayloadRef::GlobalEnvironment(payload.as_ref())
+            }
+            Self::PackageIndex(payload) => ArtifactPayloadRef::PackageIndex(payload.as_ref()),
+            Self::ModuleIndex(payload) => ArtifactPayloadRef::ModuleIndex(payload.as_ref()),
+            Self::ComponentGraph(payload) => ArtifactPayloadRef::ComponentGraph(payload.as_ref()),
+            Self::ProgramAnalysis(payload) => ArtifactPayloadRef::ProgramAnalysis(payload.as_ref()),
+            Self::DirBound(payload) => ArtifactPayloadRef::DirBound(payload.as_ref()),
+            Self::DirImported(payload) => ArtifactPayloadRef::DirImported(payload.as_ref()),
+            Self::DirExpanded(payload) => ArtifactPayloadRef::DirExpanded(payload.as_ref()),
+            Self::DirExported(payload) => ArtifactPayloadRef::DirExported(payload.as_ref()),
+            Self::DirResolved(payload) => ArtifactPayloadRef::DirResolved(payload.as_ref()),
+            Self::DirCheckedComponent(payload) => {
+                ArtifactPayloadRef::DirCheckedComponent(payload.as_ref())
+            }
+            Self::DirChecked(payload) => ArtifactPayloadRef::DirChecked(payload.as_ref()),
+            Self::DirMaterialized(payload) => ArtifactPayloadRef::DirMaterialized(payload.as_ref()),
+            Self::DirElaborated(payload) => ArtifactPayloadRef::DirElaborated(payload.as_ref()),
+            Self::MirLowered(payload) => ArtifactPayloadRef::MirLowered(payload.as_ref()),
+            Self::MirVerified(payload) => ArtifactPayloadRef::MirVerified(payload.as_ref()),
+            Self::MirAnalyzed(payload) => ArtifactPayloadRef::MirAnalyzed(payload.as_ref()),
+            Self::MirOptimized(payload) => ArtifactPayloadRef::MirOptimized(payload.as_ref()),
+            Self::ModuleQueryIndex(payload) => {
+                ArtifactPayloadRef::ModuleQueryIndex(payload.as_ref())
+            }
+            Self::WorkspaceQueryIndex(payload) => {
+                ArtifactPayloadRef::WorkspaceQueryIndex(payload.as_ref())
+            }
+            Self::Script(payload) => ArtifactPayloadRef::Script(payload.as_ref()),
+            Self::Object(payload) => ArtifactPayloadRef::Object(payload.as_ref()),
+            Self::Asset(payload) => ArtifactPayloadRef::Asset(payload.as_ref()),
+            Self::Build(payload) => ArtifactPayloadRef::Build(payload.as_ref()),
+            Self::Bundle(payload) => ArtifactPayloadRef::Bundle(payload.as_ref()),
+            Self::Program(payload) => ArtifactPayloadRef::Program(payload.as_ref()),
+            Self::Product(payload) => ArtifactPayloadRef::Product(payload.as_ref()),
+            Self::ModuleLinted(payload) => ArtifactPayloadRef::ModuleLinted(payload.as_ref()),
+            Self::PackageLinted(payload) => ArtifactPayloadRef::PackageLinted(payload.as_ref()),
+            Self::WorkspaceLinted(payload) => ArtifactPayloadRef::WorkspaceLinted(payload.as_ref()),
+        }
+    }
+
     /// Return the stable short name for this payload kind.
     pub fn name(&self) -> &'static str {
         match self {

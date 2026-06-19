@@ -2,22 +2,22 @@ use std::path::{Path, PathBuf};
 
 use destack_core::stable_hash_text_128;
 
-/// Directory name for cache entries.
+/// Directory name for cached build outputs.
 pub const CACHE_DIR_NAME: &str = "cache";
 /// Directory name for language cache entries.
 pub const LANGUAGE_CACHE_DIR_NAME: &str = "language";
 /// Directory name for shared workspace partitions.
 pub const WORKSPACES_CACHE_DIR_NAME: &str = "workspaces";
-/// Directory name for artifact record entries.
-pub const ARTIFACT_CACHE_DIR_NAME: &str = "artifacts";
-/// Directory name for content cache entries.
-pub const CONTENT_CACHE_DIR_NAME: &str = "contents";
-/// Lock file name for persistent cache writes.
-pub const CACHE_LOCK_FILE_NAME: &str = "cache.lock";
+/// Directory name for artifact record store entries.
+pub const ARTIFACT_STORE_DIR_NAME: &str = "artifacts";
+/// Directory name for content store entries.
+pub const CONTENT_STORE_DIR_NAME: &str = "contents";
+/// Lock file name for persistent store writes.
+pub const STORE_LOCK_FILE_NAME: &str = "store.lock";
 
-/// Filesystem layout for one repository cache partition.
+/// Filesystem layout for one repository store partition.
 #[derive(Debug, Clone)]
-pub struct RepositoryCacheLayout {
+pub struct RepositoryStoreLayout {
     /// The `.destack` cache root.
     cache_root: PathBuf,
     /// The stable repository root.
@@ -26,8 +26,8 @@ pub struct RepositoryCacheLayout {
     is_shared_root: bool,
 }
 
-impl RepositoryCacheLayout {
-    /// Create one repository cache layout.
+impl RepositoryStoreLayout {
+    /// Create one repository store layout.
     pub fn new(cache_root: &Path, repository_root: &Path, is_shared_root: bool) -> Self {
         Self {
             cache_root: cache_root.to_path_buf(),
@@ -50,8 +50,8 @@ impl RepositoryCacheLayout {
             .join(LANGUAGE_CACHE_DIR_NAME)
     }
 
-    /// Return the repository cache root.
-    fn repository_root(&self) -> PathBuf {
+    /// Return the repository store root.
+    fn store_root(&self) -> PathBuf {
         if self.is_shared_root {
             return self
                 .language_root()
@@ -62,20 +62,20 @@ impl RepositoryCacheLayout {
         self.language_root()
     }
 
-    /// Return the artifact cache root.
+    /// Return the artifact record root.
     pub(crate) fn artifact_root(&self, build_fingerprint: &str) -> PathBuf {
-        self.repository_root()
-            .join(ARTIFACT_CACHE_DIR_NAME)
+        self.store_root()
+            .join(ARTIFACT_STORE_DIR_NAME)
             .join(build_fingerprint)
     }
 
-    /// Return the content cache root.
+    /// Return the content root.
     pub fn content_root(&self) -> PathBuf {
-        self.repository_root().join(CONTENT_CACHE_DIR_NAME)
+        self.store_root().join(CONTENT_STORE_DIR_NAME)
     }
 
-    /// Return the persistent cache write lock path.
-    pub(crate) fn cache_lock_path(&self) -> PathBuf {
-        self.repository_root().join(CACHE_LOCK_FILE_NAME)
+    /// Return the persistent store write lock path.
+    pub(crate) fn store_lock_path(&self) -> PathBuf {
+        self.store_root().join(STORE_LOCK_FILE_NAME)
     }
 }
