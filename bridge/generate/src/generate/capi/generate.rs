@@ -17,6 +17,7 @@ const ROOTS: &[&str] = &[
     "ArtifactVersion",
     "BuildOutput",
     "BuildRequest",
+    "CheckOutput",
     "Content",
     "Diagnostic",
     "DirChecked",
@@ -26,6 +27,7 @@ const ROOTS: &[&str] = &[
     "FormatRequest",
     "LintOutput",
     "LintRequest",
+    "ParseOutput",
     "Commit",
     "Module",
     "Revision",
@@ -685,7 +687,7 @@ impl<'schema> Rust<'schema> {
     /// Render one opaque C ABI handle.
     fn render_handle(&self, name: &str) -> TokenStream {
         let handle = format_ident!("Destack{name}");
-        let bridge = format_ident!("{name}");
+        let bridge = bridge_type(&format_ident!("{name}"));
         let docs = format!(" C ABI {} handle.", to_snake(name).replace('_', " "));
 
         quote! {
@@ -694,7 +696,7 @@ impl<'schema> Rust<'schema> {
             #[derive(Debug)]
             pub struct #handle {
                 /// Rust bridge value.
-                pub(crate) value: rust::#bridge,
+                pub(crate) value: #bridge,
             }
         }
     }
@@ -735,6 +737,7 @@ impl<'schema> Rust<'schema> {
     fn render_struct(&self, item: &Item, fields: &[Field]) -> TokenStream {
         let name = format_ident!("Destack{}", item.name);
         let bridge_name = item.ident();
+        let bridge = bridge_type(&bridge_name);
         let array_name = format_ident!("Destack{}Array", item.name);
         let optional_name = format_ident!("DestackOptional{}", item.name);
         let array_impl = array_impl(&name, &bridge_name, &array_name);
@@ -802,15 +805,15 @@ impl<'schema> Rust<'schema> {
 
             impl #name {
                 /// Convert one bridge value into one C ABI value.
-                pub(crate) fn from_bridge(value: rust::#bridge_name) -> Result<Self, String> {
+                pub(crate) fn from_bridge(value: #bridge) -> Result<Self, String> {
                     Ok(Self {
                         #(#from_fields)*
                     })
                 }
 
                 /// Convert this C ABI value into one bridge value.
-                pub(crate) fn to_bridge(&self) -> Result<rust::#bridge_name, String> {
-                    Ok(rust::#bridge_name {
+                pub(crate) fn to_bridge(&self) -> Result<#bridge, String> {
+                    Ok(#bridge {
                         #(#to_fields)*
                     })
                 }
@@ -838,6 +841,7 @@ impl<'schema> Rust<'schema> {
     fn render_unit_enum(&self, item: &Item, variants: &[Variant]) -> TokenStream {
         let name = format_ident!("Destack{}", item.name);
         let bridge_name = item.ident();
+        let bridge = bridge_type(&bridge_name);
         let array_name = format_ident!("Destack{}Array", item.name);
         let optional_name = format_ident!("DestackOptional{}", item.name);
         let array_impl = array_impl(&name, &bridge_name, &array_name);
@@ -856,12 +860,12 @@ impl<'schema> Rust<'schema> {
         let from_arms = variants.iter().map(|variant| {
             let name = variant.ident();
 
-            quote!(rust::#bridge_name::#name => Self::#name,)
+            quote!(#bridge::#name => Self::#name,)
         });
         let into_arms = variants.iter().map(|variant| {
             let name = variant.ident();
 
-            quote!(Self::#name => rust::#bridge_name::#name,)
+            quote!(Self::#name => #bridge::#name,)
         });
 
         quote! {
@@ -894,15 +898,15 @@ impl<'schema> Rust<'schema> {
 
             impl #name {
                 /// Convert one bridge enum into one C ABI enum.
-                pub(crate) fn from_bridge(value: rust::#bridge_name) -> Result<Self, String> {
+                pub(crate) fn from_bridge(value: #bridge) -> Result<Self, String> {
                     Ok(match value {
                         #(#from_arms)*
                     })
                 }
 
                 /// Convert this C ABI enum into one bridge enum.
-                pub(crate) fn to_bridge(&self) -> Result<rust::#bridge_name, String> {
-                    Ok(match *self {
+                pub(crate) fn to_bridge(self) -> Result<#bridge, String> {
+                    Ok(match self {
                         #(#into_arms)*
                     })
                 }
@@ -927,6 +931,7 @@ impl<'schema> Rust<'schema> {
         let name = format_ident!("Destack{}", item.name);
         let kind = format_ident!("Destack{}Kind", item.name);
         let bridge_name = item.ident();
+        let bridge = bridge_type(&bridge_name);
         let array_name = format_ident!("Destack{}Array", item.name);
         let optional_name = format_ident!("DestackOptional{}", item.name);
         let array_impl = array_impl(&name, &bridge_name, &array_name);
@@ -978,7 +983,7 @@ impl<'schema> Rust<'schema> {
             let pattern = variant_pattern(variant);
 
             quote! {
-                rust::#bridge_name::#variant_name #pattern => Self {
+                #bridge::#variant_name #pattern => Self {
                     kind: #kind::#variant_name,
                     #(#values)*
                 },
@@ -998,7 +1003,7 @@ impl<'schema> Rust<'schema> {
             quote! {
                 #kind::#variant_name => {
                     #(#conversions)*
-                    Ok(rust::#bridge_name::#variant_name #value)
+                    Ok(#bridge::#variant_name #value)
                 }
             }
         });
@@ -1046,14 +1051,14 @@ impl<'schema> Rust<'schema> {
 
             impl #name {
                 /// Convert one bridge enum into one C ABI enum.
-                pub(crate) fn from_bridge(value: rust::#bridge_name) -> Result<Self, String> {
+                pub(crate) fn from_bridge(value: #bridge) -> Result<Self, String> {
                     Ok(match value {
                         #(#from_arms)*
                     })
                 }
 
                 /// Convert this C ABI enum into one bridge enum.
-                pub(crate) fn to_bridge(&self) -> Result<rust::#bridge_name, String> {
+                pub(crate) fn to_bridge(&self) -> Result<#bridge, String> {
                     match self.kind {
                         #(#into_arms)*
                     }
@@ -1121,7 +1126,7 @@ impl<'schema> Rust<'schema> {
             quote!(let #name = #value;)
         });
         let value = if fields.is_empty() {
-            quote!(rust::ArtifactKey::#variant_name)
+            quote!(rust::language::ArtifactKey::#variant_name)
         } else {
             let values = fields.iter().map(|field| {
                 let name = format_ident!("{}", field.name);
@@ -1129,7 +1134,7 @@ impl<'schema> Rust<'schema> {
                 quote!(#name,)
             });
 
-            quote!(rust::ArtifactKey::#variant_name {
+            quote!(rust::language::ArtifactKey::#variant_name {
                 #(#values)*
             })
         };
@@ -1264,7 +1269,11 @@ fn variant_value(variant: &Variant, fields: &[PayloadField<'_>]) -> TokenStream 
                 let source = format_ident!("{}", field.source_name);
                 let name = format_ident!("{}", field.name);
 
-                quote!(#source: #name,)
+                if field.source_name == field.name {
+                    quote!(#source,)
+                } else {
+                    quote!(#source: #name,)
+                }
             });
 
             quote!({ #(#fields)* })
@@ -1278,10 +1287,12 @@ fn array_impl(
     bridge: &proc_macro2::Ident,
     array: &proc_macro2::Ident,
 ) -> TokenStream {
+    let bridge = bridge_type(bridge);
+
     quote! {
         impl #array {
             /// Convert bridge values into one C ABI array.
-            pub(crate) fn from_bridge(values: Vec<rust::#bridge>) -> Result<Self, String> {
+            pub(crate) fn from_bridge(values: Vec<#bridge>) -> Result<Self, String> {
                 let mut converted = Vec::with_capacity(values.len());
                 for value in values {
                     converted.push(#value::from_bridge(value)?);
@@ -1292,7 +1303,7 @@ fn array_impl(
             }
 
             /// Convert this C ABI array into bridge values.
-            pub(crate) fn to_bridge(&self) -> Result<Vec<rust::#bridge>, String> {
+            pub(crate) fn to_bridge(&self) -> Result<Vec<#bridge>, String> {
                 if self.len == 0 {
                     return Ok(Vec::new());
                 }
@@ -1331,10 +1342,12 @@ fn optional_impl(
     bridge: &proc_macro2::Ident,
     optional: &proc_macro2::Ident,
 ) -> TokenStream {
+    let bridge = bridge_type(bridge);
+
     quote! {
         impl #optional {
             /// Convert one optional bridge value into one C ABI optional value.
-            pub(crate) fn from_bridge(value: Option<rust::#bridge>) -> Result<Self, String> {
+            pub(crate) fn from_bridge(value: Option<#bridge>) -> Result<Self, String> {
                 let Some(value) = value else {
                     return Ok(Self {
                         is_some: false,
@@ -1349,7 +1362,7 @@ fn optional_impl(
             }
 
             /// Convert this C ABI optional value into one bridge optional value.
-            pub(crate) fn to_bridge(&self) -> Result<Option<rust::#bridge>, String> {
+            pub(crate) fn to_bridge(&self) -> Result<Option<#bridge>, String> {
                 if self.is_some {
                     Ok(Some(self.value.to_bridge()?))
                 } else {
@@ -1367,6 +1380,11 @@ fn optional_impl(
             }
         }
     }
+}
+
+/// Return the Rust transport schema path for one bridge type.
+fn bridge_type(ident: &proc_macro2::Ident) -> TokenStream {
+    quote!(rust::language::#ident)
 }
 
 /// Return `ArtifactKey` variants.
@@ -1432,7 +1450,7 @@ fn collect_type(schema: &Schema, ty: &Type, values: &mut BTreeSet<String>) -> Re
     match ty {
         Type::Vec(inner) | Type::Option(inner) => collect_type(schema, inner, values),
         Type::Named(name) => collect_value(schema, name, values),
-        Type::String | Type::Bool | Type::U8 | Type::U32 | Type::Usize => Ok(()),
+        Type::String | Type::Bool | Type::U8 | Type::U32 | Type::U64 | Type::Usize => Ok(()),
     }
 }
 
@@ -1494,7 +1512,13 @@ fn collect_type_dependencies(
         Type::Named(name) if values.contains(name) => {
             dependencies.insert(name.clone());
         }
-        Type::Named(_) | Type::String | Type::Bool | Type::U8 | Type::U32 | Type::Usize => {}
+        Type::Named(_)
+        | Type::String
+        | Type::Bool
+        | Type::U8
+        | Type::U32
+        | Type::U64
+        | Type::Usize => {}
     }
 }
 
@@ -1541,6 +1565,7 @@ fn c_type(ty: &Type, projection: &Projection) -> String {
         Type::Bool => "bool".to_string(),
         Type::U8 => "uint8_t".to_string(),
         Type::U32 => "uint32_t".to_string(),
+        Type::U64 => "uint64_t".to_string(),
         Type::Usize => "size_t".to_string(),
         Type::Vec(inner) if **inner == Type::U8 => "DestackByteArray".to_string(),
         Type::Vec(inner) if **inner == Type::String => "DestackStringArray".to_string(),
@@ -1568,6 +1593,7 @@ fn rust_c_type(ty: &Type, projection: &Projection) -> TokenStream {
         Type::Bool => quote!(bool),
         Type::U8 => quote!(u8),
         Type::U32 => quote!(u32),
+        Type::U64 => quote!(u64),
         Type::Usize => quote!(usize),
         Type::Vec(inner) if **inner == Type::U8 => quote!(DestackByteArray),
         Type::Vec(inner) if **inner == Type::String => quote!(DestackStringArray),
@@ -1599,7 +1625,7 @@ fn rust_c_type(ty: &Type, projection: &Projection) -> TokenStream {
 fn from_bridge_value(ty: &Type, value: TokenStream, projection: &Projection) -> TokenStream {
     match ty {
         Type::String => quote!(c_string(#value)?),
-        Type::Bool | Type::U8 | Type::U32 | Type::Usize => value,
+        Type::Bool | Type::U8 | Type::U32 | Type::U64 | Type::Usize => value,
         Type::Vec(inner) if **inner == Type::U8 => quote!(DestackByteArray::from_vec(#value)),
         Type::Vec(inner) if **inner == Type::String => {
             quote!(DestackStringArray::from_bridge(#value)?)
@@ -1634,7 +1660,7 @@ fn from_bridge_value(ty: &Type, value: TokenStream, projection: &Projection) -> 
 fn into_bridge_value(ty: &Type, value: TokenStream, projection: &Projection) -> TokenStream {
     match ty {
         Type::String => quote!(read_string(#value)?),
-        Type::Bool | Type::U8 | Type::U32 | Type::Usize => value,
+        Type::Bool | Type::U8 | Type::U32 | Type::U64 | Type::Usize => value,
         Type::Vec(inner) if **inner == Type::U8 => quote!(#value.into_vec()?),
         Type::Vec(inner) if **inner == Type::String => quote!(#value.to_bridge()?),
         Type::Vec(_) => quote!(#value.to_bridge()?),
@@ -1654,7 +1680,7 @@ fn into_bridge_value(ty: &Type, value: TokenStream, projection: &Projection) -> 
 fn to_bridge_value(ty: &Type, value: TokenStream, projection: &Projection) -> TokenStream {
     match ty {
         Type::String => quote!(read_string(#value)?),
-        Type::Bool | Type::U8 | Type::U32 | Type::Usize => value,
+        Type::Bool | Type::U8 | Type::U32 | Type::U64 | Type::Usize => value,
         Type::Vec(inner) if **inner == Type::U8 => {
             quote!(read_bytes(#value.ptr.cast_const(), #value.len)?)
         }
@@ -1692,7 +1718,7 @@ fn destroy_value(ty: &Type, value: TokenStream, projection: &Projection) -> Toke
             }
         }
         Type::Vec(_) | Type::Option(_) | Type::Named(_) => quote!(#value.destroy();),
-        Type::Bool | Type::U8 | Type::U32 | Type::Usize => quote!(),
+        Type::Bool | Type::U8 | Type::U32 | Type::U64 | Type::Usize => quote!(),
     }
 }
 
@@ -1701,7 +1727,7 @@ fn empty_value(ty: &Type, projection: &Projection) -> TokenStream {
     match ty {
         Type::String => quote!(ptr::null_mut()),
         Type::Bool => quote!(false),
-        Type::U8 | Type::U32 | Type::Usize => quote!(0),
+        Type::U8 | Type::U32 | Type::U64 | Type::Usize => quote!(0),
         Type::Vec(inner) if **inner == Type::U8 => quote!(DestackByteArray {
             ptr: ptr::null_mut(),
             len: 0,

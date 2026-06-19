@@ -1,5 +1,4 @@
-use destack_artifact as artifact;
-use destack_core as core;
+use destack_core::{StringId, StringPool};
 
 use crate::{ArtifactDependency, ArtifactSidecar, ArtifactVersion, Diagnostic, bridge};
 
@@ -33,7 +32,7 @@ pub struct ArtifactRecord {
 
 impl ArtifactString {
     /// Convert one core string entry into one bridge string entry.
-    pub fn from_core(id: core::StringId, text: &str) -> Self {
+    pub fn from_core(id: StringId, text: &str) -> Self {
         Self {
             id: format!("{:032x}", id.raw()),
             text: text.to_string(),
@@ -43,12 +42,11 @@ impl ArtifactString {
 
 impl ArtifactRecord {
     /// Convert one artifact record into one bridge artifact record.
-    pub fn from_artifact(record: artifact::ArtifactRecord) -> Self {
+    pub fn from_artifact(record: destack_artifact::ArtifactRecord, strings: &StringPool) -> Self {
         let strings = record
             .strings
             .iter()
-            .into_iter()
-            .map(|(id, text)| ArtifactString::from_core(id, text))
+            .map(|id| ArtifactString::from_core(*id, strings.get(*id)))
             .collect();
         let dependencies = record
             .dependencies
@@ -75,12 +73,5 @@ impl ArtifactRecord {
             diagnostics,
             sidecars,
         }
-    }
-}
-
-impl From<artifact::ArtifactRecord> for ArtifactRecord {
-    /// Convert one artifact record into one bridge artifact record.
-    fn from(record: artifact::ArtifactRecord) -> Self {
-        Self::from_artifact(record)
     }
 }

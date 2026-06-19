@@ -1,8 +1,12 @@
+#![allow(clippy::missing_safety_doc)]
+
 mod core;
 #[allow(dead_code)]
 mod generated;
 mod session;
 mod source;
+#[cfg(test)]
+mod tests;
 
 pub use core::*;
 pub use generated::*;

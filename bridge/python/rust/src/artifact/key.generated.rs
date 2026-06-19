@@ -510,7 +510,7 @@ impl ArtifactKey {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn get_product_product(&self) -> Option<ProductId> {
+    pub fn get_product_id(&self) -> Option<ProductId> {
         match &self.value {
             bridge::ArtifactKey::Product { product, .. } => {
                 Some(ProductId::from_bridge(product.clone()))

@@ -15,8 +15,6 @@ from destack.source.module import (
 class DirParsed:
     """Typed projection of one parsed DIR artifact."""
 
-    def __init__(self, version: ArtifactVersion, module: ModuleId) -> None: ...
-
     """Exact parsed artifact version."""
     @property
     def version(self) -> ArtifactVersion: ...

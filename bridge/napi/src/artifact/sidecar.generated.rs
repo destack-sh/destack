@@ -46,7 +46,7 @@ impl ArtifactSidecar {
             labels: value
                 .labels
                 .into_iter()
-                .map(|item| ArtifactSidecarLabel::from_bridge(item))
+                .map(ArtifactSidecarLabel::from_bridge)
                 .collect(),
             content: Content::from_bridge(value.content),
         }

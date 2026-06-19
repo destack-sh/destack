@@ -2,18 +2,24 @@
 
 from __future__ import annotations
 
-from .file import (
-    SessionFile,
+from .command.check import (
+    CheckOutput,
 )
-from .format import (
+from .command.format import (
     Document,
     FormatRequest,
     FormatOutput,
 )
-from .lint import (
+from .command.lint import (
     Scope,
     LintRequest,
     LintOutput,
+)
+from .command.parse import (
+    ParseOutput,
+)
+from .file import (
+    SessionFile,
 )
 from .module import (
     Module,

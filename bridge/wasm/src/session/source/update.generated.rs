@@ -234,11 +234,7 @@ impl Commit {
         Self {
             before: Revision::from_bridge(value.before),
             after: Revision::from_bridge(value.after),
-            changes: value
-                .changes
-                .into_iter()
-                .map(|item| Change::from_bridge(item))
-                .collect(),
+            changes: value.changes.into_iter().map(Change::from_bridge).collect(),
         }
     }
 }

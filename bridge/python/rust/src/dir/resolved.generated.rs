@@ -15,18 +15,6 @@ pub struct DirResolved {
 
 #[pymethods]
 impl DirResolved {
-    /// Create one value.
-    #[new]
-    pub fn new(version: ArtifactVersion, module: ModuleId, profile: ProfileId) -> Self {
-        Self {
-            value: bridge::DirResolved {
-                version: version.into_bridge(),
-                module: module.into_bridge(),
-                profile: profile.into_bridge(),
-            },
-        }
-    }
-
     /// Exact resolved artifact version.
     #[getter]
     pub fn version(&self) -> ArtifactVersion {

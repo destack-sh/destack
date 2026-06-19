@@ -65,17 +65,26 @@ import type { DirChecked } from "../dir/checked.generated.js";
 import type { DirParsed } from "../dir/parsed.generated.js";
 import type { DirResolved } from "../dir/resolved.generated.js";
 import type { Revision } from "../repository/revision.generated.js";
-import type { SessionFile } from "../session/file.generated.js";
+import type {
+    TraceReport,
+    TraceStage,
+    TraceArtifact,
+    TraceSpan,
+    TraceCounter,
+} from "../repository/trace.generated.js";
+import type { CheckOutput } from "../session/command/check.generated.js";
 import type {
     Document,
     FormatRequest,
     FormatOutput,
-} from "../session/format.generated.js";
+} from "../session/command/format.generated.js";
 import type {
     Scope,
     LintRequest,
     LintOutput,
-} from "../session/lint.generated.js";
+} from "../session/command/lint.generated.js";
+import type { ParseOutput } from "../session/command/parse.generated.js";
+import type { SessionFile } from "../session/file.generated.js";
 import type { Module } from "../session/module.generated.js";
 import type { Change } from "../session/source/file.generated.js";
 import type { Source } from "../session/source/source.generated.js";
@@ -95,10 +104,7 @@ import type { ModuleId } from "../source/module.generated.js";
 import type { PackageId } from "../source/package.generated.js";
 import type { ProductId } from "../source/product.generated.js";
 import type { ProfileId } from "../source/profile.generated.js";
-import type {
-    Span,
-    LabeledSpan,
-} from "../source/span.generated.js";
+import type { Span } from "../source/span.generated.js";
 import type { TargetId } from "../source/target.generated.js";
 
 /** Convert one ArtifactPathState from the NAPI transport shape. */
@@ -1244,15 +1250,6 @@ export function toNapiModuleBuildKind(value: ModuleBuildKind): string {
     throw new Error(`unknown ModuleBuildKind: ${value}`);
 }
 
-/** Convert one ModuleBuildKind from the NAPI transport shape. */
-export function fromNapiModuleBuildKind(value: string): ModuleBuildKind {
-    if (value === "script" || value === "object" || value === "asset") {
-        return value;
-    }
-
-    throw new Error(`unknown ModuleBuildKind: ${value}`);
-}
-
 /** Convert one BuildRequest into the NAPI transport shape. */
 export function toNapiBuildRequest(value: BuildRequest): Napi.BuildRequest {
     if (value.kind === "module") {
@@ -1608,10 +1605,65 @@ export function fromNapiRevision(value: Napi.Revision): Revision {
     };
 }
 
-/** Convert one NAPI SessionFile into the public bridge shape. */
-export function fromNapiSessionFile(value: Napi.SessionFile): SessionFile {
+/** Convert one NAPI TraceReport into the public bridge shape. */
+export function fromNapiTraceReport(value: Napi.TraceReport): TraceReport {
     return {
-        path: value.path,
+        totalMicros: Number(value.totalMicros),
+        workers: value.workers,
+        spans: value.spans.map((item) => fromNapiTraceSpan(item)),
+        counters: value.counters.map((item) => fromNapiTraceCounter(item)),
+        stages: value.stages.map((item) => fromNapiTraceStage(item)),
+        blockedMicros: Number(value.blockedMicros),
+        artifacts: value.artifacts.map((item) => fromNapiTraceArtifact(item)),
+    };
+}
+
+/** Convert one NAPI TraceStage into the public bridge shape. */
+export function fromNapiTraceStage(value: Napi.TraceStage): TraceStage {
+    return {
+        name: value.name,
+        micros: Number(value.micros),
+    };
+}
+
+/** Convert one NAPI TraceArtifact into the public bridge shape. */
+export function fromNapiTraceArtifact(value: Napi.TraceArtifact): TraceArtifact {
+    return {
+        name: value.name,
+        stage: value.stage,
+        label: value.label == null ? undefined : value.label,
+        target: value.target == null ? undefined : value.target,
+        worker: value.worker,
+        startMicros: Number(value.startMicros),
+        micros: Number(value.micros),
+        outcome: value.outcome,
+        spans: value.spans.map((item) => fromNapiTraceSpan(item)),
+        counters: value.counters.map((item) => fromNapiTraceCounter(item)),
+    };
+}
+
+/** Convert one NAPI TraceSpan into the public bridge shape. */
+export function fromNapiTraceSpan(value: Napi.TraceSpan): TraceSpan {
+    return {
+        name: value.name,
+        startMicros: Number(value.startMicros),
+        micros: Number(value.micros),
+    };
+}
+
+/** Convert one NAPI TraceCounter into the public bridge shape. */
+export function fromNapiTraceCounter(value: Napi.TraceCounter): TraceCounter {
+    return {
+        name: value.name,
+        value: Number(value.value),
+    };
+}
+
+/** Convert one NAPI CheckOutput into the public bridge shape. */
+export function fromNapiCheckOutput(value: Napi.CheckOutput): CheckOutput {
+    return {
+        checked: fromNapiDirChecked(value.checked),
+        diagnostics: value.diagnostics.map((item) => fromNapiDiagnostic(item)),
     };
 }
 
@@ -1686,6 +1738,21 @@ export function toNapiLintRequest(value: LintRequest): Napi.LintRequest {
 export function fromNapiLintOutput(value: Napi.LintOutput): LintOutput {
     return {
         diagnostics: value.diagnostics.map((item) => fromNapiDiagnostic(item)),
+    };
+}
+
+/** Convert one NAPI ParseOutput into the public bridge shape. */
+export function fromNapiParseOutput(value: Napi.ParseOutput): ParseOutput {
+    return {
+        parsed: fromNapiDirParsed(value.parsed),
+        diagnostics: value.diagnostics.map((item) => fromNapiDiagnostic(item)),
+    };
+}
+
+/** Convert one NAPI SessionFile into the public bridge shape. */
+export function fromNapiSessionFile(value: Napi.SessionFile): SessionFile {
+    return {
+        path: value.path,
     };
 }
 

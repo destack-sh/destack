@@ -520,6 +520,7 @@ fn render_type(schema: &Schema, ty: &Type) -> TokenStream {
         Type::Bool => quote!(bool),
         Type::U8 => quote!(u8),
         Type::U32 => quote!(u32),
+        Type::U64 => quote!(f64),
         Type::Usize => quote!(u32),
         Type::Vec(ty) => {
             let ty = render_type(schema, ty);
@@ -548,6 +549,12 @@ fn render_into_bridge_value(schema: &Schema, value: TokenStream, ty: &Type) -> T
                 return value;
             }
 
+            if let Type::Named(name) = ty.as_ref()
+                && !schema.is_unit_enum(name)
+            {
+                return quote!(#value.into_iter().map(|item| item.into_bridge()).collect::<napi::Result<Vec<_>>>()?);
+            }
+
             let item = render_into_bridge_value(schema, quote!(item), ty);
 
             quote!(#value.into_iter().map(|item| Ok::<_, napi::Error>(#item)).collect::<napi::Result<Vec<_>>>()?)
@@ -555,6 +562,12 @@ fn render_into_bridge_value(schema: &Schema, value: TokenStream, ty: &Type) -> T
         Type::Option(ty) => {
             if !ty.needs_napi_into_bridge_conversion(schema) {
                 return value;
+            }
+
+            if let Type::Named(name) = ty.as_ref()
+                && !schema.is_unit_enum(name)
+            {
+                return quote!(#value.map(|item| item.into_bridge()).transpose()?);
             }
 
             let item = render_into_bridge_value(schema, quote!(item), ty);
@@ -579,6 +592,10 @@ fn render_from_bridge_value(schema: &Schema, value: TokenStream, ty: &Type) -> T
                 return value;
             }
 
+            if let Some(mapper) = render_from_bridge_mapper(schema, ty) {
+                return quote!(#value.into_iter().map(#mapper).collect());
+            }
+
             let item = render_from_bridge_value(schema, quote!(item), ty);
 
             quote!(#value.into_iter().map(|item| #item).collect())
@@ -586,6 +603,10 @@ fn render_from_bridge_value(schema: &Schema, value: TokenStream, ty: &Type) -> T
         Type::Option(ty) => {
             if !ty.needs_from_bridge_conversion(schema) {
                 return value;
+            }
+
+            if let Some(mapper) = render_from_bridge_mapper(schema, ty) {
+                return quote!(#value.map(#mapper));
             }
 
             let item = render_from_bridge_value(schema, quote!(item), ty);
@@ -602,6 +623,25 @@ fn render_from_bridge_value(schema: &Schema, value: TokenStream, ty: &Type) -> T
 
             quote!(#name::from_bridge(#value))
         }
+        Type::U64 => quote!(#value as f64),
+        Type::Usize => quote!(#value as u32),
         _ => value,
+    }
+}
+
+/// Render one direct bridge output mapper when possible.
+fn render_from_bridge_mapper(schema: &Schema, ty: &Type) -> Option<TokenStream> {
+    match ty {
+        Type::Named(name) if schema.is_unit_enum(name) => {
+            let helper = schema.item(name).label_ident();
+
+            Some(quote!(#helper))
+        }
+        Type::Named(name) => {
+            let name = schema.item(name).javascript_ident();
+
+            Some(quote!(#name::from_bridge))
+        }
+        _ => None,
     }
 }

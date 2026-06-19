@@ -1,51 +1,96 @@
-import assert from "node:assert/strict";
+import { mkdtempSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
-import { Edit, Source, openSession } from "../dist/index.js";
-import { openNapiSession } from "../dist/napi.js";
+import * as wasm from "@destack/language-wasm";
 
-const source = Source.memory(
-    "/workspace",
-    [
-        Edit.setText("destack.json", '{"name":"@test/app"}'),
-        Edit.setText("src/index.ds", "export const value = 1;"),
-    ],
-);
+import {
+    Edit,
+    Source,
+    openRepository as openPublicRepository,
+    openWorkspace as openPublicWorkspace,
+} from "../dist/index.js";
+import { openNapiRepository, openNapiWorkspace } from "../dist/napi.js";
+import { openWasmRepository, openWasmWorkspace } from "../dist/wasm.js";
 
-const session = await openSession(source);
-const napiSession = await openNapiSession(source);
+export class RepositoryFixture {
+    constructor(repository, root) {
+        this.repository = repository;
+        this.root = root;
+    }
+}
 
-assert.deepEqual(
-    session.files().map((file) => file.path),
-    ["destack.json", "src/index.ds"],
-);
-assert.deepEqual(
-    napiSession.files().map((file) => file.path),
-    ["destack.json", "src/index.ds"],
-);
+export class WorkspaceFixture {
+    constructor(workspace, root) {
+        this.workspace = workspace;
+        this.root = root;
+    }
 
-const module = session.loadModule("src/index.ds");
-const version = session.require(session.revision(), {
-    kind: "dirParsed",
-    module: module.id,
-});
-const parsed = session.parse(session.revision(), module);
+    relativeUri(uri) {
+        if (uri.startsWith(this.root)) {
+            return uri.slice(this.root.length).replace(/^\//u, "");
+        }
 
-assert.equal(version.key.kind, "dirParsed");
-assert.deepEqual(version.key.module, module.id);
-assert.match(version.fingerprint, /^f[0-9a-f]{32}$/);
-assert.equal(parsed.version.fingerprint, version.fingerprint);
-assert.deepEqual(parsed.module, module.id);
+        return uri;
+    }
+}
 
-const update = session.update({
-    edits: [
-        {
-            kind: "setText",
-            path: "src/next.ds",
-            text: "export const next = 2;",
-        },
-    ],
-});
+export async function openWorkspace(open, files) {
+    const root = testRoot();
+    const edits = files.map(([path, text]) => Edit.setText(path, text));
+    const source = Source.memory(root, edits);
 
-assert.notDeepEqual(update.before, update.after);
-assert.equal(update.files.length, 1);
-assert.equal(update.files[0].path, "src/next.ds");
+    return new WorkspaceFixture(await open(source), root);
+}
+
+export async function openRepository(open, files) {
+    const root = testRoot();
+    const edits = files.map(([path, text]) => Edit.setText(path, text));
+    const source = Source.memory(root, edits);
+
+    return new RepositoryFixture(await open(source), root);
+}
+
+export const workspaces = [
+    ["public", openPublicWorkspace],
+    ["napi", openNapiWorkspace],
+    ["wasm", openWasmWorkspaceInNode],
+];
+
+export const repositories = [
+    ["public", openPublicRepository],
+    ["napi", openNapiRepository],
+    ["wasm", openWasmRepositoryInNode],
+];
+
+let wasmReady;
+
+function testRoot() {
+    return mkdtempSync(join(tmpdir(), "destack-bridge-typescript-tests-"));
+}
+
+async function openWasmWorkspaceInNode(source) {
+    await initializeWasm();
+
+    return openWasmWorkspace(source);
+}
+
+async function openWasmRepositoryInNode(source) {
+    await initializeWasm();
+
+    return openWasmRepository(source);
+}
+
+async function initializeWasm() {
+    // initialize wasm once per test process
+    if (!wasmReady) {
+        const wasmPath = new URL("../../wasm/dist/destack_wasm_bg.wasm", import.meta.url);
+        const bytes = await readFile(wasmPath);
+
+        // use bytes because Node cannot fetch file urls
+        wasmReady = wasm.default({ module_or_path: bytes });
+    }
+
+    await wasmReady;
+}

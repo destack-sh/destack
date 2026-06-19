@@ -2,6 +2,7 @@ mod artifact;
 mod core;
 mod diagnostic;
 mod dir;
+mod panic;
 mod repository;
 mod session;
 mod source;

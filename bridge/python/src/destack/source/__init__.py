@@ -22,7 +22,6 @@ from .profile import (
 )
 from .span import (
     Span,
-    LabeledSpan,
 )
 from .target import (
     TargetId,
@@ -38,6 +37,5 @@ __all__ = [
     "ProductId",
     "ProfileId",
     "Span",
-    "LabeledSpan",
     "TargetId",
 ]

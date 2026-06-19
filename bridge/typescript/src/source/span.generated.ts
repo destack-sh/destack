@@ -11,11 +11,3 @@ export type Span = {
     /** Exclusive end byte offset. */
     readonly end: number;
 };
-
-/** Source span with a display label. */
-export type LabeledSpan = {
-    /** Source span. */
-    readonly span: Span;
-    /** Display label. */
-    readonly label: string;
-};

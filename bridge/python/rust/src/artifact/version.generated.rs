@@ -15,17 +15,6 @@ pub struct ArtifactVersion {
 
 #[pymethods]
 impl ArtifactVersion {
-    /// Create one value.
-    #[new]
-    pub fn new(key: ArtifactKey, fingerprint: String) -> Self {
-        Self {
-            value: bridge::ArtifactVersion {
-                key: key.into_bridge(),
-                fingerprint,
-            },
-        }
-    }
-
     /// Semantic artifact slot.
     #[getter]
     pub fn key(&self) -> ArtifactKey {
@@ -41,11 +30,6 @@ impl ArtifactVersion {
 
 #[allow(dead_code)]
 impl ArtifactVersion {
-    /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::ArtifactVersion {
-        self.value
-    }
-
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::ArtifactVersion) -> Self {
         Self { value }

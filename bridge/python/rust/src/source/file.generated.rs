@@ -13,14 +13,6 @@ pub struct FileId {
 
 #[pymethods]
 impl FileId {
-    /// Create one value.
-    #[new]
-    pub fn new(id: String) -> Self {
-        Self {
-            value: bridge::FileId { id },
-        }
-    }
-
     /// Canonical lowercase hex file id.
     #[getter]
     pub fn id(&self) -> String {
@@ -30,11 +22,6 @@ impl FileId {
 
 #[allow(dead_code)]
 impl FileId {
-    /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::FileId {
-        self.value
-    }
-
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::FileId) -> Self {
         Self { value }
@@ -87,22 +74,6 @@ pub struct Content {
 
 #[pymethods]
 impl Content {
-    /// Text content.
-    #[staticmethod]
-    pub fn text(content: String) -> Self {
-        Self {
-            value: bridge::Content::Text { content },
-        }
-    }
-
-    /// Binary content.
-    #[staticmethod]
-    pub fn binary(content: Vec<u8>) -> Self {
-        Self {
-            value: bridge::Content::Binary { content },
-        }
-    }
-
     /// Return this enum variant label.
     #[getter]
     pub fn kind(&self) -> &'static str {
@@ -132,11 +103,6 @@ impl Content {
 }
 
 impl Content {
-    /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::Content {
-        self.value
-    }
-
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::Content) -> Self {
         Self { value }

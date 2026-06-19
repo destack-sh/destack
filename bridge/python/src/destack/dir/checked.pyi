@@ -23,8 +23,6 @@ from destack.source.profile import (
 class DirChecked:
     """Typed projection of one checked DIR module artifact."""
 
-    def __init__(self, version: ArtifactVersion, module: ModuleId, profile: ProfileId, component: ComponentId, entry: ModuleId) -> None: ...
-
     """Exact checked facade artifact version."""
     @property
     def version(self) -> ArtifactVersion: ...

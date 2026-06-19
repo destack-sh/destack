@@ -52,32 +52,3 @@ impl Span {
         }
     }
 }
-
-/// Source span with a display label.
-#[derive(Debug, Clone)]
-#[wasm_bindgen]
-pub struct LabeledSpan {
-    span: Span,
-    label: String,
-}
-
-#[wasm_bindgen]
-impl LabeledSpan {
-    /// Create one value.
-    #[wasm_bindgen(constructor)]
-    pub fn new(span: Span, label: String) -> Self {
-        Self { span, label }
-    }
-
-    /// Source span.
-    #[wasm_bindgen(getter, js_name = "span")]
-    pub fn span(&self) -> Span {
-        self.span.clone()
-    }
-
-    /// Display label.
-    #[wasm_bindgen(getter, js_name = "label")]
-    pub fn label(&self) -> String {
-        self.label.clone()
-    }
-}

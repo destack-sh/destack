@@ -781,6 +781,7 @@ fn from_value(schema: &Schema, backend: Backend, value: &str, ty: &Type) -> Stri
 
             format!("{value} == null ? undefined : {item}")
         }
+        Type::U64 => format!("Number({value})"),
         Type::Named(name) if schema.items.contains_key(name) => {
             let function = from_name(backend, name);
 
@@ -798,7 +799,7 @@ fn backend_type(schema: &Schema, backend: Backend, item: &Item) -> String {
 
     match backend {
         Backend::Napi => format!("Napi.{}", item.javascript_name()),
-        Backend::Wasm => format!("Wasm.{}", item.name),
+        Backend::Wasm => format!("Wasm.{}", item.javascript_name()),
     }
 }
 

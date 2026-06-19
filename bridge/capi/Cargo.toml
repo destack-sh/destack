@@ -17,7 +17,7 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-destack.workspace = true
+destack = { workspace = true, features = ["native"] }
 
 [lints]
 workspace = true

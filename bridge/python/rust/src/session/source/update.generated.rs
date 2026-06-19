@@ -22,18 +22,6 @@ impl TextRange {
             value: bridge::TextRange { start, end },
         }
     }
-
-    /// Inclusive start byte offset.
-    #[getter]
-    pub fn start(&self) -> u32 {
-        self.value.start.clone()
-    }
-
-    /// Exclusive end byte offset.
-    #[getter]
-    pub fn end(&self) -> u32 {
-        self.value.end.clone()
-    }
 }
 
 #[allow(dead_code)]
@@ -41,11 +29,6 @@ impl TextRange {
     /// Convert this Python value into one bridge value.
     pub(crate) fn into_bridge(self) -> bridge::TextRange {
         self.value
-    }
-
-    /// Convert one bridge value into one Python value.
-    pub(crate) fn from_bridge(value: bridge::TextRange) -> Self {
-        Self { value }
     }
 }
 
@@ -68,18 +51,6 @@ impl TextEdit {
             },
         }
     }
-
-    /// Replaced byte range.
-    #[getter]
-    pub fn range(&self) -> TextRange {
-        TextRange::from_bridge(self.value.range.clone())
-    }
-
-    /// Replacement text.
-    #[getter]
-    pub fn text(&self) -> String {
-        self.value.text.clone()
-    }
 }
 
 #[allow(dead_code)]
@@ -87,11 +58,6 @@ impl TextEdit {
     /// Convert this Python value into one bridge value.
     pub(crate) fn into_bridge(self) -> bridge::TextEdit {
         self.value
-    }
-
-    /// Convert one bridge value into one Python value.
-    pub(crate) fn from_bridge(value: bridge::TextEdit) -> Self {
-        Self { value }
     }
 }
 
@@ -158,80 +124,12 @@ impl Edit {
             bridge::Edit::Move { .. } => "move",
         }
     }
-
-    /// Return this payload field when present.
-    #[getter]
-    pub fn get_bytes(&self) -> Option<Vec<u8>> {
-        match &self.value {
-            bridge::Edit::SetBytes { bytes, .. } => Some(bytes.clone()),
-            _ => None,
-        }
-    }
-
-    /// Return this payload field when present.
-    #[getter]
-    pub fn get_edits(&self) -> Option<Vec<TextEdit>> {
-        match &self.value {
-            bridge::Edit::EditText { edits, .. } => Some(
-                edits
-                    .clone()
-                    .into_iter()
-                    .map(|item| TextEdit::from_bridge(item))
-                    .collect(),
-            ),
-            _ => None,
-        }
-    }
-
-    /// Return this payload field when present.
-    #[getter]
-    pub fn get_from(&self) -> Option<String> {
-        match &self.value {
-            bridge::Edit::Move { from, .. } => Some(from.clone()),
-            _ => None,
-        }
-    }
-
-    /// Return this payload field when present.
-    #[getter]
-    pub fn get_path(&self) -> Option<String> {
-        match &self.value {
-            bridge::Edit::SetText { path, .. } => Some(path.clone()),
-            bridge::Edit::EditText { path, .. } => Some(path.clone()),
-            bridge::Edit::SetBytes { path, .. } => Some(path.clone()),
-            bridge::Edit::Remove { path, .. } => Some(path.clone()),
-            _ => None,
-        }
-    }
-
-    /// Return this payload field when present.
-    #[getter]
-    pub fn get_text(&self) -> Option<String> {
-        match &self.value {
-            bridge::Edit::SetText { text, .. } => Some(text.clone()),
-            _ => None,
-        }
-    }
-
-    /// Return this payload field when present.
-    #[getter]
-    pub fn get_to(&self) -> Option<String> {
-        match &self.value {
-            bridge::Edit::Move { to, .. } => Some(to.clone()),
-            _ => None,
-        }
-    }
 }
 
 impl Edit {
     /// Convert this Python value into one bridge value.
     pub(crate) fn into_bridge(self) -> bridge::Edit {
         self.value
-    }
-
-    /// Convert one bridge value into one Python value.
-    pub(crate) fn from_bridge(value: bridge::Edit) -> Self {
-        Self { value }
     }
 }
 
@@ -244,18 +142,6 @@ pub struct Commit {
 
 #[pymethods]
 impl Commit {
-    /// Create one value.
-    #[new]
-    pub fn new(before: Revision, after: Revision, changes: Vec<Change>) -> Self {
-        Self {
-            value: bridge::Commit {
-                before: before.into_bridge(),
-                after: after.into_bridge(),
-                changes: changes.into_iter().map(|item| item.into_bridge()).collect(),
-            },
-        }
-    }
-
     /// Previous revision.
     #[getter]
     pub fn before(&self) -> Revision {
@@ -275,7 +161,7 @@ impl Commit {
             .changes
             .clone()
             .into_iter()
-            .map(|item| Change::from_bridge(item))
+            .map(Change::from_bridge)
             .collect()
     }
 }

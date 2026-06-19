@@ -69,6 +69,8 @@ pub(crate) struct Item {
     pub(crate) docs: Vec<String>,
     /// Whether C ABI targets project this item as an opaque handle.
     pub(crate) is_capi_handle: bool,
+    /// Whether the bridge item derives `Copy`.
+    pub(crate) is_copy: bool,
     /// Type shape.
     pub(crate) shape: Shape,
 }
@@ -123,6 +125,8 @@ pub(crate) enum Type {
     U8,
     /// `u32`.
     U32,
+    /// `u64`.
+    U64,
     /// `usize`.
     Usize,
     /// `Vec<T>`.
@@ -173,6 +177,25 @@ impl PayloadNames {
     /// Return the Rust transport field name for one struct payload field.
     pub(crate) fn field_name(&self, variant: &Variant, field: &Field) -> String {
         to_snake(&self.field_label(variant, field))
+    }
+
+    /// Return the field name while controlling self-named variant qualification.
+    pub(crate) fn field_name_with_self_named(
+        &self,
+        variant: &Variant,
+        field: &Field,
+        is_self_named_qualified: bool,
+    ) -> String {
+        if self.ambiguous.contains(&field.name)
+            || (is_self_named_qualified && field.label() == variant.label())
+        {
+            let variant = lower_camel(&variant.name);
+            let field = upper_camel(&field.name);
+
+            to_snake(&format!("{variant}{field}"))
+        } else {
+            to_snake(&field.label())
+        }
     }
 
     /// Return the transport field identifier for one struct payload field.
@@ -424,6 +447,7 @@ impl Item {
             syn::Item::Struct(item) if is_public(&item.vis) && has_bridge_attr(&item.attrs) => {
                 let name = item.ident.to_string();
                 let is_capi_handle = has_capi_handle_attr(&item.attrs)?;
+                let is_copy = has_derive(&item.attrs, "Copy")?;
                 let docs = parse_docs(item.attrs);
                 let fields = Field::parse_struct(item.fields)?;
                 let shape = Shape::Struct(fields);
@@ -432,12 +456,14 @@ impl Item {
                     name,
                     docs,
                     is_capi_handle,
+                    is_copy,
                     shape,
                 }))
             }
             syn::Item::Enum(item) if is_public(&item.vis) && has_bridge_attr(&item.attrs) => {
                 let name = item.ident.to_string();
                 let is_capi_handle = has_capi_handle_attr(&item.attrs)?;
+                let is_copy = has_derive(&item.attrs, "Copy")?;
                 let docs = parse_docs(item.attrs);
                 let variants = item
                     .variants
@@ -460,6 +486,7 @@ impl Item {
                     name,
                     docs,
                     is_capi_handle,
+                    is_copy,
                     shape,
                 }))
             }
@@ -568,16 +595,22 @@ impl Item {
                 | "Host"
                 | "ProductTarget"
                 | "Product"
-                | "ModuleBuildKind"
                 | "DirParsedFile"
                 | "DirParsed"
                 | "DirResolved"
                 | "DirChecked"
                 | "SessionFile"
                 | "Module"
+                | "TraceCounter"
+                | "TraceSpan"
+                | "TraceArtifact"
+                | "TraceStage"
+                | "TraceReport"
                 | "BuildOutput"
+                | "CheckOutput"
                 | "FormatOutput"
                 | "LintOutput"
+                | "ParseOutput"
                 | "Change"
                 | "Commit"
         )
@@ -727,6 +760,7 @@ impl Type {
             ("bool", syn::PathArguments::None) => Ok(Self::Bool),
             ("u8", syn::PathArguments::None) => Ok(Self::U8),
             ("u32", syn::PathArguments::None) => Ok(Self::U32),
+            ("u64", syn::PathArguments::None) => Ok(Self::U64),
             ("usize", syn::PathArguments::None) => Ok(Self::Usize),
             ("Vec", syn::PathArguments::AngleBracketed(arguments)) => {
                 let ty = Self::parse_single_argument(arguments.args.into_iter())?;
@@ -886,6 +920,27 @@ fn is_public(visibility: &syn::Visibility) -> bool {
 /// Return whether attributes contain the bridge marker.
 fn has_bridge_attr(attrs: &[syn::Attribute]) -> bool {
     attrs.iter().any(|attr| attr.path().is_ident("bridge"))
+}
+
+/// Return whether attributes derive one trait.
+fn has_derive(attrs: &[syn::Attribute], needle: &str) -> Result<bool> {
+    let mut has_derive = false;
+
+    for attr in attrs {
+        if !attr.path().is_ident("derive") {
+            continue;
+        }
+
+        attr.parse_nested_meta(|meta| {
+            if meta.path.is_ident(needle) {
+                has_derive = true;
+            }
+
+            Ok(())
+        })?;
+    }
+
+    Ok(has_derive)
 }
 
 /// Return whether attributes request an opaque C ABI handle.

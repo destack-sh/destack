@@ -28,13 +28,3 @@ impl Span {
         }
     }
 }
-
-/// Source span with a display label.
-#[derive(Debug)]
-#[napi(object, js_name = "LabeledSpan")]
-pub struct LabeledSpan {
-    /// Source span.
-    pub span: Span,
-    /// Display label.
-    pub label: String,
-}

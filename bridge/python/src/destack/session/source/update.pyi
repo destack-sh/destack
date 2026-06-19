@@ -17,26 +17,10 @@ class TextRange:
 
     def __init__(self, start: int, end: int) -> None: ...
 
-    """Inclusive start byte offset."""
-    @property
-    def start(self) -> int: ...
-
-    """Exclusive end byte offset."""
-    @property
-    def end(self) -> int: ...
-
 class TextEdit:
     """One text replacement."""
 
     def __init__(self, range: TextRange, text: str) -> None: ...
-
-    """Replaced byte range."""
-    @property
-    def range(self) -> TextRange: ...
-
-    """Replacement text."""
-    @property
-    def text(self) -> str: ...
 
 class Edit:
     """One edit accepted by a session."""
@@ -64,28 +48,8 @@ class Edit:
     @property
     def kind(self) -> str: ...
 
-    @property
-    def bytes(self) -> list[int] | None: ...
-
-    @property
-    def edits(self) -> list[TextEdit] | None: ...
-
-    @property
-    def from(self) -> str | None: ...
-
-    @property
-    def path(self) -> str | None: ...
-
-    @property
-    def text(self) -> str | None: ...
-
-    @property
-    def to(self) -> str | None: ...
-
 class Commit:
     """One committed edit batch."""
-
-    def __init__(self, before: Revision, after: Revision, changes: Sequence[Change]) -> None: ...
 
     """Previous revision."""
     @property

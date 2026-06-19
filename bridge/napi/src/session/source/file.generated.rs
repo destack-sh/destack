@@ -27,7 +27,7 @@ impl Change {
             path: value.path,
             uri: value.uri,
             is_removed: value.is_removed,
-            module_id: value.module_id.map(|item| ModuleId::from_bridge(item)),
+            module_id: value.module_id.map(ModuleId::from_bridge),
         }
     }
 }

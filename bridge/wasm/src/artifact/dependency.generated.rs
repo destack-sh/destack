@@ -191,7 +191,7 @@ impl ArtifactSourceDependency {
                     directory: FileId::from_bridge(directory),
                     entries: entries
                         .into_iter()
-                        .map(|item| ArtifactDirectoryEntry::from_bridge(item))
+                        .map(ArtifactDirectoryEntry::from_bridge)
                         .collect(),
                 },
             },

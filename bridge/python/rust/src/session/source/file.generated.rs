@@ -15,19 +15,6 @@ pub struct Change {
 
 #[pymethods]
 impl Change {
-    /// Create one value.
-    #[new]
-    pub fn new(path: String, uri: String, is_removed: bool, module_id: Option<ModuleId>) -> Self {
-        Self {
-            value: bridge::Change {
-                path,
-                uri,
-                is_removed,
-                module_id: module_id.map(|item| item.into_bridge()),
-            },
-        }
-    }
-
     /// Repository logical path.
     #[getter]
     pub fn path(&self) -> String {
@@ -43,26 +30,18 @@ impl Change {
     /// Whether the file was removed.
     #[getter]
     pub fn is_removed(&self) -> bool {
-        self.value.is_removed.clone()
+        self.value.is_removed
     }
 
     /// Updated module id when known.
     #[getter]
     pub fn module_id(&self) -> Option<ModuleId> {
-        self.value
-            .module_id
-            .clone()
-            .map(|item| ModuleId::from_bridge(item))
+        self.value.module_id.clone().map(ModuleId::from_bridge)
     }
 }
 
 #[allow(dead_code)]
 impl Change {
-    /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::Change {
-        self.value
-    }
-
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::Change) -> Self {
         Self { value }

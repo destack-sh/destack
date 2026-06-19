@@ -15,46 +15,6 @@ pub struct ArtifactPathState {
 
 #[pymethods]
 impl ArtifactPathState {
-    /// The path did not exist.
-    #[staticmethod]
-    pub fn missing() -> Self {
-        Self {
-            value: bridge::ArtifactPathState::Missing,
-        }
-    }
-
-    /// The path was a regular file.
-    #[staticmethod]
-    pub fn file() -> Self {
-        Self {
-            value: bridge::ArtifactPathState::File,
-        }
-    }
-
-    /// The path was a directory.
-    #[staticmethod]
-    pub fn directory() -> Self {
-        Self {
-            value: bridge::ArtifactPathState::Directory,
-        }
-    }
-
-    /// The path was a symbolic link.
-    #[staticmethod]
-    pub fn symlink() -> Self {
-        Self {
-            value: bridge::ArtifactPathState::Symlink,
-        }
-    }
-
-    /// The path existed with another host-specific kind.
-    #[staticmethod]
-    pub fn other() -> Self {
-        Self {
-            value: bridge::ArtifactPathState::Other,
-        }
-    }
-
     /// Return this enum label.
     #[getter]
     pub fn label(&self) -> &'static str {
@@ -69,11 +29,6 @@ impl ArtifactPathState {
 }
 
 impl ArtifactPathState {
-    /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::ArtifactPathState {
-        self.value
-    }
-
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::ArtifactPathState) -> Self {
         Self { value }
@@ -93,17 +48,6 @@ pub struct ArtifactDirectoryEntry {
 
 #[pymethods]
 impl ArtifactDirectoryEntry {
-    /// Create one value.
-    #[new]
-    pub fn new(path: FileId, state: ArtifactPathState) -> Self {
-        Self {
-            value: bridge::ArtifactDirectoryEntry {
-                path: path.into_bridge(),
-                state: state.into_bridge(),
-            },
-        }
-    }
-
     /// The entry path identity.
     #[getter]
     pub fn path(&self) -> FileId {
@@ -119,11 +63,6 @@ impl ArtifactDirectoryEntry {
 
 #[allow(dead_code)]
 impl ArtifactDirectoryEntry {
-    /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::ArtifactDirectoryEntry {
-        self.value
-    }
-
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::ArtifactDirectoryEntry) -> Self {
         Self { value }
@@ -143,39 +82,6 @@ pub struct ArtifactSourceDependency {
 
 #[pymethods]
 impl ArtifactSourceDependency {
-    /// The exact state observed for one source path.
-    #[staticmethod]
-    pub fn path_state(path: FileId, state: ArtifactPathState) -> Self {
-        Self {
-            value: bridge::ArtifactSourceDependency::PathState {
-                path: path.into_bridge(),
-                state: state.into_bridge(),
-            },
-        }
-    }
-
-    /// The exact direct entries observed for one directory.
-    #[staticmethod]
-    pub fn directory_entries(directory: FileId, entries: Vec<ArtifactDirectoryEntry>) -> Self {
-        Self {
-            value: bridge::ArtifactSourceDependency::DirectoryEntries {
-                directory: directory.into_bridge(),
-                entries: entries.into_iter().map(|item| item.into_bridge()).collect(),
-            },
-        }
-    }
-
-    /// The exact source content read for one file.
-    #[staticmethod]
-    pub fn file_content(file: FileId, content: ContentId) -> Self {
-        Self {
-            value: bridge::ArtifactSourceDependency::FileContent {
-                file: file.into_bridge(),
-                content: content.into_bridge(),
-            },
-        }
-    }
-
     /// Return this enum variant label.
     #[getter]
     pub fn kind(&self) -> &'static str {
@@ -216,7 +122,7 @@ impl ArtifactSourceDependency {
                 entries
                     .clone()
                     .into_iter()
-                    .map(|item| ArtifactDirectoryEntry::from_bridge(item))
+                    .map(ArtifactDirectoryEntry::from_bridge)
                     .collect(),
             ),
             _ => None,
@@ -258,11 +164,6 @@ impl ArtifactSourceDependency {
 }
 
 impl ArtifactSourceDependency {
-    /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::ArtifactSourceDependency {
-        self.value
-    }
-
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::ArtifactSourceDependency) -> Self {
         Self { value }
@@ -282,26 +183,6 @@ pub struct ArtifactDependency {
 
 #[pymethods]
 impl ArtifactDependency {
-    /// Another exact artifact version.
-    #[staticmethod]
-    pub fn artifact(version: ArtifactVersion) -> Self {
-        Self {
-            value: bridge::ArtifactDependency::Artifact {
-                version: version.into_bridge(),
-            },
-        }
-    }
-
-    /// One exact primitive source observation.
-    #[staticmethod]
-    pub fn source(dependency: ArtifactSourceDependency) -> Self {
-        Self {
-            value: bridge::ArtifactDependency::Source {
-                dependency: dependency.into_bridge(),
-            },
-        }
-    }
-
     /// Return this enum variant label.
     #[getter]
     pub fn kind(&self) -> &'static str {
@@ -335,11 +216,6 @@ impl ArtifactDependency {
 }
 
 impl ArtifactDependency {
-    /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::ArtifactDependency {
-        self.value
-    }
-
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::ArtifactDependency) -> Self {
         Self { value }

@@ -15,26 +15,6 @@ pub struct DirChecked {
 
 #[pymethods]
 impl DirChecked {
-    /// Create one value.
-    #[new]
-    pub fn new(
-        version: ArtifactVersion,
-        module: ModuleId,
-        profile: ProfileId,
-        component: ComponentId,
-        entry: ModuleId,
-    ) -> Self {
-        Self {
-            value: bridge::DirChecked {
-                version: version.into_bridge(),
-                module: module.into_bridge(),
-                profile: profile.into_bridge(),
-                component: component.into_bridge(),
-                entry: entry.into_bridge(),
-            },
-        }
-    }
-
     /// Exact checked facade artifact version.
     #[getter]
     pub fn version(&self) -> ArtifactVersion {

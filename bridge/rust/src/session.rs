@@ -11,7 +11,9 @@ use destack_linter as linter;
 use destack_query as query;
 use destack_repository as repository;
 use destack_session as session;
-use destack_source::{File, FileId, FileSystem, PhysicalFileSystem, Uri};
+use destack_source::{self as source, File, FileId, FileSystem, Uri};
+
+use crate::{BuildRequest, Document, FormatRequest, LintRequest, Module, Repository, Scope};
 
 /// Result returned by the Rust bridge facade.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -24,15 +26,15 @@ pub struct Error {
 }
 
 /// Live language session exposed to Rust clients.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Session {
     /// Live language session.
-    session: session::Session,
+    pub(crate) session: Arc<session::Session>,
 }
 
 impl Error {
     /// Create one bridge error from a displayable error.
-    fn new(error: impl ToString) -> Self {
+    pub(crate) fn new(error: impl ToString) -> Self {
         Self {
             message: error.to_string(),
         }
@@ -49,42 +51,26 @@ impl Display for Error {
 impl error::Error for Error {}
 
 impl Session {
+    /// Wrap one live language session.
+    pub(crate) fn from_session(session: Arc<session::Session>) -> Self {
+        Self { session }
+    }
+
     /// Open one session from one source input.
     pub fn open(source: bridge::Source) -> Result<Self> {
-        let repository = match source {
-            bridge::Source::FileSystem { path } => Self::open_repository_from_file_system(
-                PathBuf::from(path),
-                Arc::new(PhysicalFileSystem::new()),
-            )?,
-            bridge::Source::Memory { root, edits } => {
-                let edits = edits
-                    .into_iter()
-                    .map(session::Edit::try_from)
-                    .collect::<std::result::Result<Vec<_>, _>>()
-                    .map_err(Error::new)?;
+        let repository = Repository::open(source)?;
 
-                session::open_repository_from_memory(
-                    PathBuf::from(root),
-                    edits,
-                    repository::Environment::default(),
-                    repository::Settings::default(),
-                    repository::DestackLayoutOverride::default(),
-                )
-                .map_err(Error::new)?
-            }
-        };
-
-        Self::from_repository(repository)
+        repository.session()
     }
 
     /// Return the current session revision.
-    pub fn revision(&self) -> Result<bridge::Revision> {
+    pub fn revision(&self) -> Result<repository::Revision> {
         let revision = self
             .session
             .revision(self.session.head())
             .map_err(Error::new)?;
 
-        Ok(bridge::Revision::from_repository(revision))
+        Ok(revision)
     }
 
     /// Return editable repository file paths at the current revision.
@@ -124,12 +110,11 @@ impl Session {
     }
 
     /// Edit files when the default session ref still points at one revision.
-    pub fn edit_at(
+    pub fn edit_if_current(
         &self,
-        revision: bridge::Revision,
+        revision: repository::Revision,
         edits: Vec<bridge::Edit>,
     ) -> Result<bridge::Commit> {
-        let revision = revision.into_repository().map_err(Error::new)?;
         let edits = edits
             .into_iter()
             .map(session::Edit::try_from)
@@ -137,7 +122,7 @@ impl Session {
             .map_err(Error::new)?;
         let result = self
             .session
-            .edit_at(self.session.head(), revision, edits)
+            .edit_if_current(self.session.head(), revision, edits)
             .map_err(Error::new)?;
 
         Ok(bridge::Commit::from_session_commit(&self.session, result))
@@ -157,53 +142,80 @@ impl Session {
         Ok(changes)
     }
 
-    /// Load one module path into the default session ref.
-    pub fn load_module(&self, path: impl AsRef<Path>) -> Result<bridge::Module> {
+    /// Return one module path in the default session ref.
+    pub fn module(&self, path: impl AsRef<Path>) -> Result<Module> {
         let module = self
             .session
             .load_module_from_fs(self.session.head(), path.as_ref())
             .map_err(Error::new)?;
 
-        Ok(bridge::Module::new(module.into()))
+        Ok(Module::new(module))
+    }
+
+    /// Return one named target in one package.
+    pub fn target(
+        &self,
+        revision: repository::Revision,
+        package: source::PackageId,
+        name: impl AsRef<str>,
+    ) -> Result<source::TargetId> {
+        let name = name.as_ref();
+        let target = source::TargetId::new(package, name);
+        let repository = self.session.repository();
+
+        // require the target to exist in config or builtins
+        repository
+            .target_or_builtin(revision, target)
+            .map_err(Error::new)?
+            .ok_or_else(|| Error::new(format!("target is missing: {name}")))?;
+
+        Ok(target)
+    }
+
+    /// Return the semantic profile selected by one module target name.
+    pub fn profile(
+        &self,
+        revision: repository::Revision,
+        module: Module,
+        name: impl AsRef<str>,
+    ) -> Result<source::ProfileId> {
+        let module = module.id;
+        let target = source::TargetId::new(module.package_id, name.as_ref());
+        let profile = self
+            .session
+            .repository()
+            .profile_for_module_target(revision, module, target)
+            .map_err(Error::new)?;
+
+        Ok(profile.id())
     }
 
     /// Provide root artifacts for one immutable revision.
     pub fn provide(
         &self,
-        revision: bridge::Revision,
-        keys: Vec<bridge::ArtifactKey>,
+        revision: repository::Revision,
+        keys: Vec<artifact::ArtifactKey>,
     ) -> Result<()> {
-        let revision = revision.into_repository().map_err(Error::new)?;
-        let keys = keys
-            .into_iter()
-            .map(bridge::ArtifactKey::into_artifact)
-            .collect::<std::result::Result<Vec<_>, _>>()
-            .map_err(Error::new)?;
-
         self.session.provide(revision, &keys).map_err(Error::new)
     }
 
     /// Require one root artifact for one immutable revision.
     pub fn require(
         &self,
-        revision: bridge::Revision,
-        key: bridge::ArtifactKey,
-    ) -> Result<bridge::ArtifactVersion> {
-        let revision = revision.into_repository().map_err(Error::new)?;
-        let key = key.into_artifact().map_err(Error::new)?;
+        revision: repository::Revision,
+        key: artifact::ArtifactKey,
+    ) -> Result<artifact::ArtifactVersion> {
         let version = self.session.require(revision, key).map_err(Error::new)?;
 
-        Ok(bridge::ArtifactVersion::from_artifact(version))
+        Ok(version)
     }
 
     /// Return one raw artifact record for one immutable revision.
     pub fn artifact_record(
         &self,
-        revision: bridge::Revision,
-        key: bridge::ArtifactKey,
+        revision: repository::Revision,
+        key: artifact::ArtifactKey,
     ) -> Result<bridge::ArtifactRecord> {
-        let revision = revision.into_repository().map_err(Error::new)?;
-        let key = key.into_artifact().map_err(Error::new)?;
         let version = self.session.require(revision, key).map_err(Error::new)?;
         let repository = self.session.repository();
         let record = repository
@@ -212,29 +224,51 @@ impl Session {
             .map_err(Error::new)?
             .ok_or_else(|| Error::new(format!("artifact record is missing for {version:?}")))?;
 
-        Ok(bridge::ArtifactRecord::from_artifact(record))
+        Ok(bridge::ArtifactRecord::from_artifact(
+            record,
+            repository.string_pool(),
+        ))
+    }
+
+    /// Return the trace report for the latest completed artifact run.
+    pub fn trace(
+        &self,
+        revision: repository::Revision,
+        detailed: bool,
+    ) -> Result<Option<bridge::TraceReport>> {
+        let Some(trace) = self.session.last_trace() else {
+            return Ok(None);
+        };
+        let repository = self.session.repository();
+
+        // label artifact keys through the requested revision
+        let report = trace.report(
+            detailed,
+            |key| {
+                key.module_id()
+                    .and_then(|module| repository.module_display(revision, module).ok().flatten())
+            },
+            |target| repository.target_display(revision, target).ok().flatten(),
+        );
+
+        Ok(Some(bridge::TraceReport::from_repository(report)))
     }
 
     /// Build one typed language output for one immutable revision.
     pub fn build(
         &self,
-        revision: bridge::Revision,
-        request: bridge::BuildRequest,
+        revision: repository::Revision,
+        request: BuildRequest,
     ) -> Result<bridge::BuildOutput> {
-        let revision = revision.into_repository().map_err(Error::new)?;
         let key = self.build_key(revision, request)?;
-        let version = self
-            .session
-            .require(revision, key.clone())
-            .map_err(Error::new)?;
+        let version = self.session.require(revision, key).map_err(Error::new)?;
         let output = self.build_output(revision, version, key)?;
 
         Ok(output)
     }
 
     /// Return one shared content payload by exact content id.
-    pub fn content(&self, id: bridge::ContentId) -> Result<bridge::Content> {
-        let id = id.into_source().map_err(Error::new)?;
+    pub fn content(&self, id: source::ContentId) -> Result<bridge::Content> {
         let content = self
             .session
             .repository()
@@ -247,7 +281,7 @@ impl Session {
     }
 
     /// Return one text content payload by exact content id.
-    pub fn text(&self, id: bridge::ContentId) -> Result<String> {
+    pub fn text(&self, id: source::ContentId) -> Result<String> {
         let content = self.content(id)?;
 
         match content {
@@ -257,7 +291,7 @@ impl Session {
     }
 
     /// Return one binary content payload by exact content id.
-    pub fn bytes(&self, id: bridge::ContentId) -> Result<Vec<u8>> {
+    pub fn bytes(&self, id: source::ContentId) -> Result<Vec<u8>> {
         let content = self.content(id)?;
 
         match content {
@@ -266,50 +300,53 @@ impl Session {
         }
     }
 
-    /// Return the parsed DIR artifact for one loaded module.
+    /// Parse one loaded module.
     pub fn parse(
         &self,
-        revision: bridge::Revision,
-        module: bridge::Module,
-    ) -> Result<bridge::DirParsed> {
-        let revision = revision.into_repository().map_err(Error::new)?;
-        let module_id = module.id.clone();
-        let module = module.id.into_source().map_err(Error::new)?;
-        let key = bridge::ArtifactKey::DirParsed {
-            module: module_id.clone(),
-        };
-        let key = key.into_artifact().map_err(Error::new)?;
+        revision: repository::Revision,
+        module: Module,
+    ) -> Result<bridge::ParseOutput> {
+        let module_id = module.id;
+
+        // require the parsed artifact for this module
+        let key = artifact::ArtifactKey::DirParsed { module: module_id };
         let version = self.session.require(revision, key).map_err(Error::new)?;
         let repository = self.session.repository();
         let parsed = repository
             .artifact_cache()
             .dir_parsed(&version)
             .ok_or_else(|| Error::new(format!("parsed DIR artifact is missing for {version:?}")))?;
+        let parsed = bridge::DirParsed::from_artifact(version, module_id.into(), parsed.as_ref());
 
-        Ok(bridge::DirParsed::from_artifact(
-            version,
-            module.into(),
-            parsed.as_ref(),
-        ))
+        // read diagnostics from the parsed artifact
+        let diagnostic_key = artifact::ArtifactKey::DirParsed { module: module_id };
+        let diagnostics = repository
+            .diagnostics(revision, Some(diagnostic_key))
+            .map_err(Error::new)?;
+        let diagnostics = diagnostics
+            .to_vec()
+            .into_iter()
+            .map(bridge::Diagnostic::from_source)
+            .collect();
+
+        Ok(bridge::ParseOutput {
+            parsed,
+            diagnostics,
+        })
     }
 
     /// Return the resolved DIR artifact for one loaded module profile.
     pub fn resolve(
         &self,
-        revision: bridge::Revision,
-        module: bridge::Module,
-        profile: bridge::ProfileId,
+        revision: repository::Revision,
+        module: Module,
+        profile: source::ProfileId,
     ) -> Result<bridge::DirResolved> {
-        let revision = revision.into_repository().map_err(Error::new)?;
-        let module_id = module.id.clone();
-        let profile_id = profile.clone();
-        let module = module.id.into_source().map_err(Error::new)?;
-        let profile = profile.into_source().map_err(Error::new)?;
-        let key = bridge::ArtifactKey::DirResolved {
+        let module_id = module.id;
+        let key = artifact::ArtifactKey::DirResolved {
             module: module_id,
-            profile: profile_id,
+            profile,
         };
-        let key = key.into_artifact().map_err(Error::new)?;
         let version = self.session.require(revision, key).map_err(Error::new)?;
         let repository = self.session.repository();
         let resolved = repository
@@ -321,51 +358,68 @@ impl Session {
 
         Ok(bridge::DirResolved::from_artifact(
             version,
-            module.into(),
+            module_id.into(),
             profile.into(),
             resolved.as_ref(),
         ))
     }
 
-    /// Return the checked DIR facade artifact for one loaded module profile.
+    /// Check one loaded module profile.
     pub fn check(
         &self,
-        revision: bridge::Revision,
-        module: bridge::Module,
-        profile: bridge::ProfileId,
-    ) -> Result<bridge::DirChecked> {
-        let revision = revision.into_repository().map_err(Error::new)?;
-        let module_id = module.id.clone();
-        let profile_id = profile.clone();
-        let module = module.id.into_source().map_err(Error::new)?;
-        let profile = profile.into_source().map_err(Error::new)?;
-        let key = bridge::ArtifactKey::DirChecked {
+        revision: repository::Revision,
+        module: Module,
+        profile: source::ProfileId,
+    ) -> Result<bridge::CheckOutput> {
+        let module_id = module.id;
+
+        // require the checked facade artifact for this module
+        let key = artifact::ArtifactKey::DirChecked {
             module: module_id,
-            profile: profile_id,
+            profile,
         };
-        let key = key.into_artifact().map_err(Error::new)?;
         let version = self.session.require(revision, key).map_err(Error::new)?;
         let repository = self.session.repository();
         let store = repository.artifact_cache();
         let checked = store.dir_checked(&version).ok_or_else(|| {
             Error::new(format!("checked DIR artifact is missing for {version:?}"))
         })?;
-
-        Ok(bridge::DirChecked::from_artifact(
+        let checked_output = bridge::DirChecked::from_artifact(
             version,
-            module.into(),
+            module_id.into(),
             profile.into(),
             checked.as_ref(),
-        ))
+        );
+
+        // read diagnostics from the component artifact that owns the checked module
+        let diagnostic_key = artifact::ArtifactKey::DirCheckedComponent {
+            entry: checked.entry,
+            component: checked.component,
+            profile,
+        };
+        let diagnostics = self
+            .session
+            .repository()
+            .diagnostics(revision, Some(diagnostic_key))
+            .map_err(Error::new)?;
+        let diagnostics = diagnostics
+            .to_vec()
+            .into_iter()
+            .map(bridge::Diagnostic::from_source)
+            .collect();
+
+        Ok(bridge::CheckOutput {
+            checked: checked_output,
+            diagnostics,
+        })
     }
 
     /// Format one document for one immutable revision.
     pub fn format(
         &self,
-        revision: bridge::Revision,
-        request: bridge::FormatRequest,
+        revision: repository::Revision,
+        request: FormatRequest,
     ) -> Result<bridge::FormatOutput> {
-        let revision = revision.into_repository().map_err(Error::new)?;
         let text = self.format_document(revision, request.document)?;
 
         Ok(bridge::FormatOutput { text })
@@ -374,15 +428,11 @@ impl Session {
     /// Lint one scope for one immutable revision.
     pub fn lint(
         &self,
-        revision: bridge::Revision,
-        request: bridge::LintRequest,
+        revision: repository::Revision,
+        request: LintRequest,
     ) -> Result<bridge::LintOutput> {
-        let revision = revision.into_repository().map_err(Error::new)?;
         let key = Self::lint_key(request.scope)?;
-        let _version = self
-            .session
-            .require(revision, key.clone())
-            .map_err(Error::new)?;
+        let _version = self.session.require(revision, key).map_err(Error::new)?;
         let diagnostics = self
             .session
             .repository()
@@ -400,14 +450,9 @@ impl Session {
     /// Return diagnostics for one immutable revision.
     pub fn diagnostics(
         &self,
-        revision: bridge::Revision,
-        key: Option<bridge::ArtifactKey>,
+        revision: repository::Revision,
+        key: Option<artifact::ArtifactKey>,
     ) -> Result<Vec<bridge::Diagnostic>> {
-        let revision = revision.into_repository().map_err(Error::new)?;
-        let key = key
-            .map(bridge::ArtifactKey::into_artifact)
-            .transpose()
-            .map_err(Error::new)?;
         let diagnostics = self
             .session
             .repository()
@@ -425,11 +470,9 @@ impl Session {
     /// Return sidecars for one artifact key in one immutable revision.
     pub fn sidecars(
         &self,
-        revision: bridge::Revision,
-        key: bridge::ArtifactKey,
+        revision: repository::Revision,
+        key: artifact::ArtifactKey,
     ) -> Result<Vec<bridge::ArtifactSidecar>> {
-        let revision = revision.into_repository().map_err(Error::new)?;
-        let key = key.into_artifact().map_err(Error::new)?;
         let sidecars = self
             .session
             .repository()
@@ -448,36 +491,26 @@ impl Session {
     fn build_key(
         &self,
         revision: repository::Revision,
-        request: bridge::BuildRequest,
+        request: BuildRequest,
     ) -> Result<artifact::ArtifactKey> {
         match request {
-            bridge::BuildRequest::Module {
+            BuildRequest::Module {
                 module,
                 target,
                 output,
-            } => {
-                let module = module.id.into_source().map_err(Error::new)?;
-                let target = target.into_source().map_err(Error::new)?;
-
-                match output {
-                    bridge::ModuleBuildKind::Script => {
-                        Ok(artifact::ArtifactKey::script(module, target))
-                    }
-                    bridge::ModuleBuildKind::Object => {
-                        Ok(artifact::ArtifactKey::object(module, target))
-                    }
-                    bridge::ModuleBuildKind::Asset => {
-                        Ok(artifact::ArtifactKey::asset(module, target))
-                    }
+            } => match output {
+                bridge::ModuleBuildKind::Script => {
+                    Ok(artifact::ArtifactKey::script(module.id, target))
                 }
-            }
-            bridge::BuildRequest::Build { target } => {
-                let target = target.into_source().map_err(Error::new)?;
-
-                Ok(artifact::ArtifactKey::build(target))
-            }
-            bridge::BuildRequest::Target { target } => {
-                let target = target.into_source().map_err(Error::new)?;
+                bridge::ModuleBuildKind::Object => {
+                    Ok(artifact::ArtifactKey::object(module.id, target))
+                }
+                bridge::ModuleBuildKind::Asset => {
+                    Ok(artifact::ArtifactKey::asset(module.id, target))
+                }
+            },
+            BuildRequest::Build { target } => Ok(artifact::ArtifactKey::build(target)),
+            BuildRequest::Target { target } => {
                 let package = target.package_id();
                 let target_config = self
                     .session
@@ -498,8 +531,7 @@ impl Session {
                     )))
                 }
             }
-            bridge::BuildRequest::Product { product } => {
-                let product = product.into_source().map_err(Error::new)?;
+            BuildRequest::Product { product } => {
                 let package = product.package_id();
 
                 Ok(artifact::ArtifactKey::product(package, product))
@@ -584,21 +616,17 @@ impl Session {
     fn format_document(
         &self,
         revision: repository::Revision,
-        document: bridge::Document,
+        document: Document,
     ) -> Result<String> {
         match document {
-            bridge::Document::Module { module } => self.format_module(revision, module),
-            bridge::Document::Text { path, text } => Self::format_text(path, text),
+            Document::Module { module } => self.format_module(revision, module),
+            Document::Text { path, text } => Self::format_text(path, text),
         }
     }
 
     /// Format one loaded module from repository source.
-    fn format_module(
-        &self,
-        revision: repository::Revision,
-        module: bridge::Module,
-    ) -> Result<String> {
-        let module_id = module.id.into_source().map_err(Error::new)?;
+    fn format_module(&self, revision: repository::Revision, module: Module) -> Result<String> {
+        let module_id = module.id;
         let repository = self.session.repository();
         let module = repository
             .module(revision, module_id)
@@ -639,26 +667,18 @@ impl Session {
     }
 
     /// Resolve one lint request to its canonical artifact key.
-    fn lint_key(scope: bridge::Scope) -> Result<artifact::ArtifactKey> {
+    fn lint_key(scope: Scope) -> Result<artifact::ArtifactKey> {
         match scope {
-            bridge::Scope::Module { module, profile } => {
-                let module = module.id.into_source().map_err(Error::new)?;
-                let profile = profile.into_source().map_err(Error::new)?;
-
-                Ok(artifact::ArtifactKey::module_linted(module, profile))
+            Scope::Module { module, profile } => {
+                Ok(artifact::ArtifactKey::module_linted(module.id, profile))
             }
-            bridge::Scope::Package { package } => {
-                let package = package.into_source().map_err(Error::new)?;
-
-                Ok(artifact::ArtifactKey::package_linted(package))
-            }
-            bridge::Scope::Workspace => Ok(artifact::ArtifactKey::workspace_linted()),
+            Scope::Package { package } => Ok(artifact::ArtifactKey::package_linted(package)),
+            Scope::Workspace => Ok(artifact::ArtifactKey::workspace_linted()),
         }
     }
 
     /// Open one Rust session from one prepared repository.
-    fn from_repository(repository: repository::Repository) -> Result<Self> {
-        let repository = Arc::new(repository);
+    pub(crate) fn from_repository(repository: Arc<repository::Repository>) -> Result<Self> {
         let root = repository.path().to_path_buf();
         let head = repository::Ref::for_root(&root);
         let compiler = Arc::new(compiler::Compiler::new(Arc::clone(&repository)));
@@ -677,12 +697,13 @@ impl Session {
             None,
         )
         .map_err(Error::new)?;
+        let session = Arc::new(session);
 
         Ok(Self { session })
     }
 
     /// Open one repository from one filesystem source.
-    fn open_repository_from_file_system(
+    pub(crate) fn open_repository_from_file_system(
         path: PathBuf,
         file_system: Arc<dyn FileSystem>,
     ) -> Result<repository::Repository> {

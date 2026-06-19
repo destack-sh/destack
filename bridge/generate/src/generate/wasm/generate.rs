@@ -78,7 +78,7 @@ fn render_imports(schema: &Schema, names: &[String]) -> TokenStream {
 
 /// Render one WASM struct.
 fn render_struct(schema: &Schema, ty: &Item, fields: &[Field]) -> TokenStream {
-    let name = ty.ident();
+    let name = ty.javascript_ident();
     let docs = ty.docs();
     let field_defs = fields.iter().map(|field| {
         let name = field.ident();
@@ -160,7 +160,8 @@ fn render_struct_getter(schema: &Schema, field: &Field) -> TokenStream {
 
 /// Render one WASM struct to bridge conversion.
 fn render_struct_into_bridge(schema: &Schema, ty: &Item) -> TokenStream {
-    let name = ty.ident();
+    let name = ty.javascript_ident();
+    let bridge_name = ty.ident();
     let fields = match &ty.shape {
         Shape::Struct(fields) => fields,
         Shape::Enum(_) => unreachable!("struct conversion requires struct"),
@@ -175,8 +176,8 @@ fn render_struct_into_bridge(schema: &Schema, ty: &Item) -> TokenStream {
     quote! {
         impl #name {
             /// Convert this WASM value into one bridge value.
-            pub(crate) fn into_bridge(self) -> bridge::#name {
-                bridge::#name {
+            pub(crate) fn into_bridge(self) -> bridge::#bridge_name {
+                bridge::#bridge_name {
                     #(#field_values)*
                 }
             }
@@ -186,7 +187,8 @@ fn render_struct_into_bridge(schema: &Schema, ty: &Item) -> TokenStream {
 
 /// Render one bridge to WASM struct conversion.
 fn render_struct_from_bridge(schema: &Schema, ty: &Item) -> TokenStream {
-    let name = ty.ident();
+    let name = ty.javascript_ident();
+    let bridge_name = ty.ident();
     let fields = match &ty.shape {
         Shape::Struct(fields) => fields,
         Shape::Enum(_) => unreachable!("struct conversion requires struct"),
@@ -201,7 +203,7 @@ fn render_struct_from_bridge(schema: &Schema, ty: &Item) -> TokenStream {
     quote! {
         impl #name {
             /// Convert one bridge value into one WASM value.
-            pub(crate) fn from_bridge(value: bridge::#name) -> Self {
+            pub(crate) fn from_bridge(value: bridge::#bridge_name) -> Self {
                 Self {
                     #(#field_values)*
                 }
@@ -212,7 +214,7 @@ fn render_struct_from_bridge(schema: &Schema, ty: &Item) -> TokenStream {
 
 /// Render one WASM payload enum.
 fn render_payload_enum(schema: &Schema, ty: &Item, variants: &[Variant]) -> TokenStream {
-    let name = ty.ident();
+    let name = ty.javascript_ident();
     let content_name = ty.payload_content_ident();
     let docs = ty.docs();
     let content_variants = variants
@@ -532,19 +534,20 @@ fn render_payload_enum_into_bridge(
     variants: &[Variant],
     content_name: &proc_macro2::Ident,
 ) -> TokenStream {
-    let name = ty.ident();
+    let name = ty.javascript_ident();
+    let bridge_name = ty.ident();
     let arms = variants.iter().map(|variant| {
         let variant_name = variant.ident();
 
         match &variant.payload {
             Payload::Unit => quote! {
-                #content_name::#variant_name => bridge::#name::#variant_name,
+                #content_name::#variant_name => bridge::#bridge_name::#variant_name,
             },
             Payload::Tuple(ty) => {
                 let value = render_into_bridge_value(schema, quote!(value), ty);
 
                 quote! {
-                    #content_name::#variant_name(value) => bridge::#name::#variant_name(#value),
+                    #content_name::#variant_name(value) => bridge::#bridge_name::#variant_name(#value),
                 }
             }
             Payload::Struct(fields) => {
@@ -561,7 +564,7 @@ fn render_payload_enum_into_bridge(
                 });
 
                 quote! {
-                    #content_name::#variant_name { #(#bindings,)* } => bridge::#name::#variant_name {
+                    #content_name::#variant_name { #(#bindings,)* } => bridge::#bridge_name::#variant_name {
                         #(#field_values)*
                     },
                 }
@@ -572,7 +575,7 @@ fn render_payload_enum_into_bridge(
     quote! {
         impl #name {
             /// Convert this WASM payload enum into one bridge enum.
-            pub(crate) fn into_bridge(self) -> bridge::#name {
+            pub(crate) fn into_bridge(self) -> bridge::#bridge_name {
                 match self.content {
                     #(#arms)*
                 }
@@ -588,13 +591,14 @@ fn render_payload_enum_from_bridge(
     variants: &[Variant],
     content_name: &proc_macro2::Ident,
 ) -> TokenStream {
-    let name = ty.ident();
+    let name = ty.javascript_ident();
+    let bridge_name = ty.ident();
     let arms = variants.iter().map(|variant| {
         let variant_name = variant.ident();
 
         match &variant.payload {
             Payload::Unit => quote! {
-                bridge::#name::#variant_name => Self {
+                bridge::#bridge_name::#variant_name => Self {
                     content: #content_name::#variant_name,
                 },
             },
@@ -602,7 +606,7 @@ fn render_payload_enum_from_bridge(
                 let value = render_from_bridge_value(schema, quote!(value), ty);
 
                 quote! {
-                    bridge::#name::#variant_name(value) => Self {
+                    bridge::#bridge_name::#variant_name(value) => Self {
                         content: #content_name::#variant_name(#value),
                     },
                 }
@@ -621,7 +625,7 @@ fn render_payload_enum_from_bridge(
                 });
 
                 quote! {
-                    bridge::#name::#variant_name { #(#bindings,)* } => Self {
+                    bridge::#bridge_name::#variant_name { #(#bindings,)* } => Self {
                         content: #content_name::#variant_name {
                             #(#field_values)*
                         },
@@ -634,7 +638,7 @@ fn render_payload_enum_from_bridge(
     quote! {
         impl #name {
             /// Convert one bridge payload enum into one WASM payload enum.
-            pub(crate) fn from_bridge(value: bridge::#name) -> Self {
+            pub(crate) fn from_bridge(value: bridge::#bridge_name) -> Self {
                 match value {
                     #(#arms)*
                 }
@@ -695,6 +699,7 @@ fn render_type(schema: &Schema, ty: &Type) -> TokenStream {
         Type::Bool => quote!(bool),
         Type::U8 => quote!(u8),
         Type::U32 => quote!(u32),
+        Type::U64 => quote!(f64),
         Type::Usize => quote!(u32),
         Type::Vec(ty) => {
             let ty = render_type(schema, ty);
@@ -708,7 +713,7 @@ fn render_type(schema: &Schema, ty: &Type) -> TokenStream {
         }
         Type::Named(name) if schema.is_unit_enum(name) => quote!(String),
         Type::Named(name) => {
-            let name = schema.item(name).ident();
+            let name = schema.item(name).javascript_ident();
 
             quote!(#name)
         }
@@ -718,7 +723,7 @@ fn render_type(schema: &Schema, ty: &Type) -> TokenStream {
 /// Render one value cloned out of a WASM value.
 fn render_clone_value(value: TokenStream, ty: &Type) -> TokenStream {
     match ty {
-        Type::Bool | Type::U8 | Type::U32 | Type::Usize => value,
+        Type::Bool | Type::U8 | Type::U32 | Type::U64 | Type::Usize => value,
         _ => quote!(#value.clone()),
     }
 }
@@ -726,7 +731,7 @@ fn render_clone_value(value: TokenStream, ty: &Type) -> TokenStream {
 /// Render one value cloned from a borrowed WASM field.
 fn render_borrowed_clone_value(value: TokenStream, ty: &Type) -> TokenStream {
     match ty {
-        Type::Bool | Type::U8 | Type::U32 | Type::Usize => quote!(*#value),
+        Type::Bool | Type::U8 | Type::U32 | Type::U64 | Type::Usize => quote!(*#value),
         _ => quote!(#value.clone()),
     }
 }
@@ -770,6 +775,10 @@ fn render_from_bridge_value(schema: &Schema, value: TokenStream, ty: &Type) -> T
                 return value;
             }
 
+            if let Some(mapper) = render_from_bridge_mapper(schema, ty) {
+                return quote!(#value.into_iter().map(#mapper).collect());
+            }
+
             let item = render_from_bridge_value(schema, quote!(item), ty);
 
             quote!(#value.into_iter().map(|item| #item).collect())
@@ -777,6 +786,10 @@ fn render_from_bridge_value(schema: &Schema, value: TokenStream, ty: &Type) -> T
         Type::Option(ty) => {
             if !ty.needs_from_bridge_conversion(schema) {
                 return value;
+            }
+
+            if let Some(mapper) = render_from_bridge_mapper(schema, ty) {
+                return quote!(#value.map(#mapper));
             }
 
             let item = render_from_bridge_value(schema, quote!(item), ty);
@@ -789,10 +802,29 @@ fn render_from_bridge_value(schema: &Schema, value: TokenStream, ty: &Type) -> T
             quote!(#helper(#value))
         }
         Type::Named(name) => {
-            let name = schema.item(name).ident();
+            let name = schema.item(name).javascript_ident();
 
             quote!(#name::from_bridge(#value))
         }
+        Type::U64 => quote!(#value as f64),
+        Type::Usize => quote!(#value as u32),
         _ => value,
+    }
+}
+
+/// Render one direct bridge output mapper when possible.
+fn render_from_bridge_mapper(schema: &Schema, ty: &Type) -> Option<TokenStream> {
+    match ty {
+        Type::Named(name) if schema.is_unit_enum(name) => {
+            let helper = schema.item(name).label_ident();
+
+            Some(quote!(#helper))
+        }
+        Type::Named(name) => {
+            let name = schema.item(name).javascript_ident();
+
+            Some(quote!(#name::from_bridge))
+        }
+        _ => None,
     }
 }

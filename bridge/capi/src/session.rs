@@ -6,10 +6,11 @@ use destack as rust;
 use crate::core::{DestackError, DestackStatus, c_string, read_string, return_status, write_out};
 use crate::generated::{
     DestackArtifactKey, DestackArtifactRecord, DestackArtifactSidecarArray, DestackArtifactVersion,
-    DestackBuildOutput, DestackBuildRequest, DestackByteArray, DestackChangeArray, DestackCommit,
-    DestackContent, DestackContentId, DestackDiagnosticArray, DestackDirChecked, DestackDirParsed,
+    DestackBuildOutput, DestackBuildRequest, DestackByteArray, DestackChangeArray,
+    DestackCheckOutput, DestackCommit, DestackContent, DestackContentId, DestackDiagnosticArray,
     DestackDirResolved, DestackFormatOutput, DestackFormatRequest, DestackLintOutput,
-    DestackLintRequest, DestackModule, DestackProfileId, DestackRevision, DestackSessionFileArray,
+    DestackLintRequest, DestackModule, DestackParseOutput, DestackProfileId, DestackRevision,
+    DestackSessionFileArray,
 };
 use crate::source::{DestackEdits, DestackSource};
 
@@ -60,7 +61,8 @@ pub unsafe extern "C" fn destack_session_revision(
     return_status(error, || {
         let session = unsafe { session.as_ref() }.ok_or("session is null")?;
         let revision = bridge(session.session.revision())?;
-        let revision = DestackRevision::from_bridge(revision)?;
+        let revision =
+            DestackRevision::from_bridge(rust::language::Revision::from_repository(revision))?;
 
         write_out(out, revision, "revision output is null")
     })
@@ -102,7 +104,7 @@ pub unsafe extern "C" fn destack_session_edit(
 
 /// Edit files when the current revision still matches.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_session_edit_at(
+pub unsafe extern "C" fn destack_session_edit_if_current(
     session: *mut DestackSession,
     revision: *const DestackRevision,
     edits: *const DestackEdits,
@@ -113,8 +115,12 @@ pub unsafe extern "C" fn destack_session_edit_at(
         let session = unsafe { session.as_mut() }.ok_or("session is null")?;
         let revision = unsafe { revision.as_ref() }.ok_or("revision is null")?;
         let edits = unsafe { edits.as_ref() }.ok_or("edit list is null")?;
-        let revision = revision.to_bridge()?;
-        let result = bridge(session.session.edit_at(revision, edits.value.clone()))?;
+        let revision = repository_revision(revision)?;
+        let result = bridge(
+            session
+                .session
+                .edit_if_current(revision, edits.value.clone()),
+        )?;
         let result = DestackCommit::from_bridge(result)?;
 
         write_out(out, result, "commit output is null")
@@ -137,9 +143,9 @@ pub unsafe extern "C" fn destack_session_reload(
     })
 }
 
-/// Load one module path into the current session.
+/// Return one module path in the current session.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_session_load_module(
+pub unsafe extern "C" fn destack_session_module(
     session: *mut DestackSession,
     path: *const c_char,
     out: *mut DestackModule,
@@ -148,8 +154,8 @@ pub unsafe extern "C" fn destack_session_load_module(
     return_status(error, || {
         let session = unsafe { session.as_mut() }.ok_or("session is null")?;
         let path = read_string(path)?;
-        let module = bridge(session.session.load_module(path))?;
-        let module = DestackModule::from_bridge(module)?;
+        let module = bridge(session.session.module(path))?;
+        let module = DestackModule::from_bridge(module.into_bridge())?;
 
         write_out(out, module, "module output is null")
     })
@@ -166,7 +172,7 @@ pub unsafe extern "C" fn destack_session_provide(
 ) -> DestackStatus {
     return_status(error, || {
         let session = unsafe { session.as_ref() }.ok_or("session is null")?;
-        let revision = revision.to_bridge()?;
+        let revision = repository_revision(&revision)?;
         let keys = artifact_keys_to_bridge(keys, len)?;
 
         bridge(session.session.provide(revision, keys))
@@ -184,10 +190,11 @@ pub unsafe extern "C" fn destack_session_require(
 ) -> DestackStatus {
     return_status(error, || {
         let session = unsafe { session.as_ref() }.ok_or("session is null")?;
-        let revision = revision.to_bridge()?;
+        let revision = repository_revision(&revision)?;
         let key = unsafe { key.as_ref() }.ok_or("artifact key is null")?;
-        let version = bridge(session.session.require(revision, key.value.clone()))?;
-        let version = DestackArtifactVersion::from_bridge(version)?;
+        let key = artifact_key(key)?;
+        let version = bridge(session.session.require(revision, key))?;
+        let version = DestackArtifactVersion::from_bridge(version.into())?;
 
         write_out(out, version, "artifact version output is null")
     })
@@ -204,9 +211,10 @@ pub unsafe extern "C" fn destack_session_artifact_record(
 ) -> DestackStatus {
     return_status(error, || {
         let session = unsafe { session.as_ref() }.ok_or("session is null")?;
-        let revision = revision.to_bridge()?;
+        let revision = repository_revision(&revision)?;
         let key = unsafe { key.as_ref() }.ok_or("artifact key is null")?;
-        let record = bridge(session.session.artifact_record(revision, key.value.clone()))?;
+        let key = artifact_key(key)?;
+        let record = bridge(session.session.artifact_record(revision, key))?;
         let record = DestackArtifactRecord::from_bridge(record)?;
 
         write_out(out, record, "artifact record output is null")
@@ -225,8 +233,8 @@ pub unsafe extern "C" fn destack_session_build(
     return_status(error, || {
         let session = unsafe { session.as_ref() }.ok_or("session is null")?;
         let request = unsafe { request.as_ref() }.ok_or("build request is null")?;
-        let revision = revision.to_bridge()?;
-        let request = request.to_bridge()?;
+        let revision = repository_revision(&revision)?;
+        let request = build_request(request)?;
         let output = bridge(session.session.build(revision, request))?;
         let output = DestackBuildOutput::from_bridge(output)?;
 
@@ -244,7 +252,7 @@ pub unsafe extern "C" fn destack_session_content(
 ) -> DestackStatus {
     return_status(error, || {
         let session = unsafe { session.as_ref() }.ok_or("session is null")?;
-        let id = id.to_bridge()?;
+        let id = content_id(id)?;
         let content = bridge(session.session.content(id))?;
         let content = DestackContent::from_bridge(content)?;
 
@@ -262,7 +270,7 @@ pub unsafe extern "C" fn destack_session_text(
 ) -> DestackStatus {
     return_status(error, || {
         let session = unsafe { session.as_ref() }.ok_or("session is null")?;
-        let id = id.to_bridge()?;
+        let id = content_id(id)?;
         let text = bridge(session.session.text(id))?;
         let text = c_string(text)?;
 
@@ -280,7 +288,7 @@ pub unsafe extern "C" fn destack_session_bytes(
 ) -> DestackStatus {
     return_status(error, || {
         let session = unsafe { session.as_ref() }.ok_or("session is null")?;
-        let id = id.to_bridge()?;
+        let id = content_id(id)?;
         let bytes = bridge(session.session.bytes(id))?;
         let bytes = DestackByteArray::from_vec(bytes);
 
@@ -288,23 +296,23 @@ pub unsafe extern "C" fn destack_session_bytes(
     })
 }
 
-/// Return the parsed DIR artifact for one loaded module.
+/// Parse one loaded module.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_session_parse(
     session: *const DestackSession,
     revision: DestackRevision,
     module: DestackModule,
-    out: *mut DestackDirParsed,
+    out: *mut DestackParseOutput,
     error: *mut *mut DestackError,
 ) -> DestackStatus {
     return_status(error, || {
         let session = unsafe { session.as_ref() }.ok_or("session is null")?;
-        let revision = revision.to_bridge()?;
-        let module = module.to_bridge()?;
-        let parsed = bridge(session.session.parse(revision, module))?;
-        let parsed = DestackDirParsed::from_bridge(parsed)?;
+        let revision = repository_revision(&revision)?;
+        let module = bridge_module(module)?;
+        let output = bridge(session.session.parse(revision, module))?;
+        let output = DestackParseOutput::from_bridge(output)?;
 
-        write_out(out, parsed, "parsed DIR output is null")
+        write_out(out, output, "parse output is null")
     })
 }
 
@@ -320,9 +328,9 @@ pub unsafe extern "C" fn destack_session_resolve(
 ) -> DestackStatus {
     return_status(error, || {
         let session = unsafe { session.as_ref() }.ok_or("session is null")?;
-        let revision = revision.to_bridge()?;
-        let module = module.to_bridge()?;
-        let profile = profile.to_bridge()?;
+        let revision = repository_revision(&revision)?;
+        let module = bridge_module(module)?;
+        let profile = profile_id(profile)?;
         let resolved = bridge(session.session.resolve(revision, module, profile))?;
         let resolved = DestackDirResolved::from_bridge(resolved)?;
 
@@ -330,25 +338,25 @@ pub unsafe extern "C" fn destack_session_resolve(
     })
 }
 
-/// Return the checked DIR artifact for one loaded module profile.
+/// Check one loaded module profile.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_session_check(
     session: *const DestackSession,
     revision: DestackRevision,
     module: DestackModule,
     profile: DestackProfileId,
-    out: *mut DestackDirChecked,
+    out: *mut DestackCheckOutput,
     error: *mut *mut DestackError,
 ) -> DestackStatus {
     return_status(error, || {
         let session = unsafe { session.as_ref() }.ok_or("session is null")?;
-        let revision = revision.to_bridge()?;
-        let module = module.to_bridge()?;
-        let profile = profile.to_bridge()?;
-        let checked = bridge(session.session.check(revision, module, profile))?;
-        let checked = DestackDirChecked::from_bridge(checked)?;
+        let revision = repository_revision(&revision)?;
+        let module = bridge_module(module)?;
+        let profile = profile_id(profile)?;
+        let output = bridge(session.session.check(revision, module, profile))?;
+        let output = DestackCheckOutput::from_bridge(output)?;
 
-        write_out(out, checked, "checked DIR output is null")
+        write_out(out, output, "check output is null")
     })
 }
 
@@ -364,8 +372,8 @@ pub unsafe extern "C" fn destack_session_format(
     return_status(error, || {
         let session = unsafe { session.as_ref() }.ok_or("session is null")?;
         let request = unsafe { request.as_ref() }.ok_or("format request is null")?;
-        let revision = revision.to_bridge()?;
-        let request = request.to_bridge()?;
+        let revision = repository_revision(&revision)?;
+        let request = format_request(request)?;
         let output = bridge(session.session.format(revision, request))?;
         let output = DestackFormatOutput::from_bridge(output)?;
 
@@ -385,8 +393,8 @@ pub unsafe extern "C" fn destack_session_lint(
     return_status(error, || {
         let session = unsafe { session.as_ref() }.ok_or("session is null")?;
         let request = unsafe { request.as_ref() }.ok_or("lint request is null")?;
-        let revision = revision.to_bridge()?;
-        let request = request.to_bridge()?;
+        let revision = repository_revision(&revision)?;
+        let request = lint_request(request)?;
         let output = bridge(session.session.lint(revision, request))?;
         let output = DestackLintOutput::from_bridge(output)?;
 
@@ -405,12 +413,12 @@ pub unsafe extern "C" fn destack_session_diagnostics(
 ) -> DestackStatus {
     return_status(error, || {
         let session = unsafe { session.as_ref() }.ok_or("session is null")?;
-        let revision = revision.to_bridge()?;
+        let revision = repository_revision(&revision)?;
         let key = if key.is_null() {
             None
         } else {
             let key = unsafe { key.as_ref() }.ok_or("artifact key is null")?;
-            Some(key.value.clone())
+            Some(artifact_key(key)?)
         };
         let diagnostics = bridge(session.session.diagnostics(revision, key))?;
         let diagnostics = DestackDiagnosticArray::from_bridge(diagnostics)?;
@@ -430,9 +438,10 @@ pub unsafe extern "C" fn destack_session_sidecars(
 ) -> DestackStatus {
     return_status(error, || {
         let session = unsafe { session.as_ref() }.ok_or("session is null")?;
-        let revision = revision.to_bridge()?;
+        let revision = repository_revision(&revision)?;
         let key = unsafe { key.as_ref() }.ok_or("artifact key is null")?;
-        let sidecars = bridge(session.session.sidecars(revision, key.value.clone()))?;
+        let key = artifact_key(key)?;
+        let sidecars = bridge(session.session.sidecars(revision, key))?;
         let sidecars = DestackArtifactSidecarArray::from_bridge(sidecars)?;
 
         write_out(out, sidecars, "artifact sidecar array output is null")
@@ -455,10 +464,62 @@ fn artifact_keys_to_bridge(
     let mut values = Vec::with_capacity(keys.len());
     for key in keys {
         let key = unsafe { key.as_ref() }.ok_or("artifact key is null")?;
-        values.push(key.value.clone());
+        values.push(artifact_key(key)?);
     }
 
     Ok(values)
+}
+
+/// Convert one C revision into one repository revision.
+fn repository_revision(revision: &DestackRevision) -> Result<rust::Revision, String> {
+    revision
+        .to_bridge()?
+        .into_repository()
+        .map_err(|error| error.to_string())
+}
+
+/// Convert one C module into one Rust bridge module.
+fn bridge_module(module: DestackModule) -> Result<rust::Module, String> {
+    rust::Module::try_from(module.to_bridge()?).map_err(|error| error.to_string())
+}
+
+/// Convert one C profile id into one source profile id.
+fn profile_id(profile: DestackProfileId) -> Result<rust::ProfileId, String> {
+    profile
+        .to_bridge()?
+        .into_source()
+        .map_err(|error| error.to_string())
+}
+
+/// Convert one C content id into one source content id.
+fn content_id(content: DestackContentId) -> Result<rust::ContentId, String> {
+    content
+        .to_bridge()?
+        .into_source()
+        .map_err(|error| error.to_string())
+}
+
+/// Convert one C artifact key handle into one artifact key.
+fn artifact_key(key: &DestackArtifactKey) -> Result<rust::ArtifactKey, String> {
+    key.value
+        .clone()
+        .into_artifact()
+        .map_err(|error| error.to_string())
+}
+
+/// Convert one C build request into one Rust build request.
+fn build_request(request: &DestackBuildRequest) -> Result<rust::BuildRequest, String> {
+    rust::BuildRequest::try_from(request.to_bridge()?).map_err(|error| error.to_string())
+}
+
+/// Convert one C format request into one Rust format request.
+fn format_request(request: &DestackFormatRequest) -> Result<rust::FormatRequest, String> {
+    rust::FormatRequest::try_from(request.to_bridge()?).map_err(|error| error.to_string())
+}
+
+/// Convert one C lint request into one Rust lint request.
+fn lint_request(request: &DestackLintRequest) -> Result<rust::LintRequest, String> {
+    rust::LintRequest::try_from(request.to_bridge()?).map_err(|error| error.to_string())
 }
 
 /// Convert one Rust bridge result into a C ABI result.

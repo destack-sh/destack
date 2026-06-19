@@ -27,6 +27,11 @@ destack_query.workspace = true
 destack_repository.workspace = true
 destack_session.workspace = true
 destack_source.workspace = true
+destack_workspace.workspace = true
+
+[features]
+default = ["native"]
+native = ["destack_compiler/native", "destack_session/native"]
 
 [lints]
 workspace = true

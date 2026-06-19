@@ -50,7 +50,7 @@ impl Source {
                 };
                 let edits = value
                     .into_iter()
-                    .map(|item| Ok::<_, napi::Error>(item.into_bridge()?))
+                    .map(|item| item.into_bridge())
                     .collect::<napi::Result<Vec<_>>>()?;
                 Ok(bridge::Source::Memory { root, edits })
             }

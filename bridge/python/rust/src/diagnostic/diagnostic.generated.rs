@@ -19,30 +19,6 @@ pub struct DiagnosticSeverity {
 
 #[pymethods]
 impl DiagnosticSeverity {
-    /// Informative message.
-    #[staticmethod]
-    pub fn note() -> Self {
-        Self {
-            value: bridge::DiagnosticSeverity::Note,
-        }
-    }
-
-    /// Non-critical issue.
-    #[staticmethod]
-    pub fn warning() -> Self {
-        Self {
-            value: bridge::DiagnosticSeverity::Warning,
-        }
-    }
-
-    /// Critical issue.
-    #[staticmethod]
-    pub fn error() -> Self {
-        Self {
-            value: bridge::DiagnosticSeverity::Error,
-        }
-    }
-
     /// Return this enum label.
     #[getter]
     pub fn label(&self) -> &'static str {
@@ -55,11 +31,6 @@ impl DiagnosticSeverity {
 }
 
 impl DiagnosticSeverity {
-    /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::DiagnosticSeverity {
-        self.value
-    }
-
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::DiagnosticSeverity) -> Self {
         Self { value }
@@ -75,22 +46,6 @@ pub struct DiagnosticTag {
 
 #[pymethods]
 impl DiagnosticTag {
-    /// Unused or unnecessary source.
-    #[staticmethod]
-    pub fn unnecessary() -> Self {
-        Self {
-            value: bridge::DiagnosticTag::Unnecessary,
-        }
-    }
-
-    /// Deprecated source.
-    #[staticmethod]
-    pub fn deprecated() -> Self {
-        Self {
-            value: bridge::DiagnosticTag::Deprecated,
-        }
-    }
-
     /// Return this enum label.
     #[getter]
     pub fn label(&self) -> &'static str {
@@ -102,11 +57,6 @@ impl DiagnosticTag {
 }
 
 impl DiagnosticTag {
-    /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::DiagnosticTag {
-        self.value
-    }
-
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::DiagnosticTag) -> Self {
         Self { value }
@@ -122,30 +72,6 @@ pub struct Applicability {
 
 #[pymethods]
 impl Applicability {
-    /// Machine-applicable suggestion.
-    #[staticmethod]
-    pub fn automatic() -> Self {
-        Self {
-            value: bridge::Applicability::Automatic,
-        }
-    }
-
-    /// Machine-applicable suggestion that may change behavior.
-    #[staticmethod]
-    pub fn r#unsafe() -> Self {
-        Self {
-            value: bridge::Applicability::Unsafe,
-        }
-    }
-
-    /// Maybe incorrect suggestion.
-    #[staticmethod]
-    pub fn dangerous() -> Self {
-        Self {
-            value: bridge::Applicability::Dangerous,
-        }
-    }
-
     /// Return this enum label.
     #[getter]
     pub fn label(&self) -> &'static str {
@@ -158,11 +84,6 @@ impl Applicability {
 }
 
 impl Applicability {
-    /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::Applicability {
-        self.value
-    }
-
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::Applicability) -> Self {
         Self { value }
@@ -178,18 +99,6 @@ pub struct DiagnosticLabel {
 
 #[pymethods]
 impl DiagnosticLabel {
-    /// Create one value.
-    #[new]
-    pub fn new(content: ContentId, span: Span, message: Option<String>) -> Self {
-        Self {
-            value: bridge::DiagnosticLabel {
-                content: content.into_bridge(),
-                span: span.into_bridge(),
-                message,
-            },
-        }
-    }
-
     /// Exact content containing the span.
     #[getter]
     pub fn content(&self) -> ContentId {
@@ -211,11 +120,6 @@ impl DiagnosticLabel {
 
 #[allow(dead_code)]
 impl DiagnosticLabel {
-    /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::DiagnosticLabel {
-        self.value
-    }
-
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::DiagnosticLabel) -> Self {
         Self { value }
@@ -231,14 +135,6 @@ pub struct DiagnosticNote {
 
 #[pymethods]
 impl DiagnosticNote {
-    /// Create one value.
-    #[new]
-    pub fn new(message: String) -> Self {
-        Self {
-            value: bridge::DiagnosticNote { message },
-        }
-    }
-
     /// Note message.
     #[getter]
     pub fn message(&self) -> String {
@@ -248,11 +144,6 @@ impl DiagnosticNote {
 
 #[allow(dead_code)]
 impl DiagnosticNote {
-    /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::DiagnosticNote {
-        self.value
-    }
-
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::DiagnosticNote) -> Self {
         Self { value }
@@ -268,14 +159,6 @@ pub struct DiagnosticHelp {
 
 #[pymethods]
 impl DiagnosticHelp {
-    /// Create one value.
-    #[new]
-    pub fn new(message: String) -> Self {
-        Self {
-            value: bridge::DiagnosticHelp { message },
-        }
-    }
-
     /// Help message.
     #[getter]
     pub fn message(&self) -> String {
@@ -285,11 +168,6 @@ impl DiagnosticHelp {
 
 #[allow(dead_code)]
 impl DiagnosticHelp {
-    /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::DiagnosticHelp {
-        self.value
-    }
-
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::DiagnosticHelp) -> Self {
         Self { value }
@@ -309,24 +187,6 @@ pub struct DiagnosticSuggestion {
 
 #[pymethods]
 impl DiagnosticSuggestion {
-    /// Create one value.
-    #[new]
-    pub fn new(
-        edits: BatchEdit,
-        labels: Vec<DiagnosticLabel>,
-        message: String,
-        applicability: Applicability,
-    ) -> Self {
-        Self {
-            value: bridge::DiagnosticSuggestion {
-                edits: edits.into_bridge(),
-                labels: labels.into_iter().map(|item| item.into_bridge()).collect(),
-                message,
-                applicability: applicability.into_bridge(),
-            },
-        }
-    }
-
     /// Exact source edits for machine application.
     #[getter]
     pub fn edits(&self) -> BatchEdit {
@@ -340,7 +200,7 @@ impl DiagnosticSuggestion {
             .labels
             .clone()
             .into_iter()
-            .map(|item| DiagnosticLabel::from_bridge(item))
+            .map(DiagnosticLabel::from_bridge)
             .collect()
     }
 
@@ -353,17 +213,12 @@ impl DiagnosticSuggestion {
     /// Suggestion applicability.
     #[getter]
     pub fn applicability(&self) -> Applicability {
-        Applicability::from_bridge(self.value.applicability.clone())
+        Applicability::from_bridge(self.value.applicability)
     }
 }
 
 #[allow(dead_code)]
 impl DiagnosticSuggestion {
-    /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::DiagnosticSuggestion {
-        self.value
-    }
-
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::DiagnosticSuggestion) -> Self {
         Self { value }
@@ -379,37 +234,6 @@ pub struct Diagnostic {
 
 #[pymethods]
 impl Diagnostic {
-    /// Create one value.
-    #[new]
-    pub fn new(
-        code: String,
-        severity: DiagnosticSeverity,
-        message: String,
-        primary: DiagnosticLabel,
-        labels: Vec<DiagnosticLabel>,
-        notes: Vec<DiagnosticNote>,
-        helps: Vec<DiagnosticHelp>,
-        suggestions: Vec<DiagnosticSuggestion>,
-        tags: Vec<DiagnosticTag>,
-    ) -> Self {
-        Self {
-            value: bridge::Diagnostic {
-                code,
-                severity: severity.into_bridge(),
-                message,
-                primary: primary.into_bridge(),
-                labels: labels.into_iter().map(|item| item.into_bridge()).collect(),
-                notes: notes.into_iter().map(|item| item.into_bridge()).collect(),
-                helps: helps.into_iter().map(|item| item.into_bridge()).collect(),
-                suggestions: suggestions
-                    .into_iter()
-                    .map(|item| item.into_bridge())
-                    .collect(),
-                tags: tags.into_iter().map(|item| item.into_bridge()).collect(),
-            },
-        }
-    }
-
     /// Stable diagnostic code.
     #[getter]
     pub fn code(&self) -> String {
@@ -419,7 +243,7 @@ impl Diagnostic {
     /// Diagnostic severity.
     #[getter]
     pub fn severity(&self) -> DiagnosticSeverity {
-        DiagnosticSeverity::from_bridge(self.value.severity.clone())
+        DiagnosticSeverity::from_bridge(self.value.severity)
     }
 
     /// Diagnostic message.
@@ -441,7 +265,7 @@ impl Diagnostic {
             .labels
             .clone()
             .into_iter()
-            .map(|item| DiagnosticLabel::from_bridge(item))
+            .map(DiagnosticLabel::from_bridge)
             .collect()
     }
 
@@ -452,7 +276,7 @@ impl Diagnostic {
             .notes
             .clone()
             .into_iter()
-            .map(|item| DiagnosticNote::from_bridge(item))
+            .map(DiagnosticNote::from_bridge)
             .collect()
     }
 
@@ -463,7 +287,7 @@ impl Diagnostic {
             .helps
             .clone()
             .into_iter()
-            .map(|item| DiagnosticHelp::from_bridge(item))
+            .map(DiagnosticHelp::from_bridge)
             .collect()
     }
 
@@ -474,7 +298,7 @@ impl Diagnostic {
             .suggestions
             .clone()
             .into_iter()
-            .map(|item| DiagnosticSuggestion::from_bridge(item))
+            .map(DiagnosticSuggestion::from_bridge)
             .collect()
     }
 
@@ -485,18 +309,13 @@ impl Diagnostic {
             .tags
             .clone()
             .into_iter()
-            .map(|item| DiagnosticTag::from_bridge(item))
+            .map(DiagnosticTag::from_bridge)
             .collect()
     }
 }
 
 #[allow(dead_code)]
 impl Diagnostic {
-    /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::Diagnostic {
-        self.value
-    }
-
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::Diagnostic) -> Self {
         Self { value }

@@ -65,17 +65,26 @@ import type { DirChecked } from "../dir/checked.generated.js";
 import type { DirParsed } from "../dir/parsed.generated.js";
 import type { DirResolved } from "../dir/resolved.generated.js";
 import type { Revision } from "../repository/revision.generated.js";
-import type { SessionFile } from "../session/file.generated.js";
+import type {
+    TraceReport,
+    TraceStage,
+    TraceArtifact,
+    TraceSpan,
+    TraceCounter,
+} from "../repository/trace.generated.js";
+import type { CheckOutput } from "../session/command/check.generated.js";
 import type {
     Document,
     FormatRequest,
     FormatOutput,
-} from "../session/format.generated.js";
+} from "../session/command/format.generated.js";
 import type {
     Scope,
     LintRequest,
     LintOutput,
-} from "../session/lint.generated.js";
+} from "../session/command/lint.generated.js";
+import type { ParseOutput } from "../session/command/parse.generated.js";
+import type { SessionFile } from "../session/file.generated.js";
 import type { Module } from "../session/module.generated.js";
 import type { Change } from "../session/source/file.generated.js";
 import type { Source } from "../session/source/source.generated.js";
@@ -95,10 +104,7 @@ import type { ModuleId } from "../source/module.generated.js";
 import type { PackageId } from "../source/package.generated.js";
 import type { ProductId } from "../source/product.generated.js";
 import type { ProfileId } from "../source/profile.generated.js";
-import type {
-    Span,
-    LabeledSpan,
-} from "../source/span.generated.js";
+import type { Span } from "../source/span.generated.js";
 import type { TargetId } from "../source/target.generated.js";
 
 type WasmModule = typeof import("@destack/language-wasm");
@@ -1057,7 +1063,7 @@ export function fromWasmObjectFormat(value: string): ObjectFormat {
 }
 
 /** Convert one WASM Object into the public bridge shape. */
-export function fromWasmObject(value: Wasm.Object): Object {
+export function fromWasmObject(value: Wasm.BridgeObject): Object {
     return {
         format: fromWasmObjectFormat(value.format),
         content: fromWasmContentId(value.content),
@@ -1191,15 +1197,6 @@ export function fromWasmProduct(value: Wasm.Product): Product {
 
 /** Convert one ModuleBuildKind into the WASM transport shape. */
 export function toWasmModuleBuildKind(value: ModuleBuildKind): string {
-    if (value === "script" || value === "object" || value === "asset") {
-        return value;
-    }
-
-    throw new Error(`unknown ModuleBuildKind: ${value}`);
-}
-
-/** Convert one ModuleBuildKind from the WASM transport shape. */
-export function fromWasmModuleBuildKind(value: string): ModuleBuildKind {
     if (value === "script" || value === "object" || value === "asset") {
         return value;
     }
@@ -1556,10 +1553,65 @@ export function fromWasmRevision(value: Wasm.Revision): Revision {
     };
 }
 
-/** Convert one WASM SessionFile into the public bridge shape. */
-export function fromWasmSessionFile(value: Wasm.SessionFile): SessionFile {
+/** Convert one WASM TraceReport into the public bridge shape. */
+export function fromWasmTraceReport(value: Wasm.TraceReport): TraceReport {
     return {
-        path: value.path,
+        totalMicros: Number(value.totalMicros),
+        workers: value.workers,
+        spans: value.spans.map((item) => fromWasmTraceSpan(item)),
+        counters: value.counters.map((item) => fromWasmTraceCounter(item)),
+        stages: value.stages.map((item) => fromWasmTraceStage(item)),
+        blockedMicros: Number(value.blockedMicros),
+        artifacts: value.artifacts.map((item) => fromWasmTraceArtifact(item)),
+    };
+}
+
+/** Convert one WASM TraceStage into the public bridge shape. */
+export function fromWasmTraceStage(value: Wasm.TraceStage): TraceStage {
+    return {
+        name: value.name,
+        micros: Number(value.micros),
+    };
+}
+
+/** Convert one WASM TraceArtifact into the public bridge shape. */
+export function fromWasmTraceArtifact(value: Wasm.TraceArtifact): TraceArtifact {
+    return {
+        name: value.name,
+        stage: value.stage,
+        label: value.label == null ? undefined : value.label,
+        target: value.target == null ? undefined : value.target,
+        worker: value.worker,
+        startMicros: Number(value.startMicros),
+        micros: Number(value.micros),
+        outcome: value.outcome,
+        spans: value.spans.map((item) => fromWasmTraceSpan(item)),
+        counters: value.counters.map((item) => fromWasmTraceCounter(item)),
+    };
+}
+
+/** Convert one WASM TraceSpan into the public bridge shape. */
+export function fromWasmTraceSpan(value: Wasm.TraceSpan): TraceSpan {
+    return {
+        name: value.name,
+        startMicros: Number(value.startMicros),
+        micros: Number(value.micros),
+    };
+}
+
+/** Convert one WASM TraceCounter into the public bridge shape. */
+export function fromWasmTraceCounter(value: Wasm.TraceCounter): TraceCounter {
+    return {
+        name: value.name,
+        value: Number(value.value),
+    };
+}
+
+/** Convert one WASM CheckOutput into the public bridge shape. */
+export function fromWasmCheckOutput(value: Wasm.CheckOutput): CheckOutput {
+    return {
+        checked: fromWasmDirChecked(value.checked),
+        diagnostics: value.diagnostics.map((item) => fromWasmDiagnostic(item)),
     };
 }
 
@@ -1629,6 +1681,21 @@ export function toWasmLintRequest(
 export function fromWasmLintOutput(value: Wasm.LintOutput): LintOutput {
     return {
         diagnostics: value.diagnostics.map((item) => fromWasmDiagnostic(item)),
+    };
+}
+
+/** Convert one WASM ParseOutput into the public bridge shape. */
+export function fromWasmParseOutput(value: Wasm.ParseOutput): ParseOutput {
+    return {
+        parsed: fromWasmDirParsed(value.parsed),
+        diagnostics: value.diagnostics.map((item) => fromWasmDiagnostic(item)),
+    };
+}
+
+/** Convert one WASM SessionFile into the public bridge shape. */
+export function fromWasmSessionFile(value: Wasm.SessionFile): SessionFile {
+    return {
+        path: value.path,
     };
 }
 
