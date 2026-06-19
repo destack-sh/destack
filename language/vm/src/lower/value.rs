@@ -567,6 +567,9 @@ fn infer_instruction_shape(
             let base_shape = value_shape_map.get(*base)?;
             shape_from_field(tree, base_shape, *index)
         }
+        mir::Instruction::FieldSet {
+            aggregate: base, ..
+        } => value_shape_map.get(*base),
         mir::Instruction::FieldAddr {
             aggregate: base,
             result_type,
@@ -575,20 +578,12 @@ fn infer_instruction_shape(
             let source_shape = value_shape_map.get(*base)?;
             pointer_result_shape_from_source(tree, *result_type, source_shape)
         }
-        mir::Instruction::FieldSet {
-            aggregate: base, ..
-        } => value_shape_map.get(*base),
-        mir::Instruction::ElementGet { array, .. } => {
-            let array_shape = value_shape_map.get(*array)?;
-            shape_from_element(tree, array_shape)
-        }
         mir::Instruction::ElementAddr {
             array, result_type, ..
         } => {
             let source_shape = value_shape_map.get(*array)?;
             pointer_result_shape_from_source(tree, *result_type, source_shape)
         }
-        mir::Instruction::ElementSet { array, .. } => value_shape_map.get(*array),
         mir::Instruction::SliceView { result_type, .. } => {
             value_shape_from_type(tree, *result_type)
         }
@@ -745,10 +740,19 @@ fn shape_from_pointer(tree: &mir::Tree, shape: ValueShape) -> Option<ValueShape>
 
 /// Resolve the field shape for one payload value.
 fn shape_from_field(tree: &mir::Tree, shape: ValueShape, index: u32) -> Option<ValueShape> {
-    let ValueShape::FrameBytes { ty } = shape else {
-        return None;
-    };
+    match shape {
+        ValueShape::Array { element, .. } => value_shape_from_type(tree, element),
+        ValueShape::FrameBytes { ty } => shape_from_frame_field(tree, ty, index),
+        _ => None,
+    }
+}
 
+/// Resolve the field shape for one frame-backed value.
+fn shape_from_frame_field(
+    tree: &mir::Tree,
+    ty: mir::LocalNodeId<mir::Type>,
+    index: u32,
+) -> Option<ValueShape> {
     match tree.get(ty) {
         mir::Type::Struct { fields, copy: _ } => {
             let field = fields.get(index as usize)?;
@@ -759,18 +763,7 @@ fn shape_from_field(tree: &mir::Tree, shape: ValueShape, index: u32) -> Option<V
             let field = elements.get(index as usize)?;
             value_shape_from_type(tree, *field)
         }
-        _ => None,
-    }
-}
-
-/// Resolve the element shape for one array value.
-fn shape_from_element(tree: &mir::Tree, shape: ValueShape) -> Option<ValueShape> {
-    match shape {
-        ValueShape::Array { element, .. } => value_shape_from_type(tree, element),
-        ValueShape::FrameBytes { ty } => match tree.get(ty) {
-            mir::Type::Array { element, .. } => value_shape_from_type(tree, *element),
-            _ => None,
-        },
+        mir::Type::FixedArray { element, .. } => value_shape_from_type(tree, *element),
         _ => None,
     }
 }

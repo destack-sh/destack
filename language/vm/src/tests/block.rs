@@ -488,7 +488,7 @@ entry:
     jump b1(v3)
 
 b1(v4: [int32; 3]):
-    v5: int32 = element.get v4, 2
+    v5: int32 = field.get v4, 2
     return v5
 }
 "#;
@@ -505,11 +505,11 @@ entry(v0: int32):
     v2: int32 = 20
     v3: int32 = 30
     v4: [int32; 3] = array [int32; 3] (v1, v2, v3)
-    v5: [int32; 3] = element.set v4, 2, v0
+    v5: [int32; 3] = field.set v4, 2, v0
     jump b1(v5)
 
 b1(v6: [int32; 3]):
-    v7: int32 = element.get v6, 2
+    v7: int32 = field.get v6, 2
     return v7
 }
 "#;

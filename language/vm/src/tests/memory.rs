@@ -376,13 +376,13 @@ entry:
     run_mir_expect(mir, "setNested", &[], Value::int32(50));
 }
 
-/// Element get reads from an array at a fixed index.
+/// Field get reads from an array slot at a fixed index.
 #[test]
-fn test_element_get_reads_array_element() {
+fn test_field_get_reads_array_element() {
     let mir = r#"
 function getElem(v0: [int32; 3]): int32 {
 entry(v0: [int32; 3]):
-    v1: int32 = element.get v0, 1
+    v1: int32 = field.get v0, 1
     return v1
 }
 "#;
@@ -399,9 +399,9 @@ entry(v0: [int32; 3]):
     assert_eq!(output, Value::int32(20));
 }
 
-/// Element get on one locally constructed array stays correct.
+/// Field get on one locally constructed array stays correct.
 #[test]
-fn test_element_get_reads_constructed_array() {
+fn test_field_get_reads_constructed_array() {
     let mir = r#"
 function getLocalElem(): int32 {
 entry:
@@ -409,7 +409,7 @@ entry:
     v1: int32 = 20
     v2: int32 = 30
     v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
-    v4: int32 = element.get v3, 2
+    v4: int32 = field.get v3, 2
     return v4
 }
 "#;
@@ -417,15 +417,15 @@ entry:
     run_mir_expect(mir, "getLocalElem", &[], Value::int32(30));
 }
 
-/// Element set returns one fresh array value instead of mutating the original.
+/// Field set returns one fresh array value instead of mutating the original.
 #[test]
-fn test_element_set_preserves_source_array() {
+fn test_field_set_preserves_source_array() {
     let mir = r#"
 function setWithoutAlias(v0: [int32; 3], v1: int32): int32 {
 entry(v0: [int32; 3], v1: int32):
-    v2: [int32; 3] = element.set v0, 1, v1
-    v3: int32 = element.get v0, 1
-    v4: int32 = element.get v2, 1
+    v2: [int32; 3] = field.set v0, 1, v1
+    v3: int32 = field.get v0, 1
+    v4: int32 = field.get v2, 1
     v5: int32 = int.add v3, v4
     return v5
 }
@@ -443,14 +443,14 @@ entry(v0: [int32; 3], v1: int32):
     assert_eq!(output, Value::int32(119));
 }
 
-/// Element set creates a new array with one element replaced.
+/// Field set creates a new array with one slot replaced.
 #[test]
-fn test_element_set_replaces_array_element() {
+fn test_field_set_replaces_array_element() {
     let mir = r#"
 function setAndGet(v0: [int32; 3], v1: int32): int32 {
 entry(v0: [int32; 3], v1: int32):
-    v2: [int32; 3] = element.set v0, 1, v1
-    v3: int32 = element.get v2, 1
+    v2: [int32; 3] = field.set v0, 1, v1
+    v3: int32 = field.get v2, 1
     return v3
 }
 "#;
@@ -465,9 +465,9 @@ entry(v0: [int32; 3], v1: int32):
     assert_eq!(output, Value::int32(99));
 }
 
-/// Element set on one locally constructed array stays correct.
+/// Field set on one locally constructed array stays correct.
 #[test]
-fn test_element_set_replaces_constructed_array_element() {
+fn test_field_set_replaces_constructed_array_element() {
     let mir = r#"
 function setLocalAndGet(v0: int32): int32 {
 entry(v0: int32):
@@ -475,9 +475,9 @@ entry(v0: int32):
     v2: int32 = 20
     v3: int32 = 30
     v4: [int32; 3] = array [int32; 3] (v1, v2, v3)
-    v5: [int32; 3] = element.set v4, 1, v0
-    v6: int32 = element.get v4, 1
-    v7: int32 = element.get v5, 1
+    v5: [int32; 3] = field.set v4, 1, v0
+    v6: int32 = field.get v4, 1
+    v7: int32 = field.get v5, 1
     v8: int32 = int.add v6, v7
     return v8
 }
@@ -491,9 +491,9 @@ entry(v0: int32):
     );
 }
 
-/// Element get copies nested aggregate values.
+/// Field get copies nested array-slot aggregate values.
 #[test]
-fn test_element_get_copies_nested_aggregate() {
+fn test_field_get_copies_nested_array_slot_aggregate() {
     let mir = r#"
 function getNested(): int32 {
 entry:
@@ -504,7 +504,7 @@ entry:
     v4: int32 = 40
     v5: (int32, int32) = tuple (int32, int32) (v3, v4)
     v6: [(int32, int32); 2] = array [(int32, int32); 2] (v2, v5)
-    v7: (int32, int32) = element.get v6, 1
+    v7: (int32, int32) = field.get v6, 1
     v8: int32 = field.get v7, 0
     return v8
 }
@@ -512,9 +512,9 @@ entry:
     run_mir_expect(mir, "getNested", &[], Value::int32(30));
 }
 
-/// Element set copies nested aggregate values.
+/// Field set copies nested array-slot aggregate values.
 #[test]
-fn test_element_set_copies_nested_aggregate() {
+fn test_field_set_copies_nested_array_slot_aggregate() {
     let mir = r#"
 function setNested(): int32 {
 entry:
@@ -528,8 +528,8 @@ entry:
     v7: int32 = 50
     v8: int32 = 60
     v9: (int32, int32) = tuple (int32, int32) (v7, v8)
-    v10: [(int32, int32); 2] = element.set v6, 1, v9
-    v11: (int32, int32) = element.get v10, 1
+    v10: [(int32, int32); 2] = field.set v6, 1, v9
+    v11: (int32, int32) = field.get v10, 1
     v12: int32 = field.get v11, 1
     return v12
 }

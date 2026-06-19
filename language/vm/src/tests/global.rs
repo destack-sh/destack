@@ -172,7 +172,7 @@ function readSecond(): uint8 {
 entry:
     v0: ref<[uint8; 4], raw, readonly> = global.address message
     v1: [uint8; 4] = load v0
-    v2: uint8 = element.get v1, 1
+    v2: uint8 = field.get v1, 1
     return v2
 }
 "#;

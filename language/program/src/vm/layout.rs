@@ -403,7 +403,7 @@ fn build_layout(
                 element_types,
             )?
         }
-        mir::Type::Array {
+        mir::Type::FixedArray {
             element, length, ..
         } => build_array_layout(
             tree,
@@ -892,7 +892,7 @@ fn contains_closure(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Result
 
             Ok(false)
         }
-        mir::Type::Array { element, .. }
+        mir::Type::FixedArray { element, .. }
         | mir::Type::Vector { element, .. }
         | mir::Type::Tensor { element, .. } => contains_closure(tree, *element),
         _ => Ok(false),

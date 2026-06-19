@@ -14,17 +14,34 @@ pub(super) fn field_projection(
     pointee_type: mir::LocalNodeId<mir::Type>,
     index: u32,
 ) -> Option<Projection> {
-    // resolve the pointee field layout first
     let layout = layouts.get(&pointee_type)?;
-    let field = layout.field(index)?;
 
-    // cache scalar layout for lowered memory ops
-    let cell_layout = access_cell_layout(tree, layouts, field.ty);
+    // resolve named fields first
+    if let Some(field) = layout.field(index) {
+        let cell_layout = access_cell_layout(tree, layouts, field.ty);
+
+        return Some(Projection::fixed(
+            field.ty,
+            field.offset,
+            field.byte_len,
+            cell_layout,
+        ));
+    }
+
+    // resolve fixed array slots by static index
+    let element = layout.element()?;
+    let count = layout.element_count()?;
+    if index as usize >= count {
+        return None;
+    }
+
+    let cell_layout = access_cell_layout(tree, layouts, element.ty);
+    let offset = element.stride * index as usize;
 
     Some(Projection::fixed(
-        field.ty,
-        field.offset,
-        field.byte_len,
+        element.ty,
+        offset,
+        element.byte_len,
         cell_layout,
     ))
 }
@@ -258,11 +275,11 @@ pub(super) fn array_element_count(tree: &mir::Tree, layout: ValueShape) -> Optio
     match layout {
         ValueShape::Array { length, .. } => Some(length),
         ValueShape::FrameBytes { ty } => match tree.get(ty) {
-            mir::Type::Array { length, .. } => Some(*length),
+            mir::Type::FixedArray { length, .. } => Some(*length),
             _ => None,
         },
         ValueShape::Pointer { pointee, .. } => match tree.get(pointee) {
-            mir::Type::Array { length, .. } => Some(*length),
+            mir::Type::FixedArray { length, .. } => Some(*length),
             _ => None,
         },
         _ => None,

@@ -35,13 +35,6 @@ impl<'a> BlockLowerer<'a> {
                 value,
             } => self.lower_field_update(*destination, *base, *index, *value),
             mir::Instruction::FieldGet { .. } => self.lower_field_read(inst),
-            mir::Instruction::ElementGet { .. } => self.lower_element_read(inst),
-            mir::Instruction::ElementSet {
-                destination,
-                array,
-                index,
-                value,
-            } => self.lower_element_update(*destination, *array, *index, *value),
             _ => Ok(vec![self.lower_instruction(inst, pool)?]),
         }
     }
@@ -133,6 +126,8 @@ impl<'a> BlockLowerer<'a> {
 
             mir::Instruction::FieldGet { .. } => return Err(Error::invalid_instruction()),
 
+            mir::Instruction::FieldSet { .. } => return Err(Error::invalid_instruction()),
+
             mir::Instruction::FieldAddr {
                 destination,
                 aggregate: base,
@@ -140,18 +135,12 @@ impl<'a> BlockLowerer<'a> {
                 ..
             } => self.lower_field_addr(*destination, *base, *index)?,
 
-            mir::Instruction::FieldSet { .. } => return Err(Error::invalid_instruction()),
-
-            mir::Instruction::ElementGet { .. } => return Err(Error::invalid_instruction()),
-
             mir::Instruction::ElementAddr {
                 destination,
                 array,
                 index,
                 ..
             } => self.lower_element_addr(pool, *destination, *array, *index)?,
-
-            mir::Instruction::ElementSet { .. } => return Err(Error::invalid_instruction()),
 
             mir::Instruction::SliceView { .. } => return Err(Error::invalid_instruction()),
 
