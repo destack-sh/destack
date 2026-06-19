@@ -5,12 +5,12 @@ use destack_artifact::{
     ArtifactVersion,
 };
 use destack_repository::{
-    Collected, Collector, ProviderError, ProviderResult, Revision, TraceOutcome,
+    ArtifactAttemptOutcome, Collected, Collector, ProviderError, ProviderResult, Revision,
 };
 use destack_source::DiagnosticCollection;
 
 use super::attempt::ProviderAttempt;
-use super::run::{Run, RunId};
+use super::run::{ArtifactRun, ArtifactRunId};
 use super::scheduler::Scheduler;
 use super::task::Task;
 use crate::{SessionError, SessionEvent, SessionState};
@@ -55,7 +55,7 @@ impl Worker {
                 return;
             };
 
-            // artifact cache truth wins over stale scheduler entries
+            // artifact table truth wins over stale scheduler entries
             match self.session.artifact_outcome(task) {
                 Ok(Some(_)) => {
                     self.scheduler.mark_done(task);
@@ -80,7 +80,9 @@ impl Worker {
     }
 
     /// Provide one claimed task.
-    fn provide_task(&self, run: &Run, task: Task) -> Result<(), SessionError> {
+    pub(super) fn provide_task(&self, run: &ArtifactRun, task: Task) -> Result<(), SessionError> {
+        let recorder = Arc::new(run.trace().begin(task.key, self.index));
+
         // expose the session task through events
         self.session.emit_event(SessionEvent::TaskStarted {
             run_id: run.id(),
@@ -90,83 +92,166 @@ impl Worker {
         let repository = self.session.repository();
 
         // freeze the dependency closure through the shared engine
-        let collected = repository
-            .collect_closure(self.session.as_ref(), task.revision, task.key)
-            .map_err(|error| SessionError::Internal {
-                detail: format!("failed to collect artifact {:?}: {error}", task.key),
-            })?;
+        let collected = recorder.span("collect", || {
+            repository.collect_closure(self.session.as_ref(), task.revision, task.key)
+        });
+        let collected = match collected {
+            Ok(collected) => collected,
+            Err(error) => {
+                recorder.finish(ArtifactAttemptOutcome::Failed);
+
+                return Err(SessionError::Internal {
+                    detail: format!("failed to collect artifact {:?}: {error}", task.key),
+                });
+            }
+        };
         let (dependencies, failed) = match collected {
             Collected::Waiting { frontier, .. } => {
+                recorder.record_counter("frontier", frontier.len() as u64);
                 let frontier = frontier
                     .into_iter()
                     .map(|key| Task::new(task.revision, key))
                     .collect();
+                let result = recorder.span("scheduler", || self.wait_on(run.id(), task, frontier));
+                let outcome = if result.is_ok() {
+                    ArtifactAttemptOutcome::Blocked
+                } else {
+                    ArtifactAttemptOutcome::Failed
+                };
+                recorder.finish(outcome);
 
-                return self.wait_on(run.id(), task, frontier);
+                return result;
             }
             Collected::Frozen {
                 dependencies,
                 failed,
             } => (dependencies, failed),
         };
-
         // the version is fixed by the frozen closure before any provider runs
-        let version = ArtifactVersion::new(
-            task.key,
-            repository.build_fingerprint(),
-            dependencies.iter().cloned(),
-        );
+        let version = recorder.span("version", || {
+            ArtifactVersion::new(
+                task.key,
+                repository.build_fingerprint(),
+                dependencies.iter().cloned(),
+            )
+        });
 
         // fails this artifact immediately on a poisoned dependency
         if let Some(failed_dependency) = failed {
-            return self.fail(
-                run.id(),
-                task,
-                version,
-                dependencies,
-                DiagnosticCollection::new(),
-                Vec::new(),
-                ArtifactFailure::requirement(failed_dependency),
-            );
+            let result = recorder.span("complete", || {
+                self.fail(
+                    run.id(),
+                    task,
+                    version,
+                    dependencies,
+                    DiagnosticCollection::new(),
+                    Vec::new(),
+                    ArtifactFailure::requirement(failed_dependency),
+                )
+            });
+            recorder.finish(ArtifactAttemptOutcome::Failed);
+
+            return result;
         }
 
         // reuse a committed payload when the closure already produced this version
-        if repository.artifact_cache().outcome(&version).is_some() {
-            repository
-                .bind_artifact(task.revision, version)
-                .map_err(|error| SessionError::Internal {
-                    detail: format!("failed to bind reused artifact {:?}: {error}", task.key),
-                })?;
+        if recorder.span("memory_cache", || {
+            repository.artifact_table().outcome(&version).is_some()
+        }) {
+            let result = recorder.span("bind", || repository.bind_artifact(task.revision, version));
+            if let Err(error) = result {
+                recorder.finish(ArtifactAttemptOutcome::Failed);
 
-            return self.finish_ready(run.id(), task);
+                return Err(SessionError::Internal {
+                    detail: format!("failed to bind reused artifact {:?}: {error}", task.key),
+                });
+            }
+            let result = recorder.span("scheduler", || self.finish_ready(run.id(), task));
+            let outcome = if result.is_ok() {
+                ArtifactAttemptOutcome::MemoryCached
+            } else {
+                ArtifactAttemptOutcome::Failed
+            };
+            recorder.finish(outcome);
+
+            return result;
         }
 
         // load a committed record before running the provider
-        if repository
-            .load_artifact(task.revision, version)
-            .map_err(|error| SessionError::Internal {
-                detail: format!("failed to load cached artifact {:?}: {error}", task.key),
-            })?
-        {
-            return self.finish_ready(run.id(), task);
+        let loaded = recorder.span("store_cache", || {
+            repository.load_artifact(task.revision, version)
+        });
+        let loaded = match loaded {
+            Ok(loaded) => loaded,
+            Err(error) => {
+                recorder.finish(ArtifactAttemptOutcome::Failed);
+
+                return Err(SessionError::Internal {
+                    detail: format!("failed to load cached artifact {:?}: {error}", task.key),
+                });
+            }
+        };
+        if loaded {
+            let result = recorder.span("scheduler", || self.finish_ready(run.id(), task));
+            let outcome = if result.is_ok() {
+                ArtifactAttemptOutcome::StoreCached
+            } else {
+                ArtifactAttemptOutcome::Failed
+            };
+            recorder.finish(outcome);
+
+            return result;
         }
 
         // run the provider exactly once over the frozen closure
-        let tracer = Arc::new(run.trace().begin(task.key, self.index));
         let attempt = ProviderAttempt::new(repository, task.revision, task.key)
-            .with_tracer(Arc::clone(&tracer));
-        let result = self.call_provider(&attempt);
-        let outcome = match &result {
-            Ok(_) => TraceOutcome::Ready,
-            Err(_) => TraceOutcome::Failed,
-        };
-        tracer.finish(outcome);
+            .with_recorder(Arc::clone(&recorder));
+        match recorder.span("provider", || self.call_provider(&attempt)) {
+            Ok(payload) => {
+                let result = recorder.span("publish", || {
+                    self.publish_artifact(&attempt, task, version, dependencies, payload)
+                });
+                if let Err(error) = result {
+                    recorder.finish(ArtifactAttemptOutcome::Failed);
 
-        self.complete(&attempt, run.id(), task, version, dependencies, result)
+                    return Err(error);
+                }
+                let result = recorder.span("store", || {
+                    self.session.repository().store_artifact(version)
+                });
+                if let Err(error) = result {
+                    recorder.finish(ArtifactAttemptOutcome::Failed);
+
+                    return Err(error.into());
+                }
+                let result = recorder.span("scheduler", || self.finish_ready(run.id(), task));
+                let outcome = if result.is_ok() {
+                    ArtifactAttemptOutcome::Built
+                } else {
+                    ArtifactAttemptOutcome::Failed
+                };
+                recorder.finish(outcome);
+
+                result
+            }
+            Err(error) => {
+                let result = recorder.span("complete", || {
+                    self.fail_provider(&attempt, run.id(), task, version, dependencies, *error)
+                });
+                recorder.finish(ArtifactAttemptOutcome::Failed);
+
+                result
+            }
+        }
     }
 
     /// Park one task until its unready dependency frontier becomes terminal.
-    fn wait_on(&self, run: RunId, task: Task, frontier: Vec<Task>) -> Result<(), SessionError> {
+    fn wait_on(
+        &self,
+        run: ArtifactRunId,
+        task: Task,
+        frontier: Vec<Task>,
+    ) -> Result<(), SessionError> {
         let repository = self.session.repository();
         let result = self.scheduler.wait_on(task, run, frontier);
 
@@ -191,25 +276,17 @@ impl Worker {
         Ok(())
     }
 
-    /// Complete one task from its provider result.
-    fn complete(
+    /// Publish one ready artifact payload.
+    fn publish_artifact(
         &self,
         attempt: &ProviderAttempt,
-        run: RunId,
         task: Task,
         version: ArtifactVersion,
         dependencies: Vec<ArtifactDependency>,
-        result: ProviderResult<ArtifactPayload>,
+        payload: ArtifactPayload,
     ) -> Result<(), SessionError> {
-        let payload = match result {
-            Ok(payload) => payload,
-            Err(error) => {
-                return self.fail_provider(attempt, run, task, version, dependencies, *error);
-            }
-        };
-
         // record the ready payload and make its terminal state visible
-        self.session.repository().complete_artifact(
+        self.session.repository().publish_artifact(
             task.revision,
             version,
             payload,
@@ -218,14 +295,14 @@ impl Worker {
             attempt.sidecars(),
         )?;
 
-        self.finish_ready(run, task)
+        Ok(())
     }
 
     /// Route one provider failure into a recorded artifact failure.
     fn fail_provider(
         &self,
         attempt: &ProviderAttempt,
-        run: RunId,
+        run: ArtifactRunId,
         task: Task,
         version: ArtifactVersion,
         dependencies: Vec<ArtifactDependency>,
@@ -296,7 +373,7 @@ impl Worker {
     }
 
     /// Mark one ready task terminal and emit its finished event.
-    fn finish_ready(&self, run: RunId, task: Task) -> Result<(), SessionError> {
+    fn finish_ready(&self, run: ArtifactRunId, task: Task) -> Result<(), SessionError> {
         self.scheduler.mark_done(task);
 
         self.session.emit_event(SessionEvent::TaskFinished {
@@ -310,7 +387,7 @@ impl Worker {
     /// Record one artifact failure and emit its failed event.
     fn fail(
         &self,
-        run: RunId,
+        run: ArtifactRunId,
         task: Task,
         version: ArtifactVersion,
         dependencies: Vec<ArtifactDependency>,

@@ -4,7 +4,7 @@ use destack_artifact::{
     ArtifactKey, ArtifactSidecar, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
     DiagnosticError, DiagnosticLike,
 };
-use destack_repository::{ArtifactTracer, ProviderContext, Repository, Revision};
+use destack_repository::{ArtifactAttemptRecorder, ProviderContext, Repository, Revision};
 use destack_source::{
     ContentId, DiagnosticCollection, DiagnosticLabel, FileId, ModuleId, PackageId, Span,
 };
@@ -23,8 +23,8 @@ pub(crate) struct ProviderAttempt {
     diagnostics: Mutex<DiagnosticCollection>,
     /// The sidecars produced by this attempt.
     sidecars: Mutex<Vec<ArtifactSidecar>>,
-    /// The tracer for this attempt, when the run is traced.
-    tracer: Option<Arc<ArtifactTracer>>,
+    /// The recorder for this artifact attempt, when the run is timed.
+    recorder: Option<Arc<ArtifactAttemptRecorder>>,
 }
 
 impl ProviderAttempt {
@@ -36,13 +36,13 @@ impl ProviderAttempt {
             key,
             diagnostics: Mutex::new(DiagnosticCollection::new()),
             sidecars: Mutex::new(Vec::new()),
-            tracer: None,
+            recorder: None,
         }
     }
 
-    /// Attach one tracer to this attempt.
-    pub(crate) fn with_tracer(mut self, tracer: Arc<ArtifactTracer>) -> Self {
-        self.tracer = Some(tracer);
+    /// Attach one recorder to this attempt.
+    pub(crate) fn with_recorder(mut self, recorder: Arc<ArtifactAttemptRecorder>) -> Self {
+        self.recorder = Some(recorder);
 
         self
     }
@@ -267,8 +267,8 @@ impl ProviderContext for ProviderAttempt {
         Ok(())
     }
 
-    /// Return the tracer recording this attempt, when the run is traced.
-    fn tracer(&self) -> Option<&ArtifactTracer> {
-        self.tracer.as_deref()
+    /// Return the recorder for this artifact attempt, when the run is timed.
+    fn recorder(&self) -> Option<&ArtifactAttemptRecorder> {
+        self.recorder.as_deref()
     }
 }

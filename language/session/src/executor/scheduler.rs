@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use parking_lot::{Condvar, Mutex};
 
-use super::run::{Run, RunId};
+use super::run::{ArtifactRun, ArtifactRunId};
 use super::task::Task;
 use crate::SessionError;
 
@@ -20,7 +20,7 @@ pub(super) struct Scheduler {
 #[derive(Debug, Default)]
 struct SchedulerState {
     /// Active runs waiting on root tasks.
-    runs: HashMap<RunId, Arc<Run>>,
+    runs: HashMap<ArtifactRunId, Arc<ArtifactRun>>,
     /// Tracked tasks by identity.
     tasks: HashMap<Task, TaskEntry>,
     /// Tasks ready to run in claim order.
@@ -35,7 +35,7 @@ struct SchedulerState {
 #[derive(Debug)]
 struct TaskEntry {
     /// The runs currently waiting on this task.
-    runs: Vec<RunId>,
+    runs: Vec<ArtifactRunId>,
     /// The current scheduler state for this task.
     state: TaskState,
     /// Tasks this task is currently waiting on.
@@ -62,12 +62,12 @@ impl Scheduler {
     }
 
     /// Register one active run.
-    pub(super) fn insert_run(&self, run: Arc<Run>) {
+    pub(super) fn insert_run(&self, run: Arc<ArtifactRun>) {
         self.state.lock().runs.insert(run.id(), run);
     }
 
     /// Remove one active run and its scheduler-only tasks.
-    pub(super) fn remove_run(&self, run_id: RunId) {
+    pub(super) fn remove_run(&self, run_id: ArtifactRunId) {
         let mut state = self.state.lock();
         state.remove_run(run_id);
         state.advance();
@@ -75,7 +75,7 @@ impl Scheduler {
     }
 
     /// Enqueue one root task for a run.
-    pub(super) fn enqueue_root(&self, task: Task, run: RunId) {
+    pub(super) fn enqueue_root(&self, task: Task, run: ArtifactRunId) {
         let mut state = self.state.lock();
         state.enqueue(task, run);
         state.advance();
@@ -83,7 +83,7 @@ impl Scheduler {
     }
 
     /// Claim the next runnable task, or none after shutdown.
-    pub(super) fn claim(&self) -> Option<(Arc<Run>, Task)> {
+    pub(super) fn claim(&self) -> Option<(Arc<ArtifactRun>, Task)> {
         let mut state = self.state.lock();
 
         // wait for runnable work or shutdown
@@ -97,6 +97,20 @@ impl Scheduler {
             }
 
             self.changed.wait(&mut state);
+        }
+    }
+
+    /// Claim the next runnable task without blocking.
+    pub(super) fn claim_ready(&self) -> Option<(Arc<ArtifactRun>, Task)> {
+        let mut state = self.state.lock();
+
+        // refuse claims after shutdown
+        if state.is_shutdown {
+            None
+        }
+        // claim currently runnable work
+        else {
+            self.claim_ready_task(&mut state)
         }
     }
 
@@ -138,7 +152,7 @@ impl Scheduler {
     pub(super) fn wait_on(
         &self,
         task: Task,
-        run: RunId,
+        run: ArtifactRunId,
         dependencies: Vec<Task>,
     ) -> Result<(), SessionError> {
         let mut state = self.state.lock();
@@ -173,7 +187,7 @@ impl Scheduler {
     }
 
     /// Claim one ready task from locked scheduler state.
-    fn claim_ready_task(&self, state: &mut SchedulerState) -> Option<(Arc<Run>, Task)> {
+    fn claim_ready_task(&self, state: &mut SchedulerState) -> Option<(Arc<ArtifactRun>, Task)> {
         // scan ready tasks until one is claimable
         while let Some(task) = state.ready.pop_front() {
             let Some(entry) = state.tasks.get_mut(&task) else {
@@ -216,7 +230,7 @@ impl SchedulerState {
     }
 
     /// Remove one run and clear its scheduler-owned task edges.
-    fn remove_run(&mut self, run_id: RunId) {
+    fn remove_run(&mut self, run_id: ArtifactRunId) {
         self.runs.remove(&run_id);
 
         let removed = self
@@ -271,7 +285,7 @@ impl SchedulerState {
     }
 
     /// Enqueue one task when it is not already tracked.
-    fn enqueue(&mut self, task: Task, run: RunId) {
+    fn enqueue(&mut self, task: Task, run: ArtifactRunId) {
         if let Some(entry) = self.tasks.get_mut(&task) {
             if !entry.runs.contains(&run) {
                 entry.runs.push(run);
@@ -296,7 +310,7 @@ impl SchedulerState {
     fn wait_on(
         &mut self,
         task: Task,
-        run: RunId,
+        run: ArtifactRunId,
         dependencies: Vec<Task>,
     ) -> Result<(), SessionError> {
         // no outstanding dependencies means the task can be retried
