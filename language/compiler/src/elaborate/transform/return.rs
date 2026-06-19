@@ -183,7 +183,7 @@ impl Compiler {
     /// Check whether a function return type is void.
     fn return_type_is_void(&self, state: &ElaborateState<'_>, type_id: LocalTypeId) -> bool {
         match state.type_table().get_type(type_id) {
-            Type::Function(function) => {
+            Type::FunctionSignature(function) => {
                 let Some(return_type_id) = function.return_type else {
                     return false;
                 };

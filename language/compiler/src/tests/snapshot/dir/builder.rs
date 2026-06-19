@@ -654,7 +654,7 @@ impl<'a> DirSnapshotBuilder<'a> {
             dir::LayoutShape::Variant(_) => "variant".to_string(),
             dir::LayoutShape::Object(_) => "object".to_string(),
             dir::LayoutShape::Dynamic => "dynamic".to_string(),
-            dir::LayoutShape::Closure => "closure".to_string(),
+            dir::LayoutShape::Function => "function".to_string(),
             dir::LayoutShape::Newtype(_) => "newtype".to_string(),
             dir::LayoutShape::Pointer(_) => "pointer".to_string(),
         }

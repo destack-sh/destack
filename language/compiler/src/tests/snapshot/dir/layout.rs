@@ -77,7 +77,7 @@ fn add_type_layout_rows(
         | dir::LayoutShape::Slice(_)
         | dir::LayoutShape::Array(_)
         | dir::LayoutShape::Dynamic
-        | dir::LayoutShape::Closure
+        | dir::LayoutShape::Function
         | dir::LayoutShape::Newtype(_)
         | dir::LayoutShape::Pointer(_) => {}
     }

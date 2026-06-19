@@ -1283,8 +1283,10 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::Tree) -> u64 {
         | mir::Instruction::LocalSet { .. }
         | mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
-        | mir::Instruction::ClosureBind { .. }
-        | mir::Instruction::ClosureEnvironment { .. }
+        | mir::Instruction::FunctionBind { .. }
+        | mir::Instruction::FunctionEnvironment { .. }
+        | mir::Instruction::FunctionPointer { .. }
+        | mir::Instruction::FunctionEnvironmentCurrent { .. }
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::SliceView { .. }
         | mir::Instruction::SliceLength { .. }

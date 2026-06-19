@@ -46,8 +46,11 @@ impl DirSnapshotBuilder<'_> {
             dir::Type::Slice(slice) => self.slice_type_label(types, slice),
             dir::Type::Tuple(tuple) => self.tuple_type_label(types, tuple),
             dir::Type::Shape(shape) => self.shape_type_label(types, shape),
-            dir::Type::Function(function) => self.function_type_label(types, function),
-            dir::Type::Closure(closure) => self.closure_type_label(types, closure),
+            dir::Type::FunctionSignature(function) => self.function_type_label(types, function),
+            dir::Type::Function(function) => self.function_value_type_label(types, function),
+            dir::Type::FunctionPointer(function) => {
+                self.function_pointer_type_label(types, function)
+            }
             dir::Type::Union(union) => self.type_id_list_label(types, &union.elements, " | "),
             dir::Type::Variable(variable) => format!("?{}", variable.index),
             dir::Type::Memory(literal) => self.memory_literal_type_label(literal),
@@ -58,12 +61,74 @@ impl DirSnapshotBuilder<'_> {
         }
     }
 
-    /// Return one closure type label.
-    fn closure_type_label(&self, types: &dir::TypeTable<'_>, closure: &dir::ClosureType) -> String {
-        let function = self.type_id_label(types, closure.function);
-        let environment = self.type_id_label(types, closure.environment);
+    /// Return one function value type label.
+    fn function_value_type_label(
+        &self,
+        types: &dir::TypeTable<'_>,
+        function: &dir::FunctionType,
+    ) -> String {
+        let signature = self.function_signature_type(types, function.signature);
+        let parameters = self.function_parameter_tuple_label(types, signature);
+        let return_type = self.function_return_type_label(types, signature);
 
-        format!("Closure<{function}, {environment}>")
+        format!("Function<{parameters}, {return_type}>")
+    }
+
+    /// Return one function pointer type label.
+    fn function_pointer_type_label(
+        &self,
+        types: &dir::TypeTable<'_>,
+        function: &dir::FunctionPointerType,
+    ) -> String {
+        let signature = self.function_signature_type(types, function.signature);
+        let parameters = self.function_parameter_tuple_label(types, signature);
+        let return_type = self.function_return_type_label(types, signature);
+
+        format!("FunctionPointer<{parameters}, {return_type}>")
+    }
+
+    /// Return the function signature type referenced by one callable representation.
+    fn function_signature_type<'types>(
+        &self,
+        types: &'types dir::TypeTable<'_>,
+        signature_id: dir::GlobalTypeId,
+    ) -> &'types dir::FunctionSignatureType {
+        assert_eq!(
+            signature_id.module_id, types.module_id,
+            "callable signature must belong to the snapshot module"
+        );
+        let signature = types.get_type(signature_id.local_id);
+        let dir::Type::FunctionSignature(signature) = signature else {
+            panic!("callable signature type must point to a function signature");
+        };
+
+        signature
+    }
+
+    /// Return one function signature's parameter tuple label.
+    fn function_parameter_tuple_label(
+        &self,
+        types: &dir::TypeTable<'_>,
+        signature: &dir::FunctionSignatureType,
+    ) -> String {
+        let mut parameters = self.function_parameter_list_label(types, &signature.parameters, ", ");
+        if signature.parameters.len() == 1 {
+            parameters.push(',');
+        }
+
+        format!("({parameters})")
+    }
+
+    /// Return one function signature's return type label.
+    fn function_return_type_label(
+        &self,
+        types: &dir::TypeTable<'_>,
+        signature: &dir::FunctionSignatureType,
+    ) -> String {
+        signature
+            .return_type
+            .map(|ty| self.type_id_label(types, ty))
+            .unwrap_or_else(|| "void".to_string())
     }
 
     /// Return one type id label through a table.
@@ -495,7 +560,7 @@ impl DirSnapshotBuilder<'_> {
         let optional = if field.is_optional { "?" } else { "" };
 
         if field.ty.module_id == types.module_id
-            && let dir::Type::Function(function) = types.get_type(field.ty.local_id)
+            && let dir::Type::FunctionSignature(function) = types.get_type(field.ty.local_id)
         {
             let signature = self.method_signature_label(types, function);
 
@@ -533,7 +598,7 @@ impl DirSnapshotBuilder<'_> {
     fn method_signature_label(
         &self,
         types: &dir::TypeTable<'_>,
-        function: &dir::FunctionType,
+        function: &dir::FunctionSignatureType,
     ) -> String {
         // render method generics and parameters
         let generics = self.function_generic_label(types, function);
@@ -552,7 +617,7 @@ impl DirSnapshotBuilder<'_> {
     fn function_type_label(
         &self,
         types: &dir::TypeTable<'_>,
-        function: &dir::FunctionType,
+        function: &dir::FunctionSignatureType,
     ) -> String {
         // render generics and explicit this parameter
         let generics = self.function_generic_label(types, function);
@@ -633,7 +698,7 @@ impl DirSnapshotBuilder<'_> {
     fn function_generic_label(
         &self,
         types: &dir::TypeTable<'_>,
-        function: &dir::FunctionType,
+        function: &dir::FunctionSignatureType,
     ) -> String {
         if function.generic_parameters.is_empty() {
             return String::new();
@@ -763,7 +828,7 @@ impl DirSnapshotBuilder<'_> {
     fn function_generic_parameter_list_label(
         &self,
         types: &dir::TypeTable<'_>,
-        function: &dir::FunctionType,
+        function: &dir::FunctionSignatureType,
     ) -> String {
         function
             .generic_parameters
