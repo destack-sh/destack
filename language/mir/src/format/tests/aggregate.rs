@@ -72,7 +72,7 @@ entry(v0: int32, v1: int32, v2: int32):
     );
 }
 
-/// Formats aggregate field and element operations canonically.
+/// Formats aggregate field operations canonically.
 #[test]
 fn test_format_aggregate_access() {
     assert_format(
@@ -80,7 +80,7 @@ fn test_format_aggregate_access() {
 function aggregateAccess(v0: (int32, float64), v1: [int32; 10]): int32 {
 entry(v0: (int32, float64), v1: [int32; 10]):
     v3: int32 = field.get v0, 0
-    v4: int32 = element.get v1, 2
+    v4: int32 = field.get v1, 2
     return v3
 }
 "#,

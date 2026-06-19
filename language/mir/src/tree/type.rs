@@ -311,13 +311,13 @@ pub enum Type {
         value: TypeId,
     },
 
-    /// Fixed-size array: `[T; N]`.
-    Array {
+    /// Fixed array: `[T; N]`.
+    FixedArray {
         /// The element type of the array.
         element: TypeId,
         /// The number of elements in the array.
         length: u64,
-        /// Copy of this array type.
+        /// Copy of this fixed array type.
         copy: Copy,
     },
     /// Tuple: `(T1, T2, ...)`.
@@ -655,7 +655,7 @@ impl Type {
             },
 
             // aggregates have explicit copy
-            Type::Array { copy, .. }
+            Type::FixedArray { copy, .. }
             | Type::Tuple { copy, .. }
             | Type::Struct { copy, .. }
             | Type::Newtype { copy, .. }

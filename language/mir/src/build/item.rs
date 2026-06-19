@@ -73,12 +73,9 @@ impl ModuleBuilder {
             result,
         } = header;
         let parameters = FunctionHeader::parameters_from_types(parameters);
-        let function_id = self.tree.insert(Function::declare(
-            name,
-            lifetimes,
-            parameters,
-            result.into(),
-        ));
+        let function_id = self
+            .tree
+            .insert(Function::declare(name, lifetimes, parameters, result));
         finalize_function_names(&mut self.tree, &self.strings, function_id);
 
         function_id
@@ -93,9 +90,9 @@ impl ModuleBuilder {
             result,
         } = header;
         let parameters = FunctionHeader::parameters_from_types(parameters);
-        let function_id =
-            self.tree
-                .insert(Function::import(name, lifetimes, parameters, result.into()));
+        let function_id = self
+            .tree
+            .insert(Function::import(name, lifetimes, parameters, result));
         finalize_function_names(&mut self.tree, &self.strings, function_id);
 
         function_id

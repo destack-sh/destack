@@ -40,8 +40,6 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::Array { .. }
         | mir::Instruction::FieldGet { .. }
         | mir::Instruction::FieldSet { .. }
-        | mir::Instruction::ElementGet { .. }
-        | mir::Instruction::ElementSet { .. }
         | mir::Instruction::SliceView { .. }
         | mir::Instruction::SliceLength { .. }
         | mir::Instruction::DynamicPayload { .. }
@@ -217,8 +215,8 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::Tuple { .. }
         | mir::Instruction::Array { .. }
         | mir::Instruction::FieldGet { .. }
+        | mir::Instruction::FieldSet { .. }
         | mir::Instruction::FieldAddr { .. }
-        | mir::Instruction::ElementGet { .. }
         | mir::Instruction::ElementAddr { .. }
         | mir::Instruction::SliceView { .. }
         | mir::Instruction::SliceLength { .. }
@@ -276,10 +274,6 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::AtomicRmw { .. }
         | mir::Instruction::AtomicFence { .. }
         | mir::Instruction::BarrierWrite { .. } => true,
-
-        // aggregate updates create new values, but FieldSet/ElementSet don't have
-        // side effects if the result is unused (they produce new values, not mutate)
-        mir::Instruction::FieldSet { .. } | mir::Instruction::ElementSet { .. } => false,
 
         // pinning has side effects
         mir::Instruction::Pin { .. } | mir::Instruction::Unpin { .. } => true,
@@ -644,17 +638,6 @@ pub fn instruction_substitute_uses(
             aggregate: substitute(aggregate),
             index: *index,
         },
-        mir::Instruction::FieldAddr {
-            destination,
-            aggregate,
-            index,
-            result_type,
-        } => mir::Instruction::FieldAddr {
-            destination: *destination,
-            aggregate: substitute(aggregate),
-            index: *index,
-            result_type: *result_type,
-        },
         mir::Instruction::FieldSet {
             destination,
             aggregate,
@@ -666,14 +649,16 @@ pub fn instruction_substitute_uses(
             index: *index,
             value: substitute(value),
         },
-        mir::Instruction::ElementGet {
+        mir::Instruction::FieldAddr {
             destination,
-            array,
+            aggregate,
             index,
-        } => mir::Instruction::ElementGet {
+            result_type,
+        } => mir::Instruction::FieldAddr {
             destination: *destination,
-            array: substitute(array),
+            aggregate: substitute(aggregate),
             index: *index,
+            result_type: *result_type,
         },
         mir::Instruction::ElementAddr {
             destination,
@@ -685,17 +670,6 @@ pub fn instruction_substitute_uses(
             array: substitute(array),
             index: substitute(index),
             result_type: *result_type,
-        },
-        mir::Instruction::ElementSet {
-            destination,
-            array,
-            index,
-            value,
-        } => mir::Instruction::ElementSet {
-            destination: *destination,
-            array: substitute(array),
-            index: *index,
-            value: substitute(value),
         },
         mir::Instruction::SliceView {
             destination,
@@ -721,7 +695,7 @@ pub fn instruction_substitute_uses(
         } => mir::Instruction::DynamicPayload {
             destination: *destination,
             dynamic: substitute(dynamic),
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::DynamicType {
             destination,
@@ -2119,17 +2093,6 @@ pub fn instruction_map(
             aggregate: remap(*aggregate),
             index: *index,
         },
-        mir::Instruction::FieldAddr {
-            destination,
-            aggregate,
-            index,
-            result_type,
-        } => mir::Instruction::FieldAddr {
-            destination: remap(*destination),
-            aggregate: remap(*aggregate),
-            index: *index,
-            result_type: *result_type,
-        },
         mir::Instruction::FieldSet {
             destination,
             aggregate,
@@ -2141,14 +2104,16 @@ pub fn instruction_map(
             index: *index,
             value: remap(*value),
         },
-        mir::Instruction::ElementGet {
+        mir::Instruction::FieldAddr {
             destination,
-            array,
+            aggregate,
             index,
-        } => mir::Instruction::ElementGet {
+            result_type,
+        } => mir::Instruction::FieldAddr {
             destination: remap(*destination),
-            array: remap(*array),
+            aggregate: remap(*aggregate),
             index: *index,
+            result_type: *result_type,
         },
         mir::Instruction::ElementAddr {
             destination,
@@ -2160,17 +2125,6 @@ pub fn instruction_map(
             array: remap(*array),
             index: remap(*index),
             result_type: *result_type,
-        },
-        mir::Instruction::ElementSet {
-            destination,
-            array,
-            index,
-            value,
-        } => mir::Instruction::ElementSet {
-            destination: remap(*destination),
-            array: remap(*array),
-            index: *index,
-            value: remap(*value),
         },
         mir::Instruction::SliceView {
             destination,
@@ -2196,7 +2150,7 @@ pub fn instruction_map(
         } => mir::Instruction::DynamicPayload {
             destination: remap(*destination),
             dynamic: remap(*dynamic),
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::DynamicType {
             destination,
@@ -3279,17 +3233,6 @@ pub fn instruction_map_with_locals(
             aggregate: remap(*aggregate),
             index: *index,
         },
-        mir::Instruction::FieldAddr {
-            destination,
-            aggregate,
-            index,
-            result_type,
-        } => mir::Instruction::FieldAddr {
-            destination: remap(*destination),
-            aggregate: remap(*aggregate),
-            index: *index,
-            result_type: *result_type,
-        },
         mir::Instruction::FieldSet {
             destination,
             aggregate,
@@ -3301,14 +3244,16 @@ pub fn instruction_map_with_locals(
             index: *index,
             value: remap(*value),
         },
-        mir::Instruction::ElementGet {
+        mir::Instruction::FieldAddr {
             destination,
-            array,
+            aggregate,
             index,
-        } => mir::Instruction::ElementGet {
+            result_type,
+        } => mir::Instruction::FieldAddr {
             destination: remap(*destination),
-            array: remap(*array),
+            aggregate: remap(*aggregate),
             index: *index,
+            result_type: *result_type,
         },
         mir::Instruction::ElementAddr {
             destination,
@@ -3320,17 +3265,6 @@ pub fn instruction_map_with_locals(
             array: remap(*array),
             index: remap(*index),
             result_type: *result_type,
-        },
-        mir::Instruction::ElementSet {
-            destination,
-            array,
-            index,
-            value,
-        } => mir::Instruction::ElementSet {
-            destination: remap(*destination),
-            array: remap(*array),
-            index: *index,
-            value: remap(*value),
         },
         mir::Instruction::SliceView {
             destination,
@@ -3356,7 +3290,7 @@ pub fn instruction_map_with_locals(
         } => mir::Instruction::DynamicPayload {
             destination: remap(*destination),
             dynamic: remap(*dynamic),
-            result_type: result_type.clone(),
+            result_type: *result_type,
         },
         mir::Instruction::DynamicType {
             destination,

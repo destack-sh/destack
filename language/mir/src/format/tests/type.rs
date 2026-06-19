@@ -143,7 +143,7 @@ entry(v0: tensor<float32, (batch, dynamic, 64), layout(dense(columnMajor))>, v1:
     );
 }
 
-/// Formats tuple and array type forms canonically.
+/// Formats tuple and fixed array type forms canonically.
 #[test]
 fn test_format_tuple_and_array_types() {
     assert_format(

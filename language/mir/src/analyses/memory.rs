@@ -834,20 +834,6 @@ pub fn collect_frame_alloc_bases_for_value(
                 bases,
             );
         }
-        mir::Instruction::ElementGet { array, .. } => {
-            let array = *array;
-
-            collect_frame_alloc_bases_for_value(
-                array,
-                definitions,
-                local_defs,
-                param_defs,
-                tree,
-                frame_allocs,
-                visited,
-                bases,
-            );
-        }
         mir::Instruction::LocalGet { local, .. } => {
             if let Some(values) = local_defs.get(local) {
                 for &arg in values {
@@ -1420,10 +1406,10 @@ impl<'a> PointerDecomposer<'a> {
         let ty = self.tree.get(ty_id);
 
         let element_id = match ty {
-            mir::Type::Array { element, .. } => *element,
+            mir::Type::FixedArray { element, .. } => *element,
             mir::Type::Reference { pointee, .. } => {
                 let pointee_ty = self.tree.get(*pointee);
-                if let mir::Type::Array { element, .. } = pointee_ty {
+                if let mir::Type::FixedArray { element, .. } = pointee_ty {
                     *element
                 } else {
                     return None;

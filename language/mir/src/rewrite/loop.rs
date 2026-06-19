@@ -343,8 +343,8 @@ fn clone_loop_blocks_internal(
                     value_map.insert(value, new_value);
 
                     mir::BlockParameter {
-                        value: new_value.into(),
-                        ty: ty.into(),
+                        value: new_value,
+                        ty,
                     }
                 }
                 _ => *param,

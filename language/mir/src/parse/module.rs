@@ -607,7 +607,7 @@ impl Parser {
         let expected_type = expected_type?;
 
         match self.tree.get(expected_type) {
-            Type::Array { element, .. }
+            Type::FixedArray { element, .. }
             | Type::Vector { element, .. }
             | Type::Tensor { element, .. } => Some(*element),
             Type::Tuple { elements, .. } => elements.get(index).copied(),
@@ -621,7 +621,7 @@ impl Parser {
 /// Set the copy property on one explicit aggregate type.
 fn set_type_copy(ty: &mut Type, copy: Copy, position: usize) -> ParseResult<()> {
     match ty {
-        Type::Array { copy: target, .. }
+        Type::FixedArray { copy: target, .. }
         | Type::Tuple { copy: target, .. }
         | Type::Struct { copy: target, .. }
         | Type::Newtype { copy: target, .. }

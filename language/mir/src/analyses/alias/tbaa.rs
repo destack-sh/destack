@@ -117,13 +117,13 @@ impl TypeBasedAA {
             ) => self.tuples_cannot_alias(e1, e2),
 
             // array vs non-array aggregates cannot alias
-            (TypeKey::Array { .. }, TypeKey::Struct { .. })
-            | (TypeKey::Struct { .. }, TypeKey::Array { .. })
-            | (TypeKey::Array { .. }, TypeKey::Tuple { .. })
-            | (TypeKey::Tuple { .. }, TypeKey::Array { .. }) => true,
+            (TypeKey::FixedArray { .. }, TypeKey::Struct { .. })
+            | (TypeKey::Struct { .. }, TypeKey::FixedArray { .. })
+            | (TypeKey::FixedArray { .. }, TypeKey::Tuple { .. })
+            | (TypeKey::Tuple { .. }, TypeKey::FixedArray { .. }) => true,
 
             // arrays with different element types
-            (TypeKey::Array { element: e1, .. }, TypeKey::Array { element: e2, .. }) => {
+            (TypeKey::FixedArray { element: e1, .. }, TypeKey::FixedArray { element: e2, .. }) => {
                 self.types_cannot_alias(e1, e2)
             }
 
@@ -406,7 +406,7 @@ mod tests {
     fn test_array_vs_struct_no_alias() {
         let tbaa = TypeBasedAA::new();
 
-        let array_ty = TypeKey::Array {
+        let array_ty = TypeKey::FixedArray {
             element: Box::new(TypeKey::Int {
                 width: 32,
                 signed: true,
@@ -482,7 +482,7 @@ mod tests {
     fn test_array_different_element_types_no_alias() {
         let tbaa = TypeBasedAA::new();
 
-        let array_i32 = TypeKey::Array {
+        let array_i32 = TypeKey::FixedArray {
             element: Box::new(TypeKey::Int {
                 width: 32,
                 signed: true,
@@ -490,7 +490,7 @@ mod tests {
             length: 10,
             copy: mir::Copy::Yes,
         };
-        let array_f64 = TypeKey::Array {
+        let array_f64 = TypeKey::FixedArray {
             element: Box::new(TypeKey::Float {
                 format: mir::FloatType::Float64,
             }),

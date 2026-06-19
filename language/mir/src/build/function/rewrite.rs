@@ -272,8 +272,7 @@ impl<'a> FunctionBuilder<'a> {
                 Instruction::LocalSet { value, .. } => {
                     Self::replace_value_in_slot(value, from, to);
                 }
-                Instruction::FieldGet { aggregate, .. }
-                | Instruction::FieldAddr { aggregate, .. } => {
+                Instruction::FieldGet { aggregate, .. } => {
                     Self::replace_value_in_slot(aggregate, from, to);
                 }
                 Instruction::FieldSet {
@@ -282,16 +281,12 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(aggregate, from, to);
                     Self::replace_value_in_slot(value, from, to);
                 }
-                Instruction::ElementGet { array, .. } => {
-                    Self::replace_value_in_slot(array, from, to);
+                Instruction::FieldAddr { aggregate, .. } => {
+                    Self::replace_value_in_slot(aggregate, from, to);
                 }
                 Instruction::ElementAddr { array, index, .. } => {
                     Self::replace_value_in_slot(array, from, to);
                     Self::replace_value_in_slot(index, from, to);
-                }
-                Instruction::ElementSet { array, value, .. } => {
-                    Self::replace_value_in_slot(array, from, to);
-                    Self::replace_value_in_slot(value, from, to);
                 }
                 Instruction::SliceView {
                     source,

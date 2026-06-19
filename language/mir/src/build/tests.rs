@@ -650,7 +650,7 @@ fn test_type_construction() {
     let f32_type = module.type_f32();
     let f64_type = module.type_f64();
     let pointer_type = module.type_raw_pointer(i32_type);
-    let array_type = module.type_array(i32_type, 10, Copy::Yes);
+    let array_type = module.type_fixed_array(i32_type, 10, Copy::Yes);
     let tuple_type = module.type_tuple(vec![i32_type, i64_type], Copy::Yes);
     let signature = module.type_function_signature(vec![i32_type], i32_type);
     let function_pointer_type = module.type_function_pointer(signature);
@@ -686,7 +686,7 @@ fn test_type_construction() {
     ));
     assert!(matches!(
         tree.get(array_type),
-        Type::Array { length: 10, .. }
+        Type::FixedArray { length: 10, .. }
     ));
     assert!(matches!(tree.get(tuple_type), Type::Tuple { .. }));
     assert!(matches!(
@@ -1124,7 +1124,7 @@ fn test_build_array() {
     // setup
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
-    let array_type = module.type_array(i32_type, 3, Copy::Yes);
+    let array_type = module.type_fixed_array(i32_type, 3, Copy::Yes);
 
     // build function that constructs an array
     let header = module.function_header("makeArray").result(array_type);
@@ -1229,14 +1229,14 @@ entry(v0: (int32, boolean)):
     assert_eq!(output, expected);
 }
 
-/// Extract an element from an array using element_get.
+/// Extract a fixed array slot with field_get.
 #[test]
-fn test_build_element_get_array() {
+fn test_build_field_get_array() {
     // setup
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
     let i64_type = module.type_i64();
-    let array_type = module.type_array(i32_type, 3, Copy::Yes);
+    let array_type = module.type_fixed_array(i32_type, 3, Copy::Yes);
 
     // build function that extracts one fixed element
     let header = module
@@ -1248,7 +1248,7 @@ fn test_build_element_get_array() {
     builder.switch_to_block(entry_block);
 
     let arr = builder.function_parameter(0);
-    let element = builder.element_get(arr, 1);
+    let element = builder.field_get(arr, 1);
     builder.return_(Some(element));
     builder.seal_block(entry_block);
     builder.finish().unwrap();
@@ -1259,7 +1259,7 @@ fn test_build_element_get_array() {
     let expected = "\
 function getElement(v0: [int32; 3], v1: int64): int32 {
 entry(v0: [int32; 3], v1: int64):
-    v2: int32 = element.get v0, 1
+    v2: int32 = field.get v0, 1
     return v2
 }";
     assert_eq!(output, expected);

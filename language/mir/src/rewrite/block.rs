@@ -270,7 +270,7 @@ pub fn ensure_edge_block(
 
     // extract the successor arguments for this edge
     let args = match pred_terminator.edge_arguments(tree, successor) {
-        mir::EdgeArguments::Found(args) => args.iter().copied().collect::<Vec<_>>(),
+        mir::EdgeArguments::Found(args) => args.to_vec(),
         _ => return predecessor,
     };
 

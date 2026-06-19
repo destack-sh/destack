@@ -72,7 +72,7 @@ pub(super) enum TypeKey {
         nullability: Nullability,
     },
     /// Fixed-length array.
-    Array {
+    FixedArray {
         element: TypeId,
         length: u64,
         copy: Copy,
@@ -183,11 +183,11 @@ impl TypeKey {
                 nullability: *nullability,
             },
 
-            Type::Array {
+            Type::FixedArray {
                 element,
                 length,
                 copy,
-            } => TypeKey::Array {
+            } => TypeKey::FixedArray {
                 element: *element,
                 length: *length,
                 copy: *copy,

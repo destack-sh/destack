@@ -164,7 +164,7 @@ pub fn build_signature_type(
     tree.insert_type(mir::Type::FunctionSignature {
         lifetimes,
         parameters,
-        result: function.return_type.clone(),
+        result: function.return_type,
     })
 }
 

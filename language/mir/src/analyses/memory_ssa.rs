@@ -774,11 +774,9 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::Tuple { .. }
             | mir::Instruction::Array { .. }
             | mir::Instruction::FieldGet { .. }
-            | mir::Instruction::FieldAddr { .. }
             | mir::Instruction::FieldSet { .. }
-            | mir::Instruction::ElementGet { .. }
+            | mir::Instruction::FieldAddr { .. }
             | mir::Instruction::ElementAddr { .. }
-            | mir::Instruction::ElementSet { .. }
             | mir::Instruction::SliceView { .. }
             | mir::Instruction::SliceLength { .. }
             | mir::Instruction::DynamicPayload { .. }

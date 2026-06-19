@@ -57,21 +57,35 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Extract a field from a struct or tuple.
+    /// Extract a static layout slot from an aggregate.
     pub fn field_get(&mut self, aggregate: Value, index: u32) -> Value {
         let destination = self.allocate_value();
         let aggregate_type = self.expect_value_type(aggregate, "field.get aggregate");
         let field_type = self.expect_build(self.field_type_for_aggregate(aggregate_type, index));
         self.insert_instruction(Instruction::FieldGet {
-            destination: destination.into(),
-            aggregate: aggregate.into(),
+            destination,
+            aggregate,
             index,
         });
         self.define_value(destination, field_type);
         destination
     }
 
-    /// Get the address of a field from a struct or tuple.
+    /// Insert a value into a static layout slot.
+    pub fn field_set(&mut self, aggregate: Value, index: u32, value: Value) -> Value {
+        let destination = self.allocate_value();
+        let aggregate_type = self.expect_value_type(aggregate, "field.set aggregate");
+        self.insert_instruction(Instruction::FieldSet {
+            destination,
+            aggregate,
+            index,
+            value,
+        });
+        self.define_value(destination, aggregate_type);
+        destination
+    }
+
+    /// Get the address of a static layout slot from an aggregate.
     pub fn field_addr(
         &mut self,
         aggregate: Value,
@@ -80,40 +94,12 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::FieldAddr {
-            destination: destination.into(),
-            aggregate: aggregate.into(),
+            destination,
+            aggregate,
             index,
-            result_type: result_type.into(),
+            result_type,
         });
         self.define_value(destination, result_type);
-        destination
-    }
-
-    /// Insert a value into a struct or tuple field.
-    pub fn field_set(&mut self, aggregate: Value, index: u32, value: Value) -> Value {
-        let destination = self.allocate_value();
-        let aggregate_type = self.expect_value_type(aggregate, "field.set aggregate");
-        self.insert_instruction(Instruction::FieldSet {
-            destination: destination.into(),
-            aggregate: aggregate.into(),
-            index,
-            value: value.into(),
-        });
-        self.define_value(destination, aggregate_type);
-        destination
-    }
-
-    /// Extract an element from an array.
-    pub fn element_get(&mut self, array: Value, index: u32) -> Value {
-        let destination = self.allocate_value();
-        let array_type = self.expect_value_type(array, "element.get array");
-        let element_type = self.expect_build(self.element_type_for_array(array_type));
-        self.insert_instruction(Instruction::ElementGet {
-            destination: destination.into(),
-            array: array.into(),
-            index,
-        });
-        self.define_value(destination, element_type);
         destination
     }
 
@@ -126,26 +112,12 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::ElementAddr {
-            destination: destination.into(),
-            array: array.into(),
-            index: index.into(),
-            result_type: result_type.into(),
+            destination,
+            array,
+            index,
+            result_type,
         });
         self.define_value(destination, result_type);
-        destination
-    }
-
-    /// Insert a value into an array element.
-    pub fn element_set(&mut self, array: Value, index: u32, value: Value) -> Value {
-        let destination = self.allocate_value();
-        let array_type = self.expect_value_type(array, "element.set array");
-        self.insert_instruction(Instruction::ElementSet {
-            destination: destination.into(),
-            array: array.into(),
-            index,
-            value: value.into(),
-        });
-        self.define_value(destination, array_type);
         destination
     }
 
@@ -159,11 +131,11 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::SliceView {
-            destination: destination.into(),
-            source: source.into(),
-            start: start.into(),
-            length: length.into(),
-            result_type: result_type.into(),
+            destination,
+            source,
+            start,
+            length,
+            result_type,
         });
         self.define_value(destination, result_type);
         destination
@@ -184,7 +156,7 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::DynamicPayload {
             destination,
             dynamic,
-            result_type: result_type.into(),
+            result_type,
         });
         self.define_value(destination, result_type);
         destination

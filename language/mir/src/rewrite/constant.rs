@@ -780,7 +780,7 @@ fn constant_tree_from_zero(
         mir::Type::Newtype { inner, .. } => {
             constant_tree_from_zero(*inner, tree, max_aggregate_elements, pointer_width_bits)
         }
-        mir::Type::Array {
+        mir::Type::FixedArray {
             element, length, ..
         } => {
             let length = match usize::try_from(*length) {
@@ -839,8 +839,8 @@ fn constant_tree_from_bytes(
 ) -> ConstantTree {
     let ty = ty.into();
 
-    // read array type
-    let mir::Type::Array {
+    // read fixed array type
+    let mir::Type::FixedArray {
         element, length, ..
     } = tree.get(ty)
     else {
@@ -912,7 +912,7 @@ fn constant_tree_from_aggregate_initializer(
 
     // map aggregate initializer to type shape
     match tree.get(ty) {
-        mir::Type::Array {
+        mir::Type::FixedArray {
             element, length, ..
         } => {
             let length = match usize::try_from(*length) {

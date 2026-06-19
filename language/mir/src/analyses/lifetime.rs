@@ -298,7 +298,7 @@ entry:
         let signature = program.tree.insert_type(mir::Type::FunctionSignature {
             lifetimes: Vec::new(),
             parameters: vec![int_ty.into()],
-            result: int_ty.into(),
+            result: int_ty,
         });
 
         let lifetime = LifetimeAnalysis::resolve_signature(signature, &program.tree);
@@ -332,7 +332,7 @@ entry:
         let signature = program.tree.insert_type(mir::Type::FunctionSignature {
             lifetimes: Vec::new(),
             parameters: vec![int_ty.into()],
-            result: borrowed_ref.into(),
+            result: borrowed_ref,
         });
 
         let lifetime = LifetimeAnalysis::resolve_signature(signature, &program.tree);
@@ -366,7 +366,7 @@ entry:
         let signature = program.tree.insert_type(mir::Type::FunctionSignature {
             lifetimes: Vec::new(),
             parameters: vec![int_ty.into(), borrowed_ref.into()],
-            result: borrowed_ref.into(),
+            result: borrowed_ref,
         });
 
         let lifetime = LifetimeAnalysis::resolve_signature(signature, &program.tree);
@@ -404,7 +404,7 @@ entry:
         let signature = program.tree.insert_type(mir::Type::FunctionSignature {
             lifetimes: vec![mir::LifetimeParameter::new(None)],
             parameters: vec![applied_ref.into()],
-            result: applied_ref.into(),
+            result: applied_ref,
         });
 
         let lifetime = LifetimeAnalysis::resolve_signature(signature, &program.tree);

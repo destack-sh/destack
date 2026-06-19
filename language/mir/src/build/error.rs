@@ -49,11 +49,6 @@ pub enum BuildError {
         /// The type being accessed.
         ty: LocalNodeId<Type>,
     },
-    /// An element operation was applied to a non-indexed aggregate type.
-    InvalidElementOwner {
-        /// The type being accessed.
-        ty: LocalNodeId<Type>,
-    },
     /// A vector operation was applied to a non-vector type.
     InvalidVectorOwner {
         /// The type being accessed.
@@ -164,12 +159,6 @@ impl std::fmt::Display for BuildError {
                 write!(
                     formatter,
                     "field access expects an aggregate type, got {ty:?}"
-                )
-            }
-            Self::InvalidElementOwner { ty } => {
-                write!(
-                    formatter,
-                    "element access expects an indexed collection type, got {ty:?}"
                 )
             }
             Self::InvalidVectorOwner { ty } => {

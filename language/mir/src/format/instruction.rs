@@ -344,29 +344,6 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
-            Instruction::FieldAddr {
-                destination,
-                aggregate,
-                index,
-                ..
-            } => {
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        token("field.address"),
-                        space(),
-                        aggregate,
-                        token(","),
-                        space(),
-                        text(&index.to_string())
-                    ]
-                )
-            }
-
             Instruction::FieldSet {
                 destination,
                 aggregate,
@@ -393,10 +370,11 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
-            Instruction::ElementGet {
+            Instruction::FieldAddr {
                 destination,
-                array,
+                aggregate,
                 index,
+                ..
             } => {
                 format_typed_destination(*destination, f)?;
                 write!(
@@ -405,9 +383,9 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("element.get"),
+                        token("field.address"),
                         space(),
-                        array,
+                        aggregate,
                         token(","),
                         space(),
                         text(&index.to_string())
@@ -434,32 +412,6 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         token(","),
                         space(),
                         index
-                    ]
-                )
-            }
-
-            Instruction::ElementSet {
-                destination,
-                array,
-                index,
-                value,
-            } => {
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        token("element.set"),
-                        space(),
-                        array,
-                        token(","),
-                        space(),
-                        text(&index.to_string()),
-                        token(","),
-                        space(),
-                        value
                     ]
                 )
             }
