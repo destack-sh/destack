@@ -6,7 +6,7 @@ use destack_program::vm::{Instruction, Op, Projection, cell_layout_from_type};
 
 use super::lower::BlockLowerer;
 use super::op::{select_frame_value_load_op, select_frame_value_store_op};
-use super::projection::{element_projection, field_projection};
+use super::projection::field_projection;
 impl<'a> BlockLowerer<'a> {
     /// Lower one MIR value constructor into frame stores.
     pub(super) fn lower_frame_constructor(
@@ -65,7 +65,10 @@ impl<'a> BlockLowerer<'a> {
         let destination_type = self.value_type_for_value(destination)?;
         let base_type = self.value_type_for_value(base)?;
         let layout = self.layout_for_type(base_type)?;
-        let field_count = layout.field_count().ok_or(Error::invalid_instruction())?;
+        let field_count = layout
+            .field_count()
+            .or_else(|| layout.element_count())
+            .ok_or(Error::invalid_instruction())?;
         let field = field_projection(self.tree, self.layouts(), base_type, *index)
             .ok_or(Error::invalid_field_access(*index, field_count))?;
         let field_layout = self.layout_for_type(field.value_type)?;
@@ -105,75 +108,6 @@ impl<'a> BlockLowerer<'a> {
         )?])
     }
 
-    /// Lower one frame element read into a cell load or frame move.
-    pub(super) fn lower_element_read(&self, inst: &mir::Instruction) -> Result<Vec<Instruction>> {
-        let mir::Instruction::ElementGet {
-            destination,
-            array,
-            index,
-        } = inst
-        else {
-            return Err(Error::invalid_instruction());
-        };
-
-        // resolve values and reject dynamic slices
-        let destination = *destination;
-        let array = *array;
-        let destination_type = self.value_type_for_value(destination)?;
-        let array_type = self.value_type_for_value(array)?;
-        if matches!(self.tree.get(array_type), mir::Type::Slice { .. }) {
-            return Err(Error::type_mismatch(
-                "fixed frame element get",
-                format!("{array_type:?}"),
-            ));
-        }
-
-        // resolve element layout
-        let layout = self.layout_for_type(array_type)?;
-        let element_count = layout.element_count().ok_or(Error::invalid_instruction())?;
-        if *index as usize >= element_count {
-            return Err(Error::invalid_array_access(
-                u64::from(*index),
-                element_count as u64,
-            ));
-        }
-
-        let element = element_projection(self.tree, self.layouts(), array_type)
-            .ok_or(Error::invalid_instruction())?;
-        let element_layout = self.layout_for_type(element.value_type)?;
-        let element_offset = element.byte_stride * *index as usize;
-
-        // read cell elements directly
-        if element_layout.is_cell() {
-            let access = element.at_offset(element_offset).with_length(0);
-            let op = select_frame_value_load_op(access)?;
-
-            return Ok(vec![Instruction::new(
-                op,
-                cell_offset(self, destination)?,
-                value_offset(self, array)?,
-                instruction_byte_offset(access.byte_offset)?,
-                0,
-            )]);
-        }
-
-        // move non-cell elements as frame bytes
-        let destination_access = FrameRange {
-            value_type: destination_type,
-            byte_offset: 0,
-            byte_len: element.byte_len,
-        };
-        let source_access = element.at_offset(element_offset).with_length(0);
-
-        Ok(vec![move_frame_instruction(
-            self,
-            destination,
-            destination_access.into(),
-            array,
-            source_access,
-        )?])
-    }
-
     /// Lower one functional field update into frame stores.
     pub(super) fn lower_field_update(
         &self,
@@ -185,9 +119,11 @@ impl<'a> BlockLowerer<'a> {
         // resolve original frame value and replacement field
         let destination_type = self.value_type_for_value(destination)?;
         let layout = self.layout_for_type(destination_type)?;
-        let field_count = layout.field_count().ok_or(Error::invalid_instruction())?;
-        let field = layout
-            .field(index)
+        let field_count = layout
+            .field_count()
+            .or_else(|| layout.element_count())
+            .ok_or(Error::invalid_instruction())?;
+        let field = field_projection(self.tree, self.layouts(), destination_type, index)
             .ok_or(Error::invalid_field_access(index, field_count))?;
         let whole = FrameRange {
             value_type: destination_type,
@@ -195,8 +131,8 @@ impl<'a> BlockLowerer<'a> {
             byte_len: layout.byte_len,
         };
         let field = FrameRange {
-            value_type: field.ty,
-            byte_offset: field.offset,
+            value_type: field.value_type,
+            byte_offset: field.byte_offset,
             byte_len: field.byte_len,
         };
 
@@ -204,78 +140,6 @@ impl<'a> BlockLowerer<'a> {
         Ok(vec![
             self.store_frame_range(destination, base, whole)?,
             self.store_frame_range(destination, value, field)?,
-        ])
-    }
-
-    /// Lower one functional element update into frame stores.
-    pub(super) fn lower_element_update(
-        &self,
-        destination: mir::Value,
-        array: mir::Value,
-        index: u32,
-        value: mir::Value,
-    ) -> Result<Vec<Instruction>> {
-        // reject dynamic slices
-        let destination_type = self.value_type_for_value(destination)?;
-        if matches!(self.tree.get(destination_type), mir::Type::Slice { .. }) {
-            return Err(Error::type_mismatch(
-                "fixed frame element set",
-                format!("{destination_type:?}"),
-            ));
-        }
-
-        // resolve original frame value and replacement element
-        let layout = self.layout_for_type(destination_type)?;
-        let element_count = layout.element_count().ok_or(Error::invalid_instruction())?;
-        if index as usize >= element_count {
-            return Err(Error::invalid_array_access(
-                u64::from(index),
-                element_count as u64,
-            ));
-        }
-
-        let whole = FrameRange {
-            value_type: destination_type,
-            byte_offset: 0,
-            byte_len: layout.byte_len,
-        };
-        let element = element_projection(self.tree, self.layouts(), destination_type)
-            .ok_or(Error::invalid_instruction())?;
-        let element_offset = element.byte_stride * index as usize;
-
-        // store cell elements directly
-        let instruction = if element.is_cell() {
-            let access = element.at_offset(element_offset).with_length(0);
-            let op = select_frame_value_store_op(access)?;
-
-            Instruction::new(
-                op,
-                value_offset(self, destination)?,
-                cell_offset(self, value)?,
-                instruction_byte_offset(access.byte_offset)?,
-                0,
-            )
-        } else {
-            let destination_access = element.at_offset(element_offset).with_length(0);
-            let source_access = FrameRange {
-                value_type: element.value_type,
-                byte_offset: 0,
-                byte_len: element.byte_len,
-            };
-
-            move_frame_instruction(
-                self,
-                destination,
-                destination_access,
-                value,
-                source_access.into(),
-            )?
-        };
-
-        // move the original frame value and overwrite one element
-        Ok(vec![
-            self.store_frame_range(destination, array, whole)?,
-            instruction,
         ])
     }
 

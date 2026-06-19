@@ -462,7 +462,7 @@ b0(v0: int32):
     v1: ref<Env, managed, mutable> = call makeEnv(v0): (int32) => ref<Env, managed, mutable>
     v2: Reader = closure.bind readEnv, v1
     v3: [Reader; 1] = array [Reader; 1] (v2)
-    v4: Reader = element.get v3, 0
+    v4: Reader = field.get v3, 0
     v5: int32 = call.indirect v4(): () => int32
     return v5
 }"#;

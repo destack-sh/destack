@@ -306,7 +306,7 @@ pub fn value_shape_from_type(
             }
             _ => None,
         },
-        mir::Type::Array {
+        mir::Type::FixedArray {
             element,
             length,
             copy: _,

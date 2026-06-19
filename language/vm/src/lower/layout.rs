@@ -117,7 +117,7 @@ impl<'a> BlockLowerer<'a> {
     /// Return one array length from a concrete type.
     fn array_length_for_type(&self, value_type: mir::LocalNodeId<mir::Type>) -> Result<u64> {
         match self.tree.get(value_type) {
-            mir::Type::Array { length, .. } => Ok(*length),
+            mir::Type::FixedArray { length, .. } => Ok(*length),
             _ => Err(Error::invalid_instruction()),
         }
     }
