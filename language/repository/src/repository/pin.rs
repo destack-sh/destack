@@ -43,19 +43,18 @@ impl Repository {
 
         self.revisions
             .retain(|revision, _| reachable_revisions.contains(revision));
-        self.artifact_versions
-            .retain(|(revision, _), _| reachable_revisions.contains(revision));
-        self.artifact_cache().retain_reachable(&reachable_artifacts);
+        self.compact_revision_trees(&reachable_revisions);
+        self.artifact_table().retain_reachable(&reachable_artifacts);
         self.artifact_store()
-            .retain(&reachable_artifacts)
+            .retain(&reachable_artifacts, self.string_pool())
             .map_err(|error| RepositoryError::ArtifactStore {
                 message: error.to_string(),
             })?;
-        self.file_cache.retain_file_contents(&reachable_contents);
-        self.contents.retain_reachable(&reachable_contents);
-        self.content_cache()
+        self.files.cache.retain_file_contents(&reachable_contents);
+        self.content_pool.retain_reachable(&reachable_contents);
+        self.content_store()
             .retain_reachable(&reachable_contents)
-            .map_err(|error| RepositoryError::ContentCache {
+            .map_err(|error| RepositoryError::ContentStore {
                 message: error.to_string(),
             })?;
 
@@ -79,14 +78,20 @@ impl Repository {
         reachable_revisions: &HashSet<Revision>,
     ) -> HashSet<ArtifactVersion> {
         let mut reachable = HashSet::new();
+        let roots = reachable_revisions
+            .iter()
+            .filter_map(|revision| self.revisions.get(revision))
+            .map(|entry| entry.state().artifacts())
+            .collect::<Vec<_>>();
 
-        for artifact_version in self.artifact_versions.iter() {
-            if reachable_revisions.contains(&artifact_version.key().0) {
-                reachable.insert(*artifact_version.value());
-            }
-        }
+        // collect versions from shared artifact tree nodes once
+        self.artifacts
+            .versions
+            .visit_unique_values(roots, &mut |version| {
+                reachable.insert(*version);
+            });
 
-        for artifact_version in self.artifacts.retained_versions() {
+        for artifact_version in self.artifact_table().retained_versions() {
             reachable.insert(artifact_version);
         }
 
@@ -100,27 +105,60 @@ impl Repository {
         reachable_artifacts: &HashSet<ArtifactVersion>,
     ) -> HashSet<ContentId> {
         let mut reachable = HashSet::new();
+        let roots = reachable_revisions
+            .iter()
+            .filter_map(|revision| self.revisions.get(revision))
+            .map(|entry| entry.state().files())
+            .collect::<Vec<_>>();
 
-        // source file contents
-        for revision in reachable_revisions {
-            let Some(revision_entry) = self.revisions.get(revision) else {
-                continue;
-            };
-            let revision_state = revision_entry.state();
-
-            for entry in revision_state.files.values() {
-                reachable.insert(entry.content_id);
-            }
-        }
+        // collect source file contents from shared tree nodes once
+        self.files.entries.visit_unique_values(roots, &mut |entry| {
+            reachable.insert(entry.content_id);
+        });
 
         // artifact output contents
         for artifact_version in reachable_artifacts {
-            for content in self.artifacts.content_ids(artifact_version) {
+            for content in self.artifact_table().content_ids(artifact_version) {
                 reachable.insert(content);
             }
         }
 
         reachable
+    }
+
+    /// Compact revision tree storage around reachable revision roots.
+    fn compact_revision_trees(&self, reachable_revisions: &HashSet<Revision>) {
+        let revisions = reachable_revisions
+            .iter()
+            .filter_map(|revision| self.revisions.get(revision))
+            .map(|entry| entry.state())
+            .collect::<Vec<_>>();
+
+        // compact file roots
+        let mut file_guards = revisions
+            .iter()
+            .map(|revision| revision.write_files())
+            .collect::<Vec<_>>();
+        let mut files = file_guards.iter().map(|files| **files).collect::<Vec<_>>();
+        self.files.entries.compact(&mut files);
+        for (guard, files) in file_guards.iter_mut().zip(files) {
+            **guard = files;
+        }
+        drop(file_guards);
+
+        // compact artifact roots
+        let mut artifact_guards = revisions
+            .iter()
+            .map(|revision| revision.write_artifacts())
+            .collect::<Vec<_>>();
+        let mut artifacts = artifact_guards
+            .iter()
+            .map(|artifacts| **artifacts)
+            .collect::<Vec<_>>();
+        self.artifacts.versions.compact(&mut artifacts);
+        for (guard, artifacts) in artifact_guards.iter_mut().zip(artifacts) {
+            **guard = artifacts;
+        }
     }
 
     /// Collect all retained revisions.
@@ -228,16 +266,18 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use destack_artifact::{
-        ArtifactKey, ArtifactVersion, Bundle, BundleFile, BundleMode, BundleSection,
-        DiskCacheStore, EmitFormat,
+        ArtifactKey, ArtifactVersion, Bundle, BundleFile, BundleMode, BundleSection, DiskBlobStore,
+        EmitFormat, GlobalEnvironment, LanguageEnvironment,
     };
+    use destack_dir::{GlobalSymbolId, LocalSymbolId};
     use destack_source::{
-        Content, DiagnosticCollection, FileSystem, FileType, PackageId, PhysicalFileSystem,
-        TargetId, Uri,
+        Content, DiagnosticCollection, FileSystem, FileType, ModuleId, PackageId,
+        PhysicalFileSystem, ProfileId, TargetId, Uri,
     };
+    use indexmap::IndexMap;
 
     use crate::repository::{Edit, Ref, Repository, Revision};
-    use crate::{DestackLayout, DestackLayoutOverride, Environment, Settings};
+    use crate::{DestackLayout, DestackLayoutOverride, Environment, Host, Settings};
 
     /// Create one repository for a test root.
     fn test_repository(root: &Path) -> Repository {
@@ -252,14 +292,9 @@ mod tests {
             None,
         );
 
-        Repository::new(
-            root.to_path_buf(),
-            Arc::new(DiskCacheStore::new()),
-            file_system,
-            environment,
-            Settings::default(),
-            layout,
-        )
+        let host = Host::new(environment, file_system, Arc::new(DiskBlobStore::new()));
+
+        Repository::new(root.to_path_buf(), host, Settings::default(), layout)
     }
 
     /// Keep one anonymous revision alive while it is pinned.
@@ -278,11 +313,10 @@ mod tests {
             &DestackLayoutOverride::default(),
             None,
         );
+        let host = Host::new(environment, file_system, Arc::new(DiskBlobStore::new()));
         let repository = Arc::new(Repository::new(
             root.clone(),
-            Arc::new(DiskCacheStore::new()),
-            file_system,
-            environment,
+            host,
             Settings::default(),
             layout,
         ));
@@ -320,9 +354,9 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
     }
 
-    /// Load content from the persistent cache into a fresh repository.
+    /// Load content from the persistent store into a fresh repository.
     #[test]
-    fn test_load_content_from_cache() {
+    fn test_load_content_from_store() {
         let root = unique_test_root("repository-content-load");
         fs::create_dir_all(&root).expect("repository content load test root should exist");
 
@@ -337,16 +371,16 @@ mod tests {
         let repository = test_repository(&root);
         let loaded = repository
             .content(content_id)
-            .expect("content should load from cache");
+            .expect("content should load from store");
 
         assert_eq!(loaded.payload(), &content);
 
         let _ = fs::remove_dir_all(&root);
     }
 
-    /// Load an artifact record from the persistent cache into a fresh repository.
+    /// Load an artifact record from the persistent store into a fresh repository.
     #[test]
-    fn test_load_artifact_from_cache() {
+    fn test_load_artifact_from_store() {
         let root = unique_test_root("repository-artifact-load");
         fs::create_dir_all(&root).expect("repository artifact load test root should exist");
 
@@ -385,6 +419,9 @@ mod tests {
                 Vec::new(),
             )
             .expect("bundle should publish");
+        repository
+            .flush_artifacts()
+            .expect("artifact store should flush");
 
         let repository = test_repository(&root);
         let revision = repository
@@ -392,7 +429,7 @@ mod tests {
             .expect("root ref should exist");
         let loaded = repository
             .load_artifact(revision, version)
-            .expect("artifact should load from cache");
+            .expect("artifact should load from store");
 
         assert!(loaded);
         assert_eq!(
@@ -401,8 +438,78 @@ mod tests {
                 .expect("artifact binding should load"),
             Some(version)
         );
-        assert!(repository.artifact_cache().bundle(&version).is_some());
+        assert!(repository.artifact_table().bundle(&version).is_some());
         assert!(repository.content(content).is_ok());
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// Load artifact strings from the persistent store into a fresh repository.
+    #[test]
+    fn test_load_artifact_strings_from_store() {
+        let root = unique_test_root("repository-artifact-strings-load");
+        fs::create_dir_all(&root).expect("repository artifact strings load test root should exist");
+
+        let repository = test_repository(&root);
+        let revision = repository
+            .current(&Ref::for_root(&root))
+            .expect("root ref should exist");
+        let package = PackageId::new(1);
+        let module = ModuleId::new(package, 1);
+        let profile = ProfileId::new(1);
+        let string = repository.string_pool().intern("CachedSymbol");
+        let symbol = GlobalSymbolId::new(module, LocalSymbolId::new(1));
+        let mut symbols = IndexMap::new();
+        symbols.insert(string, symbol);
+
+        let output = GlobalEnvironment {
+            language: LanguageEnvironment {
+                symbol_by_item: IndexMap::new(),
+                items_by_symbol: IndexMap::new(),
+                symbols,
+            },
+            globals: vec![module],
+            global_targets_by_key: IndexMap::new(),
+        };
+        let key = ArtifactKey::global_environment(profile);
+        let version = ArtifactVersion::new(key, repository.build_fingerprint(), []);
+
+        repository
+            .complete_artifact(
+                revision,
+                version,
+                output.into(),
+                Vec::new(),
+                DiagnosticCollection::new(),
+                Vec::new(),
+            )
+            .expect("environment should publish");
+        repository
+            .flush_artifacts()
+            .expect("artifact store should flush");
+
+        let repository = test_repository(&root);
+        let revision = repository
+            .current(&Ref::for_root(&root))
+            .expect("root ref should exist");
+        let loaded = repository
+            .load_artifact(revision, version)
+            .expect("artifact should load from store");
+
+        assert!(loaded);
+        assert_eq!(
+            repository.string_pool().get_maybe(string),
+            Some("CachedSymbol")
+        );
+        assert_eq!(
+            repository
+                .artifact_table()
+                .global_environment(&version)
+                .expect("environment should load")
+                .language
+                .symbol_by_name("CachedSymbol"),
+            Some(symbol)
+        );
 
         let _ = fs::remove_dir_all(&root);
     }
@@ -434,11 +541,10 @@ mod tests {
             &DestackLayoutOverride::default(),
             None,
         );
+        let host = Host::new(environment, file_system, Arc::new(DiskBlobStore::new()));
         let repository = Arc::new(Repository::new(
             root.clone(),
-            Arc::new(DiskCacheStore::new()),
-            file_system,
-            environment,
+            host,
             Settings::default(),
             layout,
         ));

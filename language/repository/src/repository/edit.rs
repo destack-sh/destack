@@ -17,12 +17,12 @@ pub enum Edit {
         logical_path: String,
         content: Content,
     },
-    /// Remove one file from the revision file map.
+    /// Remove one file from the revision file bindings.
     RemoveFile {
         /// The workspace logical path.
         logical_path: String,
     },
-    /// Move one file within the revision file map.
+    /// Move one file within the revision file bindings.
     MoveFile {
         /// The source workspace logical path.
         from: String,
@@ -67,25 +67,23 @@ impl Edit {
         }
     }
 
-    /// Return file ids affected by this edit.
-    pub fn affected_file_ids(&self) -> impl Iterator<Item = FileId> {
-        let (first, second) = match self {
-            Self::AddFile { logical_path, .. }
-            | Self::SetFile { logical_path, .. }
-            | Self::RemoveFile { logical_path } => {
-                let first = FileId::from_logical_str(logical_path);
-
-                (first, None)
-            }
-            Self::MoveFile { from, to } => {
-                let from = FileId::from_logical_str(from);
-                let to = FileId::from_logical_str(to);
-
-                (from, Some(to))
-            }
-        };
+    /// Return concrete file ids changed by this edit.
+    pub fn changed_file_ids(&self) -> impl Iterator<Item = FileId> + '_ {
+        let (first, second) = self.changed_logical_paths();
+        let first = FileId::from_logical_str(first);
+        let second = second.map(FileId::from_logical_str);
 
         [Some(first), second].into_iter().flatten()
+    }
+
+    /// Return logical file paths changed by this edit.
+    fn changed_logical_paths(&self) -> (&str, Option<&str>) {
+        match self {
+            Self::AddFile { logical_path, .. }
+            | Self::SetFile { logical_path, .. }
+            | Self::RemoveFile { logical_path } => (logical_path, None),
+            Self::MoveFile { from, to } => (from, Some(to)),
+        }
     }
 }
 

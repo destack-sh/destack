@@ -2,12 +2,13 @@ use std::collections::hash_map::Entry;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use destack_core::TreapRoot;
 use destack_source::{FileId, FileType, LanguageType, Loader, ModuleId, PackageId, Uri};
 use im::OrdMap;
 use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
 
-use crate::repository::{FileEntry, Repository, RepositoryError, Revision};
+use crate::repository::{Repository, RepositoryError, Revision};
 use crate::{ConditionGate, ConditionRefError, Module, ModuleFile, ModuleIndex, PackageIndex};
 
 /// One file before it is assigned to its canonical module.
@@ -32,7 +33,7 @@ impl Repository {
     pub(crate) fn build_modules(
         &self,
         revision: Revision,
-        files: &OrdMap<FileId, FileEntry>,
+        files: TreapRoot,
         packages: &PackageIndex,
     ) -> Result<OrdMap<ModuleId, Arc<Module>>, RepositoryError> {
         let mut base_files = FxHashMap::default();
@@ -41,31 +42,27 @@ impl Repository {
         let mut known_aliases = FxHashMap::default();
 
         // collect base files and their conditional files
-        for (file_id, entry) in files.iter() {
+        self.files.entries.try_visit(files, &mut |file_id, entry| {
             let path = PathBuf::from(self.logical_path_text(entry.logical_path));
             let Some(candidate) =
                 self.module_file_candidate(revision, *file_id, path, packages, &mut known_aliases)?
             else {
-                continue;
+                return Ok(());
             };
 
             if candidate.aliases.is_empty() {
                 base_files.insert(candidate.path.clone(), candidate);
-            } else {
-                let Some(base_path) = Self::condition_base_path(
-                    &candidate.path,
-                    candidate.file_type,
-                    &candidate.aliases,
-                ) else {
-                    continue;
-                };
-
+            } else if let Some(base_path) =
+                Self::condition_base_path(&candidate.path, candidate.file_type, &candidate.aliases)
+            {
                 condition_files
                     .entry(base_path)
                     .or_default()
                     .push(candidate);
             }
-        }
+
+            Ok(())
+        })?;
 
         // build modules from base files only
         let mut modules = OrdMap::new();
@@ -278,7 +275,7 @@ impl Repository {
 
         let packages = self.package_index(revision)?;
         let mut modules =
-            self.build_modules(revision, revision_state.files.as_ref(), packages.as_ref())?;
+            self.build_modules(revision, revision_state.files(), packages.as_ref())?;
 
         // append immutable builtin modules
         modules.extend(self.builtin.modules());

@@ -26,8 +26,8 @@ pub enum RepositoryError {
     MissingRevision { revision: Revision },
     /// The requested content payload does not exist.
     MissingContent { content: ContentId },
-    /// The repository content cache failed.
-    ContentCache { message: String },
+    /// The repository content store failed.
+    ContentStore { message: String },
     /// The repository artifact store failed.
     ArtifactStore { message: String },
     /// The requested module does not exist in the given revision.
@@ -116,8 +116,8 @@ impl fmt::Display for RepositoryError {
             Self::MissingContent { content } => {
                 write!(formatter, "missing repository content '{content}'")
             }
-            Self::ContentCache { message } => {
-                write!(formatter, "repository content cache failed: {message}")
+            Self::ContentStore { message } => {
+                write!(formatter, "repository content store failed: {message}")
             }
             Self::ArtifactStore { message } => {
                 write!(formatter, "repository artifact store failed: {message}")

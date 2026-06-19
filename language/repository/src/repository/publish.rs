@@ -2,8 +2,8 @@ use std::path::Path;
 use std::sync::Arc;
 
 use dashmap::mapref::entry::Entry;
+use destack_core::TreapRoot;
 use destack_source::{Content, FileId, FileType};
-use im::OrdMap;
 
 use crate::repository::{
     Edit, FileEntry, Ref, Repository, RepositoryError, Revision, RevisionEntry, RevisionState,
@@ -76,11 +76,11 @@ impl Repository {
         I: IntoIterator<Item = Edit>,
     {
         let base_revision = self.revision(base_revision_id)?;
-        let files = base_revision.files.as_ref().clone();
-        let files = self.apply_edits(files, edits)?;
-        let revision = Arc::new(RevisionState::new(
-            Arc::new(files),
+        let files = self.apply_edits(base_revision.files(), edits)?;
+        let revision = Arc::new(RevisionState::with_artifacts(
+            files,
             Arc::clone(&base_revision.environment),
+            base_revision.artifacts(),
         ));
         let revision_id = revision.revision();
 
@@ -94,11 +94,11 @@ impl Repository {
     /// Load one workspace file payload from the attached file system.
     pub fn load_workspace_file_content(&self, path: &Path) -> Result<Content, RepositoryError> {
         let file_type = FileType::from_path_or_unknown(path);
+        let file_system = self.file_system();
 
         // binary
         if file_type.is_binary() {
-            let content = self
-                .fs
+            let content = file_system
                 .read(path)
                 .map_err(|error| RepositoryError::FileSystem {
                     operation: "read",
@@ -111,7 +111,7 @@ impl Repository {
         // text
         else {
             let content =
-                self.fs
+                file_system
                     .read_to_string(path)
                     .map_err(|error| RepositoryError::FileSystem {
                         operation: "read_to_string",
@@ -123,12 +123,8 @@ impl Repository {
         }
     }
 
-    /// Apply edits to one file map.
-    fn apply_edits<I>(
-        &self,
-        mut files: OrdMap<FileId, FileEntry>,
-        edits: I,
-    ) -> Result<OrdMap<FileId, FileEntry>, RepositoryError>
+    /// Apply edits to one file bindings.
+    fn apply_edits<I>(&self, mut files: TreapRoot, edits: I) -> Result<TreapRoot, RepositoryError>
     where
         I: IntoIterator<Item = Edit>,
     {
@@ -141,13 +137,17 @@ impl Repository {
                 } => {
                     let logical_path = normalize_logical_path(&logical_path);
                     let file_id = FileId::from_logical_str(&logical_path);
-                    if files.contains_key(&file_id) {
+                    if self.files.entries.contains(files, &file_id) {
                         return Err(RepositoryError::FileAlreadyExists { path: logical_path });
                     }
 
                     let logical_path = self.intern_logical_path(logical_path);
                     let content = self.intern_content(content)?;
-                    files.insert(file_id, FileEntry::loaded(logical_path, content));
+                    files = self.files.entries.insert(
+                        files,
+                        file_id,
+                        FileEntry::loaded(logical_path, content),
+                    );
                 }
 
                 // set the requested file payload
@@ -159,18 +159,22 @@ impl Repository {
                     let file_id = FileId::from_logical_str(&logical_path);
                     let logical_path = self.intern_logical_path(logical_path);
                     let content = self.intern_content(content)?;
-                    files.insert(file_id, FileEntry::loaded(logical_path, content));
+                    files = self.files.entries.insert(
+                        files,
+                        file_id,
+                        FileEntry::loaded(logical_path, content),
+                    );
                 }
 
                 // remove the requested file payload
                 Edit::RemoveFile { logical_path } => {
                     let logical_path = normalize_logical_path(&logical_path);
                     let file_id = FileId::from_logical_str(&logical_path);
-                    if !files.contains_key(&file_id) {
+                    if !self.files.entries.contains(files, &file_id) {
                         return Err(RepositoryError::MissingFile { path: logical_path });
                     }
 
-                    files.remove(&file_id);
+                    files = self.files.entries.remove(files, &file_id);
                 }
 
                 // move one existing file binding
@@ -182,22 +186,22 @@ impl Repository {
                     let from = normalize_logical_path(&from);
                     let to = normalize_logical_path(&to);
                     let from_file_id = FileId::from_logical_str(&from);
-                    if !files.contains_key(&from_file_id) {
+                    if !self.files.entries.contains(files, &from_file_id) {
                         return Err(RepositoryError::MissingFile { path: from });
                     }
-                    let Some(from_file) = files.get(&from_file_id).cloned() else {
+                    let Some(from_file) = self.files.entries.get(files, &from_file_id) else {
                         return Err(RepositoryError::MissingFile { path: from });
                     };
                     let to_file_id = FileId::from_logical_str(&to);
-                    if files.contains_key(&to_file_id) {
+                    if self.files.entries.contains(files, &to_file_id) {
                         return Err(RepositoryError::FileAlreadyExists { path: to });
                     }
 
-                    files.remove(&from_file_id);
+                    files = self.files.entries.remove(files, &from_file_id);
                     let to = self.intern_logical_path(to);
                     let to_file = FileEntry::loaded(to, from_file.content_id);
 
-                    files.insert(to_file_id, to_file);
+                    files = self.files.entries.insert(files, to_file_id, to_file);
                 }
             }
         }

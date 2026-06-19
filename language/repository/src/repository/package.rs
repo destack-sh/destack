@@ -2,28 +2,31 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_core::stable_hash_value_128;
+use destack_core::{TreapRoot, stable_hash_value_128};
 use destack_source::{FileId, PackageId, TargetId, Uri, matches as glob_matches};
 use im::OrdMap;
 use indexmap::IndexMap;
 
 use crate::config::{ConditionGate, Dependency, Export};
-use crate::repository::{FileEntry, Repository, RepositoryError, Revision};
+use crate::repository::{Repository, RepositoryError, Revision};
 use crate::{DestackFile, Package, PackageDependencies, PackageExport, PackageIndex, PackageKind};
 
 impl Repository {
     /// Build one tracked file id for one package-relative file when it exists.
-    fn tracked_file_id(&self, files: &OrdMap<FileId, FileEntry>, path: &Path) -> Option<FileId> {
+    fn tracked_file_id(&self, files: TreapRoot, path: &Path) -> Option<FileId> {
         let file_id = self.file_id(path);
 
-        files.contains_key(&file_id).then_some(file_id)
+        self.files
+            .entries
+            .contains(files, &file_id)
+            .then_some(file_id)
     }
 
     /// Build one shared package with declaration configuration applied.
     fn build_package(
         &self,
         revision: Revision,
-        files: &OrdMap<FileId, FileEntry>,
+        files: TreapRoot,
         package: &Package,
     ) -> Result<Arc<Package>, RepositoryError> {
         let destack_file_id = package
@@ -80,11 +83,11 @@ impl Repository {
         Ok(Arc::new(package))
     }
 
-    /// Build the package index from one file map.
+    /// Build the package index from one file bindings.
     pub(crate) fn package_index_for_files(
         &self,
         revision: Revision,
-        files: &OrdMap<FileId, FileEntry>,
+        files: TreapRoot,
     ) -> Result<PackageIndex, RepositoryError> {
         let package_roots = self.package_roots_for_files(revision, files)?;
         let mut packages = OrdMap::new();
@@ -127,11 +130,11 @@ impl Repository {
         Ok(())
     }
 
-    /// Return package roots for one file map.
+    /// Return package roots for one file bindings.
     fn package_roots_for_files(
         &self,
         revision: Revision,
-        files: &OrdMap<FileId, FileEntry>,
+        files: TreapRoot,
     ) -> Result<Vec<(PathBuf, PackageKind)>, RepositoryError> {
         let workspace_config = self.destack_for_workspace(revision)?;
         let workspace_packages = workspace_config
@@ -154,10 +157,10 @@ impl Repository {
         }
         // explicit workspace packages
         else {
-            for entry in files.values() {
+            self.files.entries.visit(files, &mut |_file_id, entry| {
                 let path = PathBuf::from(self.logical_path_text(entry.logical_path));
                 let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
-                    continue;
+                    return;
                 };
 
                 if file_name == "destack.json" {
@@ -168,7 +171,7 @@ impl Repository {
                         package_roots.push((package_root, PackageKind::Declared));
                     }
                 }
-            }
+            });
         }
 
         self.push_module_package_roots(revision, files, &mut package_roots, &mut seen)?;
@@ -180,7 +183,7 @@ impl Repository {
     fn push_module_package_roots(
         &self,
         revision: Revision,
-        files: &OrdMap<FileId, FileEntry>,
+        files: TreapRoot,
         package_roots: &mut Vec<(PathBuf, PackageKind)>,
         seen: &mut HashSet<PathBuf>,
     ) -> Result<(), RepositoryError> {
@@ -214,10 +217,10 @@ impl Repository {
     }
 
     /// Return true when one captured package root has a manifest.
-    fn has_package_config(&self, files: &OrdMap<FileId, FileEntry>, package_root: &Path) -> bool {
+    fn has_package_config(&self, files: TreapRoot, package_root: &Path) -> bool {
         let file_id = self.file_id(&package_root.join("destack.json"));
 
-        files.contains_key(&file_id)
+        self.files.entries.contains(files, &file_id)
     }
 
     /// Return the package index for one revision.
@@ -232,8 +235,7 @@ impl Repository {
             return Ok(Arc::clone(packages));
         }
 
-        let packages =
-            Arc::new(self.package_index_for_files(revision, revision_state.files.as_ref())?);
+        let packages = Arc::new(self.package_index_for_files(revision, revision_state.files())?);
         let packages = revision_cache.packages.get_or_init(|| packages);
 
         Ok(Arc::clone(packages))

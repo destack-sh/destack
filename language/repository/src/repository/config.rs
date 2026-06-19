@@ -48,7 +48,7 @@ impl Repository {
         };
 
         // cached parse result
-        if let Some(config) = self.file_cache.destack_by_content_id.get(&content_id) {
+        if let Some(config) = self.files.cache.destack_by_content_id.get(&content_id) {
             return config
                 .value()
                 .as_ref()
@@ -75,7 +75,8 @@ impl Repository {
             });
 
         // populate cache
-        self.file_cache
+        self.files
+            .cache
             .destack_by_content_id
             .insert(content_id, config);
 
