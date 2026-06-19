@@ -147,48 +147,10 @@ pub fn format_type(ty: &dir::Type, ctx: &ModuleQueryContext<'_>) -> String {
                 format!("{{ {} }}", items.join(", "))
             }
         }
-        dir::Type::Function(function) => {
-            let async_str = if function.asynchrony == dir::Asynchrony::Async {
-                "async "
-            } else {
-                ""
-            };
-            let static_params_str = if function.generic_parameters.is_empty() {
-                String::new()
-            } else {
-                let params: Vec<_> = function
-                    .generic_parameters
-                    .iter()
-                    .map(|p| format_global_type(*p, ctx))
-                    .collect();
-                format!("<{}>", params.join(", "))
-            };
-            let mut formatted_parameters: Vec<String> = Vec::new();
-            if let Some(this_parameter) = function.this_parameter {
-                let this_type = format_global_type(this_parameter, ctx);
-                formatted_parameters.push(format!("this: {this_type}"));
-            }
-            formatted_parameters.extend(
-                function
-                    .parameters
-                    .iter()
-                    .map(|parameter| format_function_parameter(parameter, ctx)),
-            );
-            let ret = if let Some(ret_ty) = function.return_type {
-                format!(": {}", format_global_type(ret_ty, ctx))
-            } else {
-                String::new()
-            };
-            format!(
-                "{async_str}{static_params_str}({}){ret}",
-                formatted_parameters.join(", ")
-            )
-        }
-        dir::Type::Closure(closure) => {
-            let function = format_global_type(closure.function, ctx);
-            let environment = format_global_type(closure.environment, ctx);
-
-            format!("Closure<{function}, {environment}>")
+        dir::Type::FunctionSignature(function) => format_function_signature_type(function, ctx),
+        dir::Type::Function(function) => format_callable_type("Function", function.signature, ctx),
+        dir::Type::FunctionPointer(function) => {
+            format_callable_type("FunctionPointer", function.signature, ctx)
         }
         dir::Type::Union(union) => {
             let mut seen = HashSet::new();
@@ -213,6 +175,126 @@ pub fn format_type(ty: &dir::Type, ctx: &ModuleQueryContext<'_>) -> String {
             formatted.join(" & ")
         }
     }
+}
+
+/// Format one source-facing function signature type.
+fn format_function_signature_type(
+    function: &dir::FunctionSignatureType,
+    ctx: &ModuleQueryContext<'_>,
+) -> String {
+    let async_str = if function.asynchrony == dir::Asynchrony::Async {
+        "async "
+    } else {
+        ""
+    };
+    let static_params_str = format_function_static_parameters(function, ctx);
+    let parameters = format_function_signature_parameters(function, ctx).join(", ");
+    let return_type = match format_function_return_type(function, ctx) {
+        Some(return_type) => format!(": {return_type}"),
+        None => String::new(),
+    };
+
+    format!("{async_str}{static_params_str}({parameters}){return_type}")
+}
+
+/// Format one callable representation type.
+fn format_callable_type(
+    name: &'static str,
+    signature: dir::GlobalTypeId,
+    ctx: &ModuleQueryContext<'_>,
+) -> String {
+    let Some(arguments) = format_callable_arguments(signature, ctx) else {
+        let signature = format_global_type(signature, ctx);
+
+        return format!("{name}<{signature}>");
+    };
+
+    format!("{name}<{arguments}>")
+}
+
+/// Format one callable representation type's generic arguments.
+fn format_callable_arguments(
+    signature: dir::GlobalTypeId,
+    ctx: &ModuleQueryContext<'_>,
+) -> Option<String> {
+    ctx.with_global_type(signature, |ty, ctx| {
+        let dir::Type::FunctionSignature(function) = ty else {
+            return None;
+        };
+
+        let parameters = format_callable_parameter_tuple(function, ctx);
+        let return_type =
+            format_function_return_type(function, ctx).unwrap_or_else(|| "void".to_string());
+
+        Some(format!("{parameters}, {return_type}"))
+    })?
+}
+
+/// Format one function signature's static parameter list.
+fn format_function_static_parameters(
+    function: &dir::FunctionSignatureType,
+    ctx: &ModuleQueryContext<'_>,
+) -> String {
+    if function.generic_parameters.is_empty() {
+        return String::new();
+    }
+
+    let parameters = function
+        .generic_parameters
+        .iter()
+        .map(|parameter| format_global_type(*parameter, ctx))
+        .collect::<Vec<_>>();
+
+    format!("<{}>", parameters.join(", "))
+}
+
+/// Format one function signature's full source parameter list.
+fn format_function_signature_parameters(
+    function: &dir::FunctionSignatureType,
+    ctx: &ModuleQueryContext<'_>,
+) -> Vec<String> {
+    let mut parameters = Vec::new();
+    if let Some(this_parameter) = function.this_parameter {
+        let this_type = format_global_type(this_parameter, ctx);
+        parameters.push(format!("this: {this_type}"));
+    }
+
+    parameters.extend(
+        function
+            .parameters
+            .iter()
+            .map(|parameter| format_function_parameter(parameter, ctx)),
+    );
+
+    parameters
+}
+
+/// Format one callable representation type's parameter tuple argument.
+fn format_callable_parameter_tuple(
+    function: &dir::FunctionSignatureType,
+    ctx: &ModuleQueryContext<'_>,
+) -> String {
+    let mut parameters = function
+        .parameters
+        .iter()
+        .map(|parameter| format_function_parameter(parameter, ctx))
+        .collect::<Vec<_>>()
+        .join(", ");
+    if function.parameters.len() == 1 {
+        parameters.push(',');
+    }
+
+    format!("({parameters})")
+}
+
+/// Format one function signature's return type.
+fn format_function_return_type(
+    function: &dir::FunctionSignatureType,
+    ctx: &ModuleQueryContext<'_>,
+) -> Option<String> {
+    function
+        .return_type
+        .map(|return_type| format_global_type(return_type, ctx))
 }
 
 /// Format a type-level operation.

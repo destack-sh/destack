@@ -277,8 +277,15 @@ fn member_name_from_query_name(name: Name) -> MemberName {
 impl ModuleQueryContext<'_> {
     /// Check if a type is a function type.
     fn is_function_type(&self, type_id: dir::GlobalTypeId) -> bool {
-        self.with_global_type(type_id, |ty, _| matches!(ty, dir::Type::Function(_)))
-            .unwrap_or(false)
+        self.with_global_type(type_id, |ty, _| {
+            matches!(
+                ty,
+                dir::Type::FunctionSignature(_)
+                    | dir::Type::Function(_)
+                    | dir::Type::FunctionPointer(_)
+            )
+        })
+        .unwrap_or(false)
     }
 }
 
