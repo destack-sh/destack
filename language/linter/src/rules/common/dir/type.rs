@@ -65,6 +65,15 @@ fn value_like_type_id(ty: &dir::Type) -> Option<dir::GlobalTypeId> {
     }
 }
 
+/// Resolve the call signature carried by one callable value representation.
+fn callable_signature_type_id(ty: &dir::Type) -> Option<dir::GlobalTypeId> {
+    match ty {
+        dir::Type::Function(function) => Some(function.signature),
+        dir::Type::FunctionPointer(function) => Some(function.signature),
+        _ => None,
+    }
+}
+
 /// Resolve union or intersection element type ids.
 fn union_or_intersection_elements(ty: &dir::Type) -> Option<&[dir::GlobalTypeId]> {
     match ty {
@@ -294,6 +303,8 @@ fn evaluate_boolean_type_query_inner(
         .unwrap_or(dir::Type::Error);
     let result = if let Some(next_type_id) = value_like_type_id(&ty) {
         evaluate_boolean_type_query_inner(ctx, statics, next_type_id, query, state)
+    } else if let Some(signature_type_id) = callable_signature_type_id(&ty) {
+        evaluate_boolean_type_query_inner(ctx, statics, signature_type_id, query, state)
     } else if let dir::Type::Reference(reference) = ty {
         evaluate_reference_boolean_type_query(
             ctx,
@@ -483,12 +494,12 @@ fn evaluate_terminal_boolean_type_query(
         }
         TypeBooleanQuery::Float => matches!(ty, dir::Type::Primitive(dir::PrimitiveType::Float(_))),
         TypeBooleanQuery::Function => match ty {
-            dir::Type::Function(_) => true,
+            dir::Type::FunctionSignature(_) => true,
             dir::Type::Shape(object) => !object.call_signatures.is_empty(),
             _ => false,
         },
         TypeBooleanQuery::HasThisParameter => match ty {
-            dir::Type::Function(function) => function.this_parameter.is_some(),
+            dir::Type::FunctionSignature(function) => function.this_parameter.is_some(),
             _ => false,
         },
         TypeBooleanQuery::ReferenceSymbolKind { .. } => false,
@@ -552,13 +563,15 @@ fn evaluate_terminal_boolean_type_query(
                     state,
                 )
             }),
-            dir::Type::Function(_) => true,
+            dir::Type::FunctionSignature(_)
+            | dir::Type::Function(_)
+            | dir::Type::FunctionPointer(_) => true,
             dir::Type::Shape(_) => false,
             dir::Type::Error => true,
             _ => false,
         },
         TypeBooleanQuery::AsyncFunction => match ty {
-            dir::Type::Function(function) => function.asynchrony == dir::Asynchrony::Async,
+            dir::Type::FunctionSignature(function) => function.asynchrony == dir::Asynchrony::Async,
             dir::Type::Shape(object) => object.call_signatures.iter().any(|type_id| {
                 evaluate_boolean_type_query_inner(
                     ctx,
@@ -641,8 +654,9 @@ fn evaluate_terminal_boolean_type_query(
             | dir::Type::FixedArray(_)
             | dir::Type::Tuple(_)
             | dir::Type::Shape(_)
-            | dir::Type::Closure(_)
-            | dir::Type::Function(_) => false,
+            | dir::Type::FunctionSignature(_)
+            | dir::Type::Function(_)
+            | dir::Type::FunctionPointer(_) => false,
             dir::Type::Memory(_) => false,
             dir::Type::Parameter(_)
             | dir::Type::Variable(_)
@@ -995,7 +1009,7 @@ fn has_non_void_this_parameter_type_inner(
         .checked_type(normalized_type_id)
         .unwrap_or(dir::Type::Error);
     match ty {
-        dir::Type::Function(function) => {
+        dir::Type::FunctionSignature(function) => {
             function
                 .this_parameter
                 .is_some_and(|this_parameter_type_id| {
@@ -1387,8 +1401,9 @@ fn type_truthiness_inner(
             | dir::Type::FixedArray(_)
             | dir::Type::Tuple(_)
             | dir::Type::Shape(_)
-            | dir::Type::Closure(_)
-            | dir::Type::Function(_) => TypeTruthiness::AlwaysTruthy,
+            | dir::Type::FunctionSignature(_)
+            | dir::Type::Function(_)
+            | dir::Type::FunctionPointer(_) => TypeTruthiness::AlwaysTruthy,
             dir::Type::Parameter(_)
             | dir::Type::This
             | dir::Type::Intrinsic
@@ -1455,8 +1470,9 @@ fn type_nullishness_inner(
             | dir::Type::FixedArray(_)
             | dir::Type::Tuple(_)
             | dir::Type::Shape(_)
-            | dir::Type::Closure(_)
-            | dir::Type::Function(_) => TypeNullishness::Never,
+            | dir::Type::FunctionSignature(_)
+            | dir::Type::Function(_)
+            | dir::Type::FunctionPointer(_) => TypeNullishness::Never,
             dir::Type::Parameter(_)
             | dir::Type::This
             | dir::Type::Intrinsic
@@ -1638,28 +1654,34 @@ fn function_parameter_type_at_inner(
 
     // inspect the type node
     let ty = ctx.checked_type(type_id).unwrap_or(dir::Type::Error);
-    let result = match ty {
-        dir::Type::Function(function) => {
-            function.parameters.get(index).map(|parameter| parameter.ty)
-        }
-        dir::Type::Shape(object) => {
-            object
-                .call_signatures
-                .first()
-                .copied()
-                .and_then(|first_signature| {
-                    function_parameter_type_at_inner(ctx, first_signature, index, state)
-                })
-        }
-        dir::Type::Form(value) => function_parameter_type_at_inner(ctx, value.value, index, state),
-        dir::Type::Reference(reference) => {
-            if let Some(next_type_id) = reference_symbol_type_id(ctx, reference.symbol) {
-                function_parameter_type_at_inner(ctx, next_type_id, index, state)
-            } else {
-                None
+    let result = if let Some(signature_type_id) = callable_signature_type_id(&ty) {
+        function_parameter_type_at_inner(ctx, signature_type_id, index, state)
+    } else {
+        match ty {
+            dir::Type::FunctionSignature(function) => {
+                function.parameters.get(index).map(|parameter| parameter.ty)
             }
+            dir::Type::Shape(object) => {
+                object
+                    .call_signatures
+                    .first()
+                    .copied()
+                    .and_then(|first_signature| {
+                        function_parameter_type_at_inner(ctx, first_signature, index, state)
+                    })
+            }
+            dir::Type::Form(value) => {
+                function_parameter_type_at_inner(ctx, value.value, index, state)
+            }
+            dir::Type::Reference(reference) => {
+                if let Some(next_type_id) = reference_symbol_type_id(ctx, reference.symbol) {
+                    function_parameter_type_at_inner(ctx, next_type_id, index, state)
+                } else {
+                    None
+                }
+            }
+            _ => None,
         }
-        _ => None,
     };
 
     state.leave_type_id(type_id);
@@ -1679,41 +1701,44 @@ fn function_parameter_types_at_inner(
         return;
     }
 
-    // inspect the type node
     let ty = ctx.checked_type(type_id).unwrap_or(dir::Type::Error);
-    match ty {
-        dir::Type::Function(function) => {
-            if let Some(parameter_type_id) =
-                function.parameters.get(index).map(|parameter| parameter.ty)
-                && !results.contains(&parameter_type_id)
-            {
-                results.push(parameter_type_id);
+    if let Some(signature_type_id) = callable_signature_type_id(&ty) {
+        function_parameter_types_at_inner(ctx, signature_type_id, index, state, results);
+    } else {
+        match ty {
+            dir::Type::FunctionSignature(function) => {
+                if let Some(parameter_type_id) =
+                    function.parameters.get(index).map(|parameter| parameter.ty)
+                    && !results.contains(&parameter_type_id)
+                {
+                    results.push(parameter_type_id);
+                }
             }
-        }
-        dir::Type::Shape(object) => {
-            for signature_id in &object.call_signatures {
-                function_parameter_types_at_inner(ctx, *signature_id, index, state, results);
+            dir::Type::Shape(object) => {
+                for signature_id in &object.call_signatures {
+                    function_parameter_types_at_inner(ctx, *signature_id, index, state, results);
+                }
             }
-        }
-        dir::Type::Union(union) => {
-            for element_type_id in &union.elements {
-                function_parameter_types_at_inner(ctx, *element_type_id, index, state, results);
+            dir::Type::Union(union) => {
+                for element_type_id in &union.elements {
+                    function_parameter_types_at_inner(ctx, *element_type_id, index, state, results);
+                }
             }
-        }
-        dir::Type::Intersection(intersection) => {
-            for element_type_id in &intersection.elements {
-                function_parameter_types_at_inner(ctx, *element_type_id, index, state, results);
+            dir::Type::Intersection(intersection) => {
+                for element_type_id in &intersection.elements {
+                    function_parameter_types_at_inner(ctx, *element_type_id, index, state, results);
+                }
             }
+            dir::Type::Form(value) => {
+                function_parameter_types_at_inner(ctx, value.value, index, state, results);
+            }
+            dir::Type::Reference(reference) => {
+                for_each_reference_symbol_type_id(ctx, reference.symbol, |next_type_id| {
+                    function_parameter_types_at_inner(ctx, next_type_id, index, state, results);
+                });
+            }
+            _ => {}
         }
-        dir::Type::Form(value) => {
-            function_parameter_types_at_inner(ctx, value.value, index, state, results);
-        }
-        dir::Type::Reference(reference) => {
-            for_each_reference_symbol_type_id(ctx, reference.symbol, |next_type_id| {
-                function_parameter_types_at_inner(ctx, next_type_id, index, state, results);
-            });
-        }
-        _ => {}
     }
 
     state.leave_type_id(type_id);
@@ -1732,22 +1757,30 @@ fn function_return_type_inner(
 
     // inspect the type node
     let ty = ctx.checked_type(type_id).unwrap_or(dir::Type::Error);
-    let result = match ty {
-        dir::Type::Function(function) => function.return_type,
-        dir::Type::Shape(object) => object
-            .call_signatures
-            .first()
-            .copied()
-            .and_then(|first_signature| function_return_type_inner(ctx, first_signature, state)),
-        dir::Type::Form(value) => function_return_type_inner(ctx, value.value, state),
-        dir::Type::Reference(reference) => {
-            if let Some(next_type_id) = reference_symbol_type_id(ctx, reference.symbol) {
-                function_return_type_inner(ctx, next_type_id, state)
-            } else {
-                None
+    let result = if let Some(signature_type_id) = callable_signature_type_id(&ty) {
+        function_return_type_inner(ctx, signature_type_id, state)
+    } else {
+        match ty {
+            dir::Type::FunctionSignature(function) => function.return_type,
+            dir::Type::Shape(object) => {
+                object
+                    .call_signatures
+                    .first()
+                    .copied()
+                    .and_then(|first_signature| {
+                        function_return_type_inner(ctx, first_signature, state)
+                    })
             }
+            dir::Type::Form(value) => function_return_type_inner(ctx, value.value, state),
+            dir::Type::Reference(reference) => {
+                if let Some(next_type_id) = reference_symbol_type_id(ctx, reference.symbol) {
+                    function_return_type_inner(ctx, next_type_id, state)
+                } else {
+                    None
+                }
+            }
+            _ => None,
         }
-        _ => None,
     };
 
     state.leave_type_id(type_id);
