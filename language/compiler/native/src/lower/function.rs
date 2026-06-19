@@ -577,7 +577,7 @@ impl<'a> FunctionLowerer<'a> {
             | mir::Instruction::ProfileIncrement { .. }
             | mir::Instruction::ProfileValue { .. } => {}
 
-            // extract_field: load at computed offset (struct/tuple field read)
+            // field.get: load at computed aggregate slot offset
             mir::Instruction::FieldGet {
                 destination,
                 aggregate,
@@ -608,43 +608,7 @@ impl<'a> FunctionLowerer<'a> {
                 value_map.insert(destination, result);
             }
 
-            // field_addr: pointer to field
-            mir::Instruction::FieldAddr {
-                destination,
-                aggregate,
-                index,
-                ..
-            } => {
-                let destination = *destination;
-                let aggregate = *aggregate;
-
-                // aggregate type
-                let aggregate_type_id =
-                    self.value_type_or_error(aggregate, instruction_id.into_any())?;
-                let aggregate_type = self.tree.get(aggregate_type_id);
-                let aggregate_layout_type_id = match aggregate_type {
-                    mir::Type::Reference { pointee, .. } => *pointee,
-                    _ => aggregate_type_id,
-                };
-
-                // field offset and type
-                let (field_offset, _field_type) = self.aggregate_field_offset_and_type(
-                    aggregate_layout_type_id,
-                    *index,
-                    instruction_id.into_any(),
-                )?;
-
-                // pointer arithmetic on the aggregate pointer
-                let aggregate_ptr = value_map[&aggregate];
-                let field_ptr = if field_offset == 0 {
-                    aggregate_ptr
-                } else {
-                    builder.ins().iadd_imm(aggregate_ptr, field_offset as i64)
-                };
-                value_map.insert(destination, field_ptr);
-            }
-
-            // insert_field: store at computed offset (struct/tuple field write)
+            // field.set: store at computed aggregate slot offset
             mir::Instruction::FieldSet {
                 destination,
                 aggregate,
@@ -684,41 +648,40 @@ impl<'a> FunctionLowerer<'a> {
                 value_map.insert(destination, aggregate_ptr);
             }
 
-            // extract_element: load at ptr + index * elem_size (array element read)
-            mir::Instruction::ElementGet {
+            // field_addr: pointer to field
+            mir::Instruction::FieldAddr {
                 destination,
-                array,
+                aggregate,
                 index,
+                ..
             } => {
                 let destination = *destination;
-                let array = *array;
+                let aggregate = *aggregate;
 
-                // array type
-                let array_type_id = self.value_type_or_error(array, instruction_id.into_any())?;
-                let array_type = self.tree.get(array_type_id);
-
-                // element type
-                let element_type_id = match array_type {
-                    mir::Type::Array { element, .. } => *element,
-                    _ => {
-                        return Err(CodegenCraneliftError::Internal {
-                            message: "ElementGet on non-array type".into(),
-                        });
-                    }
+                // aggregate type
+                let aggregate_type_id =
+                    self.value_type_or_error(aggregate, instruction_id.into_any())?;
+                let aggregate_type = self.tree.get(aggregate_type_id);
+                let aggregate_layout_type_id = match aggregate_type {
+                    mir::Type::Reference { pointee, .. } => *pointee,
+                    _ => aggregate_type_id,
                 };
-                let element_type = lower_type(self.tree, element_type_id, self.pointer_bytes)?;
-                let element_size = element_type.bytes() as i64;
-                let element_offset = element_size * i64::from(*index);
 
-                // array pointer + index * element_size
-                let array_ptr = value_map[&array];
-                let result = builder.ins().load(
-                    element_type,
-                    cir::MemFlags::new(),
-                    array_ptr,
-                    element_offset as i32,
-                );
-                value_map.insert(destination, result);
+                // field offset and type
+                let (field_offset, _field_type) = self.aggregate_field_offset_and_type(
+                    aggregate_layout_type_id,
+                    *index,
+                    instruction_id.into_any(),
+                )?;
+
+                // pointer arithmetic on the aggregate pointer
+                let aggregate_ptr = value_map[&aggregate];
+                let field_ptr = if field_offset == 0 {
+                    aggregate_ptr
+                } else {
+                    builder.ins().iadd_imm(aggregate_ptr, field_offset as i64)
+                };
+                value_map.insert(destination, field_ptr);
             }
 
             // element_addr: pointer to element
@@ -732,7 +695,7 @@ impl<'a> FunctionLowerer<'a> {
                 let array = *array;
                 let index = *index;
 
-                // array type
+                // fixed array type
                 let array_type_id = self.value_type_or_error(array, instruction_id.into_any())?;
                 let array_type = self.tree.get(array_type_id);
                 let array_layout = match array_type {
@@ -742,10 +705,10 @@ impl<'a> FunctionLowerer<'a> {
 
                 // element type
                 let element_type_id = match array_layout {
-                    mir::Type::Array { element, .. } => *element,
+                    mir::Type::FixedArray { element, .. } => *element,
                     _ => {
                         return Err(CodegenCraneliftError::Internal {
-                            message: "ElementAddr on non-array type".into(),
+                            message: "ElementAddr on non-fixed-array type".into(),
                         });
                     }
                 };
@@ -758,47 +721,6 @@ impl<'a> FunctionLowerer<'a> {
                 let offset = builder.ins().imul_imm(idx_value, element_size);
                 let element_ptr = builder.ins().iadd(array_ptr, offset);
                 value_map.insert(destination, element_ptr);
-            }
-
-            // insert_element: store at ptr + index * elem_size (array element write)
-            mir::Instruction::ElementSet {
-                destination,
-                array,
-                index,
-                value,
-            } => {
-                let destination = *destination;
-                let array = *array;
-                let value = *value;
-
-                // array type
-                let array_type_id = self.value_type_or_error(array, instruction_id.into_any())?;
-                let array_type = self.tree.get(array_type_id);
-
-                // element type
-                let element_type_id = match array_type {
-                    mir::Type::Array { element, .. } => *element,
-                    _ => {
-                        return Err(CodegenCraneliftError::Internal {
-                            message: "ElementSet on non-array type".into(),
-                        });
-                    }
-                };
-                let element_type = lower_type(self.tree, element_type_id, self.pointer_bytes)?;
-                let element_size = element_type.bytes() as i64;
-                let element_offset = element_size * i64::from(*index);
-
-                // array pointer + index * element_size
-                let array_ptr = value_map[&array];
-                let store_value = value_map[&value];
-                builder.ins().store(
-                    cir::MemFlags::new(),
-                    store_value,
-                    array_ptr,
-                    element_offset as i32,
-                );
-                // the result is the array pointer itself
-                value_map.insert(destination, array_ptr);
             }
 
             // call: direct function call via pre-declared FuncRef
@@ -1047,10 +969,10 @@ impl<'a> FunctionLowerer<'a> {
 
                 // get element type
                 let element_type_id = match array_type {
-                    mir::Type::Array { element, .. } => *element,
+                    mir::Type::FixedArray { element, .. } => *element,
                     _ => {
                         return Err(CodegenCraneliftError::Internal {
-                            message: "Array instruction with non-array type".into(),
+                            message: "Array instruction with non-fixed-array type".into(),
                         });
                     }
                 };
@@ -1771,6 +1693,19 @@ impl<'a> FunctionLowerer<'a> {
             mir::Type::Tuple { elements, .. } => *elements
                 .get(index as usize)
                 .ok_or_else(|| CodegenCraneliftError::out_of_bounds(node, index, elements.len()))?,
+            mir::Type::FixedArray {
+                element, length, ..
+            } => {
+                if u64::from(index) < *length {
+                    *element
+                } else {
+                    return Err(CodegenCraneliftError::out_of_bounds(
+                        node,
+                        index,
+                        *length as usize,
+                    ));
+                }
+            }
             mir::Type::Closure {
                 signature,
                 environment,
@@ -1789,10 +1724,37 @@ impl<'a> FunctionLowerer<'a> {
         let layout = self.tree.type_layout(aggregate_type).ok_or_else(|| {
             CodegenCraneliftError::unsupported_type("missing aggregate layout metadata", node)
         })?;
+
+        if let mir::LayoutShape::Array(array) = &layout.shape {
+            if array.element != field_type {
+                return Err(CodegenCraneliftError::Internal {
+                    message: "array layout element type mismatch".into(),
+                });
+            }
+
+            if let Some(count) = array.count
+                && index >= count
+            {
+                return Err(CodegenCraneliftError::out_of_bounds(
+                    node,
+                    index,
+                    count as usize,
+                ));
+            }
+
+            let offset =
+                array
+                    .stride
+                    .checked_mul(index)
+                    .ok_or_else(|| CodegenCraneliftError::Internal {
+                        message: "array slot offset overflow".into(),
+                    })?;
+
+            return Ok((offset, field_type));
+        }
+
         let fields = layout.shape.fields();
-        let layout_field = layout
-            .shape
-            .fields()
+        let layout_field = fields
             .iter()
             .find(|field| field.source_index == Some(index))
             .or_else(|| fields.get(index as usize))

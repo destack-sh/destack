@@ -505,24 +505,6 @@ fn process_block(
                     None
                 }
             }
-            mir::Instruction::ElementGet {
-                destination,
-                array,
-                index,
-                ..
-            } => {
-                let array = *array;
-                let destination = *destination;
-                let agg = substitutions.get(&array).copied().unwrap_or(array);
-
-                if let Some(operands) = value_table.get_aggregate(&agg)
-                    && let Some(&operand) = operands.get(*index as usize)
-                {
-                    Some((destination, operand, instruction_id))
-                } else {
-                    None
-                }
-            }
             _ => None,
         };
 

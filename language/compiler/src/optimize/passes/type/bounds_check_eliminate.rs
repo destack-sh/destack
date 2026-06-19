@@ -1581,7 +1581,7 @@ entry(v0: [int32; 4]):
     branch v3, b1, b2
 
 b1:
-    v4: int32 = element.get v0, 0
+    v4: int32 = field.get v0, 0
     return v4
 
 b2:
@@ -1610,7 +1610,7 @@ entry(v0: [int32; 4]):
     check bounds.u v1, v2, v0 => b1, b2
 
 b1:
-    v4: int32 = element.get v0, 0
+    v4: int32 = field.get v0, 0
     return v4
 
 b2:
@@ -1628,7 +1628,7 @@ entry(v0: [int32; 4]):
     jump b1
 
 b1:
-    v4: int32 = element.get v0, 0
+    v4: int32 = field.get v0, 0
     return v4
 
 b2:
@@ -1661,7 +1661,7 @@ b2:
     unreachable
 
 b3:
-    v5: int32 = element.get v0, 0
+    v5: int32 = field.get v0, 0
     return v5
 }
 "#;
@@ -1693,7 +1693,7 @@ b2:
     unreachable
 
 b3:
-    v5: int32 = element.get v0, 0
+    v5: int32 = field.get v0, 0
     return v5
 }
 "#;
@@ -1714,7 +1714,7 @@ b2:
     unreachable
 
 b3:
-    v5: int32 = element.get v0, 0
+    v5: int32 = field.get v0, 0
     return v5
 }
 "#;
@@ -1737,7 +1737,7 @@ entry(v0: [int32; 4], v1: uint32):
     branch v3, b1, b2
 
 b1:
-    v4: int32 = element.get v0, 0
+    v4: int32 = field.get v0, 0
     return v4
 
 b2:
@@ -1767,7 +1767,7 @@ entry(v0: [int32; 8]):
     branch v6, b1, b2
 
 b1:
-    v7: int32 = element.get v0, 0
+    v7: int32 = field.get v0, 0
     return v7
 
 b2:
@@ -1797,7 +1797,7 @@ entry(v0: [int32; 16], v1: uint32):
     check bounds.u v1, v2, v0 => b1, b2
 
 b1:
-    v5: int32 = element.get v0, 0
+    v5: int32 = field.get v0, 0
     return v5
 
 b2:
@@ -1816,7 +1816,7 @@ entry(v0: [int32; 16], v1: uint32):
     jump b1
 
 b1:
-    v5: int32 = element.get v0, 0
+    v5: int32 = field.get v0, 0
     return v5
 
 b2:
@@ -1851,7 +1851,7 @@ b2:
     unreachable
 
 b3:
-    v7: int32 = element.get v0, 0
+    v7: int32 = field.get v0, 0
     return v7
 }
 "#;
@@ -1874,7 +1874,7 @@ b2:
     unreachable
 
 b3:
-    v7: int32 = element.get v0, 0
+    v7: int32 = field.get v0, 0
     return v7
 }
 "#;
@@ -1907,7 +1907,7 @@ b3:
     check bounds.u v1, v2, v0 => b4, b2
 
 b4:
-    v5: int32 = element.get v0, 0
+    v5: int32 = field.get v0, 0
     return v5
 }
 "#;
@@ -1931,7 +1931,7 @@ b3:
     jump b4
 
 b4:
-    v5: int32 = element.get v0, 0
+    v5: int32 = field.get v0, 0
     return v5
 }
 "#;
@@ -1961,7 +1961,7 @@ b2:
     unreachable
 
 b3:
-    v6: int32 = element.get v0, 0
+    v6: int32 = field.get v0, 0
     return v6
 }
 "#;
@@ -1982,7 +1982,7 @@ b2:
     unreachable
 
 b3:
-    v6: int32 = element.get v0, 0
+    v6: int32 = field.get v0, 0
     return v6
 }
 "#;
@@ -2006,7 +2006,7 @@ entry(v0: [int32; 4], v1: uint32):
     branch v4, b2, b1
 
 b1:
-    v5: int32 = element.get v0, 0
+    v5: int32 = field.get v0, 0
     return v5
 
 b2:
@@ -2039,7 +2039,7 @@ b1:
     check bounds.u v1, v2, v0 => b2, b3
 
 b2:
-    v5: int32 = element.get v0, 0
+    v5: int32 = field.get v0, 0
     return v5
 
 b3:
@@ -2061,7 +2061,7 @@ b1:
     jump b2
 
 b2:
-    v5: int32 = element.get v0, 0
+    v5: int32 = field.get v0, 0
     return v5
 
 b3:
@@ -2094,7 +2094,7 @@ b2:
     jump b1(v1)
 
 b3:
-    v6: int32 = element.get v0, 0
+    v6: int32 = field.get v0, 0
     return v6
 
 b4:
@@ -2128,7 +2128,7 @@ b2:
     jump b1(v6)
 
 b3:
-    v7: int32 = element.get v0, 0
+    v7: int32 = field.get v0, 0
     return v7
 
 b4:
@@ -2154,7 +2154,7 @@ entry(v0: [int32; 4], v1: uint32):
     branch v3, b1, b2
 
 b1:
-    v4: int32 = element.get v0, 0
+    v4: int32 = field.get v0, 0
     return v4
 
 b2:
@@ -2189,7 +2189,7 @@ b2:
     unreachable
 
 b3:
-    v6: int32 = element.get v0, 0
+    v6: int32 = field.get v0, 0
     return v6
 }
 "#;
@@ -2211,7 +2211,7 @@ b2:
     unreachable
 
 b3:
-    v6: int32 = element.get v0, 0
+    v6: int32 = field.get v0, 0
     return v6
 }
 "#;

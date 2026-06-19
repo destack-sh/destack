@@ -187,7 +187,7 @@ impl FunctionLowerer<'_> {
         node: dir::AnchoredGlobalNodeId,
     ) -> CompilerResult<mir::Value> {
         let (element, length) = match self.state.builder.tree().get(storage_type) {
-            mir::Type::Array {
+            mir::Type::FixedArray {
                 element, length, ..
             } => (
                 element

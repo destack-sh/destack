@@ -125,8 +125,8 @@ impl TypeLowerer<'_> {
         Ok(builder.type_tuple(mir_elements, copy))
     }
 
-    /// Lower a DIR sized array type to a MIR array type.
-    pub(crate) fn lower_array_sized_type(
+    /// Lower a DIR fixed array type to a MIR fixed array type.
+    pub(crate) fn lower_fixed_array_type(
         &mut self,
         types: &dir::TypeTable<'_>,
         element: dir::LocalTypeId,
@@ -161,6 +161,6 @@ impl TypeLowerer<'_> {
         let element_type = builder.tree().get(mir_element);
         let copy = element_type.copy();
 
-        Ok(builder.type_array(mir_element, length, copy))
+        Ok(builder.type_fixed_array(mir_element, length, copy))
     }
 }

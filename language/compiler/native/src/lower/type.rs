@@ -90,8 +90,8 @@ pub(crate) fn lower_type(
             type_id.into_any(),
         )),
 
-        mir::Type::Array { .. } => Err(CodegenCraneliftError::unsupported_type(
-            "array types must be lowered to memory operations",
+        mir::Type::FixedArray { .. } => Err(CodegenCraneliftError::unsupported_type(
+            "fixed array types must be lowered to memory operations",
             type_id.into_any(),
         )),
 

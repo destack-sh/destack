@@ -129,7 +129,7 @@ impl VerifyState<'_> {
                 .iter()
                 .any(|element| self.type_emits_drop(*element, seen)),
             mir::Type::Newtype { inner, .. } => self.type_emits_drop(*inner, seen),
-            mir::Type::Array {
+            mir::Type::FixedArray {
                 element, length, ..
             } => *length > 0 && self.type_emits_drop(*element, seen),
             mir::Type::Variant { cases, .. } => {
@@ -169,7 +169,7 @@ impl VerifyState<'_> {
         ty: mir::LocalNodeId<mir::Type>,
     ) -> Option<mir::LocalNodeId<mir::Function>> {
         let name = self.drop_name(ty)?;
-        let parameters = vec![mir::FunctionParameter::new(mir::Value::new(0), ty.into())];
+        let parameters = vec![mir::FunctionParameter::new(mir::Value::new(0), ty)];
         let void = self.tree.void_type();
 
         // register a bodyless function first so recursive glue can call it
@@ -237,7 +237,7 @@ impl VerifyState<'_> {
             mir::Type::Isize => "isize".to_string(),
             mir::Type::Usize => "usize".to_string(),
             mir::Type::Dynamic { constraint } => {
-                let constraint = self.drop_name_stem((*constraint).into())?;
+                let constraint = self.drop_name_stem(*constraint)?;
                 format!("dynamic.{constraint}")
             }
             mir::Type::Reference { kind, pointee, .. } => {
@@ -248,7 +248,7 @@ impl VerifyState<'_> {
                 let element = self.drop_name_stem(*element)?;
                 format!("slice.{element}.{}", kind.name())
             }
-            mir::Type::Array {
+            mir::Type::FixedArray {
                 element, length, ..
             } => {
                 let element = self.drop_name_stem(*element)?;
@@ -310,7 +310,7 @@ impl VerifyState<'_> {
                 let inner = *inner;
                 self.generate_value_drop_glue(inner, building);
             }
-            mir::Type::Array {
+            mir::Type::FixedArray {
                 element, length, ..
             } => {
                 let element = *element;
@@ -384,7 +384,7 @@ impl VerifyState<'_> {
                 .tree_mut()
                 .insert_type(mir::Type::FunctionSignature {
                     lifetimes: Vec::new(),
-                    parameters: vec![mir::SignatureParameter::new(ty.into())],
+                    parameters: vec![mir::SignatureParameter::new(ty)],
                     result: void,
                 });
             builder.call_void(hook.function, signature, vec![value]);
@@ -429,12 +429,12 @@ fn emit_inline_drop(
 
             emit_drop(builder, inner, inner_value);
         }
-        mir::Type::Array {
+        mir::Type::FixedArray {
             element, length, ..
         } => {
             // drop each fixed array element
             for index in 0..length {
-                let element_value = builder.element_get(value, index as u32);
+                let element_value = builder.field_get(value, index as u32);
 
                 emit_drop(builder, element, element_value);
             }
@@ -617,7 +617,7 @@ fn emit_drop_glue(
         .tree_mut()
         .insert_type(mir::Type::FunctionSignature {
             lifetimes: Vec::new(),
-            parameters: vec![mir::SignatureParameter::new(ty.into())],
+            parameters: vec![mir::SignatureParameter::new(ty)],
             result: void,
         });
 
@@ -630,7 +630,7 @@ fn emit_drop_glue(
             let mir::Type::Dynamic { constraint } = builder.tree().get(ty) else {
                 unreachable!("dynamic drop glue requires a dynamic value type");
             };
-            builder.call_dynamic_void(value, (*constraint).into(), slot, signature, Vec::new());
+            builder.call_dynamic_void(value, *constraint, slot, signature, Vec::new());
         }
         mir::DropGlue::None => {}
     }

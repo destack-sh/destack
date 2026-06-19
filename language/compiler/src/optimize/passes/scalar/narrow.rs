@@ -504,7 +504,7 @@ entry(v0: [uint8; 8]):
     check bounds.u v1, v2, v0 => b1, b2
 
 b1:
-    v4: uint8 = element.get v0, 0
+    v4: uint8 = field.get v0, 0
     return v4
 
 b2:
@@ -523,7 +523,7 @@ entry(v0: [uint8; 8]):
     check bounds.u v5, v6, v0 => b1, b2
 
 b1:
-    v4: uint8 = element.get v0, 0
+    v4: uint8 = field.get v0, 0
     return v4
 
 b2:

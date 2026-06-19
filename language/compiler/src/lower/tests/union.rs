@@ -73,7 +73,7 @@ entry(v0: takeShape.payload#union):
 
         // assert the storage field type
         let storage_type = tree.get(storage_type);
-        let mir::Type::Array {
+        let mir::Type::FixedArray {
             element, length, ..
         } = storage_type
         else {
@@ -351,8 +351,8 @@ entry(v0: acceptUnion.payload#union):
             test.expect_struct_field_type_by_name(tree, strings, parameter_union_type, "storage");
         let return_storage =
             test.expect_struct_field_type_by_name(tree, strings, return_union_type, "storage");
-        assert!(matches!(tree.get(parameter_storage), mir::Type::Array { .. }));
-        assert!(matches!(tree.get(return_storage), mir::Type::Array { .. }));
+        assert!(matches!(tree.get(parameter_storage), mir::Type::FixedArray { .. }));
+        assert!(matches!(tree.get(return_storage), mir::Type::FixedArray { .. }));
     });
 }
 

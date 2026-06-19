@@ -313,7 +313,7 @@ fn type_requires_layout(ty: &mir::Type) -> bool {
         ty,
         mir::Type::Struct { .. }
             | mir::Type::Tuple { .. }
-            | mir::Type::Array { .. }
+            | mir::Type::FixedArray { .. }
             | mir::Type::Variant { .. }
     )
 }

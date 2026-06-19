@@ -380,7 +380,7 @@ impl TypeLowerer<'_> {
                 let bytes = pointer_bytes as u32;
                 Some((bytes, bytes))
             }
-            mir::Type::Array {
+            mir::Type::FixedArray {
                 element,
                 length,
                 copy: _,

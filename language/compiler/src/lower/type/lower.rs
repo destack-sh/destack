@@ -428,7 +428,7 @@ impl<'a> TypeLowerer<'a> {
 
                 builder.type_slice(mir_element)
             }
-            dir::Type::FixedArray(array) => self.lower_array_sized_type(
+            dir::Type::FixedArray(array) => self.lower_fixed_array_type(
                 types,
                 array.element,
                 array.count,

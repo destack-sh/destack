@@ -74,7 +74,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         elements: &[dir::LocalNodeId<dir::Argument>],
     ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // get the array type
+        // get the fixed array type
         let array_type = self.lower_type_for_expression(expression_id)?;
 
         // lower each element value

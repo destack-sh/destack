@@ -56,7 +56,7 @@ impl ModuleLowerer<'_> {
 
                 Some(LayoutTarget::Tuple(elements))
             }
-            mir::Type::Array {
+            mir::Type::FixedArray {
                 element,
                 length,
                 copy: _,
@@ -93,7 +93,7 @@ impl ModuleLowerer<'_> {
             }
             LayoutTarget::Array(element, length) => {
                 let (layout_shape, size, alignment) =
-                    self.array_layout_info(type_id, element, length, anchor)?;
+                    self.fixed_array_layout(type_id, element, length, anchor)?;
                 let layout_id =
                     self.insert_layout_metadata(ty, layout_shape, size, alignment, Vec::new());
 
@@ -194,8 +194,8 @@ impl ModuleLowerer<'_> {
         Some((fields, size, max_alignment))
     }
 
-    /// Compute layout info for an array type.
-    fn array_layout_info(
+    /// Compute layout for a fixed array type.
+    fn fixed_array_layout(
         &self,
         type_id: Option<dir::LocalTypeId>,
         element: mir::LocalNodeId<mir::Type>,
@@ -208,20 +208,20 @@ impl ModuleLowerer<'_> {
             .type_lowerer
             .size_and_align_of_type(element_type, self.builder.tree())
             .ok_or_else(|| {
-                self.array_layout_error(
+                self.fixed_array_layout_error(
                     type_id,
                     anchor,
-                    "array layout requires concrete nested types",
+                    "fixed array layout requires concrete nested types",
                 )
             })?;
         let stride = align_up(size, alignment);
 
         // validate the array length
         let length_u32 = u32::try_from(length).map_err(|_| {
-            self.array_layout_error(type_id, anchor, "array length exceeds layout limits")
+            self.fixed_array_layout_error(type_id, anchor, "fixed array length exceeds layout limits")
         })?;
         let total_size = stride.checked_mul(length_u32).ok_or_else(|| {
-            self.array_layout_error(type_id, anchor, "array layout size overflow")
+            self.fixed_array_layout_error(type_id, anchor, "fixed array layout size overflow")
         })?;
 
         Ok((
@@ -345,7 +345,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Build one consistent array layout error.
-    fn array_layout_error(
+    fn fixed_array_layout_error(
         &self,
         type_id: Option<dir::LocalTypeId>,
         anchor: dir::AnchoredGlobalNodeId,

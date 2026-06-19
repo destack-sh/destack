@@ -82,7 +82,7 @@ impl FunctionLowerer<'_> {
                     .builder
                     .cast(mir::CastOperator::IntToPointer, zero, ty)
             }
-            mir::Type::Array {
+            mir::Type::FixedArray {
                 element, length, ..
             } => {
                 let element = element
