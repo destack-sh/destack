@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::{LocalNodeId, Type};
 
 use super::{
-    DataLayout, DispatchMetadata, DropMetadata, FunctionMetadataTable, LayoutMetadata,
+    DataLayout, DispatchMetadata, DropMetadata, FrameTable, FunctionMetadataTable, LayoutMetadata,
     MemoryMetadata, TypeMetadata,
 };
 
@@ -20,6 +20,8 @@ pub struct Metadata {
     pub dispatch: DispatchMetadata,
     /// Canonical drop metadata.
     pub drop: DropMetadata,
+    /// Canonical frame metadata.
+    pub frame: FrameTable,
     /// Derived function and call metadata.
     pub functions: FunctionMetadataTable,
     /// Memory and alias metadata.
