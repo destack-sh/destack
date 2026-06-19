@@ -117,7 +117,7 @@ impl SessionState {
         let repository = self.repository();
 
         // no revision binding means the artifact has not been provided
-        let Some(version) = repository.artifact_version(task.revision, &task.key)? else {
+        let Some(version) = repository.bound_artifact_version(task.revision, &task.key)? else {
             return Ok(None);
         };
 

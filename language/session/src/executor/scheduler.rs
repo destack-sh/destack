@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 
+use destack_artifact::ArtifactDependencySet;
 use parking_lot::{Condvar, Mutex};
 
 use super::run::{ArtifactRun, ArtifactRunId};
@@ -42,6 +43,8 @@ struct TaskEntry {
     waiting_on: Vec<Task>,
     /// Tasks waiting for this task to become terminal.
     dependents: Vec<Task>,
+    /// Complete dependency set to freeze once this task wakes.
+    pending_set: Option<ArtifactDependencySet>,
 }
 
 /// Scheduler state for one tracked artifact task.
@@ -83,7 +86,7 @@ impl Scheduler {
     }
 
     /// Claim the next runnable task, or none after shutdown.
-    pub(super) fn claim(&self) -> Option<(Arc<ArtifactRun>, Task)> {
+    pub(super) fn claim(&self) -> Option<(Arc<ArtifactRun>, Task, Option<ArtifactDependencySet>)> {
         let mut state = self.state.lock();
 
         // wait for runnable work or shutdown
@@ -101,7 +104,9 @@ impl Scheduler {
     }
 
     /// Claim the next runnable task without blocking.
-    pub(super) fn claim_ready(&self) -> Option<(Arc<ArtifactRun>, Task)> {
+    pub(super) fn claim_ready(
+        &self,
+    ) -> Option<(Arc<ArtifactRun>, Task, Option<ArtifactDependencySet>)> {
         let mut state = self.state.lock();
 
         // refuse claims after shutdown
@@ -154,9 +159,10 @@ impl Scheduler {
         task: Task,
         run: ArtifactRunId,
         dependencies: Vec<Task>,
+        pending_set: Option<ArtifactDependencySet>,
     ) -> Result<(), SessionError> {
         let mut state = self.state.lock();
-        state.wait_on(task, run, dependencies)?;
+        state.wait_on(task, run, dependencies, pending_set)?;
         state.advance();
         self.changed.notify_all();
 
@@ -187,7 +193,10 @@ impl Scheduler {
     }
 
     /// Claim one ready task from locked scheduler state.
-    fn claim_ready_task(&self, state: &mut SchedulerState) -> Option<(Arc<ArtifactRun>, Task)> {
+    fn claim_ready_task(
+        &self,
+        state: &mut SchedulerState,
+    ) -> Option<(Arc<ArtifactRun>, Task, Option<ArtifactDependencySet>)> {
         // scan ready tasks until one is claimable
         while let Some(task) = state.ready.pop_front() {
             let Some(entry) = state.tasks.get_mut(&task) else {
@@ -214,9 +223,10 @@ impl Scheduler {
                 continue;
             };
             entry.state = TaskState::Running;
+            let pending_set = entry.pending_set.take();
             state.advance();
 
-            return Some((run, task));
+            return Some((run, task, pending_set));
         }
 
         None
@@ -301,6 +311,7 @@ impl SchedulerState {
                 state: TaskState::Ready,
                 waiting_on: Vec::new(),
                 dependents: Vec::new(),
+                pending_set: None,
             },
         );
         self.push_ready(task);
@@ -312,6 +323,7 @@ impl SchedulerState {
         task: Task,
         run: ArtifactRunId,
         dependencies: Vec<Task>,
+        pending_set: Option<ArtifactDependencySet>,
     ) -> Result<(), SessionError> {
         // no outstanding dependencies means the task can be retried
         if dependencies.is_empty() {
@@ -320,12 +332,14 @@ impl SchedulerState {
                 state: TaskState::Running,
                 waiting_on: Vec::new(),
                 dependents: Vec::new(),
+                pending_set: None,
             });
             if !entry.runs.contains(&run) {
                 entry.runs.push(run);
             }
             entry.state = TaskState::Ready;
             entry.waiting_on.clear();
+            entry.pending_set = pending_set;
 
             if !self.ready.contains(&task) {
                 self.push_ready(task);
@@ -352,6 +366,7 @@ impl SchedulerState {
             state: TaskState::Running,
             waiting_on: Vec::new(),
             dependents: Vec::new(),
+            pending_set: None,
         });
         if !entry.runs.contains(&run) {
             entry.runs.push(run);
@@ -359,6 +374,7 @@ impl SchedulerState {
         entry.state = TaskState::Waiting;
         entry.waiting_on.clear();
         entry.waiting_on.extend(dependencies.iter().copied());
+        entry.pending_set = pending_set;
 
         // register wakeups and make dependency tasks runnable
         for dependency in dependencies {

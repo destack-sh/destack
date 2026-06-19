@@ -20,25 +20,9 @@ pub fn open_repository_from_fs(
     settings: Settings,
     layout_override: DestackLayoutOverride,
 ) -> Result<Repository, SessionError> {
-    let root = find_source_root(fs.as_ref(), &path)?;
-    let cwd = environment.cwd.as_deref().unwrap_or(&path);
-    let layout =
-        DestackLayout::resolve(&root, cwd, &environment, &settings, &layout_override, None);
-
-    // create repository at the selected source root
     let host = Host::new(environment, fs, default_blob_store());
-    let repository = Repository::new(root.clone(), host, settings, layout);
-    let root_ref = Ref::for_root(&root);
-    let base_revision = repository.current(&root_ref)?;
 
-    // read the complete source tree
-    let source = FileSystemSource::new(&repository, &root, base_revision);
-    let edits = source.edits()?;
-    let revision = repository.commit_edits(base_revision, edits)?;
-
-    repository.set_ref(&root_ref, revision)?;
-
-    Ok(repository)
+    open_repository(path, host, settings, layout_override)
 }
 
 /// Open one repository from one in-memory source.
@@ -52,13 +36,25 @@ pub fn open_repository_from_memory(
     let file_system = Arc::new(MemoryFileSystem::new());
     Edit::apply_all(file_system.as_ref(), &root, edits)?;
 
-    let root = find_source_root(file_system.as_ref(), &root)?;
-    let cwd = environment.cwd.as_deref().unwrap_or(&root);
-    let layout =
-        DestackLayout::resolve(&root, cwd, &environment, &settings, &layout_override, None);
-
     // keep memory sessions fully in memory
     let host = Host::new(environment, file_system, Arc::new(MemoryBlobStore::new()));
+
+    open_repository(root, host, settings, layout_override)
+}
+
+/// Open one repository from explicit host capabilities.
+pub fn open_repository(
+    path: PathBuf,
+    host: Host,
+    settings: Settings,
+    layout_override: DestackLayoutOverride,
+) -> Result<Repository, SessionError> {
+    let root = find_source_root(host.files().as_ref(), &path)?;
+    let environment = host.environment();
+    let cwd = environment.cwd.as_deref().unwrap_or(&path);
+    let layout = DestackLayout::resolve(&root, cwd, environment, &settings, &layout_override, None);
+
+    // create repository at the selected source root
     let repository = Repository::new(root.clone(), host, settings, layout);
     let root_ref = Ref::for_root(&root);
     let base_revision = repository.current(&root_ref)?;

@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependency, ArtifactDependencySet, ArtifactFailure, ArtifactPayload, ArtifactProvider,
-    ArtifactVersion,
+    ArtifactSidecar, ArtifactVersion,
 };
 use destack_repository::{
-    ArtifactAttemptOutcome, Collected, Collector, ProviderError, ProviderResult, Revision,
+    ArtifactAttemptOutcome, DependencySetResolution, ProviderError, ProviderResult, Revision,
 };
 use destack_source::DiagnosticCollection;
 
@@ -26,9 +26,9 @@ pub(super) struct Worker {
     pub(super) scheduler: Arc<Scheduler>,
 }
 
-impl Collector for SessionState {
-    /// Collect the dependency closure for the system that owns one key.
-    fn collect(
+impl SessionState {
+    /// Collect the dependency set for the system that owns one key.
+    fn collect_dependencies(
         &self,
         revision: Revision,
         key: destack_artifact::ArtifactKey,
@@ -51,7 +51,7 @@ impl Worker {
     /// Drive the shared scheduler until the executor shuts down.
     pub(super) fn run(&self) {
         loop {
-            let Some((run, task)) = self.scheduler.claim() else {
+            let Some((run, task, pending_set)) = self.scheduler.claim() else {
                 return;
             };
 
@@ -72,7 +72,7 @@ impl Worker {
             }
 
             // execute claimed work for the pinned task revision
-            if let Err(error) = self.provide_task(run.as_ref(), task) {
+            if let Err(error) = self.provide_task(run.as_ref(), task, pending_set) {
                 run.abort(error);
                 self.scheduler.notify();
             }
@@ -80,7 +80,12 @@ impl Worker {
     }
 
     /// Provide one claimed task.
-    pub(super) fn provide_task(&self, run: &ArtifactRun, task: Task) -> Result<(), SessionError> {
+    pub(super) fn provide_task(
+        &self,
+        run: &ArtifactRun,
+        task: Task,
+        pending_set: Option<ArtifactDependencySet>,
+    ) -> Result<(), SessionError> {
         let recorder = Arc::new(run.trace().begin(task.key, self.index));
 
         // expose the session task through events
@@ -91,43 +96,76 @@ impl Worker {
 
         let repository = self.session.repository();
 
-        // freeze the dependency closure through the shared engine
-        let collected = recorder.span("collect", || {
-            repository.collect_closure(self.session.as_ref(), task.revision, task.key)
-        });
-        let collected = match collected {
-            Ok(collected) => collected,
-            Err(error) => {
-                recorder.finish(ArtifactAttemptOutcome::Failed);
+        // resolve a saved pending set or collect a fresh one
+        let mut collected = if let Some(pending_set) = pending_set {
+            Ok(pending_set)
+        } else {
+            recorder.span("collect", || {
+                self.session.collect_dependencies(task.revision, task.key)
+            })
+        };
+        let (dependencies, failed) = loop {
+            let dependency_set = match collected {
+                Ok(dependency_set) => dependency_set,
+                Err(error) => {
+                    recorder.finish(ArtifactAttemptOutcome::Failed);
 
-                return Err(SessionError::Internal {
-                    detail: format!("failed to collect artifact {:?}: {error}", task.key),
-                });
+                    return Err(SessionError::Internal {
+                        detail: format!("failed to collect artifact {:?}: {error}", task.key),
+                    });
+                }
+            };
+            let resolution = recorder.span("dependencies", || {
+                repository.resolve_dependency_set(task.revision, dependency_set)
+            });
+            let resolution = match resolution {
+                Ok(resolution) => resolution,
+                Err(error) => {
+                    recorder.finish(ArtifactAttemptOutcome::Failed);
+
+                    return Err(SessionError::Internal {
+                        detail: format!(
+                            "failed to resolve artifact dependencies {:?}: {error}",
+                            task.key
+                        ),
+                    });
+                }
+            };
+
+            match resolution {
+                DependencySetResolution::Incomplete => {
+                    collected = recorder.span("collect", || {
+                        self.session.collect_dependencies(task.revision, task.key)
+                    });
+                }
+                DependencySetResolution::Pending {
+                    frontier,
+                    pending_set,
+                } => {
+                    recorder.record_counter("frontier", frontier.len() as u64);
+                    let frontier = frontier
+                        .into_iter()
+                        .map(|key| Task::new(task.revision, key))
+                        .collect();
+                    let result = recorder.span("scheduler", || {
+                        self.wait_on(run.id(), task, frontier, pending_set)
+                    });
+                    let outcome = if result.is_ok() {
+                        ArtifactAttemptOutcome::Parked
+                    } else {
+                        ArtifactAttemptOutcome::Failed
+                    };
+                    recorder.finish(outcome);
+
+                    return result;
+                }
+                DependencySetResolution::Resolved {
+                    dependencies,
+                    failed,
+                } => break (dependencies, failed),
             }
         };
-        let (dependencies, failed) = match collected {
-            Collected::Waiting { frontier, .. } => {
-                recorder.record_counter("frontier", frontier.len() as u64);
-                let frontier = frontier
-                    .into_iter()
-                    .map(|key| Task::new(task.revision, key))
-                    .collect();
-                let result = recorder.span("scheduler", || self.wait_on(run.id(), task, frontier));
-                let outcome = if result.is_ok() {
-                    ArtifactAttemptOutcome::Blocked
-                } else {
-                    ArtifactAttemptOutcome::Failed
-                };
-                recorder.finish(outcome);
-
-                return result;
-            }
-            Collected::Frozen {
-                dependencies,
-                failed,
-            } => (dependencies, failed),
-        };
-        // the version is fixed by the frozen closure before any provider runs
+        // the version is fixed by the resolved dependency set before any provider runs
         let version = recorder.span("version", || {
             ArtifactVersion::new(
                 task.key,
@@ -135,6 +173,19 @@ impl Worker {
                 dependencies.iter().cloned(),
             )
         });
+        let base = recorder.span("base", || {
+            repository.artifact_base_version(task.revision, task.key)
+        });
+        let base = match base {
+            Ok(base) => base,
+            Err(error) => {
+                recorder.finish(ArtifactAttemptOutcome::Failed);
+
+                return Err(SessionError::Internal {
+                    detail: format!("failed to select artifact base {:?}: {error}", task.key),
+                });
+            }
+        };
 
         // fails this artifact immediately on a poisoned dependency
         if let Some(failed_dependency) = failed {
@@ -143,6 +194,7 @@ impl Worker {
                     run.id(),
                     task,
                     version,
+                    base,
                     dependencies,
                     DiagnosticCollection::new(),
                     Vec::new(),
@@ -154,7 +206,7 @@ impl Worker {
             return result;
         }
 
-        // reuse a committed payload when the closure already produced this version
+        // reuse a committed payload when the dependency set already produced this version
         if recorder.span("memory_cache", || {
             repository.artifact_table().outcome(&version).is_some()
         }) {
@@ -166,13 +218,8 @@ impl Worker {
                     detail: format!("failed to bind reused artifact {:?}: {error}", task.key),
                 });
             }
-            let result = recorder.span("scheduler", || self.finish_ready(run.id(), task));
-            let outcome = if result.is_ok() {
-                ArtifactAttemptOutcome::MemoryCached
-            } else {
-                ArtifactAttemptOutcome::Failed
-            };
-            recorder.finish(outcome);
+            recorder.finish(ArtifactAttemptOutcome::MemoryCached);
+            let result = self.finish_ready(run.id(), task);
 
             return result;
         }
@@ -192,24 +239,20 @@ impl Worker {
             }
         };
         if loaded {
-            let result = recorder.span("scheduler", || self.finish_ready(run.id(), task));
-            let outcome = if result.is_ok() {
-                ArtifactAttemptOutcome::StoreCached
-            } else {
-                ArtifactAttemptOutcome::Failed
-            };
-            recorder.finish(outcome);
+            recorder.finish(ArtifactAttemptOutcome::StoreCached);
+            let result = self.finish_ready(run.id(), task);
 
             return result;
         }
 
-        // run the provider exactly once over the frozen closure
+        // run the provider exactly once over the resolved dependency set
         let attempt = ProviderAttempt::new(repository, task.revision, task.key)
+            .with_base(base)
             .with_recorder(Arc::clone(&recorder));
         match recorder.span("provider", || self.call_provider(&attempt)) {
             Ok(payload) => {
                 let result = recorder.span("publish", || {
-                    self.publish_artifact(&attempt, task, version, dependencies, payload)
+                    self.publish_artifact(&attempt, task, version, base, dependencies, payload)
                 });
                 if let Err(error) = result {
                     recorder.finish(ArtifactAttemptOutcome::Failed);
@@ -224,19 +267,21 @@ impl Worker {
 
                     return Err(error.into());
                 }
-                let result = recorder.span("scheduler", || self.finish_ready(run.id(), task));
-                let outcome = if result.is_ok() {
-                    ArtifactAttemptOutcome::Built
-                } else {
-                    ArtifactAttemptOutcome::Failed
-                };
-                recorder.finish(outcome);
+                recorder.finish(ArtifactAttemptOutcome::Built);
 
-                result
+                self.finish_ready(run.id(), task)
             }
             Err(error) => {
                 let result = recorder.span("complete", || {
-                    self.fail_provider(&attempt, run.id(), task, version, dependencies, *error)
+                    self.fail_provider(
+                        &attempt,
+                        run.id(),
+                        task,
+                        version,
+                        base,
+                        dependencies,
+                        *error,
+                    )
                 });
                 recorder.finish(ArtifactAttemptOutcome::Failed);
 
@@ -251,9 +296,10 @@ impl Worker {
         run: ArtifactRunId,
         task: Task,
         frontier: Vec<Task>,
+        pending_set: Option<ArtifactDependencySet>,
     ) -> Result<(), SessionError> {
         let repository = self.session.repository();
-        let result = self.scheduler.wait_on(task, run, frontier);
+        let result = self.scheduler.wait_on(task, run, frontier, pending_set);
 
         // a rejected wait records the artifact as failed so waiters cannot stall
         if let Err(error) = result {
@@ -264,6 +310,7 @@ impl Worker {
                 run,
                 task,
                 version,
+                None,
                 Vec::new(),
                 DiagnosticCollection::new(),
                 Vec::new(),
@@ -282,6 +329,7 @@ impl Worker {
         attempt: &ProviderAttempt,
         task: Task,
         version: ArtifactVersion,
+        base: Option<ArtifactVersion>,
         dependencies: Vec<ArtifactDependency>,
         payload: ArtifactPayload,
     ) -> Result<(), SessionError> {
@@ -289,6 +337,7 @@ impl Worker {
         self.session.repository().publish_artifact(
             task.revision,
             version,
+            base,
             payload,
             dependencies,
             attempt.diagnostics(),
@@ -305,6 +354,7 @@ impl Worker {
         run: ArtifactRunId,
         task: Task,
         version: ArtifactVersion,
+        base: Option<ArtifactVersion>,
         dependencies: Vec<ArtifactDependency>,
         error: ProviderError,
     ) -> Result<(), SessionError> {
@@ -316,6 +366,7 @@ impl Worker {
                 run,
                 task,
                 version,
+                base,
                 dependencies,
                 diagnostics,
                 sidecars,
@@ -325,6 +376,7 @@ impl Worker {
                 run,
                 task,
                 version,
+                base,
                 dependencies,
                 diagnostics,
                 sidecars,
@@ -335,6 +387,7 @@ impl Worker {
                     run,
                     task,
                     version,
+                    base,
                     dependencies,
                     diagnostics,
                     sidecars,
@@ -355,6 +408,7 @@ impl Worker {
                     run,
                     task,
                     version,
+                    base,
                     dependencies,
                     diagnostics,
                     sidecars,
@@ -365,7 +419,7 @@ impl Worker {
             }
             ProviderError::Blocked { .. } => Err(SessionError::Internal {
                 detail: format!(
-                    "provider blocked after its dependency closure was frozen: {:?}",
+                    "provider blocked after its dependency set was frozen: {:?}",
                     task.key
                 ),
             }),
@@ -390,14 +444,16 @@ impl Worker {
         run: ArtifactRunId,
         task: Task,
         version: ArtifactVersion,
+        base: Option<ArtifactVersion>,
         dependencies: Vec<ArtifactDependency>,
         diagnostics: DiagnosticCollection,
-        sidecars: Vec<destack_artifact::ArtifactSidecar>,
+        sidecars: Vec<ArtifactSidecar>,
         failure: ArtifactFailure,
     ) -> Result<(), SessionError> {
         self.session.repository().fail_artifact(
             task.revision,
             version,
+            base,
             dependencies,
             diagnostics,
             sidecars,

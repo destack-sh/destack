@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactKey, ArtifactSidecar, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
-    DiagnosticError, DiagnosticLike,
+    ArtifactKey, ArtifactSidecar, ArtifactVersion, DiagnosticAnchor, DiagnosticContext,
+    DiagnosticDisplay, DiagnosticError, DiagnosticLike,
 };
 use destack_repository::{ArtifactAttemptRecorder, ProviderContext, Repository, Revision};
 use destack_source::{
@@ -19,6 +19,8 @@ pub(crate) struct ProviderAttempt {
     pub(super) revision: Revision,
     /// The artifact key being built.
     key: ArtifactKey,
+    /// The predecessor artifact selected for this attempt.
+    base: Option<ArtifactVersion>,
     /// The diagnostics produced by this attempt.
     diagnostics: Mutex<DiagnosticCollection>,
     /// The sidecars produced by this attempt.
@@ -34,6 +36,7 @@ impl ProviderAttempt {
             repository,
             revision,
             key,
+            base: None,
             diagnostics: Mutex::new(DiagnosticCollection::new()),
             sidecars: Mutex::new(Vec::new()),
             recorder: None,
@@ -47,6 +50,12 @@ impl ProviderAttempt {
         self
     }
 
+    /// Attach the predecessor artifact selected for this attempt.
+    pub(crate) fn with_base(mut self, base: Option<ArtifactVersion>) -> Self {
+        self.base = base;
+        self
+    }
+
     /// Return the pinned repository revision for this attempt.
     pub(crate) fn revision(&self) -> Revision {
         self.revision
@@ -55,6 +64,11 @@ impl ProviderAttempt {
     /// Return the artifact key being built.
     pub(crate) fn key(&self) -> ArtifactKey {
         self.key
+    }
+
+    /// Return the predecessor artifact selected for this attempt.
+    pub(crate) fn base(&self) -> Option<ArtifactVersion> {
+        self.base
     }
 
     /// Return diagnostics produced by this attempt.
@@ -241,6 +255,11 @@ impl ProviderContext for ProviderAttempt {
     /// Return the artifact key being built.
     fn artifact_key(&self) -> ArtifactKey {
         self.key
+    }
+
+    /// Return the predecessor artifact selected for this attempt.
+    fn base_artifact(&self) -> Option<ArtifactVersion> {
+        self.base()
     }
 
     /// Add an already-final diagnostic collection produced by this attempt.
