@@ -42,7 +42,7 @@ pub(crate) struct FunctionLoweringContext<'a> {
     pub(crate) resolutions: &'a dir::ResolutionTable<'a>,
     /// Elaborated type guard entries.
     pub(crate) guards: &'a dir::GuardTable,
-    /// Provide access to capture metadata for closures.
+    /// Provide access to capture metadata for function environments.
     pub(crate) captures: &'a dir::CaptureTable<'a>,
     /// Provide access to the program string pool for name resolution.
     pub(crate) strings: &'a StringPool,
@@ -92,7 +92,7 @@ pub(crate) struct FunctionLoweringContext<'a> {
     /// Resolve function environment layouts by function symbol.
     pub(crate) function_environment_layouts:
         &'a HashMap<dir::GlobalSymbolId, FunctionEnvironmentLayout>,
-    /// Fallback environment pointer type for non-capturing closures.
+    /// Fallback environment pointer type for functions without captures.
     pub(crate) empty_function_environment_pointer_type: mir::LocalNodeId<mir::Type>,
 }
 
@@ -790,14 +790,14 @@ impl<'a> FunctionLowerer<'a> {
         Ok(symbol)
     }
 
-    /// Lower a function symbol reference to a closure value.
+    /// Lower a function symbol reference to a function value.
     fn lower_function_value_for_symbol(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         target_symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // resolve the closure value type
-        let closure_type = self.lower_type_for_expression(expression_id)?;
+        // resolve the function value type
+        let function_type = self.lower_type_for_expression(expression_id)?;
 
         // resolve the target function and environment type
         let target_function = self
@@ -811,12 +811,12 @@ impl<'a> FunctionLowerer<'a> {
 
         // register the function environment type on the callee
         self.set_function_environment(expression_id, target_function, env_value_type)?;
-        let closure_value =
+        let function_value =
             self.state
                 .builder
-                .closure_bind(target_function, closure_type, env_value);
+                .function_bind(target_function, function_type, env_value);
 
-        Ok((closure_value, closure_type))
+        Ok((function_value, function_type))
     }
 
     /// Lower a cast expression.

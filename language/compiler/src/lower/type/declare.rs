@@ -1,5 +1,6 @@
+use destack_dir as dir;
+use destack_mir as mir;
 use std::collections::HashSet;
-use {destack_dir as dir, destack_mir as mir};
 
 use crate::LowerResult;
 use crate::lower::ModuleLowerer;
@@ -91,19 +92,15 @@ impl ModuleLowerer<'_> {
                     self.declare_nominal_layouts_for_type(signature.value_type, visited)?;
                 }
             }
+            dir::Type::FunctionSignature(function) => {
+                self.declare_nominal_layouts_for_function_signature(function, visited)?;
+            }
             dir::Type::Function(function) => {
-                for parameter in &function.generic_parameters {
-                    self.declare_nominal_layouts_for_type(*parameter, visited)?;
-                }
-                if let Some(this_parameter) = function.this_parameter {
-                    self.declare_nominal_layouts_for_type(this_parameter, visited)?;
-                }
-                for parameter in &function.parameters {
-                    self.declare_nominal_layouts_for_type(parameter.ty, visited)?;
-                }
-                if let Some(return_type) = function.return_type {
-                    self.declare_nominal_layouts_for_type(return_type, visited)?;
-                }
+                self.declare_nominal_layouts_for_type(function.signature, visited)?;
+                self.declare_nominal_layouts_for_type(function.environment, visited)?;
+            }
+            dir::Type::FunctionPointer(function) => {
+                self.declare_nominal_layouts_for_type(function.signature, visited)?;
             }
             dir::Type::Union(union) => {
                 for element in &union.elements {
@@ -116,6 +113,28 @@ impl ModuleLowerer<'_> {
                 }
             }
             _ => {}
+        }
+
+        Ok(())
+    }
+
+    /// Predeclare nominal layouts referenced by one function signature.
+    fn declare_nominal_layouts_for_function_signature(
+        &mut self,
+        function: &dir::FunctionSignatureType,
+        visited: &mut HashSet<dir::LocalTypeId>,
+    ) -> LowerResult<()> {
+        for parameter in &function.generic_parameters {
+            self.declare_nominal_layouts_for_type(*parameter, visited)?;
+        }
+        if let Some(this_parameter) = function.this_parameter {
+            self.declare_nominal_layouts_for_type(this_parameter, visited)?;
+        }
+        for parameter in &function.parameters {
+            self.declare_nominal_layouts_for_type(parameter.ty, visited)?;
+        }
+        if let Some(return_type) = function.return_type {
+            self.declare_nominal_layouts_for_type(return_type, visited)?;
         }
 
         Ok(())

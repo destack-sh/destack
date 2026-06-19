@@ -305,29 +305,6 @@ impl ModuleLowerer<'_> {
                 fields: Vec::new(),
             })
         }
-        // use closure layouts for function values
-        else if type_id.is_some_and(|type_id| {
-            matches!(self.types.get_type(type_id), dir::Type::Function { .. })
-        }) {
-            // validate the canonical closure fields
-            if layout.field_by_source(0).is_none() {
-                return Err(LowerError::UnsupportedConstruct {
-                    anchor: self.diagnostic_anchor(anchor),
-                    message: "missing closure function field".to_string(),
-                }
-                .into());
-            }
-
-            if layout.field_by_source(1).is_none() {
-                return Err(LowerError::UnsupportedConstruct {
-                    anchor: self.diagnostic_anchor(anchor),
-                    message: "missing closure environment field".to_string(),
-                }
-                .into());
-            }
-
-            mir::LayoutShape::Closure
-        }
         // environment records use ordinary aggregate layout
         else if self
             .function_environment_layouts

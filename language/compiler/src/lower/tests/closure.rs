@@ -33,7 +33,7 @@ type makeIdentity.return.function = (int32) => int32;
 function makeIdentity(): makeIdentity.return.function {
 entry:
     v0: ref<{  }, managed, nullable> = null
-    v1: (int32) => int32 = closure.bind makeIdentity.lambda#6, v0
+    v1: (int32) => int32 = function.bind makeIdentity.lambda#6, v0
     return v1
 }
 
@@ -100,14 +100,14 @@ entry:
     v1: ref<env.7, managed> = new.zeroed env.7
     v2: ref<int32, managed> = field.address v1, 0
     store v2, v0
-    v3: (int32) => int32 = closure.bind makeAdder.lambda#7, v1
+    v3: (int32) => int32 = function.bind makeAdder.lambda#7, v1
     return v3
 }
 
 @environment(ref<env.7, managed>)
 function makeAdder.lambda#7(v0: int32): int32 {
 entry(v0: int32):
-    v1: ref<env.7, managed> = closure.environment
+    v1: ref<env.7, managed> = function.environment.current
     v2: ref<int32, managed> = field.address v1, 0
     v3: int32 = load v2
     v4: int32 = int.add v3, v0
@@ -177,14 +177,14 @@ entry:
     v3: ref<ref<int32, managed>, managed> = field.address v2, 0
     v4: ref<int32, managed> = cast.bit v1 -> ref<int32, managed>
     store v3, v4
-    v5: () => int32 = closure.bind makeCounter.lambda#6, v2
+    v5: () => int32 = function.bind makeCounter.lambda#6, v2
     return v5
 }
 
 @environment(ref<env.6, managed>)
 function makeCounter.lambda#6(): int32 {
 entry:
-    v0: ref<env.6, managed> = closure.environment
+    v0: ref<env.6, managed> = function.environment.current
     v1: ref<ref<int32, managed>, managed> = field.address v0, 0
     v2: ref<int32, managed> = load v1
     v3: int32 = load v2
@@ -436,7 +436,7 @@ function run(): int32 {
     test.assert_mir_function_output(module_id, "native", "run", &[], Value::int32(1));
 }
 
-/// Verify named functions lower to closure values with empty environments.
+/// Verify named functions lower to function values with empty environments.
 #[test]
 fn test_lower_named_function_as_value() {
     let test = TestProgram::memory_sequential_with_prelude();

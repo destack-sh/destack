@@ -178,19 +178,19 @@ impl FunctionLowerer<'_> {
             && let Some(type_id) = self
                 .type_for_expression(*left)
                 .or_else(|| self.context.types.get_value_type_id(target_symbol))
-            && self.is_function_type(type_id)
+            && self.is_callable_value_type(type_id)
         {
-            let (closure_value, closure_type) = self.lower_value_expression(*left)?;
-            return self.lower_closure_call(
+            let (function_value, function_type) = self.lower_value_expression(*left)?;
+            return self.lower_function_value_call(
                 expression_id,
-                closure_value,
-                closure_type,
+                function_value,
+                function_type,
                 arguments,
                 kind,
             );
         }
 
-        // lower calls to captured functions via closure values
+        // lower calls to captured functions via function values
         let has_captures = self
             .context
             .captures
@@ -201,11 +201,11 @@ impl FunctionLowerer<'_> {
             .symbol_kind_matches(target_symbol, dir::SymbolKind::Function)
             && has_captures
         {
-            let (closure_value, closure_type) = self.lower_value_expression(*left)?;
-            return self.lower_closure_call(
+            let (function_value, function_type) = self.lower_value_expression(*left)?;
+            return self.lower_function_value_call(
                 expression_id,
-                closure_value,
-                closure_type,
+                function_value,
+                function_type,
                 arguments,
                 kind,
             );
@@ -858,7 +858,7 @@ impl FunctionLowerer<'_> {
             return Vec::new();
         };
         let type_id = self.context.types.unwrap_form_payload_type_id(type_id);
-        let dir::Type::Function(function) = self.context.types.get_type(type_id) else {
+        let dir::Type::FunctionSignature(function) = self.context.types.get_type(type_id) else {
             return Vec::new();
         };
 
@@ -876,7 +876,7 @@ impl FunctionLowerer<'_> {
         signature: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<Vec<mir::LocalNodeId<mir::Type>>> {
         let signature_type = self.state.builder.tree().get(signature);
-        let Some((parameters, _)) = mir::function_signature_parts(signature_type) else {
+        let Some((_, parameters, _)) = signature_type.function_signature_parts() else {
             return Err(self
                 .error(expression_id, "missing function signature")
                 .into());
@@ -958,17 +958,20 @@ impl FunctionLowerer<'_> {
     }
 
     /// Return whether a DIR type id is a callable value type.
-    fn is_function_type(&self, type_id: dir::LocalTypeId) -> bool {
+    fn is_callable_value_type(&self, type_id: dir::LocalTypeId) -> bool {
         let type_id = self.context.types.unwrap_form_payload_type_id(type_id);
-        matches!(self.context.types.get_type(type_id), dir::Type::Function(_))
+        matches!(
+            self.context.types.get_type(type_id),
+            dir::Type::Function(_) | dir::Type::FunctionPointer(_)
+        )
     }
 
-    /// Lower a call through a closure value.
-    fn lower_closure_call(
+    /// Lower a call through a function value.
+    fn lower_function_value_call(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        closure_value: mir::Value,
-        closure_type: mir::LocalNodeId<mir::Type>,
+        function_value: mir::Value,
+        function_type: mir::LocalNodeId<mir::Type>,
         arguments: &[dir::LocalNodeId<dir::Argument>],
         kind: CallKind,
     ) -> CompilerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
@@ -978,8 +981,8 @@ impl FunctionLowerer<'_> {
 
         self.context
             .type_lowerer
-            .layout_for_type_or_error(closure_type, anchor)?;
-        let call_signature = self.callable_signature_type(closure_type, anchor)?;
+            .layout_for_type_or_error(function_type, anchor)?;
+        let call_signature = self.callable_signature_type(function_type, anchor)?;
 
         // build arguments for the indirect call
         let mut argument_values = Vec::with_capacity(arguments.len());
@@ -1007,13 +1010,13 @@ impl FunctionLowerer<'_> {
         let value = if returns_void {
             self.state
                 .builder
-                .call_indirect_void(closure_value, call_signature, argument_values);
+                .call_indirect_void(function_value, call_signature, argument_values);
             None
         } else {
             Some(
                 self.state
                     .builder
-                    .call_indirect(closure_value, call_signature, argument_values),
+                    .call_indirect(function_value, call_signature, argument_values),
             )
         };
 
@@ -1036,14 +1039,19 @@ impl FunctionLowerer<'_> {
     /// Resolve the function signature type inside one callable MIR type.
     fn callable_signature_type(
         &self,
-        closure_type: mir::LocalNodeId<mir::Type>,
+        function_type: mir::LocalNodeId<mir::Type>,
         anchor: dir::AnchoredGlobalNodeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        let mir::Type::Closure { signature, .. } = self.state.builder.tree().get(closure_type)
+        let Some(signature) = self
+            .state
+            .builder
+            .tree()
+            .get(function_type)
+            .callable_signature()
         else {
             return Err(LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(anchor),
-                message: "closure call requires callable type".to_string(),
+                message: "function value call requires callable type".to_string(),
             }
             .into());
         };
@@ -1051,7 +1059,7 @@ impl FunctionLowerer<'_> {
         signature.ty().ok_or_else(|| {
             LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(anchor),
-                message: "closure call requires concrete signature".to_string(),
+                message: "function value call requires concrete signature".to_string(),
             }
             .into()
         })

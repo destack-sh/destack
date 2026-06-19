@@ -151,7 +151,7 @@ impl FunctionLowerer<'_> {
                 }
                 .into());
             }
-            mir::Type::Closure { .. } => self.state.builder.null(ty),
+            mir::Type::Function { .. } => self.state.builder.null(ty),
             mir::Type::Newtype { inner, .. } => {
                 let inner = inner
                     .ty()

@@ -10,10 +10,6 @@ use super::{FieldInput, FieldLayoutKind, LayoutPolicy, StructLayout, TypeLayoutP
 use crate::lower::static_key_to_field_name;
 use crate::{Compiler, DynamicValueLayout, LowerError, LowerResult, UnionLayout};
 
-// synthetic field names for function value layouts
-const FUNCTION_PTR_FIELD: &str = "@function_ptr";
-const ENV_FIELD: &str = "@env";
-
 /// Cached entry for lowered types.
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum TypeCacheEntry {
@@ -322,7 +318,7 @@ impl<'a> TypeLowerer<'a> {
             return Ok(*signature);
         }
 
-        let dir::Type::Function(function) = types.get_type(type_id) else {
+        let dir::Type::FunctionSignature(function) = types.get_type(type_id) else {
             return Err(LowerError::UnsupportedType {
                 anchor: self.diagnostic_anchor(node),
                 ty: type_id.into_global(module_id),
@@ -444,11 +440,14 @@ impl<'a> TypeLowerer<'a> {
                 }
                 .into());
             }
-            dir::Type::Function(_) => {
-                self.lower_function_type(types, type_id, module_id, node, builder)?
+            dir::Type::FunctionSignature(_) => {
+                self.lower_function_signature_type(types, type_id, module_id, node, builder)?
             }
-            dir::Type::Closure(closure) => {
-                self.lower_closure_type(types, closure, module_id, node, builder)?
+            dir::Type::Function(function) => {
+                self.lower_function_type(types, function, module_id, node, builder)?
+            }
+            dir::Type::FunctionPointer(function) => {
+                self.lower_function_pointer_type(types, function, module_id, node, builder)?
             }
             dir::Type::Dynamic(dynamic) => self.lower_dynamic_value_type(
                 types,
@@ -461,13 +460,15 @@ impl<'a> TypeLowerer<'a> {
             dir::Type::Union(union) => {
                 self.lower_union_type(types, type_id, &union.elements, module_id, node, builder)?
             }
-            dir::Type::Intersection(intersection) => self.lower_intersection_type(
-                types,
-                &intersection.elements,
-                module_id,
-                node,
-                builder,
-            )?,
+            dir::Type::Intersection(_) => {
+                return Err(LowerError::UnsupportedType {
+                    anchor: self.diagnostic_anchor(node),
+                    ty: type_id.into_global(module_id),
+                    message: "intersection types must choose representation before native lowering"
+                        .to_string(),
+                }
+                .into());
+            }
             _ => self.try_lower_type(dir_type, builder).ok_or_else(|| {
                 LowerError::UnsupportedType {
                     anchor: self.diagnostic_anchor(node),
@@ -1305,91 +1306,35 @@ impl<'a> TypeLowerer<'a> {
         bindings.get_symbol(symbol.local_id).name()
     }
 
-    /// Lower a function type into its closure-pair representation.
+    /// Lower a function value type.
     fn lower_function_type(
         &mut self,
         types: &dir::TypeTable<'_>,
-        type_id: dir::LocalTypeId,
+        function: &dir::FunctionType,
         module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         let signature =
-            self.lower_function_signature_type(types, type_id, module_id, node, builder)?;
+            self.lower_function_signature_type(types, function.signature, module_id, node, builder)?;
+        let environment = self.lower_type(types, function.environment, module_id, node, builder)?;
 
-        let function_pointer_type = builder.type_function_pointer(signature);
-        let env_pointer_type = builder.tree_mut().ensure_closure_environment_type();
-        let function_pointer = builder.tree().get(function_pointer_type);
-        let env_type = builder.tree().get(env_pointer_type);
-        let (function_pointer_size, function_pointer_align) = self
-            .size_and_align_of_type(function_pointer, builder.tree())
-            .ok_or_else(|| LowerError::UnsupportedType {
-                anchor: self.diagnostic_anchor(node),
-                ty: type_id.into_global(module_id),
-                message: "function layout requires concrete nested types".to_string(),
-            })?;
-        let (env_size, env_align) = self
-            .size_and_align_of_type(env_type, builder.tree())
-            .ok_or_else(|| LowerError::UnsupportedType {
-                anchor: self.diagnostic_anchor(node),
-                ty: type_id.into_global(module_id),
-                message: "function layout requires concrete nested types".to_string(),
-            })?;
-
-        let fn_name = builder.intern(FUNCTION_PTR_FIELD);
-        let env_name = builder.intern(ENV_FIELD);
-        let fields = vec![
-            FieldInput {
-                name: fn_name,
-                ty: function_pointer_type,
-                size: function_pointer_size,
-                alignment: function_pointer_align,
-                source_index: Some(0),
-                kind: FieldLayoutKind::Synthetic,
-            },
-            FieldInput {
-                name: env_name,
-                ty: env_pointer_type,
-                size: env_size,
-                alignment: env_align,
-                source_index: Some(1),
-                kind: FieldLayoutKind::Synthetic,
-            },
-        ];
-
-        let mir_type = builder.type_closure(signature, env_pointer_type);
-        let layout = Self::compute_struct_layout(fields, LayoutPolicy::Optimized);
-        self.set_layout(mir_type, layout);
-        Ok(mir_type)
+        Ok(builder.type_function(signature, environment))
     }
 
-    /// Lower a DIR closure type into its MIR representation.
-    fn lower_closure_type(
+    /// Lower a function pointer type.
+    fn lower_function_pointer_type(
         &mut self,
         types: &dir::TypeTable<'_>,
-        closure: &dir::ClosureType,
+        function: &dir::FunctionPointerType,
         module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         let signature =
-            self.lower_function_signature_type(types, closure.function, module_id, node, builder)?;
-        let environment = self.lower_type(types, closure.environment, module_id, node, builder)?;
+            self.lower_function_signature_type(types, function.signature, module_id, node, builder)?;
 
-        Ok(builder.type_closure(signature, environment))
-    }
-
-    /// Lower an intersection type by selecting its primary element.
-    fn lower_intersection_type(
-        &mut self,
-        types: &dir::TypeTable<'_>,
-        elements: &[dir::LocalTypeId],
-        module_id: ModuleId,
-        node: dir::AnchoredGlobalNodeId,
-        builder: &mut mir::ModuleBuilder,
-    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
-        let primary = self.select_intersection_primary_type(types, elements, module_id, node)?;
-        self.lower_type(types, primary, module_id, node, builder)
+        Ok(builder.type_function_pointer(signature))
     }
 
     /// Lower a DIR integer type into a MIR type.

@@ -273,7 +273,7 @@ impl FunctionLowerer<'_> {
         Ok((value, result_type))
     }
 
-    /// Record the function environment type on one function used as a closure value.
+    /// Record the function environment type on one function used as a function value.
     pub(crate) fn set_function_environment(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,

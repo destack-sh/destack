@@ -49,7 +49,7 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) resolutions: &'a dir::ResolutionTable<'a>,
     /// Elaborated type guard entries.
     pub(crate) guards: &'a dir::GuardTable,
-    /// Provide access to capture metadata for closures.
+    /// Provide access to capture metadata for function environments.
     pub(crate) captures: &'a dir::CaptureTable<'a>,
     /// Runtime check configuration for this target.
     pub(crate) runtime_checks: RuntimeCheckConfig,

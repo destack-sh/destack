@@ -31,7 +31,7 @@ impl ModuleLowerer<'_> {
 
         // compare function signatures while ignoring this
         match (left_type, right_type) {
-            (dir::Type::Function(left), dir::Type::Function(right)) => {
+            (dir::Type::FunctionSignature(left), dir::Type::FunctionSignature(right)) => {
                 // require matching function modifiers
                 if left.asynchrony != right.asynchrony || left.is_generator != right.is_generator {
                     return false;
