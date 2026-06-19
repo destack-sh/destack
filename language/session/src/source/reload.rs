@@ -20,7 +20,7 @@ impl Session {
 
         // collect changed file ids in edit order
         for edit in &edits {
-            for file_id in edit.affected_file_ids() {
+            for file_id in edit.changed_file_ids() {
                 if seen_file_ids.insert(file_id) {
                     file_ids.push(file_id);
                 }

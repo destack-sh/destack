@@ -216,7 +216,7 @@ impl Workspace {
     }
 
     /// Apply atomic edits when the current revision still matches.
-    pub fn apply_source_edits_at(
+    pub fn apply_source_edits_if_current(
         &self,
         root: &Path,
         revision: Revision,
@@ -224,7 +224,7 @@ impl Workspace {
     ) -> Result<Commit, Error> {
         // publish the edit batch through the owning session
         let session = self.session(root)?;
-        let commit = session.edit_at(session.head(), revision, edits)?;
+        let commit = session.edit_if_current(session.head(), revision, edits)?;
 
         self.workspace_commit(&session, commit)
     }
