@@ -272,7 +272,7 @@ impl CheckState<'_> {
             Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
         };
         let return_type = match self.ty(tag_type)? {
-            dir::Type::Function(function) => function.return_type,
+            dir::Type::FunctionSignature(function) => function.return_type,
             _ => {
                 let ty = self.format_type(tag_type);
                 let (module, anchor) = self.origin_diagnostic_anchor(origin)?;

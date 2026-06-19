@@ -16,116 +16,8 @@ struct FormChain {
 }
 
 impl CheckState<'_> {
-    /// Reduce one memory intrinsic application.
-    pub(in crate::check) fn evaluate_intrinsic_reference(
-        &mut self,
-        origin: Origin,
-        instance: &dir::GenericInstance,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let Some(item) = self.environment.language.item(instance.symbol) else {
-            return Ok(Answer::Ready(None));
-        };
-
-        match item {
-            // collection constructors normalize to their structural views
-            dir::LanguageItem::Array => {
-                let [element] = instance.arguments.as_slice() else {
-                    return Ok(Answer::Ready(None));
-                };
-                let view = dir::Type::Array(dir::ArrayType { element: *element });
-
-                self.push_intrinsic_view(origin, view)
-            }
-            dir::LanguageItem::Slice => {
-                let [element] = instance.arguments.as_slice() else {
-                    return Ok(Answer::Ready(None));
-                };
-                let view = dir::Type::Slice(dir::SliceType { element: *element });
-
-                self.push_intrinsic_view(origin, view)
-            }
-            dir::LanguageItem::FixedArray => {
-                let [element, count] = instance.arguments.as_slice() else {
-                    return Ok(Answer::Ready(None));
-                };
-                let view = dir::Type::FixedArray(dir::FixedArrayType {
-                    element: *element,
-                    count: *count,
-                });
-
-                self.push_intrinsic_view(origin, view)
-            }
-            dir::LanguageItem::Dynamic => {
-                let [constraint] = instance.arguments.as_slice() else {
-                    return Ok(Answer::Ready(None));
-                };
-                let view = dir::Type::Dynamic(dir::DynamicType {
-                    constraint: *constraint,
-                });
-
-                self.push_intrinsic_view(origin, view)
-            }
-
-            // form constructors normalize to their canonical form written form
-            dir::LanguageItem::Managed => {
-                self.evaluate_form_constructor(origin, instance, dir::Form::Managed)
-            }
-            dir::LanguageItem::Owned => {
-                self.evaluate_form_constructor(origin, instance, dir::Form::Owned)
-            }
-            dir::LanguageItem::Raw => {
-                self.evaluate_form_constructor(origin, instance, dir::Form::Raw)
-            }
-            dir::LanguageItem::Borrowed => self.evaluate_borrowed_constructor(origin, instance),
-            dir::LanguageItem::Placed => self.evaluate_placed_constructor(origin, instance),
-
-            // accessors evaluate over closed form chains
-            dir::LanguageItem::PayloadOf
-            | dir::LanguageItem::BaseOf
-            | dir::LanguageItem::OwnershipOf
-            | dir::LanguageItem::OwnershipOr
-            | dir::LanguageItem::PlaceOf
-            | dir::LanguageItem::PlaceOr
-            | dir::LanguageItem::PlaceIn
-            | dir::LanguageItem::SpaceOf
-            | dir::LanguageItem::SpaceOr
-            | dir::LanguageItem::LifetimeOf
-            | dir::LanguageItem::LifetimeOr
-            | dir::LanguageItem::AccessOf
-            | dir::LanguageItem::AccessOr
-            | dir::LanguageItem::IsManaged
-            | dir::LanguageItem::IsOwned
-            | dir::LanguageItem::IsBorrowed
-            | dir::LanguageItem::IsRaw
-            | dir::LanguageItem::IsShared
-            | dir::LanguageItem::IsSharedIn
-            | dir::LanguageItem::WithBase
-            | dir::LanguageItem::WithOwnership
-            | dir::LanguageItem::WithPlace
-            | dir::LanguageItem::WithSpace
-            | dir::LanguageItem::WithLifetime
-            | dir::LanguageItem::WithAccess => {
-                self.evaluate_memory_accessor(origin, item, instance)
-            }
-
-            _ => Ok(Answer::Ready(None)),
-        }
-    }
-
-    /// Allocate one normalized intrinsic view.
-    fn push_intrinsic_view(
-        &mut self,
-        origin: Origin,
-        view: dir::Type,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let source = self.origin_source_node(origin)?;
-        let view = self.push_type(origin.module(), view, source)?;
-
-        Ok(Answer::Ready(Some(view)))
-    }
-
     /// Normalize one unary form constructor application.
-    fn evaluate_form_constructor(
+    pub(in crate::check) fn evaluate_form_constructor(
         &mut self,
         origin: Origin,
         instance: &dir::GenericInstance,
@@ -141,7 +33,7 @@ impl CheckState<'_> {
     }
 
     /// Normalize one borrowed form constructor application.
-    fn evaluate_borrowed_constructor(
+    pub(in crate::check) fn evaluate_borrowed_constructor(
         &mut self,
         origin: Origin,
         instance: &dir::GenericInstance,
@@ -171,7 +63,7 @@ impl CheckState<'_> {
     }
 
     /// Normalize one placed form constructor application.
-    fn evaluate_placed_constructor(
+    pub(in crate::check) fn evaluate_placed_constructor(
         &mut self,
         origin: Origin,
         instance: &dir::GenericInstance,
@@ -194,7 +86,7 @@ impl CheckState<'_> {
     }
 
     /// Evaluate one memory accessor, distributing over union targets.
-    fn evaluate_memory_accessor(
+    pub(in crate::check) fn evaluate_memory_accessor(
         &mut self,
         origin: Origin,
         item: dir::LanguageItem,

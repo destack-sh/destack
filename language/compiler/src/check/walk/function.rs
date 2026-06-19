@@ -36,7 +36,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             }
         }
 
-        let function = dir::FunctionType {
+        let function = dir::FunctionSignatureType {
             asynchrony: signature.asynchrony,
             generic_parameters,
             this_parameter,
@@ -45,7 +45,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             is_generator: signature.is_generator,
         };
 
-        self.push_type(dir::Type::Function(function), source)
+        self.push_type(dir::Type::FunctionSignature(function), source)
     }
 
     /// Return one function type from a type-space function declaration.
@@ -77,7 +77,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             }
         }
 
-        let function = dir::FunctionType {
+        let function = dir::FunctionSignatureType {
             asynchrony: dir::Asynchrony::Sync,
             generic_parameters,
             this_parameter,
@@ -85,8 +85,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return_type,
             is_generator: false,
         };
+        let signature = self.push_type(dir::Type::FunctionSignature(function), source)?;
 
-        self.push_type(dir::Type::Function(function), source)
+        self.function_value_type(source, signature)
     }
 
     /// Return one function type from a type-space constructor declaration.
@@ -112,13 +113,28 @@ impl<'check, 'state> WalkState<'check, 'state> {
             }
         }
 
-        let function = dir::FunctionType {
+        let function = dir::FunctionSignatureType {
             asynchrony: dir::Asynchrony::Sync,
             generic_parameters,
             this_parameter: None,
             parameters,
             return_type,
             is_generator: false,
+        };
+
+        self.push_type(dir::Type::FunctionSignature(function), source)
+    }
+
+    /// Return one fat callable value type for a function signature.
+    pub(in crate::check) fn function_value_type(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        signature: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let environment = self.push_type(dir::Type::Unknown, source)?;
+        let function = dir::FunctionType {
+            signature,
+            environment,
         };
 
         self.push_type(dir::Type::Function(function), source)

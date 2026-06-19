@@ -761,14 +761,21 @@ impl WalkState<'_, '_> {
         let result =
             self.function_result_type(id.into_any(), &declaration.signature, declaration.body)?;
 
-        // tie the function symbol to its signature type
-        let function = self.function_signature_type(
+        // tie the function symbol to its callable type
+        let signature = self.function_signature_type(
             id.into_any(),
             &declaration.signature,
             template,
             None,
             result,
         )?;
+        let is_function_value =
+            declaration.signature.form == dir::FunctionForm::Lambda || declaration.name.is_none();
+        let function = if is_function_value {
+            self.function_value_type(id.into_any(), signature)?
+        } else {
+            signature
+        };
         self.record_type_induction_site(induction, function);
         self.declare_symbol_type(symbol, function)?;
 

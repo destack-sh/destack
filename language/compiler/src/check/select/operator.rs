@@ -419,7 +419,7 @@ impl CheckState<'_> {
             Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
         };
         let (first_parameter, return_type) = match self.ty(method_type)? {
-            dir::Type::Function(function) => (
+            dir::Type::FunctionSignature(function) => (
                 function.parameters.first().map(|parameter| parameter.ty),
                 function.return_type,
             ),

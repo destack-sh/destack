@@ -286,18 +286,18 @@ impl CheckState<'_> {
             return Ok(None);
         };
 
-        // look through the closure environment to the function contract
+        // look through the function value to the function contract
         let mut contract = self.shallow_resolve(ty)?;
         loop {
             match self.ty(contract)? {
-                dir::Type::Closure(closure) => {
-                    contract = self.shallow_resolve(closure.function)?;
+                dir::Type::Function(function) => {
+                    contract = self.shallow_resolve(function.signature)?;
                 }
-                dir::Type::Function(_) => break,
+                dir::Type::FunctionSignature(_) => break,
                 _ => return Ok(None),
             }
         }
-        let dir::Type::Function(function) = self.ty(contract)?.clone() else {
+        let dir::Type::FunctionSignature(function) = self.ty(contract)?.clone() else {
             unreachable!("the contract loop stops on function types");
         };
 

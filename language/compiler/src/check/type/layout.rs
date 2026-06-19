@@ -55,6 +55,7 @@ impl CheckState<'_> {
             Answer::Ready(ty) => ty,
             Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
         };
+        let ty = self.represented_type(origin, ty)?;
         let segment = ty.module_id;
 
         // reuse memoized layouts
@@ -117,9 +118,11 @@ impl CheckState<'_> {
             dir::Type::Primitive(primitive) => Ok(Answer::Ready(primitive.layout(pointer_bytes))),
             dir::Type::Literal(literal) => Ok(Answer::Ready(literal.layout())),
             dir::Type::Range(_) => Ok(Answer::Ready(Some(dir::Layout::scalar(16, 8, None)))),
-            dir::Type::Function(_) | dir::Type::Closure(_) => {
-                Ok(Answer::Ready(Some(dir::Layout::closure(pointer_bytes))))
-            }
+            dir::Type::Function(_) => Ok(Answer::Ready(Some(dir::Layout::function(pointer_bytes)))),
+            dir::Type::FunctionPointer(_) => Ok(Answer::Ready(Some(dir::Layout::pointer(
+                pointer_bytes,
+                true,
+            )))),
             // indirect forms are pointers, direct forms keep their payload
             dir::Type::Form(form) => {
                 let (form, value) = (form.form, form.value);
@@ -135,6 +138,8 @@ impl CheckState<'_> {
                     )))),
                     // direct forms keep the qualified root for `this`
                     dir::Form::Owned | dir::Form::Placed { .. } | dir::Form::Readonly => {
+                        let value = self.represented_type(origin, value)?;
+
                         self.compute_layout(origin, segment, value, qualified, in_flight)
                     }
                 }
@@ -190,6 +195,31 @@ impl CheckState<'_> {
             // open or symbolic types have no representation yet
             _ => Ok(Answer::Ready(None)),
         }
+    }
+
+    /// Return the type that owns representation for one reduced type.
+    fn represented_type(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let dir::Type::Primitive(primitive) = self.ty(ty)? else {
+            return Ok(ty);
+        };
+
+        // primitive aliases defer representation to their language item
+        if let Some(item) = primitive.representation_item() {
+            let symbol = self.language_symbol(item);
+            let reference = dir::Type::Reference(dir::GenericInstance {
+                symbol,
+                arguments: Vec::new(),
+            });
+            let source = self.origin_source_node(origin)?;
+
+            return self.push_type(origin.module(), reference, source);
+        }
+
+        Ok(ty)
     }
 
     /// Compute one fixed array layout.
@@ -513,6 +543,7 @@ impl CheckState<'_> {
             Answer::Ready(slot) => slot,
             Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
         };
+        let slot = self.represented_type(origin, slot)?;
         let managed = match self.decide_managed_representation(origin, slot)? {
             Answer::Ready(managed) => managed,
             Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
@@ -536,14 +567,14 @@ impl CheckState<'_> {
             })));
         }
 
-        let id = match self.layout_of_guarded(origin, ty, in_flight)? {
+        let id = match self.layout_of_guarded(origin, slot, in_flight)? {
             Answer::Ready(Some(id)) => id,
             Answer::Ready(None) => return Ok(Answer::Ready(None)),
             Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
         };
 
         // summarize from the owning segment
-        let ty = match self.evaluate_root(origin, ty)? {
+        let ty = match self.evaluate_root(origin, slot)? {
             Answer::Ready(ty) => ty,
             Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
         };
@@ -572,8 +603,9 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        let dir::Type::Reference(instance) = self.ty(ty)? else {
-            return Ok(Answer::Ready(false));
+        let instance = match self.ty(ty)? {
+            dir::Type::Reference(instance) => instance.clone(),
+            _ => return Ok(Answer::Ready(false)),
         };
 
         let backing = match self.definition(instance.symbol) {

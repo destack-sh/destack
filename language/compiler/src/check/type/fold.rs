@@ -297,7 +297,7 @@ impl CheckState<'_> {
         result?;
 
         // substituted generic slots leave the function's parameter list
-        if let dir::Type::Function(function) = &mut ty {
+        if let dir::Type::FunctionSignature(function) = &mut ty {
             let mut kept = Vec::with_capacity(function.generic_parameters.len());
             for parameter in function.generic_parameters.iter().copied() {
                 if matches!(self.ty(parameter)?, dir::Type::Parameter(_)) {

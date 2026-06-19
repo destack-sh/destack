@@ -356,7 +356,7 @@ impl CheckState<'_> {
                 Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
             };
             let (parameters, return_type) = match self.ty(signature)? {
-                dir::Type::Function(function) => (
+                dir::Type::FunctionSignature(function) => (
                     function
                         .parameters
                         .iter()

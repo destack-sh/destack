@@ -226,11 +226,11 @@ impl CheckState<'_> {
             (dir::Type::Shape(_), dir::Type::Shape(_)) => {
                 self.decide_shape_equal(origin, left, right)?
             }
-            (dir::Type::Function(_), dir::Type::Function(_)) => {
+            (dir::Type::FunctionSignature(_), dir::Type::FunctionSignature(_)) => {
                 self.decide_function_equal(origin, left, right)?
             }
-            (dir::Type::Closure(left), dir::Type::Closure(right)) => {
-                let (left_function, right_function) = (left.function, right.function);
+            (dir::Type::Function(left), dir::Type::Function(right)) => {
+                let (left_function, right_function) = (left.signature, right.signature);
                 let (left_environment, right_environment) = (left.environment, right.environment);
                 let function =
                     self.decide_relation(origin, Relation::Equal, left_function, right_function)?;
@@ -242,6 +242,9 @@ impl CheckState<'_> {
                 )?;
 
                 function.and(environment)
+            }
+            (dir::Type::FunctionPointer(left), dir::Type::FunctionPointer(right)) => {
+                self.decide_relation(origin, Relation::Equal, left.signature, right.signature)?
             }
 
             // algebraic composites compare element-wise in order
@@ -298,6 +301,8 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(true));
         }
 
+        let source_signature = self.callable_signature(source)?;
+        let target_signature = self.callable_signature(target)?;
         let decision = match (self.ty(source)?, self.ty(target)?) {
             // top and error types absorb everything
             (dir::Type::Error, _) | (_, dir::Type::Error) => Answer::Ready(true),
@@ -468,7 +473,16 @@ impl CheckState<'_> {
             }
 
             // functions assign by signature variance
-            (dir::Type::Function(_), dir::Type::Function(_)) => {
+            (dir::Type::FunctionSignature(_), dir::Type::FunctionSignature(_)) => {
+                self.decide_function_assignable(origin, source, target)?
+            }
+            (_, dir::Type::FunctionSignature(_)) if let Some(source) = source_signature => {
+                self.decide_function_assignable(origin, source, target)?
+            }
+            (dir::Type::FunctionSignature(_), _) if let Some(target) = target_signature => {
+                self.decide_function_assignable(origin, source, target)?
+            }
+            (_, _) if let (Some(source), Some(target)) = (source_signature, target_signature) => {
                 self.decide_function_assignable(origin, source, target)?
             }
 

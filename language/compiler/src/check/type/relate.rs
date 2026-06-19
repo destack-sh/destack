@@ -10,6 +10,21 @@ use crate::check::{
 };
 
 impl CheckState<'_> {
+    /// Return the call signature carried by one callable value representation.
+    pub(in crate::check) fn callable_signature(
+        &self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let ty = self.shallow_resolve(ty)?;
+        let signature = match self.ty(ty)? {
+            dir::Type::Function(function) => Some(function.signature),
+            dir::Type::FunctionPointer(function) => Some(function.signature),
+            _ => None,
+        };
+
+        Ok(signature)
+    }
+
     /// Enforce one relation between two types, bounding open variables.
     /// Failed closed relations report one diagnostic and count as handled.
     pub(in crate::check) fn relate(
@@ -309,6 +324,9 @@ impl CheckState<'_> {
             )?));
         }
 
+        let left_signature = self.callable_signature(left)?;
+        let right_signature = self.callable_signature(right)?;
+
         // collect child pairs with their child relations
         let mut pairs = SmallVec::<[(Relation, dir::GlobalTypeId, dir::GlobalTypeId); 4]>::new();
         match (self.ty(left)?, self.ty(right)?) {
@@ -367,7 +385,25 @@ impl CheckState<'_> {
                 }
             }
             // functions relate parameters contravariantly and returns covariantly
-            (dir::Type::Function(left), dir::Type::Function(right)) => {
+            (_, dir::Type::FunctionSignature(_))
+                if relation == Relation::Assignable
+                    && let Some(left) = left_signature =>
+            {
+                pairs.push((relation, left, right));
+            }
+            (dir::Type::FunctionSignature(_), _)
+                if relation == Relation::Assignable
+                    && let Some(right) = right_signature =>
+            {
+                pairs.push((relation, left, right));
+            }
+            (_, _)
+                if relation == Relation::Assignable
+                    && let (Some(left), Some(right)) = (left_signature, right_signature) =>
+            {
+                pairs.push((relation, left, right));
+            }
+            (dir::Type::FunctionSignature(left), dir::Type::FunctionSignature(right)) => {
                 let shared = left.parameters.len().min(right.parameters.len());
                 for (left, right) in left.parameters[..shared]
                     .iter()
