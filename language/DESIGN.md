@@ -73,7 +73,7 @@ TypeScript has two "top" types: `unknown` and `any` can contain _all_ other type
 Of course, `any` is unsound, because everything can be assigned to and from `any` without any checks, so Destack forbids it in favor of the explicit `unknown`.
 `unknown` is really just a transparent constraint, and so it behaves like an interface with zero members under the regular [representation rules](#representation):
 - In constraint positions, `unknown` induces an implicit generic: `function parse(value: unknown)` behaves like `function parse<T>(value: T)` where the body knows nothing about `T` until it narrows.
-- In storage positions, there is nothing to reify, so storing `unknown` induces a generic parameter just like storing an interface does.
+- In storage positions, bare `unknown` has no layout, so it must either induce a generic parameter or be erased behind `Dynamic<unknown>`.
 
 ```ds
 function parse(value: unknown): string {
@@ -84,7 +84,7 @@ function parse(value: unknown): string {
 }
 
 struct Event {
-    payload: unknown; // induces Event<T>, monomorphized per payload type
+    payload: unknown; // induces existential T via Event<T>
 }
 
 struct ErasedEvent {
@@ -1165,6 +1165,15 @@ next satisfies () => number;
 next satisfies Function<(), number>;
 
 const read = () => count;
+```
+
+All `Function`s are fat pointers capable of capturing an environment by default, and when a true thin pointer is required, we can just use `FunctionPointer`. 
+Thus, `Function`s also behave more like `Dynamic` by default, and explicit generics are required to force monomorphisation:
+
+```ds
+function apply<F: (int32) => int32>(callback: F, value: int32): int32 {
+    return callback(value);
+}
 ```
 
 As with all of Destack, the `Function`s behind closures behave like one would expect in TypeScript by default, with additional control available on demand via the regular memory modifiers like `&Function<(string,), void>`.
