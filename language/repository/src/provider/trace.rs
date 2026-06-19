@@ -160,16 +160,11 @@ impl Trace {
         let counters = self.counters.lock();
         let attempts = self.attempts.lock();
 
-        // roll up attempt time per stage, keeping parked time separate
-        let mut parked = Duration::ZERO;
+        // roll up artifact attempt time per stage
         let mut workers = 0usize;
         let mut stages = ArtifactStage::ALL.map(|stage| (stage, Duration::ZERO));
         for attempt in attempts.iter() {
             workers = workers.max(attempt.worker + 1);
-            if attempt.outcome == ArtifactAttemptOutcome::Parked {
-                parked += attempt.span.duration;
-                continue;
-            }
 
             let stage = attempt.key.stage();
             let row = stages
@@ -188,6 +183,17 @@ impl Trace {
                 micros: duration.as_micros() as u64,
             })
             .collect();
+
+        // roll up named spans across operation and artifact attempts
+        let mut times = Vec::<TraceTimeSnapshot>::new();
+        for span in spans.iter() {
+            TraceTimeSnapshot::add(&mut times, span);
+        }
+        for attempt in attempts.iter() {
+            for span in &attempt.spans {
+                TraceTimeSnapshot::add(&mut times, span);
+            }
+        }
 
         // detailed snapshots carry the labeled artifact rows
         let artifacts = if detailed {
@@ -238,7 +244,7 @@ impl Trace {
             spans,
             counters,
             stages,
-            parked_micros: parked.as_micros() as u64,
+            times,
             artifacts,
         }
     }
@@ -310,8 +316,8 @@ pub struct TraceSnapshot {
     pub counters: Vec<TraceCounterSnapshot>,
     /// Busy time per toolchain stage, ordered by stage.
     pub stages: Vec<TraceStageSnapshot>,
-    /// Time spent on attempts that parked on requirements.
-    pub parked_micros: u64,
+    /// Summed time per named trace span.
+    pub times: Vec<TraceTimeSnapshot>,
     /// The recorded artifact attempts, present only in detailed snapshots.
     pub artifacts: Vec<ArtifactAttemptSnapshot>,
 }
@@ -323,6 +329,29 @@ pub struct TraceStageSnapshot {
     pub name: String,
     /// The summed attempt time in microseconds.
     pub micros: u64,
+}
+
+/// Summed time of one named trace span.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TraceTimeSnapshot {
+    /// The span name.
+    pub name: String,
+    /// The summed span time in microseconds.
+    pub micros: u64,
+}
+
+impl TraceTimeSnapshot {
+    /// Add one span to a time rollup.
+    fn add(times: &mut Vec<Self>, span: &TraceSpan) {
+        if let Some(time) = times.iter_mut().find(|time| time.name == span.name) {
+            time.micros += span.duration.as_micros() as u64;
+        } else {
+            times.push(Self {
+                name: span.name.to_string(),
+                micros: span.duration.as_micros() as u64,
+            });
+        }
+    }
 }
 
 /// One span in a trace snapshot.

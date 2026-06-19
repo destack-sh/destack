@@ -288,7 +288,7 @@ impl Schema {
 
     /// Load one bridge schema module.
     fn load_module(path: &Path, items: &mut BTreeMap<String, Item>) -> Result<Vec<String>> {
-        let source = fs::read_to_string(&path)
+        let source = fs::read_to_string(path)
             .with_context(|| format!("failed to read {}", path.display()))?;
         let parsed = syn::parse_file(&source)
             .with_context(|| format!("failed to parse {}", path.display()))?;
@@ -603,6 +603,7 @@ impl Item {
                 | "Module"
                 | "TraceCounter"
                 | "TraceSpan"
+                | "TraceTime"
                 | "TraceArtifact"
                 | "TraceStage"
                 | "TraceReport"

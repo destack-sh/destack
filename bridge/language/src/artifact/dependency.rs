@@ -1,4 +1,5 @@
 use destack_artifact as artifact;
+use destack_core::StringPool;
 
 use crate::{ArtifactVersion, ContentId, FileId, bridge};
 
@@ -22,8 +23,8 @@ pub enum ArtifactPathState {
 #[bridge]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ArtifactDirectoryEntry {
-    /// The entry path identity.
-    pub path: FileId,
+    /// The entry path.
+    pub path: String,
     /// The exact entry path state.
     pub state: ArtifactPathState,
 }
@@ -34,15 +35,15 @@ pub struct ArtifactDirectoryEntry {
 pub enum ArtifactSourceDependency {
     /// The exact state observed for one source path.
     PathState {
-        /// The source path identity.
-        path: FileId,
+        /// The source path.
+        path: String,
         /// The exact path state.
         state: ArtifactPathState,
     },
     /// The exact direct entries observed for one directory.
     DirectoryEntries {
-        /// The source directory path identity.
-        directory: FileId,
+        /// The source directory path.
+        directory: String,
         /// The direct entries in deterministic order.
         entries: Vec<ArtifactDirectoryEntry>,
     },
@@ -86,9 +87,9 @@ impl ArtifactPathState {
 
 impl ArtifactDirectoryEntry {
     /// Convert one artifact directory entry into one bridge directory entry.
-    pub fn from_artifact(entry: artifact::ArtifactDirectoryEntry) -> Self {
+    pub fn from_artifact(entry: artifact::ArtifactDirectoryEntry, strings: &StringPool) -> Self {
         Self {
-            path: FileId::from_source(entry.path),
+            path: strings.get(entry.path).to_string(),
             state: ArtifactPathState::from_artifact(entry.state),
         }
     }
@@ -96,20 +97,20 @@ impl ArtifactDirectoryEntry {
 
 impl ArtifactSourceDependency {
     /// Convert one artifact source dependency into one bridge source dependency.
-    pub fn from_artifact(dependency: artifact::SourceDependency) -> Self {
+    pub fn from_artifact(dependency: artifact::SourceDependency, strings: &StringPool) -> Self {
         match dependency {
             artifact::SourceDependency::PathState { path, state } => Self::PathState {
-                path: FileId::from_source(path),
+                path: strings.get(path).to_string(),
                 state: ArtifactPathState::from_artifact(state),
             },
             artifact::SourceDependency::DirectoryEntries { directory, entries } => {
                 let entries = entries
                     .into_iter()
-                    .map(ArtifactDirectoryEntry::from_artifact)
+                    .map(|entry| ArtifactDirectoryEntry::from_artifact(entry, strings))
                     .collect();
 
                 Self::DirectoryEntries {
-                    directory: FileId::from_source(directory),
+                    directory: strings.get(directory).to_string(),
                     entries,
                 }
             }
@@ -123,13 +124,13 @@ impl ArtifactSourceDependency {
 
 impl ArtifactDependency {
     /// Convert one artifact dependency into one bridge dependency.
-    pub fn from_artifact(dependency: artifact::ArtifactDependency) -> Self {
+    pub fn from_artifact(dependency: artifact::ArtifactDependency, strings: &StringPool) -> Self {
         match dependency {
             artifact::ArtifactDependency::Artifact(version) => Self::Artifact {
                 version: ArtifactVersion::from_artifact(version),
             },
             artifact::ArtifactDependency::Source(dependency) => Self::Source {
-                dependency: ArtifactSourceDependency::from_artifact(dependency),
+                dependency: ArtifactSourceDependency::from_artifact(dependency, strings),
             },
         }
     }
@@ -139,26 +140,5 @@ impl From<artifact::ArtifactPathState> for ArtifactPathState {
     /// Convert one artifact path state into one bridge path state.
     fn from(state: artifact::ArtifactPathState) -> Self {
         Self::from_artifact(state)
-    }
-}
-
-impl From<artifact::ArtifactDirectoryEntry> for ArtifactDirectoryEntry {
-    /// Convert one artifact directory entry into one bridge directory entry.
-    fn from(entry: artifact::ArtifactDirectoryEntry) -> Self {
-        Self::from_artifact(entry)
-    }
-}
-
-impl From<artifact::SourceDependency> for ArtifactSourceDependency {
-    /// Convert one artifact source dependency into one bridge source dependency.
-    fn from(dependency: artifact::SourceDependency) -> Self {
-        Self::from_artifact(dependency)
-    }
-}
-
-impl From<artifact::ArtifactDependency> for ArtifactDependency {
-    /// Convert one artifact dependency into one bridge dependency.
-    fn from(dependency: artifact::ArtifactDependency) -> Self {
-        Self::from_artifact(dependency)
     }
 }

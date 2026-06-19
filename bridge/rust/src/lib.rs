@@ -16,7 +16,7 @@ pub use destack_bridge_language::{
     FilePatch, FileType, FormatOutput, LintOutput, ModuleBuildKind, Object, ParseOutput, Program,
     ProgramHeader, Replacement, Script, ScriptLanguage, SessionFile, Source, SourceMap,
     SourceMapSource, TextEdit, TextRange, TraceArtifact, TraceCounter, TraceReport, TraceSpan,
-    TraceStage,
+    TraceStage, TraceTime,
 };
 pub use destack_repository::Revision;
 pub use destack_source::{

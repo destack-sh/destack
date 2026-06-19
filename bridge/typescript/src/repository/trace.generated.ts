@@ -12,8 +12,8 @@ export type TraceReport = {
     readonly counters: readonly TraceCounter[];
     /** Busy time per toolchain stage. */
     readonly stages: readonly TraceStage[];
-    /** Time spent on attempts that blocked on requirements. */
-    readonly blockedMicros: number;
+    /** Summed time per named trace span. */
+    readonly times: readonly TraceTime[];
     /** Detailed artifact attempts. */
     readonly artifacts: readonly TraceArtifact[];
 };
@@ -23,6 +23,14 @@ export type TraceStage = {
     /** The stage display name. */
     readonly name: string;
     /** The summed attempt time in microseconds. */
+    readonly micros: number;
+};
+
+/** Summed time of one named trace span. */
+export type TraceTime = {
+    /** The span name. */
+    readonly name: string;
+    /** The summed span time in microseconds. */
     readonly micros: number;
 };
 

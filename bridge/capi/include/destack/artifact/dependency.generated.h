@@ -30,7 +30,7 @@ typedef struct DestackOptionalArtifactPathState {
 } DestackOptionalArtifactPathState;
 
 typedef struct DestackArtifactDirectoryEntry {
-    DestackFileId path;
+    char *path;
     DestackArtifactPathState state;
 } DestackArtifactDirectoryEntry;
 
@@ -52,9 +52,9 @@ typedef enum DestackArtifactSourceDependencyKind {
 
 typedef struct DestackArtifactSourceDependency {
     DestackArtifactSourceDependencyKind kind;
-    DestackFileId path;
+    char *path;
     DestackArtifactPathState state;
-    DestackFileId directory;
+    char *directory;
     DestackArtifactDirectoryEntryArray entries;
     DestackFileId file;
     DestackContentId content;

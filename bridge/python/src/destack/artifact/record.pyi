@@ -38,6 +38,10 @@ class ArtifactRecord:
     @property
     def version(self) -> ArtifactVersion: ...
 
+    """The predecessor artifact this record was incrementally built from."""
+    @property
+    def base(self) -> ArtifactVersion | None: ...
+
     """Serialized artifact payload bytes."""
     @property
     def payload(self) -> list[int]: ...

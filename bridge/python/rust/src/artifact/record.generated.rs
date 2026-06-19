@@ -51,6 +51,12 @@ impl ArtifactRecord {
         ArtifactVersion::from_bridge(self.value.version.clone())
     }
 
+    /// The predecessor artifact this record was incrementally built from.
+    #[getter]
+    pub fn base(&self) -> Option<ArtifactVersion> {
+        self.value.base.clone().map(ArtifactVersion::from_bridge)
+    }
+
     /// Serialized artifact payload bytes.
     #[getter]
     pub fn payload(&self) -> Vec<u8> {

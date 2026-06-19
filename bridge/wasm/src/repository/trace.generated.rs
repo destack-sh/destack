@@ -13,7 +13,7 @@ pub struct TraceReport {
     spans: Vec<TraceSpan>,
     counters: Vec<TraceCounter>,
     stages: Vec<TraceStage>,
-    blocked_micros: f64,
+    times: Vec<TraceTime>,
     artifacts: Vec<TraceArtifact>,
 }
 
@@ -27,7 +27,7 @@ impl TraceReport {
         spans: Vec<TraceSpan>,
         counters: Vec<TraceCounter>,
         stages: Vec<TraceStage>,
-        blocked_micros: f64,
+        times: Vec<TraceTime>,
         artifacts: Vec<TraceArtifact>,
     ) -> Self {
         Self {
@@ -36,7 +36,7 @@ impl TraceReport {
             spans,
             counters,
             stages,
-            blocked_micros,
+            times,
             artifacts,
         }
     }
@@ -71,10 +71,10 @@ impl TraceReport {
         self.stages.clone()
     }
 
-    /// Time spent on attempts that blocked on requirements.
-    #[wasm_bindgen(getter, js_name = "blockedMicros")]
-    pub fn blocked_micros(&self) -> f64 {
-        self.blocked_micros
+    /// Summed time per named trace span.
+    #[wasm_bindgen(getter, js_name = "times")]
+    pub fn times(&self) -> Vec<TraceTime> {
+        self.times.clone()
     }
 
     /// Detailed artifact attempts.
@@ -105,7 +105,11 @@ impl TraceReport {
                 .into_iter()
                 .map(TraceStage::from_bridge)
                 .collect(),
-            blocked_micros: value.blocked_micros as f64,
+            times: value
+                .times
+                .into_iter()
+                .map(TraceTime::from_bridge)
+                .collect(),
             artifacts: value
                 .artifacts
                 .into_iter()
@@ -147,6 +151,45 @@ impl TraceStage {
 impl TraceStage {
     /// Convert one bridge value into one WASM value.
     pub(crate) fn from_bridge(value: bridge::TraceStage) -> Self {
+        Self {
+            name: value.name,
+            micros: value.micros as f64,
+        }
+    }
+}
+
+/// Summed time of one named trace span.
+#[derive(Debug, Clone)]
+#[wasm_bindgen]
+pub struct TraceTime {
+    name: String,
+    micros: f64,
+}
+
+#[wasm_bindgen]
+impl TraceTime {
+    /// Create one value.
+    #[wasm_bindgen(constructor)]
+    pub fn new(name: String, micros: f64) -> Self {
+        Self { name, micros }
+    }
+
+    /// The span name.
+    #[wasm_bindgen(getter, js_name = "name")]
+    pub fn name(&self) -> String {
+        self.name.clone()
+    }
+
+    /// The summed span time in microseconds.
+    #[wasm_bindgen(getter, js_name = "micros")]
+    pub fn micros(&self) -> f64 {
+        self.micros
+    }
+}
+
+impl TraceTime {
+    /// Convert one bridge value into one WASM value.
+    pub(crate) fn from_bridge(value: bridge::TraceTime) -> Self {
         Self {
             name: value.name,
             micros: value.micros as f64,

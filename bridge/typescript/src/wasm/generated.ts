@@ -68,6 +68,7 @@ import type { Revision } from "../repository/revision.generated.js";
 import type {
     TraceReport,
     TraceStage,
+    TraceTime,
     TraceArtifact,
     TraceSpan,
     TraceCounter,
@@ -123,7 +124,7 @@ export function fromWasmArtifactDirectoryEntry(
     value: Wasm.ArtifactDirectoryEntry,
 ): ArtifactDirectoryEntry {
     return {
-        path: fromWasmFileId(value.path),
+        path: value.path,
         state: fromWasmArtifactPathState(value.state),
     };
 }
@@ -145,7 +146,7 @@ export function fromWasmArtifactSourceDependency(
 
         return {
             kind: "pathState",
-            path: fromWasmFileId(payload_path),
+            path: payload_path,
             state: fromWasmArtifactPathState(payload_state),
         };
     }
@@ -163,7 +164,7 @@ export function fromWasmArtifactSourceDependency(
 
         return {
             kind: "directoryEntries",
-            directory: fromWasmFileId(payload_directory),
+            directory: payload_directory,
             entries: payload_entries.map((item) => fromWasmArtifactDirectoryEntry(item)),
         };
     }
@@ -1375,6 +1376,7 @@ export function fromWasmArtifactString(value: Wasm.ArtifactString): ArtifactStri
 export function fromWasmArtifactRecord(value: Wasm.ArtifactRecord): ArtifactRecord {
     return {
         version: fromWasmArtifactVersion(value.version),
+        base: value.base == null ? undefined : fromWasmArtifactVersion(value.base),
         payload: Uint8Array.from(value.payload),
         strings: value.strings.map((item) => fromWasmArtifactString(item)),
         dependencies: value.dependencies.map((item) => fromWasmArtifactDependency(item)),
@@ -1561,13 +1563,21 @@ export function fromWasmTraceReport(value: Wasm.TraceReport): TraceReport {
         spans: value.spans.map((item) => fromWasmTraceSpan(item)),
         counters: value.counters.map((item) => fromWasmTraceCounter(item)),
         stages: value.stages.map((item) => fromWasmTraceStage(item)),
-        blockedMicros: Number(value.blockedMicros),
+        times: value.times.map((item) => fromWasmTraceTime(item)),
         artifacts: value.artifacts.map((item) => fromWasmTraceArtifact(item)),
     };
 }
 
 /** Convert one WASM TraceStage into the public bridge shape. */
 export function fromWasmTraceStage(value: Wasm.TraceStage): TraceStage {
+    return {
+        name: value.name,
+        micros: Number(value.micros),
+    };
+}
+
+/** Convert one WASM TraceTime into the public bridge shape. */
+export function fromWasmTraceTime(value: Wasm.TraceTime): TraceTime {
     return {
         name: value.name,
         micros: Number(value.micros),

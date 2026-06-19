@@ -10,7 +10,7 @@ use crate::{ArtifactVersion, ContentId, FileId};
 #[derive(Debug, Clone)]
 #[wasm_bindgen]
 pub struct ArtifactDirectoryEntry {
-    path: FileId,
+    path: String,
     state: String,
 }
 
@@ -18,13 +18,13 @@ pub struct ArtifactDirectoryEntry {
 impl ArtifactDirectoryEntry {
     /// Create one value.
     #[wasm_bindgen(constructor)]
-    pub fn new(path: FileId, state: String) -> Self {
+    pub fn new(path: String, state: String) -> Self {
         Self { path, state }
     }
 
-    /// The entry path identity.
+    /// The entry path.
     #[wasm_bindgen(getter, js_name = "path")]
-    pub fn path(&self) -> FileId {
+    pub fn path(&self) -> String {
         self.path.clone()
     }
 
@@ -39,7 +39,7 @@ impl ArtifactDirectoryEntry {
     /// Convert one bridge value into one WASM value.
     pub(crate) fn from_bridge(value: bridge::ArtifactDirectoryEntry) -> Self {
         Self {
-            path: FileId::from_bridge(value.path),
+            path: value.path,
             state: artifact_path_state_label(value.state),
         }
     }
@@ -57,15 +57,15 @@ pub struct ArtifactSourceDependency {
 enum ArtifactSourceDependencyContent {
     /// The exact state observed for one source path.
     PathState {
-        /// The source path identity.
-        path: FileId,
+        /// The source path.
+        path: String,
         /// The exact path state.
         state: String,
     },
     /// The exact direct entries observed for one directory.
     DirectoryEntries {
-        /// The source directory path identity.
-        directory: FileId,
+        /// The source directory path.
+        directory: String,
         /// The direct entries in deterministic order.
         entries: Vec<ArtifactDirectoryEntry>,
     },
@@ -82,7 +82,7 @@ enum ArtifactSourceDependencyContent {
 impl ArtifactSourceDependency {
     /// Create one payload variant.
     #[wasm_bindgen(js_name = "pathState")]
-    pub fn path_state(path: FileId, state: String) -> Self {
+    pub fn path_state(path: String, state: String) -> Self {
         Self {
             content: ArtifactSourceDependencyContent::PathState { path, state },
         }
@@ -90,7 +90,7 @@ impl ArtifactSourceDependency {
 
     /// Create one payload variant.
     #[wasm_bindgen(js_name = "directoryEntries")]
-    pub fn directory_entries(directory: FileId, entries: Vec<ArtifactDirectoryEntry>) -> Self {
+    pub fn directory_entries(directory: String, entries: Vec<ArtifactDirectoryEntry>) -> Self {
         Self {
             content: ArtifactSourceDependencyContent::DirectoryEntries { directory, entries },
         }
@@ -115,9 +115,9 @@ impl ArtifactSourceDependency {
         label.to_string()
     }
 
-    /// The source path identity.
+    /// The source path.
     #[wasm_bindgen(js_name = "getPath")]
-    pub fn get_path(&self) -> Option<FileId> {
+    pub fn get_path(&self) -> Option<String> {
         match &self.content {
             ArtifactSourceDependencyContent::PathState { path: value, .. } => Some(value.clone()),
             _ => None,
@@ -133,9 +133,9 @@ impl ArtifactSourceDependency {
         }
     }
 
-    /// The source directory path identity.
+    /// The source directory path.
     #[wasm_bindgen(js_name = "getDirectory")]
-    pub fn get_directory(&self) -> Option<FileId> {
+    pub fn get_directory(&self) -> Option<String> {
         match &self.content {
             ArtifactSourceDependencyContent::DirectoryEntries {
                 directory: value, ..
@@ -182,13 +182,13 @@ impl ArtifactSourceDependency {
         match value {
             bridge::ArtifactSourceDependency::PathState { path, state } => Self {
                 content: ArtifactSourceDependencyContent::PathState {
-                    path: FileId::from_bridge(path),
+                    path,
                     state: artifact_path_state_label(state),
                 },
             },
             bridge::ArtifactSourceDependency::DirectoryEntries { directory, entries } => Self {
                 content: ArtifactSourceDependencyContent::DirectoryEntries {
-                    directory: FileId::from_bridge(directory),
+                    directory,
                     entries: entries
                         .into_iter()
                         .map(ArtifactDirectoryEntry::from_bridge)

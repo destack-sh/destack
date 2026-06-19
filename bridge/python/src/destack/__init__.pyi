@@ -83,6 +83,7 @@ from .repository.revision import (
 from .repository.trace import (
     TraceReport,
     TraceStage,
+    TraceTime,
     TraceArtifact,
     TraceSpan,
     TraceCounter,

@@ -10,8 +10,8 @@ use crate::{ArtifactVersion, ContentId, FileId};
 #[derive(Debug)]
 #[napi(object, js_name = "ArtifactDirectoryEntry")]
 pub struct ArtifactDirectoryEntry {
-    /// The entry path identity.
-    pub path: FileId,
+    /// The entry path.
+    pub path: String,
     /// The exact entry path state.
     pub state: String,
 }
@@ -20,7 +20,7 @@ impl ArtifactDirectoryEntry {
     /// Convert one bridge value into one NAPI value.
     pub(crate) fn from_bridge(value: bridge::ArtifactDirectoryEntry) -> Self {
         Self {
-            path: FileId::from_bridge(value.path),
+            path: value.path,
             state: artifact_path_state_label(value.state),
         }
     }
@@ -32,12 +32,12 @@ impl ArtifactDirectoryEntry {
 pub struct ArtifactSourceDependency {
     /// Payload variant label.
     pub kind: String,
-    /// The source path identity.
-    pub path: Option<FileId>,
+    /// The source path.
+    pub path: Option<String>,
     /// The exact path state.
     pub state: Option<String>,
-    /// The source directory path identity.
-    pub directory: Option<FileId>,
+    /// The source directory path.
+    pub directory: Option<String>,
     /// The direct entries in deterministic order.
     pub entries: Option<Vec<ArtifactDirectoryEntry>>,
     /// The source file id.
@@ -52,7 +52,7 @@ impl ArtifactSourceDependency {
         match value {
             bridge::ArtifactSourceDependency::PathState { path, state } => Self {
                 kind: "pathState".to_string(),
-                path: Some(FileId::from_bridge(path)),
+                path: Some(path),
                 state: Some(artifact_path_state_label(state)),
                 directory: None,
                 entries: None,
@@ -61,7 +61,7 @@ impl ArtifactSourceDependency {
             },
             bridge::ArtifactSourceDependency::DirectoryEntries { directory, entries } => Self {
                 kind: "directoryEntries".to_string(),
-                directory: Some(FileId::from_bridge(directory)),
+                directory: Some(directory),
                 entries: Some(
                     entries
                         .into_iter()
