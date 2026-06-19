@@ -4,13 +4,15 @@ use std::sync::Arc;
 use destack_source::{Content, DiagnosticCollection};
 use serde::{Deserialize, Serialize};
 
-use crate::{ArtifactDependency, ArtifactFailure, ArtifactPayload};
+use crate::{ArtifactDependency, ArtifactFailure, ArtifactPayload, ArtifactVersion};
 
 /// One exact artifact version entry.
 #[derive(Debug, Clone)]
 pub(crate) struct ArtifactEntry {
     /// The exact terminal result.
     pub(crate) result: ArtifactResult,
+    /// The predecessor artifact this entry was incrementally built from.
+    pub(crate) base: Option<ArtifactVersion>,
     /// The exact dependencies.
     pub(crate) dependencies: Arc<[ArtifactDependency]>,
     /// The diagnostics for this exact artifact version.
@@ -22,6 +24,7 @@ pub(crate) struct ArtifactEntry {
 impl ArtifactEntry {
     /// Create one successful artifact entry.
     pub(crate) fn ok(
+        base: Option<ArtifactVersion>,
         payload: ArtifactPayload,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
         diagnostics: impl Into<Arc<DiagnosticCollection>>,
@@ -29,6 +32,7 @@ impl ArtifactEntry {
     ) -> Self {
         Self {
             result: ArtifactResult::Ok(payload),
+            base,
             dependencies: dependencies.into(),
             diagnostics: diagnostics.into(),
             sidecars: sidecars.into(),
@@ -37,6 +41,7 @@ impl ArtifactEntry {
 
     /// Create one failed artifact entry.
     pub(crate) fn failed(
+        base: Option<ArtifactVersion>,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
         diagnostics: impl Into<Arc<DiagnosticCollection>>,
         sidecars: impl Into<Arc<[ArtifactSidecar]>>,
@@ -44,6 +49,7 @@ impl ArtifactEntry {
     ) -> Self {
         Self {
             result: ArtifactResult::Failed(failure),
+            base,
             dependencies: dependencies.into(),
             diagnostics: diagnostics.into(),
             sidecars: sidecars.into(),
