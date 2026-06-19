@@ -34,7 +34,7 @@ impl Compiler {
     pub(super) fn object_input(
         &self,
         module_id: ModuleId,
-        profile: ProfileId,
+        _profile: ProfileId,
         target_id: &TargetId,
         target: &Target,
     ) -> CompilerResult<ArtifactKey> {
@@ -42,7 +42,7 @@ impl Compiler {
         #[cfg(feature = "native")]
         {
             if target.uses_native_emit_pipeline() {
-                return Ok(ArtifactKey::mir_optimized(module_id, profile, *target_id));
+                return Ok(ArtifactKey::mir_optimized(module_id, _profile, *target_id));
             }
         }
 
@@ -114,18 +114,20 @@ impl Compiler {
     pub(super) fn emit_target_object(
         &self,
         module_id: ModuleId,
-        profile: ProfileId,
-        target_id: &TargetId,
+        _profile: ProfileId,
+        _target_id: &TargetId,
         target: &Target,
         target_name: &str,
-        context: &dyn ProviderContext,
-        artifacts: &ArtifactReader<'_>,
+        _context: &dyn ProviderContext,
+        _artifacts: &ArtifactReader<'_>,
     ) -> CompilerResult<Object> {
         // native emit
         #[cfg(feature = "native")]
         {
             if target.uses_native_emit_pipeline() {
-                return self.emit_object(module_id, target, target_id, profile, context, artifacts);
+                return self.emit_object(
+                    module_id, target, _target_id, _profile, _context, _artifacts,
+                );
             }
         }
 

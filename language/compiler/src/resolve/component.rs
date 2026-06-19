@@ -38,19 +38,31 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         let artifacts = self.artifact_reader(context.revision());
+        let started = self.repository.host().clock().now();
         let modules = self
             .repository
             .module_ids(context.revision())
             .map_err(|error| CompilerError::Internal {
                 message: format!("failed to enumerate profile modules: {error}"),
             })?;
+        if let Some(started) = started {
+            context.emit_span("modules", started);
+        }
+        context.emit_counter("modules", modules.len() as u64);
 
         // record every module's resolved import edges
+        let started = self.repository.host().clock().now();
         let mut imports = IndexMap::<ModuleId, Vec<ModuleId>>::new();
+        let mut edge_count = 0u64;
         for module in modules {
             let edges = self.module_edges(&artifacts, profile, module)?;
+            edge_count += edges.len() as u64;
             imports.insert(module, edges);
         }
+        if let Some(started) = started {
+            context.emit_span("edges", started);
+        }
+        context.emit_counter("edges", edge_count);
 
         Ok(ArtifactPayload::ModuleIndex(Arc::new(ModuleIndex {
             profile,
@@ -99,12 +111,24 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         let artifacts = self.artifact_reader(context.revision());
+        let started = self.repository.host().clock().now();
         let index = artifacts
             .module_index(profile)
             .map_err(CompilerError::from)?;
+        if let Some(started) = started {
+            context.emit_span("read_index", started);
+        }
+        context.emit_counter("modules", index.imports.len() as u64);
 
         // partition modules into strongly connected components
+        let started = self.repository.host().clock().now();
         let sccs = strongly_connected_components(&index.imports);
+        let component_count = sccs.len() as u64;
+        if let Some(started) = started {
+            context.emit_span("scc", started);
+        }
+        context.emit_counter("components", component_count);
+
         let mut members = IndexMap::<ComponentId, Vec<ModuleId>>::new();
         let mut component_of = IndexMap::<ModuleId, ComponentId>::new();
         for scc in sccs {
@@ -116,7 +140,9 @@ impl Compiler {
         }
 
         // derive the condensation: edges crossing component boundaries
+        let started = self.repository.host().clock().now();
         let mut dependencies = IndexMap::<ComponentId, Vec<ComponentId>>::new();
+        let mut edge_count = 0u64;
         for (module, edges) in &index.imports {
             let Some(component) = component_of.get(module).copied() else {
                 continue;
@@ -128,9 +154,14 @@ impl Compiler {
                 };
                 if target != component && !dependents.contains(&target) {
                     dependents.push(target);
+                    edge_count += 1;
                 }
             }
         }
+        if let Some(started) = started {
+            context.emit_span("condensation", started);
+        }
+        context.emit_counter("edges", edge_count);
 
         Ok(ArtifactPayload::ComponentGraph(Arc::new(ComponentGraph {
             profile,
