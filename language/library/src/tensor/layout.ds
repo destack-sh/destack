@@ -11,93 +11,97 @@ export enum MemoryOrder {
     ColumnMajor = 2,
 }
 
-/// Dense contiguous tensor layout.
-export struct DenseLayout {
-    /// The layout variant.
+/// Dense contiguous tensor format.
+export struct DenseTensorFormat {
+    /// The format variant.
     kind: "dense" = "dense";
 
     /// The dense memory order.
     order: MemoryOrder = MemoryOrder.RowMajor;
 }
 
-/// Explicit strided tensor view layout.
-export struct StridedLayout<comptime Rank: int> {
-    /// The layout variant.
+/// Explicit strided tensor view format.
+export struct StridedTensorViewFormat<comptime Rank: int> {
+    /// The format variant.
     kind: "strided" = "strided";
 
     /// The element stride for each axis.
     strides: FixedArray<Stride, Rank>;
 }
 
-/// Dense tensor layout descriptor.
-@languageItem("tensor.Layout")
-export newtype Layout = DenseLayout;
+/// Dense tensor format descriptor.
+@languageItem("tensor.TensorFormat")
+export newtype TensorFormat = DenseTensorFormat;
 
-/// Tensor view layout descriptor for `Rank` axes.
-@languageItem("tensor.ViewLayout")
+/// Tensor view format descriptor for `Rank` axes.
+@languageItem("tensor.TensorViewFormat")
 @derive(Tagged)
-export newtype ViewLayout<comptime Rank: int> = DenseLayout | StridedLayout<Rank>;
+export newtype TensorViewFormat<comptime Rank: int> =
+    DenseTensorFormat | StridedTensorViewFormat<Rank>;
 
-extension of Layout {
-    /// Return row-major dense layout.
-    static rowMajor(): Layout {
-        DenseLayout { kind: "dense", order: MemoryOrder.RowMajor } as Layout
+extension of TensorFormat {
+    /// Return row-major dense format.
+    static rowMajor(): TensorFormat {
+        DenseTensorFormat { kind: "dense", order: MemoryOrder.RowMajor } as TensorFormat
     }
 
-    /// Return column-major dense layout.
-    static columnMajor(): Layout {
-        DenseLayout { kind: "dense", order: MemoryOrder.ColumnMajor } as Layout
+    /// Return column-major dense format.
+    static columnMajor(): TensorFormat {
+        DenseTensorFormat { kind: "dense", order: MemoryOrder.ColumnMajor } as TensorFormat
     }
 
-    /// Return whether this layout is dense.
+    /// Return whether this format is dense.
     isDense(): boolean {
         true
     }
 
-    /// Return whether this layout stores logical neighbors contiguously.
+    /// Return whether this format stores logical neighbors contiguously.
     isContiguous<comptime Rank: int>(shape: Shape<Rank>): boolean {
         true
     }
 
     /// Return the linear element offset for `indices`.
     offset<comptime Rank: int>(indices: FixedArray<usize, Rank>, shape: Shape<Rank>): isize {
-        todo("Layout.offset")
+        todo("TensorFormat.offset")
     }
 }
 
-extension<comptime Rank: int> of ViewLayout<Rank> {
-    /// Return row-major dense layout.
-    static rowMajor(): ViewLayout<Rank> {
-        DenseLayout { kind: "dense", order: MemoryOrder.RowMajor } as ViewLayout<Rank>
+extension<comptime Rank: int> of TensorViewFormat<Rank> {
+    /// Return row-major dense format.
+    static rowMajor(): TensorViewFormat<Rank> {
+        DenseTensorFormat { kind: "dense", order: MemoryOrder.RowMajor } as TensorViewFormat<Rank>
     }
 
-    /// Return column-major dense layout.
-    static columnMajor(): ViewLayout<Rank> {
-        DenseLayout { kind: "dense", order: MemoryOrder.ColumnMajor } as ViewLayout<Rank>
+    /// Return column-major dense format.
+    static columnMajor(): TensorViewFormat<Rank> {
+        DenseTensorFormat {
+            kind: "dense",
+            order: MemoryOrder.ColumnMajor,
+        } as TensorViewFormat<Rank>
     }
 
-    /// Return strided layout.
-    static strided(strides: FixedArray<Stride, Rank>): ViewLayout<Rank> {
-        StridedLayout<Rank> { kind: "strided", strides } as ViewLayout<Rank>
+    /// Return strided format.
+    static strided(strides: FixedArray<Stride, Rank>): TensorViewFormat<Rank> {
+        StridedTensorViewFormat<Rank> { kind: "strided", strides } as TensorViewFormat<Rank>
     }
 
-    /// Return whether this layout is dense.
+    /// Return whether this format is dense.
     isDense(): boolean {
-        todo("ViewLayout.isDense")
+        todo("TensorViewFormat.isDense")
     }
 
-    /// Return whether this layout stores logical neighbors contiguously.
+    /// Return whether this format stores logical neighbors contiguously.
     isContiguous(shape: Shape<Rank>): boolean {
-        todo("ViewLayout.isContiguous")
+        todo("TensorViewFormat.isContiguous")
     }
 
     /// Return the linear element offset for `indices`.
     offset(indices: FixedArray<usize, Rank>, shape: Shape<Rank>): isize {
-        todo("ViewLayout.offset")
+        todo("TensorViewFormat.offset")
     }
 }
 
-/// Named axis layout used by frontends and debugging tools.
+/// Named axis metadata used by frontends and debugging tools.
 export struct NamedAxis {
     /// The axis index.
     axis: Axis;

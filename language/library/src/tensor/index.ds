@@ -1,13 +1,12 @@
 export { Axis, AxisSet, Coordinate, Extent, Permutation, Shape, Stride } from "./shape.ds";
 export {
-    DenseLayout,
-    Layout,
+    DenseTensorFormat,
     MemoryOrder,
     NamedAxis,
-    StridedLayout,
-    ViewLayout,
+    StridedTensorViewFormat,
+    TensorFormat,
+    TensorViewFormat,
 } from "./layout.ds";
-export { TensorBuffer } from "./buffer.ds";
 export { ConvolutionAxes, DotAxes, GatherAxes, ScatterAxes } from "./axes.ds";
 export { ConvertMode, ScatterMode } from "./mode.ds";
 export {
@@ -63,7 +62,7 @@ export {
     notEqual,
     pad,
     product,
-    relayout,
+    reformat,
     reshape,
     scatter,
     select,
