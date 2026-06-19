@@ -1,13 +1,9 @@
-use std::time::Instant;
-
 use destack_artifact::{
     ArtifactKey, ArtifactSidecar, DiagnosticContext, DiagnosticError, DiagnosticLike,
 };
 use destack_source::DiagnosticCollection;
 
-use crate::Revision;
-
-use super::ArtifactTracer;
+use crate::{ArtifactAttemptRecorder, Moment, Revision};
 
 /// Provider output sink for one artifact provider attempt.
 pub trait ProviderContext: DiagnosticContext {
@@ -22,22 +18,22 @@ pub trait ProviderContext: DiagnosticContext {
         false
     }
 
-    /// Return the tracer recording this attempt, when the run is traced.
-    fn tracer(&self) -> Option<&ArtifactTracer> {
+    /// Return the recorder for this artifact attempt, when the run is timed.
+    fn recorder(&self) -> Option<&ArtifactAttemptRecorder> {
         None
     }
 
-    /// Record one interior phase that started at one instant.
-    fn emit_span(&self, name: &'static str, started: Instant) {
-        if let Some(tracer) = self.tracer() {
-            tracer.record_span(name, started);
+    /// Record one interior phase that started at one clock reading.
+    fn emit_span(&self, name: &'static str, started: Moment) {
+        if let Some(recorder) = self.recorder() {
+            recorder.record_span(name, Some(started));
         }
     }
 
     /// Record one named counter for this attempt.
     fn emit_counter(&self, name: &'static str, value: u64) {
-        if let Some(tracer) = self.tracer() {
-            tracer.record_counter(name, value);
+        if let Some(recorder) = self.recorder() {
+            recorder.record_counter(name, value);
         }
     }
 
