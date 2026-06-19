@@ -18,8 +18,8 @@ pub struct TraceReport {
     pub counters: Vec<TraceCounter>,
     /// Busy time per toolchain stage.
     pub stages: Vec<TraceStage>,
-    /// Time spent on attempts that blocked on requirements.
-    pub blocked_micros: f64,
+    /// Summed time per named trace span.
+    pub times: Vec<TraceTime>,
     /// Detailed artifact attempts.
     pub artifacts: Vec<TraceArtifact>,
 }
@@ -45,7 +45,11 @@ impl TraceReport {
                 .into_iter()
                 .map(TraceStage::from_bridge)
                 .collect(),
-            blocked_micros: value.blocked_micros as f64,
+            times: value
+                .times
+                .into_iter()
+                .map(TraceTime::from_bridge)
+                .collect(),
             artifacts: value
                 .artifacts
                 .into_iter()
@@ -68,6 +72,26 @@ pub struct TraceStage {
 impl TraceStage {
     /// Convert one bridge value into one NAPI value.
     pub(crate) fn from_bridge(value: bridge::TraceStage) -> Self {
+        Self {
+            name: value.name,
+            micros: value.micros as f64,
+        }
+    }
+}
+
+/// Summed time of one named trace span.
+#[derive(Debug)]
+#[napi(object, js_name = "TraceTime")]
+pub struct TraceTime {
+    /// The span name.
+    pub name: String,
+    /// The summed span time in microseconds.
+    pub micros: f64,
+}
+
+impl TraceTime {
+    /// Convert one bridge value into one NAPI value.
+    pub(crate) fn from_bridge(value: bridge::TraceTime) -> Self {
         Self {
             name: value.name,
             micros: value.micros as f64,

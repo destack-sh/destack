@@ -953,14 +953,14 @@ impl<'schema> Rust<'schema> {
             .iter()
             .map(|field| {
                 let name = format_ident!("{}", field.name);
-                let ty = rust_c_type(&field.ty, self.projection);
+                let ty = rust_c_type(field.ty, self.projection);
 
                 quote!(pub(crate) #name: #ty,)
             })
             .collect::<Vec<_>>();
         let empty_fields = all_fields.iter().map(|field| {
             let name = format_ident!("{}", field.name);
-            let value = empty_value(&field.ty, self.projection);
+            let value = empty_value(field.ty, self.projection);
 
             quote!(#name: #value,)
         });
@@ -994,7 +994,7 @@ impl<'schema> Rust<'schema> {
             let fields = payload_fields(&names, variant);
             let conversions = fields.iter().map(|field| {
                 let name = format_ident!("{}", field.name);
-                let value = to_bridge_value(&field.ty, quote!(self.#name), self.projection);
+                let value = to_bridge_value(field.ty, quote!(self.#name), self.projection);
 
                 quote!(let #name = #value;)
             });
@@ -1009,7 +1009,7 @@ impl<'schema> Rust<'schema> {
         });
         let destroy_fields = all_fields.iter().map(|field| {
             let name = format_ident!("{}", field.name);
-            destroy_value(&field.ty, quote!(self.#name), self.projection)
+            destroy_value(field.ty, quote!(self.#name), self.projection)
         });
 
         quote! {

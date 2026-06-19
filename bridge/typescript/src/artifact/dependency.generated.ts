@@ -9,8 +9,8 @@ export type ArtifactPathState = "missing" | "file" | "directory" | "symlink" | "
 
 /** One exact directory entry observed by one artifact computation. */
 export type ArtifactDirectoryEntry = {
-    /** The entry path identity. */
-    readonly path: FileId;
+    /** The entry path. */
+    readonly path: string;
     /** The exact entry path state. */
     readonly state: ArtifactPathState;
 };
@@ -20,16 +20,16 @@ export type ArtifactSourceDependency =
     /** The exact state observed for one source path. */
     | {
           readonly kind: "pathState";
-          /** The source path identity. */
-          readonly path: FileId;
+          /** The source path. */
+          readonly path: string;
           /** The exact path state. */
           readonly state: ArtifactPathState;
       }
     /** The exact direct entries observed for one directory. */
     | {
           readonly kind: "directoryEntries";
-          /** The source directory path identity. */
-          readonly directory: FileId;
+          /** The source directory path. */
+          readonly directory: string;
           /** The direct entries in deterministic order. */
           readonly entries: readonly ArtifactDirectoryEntry[];
       }
@@ -45,12 +45,12 @@ export type ArtifactSourceDependency =
 
 export const ArtifactSourceDependency = {
     /** The exact state observed for one source path. */
-    pathState(path: FileId, state: ArtifactPathState): ArtifactSourceDependency {
+    pathState(path: string, state: ArtifactPathState): ArtifactSourceDependency {
         return { kind: "pathState", path, state };
     },
 
     /** The exact direct entries observed for one directory. */
-    directoryEntries(directory: FileId, entries: readonly ArtifactDirectoryEntry[]): ArtifactSourceDependency {
+    directoryEntries(directory: string, entries: readonly ArtifactDirectoryEntry[]): ArtifactSourceDependency {
         return { kind: "directoryEntries", directory, entries };
     },
 

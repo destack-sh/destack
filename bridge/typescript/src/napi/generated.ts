@@ -68,6 +68,7 @@ import type { Revision } from "../repository/revision.generated.js";
 import type {
     TraceReport,
     TraceStage,
+    TraceTime,
     TraceArtifact,
     TraceSpan,
     TraceCounter,
@@ -121,7 +122,7 @@ export function fromNapiArtifactDirectoryEntry(
     value: Napi.ArtifactDirectoryEntry,
 ): ArtifactDirectoryEntry {
     return {
-        path: fromNapiFileId(value.path),
+        path: value.path,
         state: fromNapiArtifactPathState(value.state),
     };
 }
@@ -143,7 +144,7 @@ export function fromNapiArtifactSourceDependency(
 
         return {
             kind: "pathState",
-            path: fromNapiFileId(payload_path),
+            path: payload_path,
             state: fromNapiArtifactPathState(payload_state),
         };
     }
@@ -161,7 +162,7 @@ export function fromNapiArtifactSourceDependency(
 
         return {
             kind: "directoryEntries",
-            directory: fromNapiFileId(payload_directory),
+            directory: payload_directory,
             entries: payload_entries.map((item) => fromNapiArtifactDirectoryEntry(item)),
         };
     }
@@ -1428,6 +1429,7 @@ export function fromNapiArtifactString(value: Napi.ArtifactString): ArtifactStri
 export function fromNapiArtifactRecord(value: Napi.ArtifactRecord): ArtifactRecord {
     return {
         version: fromNapiArtifactVersion(value.version),
+        base: value.base == null ? undefined : fromNapiArtifactVersion(value.base),
         payload: Uint8Array.from(value.payload),
         strings: value.strings.map((item) => fromNapiArtifactString(item)),
         dependencies: value.dependencies.map((item) => fromNapiArtifactDependency(item)),
@@ -1613,13 +1615,21 @@ export function fromNapiTraceReport(value: Napi.TraceReport): TraceReport {
         spans: value.spans.map((item) => fromNapiTraceSpan(item)),
         counters: value.counters.map((item) => fromNapiTraceCounter(item)),
         stages: value.stages.map((item) => fromNapiTraceStage(item)),
-        blockedMicros: Number(value.blockedMicros),
+        times: value.times.map((item) => fromNapiTraceTime(item)),
         artifacts: value.artifacts.map((item) => fromNapiTraceArtifact(item)),
     };
 }
 
 /** Convert one NAPI TraceStage into the public bridge shape. */
 export function fromNapiTraceStage(value: Napi.TraceStage): TraceStage {
+    return {
+        name: value.name,
+        micros: Number(value.micros),
+    };
+}
+
+/** Convert one NAPI TraceTime into the public bridge shape. */
+export function fromNapiTraceTime(value: Napi.TraceTime): TraceTime {
     return {
         name: value.name,
         micros: Number(value.micros),

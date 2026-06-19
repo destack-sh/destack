@@ -17,6 +17,8 @@ export type ArtifactString = {
 export type ArtifactRecord = {
     /** The exact artifact version. */
     readonly version: ArtifactVersion;
+    /** The predecessor artifact this record was incrementally built from. */
+    readonly base?: ArtifactVersion;
     /** Serialized artifact payload bytes. */
     readonly payload: Uint8Array | readonly number[];
     /** String pool needed to interpret interned ids in the payload. */

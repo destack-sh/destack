@@ -96,6 +96,7 @@ export type {
     TraceReport,
     TraceSpan,
     TraceStage,
+    TraceTime,
 } from "./repository/trace.generated.js";
 export {
     openRepository,

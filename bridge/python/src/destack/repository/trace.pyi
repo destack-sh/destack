@@ -27,9 +27,9 @@ class TraceReport:
     @property
     def stages(self) -> list[TraceStage]: ...
 
-    """Time spent on attempts that blocked on requirements."""
+    """Summed time per named trace span."""
     @property
-    def blocked_micros(self) -> int: ...
+    def times(self) -> list[TraceTime]: ...
 
     """Detailed artifact attempts."""
     @property
@@ -43,6 +43,17 @@ class TraceStage:
     def name(self) -> str: ...
 
     """The summed attempt time in microseconds."""
+    @property
+    def micros(self) -> int: ...
+
+class TraceTime:
+    """Summed time of one named trace span."""
+
+    """The span name."""
+    @property
+    def name(self) -> str: ...
+
+    """The summed span time in microseconds."""
     @property
     def micros(self) -> int: ...
 

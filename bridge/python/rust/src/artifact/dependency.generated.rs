@@ -48,10 +48,10 @@ pub struct ArtifactDirectoryEntry {
 
 #[pymethods]
 impl ArtifactDirectoryEntry {
-    /// The entry path identity.
+    /// The entry path.
     #[getter]
-    pub fn path(&self) -> FileId {
-        FileId::from_bridge(self.value.path.clone())
+    pub fn path(&self) -> String {
+        self.value.path.clone()
     }
 
     /// The exact entry path state.
@@ -105,10 +105,10 @@ impl ArtifactSourceDependency {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn get_directory(&self) -> Option<FileId> {
+    pub fn get_directory(&self) -> Option<String> {
         match &self.value {
             bridge::ArtifactSourceDependency::DirectoryEntries { directory, .. } => {
-                Some(FileId::from_bridge(directory.clone()))
+                Some(directory.clone())
             }
             _ => None,
         }
@@ -142,11 +142,9 @@ impl ArtifactSourceDependency {
 
     /// Return this payload field when present.
     #[getter]
-    pub fn get_path(&self) -> Option<FileId> {
+    pub fn get_path(&self) -> Option<String> {
         match &self.value {
-            bridge::ArtifactSourceDependency::PathState { path, .. } => {
-                Some(FileId::from_bridge(path.clone()))
-            }
+            bridge::ArtifactSourceDependency::PathState { path, .. } => Some(path.clone()),
             _ => None,
         }
     }

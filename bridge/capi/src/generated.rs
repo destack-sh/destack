@@ -437,140 +437,9 @@ impl DestackOptionalArtifactPathState {
 /// C ABI bridge value.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackFileId {
-    /// Canonical lowercase hex file id.
-    pub(crate) id: *mut c_char,
-}
-
-/// C ABI bridge value array.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackFileIdArray {
-    /// Owned value pointer.
-    pub(crate) ptr: *mut DestackFileId,
-    /// Value count.
-    pub(crate) len: usize,
-}
-
-/// C ABI optional bridge value.
-#[repr(C)]
-#[derive(Debug)]
-pub struct DestackOptionalFileId {
-    /// Whether the value is present.
-    pub(crate) is_some: bool,
-    /// Value when present.
-    pub(crate) value: DestackFileId,
-}
-
-impl DestackFileId {
-    /// Convert one bridge value into one C ABI value.
-    pub(crate) fn from_bridge(value: rust::language::FileId) -> Result<Self, String> {
-        Ok(Self {
-            id: c_string(value.id)?,
-        })
-    }
-
-    /// Convert this C ABI value into one bridge value.
-    pub(crate) fn to_bridge(&self) -> Result<rust::language::FileId, String> {
-        Ok(rust::language::FileId {
-            id: read_string(self.id)?,
-        })
-    }
-
-    /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        destroy_string(self.id);
-        self.id = ptr::null_mut();
-    }
-
-    /// Return one empty C ABI value.
-    pub(crate) fn empty() -> Self {
-        Self {
-            id: ptr::null_mut(),
-        }
-    }
-}
-
-impl DestackFileIdArray {
-    /// Convert bridge values into one C ABI array.
-    pub(crate) fn from_bridge(values: Vec<rust::language::FileId>) -> Result<Self, String> {
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(DestackFileId::from_bridge(value)?);
-        }
-        let (ptr, len) = owned_array(converted);
-        Ok(Self { ptr, len })
-    }
-
-    /// Convert this C ABI array into bridge values.
-    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::FileId>, String> {
-        if self.len == 0 {
-            return Ok(Vec::new());
-        }
-        if self.ptr.is_null() {
-            return Err("array pointer is null".to_string());
-        }
-        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
-        let mut converted = Vec::with_capacity(values.len());
-        for value in values {
-            converted.push(value.to_bridge()?);
-        }
-        Ok(converted)
-    }
-
-    /// Destroy this C ABI array.
-    pub(crate) fn destroy(&mut self) {
-        if self.ptr.is_null() {
-            return;
-        }
-        unsafe {
-            destroy_array(self.ptr, self.len, |value| value.destroy());
-        }
-        self.ptr = ptr::null_mut();
-        self.len = 0;
-    }
-}
-
-impl DestackOptionalFileId {
-    /// Convert one optional bridge value into one C ABI optional value.
-    pub(crate) fn from_bridge(value: Option<rust::language::FileId>) -> Result<Self, String> {
-        let Some(value) = value else {
-            return Ok(Self {
-                is_some: false,
-                value: DestackFileId::empty(),
-            });
-        };
-        Ok(Self {
-            is_some: true,
-            value: DestackFileId::from_bridge(value)?,
-        })
-    }
-
-    /// Convert this C ABI optional value into one bridge optional value.
-    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::FileId>, String> {
-        if self.is_some {
-            Ok(Some(self.value.to_bridge()?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Destroy this C ABI optional value.
-    pub(crate) fn destroy(&mut self) {
-        if self.is_some {
-            self.value.destroy();
-        }
-        self.is_some = false;
-        self.value = DestackFileId::empty();
-    }
-}
-
-/// C ABI bridge value.
-#[repr(C)]
-#[derive(Debug)]
 pub struct DestackArtifactDirectoryEntry {
-    /// The entry path identity.
-    pub(crate) path: DestackFileId,
+    /// The entry path.
+    pub(crate) path: *mut c_char,
     /// The exact entry path state.
     pub(crate) state: DestackArtifactPathState,
 }
@@ -601,7 +470,7 @@ impl DestackArtifactDirectoryEntry {
         value: rust::language::ArtifactDirectoryEntry,
     ) -> Result<Self, String> {
         Ok(Self {
-            path: DestackFileId::from_bridge(value.path)?,
+            path: c_string(value.path)?,
             state: DestackArtifactPathState::from_bridge(value.state)?,
         })
     }
@@ -609,21 +478,22 @@ impl DestackArtifactDirectoryEntry {
     /// Convert this C ABI value into one bridge value.
     pub(crate) fn to_bridge(&self) -> Result<rust::language::ArtifactDirectoryEntry, String> {
         Ok(rust::language::ArtifactDirectoryEntry {
-            path: self.path.to_bridge()?,
+            path: read_string(self.path)?,
             state: self.state.to_bridge()?,
         })
     }
 
     /// Destroy this C ABI value.
     pub(crate) fn destroy(&mut self) {
-        self.path.destroy();
+        destroy_string(self.path);
+        self.path = ptr::null_mut();
         self.state.destroy();
     }
 
     /// Return one empty C ABI value.
     pub(crate) fn empty() -> Self {
         Self {
-            path: DestackFileId::empty(),
+            path: ptr::null_mut(),
             state: DestackArtifactPathState::empty(),
         }
     }
@@ -840,6 +710,137 @@ impl DestackOptionalContentId {
     }
 }
 
+/// C ABI bridge value.
+#[repr(C)]
+#[derive(Debug)]
+pub struct DestackFileId {
+    /// Canonical lowercase hex file id.
+    pub(crate) id: *mut c_char,
+}
+
+/// C ABI bridge value array.
+#[repr(C)]
+#[derive(Debug)]
+pub struct DestackFileIdArray {
+    /// Owned value pointer.
+    pub(crate) ptr: *mut DestackFileId,
+    /// Value count.
+    pub(crate) len: usize,
+}
+
+/// C ABI optional bridge value.
+#[repr(C)]
+#[derive(Debug)]
+pub struct DestackOptionalFileId {
+    /// Whether the value is present.
+    pub(crate) is_some: bool,
+    /// Value when present.
+    pub(crate) value: DestackFileId,
+}
+
+impl DestackFileId {
+    /// Convert one bridge value into one C ABI value.
+    pub(crate) fn from_bridge(value: rust::language::FileId) -> Result<Self, String> {
+        Ok(Self {
+            id: c_string(value.id)?,
+        })
+    }
+
+    /// Convert this C ABI value into one bridge value.
+    pub(crate) fn to_bridge(&self) -> Result<rust::language::FileId, String> {
+        Ok(rust::language::FileId {
+            id: read_string(self.id)?,
+        })
+    }
+
+    /// Destroy this C ABI value.
+    pub(crate) fn destroy(&mut self) {
+        destroy_string(self.id);
+        self.id = ptr::null_mut();
+    }
+
+    /// Return one empty C ABI value.
+    pub(crate) fn empty() -> Self {
+        Self {
+            id: ptr::null_mut(),
+        }
+    }
+}
+
+impl DestackFileIdArray {
+    /// Convert bridge values into one C ABI array.
+    pub(crate) fn from_bridge(values: Vec<rust::language::FileId>) -> Result<Self, String> {
+        let mut converted = Vec::with_capacity(values.len());
+        for value in values {
+            converted.push(DestackFileId::from_bridge(value)?);
+        }
+        let (ptr, len) = owned_array(converted);
+        Ok(Self { ptr, len })
+    }
+
+    /// Convert this C ABI array into bridge values.
+    pub(crate) fn to_bridge(&self) -> Result<Vec<rust::language::FileId>, String> {
+        if self.len == 0 {
+            return Ok(Vec::new());
+        }
+        if self.ptr.is_null() {
+            return Err("array pointer is null".to_string());
+        }
+        let values = unsafe { std::slice::from_raw_parts(self.ptr, self.len) };
+        let mut converted = Vec::with_capacity(values.len());
+        for value in values {
+            converted.push(value.to_bridge()?);
+        }
+        Ok(converted)
+    }
+
+    /// Destroy this C ABI array.
+    pub(crate) fn destroy(&mut self) {
+        if self.ptr.is_null() {
+            return;
+        }
+        unsafe {
+            destroy_array(self.ptr, self.len, |value| value.destroy());
+        }
+        self.ptr = ptr::null_mut();
+        self.len = 0;
+    }
+}
+
+impl DestackOptionalFileId {
+    /// Convert one optional bridge value into one C ABI optional value.
+    pub(crate) fn from_bridge(value: Option<rust::language::FileId>) -> Result<Self, String> {
+        let Some(value) = value else {
+            return Ok(Self {
+                is_some: false,
+                value: DestackFileId::empty(),
+            });
+        };
+        Ok(Self {
+            is_some: true,
+            value: DestackFileId::from_bridge(value)?,
+        })
+    }
+
+    /// Convert this C ABI optional value into one bridge optional value.
+    pub(crate) fn to_bridge(&self) -> Result<Option<rust::language::FileId>, String> {
+        if self.is_some {
+            Ok(Some(self.value.to_bridge()?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Destroy this C ABI optional value.
+    pub(crate) fn destroy(&mut self) {
+        if self.is_some {
+            self.value.destroy();
+        }
+        self.is_some = false;
+        self.value = DestackFileId::empty();
+    }
+}
+
 /// C ABI bridge enum kind.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -858,9 +859,9 @@ pub enum DestackArtifactSourceDependencyKind {
 pub struct DestackArtifactSourceDependency {
     /// Active enum variant.
     pub(crate) kind: DestackArtifactSourceDependencyKind,
-    pub(crate) path: DestackFileId,
+    pub(crate) path: *mut c_char,
     pub(crate) state: DestackArtifactPathState,
-    pub(crate) directory: DestackFileId,
+    pub(crate) directory: *mut c_char,
     pub(crate) entries: DestackArtifactDirectoryEntryArray,
     pub(crate) file: DestackFileId,
     pub(crate) content: DestackContentId,
@@ -894,9 +895,9 @@ impl DestackArtifactSourceDependency {
         Ok(match value {
             rust::language::ArtifactSourceDependency::PathState { path, state } => Self {
                 kind: DestackArtifactSourceDependencyKind::PathState,
-                path: DestackFileId::from_bridge(path)?,
+                path: c_string(path)?,
                 state: DestackArtifactPathState::from_bridge(state)?,
-                directory: DestackFileId::empty(),
+                directory: ptr::null_mut(),
                 entries: DestackArtifactDirectoryEntryArray {
                     ptr: ptr::null_mut(),
                     len: 0,
@@ -907,9 +908,9 @@ impl DestackArtifactSourceDependency {
             rust::language::ArtifactSourceDependency::DirectoryEntries { directory, entries } => {
                 Self {
                     kind: DestackArtifactSourceDependencyKind::DirectoryEntries,
-                    path: DestackFileId::empty(),
+                    path: ptr::null_mut(),
                     state: DestackArtifactPathState::empty(),
-                    directory: DestackFileId::from_bridge(directory)?,
+                    directory: c_string(directory)?,
                     entries: DestackArtifactDirectoryEntryArray::from_bridge(entries)?,
                     file: DestackFileId::empty(),
                     content: DestackContentId::empty(),
@@ -917,9 +918,9 @@ impl DestackArtifactSourceDependency {
             }
             rust::language::ArtifactSourceDependency::FileContent { file, content } => Self {
                 kind: DestackArtifactSourceDependencyKind::FileContent,
-                path: DestackFileId::empty(),
+                path: ptr::null_mut(),
                 state: DestackArtifactPathState::empty(),
-                directory: DestackFileId::empty(),
+                directory: ptr::null_mut(),
                 entries: DestackArtifactDirectoryEntryArray {
                     ptr: ptr::null_mut(),
                     len: 0,
@@ -934,12 +935,12 @@ impl DestackArtifactSourceDependency {
     pub(crate) fn to_bridge(&self) -> Result<rust::language::ArtifactSourceDependency, String> {
         match self.kind {
             DestackArtifactSourceDependencyKind::PathState => {
-                let path = self.path.to_bridge()?;
+                let path = read_string(self.path)?;
                 let state = self.state.to_bridge()?;
                 Ok(rust::language::ArtifactSourceDependency::PathState { path, state })
             }
             DestackArtifactSourceDependencyKind::DirectoryEntries => {
-                let directory = self.directory.to_bridge()?;
+                let directory = read_string(self.directory)?;
                 let entries = self.entries.to_bridge()?;
                 Ok(rust::language::ArtifactSourceDependency::DirectoryEntries {
                     directory,
@@ -956,9 +957,11 @@ impl DestackArtifactSourceDependency {
 
     /// Destroy this C ABI enum.
     pub(crate) fn destroy(&mut self) {
-        self.path.destroy();
+        destroy_string(self.path);
+        self.path = ptr::null_mut();
         self.state.destroy();
-        self.directory.destroy();
+        destroy_string(self.directory);
+        self.directory = ptr::null_mut();
         self.entries.destroy();
         self.file.destroy();
         self.content.destroy();
@@ -968,9 +971,9 @@ impl DestackArtifactSourceDependency {
     pub(crate) fn empty() -> Self {
         Self {
             kind: DestackArtifactSourceDependencyKind::PathState,
-            path: DestackFileId::empty(),
+            path: ptr::null_mut(),
             state: DestackArtifactPathState::empty(),
-            directory: DestackFileId::empty(),
+            directory: ptr::null_mut(),
             entries: DestackArtifactDirectoryEntryArray {
                 ptr: ptr::null_mut(),
                 len: 0,
@@ -3570,6 +3573,8 @@ impl DestackOptionalDiagnostic {
 pub struct DestackArtifactRecord {
     /// The exact artifact version.
     pub(crate) version: DestackArtifactVersion,
+    /// The predecessor artifact this record was incrementally built from.
+    pub(crate) base: DestackOptionalArtifactVersion,
     /// Serialized artifact payload bytes.
     pub(crate) payload: DestackByteArray,
     /// String pool needed to interpret interned ids in the payload.
@@ -3607,6 +3612,7 @@ impl DestackArtifactRecord {
     pub(crate) fn from_bridge(value: rust::language::ArtifactRecord) -> Result<Self, String> {
         Ok(Self {
             version: DestackArtifactVersion::from_bridge(value.version)?,
+            base: DestackOptionalArtifactVersion::from_bridge(value.base)?,
             payload: DestackByteArray::from_vec(value.payload),
             strings: DestackArtifactStringArray::from_bridge(value.strings)?,
             dependencies: DestackArtifactDependencyArray::from_bridge(value.dependencies)?,
@@ -3619,6 +3625,7 @@ impl DestackArtifactRecord {
     pub(crate) fn to_bridge(&self) -> Result<rust::language::ArtifactRecord, String> {
         Ok(rust::language::ArtifactRecord {
             version: self.version.to_bridge()?,
+            base: self.base.to_bridge()?,
             payload: read_bytes(self.payload.ptr.cast_const(), self.payload.len)?,
             strings: self.strings.to_bridge()?,
             dependencies: self.dependencies.to_bridge()?,
@@ -3630,6 +3637,7 @@ impl DestackArtifactRecord {
     /// Destroy this C ABI value.
     pub(crate) fn destroy(&mut self) {
         self.version.destroy();
+        self.base.destroy();
         self.payload.destroy();
         self.strings.destroy();
         self.dependencies.destroy();
@@ -3641,6 +3649,10 @@ impl DestackArtifactRecord {
     pub(crate) fn empty() -> Self {
         Self {
             version: DestackArtifactVersion::empty(),
+            base: DestackOptionalArtifactVersion {
+                is_some: false,
+                value: DestackArtifactVersion::empty(),
+            },
             payload: DestackByteArray {
                 ptr: ptr::null_mut(),
                 len: 0,
@@ -11883,20 +11895,6 @@ pub unsafe extern "C" fn destack_artifact_path_state_array_destroy(
 
 /// Destroy one C ABI bridge value.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_file_id_destroy(value: *mut DestackFileId) {
-    if let Some(value) = unsafe { value.as_mut() } {
-        value.destroy();
-    }
-}
-
-/// Destroy one C ABI bridge value array.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_file_id_array_destroy(mut array: DestackFileIdArray) {
-    array.destroy();
-}
-
-/// Destroy one C ABI bridge value.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_artifact_directory_entry_destroy(
     value: *mut DestackArtifactDirectoryEntry,
 ) {
@@ -11924,6 +11922,20 @@ pub unsafe extern "C" fn destack_content_id_destroy(value: *mut DestackContentId
 /// Destroy one C ABI bridge value array.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_content_id_array_destroy(mut array: DestackContentIdArray) {
+    array.destroy();
+}
+
+/// Destroy one C ABI bridge value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_file_id_destroy(value: *mut DestackFileId) {
+    if let Some(value) = unsafe { value.as_mut() } {
+        value.destroy();
+    }
+}
+
+/// Destroy one C ABI bridge value array.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_file_id_array_destroy(mut array: DestackFileIdArray) {
     array.destroy();
 }
 

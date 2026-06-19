@@ -16,8 +16,8 @@ pub struct TraceReport {
     pub counters: Vec<TraceCounter>,
     /// Busy time per toolchain stage.
     pub stages: Vec<TraceStage>,
-    /// Time spent on attempts that blocked on requirements.
-    pub blocked_micros: u64,
+    /// Summed time per named trace span.
+    pub times: Vec<TraceTime>,
     /// Detailed artifact attempts.
     pub artifacts: Vec<TraceArtifact>,
 }
@@ -29,6 +29,16 @@ pub struct TraceStage {
     /// The stage display name.
     pub name: String,
     /// The summed attempt time in microseconds.
+    pub micros: u64,
+}
+
+/// Summed time of one named trace span.
+#[bridge]
+#[derive(Debug, Clone, PartialEq)]
+pub struct TraceTime {
+    /// The span name.
+    pub name: String,
+    /// The summed span time in microseconds.
     pub micros: u64,
 }
 
@@ -101,7 +111,11 @@ impl TraceReport {
                 .into_iter()
                 .map(TraceStage::from_repository)
                 .collect(),
-            blocked_micros: value.blocked_micros,
+            times: value
+                .times
+                .into_iter()
+                .map(TraceTime::from_repository)
+                .collect(),
             artifacts: value
                 .artifacts
                 .into_iter()
@@ -114,6 +128,16 @@ impl TraceReport {
 impl TraceStage {
     /// Convert one repository stage report into one bridge trace stage.
     fn from_repository(value: repository::TraceStageSnapshot) -> Self {
+        Self {
+            name: value.name,
+            micros: value.micros,
+        }
+    }
+}
+
+impl TraceTime {
+    /// Convert one repository time rollup into one bridge trace time.
+    fn from_repository(value: repository::TraceTimeSnapshot) -> Self {
         Self {
             name: value.name,
             micros: value.micros,

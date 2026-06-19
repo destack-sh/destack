@@ -6,6 +6,7 @@ from .revision import (
 from .trace import (
     TraceReport,
     TraceStage,
+    TraceTime,
     TraceArtifact,
     TraceSpan,
     TraceCounter,
@@ -15,6 +16,7 @@ __all__ = [
     "Revision",
     "TraceReport",
     "TraceStage",
+    "TraceTime",
     "TraceArtifact",
     "TraceSpan",
     "TraceCounter",

@@ -58,10 +58,15 @@ impl TraceReport {
             .collect()
     }
 
-    /// Time spent on attempts that blocked on requirements.
+    /// Summed time per named trace span.
     #[getter]
-    pub fn blocked_micros(&self) -> u64 {
-        self.value.blocked_micros
+    pub fn times(&self) -> Vec<TraceTime> {
+        self.value
+            .times
+            .clone()
+            .into_iter()
+            .map(TraceTime::from_bridge)
+            .collect()
     }
 
     /// Detailed artifact attempts.
@@ -110,6 +115,36 @@ impl TraceStage {
 impl TraceStage {
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::TraceStage) -> Self {
+        Self { value }
+    }
+}
+
+/// Summed time of one named trace span.
+#[pyclass(name = "TraceTime", module = "destack._native", from_py_object)]
+#[derive(Debug, Clone)]
+pub struct TraceTime {
+    pub(crate) value: bridge::TraceTime,
+}
+
+#[pymethods]
+impl TraceTime {
+    /// The span name.
+    #[getter]
+    pub fn name(&self) -> String {
+        self.value.name.clone()
+    }
+
+    /// The summed span time in microseconds.
+    #[getter]
+    pub fn micros(&self) -> u64 {
+        self.value.micros
+    }
+}
+
+#[allow(dead_code)]
+impl TraceTime {
+    /// Convert one bridge value into one Python value.
+    pub(crate) fn from_bridge(value: bridge::TraceTime) -> Self {
         Self { value }
     }
 }
@@ -272,6 +307,7 @@ impl TraceCounter {
 pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<TraceReport>()?;
     module.add_class::<TraceStage>()?;
+    module.add_class::<TraceTime>()?;
     module.add_class::<TraceArtifact>()?;
     module.add_class::<TraceSpan>()?;
     module.add_class::<TraceCounter>()?;

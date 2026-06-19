@@ -717,7 +717,7 @@ fn render_struct_stub(schema: &Schema, item: &Item, fields: &[Field]) -> String 
             })
             .collect::<Vec<_>>()
             .join(", ");
-        let separator = (!arguments.is_empty()).then_some(", ").unwrap_or("");
+        let separator = if !arguments.is_empty() { ", " } else { "" };
         text.line(format!(
             "    def __init__(self{separator}{arguments}) -> None: ..."
         ));
@@ -921,7 +921,7 @@ fn render_struct(schema: &Schema, item: &Item, fields: &[Field]) -> TokenStream 
 fn render_struct_constructor(schema: &Schema, item: &Item, fields: &[Field]) -> TokenStream {
     let field_arguments = fields.iter().map(|field| {
         let name = field.ident();
-        let ty = render_type(schema, &field.ty);
+        let ty = render_type(&field.ty);
 
         quote!(#name: #ty,)
     });
@@ -954,7 +954,7 @@ fn render_struct_constructor(schema: &Schema, item: &Item, fields: &[Field]) -> 
 fn render_getter(schema: &Schema, field: &Field) -> TokenStream {
     let docs = field.docs();
     let name = field.ident();
-    let ty = render_type(schema, &field.ty);
+    let ty = render_type(&field.ty);
     let source = render_python_field_source(schema, quote!(self.value.#name), &field.ty);
     let value = render_from_bridge_value(schema, source, &field.ty);
 
@@ -1227,7 +1227,7 @@ fn render_payload_getter(
     getter: PayloadGetter<'_>,
 ) -> TokenStream {
     let method = format_ident!("get_{}", getter.name);
-    let output = render_type(schema, &getter.ty);
+    let output = render_type(&getter.ty);
     let arms = getter
         .arms
         .iter()
@@ -1293,7 +1293,7 @@ fn render_payload_constructor(schema: &Schema, item: &Item, variant: &Variant) -
         },
         Payload::Tuple(ty) => {
             let argument = variant.payload_field_ident();
-            let argument_ty = render_type(schema, ty);
+            let argument_ty = render_type(ty);
             let value = render_into_bridge_value(schema, quote!(#argument), ty);
 
             quote! {
@@ -1309,7 +1309,7 @@ fn render_payload_constructor(schema: &Schema, item: &Item, variant: &Variant) -
         Payload::Struct(fields) => {
             let arguments = fields.iter().map(|field| {
                 let name = field.ident();
-                let ty = render_type(schema, &field.ty);
+                let ty = render_type(&field.ty);
 
                 quote!(#name: #ty,)
             });
@@ -1340,7 +1340,7 @@ fn render_payload_constructor(schema: &Schema, item: &Item, variant: &Variant) -
 }
 
 /// Render one Python type.
-fn render_type(schema: &Schema, ty: &Type) -> TokenStream {
+fn render_type(ty: &Type) -> TokenStream {
     match ty {
         Type::String => quote!(String),
         Type::Bool => quote!(bool),
@@ -1349,12 +1349,12 @@ fn render_type(schema: &Schema, ty: &Type) -> TokenStream {
         Type::U64 => quote!(u64),
         Type::Usize => quote!(usize),
         Type::Vec(ty) => {
-            let ty = render_type(schema, ty);
+            let ty = render_type(ty);
 
             quote!(Vec<#ty>)
         }
         Type::Option(ty) => {
-            let ty = render_type(schema, ty);
+            let ty = render_type(ty);
 
             quote!(Option<#ty>)
         }

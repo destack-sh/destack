@@ -371,15 +371,12 @@ fn render_payload_field_getter_arm(
         }
         Payload::Tuple(_) => None,
         Payload::Struct(fields) => {
-            let Some(field_name) = fields
+            let field_name = fields
                 .iter()
                 .find(|variant_field| {
                     payload_names.field_name(variant, variant_field) == field.name
                 })
-                .map(Field::ident)
-            else {
-                return None;
-            };
+                .map(Field::ident)?;
 
             Some(quote!(
                 #content_name::#variant_name {

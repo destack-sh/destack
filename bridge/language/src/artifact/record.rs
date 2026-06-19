@@ -18,6 +18,8 @@ pub struct ArtifactString {
 pub struct ArtifactRecord {
     /// The exact artifact version.
     pub version: ArtifactVersion,
+    /// The predecessor artifact this record was incrementally built from.
+    pub base: Option<ArtifactVersion>,
     /// Serialized artifact payload bytes.
     pub payload: Vec<u8>,
     /// String pool needed to interpret interned ids in the payload.
@@ -43,7 +45,7 @@ impl ArtifactString {
 impl ArtifactRecord {
     /// Convert one artifact record into one bridge artifact record.
     pub fn from_artifact(record: destack_artifact::ArtifactRecord, strings: &StringPool) -> Self {
-        let strings = record
+        let bridge_strings = record
             .strings
             .iter()
             .map(|id| ArtifactString::from_core(*id, strings.get(*id)))
@@ -51,7 +53,7 @@ impl ArtifactRecord {
         let dependencies = record
             .dependencies
             .into_iter()
-            .map(ArtifactDependency::from_artifact)
+            .map(|dependency| ArtifactDependency::from_artifact(dependency, strings))
             .collect();
         let diagnostics = record
             .diagnostics
@@ -67,8 +69,9 @@ impl ArtifactRecord {
 
         Self {
             version: ArtifactVersion::from_artifact(record.version),
+            base: record.base.map(ArtifactVersion::from_artifact),
             payload: record.payload,
-            strings,
+            strings: bridge_strings,
             dependencies,
             diagnostics,
             sidecars,

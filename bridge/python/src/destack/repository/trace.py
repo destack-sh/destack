@@ -3,6 +3,7 @@
 from .._native import (
     TraceReport,
     TraceStage,
+    TraceTime,
     TraceArtifact,
     TraceSpan,
     TraceCounter,
@@ -11,6 +12,7 @@ from .._native import (
 __all__ = [
     "TraceReport",
     "TraceStage",
+    "TraceTime",
     "TraceArtifact",
     "TraceSpan",
     "TraceCounter",

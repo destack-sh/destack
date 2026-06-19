@@ -32,6 +32,8 @@ impl ArtifactString {
 pub struct ArtifactRecord {
     /// The exact artifact version.
     pub version: ArtifactVersion,
+    /// The predecessor artifact this record was incrementally built from.
+    pub base: Option<ArtifactVersion>,
     /// Serialized artifact payload bytes.
     pub payload: Vec<u8>,
     /// String pool needed to interpret interned ids in the payload.
@@ -49,6 +51,7 @@ impl ArtifactRecord {
     pub(crate) fn from_bridge(value: bridge::ArtifactRecord) -> Self {
         Self {
             version: ArtifactVersion::from_bridge(value.version),
+            base: value.base.map(ArtifactVersion::from_bridge),
             payload: value.payload,
             strings: value
                 .strings

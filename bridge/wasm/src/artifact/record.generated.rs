@@ -50,6 +50,7 @@ impl ArtifactString {
 #[wasm_bindgen]
 pub struct ArtifactRecord {
     version: ArtifactVersion,
+    base: Option<ArtifactVersion>,
     payload: Vec<u8>,
     strings: Vec<ArtifactString>,
     dependencies: Vec<ArtifactDependency>,
@@ -63,6 +64,7 @@ impl ArtifactRecord {
     #[wasm_bindgen(constructor)]
     pub fn new(
         version: ArtifactVersion,
+        base: Option<ArtifactVersion>,
         payload: Vec<u8>,
         strings: Vec<ArtifactString>,
         dependencies: Vec<ArtifactDependency>,
@@ -71,6 +73,7 @@ impl ArtifactRecord {
     ) -> Self {
         Self {
             version,
+            base,
             payload,
             strings,
             dependencies,
@@ -83,6 +86,12 @@ impl ArtifactRecord {
     #[wasm_bindgen(getter, js_name = "version")]
     pub fn version(&self) -> ArtifactVersion {
         self.version.clone()
+    }
+
+    /// The predecessor artifact this record was incrementally built from.
+    #[wasm_bindgen(getter, js_name = "base")]
+    pub fn base(&self) -> Option<ArtifactVersion> {
+        self.base.clone()
     }
 
     /// Serialized artifact payload bytes.
@@ -121,6 +130,7 @@ impl ArtifactRecord {
     pub(crate) fn from_bridge(value: bridge::ArtifactRecord) -> Self {
         Self {
             version: ArtifactVersion::from_bridge(value.version),
+            base: value.base.map(ArtifactVersion::from_bridge),
             payload: value.payload,
             strings: value
                 .strings
