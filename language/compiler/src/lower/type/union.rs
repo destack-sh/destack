@@ -334,7 +334,7 @@ impl TypeLowerer<'_> {
         } else {
             storage_size.div_ceil(pointer_size)
         };
-        builder.type_array(self.ty_usize, slot_count as u64, mir::Copy::Yes)
+        builder.type_fixed_array(self.ty_usize, slot_count as u64, mir::Copy::Yes)
     }
 
     /// Lower union types that can be represented as references that allow null.

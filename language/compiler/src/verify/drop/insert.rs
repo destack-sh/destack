@@ -127,9 +127,9 @@ impl VerifyState<'_> {
                     aggregate: value,
                     index: *index,
                 },
-                mir::Projection::Element { index } => mir::Instruction::ElementGet {
+                mir::Projection::Element { index } => mir::Instruction::FieldGet {
                     destination,
-                    array: value,
+                    aggregate: value,
                     index: *index,
                 },
                 mir::Projection::Variant { tag } => mir::Instruction::VariantPayload {
@@ -249,7 +249,7 @@ impl VerifyState<'_> {
         let void = self.tree.void_type();
         let signature = self.tree.insert_type(mir::Type::FunctionSignature {
             lifetimes: Vec::new(),
-            parameters: vec![mir::SignatureParameter::new(ty.into())],
+            parameters: vec![mir::SignatureParameter::new(ty)],
             result: void,
         });
 
@@ -272,7 +272,7 @@ impl VerifyState<'_> {
                 Some(mir::Instruction::CallDynamic {
                     destination: None,
                     receiver: value,
-                    constraint: (*constraint).into(),
+                    constraint: *constraint,
                     slot,
                     call: mir::Call::new(arguments, signature),
                 })
@@ -307,7 +307,9 @@ impl VerifyState<'_> {
             (mir::Type::Newtype { inner, .. }, mir::Projection::Field { index }) => {
                 (*index == 0).then_some(*inner)
             }
-            (mir::Type::Array { element, .. }, mir::Projection::Element { .. }) => Some(*element),
+            (mir::Type::FixedArray { element, .. }, mir::Projection::Element { .. }) => {
+                Some(*element)
+            }
             (mir::Type::Variant { cases, .. }, mir::Projection::Variant { tag }) => cases
                 .iter()
                 .find(|case| case.tag == *tag)

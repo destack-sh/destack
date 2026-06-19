@@ -762,8 +762,8 @@ fn clone_callee_blocks(
                 let new_value = caller.next_typed_value(ty);
                 value_map.insert(value, new_value);
                 mir::BlockParameter {
-                    value: new_value.into(),
-                    ty: ty.into(),
+                    value: new_value,
+                    ty,
                 }
             })
             .collect();
@@ -829,8 +829,8 @@ fn split_block_for_inline(
     if destination.is_some() {
         let new_value = caller.next_typed_value(return_type);
         continuation_block.parameters.push(mir::BlockParameter {
-            value: new_value.into(),
-            ty: return_type.into(),
+            value: new_value,
+            ty: return_type,
         });
         result_value = Some(new_value);
     }
@@ -1335,11 +1335,9 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::Tree) -> u64 {
         | mir::Instruction::AtomicFence { .. }
         | mir::Instruction::BarrierWrite { .. } => INLINE_COST_MEMORY,
         mir::Instruction::FieldGet { .. }
-        | mir::Instruction::FieldAddr { .. }
         | mir::Instruction::FieldSet { .. }
-        | mir::Instruction::ElementGet { .. }
-        | mir::Instruction::ElementAddr { .. }
-        | mir::Instruction::ElementSet { .. } => INLINE_COST_SIMPLE + 1,
+        | mir::Instruction::FieldAddr { .. }
+        | mir::Instruction::ElementAddr { .. } => INLINE_COST_SIMPLE + 1,
         mir::Instruction::Struct { fields, .. } => {
             INLINE_COST_SIMPLE + tree.get_values(*fields).len() as u64
         }

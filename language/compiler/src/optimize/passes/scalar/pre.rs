@@ -139,8 +139,6 @@ enum ExpressionTemplate {
     Select,
     /// Field access expression template.
     FieldGet { index: u32 },
-    /// Element access expression template.
-    ElementGet,
 }
 
 /// Run PRE on a single function and report whether it changed.
@@ -276,8 +274,8 @@ fn run_pre(
             // allocate a new parameter for the expression
             let param_value = function.next_typed_value(value_type);
             let param = mir::BlockParameter {
-                value: param_value.into(),
-                ty: value_type.into(),
+                value: param_value,
+                ty: value_type,
             };
             let order = occs.iter().map(|occ| occ.order).min().unwrap_or(usize::MAX);
             phi_map.entry(phi_block).or_default().push(PhiPlacement {
@@ -426,7 +424,6 @@ fn template_from_instruction(instruction: &mir::Instruction) -> ExpressionTempla
         },
         mir::Instruction::Select { .. } => ExpressionTemplate::Select,
         mir::Instruction::FieldGet { index, .. } => ExpressionTemplate::FieldGet { index: *index },
-        mir::Instruction::ElementGet { .. } => ExpressionTemplate::ElementGet,
         _ => panic!("unsupported expression template: {instruction:?}"),
     }
 }
@@ -443,7 +440,6 @@ fn expression_operands(key: &ExpressionKey) -> Vec<mir::Value> {
             else_value,
         } => vec![*condition, *then_value, *else_value],
         ExpressionKey::FieldGet { aggregate, .. } => vec![*aggregate],
-        ExpressionKey::ElementGet { array, .. } => vec![*array],
     }
 }
 
@@ -722,13 +718,6 @@ fn build_instruction_from_key(
             mir::Instruction::FieldGet {
                 destination,
                 aggregate: (*aggregate),
-                index: *index,
-            }
-        }
-        (ExpressionKey::ElementGet { array, index }, ExpressionTemplate::ElementGet) => {
-            mir::Instruction::ElementGet {
-                destination,
-                array: (*array),
                 index: *index,
             }
         }

@@ -544,7 +544,7 @@ entry(v0: (int32, int32)):
         let input = r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = load v0
     v2: int32 = load v0
     v3: int32 = int.add v1, v2
@@ -554,7 +554,7 @@ entry:
         let expected = r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = load v0
     v3: int32 = int.add v1, v1
     return v3
@@ -572,7 +572,7 @@ entry:
         let input = r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = load v0
     v2: int32 = 1
     store v0, v2
@@ -605,14 +605,14 @@ entry(v0: (int32, int32)):
         test.assert_unchanged(input);
     }
 
-    /// Element accesses with same base and index are CSE'd.
+    /// Array slot accesses with same base and index are CSE'd.
     #[test]
-    fn test_eliminate_element_get() {
+    fn test_eliminate_array_slot_field_get() {
         let input = r#"
 function test(v0: [int32; 10], v1: int64): int32 {
 entry(v0: [int32; 10], v1: int64):
-    v2: int32 = element.get v0, 0
-    v3: int32 = element.get v0, 0
+    v2: int32 = field.get v0, 0
+    v3: int32 = field.get v0, 0
     v4: int32 = int.add v2, v3
     return v4
 }
@@ -620,7 +620,7 @@ entry(v0: [int32; 10], v1: int64):
         let expected = r#"
 function test(v0: [int32; 10], v1: int64): int32 {
 entry(v0: [int32; 10], v1: int64):
-    v2: int32 = element.get v0, 0
+    v2: int32 = field.get v0, 0
     v4: int32 = int.add v2, v2
     return v4
 }
@@ -714,7 +714,7 @@ b2(v6: int32):
         let input = r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = load v0
     v2: int32 = load v0
     v3: int32 = load v0
@@ -740,7 +740,7 @@ entry:
         let expected = r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = load v0
     v2: int32 = load v0
     return v2

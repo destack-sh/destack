@@ -107,14 +107,14 @@ impl FunctionLowerer<'_> {
         }
 
         // resolve the array length
-        let mir::Type::Array { length, .. } = self.state.builder.tree().get(array_type) else {
+        let mir::Type::FixedArray { length, .. } = self.state.builder.tree().get(array_type) else {
             return Err(LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
                     expression_id
                         .into_global_any(self.context.module_id)
                         .into_anchored(Some(self.context.profile)),
                 ),
-                message: "bounds checks require a sized array type".to_string(),
+                message: "bounds checks require a fixed array type".to_string(),
             }
             .into());
         };

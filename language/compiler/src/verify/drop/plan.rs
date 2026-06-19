@@ -366,7 +366,7 @@ impl<'a> DropPlan<'a> {
         instruction: &mir::Instruction,
         available: &DropState,
     ) -> Vec<mir::Place> {
-        // move known fields when extracting move-only values
+        // move known slots when extracting move-only values
         if let mir::Instruction::FieldGet {
             destination,
             aggregate,
@@ -375,26 +375,9 @@ impl<'a> DropPlan<'a> {
         } = instruction
             && self.is_owned_value(*destination)
         {
-            vec![self.place_moved_by_projection(
-                available,
-                *aggregate,
-                mir::Projection::Field { index: *index },
-            )]
-        }
-        // move known elements when extracting move-only values
-        else if let mir::Instruction::ElementGet {
-            destination,
-            array,
-            index,
-            ..
-        } = instruction
-            && self.is_owned_value(*destination)
-        {
-            vec![self.place_moved_by_projection(
-                available,
-                *array,
-                mir::Projection::Element { index: *index },
-            )]
+            let projection = self.static_slot_projection(*aggregate, *index);
+
+            vec![self.place_moved_by_projection(available, *aggregate, projection)]
         }
         // move the full variant when extracting a move-only payload
         else if let mir::Instruction::VariantPayload {
@@ -535,6 +518,19 @@ impl<'a> DropPlan<'a> {
         place.with_projection(projection)
     }
 
+    /// Return the place projection represented by one static layout slot.
+    fn static_slot_projection(&self, value: mir::Value, index: u32) -> mir::Projection {
+        let Some(ty) = self.function.value_type(value) else {
+            return mir::Projection::Field { index };
+        };
+
+        if matches!(self.tree.get(ty), mir::Type::FixedArray { .. }) {
+            mir::Projection::Element { index }
+        } else {
+            mir::Projection::Field { index }
+        }
+    }
+
     /// Return whether one value has a variant type.
     fn is_variant_value(&self, value: mir::Value) -> bool {
         let Some(ty) = self.function.value_type(value) else {
@@ -612,7 +608,7 @@ impl<'a> DropPlan<'a> {
                     )
                 })
                 .collect(),
-            mir::Type::Array {
+            mir::Type::FixedArray {
                 element, length, ..
             } => (0..*length)
                 .flat_map(|index| {

@@ -772,22 +772,6 @@ impl<'a> SccpState<'a> {
                 let value_state = self.value_state(*value);
                 self.evaluate_field_set(aggregate_state, *index as usize, value_state)
             }
-            mir::Instruction::ElementGet { array, index, .. } => {
-                // evaluate element get from arrays
-                let array_state = self.value_state(*array);
-                self.evaluate_element_get(array_state, *index as usize)
-            }
-            mir::Instruction::ElementSet {
-                array,
-                index,
-                value,
-                ..
-            } => {
-                // evaluate element set on arrays
-                let array_state = self.value_state(*array);
-                let value_state = self.value_state(*value);
-                self.evaluate_element_set(array_state, *index as usize, value_state)
-            }
             mir::Instruction::Intrinsic {
                 intrinsic,
                 arguments,
@@ -852,43 +836,6 @@ impl<'a> SccpState<'a> {
     ) -> LatticeValue {
         // update element when aggregate shape is known
         match aggregate_state {
-            LatticeValue::Aggregate(mut elements) => {
-                if index >= elements.len() {
-                    return LatticeValue::Overdefined;
-                }
-
-                elements[index] = value_state;
-                LatticeValue::Aggregate(elements)
-            }
-            LatticeValue::Unknown => LatticeValue::Unknown,
-            LatticeValue::Overdefined => LatticeValue::Overdefined,
-            LatticeValue::Constant(_) => LatticeValue::Overdefined,
-        }
-    }
-
-    /// Evaluate an element.get on an array lattice value.
-    fn evaluate_element_get(&self, array_state: LatticeValue, index: usize) -> LatticeValue {
-        // extract element from array state
-        match array_state {
-            LatticeValue::Aggregate(elements) => elements
-                .get(index)
-                .cloned()
-                .unwrap_or(LatticeValue::Overdefined),
-            LatticeValue::Unknown => LatticeValue::Unknown,
-            LatticeValue::Overdefined => LatticeValue::Overdefined,
-            LatticeValue::Constant(_) => LatticeValue::Overdefined,
-        }
-    }
-
-    /// Evaluate an element.set on an array lattice value.
-    fn evaluate_element_set(
-        &self,
-        array_state: LatticeValue,
-        index: usize,
-        value_state: LatticeValue,
-    ) -> LatticeValue {
-        // update element when array shape is known
-        match array_state {
             LatticeValue::Aggregate(mut elements) => {
                 if index >= elements.len() {
                     return LatticeValue::Overdefined;
@@ -1448,7 +1395,7 @@ global flag: boolean = true
 
 function test(): int32 {
 entry:
-    v0: ref<boolean, raw> = global.address flag
+    v0: ref<boolean, raw, mutable> = global.address flag
     v1: boolean = load v0
     branch v1, b1, b2
 
@@ -1670,9 +1617,9 @@ entry:
         test.assert_output(expected);
     }
 
-    /// Element access folds for constant array indices.
+    /// Array slot access folds for constant field indices.
     #[test]
-    fn test_array_element_get_constant_index() {
+    fn test_array_field_get_constant_index() {
         let input = r#"
 function test(): int32 {
 entry:
@@ -1681,7 +1628,7 @@ entry:
     v2: int32 = 30
     v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
     v4: int64 = 1
-    v5: int32 = element.get v3, 1
+    v5: int32 = field.get v3, 1
     return v5
 }
 "#;
@@ -1703,9 +1650,9 @@ entry:
         test.assert_output(expected);
     }
 
-    /// Element set updates array constants for later element access.
+    /// Array slot updates fold into later static slot access.
     #[test]
-    fn test_array_element_set_constant_index() {
+    fn test_array_field_set_constant_index() {
         let input = r#"
 function test(): int32 {
 entry:
@@ -1715,8 +1662,8 @@ entry:
     v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
     v4: int64 = 1
     v5: int32 = 9
-    v6: [int32; 3] = element.set v3, 1, v5
-    v7: int32 = element.get v6, 1
+    v6: [int32; 3] = field.set v3, 1, v5
+    v7: int32 = field.get v6, 1
     return v7
 }
 "#;
@@ -1729,7 +1676,7 @@ entry:
     v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
     v4: int64 = 1
     v5: int32 = 9
-    v6: [int32; 3] = element.set v3, 1, v5
+    v6: [int32; 3] = field.set v3, 1, v5
     v7: int32 = 9
     return v7
 }
@@ -1782,7 +1729,7 @@ entry:
 
     /// Byte initializer loads are not array constants.
     #[test]
-    fn test_global_bytes_element_get_not_constant() {
+    fn test_global_bytes_field_get_not_constant() {
         let input = r#"
 readonly global data: [uint8; 4] = b"test"
 
@@ -1791,7 +1738,7 @@ entry:
     v0: ref<[uint8; 4], raw, readonly> = global.address data
     v1: [uint8; 4] = load v0
     v2: int64 = 2
-    v3: uint8 = element.get v1, 2
+    v3: uint8 = field.get v1, 2
     return v3
 }
 "#;

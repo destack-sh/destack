@@ -767,14 +767,14 @@ fn array_element_type(
     value_types: &ValueTypeMap,
     tree: &mir::Tree,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
-    // resolve the array type
+    // resolve the fixed array type
     let ty_id = value_types.require_value_type(array);
     let ty = tree.get(ty_id);
 
     match ty {
-        mir::Type::Array { element, .. } => Some(*element),
+        mir::Type::FixedArray { element, .. } => Some(*element),
         mir::Type::Reference { pointee, .. } => match tree.get(*pointee) {
-            mir::Type::Array { element, .. } => Some(*element),
+            mir::Type::FixedArray { element, .. } => Some(*element),
             _ => None,
         },
         _ => None,
@@ -795,8 +795,8 @@ fn arrays_are_value_types(
     let dest_ty = value_types.require_value_type(dest_array);
     let src_ty = value_types.require_value_type(src_array);
 
-    matches!(tree.get(dest_ty), mir::Type::Array { .. })
-        && matches!(tree.get(src_ty), mir::Type::Array { .. })
+    matches!(tree.get(dest_ty), mir::Type::FixedArray { .. })
+        && matches!(tree.get(src_ty), mir::Type::FixedArray { .. })
 }
 
 /// Return the space for a reference type.
@@ -2074,7 +2074,7 @@ b2:
     v7: ref<uint8, borrowed> = element.address v5, v4
     v8: uint8 = 0
     store v7, v8
-    v9: [uint8; 8] = element.set v5, 0, v8
+    v9: [uint8; 8] = field.set v5, 0, v8
     v10: uint32 = int.add v4, v3
     jump b1(v10, v9)
 

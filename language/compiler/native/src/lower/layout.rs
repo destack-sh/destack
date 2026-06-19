@@ -71,7 +71,7 @@ pub(crate) fn compute_type_layout(
             | mir::Type::Tuple { .. }
             | mir::Type::Variant { .. }
             | mir::Type::Dynamic { .. }
-            | mir::Type::Array { .. }
+            | mir::Type::FixedArray { .. }
             | mir::Type::Closure { .. }
     ) {
         return Err(CodegenCraneliftError::unsupported_type(
@@ -124,7 +124,7 @@ pub(crate) fn compute_type_layout(
         )),
 
         // arrays: size = element_size * length, alignment = element alignment
-        mir::Type::Array {
+        mir::Type::FixedArray {
             element,
             length,
             copy: _,

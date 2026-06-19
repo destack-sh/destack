@@ -465,8 +465,9 @@ b1:
     v4: ref<String, managed, readonly> = load v3
     panic v4
 b2:
-    v5: int32 = element.get v0, v1
-    return v5
+    v5: ref<int32, borrowed, readonly> = element.address v0, v1
+    v6: int32 = load v5
+    return v6
 }
         "#;
     let expected = expected.replace("${string_alias}", string_alias);
@@ -507,8 +508,9 @@ b1:
     trap.abort
 
 b2:
-    v3: int32 = element.get v0, v1
-    return v3
+    v3: ref<int32, borrowed, readonly> = element.address v0, v1
+    v4: int32 = load v3
+    return v4
 }
 "#,
     );
@@ -548,8 +550,9 @@ b1:
     v4: ref<String, managed, readonly> = load v3
     panic v4
 b2:
-    v5: int32 = element.get v0, v1
-    return v5
+    v5: ref<int32, borrowed, readonly> = element.address v0, v1
+    v6: int32 = load v5
+    return v6
 }
         "#;
     let expected = expected.replace("${string_alias}", string_alias);

@@ -300,7 +300,7 @@ fn get_element_types(
             Some(elements.to_vec())
         }
 
-        mir::Type::Array {
+        mir::Type::FixedArray {
             element,
             length,
             copy: _,
@@ -651,9 +651,6 @@ fn rewrite_base_store(
         _ => panic!("sroa base store rewrite expects a store instruction"),
     };
 
-    // select aggregate decomposition strategy
-    let is_array = matches!(tree.get(candidate.layout), mir::Type::Array { .. });
-
     let mut new_instructions: Vec<mir::LocalNodeId<mir::Instruction>> = Vec::new();
     for index in 0..candidate.element_types.len() {
         let element_pointer = index_to_value
@@ -663,27 +660,14 @@ fn rewrite_base_store(
         let element_type = candidate.element_types[index];
         let element_value = function.next_typed_value(element_type);
 
-        // handle array extraction using element indices
-        if is_array {
-            let element_get = mir::Instruction::ElementGet {
-                destination: element_value,
-                array: stored_value,
-                index: index as u32,
-            };
-            let element_get_id = tree.insert(element_get);
-            new_instructions.push(element_get_id);
-        }
-
-        // handle struct or tuple extraction using field indices
-        if !is_array {
-            let field_get = mir::Instruction::FieldGet {
-                destination: element_value,
-                aggregate: stored_value,
-                index: index as u32,
-            };
-            let field_get_id = tree.insert(field_get);
-            new_instructions.push(field_get_id);
-        }
+        // extract the static aggregate slot
+        let field_get = mir::Instruction::FieldGet {
+            destination: element_value,
+            aggregate: stored_value,
+            index: index as u32,
+        };
+        let field_get_id = tree.insert(field_get);
+        new_instructions.push(field_get_id);
 
         // store scalar into the split allocation slot
         let store_inst = mir::Instruction::Store {
@@ -720,7 +704,7 @@ fn build_aggregate_instruction(
             ty: layout,
             elements: arguments,
         },
-        mir::Type::Array { .. } => mir::Instruction::Array {
+        mir::Type::FixedArray { .. } => mir::Instruction::Array {
             destination,
             ty: layout,
             elements: arguments,
@@ -1298,7 +1282,7 @@ entry:
     store v0, v3
     v4: [int32; 2] = load v0
     v5: int64 = 1
-    v6: int32 = element.get v4, 1
+    v6: int32 = field.get v4, 1
     return v6
 }
 "#;
@@ -1310,15 +1294,15 @@ entry:
     v1: int32 = 10
     v2: int32 = 20
     v3: [int32; 2] = array [int32; 2] (v1, v2)
-    v9: int32 = element.get v3, 0
+    v9: int32 = field.get v3, 0
     store v7, v9
-    v10: int32 = element.get v3, 1
+    v10: int32 = field.get v3, 1
     store v8, v10
     v11: int32 = load v7
     v12: int32 = load v8
     v4: [int32; 2] = array [int32; 2] (v11, v12)
     v5: int64 = 1
-    v6: int32 = element.get v4, 1
+    v6: int32 = field.get v4, 1
     return v6
 }
 "#;

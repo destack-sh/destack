@@ -119,7 +119,7 @@ fn static_elements(
         mir::Type::Struct { .. } | mir::Type::Tuple { .. } | mir::Type::Slice { .. } => {
             record_static_elements(tree, ty, expected_len)
         }
-        mir::Type::Array {
+        mir::Type::FixedArray {
             element,
             length,
             copy: _,
@@ -173,7 +173,7 @@ fn array_static_elements(
     let count = length as usize;
     if count != expected_len {
         return Err(CodegenCraneliftError::Internal {
-            message: "array initializer length does not match array type".to_string(),
+            message: "array initializer length does not match fixed array type".to_string(),
         });
     }
 

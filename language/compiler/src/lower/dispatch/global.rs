@@ -43,7 +43,7 @@ impl ModuleLowerer<'_> {
         );
         let table_type = self
             .builder
-            .type_array(slot_type, slot_count, mir::Copy::Yes);
+            .type_fixed_array(slot_type, slot_count, mir::Copy::Yes);
         let global_id =
             self.builder
                 .global_constant(&name, table_type, mir::GlobalInitializer::zero());
@@ -93,7 +93,7 @@ impl ModuleLowerer<'_> {
         let slot_type = self.type_lowerer.ty_usize;
         let table_type = self
             .builder
-            .type_array(slot_type, slot_count, mir::Copy::Yes);
+            .type_fixed_array(slot_type, slot_count, mir::Copy::Yes);
         let global_id =
             self.builder
                 .global_constant(&name, table_type, mir::GlobalInitializer::zero());

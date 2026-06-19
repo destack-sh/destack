@@ -346,19 +346,9 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 index,
                 ..
             } => {
-                let projection = mir::Projection::Field { index: *index };
+                let projection = self.static_slot_projection(*aggregate, *index);
                 self.move_projection_value(*destination, *aggregate, projection.clone(), anchor);
                 self.propagate_projection_sources(*aggregate, projection, *destination);
-            }
-            mir::Instruction::ElementGet {
-                destination,
-                array,
-                index,
-                ..
-            } => {
-                let projection = mir::Projection::Element { index: *index };
-                self.move_projection_value(*destination, *array, projection.clone(), anchor);
-                self.propagate_projection_sources(*array, projection, *destination);
             }
             mir::Instruction::VariantPayload {
                 destination,
@@ -381,21 +371,9 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 index,
                 ..
             } => {
-                let projection = mir::Projection::Field { index: *index };
+                let projection = self.static_slot_projection(*aggregate, *index);
                 self.check_aggregate_set(*aggregate, *value, anchor);
                 self.propagate_sources(*aggregate, *destination);
-                self.propagate_sources_to_path(*value, *destination, projection);
-            }
-            mir::Instruction::ElementSet {
-                destination,
-                array,
-                value,
-                index,
-                ..
-            } => {
-                let projection = mir::Projection::Element { index: *index };
-                self.check_aggregate_set(*array, *value, anchor);
-                self.propagate_sources(*array, *destination);
                 self.propagate_sources_to_path(*value, *destination, projection);
             }
             mir::Instruction::Load {
@@ -544,12 +522,8 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             | mir::Instruction::FieldAddr {
                 aggregate, index, ..
             } => {
-                let projection = mir::Projection::Field { index: *index };
+                let projection = self.static_slot_projection(*aggregate, *index);
                 self.check_projection_use(*aggregate, projection, anchor);
-            }
-            mir::Instruction::ElementGet { array, index, .. } => {
-                let projection = mir::Projection::Element { index: *index };
-                self.check_projection_use(*array, projection, anchor);
             }
             mir::Instruction::VariantPayload { variant, tag, .. } => {
                 let projection = mir::Projection::Variant { tag: tag.clone() };
@@ -1499,6 +1473,24 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         let ty = self.function.value_type(value)?;
 
         self.tree.get(ty).reference_access()
+    }
+
+    /// Return the place projection represented by one static layout slot.
+    fn static_slot_projection(&self, value: mir::Value, index: u32) -> mir::Projection {
+        let Some(ty) = self.function.value_type(value) else {
+            return mir::Projection::Field { index };
+        };
+
+        let ty = match self.tree.get(ty) {
+            mir::Type::Reference { pointee, .. } => *pointee,
+            _ => ty,
+        };
+
+        if matches!(self.tree.get(ty), mir::Type::FixedArray { .. }) {
+            mir::Projection::Element { index }
+        } else {
+            mir::Projection::Field { index }
+        }
     }
 
     /// Propagate known borrow sources from one value to another.
