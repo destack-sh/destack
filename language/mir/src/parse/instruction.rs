@@ -381,7 +381,23 @@ impl Parser {
                             environment,
                         }
                     }
-                    "closure.environment" => Instruction::ClosureEnvironment { destination },
+                    "closure.function" => {
+                        let closure = self.parse_value_segment(&mut segment_spans)?;
+                        Instruction::ClosureFunction {
+                            destination,
+                            closure,
+                        }
+                    }
+                    "closure.environment" => {
+                        let closure = self.parse_value_segment(&mut segment_spans)?;
+                        Instruction::ClosureEnvironment {
+                            destination,
+                            closure,
+                        }
+                    }
+                    "closure.environment.current" => {
+                        Instruction::ClosureEnvironmentCurrent { destination }
+                    }
 
                     // memory operations
                     "load" => {

@@ -174,8 +174,34 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
+    /// Project the function pointer from one closure value.
+    pub fn closure_function(&mut self, closure: Value, function_type: LocalNodeId<Type>) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::ClosureFunction {
+            destination,
+            closure,
+        });
+        self.define_value(destination, function_type);
+        destination
+    }
+
+    /// Project the environment from one closure value.
+    pub fn closure_environment(
+        &mut self,
+        closure: Value,
+        environment_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::ClosureEnvironment {
+            destination,
+            closure,
+        });
+        self.define_value(destination, environment_type);
+        destination
+    }
+
     /// Load the hidden environment pointer for the current function.
-    pub fn closure_environment(&mut self, environment_type: LocalNodeId<Type>) -> Value {
+    pub fn closure_environment_current(&mut self, environment_type: LocalNodeId<Type>) -> Value {
         // record the hidden environment type on the function metadata
         let existing_environment = {
             let requested_environment = TypeId::from(environment_type);
@@ -197,7 +223,7 @@ impl<'a> FunctionBuilder<'a> {
         }
 
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::ClosureEnvironment { destination });
+        self.insert_instruction(Instruction::ClosureEnvironmentCurrent { destination });
         self.define_value(destination, environment_type);
         destination
     }

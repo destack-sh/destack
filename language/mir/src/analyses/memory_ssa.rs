@@ -769,6 +769,8 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::FunctionAddr { .. }
             | mir::Instruction::ClosureBind { .. }
             | mir::Instruction::ClosureEnvironment { .. }
+            | mir::Instruction::ClosureFunction { .. }
+            | mir::Instruction::ClosureEnvironmentCurrent { .. }
             | mir::Instruction::LocalAddr { .. }
             | mir::Instruction::Struct { .. }
             | mir::Instruction::Tuple { .. }

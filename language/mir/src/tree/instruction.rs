@@ -150,8 +150,22 @@ pub enum Instruction {
         /// The environment value to capture in the closure.
         environment: Value,
     },
-    /// Load the hidden environment for the current function (closure.environment).
+    /// Project the function pointer from one closure value (closure.function).
+    ClosureFunction {
+        /// The SSA value to define with the function pointer.
+        destination: Value,
+        /// The closure value to project.
+        closure: Value,
+    },
+    /// Project the environment from one closure value (closure.environment).
     ClosureEnvironment {
+        /// The SSA value to define with the environment.
+        destination: Value,
+        /// The closure value to project.
+        closure: Value,
+    },
+    /// Load the hidden environment for the current function (closure.environment.current).
+    ClosureEnvironmentCurrent {
         /// The SSA value to define with the hidden environment pointer.
         destination: Value,
     },
@@ -926,6 +940,8 @@ impl Instruction {
             Instruction::FunctionAddr { destination, .. } => Some(*destination),
             Instruction::ClosureBind { destination, .. } => Some(*destination),
             Instruction::ClosureEnvironment { destination, .. } => Some(*destination),
+            Instruction::ClosureFunction { destination, .. } => Some(*destination),
+            Instruction::ClosureEnvironmentCurrent { destination, .. } => Some(*destination),
             Instruction::Load { destination, .. } => Some(*destination),
             Instruction::Store { .. } => None,
             Instruction::Struct { destination, .. } => Some(*destination),
@@ -1022,7 +1038,9 @@ impl Instruction {
             Instruction::GlobalAddr { .. } => smallvec![],
             Instruction::FunctionAddr { .. } => smallvec![],
             Instruction::ClosureBind { environment, .. } => smallvec![*environment],
-            Instruction::ClosureEnvironment { .. } => smallvec![],
+            Instruction::ClosureFunction { closure, .. }
+            | Instruction::ClosureEnvironment { closure, .. } => smallvec![*closure],
+            Instruction::ClosureEnvironmentCurrent { .. } => smallvec![],
             Instruction::Load { pointer, .. } => smallvec![*pointer],
             Instruction::Store { pointer, value, .. } => smallvec![*pointer, *value],
             // arguments stored externally
@@ -1180,6 +1198,9 @@ impl Instruction {
             | Instruction::TensorSplat {
                 value: environment, ..
             } => smallvec![*environment],
+            Instruction::ClosureFunction { .. }
+            | Instruction::ClosureEnvironment { .. }
+            | Instruction::ClosureEnvironmentCurrent { .. } => smallvec![],
             Instruction::VectorInsert { vector, value, .. }
             | Instruction::TensorPad {
                 tensor: vector,

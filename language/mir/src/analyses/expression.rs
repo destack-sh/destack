@@ -586,6 +586,8 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::FunctionAddr { .. }
         | mir::Instruction::ClosureBind { .. }
         | mir::Instruction::ClosureEnvironment { .. }
+        | mir::Instruction::ClosureFunction { .. }
+        | mir::Instruction::ClosureEnvironmentCurrent { .. }
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::FieldAddr { .. }
         | mir::Instruction::ElementAddr { .. }

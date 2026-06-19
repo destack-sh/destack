@@ -74,7 +74,11 @@ impl<'a> FunctionBuilder<'a> {
                 Instruction::ClosureBind { environment, .. } => {
                     Self::replace_value_in_slot(environment, from, to);
                 }
-                Instruction::ClosureEnvironment { .. } => {}
+                Instruction::ClosureFunction { closure, .. }
+                | Instruction::ClosureEnvironment { closure, .. } => {
+                    Self::replace_value_in_slot(closure, from, to);
+                }
+                Instruction::ClosureEnvironmentCurrent { .. } => {}
                 Instruction::Binary { left, right, .. } => {
                     Self::replace_value_in_slot(left, from, to);
                     Self::replace_value_in_slot(right, from, to);

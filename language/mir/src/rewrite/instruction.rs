@@ -74,11 +74,13 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::TensorSelect { .. }
         | mir::Instruction::TensorConvert { .. } => true,
 
-        // immutable global references
+        // pure descriptor operations
         mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
         | mir::Instruction::ClosureBind { .. }
-        | mir::Instruction::ClosureEnvironment { .. } => true,
+        | mir::Instruction::ClosureFunction { .. }
+        | mir::Instruction::ClosureEnvironment { .. }
+        | mir::Instruction::ClosureEnvironmentCurrent { .. } => true,
 
         // borrow producing address computations are not speculatable
         mir::Instruction::FieldAddr { .. }
@@ -256,6 +258,8 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::FunctionAddr { .. }
         | mir::Instruction::ClosureBind { .. }
         | mir::Instruction::ClosureEnvironment { .. }
+        | mir::Instruction::ClosureFunction { .. }
+        | mir::Instruction::ClosureEnvironmentCurrent { .. }
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::Assume { .. } => false,
 
@@ -540,6 +544,29 @@ pub fn instruction_substitute_uses(
             condition: substitute(condition),
             then_value: substitute(then_value),
             else_value: substitute(else_value),
+        },
+        mir::Instruction::ClosureBind {
+            destination,
+            function,
+            environment,
+        } => mir::Instruction::ClosureBind {
+            destination: *destination,
+            function: *function,
+            environment: substitute(environment),
+        },
+        mir::Instruction::ClosureFunction {
+            destination,
+            closure,
+        } => mir::Instruction::ClosureFunction {
+            destination: *destination,
+            closure: substitute(closure),
+        },
+        mir::Instruction::ClosureEnvironment {
+            destination,
+            closure,
+        } => mir::Instruction::ClosureEnvironment {
+            destination: *destination,
+            closure: substitute(closure),
         },
         mir::Instruction::Load {
             destination,
@@ -1111,13 +1138,12 @@ pub fn instruction_substitute_uses(
         | mir::Instruction::LocalGet { .. }
         | mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
-        | mir::Instruction::ClosureBind { .. }
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::Struct { .. }
         | mir::Instruction::Tuple { .. }
         | mir::Instruction::Array { .. }
         | mir::Instruction::Call { .. }
-        | mir::Instruction::ClosureEnvironment { .. }
+        | mir::Instruction::ClosureEnvironmentCurrent { .. }
         | mir::Instruction::NewZeroed { .. }
         | mir::Instruction::NewUninit { .. }
         | mir::Instruction::FrameAllocZeroed { .. }
@@ -2211,8 +2237,22 @@ pub fn instruction_map(
             function: *function,
             environment: remap(*environment),
         },
-        mir::Instruction::ClosureEnvironment { destination } => {
-            mir::Instruction::ClosureEnvironment {
+        mir::Instruction::ClosureFunction {
+            destination,
+            closure,
+        } => mir::Instruction::ClosureFunction {
+            destination: remap(*destination),
+            closure: remap(*closure),
+        },
+        mir::Instruction::ClosureEnvironment {
+            destination,
+            closure,
+        } => mir::Instruction::ClosureEnvironment {
+            destination: remap(*destination),
+            closure: remap(*closure),
+        },
+        mir::Instruction::ClosureEnvironmentCurrent { destination } => {
+            mir::Instruction::ClosureEnvironmentCurrent {
                 destination: remap(*destination),
             }
         }
@@ -2874,8 +2914,22 @@ pub fn instruction_map_with_locals(
             function: *function,
             environment: remap(*environment),
         },
-        mir::Instruction::ClosureEnvironment { destination } => {
-            mir::Instruction::ClosureEnvironment {
+        mir::Instruction::ClosureFunction {
+            destination,
+            closure,
+        } => mir::Instruction::ClosureFunction {
+            destination: remap(*destination),
+            closure: remap(*closure),
+        },
+        mir::Instruction::ClosureEnvironment {
+            destination,
+            closure,
+        } => mir::Instruction::ClosureEnvironment {
+            destination: remap(*destination),
+            closure: remap(*closure),
+        },
+        mir::Instruction::ClosureEnvironmentCurrent { destination } => {
+            mir::Instruction::ClosureEnvironmentCurrent {
                 destination: remap(*destination),
             }
         }
