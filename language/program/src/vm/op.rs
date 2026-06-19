@@ -8,60 +8,58 @@ pub enum Op {
     // ============================================================================
     /// Load a cell constant.
     LoadConstCell,
-    /// Load a byte constant into a frame value.
-    LoadConstBytes,
+    /// Load an aggregate constant.
+    LoadConstAggregate,
     /// Move one cell between frame offsets.
     MoveCell,
-    /// Move bytes between frame values.
-    MoveFrame,
-    /// Load bytes from local heap memory into a frame value.
-    LoadHeapBytes,
-    /// Load bytes from shared heap memory into a frame value.
-    LoadSharedHeapBytes,
-    /// Load bytes from local raw memory into a frame value.
-    LoadRawBytes,
-    /// Load bytes from stack memory into a frame value.
-    LoadStackBytes,
-    /// Load bytes from frame memory into a frame value.
-    LoadFrameBytes,
-    /// Load bytes from static memory into a frame value.
-    LoadStaticBytes,
-    /// Store bytes from a frame value into local heap memory.
-    StoreHeapBytes,
-    /// Store bytes from a frame value into shared heap memory.
-    StoreSharedHeapBytes,
-    /// Store bytes from a frame value into local raw memory.
-    StoreRawBytes,
-    /// Store bytes from a frame value into stack memory.
-    StoreStackBytes,
-    /// Store bytes from a frame value into frame memory.
-    StoreFrameBytes,
-    /// Store bytes from a frame value into static memory.
-    StoreStaticBytes,
+    /// Move one aggregate value between frame slots.
+    MoveAggregate,
+    /// Load one aggregate value from local heap memory.
+    LoadHeapAggregate,
+    /// Load one aggregate value from shared heap memory.
+    LoadSharedHeapAggregate,
+    /// Load one aggregate value from local raw memory.
+    LoadRawAggregate,
+    /// Load one aggregate value from stack memory.
+    LoadStackAggregate,
+    /// Load one aggregate value from frame memory.
+    LoadFrameAggregate,
+    /// Load one aggregate value from static memory.
+    LoadStaticAggregate,
+    /// Store one aggregate value into local heap memory.
+    StoreHeapAggregate,
+    /// Store one aggregate value into shared heap memory.
+    StoreSharedHeapAggregate,
+    /// Store one aggregate value into local raw memory.
+    StoreRawAggregate,
+    /// Store one aggregate value into stack memory.
+    StoreStackAggregate,
+    /// Store one aggregate value into frame memory.
+    StoreFrameAggregate,
+    /// Store one aggregate value into static memory.
+    StoreStaticAggregate,
     /// Select one of two cell values.
     SelectCell,
-    /// Select one of two frame values.
-    SelectFrame,
+    /// Select one of two aggregate values.
+    SelectAggregate,
 
     // ============================================================================
     // locals, statics, functions
     // ============================================================================
     /// Compute a local address.
-    AddressLocal,
+    LocalAddress,
     /// Compute a static address.
-    AddressStatic,
+    StaticAddress,
     /// Materialize a function pointer.
-    AddressFunction,
-    /// Bind a function pointer to one cell environment.
-    BindClosureCell,
-    /// Bind a function pointer to one frame address environment.
-    BindClosureAddress,
-    /// Load the function pointer from a closure value.
-    LoadClosureFunction,
-    /// Load the environment from a closure value.
-    LoadClosureEnvironment,
-    /// Load the current closure environment.
-    LoadClosureEnvironmentCurrent,
+    FunctionAddress,
+    /// Bind a function pointer to one environment.
+    FunctionBind,
+    /// Load the function pointer from a function value.
+    FunctionPointer,
+    /// Load the environment from a function value.
+    FunctionEnvironment,
+    /// Load the current function environment.
+    FunctionEnvironmentCurrent,
 
     // ============================================================================
     // scalar loads
@@ -243,7 +241,7 @@ pub enum Op {
     /// Compute a fixed-offset address in stack memory.
     AddressStackOffset,
     /// Compute a fixed-offset address in static memory.
-    AddressStaticOffset,
+    StaticAddressOffset,
 
     // ============================================================================
     // element projection
@@ -259,7 +257,7 @@ pub enum Op {
     /// Compute an element address from a frame pointer.
     AddressFrameElement,
     /// Compute an element address in static memory.
-    AddressStaticElement,
+    StaticAddressElement,
     /// Compute a slice element address in local heap memory.
     AddressHeapSliceElement,
     /// Compute a slice element address in shared heap memory.
@@ -271,7 +269,7 @@ pub enum Op {
     /// Compute a slice element address in frame memory.
     AddressFrameSliceElement,
     /// Compute a slice element address in static memory.
-    AddressStaticSliceElement,
+    StaticAddressSliceElement,
 
     // ============================================================================
     // allocation and lifetime
@@ -737,45 +735,45 @@ pub enum Op {
     /// Call a known function with an explicit continuation.
     CallBranch,
     /// Call a function pointer.
-    CallIndirect,
-    /// Call a closure value.
-    CallClosure,
+    CallFunctionPointer,
+    /// Call a function value.
+    CallFunction,
     /// Call a function pointer with an explicit continuation.
-    CallIndirectBranch,
-    /// Call a closure value with an explicit continuation.
-    CallClosureBranch,
-    /// Call a virtual method through a local heap receiver.
-    CallVirtualHeap,
-    /// Call a virtual method through a shared heap receiver.
-    CallVirtualSharedHeap,
-    /// Call a virtual method through a local heap receiver with an explicit continuation.
-    CallVirtualHeapBranch,
-    /// Call a virtual method through a shared heap receiver with an explicit continuation.
-    CallVirtualSharedHeapBranch,
-    /// Call a dynamic method through a local heap receiver.
-    CallDynamicHeap,
-    /// Call a dynamic method through a shared heap receiver.
-    CallDynamicSharedHeap,
-    /// Call a dynamic method through a local heap receiver with an explicit continuation.
-    CallDynamicHeapBranch,
-    /// Call a dynamic method through a shared heap receiver with an explicit continuation.
-    CallDynamicSharedHeapBranch,
+    CallFunctionPointerBranch,
+    /// Call a function value with an explicit continuation.
+    CallFunctionBranch,
+    /// Call a virtual method through a local receiver.
+    CallVirtualLocal,
+    /// Call a virtual method through a shared receiver.
+    CallVirtualShared,
+    /// Call a virtual method through a local receiver with an explicit continuation.
+    CallVirtualLocalBranch,
+    /// Call a virtual method through a shared receiver with an explicit continuation.
+    CallVirtualSharedBranch,
+    /// Call a dynamic method through a local receiver.
+    CallDynamicLocal,
+    /// Call a dynamic method through a shared receiver.
+    CallDynamicShared,
+    /// Call a dynamic method through a local receiver with an explicit continuation.
+    CallDynamicLocalBranch,
+    /// Call a dynamic method through a shared receiver with an explicit continuation.
+    CallDynamicSharedBranch,
     /// Tail call a known function.
     TailCall,
     /// Tail call the current function.
     TailCallSelf,
     /// Tail call a function pointer.
-    TailCallIndirect,
-    /// Tail call a closure value.
-    TailCallClosure,
-    /// Tail call a virtual method through a local heap receiver.
-    TailCallVirtualHeap,
-    /// Tail call a virtual method through a shared heap receiver.
-    TailCallVirtualSharedHeap,
-    /// Tail call a dynamic method through a local heap receiver.
-    TailCallDynamicHeap,
-    /// Tail call a dynamic method through a shared heap receiver.
-    TailCallDynamicSharedHeap,
+    TailCallFunctionPointer,
+    /// Tail call a function value.
+    TailCallFunction,
+    /// Tail call a virtual method through a local receiver.
+    TailCallVirtualLocal,
+    /// Tail call a virtual method through a shared receiver.
+    TailCallVirtualShared,
+    /// Tail call a dynamic method through a local receiver.
+    TailCallDynamicLocal,
+    /// Tail call a dynamic method through a shared receiver.
+    TailCallDynamicShared,
 
     // ============================================================================
     // control flow

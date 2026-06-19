@@ -91,16 +91,16 @@ pub struct ElementLayout {
     pub byte_len: usize,
 }
 
-/// The heap object layout for one closure value.
+/// The heap object layout for one function value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ClosureObjectLayout {
+pub struct FunctionObjectLayout {
     /// The function pointer offset.
     pub function_offset: usize,
     /// The environment pointer offset.
     pub environment_offset: usize,
-    /// The closure object byte length.
+    /// The function object byte length.
     pub byte_len: usize,
-    /// The closure object byte alignment.
+    /// The function object byte alignment.
     pub alignment: usize,
 }
 
@@ -207,25 +207,25 @@ impl TypeTable {
     }
 }
 
-impl ClosureObjectLayout {
-    /// Return the heap layout table entry for closure objects.
+impl FunctionObjectLayout {
+    /// Return the heap layout table entry for function objects.
     pub fn table_layout(self, environment_layout: CellLayout) -> mir::Layout {
         mir::Layout {
-            shape: mir::LayoutShape::Closure,
+            shape: mir::LayoutShape::Function,
             size: self.byte_len as u32,
             alignment: self.alignment as u32,
-            trace_map: closure_trace_map(self.environment_offset, environment_layout),
+            trace_map: function_trace_map(self.environment_offset, environment_layout),
         }
     }
 }
 
-/// Return the closure object layout for one target pointer width.
-pub fn closure_object_layout(pointer_bytes: usize) -> ClosureObjectLayout {
+/// Return the function object layout for one target pointer width.
+pub fn function_object_layout(pointer_bytes: usize) -> FunctionObjectLayout {
     let function_offset = 0usize;
     let environment_offset = align_offset(pointer_bytes, pointer_bytes);
     let byte_len = environment_offset + pointer_bytes;
 
-    ClosureObjectLayout {
+    FunctionObjectLayout {
         function_offset,
         environment_offset,
         byte_len,
@@ -233,8 +233,8 @@ pub fn closure_object_layout(pointer_bytes: usize) -> ClosureObjectLayout {
     }
 }
 
-/// Return the heap trace map for one closure object.
-fn closure_trace_map(environment_offset: usize, environment_layout: CellLayout) -> TraceMap {
+/// Return the heap trace map for one function object.
+fn function_trace_map(environment_offset: usize, environment_layout: CellLayout) -> TraceMap {
     let environment_offset = environment_offset as u32;
 
     match environment_layout {
@@ -420,7 +420,7 @@ fn build_layout(
             space,
             ..
         } => build_slice_layout(tree, *kind, space.clone(), layout_id)?,
-        mir::Type::Closure { .. } => scalar_layout(
+        mir::Type::Function { .. } => scalar_layout(
             tree.pointer_bytes() as usize,
             tree.pointer_bytes() as usize,
             layout_id,
@@ -541,7 +541,7 @@ fn raw_scalar_size_alignment(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) 
         mir::Type::TypeDescriptor
         | mir::Type::TypeId
         | mir::Type::Reference { .. }
-        | mir::Type::Closure { .. }
+        | mir::Type::Function { .. }
         | mir::Type::FunctionPointer { .. } => {
             let byte_len = tree.pointer_bytes() as usize;
 
@@ -586,9 +586,9 @@ fn build_record_layout(
         build_layout(tree, layout_id_by_type, layouts, field_type)?;
     }
 
-    // closure fields need the VM field representation
+    // function fields need the VM field representation
     for field_type in field_types.clone() {
-        if contains_closure(tree, field_type)? {
+        if contains_function(tree, field_type)? {
             return build_runtime_fields_layout(
                 tree,
                 layout_id_by_type,
@@ -632,8 +632,8 @@ fn build_array_layout(
 ) -> Result<Layout> {
     let element_layout = build_layout(tree, layout_id_by_type, layouts, element_type)?;
 
-    // closure elements store heap handles in VM frames
-    if contains_closure(tree, element_type)? {
+    // function elements store heap handles in VM frames
+    if contains_function(tree, element_type)? {
         return Ok(repeated_layout(
             layout_id,
             element_type,
@@ -712,8 +712,8 @@ fn build_vector_layout(
     let element_layout = build_layout(tree, layout_id_by_type, layouts, element_type)?;
     let stride = element_layout.stride();
 
-    // closure elements store heap handles in VM frames
-    if contains_closure(tree, element_type)? {
+    // function elements store heap handles in VM frames
+    if contains_function(tree, element_type)? {
         return Ok(repeated_layout(
             layout_id,
             element_type,
@@ -769,8 +769,8 @@ fn build_tensor_layout(
     let element_count = compute_tensor_element_count(shape, tensor_layout)?;
     let stride = element_layout.stride();
 
-    // closure elements store heap handles in VM frames
-    if contains_closure(tree, element_type)? {
+    // function elements store heap handles in VM frames
+    if contains_function(tree, element_type)? {
         return Ok(repeated_layout(
             layout_id,
             element_type,
@@ -867,16 +867,16 @@ fn stride_byte_len(element_count: usize, stride: usize) -> Result<usize> {
     })
 }
 
-/// Report whether the repr type contains one closure value.
-fn contains_closure(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Result<bool> {
+/// Report whether the repr type contains one function value.
+fn contains_function(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Result<bool> {
     let ty = concrete_repr_type(tree, ty)?;
 
     match tree.get(ty) {
-        mir::Type::Closure { .. } => Ok(true),
+        mir::Type::Function { .. } => Ok(true),
         mir::Type::Struct { fields, .. } => {
             for field_id in fields {
                 let field_type = tree.get(*field_id).ty;
-                if contains_closure(tree, field_type)? {
+                if contains_function(tree, field_type)? {
                     return Ok(true);
                 }
             }
@@ -885,7 +885,7 @@ fn contains_closure(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Result
         }
         mir::Type::Tuple { elements, .. } => {
             for element_type in elements.iter().copied() {
-                if contains_closure(tree, element_type)? {
+                if contains_function(tree, element_type)? {
                     return Ok(true);
                 }
             }
@@ -894,7 +894,7 @@ fn contains_closure(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Result
         }
         mir::Type::FixedArray { element, .. }
         | mir::Type::Vector { element, .. }
-        | mir::Type::Tensor { element, .. } => contains_closure(tree, *element),
+        | mir::Type::Tensor { element, .. } => contains_function(tree, *element),
         _ => Ok(false),
     }
 }
@@ -907,7 +907,7 @@ fn heap_reference_space(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Op
         mir::Type::Reference { kind, space, .. } if is_heap_reference_kind(*kind) => {
             Some(space.clone())
         }
-        mir::Type::Closure { .. } => Some(mir::Space::Local),
+        mir::Type::Function { .. } => Some(mir::Space::Local),
         _ => None,
     }
 }
@@ -954,7 +954,7 @@ fn raw_array_stride(layout: &mir::Layout) -> Result<usize> {
     Ok(layout.stride as usize)
 }
 
-/// Build one VM field layout for one record with closure children.
+/// Build one VM field layout for one record with function children.
 fn build_runtime_fields_layout(
     tree: &mir::Tree,
     layout_id_by_type: &HashMap<mir::LocalNodeId<mir::Type>, LayoutId>,
@@ -1573,9 +1573,9 @@ type Shape = variant<Tag, Storage> { 0uint8 = Ref; 1uint8 = Plain; };
         );
     }
 
-    /// Closure values stay boxed in heap payloads.
+    /// Function values stay boxed in heap payloads.
     #[test]
-    fn test_build_layout_boxes_closure() {
+    fn test_build_layout_boxes_function() {
         let mir_text = r#"
 type Callable = () => int32;
 "#;
@@ -1584,7 +1584,7 @@ type Callable = () => int32;
         let layouts = build_test_layouts(&tree);
         let layout = layouts.get(&ty).expect("missing layout");
 
-        // closure fields store one heap reference to one closure object
+        // function fields store one heap reference to one function object
         assert!(layout.is_scalar());
         assert_eq!(layout.byte_len, tree.pointer_bytes() as usize);
         assert_eq!(
@@ -1596,9 +1596,9 @@ type Callable = () => int32;
         );
     }
 
-    /// Records with closure values still trace the closure child field.
+    /// Records with function values still trace the function child field.
     #[test]
-    fn test_build_layout_traces_closure_fields() {
+    fn test_build_layout_traces_function_fields() {
         let mir_text = r#"
 type Callable = () => int32;
 
@@ -1612,7 +1612,7 @@ type Holder {
         let layouts = build_test_layouts(&tree);
         let layout = layouts.get(&ty).expect("missing layout");
 
-        // the closure field should stay traced after the VM field rewrite
+        // the function field should stay traced after the VM field rewrite
         assert_eq!(
             layout.trace_map,
             TraceMap::Fixed {
