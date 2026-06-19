@@ -4,13 +4,13 @@ use std::sync::Arc;
 use destack_source::{Content, DiagnosticCollection};
 use serde::{Deserialize, Serialize};
 
-use crate::{ArtifactDependency, ArtifactFailure};
+use crate::{ArtifactDependency, ArtifactFailure, ArtifactPayload};
 
 /// One exact artifact version entry.
 #[derive(Debug, Clone)]
 pub(crate) struct ArtifactEntry {
-    /// The exact terminal outcome.
-    pub(crate) outcome: ArtifactOutcome,
+    /// The exact terminal result.
+    pub(crate) result: ArtifactResult,
     /// The exact dependencies.
     pub(crate) dependencies: Arc<[ArtifactDependency]>,
     /// The diagnostics for this exact artifact version.
@@ -22,12 +22,13 @@ pub(crate) struct ArtifactEntry {
 impl ArtifactEntry {
     /// Create one successful artifact entry.
     pub(crate) fn ok(
+        payload: ArtifactPayload,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
         diagnostics: impl Into<Arc<DiagnosticCollection>>,
         sidecars: impl Into<Arc<[ArtifactSidecar]>>,
     ) -> Self {
         Self {
-            outcome: ArtifactOutcome::Ok,
+            result: ArtifactResult::Ok(payload),
             dependencies: dependencies.into(),
             diagnostics: diagnostics.into(),
             sidecars: sidecars.into(),
@@ -42,10 +43,37 @@ impl ArtifactEntry {
         failure: ArtifactFailure,
     ) -> Self {
         Self {
-            outcome: ArtifactOutcome::Failed(failure),
+            result: ArtifactResult::Failed(failure),
             dependencies: dependencies.into(),
             diagnostics: diagnostics.into(),
             sidecars: sidecars.into(),
+        }
+    }
+}
+
+/// Exact terminal result for one artifact version entry.
+#[derive(Debug, Clone)]
+pub(crate) enum ArtifactResult {
+    /// The exact payload was produced.
+    Ok(ArtifactPayload),
+    /// The exact artifact attempt failed without a payload.
+    Failed(ArtifactFailure),
+}
+
+impl ArtifactResult {
+    /// Return the scalar terminal outcome.
+    pub(crate) fn outcome(&self) -> ArtifactOutcome {
+        match self {
+            Self::Ok(_payload) => ArtifactOutcome::Ok,
+            Self::Failed(failure) => ArtifactOutcome::Failed(failure.clone()),
+        }
+    }
+
+    /// Return the successful payload when present.
+    pub(crate) fn payload(&self) -> Option<ArtifactPayload> {
+        match self {
+            Self::Ok(payload) => Some(payload.clone()),
+            Self::Failed(_failure) => None,
         }
     }
 }

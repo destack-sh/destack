@@ -1,9 +1,11 @@
-use destack_core::StringPool;
+use destack_core::{StringId, StringPool};
 use destack_source::DiagnosticCollection;
 use serde::{Deserialize, Serialize};
 
+use super::string::collect_string_ids;
+
 use crate::{
-    ArtifactBlobError, ArtifactDependency, ArtifactPayload, ArtifactPayloadBlob, ArtifactSidecar,
+    ArtifactDependency, ArtifactPayload, ArtifactPayloadBlob, ArtifactSidecar, ArtifactStoreError,
     ArtifactVersion,
 };
 
@@ -14,8 +16,8 @@ pub struct ArtifactRecord {
     pub version: ArtifactVersion,
     /// The serialized artifact payload.
     pub payload: Vec<u8>,
-    /// String pool needed to interpret interned ids in the payload.
-    pub strings: StringPool,
+    /// String ids needed to interpret interned ids in the payload.
+    pub strings: Vec<StringId>,
     /// The exact artifact dependencies.
     pub dependencies: Vec<ArtifactDependency>,
     /// Diagnostics recorded for this artifact version.
@@ -29,15 +31,25 @@ impl ArtifactRecord {
     pub fn new<T>(
         version: ArtifactVersion,
         payload: T,
-        strings: StringPool,
+        string_pool: &StringPool,
         dependencies: Vec<ArtifactDependency>,
         diagnostics: DiagnosticCollection,
         sidecars: Vec<ArtifactSidecar>,
-    ) -> Result<Self, ArtifactBlobError>
+    ) -> Result<Self, ArtifactStoreError>
     where
         T: Serialize,
     {
+        let mut strings = collect_string_ids(&payload)?;
+        strings.extend(collect_string_ids(&dependencies)?);
         let payload = ArtifactPayloadBlob::new(version, payload).serialize()?;
+        strings.sort_unstable();
+        strings.dedup();
+
+        for string in &strings {
+            if string_pool.get_maybe(*string).is_none() {
+                return Err(ArtifactStoreError::MissingString { string: *string });
+            }
+        }
 
         Ok(Self {
             version,
@@ -50,10 +62,10 @@ impl ArtifactRecord {
     }
 
     /// Decode the serialized artifact payload.
-    pub fn decode_payload(&self) -> Result<ArtifactPayload, ArtifactBlobError> {
+    pub fn decode_payload(&self) -> Result<ArtifactPayload, ArtifactStoreError> {
         let payload = ArtifactPayloadBlob::deserialize(&self.payload)?;
         if payload.version() != self.version {
-            return Err(ArtifactBlobError::Version {
+            return Err(ArtifactStoreError::Version {
                 expected: Box::new(self.version),
                 found: Box::new(payload.version()),
             });

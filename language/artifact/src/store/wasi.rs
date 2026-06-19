@@ -1,31 +1,34 @@
 use std::fs::{self, OpenOptions};
 use std::path::{Path, PathBuf};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Duration;
 
-use crate::cache::{CacheStore, CacheStoreError};
+use super::{BlobStore, BlobStoreError};
 
-/// Delay between cache lock acquisition attempts.
-const CACHE_LOCK_RETRY_DELAY: Duration = Duration::from_millis(10);
+/// Delay between store lock acquisition attempts.
+const STORE_LOCK_RETRY_DELAY: Duration = Duration::from_millis(10);
+/// Process-local counter used to allocate temporary blob paths.
+static TEMP_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-/// Cache store backed by WASI filesystem access.
+/// Blob store backed by WASI filesystem access.
 #[derive(Debug, Default, Clone)]
-pub struct DiskCacheStore;
+pub struct DiskBlobStore;
 
-impl DiskCacheStore {
-    /// Create a disk cache store.
+impl DiskBlobStore {
+    /// Create a disk blob store.
     pub fn new() -> Self {
         Self
     }
 }
 
-impl CacheStore for DiskCacheStore {
+impl BlobStore for DiskBlobStore {
     fn with_exclusive_lock(
         &self,
         path: &Path,
         operation: &mut dyn FnMut(),
-    ) -> Result<(), CacheStoreError> {
-        // acquire cache lock
-        let _lock = WasiCacheLock::acquire(path)?;
+    ) -> Result<(), BlobStoreError> {
+        // acquire store lock
+        let _lock = WasiStoreLock::acquire(path)?;
 
         // run caller operation
         operation();
@@ -33,35 +36,33 @@ impl CacheStore for DiskCacheStore {
         Ok(())
     }
 
-    fn read(&self, path: &Path) -> Result<Option<Vec<u8>>, CacheStoreError> {
+    fn read(&self, path: &Path) -> Result<Option<Vec<u8>>, BlobStoreError> {
         // read existing bytes
         match fs::read(path) {
             Ok(bytes) => Ok(Some(bytes)),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(error) => Err(CacheStoreError::from(error)),
+            Err(error) => Err(BlobStoreError::from(error)),
         }
     }
 
-    fn write_once(&self, path: &Path, bytes: &[u8]) -> Result<(), CacheStoreError> {
+    fn write_once(&self, path: &Path, bytes: &[u8]) -> Result<(), BlobStoreError> {
         // ensure parent directory exists
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
 
-        // write temporary file
-        let temp_path = temp_path_for(path);
-        let mut file = fs::File::create(&temp_path)?;
+        // write a complete sibling file before publishing
+        let (temp_path, mut file) = create_temp_file(path)?;
         std::io::Write::write_all(&mut file, bytes)?;
-        let _ = file.sync_all();
 
         // close file before publishing
         drop(file);
 
-        // detect existing cache entry
+        // detect existing blob
         if path.exists() {
             cleanup_temp_path(&temp_path);
 
-            return Err(CacheStoreError::AlreadyExists);
+            return Err(BlobStoreError::AlreadyExists);
         }
 
         // publish temporary file
@@ -70,28 +71,28 @@ impl CacheStore for DiskCacheStore {
             Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
                 cleanup_temp_path(&temp_path);
 
-                return Err(CacheStoreError::AlreadyExists);
+                return Err(BlobStoreError::AlreadyExists);
             }
             Err(error) => {
                 cleanup_temp_path(&temp_path);
 
-                return Err(CacheStoreError::from(error));
+                return Err(BlobStoreError::from(error));
             }
         }
 
         Ok(())
     }
 
-    fn byte_len(&self, path: &Path) -> Result<Option<u64>, CacheStoreError> {
+    fn byte_len(&self, path: &Path) -> Result<Option<u64>, BlobStoreError> {
         // read file metadata
         match fs::metadata(path) {
             Ok(metadata) => Ok(Some(metadata.len())),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(error) => Err(CacheStoreError::from(error)),
+            Err(error) => Err(BlobStoreError::from(error)),
         }
     }
 
-    fn entries(&self, root: &Path) -> Result<Vec<PathBuf>, CacheStoreError> {
+    fn entries(&self, root: &Path) -> Result<Vec<PathBuf>, BlobStoreError> {
         // collect files recursively
         let mut paths = Vec::new();
         collect_entries(root, &mut paths)?;
@@ -99,26 +100,26 @@ impl CacheStore for DiskCacheStore {
         Ok(paths)
     }
 
-    fn remove(&self, path: &Path) -> Result<(), CacheStoreError> {
+    fn remove(&self, path: &Path) -> Result<(), BlobStoreError> {
         // remove existing file
         match fs::remove_file(path) {
             Ok(()) => Ok(()),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(error) => Err(CacheStoreError::from(error)),
+            Err(error) => Err(BlobStoreError::from(error)),
         }
     }
 }
 
-/// Held WASI cache lock file.
+/// Held WASI store lock file.
 #[derive(Debug)]
-struct WasiCacheLock {
+struct WasiStoreLock {
     /// The lock file path.
     path: PathBuf,
 }
 
-impl WasiCacheLock {
-    /// Acquire one cache lock file.
-    fn acquire(path: &Path) -> Result<Self, CacheStoreError> {
+impl WasiStoreLock {
+    /// Acquire one store lock file.
+    fn acquire(path: &Path) -> Result<Self, BlobStoreError> {
         // ensure lock directory exists
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
@@ -129,9 +130,9 @@ impl WasiCacheLock {
             match OpenOptions::new().write(true).create_new(true).open(path) {
                 Ok(_file) => break,
                 Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
-                    std::thread::sleep(CACHE_LOCK_RETRY_DELAY);
+                    std::thread::sleep(STORE_LOCK_RETRY_DELAY);
                 }
-                Err(error) => return Err(CacheStoreError::from(error)),
+                Err(error) => return Err(BlobStoreError::from(error)),
             }
         }
 
@@ -141,20 +142,20 @@ impl WasiCacheLock {
     }
 }
 
-impl Drop for WasiCacheLock {
+impl Drop for WasiStoreLock {
     fn drop(&mut self) {
-        // release cache lock
+        // release store lock
         cleanup_temp_path(&self.path);
     }
 }
 
-/// Collect cache entry files below one root.
-fn collect_entries(root: &Path, paths: &mut Vec<PathBuf>) -> Result<(), CacheStoreError> {
+/// Collect blob files below one root.
+fn collect_entries(root: &Path, paths: &mut Vec<PathBuf>) -> Result<(), BlobStoreError> {
     // read root directory
     let entries = match fs::read_dir(root) {
         Ok(entries) => entries,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-        Err(error) => return Err(CacheStoreError::from(error)),
+        Err(error) => return Err(BlobStoreError::from(error)),
     };
 
     // collect child entries
@@ -176,22 +177,37 @@ fn collect_entries(root: &Path, paths: &mut Vec<PathBuf>) -> Result<(), CacheSto
     Ok(())
 }
 
-/// Return one temp path for atomic publishing.
-fn temp_path_for(path: &Path) -> PathBuf {
+/// Create one temporary sibling file for atomic publishing.
+fn create_temp_file(path: &Path) -> Result<(PathBuf, fs::File), BlobStoreError> {
     // extract file name
     let file_name = match path.file_name() {
         Some(file_name) => file_name.to_string_lossy().to_string(),
-        None => panic!("cannot build temp path for cache path without file name: {path:?}"),
+        None => {
+            let error = std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("cannot build temp path for blob path without file name: {path:?}"),
+            );
+
+            return Err(BlobStoreError::from(error));
+        }
     };
 
-    // build unique suffix
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_else(|error| panic!("system time before unix epoch for cache write: {error}"))
-        .as_nanos();
-    let temp_name = format!("{file_name}.{timestamp}.tmp");
+    loop {
+        // allocate unused sibling path
+        let counter = TEMP_FILE_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let temp_name = format!("{file_name}.{counter}.tmp");
+        let temp_path = path.with_file_name(temp_name);
+        let file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temp_path);
 
-    path.with_file_name(temp_name)
+        match file {
+            Ok(file) => return Ok((temp_path, file)),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+            Err(error) => return Err(BlobStoreError::from(error)),
+        }
+    }
 }
 
 /// Remove one temporary or lock file.
@@ -200,6 +216,6 @@ fn cleanup_temp_path(path: &Path) {
     if let Err(error) = fs::remove_file(path)
         && error.kind() != std::io::ErrorKind::NotFound
     {
-        tracing::debug!("failed to clean cache file: {error}");
+        tracing::debug!("failed to clean blob file: {error}");
     }
 }

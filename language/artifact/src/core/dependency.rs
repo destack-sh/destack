@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use destack_source::{ContentId, FileId};
+use destack_source::{ContentId, FileId, StringId};
 
 use crate::{ArtifactKey, ArtifactVersion};
 
@@ -22,15 +22,15 @@ pub enum ArtifactPathState {
 /// One exact directory entry observed by one artifact computation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct ArtifactDirectoryEntry {
-    /// The entry path identity.
-    pub path: FileId,
+    /// The entry path.
+    pub path: StringId,
     /// The exact entry path state.
     pub state: ArtifactPathState,
 }
 
 impl ArtifactDirectoryEntry {
     /// Build one exact directory entry dependency.
-    pub const fn new(path: FileId, state: ArtifactPathState) -> Self {
+    pub const fn new(path: StringId, state: ArtifactPathState) -> Self {
         Self { path, state }
     }
 }
@@ -40,15 +40,15 @@ impl ArtifactDirectoryEntry {
 pub enum SourceDependency {
     /// The exact state observed for one source path.
     PathState {
-        /// The source path identity.
-        path: FileId,
+        /// The logical path.
+        path: StringId,
         /// The exact path state.
         state: ArtifactPathState,
     },
     /// The exact direct entries observed for one directory.
     DirectoryEntries {
-        /// The source directory path identity.
-        directory: FileId,
+        /// The directory logical path.
+        directory: StringId,
         /// The direct entries in deterministic order.
         entries: Vec<ArtifactDirectoryEntry>,
     },
@@ -63,13 +63,13 @@ pub enum SourceDependency {
 
 impl SourceDependency {
     /// Build one source path state dependency.
-    pub fn path_state(path: FileId, state: ArtifactPathState) -> Self {
+    pub fn path_state(path: StringId, state: ArtifactPathState) -> Self {
         Self::PathState { path, state }
     }
 
     /// Build one directory entries dependency.
     pub fn directory_entries(
-        directory: FileId,
+        directory: StringId,
         entries: impl IntoIterator<Item = ArtifactDirectoryEntry>,
     ) -> Self {
         let mut entries = entries.into_iter().collect::<Vec<_>>();
@@ -113,14 +113,14 @@ impl ArtifactDependencySet {
     }
 
     /// Declare one observed source path state.
-    pub fn observe_path_state(&mut self, path: FileId, state: ArtifactPathState) {
+    pub fn observe_path_state(&mut self, path: StringId, state: ArtifactPathState) {
         self.observe_source(SourceDependency::path_state(path, state));
     }
 
     /// Declare one observed source directory listing.
     pub fn observe_directory_entries(
         &mut self,
-        directory: FileId,
+        directory: StringId,
         entries: impl IntoIterator<Item = ArtifactDirectoryEntry>,
     ) {
         self.observe_source(SourceDependency::directory_entries(directory, entries));
@@ -133,7 +133,6 @@ impl ArtifactDependencySet {
 
     /// Declare one observed regular source file.
     pub fn observe_file(&mut self, file: FileId, content: ContentId) {
-        self.observe_path_state(file, ArtifactPathState::File);
         self.observe_file_content(file, content);
     }
 
@@ -159,13 +158,13 @@ impl ArtifactDependency {
     }
 
     /// Build one source path state dependency.
-    pub fn path_state(path: FileId, state: ArtifactPathState) -> Self {
+    pub fn path_state(path: StringId, state: ArtifactPathState) -> Self {
         Self::Source(SourceDependency::path_state(path, state))
     }
 
     /// Build one directory entries dependency.
     pub fn directory_entries(
-        directory: FileId,
+        directory: StringId,
         entries: impl IntoIterator<Item = ArtifactDirectoryEntry>,
     ) -> Self {
         Self::Source(SourceDependency::directory_entries(directory, entries))
