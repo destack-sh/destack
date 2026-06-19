@@ -1,9 +1,10 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::DiskCacheStore;
+use destack_artifact::MemoryBlobStore;
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Environment, Ref, Repository, RepositoryError, Settings,
+    DestackLayout, DestackLayoutOverride, Environment, Host, Ref, Repository, RepositoryError,
+    Settings, default_blob_store,
 };
 use destack_source::{FileSystem, MemoryFileSystem};
 
@@ -25,14 +26,8 @@ pub fn open_repository_from_fs(
         DestackLayout::resolve(&root, cwd, &environment, &settings, &layout_override, None);
 
     // create repository at the selected source root
-    let repository = Repository::new(
-        root.clone(),
-        Arc::new(DiskCacheStore::new()),
-        fs,
-        environment,
-        settings,
-        layout,
-    );
+    let host = Host::new(environment, fs, default_blob_store());
+    let repository = Repository::new(root.clone(), host, settings, layout);
     let root_ref = Ref::for_root(&root);
     let base_revision = repository.current(&root_ref)?;
 
@@ -57,7 +52,25 @@ pub fn open_repository_from_memory(
     let file_system = Arc::new(MemoryFileSystem::new());
     Edit::apply_all(file_system.as_ref(), &root, edits)?;
 
-    open_repository_from_fs(root, file_system, environment, settings, layout_override)
+    let root = find_source_root(file_system.as_ref(), &root)?;
+    let cwd = environment.cwd.as_deref().unwrap_or(&root);
+    let layout =
+        DestackLayout::resolve(&root, cwd, &environment, &settings, &layout_override, None);
+
+    // keep memory sessions fully in memory
+    let host = Host::new(environment, file_system, Arc::new(MemoryBlobStore::new()));
+    let repository = Repository::new(root.clone(), host, settings, layout);
+    let root_ref = Ref::for_root(&root);
+    let base_revision = repository.current(&root_ref)?;
+
+    // read the complete source tree
+    let source = FileSystemSource::new(&repository, &root, base_revision);
+    let edits = source.edits()?;
+    let revision = repository.commit_edits(base_revision, edits)?;
+
+    repository.set_ref(&root_ref, revision)?;
+
+    Ok(repository)
 }
 
 /// Find the source root for one filesystem input path.

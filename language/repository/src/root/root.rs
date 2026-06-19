@@ -6,10 +6,10 @@ use destack_source::FileId;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum RootKind {
     /// Monorepo with multiple member projects.
-    Monorepo,
+    Workspace,
     /// Single package root.
     #[default]
-    SinglePackage,
+    Package,
 }
 
 /// Root metadata derived for one revision.
@@ -26,7 +26,7 @@ pub struct Root {
 impl Root {
     /// Return true when this root contains multiple packages.
     pub fn is_monorepo(&self) -> bool {
-        self.kind == RootKind::Monorepo
+        self.kind == RootKind::Workspace
     }
 
     /// Return true when a path is within this root.

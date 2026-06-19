@@ -1,4 +1,3 @@
-mod artifact;
 mod builtin;
 mod cache;
 mod config;
@@ -17,7 +16,6 @@ mod repository;
 mod revision;
 mod target;
 
-pub use artifact::*;
 pub use builtin::*;
 pub(crate) use cache::*;
 pub(crate) use content::*;

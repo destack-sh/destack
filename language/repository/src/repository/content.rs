@@ -4,15 +4,15 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use destack_source::{Content, ContentEntry, ContentId};
 
-/// Shared immutable content storage.
+/// Shared immutable in-process content pool.
 #[derive(Debug, Default)]
-pub(crate) struct ContentStore {
+pub(crate) struct ContentPool {
     /// Content payloads by exact content identity.
     content_by_id: DashMap<ContentId, Arc<ContentEntry>>,
 }
 
-impl ContentStore {
-    /// Create one empty content store.
+impl ContentPool {
+    /// Create one empty content pool.
     pub(crate) fn new() -> Self {
         Self::default()
     }

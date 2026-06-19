@@ -3,14 +3,13 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use destack_core::stable_hash_value_256;
-use im::OrdMap;
+use destack_artifact::{ArtifactKey, ArtifactVersion};
+use destack_core::{Treap, TreapRoot, stable_hash_value_256};
+use parking_lot::{RwLock, RwLockWriteGuard};
 use serde::{Deserialize, Serialize};
 
-use destack_source::{ContentId, FileId};
-
 use crate::Environment;
-use crate::repository::{FileEntry, RevisionCache};
+use crate::repository::RevisionCache;
 
 /// Content identity for one immutable repository revision state.
 #[repr(transparent)]
@@ -142,22 +141,31 @@ impl RevisionEntry {
 #[derive(Debug)]
 pub(crate) struct RevisionState {
     /// File bindings included in this revision.
-    pub files: Arc<OrdMap<FileId, FileEntry>>,
+    files: RwLock<TreapRoot>,
     /// Environment inputs captured in this revision.
     pub environment: Arc<Environment>,
+    /// Artifact bindings derived for this revision.
+    artifacts: RwLock<TreapRoot>,
     /// Lazily derived data for this revision.
     pub cache: RevisionCache,
 }
 
 impl RevisionState {
     /// Build one revision state from explicit parts.
-    pub(crate) fn new(
-        files: Arc<OrdMap<FileId, FileEntry>>,
+    pub(crate) fn new(files: TreapRoot, environment: Arc<Environment>) -> Self {
+        Self::with_artifacts(files, environment, TreapRoot::new())
+    }
+
+    /// Build one revision state while inheriting artifact bindings.
+    pub(crate) fn with_artifacts(
+        files: TreapRoot,
         environment: Arc<Environment>,
+        artifacts: TreapRoot,
     ) -> Self {
         Self {
-            files,
+            files: RwLock::new(files),
             environment,
+            artifacts: RwLock::new(artifacts),
             cache: RevisionCache::new(),
         }
     }
@@ -167,18 +175,38 @@ impl RevisionState {
         &self.cache
     }
 
-    /// Return the file content id for one file.
-    pub(crate) fn file_content_id(&self, file_id: FileId) -> Option<ContentId> {
-        self.files.get(&file_id).map(|entry| entry.content_id)
+    /// Return the file binding root.
+    pub(crate) fn files(&self) -> TreapRoot {
+        *self.files.read()
     }
 
-    /// Return the file entry for one file.
-    pub(crate) fn file_entry(&self, file_id: FileId) -> Option<FileEntry> {
-        self.files.get(&file_id).cloned()
+    /// Return the artifact binding root.
+    pub(crate) fn artifacts(&self) -> TreapRoot {
+        *self.artifacts.read()
+    }
+
+    /// Write the file binding root.
+    pub(crate) fn write_files(&self) -> RwLockWriteGuard<'_, TreapRoot> {
+        self.files.write()
+    }
+
+    /// Write the artifact binding root.
+    pub(crate) fn write_artifacts(&self) -> RwLockWriteGuard<'_, TreapRoot> {
+        self.artifacts.write()
+    }
+
+    /// Bind one artifact version in this revision.
+    pub(crate) fn bind_artifact(
+        &self,
+        version: ArtifactVersion,
+        versions: &Treap<ArtifactKey, ArtifactVersion>,
+    ) {
+        let mut artifacts = self.artifacts.write();
+        *artifacts = versions.insert(*artifacts, version.key, version);
     }
 
     /// Hash this revision state into its deterministic revision identity.
     pub(crate) fn revision(&self) -> Revision {
-        Revision::new(stable_hash_value_256(&(&self.files, &self.environment)))
+        Revision::new(stable_hash_value_256(&(&self.files(), &self.environment)))
     }
 }
