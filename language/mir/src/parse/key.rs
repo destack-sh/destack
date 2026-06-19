@@ -2,7 +2,7 @@ use destack_core::StringId;
 
 use crate::{
     Access, Attribute, Copy, Field, FloatType, Lifetime, LocalNodeId, Nullability, ReferenceKind,
-    SignatureParameter, Space, TensorDimension, TensorLayout, TensorViewLayout, Type, TypeId,
+    SignatureParameter, Space, TensorDimension, TensorFormat, TensorViewFormat, Type, TypeId,
     VariantCase,
 };
 
@@ -112,7 +112,7 @@ pub(super) enum TypeKey {
     Tensor {
         element: TypeId,
         shape: Vec<TensorDimension>,
-        layout: TensorLayout,
+        format: TensorFormat,
         copy: Copy,
     },
     /// Tensor view type.
@@ -123,7 +123,7 @@ pub(super) enum TypeKey {
         access: Access,
         element: TypeId,
         shape: Vec<TensorDimension>,
-        layout: TensorViewLayout,
+        format: TensorViewFormat,
         nullability: Nullability,
     },
     /// Bare function signature.
@@ -244,12 +244,12 @@ impl TypeKey {
             Type::Tensor {
                 element,
                 shape,
-                layout,
+                format,
                 copy,
             } => TypeKey::Tensor {
                 element: *element,
                 shape: shape.clone(),
-                layout: layout.clone(),
+                format: format.clone(),
                 copy: *copy,
             },
             Type::TensorView {
@@ -259,7 +259,7 @@ impl TypeKey {
                 access,
                 element,
                 shape,
-                layout,
+                format,
                 nullability,
             } => TypeKey::TensorView {
                 kind: *kind,
@@ -268,7 +268,7 @@ impl TypeKey {
                 access: *access,
                 element: *element,
                 shape: shape.clone(),
-                layout: layout.clone(),
+                format: format.clone(),
                 nullability: *nullability,
             },
 

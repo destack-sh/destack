@@ -255,6 +255,18 @@ impl Tree {
         Lifetime::new(terms)
     }
 
+    /// Return the transparent representation type.
+    pub fn repr_type(&self, mut ty: TypeId) -> TypeId {
+        loop {
+            match self.get(ty) {
+                Type::Newtype { inner, .. } | Type::WithLifetimes { base: inner, .. } => {
+                    ty = *inner;
+                }
+                _ => return ty,
+            }
+        }
+    }
+
     /// Return the explicit lifetime carried by a type.
     pub fn type_lifetime(&self, ty: TypeId) -> Option<Lifetime> {
         let mut visited = HashSet::new();

@@ -130,13 +130,13 @@ entry(v0: slice<int32, borrowed, lifetime(L0), readonly>, v1: tensorView<int32, 
     );
 }
 
-/// Formats tensor shapes and layouts canonically.
+/// Formats tensor shapes and formats canonically.
 #[test]
-fn test_format_tensor_shapes_and_layouts() {
+fn test_format_tensor_shapes_and_formats() {
     assert_format(
         r#"
-function tensors<L0: lifetime>(v0: tensor<float32, (batch, dynamic, 64), layout(dense(columnMajor))>, v1: tensorView<float32, borrowed, lifetime(L0), readonly, (batch, dynamic, 64), layout(strided)>): void {
-entry(v0: tensor<float32, (batch, dynamic, 64), layout(dense(columnMajor))>, v1: tensorView<float32, borrowed, lifetime(L0), readonly, (batch, dynamic, 64), layout(strided)>):
+function tensors<L0: lifetime>(v0: tensor<float32, (batch, dynamic, 64), format(dense(columnMajor))>, v1: tensorView<float32, borrowed, lifetime(L0), readonly, (batch, dynamic, 64), format(strided)>): void {
+entry(v0: tensor<float32, (batch, dynamic, 64), format(dense(columnMajor))>, v1: tensorView<float32, borrowed, lifetime(L0), readonly, (batch, dynamic, 64), format(strided)>):
     return
 }
 "#,

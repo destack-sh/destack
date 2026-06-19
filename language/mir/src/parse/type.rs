@@ -4,7 +4,7 @@ use destack_source::Span;
 use crate::{
     Access, Attribute, BorrowObligation, Copy, Field, FieldSpan, Lifetime, LifetimeParameter,
     LifetimeTerm, LocalNodeId, Nullability, ReferenceKind, SignatureParameter, Space,
-    TensorDimension, TensorDimensionOrder, TensorLayout, TensorViewLayout, Type,
+    TensorDimension, TensorDimensionOrder, TensorFormat, TensorViewFormat, Type,
     TypeDeclarationSpans, TypeId, VariantCase,
 };
 
@@ -779,7 +779,7 @@ impl Parser {
 
         self.eat_token(TokenType::Comma)?;
         let shape = self.parse_tensor_shape()?;
-        let layout = self.parse_optional_tensor_view_layout()?;
+        let format = self.parse_optional_tensor_view_format()?;
         self.eat_token(TokenType::GreaterThan)?;
 
         Ok(Type::TensorView {
@@ -789,7 +789,7 @@ impl Parser {
             access: qualifiers.access,
             element,
             shape,
-            layout,
+            format,
             nullability: qualifiers.nullability,
         })
     }
@@ -841,13 +841,13 @@ impl Parser {
         let (element, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::Comma)?;
         let shape = self.parse_tensor_shape()?;
-        let layout = self.parse_optional_tensor_layout()?;
+        let format = self.parse_optional_tensor_format()?;
         self.eat_token(TokenType::GreaterThan)?;
 
         Ok(Type::Tensor {
             element,
             shape,
-            layout,
+            format,
             copy: Copy::No,
         })
     }
@@ -1100,21 +1100,21 @@ impl Parser {
         })
     }
 
-    /// Parse an optional trailing tensor layout assignment.
-    fn parse_optional_tensor_layout(&mut self) -> ParseResult<TensorLayout> {
+    /// Parse an optional trailing tensor format assignment.
+    fn parse_optional_tensor_format(&mut self) -> ParseResult<TensorFormat> {
         if self.eat_token_maybe(TokenType::Comma) {
-            self.parse_tensor_layout_group()
+            self.parse_tensor_format_group()
         } else {
-            Ok(TensorLayout::dense_row_major())
+            Ok(TensorFormat::dense_row_major())
         }
     }
 
-    /// Parse an optional trailing tensor view layout assignment.
-    fn parse_optional_tensor_view_layout(&mut self) -> ParseResult<TensorViewLayout> {
+    /// Parse an optional trailing tensor view format assignment.
+    fn parse_optional_tensor_view_format(&mut self) -> ParseResult<TensorViewFormat> {
         if self.eat_token_maybe(TokenType::Comma) {
-            self.parse_tensor_view_layout_group()
+            self.parse_tensor_view_format_group()
         } else {
-            Ok(TensorViewLayout::dense_row_major())
+            Ok(TensorViewFormat::dense_row_major())
         }
     }
 
@@ -1158,56 +1158,56 @@ impl Parser {
         Ok(shape)
     }
 
-    /// Parse a grouped tensor layout clause.
-    fn parse_tensor_layout_group(&mut self) -> ParseResult<TensorLayout> {
+    /// Parse a grouped tensor format clause.
+    fn parse_tensor_format_group(&mut self) -> ParseResult<TensorFormat> {
         let token = self.eat_token(TokenType::Identifier)?;
-        if self.tree.source_text(token.span) != "layout" {
-            return Err(ParseError::invalid("layout group", token.start));
+        if self.tree.source_text(token.span) != "format" {
+            return Err(ParseError::invalid("format group", token.start));
         }
         self.eat_token(TokenType::OpenParenthesis)?;
-        let layout = self.parse_tensor_layout()?;
+        let format = self.parse_tensor_format()?;
         self.eat_token(TokenType::CloseParenthesis)?;
-        Ok(layout)
+        Ok(format)
     }
 
-    /// Parse a grouped tensor view layout clause.
-    fn parse_tensor_view_layout_group(&mut self) -> ParseResult<TensorViewLayout> {
+    /// Parse a grouped tensor view format clause.
+    fn parse_tensor_view_format_group(&mut self) -> ParseResult<TensorViewFormat> {
         let token = self.eat_token(TokenType::Identifier)?;
-        if self.tree.source_text(token.span) != "layout" {
-            return Err(ParseError::invalid("layout group", token.start));
+        if self.tree.source_text(token.span) != "format" {
+            return Err(ParseError::invalid("format group", token.start));
         }
         self.eat_token(TokenType::OpenParenthesis)?;
-        let layout = self.parse_tensor_view_layout()?;
+        let format = self.parse_tensor_view_format()?;
         self.eat_token(TokenType::CloseParenthesis)?;
-        Ok(layout)
+        Ok(format)
     }
 
-    /// Parse a tensor layout specifier.
-    fn parse_tensor_layout(&mut self) -> ParseResult<TensorLayout> {
+    /// Parse a tensor format specifier.
+    fn parse_tensor_format(&mut self) -> ParseResult<TensorFormat> {
         let token = self.eat_token(TokenType::Identifier)?;
         match self.tree.source_text(token.span) {
             "dense" => {
                 self.eat_token(TokenType::OpenParenthesis)?;
                 let order = self.parse_tensor_dimension_order()?;
                 self.eat_token(TokenType::CloseParenthesis)?;
-                Ok(TensorLayout::Dense { order })
+                Ok(TensorFormat::Dense { order })
             }
-            _ => Err(ParseError::invalid("tensor layout", token.start)),
+            _ => Err(ParseError::invalid("tensor format", token.start)),
         }
     }
 
-    /// Parse a tensor view layout specifier.
-    fn parse_tensor_view_layout(&mut self) -> ParseResult<TensorViewLayout> {
+    /// Parse a tensor view format specifier.
+    fn parse_tensor_view_format(&mut self) -> ParseResult<TensorViewFormat> {
         let token = self.eat_token(TokenType::Identifier)?;
         match self.tree.source_text(token.span) {
             "dense" => {
                 self.eat_token(TokenType::OpenParenthesis)?;
                 let order = self.parse_tensor_dimension_order()?;
                 self.eat_token(TokenType::CloseParenthesis)?;
-                Ok(TensorViewLayout::Dense { order })
+                Ok(TensorViewFormat::Dense { order })
             }
-            "strided" => Ok(TensorViewLayout::Strided),
-            _ => Err(ParseError::invalid("tensor view layout", token.start)),
+            "strided" => Ok(TensorViewFormat::Strided),
+            _ => Err(ParseError::invalid("tensor view format", token.start)),
         }
     }
 

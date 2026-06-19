@@ -178,28 +178,28 @@ pub enum TensorDimensionOrder {
     ColumnMajor,
 }
 
-/// Layout for an owning tensor value.
+/// Format for an owning tensor value.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum TensorLayout {
-    /// Dense contiguous layout.
+pub enum TensorFormat {
+    /// Dense contiguous format.
     Dense {
         /// The dimension order.
         order: TensorDimensionOrder,
     },
 }
 
-impl TensorLayout {
-    /// Return the default dense row-major tensor layout.
+impl TensorFormat {
+    /// Return the default dense row-major tensor format.
     pub fn dense_row_major() -> Self {
-        TensorLayout::Dense {
+        TensorFormat::Dense {
             order: TensorDimensionOrder::RowMajor,
         }
     }
 }
 
-/// Layout descriptor for a tensor view.
+/// Format descriptor for a tensor view.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum TensorViewLayout {
+pub enum TensorViewFormat {
     /// Dense contiguous view.
     Dense {
         /// The dimension order.
@@ -209,16 +209,16 @@ pub enum TensorViewLayout {
     Strided,
 }
 
-impl TensorViewLayout {
-    /// Return the default dense row-major tensor view layout.
+impl TensorViewFormat {
+    /// Return the default dense row-major tensor view format.
     pub fn dense_row_major() -> Self {
-        TensorViewLayout::Dense {
+        TensorViewFormat::Dense {
             order: TensorDimensionOrder::RowMajor,
         }
     }
 }
 
-/// Dimension size for tensor shapes and layouts.
+/// Dimension size for tensor shapes and formats.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TensorDimension {
     /// Compile time static dimension size.
@@ -368,8 +368,8 @@ pub enum Type {
         element: TypeId,
         /// The static shape.
         shape: Vec<TensorDimension>,
-        /// The tensor layout.
-        layout: TensorLayout,
+        /// The tensor format.
+        format: TensorFormat,
         /// Copy of this tensor type.
         copy: Copy,
     },
@@ -387,8 +387,8 @@ pub enum Type {
         element: TypeId,
         /// The static shape.
         shape: Vec<TensorDimension>,
-        /// The tensor view layout.
-        layout: TensorViewLayout,
+        /// The tensor view format.
+        format: TensorViewFormat,
         /// The nullish values allowed by this view descriptor.
         nullability: Nullability,
     },
@@ -523,7 +523,6 @@ impl Type {
                 | Type::TypeId
                 | Type::Reference { .. }
                 | Type::Vector { .. }
-                | Type::TensorView { .. }
         )
     }
 

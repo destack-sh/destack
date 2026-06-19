@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_core::StringId;
 
-use crate::{LocalNodeId, TraceMap, Type};
+use crate::{LocalNodeId, TensorViewFormat, TraceMap, Type};
 
 /// Canonical layout metadata for one MIR module.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -128,6 +128,26 @@ impl Layout {
             _ => None,
         }
     }
+
+    /// Return the byte width of this layout.
+    pub const fn byte_len(&self) -> usize {
+        self.size as usize
+    }
+
+    /// Return one field by layout index.
+    pub fn field_at(&self, index: u32) -> Option<&LayoutField> {
+        self.shape.fields().get(index as usize)
+    }
+
+    /// Return the field count for field-addressable layouts.
+    pub fn field_count(&self) -> Option<usize> {
+        match &self.shape {
+            LayoutShape::Struct(layout) => Some(layout.fields.len()),
+            LayoutShape::Tuple(layout) => Some(layout.elements.len()),
+            LayoutShape::Object(layout) => Some(layout.fields.len()),
+            _ => None,
+        }
+    }
 }
 
 /// Concrete memory layout shape.
@@ -142,9 +162,15 @@ pub enum LayoutShape {
     /// Tuple storage.
     Tuple(TupleLayout),
     /// Slice header storage.
-    Slice(SliceLayout),
-    /// Array storage.
-    Array(ArrayLayout),
+    Slice,
+    /// Fixed array storage.
+    Array(ElementLayout),
+    /// Vector value storage.
+    Vector(ElementLayout),
+    /// Tensor handle storage.
+    Tensor(TensorLayout),
+    /// Tensor view descriptor storage.
+    TensorView(TensorViewLayout),
     /// Variant value storage.
     Variant(VariantLayout),
     /// Object storage with a dispatch table header.
@@ -158,6 +184,14 @@ pub enum LayoutShape {
 }
 
 impl LayoutShape {
+    /// Return element layout when this shape stores indexed elements inline.
+    pub const fn elements(&self) -> Option<&ElementLayout> {
+        match self {
+            Self::Array(layout) | Self::Vector(layout) => Some(layout),
+            _ => None,
+        }
+    }
+
     /// Return field layouts for field-addressable shapes.
     pub fn fields(&self) -> &[LayoutField] {
         match self {
@@ -166,8 +200,11 @@ impl LayoutShape {
             Self::Object(layout) => &layout.fields,
             Self::None
             | Self::Scalar
-            | Self::Slice(_)
+            | Self::Slice
             | Self::Array(_)
+            | Self::Vector(_)
+            | Self::Tensor(_)
+            | Self::TensorView(_)
             | Self::Variant(_)
             | Self::Dynamic
             | Self::Function
@@ -183,8 +220,11 @@ impl LayoutShape {
             Self::Object(_) => Self::Object(ObjectLayout { fields }),
             Self::None
             | Self::Scalar
-            | Self::Slice(_)
+            | Self::Slice
             | Self::Array(_)
+            | Self::Vector(_)
+            | Self::Tensor(_)
+            | Self::TensorView(_)
             | Self::Variant(_)
             | Self::Dynamic
             | Self::Function
@@ -207,22 +247,35 @@ pub struct TupleLayout {
     pub elements: Vec<LayoutField>,
 }
 
-/// Concrete layout for a slice header.
+/// Layout for inline indexed element storage.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct SliceLayout {
-    /// The slice element type.
-    pub element: LocalNodeId<Type>,
-}
-
-/// Concrete layout for an array.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct ArrayLayout {
-    /// The array element type.
+pub struct ElementLayout {
+    /// The stored element type.
     pub element: LocalNodeId<Type>,
     /// The byte stride between elements.
     pub stride: u32,
-    /// The fixed element count when known.
-    pub count: Option<u32>,
+    /// The fixed element count.
+    pub count: u32,
+}
+
+/// Concrete layout for a tensor handle.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct TensorLayout {
+    /// The tensor element type.
+    pub element: LocalNodeId<Type>,
+    /// The tensor rank.
+    pub rank: u32,
+}
+
+/// Concrete layout for a tensor view descriptor.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TensorViewLayout {
+    /// The viewed element type.
+    pub element: LocalNodeId<Type>,
+    /// The tensor view format.
+    pub format: TensorViewFormat,
+    /// The tensor rank.
+    pub rank: u32,
 }
 
 /// Concrete layout for a variant value.
