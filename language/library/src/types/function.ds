@@ -1,8 +1,13 @@
 /// Callable value type.
 @languageItem("types.Function")
-export newtype Function<Parameters: readonly (...unknown[],) = (), Return = unknown> = (
-    ...parameters: Parameters
-) => Return;
+export newtype Function<Parameters: readonly (...unknown[],) = (), Return = unknown> = intrinsic;
+
+/// Thin callable value type.
+@languageItem("types.FunctionPointer")
+export newtype FunctionPointer<
+    Parameters: readonly (...unknown[],) = (),
+    Return = unknown,
+> = intrinsic;
 
 /// Extract the parameter tuple from a callable type.
 @languageItem("types.Parameters")
