@@ -771,9 +771,9 @@ impl From<&program::ProgramHeader> for ProgramHeader {
     }
 }
 
-impl From<&program::Program> for Program {
+impl From<&program::Program<program::Executable>> for Program {
     /// Convert one program into one bridge program.
-    fn from(program: &program::Program) -> Self {
+    fn from(program: &program::Program<program::Executable>) -> Self {
         Self {
             header: (&program.header).into(),
             format: program.format().into(),

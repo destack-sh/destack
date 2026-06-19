@@ -18,13 +18,13 @@ use crate::{
 };
 use vm::error::{Error, Result};
 use vm::{
-    ClosureObjectLayout, FrameEntry, FunctionTable, Layout, ProgramPoint, ResumeTable, SideTable,
-    TypeTable, closure_object_layout, repr_type,
+    FrameEntry, FunctionObjectLayout, FunctionTable, Layout, ProgramPoint, ResumeTable, SideTable,
+    TypeTable, function_object_layout, repr_type,
 };
 
 /// Durable executable program produced by the toolchain.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Program<T = Executable> {
+pub struct Program<T> {
     /// The program identity and compatibility header.
     pub header: ProgramHeader,
     /// The MIR tree executed by this program.
@@ -80,7 +80,7 @@ impl<T> Program<T> {
     }
 }
 
-impl Program {
+impl Program<Executable> {
     /// Return this program's executable format.
     pub fn format(&self) -> ProgramFormat {
         self.executable.format()
@@ -262,9 +262,9 @@ impl Program<vm::Executable> {
         TypeTable::type_for_storage_id(layout)
     }
 
-    /// Return the closure heap object layout for this program.
-    pub fn closure_object_layout(&self) -> ClosureObjectLayout {
-        closure_object_layout(self.tree.pointer_bytes() as usize)
+    /// Return the function heap object layout for this program.
+    pub fn function_object_layout(&self) -> FunctionObjectLayout {
+        function_object_layout(self.tree.pointer_bytes() as usize)
     }
 
     /// Return the compiled layout for one MIR type.
