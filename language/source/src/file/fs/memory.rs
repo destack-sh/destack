@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::SystemTime;
 
 use parking_lot::RwLock;
 
@@ -51,8 +50,6 @@ struct MemoryFileSystemState {
 struct MemoryFileEntry {
     /// The file contents.
     content: Vec<u8>,
-    /// The last modification time.
-    modified_at: SystemTime,
 }
 
 impl MemoryFileSystem {
@@ -81,7 +78,6 @@ impl MemoryFileSystem {
             path.to_path_buf(),
             MemoryFileEntry {
                 content: content.to_vec(),
-                modified_at: SystemTime::now(),
             },
         );
         Ok(())
@@ -126,7 +122,7 @@ impl FileSystem for MemoryFileSystem {
                 false,
                 false,
                 entry.content.len() as u64,
-                Some(entry.modified_at),
+                None,
             ))
         } else {
             Err(io::Error::new(
