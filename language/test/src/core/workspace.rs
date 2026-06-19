@@ -1,20 +1,20 @@
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
-use destack_artifact::{ArtifactKey, MemoryCacheStore};
+use destack_artifact::{ArtifactKey, MemoryBlobStore};
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Query;
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, FormatterOptions, LinterOptions, Ref,
-    Repository, Revision, Settings,
+    DestackLayout, DestackLayoutOverride, Edit, Environment, FormatterOptions, Host, LinterOptions,
+    Ref, Repository, Revision, Settings,
 };
 use destack_session::Session;
 use destack_source::{
     Content, DiagnosticCollection, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId,
 };
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 /// One shared in memory workspace for suite execution.
 #[derive(Debug)]
@@ -45,11 +45,10 @@ impl SharedMemoryWorkspace {
             &DestackLayoutOverride::default(),
             None,
         );
+        let host = Host::new(environment, fs.clone(), Arc::new(MemoryBlobStore::new()));
         let repository = Arc::new(Repository::new(
             root.clone(),
-            Arc::new(MemoryCacheStore::new()),
-            fs.clone(),
-            environment,
+            host,
             Settings::default(),
             layout,
         ));
@@ -105,14 +104,8 @@ pub fn open_repository_with_options(
         &DestackLayoutOverride::default(),
         None,
     );
-    let repository = Arc::new(Repository::new(
-        root,
-        Arc::new(MemoryCacheStore::new()),
-        fs,
-        environment,
-        Settings::default(),
-        layout,
-    ));
+    let host = Host::new(environment, fs, Arc::new(MemoryBlobStore::new()));
+    let repository = Arc::new(Repository::new(root, host, Settings::default(), layout));
     let root = repository.path().to_path_buf();
     materialize_workspace_root(repository.clone(), &root);
     materialize_workspace_options(repository.as_ref(), formatter, linter);

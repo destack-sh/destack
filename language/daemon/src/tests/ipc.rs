@@ -3,8 +3,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::time::Duration;
 
-use destack_artifact::DiskCacheStore;
-use destack_repository::{DestackLayout, DestackLayoutOverride, Environment, Repository, Settings};
+use destack_artifact::DiskBlobStore;
+use destack_repository::{
+    DestackLayout, DestackLayoutOverride, Environment, Host, Repository, Settings,
+};
 use destack_source::{FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem};
 
 use crate::daemon::{DaemonEndpoint, DaemonServer, DaemonServerOptions};
@@ -147,11 +149,10 @@ impl TestIpcDaemon {
             &overrides,
             None,
         );
+        let host = Host::new(environment, file_system, Arc::new(DiskBlobStore::new()));
         let repository = Arc::new(Repository::new(
             root.root().to_path_buf(),
-            Arc::new(DiskCacheStore::new()),
-            file_system,
-            environment,
+            host,
             Settings::default(),
             layout,
         ));

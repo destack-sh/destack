@@ -5,13 +5,13 @@ use std::sync::{Arc, mpsc};
 use std::time::Duration;
 use std::{io, thread};
 
-use destack_artifact::{EmitFormat, MemoryCacheStore, Platform, Runtime};
+use destack_artifact::{EmitFormat, MemoryBlobStore, Platform, Runtime};
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Query;
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Environment, Mode, Profile, Ref, Repository, Revision,
-    Settings,
+    DestackLayout, DestackLayoutOverride, Environment, Host, Mode, Profile, Ref, Repository,
+    Revision, Settings,
 };
 use destack_session::Session;
 use destack_source::{FileSystem, MemoryFileSystem, ModuleId, TargetId};
@@ -301,11 +301,10 @@ pub fn setup_test_environment(test: &MdTestCase) -> (Arc<Repository>, PathBuf, P
         &DestackLayoutOverride::default(),
         None,
     );
+    let host = Host::new(environment, fs, Arc::new(MemoryBlobStore::new()));
     let repository = Arc::new(Repository::new(
         cwd.clone(),
-        Arc::new(MemoryCacheStore::new()),
-        fs,
-        environment,
+        host,
         Settings::default(),
         layout,
     ));

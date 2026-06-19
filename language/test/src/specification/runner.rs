@@ -3,11 +3,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use destack_artifact::{ArtifactKey, MemoryCacheStore};
+use destack_artifact::{ArtifactKey, MemoryBlobStore};
 use destack_compiler::Compiler;
 use destack_parser::source_colorizer;
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Environment, Repository, Revision, Settings,
+    DestackLayout, DestackLayoutOverride, Environment, Host, Repository, Revision, Settings,
     parse_jsonc_file,
 };
 use destack_source::{
@@ -169,14 +169,8 @@ fn run_specification_test(test: &MdTestCase) -> CaseResult {
             &DestackLayoutOverride::default(),
             None,
         );
-        let repository = Arc::new(Repository::new(
-            cwd,
-            Arc::new(MemoryCacheStore::new()),
-            fs.clone(),
-            environment,
-            Settings::default(),
-            layout,
-        ));
+        let host = Host::new(environment, fs.clone(), Arc::new(MemoryBlobStore::new()));
+        let repository = Arc::new(Repository::new(cwd, host, Settings::default(), layout));
         crate::mdtest::setup_test_environment_with_repository(test, repository, fs, root)
     };
     let prefer_native = test_option_bool(test, "native").unwrap_or(false);

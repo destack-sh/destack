@@ -6,13 +6,14 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread::{self, JoinHandle};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use destack_artifact::MemoryCacheStore;
+use destack_artifact::MemoryBlobStore;
 use destack_daemon::Daemon;
 use destack_daemon::protocol::{
     Client, DaemonRequest, Server, ServerError, loopback_transport_pair,
 };
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, Ref, Repository, Revision, Settings,
+    DestackLayout, DestackLayoutOverride, Edit, Environment, Host, Ref, Repository, Revision,
+    Settings,
 };
 use destack_source::{FileSystem, MemoryFileSystem, MemoryFileWatcher};
 use serde_json::{Value, json};
@@ -53,11 +54,10 @@ impl TestProgram {
             &DestackLayoutOverride::default(),
             None,
         );
+        let host = Host::new(environment, fs.clone(), Arc::new(MemoryBlobStore::new()));
         let repository = Arc::new(Repository::new(
             root.clone(),
-            Arc::new(MemoryCacheStore::new()),
-            fs.clone(),
-            environment,
+            host,
             Settings::default(),
             layout,
         ));

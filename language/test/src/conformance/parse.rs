@@ -3,12 +3,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use destack_artifact::{ArtifactKey, MemoryCacheStore};
+use destack_artifact::{ArtifactKey, MemoryBlobStore};
 use destack_compiler::{Compiler, ImportError};
 use destack_core::StringPool;
 use destack_parser::{Parser, ParserOptions, source_colorizer};
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Environment, Repository, Revision, Settings,
+    DestackLayout, DestackLayoutOverride, Environment, Host, Repository, Revision, Settings,
 };
 use destack_source::{
     Content, DiagnosticCollection, DiagnosticSeverity, File, FileId, FileSystem, FileType,
@@ -167,11 +167,10 @@ impl SharedConformanceEnvironment {
             &DestackLayoutOverride::default(),
             None,
         );
+        let host = Host::new(environment, fs.clone(), Arc::new(MemoryBlobStore::new()));
         let repository = Arc::new(Repository::new(
             cwd.clone(),
-            Arc::new(MemoryCacheStore::new()),
-            fs.clone(),
-            environment,
+            host,
             Settings::default(),
             layout,
         ));

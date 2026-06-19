@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
-use destack_artifact::MemoryCacheStore;
+use destack_artifact::MemoryBlobStore;
 use destack_repository::{DestackLayoutOverride, Ref, Repository, Revision, Settings};
 use destack_session::open_repository_from_fs;
 use destack_source::{
@@ -125,7 +125,7 @@ impl TestDaemon {
                 DestackLayoutOverride::default(),
             )
             .expect("failed to import repository from test file system")
-            .with_cache_store(Arc::new(MemoryCacheStore::new())),
+            .with_blob_store(Arc::new(MemoryBlobStore::new())),
         );
 
         let daemon = Daemon::new_with_watcher(repository.clone(), 1, None, watcher.clone())

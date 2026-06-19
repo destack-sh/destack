@@ -7,7 +7,7 @@ use std::sync::{Arc, LazyLock, Once};
 use destack_artifact::{
     ArtifactDependencySet, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactProvider,
     ArtifactSidecar, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay, DiagnosticError,
-    DirParsed, DirParsedFile, MemoryCacheStore, ToDiagnostic,
+    DirParsed, DirParsedFile, MemoryBlobStore, ToDiagnostic,
 };
 use destack_compiler::Compiler;
 use destack_core::StringPool;
@@ -35,9 +35,9 @@ use crate::{
     LintRunReport, LintRunner,
 };
 
-/// Shared memory cache store for linter tests.
-static TEST_CACHE_STORE: LazyLock<Arc<MemoryCacheStore>> =
-    LazyLock::new(|| Arc::new(MemoryCacheStore::new()));
+/// Shared memory blob store for linter tests.
+static TEST_BLOB_STORE: LazyLock<Arc<MemoryBlobStore>> =
+    LazyLock::new(|| Arc::new(MemoryBlobStore::new()));
 
 /// Process wide per lib-set warmers for prelude profile setup.
 static PRELUDE_WARMERS: LazyLock<Mutex<HashMap<Vec<String>, Arc<Once>>>> =
@@ -693,7 +693,7 @@ impl TestProgram {
                 DestackLayoutOverride::default(),
             )
             .expect("failed to import repository from linter test file system")
-            .with_cache_store(TEST_CACHE_STORE.clone()),
+            .with_blob_store(TEST_BLOB_STORE.clone()),
         );
 
         // profile
