@@ -108,7 +108,7 @@ impl Compiler {
     ) -> Option<LocalTypeId> {
         // unwrap value types when needed
         match state.type_table().get_type(type_id) {
-            Type::Function(function) => function.return_type,
+            Type::FunctionSignature(function) => function.return_type,
             Type::Form(value) => self.return_type_from_type_id(state, value.value),
             _ => None,
         }

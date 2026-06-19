@@ -488,7 +488,7 @@ impl ModuleLowerer<'_> {
         };
         let key = self.lower_static_key(source_id, field.key)?;
         let field = match self.require_type(field.ty)? {
-            dir::Type::Function(_) => {
+            dir::Type::FunctionSignature(_) => {
                 let signature =
                     self.lower_semantic_function_type_declaration(source_id, field.ty)?;
                 js::TypeMember::Method {
@@ -583,7 +583,7 @@ impl ModuleLowerer<'_> {
         source_id: dir::LocalNodeIdAny,
         ty_id: dir::GlobalTypeId,
     ) -> Result<js::FunctionTypeDeclaration, EmitError> {
-        let dir::Type::Function(function) = self.require_type(ty_id)?.clone() else {
+        let dir::Type::FunctionSignature(function) = self.require_type(ty_id)?.clone() else {
             return Err(self.unsupported_construct(
                 source_id.into_global(self.module.id),
                 Some("semantic function signature lowering expected a function type".to_string()),
@@ -967,7 +967,7 @@ impl ModuleLowerer<'_> {
                 self.tree
                     .insert_from_source_any(ty, self.module.id, source_id)
             }
-            dir::Type::Function(_) => {
+            dir::Type::FunctionSignature(_) => {
                 let signature = self.lower_semantic_function_type_declaration(source_id, ty_id)?;
                 let ty = js::TypeExpression::FunctionTypeDeclaration(signature);
                 self.tree
