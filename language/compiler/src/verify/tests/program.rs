@@ -128,7 +128,7 @@ impl TestProgram {
             .tree
             .iter_nodes::<mir::Type>()
             .find_map(|(id, ty)| match ty {
-                mir::Type::Dynamic { constraint: found } if *found == constraint.into() => Some(id),
+                mir::Type::Dynamic { constraint: found } if *found == constraint => Some(id),
                 _ => None,
             })
             .unwrap_or_else(|| panic!("missing dynamic MIR type for {name}"));

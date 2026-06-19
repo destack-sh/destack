@@ -113,10 +113,7 @@ fn run_loop_simplify(
                     .filter(|&&eb| {
                         let block = tree.get(eb);
                         let terminator = tree.get(block.terminator);
-                        terminator
-                            .successors(tree)
-                            .iter()
-                            .any(|target| *target == exit_block)
+                        terminator.successors(tree).contains(&exit_block)
                     })
                     .copied()
                     .collect();

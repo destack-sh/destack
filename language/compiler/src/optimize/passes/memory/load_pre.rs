@@ -214,8 +214,8 @@ fn run_load_pre(
             // allocate a new block parameter for the load value
             let param_value = function.next_typed_value(load.result_type);
             let param = mir::BlockParameter {
-                value: param_value.into(),
-                ty: load.result_type.into(),
+                value: param_value,
+                ty: load.result_type,
             };
             let mut updated_block = tree.get(block_id).clone();
             updated_block.parameters.push(param);
