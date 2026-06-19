@@ -19,7 +19,7 @@ use crate::pipeline::watch::{
 use crate::pipeline::workspace::{load_destack_config_for_program, workspace_context};
 use clap::Args;
 use destack_daemon::WatchPolicy;
-use destack_repository::TraceReport;
+use destack_repository::TraceSnapshot;
 
 /// State for build watch mode.
 struct BuildWatchState {
@@ -172,7 +172,7 @@ fn run_build_via_daemon(args: &BuildArgs, target_name: &str) -> i32 {
         let timings = data
             .as_ref()
             .and_then(|value| value.get("timings"))
-            .and_then(|value| serde_json::from_value::<TraceReport>(value.clone()).ok());
+            .and_then(|value| serde_json::from_value::<TraceSnapshot>(value.clone()).ok());
         if let Some(report) = timings {
             println!("{}", render_stage_summary(&report));
             if args.timings {

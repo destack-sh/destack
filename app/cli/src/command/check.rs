@@ -20,7 +20,7 @@ use destack_daemon::WatchPolicy;
 use destack_daemon::protocol::{
     CommandCheckOptions, CommandLintOptions, CommandPayload, CommonCommandOptions,
 };
-use destack_repository::TraceReport;
+use destack_repository::TraceSnapshot;
 
 /// State for check watch mode.
 struct CheckWatchState {
@@ -209,7 +209,7 @@ fn run_check_via_daemon(
         let timings = data
             .as_ref()
             .and_then(|value| value.get("timings"))
-            .and_then(|value| serde_json::from_value::<TraceReport>(value.clone()).ok());
+            .and_then(|value| serde_json::from_value::<TraceSnapshot>(value.clone()).ok());
         if let Some(report) = timings {
             println!("{}", render_stage_summary(&report));
             if args.timings {

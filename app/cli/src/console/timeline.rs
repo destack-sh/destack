@@ -1,4 +1,4 @@
-use destack_repository::TraceReport;
+use destack_repository::TraceSnapshot;
 
 use super::console::{Stream, bold, color, color_enabled, dim};
 
@@ -14,7 +14,7 @@ const SLOWEST_COUNT: usize = 8;
 /// ```text
 /// parse 450ms · sema 6.1s · lower 320ms · emit 95ms (wall 2.1s, 8 workers)
 /// ```
-pub fn render_stage_summary(report: &TraceReport) -> String {
+pub fn render_stage_summary(report: &TraceSnapshot) -> String {
     // a run without provider work was served from cache
     if report.stages.is_empty() {
         return dim("all artifacts cached").to_string();
@@ -64,7 +64,7 @@ struct TimelineKind {
 /// Each worker draws one lane; every cell shows the artifact kind that
 /// owned most of its slice of wall time. The glyph encodes the stage,
 /// the color encodes the artifact kind.
-pub fn render_timeline(report: &TraceReport) -> String {
+pub fn render_timeline(report: &TraceSnapshot) -> String {
     if report.artifacts.is_empty() || report.total_micros == 0 {
         return String::new();
     }
@@ -166,11 +166,11 @@ pub fn render_timeline(report: &TraceReport) -> String {
         ));
     }
 
-    // the slowest ready artifacts carry the useful names
+    // show named terminal attempts after the worker lanes
     let mut slowest = report
         .artifacts
         .iter()
-        .filter(|artifact| artifact.outcome == "ready")
+        .filter(|artifact| artifact.outcome != "blocked")
         .collect::<Vec<_>>();
     slowest.sort_by_key(|artifact| std::cmp::Reverse(artifact.micros));
     if !slowest.is_empty() {

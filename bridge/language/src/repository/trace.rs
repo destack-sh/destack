@@ -81,8 +81,8 @@ pub struct TraceCounter {
 }
 
 impl TraceReport {
-    /// Convert one repository trace report into one bridge trace report.
-    pub fn from_repository(value: repository::TraceReport) -> Self {
+    /// Convert one repository trace snapshot into one bridge trace report.
+    pub fn from_repository(value: repository::TraceSnapshot) -> Self {
         Self {
             total_micros: value.total_micros,
             workers: value.workers,
@@ -113,7 +113,7 @@ impl TraceReport {
 
 impl TraceStage {
     /// Convert one repository stage report into one bridge trace stage.
-    fn from_repository(value: repository::TraceStageReport) -> Self {
+    fn from_repository(value: repository::TraceStageSnapshot) -> Self {
         Self {
             name: value.name,
             micros: value.micros,
@@ -123,7 +123,7 @@ impl TraceStage {
 
 impl TraceArtifact {
     /// Convert one repository artifact report into one bridge trace artifact.
-    fn from_repository(value: repository::ArtifactAttemptReport) -> Self {
+    fn from_repository(value: repository::ArtifactAttemptSnapshot) -> Self {
         Self {
             name: value.name,
             stage: value.stage,
@@ -149,7 +149,7 @@ impl TraceArtifact {
 
 impl TraceSpan {
     /// Convert one repository span report into one bridge trace span.
-    fn from_repository(value: repository::TraceSpanReport) -> Self {
+    fn from_repository(value: repository::TraceSpanSnapshot) -> Self {
         Self {
             name: value.name,
             start_micros: value.start_micros,
@@ -160,7 +160,7 @@ impl TraceSpan {
 
 impl TraceCounter {
     /// Convert one repository counter report into one bridge trace counter.
-    fn from_repository(value: repository::TraceCounterReport) -> Self {
+    fn from_repository(value: repository::TraceCounterSnapshot) -> Self {
         Self {
             name: value.name,
             value: value.value,

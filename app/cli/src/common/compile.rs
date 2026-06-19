@@ -11,7 +11,7 @@ use destack_repository::{Ref, Repository, Revision};
 use destack_session::{Edit, Session, SessionEventHandler};
 use destack_source::{DiagnosticCollection, FileType, ModuleId, ProfileId, TargetId};
 
-use crate::common::{print_diagnostics, DiagnosticArgs, InputArgs, InputSource, ProgramArgs};
+use crate::common::{DiagnosticArgs, InputArgs, InputSource, ProgramArgs, print_diagnostics};
 use crate::console;
 use crate::error::{CliError, CliResult};
 

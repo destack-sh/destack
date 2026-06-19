@@ -954,6 +954,7 @@ dependencies = [
  "console",
  "destack_artifact",
  "destack_compiler",
+ "destack_core",
  "destack_daemon",
  "destack_dir",
  "destack_fir",
@@ -1387,6 +1388,7 @@ dependencies = [
  "fs2",
  "im",
  "indexmap",
+ "js-sys",
  "parking_lot",
  "postcard",
  "regex",
@@ -1396,6 +1398,7 @@ dependencies = [
  "serde_json",
  "tracing",
  "tracing-subscriber",
+ "wasm-bindgen",
 ]
 
 [[package]]

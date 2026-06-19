@@ -41,7 +41,8 @@ required-features = ["schema"]
 [dependencies]
 # language
 destack_artifact = { workspace = true }
-destack_compiler = { workspace = true }
+destack_compiler = { workspace = true, features = ["native"] }
+destack_core = { workspace = true }
 destack_dir = { workspace = true }
 destack_program = { workspace = true }
 destack_fir = { workspace = true }
@@ -53,7 +54,7 @@ destack_parser = { workspace = true }
 destack_query = { workspace = true }
 destack_repository = { workspace = true }
 destack_runtime = { workspace = true }
-destack_session = { workspace = true }
+destack_session = { workspace = true, features = ["native"] }
 destack_source = { workspace = true }
 destack_vm = { workspace = true }
 

@@ -32,10 +32,10 @@ url = { workspace = true }
 
 [dev-dependencies]
 clap = { workspace = true }
-destack_compiler = { workspace = true }
+destack_compiler = { workspace = true, features = ["native"] }
 destack_fir = { workspace = true }
 destack_formatter = { workspace = true }
-destack_session = { workspace = true }
+destack_session = { workspace = true, features = ["native"] }
 
 [lints]
 workspace = true

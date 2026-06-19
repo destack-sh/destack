@@ -4,9 +4,9 @@ use destack_artifact::ArtifactKey;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
+use super::CommandResult;
 use super::context::{CommandContext, SelectedTarget};
 use super::dispatch::CommandOutcome;
-use super::CommandResult;
 
 /// Options for the build command.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
