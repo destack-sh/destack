@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use std::thread::{Builder, JoinHandle};
 
-use destack_artifact::{ArtifactKey, ArtifactOutcome, ArtifactVersion};
-use destack_repository::{Parallelism, Revision};
+use destack_artifact::{ArtifactFlush, ArtifactKey, ArtifactOutcome, ArtifactVersion};
+use destack_repository::{Execution, Revision};
 
 use super::run::ArtifactRun;
 use super::scheduler::Scheduler;
@@ -10,15 +10,15 @@ use super::task::Task;
 use super::worker::Worker;
 use crate::{Session, SessionError, SessionEvent, SessionState};
 
-/// Parallel executor for session owned artifact work.
+/// Executor for session-owned artifact work.
 #[derive(Debug)]
 pub(crate) struct Executor {
     /// Shared session state for provider execution.
     state: Arc<SessionState>,
     /// Shared scheduler for artifact work.
     scheduler: Arc<Scheduler>,
-    /// Parallel execution available to this executor.
-    parallelism: Parallelism,
+    /// Execution available to this executor.
+    execution: Execution,
     /// Fixed session worker pool.
     workers: Vec<JoinHandle<()>>,
 }
@@ -34,11 +34,11 @@ impl Executor {
         }
 
         let scheduler = Arc::new(Scheduler::new());
-        let parallelism = state.repository().host().parallelism();
+        let execution = state.repository().host().execution();
         let mut workers = Vec::new();
 
         // spawn fixed workers when the host supports threads
-        if parallelism == Parallelism::Threads {
+        if execution == Execution::Threaded {
             workers.reserve(worker_count);
             for worker_index in 0..worker_count {
                 let worker = Worker {
@@ -62,7 +62,7 @@ impl Executor {
         Ok(Arc::new(Self {
             state,
             scheduler,
-            parallelism,
+            execution,
             workers,
         }))
     }
@@ -96,24 +96,10 @@ impl Executor {
         });
 
         // drive executor workers until roots become terminal
-        let result = trace.span("execute", || match self.parallelism {
-            Parallelism::Threads => self.wait_for_run(run.as_ref()),
-            Parallelism::Inline => self.run_inline(run.as_ref()),
+        let result = trace.span("execute", || match self.execution {
+            Execution::Threaded => self.wait_for_run(run.as_ref()),
+            Execution::Inline => self.run_inline(run.as_ref()),
         });
-
-        // publish pending records to the persistent artifact store
-        let flush_result = trace.span("flush", || {
-            self.state
-                .repository()
-                .flush_artifacts()
-                .map_err(SessionError::from)
-        });
-        if let Ok(flush) = &flush_result {
-            trace.record_counter("flush_segments", flush.segments as u64);
-            trace.record_counter("flush_records", flush.records as u64);
-            trace.record_counter("flush_strings", flush.strings as u64);
-            trace.record_counter("flush_bytes", flush.bytes as u64);
-        }
 
         // detach scheduler state and publish the completed trace
         trace.span("cleanup", || {
@@ -124,7 +110,7 @@ impl Executor {
         });
         trace.finish();
 
-        result.and(flush_result.map(|_| ()))
+        result
     }
 
     /// Require one artifact version for an immutable revision.
@@ -138,7 +124,7 @@ impl Executor {
         let Some(version) = self
             .state
             .repository()
-            .artifact_version(revision, &artifact_key)?
+            .current_artifact_version(revision, &artifact_key)?
         else {
             return Err(SessionError::Internal {
                 detail: format!(
@@ -177,13 +163,13 @@ impl Executor {
                 return Ok(());
             }
 
-            let Some((claimed_run, task)) = self.scheduler.claim_ready() else {
+            let Some((claimed_run, task, pending_set)) = self.scheduler.claim_ready() else {
                 return Err(SessionError::Internal {
                     detail: "session inline executor stalled with unfinished roots".to_string(),
                 });
             };
 
-            if let Err(error) = worker.provide_task(claimed_run.as_ref(), task) {
+            if let Err(error) = worker.provide_task(claimed_run.as_ref(), task, pending_set) {
                 claimed_run.abort(error);
                 self.scheduler.notify();
             }
@@ -255,5 +241,12 @@ impl Session {
         artifact_key: ArtifactKey,
     ) -> Result<ArtifactVersion, SessionError> {
         self.executor.require(revision, artifact_key)
+    }
+
+    /// Persist queued artifact records for this session repository.
+    pub fn flush_artifacts(&self) -> Result<ArtifactFlush, SessionError> {
+        self.repository()
+            .flush_artifacts()
+            .map_err(SessionError::from)
     }
 }

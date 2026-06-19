@@ -1,13 +1,17 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use destack_artifact::{ArtifactKey, ArtifactVersion, MemoryBlobStore};
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Query;
-use destack_repository::{DestackLayoutOverride, Environment, Ref, Repository, Revision, Settings};
-use destack_source::{FileSystem, MemoryFileSystem};
+use destack_repository::{
+    DestackLayoutOverride, Environment, Execution, Host, Ref, Repository, Revision, Settings,
+    TraceSnapshot,
+};
+use destack_source::{FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
 
-use crate::{Change, Commit, Edit, Session, SessionError, open_repository_from_fs};
+use crate::{Change, Commit, Edit, Session, SessionError, open_repository};
 
 const DEFAULT_ROOT: &str = "/workspace";
 
@@ -44,10 +48,15 @@ impl TestSession {
                 .expect("test file should write");
         }
 
-        let repository = open_repository_from_fs(
-            PathBuf::from(input.as_ref()),
-            fs.clone(),
+        let host = Host::new(
             Environment::default(),
+            fs.clone(),
+            Arc::new(MemoryBlobStore::new()),
+        )
+        .with_execution(Execution::Inline);
+        let repository = open_repository(
+            PathBuf::from(input.as_ref()),
+            host,
             Settings::default(),
             DestackLayoutOverride::default(),
         )?;
@@ -105,12 +114,37 @@ impl TestSession {
             .expect("test session should edit")
     }
 
+    /// Replace one source file through the session.
+    pub(crate) fn edit_text(&self, path: &str, text: &str) -> Commit {
+        let edit = Edit::SetText {
+            path: path.into(),
+            text: text.into(),
+        };
+
+        self.edit(vec![edit])
+    }
+
     /// Load one module from the memory filesystem.
     pub(crate) fn load_module(&self, path: &str) {
         let path = self.root.join(path);
         self.session
             .load_module_from_fs(&self.head(), &path)
             .expect("test module should load");
+    }
+
+    /// Check one module target.
+    pub(crate) fn check(&self, path: &str, target: &str) -> (ArtifactVersion, TraceSnapshot) {
+        let revision = self.revision();
+        let module = self.module_id(path, revision);
+        let profile = self.profile_id(revision, module, target);
+        let key = ArtifactKey::dir_checked(module, profile);
+        let version = self
+            .session
+            .require(revision, key)
+            .expect("test artifact should be required");
+        let trace = self.trace();
+
+        (version, trace)
     }
 
     /// Assert the selected source root.
@@ -185,6 +219,40 @@ impl TestSession {
     /// Return the default session ref.
     fn head(&self) -> Ref {
         Ref::for_root(&self.root)
+    }
+
+    /// Return one module id at one revision.
+    fn module_id(&self, path: &str, revision: Revision) -> ModuleId {
+        self.repository
+            .module_id_for_path(revision, &self.root.join(path))
+            .expect("test module should resolve")
+            .expect("test module should exist")
+    }
+
+    /// Return one profile id at one revision.
+    fn profile_id(&self, revision: Revision, module: ModuleId, target: &str) -> ProfileId {
+        let module = self
+            .repository
+            .module(revision, module)
+            .expect("test module should load")
+            .expect("test module should exist");
+        let target = TargetId::new(module.package_id, target);
+        let profile = self
+            .repository
+            .profile_for_module_target(revision, module.id, target)
+            .expect("test profile should resolve");
+
+        profile.id()
+    }
+
+    /// Return the latest detailed trace snapshot.
+    fn trace(&self) -> TraceSnapshot {
+        let trace = self
+            .session
+            .last_trace()
+            .expect("test trace should be recorded");
+
+        trace.snapshot(true, |_| None, |_| None)
     }
 
     /// Return editable repository files at the current head.
