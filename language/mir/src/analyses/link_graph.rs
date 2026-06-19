@@ -463,7 +463,7 @@ fn function_inline_cost(function: &Function, tree: &Tree) -> u32 {
 /// Return the symbol whose address one instruction takes, if any.
 fn address_target(instruction: &Instruction, tree: &Tree) -> Option<Symbol> {
     match instruction {
-        Instruction::FunctionAddr { function, .. } | Instruction::ClosureBind { function, .. } => {
+        Instruction::FunctionAddr { function, .. } | Instruction::FunctionBind { function, .. } => {
             Some(tree.get(*function).symbol)
         }
         Instruction::GlobalAddr { global, .. } => Some(tree.get(*global).symbol),

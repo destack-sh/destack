@@ -71,14 +71,14 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::NewUninit { .. }
                 | Instruction::FrameAllocZeroed { .. }
                 | Instruction::FrameAllocUninit { .. } => {}
-                Instruction::ClosureBind { environment, .. } => {
+                Instruction::FunctionBind { environment, .. } => {
                     Self::replace_value_in_slot(environment, from, to);
                 }
-                Instruction::ClosureFunction { closure, .. }
-                | Instruction::ClosureEnvironment { closure, .. } => {
-                    Self::replace_value_in_slot(closure, from, to);
+                Instruction::FunctionPointer { function, .. }
+                | Instruction::FunctionEnvironment { function, .. } => {
+                    Self::replace_value_in_slot(function, from, to);
                 }
-                Instruction::ClosureEnvironmentCurrent { .. } => {}
+                Instruction::FunctionEnvironmentCurrent { .. } => {}
                 Instruction::Binary { left, right, .. } => {
                     Self::replace_value_in_slot(left, from, to);
                     Self::replace_value_in_slot(right, from, to);

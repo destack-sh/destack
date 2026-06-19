@@ -134,8 +134,8 @@ pub(super) enum TypeKey {
     },
     /// Function pointer type.
     FunctionPointer { signature: TypeId },
-    /// Closure value.
-    Closure {
+    /// Function value.
+    Function {
         signature: TypeId,
         environment: TypeId,
     },
@@ -284,10 +284,10 @@ impl TypeKey {
             Type::FunctionPointer { signature } => TypeKey::FunctionPointer {
                 signature: *signature,
             },
-            Type::Closure {
+            Type::Function {
                 signature,
                 environment,
-            } => TypeKey::Closure {
+            } => TypeKey::Function {
                 signature: *signature,
                 environment: *environment,
             },

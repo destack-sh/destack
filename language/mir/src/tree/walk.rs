@@ -203,7 +203,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
         Type::FunctionPointer { signature } => {
             walk_type_id(visitor, tree, signature);
         }
-        Type::Closure {
+        Type::Function {
             signature,
             environment,
         } => {

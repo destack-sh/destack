@@ -104,8 +104,8 @@ pub enum BuildError {
         /// The else value type.
         else_type: LocalNodeId<Type>,
     },
-    /// A closure environment was requested with a different type than the existing environment.
-    MismatchedClosureEnvironment {
+    /// A function environment was requested with a different type than the existing environment.
+    MismatchedFunctionEnvironment {
         /// The environment type already recorded on the function.
         existing: TypeId,
         /// The newly requested environment type.
@@ -216,13 +216,13 @@ impl std::fmt::Display for BuildError {
                     "select expects matching value types: {then_type:?} and {else_type:?}"
                 )
             }
-            Self::MismatchedClosureEnvironment {
+            Self::MismatchedFunctionEnvironment {
                 existing,
                 requested,
             } => {
                 write!(
                     formatter,
-                    "closure environment type mismatch: existing {existing:?}, requested {requested:?}"
+                    "function environment type mismatch: existing {existing:?}, requested {requested:?}"
                 )
             }
             Self::UndefinedVariable { variable, block } => {

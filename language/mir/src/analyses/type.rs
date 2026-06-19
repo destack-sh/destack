@@ -121,15 +121,15 @@ pub enum TypeKey {
         parameters: Vec<(TypeKey, Vec<mir::BorrowObligation>)>,
         result: Box<TypeKey>,
     },
-    /// Function pointer type.
-    FunctionPointer { signature: Box<TypeKey> },
-    /// Closure value type.
-    Closure {
+    /// Function value type.
+    Function {
         /// The bare function signature.
         signature: Box<TypeKey>,
         /// The captured environment representation.
         environment: Box<TypeKey>,
     },
+    /// Function pointer type.
+    FunctionPointer { signature: Box<TypeKey> },
     /// Recursive reference to a previously visited type id.
     Recursive { id: mir::LocalNodeId<mir::Type> },
 }
@@ -347,10 +347,10 @@ impl TypeKey {
             mir::Type::FunctionPointer { signature } => TypeKey::FunctionPointer {
                 signature: Box::new(Self::from_type_id(signature, tree)),
             },
-            mir::Type::Closure {
+            mir::Type::Function {
                 signature,
                 environment,
-            } => TypeKey::Closure {
+            } => TypeKey::Function {
                 signature: Box::new(Self::from_type_id(signature, tree)),
                 environment: Box::new(Self::from_type_id(environment, tree)),
             },
@@ -642,13 +642,13 @@ fn types_are_equal_inner(
             mir::Type::FunctionPointer { signature: s2 },
         ) => type_ids_are_equal(s1, s2, tree, visiting),
 
-        // closures: compare signature and environment
+        // functions: compare signature and environment
         (
-            mir::Type::Closure {
+            mir::Type::Function {
                 signature: s1,
                 environment: e1,
             },
-            mir::Type::Closure {
+            mir::Type::Function {
                 signature: s2,
                 environment: e2,
             },

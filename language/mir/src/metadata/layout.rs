@@ -151,8 +151,8 @@ pub enum LayoutShape {
     Object(ObjectLayout),
     /// Runtime dynamic value layout.
     Dynamic,
-    /// Runtime closure storage.
-    Closure,
+    /// Runtime function value storage.
+    Function,
     /// Transparent nominal storage.
     Newtype(NewtypeLayout),
 }
@@ -170,7 +170,7 @@ impl LayoutShape {
             | Self::Array(_)
             | Self::Variant(_)
             | Self::Dynamic
-            | Self::Closure
+            | Self::Function
             | Self::Newtype(_) => &[],
         }
     }
@@ -187,7 +187,7 @@ impl LayoutShape {
             | Self::Array(_)
             | Self::Variant(_)
             | Self::Dynamic
-            | Self::Closure
+            | Self::Function
             | Self::Newtype(_) => self,
         }
     }

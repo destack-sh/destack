@@ -518,15 +518,15 @@ impl Parser {
         })
     }
 
-    /// Parse a tuple or closure type.
+    /// Parse a tuple or function value type.
     fn parse_parenthesized_type(&mut self) -> ParseResult<Type> {
         let parameters = self.parse_parenthesized_type_parameters()?;
 
         if self.eat_token_maybe(TokenType::FatArrow) {
             let signature = self.parse_signature_result(Vec::new(), parameters)?;
-            let environment = self.tree.ensure_closure_environment_type();
+            let environment = self.tree.ensure_function_environment_type();
 
-            return Ok(Type::Closure {
+            return Ok(Type::Function {
                 signature,
                 environment,
             });

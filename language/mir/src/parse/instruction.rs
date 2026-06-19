@@ -371,32 +371,32 @@ impl Parser {
                             function,
                         }
                     }
-                    "closure.bind" => {
+                    "function.bind" => {
                         let function = self.parse_function_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
                         let environment = self.parse_value_segment(&mut segment_spans)?;
-                        Instruction::ClosureBind {
+                        Instruction::FunctionBind {
                             destination,
                             function,
                             environment,
                         }
                     }
-                    "closure.function" => {
-                        let closure = self.parse_value_segment(&mut segment_spans)?;
-                        Instruction::ClosureFunction {
+                    "function.pointer" => {
+                        let function = self.parse_value_segment(&mut segment_spans)?;
+                        Instruction::FunctionPointer {
                             destination,
-                            closure,
+                            function,
                         }
                     }
-                    "closure.environment" => {
-                        let closure = self.parse_value_segment(&mut segment_spans)?;
-                        Instruction::ClosureEnvironment {
+                    "function.environment" => {
+                        let function = self.parse_value_segment(&mut segment_spans)?;
+                        Instruction::FunctionEnvironment {
                             destination,
-                            closure,
+                            function,
                         }
                     }
-                    "closure.environment.current" => {
-                        Instruction::ClosureEnvironmentCurrent { destination }
+                    "function.environment.current" => {
+                        Instruction::FunctionEnvironmentCurrent { destination }
                     }
 
                     // memory operations

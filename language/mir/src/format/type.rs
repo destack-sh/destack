@@ -480,7 +480,7 @@ fn format_type_inner<'a>(
             parameters,
             result,
         } => format_function_signature(lifetimes, parameters, *result, f),
-        Type::FunctionPointer { signature } | Type::Closure { signature, .. } => {
+        Type::FunctionPointer { signature } | Type::Function { signature, .. } => {
             let signature_type = f.context().tree.get(*signature);
             if let Type::FunctionSignature {
                 lifetimes,

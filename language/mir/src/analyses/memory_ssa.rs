@@ -767,10 +767,10 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::Select { .. }
             | mir::Instruction::GlobalAddr { .. }
             | mir::Instruction::FunctionAddr { .. }
-            | mir::Instruction::ClosureBind { .. }
-            | mir::Instruction::ClosureEnvironment { .. }
-            | mir::Instruction::ClosureFunction { .. }
-            | mir::Instruction::ClosureEnvironmentCurrent { .. }
+            | mir::Instruction::FunctionBind { .. }
+            | mir::Instruction::FunctionEnvironment { .. }
+            | mir::Instruction::FunctionPointer { .. }
+            | mir::Instruction::FunctionEnvironmentCurrent { .. }
             | mir::Instruction::LocalAddr { .. }
             | mir::Instruction::Struct { .. }
             | mir::Instruction::Tuple { .. }

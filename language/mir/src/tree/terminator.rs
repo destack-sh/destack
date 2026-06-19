@@ -279,7 +279,7 @@ pub enum Terminator {
     },
     /// Indirect call with an explicit continuation.
     CallIndirect {
-        /// The function pointer or closure value to call.
+        /// The function pointer or function value to call.
         callee: Value,
         /// The shared call payload.
         call: Call<ValueSlice>,
@@ -389,7 +389,7 @@ pub enum Terminator {
     },
     /// Tail call through a function pointer.
     TailCallIndirect {
-        /// The function pointer or closure value to tail call.
+        /// The function pointer or function value to tail call.
         callee: Value,
         /// The shared call payload.
         call: Call<ValueSlice>,
