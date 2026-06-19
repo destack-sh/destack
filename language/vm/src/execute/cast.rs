@@ -6,8 +6,8 @@ use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
 use destack_program::vm::{
-    CellLayout, FloatCast, FloatToIntCast, FrameSelect, Instruction, IntToFloatCast, IntegerCast,
-    PointerCast, WideIntegerCast,
+    AggregateSelect, CellLayout, FloatCast, FloatToIntCast, Instruction, IntToFloatCast,
+    IntegerCast, PointerCast, WideIntegerCast,
 };
 
 /// Execute one lowered cell cast.
@@ -505,18 +505,18 @@ pub(crate) fn execute_select_cell(
     Ok(())
 }
 
-/// Execute frame select op.
-pub(crate) fn execute_select_frame(
+/// Execute aggregate select op.
+pub(crate) fn execute_select_aggregate(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let FrameSelect {
+    let AggregateSelect {
         destination_offset,
         condition_offset,
         then_offset,
         else_offset,
         byte_len,
-    } = activation.side::<FrameSelect>(instruction);
+    } = activation.side::<AggregateSelect>(instruction);
 
     // select the source frame value
     let condition = activation.load_cell_at(*condition_offset).as_bool();

@@ -47,7 +47,7 @@ impl<'a> BlockLowerer<'a> {
         let byte_len = destination_slot.byte_len;
 
         Ok(Instruction::new(
-            Op::MoveFrame,
+            Op::MoveAggregate,
             destination_slot.offset,
             byte_len,
             local_slot.offset,
@@ -64,7 +64,7 @@ impl<'a> BlockLowerer<'a> {
         let local = self.local_index(local)?;
 
         Ok(Instruction::new(
-            Op::AddressLocal,
+            Op::LocalAddress,
             cell_offset(self, destination)?,
             local,
             0,
@@ -99,7 +99,7 @@ impl<'a> BlockLowerer<'a> {
         let byte_len = local_slot.byte_len;
 
         Ok(Instruction::new(
-            Op::MoveFrame,
+            Op::MoveAggregate,
             local_slot.offset,
             byte_len,
             value_slot.offset,
@@ -114,7 +114,7 @@ impl<'a> BlockLowerer<'a> {
         global: mir::GlobalId,
     ) -> Result<Instruction> {
         Ok(Instruction::new(
-            Op::AddressStatic,
+            Op::StaticAddress,
             cell_offset(self, destination)?,
             global.id,
             0,
@@ -129,7 +129,7 @@ impl<'a> BlockLowerer<'a> {
         function: mir::FunctionId,
     ) -> Result<Instruction> {
         Ok(Instruction::new(
-            Op::AddressFunction,
+            Op::FunctionAddress,
             cell_offset(self, destination)?,
             function.id,
             0,

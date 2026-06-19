@@ -15,9 +15,10 @@ use crate::diagnostic::{Error, RuntimeError, RuntimeResult, StackTraceFrame};
 use crate::lower::lower_program_with_heap_options;
 use crate::options::{LimitOptions, MachineOptions};
 use crate::{Cell, Result as VmResult};
+use destack_program::Program;
+use destack_program::vm::Executable;
 #[cfg(test)]
 use destack_program::vm::Layout;
-use destack_program::vm::Program;
 
 use super::{Continuation, ContinuationImage, Frame, FrameSnapshot, Stack, StackImage};
 
@@ -27,7 +28,7 @@ pub type Outcome = program::Outcome<Continuation, program::Value>;
 /// Durable VM execution state.
 pub struct Machine {
     /// Immutable program shared by this machine.
-    pub(crate) program: Arc<Program>,
+    pub(crate) program: Arc<Program<Executable>>,
     /// Configuration options for this machine.
     pub(crate) options: MachineOptions,
 
@@ -43,7 +44,7 @@ pub struct Machine {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MachineImage {
     /// The immutable program shared by this machine.
-    pub program: Arc<Program>,
+    pub program: Arc<Program<Executable>>,
     /// The machine configuration options.
     pub options: MachineOptions,
     /// The captured stack bytes.
@@ -472,7 +473,7 @@ impl Machine {
 
     /// Restore stack and frames from one immutable image.
     pub(crate) fn restore_stack_and_frames(
-        program: &Program,
+        program: &Program<Executable>,
         stack_image: &StackImage,
         frame_images: &[FrameSnapshot],
         options: &MachineOptions,
@@ -496,7 +497,7 @@ impl Machine {
     #[cold]
     pub(crate) fn runtime_error_with_program(
         &self,
-        program: &Program,
+        program: &Program<Executable>,
         error: Error,
     ) -> RuntimeError {
         match self.call_stack(program) {
@@ -523,7 +524,7 @@ impl Machine {
     }
 
     /// Return the current call stack for error reporting.
-    fn call_stack(&self, program: &Program) -> VmResult<Vec<StackTraceFrame>> {
+    fn call_stack(&self, program: &Program<Executable>) -> VmResult<Vec<StackTraceFrame>> {
         self.frames
             .iter()
             .map(|frame| {
@@ -544,7 +545,7 @@ impl Machine {
     /// Visit mutable heap root slots from active frames and suspended continuations.
     pub(crate) fn visit_root_slots_with_program(
         &mut self,
-        program: &Program,
+        program: &Program<Executable>,
         local_static: &mut StaticSpace,
         continuations: &mut [Continuation],
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
@@ -572,7 +573,7 @@ impl Machine {
     }
 
     /// Require a host pointer width compatible with the program layout.
-    fn require_host_pointer_width(program: &Program) -> RuntimeResult<()> {
+    fn require_host_pointer_width(program: &Program<Executable>) -> RuntimeResult<()> {
         let pointer_bytes = program.tree().metadata.data_layout.pointer_bytes;
         let host_pointer_bytes = HeapReference::BYTE_LEN as u8;
 

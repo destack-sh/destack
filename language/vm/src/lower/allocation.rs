@@ -132,7 +132,7 @@ impl<'a> BlockLowerer<'a> {
         }
 
         Ok(Instruction::new(
-            Op::MoveFrame,
+            Op::MoveAggregate,
             destination_slot.offset,
             destination_slot.byte_len,
             value_slot.offset,

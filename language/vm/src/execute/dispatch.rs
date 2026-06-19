@@ -54,77 +54,95 @@ macro_rules! dispatch_instruction {
 
         match instruction.op {
             Op::LoadConstCell => $step!(super::execute_load_const_cell($activation, instruction)),
-            Op::LoadConstBytes => $step!(super::execute_load_const_bytes($activation, instruction)),
+            Op::LoadConstAggregate => $step!(super::execute_load_const_aggregate(
+                $activation,
+                instruction
+            )),
             Op::MoveCell => $step!(super::execute_move_cell($activation, instruction)),
-            Op::MoveFrame => $step!(super::execute_move_frame($activation, instruction)),
-            Op::LoadHeapBytes => {
-                $step!(super::execute_load_heap_bytes($activation, instruction))
+            Op::MoveAggregate => $step!(super::execute_move_aggregate($activation, instruction)),
+            Op::LoadHeapAggregate => {
+                $step!(super::execute_load_heap_aggregate($activation, instruction))
             }
-            Op::LoadSharedHeapBytes => {
-                $step!(super::execute_load_shared_heap_bytes(
+            Op::LoadSharedHeapAggregate => {
+                $step!(super::execute_load_shared_heap_aggregate(
                     $activation,
                     instruction
                 ))
             }
-            Op::LoadRawBytes => {
-                $step!(super::execute_load_raw_bytes($activation, instruction))
+            Op::LoadRawAggregate => {
+                $step!(super::execute_load_raw_aggregate($activation, instruction))
             }
-            Op::LoadStackBytes => {
-                $step!(super::execute_load_stack_bytes($activation, instruction))
-            }
-            Op::LoadFrameBytes => {
-                $step!(super::execute_load_frame_bytes($activation, instruction))
-            }
-            Op::LoadStaticBytes => {
-                $step!(super::execute_load_static_bytes($activation, instruction))
-            }
-            Op::StoreHeapBytes => {
-                $step!(super::execute_store_heap_bytes($activation, instruction))
-            }
-            Op::StoreSharedHeapBytes => {
-                $step!(super::execute_store_shared_heap_bytes(
+            Op::LoadStackAggregate => {
+                $step!(super::execute_load_stack_aggregate(
                     $activation,
                     instruction
                 ))
             }
-            Op::StoreRawBytes => {
-                $step!(super::execute_store_raw_bytes($activation, instruction))
+            Op::LoadFrameAggregate => {
+                $step!(super::execute_load_frame_aggregate(
+                    $activation,
+                    instruction
+                ))
             }
-            Op::StoreStackBytes => {
-                $step!(super::execute_store_stack_bytes($activation, instruction))
+            Op::LoadStaticAggregate => {
+                $step!(super::execute_load_static_aggregate(
+                    $activation,
+                    instruction
+                ))
             }
-            Op::StoreFrameBytes => {
-                $step!(super::execute_store_frame_bytes($activation, instruction))
+            Op::StoreHeapAggregate => {
+                $step!(super::execute_store_heap_aggregate(
+                    $activation,
+                    instruction
+                ))
             }
-            Op::StoreStaticBytes => {
-                $step!(super::execute_store_static_bytes($activation, instruction))
+            Op::StoreSharedHeapAggregate => {
+                $step!(super::execute_store_shared_heap_aggregate(
+                    $activation,
+                    instruction
+                ))
+            }
+            Op::StoreRawAggregate => {
+                $step!(super::execute_store_raw_aggregate($activation, instruction))
+            }
+            Op::StoreStackAggregate => {
+                $step!(super::execute_store_stack_aggregate(
+                    $activation,
+                    instruction
+                ))
+            }
+            Op::StoreFrameAggregate => {
+                $step!(super::execute_store_frame_aggregate(
+                    $activation,
+                    instruction
+                ))
+            }
+            Op::StoreStaticAggregate => {
+                $step!(super::execute_store_static_aggregate(
+                    $activation,
+                    instruction
+                ))
             }
             Op::SelectCell => $step!(super::execute_select_cell($activation, instruction)),
-            Op::SelectFrame => $step!(super::execute_select_frame($activation, instruction)),
-            Op::AddressLocal => $step!(super::execute_address_local($activation, instruction)),
-            Op::AddressStatic => $step!(super::execute_address_static($activation, instruction)),
-            Op::AddressFunction => {
-                $step!(super::execute_address_function($activation, instruction))
+            Op::SelectAggregate => {
+                $step!(super::execute_select_aggregate($activation, instruction))
             }
-            Op::BindClosureCell => {
-                $step!(super::execute_bind_closure_cell($activation, instruction))
+            Op::LocalAddress => $step!(super::execute_local_address($activation, instruction)),
+            Op::StaticAddress => $step!(super::execute_static_address($activation, instruction)),
+            Op::FunctionAddress => {
+                $step!(super::execute_function_address($activation, instruction))
             }
-            Op::BindClosureAddress => {
-                $step!(super::execute_bind_closure_address(
-                    $activation,
-                    instruction
-                ))
+            Op::FunctionBind => {
+                $step!(super::execute_function_bind($activation, instruction))
             }
-            Op::LoadClosureFunction => {
-                $step!({ super::execute_load_closure_function($activation, instruction) })
+            Op::FunctionPointer => {
+                $step!({ super::execute_function_pointer($activation, instruction) })
             }
-            Op::LoadClosureEnvironment => {
-                $step!({ super::execute_load_closure_environment($activation, instruction) })
+            Op::FunctionEnvironment => {
+                $step!({ super::execute_function_environment($activation, instruction) })
             }
-            Op::LoadClosureEnvironmentCurrent => {
-                $step!({
-                    super::execute_load_closure_environment_current($activation, instruction)
-                })
+            Op::FunctionEnvironmentCurrent => {
+                $step!({ super::execute_function_environment_current($activation, instruction) })
             }
             Op::LoadHeapU8 => $step!(super::execute_load_heap_scalar::<1, false>(
                 $activation,
@@ -518,8 +536,8 @@ macro_rules! dispatch_instruction {
                     instruction
                 ))
             }
-            Op::AddressStaticOffset => {
-                $step!(super::execute_address_static_offset(
+            Op::StaticAddressOffset => {
+                $step!(super::execute_static_address_offset(
                     $activation,
                     instruction
                 ))
@@ -551,8 +569,8 @@ macro_rules! dispatch_instruction {
                     instruction
                 ))
             }
-            Op::AddressStaticElement => {
-                $step!(super::execute_address_static_element(
+            Op::StaticAddressElement => {
+                $step!(super::execute_static_address_element(
                     $activation,
                     instruction
                 ))
@@ -587,8 +605,8 @@ macro_rules! dispatch_instruction {
                     instruction
                 ))
             }
-            Op::AddressStaticSliceElement => {
-                $step!(super::execute_address_static_slice_element(
+            Op::StaticAddressSliceElement => {
+                $step!(super::execute_static_address_slice_element(
                     $activation,
                     instruction
                 ))
@@ -996,97 +1014,103 @@ macro_rules! dispatch_instruction {
             Op::CastTensorView => $step!(super::execute_tensor_view_cast($activation, instruction)),
             Op::Call => $transfer!(super::execute_call($activation, instruction, $block_pc)),
             Op::CallBranch => $transfer!(super::execute_call_branch($activation, instruction)),
-            Op::CallIndirect => {
-                $transfer!(super::execute_call_indirect(
+            Op::CallFunctionPointer => {
+                $transfer!(super::execute_call_function_pointer(
                     $activation,
                     instruction,
                     $block_pc
                 ))
             }
-            Op::CallClosure => {
-                $transfer!(super::execute_call_closure(
+            Op::CallFunction => {
+                $transfer!(super::execute_call_function(
                     $activation,
                     instruction,
                     $block_pc
                 ))
             }
-            Op::CallIndirectBranch => {
-                $transfer!(super::execute_call_indirect_branch(
+            Op::CallFunctionPointerBranch => {
+                $transfer!(super::execute_call_function_pointer_branch(
                     $activation,
                     instruction
                 ))
             }
-            Op::CallClosureBranch => {
-                $transfer!(super::execute_call_closure_branch($activation, instruction))
+            Op::CallFunctionBranch => {
+                $transfer!(super::execute_call_function_branch(
+                    $activation,
+                    instruction
+                ))
             }
-            Op::CallVirtualHeap => $transfer!(super::execute_call_virtual_heap(
+            Op::CallVirtualLocal => $transfer!(super::execute_call_virtual_local(
                 $activation,
                 instruction,
                 $block_pc
             )),
-            Op::CallVirtualSharedHeap => $transfer!({
-                super::execute_call_virtual_shared_heap($activation, instruction, $block_pc)
+            Op::CallVirtualShared => $transfer!({
+                super::execute_call_virtual_shared($activation, instruction, $block_pc)
             }),
-            Op::CallVirtualHeapBranch => {
-                $transfer!(super::execute_call_virtual_heap_branch(
+            Op::CallVirtualLocalBranch => {
+                $transfer!(super::execute_call_virtual_local_branch(
                     $activation,
                     instruction
                 ))
             }
-            Op::CallVirtualSharedHeapBranch => {
-                $transfer!(super::execute_call_virtual_shared_heap_branch(
+            Op::CallVirtualSharedBranch => {
+                $transfer!(super::execute_call_virtual_shared_branch(
                     $activation,
                     instruction
                 ))
             }
-            Op::CallDynamicHeap => $transfer!(super::execute_call_dynamic_heap(
+            Op::CallDynamicLocal => $transfer!(super::execute_call_dynamic_local(
                 $activation,
                 instruction,
                 $block_pc
             )),
-            Op::CallDynamicSharedHeap => $transfer!({
-                super::execute_call_dynamic_shared_heap($activation, instruction, $block_pc)
+            Op::CallDynamicShared => $transfer!({
+                super::execute_call_dynamic_shared($activation, instruction, $block_pc)
             }),
-            Op::CallDynamicHeapBranch => {
-                $transfer!(super::execute_call_dynamic_heap_branch(
+            Op::CallDynamicLocalBranch => {
+                $transfer!(super::execute_call_dynamic_local_branch(
                     $activation,
                     instruction
                 ))
             }
-            Op::CallDynamicSharedHeapBranch => {
-                $transfer!(super::execute_call_dynamic_shared_heap_branch(
+            Op::CallDynamicSharedBranch => {
+                $transfer!(super::execute_call_dynamic_shared_branch(
                     $activation,
                     instruction
                 ))
             }
             Op::TailCall => $transfer!(super::execute_tail_call($activation, instruction)),
             Op::TailCallSelf => $transfer!(super::execute_tail_call_self($activation, instruction)),
-            Op::TailCallIndirect => {
-                $transfer!(super::execute_tail_call_indirect($activation, instruction))
-            }
-            Op::TailCallClosure => {
-                $transfer!(super::execute_tail_call_closure($activation, instruction))
-            }
-            Op::TailCallVirtualHeap => {
-                $transfer!(super::execute_tail_call_virtual_heap(
+            Op::TailCallFunctionPointer => {
+                $transfer!(super::execute_tail_call_function_pointer(
                     $activation,
                     instruction
                 ))
             }
-            Op::TailCallVirtualSharedHeap => {
-                $transfer!(super::execute_tail_call_virtual_shared_heap(
+            Op::TailCallFunction => {
+                $transfer!(super::execute_tail_call_function($activation, instruction))
+            }
+            Op::TailCallVirtualLocal => {
+                $transfer!(super::execute_tail_call_virtual_local(
                     $activation,
                     instruction
                 ))
             }
-            Op::TailCallDynamicHeap => {
-                $transfer!(super::execute_tail_call_dynamic_heap(
+            Op::TailCallVirtualShared => {
+                $transfer!(super::execute_tail_call_virtual_shared(
                     $activation,
                     instruction
                 ))
             }
-            Op::TailCallDynamicSharedHeap => {
-                $transfer!(super::execute_tail_call_dynamic_shared_heap(
+            Op::TailCallDynamicLocal => {
+                $transfer!(super::execute_tail_call_dynamic_local(
+                    $activation,
+                    instruction
+                ))
+            }
+            Op::TailCallDynamicShared => {
+                $transfer!(super::execute_tail_call_dynamic_shared(
                     $activation,
                     instruction
                 ))

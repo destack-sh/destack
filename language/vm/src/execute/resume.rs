@@ -5,7 +5,8 @@ use super::frame::{FrameValue, store_frame_value};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Frame, Machine};
 use destack_mir as mir;
-use destack_program::vm::{FrameBinding, Program};
+use destack_program::Program;
+use destack_program::vm::{Executable, FrameBinding};
 
 /// Saved frame value used while binding parameters.
 enum SavedFrameValue {
@@ -71,7 +72,7 @@ impl Machine {
     /// Enter one frame state in an existing frame.
     pub(crate) fn enter_frame_state(
         &mut self,
-        program: &Program,
+        program: &Program<Executable>,
         frame_index: usize,
         frame_state_id: program::FrameStateId,
         received_value: Option<FrameValue>,
@@ -140,7 +141,7 @@ impl Machine {
     /// Enter one frame state in the current caller frame from one frame value.
     pub(crate) fn enter_caller_state(
         &mut self,
-        program: &Program,
+        program: &Program<Executable>,
         frame_state_id: program::FrameStateId,
         value: FrameValue,
     ) -> RuntimeResult<()> {

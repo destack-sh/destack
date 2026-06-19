@@ -3,13 +3,14 @@ use destack_program as program;
 
 use super::Frame;
 use crate::diagnostic::Error;
-use destack_program::vm::{Layout, Program};
+use destack_program::Program;
+use destack_program::vm::{Executable, Layout};
 
 impl Frame {
     /// Visit mutable heap root slots in this frame.
     pub(crate) fn visit_root_slots(
         &mut self,
-        program: &Program,
+        program: &Program<Executable>,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Error> {
         let layout = frame_layout(program, self)?;
@@ -22,7 +23,7 @@ impl Frame {
     /// Visit mutable heap root slots materialized at one safepoint.
     pub(crate) fn visit_materialized_root_slots(
         &mut self,
-        program: &Program,
+        program: &Program<Executable>,
         materialization: &program::FrameMaterialization,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Error> {
@@ -49,7 +50,7 @@ fn visit_frame_slots(
         visit(slot)?;
     }
 
-    // closure environment
+    // function environment
     if let Some(slot) = layout.environment() {
         visit(slot)?;
     }
@@ -73,7 +74,7 @@ pub(crate) fn visit_materialized_slots(
 
 /// Visit mutable heap roots stored in one frame slot byte range.
 pub(crate) fn visit_frame_slot_root_slots(
-    program: &Program,
+    program: &Program<Executable>,
     slot: &program::FrameSlot,
     bytes: &mut [u8],
     visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
@@ -102,7 +103,7 @@ pub(crate) fn visit_frame_slot_root_slots(
 
 /// Return the physical frame layout for one live frame.
 fn frame_layout<'a>(
-    program: &'a Program,
+    program: &'a Program<Executable>,
     frame: &Frame,
 ) -> Result<&'a program::FrameLayout, Error> {
     let function = frame.function();
@@ -116,7 +117,7 @@ fn frame_layout<'a>(
 
 /// Return the physical frame layout for one materialization.
 fn materialized_layout<'a>(
-    program: &'a Program,
+    program: &'a Program<Executable>,
     materialization: &program::FrameMaterialization,
 ) -> Result<&'a program::FrameLayout, Error> {
     program
@@ -131,7 +132,7 @@ fn materialized_layout<'a>(
 
 /// Return the physical layout for one frame slot.
 fn frame_slot_layout<'a>(
-    program: &'a Program,
+    program: &'a Program<Executable>,
     slot: &program::FrameSlot,
 ) -> Result<&'a Layout, Error> {
     program.layout_for_storage_id(slot.layout).ok_or_else(|| {

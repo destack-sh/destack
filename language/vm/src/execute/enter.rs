@@ -9,7 +9,8 @@ use super::frame::{
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Activation, Frame, Outcome};
 use crate::options::LimitOptions;
-use destack_program::vm::{ArgumentRange, CallTarget, Function, MoveRange, Program};
+use destack_program::Program;
+use destack_program::vm::{ArgumentRange, CallTarget, Executable, Function, MoveRange};
 
 /// Local lowered function target.
 struct LocalFunction<'a> {
@@ -20,7 +21,7 @@ struct LocalFunction<'a> {
 impl Activation<'_> {
     /// Require one local function from one call target.
     fn require_local_function<'a>(
-        program: &'a Program,
+        program: &'a Program<Executable>,
         function_id: mir::LocalNodeId<mir::Function>,
         target: CallTarget,
     ) -> RuntimeResult<LocalFunction<'a>> {
@@ -44,7 +45,7 @@ impl Activation<'_> {
     /// Return the runtime boundary error for one imported call.
     fn imported_call_error(
         &self,
-        program: &Program,
+        program: &Program<Executable>,
         function_id: mir::LocalNodeId<mir::Function>,
     ) -> RuntimeError {
         let function = program.tree().get(function_id);
@@ -56,7 +57,7 @@ impl Activation<'_> {
     /// Push one local call frame on the stack.
     fn push_call_frame(
         &mut self,
-        program: &Program,
+        program: &Program<Executable>,
         limits: LimitOptions,
         current_func: &Function,
         callee: LocalFunction<'_>,
@@ -134,7 +135,7 @@ impl Activation<'_> {
     /// Reuse the current frame for one lowered tail call.
     fn reuse_tail_call_frame(
         &mut self,
-        program: &Program,
+        program: &Program<Executable>,
         callee: LocalFunction<'_>,
         arguments: &[FrameValue],
         env: Option<Cell>,
@@ -190,7 +191,7 @@ impl Activation<'_> {
     /// Complete one call from the current frame.
     pub(crate) fn complete_call(
         &mut self,
-        program: &Program,
+        program: &Program<Executable>,
         limits: LimitOptions,
         current_func: &Function,
         function: u32,
@@ -226,7 +227,7 @@ impl Activation<'_> {
     /// Complete one call terminator from the current frame.
     pub(crate) fn complete_call_branch(
         &mut self,
-        program: &Program,
+        program: &Program<Executable>,
         limits: LimitOptions,
         current_func: &Function,
         function: u32,
@@ -275,7 +276,7 @@ impl Activation<'_> {
     /// Complete one tail call in the current frame.
     pub(crate) fn complete_tail_call(
         &mut self,
-        program: &Program,
+        program: &Program<Executable>,
         current_func: &Function,
         function: u32,
         target: CallTarget,

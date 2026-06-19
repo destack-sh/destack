@@ -3,13 +3,14 @@ use crate::Cell;
 use super::frame::{frame_value_from_cell, materialize_value, store_frame_value};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Activation, Outcome};
-use destack_program::vm::Program;
+use destack_program::Program;
+use destack_program::vm::Executable;
 
 impl Activation<'_> {
     /// Complete one return call.
     pub(crate) fn complete_return(
         &mut self,
-        program: &Program,
+        program: &Program<Executable>,
         value: Cell,
     ) -> RuntimeResult<Option<Outcome>> {
         // capture the returned value before the callee frame goes away

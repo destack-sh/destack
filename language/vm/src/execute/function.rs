@@ -5,16 +5,16 @@ use crate::diagnostic::Error;
 use crate::machine::Activation;
 use destack_mir as mir;
 
-use destack_program::vm::{CellLayout, ClosureEnvironment, ClosureObjectLayout};
+use destack_program::vm::{CellLayout, FunctionEnvironment, FunctionObjectLayout};
 
 use super::access;
 
-/// Decode one closure object into function and environment values.
-fn decode_closure_object(
+/// Decode one function object into function and environment values.
+fn decode_function_object(
     activation: &mut Activation<'_>,
     reference: HeapReference,
 ) -> Result<(Cell, Cell), Error> {
-    let layout = activation.machine.program.closure_object_layout();
+    let layout = activation.machine.program.function_object_layout();
     let base_address = activation.heap_address(reference, 0);
 
     // split the two pointer fields
@@ -39,8 +39,8 @@ fn decode_closure_object(
     Ok((function, environment_value))
 }
 
-/// Encode one cell closure environment into pointer-sized bits.
-fn encode_closure_cell_environment(
+/// Encode one cell function environment into pointer-sized bits.
+fn encode_function_cell_environment(
     activation: &mut Activation<'_>,
     layout: CellLayout,
     environment_offset: u32,
@@ -50,8 +50,8 @@ fn encode_closure_cell_environment(
     layout.encode(environment)
 }
 
-/// Encode one frame closure environment into pointer-sized bits.
-fn encode_closure_address_environment(
+/// Encode one aggregate function environment into pointer-sized bits.
+fn encode_function_aggregate_environment(
     activation: &mut Activation<'_>,
     layout: mir::LayoutId,
     byte_len: usize,
@@ -68,29 +68,29 @@ fn encode_closure_address_environment(
     Ok(environment_reference.bits() as u64)
 }
 
-/// Encode one closure environment into pointer-sized bits.
-fn encode_closure_environment(
+/// Encode one function environment into pointer-sized bits.
+fn encode_function_environment(
     activation: &mut Activation<'_>,
-    environment: ClosureEnvironment,
+    environment: FunctionEnvironment,
     environment_offset: u32,
 ) -> Result<u64, Error> {
     match environment {
-        ClosureEnvironment::Cell { layout } => Ok(encode_closure_cell_environment(
+        FunctionEnvironment::Cell { layout } => Ok(encode_function_cell_environment(
             activation,
             layout,
             environment_offset,
         )),
-        ClosureEnvironment::Frame { layout, byte_len } => {
-            encode_closure_address_environment(activation, layout, byte_len, environment_offset)
+        FunctionEnvironment::Aggregate { layout, byte_len } => {
+            encode_function_aggregate_environment(activation, layout, byte_len, environment_offset)
         }
     }
 }
 
-/// Bind one function and encoded environment into a closure value.
-fn bind_closure_object(
+/// Bind one function and encoded environment into a function value.
+fn bind_function_object(
     activation: &mut Activation<'_>,
-    closure_layout: mir::LayoutId,
-    object_layout: ClosureObjectLayout,
+    function_layout: mir::LayoutId,
+    object_layout: FunctionObjectLayout,
     function: Cell,
     environment_bits: u64,
 ) -> Result<Cell, Error> {
@@ -109,41 +109,45 @@ fn bind_closure_object(
     bytes[object_layout.environment_offset..environment_end]
         .copy_from_slice(&environment_bytes[..pointer_bytes]);
 
-    // allocate the closure object
-    let reference = activation.allocate_heap_layout_bytes(closure_layout, bytes)?;
+    // allocate the function object
+    let reference = activation.allocate_heap_layout_bytes(function_layout, bytes)?;
 
     Ok(Cell::heap_reference(reference))
 }
 
-/// Bind one function and environment into a closure value.
-pub(crate) fn bind_closure(
+/// Bind one function and environment into a function value.
+pub(crate) fn bind_function(
     activation: &mut Activation<'_>,
-    closure_layout: mir::LayoutId,
-    object_layout: ClosureObjectLayout,
+    function_layout: mir::LayoutId,
+    object_layout: FunctionObjectLayout,
     function: Cell,
-    environment: ClosureEnvironment,
+    environment: FunctionEnvironment,
     environment_offset: u32,
 ) -> Result<Cell, Error> {
-    let environment_bits = encode_closure_environment(activation, environment, environment_offset)?;
+    let environment_bits =
+        encode_function_environment(activation, environment, environment_offset)?;
 
-    bind_closure_object(
+    bind_function_object(
         activation,
-        closure_layout,
+        function_layout,
         object_layout,
         function,
         environment_bits,
     )
 }
 
-/// Decode one closure value into function and environment values.
-pub(crate) fn decode_closure(
+/// Decode one function value into function and environment values.
+pub(crate) fn decode_function(
     activation: &mut Activation<'_>,
     value: Cell,
 ) -> Result<(Cell, Cell), Error> {
     let reference = value.as_heap_reference();
     if activation.is_heap_live(reference) {
-        return decode_closure_object(activation, reference);
+        return decode_function_object(activation, reference);
     }
 
-    Err(Error::type_mismatch("closure object", format!("{value:?}")))
+    Err(Error::type_mismatch(
+        "function object",
+        format!("{value:?}"),
+    ))
 }

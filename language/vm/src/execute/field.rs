@@ -89,7 +89,7 @@ pub(crate) fn execute_address_frame_offset(
 }
 
 /// Execute fixed-offset address on static addresses.
-pub(crate) fn execute_address_static_offset(
+pub(crate) fn execute_static_address_offset(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {

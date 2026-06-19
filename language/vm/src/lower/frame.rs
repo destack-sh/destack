@@ -87,7 +87,7 @@ impl<'a> BlockLowerer<'a> {
             )]);
         }
 
-        // move non-cell fields as frame bytes
+        // move non-cell fields as aggregate ranges
         let destination_access = FrameRange {
             value_type: destination_type,
             byte_offset: 0,
@@ -192,7 +192,7 @@ impl<'a> BlockLowerer<'a> {
         value: mir::Value,
         range: FrameRange,
     ) -> Result<Instruction> {
-        // move non-cell values as frame bytes
+        // move non-cell values as aggregate ranges
         if cell_layout_from_type(self.tree, range.value_type).is_none() {
             let destination_access = range.into();
             let source_access = FrameRange {
@@ -306,7 +306,7 @@ fn move_frame_instruction(
     let source_offset = value_offset(lowerer, source)? + source_access.byte_offset as u32;
 
     Ok(Instruction::new(
-        Op::MoveFrame,
+        Op::MoveAggregate,
         destination_offset,
         destination_access.byte_len as u32,
         source_offset,

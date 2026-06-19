@@ -7,7 +7,8 @@ use super::{
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::options::MachineOptions;
 use destack_heap::{HeapResult, RootSlot};
-use destack_program::vm::Program;
+use destack_program::Program;
+use destack_program::vm::Executable;
 
 /// Suspended machine state captured at a yield terminator.
 #[derive(Debug)]
@@ -54,7 +55,7 @@ impl Continuation {
     }
 
     /// Capture one immutable continuation image.
-    pub fn image(&self, program: &Program) -> RuntimeResult<ContinuationImage> {
+    pub fn image(&self, program: &Program<Executable>) -> RuntimeResult<ContinuationImage> {
         let stack = self.stack.image()?;
         let frames = self
             .frames
@@ -75,7 +76,7 @@ impl Continuation {
     /// Visit mutable heap root slots referenced by this continuation.
     pub(crate) fn visit_root_slots(
         &mut self,
-        program: &Program,
+        program: &Program<Executable>,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Error> {
         for frame_index in 0..self.frames.len() {
@@ -97,7 +98,7 @@ impl Continuation {
     /// Visit mutable heap root slots from one captured continuation image.
     pub(crate) fn visit_image_root_slots(
         image: &mut ContinuationImage,
-        program: &Program,
+        program: &Program<Executable>,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Error> {
         for frame in &mut image.frames {
@@ -110,7 +111,7 @@ impl Continuation {
     /// Rebuild one continuation from an immutable image.
     pub(crate) fn from_image(
         image: &ContinuationImage,
-        program: &Program,
+        program: &Program<Executable>,
         options: &MachineOptions,
     ) -> RuntimeResult<Self> {
         if image.frames.is_empty() {
@@ -159,7 +160,7 @@ impl Continuation {
     /// Return the frame materialization for one live continuation frame.
     fn frame_materialization<'a>(
         &self,
-        program: &'a Program,
+        program: &'a Program<Executable>,
         frame: &Frame,
         frame_index: usize,
     ) -> Result<&'a program::FrameMaterialization, Error> {
@@ -172,7 +173,7 @@ impl Continuation {
     /// Return the frame state and frame materialization for one live continuation frame.
     fn frame_state_and_materialization<'a>(
         &self,
-        program: &'a Program,
+        program: &'a Program<Executable>,
         frame: &Frame,
         frame_index: usize,
     ) -> Result<(program::FrameStateId, &'a program::FrameMaterialization), Error> {
@@ -197,7 +198,7 @@ impl Continuation {
     /// Return the frame state captured for one live continuation frame.
     fn frame_state(
         &self,
-        program: &Program,
+        program: &Program<Executable>,
         frame: &Frame,
         frame_index: usize,
     ) -> Result<program::FrameStateId, Error> {
@@ -234,7 +235,7 @@ impl FrameSnapshot {
     fn visit_root_slots(
         &mut self,
         stack: &mut StackImage,
-        program: &Program,
+        program: &Program<Executable>,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Error> {
         let (layout, materialization) = self.materialization(program)?;
@@ -247,7 +248,7 @@ impl FrameSnapshot {
     /// Restore one live frame from this captured frame.
     fn restore(
         &self,
-        program: &Program,
+        program: &Program<Executable>,
         stack_offset: usize,
         frame_base: usize,
     ) -> RuntimeResult<Frame> {
@@ -286,7 +287,7 @@ impl FrameSnapshot {
     /// Return the layout and frame materialization for this captured frame.
     fn materialization<'a>(
         &self,
-        program: &'a Program,
+        program: &'a Program<Executable>,
     ) -> Result<(&'a program::FrameLayout, &'a program::FrameMaterialization), Error> {
         let materialization = program
             .frame_materialization(self.frame_state)
@@ -305,7 +306,7 @@ impl FrameSnapshot {
     fn visit_slot_root_slots(
         &mut self,
         stack: &mut StackImage,
-        program: &Program,
+        program: &Program<Executable>,
         slot: &program::FrameSlot,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Error> {

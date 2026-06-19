@@ -256,7 +256,7 @@ pub(super) fn tensor_element_type(
 /// Resolve the field count for a struct or tuple layout.
 pub(super) fn field_count_for_layout(tree: &mir::Tree, layout: ValueShape) -> Option<u32> {
     match layout {
-        ValueShape::FrameBytes { ty } => match tree.get(ty) {
+        ValueShape::Aggregate { ty } => match tree.get(ty) {
             mir::Type::Struct { fields, copy: _ } => u32::try_from(fields.len()).ok(),
             mir::Type::Tuple { elements, copy: _ } => u32::try_from(elements.len()).ok(),
             _ => None,
@@ -274,7 +274,7 @@ pub(super) fn field_count_for_layout(tree: &mir::Tree, layout: ValueShape) -> Op
 pub(super) fn array_element_count(tree: &mir::Tree, layout: ValueShape) -> Option<u64> {
     match layout {
         ValueShape::Array { length, .. } => Some(length),
-        ValueShape::FrameBytes { ty } => match tree.get(ty) {
+        ValueShape::Aggregate { ty } => match tree.get(ty) {
             mir::Type::FixedArray { length, .. } => Some(*length),
             _ => None,
         },

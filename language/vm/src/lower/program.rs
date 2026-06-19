@@ -9,10 +9,11 @@ use destack_program as program;
 
 use crate::lower::{ValueType, analyze_value_types, lower_function};
 use crate::{Cell, Error, FunctionPointer, Result};
+use destack_program::Program;
 use destack_program::vm::{
-    CallTarget, FrameBinding, FrameEntry, Function, FunctionTable, Layout, Program, ProgramPoint,
-    ResumeState, ResumeTable, SideTableBuilder, TypeTable, build_layouts, cell_layout_from_type,
-    closure_object_layout,
+    CallTarget, Executable, FrameBinding, FrameEntry, Function, FunctionTable, Layout,
+    ProgramPoint, ResumeState, ResumeTable, SideTableBuilder, TypeTable, build_layouts,
+    cell_layout_from_type, function_object_layout,
 };
 
 /// Lower one VM program for concrete heap allocation geometry.
@@ -21,7 +22,7 @@ pub(crate) fn lower_program_with_heap_options(
     strings: StringPool,
     heap_options: heap::HeapOptions,
     shared_heap_options: heap::SharedHeapOptions,
-) -> Result<Program> {
+) -> Result<Program<Executable>> {
     ProgramBuilder::new(tree, strings, heap_options, shared_heap_options).build()
 }
 
@@ -372,7 +373,7 @@ impl ProgramBuilder {
     }
 
     /// Build the program.
-    fn build(mut self) -> Result<Program> {
+    fn build(mut self) -> Result<Program<Executable>> {
         let function_by_name = self.build_function_by_name();
         let (function_ids, target_by_id) = self.build_function_targets();
         let layout_id_by_type = self.build_layout_id_map()?;
@@ -568,14 +569,14 @@ impl ProgramBuilder {
         // compiled type layouts
         for (type_id, layout) in layouts {
             let module_layout = match self.tree.get(*type_id) {
-                mir::Type::Closure { environment, .. } => {
+                mir::Type::Function { environment, .. } => {
                     let environment_layout = cell_layout_from_type(&self.tree, *environment)
                         .ok_or_else(|| {
                             Error::internal(format!(
-                                "closure environment type is not a cell: {type_id:?}"
+                                "function environment type is not a cell: {type_id:?}"
                             ))
                         })?;
-                    closure_object_layout(self.tree.pointer_bytes() as usize)
+                    function_object_layout(self.tree.pointer_bytes() as usize)
                         .table_layout(environment_layout)
                 }
                 _ => mir::Layout {

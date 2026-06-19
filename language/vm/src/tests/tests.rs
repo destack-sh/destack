@@ -629,7 +629,7 @@ entry(v0: ref<Box, managed, readonly>):
 
 /// Stored function values preserve their function pointer through managed structs.
 #[test]
-fn test_stored_closure_roundtrips() {
+fn test_stored_function_roundtrips() {
     let mir_text = r#"
 type Fn = fn() => int32;
 

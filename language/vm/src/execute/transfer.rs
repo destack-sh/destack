@@ -6,7 +6,8 @@ use crate::machine::{Activation, Continuation, Outcome, Stack};
 use crate::options::LimitOptions;
 use destack_mir as mir;
 use destack_program as program;
-use destack_program::vm::{ArgumentRange, CallTarget, Function, MoveRange, Program};
+use destack_program::Program;
+use destack_program::vm::{ArgumentRange, CallTarget, Executable, Function, MoveRange};
 
 use super::frame::move_values_within_frame;
 
@@ -30,7 +31,7 @@ pub(crate) enum Transfer {
         target: CallTarget,
         /// Arguments to pass.
         arguments: ArgumentRange,
-        /// Optional closure environment to pass.
+        /// Optional function environment to pass.
         env: Option<Cell>,
         /// Move plan for callee parameters.
         moves: Option<MoveRange>,
@@ -45,7 +46,7 @@ pub(crate) enum Transfer {
         target: CallTarget,
         /// Arguments to pass.
         arguments: ArgumentRange,
-        /// Optional closure environment to pass.
+        /// Optional function environment to pass.
         env: Option<Cell>,
         /// The continuation frame state.
         target_state: program::FrameStateId,
@@ -58,7 +59,7 @@ pub(crate) enum Transfer {
         target: CallTarget,
         /// Arguments to pass.
         arguments: ArgumentRange,
-        /// Optional closure environment to pass.
+        /// Optional function environment to pass.
         env: Option<Cell>,
         /// Move plan for callee parameters.
         moves: Option<MoveRange>,
@@ -128,7 +129,7 @@ impl Activation<'_> {
     /// Complete one yield transfer and return the yielded outcome.
     fn complete_yield(
         &mut self,
-        program: &Program,
+        program: &Program<Executable>,
         limits: LimitOptions,
         value: Cell,
         source_type: mir::LocalNodeId<mir::Type>,
@@ -168,7 +169,7 @@ impl Activation<'_> {
     /// Complete one control transfer produced by instruction execution.
     pub(crate) fn complete_transfer(
         &mut self,
-        program: &Program,
+        program: &Program<Executable>,
         limits: LimitOptions,
         current_func: &Function,
         transfer: Transfer,

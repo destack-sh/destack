@@ -173,7 +173,7 @@ pub(super) fn address_space_for_value(
 ) -> Result<AddressSpace, Error> {
     match value_shape_map.get(value) {
         Some(ValueShape::Pointer { address_space, .. }) => Ok(address_space),
-        Some(ValueShape::FrameBytes { .. } | ValueShape::Array { .. }) => Ok(AddressSpace::Frame),
+        Some(ValueShape::Aggregate { .. } | ValueShape::Array { .. }) => Ok(AddressSpace::Frame),
         _ => Err(Error::invalid_pointer_type(format!("{value:?}"))),
     }
 }
@@ -550,13 +550,13 @@ fn infer_instruction_shape(
                 result: function.return_type,
             })
         }
-        mir::Instruction::ClosureBind { destination, .. } => {
+        mir::Instruction::FunctionBind { destination, .. } => {
             let ty = value_type_for_value(*destination, value_types)?;
             value_shape_from_type(tree, ty)
         }
-        mir::Instruction::ClosureFunction { destination, .. }
-        | mir::Instruction::ClosureEnvironment { destination, .. }
-        | mir::Instruction::ClosureEnvironmentCurrent { destination } => {
+        mir::Instruction::FunctionPointer { destination, .. }
+        | mir::Instruction::FunctionEnvironment { destination, .. }
+        | mir::Instruction::FunctionEnvironmentCurrent { destination } => {
             value_shape_map.get(*destination)
         }
         mir::Instruction::Load { result_type, .. } => value_shape_from_type(tree, *result_type),
@@ -746,7 +746,7 @@ fn shape_from_pointer(tree: &mir::Tree, shape: ValueShape) -> Option<ValueShape>
 fn shape_from_field(tree: &mir::Tree, shape: ValueShape, index: u32) -> Option<ValueShape> {
     match shape {
         ValueShape::Array { element, .. } => value_shape_from_type(tree, element),
-        ValueShape::FrameBytes { ty } => shape_from_frame_field(tree, ty, index),
+        ValueShape::Aggregate { ty } => shape_from_frame_field(tree, ty, index),
         _ => None,
     }
 }

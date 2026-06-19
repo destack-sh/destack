@@ -100,21 +100,21 @@ impl<'a> BlockLowerer<'a> {
                 destination,
                 function,
             } => self.lower_function_addr(*destination, *function)?,
-            mir::Instruction::ClosureBind {
+            mir::Instruction::FunctionBind {
                 destination,
                 function,
                 environment,
-            } => self.lower_closure_bind(pool, *destination, *function, *environment)?,
-            mir::Instruction::ClosureFunction {
+            } => self.lower_function_bind(pool, *destination, *function, *environment)?,
+            mir::Instruction::FunctionPointer {
                 destination,
-                closure,
-            } => self.lower_closure_function(*destination, *closure)?,
-            mir::Instruction::ClosureEnvironment {
+                function,
+            } => self.lower_function_pointer(*destination, *function)?,
+            mir::Instruction::FunctionEnvironment {
                 destination,
-                closure,
-            } => self.lower_closure_environment(*destination, *closure)?,
-            mir::Instruction::ClosureEnvironmentCurrent { destination } => {
-                self.lower_closure_environment_current(*destination)?
+                function,
+            } => self.lower_function_environment(*destination, *function)?,
+            mir::Instruction::FunctionEnvironmentCurrent { destination } => {
+                self.lower_function_environment_current(*destination)?
             }
             mir::Instruction::Load {
                 destination,

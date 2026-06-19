@@ -21,9 +21,9 @@ pub(crate) fn execute_move_cell(
     Ok(())
 }
 
-/// Execute frame byte move.
+/// Execute aggregate move.
 #[inline(always)]
-pub(crate) fn execute_move_frame(
+pub(crate) fn execute_move_aggregate(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
@@ -36,52 +36,56 @@ pub(crate) fn execute_move_frame(
     Ok(())
 }
 
-/// Execute one byte range load from local heap memory.
+/// Execute one aggregate load from local heap memory.
 #[inline(always)]
-pub(crate) fn execute_load_heap_bytes(
+pub(crate) fn execute_load_heap_aggregate(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (address, access, destination, destination_len) = load_bytes(activation, instruction);
+    let (address, access, destination, destination_len) =
+        decode_aggregate_load(activation, instruction);
 
     access::load_heap_bytes(activation, address, access, destination, destination_len)?;
 
     Ok(())
 }
 
-/// Execute one byte range load from shared heap memory.
+/// Execute one aggregate load from shared heap memory.
 #[inline(always)]
-pub(crate) fn execute_load_shared_heap_bytes(
+pub(crate) fn execute_load_shared_heap_aggregate(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (address, access, destination, destination_len) = load_bytes(activation, instruction);
+    let (address, access, destination, destination_len) =
+        decode_aggregate_load(activation, instruction);
 
     access::load_shared_heap_bytes(activation, address, access, destination, destination_len)?;
 
     Ok(())
 }
 
-/// Execute one byte range load from local raw memory.
+/// Execute one aggregate load from local raw memory.
 #[inline(always)]
-pub(crate) fn execute_load_raw_bytes(
+pub(crate) fn execute_load_raw_aggregate(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (address, access, destination, destination_len) = load_bytes(activation, instruction);
+    let (address, access, destination, destination_len) =
+        decode_aggregate_load(activation, instruction);
 
     access::load_raw_bytes(activation, address, access, destination, destination_len)?;
 
     Ok(())
 }
 
-/// Execute one byte range load from stack memory.
+/// Execute one aggregate load from stack memory.
 #[inline(always)]
-pub(crate) fn execute_load_stack_bytes(
+pub(crate) fn execute_load_stack_aggregate(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (address, access, destination, destination_len) = load_bytes(activation, instruction);
+    let (address, access, destination, destination_len) =
+        decode_aggregate_load(activation, instruction);
 
     access::load_stack_bytes(
         activation,
@@ -94,13 +98,14 @@ pub(crate) fn execute_load_stack_bytes(
     Ok(())
 }
 
-/// Execute one byte range load from frame memory.
+/// Execute one aggregate load from frame memory.
 #[inline(always)]
-pub(crate) fn execute_load_frame_bytes(
+pub(crate) fn execute_load_frame_aggregate(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (address, access, destination, destination_len) = load_bytes(activation, instruction);
+    let (address, access, destination, destination_len) =
+        decode_aggregate_load(activation, instruction);
 
     access::load_frame_bytes(
         activation,
@@ -113,13 +118,14 @@ pub(crate) fn execute_load_frame_bytes(
     Ok(())
 }
 
-/// Execute one byte range load from static memory.
+/// Execute one aggregate load from static memory.
 #[inline(always)]
-pub(crate) fn execute_load_static_bytes(
+pub(crate) fn execute_load_static_aggregate(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (address, access, destination, destination_len) = load_bytes(activation, instruction);
+    let (address, access, destination, destination_len) =
+        decode_aggregate_load(activation, instruction);
 
     access::load_static_bytes(
         activation,
@@ -132,13 +138,13 @@ pub(crate) fn execute_load_static_bytes(
     Ok(())
 }
 
-/// Execute one byte range store into local heap memory.
+/// Execute one aggregate store into local heap memory.
 #[inline(always)]
-pub(crate) fn execute_store_heap_bytes(
+pub(crate) fn execute_store_heap_aggregate(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (address, access, source, byte_len) = store_bytes(activation, instruction);
+    let (address, access, source, byte_len) = decode_aggregate_store(activation, instruction);
 
     activation.with_frame_bytes_at(source, byte_len, |activation, source| {
         access::store_heap_bytes(activation, address, access, source)
@@ -147,13 +153,13 @@ pub(crate) fn execute_store_heap_bytes(
     Ok(())
 }
 
-/// Execute one byte range store into shared heap memory.
+/// Execute one aggregate store into shared heap memory.
 #[inline(always)]
-pub(crate) fn execute_store_shared_heap_bytes(
+pub(crate) fn execute_store_shared_heap_aggregate(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (address, access, source, byte_len) = store_bytes(activation, instruction);
+    let (address, access, source, byte_len) = decode_aggregate_store(activation, instruction);
 
     activation.with_frame_bytes_at(source, byte_len, |activation, source| {
         access::store_shared_heap_bytes(activation, address, access, source)
@@ -162,13 +168,13 @@ pub(crate) fn execute_store_shared_heap_bytes(
     Ok(())
 }
 
-/// Execute one byte range store into local raw memory.
+/// Execute one aggregate store into local raw memory.
 #[inline(always)]
-pub(crate) fn execute_store_raw_bytes(
+pub(crate) fn execute_store_raw_aggregate(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (address, access, source, byte_len) = store_bytes(activation, instruction);
+    let (address, access, source, byte_len) = decode_aggregate_store(activation, instruction);
 
     activation.with_frame_bytes_at(source, byte_len, |activation, source| {
         access::store_raw_bytes(activation, address, access, source)
@@ -177,13 +183,13 @@ pub(crate) fn execute_store_raw_bytes(
     Ok(())
 }
 
-/// Execute one byte range store into stack memory.
+/// Execute one aggregate store into stack memory.
 #[inline(always)]
-pub(crate) fn execute_store_stack_bytes(
+pub(crate) fn execute_store_stack_aggregate(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (address, access, source, byte_len) = store_bytes(activation, instruction);
+    let (address, access, source, byte_len) = decode_aggregate_store(activation, instruction);
 
     activation.with_frame_bytes_at(source, byte_len, |activation, source| {
         access::store_stack_bytes(activation, address.as_stack_pointer(), access, source)
@@ -192,13 +198,13 @@ pub(crate) fn execute_store_stack_bytes(
     Ok(())
 }
 
-/// Execute one byte range store into frame memory.
+/// Execute one aggregate store into frame memory.
 #[inline(always)]
-pub(crate) fn execute_store_frame_bytes(
+pub(crate) fn execute_store_frame_aggregate(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (address, access, source, byte_len) = store_bytes(activation, instruction);
+    let (address, access, source, byte_len) = decode_aggregate_store(activation, instruction);
     let destination = address.as_frame_pointer().add_bytes(access.byte_offset);
 
     activation.copy_frame_bytes_to_address(source, destination.address(), byte_len);
@@ -206,13 +212,13 @@ pub(crate) fn execute_store_frame_bytes(
     Ok(())
 }
 
-/// Execute one byte range store into static memory.
+/// Execute one aggregate store into static memory.
 #[inline(always)]
-pub(crate) fn execute_store_static_bytes(
+pub(crate) fn execute_store_static_aggregate(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (address, access, source, byte_len) = store_bytes(activation, instruction);
+    let (address, access, source, byte_len) = decode_aggregate_store(activation, instruction);
 
     activation.with_frame_bytes_at(source, byte_len, |activation, source| {
         access::store_static_bytes(activation, address.as_static_address(), access, source)
@@ -221,8 +227,8 @@ pub(crate) fn execute_store_static_bytes(
     Ok(())
 }
 
-/// Load byte range fields from one instruction.
-fn load_bytes(
+/// Decode aggregate load fields from one instruction.
+fn decode_aggregate_load(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> (Cell, Projection, *mut u8, usize) {
@@ -238,8 +244,8 @@ fn load_bytes(
     (address, access, destination, destination_len)
 }
 
-/// Store byte range fields from one instruction.
-fn store_bytes(
+/// Decode aggregate store fields from one instruction.
+fn decode_aggregate_store(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> (Cell, Projection, u32, usize) {
@@ -256,7 +262,7 @@ fn store_bytes(
 
 /// Execute local address.
 #[inline(always)]
-pub(crate) fn execute_address_local(
+pub(crate) fn execute_local_address(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
@@ -276,7 +282,7 @@ pub(crate) fn execute_address_local(
 }
 
 /// Execute static address.
-pub(crate) fn execute_address_static(
+pub(crate) fn execute_static_address(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {

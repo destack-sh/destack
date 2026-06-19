@@ -15,7 +15,7 @@ type Env {
 @environment(ref<Env, managed, mutable>)
 function step(): int32 {
 entry:
-    v0: ref<Env, managed, mutable> = closure.environment.current
+    v0: ref<Env, managed, mutable> = function.environment.current
     v1: ref<ref<int32, managed, mutable>, managed, mutable> = field.address v0, 0
     v2: ref<int32, managed, mutable> = load v1
     v3: int32 = load v2
@@ -44,7 +44,7 @@ entry:
 
 function callOnce(v0: ref<Env, managed, mutable>): int32 {
 entry(v0: ref<Env, managed, mutable>):
-    v1: () => int32 = closure.bind step, v0
+    v1: () => int32 = function.bind step, v0
     v2: int32 = call.indirect v1(): () => int32
     return v2
 }
@@ -65,16 +65,16 @@ entry(v0: ref<Env, managed, mutable>):
     assert_eq!(second, Value::int32(12));
 }
 
-/// Closure projections expose the bound function pointer and environment.
+/// Function projections expose the bound function pointer and environment.
 #[test]
-fn test_closure_projection_reads_function_and_environment() {
+fn test_function_projection_reads_pointer_and_environment() {
     let mir = r#"
 type Env { value: int32 }
 
 @environment(ref<Env, managed, mutable>)
 function readEnv(): int32 {
 entry:
-    v0: ref<Env, managed, mutable> = closure.environment.current
+    v0: ref<Env, managed, mutable> = function.environment.current
     v1: ref<int32, managed, mutable> = field.address v0, 0
     v2: int32 = load v1
     return v2
@@ -86,9 +86,9 @@ entry:
     v1: ref<int32, managed, mutable> = field.address v0, 0
     v2: int32 = 42
     store v1, v2
-    v3: () => int32 = closure.bind readEnv, v0
-    v4: fn() => int32 = closure.function v3
-    v5: ref<Env, managed, mutable> = closure.environment v3
+    v3: () => int32 = function.bind readEnv, v0
+    v4: fn() => int32 = function.pointer v3
+    v5: ref<Env, managed, mutable> = function.environment v3
     v6: ref<int32, managed, mutable> = field.address v5, 0
     v7: int32 = load v6
     return v7
@@ -98,14 +98,14 @@ entry:
     run_mir_expect(mir, "main", &[], Value::int32(42));
 }
 
-/// call.indirect passes the closure environment for closure.environment.current.
+/// call.indirect passes the function environment for function.environment.current.
 #[test]
 fn test_call_indirect_environment() {
     let mir = r#"
 @environment(ref<int32, raw, readonly, space(frame)>)
 function readEnv(): int32 {
 entry:
-    v0: ref<int32, raw, readonly, space(frame)> = closure.environment.current
+    v0: ref<int32, raw, readonly, space(frame)> = function.environment.current
     v1: int32 = load v0
     return v1
 }
@@ -116,7 +116,7 @@ entry:
     v1: int32 = 41
     store v0, v1
     v2: ref<int32, raw, readonly, space(frame)> = cast.bit v0 -> ref<int32, raw, readonly, space(frame)>
-    v3: () => int32 = closure.bind readEnv, v2
+    v3: () => int32 = function.bind readEnv, v2
     v4: int32 = call.indirect v3(): () => int32
     return v4
 }
@@ -125,14 +125,14 @@ entry:
     run_mir_expect(mir, "caller", &[], Value::int32(41));
 }
 
-/// Tail call indirect forwards the closure environment.
+/// Tail call indirect forwards the function environment.
 #[test]
 fn test_tailcall_indirect_environment() {
     let mir = r#"
 @environment(ref<int32, managed, mutable>)
 function readEnv(): int32 {
 b0:
-    v0: ref<int32, managed, mutable> = closure.environment.current
+    v0: ref<int32, managed, mutable> = function.environment.current
     v1: int32 = load v0
     return v1
 }
@@ -142,14 +142,14 @@ b0:
     v0: ref<int32, managed, mutable> = new.zeroed int32
     v1: int32 = 99int32
     store v0, v1
-    v2: () => int32 = closure.bind readEnv, v0
+    v2: () => int32 = function.bind readEnv, v0
     tail.call.indirect v2(): () => int32
 }"#;
 
     run_mir_expect(mir, "caller", &[], Value::int32(99));
 }
 
-/// Managed closure environments hold by-reference capture cells.
+/// Managed function environments hold by-reference capture cells.
 #[test]
 fn test_environment_heap_reference_cell() {
     let mir = r#"
@@ -158,7 +158,7 @@ type Env { cell: ref<int32, managed, mutable> }
 @environment(ref<Env, managed, mutable>)
 function increment(): int32 {
 b0:
-    v0: ref<Env, managed, mutable> = closure.environment.current
+    v0: ref<Env, managed, mutable> = function.environment.current
     v1: ref<ref<int32, managed, mutable>, managed, mutable> = field.address v0, 0
     v2: ref<int32, managed, mutable> = load v1
     v3: int32 = load v2
@@ -176,7 +176,7 @@ b0:
     v2: ref<Env, managed, mutable> = new.zeroed Env
     v3: ref<ref<int32, managed, mutable>, managed, mutable> = field.address v2, 0
     store v3, v0
-    v4: () => int32 = closure.bind increment, v2
+    v4: () => int32 = function.bind increment, v2
     v5: int32 = call.indirect v4(): () => int32
     v6: int32 = call.indirect v4(): () => int32
     return v6
@@ -185,7 +185,7 @@ b0:
     run_mir_expect(mir, "caller", &[], Value::int32(2));
 }
 
-/// Managed closure environments support by-value fields.
+/// Managed function environments support by-value fields.
 #[test]
 fn test_environment_by_value_field() {
     let mir = r#"
@@ -194,7 +194,7 @@ type Reader = () => int32;
 @environment(ref<Env, managed, mutable>)
 function readEnv(): int32 {
 b0:
-    v0: ref<Env, managed, mutable> = closure.environment.current
+    v0: ref<Env, managed, mutable> = function.environment.current
     v1: ref<int32, managed, mutable> = field.address v0, 0
     v2: int32 = load v1
     v3: int32 = 2int32
@@ -208,7 +208,7 @@ b0:
     v1: ref<int32, managed, mutable> = field.address v0, 0
     v2: int32 = 40int32
     store v1, v2
-    v3: () => int32 = closure.bind readEnv, v0
+    v3: () => int32 = function.bind readEnv, v0
     v4: int32 = call.indirect v3(): () => int32
     return v4
 }"#;
@@ -225,7 +225,7 @@ type Env { value: int32 }
 @environment(ref<Env, managed, mutable>)
 function readEnv(): int32 {
 b0:
-    v0: ref<Env, managed, mutable> = closure.environment.current
+    v0: ref<Env, managed, mutable> = function.environment.current
     v1: ref<int32, managed, mutable> = field.address v0, 0
     v2: int32 = load v1
     return v2
@@ -241,8 +241,8 @@ b0:
     v5: int32 = 20int32
     store v2, v4
     store v3, v5
-    v6: () => int32 = closure.bind readEnv, v0
-    v7: () => int32 = closure.bind readEnv, v1
+    v6: () => int32 = function.bind readEnv, v0
+    v7: () => int32 = function.bind readEnv, v1
     v8: int32 = call.indirect v6(): () => int32
     v9: int32 = call.indirect v7(): () => int32
     v10: int32 = int.add v8, v9
@@ -252,7 +252,7 @@ b0:
     run_mir_expect(mir, "caller", &[], Value::int32(30));
 }
 
-/// call.indirect can swap closure environments within a single machine.
+/// call.indirect can swap function environments within a single machine.
 #[test]
 fn test_environment_switches_in_machine() {
     let mir = r#"
@@ -261,7 +261,7 @@ type Env { value: int32 }
 @environment(ref<Env, managed, mutable>)
 function readEnv(): int32 {
 b0:
-    v0: ref<Env, managed, mutable> = closure.environment.current
+    v0: ref<Env, managed, mutable> = function.environment.current
     v1: ref<int32, managed, mutable> = field.address v0, 0
     v2: int32 = load v1
     return v2
@@ -277,7 +277,7 @@ b0(v0: int32):
 
 function callOnce(v0: ref<Env, managed, mutable>): int32 {
 b0(v0: ref<Env, managed, mutable>):
-    v1: () => int32 = closure.bind readEnv, v0
+    v1: () => int32 = function.bind readEnv, v0
     v2: int32 = call.indirect v1(): () => int32
     return v2
 }"#;
@@ -305,7 +305,7 @@ b0(v0: ref<Env, managed, mutable>):
     assert_eq!(third, Value::int32(7));
 }
 
-/// Closure values can be stored in managed structs and invoked with their environment.
+/// Function values can be stored in managed structs and invoked with their environment.
 #[test]
 fn test_environment_loaded_from_struct() {
     let mir = r#"
@@ -320,7 +320,7 @@ type Holder {
 @environment(ref<Env, managed, mutable>)
 function readEnv(): int32 {
 entry:
-    v0: ref<Env, managed, mutable> = closure.environment.current
+    v0: ref<Env, managed, mutable> = function.environment.current
     v1: ref<int32, managed, mutable> = field.address v0, 0
     v2: int32 = load v1
     return v2
@@ -339,7 +339,7 @@ entry(v0: int32):
     v1: ref<Env, managed, mutable> = call makeEnv(v0)
     v2: ref<Holder, managed, mutable> = new.zeroed Holder
     v3: ref<() => int32, managed, mutable> = field.address v2, 0
-    v4: () => int32 = closure.bind readEnv, v1
+    v4: () => int32 = function.bind readEnv, v1
     store v3, v4
     v5: () => int32 = load v3
     v6: int32 = call.indirect v5(): () => int32
@@ -350,7 +350,7 @@ entry(v0: int32):
     run_mir_expect(mir, "caller", &[Value::int32(42)], Value::int32(42));
 }
 
-/// Nested closure environments can invoke inner closures via stored environments.
+/// Nested function environments can invoke inner functions via stored environments.
 #[test]
 fn test_environment_chain_calls_inner() {
     let mir = r#"
@@ -360,7 +360,7 @@ type OuterEnv { fun: () => int32 }
 @environment(ref<InnerEnv, managed, mutable>)
 function inner(): int32 {
 b0:
-    v0: ref<InnerEnv, managed, mutable> = closure.environment.current
+    v0: ref<InnerEnv, managed, mutable> = function.environment.current
     v1: ref<int32, managed, mutable> = field.address v0, 0
     v2: int32 = load v1
     return v2
@@ -369,7 +369,7 @@ b0:
 @environment(ref<OuterEnv, managed, mutable>)
 function outer(): int32 {
 b0:
-    v0: ref<OuterEnv, managed, mutable> = closure.environment.current
+    v0: ref<OuterEnv, managed, mutable> = function.environment.current
     v1: ref<() => int32, managed, mutable> = field.address v0, 0
     v2: () => int32 = load v1
     v3: int32 = call.indirect v2(): () => int32
@@ -389,7 +389,7 @@ b0(v0: int32):
     v1: ref<InnerEnv, managed, mutable> = call makeInner(v0): (int32) => ref<InnerEnv, managed, mutable>
     v2: ref<OuterEnv, managed, mutable> = new.zeroed OuterEnv
     v3: ref<() => int32, managed, mutable> = field.address v2, 0
-    v4: () => int32 = closure.bind inner, v1
+    v4: () => int32 = function.bind inner, v1
     store v3, v4
     return v2
 }
@@ -397,7 +397,7 @@ b0(v0: int32):
 function caller(v0: int32): int32 {
 b0(v0: int32):
     v1: ref<OuterEnv, managed, mutable> = call makeOuter(v0): (int32) => ref<OuterEnv, managed, mutable>
-    v2: () => int32 = closure.bind outer, v1
+    v2: () => int32 = function.bind outer, v1
     v3: int32 = call.indirect v2(): () => int32
     return v3
 }"#;
@@ -431,7 +431,7 @@ b0(v0: int32):
     run_mir_expect(mir, "caller", &[Value::int32(21)], Value::int32(42));
 }
 
-/// Raw closure environments can carry frame allocated structs.
+/// Raw function environments can carry frame allocated structs.
 #[test]
 fn test_environment_raw_struct_on_stack() {
     let mir = r#"
@@ -440,7 +440,7 @@ type Env { value: int32, extra: int32 }
 @environment(ref<Env, raw, readonly, space(frame)>)
 function readEnv(): int32 {
 b0:
-    v0: ref<Env, raw, readonly, space(frame)> = closure.environment.current
+    v0: ref<Env, raw, readonly, space(frame)> = function.environment.current
     v1: ref<int32, raw, readonly, space(frame)> = field.address v0, 0
     v2: int32 = load v1
     v3: ref<int32, raw, readonly, space(frame)> = field.address v0, 1
@@ -459,7 +459,7 @@ b0:
     store v1, v3
     store v2, v4
     v5: ref<Env, raw, readonly, space(frame)> = cast.bit v0 -> ref<Env, raw, readonly, space(frame)>
-    v6: () => int32 = closure.bind readEnv, v5
+    v6: () => int32 = function.bind readEnv, v5
     v7: int32 = call.indirect v6(): () => int32
     return v7
 }"#;
@@ -467,7 +467,7 @@ b0:
     run_mir_expect(mir, "caller", &[], Value::int32(42));
 }
 
-/// Closure values can be stored in arrays and invoked later.
+/// Function values can be stored in arrays and invoked later.
 #[test]
 fn test_environment_loaded_from_array() {
     let mir = r#"
@@ -476,7 +476,7 @@ type Reader = () => int32;
 @environment(ref<Env, managed, mutable>)
 function readEnv(): int32 {
 b0:
-    v0: ref<Env, managed, mutable> = closure.environment.current
+    v0: ref<Env, managed, mutable> = function.environment.current
     v1: ref<int32, managed, mutable> = field.address v0, 0
     v2: int32 = load v1
     return v2
@@ -493,7 +493,7 @@ b0(v0: int32):
 function caller(v0: int32): int32 {
 b0(v0: int32):
     v1: ref<Env, managed, mutable> = call makeEnv(v0): (int32) => ref<Env, managed, mutable>
-    v2: Reader = closure.bind readEnv, v1
+    v2: Reader = function.bind readEnv, v1
     v3: [Reader; 1] = array [Reader; 1] (v2)
     v4: Reader = field.get v3, 0
     v5: int32 = call.indirect v4(): () => int32

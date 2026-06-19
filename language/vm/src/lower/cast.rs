@@ -2,7 +2,7 @@ use destack_mir as mir;
 
 use crate::{Error, Result};
 use destack_program::vm::{
-    FloatCast, FloatToIntCast, FrameSelect, Instruction, IntToFloatCast, IntegerCast, Op,
+    AggregateSelect, FloatCast, FloatToIntCast, Instruction, IntToFloatCast, IntegerCast, Op,
     PointerCast, TensorViewCast, ValueShape, WideIntegerCast, cell_layout_from_type,
     value_shape_from_type,
 };
@@ -121,8 +121,8 @@ impl<'a> BlockLowerer<'a> {
 
         // select frame-backed values by copying their frame slot
         Ok(pool.instruction_with_side(
-            Op::SelectFrame,
-            FrameSelect {
+            Op::SelectAggregate,
+            AggregateSelect {
                 destination_offset: value_offset(self, destination)?,
                 condition_offset: cell_offset(self, condition)?,
                 then_offset: value_offset(self, then_value)?,

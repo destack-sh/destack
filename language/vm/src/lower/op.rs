@@ -375,7 +375,7 @@ pub(super) fn select_load_op(
     projection: Projection,
 ) -> Result<Op, Error> {
     if !projection.is_cell() {
-        return select_bytes_load_op(address_space);
+        return select_aggregate_load_op(address_space);
     }
 
     let layout = projection.cell_layout.ok_or(Error::invalid_instruction())?;
@@ -390,7 +390,7 @@ pub(super) fn select_store_op(
     projection: Projection,
 ) -> Result<Op, Error> {
     if !projection.is_cell() {
-        return select_bytes_store_op(address_space);
+        return select_aggregate_store_op(address_space);
     }
 
     let layout = projection.cell_layout.ok_or(Error::invalid_instruction())?;
@@ -504,27 +504,27 @@ pub(super) fn select_frame_value_store_op(projection: Projection) -> Result<Op, 
     })
 }
 
-/// Select one byte load operation.
-fn select_bytes_load_op(address_space: AddressSpace) -> Result<Op, Error> {
+/// Select one aggregate load operation.
+fn select_aggregate_load_op(address_space: AddressSpace) -> Result<Op, Error> {
     match address_space {
-        AddressSpace::Local => Ok(Op::LoadHeapBytes),
-        AddressSpace::Shared => Ok(Op::LoadSharedHeapBytes),
-        AddressSpace::Raw => Ok(Op::LoadRawBytes),
-        AddressSpace::Stack => Ok(Op::LoadStackBytes),
-        AddressSpace::Frame => Ok(Op::LoadFrameBytes),
-        AddressSpace::Static => Ok(Op::LoadStaticBytes),
+        AddressSpace::Local => Ok(Op::LoadHeapAggregate),
+        AddressSpace::Shared => Ok(Op::LoadSharedHeapAggregate),
+        AddressSpace::Raw => Ok(Op::LoadRawAggregate),
+        AddressSpace::Stack => Ok(Op::LoadStackAggregate),
+        AddressSpace::Frame => Ok(Op::LoadFrameAggregate),
+        AddressSpace::Static => Ok(Op::LoadStaticAggregate),
     }
 }
 
-/// Select one byte store operation.
-fn select_bytes_store_op(address_space: AddressSpace) -> Result<Op, Error> {
+/// Select one aggregate store operation.
+fn select_aggregate_store_op(address_space: AddressSpace) -> Result<Op, Error> {
     match address_space {
-        AddressSpace::Local => Ok(Op::StoreHeapBytes),
-        AddressSpace::Shared => Ok(Op::StoreSharedHeapBytes),
-        AddressSpace::Raw => Ok(Op::StoreRawBytes),
-        AddressSpace::Stack => Ok(Op::StoreStackBytes),
-        AddressSpace::Frame => Ok(Op::StoreFrameBytes),
-        AddressSpace::Static => Ok(Op::StoreStaticBytes),
+        AddressSpace::Local => Ok(Op::StoreHeapAggregate),
+        AddressSpace::Shared => Ok(Op::StoreSharedHeapAggregate),
+        AddressSpace::Raw => Ok(Op::StoreRawAggregate),
+        AddressSpace::Stack => Ok(Op::StoreStackAggregate),
+        AddressSpace::Frame => Ok(Op::StoreFrameAggregate),
+        AddressSpace::Static => Ok(Op::StoreStaticAggregate),
     }
 }
 
@@ -537,7 +537,7 @@ pub(super) fn select_field_addr_op(
         .get(base)
         .ok_or(Error::invalid_instruction())?;
     match shape {
-        ValueShape::FrameBytes { .. } => Ok(Op::AddressFrameValueOffset),
+        ValueShape::Aggregate { .. } => Ok(Op::AddressFrameValueOffset),
         ValueShape::Pointer { address_space, .. } => select_offset_address_op(address_space),
         _ => Err(Error::invalid_instruction()),
     }
@@ -552,9 +552,7 @@ pub(super) fn select_element_addr_op(
         .get(array)
         .ok_or(Error::invalid_instruction())?;
     match shape {
-        ValueShape::FrameBytes { .. } | ValueShape::Array { .. } => {
-            Ok(Op::AddressFrameValueElement)
-        }
+        ValueShape::Aggregate { .. } | ValueShape::Array { .. } => Ok(Op::AddressFrameValueElement),
         ValueShape::Pointer { address_space, .. } => select_index_address_op(address_space),
         _ => Err(Error::invalid_instruction()),
     }
@@ -568,7 +566,7 @@ pub(super) fn select_slice_element_addr_op(address_space: AddressSpace) -> Resul
         AddressSpace::Raw => Ok(Op::AddressRawSliceElement),
         AddressSpace::Stack => Ok(Op::AddressStackSliceElement),
         AddressSpace::Frame => Ok(Op::AddressFrameSliceElement),
-        AddressSpace::Static => Ok(Op::AddressStaticSliceElement),
+        AddressSpace::Static => Ok(Op::StaticAddressSliceElement),
     }
 }
 
@@ -580,7 +578,7 @@ fn select_index_address_op(address_space: AddressSpace) -> Result<Op, Error> {
         AddressSpace::Shared => Ok(Op::AddressSharedHeapElement),
         AddressSpace::Raw => Ok(Op::AddressRawElement),
         AddressSpace::Stack => Ok(Op::AddressStackElement),
-        AddressSpace::Static => Ok(Op::AddressStaticElement),
+        AddressSpace::Static => Ok(Op::StaticAddressElement),
     }
 }
 
@@ -592,7 +590,7 @@ fn select_offset_address_op(address_space: AddressSpace) -> Result<Op, Error> {
         AddressSpace::Shared => Ok(Op::AddressSharedHeapOffset),
         AddressSpace::Raw => Ok(Op::AddressRawOffset),
         AddressSpace::Stack => Ok(Op::AddressStackOffset),
-        AddressSpace::Static => Ok(Op::AddressStaticOffset),
+        AddressSpace::Static => Ok(Op::StaticAddressOffset),
     }
 }
 

@@ -153,7 +153,7 @@ pub(crate) fn execute_address_frame_slice_element(
 }
 
 /// Execute slice element addr on static addresses.
-pub(crate) fn execute_address_static_slice_element(
+pub(crate) fn execute_static_address_slice_element(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
