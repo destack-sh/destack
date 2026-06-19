@@ -537,7 +537,7 @@ pub struct ShapeType {
     pub index_signatures: Vec<TypeIndexSignature>,
 }
 
-/// A function type.
+/// A function signature type.
 ///
 /// Examples:
 /// ```ds
@@ -545,7 +545,7 @@ pub struct ShapeType {
 /// async <T>(input: T) => Promise<T>
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FunctionType {
+pub struct FunctionSignatureType {
     /// The function asynchrony.
     pub asynchrony: Asynchrony,
     /// The generic parameter types.
@@ -578,13 +578,20 @@ pub struct FunctionParameterType {
     pub is_rest: bool,
 }
 
-/// A closure type with its function contract and captured environment.
+/// A fat callable value with a function signature and captured environment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ClosureType {
-    /// The function contract.
-    pub function: GlobalTypeId,
+pub struct FunctionType {
+    /// The function signature.
+    pub signature: GlobalTypeId,
     /// The captured environment type.
     pub environment: GlobalTypeId,
+}
+
+/// A thin callable value with no captured environment.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FunctionPointerType {
+    /// The function signature.
+    pub signature: GlobalTypeId,
 }
 
 /// A union type.
@@ -1016,10 +1023,12 @@ pub enum Type {
     Tuple(TupleType),
     /// Structural object shape type, like `{ name: string }`.
     Shape(ShapeType),
-    /// Function type, like `(value: int32) => string`.
+    /// Function signature type, like `(value: int32) => string`.
+    FunctionSignature(FunctionSignatureType),
+    /// Fat callable value with an explicit captured environment.
     Function(FunctionType),
-    /// Closure type with an explicit captured environment.
-    Closure(ClosureType),
+    /// Thin callable value with no captured environment.
+    FunctionPointer(FunctionPointerType),
 
     /// Union type `A | B | C`.
     Union(UnionType),
@@ -1195,7 +1204,7 @@ impl Type {
                     visit(signature.value_type);
                 }
             }
-            Self::Function(function) => {
+            Self::FunctionSignature(function) => {
                 for child in function.generic_parameters.iter().copied() {
                     visit(child);
                 }
@@ -1209,9 +1218,12 @@ impl Type {
                     visit(return_type);
                 }
             }
-            Self::Closure(closure) => {
-                visit(closure.function);
-                visit(closure.environment);
+            Self::Function(function) => {
+                visit(function.signature);
+                visit(function.environment);
+            }
+            Self::FunctionPointer(function) => {
+                visit(function.signature);
             }
 
             // algebraic composites
@@ -1347,7 +1359,7 @@ impl Type {
                     signature.value_type = map(signature.value_type);
                 }
             }
-            Self::Function(function) => {
+            Self::FunctionSignature(function) => {
                 for parameter in &mut function.generic_parameters {
                     *parameter = map(*parameter);
                 }
@@ -1361,9 +1373,12 @@ impl Type {
                     *return_type = map(*return_type);
                 }
             }
-            Self::Closure(closure) => {
-                closure.function = map(closure.function);
-                closure.environment = map(closure.environment);
+            Self::Function(function) => {
+                function.signature = map(function.signature);
+                function.environment = map(function.environment);
+            }
+            Self::FunctionPointer(function) => {
+                function.signature = map(function.signature);
             }
 
             // algebraic composites
@@ -1405,7 +1420,7 @@ impl Type {
 }
 
 /// A field in an object-like type.
-/// Methods are represented as fields whose `ty` is a `Type::Function`.
+/// Methods are represented as fields whose `ty` is a `Type::FunctionSignature`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TypeField {
     /// The key of the field.
