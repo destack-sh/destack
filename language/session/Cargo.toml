@@ -15,7 +15,7 @@ doctest = false
 # language
 destack_artifact = { workspace = true }
 destack_core = { workspace = true }
-destack_compiler = { path = "../compiler", default-features = false }
+destack_compiler.workspace = true
 destack_dir = { workspace = true }
 destack_linter = { workspace = true }
 destack_mir = { workspace = true }

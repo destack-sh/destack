@@ -78,7 +78,7 @@ rust-version = "1.93.0"
 destack_artifact = { path = "language/artifact" }
 destack_artifact_macros = { path = "language/artifact/macros" }
 destack_codegen_native = { path = "language/compiler/native" }
-destack_compiler = { path = "language/compiler" }
+destack_compiler = { path = "language/compiler", default-features = false }
 destack_core = { path = "language/core" }
 destack_dir = { path = "language/dir" }
 destack_program = { path = "language/program" }
@@ -97,7 +97,7 @@ destack_parser = { path = "language/parser" }
 destack_qir = { path = "language/qir" }
 destack_query = { path = "language/query" }
 destack_runtime = { path = "language/runtime" }
-destack_session = { path = "language/session" }
+destack_session = { path = "language/session", default-features = false }
 destack_source = { path = "language/source" }
 destack_test = { path = "language/test" }
 destack_unicode = { path = "language/unicode" }
@@ -118,7 +118,7 @@ destack_bridge_language_macros = { path = "bridge/language/macros", version = "=
 destack_capi = { path = "bridge/capi" }
 destack_napi = { path = "bridge/napi" }
 destack_wasm = { path = "bridge/wasm" }
-destack = { path = "bridge/rust" }
+destack = { path = "bridge/rust", default-features = false }
 destack_python = { path = "bridge/python/rust" }
 destack_zed = { path = "bridge/zed" }
 

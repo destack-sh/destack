@@ -14,7 +14,7 @@ doctest = false
 [dependencies]
 # language
 destack_artifact = { workspace = true }
-destack_compiler = { path = "../compiler", default-features = false }
+destack_compiler = { workspace = true }
 destack_linter = { workspace = true }
 destack_query = { workspace = true }
 destack_session = { workspace = true }
@@ -29,7 +29,7 @@ serde_json = { workspace = true }
 
 [features]
 default = ["native"]
-native = ["destack_compiler/native"]
+native = ["destack_compiler/native", "destack_session/native"]
 deadlock-detection = ["destack_compiler/deadlock-detection"]
 
 [lints]
