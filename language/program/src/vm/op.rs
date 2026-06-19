@@ -56,8 +56,12 @@ pub enum Op {
     BindClosureCell,
     /// Bind a function pointer to one frame address environment.
     BindClosureAddress,
-    /// Load the current closure environment.
+    /// Load the function pointer from a closure value.
+    LoadClosureFunction,
+    /// Load the environment from a closure value.
     LoadClosureEnvironment,
+    /// Load the current closure environment.
+    LoadClosureEnvironmentCurrent,
 
     // ============================================================================
     // scalar loads

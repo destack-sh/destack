@@ -15,7 +15,7 @@ type Env {
 @environment(ref<Env, managed, mutable>)
 function step(): int32 {
 entry:
-    v0: ref<Env, managed, mutable> = closure.environment
+    v0: ref<Env, managed, mutable> = closure.environment.current
     v1: ref<ref<int32, managed, mutable>, managed, mutable> = field.address v0, 0
     v2: ref<int32, managed, mutable> = load v1
     v3: int32 = load v2
@@ -65,14 +65,47 @@ entry(v0: ref<Env, managed, mutable>):
     assert_eq!(second, Value::int32(12));
 }
 
-/// call.indirect passes the closure environment for closure.environment.
+/// Closure projections expose the bound function pointer and environment.
+#[test]
+fn test_closure_projection_reads_function_and_environment() {
+    let mir = r#"
+type Env { value: int32 }
+
+@environment(ref<Env, managed, mutable>)
+function readEnv(): int32 {
+entry:
+    v0: ref<Env, managed, mutable> = closure.environment.current
+    v1: ref<int32, managed, mutable> = field.address v0, 0
+    v2: int32 = load v1
+    return v2
+}
+
+function main(): int32 {
+entry:
+    v0: ref<Env, managed, mutable> = new.zeroed Env
+    v1: ref<int32, managed, mutable> = field.address v0, 0
+    v2: int32 = 42
+    store v1, v2
+    v3: () => int32 = closure.bind readEnv, v0
+    v4: fn() => int32 = closure.function v3
+    v5: ref<Env, managed, mutable> = closure.environment v3
+    v6: ref<int32, managed, mutable> = field.address v5, 0
+    v7: int32 = load v6
+    return v7
+}
+"#;
+
+    run_mir_expect(mir, "main", &[], Value::int32(42));
+}
+
+/// call.indirect passes the closure environment for closure.environment.current.
 #[test]
 fn test_call_indirect_environment() {
     let mir = r#"
 @environment(ref<int32, raw, readonly, space(frame)>)
 function readEnv(): int32 {
 entry:
-    v0: ref<int32, raw, readonly, space(frame)> = closure.environment
+    v0: ref<int32, raw, readonly, space(frame)> = closure.environment.current
     v1: int32 = load v0
     return v1
 }
@@ -99,7 +132,7 @@ fn test_tailcall_indirect_environment() {
 @environment(ref<int32, managed, mutable>)
 function readEnv(): int32 {
 b0:
-    v0: ref<int32, managed, mutable> = closure.environment
+    v0: ref<int32, managed, mutable> = closure.environment.current
     v1: int32 = load v0
     return v1
 }
@@ -125,7 +158,7 @@ type Env { cell: ref<int32, managed, mutable> }
 @environment(ref<Env, managed, mutable>)
 function increment(): int32 {
 b0:
-    v0: ref<Env, managed, mutable> = closure.environment
+    v0: ref<Env, managed, mutable> = closure.environment.current
     v1: ref<ref<int32, managed, mutable>, managed, mutable> = field.address v0, 0
     v2: ref<int32, managed, mutable> = load v1
     v3: int32 = load v2
@@ -161,7 +194,7 @@ type Reader = () => int32;
 @environment(ref<Env, managed, mutable>)
 function readEnv(): int32 {
 b0:
-    v0: ref<Env, managed, mutable> = closure.environment
+    v0: ref<Env, managed, mutable> = closure.environment.current
     v1: ref<int32, managed, mutable> = field.address v0, 0
     v2: int32 = load v1
     v3: int32 = 2int32
@@ -192,7 +225,7 @@ type Env { value: int32 }
 @environment(ref<Env, managed, mutable>)
 function readEnv(): int32 {
 b0:
-    v0: ref<Env, managed, mutable> = closure.environment
+    v0: ref<Env, managed, mutable> = closure.environment.current
     v1: ref<int32, managed, mutable> = field.address v0, 0
     v2: int32 = load v1
     return v2
@@ -228,7 +261,7 @@ type Env { value: int32 }
 @environment(ref<Env, managed, mutable>)
 function readEnv(): int32 {
 b0:
-    v0: ref<Env, managed, mutable> = closure.environment
+    v0: ref<Env, managed, mutable> = closure.environment.current
     v1: ref<int32, managed, mutable> = field.address v0, 0
     v2: int32 = load v1
     return v2
@@ -287,7 +320,7 @@ type Holder {
 @environment(ref<Env, managed, mutable>)
 function readEnv(): int32 {
 entry:
-    v0: ref<Env, managed, mutable> = closure.environment
+    v0: ref<Env, managed, mutable> = closure.environment.current
     v1: ref<int32, managed, mutable> = field.address v0, 0
     v2: int32 = load v1
     return v2
@@ -327,7 +360,7 @@ type OuterEnv { fun: () => int32 }
 @environment(ref<InnerEnv, managed, mutable>)
 function inner(): int32 {
 b0:
-    v0: ref<InnerEnv, managed, mutable> = closure.environment
+    v0: ref<InnerEnv, managed, mutable> = closure.environment.current
     v1: ref<int32, managed, mutable> = field.address v0, 0
     v2: int32 = load v1
     return v2
@@ -336,7 +369,7 @@ b0:
 @environment(ref<OuterEnv, managed, mutable>)
 function outer(): int32 {
 b0:
-    v0: ref<OuterEnv, managed, mutable> = closure.environment
+    v0: ref<OuterEnv, managed, mutable> = closure.environment.current
     v1: ref<() => int32, managed, mutable> = field.address v0, 0
     v2: () => int32 = load v1
     v3: int32 = call.indirect v2(): () => int32
@@ -407,7 +440,7 @@ type Env { value: int32, extra: int32 }
 @environment(ref<Env, raw, readonly, space(frame)>)
 function readEnv(): int32 {
 b0:
-    v0: ref<Env, raw, readonly, space(frame)> = closure.environment
+    v0: ref<Env, raw, readonly, space(frame)> = closure.environment.current
     v1: ref<int32, raw, readonly, space(frame)> = field.address v0, 0
     v2: int32 = load v1
     v3: ref<int32, raw, readonly, space(frame)> = field.address v0, 1
@@ -443,7 +476,7 @@ type Reader = () => int32;
 @environment(ref<Env, managed, mutable>)
 function readEnv(): int32 {
 b0:
-    v0: ref<Env, managed, mutable> = closure.environment
+    v0: ref<Env, managed, mutable> = closure.environment.current
     v1: ref<int32, managed, mutable> = field.address v0, 0
     v2: int32 = load v1
     return v2
