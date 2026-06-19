@@ -157,15 +157,15 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Construct a closure value for one function and environment.
-    pub fn closure_bind(
+    /// Construct a function value for one function and environment.
+    pub fn function_bind(
         &mut self,
         function: LocalNodeId<Function>,
         signature: LocalNodeId<Type>,
         environment: Value,
     ) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::ClosureBind {
+        self.insert_instruction(Instruction::FunctionBind {
             destination,
             function,
             environment,
@@ -174,34 +174,34 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Project the function pointer from one closure value.
-    pub fn closure_function(&mut self, closure: Value, function_type: LocalNodeId<Type>) -> Value {
+    /// Project the function pointer from one function value.
+    pub fn function_pointer(&mut self, function: Value, function_type: LocalNodeId<Type>) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::ClosureFunction {
+        self.insert_instruction(Instruction::FunctionPointer {
             destination,
-            closure,
+            function,
         });
         self.define_value(destination, function_type);
         destination
     }
 
-    /// Project the environment from one closure value.
-    pub fn closure_environment(
+    /// Project the environment from one function value.
+    pub fn function_environment(
         &mut self,
-        closure: Value,
+        function: Value,
         environment_type: LocalNodeId<Type>,
     ) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::ClosureEnvironment {
+        self.insert_instruction(Instruction::FunctionEnvironment {
             destination,
-            closure,
+            function,
         });
         self.define_value(destination, environment_type);
         destination
     }
 
     /// Load the hidden environment pointer for the current function.
-    pub fn closure_environment_current(&mut self, environment_type: LocalNodeId<Type>) -> Value {
+    pub fn function_environment_current(&mut self, environment_type: LocalNodeId<Type>) -> Value {
         // record the hidden environment type on the function metadata
         let existing_environment = {
             let requested_environment = TypeId::from(environment_type);
@@ -216,14 +216,14 @@ impl<'a> FunctionBuilder<'a> {
             }
         };
         if let Some(existing) = existing_environment {
-            self.expect_build::<()>(Err(BuildError::MismatchedClosureEnvironment {
+            self.expect_build::<()>(Err(BuildError::MismatchedFunctionEnvironment {
                 existing,
                 requested: environment_type,
             }));
         }
 
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::ClosureEnvironmentCurrent { destination });
+        self.insert_instruction(Instruction::FunctionEnvironmentCurrent { destination });
         self.define_value(destination, environment_type);
         destination
     }

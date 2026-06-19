@@ -584,10 +584,10 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::SliceView { .. }
         | mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
-        | mir::Instruction::ClosureBind { .. }
-        | mir::Instruction::ClosureEnvironment { .. }
-        | mir::Instruction::ClosureFunction { .. }
-        | mir::Instruction::ClosureEnvironmentCurrent { .. }
+        | mir::Instruction::FunctionBind { .. }
+        | mir::Instruction::FunctionEnvironment { .. }
+        | mir::Instruction::FunctionPointer { .. }
+        | mir::Instruction::FunctionEnvironmentCurrent { .. }
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::FieldAddr { .. }
         | mir::Instruction::ElementAddr { .. }

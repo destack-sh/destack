@@ -430,13 +430,13 @@ impl ModuleBuilder {
         self.tree.insert_type(Type::FunctionPointer { signature })
     }
 
-    /// Create a closure type.
-    pub fn type_closure(
+    /// Create a function value type.
+    pub fn type_function(
         &mut self,
         signature: LocalNodeId<Type>,
         environment: LocalNodeId<Type>,
     ) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::Closure {
+        self.tree.insert_type(Type::Function {
             signature,
             environment,
         })

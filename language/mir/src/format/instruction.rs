@@ -209,7 +209,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )?;
                 format_function_reference(*function, f)
             }
-            Instruction::ClosureBind {
+            Instruction::FunctionBind {
                 destination,
                 function,
                 environment,
@@ -217,14 +217,20 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 format_typed_destination(*destination, f)?;
                 write!(
                     f,
-                    [space(), token("="), space(), token("closure.bind"), space()]
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("function.bind"),
+                        space()
+                    ]
                 )?;
                 format_function_reference(*function, f)?;
                 write!(f, [token(","), space(), environment])
             }
-            Instruction::ClosureFunction {
+            Instruction::FunctionPointer {
                 destination,
-                closure,
+                function,
             } => {
                 format_typed_destination(*destination, f)?;
                 write!(
@@ -233,15 +239,15 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("closure.function"),
+                        token("function.pointer"),
                         space()
                     ]
                 )?;
-                write!(f, [closure])
+                write!(f, [function])
             }
-            Instruction::ClosureEnvironment {
+            Instruction::FunctionEnvironment {
                 destination,
-                closure,
+                function,
             } => {
                 format_typed_destination(*destination, f)?;
                 write!(
@@ -250,13 +256,13 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("closure.environment"),
+                        token("function.environment"),
                         space()
                     ]
                 )?;
-                write!(f, [closure])
+                write!(f, [function])
             }
-            Instruction::ClosureEnvironmentCurrent { destination } => {
+            Instruction::FunctionEnvironmentCurrent { destination } => {
                 format_typed_destination(*destination, f)?;
                 write!(
                     f,
@@ -264,7 +270,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("closure.environment.current")
+                        token("function.environment.current")
                     ]
                 )
             }

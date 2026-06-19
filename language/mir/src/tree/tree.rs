@@ -921,14 +921,14 @@ impl Tree {
         unreachable!("missing float type id for {}", format.label());
     }
 
-    /// Return the canonical storage type for the hidden environment field in one closure.
-    pub fn closure_environment_type(&self) -> LocalNodeId<Type> {
+    /// Return the canonical storage type for the hidden environment field in one function.
+    pub fn function_environment_type(&self) -> LocalNodeId<Type> {
         let void_type = if let Some(type_id) = self.metadata.types.void_type() {
             type_id
         } else if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Void)) {
             type_id
         } else {
-            unreachable!("missing void type for closure environment storage");
+            unreachable!("missing void type for function environment storage");
         };
 
         if let Some(type_id) = self.find_type_by_predicate(|ty| {
@@ -947,11 +947,11 @@ impl Tree {
             return type_id;
         }
 
-        unreachable!("missing canonical closure environment storage type");
+        unreachable!("missing canonical function environment storage type");
     }
 
-    /// Ensure the canonical storage type for the hidden environment field in one closure.
-    pub fn ensure_closure_environment_type(&mut self) -> LocalNodeId<Type> {
+    /// Ensure the canonical storage type for the hidden environment field in one function.
+    pub fn ensure_function_environment_type(&mut self) -> LocalNodeId<Type> {
         // reuse or create the canonical void type
         let void_type = if let Some(type_id) = self.metadata.types.void_type() {
             type_id
@@ -970,7 +970,7 @@ impl Tree {
                     space: Space::Local,
                     access: Access::Mutable,
                     pointee,
-                    nullability: crate::Nullability::Null,
+                    nullability: Nullability::Null,
                     ..
                 } if *pointee == void_type
             )
@@ -985,7 +985,7 @@ impl Tree {
             space: Space::Local,
             access: Access::Mutable,
             pointee: void_type,
-            nullability: crate::Nullability::Null,
+            nullability: Nullability::Null,
         })
     }
 

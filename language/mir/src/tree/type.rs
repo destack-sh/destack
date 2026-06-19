@@ -402,17 +402,17 @@ pub enum Type {
         /// The result type of the function.
         result: TypeId,
     },
+    /// Function value type.
+    Function {
+        /// The bare function signature.
+        signature: TypeId,
+        /// The captured environment reference.
+        environment: TypeId,
+    },
     /// Function pointer type.
     FunctionPointer {
         /// The bare function signature.
         signature: TypeId,
-    },
-    /// Closure value with code and environment.
-    Closure {
-        /// The bare function signature.
-        signature: TypeId,
-        /// The closure environment reference.
-        environment: TypeId,
     },
 }
 
@@ -610,6 +610,51 @@ impl Type {
         }
     }
 
+    /// Return the hidden storage types for one slice value.
+    pub fn slice(
+        kind: ReferenceKind,
+        element: TypeId,
+        access: Access,
+        space: Space,
+    ) -> (Type, Type) {
+        let data = Type::Reference {
+            kind,
+            lifetime: Lifetime::empty(),
+            space,
+            access,
+            pointee: element,
+            nullability: Nullability::None,
+        };
+        let length = Type::Usize;
+
+        (data, length)
+    }
+
+    /// Return the signature reference carried by this callable type.
+    pub fn callable_signature(&self) -> Option<TypeId> {
+        match self {
+            Type::FunctionPointer { signature } | Type::Function { signature, .. } => {
+                Some(*signature)
+            }
+            _ => None,
+        }
+    }
+
+    /// Return the lifetimes, parameters, and result type of this function signature.
+    pub fn function_signature_parts(
+        &self,
+    ) -> Option<(&[LifetimeParameter], &[SignatureParameter], TypeId)> {
+        match self {
+            Type::FunctionSignature {
+                lifetimes,
+                parameters,
+                result,
+                ..
+            } => Some((lifetimes.as_slice(), parameters.as_slice(), *result)),
+            _ => None,
+        }
+    }
+
     /// Return the copy property of this type.
     ///
     /// - Primitives are always copyable
@@ -669,10 +714,10 @@ impl Type {
                 ReferenceKind::Managed | ReferenceKind::Borrowed | ReferenceKind::Raw => Copy::Yes,
             },
 
-            // closure values copy the handle, not the environment payload
+            // function values copy the handle, not the environment payload
             Type::FunctionSignature { .. }
             | Type::FunctionPointer { .. }
-            | Type::Closure { .. } => Copy::Yes,
+            | Type::Function { .. } => Copy::Yes,
         }
     }
 }
@@ -732,49 +777,6 @@ pub struct Field {
 
 impl Node for Field {
     const TYPE: NodeType = NodeType::Field;
-}
-
-/// Return the canonical hidden header types for one slice value.
-pub fn slice_header_types(
-    kind: ReferenceKind,
-    element: TypeId,
-    access: Access,
-    space: Space,
-) -> (Type, Type) {
-    let data = Type::Reference {
-        kind,
-        lifetime: Lifetime::empty(),
-        space,
-        access,
-        pointee: element,
-        nullability: Nullability::None,
-    };
-    let length = Type::Usize;
-
-    (data, length)
-}
-
-/// Return the signature reference carried by one callable type.
-pub fn callable_signature(ty: &Type) -> Option<TypeId> {
-    match ty {
-        Type::FunctionPointer { signature } | Type::Closure { signature, .. } => Some(*signature),
-        _ => None,
-    }
-}
-
-/// Return the lifetimes, parameters, and result type of one function signature.
-pub fn function_signature_parts(
-    ty: &Type,
-) -> Option<(&[LifetimeParameter], &[SignatureParameter], TypeId)> {
-    match ty {
-        Type::FunctionSignature {
-            lifetimes,
-            parameters,
-            result,
-            ..
-        } => Some((lifetimes.as_slice(), parameters.as_slice(), *result)),
-        _ => None,
-    }
 }
 
 /// A named type alias in MIR text format.

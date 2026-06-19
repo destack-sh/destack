@@ -80,25 +80,25 @@ entry:
     );
 }
 
-/// Formats environment functions and closure values canonically.
+/// Formats environment functions and function values canonically.
 #[test]
-fn test_format_closure_environment() {
+fn test_format_function_environment() {
     assert_format(
         r#"
 @environment(ref<void, managed, mutable>)
 function callee(v0: int32): int32 {
 entry(v0: int32):
-    v1: ref<void, managed, mutable> = closure.environment.current
+    v1: ref<void, managed, mutable> = function.environment.current
     return v0
 }
 
 @environment(ref<void, managed, mutable>)
 function caller(): int32 {
 entry:
-    v0: ref<void, managed, mutable> = closure.environment.current
-    v1: (int32) => int32 = closure.bind callee, v0
-    v2: fn(int32) => int32 = closure.function v1
-    v3: ref<void, managed, mutable> = closure.environment v1
+    v0: ref<void, managed, mutable> = function.environment.current
+    v1: (int32) => int32 = function.bind callee, v0
+    v2: fn(int32) => int32 = function.pointer v1
+    v3: ref<void, managed, mutable> = function.environment v1
     v4: int32 = 1
     v5: int32 = call.indirect v1(v4): (int32) => int32
     return v5

@@ -1,7 +1,7 @@
 use crate::build::{BuildError, BuildResult, FunctionBuilder};
 use crate::{
     Access, Constant, Global, Instruction, Lifetime, Local, LocalNodeId, Mutability, Nullability,
-    ReferenceKind, Space, Type, Value, callable_signature, function_signature_parts,
+    ReferenceKind, Space, Type, Value,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -179,7 +179,7 @@ impl<'a> FunctionBuilder<'a> {
                     })
                 }
             }
-            Type::Closure { .. } => Err(BuildError::InvalidFieldOwner { ty: aggregate_type }),
+            Type::Function { .. } => Err(BuildError::InvalidFieldOwner { ty: aggregate_type }),
             _ => Err(BuildError::InvalidFieldOwner { ty: aggregate_type }),
         }
     }
@@ -265,14 +265,14 @@ impl<'a> FunctionBuilder<'a> {
         let signature_type = self.tree.get(signature_type_id);
         match signature_type {
             Type::FunctionSignature { result, .. } => Ok(*result),
-            Type::FunctionPointer { .. } | Type::Closure { .. } => {
-                let Some(signature_id) = callable_signature(signature_type) else {
+            Type::FunctionPointer { .. } | Type::Function { .. } => {
+                let Some(signature_id) = signature_type.callable_signature() else {
                     return Err(BuildError::MissingFunctionSignature {
                         ty: signature_type_id,
                     });
                 };
                 let signature_type = self.tree.get(signature_id);
-                let Some((_, _, result)) = function_signature_parts(signature_type) else {
+                let Some((_, _, result)) = signature_type.function_signature_parts() else {
                     return Err(BuildError::MissingFunctionSignature { ty: signature_id });
                 };
 

@@ -141,31 +141,31 @@ pub enum Instruction {
         /// The function to take the address of.
         function: FunctionId,
     },
-    /// Bind one environment to a function and produce a closure value (closure.bind).
-    ClosureBind {
-        /// The SSA value to define with the closure value.
+    /// Bind one environment to a function and produce a function value (function.bind).
+    FunctionBind {
+        /// The SSA value to define with the function value.
         destination: Value,
         /// The function to pair with the environment.
         function: FunctionId,
-        /// The environment value to capture in the closure.
+        /// The environment value to capture.
         environment: Value,
     },
-    /// Project the function pointer from one closure value (closure.function).
-    ClosureFunction {
+    /// Project the function pointer from one function value (function.pointer).
+    FunctionPointer {
         /// The SSA value to define with the function pointer.
         destination: Value,
-        /// The closure value to project.
-        closure: Value,
+        /// The function value to project.
+        function: Value,
     },
-    /// Project the environment from one closure value (closure.environment).
-    ClosureEnvironment {
+    /// Project the environment from one function value (function.environment).
+    FunctionEnvironment {
         /// The SSA value to define with the environment.
         destination: Value,
-        /// The closure value to project.
-        closure: Value,
+        /// The function value to project.
+        function: Value,
     },
-    /// Load the hidden environment for the current function (closure.environment.current).
-    ClosureEnvironmentCurrent {
+    /// Load the hidden environment for the current function (function.environment.current).
+    FunctionEnvironmentCurrent {
         /// The SSA value to define with the hidden environment pointer.
         destination: Value,
     },
@@ -702,7 +702,7 @@ pub enum Instruction {
     CallIndirect {
         /// The SSA value to define with the return value, if any.
         destination: Option<Value>,
-        /// The function pointer or closure value to call.
+        /// The function pointer or function value to call.
         callee: Value,
         /// The shared call payload.
         call: Call<ValueSlice>,
@@ -938,10 +938,10 @@ impl Instruction {
             Instruction::LocalSet { .. } => None,
             Instruction::GlobalAddr { destination, .. } => Some(*destination),
             Instruction::FunctionAddr { destination, .. } => Some(*destination),
-            Instruction::ClosureBind { destination, .. } => Some(*destination),
-            Instruction::ClosureEnvironment { destination, .. } => Some(*destination),
-            Instruction::ClosureFunction { destination, .. } => Some(*destination),
-            Instruction::ClosureEnvironmentCurrent { destination, .. } => Some(*destination),
+            Instruction::FunctionBind { destination, .. } => Some(*destination),
+            Instruction::FunctionEnvironment { destination, .. } => Some(*destination),
+            Instruction::FunctionPointer { destination, .. } => Some(*destination),
+            Instruction::FunctionEnvironmentCurrent { destination, .. } => Some(*destination),
             Instruction::Load { destination, .. } => Some(*destination),
             Instruction::Store { .. } => None,
             Instruction::Struct { destination, .. } => Some(*destination),
@@ -1037,10 +1037,10 @@ impl Instruction {
             Instruction::LocalSet { value, .. } => smallvec![*value],
             Instruction::GlobalAddr { .. } => smallvec![],
             Instruction::FunctionAddr { .. } => smallvec![],
-            Instruction::ClosureBind { environment, .. } => smallvec![*environment],
-            Instruction::ClosureFunction { closure, .. }
-            | Instruction::ClosureEnvironment { closure, .. } => smallvec![*closure],
-            Instruction::ClosureEnvironmentCurrent { .. } => smallvec![],
+            Instruction::FunctionBind { environment, .. } => smallvec![*environment],
+            Instruction::FunctionPointer { function, .. }
+            | Instruction::FunctionEnvironment { function, .. } => smallvec![*function],
+            Instruction::FunctionEnvironmentCurrent { .. } => smallvec![],
             Instruction::Load { pointer, .. } => smallvec![*pointer],
             Instruction::Store { pointer, value, .. } => smallvec![*pointer, *value],
             // arguments stored externally
@@ -1191,16 +1191,16 @@ impl Instruction {
             Instruction::FieldSet {
                 aggregate, value, ..
             } => smallvec![*aggregate, *value],
-            Instruction::ClosureBind { environment, .. }
+            Instruction::FunctionBind { environment, .. }
             | Instruction::VectorSplat {
                 value: environment, ..
             }
             | Instruction::TensorSplat {
                 value: environment, ..
             } => smallvec![*environment],
-            Instruction::ClosureFunction { .. }
-            | Instruction::ClosureEnvironment { .. }
-            | Instruction::ClosureEnvironmentCurrent { .. } => smallvec![],
+            Instruction::FunctionPointer { .. }
+            | Instruction::FunctionEnvironment { .. }
+            | Instruction::FunctionEnvironmentCurrent { .. } => smallvec![],
             Instruction::VectorInsert { vector, value, .. }
             | Instruction::TensorPad {
                 tensor: vector,
