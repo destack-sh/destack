@@ -5,7 +5,7 @@ use std::thread;
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Query;
-use destack_repository::{ProviderTrace, Ref, Repository, Revision};
+use destack_repository::{Ref, Repository, Revision, Trace};
 use destack_source::{FileId, ModuleId};
 
 use crate::executor::Executor;
@@ -47,8 +47,8 @@ impl Session {
         thread::available_parallelism().map_or(1, usize::from)
     }
 
-    /// Return the provider attempt trace of the latest finished run.
-    pub fn last_trace(&self) -> Option<Arc<ProviderTrace>> {
+    /// Return the trace of the latest finished run.
+    pub fn last_trace(&self) -> Option<Arc<Trace>> {
         self.state.last_trace()
     }
 

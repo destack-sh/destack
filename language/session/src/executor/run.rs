@@ -1,18 +1,18 @@
 use std::sync::Arc;
 
-use destack_repository::ProviderTrace;
+use destack_repository::{Clock, Trace};
 use parking_lot::Mutex;
 
 use super::task::Task;
 use crate::SessionError;
 
-/// Id for one session run.
+/// Id for one artifact executor run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
-pub struct RunId(pub u32);
+pub struct ArtifactRunId(pub u32);
 
-impl std::fmt::Display for RunId {
-    /// Format this run id for progress output.
+impl std::fmt::Display for ArtifactRunId {
+    /// Format this artifact run id for progress output.
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(formatter, "#{}", self.0)
     }
@@ -20,35 +20,35 @@ impl std::fmt::Display for RunId {
 
 /// One top-level artifact executor run.
 #[derive(Debug)]
-pub(super) struct Run {
-    /// The id for this session run.
-    id: RunId,
+pub(super) struct ArtifactRun {
+    /// The id for this artifact run.
+    id: ArtifactRunId,
     /// The root tasks this caller is waiting for.
     roots: Vec<Task>,
     /// The first infrastructure error seen by any worker.
     error: Mutex<Option<SessionError>>,
-    /// The provider attempt trace for this run.
-    trace: Arc<ProviderTrace>,
+    /// The trace for this run.
+    trace: Arc<Trace>,
 }
 
-impl Run {
+impl ArtifactRun {
     /// Create one artifact executor run.
-    pub(super) fn new(id: RunId, roots: Vec<Task>) -> Self {
+    pub(super) fn new(id: ArtifactRunId, roots: Vec<Task>, clock: Clock) -> Self {
         Self {
             id,
             roots,
             error: Mutex::new(None),
-            trace: ProviderTrace::new(),
+            trace: Trace::new(clock),
         }
     }
 
-    /// Return the provider attempt trace for this run.
-    pub(super) fn trace(&self) -> &Arc<ProviderTrace> {
+    /// Return the trace for this run.
+    pub(super) fn trace(&self) -> &Arc<Trace> {
         &self.trace
     }
 
-    /// Return this session run id.
-    pub(super) fn id(&self) -> RunId {
+    /// Return this artifact run id.
+    pub(super) fn id(&self) -> ArtifactRunId {
         self.id
     }
 

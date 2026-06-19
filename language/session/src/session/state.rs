@@ -5,11 +5,11 @@ use destack_artifact::ArtifactOutcome;
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Query;
-use destack_repository::{ProviderTrace, Repository};
+use destack_repository::{Repository, Trace};
 use parking_lot::Mutex;
 
 use crate::SessionError;
-use crate::executor::{RunId, Task};
+use crate::executor::{ArtifactRunId, Task};
 
 use super::{SessionEvent, SessionEventHandler};
 
@@ -27,8 +27,8 @@ pub(crate) struct SessionState {
     event_handler: Option<SessionEventHandler>,
     /// Monotonic ids for session runs.
     next_run_id: AtomicU32,
-    /// The provider attempt trace of the latest finished run.
-    last_trace: Mutex<Option<Arc<ProviderTrace>>>,
+    /// The trace of the latest finished run.
+    last_trace: Mutex<Option<Arc<Trace>>>,
 }
 
 impl std::fmt::Debug for SessionState {
@@ -65,13 +65,13 @@ impl SessionState {
         }
     }
 
-    /// Record the provider attempt trace of one finished run.
-    pub(crate) fn set_last_trace(&self, trace: Arc<ProviderTrace>) {
+    /// Record the trace of one finished run.
+    pub(crate) fn set_last_trace(&self, trace: Arc<Trace>) {
         *self.last_trace.lock() = Some(trace);
     }
 
-    /// Return the provider attempt trace of the latest finished run.
-    pub(crate) fn last_trace(&self) -> Option<Arc<ProviderTrace>> {
+    /// Return the trace of the latest finished run.
+    pub(crate) fn last_trace(&self) -> Option<Arc<Trace>> {
         self.last_trace.lock().clone()
     }
 
@@ -103,10 +103,10 @@ impl SessionState {
     }
 
     /// Allocate the next session run id.
-    pub(crate) fn next_run_id(&self) -> RunId {
+    pub(crate) fn next_run_id(&self) -> ArtifactRunId {
         let run_id = self.next_run_id.fetch_add(1, Ordering::Relaxed);
 
-        RunId(run_id)
+        ArtifactRunId(run_id)
     }
 
     /// Return the terminal artifact outcome for one task when it already exists.
@@ -122,7 +122,7 @@ impl SessionState {
         };
 
         // revision bindings must point at a terminal store entry
-        let Some(outcome) = repository.artifact_cache().outcome(&version) else {
+        let Some(outcome) = repository.artifact_table().outcome(&version) else {
             return Err(SessionError::Internal {
                 detail: format!("artifact version is missing from store: {version:?}"),
             });
