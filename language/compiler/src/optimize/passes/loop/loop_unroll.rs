@@ -645,11 +645,7 @@ fn find_unroll_candidate(
     let latch = lp.latches[0];
     let latch_block = tree.get(latch);
     let latch_terminator = tree.get(latch_block.terminator);
-    if !latch_terminator
-        .successors(tree)
-        .iter()
-        .any(|successor| *successor == lp.header)
-    {
+    if !latch_terminator.successors(tree).contains(&lp.header) {
         return None;
     }
     let _latch_arguments = latch_terminator.arguments_for_successor(tree, lp.header);
@@ -2295,10 +2291,7 @@ fn rewrite_latch_to_jump(
 ) -> bool {
     // locate the loop backedge arguments
     let terminator = tree.get(block.terminator).clone();
-    let latch_has_edge = terminator
-        .successors(tree)
-        .iter()
-        .any(|successor| *successor == header);
+    let latch_has_edge = terminator.successors(tree).contains(&header);
     if !latch_has_edge {
         return false;
     }
@@ -2327,10 +2320,7 @@ fn rewrite_latch_block(
     let terminator = tree.get(block.terminator).clone();
 
     // extract latch arguments
-    let latch_has_edge = terminator
-        .successors(tree)
-        .iter()
-        .any(|successor| *successor == iteration.header);
+    let latch_has_edge = terminator.successors(tree).contains(&iteration.header);
     if !latch_has_edge {
         return false;
     }

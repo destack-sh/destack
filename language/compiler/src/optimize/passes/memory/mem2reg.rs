@@ -404,8 +404,8 @@ fn insert_block_parameters(
             let param_value = function.next_typed_value(ty);
 
             block.parameters.push(mir::BlockParameter {
-                value: param_value.into(),
-                ty: ty.into(),
+                value: param_value,
+                ty,
             });
 
             block_params.insert((block_id, local), param_value);

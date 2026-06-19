@@ -1545,8 +1545,8 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Tree
     } else {
         let return_value = function.next_typed_value(return_type_id);
         let param = mir::BlockParameter {
-            value: return_value.into(),
-            ty: return_type_id.into(),
+            value: return_value,
+            ty: return_type_id,
         };
         let terminator = tree.insert(mir::Terminator::Return {
             value: Some(return_value),
