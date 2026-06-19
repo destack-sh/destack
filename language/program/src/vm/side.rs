@@ -3,7 +3,7 @@ use destack_mir::{self as mir, LayoutId};
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ArgumentRange, AtomicOrder, AtomicShape, CallTarget, CellLayout, ClosureObjectLayout,
+    ArgumentRange, AtomicOrder, AtomicShape, CallTarget, CellLayout, FunctionObjectLayout,
     MoveRange, Projection, ProjectionId, ScalarLayout, TensorAddress, TensorConvolutionId,
     TensorDotId, TensorGatherId, TensorLayoutId, TensorScatterId, TensorWindowId, U32RangeId,
     ValueShape,
@@ -11,9 +11,9 @@ use super::{
 
 const INTRINSIC_ARGUMENT_CAPACITY: usize = 16;
 
-/// Frame byte select operation.
+/// Aggregate select operation.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub struct FrameSelect {
+pub struct AggregateSelect {
     /// The destination frame offset.
     pub destination_offset: u32,
     /// The condition cell offset.
@@ -218,16 +218,16 @@ pub struct VectorConvert {
     pub element_count: u32,
 }
 
-/// Closure environment representation.
+/// Function environment representation.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub enum ClosureEnvironment {
+pub enum FunctionEnvironment {
     /// Environment stored in one VM cell.
     Cell {
         /// The environment cell layout.
         layout: CellLayout,
     },
-    /// Environment stored in frame bytes.
-    Frame {
+    /// Environment stored as an aggregate value.
+    Aggregate {
         /// The environment heap layout.
         layout: LayoutId,
         /// The environment byte length.
@@ -235,15 +235,15 @@ pub enum ClosureEnvironment {
     },
 }
 
-/// Closure bind operation.
+/// Function bind operation.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub struct ClosureBind {
-    /// The closure heap layout.
-    pub closure_layout: LayoutId,
-    /// The closure object field layout.
-    pub object_layout: ClosureObjectLayout,
+pub struct FunctionBind {
+    /// The function heap layout.
+    pub function_layout: LayoutId,
+    /// The function object field layout.
+    pub object_layout: FunctionObjectLayout,
     /// The environment representation.
-    pub environment: ClosureEnvironment,
+    pub environment: FunctionEnvironment,
 }
 
 /// Direct function call.
@@ -330,10 +330,10 @@ pub struct CallDynamicBranch {
 
 /// Indirect function call.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub struct CallIndirect {
+pub struct IndirectCall {
     /// The callee cell offset.
     pub callee_offset: u32,
-    /// The expected closure signature.
+    /// The expected function signature.
     pub signature: mir::LocalNodeId<mir::Type>,
     /// The pooled argument range.
     pub arguments: ArgumentRange,
@@ -341,10 +341,10 @@ pub struct CallIndirect {
 
 /// Indirect call terminator with an explicit continuation.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub struct CallIndirectBranch {
+pub struct IndirectCallBranch {
     /// The callee cell offset.
     pub callee_offset: u32,
-    /// The expected closure signature.
+    /// The expected function signature.
     pub signature: mir::LocalNodeId<mir::Type>,
     /// The pooled argument range.
     pub arguments: ArgumentRange,
@@ -1052,10 +1052,10 @@ pub struct TailCallDynamic {
 
 /// Indirect tail call.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub struct TailCallIndirect {
+pub struct IndirectTailCall {
     /// The callee cell offset.
     pub callee_offset: u32,
-    /// The expected closure signature.
+    /// The expected function signature.
     pub signature: mir::LocalNodeId<mir::Type>,
     /// The pooled argument range.
     pub arguments: ArgumentRange,

@@ -2,16 +2,17 @@ use destack_mir as mir;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    AllocationBranch, AllocationSite, AtomicCompareExchange, Call, CallBranch, CallDynamic,
-    CallDynamicBranch, CallIndirect, CallIndirectBranch, CallVirtual, CallVirtualBranch,
-    ClosureBind, ConstValue, FrameSelect, Intrinsic, MoveRange, Projection, SliceAllocationBranch,
-    SliceProjection, SmallAllocationSite, SwitchCase, TailCall, TailCallDynamic, TailCallIndirect,
-    TailCallVirtual, TensorBinary, TensorBroadcast, TensorConcat, TensorContiguousBinary,
-    TensorContiguousUnary, TensorConvert, TensorConvolution, TensorCopy, TensorDot, TensorExtract,
-    TensorFill, TensorGather, TensorIndexReduce, TensorLayout, TensorLoad, TensorPad, TensorReduce,
-    TensorReshape, TensorScatter, TensorSelect, TensorSlice, TensorStore, TensorTranspose,
-    TensorUnary, TensorView, TensorViewCast, VectorBinary, VectorConvert, VectorExtract,
-    VectorInsert, VectorReduce, VectorSelect, VectorShuffle, VectorSplat, VectorUnary,
+    AggregateSelect, AllocationBranch, AllocationSite, AtomicCompareExchange, Call, CallBranch,
+    CallDynamic, CallDynamicBranch, CallVirtual, CallVirtualBranch, ConstValue, FunctionBind,
+    IndirectCall, IndirectCallBranch, IndirectTailCall, Intrinsic, MoveRange, Projection,
+    SliceAllocationBranch, SliceProjection, SmallAllocationSite, SwitchCase, TailCall,
+    TailCallDynamic, TailCallVirtual, TensorBinary, TensorBroadcast, TensorConcat,
+    TensorContiguousBinary, TensorContiguousUnary, TensorConvert, TensorConvolution, TensorCopy,
+    TensorDot, TensorExtract, TensorFill, TensorGather, TensorIndexReduce, TensorLayout,
+    TensorLoad, TensorPad, TensorReduce, TensorReshape, TensorScatter, TensorSelect, TensorSlice,
+    TensorStore, TensorTranspose, TensorUnary, TensorView, TensorViewCast, VectorBinary,
+    VectorConvert, VectorExtract, VectorInsert, VectorReduce, VectorSelect, VectorShuffle,
+    VectorSplat, VectorUnary,
 };
 
 /// Identifier for one pooled check constraint.
@@ -256,7 +257,7 @@ macro_rules! side_record_table {
 }
 
 side_record_table! {
-    frame_select: FrameSelect,
+    aggregate_select: AggregateSelect,
     allocation_branch: AllocationBranch,
     slice_allocation_branch: SliceAllocationBranch,
     atomic_compare_exchange: AtomicCompareExchange,
@@ -269,15 +270,15 @@ side_record_table! {
     vector_select: VectorSelect,
     vector_reduce: VectorReduce,
     vector_convert: VectorConvert,
-    closure_bind: ClosureBind,
+    function_bind: FunctionBind,
     call: Call,
     call_branch: CallBranch,
     call_virtual: CallVirtual,
     call_virtual_branch: CallVirtualBranch,
     call_dynamic: CallDynamic,
     call_dynamic_branch: CallDynamicBranch,
-    call_indirect: CallIndirect,
-    call_indirect_branch: CallIndirectBranch,
+    indirect_call: IndirectCall,
+    indirect_call_branch: IndirectCallBranch,
     tensor_load: TensorLoad,
     tensor_extract: TensorExtract,
     tensor_binary: TensorBinary,
@@ -307,7 +308,7 @@ side_record_table! {
     tail_call: TailCall,
     tail_call_virtual: TailCallVirtual,
     tail_call_dynamic: TailCallDynamic,
-    tail_call_indirect: TailCallIndirect,
+    indirect_tail_call: IndirectTailCall,
 }
 
 /// Immutable side table referenced by compact side records.

@@ -65,10 +65,10 @@ pub enum ValueShape {
     },
     /// Function pointer value with result type.
     FunctionPointer { result: mir::LocalNodeId<mir::Type> },
-    /// Opaque closure value.
-    Closure { ty: mir::LocalNodeId<mir::Type> },
-    /// Frame byte value with concrete type.
-    FrameBytes { ty: mir::LocalNodeId<mir::Type> },
+    /// Opaque function value.
+    Function { ty: mir::LocalNodeId<mir::Type> },
+    /// Aggregate value materialized in frame storage.
+    Aggregate { ty: mir::LocalNodeId<mir::Type> },
     /// Fixed-size array value with element type.
     Array {
         element: mir::LocalNodeId<mir::Type>,
@@ -80,7 +80,7 @@ impl ValueShape {
     /// Return whether this value lives inline in the current frame.
     #[inline(always)]
     pub const fn is_frame_storage(self) -> bool {
-        matches!(self, Self::FrameBytes { .. } | Self::Array { .. })
+        matches!(self, Self::Aggregate { .. } | Self::Array { .. })
     }
 }
 
@@ -314,18 +314,18 @@ pub fn value_shape_from_type(
             element: *element,
             length: *length,
         }),
-        mir::Type::Slice { .. } => Some(ValueShape::FrameBytes { ty }),
+        mir::Type::Slice { .. } => Some(ValueShape::Aggregate { ty }),
         mir::Type::Uninit { value } => value_shape_from_type(tree, *value),
-        mir::Type::Dynamic { .. } => Some(ValueShape::FrameBytes { ty }),
+        mir::Type::Dynamic { .. } => Some(ValueShape::Aggregate { ty }),
         mir::Type::Atomic { value } => value_shape_from_type(tree, *value),
         mir::Type::Newtype { inner, .. } => value_shape_from_type(tree, *inner),
-        mir::Type::Closure { .. } => Some(ValueShape::Closure { ty }),
+        mir::Type::Function { .. } => Some(ValueShape::Function { ty }),
         mir::Type::Tuple { .. }
         | mir::Type::Struct { .. }
         | mir::Type::Variant { .. }
         | mir::Type::Vector { .. }
-        | mir::Type::Tensor { .. } => Some(ValueShape::FrameBytes { ty }),
-        mir::Type::TensorView { .. } => Some(ValueShape::FrameBytes { ty }),
+        | mir::Type::Tensor { .. } => Some(ValueShape::Aggregate { ty }),
+        mir::Type::TensorView { .. } => Some(ValueShape::Aggregate { ty }),
     }
 }
 
@@ -366,7 +366,7 @@ pub fn cell_layout_from_type(
             cell_layout_from_address_space(address_space)
         }
         mir::Type::Uninit { value } => cell_layout_from_type(tree, *value),
-        mir::Type::Closure { .. } => Some(CellLayout::HeapReference),
+        mir::Type::Function { .. } => Some(CellLayout::HeapReference),
         mir::Type::FunctionSignature { .. } | mir::Type::FunctionPointer { .. } => {
             Some(CellLayout::FunctionPointer)
         }

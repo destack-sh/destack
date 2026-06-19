@@ -84,7 +84,7 @@ impl FunctionTable {
         self.functions.get(index as usize)
     }
 
-    /// Return the closure environment cell layout for one function id.
+    /// Return the function environment cell layout for one function id.
     pub fn environment_layout(
         &self,
         tree: &mir::Tree,
@@ -119,7 +119,7 @@ impl FunctionTable {
     }
 }
 
-/// Return one closure environment cell layout.
+/// Return one function environment cell layout.
 fn environment_layout(
     tree: &mir::Tree,
     function_id: mir::LocalNodeId<mir::Function>,
