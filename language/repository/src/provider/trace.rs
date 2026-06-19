@@ -1,215 +1,374 @@
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use destack_artifact::{ArtifactKey, ArtifactStage};
 use destack_source::TargetId;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 
-/// Terminal outcome of one artifact build.
+use crate::{Clock, Moment};
+
+use super::ArtifactAttemptRecorder;
+
+/// Terminal outcome of one artifact executor attempt.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TraceOutcome {
-    /// The build produced its artifact.
-    Ready,
-    /// The build blocked on missing requirements.
+pub enum ArtifactAttemptOutcome {
+    /// The provider produced the artifact in this trace.
+    Built,
+    /// The artifact was already present in memory.
+    MemoryCached,
+    /// The artifact was restored from the persistent artifact store.
+    StoreCached,
+    /// The attempt parked on missing requirements.
     Blocked,
-    /// The build failed.
+    /// The attempt failed.
     Failed,
 }
 
-impl TraceOutcome {
+impl ArtifactAttemptOutcome {
     /// Return this outcome's display name.
     pub fn name(self) -> &'static str {
         match self {
-            Self::Ready => "ready",
+            Self::Built => "built",
+            Self::MemoryCached => "memory_cached",
+            Self::StoreCached => "store_cached",
             Self::Blocked => "blocked",
             Self::Failed => "failed",
         }
     }
 }
 
-/// One interior phase recorded by an artifact build.
+/// One timed interval in a trace.
 #[derive(Debug, Clone, Copy)]
-pub struct ArtifactSpan {
-    /// The phase name.
+pub struct TraceSpan {
+    /// The span name.
     pub name: &'static str,
     /// The offset from the trace epoch.
     pub start: Duration,
-    /// The phase duration.
+    /// The span duration.
     pub duration: Duration,
 }
 
-/// One named size counter recorded by an artifact build.
+/// One named count in a trace.
 #[derive(Debug, Clone, Copy)]
-pub struct ArtifactCounter {
+pub struct TraceCounter {
     /// The counter name.
     pub name: &'static str,
-    /// The counted value.
+    /// The counter value.
     pub value: u64,
 }
 
-/// One recorded artifact build.
+/// One recorded artifact executor attempt.
 #[derive(Debug, Clone)]
-pub struct ArtifactTrace {
-    /// The built artifact key.
+pub struct ArtifactAttempt {
+    /// The attempted artifact key.
     pub key: ArtifactKey,
-    /// The worker that executed the build.
+    /// The worker that executed the attempt.
     pub worker: usize,
-    /// The offset from the trace epoch.
-    pub start: Duration,
-    /// The build duration.
-    pub duration: Duration,
-    /// The build outcome.
-    pub outcome: TraceOutcome,
-    /// Interior phases the provider chose to record.
-    pub spans: Vec<ArtifactSpan>,
-    /// Counters the provider chose to record.
-    pub counters: Vec<ArtifactCounter>,
+    /// The full attempt span.
+    pub span: TraceSpan,
+    /// The attempt outcome.
+    pub outcome: ArtifactAttemptOutcome,
+    /// Interior spans recorded by the executor or provider.
+    pub spans: Vec<TraceSpan>,
+    /// Counters recorded by the executor or provider.
+    pub counters: Vec<TraceCounter>,
 }
 
-/// Collected artifact build traces for one provider run.
-///
-/// The trace pairs with the dependency edges already recorded on every
-/// completed artifact: together they describe where the time went and
-/// which artifacts gated which.
+/// Trace of one public toolchain operation.
 #[derive(Debug)]
-pub struct ProviderTrace {
-    /// The instant all recorded offsets measure from.
-    epoch: Instant,
-    /// The recorded artifact builds in completion order.
-    artifacts: Mutex<Vec<ArtifactTrace>>,
+pub struct Trace {
+    /// The clock used for timing samples.
+    clock: Clock,
+    /// The clock reading all recorded offsets measure from.
+    epoch: Option<Moment>,
+    /// The recorded operation-level spans.
+    spans: Mutex<Vec<TraceSpan>>,
+    /// The recorded operation-level counters.
+    counters: Mutex<Vec<TraceCounter>>,
+    /// The recorded artifact attempts in completion order.
+    attempts: Mutex<Vec<ArtifactAttempt>>,
+    /// The final trace duration.
+    duration: Mutex<Option<Duration>>,
 }
 
-impl ProviderTrace {
+impl Trace {
     /// Create an empty trace starting now.
-    pub fn new() -> Arc<Self> {
+    pub fn new(clock: Clock) -> Arc<Self> {
         Arc::new(Self {
-            epoch: Instant::now(),
-            artifacts: Mutex::new(Vec::new()),
+            clock,
+            epoch: clock.now(),
+            spans: Mutex::new(Vec::new()),
+            counters: Mutex::new(Vec::new()),
+            attempts: Mutex::new(Vec::new()),
+            duration: Mutex::new(None),
         })
     }
 
-    /// Begin tracing one artifact build on one worker.
-    pub fn begin(self: &Arc<Self>, key: ArtifactKey, worker: usize) -> ArtifactTracer {
-        ArtifactTracer {
-            trace: Arc::clone(self),
-            key,
-            worker,
-            started: Instant::now(),
-            spans: Mutex::new(Vec::new()),
-            counters: Mutex::new(Vec::new()),
-        }
+    /// Record one timed operation-level span around a closure.
+    pub fn span<T>(&self, name: &'static str, work: impl FnOnce() -> T) -> T {
+        let started = self.clock.now();
+        let value = work();
+        self.record_span(name, started);
+
+        value
     }
 
-    /// Return the recorded artifact builds.
-    pub fn artifacts(&self) -> Vec<ArtifactTrace> {
-        self.artifacts.lock().clone()
+    /// Record one operation-level counter.
+    pub fn record_counter(&self, name: &'static str, value: u64) {
+        self.counters.lock().push(TraceCounter { name, value });
     }
 
-    /// Render an aggregate per-artifact-kind summary table.
-    pub fn render_summary(&self) -> String {
-        use std::collections::BTreeMap;
+    /// Finish this trace at the current clock reading.
+    pub fn finish(&self) {
+        let duration = self
+            .epoch
+            .map(|epoch| self.clock.elapsed(epoch))
+            .unwrap_or(Duration::ZERO);
 
-        // aggregate total, count, and maximum per kind and outcome
-        let mut rows: BTreeMap<(&'static str, &'static str), (Duration, usize, Duration)> =
-            BTreeMap::new();
-        let artifacts = self.artifacts.lock();
-        for artifact in artifacts.iter() {
-            let row = rows
-                .entry((artifact.key.display_name(), artifact.outcome.name()))
-                .or_insert((Duration::ZERO, 0, Duration::ZERO));
-            row.0 += artifact.duration;
-            row.1 += 1;
-            row.2 = row.2.max(artifact.duration);
-        }
-
-        // order kinds by their total time
-        let mut rows = rows.into_iter().collect::<Vec<_>>();
-        rows.sort_by_key(|(_, totals)| std::cmp::Reverse(totals.0));
-
-        let mut output = String::new();
-        output.push_str("artifact                    outcome     total      count        max\n");
-        for ((kind, outcome), (total, count, max)) in rows {
-            output.push_str(&format!(
-                "{kind:<27} {outcome:<8} {total:>9.2?} {count:>10} {max:>10.2?}\n"
-            ));
-        }
-
-        output
+        *self.duration.lock() = Some(duration);
     }
 
-    /// Render this trace as Chrome trace event JSON.
-    /// The output loads directly in Perfetto and chrome://tracing, with
-    /// one track per session worker.
-    pub fn render_chrome_trace(&self) -> String {
-        let mut events = Vec::new();
-        let artifacts = self.artifacts.lock();
+    /// Begin recording one artifact attempt on one worker.
+    pub fn begin(self: &Arc<Self>, key: ArtifactKey, worker: usize) -> ArtifactAttemptRecorder {
+        ArtifactAttemptRecorder::new(Arc::clone(self), key, worker, self.clock.now())
+    }
 
-        for artifact in artifacts.iter() {
-            // counters attach as arguments on the artifact slice
-            let mut arguments = serde_json::Map::new();
-            arguments.insert("outcome".to_string(), json!(artifact.outcome.name()));
-            for counter in &artifact.counters {
-                arguments.insert(counter.name.to_string(), json!(counter.value));
+    /// Return the recorded artifact attempts.
+    pub fn attempts(&self) -> Vec<ArtifactAttempt> {
+        self.attempts.lock().clone()
+    }
+
+    /// Return the recorded operation-level spans.
+    pub fn spans(&self) -> Vec<TraceSpan> {
+        self.spans.lock().clone()
+    }
+
+    /// Return the recorded operation-level counters.
+    pub fn counters(&self) -> Vec<TraceCounter> {
+        self.counters.lock().clone()
+    }
+
+    /// Build one serializable snapshot of this trace.
+    pub fn snapshot(
+        &self,
+        detailed: bool,
+        label: impl Fn(&ArtifactKey) -> Option<String>,
+        target: impl Fn(TargetId) -> Option<String>,
+    ) -> TraceSnapshot {
+        let spans = self.spans.lock();
+        let counters = self.counters.lock();
+        let attempts = self.attempts.lock();
+
+        // roll up attempt time per stage, keeping blocked time separate
+        let mut blocked = Duration::ZERO;
+        let mut workers = 0usize;
+        let mut stages = ArtifactStage::ALL.map(|stage| (stage, Duration::ZERO));
+        for attempt in attempts.iter() {
+            workers = workers.max(attempt.worker + 1);
+            if attempt.outcome == ArtifactAttemptOutcome::Blocked {
+                blocked += attempt.span.duration;
+                continue;
             }
 
-            events.push(json!({
-                "name": format!("{:?}", artifact.key),
-                "cat": artifact.key.display_name(),
-                "ph": "X",
-                "ts": artifact.start.as_micros() as u64,
-                "dur": artifact.duration.as_micros() as u64,
-                "pid": 1,
-                "tid": artifact.worker,
-                "args": serde_json::Value::Object(arguments),
-            }));
-
-            // interior phases nest under the artifact on the same track
-            for span in &artifact.spans {
-                events.push(json!({
-                    "name": span.name,
-                    "cat": "phase",
-                    "ph": "X",
-                    "ts": span.start.as_micros() as u64,
-                    "dur": span.duration.as_micros() as u64,
-                    "pid": 1,
-                    "tid": artifact.worker,
-                }));
-            }
+            let stage = attempt.key.stage();
+            let row = stages
+                .iter_mut()
+                .find(|(candidate, _)| *candidate == stage)
+                .expect("every stage has a rollup row");
+            row.1 += attempt.span.duration;
         }
 
-        json!({ "traceEvents": events }).to_string()
+        // keep the snapshot stage rows faithful to artifact stages
+        let stages = stages
+            .into_iter()
+            .filter(|(_stage, duration)| !duration.is_zero())
+            .map(|(stage, duration)| TraceStageSnapshot {
+                name: stage.name().to_string(),
+                micros: duration.as_micros() as u64,
+            })
+            .collect();
+
+        // detailed snapshots carry the labeled artifact rows
+        let artifacts = if detailed {
+            attempts
+                .iter()
+                .map(|attempt| ArtifactAttemptSnapshot {
+                    name: attempt.key.display_name().to_string(),
+                    stage: attempt.key.stage().name().to_string(),
+                    label: label(&attempt.key),
+                    target: attempt.key.target_id().and_then(&target),
+                    worker: attempt.worker,
+                    start_micros: attempt.span.start.as_micros() as u64,
+                    micros: attempt.span.duration.as_micros() as u64,
+                    outcome: attempt.outcome.name().to_string(),
+                    spans: attempt
+                        .spans
+                        .iter()
+                        .map(TraceSpanSnapshot::from_span)
+                        .collect(),
+                    counters: attempt
+                        .counters
+                        .iter()
+                        .map(TraceCounterSnapshot::from_counter)
+                        .collect(),
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let total = self.duration(&spans, &attempts);
+        let spans = if detailed {
+            spans.iter().map(TraceSpanSnapshot::from_span).collect()
+        } else {
+            Vec::new()
+        };
+        let counters = if detailed {
+            counters
+                .iter()
+                .map(TraceCounterSnapshot::from_counter)
+                .collect()
+        } else {
+            Vec::new()
+        };
+
+        TraceSnapshot {
+            total_micros: total.as_micros() as u64,
+            workers,
+            spans,
+            counters,
+            stages,
+            blocked_micros: blocked.as_micros() as u64,
+            artifacts,
+        }
+    }
+
+    /// Record one operation-level span that started at one clock reading.
+    fn record_span(&self, name: &'static str, started: Option<Moment>) {
+        let span = self.span_from(name, started);
+
+        self.spans.lock().push(span);
+    }
+
+    /// Build one span from a sampled clock reading.
+    pub(super) fn span_from(&self, name: &'static str, started: Option<Moment>) -> TraceSpan {
+        let start = started
+            .map(|started| self.clock.duration_since(started, self.epoch))
+            .unwrap_or(Duration::ZERO);
+        let duration = started
+            .map(|started| self.clock.elapsed(started))
+            .unwrap_or(Duration::ZERO);
+
+        TraceSpan {
+            name,
+            start,
+            duration,
+        }
+    }
+
+    /// Return one current clock reading.
+    pub(super) fn now(&self) -> Option<Moment> {
+        self.clock.now()
+    }
+
+    /// Push one finished artifact attempt.
+    pub(super) fn record_attempt(&self, attempt: ArtifactAttempt) {
+        self.attempts.lock().push(attempt);
+    }
+
+    /// Return the total trace duration.
+    fn duration(&self, spans: &[TraceSpan], attempts: &[ArtifactAttempt]) -> Duration {
+        if let Some(duration) = *self.duration.lock() {
+            return duration;
+        }
+
+        let operation_end = spans
+            .iter()
+            .map(|span| span.start + span.duration)
+            .max()
+            .unwrap_or(Duration::ZERO);
+        let attempt_end = attempts
+            .iter()
+            .map(|attempt| attempt.span.start + attempt.span.duration)
+            .max()
+            .unwrap_or(Duration::ZERO);
+
+        operation_end.max(attempt_end)
     }
 }
 
-/// Wire-ready report of one provider trace.
+/// Serializable snapshot of one trace.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TraceReport {
-    /// The wall time of the traced run in microseconds.
+pub struct TraceSnapshot {
+    /// The wall time of the traced operation in microseconds.
     pub total_micros: u64,
-    /// The number of workers that recorded builds.
+    /// The number of workers that recorded attempts.
     pub workers: usize,
+    /// Operation-level spans around artifact execution.
+    pub spans: Vec<TraceSpanSnapshot>,
+    /// Operation-level counters.
+    pub counters: Vec<TraceCounterSnapshot>,
     /// Busy time per toolchain stage, ordered by stage.
-    pub stages: Vec<TraceStageReport>,
-    /// Time spent on builds that blocked on requirements.
+    pub stages: Vec<TraceStageSnapshot>,
+    /// Time spent on attempts that blocked on requirements.
     pub blocked_micros: u64,
-    /// The recorded artifact builds, present only in detailed reports.
-    pub artifacts: Vec<TraceArtifactReport>,
+    /// The recorded artifact attempts, present only in detailed snapshots.
+    pub artifacts: Vec<ArtifactAttemptSnapshot>,
 }
 
 /// Busy time of one toolchain stage.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TraceStageReport {
+pub struct TraceStageSnapshot {
     /// The stage display name.
     pub name: String,
-    /// The summed build time in microseconds.
+    /// The summed attempt time in microseconds.
     pub micros: u64,
 }
 
-/// One artifact build in a detailed trace report.
+/// One span in a trace snapshot.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TraceArtifactReport {
+pub struct TraceSpanSnapshot {
+    /// The span name.
+    pub name: String,
+    /// The offset from the trace start in microseconds.
+    pub start_micros: u64,
+    /// The span duration in microseconds.
+    pub micros: u64,
+}
+
+impl TraceSpanSnapshot {
+    /// Convert one in-memory trace span into a snapshot span.
+    fn from_span(span: &TraceSpan) -> Self {
+        Self {
+            name: span.name.to_string(),
+            start_micros: span.start.as_micros() as u64,
+            micros: span.duration.as_micros() as u64,
+        }
+    }
+}
+
+/// One counter in a trace snapshot.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TraceCounterSnapshot {
+    /// The counter name.
+    pub name: String,
+    /// The counter value.
+    pub value: u64,
+}
+
+impl TraceCounterSnapshot {
+    /// Convert one in-memory trace counter into a snapshot counter.
+    fn from_counter(counter: &TraceCounter) -> Self {
+        Self {
+            name: counter.name.to_string(),
+            value: counter.value,
+        }
+    }
+}
+
+/// One artifact attempt in a detailed trace snapshot.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ArtifactAttemptSnapshot {
     /// The artifact kind name.
     pub name: String,
     /// The toolchain stage display name.
@@ -219,164 +378,18 @@ pub struct TraceArtifactReport {
     /// The resolved target name for emitted and linked artifacts.
     #[serde(default)]
     pub target: Option<String>,
-    /// The worker that executed the build.
+    /// The worker that executed the attempt.
     pub worker: usize,
-    /// The offset from the run start in microseconds.
+    /// The offset from the trace start in microseconds.
     pub start_micros: u64,
-    /// The build duration in microseconds.
+    /// The attempt duration in microseconds.
     pub micros: u64,
-    /// The build outcome name.
+    /// The attempt outcome name.
     pub outcome: String,
-}
-
-impl ProviderTrace {
-    /// Build the wire-ready report of this trace.
-    /// Detailed reports carry every artifact build, labeled through the
-    /// resolvers; summary reports carry only the stage rollup. Emit
-    /// time splits per target once more than one target emitted.
-    pub fn report(
-        &self,
-        detailed: bool,
-        label: impl Fn(&ArtifactKey) -> Option<String>,
-        target: impl Fn(TargetId) -> Option<String>,
-    ) -> TraceReport {
-        let artifacts = self.artifacts.lock();
-
-        // roll up ready time per stage, keeping blocked time separate
-        // and emit time keyed by its target
-        let mut total = Duration::ZERO;
-        let mut blocked = Duration::ZERO;
-        let mut workers = 0usize;
-        let mut stages = ArtifactStage::ALL.map(|stage| (stage, Duration::ZERO));
-        let mut emits: Vec<(Option<TargetId>, Duration)> = Vec::new();
-        for artifact in artifacts.iter() {
-            total = total.max(artifact.start + artifact.duration);
-            workers = workers.max(artifact.worker + 1);
-            if artifact.outcome != TraceOutcome::Ready {
-                blocked += artifact.duration;
-                continue;
-            }
-
-            let stage = artifact.key.stage();
-            if stage == ArtifactStage::Emit {
-                let emit_target = artifact.key.target_id();
-                match emits
-                    .iter_mut()
-                    .find(|(candidate, _)| *candidate == emit_target)
-                {
-                    Some(row) => row.1 += artifact.duration,
-                    None => emits.push((emit_target, artifact.duration)),
-                }
-                continue;
-            }
-            let row = stages
-                .iter_mut()
-                .find(|(candidate, _)| *candidate == stage)
-                .expect("every stage has a rollup row");
-            row.1 += artifact.duration;
-        }
-
-        // a single emitted target keeps the plain stage name
-        let split_emit = emits.len() > 1;
-        let mut rows = Vec::new();
-        for (stage, duration) in stages {
-            if stage == ArtifactStage::Emit {
-                for (emit_target, duration) in emits.drain(..) {
-                    let name = match emit_target.and_then(&target) {
-                        Some(name) if split_emit => format!("emit {name}"),
-                        _ => stage.name().to_string(),
-                    };
-                    rows.push((name, duration));
-                }
-                continue;
-            }
-            if !duration.is_zero() {
-                rows.push((stage.name().to_string(), duration));
-            }
-        }
-        let stages = rows
-            .into_iter()
-            .map(|(name, duration)| TraceStageReport {
-                name,
-                micros: duration.as_micros() as u64,
-            })
-            .collect();
-
-        // detailed reports carry the labeled artifact rows
-        let artifacts = if detailed {
-            artifacts
-                .iter()
-                .map(|artifact| TraceArtifactReport {
-                    name: artifact.key.display_name().to_string(),
-                    stage: artifact.key.stage().name().to_string(),
-                    label: label(&artifact.key),
-                    target: artifact.key.target_id().and_then(&target),
-                    worker: artifact.worker,
-                    start_micros: artifact.start.as_micros() as u64,
-                    micros: artifact.duration.as_micros() as u64,
-                    outcome: artifact.outcome.name().to_string(),
-                })
-                .collect()
-        } else {
-            Vec::new()
-        };
-
-        TraceReport {
-            total_micros: total.as_micros() as u64,
-            workers,
-            stages,
-            blocked_micros: blocked.as_micros() as u64,
-            artifacts,
-        }
-    }
-}
-
-/// Tracer buffering one running artifact build.
-#[derive(Debug)]
-pub struct ArtifactTracer {
-    /// The owning trace.
-    trace: Arc<ProviderTrace>,
-    /// The artifact key being built.
-    key: ArtifactKey,
-    /// The worker executing the build.
-    worker: usize,
-    /// The build start.
-    started: Instant,
-    /// Interior phases recorded so far.
-    spans: Mutex<Vec<ArtifactSpan>>,
-    /// Counters recorded so far.
-    counters: Mutex<Vec<ArtifactCounter>>,
-}
-
-impl ArtifactTracer {
-    /// Record one interior phase that started at one instant.
-    pub fn record_span(&self, name: &'static str, started: Instant) {
-        let span = ArtifactSpan {
-            name,
-            start: started.duration_since(self.trace.epoch),
-            duration: started.elapsed(),
-        };
-
-        self.spans.lock().push(span);
-    }
-
-    /// Record one named counter.
-    pub fn record_counter(&self, name: &'static str, value: u64) {
-        self.counters.lock().push(ArtifactCounter { name, value });
-    }
-
-    /// Finish this artifact build with its outcome.
-    pub fn finish(&self, outcome: TraceOutcome) {
-        let artifact = ArtifactTrace {
-            key: self.key,
-            worker: self.worker,
-            start: self.started.duration_since(self.trace.epoch),
-            duration: self.started.elapsed(),
-            outcome,
-            spans: std::mem::take(&mut self.spans.lock()),
-            counters: std::mem::take(&mut self.counters.lock()),
-        };
-
-        self.trace.artifacts.lock().push(artifact);
-    }
+    /// Interior spans recorded by the executor or provider.
+    #[serde(default)]
+    pub spans: Vec<TraceSpanSnapshot>,
+    /// Counters recorded by the executor or provider.
+    #[serde(default)]
+    pub counters: Vec<TraceCounterSnapshot>,
 }
