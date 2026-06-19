@@ -1,8 +1,13 @@
 use destack_heap::HeapReference;
-use destack_vm::{Cell, Continuation, Frame, Machine, Program, StackPointer};
+use destack_program::Program;
+use destack_program::vm::Executable;
+use destack_vm::{Cell, Continuation, Frame, Machine, StackPointer};
 
 fn main() {
-    println!("Program: {} bytes", std::mem::size_of::<Program>());
+    println!(
+        "Program: {} bytes",
+        std::mem::size_of::<Program<Executable>>()
+    );
     println!("Machine: {} bytes", std::mem::size_of::<Machine>());
     println!(
         "Continuation: {} bytes",

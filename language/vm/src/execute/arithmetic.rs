@@ -185,17 +185,17 @@ pub(crate) fn execute_load_const_cell(
     Ok(())
 }
 
-/// Execute byte constant load.
+/// Execute aggregate constant load.
 #[inline(always)]
-pub(crate) fn execute_load_const_bytes(
+pub(crate) fn execute_load_const_aggregate(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
     let value = ConstValueId(instruction.b);
 
-    // copy constant bytes
-    let ConstValue::Bytes(bytes) = activation.machine.program.side_table().constant(value);
+    // copy aggregate payload
+    let ConstValue::Aggregate(bytes) = activation.machine.program.side_table().constant(value);
     let dest = activation.frame_pointer_at(dest).address() as *mut u8;
     unsafe {
         std::ptr::copy_nonoverlapping(bytes.as_ptr(), dest, bytes.len());

@@ -3,7 +3,7 @@ use destack_program as program;
 use super::frame::{
     FrameValue, load_arguments, load_moved_arguments, move_values, store_parameters,
 };
-use super::{access, closure};
+use super::{access, function};
 use crate::diagnostic::Error;
 use crate::machine::{Activation, Frame};
 use crate::{Cell, FunctionPointer};
@@ -11,9 +11,9 @@ use crate::{Cell, FunctionPointer};
 use super::Transfer;
 use destack_mir as mir;
 use destack_program::vm::{
-    ArgumentRange, Call, CallBranch, CallDynamic, CallDynamicBranch, CallIndirect,
-    CallIndirectBranch, CallTarget, CallVirtual, CallVirtualBranch, CellLayout, ClosureBind,
-    Function, Instruction, MoveRange, Projection, TailCall, TailCallDynamic, TailCallIndirect,
+    ArgumentRange, Call, CallBranch, CallDynamic, CallDynamicBranch, CallTarget, CallVirtual,
+    CallVirtualBranch, CellLayout, Function, FunctionBind, IndirectCall, IndirectCallBranch,
+    IndirectTailCall, Instruction, MoveRange, Projection, TailCall, TailCallDynamic,
     TailCallVirtual,
 };
 
@@ -119,8 +119,8 @@ fn resolve_indirect_callee<const HAS_ENVIRONMENT: bool>(
         return Ok((function, None));
     }
 
-    // closure values carry a function pointer and environment pointer
-    let (function, environment_value) = closure::decode_closure(activation, callee)?;
+    // function values carry a function pointer and environment pointer
+    let (function, environment_value) = function::decode_function(activation, callee)?;
     let function = mir::LocalNodeId::new(function.as_function_pointer().function_index());
 
     Ok((function, Some(environment_value)))
@@ -141,7 +141,7 @@ fn require_call_target(
 }
 
 /// Load a function pointer.
-pub(crate) fn execute_address_function(
+pub(crate) fn execute_function_address(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
@@ -156,26 +156,26 @@ pub(crate) fn execute_address_function(
     Ok(())
 }
 
-/// Build a closure value from one function and cell environment.
-pub(crate) fn execute_bind_closure_cell(
+/// Build a function value from one function and environment.
+pub(crate) fn execute_function_bind(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest_offset = instruction.a;
     let function = instruction.b;
     let environment_offset = instruction.c;
-    let ClosureBind {
-        closure_layout,
+    let FunctionBind {
+        function_layout,
         object_layout,
         environment,
-    } = *activation.side_record::<ClosureBind>(instruction.d);
+    } = *activation.side_record::<FunctionBind>(instruction.d);
 
-    // bind the function pointer and environment into a closure object
+    // bind the function pointer and environment into a function object
     let function_id = mir::LocalNodeId::<mir::Function>::new(function);
     let function = Cell::function_pointer(FunctionPointer::from_bits(function_id.id as usize));
-    let value = closure::bind_closure(
+    let value = function::bind_function(
         activation,
-        closure_layout,
+        function_layout,
         object_layout,
         function,
         environment,
@@ -188,49 +188,17 @@ pub(crate) fn execute_bind_closure_cell(
     Ok(())
 }
 
-/// Build a closure value from one function and frame address environment.
-pub(crate) fn execute_bind_closure_address(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest_offset = instruction.a;
-    let function = instruction.b;
-    let environment_offset = instruction.c;
-    let ClosureBind {
-        closure_layout,
-        object_layout,
-        environment,
-    } = *activation.side_record::<ClosureBind>(instruction.d);
-
-    // bind the function pointer and environment into a closure object
-    let function_id = mir::LocalNodeId::<mir::Function>::new(function);
-    let function = Cell::function_pointer(FunctionPointer::from_bits(function_id.id as usize));
-    let value = closure::bind_closure(
-        activation,
-        closure_layout,
-        object_layout,
-        function,
-        environment,
-        environment_offset,
-    )?;
-
-    // store result
-    activation.store_cell_at(dest_offset, value);
-
-    Ok(())
-}
-
-/// Load the function pointer from one closure value.
-pub(crate) fn execute_load_closure_function(
+/// Load the function pointer from one function value.
+pub(crate) fn execute_function_pointer(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let destination = instruction.a;
-    let closure_offset = instruction.b;
+    let function_offset = instruction.b;
 
-    // decode the closure object
-    let closure = activation.load_cell_at(closure_offset);
-    let (function, _) = closure::decode_closure(activation, closure)?;
+    // decode the function object
+    let function = activation.load_cell_at(function_offset);
+    let (function, _) = function::decode_function(activation, function)?;
 
     // store result
     activation.store_cell_at(destination, function);
@@ -238,17 +206,17 @@ pub(crate) fn execute_load_closure_function(
     Ok(())
 }
 
-/// Load the environment from one closure value.
-pub(crate) fn execute_load_closure_environment(
+/// Load the environment from one function value.
+pub(crate) fn execute_function_environment(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let destination = instruction.a;
-    let closure_offset = instruction.b;
+    let function_offset = instruction.b;
 
-    // decode the closure object
-    let closure = activation.load_cell_at(closure_offset);
-    let (_, environment) = closure::decode_closure(activation, closure)?;
+    // decode the function object
+    let function = activation.load_cell_at(function_offset);
+    let (_, environment) = function::decode_function(activation, function)?;
 
     // store result
     activation.store_cell_at(destination, environment);
@@ -256,8 +224,8 @@ pub(crate) fn execute_load_closure_environment(
     Ok(())
 }
 
-/// Load the closure environment pointer for the current frame.
-pub(crate) fn execute_load_closure_environment_current(
+/// Load the function environment pointer for the current frame.
+pub(crate) fn execute_function_environment_current(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
@@ -513,8 +481,8 @@ fn execute_call_virtual<const IS_SHARED: bool>(
     )
 }
 
-/// Execute class function call through a local heap receiver.
-pub(crate) fn execute_call_virtual_heap(
+/// Execute virtual call through a local receiver.
+pub(crate) fn execute_call_virtual_local(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
     pc: usize,
@@ -522,8 +490,8 @@ pub(crate) fn execute_call_virtual_heap(
     execute_call_virtual::<false>(activation, instruction, pc)
 }
 
-/// Execute class function call through a shared heap receiver.
-pub(crate) fn execute_call_virtual_shared_heap(
+/// Execute virtual call through a shared receiver.
+pub(crate) fn execute_call_virtual_shared(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
     pc: usize,
@@ -559,16 +527,16 @@ fn execute_call_virtual_branch<const IS_SHARED: bool>(
     call_branch_transfer(function_id, target, *arguments, None, *target_state)
 }
 
-/// Execute virtual call terminator through a local heap receiver.
-pub(crate) fn execute_call_virtual_heap_branch(
+/// Execute virtual call terminator through a local receiver.
+pub(crate) fn execute_call_virtual_local_branch(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
     execute_call_virtual_branch::<false>(activation, instruction)
 }
 
-/// Execute virtual call terminator through a shared heap receiver.
-pub(crate) fn execute_call_virtual_shared_heap_branch(
+/// Execute virtual call terminator through a shared receiver.
+pub(crate) fn execute_call_virtual_shared_branch(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
@@ -617,8 +585,8 @@ fn execute_call_dynamic<const IS_SHARED: bool>(
     )
 }
 
-/// Execute dynamic function call through a local heap receiver.
-pub(crate) fn execute_call_dynamic_heap(
+/// Execute dynamic function call through a local receiver.
+pub(crate) fn execute_call_dynamic_local(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
     pc: usize,
@@ -626,8 +594,8 @@ pub(crate) fn execute_call_dynamic_heap(
     execute_call_dynamic::<false>(activation, instruction, pc)
 }
 
-/// Execute dynamic function call through a shared heap receiver.
-pub(crate) fn execute_call_dynamic_shared_heap(
+/// Execute dynamic function call through a shared receiver.
+pub(crate) fn execute_call_dynamic_shared(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
     pc: usize,
@@ -663,16 +631,16 @@ fn execute_call_dynamic_branch<const IS_SHARED: bool>(
     call_branch_transfer(function_id, target, *arguments, None, *target_state)
 }
 
-/// Execute dynamic call terminator through a local heap receiver.
-pub(crate) fn execute_call_dynamic_heap_branch(
+/// Execute dynamic call terminator through a local receiver.
+pub(crate) fn execute_call_dynamic_local_branch(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
     execute_call_dynamic_branch::<false>(activation, instruction)
 }
 
-/// Execute dynamic call terminator through a shared heap receiver.
-pub(crate) fn execute_call_dynamic_shared_heap_branch(
+/// Execute dynamic call terminator through a shared receiver.
+pub(crate) fn execute_call_dynamic_shared_branch(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
@@ -686,16 +654,16 @@ fn execute_indirect_call<const HAS_ENVIRONMENT: bool>(
     pc: usize,
 ) -> Transfer {
     // decode side records
-    let CallIndirect {
+    let IndirectCall {
         callee_offset,
         signature,
         arguments,
-    } = activation.side::<CallIndirect>(instruction);
+    } = activation.side::<IndirectCall>(instruction);
 
     // load callee value
     let callee_value = activation.load_cell_at(*callee_offset);
 
-    // resolve closure function and environment
+    // resolve function pointer and environment
     let (function_id, env) =
         match resolve_indirect_callee::<HAS_ENVIRONMENT>(activation, callee_value) {
             Ok(callee) => callee,
@@ -728,8 +696,8 @@ fn execute_indirect_call<const HAS_ENVIRONMENT: bool>(
     }
 }
 
-/// Execute indirect function call.
-pub(crate) fn execute_call_indirect(
+/// Execute function pointer call.
+pub(crate) fn execute_call_function_pointer(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
     pc: usize,
@@ -737,8 +705,8 @@ pub(crate) fn execute_call_indirect(
     execute_indirect_call::<false>(activation, instruction, pc)
 }
 
-/// Execute closure value call.
-pub(crate) fn execute_call_closure(
+/// Execute function value call.
+pub(crate) fn execute_call_function(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
     pc: usize,
@@ -751,12 +719,12 @@ fn execute_indirect_call_branch<const HAS_ENVIRONMENT: bool>(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let CallIndirectBranch {
+    let IndirectCallBranch {
         callee_offset,
         signature,
         arguments,
         target_state,
-    } = activation.side::<CallIndirectBranch>(instruction);
+    } = activation.side::<IndirectCallBranch>(instruction);
 
     let callee_value = activation.load_cell_at(*callee_offset);
     let (function_id, env) =
@@ -779,16 +747,16 @@ fn execute_indirect_call_branch<const HAS_ENVIRONMENT: bool>(
     call_branch_transfer(function_id, target, *arguments, env, *target_state)
 }
 
-/// Execute indirect call terminator.
-pub(crate) fn execute_call_indirect_branch(
+/// Execute function pointer call terminator.
+pub(crate) fn execute_call_function_pointer_branch(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
     execute_indirect_call_branch::<false>(activation, instruction)
 }
 
-/// Execute closure call terminator.
-pub(crate) fn execute_call_closure_branch(
+/// Execute function value call terminator.
+pub(crate) fn execute_call_function_branch(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
@@ -1013,15 +981,15 @@ pub(crate) fn execute_tail_call_self(
 }
 
 /// Execute indirect tail call.
-pub(crate) fn execute_tail_call_indirect(
+pub(crate) fn execute_tail_call_function_pointer(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
     execute_indirect_tail_call::<false>(activation, instruction)
 }
 
-/// Execute closure value tail call.
-pub(crate) fn execute_tail_call_closure(
+/// Execute function value tail call.
+pub(crate) fn execute_tail_call_function(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
@@ -1063,16 +1031,16 @@ fn execute_tail_call_virtual<const IS_SHARED: bool>(
     }
 }
 
-/// Execute virtual tail call through a local heap receiver.
-pub(crate) fn execute_tail_call_virtual_heap(
+/// Execute virtual tail call through a local receiver.
+pub(crate) fn execute_tail_call_virtual_local(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
     execute_tail_call_virtual::<false>(activation, instruction)
 }
 
-/// Execute virtual tail call through a shared heap receiver.
-pub(crate) fn execute_tail_call_virtual_shared_heap(
+/// Execute virtual tail call through a shared receiver.
+pub(crate) fn execute_tail_call_virtual_shared(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
@@ -1114,16 +1082,16 @@ fn execute_tail_call_dynamic<const IS_SHARED: bool>(
     }
 }
 
-/// Execute dynamic tail call through a local heap receiver.
-pub(crate) fn execute_tail_call_dynamic_heap(
+/// Execute dynamic tail call through a local receiver.
+pub(crate) fn execute_tail_call_dynamic_local(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
     execute_tail_call_dynamic::<false>(activation, instruction)
 }
 
-/// Execute dynamic tail call through a shared heap receiver.
-pub(crate) fn execute_tail_call_dynamic_shared_heap(
+/// Execute dynamic tail call through a shared receiver.
+pub(crate) fn execute_tail_call_dynamic_shared(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
@@ -1136,16 +1104,16 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
     instruction: &Instruction,
 ) -> Transfer {
     // decode side records
-    let TailCallIndirect {
+    let IndirectTailCall {
         callee_offset,
         signature,
         arguments,
-    } = activation.side::<TailCallIndirect>(instruction);
+    } = activation.side::<IndirectTailCall>(instruction);
 
     // load callee value
     let callee_value = activation.load_cell_at(*callee_offset);
 
-    // resolve closure function and environment
+    // resolve function pointer and environment
     let (function_id, env) =
         match resolve_indirect_callee::<HAS_ENVIRONMENT>(activation, callee_value) {
             Ok(callee) => callee,

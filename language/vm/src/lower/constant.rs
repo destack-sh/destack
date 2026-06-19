@@ -40,12 +40,12 @@ impl<'a> BlockLowerer<'a> {
             ));
         }
 
-        // pool frame-backed constants
-        let value = ConstValue::Bytes(constant_bytes(value, layout.byte_len)?);
+        // pool aggregate constants
+        let value = ConstValue::Aggregate(constant_bytes(value, layout.byte_len)?);
         let value = pool.constant(value);
 
         Ok(Instruction::new(
-            Op::LoadConstBytes,
+            Op::LoadConstAggregate,
             value_offset(self, destination)?,
             value.0,
             0,
@@ -71,7 +71,7 @@ impl<'a> BlockLowerer<'a> {
     }
 }
 
-/// Encode a constant into its frame bytes.
+/// Encode an aggregate constant into frame bytes.
 fn constant_bytes(value: &mir::Constant, byte_len: usize) -> Result<Box<[u8]>> {
     let mut bytes = vec![0; byte_len];
 

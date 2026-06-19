@@ -3,10 +3,10 @@ use destack_program as program;
 
 use crate::{Error, Result};
 use destack_program::vm::{
-    AddressSpace, Call, CallBranch, CallDynamic, CallDynamicBranch, CallIndirect,
-    CallIndirectBranch, CallVirtual, CallVirtualBranch, ClosureBind, ClosureEnvironment,
-    Instruction, Op, TailCall, TailCallDynamic, TailCallIndirect, TailCallVirtual,
-    cell_layout_from_type, closure_object_layout, repr_type,
+    AddressSpace, Call, CallBranch, CallDynamic, CallDynamicBranch, CallVirtual, CallVirtualBranch,
+    FunctionBind, FunctionEnvironment, IndirectCall, IndirectCallBranch, IndirectTailCall,
+    Instruction, Op, TailCall, TailCallDynamic, TailCallVirtual, cell_layout_from_type,
+    function_object_layout, repr_type,
 };
 
 use super::frame::{cell_offset, value_offset};
@@ -173,13 +173,13 @@ impl<'a> BlockLowerer<'a> {
         // resolve call arguments
         let arguments = pool.argument_range(self.tree.get_values(call.arguments));
 
-        // resolve closure shape
+        // resolve function shape
         let callee = self.indirect_callee(callee)?;
 
-        // emit the function pointer or closure opcode
+        // emit the function pointer or function opcode
         Ok(pool.instruction_with_side(
             indirect_call_op(&callee),
-            CallIndirect {
+            IndirectCall {
                 callee_offset: callee.offset,
                 signature: callee.signature,
                 arguments,
@@ -187,91 +187,88 @@ impl<'a> BlockLowerer<'a> {
         ))
     }
 
-    /// Lower one closure bind.
-    pub(super) fn lower_closure_bind(
+    /// Lower one function bind.
+    pub(super) fn lower_function_bind(
         &self,
         pool: &mut Pool<'_, '_>,
         destination: mir::Value,
         function: mir::FunctionId,
         environment: mir::Value,
     ) -> Result<Instruction> {
-        // resolve closure operands
+        // resolve function operands
 
         // select the environment representation
         let destination_type = self.value_type_for_value(destination)?;
         let environment_type = self.value_type_for_value(environment)?;
         let environment_layout = self.layout_for_type(environment_type)?;
 
-        let (op, environment_repr) = if environment_layout.is_cell() {
+        let environment_repr = if environment_layout.is_cell() {
             let layout = cell_layout_from_type(self.tree, environment_type)
                 .ok_or(Error::invalid_instruction())?;
 
-            (Op::BindClosureCell, ClosureEnvironment::Cell { layout })
+            FunctionEnvironment::Cell { layout }
         } else {
-            (
-                Op::BindClosureAddress,
-                ClosureEnvironment::Frame {
-                    layout: self.layout_id_for_type(environment_type)?,
-                    byte_len: environment_layout.byte_len,
-                },
-            )
+            FunctionEnvironment::Aggregate {
+                layout: self.layout_id_for_type(environment_type)?,
+                byte_len: environment_layout.byte_len,
+            }
         };
 
-        // pool the cold closure layout metadata
-        let closure = ClosureBind {
-            closure_layout: self.layout_id_for_type(destination_type)?,
-            object_layout: closure_object_layout(self.tree.pointer_bytes() as usize),
+        // pool the cold function layout metadata
+        let bind = FunctionBind {
+            function_layout: self.layout_id_for_type(destination_type)?,
+            object_layout: function_object_layout(self.tree.pointer_bytes() as usize),
             environment: environment_repr,
         };
-        let closure = pool.side_record(closure);
+        let bind = pool.side_record(bind);
 
         // put the hot operands in the instruction payload
         Ok(Instruction::new(
-            op,
+            Op::FunctionBind,
             cell_offset(self, destination)?,
             function.id,
             value_offset(self, environment)?,
-            closure,
+            bind,
         ))
     }
 
-    /// Lower one closure function projection.
-    pub(super) fn lower_closure_function(
+    /// Lower one function pointer projection.
+    pub(super) fn lower_function_pointer(
         &self,
         destination: mir::Value,
-        closure: mir::Value,
+        function: mir::Value,
     ) -> Result<Instruction> {
         Ok(Instruction::new(
-            Op::LoadClosureFunction,
+            Op::FunctionPointer,
             cell_offset(self, destination)?,
-            value_offset(self, closure)?,
+            value_offset(self, function)?,
             0,
             0,
         ))
     }
 
-    /// Lower one closure environment projection.
-    pub(super) fn lower_closure_environment(
+    /// Lower one function environment projection.
+    pub(super) fn lower_function_environment(
         &self,
         destination: mir::Value,
-        closure: mir::Value,
+        function: mir::Value,
     ) -> Result<Instruction> {
         Ok(Instruction::new(
-            Op::LoadClosureEnvironment,
+            Op::FunctionEnvironment,
             cell_offset(self, destination)?,
-            value_offset(self, closure)?,
+            value_offset(self, function)?,
             0,
             0,
         ))
     }
 
-    /// Lower one current closure environment read.
-    pub(super) fn lower_closure_environment_current(
+    /// Lower one current function environment read.
+    pub(super) fn lower_function_environment_current(
         &self,
         destination: mir::Value,
     ) -> Result<Instruction> {
         Ok(Instruction::new(
-            Op::LoadClosureEnvironmentCurrent,
+            Op::FunctionEnvironmentCurrent,
             cell_offset(self, destination)?,
             0,
             0,
@@ -300,7 +297,7 @@ impl<'a> BlockLowerer<'a> {
         // function pointers carry only the target function id
         let (signature, has_environment) = match self.tree.get(callee_type) {
             mir::Type::FunctionPointer { signature } => (*signature, false),
-            mir::Type::Closure { signature, .. } => (*signature, true),
+            mir::Type::Function { signature, .. } => (*signature, true),
             _ => return Err(Error::invalid_instruction()),
         };
 
@@ -349,7 +346,7 @@ impl<'a> BlockLowerer<'a> {
 
         Ok(pool.instruction_with_side(
             indirect_call_branch_op(&callee),
-            CallIndirectBranch {
+            IndirectCallBranch {
                 callee_offset: callee.offset,
                 signature: callee.signature,
                 arguments,
@@ -469,7 +466,7 @@ impl<'a> BlockLowerer<'a> {
 
         Ok(pool.instruction_with_side(
             indirect_tail_call_op(&callee),
-            TailCallIndirect {
+            IndirectTailCall {
                 callee_offset: callee.offset,
                 signature: callee.signature,
                 arguments,
@@ -540,19 +537,19 @@ impl<'a> BlockLowerer<'a> {
 
 /// Static callee shape for one indirect call.
 struct IndirectCallee {
-    /// Cell offset of the closure value in the current frame.
+    /// Cell offset of the function value in the current frame.
     offset: u32,
     /// Expected function signature.
     signature: mir::LocalNodeId<mir::Type>,
-    /// Whether the closure carries an environment pointer.
+    /// Whether the function value carries an environment pointer.
     has_environment: bool,
 }
 
 /// Return the virtual call op for one receiver address space.
 fn virtual_call_op(address_space: AddressSpace) -> Result<Op> {
     match address_space {
-        AddressSpace::Local => Ok(Op::CallVirtualHeap),
-        AddressSpace::Shared => Ok(Op::CallVirtualSharedHeap),
+        AddressSpace::Local => Ok(Op::CallVirtualLocal),
+        AddressSpace::Shared => Ok(Op::CallVirtualShared),
         _ => Err(Error::invalid_pointer_type(format!("{address_space:?}"))),
     }
 }
@@ -560,8 +557,8 @@ fn virtual_call_op(address_space: AddressSpace) -> Result<Op> {
 /// Return the virtual call terminator op for one receiver address space.
 fn virtual_call_branch_op(address_space: AddressSpace) -> Result<Op> {
     match address_space {
-        AddressSpace::Local => Ok(Op::CallVirtualHeapBranch),
-        AddressSpace::Shared => Ok(Op::CallVirtualSharedHeapBranch),
+        AddressSpace::Local => Ok(Op::CallVirtualLocalBranch),
+        AddressSpace::Shared => Ok(Op::CallVirtualSharedBranch),
         _ => Err(Error::invalid_pointer_type(format!("{address_space:?}"))),
     }
 }
@@ -569,8 +566,8 @@ fn virtual_call_branch_op(address_space: AddressSpace) -> Result<Op> {
 /// Return the virtual tail call op for one receiver address space.
 fn virtual_tail_call_op(address_space: AddressSpace) -> Result<Op> {
     match address_space {
-        AddressSpace::Local => Ok(Op::TailCallVirtualHeap),
-        AddressSpace::Shared => Ok(Op::TailCallVirtualSharedHeap),
+        AddressSpace::Local => Ok(Op::TailCallVirtualLocal),
+        AddressSpace::Shared => Ok(Op::TailCallVirtualShared),
         _ => Err(Error::invalid_pointer_type(format!("{address_space:?}"))),
     }
 }
@@ -578,8 +575,8 @@ fn virtual_tail_call_op(address_space: AddressSpace) -> Result<Op> {
 /// Return the dynamic call op for one receiver address space.
 fn dynamic_call_op(address_space: AddressSpace) -> Result<Op> {
     match address_space {
-        AddressSpace::Local => Ok(Op::CallDynamicHeap),
-        AddressSpace::Shared => Ok(Op::CallDynamicSharedHeap),
+        AddressSpace::Local => Ok(Op::CallDynamicLocal),
+        AddressSpace::Shared => Ok(Op::CallDynamicShared),
         _ => Err(Error::invalid_pointer_type(format!("{address_space:?}"))),
     }
 }
@@ -587,8 +584,8 @@ fn dynamic_call_op(address_space: AddressSpace) -> Result<Op> {
 /// Return the dynamic call terminator op for one receiver address space.
 fn dynamic_call_branch_op(address_space: AddressSpace) -> Result<Op> {
     match address_space {
-        AddressSpace::Local => Ok(Op::CallDynamicHeapBranch),
-        AddressSpace::Shared => Ok(Op::CallDynamicSharedHeapBranch),
+        AddressSpace::Local => Ok(Op::CallDynamicLocalBranch),
+        AddressSpace::Shared => Ok(Op::CallDynamicSharedBranch),
         _ => Err(Error::invalid_pointer_type(format!("{address_space:?}"))),
     }
 }
@@ -596,8 +593,8 @@ fn dynamic_call_branch_op(address_space: AddressSpace) -> Result<Op> {
 /// Return the dynamic tail call op for one receiver address space.
 fn dynamic_tail_call_op(address_space: AddressSpace) -> Result<Op> {
     match address_space {
-        AddressSpace::Local => Ok(Op::TailCallDynamicHeap),
-        AddressSpace::Shared => Ok(Op::TailCallDynamicSharedHeap),
+        AddressSpace::Local => Ok(Op::TailCallDynamicLocal),
+        AddressSpace::Shared => Ok(Op::TailCallDynamicShared),
         _ => Err(Error::invalid_pointer_type(format!("{address_space:?}"))),
     }
 }
@@ -605,26 +602,26 @@ fn dynamic_tail_call_op(address_space: AddressSpace) -> Result<Op> {
 /// Select one indirect call opcode from callee shape.
 fn indirect_call_op(callee: &IndirectCallee) -> Op {
     if callee.has_environment {
-        return Op::CallClosure;
+        return Op::CallFunction;
     }
 
-    Op::CallIndirect
+    Op::CallFunctionPointer
 }
 
 /// Select one indirect call terminator opcode from callee shape.
 fn indirect_call_branch_op(callee: &IndirectCallee) -> Op {
     if callee.has_environment {
-        return Op::CallClosureBranch;
+        return Op::CallFunctionBranch;
     }
 
-    Op::CallIndirectBranch
+    Op::CallFunctionPointerBranch
 }
 
 /// Select one indirect tail call opcode from callee shape.
 fn indirect_tail_call_op(callee: &IndirectCallee) -> Op {
     if callee.has_environment {
-        return Op::TailCallClosure;
+        return Op::TailCallFunction;
     }
 
-    Op::TailCallIndirect
+    Op::TailCallFunctionPointer
 }

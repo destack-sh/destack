@@ -9,7 +9,8 @@ use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Activation, Continuation, Frame, Machine, Outcome};
 use crate::options::LimitOptions;
 use destack_heap::{AllocationCache, GcWorker, Heap, SharedHeap};
-use destack_program::vm::{CallTarget, Program};
+use destack_program::Program;
+use destack_program::vm::{CallTarget, Executable};
 
 impl Machine {
     /// Execute a function by id.
@@ -18,7 +19,7 @@ impl Machine {
     /// Functions are lowered when the machine is created.
     pub(crate) fn execute_function_cells(
         &mut self,
-        program: &Program,
+        program: &Program<Executable>,
         limits: LimitOptions,
         statics: &mut StaticSpace,
         shared_static: &mut StaticSpace,
@@ -53,7 +54,7 @@ impl Machine {
     /// Returns a yielded value when the coroutine suspends.
     pub(crate) fn execute_function_cells_yielding(
         &mut self,
-        program: &Program,
+        program: &Program<Executable>,
         limits: LimitOptions,
         statics: &mut StaticSpace,
         shared_static: &mut StaticSpace,
@@ -101,7 +102,7 @@ impl Machine {
     /// The resume value is appended after explicit resume arguments.
     pub(crate) fn execute_resume(
         &mut self,
-        program: &Program,
+        program: &Program<Executable>,
         limits: LimitOptions,
         statics: &mut StaticSpace,
         shared_static: &mut StaticSpace,
@@ -137,7 +138,7 @@ impl Machine {
     /// Resume execution from one suspended yield point.
     fn resume_continuation(
         &mut self,
-        program: &Program,
+        program: &Program<Executable>,
         limits: LimitOptions,
         statics: &mut StaticSpace,
         shared_static: &mut StaticSpace,
@@ -202,7 +203,7 @@ impl Machine {
     /// Run one lowered function from its entry block.
     fn run_function_body(
         &mut self,
-        program: &Program,
+        program: &Program<Executable>,
         limits: LimitOptions,
         statics: &mut StaticSpace,
         shared_static: &mut StaticSpace,
@@ -291,7 +292,11 @@ impl Machine {
 
 impl Activation<'_> {
     /// Run the machine loop from the current stack.
-    fn run_loop(&mut self, program: &Program, limits: LimitOptions) -> RuntimeResult<Outcome> {
+    fn run_loop(
+        &mut self,
+        program: &Program<Executable>,
+        limits: LimitOptions,
+    ) -> RuntimeResult<Outcome> {
         let mut lowered_instructions_executed = 0;
 
         // require at least one live frame before stepping

@@ -7,7 +7,8 @@ use serde::{Deserialize, Serialize};
 use super::Activation;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::{Cell, FramePointer};
-use destack_program::vm::{ArgumentRange, Function, Program, ProgramPoint};
+use destack_program::Program;
+use destack_program::vm::{ArgumentRange, Executable, Function, ProgramPoint};
 
 /// Call frame in the VM machine.
 ///
@@ -84,7 +85,7 @@ impl Frame {
     /// Return the active MIR block id for this frame.
     pub(crate) fn block_id(
         &self,
-        program: &Program,
+        program: &Program<Executable>,
     ) -> Result<mir::LocalNodeId<mir::Block>, Error> {
         let function = program
             .functions()
@@ -222,7 +223,7 @@ impl Frame {
         Ok(self.slot_address(slot))
     }
 
-    /// Return the closure environment for this frame.
+    /// Return the function environment for this frame.
     pub(crate) fn load_environment(&self, layout: &FrameLayout) -> Result<Option<Cell>, Error> {
         let Some(slot) = layout.environment() else {
             return Ok(None);
@@ -231,7 +232,7 @@ impl Frame {
         Ok(Some(self.read_cell(slot)))
     }
 
-    /// Store the closure environment for this frame.
+    /// Store the function environment for this frame.
     pub(crate) fn store_environment(
         &mut self,
         layout: &FrameLayout,
@@ -278,7 +279,7 @@ impl Frame {
     }
 
     /// Capture one immutable frame snapshot.
-    pub(crate) fn image(&self, program: &Program) -> RuntimeResult<FrameSnapshot> {
+    pub(crate) fn image(&self, program: &Program<Executable>) -> RuntimeResult<FrameSnapshot> {
         let block = self.block_id(program).map_err(RuntimeError::new)?;
         let point = ProgramPoint::new(self.function(), block, self.pc as u32);
         let frame_state = program.frame_state_at(point).ok_or_else(|| {
@@ -305,7 +306,7 @@ impl Frame {
     /// Create one frame from an immutable snapshot.
     pub(crate) fn from_image(
         image: &FrameSnapshot,
-        program: &Program,
+        program: &Program<Executable>,
         stack_offset: usize,
         base: usize,
     ) -> RuntimeResult<Self> {

@@ -106,7 +106,7 @@ pub(crate) fn execute_address_frame_element(
 }
 
 /// Execute element addr on static addresses.
-pub(crate) fn execute_address_static_element(
+pub(crate) fn execute_static_address_element(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {

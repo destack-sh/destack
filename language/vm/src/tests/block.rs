@@ -265,7 +265,7 @@ b0:
     run_mir_expect(mir, "caller", &[], Value::int32(12));
 }
 
-/// CallIndirect calls through a function pointer.
+/// CallFunctionPointer calls through a function pointer.
 #[test]
 fn test_call_indirect() {
     let mir_text = r#"
@@ -300,7 +300,7 @@ b0(v0: fn(int32) => int32, v1: int32):
     assert_eq!(result, Value::int32(42));
 }
 
-/// CallIndirect with wrong type produces an error.
+/// CallFunctionPointer with wrong type produces an error.
 #[test]
 fn test_call_indirect_type_mismatch() {
     let mir_text = r#"

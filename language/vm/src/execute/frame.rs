@@ -8,10 +8,11 @@ use smallvec::SmallVec;
 use crate::diagnostic::{Error, ReferenceKind};
 use crate::machine::{Activation, Frame};
 use crate::{Cell, FramePointer};
+use destack_program::Program;
 use destack_program::vm::{
-    AddressSpace, ArgumentRange, Instruction, MovePair, MoveRange, MoveSlot, MoveSource, Program,
-    Projection, ProjectionId, ValueShape, address_space_from_reference, encode_cell_bytes,
-    repr_type, value_shape_from_type,
+    AddressSpace, ArgumentRange, Executable, Instruction, MovePair, MoveRange, MoveSlot,
+    MoveSource, Projection, ProjectionId, ValueShape, address_space_from_reference,
+    encode_cell_bytes, repr_type, value_shape_from_type,
 };
 
 use super::access;
@@ -281,7 +282,7 @@ fn store_argument_bytes(
 
 /// Return the MIR type stored in one frame value.
 pub(crate) fn frame_value_type(
-    program: &Program,
+    program: &Program<Executable>,
     frame: &Frame,
     value: mir::Value,
 ) -> Result<mir::LocalNodeId<mir::Type>, Error> {
@@ -296,7 +297,11 @@ pub(crate) fn frame_value_type(
 }
 
 /// Return the addressable cell for one frame value.
-fn frame_value_cell(program: &Program, frame: &Frame, value: mir::Value) -> Result<Cell, Error> {
+fn frame_value_cell(
+    program: &Program<Executable>,
+    frame: &Frame,
+    value: mir::Value,
+) -> Result<Cell, Error> {
     let frame_layout = program
         .frame_layout_by_id(frame.frame_layout())
         .ok_or(Error::invalid_instruction())?;
@@ -321,7 +326,7 @@ fn frame_value_cell(program: &Program, frame: &Frame, value: mir::Value) -> Resu
 
 /// Load one cell or frame byte range into an owned frame value.
 pub(crate) fn frame_value_from_cell(
-    program: &Program,
+    program: &Program<Executable>,
     frames: &[Frame],
     ty: mir::LocalNodeId<mir::Type>,
     value: Cell,
@@ -355,7 +360,7 @@ pub(crate) fn frame_value_from_cell(
 
 /// Load one frame value into an owned value.
 fn load_frame_value(
-    program: &Program,
+    program: &Program<Executable>,
     frames: &[Frame],
     frame: &Frame,
     value: mir::Value,
@@ -367,7 +372,11 @@ fn load_frame_value(
 }
 
 /// Load one lowered frame slot into an owned value.
-fn load_frame_slot_value(program: &Program, frame: &Frame, slot: MoveSlot) -> FrameValue {
+fn load_frame_slot_value(
+    program: &Program<Executable>,
+    frame: &Frame,
+    slot: MoveSlot,
+) -> FrameValue {
     let ty = program.type_for_storage_id(slot.layout);
     if slot.is_cell {
         return FrameValue::cell(ty, frame.read_cell_at(slot.offset));
@@ -380,7 +389,7 @@ fn load_frame_slot_value(program: &Program, frame: &Frame, slot: MoveSlot) -> Fr
 
 /// Store one owned frame value into a destination frame slot.
 pub(crate) fn store_frame_value(
-    program: &Program,
+    program: &Program<Executable>,
     dest_frame: &mut Frame,
     destination: mir::Value,
     value: FrameValue,
@@ -436,7 +445,7 @@ enum BufferedSlotValue {
 
 /// Materialize one owned frame value into one engine boundary value.
 pub(crate) fn materialize_value(
-    program: &Program,
+    program: &Program<Executable>,
     heap: &mut Heap,
     shared: &SharedHeap,
     shared_cache: &mut AllocationCache,
@@ -483,7 +492,7 @@ pub(crate) fn materialize_value(
 
 /// Materialize one frame-backed scalar when the engine boundary can carry it.
 fn materialize_scalar_bytes(
-    program: &Program,
+    program: &Program<Executable>,
     ty: mir::LocalNodeId<mir::Type>,
     bytes: &[u8],
 ) -> Result<Option<program::Value>, Error> {
@@ -530,7 +539,10 @@ fn sign_extend_i128(value: u128, width: u16) -> i128 {
 }
 
 /// Return the address space used to package one non-cell boundary value.
-fn boundary_address_space(program: &Program, ty: mir::LocalNodeId<mir::Type>) -> AddressSpace {
+fn boundary_address_space(
+    program: &Program<Executable>,
+    ty: mir::LocalNodeId<mir::Type>,
+) -> AddressSpace {
     let ty = repr_type(program.tree(), ty);
 
     match program.tree().get(ty) {
@@ -541,7 +553,7 @@ fn boundary_address_space(program: &Program, ty: mir::LocalNodeId<mir::Type>) ->
 
 /// Dematerialize one engine boundary value into frame representation.
 pub(crate) fn dematerialize_value(
-    program: &Program,
+    program: &Program<Executable>,
     heap: &Heap,
     shared: &SharedHeap,
     ty: mir::LocalNodeId<mir::Type>,
@@ -572,7 +584,7 @@ pub(crate) fn dematerialize_value(
 
 /// Dematerialize one engine boundary value into frame bytes.
 fn dematerialize_bytes(
-    program: &Program,
+    program: &Program<Executable>,
     heap: &Heap,
     shared: &SharedHeap,
     ty: mir::LocalNodeId<mir::Type>,
@@ -609,7 +621,7 @@ fn dematerialize_bytes(
 
 /// Dematerialize one engine boundary scalar into frame bytes.
 fn dematerialize_scalar_bytes(
-    program: &Program,
+    program: &Program<Executable>,
     ty: mir::LocalNodeId<mir::Type>,
     value: &program::Value,
 ) -> Result<Option<Box<[u8]>>, Error> {
@@ -661,7 +673,7 @@ fn copy_address_to_slice(address: usize, destination: &mut [u8]) {
 
 /// Materialize one cell into one engine boundary value.
 pub(crate) fn materialize_cell(
-    program: &Program,
+    program: &Program<Executable>,
     ty: mir::LocalNodeId<mir::Type>,
     value: Cell,
 ) -> Result<program::Value, Error> {
@@ -726,7 +738,7 @@ pub(crate) fn materialize_cell(
 
 /// Move one frame value into another frame.
 pub(crate) fn move_frame_value(
-    program: &Program,
+    program: &Program<Executable>,
     source_frame: &Frame,
     source: mir::Value,
     dest_frame: &mut Frame,
@@ -801,7 +813,7 @@ fn move_frame_slot(
 
 /// Write void to one frame value.
 fn store_void_value(
-    program: &Program,
+    program: &Program<Executable>,
     frame: &mut Frame,
     destination: mir::Value,
 ) -> Result<(), Error> {
@@ -852,7 +864,7 @@ fn move_slot_bytes_mut(frame: &mut Frame, slot: MoveSlot) -> &mut [u8] {
 
 /// Move call arguments between two frames.
 pub(crate) fn move_arguments_between_frames(
-    program: &Program,
+    program: &Program<Executable>,
     source_frame: &Frame,
     dest_frame: &mut Frame,
     param_pool: &[mir::Value],
@@ -1001,7 +1013,7 @@ pub(crate) fn move_values_within_frame(
 
 /// Copy one ordered argument list out of the current frame.
 pub(crate) fn load_arguments(
-    program: &Program,
+    program: &Program<Executable>,
     frames: &[Frame],
     frame: &Frame,
     argument_pool: &[mir::Value],
@@ -1020,7 +1032,7 @@ pub(crate) fn load_arguments(
 
 /// Copy one lowered argument move range out of the current frame.
 pub(crate) fn load_moved_arguments(
-    program: &Program,
+    program: &Program<Executable>,
     frame: &Frame,
     move_pool: &[MovePair],
     moves: MoveRange,
@@ -1045,7 +1057,7 @@ pub(crate) fn load_moved_arguments(
 
 /// Write owned frame values into parameter slots.
 pub(crate) fn store_parameters(
-    program: &Program,
+    program: &Program<Executable>,
     frame: &mut Frame,
     param_pool: &[mir::Value],
     params: ArgumentRange,
