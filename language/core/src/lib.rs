@@ -11,6 +11,7 @@ mod humanize;
 mod scc;
 mod stack;
 mod string;
+mod treap;
 
 pub use arena::*;
 pub use bitset::*;
@@ -25,3 +26,4 @@ pub use humanize::*;
 pub use scc::*;
 pub use stack::*;
 pub use string::*;
+pub use treap::*;
