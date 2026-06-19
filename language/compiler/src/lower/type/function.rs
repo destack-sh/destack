@@ -193,7 +193,7 @@ impl ModuleLowerer<'_> {
             .size_and_align_of_type(field_ty, self.builder.tree())
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(anchor),
-                message: "closure layout requires concrete nested types".to_string(),
+                message: "function layout requires concrete nested types".to_string(),
             })?;
 
         // assign a stable field name
@@ -248,7 +248,7 @@ impl ModuleLowerer<'_> {
             .size_and_align_of_type(field_ty, self.builder.tree())
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(anchor),
-                message: "closure layout requires concrete receiver types".to_string(),
+                message: "function layout requires concrete receiver types".to_string(),
             })?;
 
         // assign a stable field name

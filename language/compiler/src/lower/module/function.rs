@@ -227,7 +227,7 @@ impl ModuleLowerer<'_> {
             // predeclare the function binding
             self.declare_function(declaration_id, declaration)?;
 
-            // resolve capture layouts early for closure values
+            // resolve capture layouts early for function values
             if declaration.body.is_some() {
                 let Some(symbol_id) = self.symbol_for_node(declaration_id) else {
                     continue;
@@ -658,7 +658,7 @@ impl ModuleLowerer<'_> {
             let env_value = function_lowerer
                 .state
                 .builder
-                .closure_environment(env_ref_type);
+                .function_environment(env_ref_type);
             function_lowerer.state.bindings.environment = Some(env_value);
         }
 
@@ -811,7 +811,7 @@ impl ModuleLowerer<'_> {
 
         // extract the return type id from the signature
         let return_type_id = match self.types.get_type(signature_type_id) {
-            dir::Type::Function(function) => function
+            dir::Type::FunctionSignature(function) => function
                 .return_type
                 .ok_or_else(|| self.missing_type_error(node_id))?,
             _ => {
@@ -1252,7 +1252,7 @@ impl ModuleLowerer<'_> {
         let signature_type_id = self.signature_type_id_for_node(member_node)?;
 
         // extract return type from function signature
-        let dir::Type::Function(function) = self.types.get_type(signature_type_id) else {
+        let dir::Type::FunctionSignature(function) = self.types.get_type(signature_type_id) else {
             return Err(LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
                     member_id

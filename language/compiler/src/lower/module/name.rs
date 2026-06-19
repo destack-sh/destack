@@ -177,7 +177,7 @@ impl ModuleLowerer<'_> {
 
     /// Build a metadata name for a function type when no context is available.
     fn function_type_metadata_name(&self, type_id: dir::LocalTypeId) -> Option<String> {
-        let dir::Type::Function(function) = self.types.get_type(type_id) else {
+        let dir::Type::FunctionSignature(function) = self.types.get_type(type_id) else {
             return None;
         };
 
@@ -387,7 +387,7 @@ impl ModuleLowerer<'_> {
             dir::Type::Tuple(_) => Some(TUPLE_METADATA_SUFFIX),
             dir::Type::Union(_) => Some(UNION_METADATA_SUFFIX),
             dir::Type::Intersection(_) => Some(INTERSECTION_METADATA_SUFFIX),
-            dir::Type::Function(_) => Some(FUNCTION_METADATA_SUFFIX),
+            dir::Type::FunctionSignature(_) => Some(FUNCTION_METADATA_SUFFIX),
             dir::Type::FixedArray(_) | dir::Type::Slice(_) => Some(ARRAY_METADATA_SUFFIX),
             _ => None,
         }

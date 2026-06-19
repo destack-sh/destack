@@ -361,8 +361,7 @@ impl TypeLowerer<'_> {
                 access,
                 ..
             } => {
-                let (data, length) =
-                    mir::slice_header_types(*kind, *element, *access, space.clone());
+                let (data, length) = mir::Type::slice(*kind, *element, *access, space.clone());
                 let fields = [&data, &length];
                 let mut max_align: u32 = 1;
                 let mut current_offset: u32 = 0;
@@ -423,7 +422,7 @@ impl TypeLowerer<'_> {
                 let bytes = pointer_bytes as u32;
                 Some((bytes * 2, bytes))
             }
-            mir::Type::Closure { signature, .. } => {
+            mir::Type::Function { signature, .. } => {
                 let _ = signature.ty()?;
                 let pointer_size = pointer_bytes as u32;
 
