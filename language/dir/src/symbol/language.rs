@@ -271,44 +271,35 @@ define_language_items! {
     compute {
         /// `destack:compute/buffer`.
         buffer {
-            /// Compute buffer class.
-            ComputeBuffer => (Class, "compute/buffer", "Buffer"),
-        }
-
-        /// `destack:compute/command`.
-        command {
-            /// Compute command buffer class.
-            ComputeCommandBuffer => (Class, "compute/command", "CommandBuffer"),
-
-            /// Compute command encoder class.
-            ComputeCommandEncoder => (Class, "compute/command", "CommandEncoder"),
+            /// Compute buffer handle.
+            ComputeBuffer => (Newtype, "compute/buffer", "Buffer"),
         }
 
         /// `destack:compute/device`.
         device {
-            /// Compute device class.
-            ComputeDevice => (Class, "compute/device", "Device"),
+            /// Compute device handle.
+            ComputeDevice => (Newtype, "compute/device", "Device"),
         }
 
         /// `destack:compute/program`.
         program {
-            /// Compute kernel class.
-            ComputeKernel => (Class, "compute/program", "Kernel"),
+            /// Compute kernel handle.
+            ComputeKernel => (Newtype, "compute/program", "Kernel"),
 
             /// Compute kernel argument type.
             ComputeKernelArgument => (Newtype, "compute/program", "KernelArgument"),
 
-            /// Compute program class.
-            ComputeProgram => (Class, "compute/program", "Program"),
+            /// Compute program handle.
+            ComputeProgram => (Newtype, "compute/program", "Program"),
         }
 
         /// `destack:compute/stream`.
         stream {
-            /// Compute event class.
-            ComputeEvent => (Class, "compute/stream", "Event"),
+            /// Compute event handle.
+            ComputeEvent => (Newtype, "compute/stream", "Event"),
 
-            /// Compute stream class.
-            ComputeStream => (Class, "compute/stream", "Stream"),
+            /// Compute stream handle.
+            ComputeStream => (Newtype, "compute/stream", "Stream"),
         }
     }
 
@@ -1328,19 +1319,13 @@ define_language_items! {
 
     /// Tensor types.
     tensor {
-        /// `destack:tensor/buffer`.
-        buffer {
-            /// Tensor buffer type.
-            TensorBuffer => (Class, "tensor/buffer", "TensorBuffer"),
-        }
-
         /// `destack:tensor/layout`.
         layout {
-            /// Tensor layout type.
-            TensorLayout => (Newtype, "tensor/layout", "Layout"),
+            /// Tensor format type.
+            TensorFormat => (Newtype, "tensor/layout", "TensorFormat"),
 
-            /// Tensor view layout type.
-            TensorViewLayout => (Newtype, "tensor/layout", "ViewLayout"),
+            /// Tensor view format type.
+            TensorViewFormat => (Newtype, "tensor/layout", "TensorViewFormat"),
         }
 
         /// `destack:tensor/shape`.
@@ -1352,7 +1337,7 @@ define_language_items! {
         /// `destack:tensor/tensor`.
         tensor {
             /// Owning tensor type.
-            Tensor => (Class, "tensor/tensor", "Tensor"),
+            Tensor => (Newtype, "tensor/tensor", "Tensor"),
         }
 
         /// `destack:tensor/view`.
