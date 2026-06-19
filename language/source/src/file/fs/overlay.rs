@@ -2,7 +2,6 @@ use std::collections::HashSet;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::SystemTime;
 
 use dashmap::DashMap;
 
@@ -26,9 +25,6 @@ pub struct OverlayFileSystem {
 struct OverlayEntry {
     /// The content as bytes.
     content: Vec<u8>,
-    /// When this overlay was created/updated.
-    #[allow(dead_code)]
-    modified: SystemTime,
 }
 
 impl OverlayFileSystem {
@@ -49,7 +45,6 @@ impl OverlayFileSystem {
             canonical,
             OverlayEntry {
                 content: content.into_bytes(),
-                modified: SystemTime::now(),
             },
         );
     }
@@ -57,13 +52,7 @@ impl OverlayFileSystem {
     /// Set overlay content as bytes for a path.
     pub fn set_overlay_bytes(&self, path: &Path, content: Vec<u8>) {
         let canonical = self.normalize_path(path);
-        self.overlays.insert(
-            canonical,
-            OverlayEntry {
-                content,
-                modified: SystemTime::now(),
-            },
-        );
+        self.overlays.insert(canonical, OverlayEntry { content });
     }
 
     /// Remove overlay content for a path.
@@ -125,7 +114,7 @@ impl FileSystem for OverlayFileSystem {
                 false,
                 false,
                 entry.content.len() as u64,
-                Some(entry.modified),
+                None,
             ));
         }
         self.inner.metadata(path)
@@ -216,7 +205,7 @@ impl FileSystem for OverlayFileSystem {
                 false,
                 false,
                 entry.content.len() as u64,
-                Some(entry.modified),
+                None,
             ));
         }
         self.inner.symlink_metadata(path)
