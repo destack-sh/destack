@@ -4,9 +4,12 @@ import { Device } from "./device.ds";
 
 /// Ordered command stream for one compute device.
 @languageItem("compute.Stream")
-export class Stream {
-    /// The device that owns this stream.
-    readonly device: Device;
+export newtype Stream = intrinsic;
+
+extension of Stream {
+    /// Return the device that owns this stream.
+    @intrinsic("compute.stream.device")
+    get device(): Device;
 
     /// Return the default stream for `device`.
     static default(device: Device = Device.default()): Stream {
@@ -36,9 +39,12 @@ export class Stream {
 
 /// Completion marker recorded on a compute stream.
 @languageItem("compute.Event")
-export class Event {
-    /// The stream that recorded this event.
-    readonly stream: Stream;
+export newtype Event = intrinsic;
+
+extension of Event {
+    /// Return the stream that recorded this event.
+    @intrinsic("compute.event.stream")
+    get stream(): Stream;
 
     /// Record an event on `stream`.
     static record(stream: Stream): Event {

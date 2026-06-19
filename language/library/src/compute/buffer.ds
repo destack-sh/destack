@@ -43,18 +43,23 @@ export struct BufferCopyRegion {
 
 /// Typed storage allocated on one compute device.
 @languageItem("compute.Buffer")
-export class Buffer<T> {
-    /// The device that owns this buffer.
-    readonly device: Device;
+export newtype Buffer<T> = intrinsic;
 
-    /// Element count.
-    readonly length: usize;
+extension<T> of Buffer<T> {
+    /// Return the device that owns this buffer.
+    @intrinsic("compute.buffer.device")
+    get device(): Device;
 
-    /// Byte length.
-    readonly byteLength: usize;
+    /// Return the element count.
+    @intrinsic("compute.buffer.length")
+    get length(): usize;
+
+    /// Return the byte length.
+    @intrinsic("compute.buffer.byteLength")
+    get byteLength(): usize;
 
     /// Allocate a compute buffer.
-    static allocate<T>(
+    static allocate(
         device: Device,
         length: usize,
         options?: BufferOptions,
@@ -63,7 +68,7 @@ export class Buffer<T> {
     }
 
     /// Create a buffer initialized from host values.
-    static from<T>(
+    static from(
         device: Device,
         values: Slice<T>,
         options?: BufferOptions,

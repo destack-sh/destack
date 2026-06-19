@@ -4,7 +4,8 @@ import { Result, todo } from "destack:error";
 import { Buffer } from "./buffer.ds";
 import { Device } from "./device.ds";
 import { ComputeError } from "./error.ds";
-import { WorkgroupSize } from "./workgroup.ds";
+import { Event, Stream } from "./stream.ds";
+import { WorkgroupCount, WorkgroupSize } from "./workgroup.ds";
 
 /// Format for a compute program source.
 export enum ProgramFormat {
@@ -112,9 +113,12 @@ export struct ProgramReport {
 
 /// Compiled compute code for one device.
 @languageItem("compute.Program")
-export class Program {
-    /// The device that owns this program.
-    readonly device: Device;
+export newtype Program = intrinsic;
+
+extension of Program {
+    /// Return the device that owns this program.
+    @intrinsic("compute.program.device")
+    get device(): Device;
 
     /// Compile `source` for `device`.
     static compile(
@@ -196,15 +200,29 @@ export struct KernelSignature {
 
 /// Callable entry point inside a compute program.
 @languageItem("compute.Kernel")
-export class Kernel {
-    /// The program that owns this kernel.
-    readonly program: Program;
+export newtype Kernel = intrinsic;
 
-    /// The kernel entry point name.
-    readonly name: string;
+extension of Kernel {
+    /// Return the program that owns this kernel.
+    @intrinsic("compute.kernel.program")
+    get program(): Program;
+
+    /// Return the kernel entry point name.
+    @intrinsic("compute.kernel.name")
+    get name(): &readonly string;
 
     /// Return this kernel's signature metadata.
     signature(): KernelSignature {
         todo("Kernel.signature")
+    }
+
+    /// Dispatch this kernel on `stream`.
+    dispatch(
+        arguments: Slice<KernelArgument>,
+        workgroups: WorkgroupCount,
+        workgroupSize?: WorkgroupSize,
+        stream?: Stream,
+    ): Event {
+        todo("Kernel.dispatch")
     }
 }
