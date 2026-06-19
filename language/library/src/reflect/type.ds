@@ -1,4 +1,4 @@
-import { Concrete } from "destack:memory";
+import { Concrete } from "destack:memory/capability";
 
 import { Type as DirType } from "./dir/type.ds";
 
