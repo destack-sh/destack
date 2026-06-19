@@ -3,7 +3,6 @@ export { DeviceCapabilities, DeviceFeature, DeviceLimits } from "./capability.ds
 export { Buffer, BufferCopyRegion, BufferOptions, HostAccess } from "./buffer.ds";
 export {
     Device,
-    DeviceId,
     DeviceKind,
     DeviceMemory,
     DeviceProperties,
@@ -28,4 +27,3 @@ export {
     ProgramText,
 } from "./program.ds";
 export { WorkgroupCount, WorkgroupSize } from "./workgroup.ds";
-export { CommandBuffer, CommandEncoder, KernelDispatch } from "./command.ds";

@@ -13,9 +13,6 @@ export enum DeviceKind {
     Accelerator = 3,
 }
 
-/// Stable runtime identity for one compute device.
-export newtype DeviceId = intrinsic;
-
 /// Compute device memory snapshot.
 export struct DeviceMemory {
     /// Total memory in bytes when the backend exposes it.
@@ -30,9 +27,6 @@ export struct DeviceMemory {
 
 /// Compute device properties visible to portable code.
 export struct DeviceProperties {
-    /// Stable runtime identity.
-    id: DeviceId;
-
     /// Device kind.
     kind: DeviceKind;
 
@@ -60,9 +54,6 @@ export struct DeviceQuery {
     /// Required device kind when provided.
     kind?: DeviceKind;
 
-    /// Required stable device identity when provided.
-    id?: DeviceId;
-
     /// Preferred human-readable device name when provided.
     name?: string;
 
@@ -73,18 +64,11 @@ export struct DeviceQuery {
     features?: Slice<DeviceFeature>;
 }
 
-/// Device that can store compute buffers or execute compute work.
+/// Compute device identity and placement handle.
 @languageItem("compute.Device")
-export class Device {
-    /// The stable device identity.
-    readonly id: DeviceId;
+export newtype Device = intrinsic;
 
-    /// The device kind.
-    readonly kind: DeviceKind;
-
-    /// The human-readable device name.
-    readonly name: string;
-
+extension of Device {
     /// Return all available devices matching `query`.
     static available(query?: DeviceQuery): ^Array<Device> {
         todo("Device.available")
@@ -110,14 +94,17 @@ export class Device {
         todo("Device.default")
     }
 
+    /// Return the device kind.
+    @intrinsic("compute.device.kind")
+    get kind(): DeviceKind;
+
+    /// Return the human-readable device name.
+    @intrinsic("compute.device.name")
+    get name(): &readonly string;
+
     /// Return this device's runtime properties.
     properties(): DeviceProperties {
         todo("Device.properties")
-    }
-
-    /// Return whether this is the same runtime device as `other`.
-    equals(other: Device): boolean {
-        this.id == other.id
     }
 
     /// Return whether this device is the host CPU.
