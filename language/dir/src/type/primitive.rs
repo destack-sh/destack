@@ -67,7 +67,7 @@ impl PrimitiveType {
                     end: 0x10FFFF,
                 }),
             ),
-            Self::String | Self::Bigint => Layout::pointer(pointer_bytes, true),
+            Self::String | Self::Bigint => return None,
             Self::Integer(integer) => integer.layout(pointer_bytes),
             Self::Float(float) => float.layout(),
             Self::Symbol | Self::UniqueSymbol => Layout::pointer(pointer_bytes, true),
@@ -76,10 +76,19 @@ impl PrimitiveType {
         Some(layout)
     }
 
+    /// Return the language item that owns this primitive's representation.
+    pub fn representation_item(&self) -> Option<LanguageItem> {
+        match self {
+            Self::String => Some(LanguageItem::String),
+            Self::Bigint => Some(LanguageItem::BigInt),
+            _ => None,
+        }
+    }
+
     /// Return the language item owning this primitive's members.
     pub fn owner_item(&self) -> Option<LanguageItem> {
         match self {
-            Self::String => Some(LanguageItem::String),
+            Self::String | Self::Bigint => self.representation_item(),
             Self::Integer(_) | Self::Float(_) => Some(LanguageItem::Number),
             _ => None,
         }

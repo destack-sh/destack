@@ -319,10 +319,10 @@ impl Layout {
         }
     }
 
-    /// Return a runtime closure layout.
-    pub fn closure(pointer_bytes: u32) -> Layout {
+    /// Return a runtime function layout.
+    pub fn function(pointer_bytes: u32) -> Layout {
         Layout {
-            shape: LayoutShape::Closure,
+            shape: LayoutShape::Function,
             size: Some(pointer_bytes * 2),
             alignment: Some(pointer_bytes),
             niche: None,
@@ -382,8 +382,8 @@ pub enum LayoutShape {
     Object(ObjectLayout),
     /// Pointer-sized erased value storage.
     Dynamic,
-    /// Runtime closure storage.
-    Closure,
+    /// Runtime function value storage.
+    Function,
     /// Transparent nominal storage.
     Newtype(NewtypeLayout),
     /// Pointer storage slot for an indirectly stored value.

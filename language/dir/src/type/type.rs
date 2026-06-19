@@ -1023,6 +1023,7 @@ pub enum Type {
     Tuple(TupleType),
     /// Structural object shape type, like `{ name: string }`.
     Shape(ShapeType),
+
     /// Function signature type, like `(value: int32) => string`.
     FunctionSignature(FunctionSignatureType),
     /// Fat callable value with an explicit captured environment.
