@@ -508,7 +508,9 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
     fn value_shape_for_type(&self, type_id: dir::GlobalTypeId) -> CompletionValueShape {
         self.ctx
             .with_global_type(type_id, |ty, _| match ty {
-                dir::Type::Function(_) => CompletionValueShape {
+                dir::Type::FunctionSignature(_)
+                | dir::Type::Function(_)
+                | dir::Type::FunctionPointer(_) => CompletionValueShape {
                     is_callable: true,
                     is_constructable: false,
                 },

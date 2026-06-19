@@ -111,7 +111,9 @@ impl ModuleQueryContext<'_> {
     /// Classify the expected value shape for one parameter type.
     fn expected_value_shape(&self, type_id: dir::GlobalTypeId) -> (bool, bool) {
         self.with_global_type(type_id, |ty, _| match ty {
-            dir::Type::Function(_) | dir::Type::Closure(_) => (true, false),
+            dir::Type::FunctionSignature(_)
+            | dir::Type::Function(_)
+            | dir::Type::FunctionPointer(_) => (true, false),
             dir::Type::Shape(object) => (
                 !object.call_signatures.is_empty(),
                 !object.construct_signatures.is_empty(),
