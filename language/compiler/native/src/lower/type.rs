@@ -122,8 +122,8 @@ pub(crate) fn lower_type(
 
         mir::Type::Uninit { value } => lower_type(tree, *value, pointer_bytes),
 
-        mir::Type::Closure { .. } => Err(CodegenCraneliftError::unsupported_type(
-            "closures must be lowered to aggregate operations",
+        mir::Type::Function { .. } => Err(CodegenCraneliftError::unsupported_type(
+            "function values must be lowered to aggregate operations",
             type_id.into_any(),
         )),
 

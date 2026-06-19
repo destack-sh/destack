@@ -33,9 +33,9 @@ pub(crate) struct FunctionLowerer<'a> {
     global_map: HashMap<mir::LocalNodeId<mir::Global>, cir::GlobalValue>,
     /// Pointer size in bytes for this target.
     pointer_bytes: u8,
-    /// Function environment type when closure.environment is used.
+    /// Function environment type when function.environment.current is used.
     environment_type: Option<mir::LocalNodeId<mir::Type>>,
-    /// Cranelift value for the closure environment parameter.
+    /// Cranelift value for the function environment parameter.
     environment_param: Option<cir::Value>,
 }
 
@@ -75,7 +75,7 @@ impl<'a> FunctionLowerer<'a> {
         let mut block_map: HashMap<mir::LocalNodeId<mir::Block>, cir::Block> = HashMap::new();
         let mut local_map: HashMap<mir::LocalNodeId<mir::Local>, cir::StackSlot> = HashMap::new();
 
-        // capture closure environment type before lowering
+        // capture function environment type before lowering
         self.environment_type = self.function.environment;
 
         // phase 0.5: pre-declare all referenced functions in the current function
@@ -135,7 +135,7 @@ impl<'a> FunctionLowerer<'a> {
                 }
                 // declare addressable functions
                 if let mir::Instruction::FunctionAddr { function, .. }
-                | mir::Instruction::ClosureBind { function, .. } = inst
+                | mir::Instruction::FunctionBind { function, .. } = inst
                 {
                     let function = *function;
                     if !self.function_ref_map.contains_key(&function) {
@@ -237,7 +237,7 @@ impl<'a> FunctionLowerer<'a> {
             value_map.insert(parameter, value);
         }
 
-        // append the closure environment parameter when present
+        // append the function environment parameter when present
         if self.environment_type.is_some() {
             let environment_param = builder.append_block_param(entry_block, self.pointer_type());
             self.environment_param = Some(environment_param);
@@ -452,7 +452,7 @@ impl<'a> FunctionLowerer<'a> {
                 let address = builder.ins().func_addr(self.pointer_type(), *function_ref);
                 self.insert_lowered_value(value_map, *destination, address);
             }
-            mir::Instruction::ClosureBind {
+            mir::Instruction::FunctionBind {
                 destination,
                 function,
                 environment,
@@ -460,9 +460,9 @@ impl<'a> FunctionLowerer<'a> {
                 let destination = *destination;
                 let destination_type =
                     self.value_type_or_error(destination, instruction_id.into_any())?;
-                let mir::Type::Closure { .. } = self.tree.get(destination_type) else {
+                let mir::Type::Function { .. } = self.tree.get(destination_type) else {
                     return Err(CodegenCraneliftError::Internal {
-                        message: "closure.bind result must be a closure value".into(),
+                        message: "function.bind result must be a function value".into(),
                     });
                 };
 
@@ -474,7 +474,7 @@ impl<'a> FunctionLowerer<'a> {
                 })?;
                 let code_value = builder.ins().func_addr(self.pointer_type(), *function_ref);
                 let environment_value =
-                    self.lowered_value(*environment, value_map, "closure.bind environment")?;
+                    self.lowered_value(*environment, value_map, "function.bind environment")?;
                 let environment_value =
                     if builder.func.dfg.value_type(environment_value) == self.pointer_type() {
                         environment_value
@@ -487,7 +487,7 @@ impl<'a> FunctionLowerer<'a> {
                     };
                 let function_node = function.into_any();
 
-                // allocate the closure aggregate and store semantic components
+                // allocate the function value and store semantic components
                 let layout = compute_type_layout(self.tree, destination_type, self.pointer_bytes)?;
                 let align_shift = layout.alignment.trailing_zeros() as u8;
                 let slot = builder.create_sized_stack_slot(cir::StackSlotData::new(
@@ -517,13 +517,22 @@ impl<'a> FunctionLowerer<'a> {
                 value_map.insert(destination, slot_addr);
             }
 
-            // closure.environment: load the hidden environment parameter
-            mir::Instruction::ClosureEnvironment { destination } => {
+            // function.pointer / function.environment: project function object fields
+            mir::Instruction::FunctionPointer { .. }
+            | mir::Instruction::FunctionEnvironment { .. } => {
+                return Err(CodegenCraneliftError::Internal {
+                    message: "function projection lowering is not implemented".to_string(),
+                });
+            }
+
+            // function.environment.current: load the hidden environment parameter
+            mir::Instruction::FunctionEnvironmentCurrent { destination } => {
                 let environment_param =
                     self.environment_param
                         .ok_or_else(|| CodegenCraneliftError::Internal {
-                            message: "closure.environment used without environment parameter"
-                                .to_string(),
+                            message:
+                                "function.environment.current used without environment parameter"
+                                    .to_string(),
                         })?;
                 let destination = *destination;
                 let destination_type =
@@ -867,7 +876,7 @@ impl<'a> FunctionLowerer<'a> {
                 let field_values = self.tree.get_values(*fields);
                 let field_count = match self.tree.get(ty) {
                     mir::Type::Struct { fields, .. } => fields.len(),
-                    mir::Type::Closure { .. } => 2,
+                    mir::Type::Function { .. } => 2,
                     _ => {
                         return Err(CodegenCraneliftError::Internal {
                             message: "Struct instruction with non-aggregate type".into(),
@@ -1417,11 +1426,11 @@ impl<'a> FunctionLowerer<'a> {
         builder: &mut FunctionBuilder<'_>,
         error_context: &str,
     ) -> CodegenCraneliftResult<cir::SigRef> {
-        // closure abi
+        // function value ABI
         let (signature, has_environment) = match self.tree.get(signature) {
             mir::Type::FunctionSignature { .. } => (signature, false),
             mir::Type::FunctionPointer { signature } => (*signature, false),
-            mir::Type::Closure { signature, .. } => (*signature, true),
+            mir::Type::Function { signature, .. } => (*signature, true),
             _ => {
                 return Err(CodegenCraneliftError::Internal {
                     message: format!("{error_context} signature is not a function type"),
@@ -1461,7 +1470,7 @@ impl<'a> FunctionLowerer<'a> {
         Ok(builder.import_signature(signature))
     }
 
-    /// Lower one closure value into code and optional environment operands.
+    /// Lower one function value into code and optional environment operands.
     fn lower_indirect_callee(
         &self,
         callee: mir::Value,
@@ -1475,8 +1484,8 @@ impl<'a> FunctionLowerer<'a> {
             return Ok((callee_value, None));
         }
 
-        // closure aggregate
-        let mir::Type::Closure {
+        // function value aggregate
+        let mir::Type::Function {
             signature: function_type,
             environment,
         } = self.tree.get(signature)
@@ -1498,13 +1507,13 @@ impl<'a> FunctionLowerer<'a> {
 
         if function_field_type != function_type {
             return Err(CodegenCraneliftError::Internal {
-                message: "closure function field type mismatch".into(),
+                message: "function pointer field type mismatch".into(),
             });
         }
 
         if environment_field_type != environment {
             return Err(CodegenCraneliftError::Internal {
-                message: "closure environment field type mismatch".into(),
+                message: "function environment field type mismatch".into(),
             });
         }
 
@@ -1706,7 +1715,7 @@ impl<'a> FunctionLowerer<'a> {
                     ));
                 }
             }
-            mir::Type::Closure {
+            mir::Type::Function {
                 signature,
                 environment,
             } => match index {
