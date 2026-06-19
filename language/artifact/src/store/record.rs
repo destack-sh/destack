@@ -14,6 +14,8 @@ use crate::{
 pub struct ArtifactRecord {
     /// The exact artifact version.
     pub version: ArtifactVersion,
+    /// The predecessor artifact this record was incrementally built from.
+    pub base: Option<ArtifactVersion>,
     /// The serialized artifact payload.
     pub payload: Vec<u8>,
     /// String ids needed to interpret interned ids in the payload.
@@ -30,6 +32,7 @@ impl ArtifactRecord {
     /// Build one artifact record.
     pub fn new<T>(
         version: ArtifactVersion,
+        base: Option<ArtifactVersion>,
         payload: T,
         string_pool: &StringPool,
         dependencies: Vec<ArtifactDependency>,
@@ -53,6 +56,7 @@ impl ArtifactRecord {
 
         Ok(Self {
             version,
+            base,
             payload,
             strings,
             dependencies,

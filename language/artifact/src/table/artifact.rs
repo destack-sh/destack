@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
 
 use dashmap::DashMap;
@@ -94,10 +94,11 @@ impl ArtifactTable {
             .iter()
             .map(|entry| *entry.key())
             .collect::<HashSet<_>>();
+        let reachable = self.reachable_closure(reachable.iter().chain(retained.iter()).copied());
 
         // retain reachable and explicitly pinned entries
         self.entries
-            .retain(|version, _| reachable.contains(version) || retained.contains(version));
+            .retain(|version, _| reachable.contains(version));
     }
 
     /// Return the recorded diagnostics for one exact artifact version.
@@ -112,6 +113,41 @@ impl ArtifactTable {
         self.entries
             .get(version)
             .map(|entry| Arc::clone(&entry.dependencies))
+    }
+
+    /// Return the predecessor artifact for one exact artifact version.
+    pub fn base(&self, version: &ArtifactVersion) -> Option<ArtifactVersion> {
+        self.entries.get(version).and_then(|entry| entry.base)
+    }
+
+    /// Return roots plus artifact dependencies and base artifacts needed to load them.
+    pub fn reachable_closure(
+        &self,
+        roots: impl IntoIterator<Item = ArtifactVersion>,
+    ) -> HashSet<ArtifactVersion> {
+        let mut reachable = HashSet::new();
+        let mut pending = roots.into_iter().collect::<VecDeque<_>>();
+
+        // walk artifact records that must remain loadable with each root
+        while let Some(version) = pending.pop_front() {
+            if !reachable.insert(version) {
+                continue;
+            }
+            let Some(entry) = self.entries.get(&version) else {
+                continue;
+            };
+
+            if let Some(base) = entry.base {
+                pending.push_back(base);
+            }
+            for dependency in entry.dependencies.iter() {
+                if let ArtifactDependency::Artifact(dependency) = dependency {
+                    pending.push_back(*dependency);
+                }
+            }
+        }
+
+        reachable
     }
 
     /// Return the recorded sidecars for one exact artifact version.
@@ -164,6 +200,7 @@ impl ArtifactTable {
         let sidecars = entry.sidecars.iter().cloned().collect();
         let record = ArtifactRecord::new(
             *version,
+            entry.base,
             payload.as_ref(),
             strings,
             dependencies,
@@ -178,6 +215,7 @@ impl ArtifactTable {
     pub fn publish(
         &self,
         version: ArtifactVersion,
+        base: Option<ArtifactVersion>,
         payload: ArtifactPayload,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
         diagnostics: impl Into<Arc<DiagnosticCollection>>,
@@ -193,7 +231,7 @@ impl ArtifactTable {
 
         self.entries.insert(
             version,
-            ArtifactEntry::ok(payload, dependencies, diagnostics, sidecars),
+            ArtifactEntry::ok(base, payload, dependencies, diagnostics, sidecars),
         );
     }
 
@@ -201,6 +239,7 @@ impl ArtifactTable {
     pub fn fail(
         &self,
         version: ArtifactVersion,
+        base: Option<ArtifactVersion>,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
         diagnostics: impl Into<Arc<DiagnosticCollection>>,
         sidecars: impl Into<Arc<[ArtifactSidecar]>>,
@@ -208,7 +247,7 @@ impl ArtifactTable {
     ) {
         self.entries.insert(
             version,
-            ArtifactEntry::failed(dependencies, diagnostics, sidecars, failure),
+            ArtifactEntry::failed(base, dependencies, diagnostics, sidecars, failure),
         );
     }
 
