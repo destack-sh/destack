@@ -9,7 +9,7 @@ pub struct EntryPoint(FunctionId);
 impl EntryPoint {
     /// Create one program entrypoint.
     pub const fn new(index: u32) -> Self {
-        Self(FunctionId::new(index))
+        Self(FunctionId(index))
     }
 
     /// Return the entrypoint function.

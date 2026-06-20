@@ -13,22 +13,29 @@ use crate::vm::{
 pub struct TypeId(pub u32);
 
 impl TypeId {
-    /// Create one type id.
-    pub const fn new(id: u32) -> Self {
-        Self(id)
-    }
-
     /// Return this id as a dense table index.
     pub const fn index(self) -> usize {
         self.0 as usize
     }
 }
 
+impl From<u32> for TypeId {
+    /// Convert one raw program type id.
+    fn from(id: u32) -> Self {
+        Self(id)
+    }
+}
+
+impl From<TypeId> for u32 {
+    /// Convert one program type id into its raw value.
+    fn from(id: TypeId) -> Self {
+        id.0
+    }
+}
+
 /// Runtime type metadata carried by one durable program.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypeTable {
-    /// Host pointer width assumed by this program.
-    pointer_bytes: u8,
     /// Dense runtime type records keyed by program type id.
     types: Vec<Option<mir::Type>>,
     /// MIR type id by program type id.
@@ -73,17 +80,11 @@ impl TypeTable {
         }
 
         Self {
-            pointer_bytes: tree.pointer_bytes(),
             types,
             mir_types,
             type_ids,
             layout_by_type,
         }
-    }
-
-    /// Return the host pointer width assumed by this program.
-    pub const fn pointer_bytes(&self) -> u8 {
-        self.pointer_bytes
     }
 
     /// Return one runtime type record.
@@ -97,8 +98,12 @@ impl TypeTable {
     }
 
     /// Return the runtime value shape for one MIR type id.
-    pub fn value_shape_for_mir(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<ValueShape> {
-        self.value_shape(self.type_id(ty))
+    pub fn value_shape_for_mir(
+        &self,
+        ty: mir::LocalNodeId<mir::Type>,
+        pointer_bytes: u8,
+    ) -> Option<ValueShape> {
+        self.value_shape(self.type_id(ty), pointer_bytes)
     }
 
     /// Return the MIR type id for one program type id.
@@ -127,14 +132,14 @@ impl TypeTable {
     }
 
     /// Return whether one type is stored in one VM cell.
-    pub fn is_cell_type(&self, ty: TypeId) -> bool {
-        self.cell_layout(ty)
-            .map(|layout| layout.byte_len(self.pointer_bytes as usize) <= crate::vm::Cell::BYTE_LEN)
+    pub fn is_cell_type(&self, ty: TypeId, pointer_bytes: u8) -> bool {
+        self.cell_layout(ty, pointer_bytes)
+            .map(|layout| layout.byte_len(pointer_bytes as usize) <= crate::vm::Cell::BYTE_LEN)
             .unwrap_or(false)
     }
 
     /// Return the native cell layout for one type.
-    pub fn cell_layout(&self, ty: TypeId) -> Option<CellLayout> {
+    pub fn cell_layout(&self, ty: TypeId, pointer_bytes: u8) -> Option<CellLayout> {
         let ty = self.repr_type(ty);
         match self.get(ty)? {
             mir::Type::Void => Some(CellLayout::Void),
@@ -149,11 +154,11 @@ impl TypeTable {
                 }
             }
             mir::Type::Isize => Some(CellLayout::Int {
-                width: self.pointer_bytes * 8,
+                width: pointer_bytes * 8,
             }),
             mir::Type::Usize | mir::Type::TypeDescriptor | mir::Type::TypeId => {
                 Some(CellLayout::Uint {
-                    width: self.pointer_bytes * 8,
+                    width: pointer_bytes * 8,
                 })
             }
             mir::Type::Float(mir::FloatType::Float16) => Some(CellLayout::Float16),
@@ -166,7 +171,7 @@ impl TypeTable {
                 cell_layout_from_address_space(address_space)
             }
             mir::Type::Uninit { value } | mir::Type::Atomic { value } => {
-                self.cell_layout(self.type_id(*value))
+                self.cell_layout(self.type_id(*value), pointer_bytes)
             }
             mir::Type::FunctionPointer { .. } => Some(CellLayout::FunctionPointer),
             mir::Type::Tensor { .. } => Some(CellLayout::HeapReference),
@@ -176,19 +181,19 @@ impl TypeTable {
     }
 
     /// Return the scalar layout for one type.
-    pub fn scalar_layout(&self, ty: TypeId) -> Option<ScalarLayout> {
+    pub fn scalar_layout(&self, ty: TypeId, pointer_bytes: u8) -> Option<ScalarLayout> {
         match self.get(ty)? {
             mir::Type::Int { width, is_signed } => Some(ScalarLayout::Int {
                 width: *width,
                 is_signed: *is_signed,
             }),
             mir::Type::Isize => Some(ScalarLayout::Int {
-                width: u16::from(self.pointer_bytes) * 8,
+                width: u16::from(pointer_bytes) * 8,
                 is_signed: true,
             }),
             mir::Type::Usize | mir::Type::TypeDescriptor | mir::Type::TypeId => {
                 Some(ScalarLayout::Int {
-                    width: u16::from(self.pointer_bytes) * 8,
+                    width: u16::from(pointer_bytes) * 8,
                     is_signed: false,
                 })
             }
@@ -201,10 +206,12 @@ impl TypeTable {
     }
 
     /// Return the runtime value shape for one type.
-    pub fn value_shape(&self, ty: TypeId) -> Option<ValueShape> {
+    pub fn value_shape(&self, ty: TypeId, pointer_bytes: u8) -> Option<ValueShape> {
         match self.get(ty)? {
             mir::Type::Error => None,
-            mir::Type::WithLifetimes { base, .. } => self.value_shape(self.type_id(*base)),
+            mir::Type::WithLifetimes { base, .. } => {
+                self.value_shape(self.type_id(*base), pointer_bytes)
+            }
             mir::Type::Void => Some(ValueShape::Void),
             mir::Type::Boolean => Some(ValueShape::Bool),
             mir::Type::Int { width, is_signed } => Some(ValueShape::Int {
@@ -212,18 +219,18 @@ impl TypeTable {
                 signed: *is_signed,
             }),
             mir::Type::Isize => Some(ValueShape::Int {
-                width: u16::from(self.pointer_bytes) * 8,
+                width: u16::from(pointer_bytes) * 8,
                 signed: true,
             }),
             mir::Type::Usize => Some(ValueShape::Int {
-                width: u16::from(self.pointer_bytes) * 8,
+                width: u16::from(pointer_bytes) * 8,
                 signed: false,
             }),
             mir::Type::Float(float_type) => Some(ValueShape::Float {
                 format: *float_type,
             }),
             mir::Type::TypeDescriptor | mir::Type::TypeId => Some(ValueShape::Int {
-                width: u16::from(self.pointer_bytes) * 8,
+                width: u16::from(pointer_bytes) * 8,
                 signed: false,
             }),
             mir::Type::Reference {
@@ -259,10 +266,12 @@ impl TypeTable {
                 Some(ValueShape::Aggregate { ty })
             }
             mir::Type::Uninit { value } | mir::Type::Atomic { value } => {
-                self.value_shape(self.type_id(*value))
+                self.value_shape(self.type_id(*value), pointer_bytes)
             }
             mir::Type::Dynamic { .. } => Some(ValueShape::Aggregate { ty }),
-            mir::Type::Newtype { inner, .. } => self.value_shape(self.type_id(*inner)),
+            mir::Type::Newtype { inner, .. } => {
+                self.value_shape(self.type_id(*inner), pointer_bytes)
+            }
             mir::Type::Tuple { .. }
             | mir::Type::Struct { .. }
             | mir::Type::Variant { .. }

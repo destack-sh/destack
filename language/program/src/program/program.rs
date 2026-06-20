@@ -14,12 +14,14 @@ use crate::{
     native, vm,
 };
 use vm::error::{Error, Result};
-use vm::{FrameEntry, ProgramPoint, ResumeTable, SideTable};
+use vm::{CellLayout, FrameEntry, ProgramPoint, ResumeTable, SideTable, ValueShape};
+
+use super::ProgramHeader;
 
 /// Durable executable program produced by the toolchain.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Program {
-    /// The program identity and compatibility header.
+    /// Serialized program compatibility header.
     pub header: ProgramHeader,
 
     /// Runtime type metadata.
@@ -90,6 +92,21 @@ impl Program {
     /// Return runtime type metadata.
     pub fn types(&self) -> &TypeTable {
         &self.types
+    }
+
+    /// Return the pointer byte width used by this program.
+    pub const fn pointer_bytes(&self) -> u8 {
+        self.header.pointer_bytes
+    }
+
+    /// Return local heap options required by this program.
+    pub fn heap_options(&self) -> &heap::HeapOptions {
+        &self.header.local_heap
+    }
+
+    /// Return shared heap options required by this program.
+    pub fn shared_heap_options(&self) -> &heap::SharedHeapOptions {
+        &self.header.shared_heap
     }
 
     /// Return runtime function metadata.
@@ -241,7 +258,17 @@ impl Program {
 
     /// Return whether one type is stored in one VM cell.
     pub fn is_cell_type(&self, ty: TypeId) -> bool {
-        self.types.is_cell_type(ty)
+        self.types.is_cell_type(ty, self.pointer_bytes())
+    }
+
+    /// Return the native cell layout for one type.
+    pub fn cell_layout(&self, ty: TypeId) -> Option<CellLayout> {
+        self.types.cell_layout(ty, self.pointer_bytes())
+    }
+
+    /// Return the runtime value shape for one type.
+    pub fn value_shape(&self, ty: TypeId) -> Option<ValueShape> {
+        self.types.value_shape(ty, self.pointer_bytes())
     }
 
     /// Return whether one frame slot is stored in one VM cell.
@@ -251,8 +278,8 @@ impl Program {
 
     /// Return the byte width for one type in a VM frame.
     pub fn type_byte_len(&self, ty: TypeId) -> Option<usize> {
-        if let Some(layout) = self.types.cell_layout(ty) {
-            return Some(layout.byte_len(self.types.pointer_bytes() as usize));
+        if let Some(layout) = self.cell_layout(ty) {
+            return Some(layout.byte_len(self.pointer_bytes() as usize));
         }
 
         self.layout(ty).map(|layout| layout.size as usize)
@@ -410,36 +437,5 @@ impl Program {
         let function = self.vm_functions().function_by_id(function)?;
 
         self.frame_layout_by_id(function.frame_layout)
-    }
-}
-
-/// Program identity and compatibility header.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ProgramHeader {
-    /// Human-facing program name.
-    pub name: Option<String>,
-    /// Build fingerprint that produced this program.
-    pub fingerprint: Option<String>,
-    /// Target triple or equivalent target identity.
-    pub target: Option<String>,
-}
-
-impl ProgramHeader {
-    /// Create one program header.
-    pub fn new(name: Option<String>, fingerprint: Option<String>, target: Option<String>) -> Self {
-        Self {
-            name,
-            fingerprint,
-            target,
-        }
-    }
-
-    /// Create one anonymous in-memory program header.
-    pub fn anonymous() -> Self {
-        Self {
-            name: None,
-            fingerprint: None,
-            target: None,
-        }
     }
 }

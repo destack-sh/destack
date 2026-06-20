@@ -23,7 +23,7 @@ impl FunctionPointer {
     /// Return the program function id.
     #[inline]
     pub const fn function(self) -> FunctionId {
-        FunctionId::new(self.0 as u32)
+        FunctionId(self.0 as u32)
     }
 }
 

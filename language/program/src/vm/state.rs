@@ -26,7 +26,7 @@ impl ResumeTable {
 
     /// Return the next resume state id.
     pub fn next_id(&self) -> mir::FrameStateId {
-        mir::FrameStateId(self.states.len() as u32)
+        (self.states.len() as u32).into()
     }
 
     /// Add one resume state.

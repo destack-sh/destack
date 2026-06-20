@@ -7,14 +7,23 @@ use crate::TypeId;
 pub struct StaticId(pub u32);
 
 impl StaticId {
-    /// Create one static id.
-    pub const fn new(id: u32) -> Self {
-        Self(id)
-    }
-
     /// Return this id as a dense table index.
     pub const fn index(self) -> usize {
         self.0 as usize
+    }
+}
+
+impl From<u32> for StaticId {
+    /// Convert one raw program static id.
+    fn from(id: u32) -> Self {
+        Self(id)
+    }
+}
+
+impl From<StaticId> for u32 {
+    /// Convert one program static id into its raw value.
+    fn from(id: StaticId) -> Self {
+        id.0
     }
 }
 
