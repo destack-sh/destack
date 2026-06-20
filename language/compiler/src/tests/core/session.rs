@@ -265,7 +265,17 @@ impl TestSession {
             .diagnostics(self.revision, key)
             .expect("test diagnostics should be readable");
 
-        render_source_diagnostics(self.repository.as_ref(), self.revision, &diagnostics)
+        render_source_diagnostics(self.repository.as_ref(), self.revision, &diagnostics, false)
+    }
+
+    /// Render diagnostics with colored source annotations.
+    pub(crate) fn render_terminal_diagnostics(&self, key: Option<ArtifactKey>) -> String {
+        let diagnostics = self
+            .repository
+            .diagnostics(self.revision, key)
+            .expect("test diagnostics should be readable");
+
+        render_source_diagnostics(self.repository.as_ref(), self.revision, &diagnostics, true)
     }
 
     /// Return one text artifact sidecar.
@@ -844,6 +854,26 @@ impl TestSession {
         key: ArtifactKey,
     ) -> Result<ArtifactVersion, ProviderError> {
         self.provider.require(key)
+    }
+
+    /// Require all artifacts through the test provider.
+    pub(crate) fn require_all(
+        &self,
+        keys: impl IntoIterator<Item = ArtifactKey>,
+    ) -> Result<(), ProviderError> {
+        let mut error = None;
+
+        for key in keys {
+            if let Err(current_error) = self.require_artifact_result(key) {
+                error.get_or_insert(current_error);
+            }
+        }
+
+        if let Some(error) = error {
+            Err(error)
+        } else {
+            Ok(())
+        }
     }
 
     /// Return the artifact key that owns one phase sidecar.
