@@ -1,85 +1,104 @@
 use std::sync::Arc;
 
 use destack_mir as mir;
-use destack_program::{ProgramLayout, StaticSpace};
+use destack_program::{EntryPoint, FunctionId, StaticSpace, TypeTable};
 
-use crate::{CodeMapping, Entry, EntryId, EntrySymbol, Object};
+use crate::{Code, Entry, ResumeEntry};
 
-/// Loaded native program.
+/// Process-local native program.
 #[derive(Debug, Clone)]
 pub struct Program {
-    /// The native object.
-    object: Arc<Object>,
-    /// The loaded code range.
-    code: CodeMapping,
-    /// The entries by id.
-    entries: Vec<Entry>,
+    /// The durable program artifact.
+    program: Arc<destack_program::Program>,
+    /// The process-local native code table.
+    code: Code,
 }
 
 impl Program {
-    /// Create one loaded native program.
-    pub fn new(object: Arc<Object>, code: CodeMapping, entries: Vec<Entry>) -> Self {
-        Self {
-            object,
-            code,
-            entries,
-        }
+    /// Create one native program.
+    pub fn new(program: Arc<destack_program::Program>, code: Code) -> Self {
+        Self { program, code }
     }
 
-    /// Borrow the native object.
-    pub fn object(&self) -> &Object {
-        self.object.as_ref()
+    /// Borrow the durable program artifact.
+    pub fn program(&self) -> &destack_program::Program {
+        self.program.as_ref()
     }
 
-    /// Borrow the loaded code range.
-    pub const fn code(&self) -> CodeMapping {
-        self.code
+    /// Return the durable program artifact handle.
+    pub fn program_handle(&self) -> Arc<destack_program::Program> {
+        self.program.clone()
+    }
+
+    /// Borrow the native code table.
+    pub const fn code(&self) -> &Code {
+        &self.code
+    }
+
+    /// Borrow the native code map.
+    pub const fn code_map(&self) -> &destack_program::native::CodeMap {
+        self.code.map()
     }
 
     /// Borrow immutable program constants.
     pub fn constants(&self) -> &StaticSpace {
-        &self.object.constant_space
+        self.program.constants()
     }
 
     /// Borrow initial shared static storage.
     pub fn shared_statics(&self) -> &StaticSpace {
-        &self.object.shared_static_space
+        self.program.shared_statics()
     }
 
     /// Borrow initial local static storage.
     pub fn local_statics(&self) -> &StaticSpace {
-        &self.object.local_static_space
+        self.program.local_statics()
     }
 
-    /// Borrow the program layout.
-    pub fn layout(&self) -> &ProgramLayout {
-        &self.object.layout
+    /// Borrow runtime type metadata.
+    pub fn types(&self) -> &TypeTable {
+        self.program.types()
+    }
+
+    /// Borrow runtime layouts.
+    pub fn layouts(&self) -> &mir::LayoutTable {
+        self.program.layouts()
+    }
+
+    /// Borrow runtime frame metadata.
+    pub fn frames(&self) -> &mir::FrameTable {
+        &self.program.frames
+    }
+
+    /// Borrow runtime function metadata.
+    pub fn functions(&self) -> &destack_program::FunctionTable {
+        self.program.functions()
     }
 
     /// Return the program heap trace table.
     pub fn trace_table(&self) -> Arc<mir::TraceTable> {
-        self.object.trace_table.clone()
+        self.program.trace_table_handle()
     }
 
-    /// Return one entry by id.
-    pub fn entry(&self, id: EntryId) -> Option<&Entry> {
-        self.entries.get(id.0 as usize)
+    /// Return one native entry for one function.
+    pub fn entry(&self, function: FunctionId) -> Option<&Entry> {
+        self.code.entry(function)
     }
 
-    /// Return one native entry symbol by id.
-    pub fn entry_symbol(&self, id: EntryId) -> Option<&EntrySymbol> {
-        self.object.entry(id)
+    /// Return one native resume entry for one frame state.
+    pub fn resume(&self, frame_state: mir::FrameStateId) -> Option<&ResumeEntry> {
+        self.code.resume(frame_state)
     }
 
-    /// Return one entry by runtime name.
+    /// Return one native entry for one program entrypoint.
+    pub fn entry_point(&self, entry: EntryPoint) -> Option<&Entry> {
+        self.entry(entry.function())
+    }
+
+    /// Return one native entry by runtime name.
     pub fn entry_by_name(&self, name: &str) -> Option<&Entry> {
-        let entry = self.object.entry_by_name(name)?;
+        let function = self.program.function_id_by_name(name)?;
 
-        self.entry(entry.id)
-    }
-
-    /// Return all entries in entry id order.
-    pub fn entries(&self) -> &[Entry] {
-        &self.entries
+        self.entry(function)
     }
 }

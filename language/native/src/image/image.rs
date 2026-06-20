@@ -1,17 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-use crate::Continuation;
-
-/// In-memory native executor image.
+/// In-memory native machine image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Image {
-    /// The suspended continuation when execution is currently paused.
-    pub continuation: Option<Continuation>,
-}
+pub struct Image {}
 
 impl Image {
-    /// Create an empty native executor image.
+    /// Create an empty native machine image.
     pub const fn empty() -> Self {
-        Self { continuation: None }
+        Self {}
     }
 }
