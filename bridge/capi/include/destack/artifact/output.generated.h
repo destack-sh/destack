@@ -359,9 +359,7 @@ typedef struct DestackOptionalProgramFormat {
 } DestackOptionalProgramFormat;
 
 typedef struct DestackProgramHeader {
-    DestackOptionalString name;
-    DestackOptionalString fingerprint;
-    DestackOptionalString target;
+    uint32_t pointer_bytes;
 } DestackProgramHeader;
 
 typedef struct DestackProgramHeaderArray {

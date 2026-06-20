@@ -130,24 +130,20 @@ export type Bundle = {
     readonly files: readonly BundleFile[];
 };
 
-/** Program executable format crossing bridge boundaries. */
+/** Preferred program execution format crossing bridge boundaries. */
 export type ProgramFormat = "vm" | "native";
 
 /** Durable program header crossing bridge boundaries. */
 export type ProgramHeader = {
-    /** Human-facing program name. */
-    readonly name?: string;
-    /** Build fingerprint that produced this program. */
-    readonly fingerprint?: string;
-    /** Target triple or equivalent target identity. */
-    readonly target?: string;
+    /** Pointer byte width required by this program. */
+    readonly pointerBytes: number;
 };
 
-/** Durable executable program crossing bridge boundaries. */
+/** Durable program crossing bridge boundaries. */
 export type Program = {
     /** The program identity and compatibility header. */
     readonly header: ProgramHeader;
-    /** The executable format. */
+    /** The preferred execution format. */
     readonly format: ProgramFormat;
     /** Content blobs referenced by the executable payload. */
     readonly contents: readonly ContentId[];

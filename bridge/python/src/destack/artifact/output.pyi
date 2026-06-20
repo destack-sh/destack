@@ -228,7 +228,7 @@ class Bundle:
     def files(self) -> list[BundleFile]: ...
 
 class ProgramFormat:
-    """Program executable format crossing bridge boundaries."""
+    """Preferred program execution format crossing bridge boundaries."""
 
     @property
     def label(self) -> str: ...
@@ -236,26 +236,18 @@ class ProgramFormat:
 class ProgramHeader:
     """Durable program header crossing bridge boundaries."""
 
-    """Human-facing program name."""
+    """Pointer byte width required by this program."""
     @property
-    def name(self) -> str | None: ...
-
-    """Build fingerprint that produced this program."""
-    @property
-    def fingerprint(self) -> str | None: ...
-
-    """Target triple or equivalent target identity."""
-    @property
-    def target(self) -> str | None: ...
+    def pointer_bytes(self) -> int: ...
 
 class Program:
-    """Durable executable program crossing bridge boundaries."""
+    """Durable program crossing bridge boundaries."""
 
     """The program identity and compatibility header."""
     @property
     def header(self) -> ProgramHeader: ...
 
-    """The executable format."""
+    """The preferred execution format."""
     @property
     def format(self) -> ProgramFormat: ...
 

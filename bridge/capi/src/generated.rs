@@ -6203,9 +6203,9 @@ impl DestackOptionalProduct {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DestackProgramFormat {
-    /// VM executable program.
+    /// VM execution.
     Vm = 0,
-    /// Native executable program.
+    /// Native execution.
     Native = 1,
 }
 
@@ -6334,12 +6334,8 @@ impl DestackOptionalProgramFormat {
 #[repr(C)]
 #[derive(Debug)]
 pub struct DestackProgramHeader {
-    /// Human-facing program name.
-    pub(crate) name: DestackOptionalString,
-    /// Build fingerprint that produced this program.
-    pub(crate) fingerprint: DestackOptionalString,
-    /// Target triple or equivalent target identity.
-    pub(crate) target: DestackOptionalString,
+    /// Pointer byte width required by this program.
+    pub(crate) pointer_bytes: u32,
 }
 
 /// C ABI bridge value array.
@@ -6366,35 +6362,22 @@ impl DestackProgramHeader {
     /// Convert one bridge value into one C ABI value.
     pub(crate) fn from_bridge(value: rust::language::ProgramHeader) -> Result<Self, String> {
         Ok(Self {
-            name: DestackOptionalString::from_bridge(value.name)?,
-            fingerprint: DestackOptionalString::from_bridge(value.fingerprint)?,
-            target: DestackOptionalString::from_bridge(value.target)?,
+            pointer_bytes: value.pointer_bytes,
         })
     }
 
     /// Convert this C ABI value into one bridge value.
     pub(crate) fn to_bridge(&self) -> Result<rust::language::ProgramHeader, String> {
         Ok(rust::language::ProgramHeader {
-            name: self.name.to_bridge()?,
-            fingerprint: self.fingerprint.to_bridge()?,
-            target: self.target.to_bridge()?,
+            pointer_bytes: self.pointer_bytes,
         })
     }
 
     /// Destroy this C ABI value.
-    pub(crate) fn destroy(&mut self) {
-        self.name.destroy();
-        self.fingerprint.destroy();
-        self.target.destroy();
-    }
-
+    pub(crate) fn destroy(&mut self) {}
     /// Return one empty C ABI value.
     pub(crate) fn empty() -> Self {
-        Self {
-            name: DestackOptionalString::empty(),
-            fingerprint: DestackOptionalString::empty(),
-            target: DestackOptionalString::empty(),
-        }
+        Self { pointer_bytes: 0 }
     }
 }
 
@@ -6480,7 +6463,7 @@ impl DestackOptionalProgramHeader {
 pub struct DestackProgram {
     /// The program identity and compatibility header.
     pub(crate) header: DestackProgramHeader,
-    /// The executable format.
+    /// The preferred execution format.
     pub(crate) format: DestackProgramFormat,
     /// Content blobs referenced by the executable payload.
     pub(crate) contents: DestackContentIdArray,

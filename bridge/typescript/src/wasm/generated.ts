@@ -1046,9 +1046,7 @@ export function fromWasmProgramFormat(value: string): ProgramFormat {
 /** Convert one WASM ProgramHeader into the public bridge shape. */
 export function fromWasmProgramHeader(value: Wasm.ProgramHeader): ProgramHeader {
     return {
-        name: value.name == null ? undefined : value.name,
-        fingerprint: value.fingerprint == null ? undefined : value.fingerprint,
-        target: value.target == null ? undefined : value.target,
+        pointerBytes: value.pointerBytes,
     };
 }
 
