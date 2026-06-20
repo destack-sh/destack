@@ -17,7 +17,7 @@ use vm::error::{Error, Result};
 use vm::{FrameEntry, ProgramPoint, ResumeTable, SideTable};
 
 /// Durable executable program produced by the toolchain.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Program {
     /// The program identity and compatibility header.
     pub header: ProgramHeader,
@@ -414,7 +414,7 @@ impl Program {
 }
 
 /// Program identity and compatibility header.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProgramHeader {
     /// Human-facing program name.
     pub name: Option<String>,

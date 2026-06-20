@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use super::{FunctionTable, ResumeTable, SideTable};
 
 /// Durable VM code body.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Code {
     /// Lowered function bodies for the VM backend.
     pub functions: FunctionTable,

@@ -20,7 +20,7 @@ use super::{
 pub struct CheckId(pub u32);
 
 /// One lowered runtime check.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Check {
     /// Bounds check over signed index and signed length cells.
     BoundsIntInt(BoundsCheck),
@@ -75,7 +75,7 @@ pub enum Check {
 }
 
 /// Bounds check over index and length cells.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct BoundsCheck {
     /// The index cell offset.
     pub index: u32,
@@ -84,7 +84,7 @@ pub struct BoundsCheck {
 }
 
 /// Shift amount range check over one cell.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ShiftRangeCheck {
     /// The shift amount cell offset.
     pub value: u32,
@@ -93,7 +93,7 @@ pub struct ShiftRangeCheck {
 }
 
 /// Integer narrowing check over one cell.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct NarrowCheck {
     /// The value cell offset.
     pub value: u32,
@@ -102,7 +102,7 @@ pub struct NarrowCheck {
 }
 
 /// Variant tag check over one cell.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct VariantCheck {
     /// The tag cell offset.
     pub value: u32,
@@ -111,7 +111,7 @@ pub struct VariantCheck {
 }
 
 /// Two cell inputs for one overflow check.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct OverflowCheck {
     /// The left input cell offset.
     pub left: u32,
@@ -143,7 +143,7 @@ pub struct Edge {
 }
 
 /// One pooled dense switch table.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SwitchTable {
     /// The smallest value covered by the table.
     pub min: i128,
@@ -211,7 +211,7 @@ pub trait SideRecord: Copy {
 macro_rules! side_record_table {
     ($( $field:ident : $ty:ty ),+ $(,)?) => {
         /// Immutable side records referenced by instruction ids.
-        #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+        #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
         struct SideRecordTable {
             $(
                 $field: Box<[$ty]>,
@@ -312,7 +312,7 @@ side_record_table! {
 }
 
 /// Immutable side table referenced by compact side records.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct SideTable {
     /// Pooled side records.
     record: Box<SideRecordTable>,

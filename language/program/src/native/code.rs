@@ -5,7 +5,7 @@ use destack_source::ContentId;
 use super::{Abi, CodeMap, Entry, EntryTable, Image, ImportTable, Resume};
 
 /// Durable native code produced for one program.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Code {
     /// The native ABI required by this code.
     pub abi: Abi,

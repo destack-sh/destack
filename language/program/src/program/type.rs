@@ -25,7 +25,7 @@ impl TypeId {
 }
 
 /// Runtime type metadata carried by one durable program.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypeTable {
     /// Host pointer width assumed by this program.
     pointer_bytes: u8,
