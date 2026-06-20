@@ -1734,16 +1734,15 @@ impl<'a> FunctionLowerer<'a> {
             CodegenCraneliftError::unsupported_type("missing aggregate layout metadata", node)
         })?;
 
-        if let mir::LayoutShape::Array(array) = &layout.shape {
-            if array.element != field_type {
+        if let Some(elements) = layout.shape.elements() {
+            if elements.element != field_type {
                 return Err(CodegenCraneliftError::Internal {
-                    message: "array layout element type mismatch".into(),
+                    message: "element layout type mismatch".into(),
                 });
             }
 
-            if let Some(count) = array.count
-                && index >= count
-            {
+            let count = elements.count;
+            if index >= count {
                 return Err(CodegenCraneliftError::out_of_bounds(
                     node,
                     index,
@@ -1751,13 +1750,11 @@ impl<'a> FunctionLowerer<'a> {
                 ));
             }
 
-            let offset =
-                array
-                    .stride
-                    .checked_mul(index)
-                    .ok_or_else(|| CodegenCraneliftError::Internal {
-                        message: "array slot offset overflow".into(),
-                    })?;
+            let offset = elements.stride.checked_mul(index).ok_or_else(|| {
+                CodegenCraneliftError::Internal {
+                    message: "element slot offset overflow".into(),
+                }
+            })?;
 
             return Ok((offset, field_type));
         }

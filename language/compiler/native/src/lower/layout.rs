@@ -223,45 +223,18 @@ pub(crate) fn compute_type_layout(
             Ok(TypeLayout::new(size, element_layout.alignment))
         }
 
-        // tensors: packed element storage based on layout
-        mir::Type::Tensor {
-            element,
-            shape,
-            layout,
-            copy: _,
-        } => {
-            let element_layout = compute_type_layout(tree, *element, pointer_bytes)?;
-            let element_count = compute_tensor_element_count(shape, layout);
-            if let Some(element_count) = element_count {
-                let size = element_layout.size * (element_count as u32);
-                Ok(TypeLayout::new(size, element_layout.alignment))
-            } else {
-                Ok(TypeLayout::natural(pointer_bytes as u32))
-            }
+        // tensors are handles to runtime-owned storage
+        mir::Type::Tensor { .. } => Ok(TypeLayout::natural(pointer_bytes as u32)),
+
+        // tensor views are descriptors over tensor storage
+        mir::Type::TensorView { shape, format, .. } => {
+            let rank = u32::try_from(shape.len()).map_err(|_| CodegenCraneliftError::Internal {
+                message: "tensor view rank exceeds layout limits".to_string(),
+            })?;
+            let size = u32::from(pointer_bytes).saturating_mul(format.descriptor_slots(rank));
+
+            Ok(TypeLayout::new(size, u32::from(pointer_bytes)))
         }
-
-        // tensor views are reference-like
-        mir::Type::TensorView { .. } => Ok(TypeLayout::natural(pointer_bytes as u32)),
-    }
-}
-
-fn compute_tensor_element_count(
-    shape: &[mir::TensorDimension],
-    layout: &mir::TensorLayout,
-) -> Option<u64> {
-    if shape.iter().any(|dim| static_dim(dim).is_none()) {
-        return None;
-    }
-    match layout {
-        mir::TensorLayout::Dense { .. } => Some(shape.iter().filter_map(static_dim).product()),
-    }
-}
-
-fn static_dim(dim: &mir::TensorDimension) -> Option<u64> {
-    match dim {
-        mir::TensorDimension::Static(value) => Some(*value),
-        mir::TensorDimension::Symbol(_) => None,
-        mir::TensorDimension::Dynamic => None,
     }
 }
 
