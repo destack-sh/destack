@@ -4,8 +4,8 @@ use destack_source::Span;
 use crate::{
     Access, Attribute, BorrowObligation, Copy, Field, FieldSpan, Lifetime, LifetimeParameter,
     LifetimeTerm, LocalNodeId, Nullability, ReferenceKind, SignatureParameter, Space,
-    TensorDimension, TensorDimensionOrder, TensorFormat, TensorViewFormat, Type,
-    TypeDeclarationSpans, TypeId, VariantCase,
+    TensorDimension, TensorDimensionOrder, TensorFormat, TensorReduction, TensorSharding,
+    TensorShardingAxis, TensorViewFormat, Type, TypeDeclarationSpans, TypeId, VariantCase,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -779,7 +779,9 @@ impl Parser {
 
         self.eat_token(TokenType::Comma)?;
         let shape = self.parse_tensor_shape()?;
-        let format = self.parse_optional_tensor_view_format()?;
+        let mut format = TensorViewFormat::dense_row_major();
+        let mut sharding = TensorSharding::unsharded();
+        self.parse_optional_tensor_groups(None, Some(&mut format), &mut sharding)?;
         self.eat_token(TokenType::GreaterThan)?;
 
         Ok(Type::TensorView {
@@ -790,6 +792,7 @@ impl Parser {
             element,
             shape,
             format,
+            sharding,
             nullability: qualifiers.nullability,
         })
     }
@@ -841,13 +844,16 @@ impl Parser {
         let (element, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::Comma)?;
         let shape = self.parse_tensor_shape()?;
-        let format = self.parse_optional_tensor_format()?;
+        let mut format = TensorFormat::dense_row_major();
+        let mut sharding = TensorSharding::unsharded();
+        self.parse_optional_tensor_groups(Some(&mut format), None, &mut sharding)?;
         self.eat_token(TokenType::GreaterThan)?;
 
         Ok(Type::Tensor {
             element,
             shape,
             format,
+            sharding,
             copy: Copy::No,
         })
     }
@@ -1100,24 +1106,6 @@ impl Parser {
         })
     }
 
-    /// Parse an optional trailing tensor format assignment.
-    fn parse_optional_tensor_format(&mut self) -> ParseResult<TensorFormat> {
-        if self.eat_token_maybe(TokenType::Comma) {
-            self.parse_tensor_format_group()
-        } else {
-            Ok(TensorFormat::dense_row_major())
-        }
-    }
-
-    /// Parse an optional trailing tensor view format assignment.
-    fn parse_optional_tensor_view_format(&mut self) -> ParseResult<TensorViewFormat> {
-        if self.eat_token_maybe(TokenType::Comma) {
-            self.parse_tensor_view_format_group()
-        } else {
-            Ok(TensorViewFormat::dense_row_major())
-        }
-    }
-
     /// Parse a tensor shape list.
     fn parse_tensor_shape(&mut self) -> ParseResult<Vec<TensorDimension>> {
         self.eat_token(TokenType::OpenParenthesis)?;
@@ -1158,28 +1146,37 @@ impl Parser {
         Ok(shape)
     }
 
-    /// Parse a grouped tensor format clause.
-    fn parse_tensor_format_group(&mut self) -> ParseResult<TensorFormat> {
-        let token = self.eat_token(TokenType::Identifier)?;
-        if self.tree.source_text(token.span) != "format" {
-            return Err(ParseError::invalid("format group", token.start));
+    /// Parse optional tensor format and sharding groups.
+    fn parse_optional_tensor_groups(
+        &mut self,
+        mut format: Option<&mut TensorFormat>,
+        mut view_format: Option<&mut TensorViewFormat>,
+        sharding: &mut TensorSharding,
+    ) -> ParseResult<()> {
+        while self.eat_token_maybe(TokenType::Comma) {
+            let token = self.eat_token(TokenType::Identifier)?;
+            match self.tree.source_text(token.span) {
+                "format" => {
+                    self.eat_token(TokenType::OpenParenthesis)?;
+                    if let Some(format) = format.as_deref_mut() {
+                        *format = self.parse_tensor_format()?;
+                    } else if let Some(view_format) = view_format.as_deref_mut() {
+                        *view_format = self.parse_tensor_view_format()?;
+                    } else {
+                        return Err(ParseError::invalid("tensor format group", token.start));
+                    }
+                    self.eat_token(TokenType::CloseParenthesis)?;
+                }
+                "sharding" => {
+                    self.eat_token(TokenType::OpenParenthesis)?;
+                    *sharding = self.parse_tensor_sharding()?;
+                    self.eat_token(TokenType::CloseParenthesis)?;
+                }
+                _ => return Err(ParseError::invalid("tensor group", token.start)),
+            }
         }
-        self.eat_token(TokenType::OpenParenthesis)?;
-        let format = self.parse_tensor_format()?;
-        self.eat_token(TokenType::CloseParenthesis)?;
-        Ok(format)
-    }
 
-    /// Parse a grouped tensor view format clause.
-    fn parse_tensor_view_format_group(&mut self) -> ParseResult<TensorViewFormat> {
-        let token = self.eat_token(TokenType::Identifier)?;
-        if self.tree.source_text(token.span) != "format" {
-            return Err(ParseError::invalid("format group", token.start));
-        }
-        self.eat_token(TokenType::OpenParenthesis)?;
-        let format = self.parse_tensor_view_format()?;
-        self.eat_token(TokenType::CloseParenthesis)?;
-        Ok(format)
+        Ok(())
     }
 
     /// Parse a tensor format specifier.
@@ -1209,6 +1206,72 @@ impl Parser {
             "strided" => Ok(TensorViewFormat::Strided),
             _ => Err(ParseError::invalid("tensor view format", token.start)),
         }
+    }
+
+    /// Parse a tensor sharding specifier.
+    fn parse_tensor_sharding(&mut self) -> ParseResult<TensorSharding> {
+        let token = self.eat_token(TokenType::Identifier)?;
+        match self.tree.source_text(token.span) {
+            "unsharded" => Ok(TensorSharding::Unsharded),
+            _ => {
+                let mut axes = vec![self.parse_tensor_sharding_axis_after(token)?];
+                while self.eat_token_maybe(TokenType::Comma) {
+                    axes.push(self.parse_tensor_sharding_axis()?);
+                }
+
+                Ok(TensorSharding::Sharding { axes })
+            }
+        }
+    }
+
+    /// Parse one tensor sharding axis.
+    fn parse_tensor_sharding_axis(&mut self) -> ParseResult<TensorShardingAxis> {
+        let token = self.eat_token(TokenType::Identifier)?;
+
+        self.parse_tensor_sharding_axis_after(token)
+    }
+
+    /// Parse one tensor sharding axis after its leading token has been consumed.
+    fn parse_tensor_sharding_axis_after(
+        &mut self,
+        token: Token,
+    ) -> ParseResult<TensorShardingAxis> {
+        match self.tree.source_text(token.span) {
+            "shard" => {
+                self.eat_token(TokenType::OpenParenthesis)?;
+                let axis = self.parse_int_literal()?;
+                let axis = i32::try_from(axis)
+                    .map_err(|_| ParseError::invalid("tensor shard axis", self.pos()))?;
+                self.eat_token(TokenType::CloseParenthesis)?;
+
+                Ok(TensorShardingAxis::Shard { axis })
+            }
+            "replicate" => Ok(TensorShardingAxis::Replicate),
+            "partial" => {
+                self.eat_token(TokenType::OpenParenthesis)?;
+                let reduction = self.parse_tensor_reduction()?;
+                self.eat_token(TokenType::CloseParenthesis)?;
+
+                Ok(TensorShardingAxis::Partial { reduction })
+            }
+            _ => Err(ParseError::invalid("tensor sharding axis", token.start)),
+        }
+    }
+
+    /// Parse one partial tensor reduction.
+    fn parse_tensor_reduction(&mut self) -> ParseResult<TensorReduction> {
+        let token = self.eat_token(TokenType::Identifier)?;
+        let reduction = match self.tree.source_text(token.span) {
+            "add" => TensorReduction::Add,
+            "multiply" => TensorReduction::Multiply,
+            "minimum" => TensorReduction::Minimum,
+            "maximum" => TensorReduction::Maximum,
+            "and" => TensorReduction::And,
+            "or" => TensorReduction::Or,
+            _ => return Err(ParseError::invalid("tensor reduction", token.start)),
+        };
+
+        Ok(reduction)
     }
 
     /// Parse one dense tensor dimension order.

@@ -179,7 +179,7 @@ pub enum TensorDimensionOrder {
 }
 
 /// Format for an owning tensor value.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TensorFormat {
     /// Dense contiguous format.
     Dense {
@@ -198,7 +198,7 @@ impl TensorFormat {
 }
 
 /// Format descriptor for a tensor view.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TensorViewFormat {
     /// Dense contiguous view.
     Dense {
@@ -216,6 +216,67 @@ impl TensorViewFormat {
             order: TensorDimensionOrder::RowMajor,
         }
     }
+
+    /// Return the pointer-sized descriptor slot count for a view of `rank`.
+    pub const fn descriptor_slots(self, rank: u32) -> u32 {
+        match self {
+            TensorViewFormat::Dense { .. } => 1u32.saturating_add(rank),
+            TensorViewFormat::Strided => 1u32.saturating_add(rank.saturating_mul(2)),
+        }
+    }
+}
+
+/// Placement descriptor for tensor storage.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TensorSharding {
+    /// Tensor storage is not partitioned across a mesh.
+    Unsharded,
+    /// Tensor storage is mapped across a mesh axis by axis.
+    Sharding {
+        /// The per-axis placement descriptors.
+        axes: Vec<TensorShardingAxis>,
+    },
+}
+
+impl TensorSharding {
+    /// Return the default unsharded tensor placement.
+    pub fn unsharded() -> Self {
+        Self::Unsharded
+    }
+}
+
+/// Per-axis placement descriptor for a sharded tensor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TensorShardingAxis {
+    /// Split one tensor axis across one mesh axis.
+    Shard {
+        /// The tensor axis being split.
+        axis: i32,
+    },
+    /// Replicate values across one mesh axis.
+    Replicate,
+    /// Store partial results across one mesh axis.
+    Partial {
+        /// The reduction used to combine partial values.
+        reduction: TensorReduction,
+    },
+}
+
+/// Reduction used when partial tensor shards are combined.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TensorReduction {
+    /// Add partial values.
+    Add,
+    /// Multiply partial values.
+    Multiply,
+    /// Keep the minimum partial value.
+    Minimum,
+    /// Keep the maximum partial value.
+    Maximum,
+    /// Combine partial boolean values with AND.
+    And,
+    /// Combine partial boolean values with OR.
+    Or,
 }
 
 /// Dimension size for tensor shapes and formats.
@@ -370,6 +431,8 @@ pub enum Type {
         shape: Vec<TensorDimension>,
         /// The tensor format.
         format: TensorFormat,
+        /// The tensor placement.
+        sharding: TensorSharding,
         /// Copy of this tensor type.
         copy: Copy,
     },
@@ -389,6 +452,8 @@ pub enum Type {
         shape: Vec<TensorDimension>,
         /// The tensor view format.
         format: TensorViewFormat,
+        /// The tensor placement.
+        sharding: TensorSharding,
         /// The nullish values allowed by this view descriptor.
         nullability: Nullability,
     },

@@ -281,6 +281,12 @@ define_language_items! {
             ComputeDevice => (Newtype, "compute/device", "Device"),
         }
 
+        /// `destack:compute/mesh`.
+        mesh {
+            /// Compute mesh handle.
+            ComputeMesh => (Newtype, "compute/mesh", "Mesh"),
+        }
+
         /// `destack:compute/program`.
         program {
             /// Compute kernel handle.
@@ -1322,16 +1328,46 @@ define_language_items! {
         /// `destack:tensor/layout`.
         layout {
             /// Tensor format type.
-            TensorFormat => (Newtype, "tensor/layout", "TensorFormat"),
+            TensorFormat => (NewtypeInterface, "tensor/layout", "TensorFormat"),
 
             /// Tensor view format type.
-            TensorViewFormat => (Newtype, "tensor/layout", "TensorViewFormat"),
+            TensorViewFormat => (NewtypeInterface, "tensor/layout", "TensorViewFormat"),
+
+            /// Dense tensor format type.
+            TensorDense => (Newtype, "tensor/layout", "Dense", "tensor.Dense"),
+
+            /// Strided tensor view format type.
+            TensorStrided => (Newtype, "tensor/layout", "Strided", "tensor.Strided"),
         }
 
         /// `destack:tensor/shape`.
         shape {
             /// Tensor shape type.
             TensorShape => (Struct, "tensor/shape", "Shape"),
+        }
+
+        /// `destack:tensor/sharding`.
+        sharding {
+            /// Tensor placement descriptor type.
+            TensorPlacement => (NewtypeInterface, "tensor/sharding", "Placement"),
+
+            /// Tensor sharding axis descriptor type.
+            TensorShardingAxis => (NewtypeInterface, "tensor/sharding", "ShardingAxis"),
+
+            /// Unsharded tensor storage type.
+            TensorUnsharded => (Newtype, "tensor/sharding", "Unsharded", "tensor.Unsharded"),
+
+            /// Sharded tensor storage type.
+            TensorShardingAxes => (Newtype, "tensor/sharding", "Sharding", "tensor.Sharding"),
+
+            /// Split tensor axis marker.
+            TensorShard => (Newtype, "tensor/sharding", "Shard", "tensor.Shard"),
+
+            /// Replicated tensor axis marker.
+            TensorReplicate => (Newtype, "tensor/sharding", "Replicate", "tensor.Replicate"),
+
+            /// Partial tensor axis marker.
+            TensorPartial => (Newtype, "tensor/sharding", "Partial", "tensor.Partial"),
         }
 
         /// `destack:tensor/tensor`.

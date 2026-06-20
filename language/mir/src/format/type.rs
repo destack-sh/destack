@@ -9,8 +9,8 @@ use crate::{
     Access, Attribute, AttributeIdentifier, BorrowObligation, Copy, Field, FieldSpan,
     FormatMirNode, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, MirFormatContext,
     MirFormatter, Nullability, ReferenceKind, Space, TensorDimension, TensorDimensionOrder,
-    TensorFormat, TensorViewFormat, Type, TypeAlias, TypeDeclarationSpans, TypeId,
-    write_comments_before,
+    TensorFormat, TensorReduction, TensorSharding, TensorShardingAxis, TensorViewFormat, Type,
+    TypeAlias, TypeDeclarationSpans, TypeId, write_comments_before,
 };
 
 impl<'a> FormatMirNode<'a, Type> for Type {
@@ -426,6 +426,7 @@ fn format_type_inner<'a>(
             element,
             shape,
             format,
+            sharding,
             copy: _,
         } => {
             write!(
@@ -444,6 +445,11 @@ fn format_type_inner<'a>(
                 format_tensor_format(format, f)?;
                 write!(f, [token(")")])?;
             }
+            if sharding != &TensorSharding::unsharded() {
+                write!(f, [token(","), space(), token("sharding"), token("(")])?;
+                format_tensor_sharding(sharding, f)?;
+                write!(f, [token(")")])?;
+            }
             write!(f, [token(">")])
         }
         Type::TensorView {
@@ -454,6 +460,7 @@ fn format_type_inner<'a>(
             element,
             shape,
             format,
+            sharding,
             nullability,
         } => {
             write!(f, [token("tensorView"), token("<")])?;
@@ -471,6 +478,11 @@ fn format_type_inner<'a>(
             if *format != TensorViewFormat::dense_row_major() {
                 write!(f, [token(","), space(), token("format"), token("(")])?;
                 format_tensor_view_format(format, f)?;
+                write!(f, [token(")")])?;
+            }
+            if sharding != &TensorSharding::unsharded() {
+                write!(f, [token(","), space(), token("sharding"), token("(")])?;
+                format_tensor_sharding(sharding, f)?;
                 write!(f, [token(")")])?;
             }
             write!(f, [token(">")])
@@ -568,6 +580,66 @@ fn format_tensor_view_format<'a>(
         ),
         TensorViewFormat::Strided => write!(f, [token("strided")]),
     }
+}
+
+fn format_tensor_sharding<'a>(
+    sharding: &TensorSharding,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    match sharding {
+        TensorSharding::Unsharded => write!(f, [token("unsharded")]),
+        TensorSharding::Sharding { axes } => {
+            for (index, axis) in axes.iter().enumerate() {
+                if index > 0 {
+                    write!(f, [token(","), space()])?;
+                }
+                format_tensor_sharding_axis(axis, f)?;
+            }
+
+            Ok(())
+        }
+    }
+}
+
+fn format_tensor_sharding_axis<'a>(
+    axis: &TensorShardingAxis,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    match axis {
+        TensorShardingAxis::Shard { axis } => {
+            write!(
+                f,
+                [
+                    token("shard"),
+                    token("("),
+                    text(&axis.to_string()),
+                    token(")")
+                ]
+            )
+        }
+        TensorShardingAxis::Replicate => write!(f, [token("replicate")]),
+        TensorShardingAxis::Partial { reduction } => {
+            write!(f, [token("partial"), token("(")])?;
+            format_tensor_reduction(*reduction, f)?;
+            write!(f, [token(")")])
+        }
+    }
+}
+
+fn format_tensor_reduction<'a>(
+    reduction: TensorReduction,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    let name = match reduction {
+        TensorReduction::Add => "add",
+        TensorReduction::Multiply => "multiply",
+        TensorReduction::Minimum => "minimum",
+        TensorReduction::Maximum => "maximum",
+        TensorReduction::And => "and",
+        TensorReduction::Or => "or",
+    };
+
+    write!(f, [token(name)])
 }
 
 fn format_view_header<'a>(

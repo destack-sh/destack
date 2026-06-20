@@ -5,10 +5,10 @@ use serde::{Deserialize, Serialize};
 
 use destack_core::StringId;
 
-use crate::{LocalNodeId, TensorViewFormat, TraceMap, Type};
+use crate::{LocalNodeId, TensorFormat, TensorSharding, TensorViewFormat, TraceMap, Type};
 
 /// Canonical layout metadata for one MIR module.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct LayoutMetadata {
     /// Layout metadata table for aggregate types.
     pub layout_table: LayoutTable,
@@ -51,7 +51,7 @@ impl LayoutMetadata {
 }
 
 /// Shared layout table for all aggregate types.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct LayoutTable {
     /// Layout entries indexed by LayoutId.
     pub layouts: Vec<Layout>,
@@ -108,7 +108,7 @@ impl LayoutId {
 }
 
 /// Concrete memory layout for an aggregate type.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Layout {
     /// The layout shape.
     pub shape: LayoutShape,
@@ -151,7 +151,7 @@ impl Layout {
 }
 
 /// Concrete memory layout shape.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum LayoutShape {
     /// No runtime storage.
     None,
@@ -234,21 +234,21 @@ impl LayoutShape {
 }
 
 /// Concrete layout for a struct.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StructLayout {
     /// The fields in layout order.
     pub fields: Vec<LayoutField>,
 }
 
 /// Concrete layout for a tuple.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TupleLayout {
     /// The tuple elements in layout order.
     pub elements: Vec<LayoutField>,
 }
 
 /// Layout for inline indexed element storage.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ElementLayout {
     /// The stored element type.
     pub element: LocalNodeId<Type>,
@@ -259,27 +259,33 @@ pub struct ElementLayout {
 }
 
 /// Concrete layout for a tensor handle.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TensorLayout {
     /// The tensor element type.
     pub element: LocalNodeId<Type>,
+    /// The tensor storage format.
+    pub format: TensorFormat,
+    /// The tensor placement.
+    pub sharding: TensorSharding,
     /// The tensor rank.
     pub rank: u32,
 }
 
 /// Concrete layout for a tensor view descriptor.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TensorViewLayout {
     /// The viewed element type.
     pub element: LocalNodeId<Type>,
     /// The tensor view format.
     pub format: TensorViewFormat,
+    /// The tensor placement.
+    pub sharding: TensorSharding,
     /// The tensor rank.
     pub rank: u32,
 }
 
 /// Concrete layout for a variant value.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VariantLayout {
     /// The tag layout.
     pub tag: VariantTagLayout,
@@ -290,7 +296,7 @@ pub struct VariantLayout {
 }
 
 /// Concrete layout for a variant tag.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct VariantTagLayout {
     /// The tag type when it has been materialized.
     pub ty: Option<LocalNodeId<Type>>,
@@ -301,14 +307,14 @@ pub struct VariantTagLayout {
 }
 
 /// Concrete layout for an object.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ObjectLayout {
     /// The fields in layout order.
     pub fields: Vec<LayoutField>,
 }
 
 /// Concrete layout for a nominal newtype.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct NewtypeLayout {
     /// The backing type.
     pub backing_type: LocalNodeId<Type>,
@@ -317,7 +323,7 @@ pub struct NewtypeLayout {
 }
 
 /// Memory layout for a single field.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LayoutField {
     /// Field name for lookup and debugging.
     pub name: Option<StringId>,
@@ -334,7 +340,7 @@ pub struct LayoutField {
 }
 
 /// Concrete layout for one variant case.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VariantCaseLayout {
     /// The logical case type.
     pub ty: LocalNodeId<Type>,
