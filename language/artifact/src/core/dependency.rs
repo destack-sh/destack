@@ -1,77 +1,18 @@
 use std::hash::Hash;
 
 use destack_core::StableHasher;
-use destack_source::{ComponentId, ContentId, FileId, ModuleId, StringId};
+use destack_source::{ComponentId, ContentId, FileId, ModuleId};
 use serde::{Deserialize, Serialize};
 
 use crate::{ArtifactKey, ArtifactVersion};
 
-/// Exact source path state observed by one artifact computation.
+/// One exact source file content observed while building an artifact.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub enum ArtifactPathState {
-    /// The path did not exist.
-    Missing,
-    /// The path was a regular file.
-    File,
-    /// The path was a directory.
-    Directory,
-    /// The path was a symbolic link.
-    Symlink,
-    /// The path existed with another host-specific kind.
-    Other,
-}
-
-/// One exact directory entry observed by one artifact computation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct ArtifactDirectoryEntry {
-    /// The entry path.
-    pub path: StringId,
-    /// The exact entry path state.
-    pub state: ArtifactPathState,
-}
-
-impl ArtifactDirectoryEntry {
-    /// Build one exact directory entry dependency.
-    pub const fn new(path: StringId, state: ArtifactPathState) -> Self {
-        Self { path, state }
-    }
-}
-
-/// One primitive source observation read while building an artifact.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub enum SourceDependency {
-    /// The exact state observed for one source path.
-    PathState {
-        /// The logical path.
-        path: StringId,
-        /// The exact path state.
-        state: ArtifactPathState,
-    },
-    /// The exact direct entries observed for one directory.
-    DirectoryEntries {
-        /// The directory logical path.
-        directory: StringId,
-        /// The direct entries in deterministic order.
-        entries: Vec<ArtifactDirectoryEntry>,
-    },
-    /// The exact source content read for one file.
-    FileContent {
-        /// The source file id.
-        file: FileId,
-        /// The exact source content id.
-        content: ContentId,
-    },
-}
-
-/// The identity of one primitive source observation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub enum SourceKey {
-    /// The exact state of one source path.
-    PathState(StringId),
-    /// The exact direct entries of one source directory.
-    DirectoryEntries(StringId),
-    /// The exact content of one source file.
-    FileContent(FileId),
+pub struct SourceDependency {
+    /// The source file id.
+    pub file: FileId,
+    /// The exact source content id.
+    pub content: ContentId,
 }
 
 /// Stable fingerprint of one observed artifact projection.
@@ -158,6 +99,8 @@ impl ArtifactProjection {
 /// One exact projected artifact value observed while building an artifact.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct ArtifactProjectionDependency {
+    /// The exact artifact version that supplied the projected value.
+    pub version: ArtifactVersion,
     /// The projected artifact value.
     pub projection: ArtifactProjection,
     /// The exact projection fingerprint read from the owner artifact.
@@ -167,10 +110,12 @@ pub struct ArtifactProjectionDependency {
 impl ArtifactProjectionDependency {
     /// Build one exact artifact projection dependency.
     pub const fn new(
+        version: ArtifactVersion,
         projection: ArtifactProjection,
         fingerprint: ArtifactProjectionFingerprint,
     ) -> Self {
         Self {
+            version,
             projection,
             fingerprint,
         }
@@ -207,41 +152,17 @@ impl ArtifactRequirement {
 }
 
 impl SourceDependency {
-    /// Build one source path state dependency.
-    pub fn path_state(path: StringId, state: ArtifactPathState) -> Self {
-        Self::PathState { path, state }
-    }
-
-    /// Build one directory entries dependency.
-    pub fn directory_entries(
-        directory: StringId,
-        entries: impl IntoIterator<Item = ArtifactDirectoryEntry>,
-    ) -> Self {
-        let mut entries = entries.into_iter().collect::<Vec<_>>();
-        entries.sort_unstable();
-        entries.dedup();
-
-        Self::DirectoryEntries { directory, entries }
-    }
-
     /// Build one file content dependency.
     pub fn file_content(file: FileId, content: ContentId) -> Self {
-        Self::FileContent { file, content }
-    }
-
-    /// Return the value-independent source observation identity.
-    pub const fn key(&self) -> SourceKey {
-        match self {
-            Self::PathState { path, .. } => SourceKey::PathState(*path),
-            Self::DirectoryEntries { directory, .. } => SourceKey::DirectoryEntries(*directory),
-            Self::FileContent { file, .. } => SourceKey::FileContent(*file),
-        }
+        Self { file, content }
     }
 }
 
 /// Every dependency one artifact declares before it is built.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ArtifactDependencySet {
+    /// The predecessor artifact this dependency set is derived from.
+    pub base: Option<ArtifactVersion>,
     /// Artifact values that must be resolved first.
     pub requirements: Vec<ArtifactRequirement>,
     /// Primitive source observations that feed the fingerprint.
@@ -251,6 +172,11 @@ pub struct ArtifactDependencySet {
 }
 
 impl ArtifactDependencySet {
+    /// Declare one predecessor artifact used to derive this artifact.
+    pub fn derive_from(&mut self, version: ArtifactVersion) {
+        self.base = Some(version);
+    }
+
     /// Declare one required lower artifact.
     pub fn require(&mut self, key: ArtifactKey) {
         self.requirements.push(ArtifactRequirement::version(key));
@@ -264,38 +190,14 @@ impl ArtifactDependencySet {
             .push(ArtifactRequirement::projection(projection));
     }
 
-    /// Declare one raw source observation.
+    /// Declare one source file content dependency.
     pub fn observe(&mut self, source: SourceDependency) {
-        self.observe_source(source);
-    }
-
-    /// Declare one raw source observation.
-    pub fn observe_source(&mut self, source: SourceDependency) {
         self.sources.push(source);
-    }
-
-    /// Declare one observed source path state.
-    pub fn observe_path_state(&mut self, path: StringId, state: ArtifactPathState) {
-        self.observe_source(SourceDependency::path_state(path, state));
-    }
-
-    /// Declare one observed source directory listing.
-    pub fn observe_directory_entries(
-        &mut self,
-        directory: StringId,
-        entries: impl IntoIterator<Item = ArtifactDirectoryEntry>,
-    ) {
-        self.observe_source(SourceDependency::directory_entries(directory, entries));
-    }
-
-    /// Declare one observed source file content id.
-    pub fn observe_file_content(&mut self, file: FileId, content: ContentId) {
-        self.observe_source(SourceDependency::file_content(file, content));
     }
 
     /// Declare one observed regular source file.
     pub fn observe_file(&mut self, file: FileId, content: ContentId) {
-        self.observe_file_content(file, content);
+        self.observe(SourceDependency::file_content(file, content));
     }
 
     /// Mark the closure incomplete so the engine runs the collect pass again.
@@ -323,27 +225,14 @@ impl ArtifactDependency {
 
     /// Build one exact artifact projection dependency.
     pub fn projection(
+        version: ArtifactVersion,
         projection: ArtifactProjection,
         fingerprint: ArtifactProjectionFingerprint,
     ) -> Self {
-        Self::Projection(ArtifactProjectionDependency::new(projection, fingerprint))
-    }
-
-    /// Build one source path state dependency.
-    pub fn path_state(path: StringId, state: ArtifactPathState) -> Self {
-        Self::Source(SourceDependency::path_state(path, state))
-    }
-
-    /// Build one directory entries dependency.
-    pub fn directory_entries(
-        directory: StringId,
-        entries: impl IntoIterator<Item = ArtifactDirectoryEntry>,
-    ) -> Self {
-        Self::Source(SourceDependency::directory_entries(directory, entries))
-    }
-
-    /// Build one file content dependency.
-    pub fn file_content(file: FileId, content: ContentId) -> Self {
-        Self::Source(SourceDependency::file_content(file, content))
+        Self::Projection(ArtifactProjectionDependency::new(
+            version,
+            projection,
+            fingerprint,
+        ))
     }
 }

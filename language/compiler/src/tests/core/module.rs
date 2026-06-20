@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependency, DirParsed, DirParsedFile};
+use destack_artifact::{ArtifactDependency, DirParsed, DirParsedFile, SourceDependency};
 use destack_dir as dir;
 use destack_parser::{Parser, ParserOptions};
 use destack_repository::{Module, Repository, Revision};
@@ -111,7 +111,7 @@ pub(crate) fn parsed_dependencies(
         .map(|file| {
             let content = file_content_id(repository, revision, file.file_id);
 
-            ArtifactDependency::file_content(file.file_id, content)
+            ArtifactDependency::Source(SourceDependency::file_content(file.file_id, content))
         })
         .collect()
 }

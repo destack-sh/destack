@@ -1,8 +1,13 @@
+use std::hash::Hash;
+
 use serde::{Deserialize, Serialize};
 
 use destack_core::StableHasher;
 
-use crate::{ArtifactDependency, ArtifactKey};
+use crate::{
+    ArtifactDependency, ArtifactKey, ArtifactProjection, ArtifactProjectionFingerprint,
+    ArtifactVersion, SourceDependency,
+};
 
 /// Deterministic identity of one artifact's complete semantic dependencies.
 #[repr(transparent)]
@@ -26,42 +31,58 @@ impl ArtifactFingerprint {
     pub(crate) fn new(
         key: ArtifactKey,
         build_fingerprint: &str,
+        base: Option<ArtifactVersion>,
         dependencies: impl IntoIterator<Item = ArtifactDependency>,
     ) -> Self {
-        // artifact dependencies are a set
-        let mut dependencies = dependencies.into_iter().collect::<Vec<_>>();
+        // artifact dependency identities are a set
+        let mut dependencies = dependencies
+            .into_iter()
+            .map(ArtifactFingerprintDependency::from)
+            .collect::<Vec<_>>();
         dependencies.sort_unstable();
         dependencies.dedup();
 
         // stable fingerprint stream
         let mut hasher = StableHasher::new();
 
-        hasher.update_len_prefixed(b"destack.artifact.fingerprint.v2");
-        update_stable_value(&mut hasher, &key);
+        hasher.update_len_prefixed(b"destack.artifact.fingerprint.v3");
+        key.hash(&mut hasher);
         hasher.update_len_prefixed(build_fingerprint.as_bytes());
-        update_stable_values(&mut hasher, &dependencies);
+        base.hash(&mut hasher);
+        hasher.update(&(dependencies.len() as u64).to_le_bytes());
+        for dependency in &dependencies {
+            dependency.hash(&mut hasher);
+        }
 
         Self(hasher.finish_u128())
     }
 }
 
-/// Add one stable serialized value to a fingerprint hash.
-fn update_stable_value<T: Serialize>(hasher: &mut StableHasher, value: &T) {
-    let bytes = stable_fingerprint_bytes(value);
-    hasher.update_len_prefixed(&bytes);
+/// One dependency identity included in an artifact fingerprint.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+enum ArtifactFingerprintDependency {
+    /// Another exact artifact version.
+    Artifact(ArtifactVersion),
+    /// One exact projected artifact value.
+    Projection {
+        /// The projected artifact value.
+        projection: ArtifactProjection,
+        /// The exact projection fingerprint.
+        fingerprint: ArtifactProjectionFingerprint,
+    },
+    /// One exact primitive source observation.
+    Source(SourceDependency),
 }
 
-/// Add one stable serialized sequence to a fingerprint hash.
-fn update_stable_values<T: Serialize>(hasher: &mut StableHasher, values: &[T]) {
-    hasher.update(&(values.len() as u64).to_le_bytes());
-
-    for value in values {
-        update_stable_value(hasher, value);
+impl From<ArtifactDependency> for ArtifactFingerprintDependency {
+    fn from(dependency: ArtifactDependency) -> Self {
+        match dependency {
+            ArtifactDependency::Artifact(version) => Self::Artifact(version),
+            ArtifactDependency::Projection(dependency) => Self::Projection {
+                projection: dependency.projection,
+                fingerprint: dependency.fingerprint,
+            },
+            ArtifactDependency::Source(dependency) => Self::Source(dependency),
+        }
     }
-}
-
-/// Encode one fingerprint component into stable bytes.
-fn stable_fingerprint_bytes<T: Serialize>(value: &T) -> Vec<u8> {
-    postcard::to_allocvec(value)
-        .unwrap_or_else(|error| panic!("failed to serialize artifact fingerprint value: {error}"))
 }

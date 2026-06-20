@@ -1,5 +1,5 @@
 use destack_core::{StringId, StringPool};
-use destack_source::DiagnosticCollection;
+use destack_source::{DiagnosticCollection, FileId};
 use serde::{Deserialize, Serialize};
 
 use super::string::collect_string_ids;
@@ -22,6 +22,8 @@ pub struct ArtifactRecord {
     pub strings: Vec<StringId>,
     /// The exact artifact dependencies.
     pub dependencies: Vec<ArtifactDependency>,
+    /// Source files this artifact transitively depends on.
+    pub sources: Vec<FileId>,
     /// Diagnostics recorded for this artifact version.
     pub diagnostics: DiagnosticCollection,
     /// Artifact sidecars recorded for this artifact version.
@@ -36,6 +38,7 @@ impl ArtifactRecord {
         payload: T,
         string_pool: &StringPool,
         dependencies: Vec<ArtifactDependency>,
+        sources: Vec<FileId>,
         diagnostics: DiagnosticCollection,
         sidecars: Vec<ArtifactSidecar>,
     ) -> Result<Self, ArtifactStoreError>
@@ -60,6 +63,7 @@ impl ArtifactRecord {
             payload,
             strings,
             dependencies,
+            sources,
             diagnostics,
             sidecars,
         })

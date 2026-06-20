@@ -4,18 +4,18 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use destack_core::StringPool;
 use destack_program::Program;
-use destack_source::{ContentId, DiagnosticCollection};
+use destack_source::{ContentId, DiagnosticCollection, FileId};
 
 use super::entry::{ArtifactEntry, ArtifactOutcome, ArtifactSidecar};
 use super::pin::ArtifactPin;
 use crate::{
-    ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactProjection,
-    ArtifactProjectionDependency, ArtifactProjectionFingerprint, ArtifactRecord, ArtifactVersion,
-    Asset, Build, Bundle, ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent,
-    DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
-    GlobalEnvironment, MirAnalyzed, MirLowered, MirOptimized, MirVerified, ModuleLinted,
-    ModuleQueryIndex, Object, PackageIndex, PackageLinted, Product, ProgramAnalysis, Script,
-    SourceKey, WorkspaceLinted, WorkspaceQueryIndex,
+    ArtifactDependency, ArtifactFailure, ArtifactPayload, ArtifactProjection,
+    ArtifactProjectionFingerprint, ArtifactRecord, ArtifactVersion, Asset, Build, Bundle,
+    ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirElaborated, DirExpanded,
+    DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment,
+    MirAnalyzed, MirLowered, MirOptimized, MirVerified, ModuleLinted, ModuleQueryIndex, Object,
+    PackageIndex, PackageLinted, Product, ProgramAnalysis, Script, WorkspaceLinted,
+    WorkspaceQueryIndex,
 };
 
 macro_rules! artifact_getter {
@@ -35,13 +35,6 @@ macro_rules! artifact_getter {
 pub struct ArtifactTable {
     /// The exact artifact version entries.
     entries: DashMap<ArtifactVersion, ArtifactEntry>,
-    /// Direct artifact dependents by exact dependency version.
-    artifact_dependents: DashMap<ArtifactVersion, Vec<ArtifactVersion>>,
-    /// Direct projection observers by projected owner artifact key.
-    projection_observers:
-        DashMap<ArtifactKey, Vec<(ArtifactVersion, ArtifactProjectionDependency)>>,
-    /// Direct source observers by value-independent source key.
-    source_observers: DashMap<SourceKey, Vec<ArtifactVersion>>,
     /// The live retain count for each exact artifact version.
     retained_versions: DashMap<ArtifactVersion, usize>,
 }
@@ -107,31 +100,6 @@ impl ArtifactTable {
         // retain reachable and explicitly pinned entries
         self.entries
             .retain(|version, _| reachable.contains(version));
-
-        // retain reverse artifact edges between reachable versions
-        self.artifact_dependents.retain(|version, dependents| {
-            if !reachable.contains(version) {
-                return false;
-            }
-
-            dependents.retain(|dependent| reachable.contains(dependent));
-
-            !dependents.is_empty()
-        });
-
-        // retain projection edges into reachable versions
-        self.projection_observers.retain(|_, observers| {
-            observers.retain(|(observer, _)| reachable.contains(observer));
-
-            !observers.is_empty()
-        });
-
-        // retain source edges into reachable versions
-        self.source_observers.retain(|_key, observers| {
-            observers.retain(|observer| reachable.contains(observer));
-
-            !observers.is_empty()
-        });
     }
 
     /// Return the recorded diagnostics for one exact artifact version.
@@ -148,31 +116,11 @@ impl ArtifactTable {
             .map(|entry| Arc::clone(&entry.dependencies))
     }
 
-    /// Return direct artifact dependents of one exact version.
-    pub fn artifact_dependents(&self, version: &ArtifactVersion) -> Vec<ArtifactVersion> {
-        self.artifact_dependents
+    /// Return the transitive source files for one artifact version.
+    pub fn sources(&self, version: &ArtifactVersion) -> Option<Arc<[FileId]>> {
+        self.entries
             .get(version)
-            .map(|entry| entry.clone())
-            .unwrap_or_default()
-    }
-
-    /// Return direct projection observers of one projected artifact key.
-    pub fn projection_observers(
-        &self,
-        key: &ArtifactKey,
-    ) -> Vec<(ArtifactVersion, ArtifactProjectionDependency)> {
-        self.projection_observers
-            .get(key)
-            .map(|entry| entry.clone())
-            .unwrap_or_default()
-    }
-
-    /// Return direct artifact observers of one primitive source key.
-    pub fn source_observers(&self, key: &SourceKey) -> Vec<ArtifactVersion> {
-        self.source_observers
-            .get(key)
-            .map(|entry| entry.clone())
-            .unwrap_or_default()
+            .map(|entry| Arc::clone(&entry.sources))
     }
 
     /// Return the predecessor artifact for one exact artifact version.
@@ -201,8 +149,14 @@ impl ArtifactTable {
                 pending.push_back(base);
             }
             for dependency in entry.dependencies.iter() {
-                if let ArtifactDependency::Artifact(dependency) = dependency {
-                    pending.push_back(*dependency);
+                match dependency {
+                    ArtifactDependency::Artifact(dependency) => {
+                        pending.push_back(*dependency);
+                    }
+                    ArtifactDependency::Projection(dependency) => {
+                        pending.push_back(dependency.version);
+                    }
+                    ArtifactDependency::Source(_dependency) => {}
                 }
             }
         }
@@ -256,6 +210,7 @@ impl ArtifactTable {
         };
 
         let dependencies = entry.dependencies.iter().cloned().collect();
+        let sources = entry.sources.iter().copied().collect();
         let diagnostics = entry.diagnostics.as_ref().clone();
         let sidecars = entry.sidecars.iter().cloned().collect();
         let record = ArtifactRecord::new(
@@ -264,6 +219,7 @@ impl ArtifactTable {
             payload.as_ref(),
             strings,
             dependencies,
+            sources,
             diagnostics,
             sidecars,
         )?;
@@ -278,6 +234,7 @@ impl ArtifactTable {
         base: Option<ArtifactVersion>,
         payload: ArtifactPayload,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
+        sources: impl Into<Arc<[FileId]>>,
         diagnostics: impl Into<Arc<DiagnosticCollection>>,
         sidecars: impl Into<Arc<[ArtifactSidecar]>>,
     ) {
@@ -290,11 +247,11 @@ impl ArtifactTable {
         }
 
         let dependencies = dependencies.into();
+        let sources = sources.into();
 
-        self.index_dependencies(version, dependencies.as_ref());
         self.entries.insert(
             version,
-            ArtifactEntry::ok(base, payload, dependencies, diagnostics, sidecars),
+            ArtifactEntry::ok(base, payload, dependencies, sources, diagnostics, sidecars),
         );
     }
 
@@ -304,50 +261,18 @@ impl ArtifactTable {
         version: ArtifactVersion,
         base: Option<ArtifactVersion>,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
+        sources: impl Into<Arc<[FileId]>>,
         diagnostics: impl Into<Arc<DiagnosticCollection>>,
         sidecars: impl Into<Arc<[ArtifactSidecar]>>,
         failure: ArtifactFailure,
     ) {
         let dependencies = dependencies.into();
+        let sources = sources.into();
 
-        self.index_dependencies(version, dependencies.as_ref());
         self.entries.insert(
             version,
-            ArtifactEntry::failed(base, dependencies, diagnostics, sidecars, failure),
+            ArtifactEntry::failed(base, dependencies, sources, diagnostics, sidecars, failure),
         );
-    }
-
-    /// Index direct dependency edges for one exact artifact version.
-    fn index_dependencies(&self, version: ArtifactVersion, dependencies: &[ArtifactDependency]) {
-        if self.exists(&version) {
-            return;
-        }
-
-        for dependency in dependencies {
-            match dependency {
-                ArtifactDependency::Artifact(dependency) => {
-                    let mut dependents = self.artifact_dependents.entry(*dependency).or_default();
-                    if !dependents.contains(&version) {
-                        dependents.push(version);
-                    }
-                }
-                ArtifactDependency::Projection(dependency) => {
-                    let mut observers = self
-                        .projection_observers
-                        .entry(dependency.projection.artifact)
-                        .or_default();
-                    if !observers.iter().any(|(observer, _)| *observer == version) {
-                        observers.push((version, *dependency));
-                    }
-                }
-                ArtifactDependency::Source(dependency) => {
-                    let mut observers = self.source_observers.entry(dependency.key()).or_default();
-                    if !observers.contains(&version) {
-                        observers.push(version);
-                    }
-                }
-            }
-        }
     }
 
     /// Return the successful payload for one artifact version.
