@@ -123,15 +123,19 @@ impl ArtifactSourceDependency {
 }
 
 impl ArtifactDependency {
-    /// Convert one artifact dependency into one bridge dependency.
-    pub fn from_artifact(dependency: artifact::ArtifactDependency, strings: &StringPool) -> Self {
+    /// Try to convert one public artifact dependency into one bridge dependency.
+    pub(crate) fn from_artifact(
+        dependency: artifact::ArtifactDependency,
+        strings: &StringPool,
+    ) -> Option<Self> {
         match dependency {
-            artifact::ArtifactDependency::Artifact(version) => Self::Artifact {
+            artifact::ArtifactDependency::Artifact(version) => Some(Self::Artifact {
                 version: ArtifactVersion::from_artifact(version),
-            },
-            artifact::ArtifactDependency::Source(dependency) => Self::Source {
+            }),
+            artifact::ArtifactDependency::Source(dependency) => Some(Self::Source {
                 dependency: ArtifactSourceDependency::from_artifact(dependency, strings),
-            },
+            }),
+            artifact::ArtifactDependency::Projection(_) => None,
         }
     }
 }

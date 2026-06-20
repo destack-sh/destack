@@ -1,11 +1,11 @@
 # generated bridge target, do not edit
 
 from .._native import (
-    ArtifactSidecarLabel,
     ArtifactSidecar,
+    ArtifactSidecarLabel,
 )
 
 __all__ = [
-    "ArtifactSidecarLabel",
     "ArtifactSidecar",
+    "ArtifactSidecarLabel",
 ]

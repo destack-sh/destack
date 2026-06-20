@@ -337,15 +337,18 @@ fn render_module(schema: &Schema, names: &[String]) -> TokenStream {
 fn render_module_facade(module: &SchemaModule) -> String {
     let mut text = Text::generated();
     let native = native_import_path(module.path.segments());
+    let mut names = module.names.clone();
+    names.sort();
+
     text.line(format!("from {native} import ("));
 
-    for name in &module.names {
+    for name in &names {
         text.line(format!("    {name},"));
     }
 
     text.line(")");
     text.blank();
-    render_all(&mut text, &module.names);
+    render_all(&mut text, &names);
 
     text.finish()
 }

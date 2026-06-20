@@ -53,7 +53,7 @@ impl ArtifactRecord {
         let dependencies = record
             .dependencies
             .into_iter()
-            .map(|dependency| ArtifactDependency::from_artifact(dependency, strings))
+            .filter_map(|dependency| ArtifactDependency::from_artifact(dependency, strings))
             .collect();
         let diagnostics = record
             .diagnostics

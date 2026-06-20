@@ -1,23 +1,23 @@
 # generated bridge target, do not edit
 
 from .._native import (
-    DiagnosticSeverity,
-    DiagnosticTag,
     Applicability,
+    Diagnostic,
+    DiagnosticHelp,
     DiagnosticLabel,
     DiagnosticNote,
-    DiagnosticHelp,
+    DiagnosticSeverity,
     DiagnosticSuggestion,
-    Diagnostic,
+    DiagnosticTag,
 )
 
 __all__ = [
-    "DiagnosticSeverity",
-    "DiagnosticTag",
     "Applicability",
+    "Diagnostic",
+    "DiagnosticHelp",
     "DiagnosticLabel",
     "DiagnosticNote",
-    "DiagnosticHelp",
+    "DiagnosticSeverity",
     "DiagnosticSuggestion",
-    "Diagnostic",
+    "DiagnosticTag",
 ]

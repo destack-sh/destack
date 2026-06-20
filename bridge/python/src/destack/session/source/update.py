@@ -1,15 +1,15 @@
 # generated bridge target, do not edit
 
 from ..._native import (
-    TextRange,
-    TextEdit,
-    Edit,
     Commit,
+    Edit,
+    TextEdit,
+    TextRange,
 )
 
 __all__ = [
-    "TextRange",
-    "TextEdit",
-    "Edit",
     "Commit",
+    "Edit",
+    "TextEdit",
+    "TextRange",
 ]

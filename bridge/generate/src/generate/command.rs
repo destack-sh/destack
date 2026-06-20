@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use super::core::{Schema, workspace_root};
-use super::{capi, napi, python, typescript, wasm};
+use super::{capi, format, napi, python, typescript, wasm};
 
 /// Generate bridge target bindings.
 pub(crate) fn run() -> Result<()> {
@@ -14,6 +14,7 @@ pub(crate) fn run() -> Result<()> {
     python::generate(&root, &schema)?;
     wasm::generate(&root, &schema)?;
     typescript::generate(&root, &schema)?;
+    format::run(&root)?;
 
     Ok(())
 }
