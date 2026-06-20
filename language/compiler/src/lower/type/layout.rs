@@ -375,9 +375,11 @@ impl TypeLowerer<'_> {
                 let total_size = Self::align_up(current_offset, max_align);
                 Some((total_size, max_align))
             }
-            mir::Type::TensorView { .. } => {
+            mir::Type::TensorView { shape, format, .. } => {
                 let bytes = pointer_bytes as u32;
-                Some((bytes, bytes))
+                let rank = u32::try_from(shape.len()).ok()?;
+                let fields = format.descriptor_slots(rank);
+                Some((bytes.saturating_mul(fields), bytes))
             }
             mir::Type::FixedArray {
                 element,
@@ -446,41 +448,10 @@ impl TypeLowerer<'_> {
                 let size = elem_size * *lanes;
                 Some((size, elem_align))
             }
-            mir::Type::Tensor {
-                element,
-                shape,
-                layout,
-                copy: _,
-            } => {
-                let element_ty = tree.get(element.ty()?);
-                let (elem_size, elem_align) = self.size_and_align_of_type(element_ty, tree)?;
-                let element_count = self.tensor_element_count(shape, layout);
-                let size = elem_size * element_count;
-                Some((size, elem_align))
+            mir::Type::Tensor { .. } => {
+                let bytes = pointer_bytes as u32;
+                Some((bytes, bytes))
             }
-        }
-    }
-
-    fn tensor_element_count(
-        &self,
-        shape: &[mir::TensorDimension],
-        layout: &mir::TensorLayout,
-    ) -> u32 {
-        // map runtime dimensions to zero size
-        let shape: Vec<u64> = shape
-            .iter()
-            .map(|dim| match dim {
-                mir::TensorDimension::Static(value) => *value,
-                mir::TensorDimension::Symbol(_) => 0,
-                mir::TensorDimension::Dynamic => 0,
-            })
-            .collect();
-        match layout {
-            mir::TensorLayout::Dense { .. } => shape
-                .iter()
-                .copied()
-                .product::<u64>()
-                .min(u64::from(u32::MAX)) as u32,
         }
     }
 }
