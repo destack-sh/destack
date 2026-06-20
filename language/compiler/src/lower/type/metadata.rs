@@ -43,7 +43,7 @@ impl ModuleLowerer<'_> {
             return Ok(Some(layout_id));
         }
 
-        // resolve the tuple or array shape for layout
+        // resolve builtin aggregate shapes that need concrete layout metadata
         let target = match self.builder.tree().get(ty) {
             mir::Type::Tuple { elements, copy: _ } => {
                 let Some(elements) = elements
@@ -67,6 +67,48 @@ impl ModuleLowerer<'_> {
 
                 Some(LayoutTarget::Array(element, *length))
             }
+            mir::Type::Function { .. } => Some(LayoutTarget::Function),
+            mir::Type::Vector { element, lanes, .. } => {
+                let Some(element) = element.ty() else {
+                    return Ok(None);
+                };
+
+                Some(LayoutTarget::Vector(element, *lanes))
+            }
+            mir::Type::Tensor {
+                element,
+                shape,
+                format,
+                sharding,
+                ..
+            } => Some(LayoutTarget::Tensor {
+                element: *element,
+                format: *format,
+                sharding: sharding.clone(),
+                rank: u32::try_from(shape.len()).map_err(|_| {
+                    LowerError::UnsupportedConstruct {
+                        anchor: self.diagnostic_anchor(anchor),
+                        message: "tensor rank exceeds layout limits".to_string(),
+                    }
+                })?,
+            }),
+            mir::Type::TensorView {
+                element,
+                shape,
+                format,
+                sharding,
+                ..
+            } => Some(LayoutTarget::TensorView {
+                element: *element,
+                format: *format,
+                sharding: sharding.clone(),
+                rank: u32::try_from(shape.len()).map_err(|_| {
+                    LowerError::UnsupportedConstruct {
+                        anchor: self.diagnostic_anchor(anchor),
+                        message: "tensor view rank exceeds layout limits".to_string(),
+                    }
+                })?,
+            }),
             _ => None,
         };
         let Some(target) = target else {
@@ -96,6 +138,87 @@ impl ModuleLowerer<'_> {
                     self.fixed_array_layout(type_id, element, length, anchor)?;
                 let layout_id =
                     self.insert_layout_metadata(ty, layout_shape, size, alignment, Vec::new());
+
+                Ok(Some(layout_id))
+            }
+            LayoutTarget::Function => {
+                let pointer_bytes = u32::from(self.type_lowerer.data_layout.pointer_bytes);
+                let layout_id = self.insert_layout_metadata_with_trace(
+                    ty,
+                    mir::LayoutShape::Function,
+                    pointer_bytes * 2,
+                    pointer_bytes,
+                    Vec::new(),
+                    mir::TraceMap::Fixed {
+                        local_offsets: vec![pointer_bytes].into_boxed_slice(),
+                        shared_offsets: Vec::new().into_boxed_slice(),
+                    },
+                );
+
+                Ok(Some(layout_id))
+            }
+            LayoutTarget::Vector(element, lanes) => {
+                let element_type = self.builder.tree().get(element);
+                let Some((element_size, element_alignment)) = self
+                    .type_lowerer
+                    .size_and_align_of_type(element_type, self.builder.tree())
+                else {
+                    return Ok(None);
+                };
+                let stride = align_up(element_size, element_alignment);
+                let size = stride.saturating_mul(lanes);
+                let shape = mir::LayoutShape::Vector(mir::ElementLayout {
+                    element,
+                    stride,
+                    count: lanes,
+                });
+                let layout_id =
+                    self.insert_layout_metadata(ty, shape, size, element_alignment, Vec::new());
+
+                Ok(Some(layout_id))
+            }
+            LayoutTarget::Tensor {
+                element,
+                format,
+                sharding,
+                rank,
+            } => {
+                let pointer_bytes = u32::from(self.type_lowerer.data_layout.pointer_bytes);
+                let layout_id = self.insert_layout_metadata(
+                    ty,
+                    mir::LayoutShape::Tensor(mir::TensorLayout {
+                        element,
+                        format,
+                        sharding,
+                        rank,
+                    }),
+                    pointer_bytes,
+                    pointer_bytes,
+                    Vec::new(),
+                );
+
+                Ok(Some(layout_id))
+            }
+            LayoutTarget::TensorView {
+                element,
+                format,
+                sharding,
+                rank,
+            } => {
+                let pointer_bytes = u32::from(self.type_lowerer.data_layout.pointer_bytes);
+                let field_count = format.descriptor_slots(rank);
+                let layout_id = self.insert_layout_metadata(
+                    ty,
+                    mir::LayoutShape::TensorView(mir::TensorViewLayout {
+                        element,
+                        format,
+                        sharding,
+                        rank,
+                    }),
+                    pointer_bytes.saturating_mul(field_count),
+                    pointer_bytes,
+                    Vec::new(),
+                );
 
                 Ok(Some(layout_id))
             }
@@ -134,6 +257,26 @@ impl ModuleLowerer<'_> {
         alignment: u32,
         fields: Vec<mir::LayoutField>,
     ) -> mir::LayoutId {
+        self.insert_layout_metadata_with_trace(
+            ty,
+            layout_shape,
+            size,
+            alignment,
+            fields,
+            mir::TraceMap::empty(),
+        )
+    }
+
+    /// Insert a layout entry with explicit trace metadata and attach it to the type metadata.
+    fn insert_layout_metadata_with_trace(
+        &mut self,
+        ty: mir::LocalNodeId<mir::Type>,
+        layout_shape: mir::LayoutShape,
+        size: u32,
+        alignment: u32,
+        fields: Vec<mir::LayoutField>,
+        trace_map: mir::TraceMap,
+    ) -> mir::LayoutId {
         // attach fields to field-addressable shapes
         let layout_shape = layout_shape.with_fields(fields);
 
@@ -142,7 +285,7 @@ impl ModuleLowerer<'_> {
             shape: layout_shape,
             size,
             alignment,
-            trace_map: mir::TraceMap::empty(),
+            trace_map,
         };
 
         // attach layout metadata to the type table
@@ -225,10 +368,10 @@ impl ModuleLowerer<'_> {
         })?;
 
         Ok((
-            mir::LayoutShape::Array(mir::ArrayLayout {
+            mir::LayoutShape::Array(mir::ElementLayout {
                 element,
                 stride,
-                count: Some(length_u32),
+                count: length_u32,
             }),
             total_size,
             alignment,
@@ -349,6 +492,32 @@ enum LayoutTarget {
     Tuple(Vec<mir::LocalNodeId<mir::Type>>),
     /// Array element type and count.
     Array(mir::LocalNodeId<mir::Type>, u64),
+    /// Function value type.
+    Function,
+    /// Vector element type and lane count.
+    Vector(mir::LocalNodeId<mir::Type>, u32),
+    /// Tensor handle type.
+    Tensor {
+        /// The tensor element type.
+        element: mir::LocalNodeId<mir::Type>,
+        /// The tensor storage format.
+        format: mir::TensorFormat,
+        /// The tensor placement.
+        sharding: mir::TensorSharding,
+        /// The tensor rank.
+        rank: u32,
+    },
+    /// Tensor view descriptor metadata.
+    TensorView {
+        /// The viewed element type.
+        element: mir::LocalNodeId<mir::Type>,
+        /// The tensor view format.
+        format: mir::TensorViewFormat,
+        /// The tensor placement.
+        sharding: mir::TensorSharding,
+        /// The tensor rank.
+        rank: u32,
+    },
 }
 
 /// Align a value up to the given alignment.
