@@ -22,17 +22,17 @@ impl ProgramIndex {
         let function_ids = tree
             .iter_nodes::<mir::Function>()
             .enumerate()
-            .map(|(index, (function, _))| (function, FunctionId::new(index as u32)))
+            .map(|(index, (function, _))| (function, FunctionId::from(index as u32)))
             .collect();
         let type_ids = tree
             .iter_nodes::<mir::Type>()
             .enumerate()
-            .map(|(index, (ty, _))| (ty, TypeId::new(index as u32)))
+            .map(|(index, (ty, _))| (ty, TypeId::from(index as u32)))
             .collect();
         let static_ids = tree
             .iter_nodes::<mir::Global>()
             .enumerate()
-            .map(|(index, (global, _))| (global, StaticId::new(index as u32)))
+            .map(|(index, (global, _))| (global, StaticId::from(index as u32)))
             .collect();
 
         Self {

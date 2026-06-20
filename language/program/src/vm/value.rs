@@ -211,9 +211,14 @@ impl CellEncoding {
 }
 
 /// Encode one VM cell into raw bits for the given type.
-pub fn encode_cell_bits(types: &TypeTable, ty: TypeId, value: Cell) -> Result<(u64, usize), Error> {
+pub fn encode_cell_bits(
+    types: &TypeTable,
+    ty: TypeId,
+    value: Cell,
+    pointer_bytes: u8,
+) -> Result<(u64, usize), Error> {
     // resolve the scalar layout once
-    let Some(layout) = types.cell_layout(ty) else {
+    let Some(layout) = types.cell_layout(ty, pointer_bytes) else {
         return Err(Error::type_mismatch(
             "scalar or reference raw store",
             format!("{ty:?}"),
@@ -222,7 +227,7 @@ pub fn encode_cell_bits(types: &TypeTable, ty: TypeId, value: Cell) -> Result<(u
 
     // encode into memory bits
     let raw = layout.encode(value);
-    let byte_len = layout.byte_len(types.pointer_bytes() as usize);
+    let byte_len = layout.byte_len(pointer_bytes as usize);
 
     Ok((raw, byte_len))
 }
@@ -232,8 +237,9 @@ pub fn encode_cell_bytes(
     types: &TypeTable,
     ty: TypeId,
     value: Cell,
+    pointer_bytes: u8,
 ) -> Result<CellEncoding, Error> {
-    let (raw, byte_len) = encode_cell_bits(types, ty, value)?;
+    let (raw, byte_len) = encode_cell_bits(types, ty, value, pointer_bytes)?;
 
     Ok(CellEncoding {
         bytes: raw.to_le_bytes(),

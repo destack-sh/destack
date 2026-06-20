@@ -13,14 +13,23 @@ use super::{ProgramIndex, TypeId, TypeTable};
 pub struct FunctionId(pub u32);
 
 impl FunctionId {
-    /// Create one function id.
-    pub const fn new(id: u32) -> Self {
-        Self(id)
-    }
-
     /// Return this id as a dense table index.
     pub const fn index(self) -> usize {
         self.0 as usize
+    }
+}
+
+impl From<u32> for FunctionId {
+    /// Convert one raw program function id.
+    fn from(id: u32) -> Self {
+        Self(id)
+    }
+}
+
+impl From<FunctionId> for u32 {
+    /// Convert one program function id into its raw value.
+    fn from(id: FunctionId) -> Self {
+        id.0
     }
 }
 
@@ -75,12 +84,13 @@ impl FunctionTable {
     pub fn environment_layout(
         &self,
         types: &TypeTable,
+        pointer_bytes: u8,
         function: FunctionId,
     ) -> Option<CellLayout> {
         let function = self.get(function)?;
         let environment = function.environment?;
 
-        types.cell_layout(environment)
+        types.cell_layout(environment, pointer_bytes)
     }
 
     /// Require one function to match one bare signature type.
