@@ -161,10 +161,14 @@ pub enum ArtifactStage {
     Init,
     /// Source parsing into DIR.
     Parse,
-    /// Name binding through import, export, and symbol resolution.
+    /// Local name binding.
     Bind,
     /// Comptime expansion and materialization around check.
     Macro,
+    /// Import, export, and global resolution.
+    Resolve,
+    /// Module and component graph indexes.
+    Graph,
     /// Type checking.
     Check,
     /// MIR synthesis, from elaboration through optimization.
@@ -181,11 +185,13 @@ pub enum ArtifactStage {
 
 impl ArtifactStage {
     /// All artifact stages in display order.
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 12] = [
         Self::Init,
         Self::Parse,
         Self::Bind,
         Self::Macro,
+        Self::Resolve,
+        Self::Graph,
         Self::Check,
         Self::Lower,
         Self::Emit,
@@ -201,6 +207,8 @@ impl ArtifactStage {
             Self::Parse => "parse",
             Self::Bind => "bind",
             Self::Macro => "macro",
+            Self::Resolve => "resolve",
+            Self::Graph => "graph",
             Self::Check => "check",
             Self::Lower => "lower",
             Self::Emit => "emit",
@@ -450,12 +458,11 @@ impl ArtifactKey {
     pub fn stage(&self) -> ArtifactStage {
         match self {
             Self::DirParsed { .. } | Self::Data { .. } => ArtifactStage::Parse,
-            Self::DirBound { .. }
-            | Self::DirImported { .. }
-            | Self::DirExported { .. }
-            | Self::DirResolved { .. }
-            | Self::ModuleIndex { .. }
-            | Self::ComponentGraph { .. } => ArtifactStage::Bind,
+            Self::DirBound { .. } => ArtifactStage::Bind,
+            Self::DirImported { .. } | Self::DirExported { .. } | Self::DirResolved { .. } => {
+                ArtifactStage::Resolve
+            }
+            Self::ModuleIndex { .. } | Self::ComponentGraph { .. } => ArtifactStage::Graph,
             Self::DirExpanded { .. } | Self::DirMaterialized { .. } => ArtifactStage::Macro,
             Self::DirCheckedComponent { .. } | Self::DirChecked { .. } => ArtifactStage::Check,
             Self::DirElaborated { .. }
