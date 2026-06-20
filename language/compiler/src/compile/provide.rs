@@ -30,7 +30,6 @@ impl Compiler {
                 self.collect_global_environment(profile, context)
             }
             ArtifactKey::PackageIndex { profile } => self.collect_package_index(profile, context),
-            ArtifactKey::ModuleIndex { profile } => self.collect_module_index(profile, context),
             ArtifactKey::ComponentGraph { profile } => {
                 self.collect_component_graph(profile, context)
             }
@@ -144,7 +143,6 @@ impl Compiler {
                 self.provide_global_environment(profile, context)
             }
             ArtifactKey::PackageIndex { profile } => self.provide_package_index(profile, context),
-            ArtifactKey::ModuleIndex { profile } => self.provide_module_index(profile, context),
             ArtifactKey::ComponentGraph { profile } => {
                 self.provide_component_graph(profile, context)
             }
