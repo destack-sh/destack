@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use destack_source::{Content, DiagnosticCollection};
+use destack_source::{Content, DiagnosticCollection, FileId};
 use serde::{Deserialize, Serialize};
 
 use crate::{ArtifactDependency, ArtifactFailure, ArtifactPayload, ArtifactVersion};
@@ -15,6 +15,8 @@ pub(crate) struct ArtifactEntry {
     pub(crate) base: Option<ArtifactVersion>,
     /// The exact dependencies.
     pub(crate) dependencies: Arc<[ArtifactDependency]>,
+    /// Source files this artifact transitively depends on.
+    pub(crate) sources: Arc<[FileId]>,
     /// The diagnostics for this exact artifact version.
     pub(crate) diagnostics: Arc<DiagnosticCollection>,
     /// The sidecars for this exact artifact version.
@@ -27,6 +29,7 @@ impl ArtifactEntry {
         base: Option<ArtifactVersion>,
         payload: ArtifactPayload,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
+        sources: impl Into<Arc<[FileId]>>,
         diagnostics: impl Into<Arc<DiagnosticCollection>>,
         sidecars: impl Into<Arc<[ArtifactSidecar]>>,
     ) -> Self {
@@ -34,6 +37,7 @@ impl ArtifactEntry {
             result: ArtifactResult::Ok(payload),
             base,
             dependencies: dependencies.into(),
+            sources: sources.into(),
             diagnostics: diagnostics.into(),
             sidecars: sidecars.into(),
         }
@@ -43,6 +47,7 @@ impl ArtifactEntry {
     pub(crate) fn failed(
         base: Option<ArtifactVersion>,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
+        sources: impl Into<Arc<[FileId]>>,
         diagnostics: impl Into<Arc<DiagnosticCollection>>,
         sidecars: impl Into<Arc<[ArtifactSidecar]>>,
         failure: ArtifactFailure,
@@ -51,6 +56,7 @@ impl ArtifactEntry {
             result: ArtifactResult::Failed(failure),
             base,
             dependencies: dependencies.into(),
+            sources: sources.into(),
             diagnostics: diagnostics.into(),
             sidecars: sidecars.into(),
         }

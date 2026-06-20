@@ -18,9 +18,10 @@ impl ArtifactVersion {
     pub fn new(
         key: ArtifactKey,
         build_fingerprint: &str,
+        base: Option<ArtifactVersion>,
         dependencies: impl IntoIterator<Item = ArtifactDependency>,
     ) -> Self {
-        let fingerprint = ArtifactFingerprint::new(key, build_fingerprint, dependencies);
+        let fingerprint = ArtifactFingerprint::new(key, build_fingerprint, base, dependencies);
 
         Self { key, fingerprint }
     }
