@@ -14,6 +14,48 @@ pub struct FrameLayoutId(pub u32);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FrameSlotId(pub u32);
 
+impl From<u32> for FrameStateId {
+    /// Convert one raw frame state id.
+    fn from(id: u32) -> Self {
+        Self(id)
+    }
+}
+
+impl From<FrameStateId> for u32 {
+    /// Convert one frame state id into its raw value.
+    fn from(id: FrameStateId) -> Self {
+        id.0
+    }
+}
+
+impl From<u32> for FrameLayoutId {
+    /// Convert one raw frame layout id.
+    fn from(id: u32) -> Self {
+        Self(id)
+    }
+}
+
+impl From<FrameLayoutId> for u32 {
+    /// Convert one frame layout id into its raw value.
+    fn from(id: FrameLayoutId) -> Self {
+        id.0
+    }
+}
+
+impl From<u32> for FrameSlotId {
+    /// Convert one raw frame slot id.
+    fn from(id: u32) -> Self {
+        Self(id)
+    }
+}
+
+impl From<FrameSlotId> for u32 {
+    /// Convert one frame slot id into its raw value.
+    fn from(id: FrameSlotId) -> Self {
+        id.0
+    }
+}
+
 /// Physical execution frame layout and materialization metadata.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FrameTable {
@@ -71,12 +113,12 @@ impl FrameLayout {
 
     /// Return the frame slot id for one SSA value.
     pub fn value_slot_id(&self, value: u32) -> Option<FrameSlotId> {
-        (value < self.value_count).then_some(FrameSlotId(value))
+        (value < self.value_count).then_some(value.into())
     }
 
     /// Return the frame slot id for one local.
     pub fn local_slot_id(&self, local: u32) -> Option<FrameSlotId> {
-        (local < self.local_count).then_some(FrameSlotId(self.value_count + local))
+        (local < self.local_count).then_some((self.value_count + local).into())
     }
 
     /// Return the value slot at one SSA value index.
@@ -152,7 +194,7 @@ impl FrameLayout {
 
     /// Return all frame slot ids.
     pub fn slot_ids(&self) -> impl Iterator<Item = FrameSlotId> {
-        (0..self.slot_len()).map(|index| FrameSlotId(index as u32))
+        (0..self.slot_len()).map(|index| (index as u32).into())
     }
 }
 

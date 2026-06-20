@@ -5,7 +5,7 @@ use destack_heap::{
     SharedHeapLimits, SharedHeapOptions,
 };
 use destack_mir as mir;
-use destack_program::{StaticSpace, Value};
+use destack_program::{FunctionId, StaticSpace, Value};
 use destack_source::FileId;
 use destack_vm::{Machine, MachineOptions};
 use mir::parse::{ParseOptions, Parser};
@@ -27,7 +27,7 @@ pub(crate) struct Runtime {
     /// The shared collector worker.
     shared_gc: GcWorker,
     /// The benchmark entry function.
-    entry: mir::LocalNodeId<mir::Function>,
+    entry: FunctionId,
 }
 
 impl Runtime {
@@ -80,11 +80,7 @@ impl Runtime {
     }
 
     /// Run one benchmark entry with explicit arguments.
-    pub(crate) fn run_with_arguments(
-        &mut self,
-        entry: mir::LocalNodeId<mir::Function>,
-        arguments: &[Value],
-    ) -> Value {
+    pub(crate) fn run_with_arguments(&mut self, entry: FunctionId, arguments: &[Value]) -> Value {
         self.machine
             .run_function(
                 &mut self.local_static,
@@ -100,7 +96,7 @@ impl Runtime {
     }
 
     /// Return one benchmark entry by function name.
-    pub(crate) fn entry(&self, name: &str) -> mir::LocalNodeId<mir::Function> {
+    pub(crate) fn entry(&self, name: &str) -> FunctionId {
         self.machine
             .function_id_by_name(name)
             .expect("benchmark entry should exist")
