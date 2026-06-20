@@ -1,12 +1,11 @@
-use crate::StorageLayoutId;
 use destack_mir as mir;
 use serde::{Deserialize, Serialize};
 
 /// One lowered frame move slot.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MoveSlot {
-    /// The storage layout id.
-    pub layout: StorageLayoutId,
+    /// The slot value type.
+    pub ty: mir::LocalNodeId<mir::Type>,
     /// Byte offset from the frame base.
     pub offset: u32,
     /// Slot byte length.

@@ -1,12 +1,11 @@
-use crate::StaticAddress;
+use crate::{StaticAddress, TypeId};
 use destack_heap::{HeapReference, SharedHeapReference};
 use destack_mir as mir;
 use serde::{Deserialize, Serialize};
 
+use crate::TypeTable;
 use crate::vm::error::Error;
 use crate::vm::{Cell, FramePointer, FunctionPointer, ReferenceMeta, StackPointer};
-
-use super::repr_type;
 
 /// Scalar value shape for typed vector and tensor operations.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -59,21 +58,16 @@ pub enum ValueShape {
     Char,
     /// Addressable value with pointee type.
     Pointer {
-        pointee: mir::LocalNodeId<mir::Type>,
+        pointee: TypeId,
         address_space: AddressSpace,
         reference: ReferenceMeta,
     },
     /// Function pointer value with result type.
-    FunctionPointer { result: mir::LocalNodeId<mir::Type> },
-    /// Opaque function value.
-    Function { ty: mir::LocalNodeId<mir::Type> },
+    FunctionPointer { result: TypeId },
     /// Aggregate value materialized in frame storage.
-    Aggregate { ty: mir::LocalNodeId<mir::Type> },
+    Aggregate { ty: TypeId },
     /// Fixed-size array value with element type.
-    Array {
-        element: mir::LocalNodeId<mir::Type>,
-        length: u64,
-    },
+    Array { element: TypeId, length: u64 },
 }
 
 impl ValueShape {
@@ -217,13 +211,9 @@ impl CellEncoding {
 }
 
 /// Encode one VM cell into raw bits for the given type.
-pub fn encode_cell_bits(
-    tree: &mir::Tree,
-    ty: mir::LocalNodeId<mir::Type>,
-    value: Cell,
-) -> Result<(u64, usize), Error> {
+pub fn encode_cell_bits(types: &TypeTable, ty: TypeId, value: Cell) -> Result<(u64, usize), Error> {
     // resolve the scalar layout once
-    let Some(layout) = cell_layout_from_type(tree, ty) else {
+    let Some(layout) = types.cell_layout(ty) else {
         return Err(Error::type_mismatch(
             "scalar or reference raw store",
             format!("{ty:?}"),
@@ -232,18 +222,18 @@ pub fn encode_cell_bits(
 
     // encode into memory bits
     let raw = layout.encode(value);
-    let byte_len = layout.byte_len(tree.pointer_bytes() as usize);
+    let byte_len = layout.byte_len(types.pointer_bytes() as usize);
 
     Ok((raw, byte_len))
 }
 
 /// Encode one VM cell into scalar bytes.
 pub fn encode_cell_bytes(
-    tree: &mir::Tree,
-    ty: mir::LocalNodeId<mir::Type>,
+    types: &TypeTable,
+    ty: TypeId,
     value: Cell,
 ) -> Result<CellEncoding, Error> {
-    let (raw, byte_len) = encode_cell_bits(tree, ty, value)?;
+    let (raw, byte_len) = encode_cell_bits(types, ty, value)?;
 
     Ok(CellEncoding {
         bytes: raw.to_le_bytes(),
@@ -251,90 +241,12 @@ pub fn encode_cell_bytes(
     })
 }
 
-/// Return the runtime value shape for a MIR type.
-pub fn value_shape_from_type(
-    tree: &mir::Tree,
-    ty: mir::LocalNodeId<mir::Type>,
-) -> Option<ValueShape> {
-    // map mir type to value shape
-    match tree.get(ty) {
-        mir::Type::Error => None,
-        mir::Type::WithLifetimes { base, .. } => value_shape_from_type(tree, *base),
-        mir::Type::Void => Some(ValueShape::Void),
-        mir::Type::Boolean => Some(ValueShape::Bool),
-        mir::Type::Int { width, is_signed } => Some(ValueShape::Int {
-            width: *width,
-            signed: *is_signed,
-        }),
-        mir::Type::Isize => Some(ValueShape::Int {
-            width: usize::BITS as u16,
-            signed: true,
-        }),
-        mir::Type::Usize => Some(ValueShape::Int {
-            width: usize::BITS as u16,
-            signed: false,
-        }),
-        mir::Type::Float(float_type) => Some(ValueShape::Float {
-            format: *float_type,
-        }),
-        mir::Type::TypeDescriptor | mir::Type::TypeId => Some(ValueShape::Int {
-            width: usize::BITS as u16,
-            signed: false,
-        }),
-        mir::Type::Reference {
-            kind,
-            space,
-            access,
-            pointee,
-            nullability,
-            ..
-        } => {
-            let address_space = address_space_from_reference(space.clone(), *kind);
-
-            Some(ValueShape::Pointer {
-                pointee: *pointee,
-                address_space,
-                reference: ReferenceMeta::new(*kind, space.clone(), *access, *nullability),
-            })
-        }
-        mir::Type::FunctionSignature { result, .. } => {
-            Some(ValueShape::FunctionPointer { result: *result })
-        }
-        mir::Type::FunctionPointer { signature } => match tree.get(*signature) {
-            mir::Type::FunctionSignature { result, .. } => {
-                Some(ValueShape::FunctionPointer { result: *result })
-            }
-            _ => None,
-        },
-        mir::Type::FixedArray {
-            element,
-            length,
-            copy: _,
-        } => Some(ValueShape::Array {
-            element: *element,
-            length: *length,
-        }),
-        mir::Type::Slice { .. } => Some(ValueShape::Aggregate { ty }),
-        mir::Type::Uninit { value } => value_shape_from_type(tree, *value),
-        mir::Type::Dynamic { .. } => Some(ValueShape::Aggregate { ty }),
-        mir::Type::Atomic { value } => value_shape_from_type(tree, *value),
-        mir::Type::Newtype { inner, .. } => value_shape_from_type(tree, *inner),
-        mir::Type::Function { .. } => Some(ValueShape::Function { ty }),
-        mir::Type::Tuple { .. }
-        | mir::Type::Struct { .. }
-        | mir::Type::Variant { .. }
-        | mir::Type::Vector { .. }
-        | mir::Type::Tensor { .. } => Some(ValueShape::Aggregate { ty }),
-        mir::Type::TensorView { .. } => Some(ValueShape::Aggregate { ty }),
-    }
-}
-
 /// Return the native cell layout for a MIR type.
 pub fn cell_layout_from_type(
     tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Option<CellLayout> {
-    let ty = repr_type(tree, ty);
+    let ty = tree.repr_type(ty);
 
     match tree.get(ty) {
         mir::Type::Void => Some(CellLayout::Void),
@@ -366,10 +278,9 @@ pub fn cell_layout_from_type(
             cell_layout_from_address_space(address_space)
         }
         mir::Type::Uninit { value } => cell_layout_from_type(tree, *value),
-        mir::Type::Function { .. } => Some(CellLayout::HeapReference),
-        mir::Type::FunctionSignature { .. } | mir::Type::FunctionPointer { .. } => {
-            Some(CellLayout::FunctionPointer)
-        }
+        mir::Type::FunctionPointer { .. } => Some(CellLayout::FunctionPointer),
+        mir::Type::Tensor { .. } => Some(CellLayout::HeapReference),
+        mir::Type::FunctionSignature { .. } | mir::Type::Function { .. } => None,
         mir::Type::Atomic { value } => cell_layout_from_type(tree, *value),
         _ => None,
     }

@@ -1,19 +1,19 @@
 use std::collections::HashMap;
 
-use crate::FrameLayoutId;
 use destack_mir as mir;
 use serde::{Deserialize, Serialize};
 
-use super::{ArgumentRange, CellLayout, Instruction, MovePair, MoveRange, cell_layout_from_type};
-use crate::vm::error::Error;
+use crate::FunctionId;
+
+use super::{ArgumentRange, Instruction, MovePair, MoveRange};
 
 /// Lowered function with executable code and frame metadata.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Function {
-    /// Original MIR function id.
-    pub mir_function: mir::LocalNodeId<mir::Function>,
+    /// Runtime function id.
+    pub function: FunctionId,
     /// The logical frame layout for this function.
-    pub frame_layout: FrameLayoutId,
+    pub frame_layout: mir::FrameLayoutId,
     /// Function parameters.
     pub parameters: ArgumentRange,
     /// Entry block index.
@@ -44,15 +44,12 @@ pub struct FunctionTable {
     /// Lowered functions by dense index.
     functions: Vec<Function>,
     /// Call target by function id.
-    target_by_id: HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
+    target_by_id: HashMap<FunctionId, CallTarget>,
 }
 
 impl FunctionTable {
     /// Build a lowered function table from lowered functions and call targets.
-    pub fn new(
-        functions: Vec<Function>,
-        target_by_id: HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
-    ) -> Self {
+    pub fn new(functions: Vec<Function>, target_by_id: HashMap<FunctionId, CallTarget>) -> Self {
         Self {
             functions,
             target_by_id,
@@ -60,12 +57,12 @@ impl FunctionTable {
     }
 
     /// Return the call target for the given function id.
-    pub fn call_target(&self, func_id: mir::LocalNodeId<mir::Function>) -> Option<CallTarget> {
+    pub fn call_target(&self, func_id: FunctionId) -> Option<CallTarget> {
         self.target_by_id.get(&func_id).copied()
     }
 
     /// Return a lowered local function index for the given function id.
-    pub fn local_index(&self, func_id: mir::LocalNodeId<mir::Function>) -> Option<u32> {
+    pub fn local_index(&self, func_id: FunctionId) -> Option<u32> {
         match self.call_target(func_id)? {
             CallTarget::Local(index) => Some(index),
             CallTarget::Import => None,
@@ -78,86 +75,11 @@ impl FunctionTable {
     }
 
     /// Return one lowered function by function id.
-    pub fn function_by_id(&self, func_id: mir::LocalNodeId<mir::Function>) -> Option<&Function> {
+    pub fn function_by_id(&self, func_id: FunctionId) -> Option<&Function> {
         let index = self.local_index(func_id)?;
 
         self.functions.get(index as usize)
     }
-
-    /// Return the function environment cell layout for one function id.
-    pub fn environment_layout(
-        &self,
-        tree: &mir::Tree,
-        func_id: mir::LocalNodeId<mir::Function>,
-    ) -> Option<CellLayout> {
-        if !self.target_by_id.contains_key(&func_id) {
-            return None;
-        }
-
-        environment_layout(tree, func_id)
-    }
-
-    /// Require one function to match one bare signature type.
-    pub fn validate_signature(
-        &self,
-        tree: &mir::Tree,
-        function_id: mir::LocalNodeId<mir::Function>,
-        signature: mir::LocalNodeId<mir::Type>,
-    ) -> Result<(), Error> {
-        if !self.target_by_id.contains_key(&function_id) {
-            return Err(Error::undefined_function(function_id));
-        }
-
-        if function_signature_matches(tree, function_id, signature)? {
-            return Ok(());
-        }
-
-        Err(Error::type_mismatch(
-            format!("function signature {signature:?}"),
-            format!("function {function_id:?}"),
-        ))
-    }
-}
-
-/// Return one function environment cell layout.
-fn environment_layout(
-    tree: &mir::Tree,
-    function_id: mir::LocalNodeId<mir::Function>,
-) -> Option<CellLayout> {
-    let function = tree.get(function_id);
-    let environment = function.environment.as_ref()?;
-    let environment_type = *environment;
-
-    cell_layout_from_type(tree, environment_type)
-}
-
-/// Return whether one function matches one bare signature type.
-fn function_signature_matches(
-    tree: &mir::Tree,
-    function_id: mir::LocalNodeId<mir::Function>,
-    signature: mir::LocalNodeId<mir::Type>,
-) -> Result<bool, Error> {
-    let mir::Type::FunctionSignature {
-        parameters, result, ..
-    } = tree.get(signature)
-    else {
-        return Err(Error::invalid_instruction());
-    };
-    let function = tree.get(function_id);
-
-    if function.parameters.len() != parameters.len() {
-        return Ok(false);
-    }
-
-    // compare parameter and result types directly from immutable MIR
-    let parameters_match = function
-        .parameters
-        .iter()
-        .zip(parameters.iter())
-        .all(|(actual, expected)| actual.ty == expected.ty);
-    let result_matches = function.return_type == *result;
-
-    Ok(parameters_match && result_matches)
 }
 
 /// Program call target for one function id.

@@ -65,10 +65,10 @@ pub enum AtomicOrder {
     SequentiallyConsistent,
 }
 
-impl AtomicOrder {
-    /// Create one atomic order from MIR ordering.
+impl From<mir::MemoryOrdering> for AtomicOrder {
+    /// Convert a MIR memory ordering into a lowered atomic order.
     #[inline(always)]
-    pub const fn from_mir(ordering: mir::MemoryOrdering) -> Self {
+    fn from(ordering: mir::MemoryOrdering) -> Self {
         match ordering {
             mir::MemoryOrdering::Relaxed => Self::Relaxed,
             mir::MemoryOrdering::Acquire => Self::Acquire,
@@ -77,7 +77,9 @@ impl AtomicOrder {
             mir::MemoryOrdering::SequentiallyConsistent => Self::SequentiallyConsistent,
         }
     }
+}
 
+impl AtomicOrder {
     /// Return the Rust atomic ordering.
     #[inline(always)]
     pub const fn to_std(self) -> Ordering {
