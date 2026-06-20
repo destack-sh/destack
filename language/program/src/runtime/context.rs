@@ -41,7 +41,7 @@ impl std::fmt::Debug for RuntimeMemory<'_> {
     }
 }
 
-/// One call from the runtime into an execution machine.
+/// One call from the runtime into a program machine.
 pub struct RuntimeCall<'a> {
     /// Runtime-owned call state.
     pub state: NonNull<RuntimeState>,
