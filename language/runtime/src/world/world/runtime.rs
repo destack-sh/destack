@@ -6,12 +6,11 @@ use destack_program as program;
 use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::resource::ResourceRebinders;
-use crate::runtime::executor::{Backend, Entry};
+use crate::runtime::machine::{Entry, Execution};
 use crate::runtime::{Runtime, RuntimeImage, Worker, WorkerId, WorkerImage, WorkerOptions};
 use crate::world::trace::{EntrypointCall, Outcome, SpawnedWorkerImage};
 
-use super::{Entity, Mutation, RuntimeId, World};
+use super::{Entity, Mutation, RestoreContext, RuntimeId, World};
 
 impl World {
     /// Spawn one live runtime owned by this world and return its identifier.
@@ -19,7 +18,8 @@ impl World {
         &mut self,
         environment: impl Into<Arc<Environment>>,
         options: &RuntimeOptions,
-        backend: impl Into<Backend>,
+        program: impl Into<Arc<program::Program>>,
+        execution: Execution,
     ) -> RuntimeResult<RuntimeId> {
         let environment = environment.into();
         let mode = self.state.trace.mode();
@@ -32,7 +32,8 @@ impl World {
             world,
             allocator,
             collector,
-            backend,
+            program,
+            execution,
         )?;
         let runtime_id = runtime.runtime_id();
 
@@ -102,7 +103,6 @@ impl World {
         &mut self,
         runtime_id: RuntimeId,
         worker_options: WorkerOptions,
-        backend: impl Into<Backend>,
     ) -> RuntimeResult<WorkerId> {
         let mode = self.state.trace.mode();
         let world = &mut self.state;
@@ -111,7 +111,7 @@ impl World {
             .get_mut(&runtime_id)
             .ok_or_else(|| RuntimeError::runtime_not_found(runtime_id.0).boxed())?;
 
-        let worker_id = runtime.spawn_worker(world, worker_options, backend)?;
+        let worker_id = runtime.spawn_worker(world, worker_options)?;
 
         // record structural spawn state for replay
         let replay_image = if mode == ExecutionMode::Record {
@@ -236,7 +236,7 @@ impl World {
         runtime_entity: Entity,
         runtime_image: &Arc<RuntimeImage>,
         worker_images: &BTreeMap<WorkerId, SpawnedWorkerImage>,
-        rebind_context: Option<&ResourceRebinders>,
+        restore: RestoreContext<'_>,
     ) -> RuntimeResult<()> {
         // validate image shape before mutating topology
         if !worker_images.contains_key(&runtime_image.default_worker_id) {
@@ -269,7 +269,7 @@ impl World {
             runtime_id,
             runtime_image.as_ref(),
             &worker_images,
-            rebind_context,
+            restore,
         )?;
 
         if self.runtimes.insert(runtime_id, runtime).is_some() {
@@ -286,7 +286,7 @@ impl World {
         worker_id: WorkerId,
         worker_entity: Entity,
         worker_image: &Arc<WorkerImage>,
-        rebind_context: Option<&ResourceRebinders>,
+        restore: RestoreContext<'_>,
     ) -> RuntimeResult<()> {
         let environment = self
             .runtimes
@@ -301,6 +301,7 @@ impl World {
             .runtimes
             .get_mut(&runtime_id)
             .ok_or_else(|| RuntimeError::runtime_not_found(runtime_id.0).boxed())?;
+        let program = runtime.program.clone();
         let worker = {
             Worker::from_image(
                 world,
@@ -312,7 +313,9 @@ impl World {
                 environment,
                 worker_image.as_ref(),
                 None,
-                rebind_context,
+                program,
+                &runtime.execution,
+                restore,
             )?
         };
 

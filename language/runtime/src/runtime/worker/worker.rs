@@ -7,18 +7,16 @@ use std::sync::Arc;
 
 use crate::diagnostic::{DiagnosticSnapshot, DiagnosticStore, RuntimeError, RuntimeResult};
 use crate::host::binding::{BindingAccess, BindingRegistry};
-use crate::host::resource::{ResourceRebinders, ResourceTableSnapshot};
+use crate::host::resource::ResourceTableSnapshot;
 use crate::host::{HostEventKind, ResourceId, ResourceTable};
 use crate::runtime::RuntimeHeap;
-use crate::runtime::executor::{
-    Backend, Continuation, ExecutionMemory, Executor, ExecutorId, Image,
-};
 use crate::runtime::heap::resolve_local_heap_options;
+use crate::runtime::machine::{Continuation, Execution, Image, Machine, MachineId, RuntimeMemory};
 use crate::runtime::scheduler::{EventLoop, EventLoopSnapshot, Readiness, Waiter};
-use crate::world::{Entity, EntityKind, RuntimeId, WorldState};
+use crate::world::{Entity, EntityKind, RestoreContext, RuntimeId, WorldState};
 use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 
-/// Execution worker owned by one runtime.
+/// Worker owned by one runtime.
 pub struct Worker {
     /// Monotonic world-local worker identity.
     pub(crate) id: WorkerId,
@@ -43,8 +41,8 @@ pub struct Worker {
     pub(crate) heap: heap::Heap,
     /// Worker-owned static byte space.
     pub(crate) local_static: program::StaticSpace,
-    /// Worker-owned executor.
-    pub(crate) executor: Executor,
+    /// Worker-owned machine.
+    pub(crate) machine: Machine,
     /// HostEvent loop for tasks, microtasks, and timers.
     pub(crate) event_loop: Box<EventLoop>,
 }
@@ -77,8 +75,8 @@ pub struct WorkerImage {
     pub heap: heap::HeapSnapshot,
     /// Captured worker-owned static bytes.
     pub local_static: program::StaticSpace,
-    /// Captured worker-owned execution image.
-    pub executor_image: Image,
+    /// Captured worker-owned machine image.
+    pub machine_image: Image,
 }
 
 /// Captured worker options with shared runtime storage when possible.
@@ -109,7 +107,7 @@ impl PartialEq for WorkerImage {
             && heap.is_ok()
             && heap == other_heap
             && self.local_static == other.local_static
-            && self.executor_image == other.executor_image
+            && self.machine_image == other.machine_image
     }
 }
 
@@ -165,7 +163,7 @@ impl std::fmt::Debug for Worker {
             .field("diagnostics", &self.diagnostics)
             .field("bindings", &self.bindings)
             .field("heap", &self.heap)
-            .field("executor", &"<worker executor>")
+            .field("machine", &"<worker machine>")
             .field("event_loop", &self.event_loop)
             .finish()
     }
@@ -181,7 +179,8 @@ impl Worker {
         shared_static: &mut program::StaticSpace,
         constant_space: &program::StaticSpace,
         worker_options: WorkerOptions,
-        backend: impl Into<Backend>,
+        program: Arc<program::Program>,
+        execution: &Execution,
     ) -> RuntimeResult<Self> {
         let environment = environment.into();
         let (runtime_id, worker_id) = Self::register_runtime(world, options, &worker_options)?;
@@ -195,7 +194,8 @@ impl Worker {
             constant_space,
             runtime_id,
             worker_id,
-            backend,
+            program,
+            execution,
         )
     }
 
@@ -209,7 +209,8 @@ impl Worker {
         constant_space: &program::StaticSpace,
         runtime_id: RuntimeId,
         worker_options: WorkerOptions,
-        backend: impl Into<Backend>,
+        program: Arc<program::Program>,
+        execution: &Execution,
     ) -> RuntimeResult<Self> {
         let environment = environment.into();
         let worker_id = Self::register_worker(world, runtime_id, &worker_options)?;
@@ -223,7 +224,8 @@ impl Worker {
             constant_space,
             runtime_id,
             worker_id,
-            backend,
+            program,
+            execution,
         )
     }
 
@@ -237,11 +239,11 @@ impl Worker {
         constant_space: &program::StaticSpace,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
-        backend: impl Into<Backend>,
+        program: Arc<program::Program>,
+        execution: &Execution,
     ) -> RuntimeResult<Self> {
-        let backend = backend.into();
-        let executor_id = ExecutorId::new(worker_id.0);
-        let mut executor = Executor::new(executor_id, backend);
+        let machine_id = MachineId::new(worker_id.0);
+        let mut machine = Machine::new(machine_id, program, execution)?;
 
         // resources
         let resources = ResourceTable::new(worker_id);
@@ -263,7 +265,7 @@ impl Worker {
         let mut local_static = program::StaticSpace::empty();
         let shared_gc_worker = runtime_heap.register_collector_worker();
         let mut shared_cache = runtime_heap.shared.allocation_cache();
-        let context = ExecutionMemory {
+        let context = RuntimeMemory {
             heap: &mut heap,
             shared_heap: runtime_heap.shared.as_ref(),
             shared_cache: &mut shared_cache,
@@ -272,7 +274,7 @@ impl Worker {
             shared_static,
             constant_space,
         };
-        executor.initialize(context)?;
+        machine.initialize(context)?;
 
         let event_loop = Box::new(EventLoop::default());
 
@@ -289,7 +291,7 @@ impl Worker {
             shared_cache,
             heap,
             local_static,
-            executor,
+            machine,
             event_loop,
         })
     }
@@ -396,7 +398,7 @@ impl Worker {
             runnable,
             resume_value,
             priority,
-            &mut self.executor,
+            &mut self.machine,
         )
     }
 
@@ -420,7 +422,7 @@ impl Worker {
             runnable,
             resume_value,
             priority,
-            &mut self.executor,
+            &mut self.machine,
         )
     }
 
@@ -433,10 +435,10 @@ impl Worker {
         priority: u8,
     ) -> RuntimeResult<()> {
         self.event_loop
-            .add_host_waiter(kind, runnable, resume_value, priority, &mut self.executor)
+            .add_host_waiter(kind, runnable, resume_value, priority, &mut self.machine)
     }
 
-    /// Visit roots from executor, scheduler, and registered providers.
+    /// Visit roots from machine, scheduler, and registered providers.
     pub fn visit_roots(&mut self, roots: &mut impl heap::RootSink) -> RuntimeResult<()> {
         let mut visit = |slot: heap::RootSlot<'_>| {
             let root = slot.load()?;
@@ -450,7 +452,7 @@ impl Worker {
         Ok(())
     }
 
-    /// Visit roots from one static space through this worker executor.
+    /// Visit roots from one static space through this worker machine.
     pub fn visit_static_roots(
         &mut self,
         static_space: &mut program::StaticSpace,
@@ -463,21 +465,20 @@ impl Worker {
             Ok(())
         };
 
-        self.executor
+        self.machine
             .visit_static_root_slots(static_space, &mut visit)?;
 
         Ok(())
     }
 
-    /// Visit mutable root slots from executor, scheduler, and retained host handles.
+    /// Visit mutable root slots from machine, scheduler, and retained host handles.
     pub fn visit_root_slots(
         &mut self,
         visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
     ) -> RuntimeResult<()> {
-        self.executor
+        self.machine
             .visit_root_slots(&mut self.local_static, visit)?;
-        self.event_loop
-            .visit_root_slots(&mut self.executor, visit)?;
+        self.event_loop.visit_root_slots(&mut self.machine, visit)?;
 
         Ok(())
     }
@@ -495,13 +496,13 @@ impl Worker {
     /// Run one budgeted local collection step using the current root set.
     pub fn step_local_collection(&mut self) -> RuntimeResult<heap::GcProgress> {
         let budget_bytes = self.heap.take_collection_budget_bytes();
-        let trace_table = self.executor.trace_table()?;
-        let executor = &mut self.executor;
+        let trace_table = self.machine.trace_table();
+        let machine = &mut self.machine;
         let event_loop = &mut self.event_loop;
         let local_static = &mut self.local_static;
         let mut roots = |visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>| {
-            executor.visit_root_slots(local_static, visit)?;
-            event_loop.visit_root_slots(executor, visit)?;
+            machine.visit_root_slots(local_static, visit)?;
+            event_loop.visit_root_slots(machine, visit)?;
 
             Ok::<(), Box<RuntimeError>>(())
         };
@@ -510,7 +511,7 @@ impl Worker {
             .step_collection(&mut roots, budget_bytes, trace_table.as_ref())
     }
 
-    /// Collect shared heap roots from executor, scheduler, and registered providers.
+    /// Collect shared heap roots from machine, scheduler, and registered providers.
     pub(crate) fn collect_shared_roots(&mut self) -> RuntimeResult<Vec<heap::SharedHeapReference>> {
         let mut roots = Vec::new();
 
@@ -545,7 +546,7 @@ impl Worker {
         roots: &mut Vec<heap::SharedHeapReference>,
         budget_bytes: usize,
     ) -> RuntimeResult<usize> {
-        let trace_table = self.executor.trace_table()?;
+        let trace_table = self.machine.trace_table();
 
         self.heap
             .trace_shared_roots(roots, budget_bytes, trace_table.as_ref())
@@ -566,7 +567,7 @@ impl Worker {
         constant_space: &program::StaticSpace,
     ) -> RuntimeResult<WorkerImage> {
         // local scheduler and external state
-        let event_loop = self.event_loop.capture_image(mode, &mut self.executor)?;
+        let event_loop = self.event_loop.capture_image(mode, &mut self.machine)?;
         let resources = self.resources.capture_image(mode, ())?;
         let diagnostics = self.diagnostics.snapshot()?;
 
@@ -589,7 +590,7 @@ impl Worker {
                     .boxed()
                 })?,
             local_static: self.local_static.clone(),
-            executor_image: self.executor.image(program::ExecutionMemory {
+            machine_image: self.machine.image(program::RuntimeMemory {
                 heap: &mut self.heap,
                 shared_heap: runtime_heap.shared.as_ref(),
                 shared_cache: &mut self.shared_cache,
@@ -627,11 +628,11 @@ impl Worker {
         bindings.set_access(BindingAccess::new(execution_mode));
         bindings.apply_runtime_defaults(&self.options);
 
-        let trace_table = self.executor.trace_table()?;
+        let trace_table = self.machine.trace_table();
         let mut heap = self.heap.fork(trace_table.as_ref())?;
         let mut local_static = self.local_static.clone();
         let mut shared_cache = runtime_heap.shared.allocation_cache();
-        let mut executor = self.executor.fork(program::ExecutionMemory {
+        let mut machine = self.machine.fork(program::RuntimeMemory {
             heap: &mut heap,
             shared_heap: runtime_heap.shared.as_ref(),
             shared_cache: &mut shared_cache,
@@ -640,7 +641,7 @@ impl Worker {
             shared_static,
             constant_space,
         })?;
-        let event_loop = Box::new(self.event_loop.fork(&mut self.executor, &mut executor)?);
+        let event_loop = Box::new(self.event_loop.fork(&mut self.machine, &mut machine)?);
 
         Ok(Some(Self {
             id: self.id,
@@ -654,7 +655,7 @@ impl Worker {
             shared_cache,
             heap,
             local_static,
-            executor,
+            machine,
             event_loop,
         }))
     }
@@ -670,7 +671,9 @@ impl Worker {
         environment: Arc<Environment>,
         image: &WorkerImage,
         shared_options: Option<&Arc<RuntimeOptions>>,
-        rebind_context: Option<&ResourceRebinders>,
+        program: Arc<program::Program>,
+        execution: &Execution,
+        restore: RestoreContext<'_>,
     ) -> RuntimeResult<Self> {
         // resolve the captured options first
         let options = image.options.resolve(shared_options)?;
@@ -687,10 +690,14 @@ impl Worker {
         let diagnostics = Arc::new(DiagnosticStore::from_options(&options.diagnostic));
         let mut event_loop = Box::new(EventLoop::default());
 
-        // executor
-        let mut executor =
-            Executor::from_image(ExecutorId::new(worker_id.0), &image.executor_image)?;
-        let trace_table = executor.trace_table()?;
+        // machine
+        let mut machine = Machine::from_image(
+            MachineId::new(worker_id.0),
+            program.clone(),
+            &image.machine_image,
+            execution,
+        )?;
+        let trace_table = program.trace_table_handle();
 
         // heap
         let heap_options = resolve_local_heap_options(&options.heap)?;
@@ -705,8 +712,8 @@ impl Worker {
         let shared_gc_worker = runtime_heap.register_collector_worker();
         let mut shared_cache = runtime_heap.shared.allocation_cache();
 
-        // restore backend execution state over the restored heap
-        let context = ExecutionMemory {
+        // restore machine state over the restored heap
+        let context = RuntimeMemory {
             heap: &mut heap,
             shared_heap: runtime_heap.shared.as_ref(),
             shared_cache: &mut shared_cache,
@@ -715,9 +722,9 @@ impl Worker {
             shared_static,
             constant_space,
         };
-        executor.initialize(context)?;
-        executor.restore(
-            program::ExecutionMemory {
+        machine.initialize(context)?;
+        machine.restore(
+            program::RuntimeMemory {
                 heap: &mut heap,
                 shared_heap: runtime_heap.shared.as_ref(),
                 shared_cache: &mut shared_cache,
@@ -726,13 +733,13 @@ impl Worker {
                 shared_static,
                 constant_space,
             },
-            &image.executor_image,
+            &image.machine_image,
         )?;
 
         // restore local state on fresh containers
-        event_loop.restore_snapshot(&image.event_loop, &mut executor)?;
+        event_loop.restore_snapshot(&image.event_loop, &mut machine)?;
         diagnostics.restore_snapshot(&image.diagnostics)?;
-        resources.restore_snapshot(&image.resources, rebind_context)?;
+        resources.restore_snapshot(&image.resources, restore.resource_rebinders())?;
 
         Ok(Self {
             id: worker_id,
@@ -746,7 +753,7 @@ impl Worker {
             shared_cache,
             heap,
             local_static,
-            executor,
+            machine,
             event_loop,
         })
     }

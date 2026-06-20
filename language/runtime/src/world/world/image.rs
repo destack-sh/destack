@@ -7,14 +7,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::ResourceId;
-use crate::host::resource::ResourceRebinders;
 use crate::runtime::random::RandomImage;
 use crate::runtime::time::ClockImage;
 use crate::runtime::{Runtime, RuntimeImage, WorkerId, WorkerImage};
 use crate::world::policy::Policy;
 use crate::world::topology::{Edge, Entity, RuntimeId, Topology};
 
-use super::World;
+use super::{RestoreContext, World};
 
 /// World image payload for one materialized world restore point.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -229,7 +228,7 @@ impl World {
     pub(crate) fn restore_image(
         &mut self,
         image: &WorldImage,
-        rebind_context: Option<&ResourceRebinders>,
+        restore: RestoreContext<'_>,
     ) -> RuntimeResult<()> {
         self.quiesce_shared_gc();
 
@@ -261,7 +260,7 @@ impl World {
                     *runtime_id,
                     runtime_image.as_ref(),
                     &runtime_worker_images,
-                    rebind_context,
+                    restore,
                 )?;
                 restored_runtimes.insert(*runtime_id, runtime);
             }

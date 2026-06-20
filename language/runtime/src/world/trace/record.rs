@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::host::binding::{BindingId, CodecId};
-use crate::runtime::executor::Entry;
+use crate::runtime::machine::Entry;
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::scheduler::{MicrotaskId, TaskId};
 use crate::runtime::time::Instant;

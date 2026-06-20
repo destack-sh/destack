@@ -34,12 +34,12 @@ pub enum RuntimeError {
         /// Trace failure reason.
         reason: TraceFailure,
     },
-    /// Runtime executor operation failed.
-    Executor {
-        /// Executor kind that failed.
-        executor: String,
-        /// Executor failure reason.
-        reason: ExecutorError,
+    /// Runtime machine operation failed.
+    Machine {
+        /// Machine kind that failed.
+        machine: String,
+        /// Machine failure reason.
+        reason: MachineError,
     },
     /// Capture, restore, or image failure.
     Capture {
@@ -542,24 +542,24 @@ impl CaptureError {
     }
 }
 
-/// Executor failure reason.
+/// Machine failure reason.
 #[derive(Debug, Clone)]
-pub enum ExecutorError {
-    /// Requested executor entry is unavailable.
+pub enum MachineError {
+    /// Requested machine entry is unavailable.
     EntryUnavailable { entry: String },
-    /// Continuation belongs to a different executor.
+    /// Continuation belongs to a different machine.
     ContinuationMismatch { continuation: String },
-    /// Image belongs to a different executor.
+    /// Image belongs to a different machine.
     ImageMismatch { image: String },
-    /// Executor feature is unsupported.
+    /// Machine feature is unsupported.
     Unsupported { feature: String },
-    /// Executor yielded without a materialized continuation.
+    /// Machine yielded without a materialized continuation.
     YieldMissing,
-    /// Executor trapped.
+    /// Machine trapped.
     Trap,
-    /// Executor deoptimized without materialization.
+    /// Machine deoptimized without materialization.
     DeoptMissing,
-    /// Executor panicked.
+    /// Machine panicked.
     Panic,
 }
 
@@ -864,7 +864,7 @@ impl RuntimeError {
             RuntimeError::Entity { reason } => reason.message(),
             RuntimeError::Runtime { reason } => reason.message(),
             RuntimeError::Trace { reason } => reason.message(),
-            RuntimeError::Executor { executor, reason } => reason.message(executor),
+            RuntimeError::Machine { machine, reason } => reason.message(machine),
             RuntimeError::Capture { reason } => reason.message(),
             RuntimeError::Configuration { scope, detail } => {
                 format!("invalid runtime configuration for {scope}: {detail}")
@@ -890,7 +890,7 @@ impl RuntimeError {
             Self::Runtime { reason } => reason.code(),
             Self::Trace { reason } => reason.code(),
             Self::Internal { .. } => 113,
-            Self::Executor { .. } => 138,
+            Self::Machine { .. } => 138,
             Self::Capture { reason } => reason.code(),
             Self::Memory { reason } => reason.code(),
             Self::Configuration { .. } => 147,
@@ -915,33 +915,33 @@ impl RuntimeError {
     }
 }
 
-impl ExecutorError {
-    /// Return a human-readable executor failure message.
-    pub fn message(&self, executor: &str) -> String {
+impl MachineError {
+    /// Return a human-readable machine failure message.
+    pub fn message(&self, machine: &str) -> String {
         match self {
             Self::EntryUnavailable { entry } => {
-                format!("{executor} executor cannot run {entry} entry")
+                format!("{machine} machine cannot run {entry} entry")
             }
             Self::ContinuationMismatch { continuation } => {
-                format!("{executor} executor cannot handle {continuation} continuation")
+                format!("{machine} machine cannot handle {continuation} continuation")
             }
             Self::ImageMismatch { image } => {
-                format!("{executor} executor cannot restore {image} image")
+                format!("{machine} machine cannot restore {image} image")
             }
             Self::Unsupported { feature } => {
-                format!("{executor} executor does not support {feature}")
+                format!("{machine} machine does not support {feature}")
             }
             Self::YieldMissing => {
-                format!("{executor} executor yielded without a continuation")
+                format!("{machine} machine yielded without a continuation")
             }
             Self::Trap => {
-                format!("{executor} executor trapped")
+                format!("{machine} machine trapped")
             }
             Self::DeoptMissing => {
-                format!("{executor} executor deoptimized without materialization")
+                format!("{machine} machine deoptimized without materialization")
             }
             Self::Panic => {
-                format!("{executor} executor panicked")
+                format!("{machine} machine panicked")
             }
         }
     }

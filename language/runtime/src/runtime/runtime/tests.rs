@@ -17,8 +17,8 @@ use crate::host::time::TimerClock;
 use crate::host::{
     HostEvent, HostEventKind, LifecycleEvent, LifecycleSourceKind, LifecycleState, ResourceId,
 };
-use crate::runtime::executor::{
-    Backend, Continuation, Entry, ExecutionCall, ExecutionMemory, Outcome,
+use crate::runtime::machine::{
+    Continuation, Entry, Execution, Outcome, RuntimeCall, RuntimeMemory,
 };
 use crate::runtime::scheduler::{Readiness, ScheduledTimer, Task, TaskId, TimerDeadline};
 use crate::runtime::time::Nanos;
@@ -65,30 +65,30 @@ b0:
 
 function test.task(v0: int32): int32 {
 b0(v0: int32):
-    yield v0, b1(v0)
+    yield v0 => b1(v0)
 b1(v1: int32, v2: int32):
     v3: int32 = int.add v1, v2
-    yield v3, b2(v3)
+    yield v3 => b2(v3)
 b2(v4: int32, v5: int32):
     return v4
 }
 
 function test.complete(v0: int32): int32 {
 b0(v0: int32):
-    yield v0, b1(v0)
+    yield v0 => b1(v0)
 b1(v1: int32, v2: int32):
     return v1
 }
 "#;
 
-/// VM-backed test backend builder.
+/// VM-backed test machine builder.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct TestBackend {
+pub(crate) struct TestMachine {
     /// MIR text used to build the VM machine.
     mir: &'static str,
 }
 
-impl Default for TestBackend {
+impl Default for TestMachine {
     fn default() -> Self {
         Self {
             mir: TEST_ENGINE_MIR,
@@ -96,16 +96,20 @@ impl Default for TestBackend {
     }
 }
 
-impl TestBackend {
-    /// Build one VM machine for this test backend.
-    fn machine(self) -> vm::Machine {
+impl TestMachine {
+    /// Build one VM machine for this test machine.
+    pub(crate) fn machine(self) -> vm::Machine {
         vm_machine_from_mir(self.mir)
     }
-}
 
-impl From<TestBackend> for Backend {
-    fn from(test_backend: TestBackend) -> Self {
-        Self::from(test_backend.machine())
+    /// Build one durable program for this test machine.
+    pub(crate) fn program(self) -> Arc<program::Program> {
+        self.machine().program_handle()
+    }
+
+    /// Build one execution strategy for this test machine.
+    pub(crate) fn execution(self) -> Execution {
+        Execution::vm(vm::MachineOptions::test())
     }
 }
 
@@ -194,9 +198,9 @@ impl HostPoller for TestPoller {
 
 impl TestRuntime {
     /// Build one test worker runtime.
-    pub(crate) fn build(options: &RuntimeOptions, backend: impl Into<Backend>) -> Self {
+    pub(crate) fn build(options: &RuntimeOptions, machine: TestMachine) -> Self {
         let (world, shared, constant_space, shared_static, worker) =
-            worker_for_options(options, backend);
+            worker_for_options(options, machine);
 
         Self {
             world,
@@ -207,8 +211,8 @@ impl TestRuntime {
         }
     }
 
-    /// Enqueue one native task with explicit identifiers.
-    pub(crate) fn enqueue_task_native(&mut self, task_id: u64, continuation_id: u64, priority: u8) {
+    /// Enqueue one task with explicit identifiers.
+    pub(crate) fn enqueue_task(&mut self, task_id: u64, continuation_id: u64, priority: u8) {
         let continuation = self.yielding_continuation(continuation_id);
 
         self.worker.event_loop.enqueue_task(Task {
@@ -219,13 +223,8 @@ impl TestRuntime {
         });
     }
 
-    /// Register one native timer waiter.
-    pub(crate) fn add_timer_waiter_native(
-        &mut self,
-        handle: u64,
-        continuation_id: u64,
-        priority: u8,
-    ) {
+    /// Register one timer waiter.
+    pub(crate) fn add_timer_waiter(&mut self, handle: u64, continuation_id: u64, priority: u8) {
         let continuation = self.yielding_continuation(continuation_id);
 
         self.worker
@@ -276,8 +275,8 @@ impl TestRuntime {
             .expect("timer should schedule");
     }
 
-    /// Register one native readable-resource waiter.
-    pub(crate) fn add_resource_waiter_native(
+    /// Register one readable-resource waiter.
+    pub(crate) fn add_resource_waiter(
         &mut self,
         resource_id: u64,
         continuation_id: u64,
@@ -296,8 +295,8 @@ impl TestRuntime {
             .expect("resource waiter should register");
     }
 
-    /// Register one native host waiter.
-    pub(crate) fn add_host_waiter_native(
+    /// Register one host waiter.
+    pub(crate) fn add_host_waiter(
         &mut self,
         kind: HostEventKind,
         continuation_id: u64,
@@ -431,11 +430,13 @@ impl TestRuntime {
 
 impl TestWorldRuntime {
     /// Build one test world runtime.
-    pub(crate) fn build(options: &RuntimeOptions, backend: impl Into<Backend>) -> Self {
+    pub(crate) fn build(options: &RuntimeOptions, machine: TestMachine) -> Self {
         let environment = Arc::new(Environment::default());
         let mut world = World::new(options, environment.clone()).expect("world should build");
+        let program = machine.program();
+        let execution = machine.execution();
         let runtime_id = world
-            .spawn_runtime(environment, options, backend)
+            .spawn_runtime(environment, options, program, execution)
             .expect("runtime should spawn");
 
         poll_host_events(world.host.as_ref(), &world.host_queue, Some(0))
@@ -452,10 +453,10 @@ impl TestWorldRuntime {
             .default_worker_id()
     }
 
-    /// Spawn one additional worker with one explicit backend and return its id.
-    pub(crate) fn spawn_worker(&mut self, backend: impl Into<Backend>) -> WorkerId {
+    /// Spawn one additional worker and return its id.
+    pub(crate) fn spawn_worker(&mut self) -> WorkerId {
         self.world
-            .spawn_worker(self.runtime_id, WorkerOptions::default(), backend)
+            .spawn_worker(self.runtime_id, WorkerOptions::default())
             .expect("worker should spawn")
     }
 
@@ -544,7 +545,7 @@ pub(crate) fn runtime_shared_heap(world: &World, options: &RuntimeOptions) -> Ru
 /// Build one worker configured for runtime tests.
 fn worker_for_options(
     options: &RuntimeOptions,
-    backend: impl Into<Backend>,
+    machine: TestMachine,
 ) -> (
     World,
     RuntimeHeap,
@@ -559,9 +560,10 @@ fn worker_for_options(
     let shared = runtime_shared_heap(&world, options);
     let world_state = &mut world.state;
 
-    let backend = backend.into();
-    let constant_space = backend.constants();
-    let mut shared_static = backend.shared_statics();
+    let program = machine.program();
+    let execution = machine.execution();
+    let constant_space = program.constants().clone();
+    let mut shared_static = program.shared_statics().clone();
     let mut worker = Worker::new_in_world(
         destack_repository::Environment::default(),
         options,
@@ -570,7 +572,8 @@ fn worker_for_options(
         &mut shared_static,
         &constant_space,
         WorkerOptions::default(),
-        backend,
+        program,
+        &execution,
     )
     .expect("runtime test worker should build");
 
@@ -600,14 +603,14 @@ pub(crate) fn start_worker_continuation(
     let Worker {
         heap: worker_heap,
         local_static,
-        executor,
+        machine,
         shared_cache,
         shared_gc_worker,
         ..
     } = worker;
-    let context = ExecutionCall {
-        host: std::ptr::NonNull::from(&mut call_context).cast(),
-        memory: ExecutionMemory {
+    let context = RuntimeCall {
+        state: std::ptr::NonNull::from(&mut call_context).cast(),
+        memory: RuntimeMemory {
             heap: worker_heap,
             shared_heap: runtime_heap.shared.as_ref(),
             shared_cache,
@@ -618,7 +621,7 @@ pub(crate) fn start_worker_continuation(
         },
     };
     let args = [program::Value::int32(value)];
-    let outcome = executor
+    let outcome = machine
         .run(context, &Entry::new(entry), &args)
         .expect("test continuation should start");
 

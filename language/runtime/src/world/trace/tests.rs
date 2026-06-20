@@ -8,7 +8,7 @@ use crate::host::binding::{
 };
 use crate::host::{HostError, ResourceId};
 use crate::runtime::WorkerId;
-use crate::runtime::executor::Entry;
+use crate::runtime::machine::Entry;
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::time::Instant;
 use crate::world::policy::{ActionSelector, Rule};

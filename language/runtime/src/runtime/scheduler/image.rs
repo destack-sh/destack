@@ -6,7 +6,7 @@ use super::{
     EventLoop, Microtask, MicrotaskId, ScheduledTimer, Task, TaskId, Waiter, Wake, WakeKey,
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::executor::{Continuation, ContinuationImage, Executor};
+use crate::runtime::machine::{Continuation, ContinuationImage, Machine};
 
 /// Scalar event-loop state needed for restore.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -50,7 +50,7 @@ pub struct TaskImage {
     pub id: TaskId,
     /// Runnable continuation image.
     pub runnable: ContinuationImage,
-    /// Resume payload passed back into the executor.
+    /// Resume payload passed back into the machine.
     pub resume_value: program::Value,
     /// Priority value for event-loop ordering.
     pub priority: u8,
@@ -63,7 +63,7 @@ pub struct MicrotaskImage {
     pub id: MicrotaskId,
     /// Runnable continuation image.
     pub continuation: ContinuationImage,
-    /// Resume payload passed back into the executor.
+    /// Resume payload passed back into the machine.
     pub resume_value: program::Value,
 }
 
@@ -80,14 +80,14 @@ impl EventLoop {
     /// Fork one event loop for one child worker.
     pub(crate) fn fork(
         &self,
-        parent_executor: &mut Executor,
-        child_executor: &mut Executor,
+        parent_machine: &mut Machine,
+        child_machine: &mut Machine,
     ) -> RuntimeResult<Self> {
-        let snapshot = self.snapshot(CaptureMode::Suspend, parent_executor)?;
+        let snapshot = self.snapshot(CaptureMode::Suspend, parent_machine)?;
         let mut forked = Self::default();
 
         // queued state
-        forked.restore_snapshot(&snapshot, child_executor)?;
+        forked.restore_snapshot(&snapshot, child_machine)?;
 
         Ok(forked)
     }
@@ -96,7 +96,7 @@ impl EventLoop {
     pub(crate) fn snapshot(
         &self,
         mode: CaptureMode,
-        executor: &mut Executor,
+        machine: &mut Machine,
     ) -> RuntimeResult<EventLoopSnapshot> {
         // TODO #Architecture: fork capture requires a quiescent scheduler state
         if mode == CaptureMode::Fork && !self.is_quiescent() {
@@ -112,12 +112,12 @@ impl EventLoop {
         let tasks = self
             .tasks
             .iter()
-            .map(|task| self.task_image(task, executor))
+            .map(|task| self.task_image(task, machine))
             .collect::<RuntimeResult<Vec<_>>>()?;
         let microtasks = self
             .microtasks
             .iter()
-            .map(|microtask| self.microtask_image(microtask, executor))
+            .map(|microtask| self.microtask_image(microtask, machine))
             .collect::<RuntimeResult<Vec<_>>>()?;
 
         // suspended continuations
@@ -160,7 +160,7 @@ impl EventLoop {
     pub(crate) fn restore_snapshot(
         &mut self,
         snapshot: &EventLoopSnapshot,
-        executor: &mut Executor,
+        machine: &mut Machine,
     ) -> RuntimeResult<()> {
         // clear dynamic state before rebuilding the image
         self.tasks.clear();
@@ -182,12 +182,12 @@ impl EventLoop {
         let tasks = snapshot
             .tasks
             .iter()
-            .map(|task| self.task_from_image(task, executor))
+            .map(|task| self.task_from_image(task, machine))
             .collect::<RuntimeResult<Vec<_>>>()?;
         let microtasks = snapshot
             .microtasks
             .iter()
-            .map(|microtask| self.microtask_from_image(microtask, executor))
+            .map(|microtask| self.microtask_from_image(microtask, machine))
             .collect::<RuntimeResult<Vec<_>>>()?;
         let waiters = snapshot
             .waiters
@@ -208,8 +208,8 @@ impl EventLoop {
     }
 
     /// Capture one immutable task image.
-    fn task_image(&self, task: &Task, executor: &mut Executor) -> RuntimeResult<TaskImage> {
-        let runnable = self.capture_continuation_image(&task.runnable, executor)?;
+    fn task_image(&self, task: &Task, machine: &mut Machine) -> RuntimeResult<TaskImage> {
+        let runnable = self.capture_continuation_image(&task.runnable, machine)?;
 
         Ok(TaskImage {
             id: task.id,
@@ -220,8 +220,8 @@ impl EventLoop {
     }
 
     /// Restore one task from one immutable task image.
-    fn task_from_image(&self, image: &TaskImage, executor: &mut Executor) -> RuntimeResult<Task> {
-        let runnable = executor.restore_continuation_image(&image.runnable)?;
+    fn task_from_image(&self, image: &TaskImage, machine: &mut Machine) -> RuntimeResult<Task> {
+        let runnable = machine.restore_continuation_image(&image.runnable)?;
 
         Ok(Task {
             id: image.id,
@@ -235,9 +235,9 @@ impl EventLoop {
     fn microtask_image(
         &self,
         microtask: &Microtask,
-        executor: &mut Executor,
+        machine: &mut Machine,
     ) -> RuntimeResult<MicrotaskImage> {
-        let continuation = self.capture_continuation_image(&microtask.continuation, executor)?;
+        let continuation = self.capture_continuation_image(&microtask.continuation, machine)?;
 
         Ok(MicrotaskImage {
             id: microtask.id,
@@ -250,9 +250,9 @@ impl EventLoop {
     fn microtask_from_image(
         &self,
         image: &MicrotaskImage,
-        executor: &mut Executor,
+        machine: &mut Machine,
     ) -> RuntimeResult<Microtask> {
-        let continuation = executor.restore_continuation_image(&image.continuation)?;
+        let continuation = machine.restore_continuation_image(&image.continuation)?;
 
         Ok(Microtask {
             id: image.id,
@@ -278,8 +278,8 @@ impl EventLoop {
 impl Capture for EventLoop {
     type Image = EventLoopSnapshot;
     type Error = Box<RuntimeError>;
-    type CaptureContext<'a> = &'a mut Executor;
-    type RestoreContext<'a> = &'a mut Executor;
+    type CaptureContext<'a> = &'a mut Machine;
+    type RestoreContext<'a> = &'a mut Machine;
 
     /// Capture one event-loop image.
     fn capture_image(
@@ -362,8 +362,8 @@ impl EventLoop {
     fn capture_continuation_image(
         &self,
         continuation: &Continuation,
-        executor: &mut Executor,
+        machine: &mut Machine,
     ) -> RuntimeResult<ContinuationImage> {
-        executor.continuation_image(continuation)
+        machine.continuation_image(continuation)
     }
 }

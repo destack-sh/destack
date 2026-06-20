@@ -16,7 +16,7 @@ use destack_runtime::runtime::scheduler::EventLoop;
 use destack_runtime::runtime::{Runtime, Worker};
 use destack_runtime::world::trace::{Observations, Trace, TraceLog};
 use destack_runtime::world::{Entity, Policy, World};
-use destack_vm::{Continuation, ContinuationImage, Machine, StackImage};
+use destack_vm::{Continuation, ContinuationImage, StackImage};
 
 use crate::ALLOCATOR;
 use crate::measure::AllocationSample;
@@ -60,8 +60,8 @@ fn print_type_sizes() {
         ),
         ("workspace", "Environment", size_of::<Environment>()),
         ("workspace", "RuntimeOptions", size_of::<RuntimeOptions>()),
-        ("executor", "StaticSpace", size_of::<StaticSpace>()),
-        ("vm", "Machine", size_of::<Machine>()),
+        ("machine", "StaticSpace", size_of::<StaticSpace>()),
+        ("vm", "Machine", size_of::<destack_vm::Machine>()),
         ("vm", "Continuation", size_of::<Continuation>()),
         ("vm", "ContinuationImage", size_of::<ContinuationImage>()),
         ("vm", "StackImage", size_of::<StackImage>()),
@@ -90,7 +90,7 @@ fn print_component_sizes() {
         ("host", "ResourceTable", size_of::<ResourceTable>()),
         ("host", "BindingRegistry", size_of::<BindingRegistry>()),
         ("runtime", "EventLoop", size_of::<EventLoop>()),
-        ("executor", "StaticSpace", size_of::<StaticSpace>()),
+        ("machine", "StaticSpace", size_of::<StaticSpace>()),
     ];
 
     eprintln!();
@@ -105,11 +105,11 @@ fn print_component_sizes() {
 /// Print retained allocation samples.
 fn print_allocations(runtime: &RuntimeSetup, vm: VmSetup) {
     let mut world = runtime.world();
-    let backend = runtime.backend();
-    let runtime_spawn = ALLOCATOR.measure(|| runtime.spawn_runtime(&mut world, backend));
+    let program = runtime.program();
+    let execution = runtime.execution();
+    let runtime_spawn = ALLOCATOR.measure(|| runtime.spawn_runtime(&mut world, program, execution));
     let (mut world, runtime_id) = runtime.world_with_runtime();
-    let backend = runtime.backend();
-    let worker_spawn = ALLOCATOR.measure(|| runtime.spawn_worker(&mut world, runtime_id, backend));
+    let worker_spawn = ALLOCATOR.measure(|| runtime.spawn_worker(&mut world, runtime_id));
 
     let machine_new = ALLOCATOR.measure(|| vm.machine());
     let mut machine = vm.machine();
@@ -158,18 +158,20 @@ fn print_allocations(runtime: &RuntimeSetup, vm: VmSetup) {
 fn print_vm_machine_breakdown(vm: VmSetup) {
     let (mut machine, machine_build) = ALLOCATOR.capture(|| vm.build_machine());
     let (mut statics, statics_empty) = ALLOCATOR.capture(StaticSpace::empty);
+    let (mut shared_statics, shared_statics_empty) = ALLOCATOR.capture(StaticSpace::empty);
     let (heap, local_heap) = ALLOCATOR.capture(|| vm.local_heap());
     let (shared, shared_heap) = ALLOCATOR.capture(|| vm.shared_heap());
     let (_shared_gc, shared_gc) = ALLOCATOR.capture(|| shared.register_collector_worker());
     let (_shared_cache, shared_cache) = ALLOCATOR.capture(|| shared.allocation_cache());
     let initialize = ALLOCATOR.measure(|| {
         machine
-            .initialize(&heap, &shared, &mut statics)
+            .initialize(&heap, &shared, &mut statics, &mut shared_statics)
             .expect("footprint machine should initialize")
     });
     let rows = [
         ("vm.machine.build", machine_build),
         ("vm.static.empty", statics_empty),
+        ("vm.shared_static.empty", shared_statics_empty),
         ("vm.local_heap.new", local_heap),
         ("vm.shared_heap.new", shared_heap),
         ("vm.shared_gc_worker.new", shared_gc),
@@ -190,7 +192,7 @@ fn print_vm_machine_breakdown(vm: VmSetup) {
     for (name, sample) in rows {
         print_allocation_bytes(name, sample);
     }
-    print_allocation_bytes("total", sum_allocations(rows));
+    print_allocation_bytes("total", sum_allocations(&rows));
     eprintln!();
 }
 
@@ -214,7 +216,7 @@ fn print_allocation_bytes(name: &str, sample: AllocationSample) {
 }
 
 /// Sum allocation rows.
-fn sum_allocations(rows: [(&str, AllocationSample); 7]) -> AllocationSample {
+fn sum_allocations(rows: &[(&str, AllocationSample)]) -> AllocationSample {
     let mut total = AllocationSample {
         allocations: 0,
         allocated_bytes: 0,
