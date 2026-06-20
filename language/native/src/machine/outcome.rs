@@ -1,4 +1,4 @@
-use destack_program::{MaterializedContinuation, Value};
+use destack_program::{ContinuationImage, Value};
 
 use crate::Continuation;
 
@@ -17,9 +17,9 @@ pub enum Outcome {
         /// The yielded value.
         value: Value,
     },
-    /// Native execution deoptimized into VM materialization.
+    /// Native execution deoptimized into a VM continuation image.
     Deoptimized {
-        /// The materialized VM continuation.
-        materialization: MaterializedContinuation,
+        /// The VM continuation image.
+        continuation: ContinuationImage,
     },
 }

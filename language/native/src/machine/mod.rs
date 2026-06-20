@@ -1,7 +1,9 @@
-mod error;
-mod machine;
+mod code;
+mod continuation;
+mod entry;
 mod outcome;
 
-pub use error::*;
-pub use machine::*;
+pub use code::*;
+pub use continuation::*;
+pub use entry::*;
 pub use outcome::*;

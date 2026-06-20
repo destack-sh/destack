@@ -2,8 +2,9 @@ use std::error::Error;
 use std::fmt;
 
 use destack_mir as mir;
+use destack_program::{ContinuationImage, FrameImage, StackImage};
 
-use crate::{Continuation, FrameImage};
+use crate::Continuation;
 
 /// Native frame captured with one continuation.
 #[repr(C)]
@@ -61,14 +62,18 @@ impl NativeContinuation {
 
         // SAFETY: guaranteed by the caller and checked for a null pointer above
         let frames = unsafe { std::slice::from_raw_parts(self.frames, self.frame_count) };
+        let mut stack = StackImage::empty();
         let mut images = Vec::with_capacity(frames.len());
 
-        // copy each native frame into owned bytes
+        // copy native frame bytes into one durable stack image
         for frame in frames {
-            images.push(unsafe { frame.to_native()? });
+            images.push(unsafe { frame.to_native(&mut stack)? });
         }
 
-        Ok(Continuation::new(images))
+        Ok(Continuation::new(ContinuationImage {
+            stack,
+            frames: images,
+        }))
     }
 }
 
@@ -87,20 +92,25 @@ impl NativeFrameImage {
     /// # Safety
     ///
     /// The byte pointer must point at `byte_len` immutable bytes for the duration of this call.
-    pub unsafe fn to_native(self) -> Result<FrameImage, NativeContinuationError> {
+    pub unsafe fn to_native(
+        self,
+        stack: &mut StackImage,
+    ) -> Result<FrameImage, NativeContinuationError> {
         let bytes = if self.byte_len == 0 {
-            Vec::new()
+            &[][..]
         } else if self.bytes.is_null() {
             return Err(NativeContinuationError::NullFrameBytes);
         } else {
             // SAFETY: guaranteed by the caller and checked for a null pointer above
-            unsafe { std::slice::from_raw_parts(self.bytes, self.byte_len) }.to_vec()
+            unsafe { std::slice::from_raw_parts(self.bytes, self.byte_len) }
         };
+        let stack_offset = stack.push_frame(bytes);
 
         Ok(FrameImage {
             frame_state: mir::FrameStateId(self.frame_state),
             return_state: self.caller_return_state(),
-            bytes,
+            stack_offset,
+            byte_len: self.byte_len,
         })
     }
 }
