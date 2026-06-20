@@ -15,6 +15,7 @@ import { Os } from "destack:os/binding";
 import { Process } from "destack:process/binding";
 import { Random } from "destack:random/binding";
 import { Time } from "destack:time/binding";
+import { Topology } from "destack:topology/binding";
 import { Tls } from "destack:tls/binding";
 import { Tty } from "destack:tty/binding";
 
@@ -55,6 +56,8 @@ export struct ContextPatch {
     random?: Dynamic<Random>;
     /// Time binding family override.
     time?: Dynamic<Time>;
+    /// Topology binding family override.
+    topology?: Dynamic<Topology>;
     /// TLS binding family override.
     tls?: Dynamic<Tls>;
     /// TTY binding family override.
