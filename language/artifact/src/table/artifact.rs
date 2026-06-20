@@ -9,12 +9,13 @@ use destack_source::{ContentId, DiagnosticCollection};
 use super::entry::{ArtifactEntry, ArtifactOutcome, ArtifactSidecar};
 use super::pin::ArtifactPin;
 use crate::{
-    ArtifactDependency, ArtifactFailure, ArtifactPayload, ArtifactRecord, ArtifactVersion, Asset,
-    Build, Bundle, ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirElaborated,
-    DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
-    GlobalEnvironment, MirAnalyzed, MirLowered, MirOptimized, MirVerified, ModuleIndex,
-    ModuleLinted, ModuleQueryIndex, Object, PackageIndex, PackageLinted, Product, ProgramAnalysis,
-    Script, WorkspaceLinted, WorkspaceQueryIndex,
+    ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactProjection,
+    ArtifactProjectionDependency, ArtifactProjectionFingerprint, ArtifactRecord, ArtifactVersion,
+    Asset, Build, Bundle, ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent,
+    DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
+    GlobalEnvironment, MirAnalyzed, MirLowered, MirOptimized, MirVerified, ModuleLinted,
+    ModuleQueryIndex, Object, PackageIndex, PackageLinted, Product, ProgramAnalysis, Script,
+    SourceKey, WorkspaceLinted, WorkspaceQueryIndex,
 };
 
 macro_rules! artifact_getter {
@@ -34,6 +35,13 @@ macro_rules! artifact_getter {
 pub struct ArtifactTable {
     /// The exact artifact version entries.
     entries: DashMap<ArtifactVersion, ArtifactEntry>,
+    /// Direct artifact dependents by exact dependency version.
+    artifact_dependents: DashMap<ArtifactVersion, Vec<ArtifactVersion>>,
+    /// Direct projection observers by projected owner artifact key.
+    projection_observers:
+        DashMap<ArtifactKey, Vec<(ArtifactVersion, ArtifactProjectionDependency)>>,
+    /// Direct source observers by value-independent source key.
+    source_observers: DashMap<SourceKey, Vec<ArtifactVersion>>,
     /// The live retain count for each exact artifact version.
     retained_versions: DashMap<ArtifactVersion, usize>,
 }
@@ -99,6 +107,31 @@ impl ArtifactTable {
         // retain reachable and explicitly pinned entries
         self.entries
             .retain(|version, _| reachable.contains(version));
+
+        // retain reverse artifact edges between reachable versions
+        self.artifact_dependents.retain(|version, dependents| {
+            if !reachable.contains(version) {
+                return false;
+            }
+
+            dependents.retain(|dependent| reachable.contains(dependent));
+
+            !dependents.is_empty()
+        });
+
+        // retain projection edges into reachable versions
+        self.projection_observers.retain(|_, observers| {
+            observers.retain(|(observer, _)| reachable.contains(observer));
+
+            !observers.is_empty()
+        });
+
+        // retain source edges into reachable versions
+        self.source_observers.retain(|_key, observers| {
+            observers.retain(|observer| reachable.contains(observer));
+
+            !observers.is_empty()
+        });
     }
 
     /// Return the recorded diagnostics for one exact artifact version.
@@ -113,6 +146,33 @@ impl ArtifactTable {
         self.entries
             .get(version)
             .map(|entry| Arc::clone(&entry.dependencies))
+    }
+
+    /// Return direct artifact dependents of one exact version.
+    pub fn artifact_dependents(&self, version: &ArtifactVersion) -> Vec<ArtifactVersion> {
+        self.artifact_dependents
+            .get(version)
+            .map(|entry| entry.clone())
+            .unwrap_or_default()
+    }
+
+    /// Return direct projection observers of one projected artifact key.
+    pub fn projection_observers(
+        &self,
+        key: &ArtifactKey,
+    ) -> Vec<(ArtifactVersion, ArtifactProjectionDependency)> {
+        self.projection_observers
+            .get(key)
+            .map(|entry| entry.clone())
+            .unwrap_or_default()
+    }
+
+    /// Return direct artifact observers of one primitive source key.
+    pub fn source_observers(&self, key: &SourceKey) -> Vec<ArtifactVersion> {
+        self.source_observers
+            .get(key)
+            .map(|entry| entry.clone())
+            .unwrap_or_default()
     }
 
     /// Return the predecessor artifact for one exact artifact version.
@@ -229,6 +289,9 @@ impl ArtifactTable {
             );
         }
 
+        let dependencies = dependencies.into();
+
+        self.index_dependencies(version, dependencies.as_ref());
         self.entries.insert(
             version,
             ArtifactEntry::ok(base, payload, dependencies, diagnostics, sidecars),
@@ -245,10 +308,46 @@ impl ArtifactTable {
         sidecars: impl Into<Arc<[ArtifactSidecar]>>,
         failure: ArtifactFailure,
     ) {
+        let dependencies = dependencies.into();
+
+        self.index_dependencies(version, dependencies.as_ref());
         self.entries.insert(
             version,
             ArtifactEntry::failed(base, dependencies, diagnostics, sidecars, failure),
         );
+    }
+
+    /// Index direct dependency edges for one exact artifact version.
+    fn index_dependencies(&self, version: ArtifactVersion, dependencies: &[ArtifactDependency]) {
+        if self.exists(&version) {
+            return;
+        }
+
+        for dependency in dependencies {
+            match dependency {
+                ArtifactDependency::Artifact(dependency) => {
+                    let mut dependents = self.artifact_dependents.entry(*dependency).or_default();
+                    if !dependents.contains(&version) {
+                        dependents.push(version);
+                    }
+                }
+                ArtifactDependency::Projection(dependency) => {
+                    let mut observers = self
+                        .projection_observers
+                        .entry(dependency.projection.artifact)
+                        .or_default();
+                    if !observers.iter().any(|(observer, _)| *observer == version) {
+                        observers.push((version, *dependency));
+                    }
+                }
+                ArtifactDependency::Source(dependency) => {
+                    let mut observers = self.source_observers.entry(dependency.key()).or_default();
+                    if !observers.contains(&version) {
+                        observers.push(version);
+                    }
+                }
+            }
+        }
     }
 
     /// Return the successful payload for one artifact version.
@@ -258,9 +357,22 @@ impl ArtifactTable {
         entry.result.payload()
     }
 
+    /// Return the stable fingerprint of one projected artifact value.
+    pub fn projection_fingerprint(
+        &self,
+        version: &ArtifactVersion,
+        projection: &ArtifactProjection,
+    ) -> Option<ArtifactProjectionFingerprint> {
+        if version.key != projection.artifact {
+            return None;
+        }
+
+        self.payload(version)?
+            .projection_fingerprint(projection.key)
+    }
+
     artifact_getter!(global_environment, GlobalEnvironment, GlobalEnvironment);
     artifact_getter!(package_index, PackageIndex, PackageIndex);
-    artifact_getter!(module_index, ModuleIndex, ModuleIndex);
     artifact_getter!(component_graph, ComponentGraph, ComponentGraph);
     artifact_getter!(program_analysis, ProgramAnalysis, ProgramAnalysis);
     artifact_getter!(dir_parsed, DirParsed, DirParsed);

@@ -4,11 +4,12 @@ use destack_program::Program;
 use destack_source::ContentId;
 
 use crate::{
-    ArtifactKey, Asset, Build, Bundle, ComponentGraph, Data, DirBound, DirChecked,
-    DirCheckedComponent, DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized,
-    DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed, MirLowered, MirOptimized, MirVerified,
-    ModuleIndex, ModuleLinted, ModuleQueryIndex, Object, PackageIndex, PackageLinted, Product,
-    ProgramAnalysis, Script, WorkspaceLinted, WorkspaceQueryIndex,
+    ArtifactKey, ArtifactProjectionFingerprint, ArtifactProjectionKey, Asset, Build, Bundle,
+    ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirElaborated, DirExpanded,
+    DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment,
+    MirAnalyzed, MirLowered, MirOptimized, MirVerified, ModuleLinted, ModuleQueryIndex, Object,
+    PackageIndex, PackageLinted, Product, ProgramAnalysis, Script, WorkspaceLinted,
+    WorkspaceQueryIndex,
 };
 use serde::{Deserialize, Serialize};
 
@@ -23,8 +24,6 @@ pub enum ArtifactPayload {
     GlobalEnvironment(Arc<GlobalEnvironment>),
     /// Active dependency index for one profile.
     PackageIndex(Arc<PackageIndex>),
-    /// Module import edges for one profile.
-    ModuleIndex(Arc<ModuleIndex>),
     /// Component partition for one profile.
     ComponentGraph(Arc<ComponentGraph>),
     /// Whole-program analysis for one profile and target.
@@ -92,8 +91,6 @@ pub enum ArtifactPayloadRef<'a> {
     GlobalEnvironment(&'a GlobalEnvironment),
     /// Active dependency index for one profile.
     PackageIndex(&'a PackageIndex),
-    /// Module import edges for one profile.
-    ModuleIndex(&'a ModuleIndex),
     /// Component partition for one profile.
     ComponentGraph(&'a ComponentGraph),
     /// Whole-program analysis for one profile and target.
@@ -161,9 +158,6 @@ impl ArtifactPayload {
             ) | (
                 ArtifactKey::PackageIndex { .. },
                 ArtifactPayload::PackageIndex(_)
-            ) | (
-                ArtifactKey::ModuleIndex { .. },
-                ArtifactPayload::ModuleIndex(_)
             ) | (
                 ArtifactKey::ComponentGraph { .. },
                 ArtifactPayload::ComponentGraph(_)
@@ -260,7 +254,6 @@ impl ArtifactPayload {
                 ArtifactPayloadRef::GlobalEnvironment(payload.as_ref())
             }
             Self::PackageIndex(payload) => ArtifactPayloadRef::PackageIndex(payload.as_ref()),
-            Self::ModuleIndex(payload) => ArtifactPayloadRef::ModuleIndex(payload.as_ref()),
             Self::ComponentGraph(payload) => ArtifactPayloadRef::ComponentGraph(payload.as_ref()),
             Self::ProgramAnalysis(payload) => ArtifactPayloadRef::ProgramAnalysis(payload.as_ref()),
             Self::DirBound(payload) => ArtifactPayloadRef::DirBound(payload.as_ref()),
@@ -297,12 +290,27 @@ impl ArtifactPayload {
         }
     }
 
+    /// Return the stable fingerprint of one projected payload value.
+    pub fn projection_fingerprint(
+        &self,
+        projection: ArtifactProjectionKey,
+    ) -> Option<ArtifactProjectionFingerprint> {
+        match (self, projection) {
+            (Self::ComponentGraph(payload), ArtifactProjectionKey::ComponentGraph(projection)) => {
+                Some(payload.projection_fingerprint(projection))
+            }
+            (Self::DirCheckedComponent(payload), ArtifactProjectionKey::DirChecked(module)) => {
+                payload.module(module).map(|entry| entry.fingerprint)
+            }
+            _ => None,
+        }
+    }
+
     /// Return the stable short name for this payload kind.
     pub fn name(&self) -> &'static str {
         match self {
             Self::GlobalEnvironment(_) => "global_environment",
             Self::PackageIndex(_) => "package_index",
-            Self::ModuleIndex(_) => "module_index",
             Self::ComponentGraph(_) => "component_graph",
             Self::ProgramAnalysis(_) => "program_analysis",
             Self::DirParsed(_) => "dir_parsed",
@@ -374,13 +382,6 @@ impl From<PackageIndex> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: PackageIndex) -> Self {
         Self::PackageIndex(Arc::new(payload))
-    }
-}
-
-impl From<ModuleIndex> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: ModuleIndex) -> Self {
-        Self::ModuleIndex(Arc::new(payload))
     }
 }
 
