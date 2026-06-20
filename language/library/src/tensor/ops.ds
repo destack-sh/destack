@@ -1,6 +1,7 @@
 import { todo } from "destack:error";
 
 import { ConvolutionAxes, DotAxes, GatherAxes, ScatterAxes } from "./axes.ds";
+import { TensorViewFormat } from "./layout.ds";
 import {
     TensorConvertOptions,
     TensorConvolutionOptions,
@@ -454,24 +455,24 @@ export declare function reformat<T, comptime Rank: int>(
 
 /// Fill `view` with `value`.
 @intrinsic("tensor.fill")
-export declare function fill<T, comptime Rank: int>(
-    view: TensorView<T, Rank, "exclusive">,
+export declare function fill<T, comptime Rank: int, F: TensorViewFormat>(
+    view: TensorView<T, Rank, F, "exclusive">,
     value: T,
     options?: TensorExecutionOptions,
 ): void;
 
 /// Load one tensor element from `view`.
 @intrinsic("tensor.load")
-export declare function load<T, comptime Rank: int>(
-    view: TensorView<T, Rank, "readonly">,
+export declare function load<T, comptime Rank: int, F: TensorViewFormat>(
+    view: TensorView<T, Rank, F, "readonly">,
     coordinate: Coordinate<Rank>,
     options?: TensorExecutionOptions,
 ): T;
 
 /// Store one tensor element into `view`.
 @intrinsic("tensor.store")
-export declare function store<T, comptime Rank: int>(
-    view: TensorView<T, Rank, "exclusive">,
+export declare function store<T, comptime Rank: int, F: TensorViewFormat>(
+    view: TensorView<T, Rank, F, "exclusive">,
     coordinate: Coordinate<Rank>,
     value: T,
     options?: TensorExecutionOptions,

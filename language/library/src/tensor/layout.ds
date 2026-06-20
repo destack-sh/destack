@@ -1,5 +1,4 @@
 import { FixedArray } from "destack:collections";
-import { todo } from "destack:error";
 
 import { Axis, Shape, Stride } from "./shape.ds";
 
@@ -11,47 +10,40 @@ export enum MemoryOrder {
     ColumnMajor = 2,
 }
 
-/// Dense contiguous tensor format.
-export struct DenseTensorFormat {
-    /// The format variant.
-    kind: "dense" = "dense";
+/// Format implemented by borrowed tensor views.
+@languageItem("tensor.TensorViewFormat")
+export newtype interface TensorViewFormat {}
 
-    /// The dense memory order.
-    order: MemoryOrder = MemoryOrder.RowMajor;
-}
+/// Format implemented by owning tensor storage.
+@languageItem("tensor.TensorFormat")
+export newtype interface TensorFormat extends TensorViewFormat {}
+
+/// Dense contiguous tensor format.
+@languageItem("tensor.Dense")
+export newtype Dense<comptime Order: MemoryOrder = MemoryOrder.RowMajor> = intrinsic;
+
+export extension<comptime Order: MemoryOrder> of Dense<Order> implements TensorFormat {}
 
 /// Explicit strided tensor view format.
-export struct StridedTensorViewFormat<comptime Rank: int> {
-    /// The format variant.
-    kind: "strided" = "strided";
+@languageItem("tensor.Strided")
+export newtype Strided = intrinsic;
 
-    /// The element stride for each axis.
-    strides: FixedArray<Stride, Rank>;
-}
+export extension of Strided implements TensorViewFormat {}
 
-/// Dense tensor format descriptor.
-@languageItem("tensor.TensorFormat")
-export newtype TensorFormat = DenseTensorFormat;
+/// Row-major dense tensor format.
+export type RowMajorFormat = Dense<MemoryOrder.RowMajor>;
 
-/// Tensor view format descriptor for `Rank` axes.
-@languageItem("tensor.TensorViewFormat")
-@derive(Tagged)
-export newtype TensorViewFormat<comptime Rank: int> =
-    DenseTensorFormat | StridedTensorViewFormat<Rank>;
+/// Column-major dense tensor format.
+export type ColumnMajorFormat = Dense<MemoryOrder.ColumnMajor>;
 
-extension of TensorFormat {
-    /// Return row-major dense format.
-    static rowMajor(): TensorFormat {
-        DenseTensorFormat { kind: "dense", order: MemoryOrder.RowMajor } as TensorFormat
-    }
-
-    /// Return column-major dense format.
-    static columnMajor(): TensorFormat {
-        DenseTensorFormat { kind: "dense", order: MemoryOrder.ColumnMajor } as TensorFormat
+extension<comptime Order: MemoryOrder> of Dense<Order> {
+    /// Return the dense memory order.
+    get order(): MemoryOrder {
+        Order
     }
 
     /// Return whether this format is dense.
-    isDense(): boolean {
+    get isDense(): boolean {
         true
     }
 
@@ -61,44 +53,29 @@ extension of TensorFormat {
     }
 
     /// Return the linear element offset for `indices`.
-    offset<comptime Rank: int>(indices: FixedArray<usize, Rank>, shape: Shape<Rank>): isize {
-        todo("TensorFormat.offset")
-    }
+    @intrinsic("tensor.format.dense.offset")
+    offset<comptime Rank: int>(indices: FixedArray<usize, Rank>, shape: Shape<Rank>): isize;
 }
 
-extension<comptime Rank: int> of TensorViewFormat<Rank> {
-    /// Return row-major dense format.
-    static rowMajor(): TensorViewFormat<Rank> {
-        DenseTensorFormat { kind: "dense", order: MemoryOrder.RowMajor } as TensorViewFormat<Rank>
-    }
-
-    /// Return column-major dense format.
-    static columnMajor(): TensorViewFormat<Rank> {
-        DenseTensorFormat {
-            kind: "dense",
-            order: MemoryOrder.ColumnMajor,
-        } as TensorViewFormat<Rank>
-    }
-
-    /// Return strided format.
-    static strided(strides: FixedArray<Stride, Rank>): TensorViewFormat<Rank> {
-        StridedTensorViewFormat<Rank> { kind: "strided", strides } as TensorViewFormat<Rank>
-    }
-
+extension of Strided {
     /// Return whether this format is dense.
-    isDense(): boolean {
-        todo("TensorViewFormat.isDense")
+    get isDense(): boolean {
+        false
     }
 
     /// Return whether this format stores logical neighbors contiguously.
-    isContiguous(shape: Shape<Rank>): boolean {
-        todo("TensorViewFormat.isContiguous")
-    }
+    @intrinsic("tensor.format.strided.isContiguous")
+    isContiguous<comptime Rank: int>(
+        shape: Shape<Rank>,
+        strides: FixedArray<Stride, Rank>,
+    ): boolean;
 
     /// Return the linear element offset for `indices`.
-    offset(indices: FixedArray<usize, Rank>, shape: Shape<Rank>): isize {
-        todo("TensorViewFormat.offset")
-    }
+    @intrinsic("tensor.format.strided.offset")
+    offset<comptime Rank: int>(
+        indices: FixedArray<usize, Rank>,
+        strides: FixedArray<Stride, Rank>,
+    ): isize;
 }
 
 /// Named axis metadata used by frontends and debugging tools.

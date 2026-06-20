@@ -1,9 +1,11 @@
 export { Axis, AxisSet, Coordinate, Extent, Permutation, Shape, Stride } from "./shape.ds";
 export {
-    DenseTensorFormat,
+    ColumnMajorFormat,
+    Dense,
     MemoryOrder,
     NamedAxis,
-    StridedTensorViewFormat,
+    RowMajorFormat,
+    Strided,
     TensorFormat,
     TensorViewFormat,
 } from "./layout.ds";
