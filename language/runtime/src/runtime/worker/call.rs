@@ -181,7 +181,7 @@ impl BindingCall<'_> {
                 return Err(host_core::io_would_block(operation, timeout_message));
             }
 
-            // wait until the next backend publication or the overall deadline
+            // wait until the next machine publication or the overall deadline
             let remaining = deadline_ns.saturating_sub(now);
             let duration = Duration::from_nanos(remaining);
             wait_once(duration);

@@ -1,7 +1,7 @@
 use destack_program as program;
 use serde::{Deserialize, Serialize};
 
-use crate::runtime::executor::Continuation;
+use crate::runtime::machine::Continuation;
 
 /// Microtask metadata for Promise jobs.
 #[derive(Debug)]
@@ -10,7 +10,7 @@ pub struct Microtask {
     pub id: MicrotaskId,
     /// Runnable continuation for this microtask.
     pub continuation: Continuation,
-    /// Resume payload passed back into the executor.
+    /// Resume payload passed back into the machine.
     pub resume_value: program::Value,
 }
 

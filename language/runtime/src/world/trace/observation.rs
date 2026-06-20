@@ -258,7 +258,7 @@ impl ObservationSubscriptionId {
 /// Observation category for emitted runtime or user facts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ObservationCategory {
-    /// Runtime lifecycle and executor diagnostics.
+    /// Runtime lifecycle and machine diagnostics.
     Runtime,
     /// Topology mutation and graph diagnostics.
     Topology,

@@ -6,7 +6,7 @@ use crate::host::Host;
 use crate::host::core::{HostQueue, poll_host_events};
 use crate::host::poller::HostPoller;
 use crate::runtime::RuntimeHeap;
-use crate::runtime::executor::{Continuation, Entry, Outcome};
+use crate::runtime::machine::{Continuation, Entry, Outcome};
 use crate::runtime::scheduler::{Microtask, Task, TaskId};
 use crate::runtime::time::{ClockSource, Nanos};
 use crate::world::WorldState;
@@ -60,12 +60,12 @@ impl Worker {
             shared_cache,
             shared_gc_worker,
             local_static,
-            executor,
+            machine,
             ..
         } = self;
-        let context = program::ExecutionCall {
-            host: NonNull::from(&mut call_context).cast(),
-            memory: program::ExecutionMemory {
+        let context = program::RuntimeCall {
+            state: NonNull::from(&mut call_context).cast(),
+            memory: program::RuntimeMemory {
                 heap,
                 shared_heap: shared.shared.as_ref(),
                 shared_cache,
@@ -75,7 +75,7 @@ impl Worker {
                 constant_space,
             },
         };
-        let outcome = executor.run(context, entry, args)?;
+        let outcome = machine.run(context, entry, args)?;
 
         // handle the entry outcome
         let output = match outcome {
@@ -139,7 +139,7 @@ impl Worker {
                 remaining_timeout_nanos = Some(timeout_nanos.saturating_sub(elapsed));
             }
 
-            // run one loop tick for the executor
+            // run one loop tick for the machine
             let (progressed, output) = self.tick_loop(
                 world,
                 shared,
@@ -414,7 +414,7 @@ impl Worker {
         let mono_now = Nanos::new(world.mono_nanos());
         if let Some(wake) = self.event_loop.next_wake(wall_now, mono_now)? {
             progressed = true;
-            if let Some(task) = self.event_loop.task_for_wake(wake, &mut self.executor)? {
+            if let Some(task) = self.event_loop.task_for_wake(wake, &mut self.machine)? {
                 self.enqueue_prepared_task(task)?;
             }
         }
@@ -607,7 +607,7 @@ impl Worker {
         Ok(num_drained_microtasks)
     }
 
-    /// Resume one executor continuation with one runtime value.
+    /// Resume one machine continuation with one runtime value.
     fn execute_runnable(
         &mut self,
         world: &mut WorldState,
@@ -625,12 +625,12 @@ impl Worker {
             shared_cache,
             shared_gc_worker,
             local_static,
-            executor,
+            machine,
             ..
         } = self;
-        let context = program::ExecutionCall {
-            host: NonNull::from(&mut call_context).cast(),
-            memory: program::ExecutionMemory {
+        let context = program::RuntimeCall {
+            state: NonNull::from(&mut call_context).cast(),
+            memory: program::RuntimeMemory {
                 heap,
                 shared_heap: shared.shared.as_ref(),
                 shared_cache,
@@ -641,7 +641,7 @@ impl Worker {
             },
         };
 
-        executor.resume(context, runnable, resume_value)
+        machine.resume(context, runnable, resume_value)
     }
 
     /// Wait for one scheduler wakeup when the loop has pending but not-ready work.

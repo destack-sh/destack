@@ -2,14 +2,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::binding::BindingReplayPayload;
-use crate::host::resource::ResourceRebinders;
 use crate::world::lineage::{
     CheckpointId, ImageId, Lineage, LineageSnapshot, Revision, RevisionId,
 };
 use destack_repository::{ExecutionMode, ReplayPayloadMode, RuntimeOptions};
 use postcard::to_allocvec;
 
-use super::{World, WorldImage};
+use super::{RestoreContext, World, WorldImage};
 
 /// Serialized snapshot for one world image.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -162,7 +161,7 @@ impl World {
     pub fn restore_image_id(
         &mut self,
         image_id: ImageId,
-        rebind_context: Option<&ResourceRebinders>,
+        restore: RestoreContext<'_>,
     ) -> RuntimeResult<()> {
         // resolve the owning revision first
         let (revision, image, trace_image) = {
@@ -172,7 +171,7 @@ impl World {
             (revision, image, trace_image)
         };
 
-        self.restore_revision_image(revision, &image, &trace_image, rebind_context)
+        self.restore_revision_image(revision, &image, &trace_image, restore)
     }
 
     /// Create one exact serialized snapshot for one stored image.
@@ -205,8 +204,13 @@ impl World {
 
             (target_revision, base_revision, image, trace_image)
         };
-        let image =
-            self.revision_image(&target_revision, &base_revision, &image, &trace_image, None)?;
+        let image = self.revision_image(
+            &target_revision,
+            &base_revision,
+            &image,
+            &trace_image,
+            RestoreContext::empty(),
+        )?;
         let mut lineage_snapshot = self.lineage.read().full_snapshot()?;
         lineage_snapshot.images.insert(revision.image_id, image);
 
@@ -245,7 +249,7 @@ impl World {
                     &base_revision,
                     &image,
                     &trace_image,
-                    None,
+                    RestoreContext::empty(),
                 )?;
 
                 (image, trace_image.as_ref().clone())
@@ -299,7 +303,7 @@ impl World {
     /// Build one fresh world from one serialized snapshot.
     pub fn from_snapshot(
         snapshot: &WorldSnapshot,
-        rebind_context: Option<&ResourceRebinders>,
+        restore: RestoreContext<'_>,
     ) -> RuntimeResult<Self> {
         let options = Self::runtime_options_from_snapshot(snapshot);
         let revision = snapshot.revision()?;
@@ -312,26 +316,23 @@ impl World {
             })?;
         let environment = trace_image.header().environment.clone();
         let mut world = Self::empty(revision.branch_id, &options, environment, None)?;
-        world.restore_snapshot(snapshot, rebind_context)?;
+        world.restore_snapshot(snapshot, restore)?;
 
         Ok(world)
     }
 
     /// Build one fresh world from one encoded snapshot payload.
-    pub fn from_snapshot_bytes(
-        bytes: &[u8],
-        rebind_context: Option<&ResourceRebinders>,
-    ) -> RuntimeResult<Self> {
+    pub fn from_snapshot_bytes(bytes: &[u8], restore: RestoreContext<'_>) -> RuntimeResult<Self> {
         let snapshot = WorldSnapshot::decode(bytes)?;
 
-        Self::from_snapshot(&snapshot, rebind_context)
+        Self::from_snapshot(&snapshot, restore)
     }
 
     /// Restore one serialized snapshot into this world.
     pub fn restore_snapshot(
         &mut self,
         snapshot: &WorldSnapshot,
-        rebind_context: Option<&ResourceRebinders>,
+        restore: RestoreContext<'_>,
     ) -> RuntimeResult<()> {
         let revision = snapshot.revision()?;
 
@@ -350,6 +351,6 @@ impl World {
             (image, trace_image)
         };
 
-        self.restore_revision_image(snapshot.revision_id, &image, &trace_image, rebind_context)
+        self.restore_revision_image(snapshot.revision_id, &image, &trace_image, restore)
     }
 }

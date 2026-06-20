@@ -5,7 +5,6 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::binding::BindingReplayPayload;
 use crate::host::core::HostQueue;
 use crate::host::poller::create_host_poller;
-use crate::host::resource::ResourceRebinders;
 use crate::runtime::random::Random;
 use crate::runtime::time::Instant;
 use crate::world::trace::{
@@ -14,7 +13,7 @@ use crate::world::trace::{
 use destack_core::CaptureMode;
 use destack_repository::{ExecutionMode, ReplayPayloadMode, RuntimeOptions};
 
-use crate::world::{World, WorldImage, WorldSnapshot, WorldState};
+use crate::world::{RestoreContext, World, WorldImage, WorldSnapshot, WorldState};
 
 use super::{BranchId, Checkpoint, Moment, Revision, RevisionId};
 
@@ -31,10 +30,15 @@ impl World {
             (target_revision, base_revision, image, trace_image)
         };
 
-        let image =
-            self.revision_image(&target_revision, &base_revision, &image, &trace_image, None)?;
+        let image = self.revision_image(
+            &target_revision,
+            &base_revision,
+            &image,
+            &trace_image,
+            RestoreContext::empty(),
+        )?;
 
-        self.restore_revision_image(revision_id, &image, &trace_image, None)
+        self.restore_revision_image(revision_id, &image, &trace_image, RestoreContext::empty())
     }
 
     /// Restore this branch to one specific moment.
@@ -65,10 +69,15 @@ impl World {
             (anchor_revision_id, base_revision, image)
         };
 
-        let image = self.moment_image(moment, &base_revision, &image, None)?;
+        let image = self.moment_image(moment, &base_revision, &image, RestoreContext::empty())?;
         let trace_image = self.state.trace.capture_image_through(moment.sequence)?;
 
-        self.restore_revision_image(anchor_revision, &image, &trace_image, None)
+        self.restore_revision_image(
+            anchor_revision,
+            &image,
+            &trace_image,
+            RestoreContext::empty(),
+        )
     }
 
     /// Fork one child world from one specific revision.
@@ -159,9 +168,9 @@ impl World {
         revision_id: RevisionId,
         image: &WorldImage,
         trace_image: &TraceImage,
-        rebind_context: Option<&ResourceRebinders>,
+        restore: RestoreContext<'_>,
     ) -> RuntimeResult<()> {
-        self.restore_image(image, rebind_context)?;
+        self.restore_image(image, restore)?;
         self.state.trace.restore_image(trace_image)?;
         self.state.trace.set_branch_id(self.state.branch_id);
 
@@ -211,9 +220,14 @@ impl World {
         let mut child = self.fork_child_world(child_branch.id, trace_header)?;
 
         // restore the child to the fork checkpoint
-        let image =
-            self.revision_image(&target_revision, &base_revision, &image, &trace_image, None)?;
-        child.restore_image(&image, None)?;
+        let image = self.revision_image(
+            &target_revision,
+            &base_revision,
+            &image,
+            &trace_image,
+            RestoreContext::empty(),
+        )?;
+        child.restore_image(&image, RestoreContext::empty())?;
         child.state.trace.restore_image(&trace_image)?;
         child.state.trace.set_branch_id(child.state.branch_id);
 
@@ -250,7 +264,7 @@ impl World {
         base_revision: &Revision,
         image: &WorldImage,
         trace_image: &TraceImage,
-        rebinders: Option<&ResourceRebinders>,
+        restore: RestoreContext<'_>,
     ) -> RuntimeResult<WorldImage> {
         if base_revision.branch_id == target_revision.branch_id
             && base_revision.sequence == target_revision.sequence
@@ -262,7 +276,7 @@ impl World {
         let environment = self.state.trace.log().header().environment.clone();
         let mut replay_world =
             World::empty(target_revision.branch_id, &options, environment, None)?;
-        replay_world.restore_image(image, rebinders)?;
+        replay_world.restore_image(image, restore)?;
         replay_world.state.trace.restore_replay_image(trace_image)?;
         replay_world
             .state
@@ -276,7 +290,7 @@ impl World {
             Trace::from_log(ExecutionMode::Replay, replay_world.trace().log().clone());
         replay_trace.set_branch_id(target_revision.branch_id);
         replay_trace.seek_sequence(base_revision.sequence)?;
-        replay_world.replay_to(&replay_trace, target_revision.sequence, rebinders)?;
+        replay_world.replay_to(&replay_trace, target_revision.sequence, restore)?;
 
         replay_world.capture_image(CaptureMode::Suspend)
     }
@@ -287,7 +301,7 @@ impl World {
         moment: Moment,
         base_revision: &Revision,
         image: &WorldImage,
-        rebinders: Option<&ResourceRebinders>,
+        restore: RestoreContext<'_>,
     ) -> RuntimeResult<WorldImage> {
         if base_revision.sequence == moment.sequence {
             return Ok(image.clone());
@@ -296,11 +310,11 @@ impl World {
         let options = self.replay_runtime_options();
         let environment = self.state.trace.log().header().environment.clone();
         let mut replay_world = World::empty(moment.branch_id, &options, environment, None)?;
-        replay_world.restore_image(image, rebinders)?;
+        replay_world.restore_image(image, restore)?;
         let replay_trace = Trace::from_log(ExecutionMode::Replay, self.state.trace.log().clone());
         replay_trace.set_branch_id(moment.branch_id);
         replay_trace.seek_sequence(base_revision.sequence)?;
-        replay_world.replay_to(&replay_trace, moment.sequence, rebinders)?;
+        replay_world.replay_to(&replay_trace, moment.sequence, restore)?;
 
         replay_world.capture_image(CaptureMode::Suspend)
     }
@@ -325,7 +339,7 @@ impl World {
             (anchor_revision, base_revision, image)
         };
 
-        self.moment_image(moment, &base_revision, &image, None)
+        self.moment_image(moment, &base_revision, &image, RestoreContext::empty())
     }
 
     /// Replay one trace through one requested sequence boundary.
@@ -333,7 +347,7 @@ impl World {
         &mut self,
         trace: &Trace,
         target_sequence: TraceSequence,
-        rebinders: Option<&ResourceRebinders>,
+        restore: RestoreContext<'_>,
     ) -> RuntimeResult<()> {
         while trace.sequence()? != target_sequence {
             let event = trace
@@ -368,7 +382,7 @@ impl World {
                                 runtime_entity,
                                 &runtime,
                                 &workers,
-                                rebinders,
+                                restore,
                             )?;
                         }
 
@@ -384,7 +398,7 @@ impl World {
                                 worker_id,
                                 worker_entity,
                                 &worker,
-                                rebinders,
+                                restore,
                             )?;
                         }
 

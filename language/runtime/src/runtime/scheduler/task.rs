@@ -1,7 +1,7 @@
 use destack_program as program;
 use serde::{Deserialize, Serialize};
 
-use crate::runtime::executor::Continuation;
+use crate::runtime::machine::Continuation;
 
 /// Task metadata for event loop execution.
 #[derive(Debug)]
@@ -10,7 +10,7 @@ pub struct Task {
     pub id: TaskId,
     /// Runnable continuation for this task.
     pub runnable: Continuation,
-    /// Resume payload passed back into the executor.
+    /// Resume payload passed back into the machine.
     pub resume_value: program::Value,
     /// Priority value for event loop ordering, higher values run first.
     pub priority: u8,

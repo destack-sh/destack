@@ -1,6 +1,7 @@
 mod image;
 mod memory;
 mod mutation;
+mod restore;
 mod runtime;
 mod snapshot;
 mod state;
@@ -14,6 +15,7 @@ pub use crate::world::topology::*;
 pub use image::*;
 pub(crate) use memory::*;
 pub use mutation::*;
+pub use restore::*;
 pub use snapshot::*;
 pub(crate) use state::*;
 pub use wake::*;

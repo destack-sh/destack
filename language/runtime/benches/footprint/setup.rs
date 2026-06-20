@@ -9,10 +9,10 @@ use destack_program::StaticSpace;
 use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 use destack_runtime::launch::Launch;
 use destack_runtime::runtime::WorkerOptions;
-use destack_runtime::runtime::executor::{Backend, Entry};
+use destack_runtime::runtime::machine::{Entry, Execution};
 use destack_runtime::world::{RuntimeId, World};
 use destack_source::FileId;
-use destack_vm::{Continuation, ContinuationImage, Machine, MachineOptions, Outcome};
+use destack_vm::{Continuation, ContinuationImage, MachineOptions, Outcome};
 
 /// MIR program used by footprint setups.
 const VM_PROGRAM: &str = r#"
@@ -62,25 +62,31 @@ impl RuntimeSetup {
     }
 
     /// Spawn one VM runtime into an existing world.
-    pub(crate) fn spawn_runtime(&self, world: &mut World, backend: Backend) -> RuntimeId {
+    pub(crate) fn spawn_runtime(
+        &self,
+        world: &mut World,
+        program: Arc<destack_program::Program>,
+        execution: Execution,
+    ) -> RuntimeId {
         world
-            .spawn_runtime(self.environment.clone(), &self.options, backend)
+            .spawn_runtime(self.environment.clone(), &self.options, program, execution)
             .expect("footprint runtime should spawn")
     }
 
     /// Create one world with one VM runtime.
     pub(crate) fn world_with_runtime(&self) -> (World, RuntimeId) {
         let mut world = self.world();
-        let backend = self.backend();
-        let runtime_id = self.spawn_runtime(&mut world, backend);
+        let program = self.program();
+        let execution = self.execution();
+        let runtime_id = self.spawn_runtime(&mut world, program, execution);
 
         (world, runtime_id)
     }
 
     /// Spawn one VM worker into an existing runtime.
-    pub(crate) fn spawn_worker(&self, world: &mut World, runtime_id: RuntimeId, backend: Backend) {
+    pub(crate) fn spawn_worker(&self, world: &mut World, runtime_id: RuntimeId) {
         world
-            .spawn_worker(runtime_id, WorkerOptions::default(), backend)
+            .spawn_worker(runtime_id, WorkerOptions::default())
             .expect("footprint worker should spawn");
     }
 
@@ -89,16 +95,22 @@ impl RuntimeSetup {
         Launch::new(
             self.options.clone(),
             self.environment.clone(),
-            self.backend(),
+            self.program(),
+            self.execution(),
             Entry::new("bench.entry"),
         )
         .run()
         .expect("footprint launch should run");
     }
 
-    /// Build one VM backend.
-    pub(crate) fn backend(&self) -> Backend {
-        Backend::from(build_machine())
+    /// Build one durable runtime program.
+    pub(crate) fn program(&self) -> Arc<destack_program::Program> {
+        build_machine().program_handle()
+    }
+
+    /// Build one runtime execution strategy.
+    pub(crate) fn execution(&self) -> Execution {
+        Execution::vm(MachineOptions::unbounded())
     }
 }
 
@@ -113,7 +125,7 @@ impl VmSetup {
     }
 
     /// Build one VM machine before runtime memory initialization.
-    pub(crate) fn build_machine(self) -> Machine {
+    pub(crate) fn build_machine(self) -> destack_vm::Machine {
         build_machine()
     }
 
@@ -136,9 +148,11 @@ impl VmSetup {
 /// Initialized VM machine.
 pub(crate) struct VmMachine {
     /// The machine under measurement.
-    machine: Machine,
+    machine: destack_vm::Machine,
     /// Worker static byte space.
     statics: StaticSpace,
+    /// Runtime shared static byte space.
+    shared_statics: StaticSpace,
     /// Worker-local heap.
     heap: Heap,
     /// Runtime shared heap.
@@ -154,18 +168,20 @@ impl VmMachine {
     pub(crate) fn new() -> Self {
         let mut machine = build_machine();
         let mut statics = StaticSpace::empty();
+        let mut shared_statics = StaticSpace::empty();
         let heap = heap();
         let shared = shared_heap();
         let shared_gc = shared.register_collector_worker();
         let shared_cache = shared.allocation_cache();
 
         machine
-            .initialize(&heap, &shared, &mut statics)
+            .initialize(&heap, &shared, &mut statics, &mut shared_statics)
             .expect("footprint machine should initialize");
 
         Self {
             machine,
             statics,
+            shared_statics,
             heap,
             shared,
             shared_cache,
@@ -183,6 +199,7 @@ impl VmMachine {
             .machine
             .run_function_yielding(
                 &mut self.statics,
+                &mut self.shared_statics,
                 &mut self.heap,
                 &self.shared,
                 &mut self.shared_cache,
@@ -207,12 +224,12 @@ impl VmMachine {
 }
 
 /// Build one VM machine from the footprint MIR.
-fn build_machine() -> Machine {
+fn build_machine() -> destack_vm::Machine {
     let (tree, strings) = Parser::parse(FileId::new(0), VM_PROGRAM, ParseOptions::default())
         .finish()
         .expect("footprint MIR should parse");
 
-    Machine::build_with_options(tree, strings, MachineOptions::unbounded())
+    destack_vm::Machine::build_with_options(tree, strings, MachineOptions::unbounded())
         .expect("footprint machine should build")
 }
 
