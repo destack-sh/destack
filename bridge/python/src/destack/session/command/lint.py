@@ -1,13 +1,13 @@
 # generated bridge target, do not edit
 
 from ..._native import (
-    Scope,
-    LintRequest,
     LintOutput,
+    LintRequest,
+    Scope,
 )
 
 __all__ = [
-    "Scope",
-    "LintRequest",
     "LintOutput",
+    "LintRequest",
+    "Scope",
 ]

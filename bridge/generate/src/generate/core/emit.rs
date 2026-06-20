@@ -1,8 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use proc_macro2::TokenStream;
 
 const HEADER: &str = "// generated bridge target, do not edit\n\n";
@@ -29,7 +28,6 @@ pub(crate) fn write_rust(root: &Path, relative: &str, tokens: TokenStream) -> Re
 
     fs::create_dir_all(parent).with_context(|| format!("failed to create {}", parent.display()))?;
     fs::write(&path, content).with_context(|| format!("failed to write {}", path.display()))?;
-    format_rust_file(&path)?;
 
     Ok(())
 }
@@ -82,19 +80,4 @@ fn render_rust(tokens: TokenStream) -> Result<String> {
     let content = format!("{HEADER}{content}\n");
 
     Ok(content)
-}
-
-/// Format one generated Rust file.
-fn format_rust_file(path: &Path) -> Result<()> {
-    let status = Command::new("rustfmt")
-        .arg("--edition")
-        .arg("2024")
-        .arg(path)
-        .status()
-        .with_context(|| format!("failed to run rustfmt for {}", path.display()))?;
-    if !status.success() {
-        bail!("rustfmt failed for {}", path.display());
-    }
-
-    Ok(())
 }

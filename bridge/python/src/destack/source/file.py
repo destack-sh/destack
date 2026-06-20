@@ -1,13 +1,13 @@
 # generated bridge target, do not edit
 
 from .._native import (
-    FileId,
-    ContentId,
     Content,
+    ContentId,
+    FileId,
 )
 
 __all__ = [
-    "FileId",
-    "ContentId",
     "Content",
+    "ContentId",
+    "FileId",
 ]

@@ -2,12 +2,12 @@
 
 from ..._native import (
     Document,
-    FormatRequest,
     FormatOutput,
+    FormatRequest,
 )
 
 __all__ = [
     "Document",
-    "FormatRequest",
     "FormatOutput",
+    "FormatRequest",
 ]
