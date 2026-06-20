@@ -1,7 +1,8 @@
-import { Device, Stream } from "destack:compute";
+import { Device, Mesh, Stream } from "destack:compute";
 
 import { Dense, MemoryOrder, TensorFormat } from "./layout.ds";
 import { ConvertMode, ScatterMode } from "./mode.ds";
+import { Placement, Unsharded } from "./sharding.ds";
 import { TensorView } from "./view.ds";
 import { ConvolutionGroups } from "./window.ds";
 
@@ -15,9 +16,16 @@ export struct TensorExecutionOptions {
 export struct TensorCreateOptions<
     comptime Rank: int,
     F: TensorFormat = Dense<MemoryOrder.RowMajor>,
+    P: Placement = Unsharded,
 > {
-    /// Device that owns the tensor storage.
+    /// Tensor placement.
+    placement?: P;
+
+    /// Device used for unsharded placement.
     device?: Device;
+
+    /// Mesh used for sharded placement.
+    mesh?: Mesh;
 
     /// Stream used to order initialization work.
     stream?: Stream;
@@ -28,15 +36,22 @@ export struct TensorOutputOptions<
     T,
     comptime Rank: int,
     F: TensorFormat = Dense<MemoryOrder.RowMajor>,
+    P: Placement = Unsharded,
 > {
-    /// Device that owns the result storage.
+    /// Tensor placement.
+    placement?: P;
+
+    /// Device used for unsharded placement.
     device?: Device;
+
+    /// Mesh used for sharded placement.
+    mesh?: Mesh;
 
     /// Stream used to order the work.
     stream?: Stream;
 
     /// Exclusive output view to write into.
-    out?: TensorView<T, Rank, F, "exclusive">;
+    out?: TensorView<T, Rank, F, P, "exclusive">;
 }
 
 /// Output options for tensor reductions.
@@ -44,18 +59,25 @@ export struct TensorReduceOptions<
     T,
     comptime Rank: int,
     F: TensorFormat = Dense<MemoryOrder.RowMajor>,
+    P: Placement = Unsharded,
 > {
     /// Whether reduced axes remain with extent one.
     keepDims: boolean = false;
 
-    /// Device that owns the result storage.
+    /// Result placement.
+    placement?: P;
+
+    /// Device used for unsharded placement.
     device?: Device;
+
+    /// Mesh used for sharded placement.
+    mesh?: Mesh;
 
     /// Stream used to order the work.
     stream?: Stream;
 
     /// Exclusive output view to write into.
-    out?: TensorView<T, Rank, F, "exclusive">;
+    out?: TensorView<T, Rank, F, P, "exclusive">;
 }
 
 /// Output options for tensor conversion.
@@ -63,18 +85,25 @@ export struct TensorConvertOptions<
     T,
     comptime Rank: int,
     F: TensorFormat = Dense<MemoryOrder.RowMajor>,
+    P: Placement = Unsharded,
 > {
     /// Conversion mode.
     mode?: ConvertMode;
 
-    /// Device that owns the result storage.
+    /// Result placement.
+    placement?: P;
+
+    /// Device used for unsharded placement.
     device?: Device;
+
+    /// Mesh used for sharded placement.
+    mesh?: Mesh;
 
     /// Stream used to order the work.
     stream?: Stream;
 
     /// Exclusive output view to write into.
-    out?: TensorView<T, Rank, F, "exclusive">;
+    out?: TensorView<T, Rank, F, P, "exclusive">;
 }
 
 /// Output options for tensor convolution.
@@ -82,18 +111,25 @@ export struct TensorConvolutionOptions<
     T,
     comptime Rank: int,
     F: TensorFormat = Dense<MemoryOrder.RowMajor>,
+    P: Placement = Unsharded,
 > {
     /// Convolution group counts.
     groups?: ConvolutionGroups;
 
-    /// Device that owns the result storage.
+    /// Result placement.
+    placement?: P;
+
+    /// Device used for unsharded placement.
     device?: Device;
+
+    /// Mesh used for sharded placement.
+    mesh?: Mesh;
 
     /// Stream used to order the work.
     stream?: Stream;
 
     /// Exclusive output view to write into.
-    out?: TensorView<T, Rank, F, "exclusive">;
+    out?: TensorView<T, Rank, F, P, "exclusive">;
 }
 
 /// Output options for tensor scatter.
@@ -101,16 +137,23 @@ export struct TensorScatterOptions<
     T,
     comptime Rank: int,
     F: TensorFormat = Dense<MemoryOrder.RowMajor>,
+    P: Placement = Unsharded,
 > {
     /// Update mode.
     mode?: ScatterMode;
 
-    /// Device that owns the result storage.
+    /// Result placement.
+    placement?: P;
+
+    /// Device used for unsharded placement.
     device?: Device;
+
+    /// Mesh used for sharded placement.
+    mesh?: Mesh;
 
     /// Stream used to order the work.
     stream?: Stream;
 
     /// Exclusive output view to write into.
-    out?: TensorView<T, Rank, F, "exclusive">;
+    out?: TensorView<T, Rank, F, P, "exclusive">;
 }

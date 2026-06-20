@@ -1,5 +1,5 @@
 import { Slice } from "destack:collections";
-import { Buffer, Device } from "destack:compute";
+import { Buffer, Device, Mesh } from "destack:compute";
 import { todo } from "destack:error";
 import { Access, WithAccess } from "destack:memory";
 import {
@@ -21,17 +21,19 @@ import {
 import { Dense, MemoryOrder, TensorFormat } from "./layout.ds";
 import { TensorCreateOptions, TensorOutputOptions } from "./options.ds";
 import { Coordinate, Shape } from "./shape.ds";
+import { Placement, Sharding, ShardingAxis, Unsharded } from "./sharding.ds";
 import { TensorView } from "./view.ds";
 
-/// Owning tensor value on a device.
+/// Owning tensor value.
 @languageItem("tensor.Tensor")
 export newtype Tensor<
     T,
     comptime Rank: int,
     F: TensorFormat = Dense<MemoryOrder.RowMajor>,
+    P: Placement = Unsharded,
 > = intrinsic;
 
-extension<T, comptime Rank: int, F: TensorFormat> of Tensor<T, Rank, F> {
+extension<T, comptime Rank: int, F: TensorFormat, P: Placement> of Tensor<T, Rank, F, P> {
     /// Return the tensor shape.
     @intrinsic("tensor.shape")
     get shape(): Shape<Rank>;
@@ -40,16 +42,15 @@ extension<T, comptime Rank: int, F: TensorFormat> of Tensor<T, Rank, F> {
     @intrinsic("tensor.format")
     get format(): F;
 
-    /// Return the device that owns the tensor storage.
-    @intrinsic("tensor.device")
-    get device(): Device;
-
-    /// Return the backing compute buffer.
-    @intrinsic("tensor.buffer")
-    get buffer(): Buffer<T>;
+    /// Return the tensor placement.
+    @intrinsic("tensor.placement")
+    get placement(): P;
 
     /// Allocate an uninitialized tensor.
-    static empty(shape: Shape<Rank>, options?: TensorCreateOptions<Rank, F>): Tensor<T, Rank, F> {
+    static empty(
+        shape: Shape<Rank>,
+        options?: TensorCreateOptions<Rank, F, P>,
+    ): Tensor<T, Rank, F, P> {
         todo("Tensor.empty")
     }
 
@@ -57,8 +58,8 @@ extension<T, comptime Rank: int, F: TensorFormat> of Tensor<T, Rank, F> {
     static full(
         shape: Shape<Rank>,
         value: T,
-        options?: TensorCreateOptions<Rank, F>,
-    ): Tensor<T, Rank, F> {
+        options?: TensorCreateOptions<Rank, F, P>,
+    ): Tensor<T, Rank, F, P> {
         todo("Tensor.full")
     }
 
@@ -66,8 +67,8 @@ extension<T, comptime Rank: int, F: TensorFormat> of Tensor<T, Rank, F> {
     static fromSlice(
         slice: &readonly Slice<T>,
         shape: Shape<Rank>,
-        options?: TensorCreateOptions<Rank, F>,
-    ): Tensor<T, Rank, F> {
+        options?: TensorCreateOptions<Rank, F, P>,
+    ): Tensor<T, Rank, F, P> {
         todo("Tensor.fromSlice")
     }
 
@@ -94,56 +95,89 @@ extension<T, comptime Rank: int, F: TensorFormat> of Tensor<T, Rank, F> {
     }
 }
 
-extension<T: int | float, comptime Rank: int, F: TensorFormat> of Tensor<T, Rank, F> {
+extension<T, comptime Rank: int, F: TensorFormat> of Tensor<T, Rank, F, Unsharded> {
+    /// Return the device that owns the tensor storage.
+    @intrinsic("tensor.device")
+    get device(): Device;
+
+    /// Return the backing compute buffer.
+    @intrinsic("tensor.buffer")
+    get buffer(): Buffer<T>;
+
+    /// Return a tensor copy on `device`.
+    to(
+        device: Device,
+        options?: TensorOutputOptions<T, Rank, F, Unsharded>,
+    ): Tensor<T, Rank, F, Unsharded> {
+        todo("Tensor.to")
+    }
+}
+
+extension<T, comptime Rank: int, F: TensorFormat, comptime ...Axes: ShardingAxis> of
+    Tensor<T, Rank, F, Sharding<...Axes>> {
+    /// Return the mesh that owns the tensor shards.
+    @intrinsic("tensor.mesh")
+    get mesh(): Mesh;
+}
+
+extension<T: int | float, comptime Rank: int, F: TensorFormat, P: Placement> of
+    Tensor<T, Rank, F, P> {
     /// Allocate a tensor filled with zero.
-    static zeros(shape: Shape<Rank>, options?: TensorCreateOptions<Rank, F>): Tensor<T, Rank, F> {
+    static zeros(
+        shape: Shape<Rank>,
+        options?: TensorCreateOptions<Rank, F, P>,
+    ): Tensor<T, Rank, F, P> {
         todo("Tensor.zeros")
     }
 
     /// Allocate a tensor filled with one.
-    static ones(shape: Shape<Rank>, options?: TensorCreateOptions<Rank, F>): Tensor<T, Rank, F> {
+    static ones(
+        shape: Shape<Rank>,
+        options?: TensorCreateOptions<Rank, F, P>,
+    ): Tensor<T, Rank, F, P> {
         todo("Tensor.ones")
     }
 }
 
-extension<T: int | float, comptime Rank: int, F: TensorFormat> of Tensor<T, Rank, F> implements
-    Add<Tensor<T, Rank, F>>,
-    Subtract<Tensor<T, Rank, F>>,
-    Multiply<Tensor<T, Rank, F>>,
-    Divide<Tensor<T, Rank, F>>,
-    Remainder<Tensor<T, Rank, F>>,
-    Power<Tensor<T, Rank, F>>,
+extension<T: int | float, comptime Rank: int, F: TensorFormat, P: Placement> of
+    Tensor<T, Rank, F, P> implements
+    Add<Tensor<T, Rank, F, P>>,
+    Subtract<Tensor<T, Rank, F, P>>,
+    Multiply<Tensor<T, Rank, F, P>>,
+    Divide<Tensor<T, Rank, F, P>>,
+    Remainder<Tensor<T, Rank, F, P>>,
+    Power<Tensor<T, Rank, F, P>>,
     Negate {
     /// The elementwise tensor result type.
-    type Output = Tensor<T, Rank, F>;
+    type Output = Tensor<T, Rank, F, P>;
 
     /// Add `other` elementwise.
-    add(other: Tensor<T, Rank, F>): this.Output {
+    add(other: Tensor<T, Rank, F, P>): this.Output {
         todo("Tensor.add")
     }
 
     /// Subtract `other` elementwise.
-    subtract(other: Tensor<T, Rank, F>): this.Output {
+    subtract(other: Tensor<T, Rank, F, P>): this.Output {
         todo("Tensor.subtract")
     }
 
     /// Multiply by `other` elementwise.
-    multiply(other: Tensor<T, Rank, F>): this.Output {
+    multiply(other: Tensor<T, Rank, F, P>): this.Output {
         todo("Tensor.multiply")
     }
 
     /// Divide by `other` elementwise.
-    divide(other: Tensor<T, Rank, F>): this.Output {
+    divide(other: Tensor<T, Rank, F, P>): this.Output {
         todo("Tensor.divide")
     }
 
     /// Return the elementwise remainder after dividing by `other`.
-    remainder(other: Tensor<T, Rank, F>): this.Output {
+    remainder(other: Tensor<T, Rank, F, P>): this.Output {
         todo("Tensor.remainder")
     }
 
     /// Raise this tensor to `other` elementwise.
-    power(other: Tensor<T, Rank, F>): this.Output {
+    power(other: Tensor<T, Rank, F, P>): this.Output {
         todo("Tensor.power")
     }
 
@@ -153,26 +187,27 @@ extension<T: int | float, comptime Rank: int, F: TensorFormat> of Tensor<T, Rank
     }
 }
 
-extension<T: int | boolean, comptime Rank: int, F: TensorFormat> of Tensor<T, Rank, F> implements
-    And<Tensor<T, Rank, F>>,
-    Or<Tensor<T, Rank, F>>,
-    Xor<Tensor<T, Rank, F>>,
+extension<T: int | boolean, comptime Rank: int, F: TensorFormat, P: Placement> of
+    Tensor<T, Rank, F, P> implements
+    And<Tensor<T, Rank, F, P>>,
+    Or<Tensor<T, Rank, F, P>>,
+    Xor<Tensor<T, Rank, F, P>>,
     Not {
     /// The elementwise tensor result type.
-    type Output = Tensor<T, Rank, F>;
+    type Output = Tensor<T, Rank, F, P>;
 
     /// Apply bitwise AND elementwise.
-    and(other: Tensor<T, Rank, F>): this.Output {
+    and(other: Tensor<T, Rank, F, P>): this.Output {
         todo("Tensor.and")
     }
 
     /// Apply bitwise OR elementwise.
-    or(other: Tensor<T, Rank, F>): this.Output {
+    or(other: Tensor<T, Rank, F, P>): this.Output {
         todo("Tensor.or")
     }
 
     /// Apply bitwise XOR elementwise.
-    xor(other: Tensor<T, Rank, F>): this.Output {
+    xor(other: Tensor<T, Rank, F, P>): this.Output {
         todo("Tensor.xor")
     }
 
@@ -182,7 +217,7 @@ extension<T: int | boolean, comptime Rank: int, F: TensorFormat> of Tensor<T, Ra
     }
 }
 
-extension<T, comptime Rank: int, F: TensorFormat> of Tensor<T, Rank, F> implements
+extension<T, comptime Rank: int, F: TensorFormat, P: Placement> of Tensor<T, Rank, F, P> implements
     Index<Coordinate<Rank>>,
     IndexSet<Coordinate<Rank>, T> {
     /// The indexed output type.
@@ -190,23 +225,18 @@ extension<T, comptime Rank: int, F: TensorFormat> of Tensor<T, Rank, F> implemen
 
     /// Return a view of this tensor.
     view<comptime A: Access = "readonly">(
-        this: WithAccess<&Tensor<T, Rank, F>, A>,
-    ): TensorView<T, Rank, F, A> {
+        this: WithAccess<&Tensor<T, Rank, F, P>, A>,
+    ): TensorView<T, Rank, F, P, A> {
         todo("Tensor.view")
     }
 
-    /// Return a tensor copy on `device`.
-    to(device: Device, options?: TensorOutputOptions<T, Rank, F>): Tensor<T, Rank, F> {
-        todo("Tensor.to")
-    }
-
     /// Return a tensor with the same buffer reinterpreted as `shape`.
-    reshape<comptime OutRank: int>(shape: Shape<OutRank>): Tensor<T, OutRank, F> {
+    reshape<comptime OutRank: int>(shape: Shape<OutRank>): Tensor<T, OutRank, F, P> {
         todo("Tensor.reshape")
     }
 
     /// Return a contiguous copy.
-    contiguous<Out: TensorFormat = Dense<MemoryOrder.RowMajor>>(): Tensor<T, Rank, Out> {
+    contiguous<Out: TensorFormat = Dense<MemoryOrder.RowMajor>>(): Tensor<T, Rank, Out, P> {
         todo("Tensor.contiguous")
     }
 
@@ -217,7 +247,7 @@ extension<T, comptime Rank: int, F: TensorFormat> of Tensor<T, Rank, F> implemen
 
     /// Borrow the element at `coordinate`.
     index<comptime A: Access = "readonly">(
-        this: WithAccess<&Tensor<T, Rank, F>, A>,
+        this: WithAccess<&Tensor<T, Rank, F, P>, A>,
         coordinate: Coordinate<Rank>,
     ): WithAccess<&T, A> {
         todo("Tensor.index")

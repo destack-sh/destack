@@ -11,6 +11,7 @@ import {
     TensorScatterOptions,
 } from "./options.ds";
 import { Axis, AxisSet, Coordinate, Permutation, Shape } from "./shape.ds";
+import { Placement } from "./sharding.ds";
 import { Tensor } from "./tensor.ds";
 import { TensorView } from "./view.ds";
 import { ConvolutionWindow, Padding, SliceWindow } from "./window.ds";
@@ -455,24 +456,24 @@ export declare function reformat<T, comptime Rank: int>(
 
 /// Fill `view` with `value`.
 @intrinsic("tensor.fill")
-export declare function fill<T, comptime Rank: int, F: TensorViewFormat>(
-    view: TensorView<T, Rank, F, "exclusive">,
+export declare function fill<T, comptime Rank: int, F: TensorViewFormat, P: Placement>(
+    view: TensorView<T, Rank, F, P, "exclusive">,
     value: T,
     options?: TensorExecutionOptions,
 ): void;
 
 /// Load one tensor element from `view`.
 @intrinsic("tensor.load")
-export declare function load<T, comptime Rank: int, F: TensorViewFormat>(
-    view: TensorView<T, Rank, F, "readonly">,
+export declare function load<T, comptime Rank: int, F: TensorViewFormat, P: Placement>(
+    view: TensorView<T, Rank, F, P, "readonly">,
     coordinate: Coordinate<Rank>,
     options?: TensorExecutionOptions,
 ): T;
 
 /// Store one tensor element into `view`.
 @intrinsic("tensor.store")
-export declare function store<T, comptime Rank: int, F: TensorViewFormat>(
-    view: TensorView<T, Rank, F, "exclusive">,
+export declare function store<T, comptime Rank: int, F: TensorViewFormat, P: Placement>(
+    view: TensorView<T, Rank, F, P, "exclusive">,
     coordinate: Coordinate<Rank>,
     value: T,
     options?: TensorExecutionOptions,

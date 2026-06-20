@@ -8,6 +8,7 @@ export {
     DeviceProperties,
     DeviceQuery,
 } from "./device.ds";
+export { Mesh, MeshAxis } from "./mesh.ds";
 export { Event, Stream } from "./stream.ds";
 export {
     Kernel,

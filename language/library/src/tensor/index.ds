@@ -1,5 +1,15 @@
 export { Axis, AxisSet, Coordinate, Extent, Permutation, Shape, Stride } from "./shape.ds";
 export {
+    Partial,
+    Placement,
+    Replicate,
+    Reduction,
+    Shard,
+    Sharding,
+    ShardingAxis,
+    Unsharded,
+} from "./sharding.ds";
+export {
     ColumnMajorFormat,
     Dense,
     MemoryOrder,
