@@ -1,5 +1,4 @@
 use destack_mir as mir;
-use destack_program as program;
 
 use crate::{Error, Result};
 use destack_program::vm::{Instruction, Op, Projection};
@@ -10,8 +9,8 @@ use super::op::{select_load_op, select_store_op};
 use super::pool::Pool;
 use super::projection::pointee_projection;
 use super::value::{
-    address_space_for_value, heap_pointee_type_for_storage_id, heap_pointee_type_for_value,
-    raw_pointee_type_for_storage_id, raw_pointee_type_for_value,
+    address_space_for_value, heap_pointee_type_for_value, heap_pointee_type_from_shape,
+    raw_pointee_type_for_value, raw_pointee_type_from_shape,
 };
 
 /// Encode one fixed byte offset into an instruction operand.
@@ -30,7 +29,7 @@ impl<'a> BlockLowerer<'a> {
         let local_slot = frame_local_slot(self, local)?;
 
         // move cell locals without runtime layout lookup
-        if destination_slot.is_cell && local_slot.is_cell {
+        if self.slot_is_cell(destination_slot) && self.slot_is_cell(local_slot) {
             return Ok(Instruction::new(
                 Op::MoveCell,
                 destination_slot.offset,
@@ -82,7 +81,7 @@ impl<'a> BlockLowerer<'a> {
         let value_slot = frame_value_slot(self, value)?;
 
         // move cell locals without runtime layout lookup
-        if local_slot.is_cell && value_slot.is_cell {
+        if self.slot_is_cell(local_slot) && self.slot_is_cell(value_slot) {
             return Ok(Instruction::new(
                 Op::MoveCell,
                 local_slot.offset,
@@ -116,7 +115,7 @@ impl<'a> BlockLowerer<'a> {
         Ok(Instruction::new(
             Op::StaticAddress,
             cell_offset(self, destination)?,
-            global.id,
+            self.index.static_id(global).0,
             0,
             0,
         ))
@@ -131,7 +130,7 @@ impl<'a> BlockLowerer<'a> {
         Ok(Instruction::new(
             Op::FunctionAddress,
             cell_offset(self, destination)?,
-            function.id,
+            self.program_function(function).0,
             0,
             0,
         ))
@@ -202,10 +201,13 @@ impl<'a> BlockLowerer<'a> {
 
     /// Return the lowered projection for a pointer value.
     fn pointee_projection_for_value(&self, pointer: mir::Value) -> Result<Projection> {
-        let pointee_type = heap_pointee_type_for_storage_id(self.value_shape_map(), pointer)
-            .or_else(|| raw_pointee_type_for_storage_id(self.value_shape_map(), pointer))
-            .or_else(|| heap_pointee_type_for_value(self.tree, self.value_type(), pointer))
-            .or_else(|| raw_pointee_type_for_value(self.tree, self.value_type(), pointer));
+        let pointee_type =
+            heap_pointee_type_from_shape(self.types, self.value_shape_map(), pointer)
+                .or_else(|| {
+                    raw_pointee_type_from_shape(self.types, self.value_shape_map(), pointer)
+                })
+                .or_else(|| heap_pointee_type_for_value(self.tree, self.value_type(), pointer))
+                .or_else(|| raw_pointee_type_for_value(self.tree, self.value_type(), pointer));
         pointee_type
             .and_then(|pointee_type| pointee_projection(self.tree, self.layouts(), pointee_type))
             .ok_or(Error::invalid_instruction())
@@ -216,7 +218,7 @@ impl<'a> BlockLowerer<'a> {
 pub(super) fn frame_value_slot<'a>(
     lowerer: &'a BlockLowerer<'_>,
     value: mir::Value,
-) -> Result<&'a program::FrameSlot> {
+) -> Result<&'a mir::FrameSlot> {
     lowerer
         .frame_layout
         .value(value.0)
@@ -227,7 +229,7 @@ pub(super) fn frame_value_slot<'a>(
 fn frame_local_slot<'a>(
     lowerer: &'a BlockLowerer<'_>,
     local: mir::LocalNodeId<mir::Local>,
-) -> Result<&'a program::FrameSlot> {
+) -> Result<&'a mir::FrameSlot> {
     let local = lowerer.local_index(local)?;
 
     lowerer

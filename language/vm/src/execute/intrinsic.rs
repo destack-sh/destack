@@ -1653,11 +1653,8 @@ impl Activation<'_> {
         }
 
         let caller_frame = &self.machine.frames[self.machine.frames.len() - 2];
-        let func_id = caller_frame.function().id as u64;
-        let block_id = caller_frame
-            .block_id(&self.machine.program)
-            .map_err(|error| self.machine.runtime_error(error))?
-            .id as u64;
+        let func_id = caller_frame.function().0 as u64;
+        let block_id = caller_frame.block as u64;
 
         let synthetic_addr = (func_id << 32) | block_id;
         Ok(Cell::uint(synthetic_addr, 64))

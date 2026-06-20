@@ -5,7 +5,7 @@ use crate::{Error, Result};
 use destack_program::vm::{
     BinaryFloat, BinaryFloatKernel, ElementBinaryKernel, ElementUnaryKernel, Instruction, Op,
     TensorBinary, TensorContiguousBinary, TensorContiguousUnary, TensorLayout, TensorUnary,
-    UnaryFloat, UnaryFloatKernel, ValueShape, VectorBinary, VectorUnary, value_shape_from_type,
+    UnaryFloat, UnaryFloatKernel, ValueShape, VectorBinary, VectorUnary,
 };
 
 use super::frame::{cell_offset, value_offset};
@@ -58,8 +58,9 @@ impl<'a> BlockLowerer<'a> {
         }
 
         // use direct packed operations when one register covers the vector
-        let element_layout =
-            value_shape_from_type(self.tree, element).ok_or(Error::invalid_instruction())?;
+        let element_layout = self
+            .value_shape_for_type(element)
+            .ok_or(Error::invalid_instruction())?;
         if let Some(op) = self
             .packed_vector(dest_element, element_count, dest_element_type)?
             .and_then(|shape| vector_packed_binary_op(operator, shape))
@@ -108,27 +109,14 @@ impl<'a> BlockLowerer<'a> {
         let right_type = self.value_type_for_value(right)?;
         let element = tensor_element_type(self.tree, left_type)
             .ok_or_else(|| Error::invalid_program("tensor binary element"))?;
-        let element_layout =
-            value_shape_from_type(self.tree, element).ok_or(Error::invalid_instruction())?;
+        let element_layout = self
+            .value_shape_for_type(element)
+            .ok_or(Error::invalid_instruction())?;
         let kernel =
             element_binary_kernel(operator, element_layout).ok_or(Error::invalid_instruction())?;
-        let left_layout = TensorLayout::from_type(self.tree, self.layouts(), left_type)?;
-        let right_layout = TensorLayout::from_type(self.tree, self.layouts(), right_type)?;
-        let dest_layout = TensorLayout::from_type(self.tree, self.layouts(), destination_type)?;
-
-        // use direct packed operations for register-sized contiguous tensors
-        if same_contiguous_tensor_order(&dest_layout, &left_layout, &right_layout)
-            && let Some(op) =
-                tensor_packed_binary_op(operator, element_layout, dest_layout.element_span_len)
-        {
-            return Ok(Instruction::new(
-                op,
-                value_offset(self, destination)?,
-                value_offset(self, left)?,
-                value_offset(self, right)?,
-                0,
-            ));
-        }
+        let left_layout = self.tensor_layout_from_type(left_type)?;
+        let right_layout = self.tensor_layout_from_type(right_type)?;
+        let dest_layout = self.tensor_layout_from_type(destination_type)?;
 
         // use one contiguous descriptor when all views share physical order
         if same_contiguous_tensor_order(&dest_layout, &left_layout, &right_layout) {
@@ -180,7 +168,7 @@ impl<'a> BlockLowerer<'a> {
         let layout = self
             .value_shape_map()
             .get(left)
-            .or_else(|| value_shape_from_type(self.tree, left_type));
+            .or_else(|| self.value_shape_for_type(left_type));
         if let Some(ValueShape::Int { width, signed }) = layout
             && let Some(op) = select_integer_op(operator, signed, width)
         {
@@ -197,8 +185,7 @@ impl<'a> BlockLowerer<'a> {
         if let Some(ValueShape::Float { format }) = layout
             && !matches!(format, mir::FloatType::Float32 | mir::FloatType::Float64)
         {
-            let kernel =
-                BinaryFloatKernel::from_mir(operator).ok_or(Error::invalid_instruction())?;
+            let kernel = BinaryFloatKernel::select(operator).ok_or(Error::invalid_instruction())?;
             let operation = BinaryFloat::new(format, kernel);
 
             return Ok(Instruction::new(
@@ -274,8 +261,9 @@ impl<'a> BlockLowerer<'a> {
         }
 
         // use direct packed operations when one register covers the vector
-        let element_layout =
-            value_shape_from_type(self.tree, element).ok_or(Error::invalid_instruction())?;
+        let element_layout = self
+            .value_shape_for_type(element)
+            .ok_or(Error::invalid_instruction())?;
         if let Some(op) = self
             .packed_vector(dest_element, element_count, element)?
             .and_then(|shape| vector_packed_unary_op(operator, shape))
@@ -320,26 +308,13 @@ impl<'a> BlockLowerer<'a> {
         // decode tensor element and layouts
         let element = tensor_element_type(self.tree, argument_type)
             .ok_or_else(|| Error::invalid_program("tensor unary element"))?;
-        let element_layout =
-            value_shape_from_type(self.tree, element).ok_or(Error::invalid_instruction())?;
+        let element_layout = self
+            .value_shape_for_type(element)
+            .ok_or(Error::invalid_instruction())?;
         let kernel =
             element_unary_kernel(operator, element_layout).ok_or(Error::invalid_instruction())?;
-        let argument_layout = TensorLayout::from_type(self.tree, self.layouts(), argument_type)?;
-        let dest_layout = TensorLayout::from_type(self.tree, self.layouts(), destination_type)?;
-
-        // use direct packed operations for register-sized contiguous tensors
-        if same_contiguous_tensor_unary_order(&dest_layout, &argument_layout)
-            && let Some(op) =
-                tensor_packed_unary_op(operator, element_layout, dest_layout.element_span_len)
-        {
-            return Ok(Instruction::new(
-                op,
-                value_offset(self, destination)?,
-                value_offset(self, argument)?,
-                0,
-                0,
-            ));
-        }
+        let argument_layout = self.tensor_layout_from_type(argument_type)?;
+        let dest_layout = self.tensor_layout_from_type(destination_type)?;
 
         // use one contiguous descriptor when both views share physical order
         if same_contiguous_tensor_unary_order(&dest_layout, &argument_layout) {
@@ -386,7 +361,7 @@ impl<'a> BlockLowerer<'a> {
         let layout = self
             .value_shape_map()
             .get(argument)
-            .or_else(|| value_shape_from_type(self.tree, argument_type));
+            .or_else(|| self.value_shape_for_type(argument_type));
         if let Some(ValueShape::Int { width, signed }) = layout
             && let Some(op) = select_integer_unary_op(operator, signed, width)
         {
@@ -403,7 +378,7 @@ impl<'a> BlockLowerer<'a> {
         if let Some(ValueShape::Float { format }) = layout
             && !matches!(format, mir::FloatType::Float32 | mir::FloatType::Float64)
         {
-            let kernel = UnaryFloatKernel::from_mir(operator).ok_or(Error::invalid_instruction())?;
+            let kernel = UnaryFloatKernel::select(operator).ok_or(Error::invalid_instruction())?;
             let operation = UnaryFloat::new(format, kernel);
 
             return Ok(Instruction::new(
@@ -423,8 +398,7 @@ impl<'a> BlockLowerer<'a> {
 
         // wide integers use frame byte addresses
         if is_wide_unary_op(op) {
-            let Some(ValueShape::Int { width, signed }) =
-                value_shape_from_type(self.tree, argument_type)
+            let Some(ValueShape::Int { width, signed }) = self.value_shape_for_type(argument_type)
             else {
                 return Err(Error::invalid_instruction());
             };
@@ -683,75 +657,6 @@ fn vector_packed_unary_op(operator: mir::UnaryOperator, shape: PackedVector) -> 
         (mir::UnaryOperator::Not, PackedVector::I64x2 | PackedVector::U64x2) => Op::PackedNot64x2,
         (mir::UnaryOperator::FloatNegate, PackedVector::F32x4) => Op::PackedNegF32x4,
         (mir::UnaryOperator::FloatNegate, PackedVector::F64x2) => Op::PackedNegF64x2,
-        _ => return None,
-    })
-}
-
-/// Select a direct packed tensor binary opcode.
-fn tensor_packed_binary_op(
-    operator: mir::BinaryOperator,
-    layout: ValueShape,
-    element_count: usize,
-) -> Option<Op> {
-    let shape = packed_tensor_shape(layout, element_count)?;
-
-    vector_packed_binary_op(operator, shape)
-}
-
-/// Select a direct packed tensor unary opcode.
-fn tensor_packed_unary_op(
-    operator: mir::UnaryOperator,
-    layout: ValueShape,
-    element_count: usize,
-) -> Option<Op> {
-    let shape = packed_tensor_shape(layout, element_count)?;
-
-    vector_packed_unary_op(operator, shape)
-}
-
-/// Return the packed vector shape for one register-sized contiguous tensor.
-fn packed_tensor_shape(layout: ValueShape, element_count: usize) -> Option<PackedVector> {
-    Some(match (layout, element_count) {
-        (
-            ValueShape::Int {
-                width: 32,
-                signed: true,
-            },
-            4,
-        ) => PackedVector::I32x4,
-        (
-            ValueShape::Int {
-                width: 32,
-                signed: false,
-            },
-            4,
-        ) => PackedVector::U32x4,
-        (
-            ValueShape::Int {
-                width: 64,
-                signed: true,
-            },
-            2,
-        ) => PackedVector::I64x2,
-        (
-            ValueShape::Int {
-                width: 64,
-                signed: false,
-            },
-            2,
-        ) => PackedVector::U64x2,
-        (
-            ValueShape::Float {
-                format: mir::FloatType::Float32,
-            },
-            4,
-        ) => PackedVector::F32x4,
-        (
-            ValueShape::Float {
-                format: mir::FloatType::Float64,
-            },
-            2,
-        ) => PackedVector::F64x2,
         _ => return None,
     })
 }

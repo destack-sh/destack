@@ -1,7 +1,7 @@
 use destack_heap::{HeapError, HeapReferenceKind};
 use destack_memory::MemoryError;
-use destack_mir::{Block, Function, Global, Local, LocalNodeId, Value};
-use destack_program::vm;
+use destack_mir::{Block, Local, LocalNodeId, Value};
+use destack_program::{FunctionId, StaticId, vm};
 use serde::{Deserialize, Serialize};
 
 /// One VM reference space.
@@ -34,7 +34,7 @@ pub enum Error {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ProgramError {
     /// Attempted to execute an undefined function.
-    UndefinedFunction { function: LocalNodeId<Function> },
+    UndefinedFunction { function: FunctionId },
     /// Attempted to access an undefined value.
     UndefinedValue { value: Value },
     /// Attempted to jump to an undefined block.
@@ -42,7 +42,7 @@ pub enum ProgramError {
     /// Attempted to access an undefined local variable.
     UndefinedLocal { local: LocalNodeId<Local> },
     /// Attempted to access an undefined global variable.
-    UndefinedGlobal { global: LocalNodeId<Global> },
+    UndefinedGlobal { global: StaticId },
     /// Type mismatch during execution.
     TypeMismatch { expected: String, actual: String },
     /// Invalid instruction.
@@ -81,7 +81,7 @@ pub enum Trap {
     /// Reference space does not match the pointer value.
     InvalidSpace { expected: String, actual: String },
     /// Attempted to write to an immutable global.
-    ImmutableGlobalWrite { global: LocalNodeId<Global> },
+    ImmutableGlobalWrite { global: StaticId },
     /// Attempted to write through a readonly reference.
     ImmutableReferenceWrite { reference: String },
     /// Reached unreachable code.
@@ -133,7 +133,7 @@ pub enum ResourceError {
 impl Error {
     /// Return an undefined function error.
     #[inline]
-    pub fn undefined_function(function: LocalNodeId<Function>) -> Self {
+    pub fn undefined_function(function: FunctionId) -> Self {
         Self::Program {
             reason: ProgramError::UndefinedFunction { function },
         }
@@ -165,7 +165,7 @@ impl Error {
 
     /// Return an undefined global error.
     #[inline]
-    pub fn undefined_global(global: LocalNodeId<Global>) -> Self {
+    pub fn undefined_global(global: StaticId) -> Self {
         Self::Program {
             reason: ProgramError::UndefinedGlobal { global },
         }
@@ -381,7 +381,7 @@ impl Error {
 
     /// Return an immutable global write error.
     #[inline]
-    pub fn immutable_global_write(global: LocalNodeId<Global>) -> Self {
+    pub fn immutable_global_write(global: StaticId) -> Self {
         Self::Trap {
             reason: Trap::ImmutableGlobalWrite { global },
         }

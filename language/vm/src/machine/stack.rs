@@ -1,9 +1,9 @@
 use destack_heap::DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES;
 use destack_memory::AddressSpace;
-use serde::{Deserialize, Serialize};
 
 use crate::Cell;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
+use destack_program::StackImage;
 
 /// Page-backed byte stack for one machine.
 #[derive(Debug)]
@@ -171,38 +171,5 @@ impl Stack {
             .write_bytes(offset, bytes)
             .map_err(Error::from)
             .map_err(RuntimeError::new)
-    }
-}
-
-/// Immutable stack byte image.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct StackImage {
-    /// The captured live stack bytes.
-    pub bytes: Vec<u8>,
-}
-
-impl StackImage {
-    /// Return the live byte length.
-    pub const fn len(&self) -> usize {
-        self.bytes.len()
-    }
-
-    /// Return whether this stack image has no live bytes.
-    pub const fn is_empty(&self) -> bool {
-        self.bytes.is_empty()
-    }
-
-    /// Borrow one frame byte range.
-    pub(crate) fn frame_bytes(&self, offset: usize, byte_len: usize) -> Option<&[u8]> {
-        let end = offset.checked_add(byte_len)?;
-
-        self.bytes.get(offset..end)
-    }
-
-    /// Borrow one frame byte range mutably.
-    pub(crate) fn frame_bytes_mut(&mut self, offset: usize, byte_len: usize) -> Option<&mut [u8]> {
-        let end = offset.checked_add(byte_len)?;
-
-        self.bytes.get_mut(offset..end)
     }
 }

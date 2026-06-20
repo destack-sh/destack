@@ -1,5 +1,4 @@
-use destack_mir as mir;
-use destack_program::{StaticAddress, StaticSpace};
+use destack_program::{StaticAddress, StaticId, StaticSpace};
 
 use super::Activation;
 use crate::diagnostic::Error;
@@ -31,17 +30,11 @@ impl Activation<'_> {
 
     /// Return the static address for one global.
     #[inline]
-    pub(crate) fn static_address(
-        &self,
-        global: mir::LocalNodeId<mir::Global>,
-    ) -> Option<StaticAddress> {
+    pub(crate) fn static_address(&self, id: StaticId) -> Option<StaticAddress> {
         self.local_statics()
-            .address(self.machine.program.static_id(global))
-            .or_else(|| {
-                self.shared_statics()
-                    .address(self.machine.program.static_id(global))
-            })
-            .or_else(|| self.machine.program.static_address(global))
+            .address(id)
+            .or_else(|| self.shared_statics().address(id))
+            .or_else(|| self.machine.program.static_address(id))
     }
 
     /// Resolve one static byte range to a native address.
@@ -88,16 +81,12 @@ impl Activation<'_> {
 
         // reject writes into immutable local statics
         if self.local_statics().owns_address_range(address, byte_len) {
-            return Err(Error::immutable_global_write(mir::LocalNodeId::new(
-                address.id().0,
-            )));
+            return Err(Error::immutable_global_write(address.id()));
         }
 
         // reject writes into immutable shared statics
         if self.shared_statics().owns_address_range(address, byte_len) {
-            return Err(Error::immutable_global_write(mir::LocalNodeId::new(
-                address.id().0,
-            )));
+            return Err(Error::immutable_global_write(address.id()));
         }
 
         // reject writes into immutable program constants
@@ -107,9 +96,7 @@ impl Activation<'_> {
             .constants()
             .owns_address_range(address, byte_len)
         {
-            return Err(Error::immutable_global_write(mir::LocalNodeId::new(
-                address.id().0,
-            )));
+            return Err(Error::immutable_global_write(address.id()));
         }
 
         Err(Error::invalid_instruction())

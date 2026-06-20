@@ -2,10 +2,11 @@ use destack_heap::{
     AllocationCache, AllocationShape, AllocationSite, Heap, HeapReference, HeapResult, SharedHeap,
     SharedHeapReference, SmallAllocationPlan, SmallAllocationSite, repeated_layout,
 };
-use destack_mir::{LayoutId, TraceId};
-use destack_program::vm::{AllocationSiteId, SmallAllocationSiteId};
+use destack_mir::{TraceId, TraceMap};
+use destack_program::vm::{AllocationSiteId, SmallAllocationSiteId, TensorLayout};
 
 use super::Activation;
+use crate::Cell;
 use crate::diagnostic::Error;
 
 impl Activation<'_> {
@@ -249,19 +250,18 @@ impl Activation<'_> {
             .map_err(Error::from)
     }
 
-    /// Allocate one byte-initialized local heap payload from one program layout id.
+    /// Allocate one zeroed local tensor storage.
     #[inline(always)]
-    pub(crate) fn allocate_heap_layout_bytes(
+    pub(crate) fn allocate_zeroed_heap_tensor(
         &mut self,
-        layout_id: LayoutId,
-        bytes: &[u8],
+        layout: &TensorLayout,
     ) -> Result<HeapReference, Error> {
-        let program = self.machine.program.clone();
-        let shape = program.allocation_shape(layout_id)?;
+        let trace_map = TraceMap::empty();
+        let shape = AllocationShape::new(layout.byte_len, Cell::BYTE_LEN, None, &trace_map);
         let site = self.heap().options().allocation_site_for_shape(shape);
         let heap = self.heap_mut();
 
-        heap.allocate_bytes(site, shape.trace_map, bytes)
+        heap.allocate_zeroed(site, shape.trace_map)
             .map_err(Error::from)
     }
 

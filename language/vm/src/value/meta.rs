@@ -35,9 +35,9 @@ pub enum ReferenceSpace {
     Static,
 }
 
-impl ReferenceSpace {
-    /// Map a MIR space into a VM reference space.
-    pub fn from_mir(space: mir::Space) -> Self {
+impl From<mir::Space> for ReferenceSpace {
+    /// Convert a MIR storage space into a lowered reference space.
+    fn from(space: mir::Space) -> Self {
         match space {
             mir::Space::Local => ReferenceSpace::Local,
             mir::Space::Shared => ReferenceSpace::Shared,
@@ -45,7 +45,9 @@ impl ReferenceSpace {
             mir::Space::Static => ReferenceSpace::Static,
         }
     }
+}
 
+impl ReferenceSpace {
     /// Decode a reference space from packed bits.
     pub fn from_bits(bits: u8) -> Self {
         match bits {
@@ -111,7 +113,7 @@ impl ReferenceMeta {
             mir::Access::Mutable => 1,
             mir::Access::Exclusive => 2,
         };
-        let space_bits = u16::from(ReferenceSpace::from_mir(space).to_bits());
+        let space_bits = u16::from(ReferenceSpace::from(space).to_bits());
         let nullability_bits = match nullability {
             mir::Nullability::None => 0,
             mir::Nullability::Null => 1,

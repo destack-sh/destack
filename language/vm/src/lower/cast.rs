@@ -1,10 +1,10 @@
 use destack_mir as mir;
 
 use crate::{Error, Result};
+use destack_program::TypeTable;
 use destack_program::vm::{
     AggregateSelect, FloatCast, FloatToIntCast, Instruction, IntToFloatCast, IntegerCast, Op,
     PointerCast, TensorViewCast, ValueShape, WideIntegerCast, cell_layout_from_type,
-    value_shape_from_type,
 };
 
 use super::frame::{cell_offset, value_offset};
@@ -50,14 +50,16 @@ impl<'a> BlockLowerer<'a> {
                 cell_cast_op(operator)?,
                 cell_offset(self, destination)?,
                 cell_offset(self, argument)?,
-                cell_cast_field(self.tree, operator, argument_type, to_type)?,
+                cell_cast_field(self.types, self.tree, operator, argument_type, to_type)?,
                 0,
             ));
         }
 
         // wide integer casts need explicit source and destination widths
-        let (source_width, source_signed) = integer_layout(self.tree, argument_type)?;
-        let (dest_width, dest_signed) = integer_layout(self.tree, to_type)?;
+        let (source_width, source_signed) =
+            integer_layout(self.types, argument_type, self.tree.pointer_bytes())?;
+        let (dest_width, dest_signed) =
+            integer_layout(self.types, to_type, self.tree.pointer_bytes())?;
         let source_signed = wide_source_signed(operator, source_signed);
         let cast = WideIntegerCast::new(source_width, dest_width, source_signed, false);
 
@@ -156,6 +158,7 @@ fn cell_cast_op(operator: mir::CastOperator) -> Result<Op> {
 
 /// Return one integer value shape.
 fn cell_cast_field(
+    types: &TypeTable,
     tree: &mir::Tree,
     operator: mir::CastOperator,
     from_type: mir::LocalNodeId<mir::Type>,
@@ -167,7 +170,7 @@ fn cell_cast_field(
         | mir::CastOperator::ZeroExtend
         | mir::CastOperator::SignExtend
         | mir::CastOperator::PointerToInt => {
-            let (width, signed) = integer_layout(tree, to_type)?;
+            let (width, signed) = integer_layout(types, to_type, tree.pointer_bytes())?;
 
             Ok(IntegerCast::new(width, signed)?.field())
         }
@@ -176,7 +179,7 @@ fn cell_cast_field(
         | mir::CastOperator::FloatToSignedIntSaturating
         | mir::CastOperator::FloatToUnsignedIntSaturating => {
             let source = cell_layout_from_type(tree, from_type).ok_or(Error::invalid_cast())?;
-            let (width, _) = integer_layout(tree, to_type)?;
+            let (width, _) = integer_layout(types, to_type, tree.pointer_bytes())?;
 
             Ok(FloatToIntCast::new(source, width)?.field())
         }
@@ -202,8 +205,12 @@ fn cell_cast_field(
 }
 
 /// Return one cell cast operation.
-fn integer_layout(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Result<(u16, bool)> {
-    match value_shape_from_type(tree, ty) {
+fn integer_layout(
+    types: &TypeTable,
+    ty: mir::LocalNodeId<mir::Type>,
+    pointer_bytes: u8,
+) -> Result<(u16, bool)> {
+    match types.value_shape_for_mir(ty, pointer_bytes) {
         Some(ValueShape::Int { width, signed }) => Ok((width, signed)),
         actual => Err(Error::type_mismatch(
             "integer cast value",

@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use destack_program::FunctionId;
+
 /// Address or handle for executable function code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[repr(transparent)]
@@ -18,10 +20,18 @@ impl FunctionPointer {
         self.0
     }
 
-    /// Return the program-local function index.
+    /// Return the program function id.
     #[inline]
-    pub const fn function_index(self) -> u32 {
-        self.0 as u32
+    pub const fn function(self) -> FunctionId {
+        FunctionId(self.0 as u32)
+    }
+}
+
+impl From<FunctionId> for FunctionPointer {
+    /// Convert one program function id into a VM function pointer.
+    #[inline]
+    fn from(function: FunctionId) -> Self {
+        Self(function.0 as usize)
     }
 }
 

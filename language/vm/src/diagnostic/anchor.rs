@@ -1,4 +1,5 @@
 use destack_mir::{Block, Function, Instruction, LocalNodeId};
+use destack_program::FunctionId;
 
 /// Anchor for MIR-level error locations.
 #[derive(Debug, Clone, PartialEq)]
@@ -29,7 +30,7 @@ pub enum DiagnosticAnchor {
 #[derive(Debug, Clone, PartialEq)]
 pub struct StackTraceFrame {
     /// The function being executed.
-    pub function: LocalNodeId<Function>,
+    pub function: FunctionId,
     /// The block being executed.
     pub block: LocalNodeId<Block>,
     /// Function name, if available.

@@ -4,7 +4,7 @@ use crate::lower::allocation::AllocationInitialization;
 use crate::{Error, Result};
 use destack_program::vm::{
     BoundsCheck, Check, Instruction, NarrowCheck, Op, OverflowCheck, ShiftRangeCheck, ValueShape,
-    VariantCheck, repr_type,
+    VariantCheck,
 };
 
 use super::frame::{cell_offset, value_offset};
@@ -361,7 +361,7 @@ impl<'a> BlockLowerer<'a> {
                 Instruction::new(
                     op,
                     value_offset(self, value)?,
-                    value_type.id,
+                    self.index.type_id(value_type).0,
                     frame_state.0,
                     0,
                 )
@@ -400,7 +400,7 @@ fn switch_layout_field(width: u16, is_signed: bool) -> u32 {
 /// Return one checked cell integer layout.
 fn checked_integer(lowerer: &BlockLowerer<'_>, value: mir::Value) -> Result<(u8, bool)> {
     let value_type = lowerer.value_type_for_value(value)?;
-    let value_type = repr_type(lowerer.tree, value_type);
+    let value_type = lowerer.tree.repr_type(value_type);
 
     match lowerer.tree.get(value_type) {
         mir::Type::Int { width, is_signed } if *width > 0 && *width <= u64::BITS as u16 => {

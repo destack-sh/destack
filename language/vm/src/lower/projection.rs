@@ -2,15 +2,143 @@ use std::collections::HashMap;
 
 use destack_mir as mir;
 
-use destack_program::vm::{
-    AddressSpace, CellLayout, Layout, Projection, SliceProjection, SlotProjection, ValueShape,
-    address_space_from_reference, cell_layout_from_address_space, cell_layout_from_type, repr_type,
+use super::layout::ValueLayout;
+use super::lower::BlockLowerer;
+use super::value::{
+    heap_pointee_type_for_value, heap_pointee_type_from_shape, raw_pointee_type_for_value,
+    raw_pointee_type_from_shape, value_type_from_table,
 };
+use crate::{Error, Result};
+use destack_program::TypeTable;
+use destack_program::vm::{
+    AddressSpace, CellLayout, Projection, SliceProjection, SlotProjection, ValueShape,
+    address_space_from_reference, cell_layout_from_address_space, cell_layout_from_type,
+};
+
+impl<'a> BlockLowerer<'a> {
+    /// Return one lowered layout by MIR type.
+    pub(super) fn layout_for_type(
+        &self,
+        value_type: mir::LocalNodeId<mir::Type>,
+    ) -> Result<&ValueLayout> {
+        self.layouts().get(&value_type).ok_or_else(|| {
+            Error::internal(format!("missing lowered layout for type: {value_type:?}"))
+        })
+    }
+
+    /// Return one lowered field count for one value.
+    pub(super) fn field_count_for_value(&self, value: mir::Value) -> Result<u32> {
+        if let Some(count) = self
+            .value_shape_map()
+            .get(value)
+            .and_then(|layout| field_count_for_layout(self.types, self.tree, layout))
+        {
+            return Ok(count);
+        }
+
+        let value_type = self.projection_type_for_value(value)?;
+        let Some(value_type) = value_type else {
+            return Err(Error::invalid_instruction());
+        };
+
+        self.field_count_for_type(value_type)
+    }
+
+    /// Return one lowered array length for one value.
+    pub(super) fn array_length_for_value(&self, value: mir::Value) -> Result<u64> {
+        if let Some(length) = self
+            .value_shape_map()
+            .get(value)
+            .and_then(|layout| array_element_count(self.types, self.tree, layout))
+        {
+            return Ok(length);
+        }
+
+        let value_type = self.projection_type_for_value(value)?;
+        let Some(value_type) = value_type else {
+            return Err(Error::invalid_instruction());
+        };
+
+        self.array_length_for_type(value_type)
+    }
+
+    /// Return the type projected by one value.
+    pub(super) fn projection_type_for_value(
+        &self,
+        value: mir::Value,
+    ) -> Result<Option<mir::LocalNodeId<mir::Type>>> {
+        let pointee_type = heap_pointee_type_from_shape(self.types, self.value_shape_map(), value)
+            .or_else(|| raw_pointee_type_from_shape(self.types, self.value_shape_map(), value))
+            .or_else(|| heap_pointee_type_for_value(self.tree, self.value_type(), value))
+            .or_else(|| raw_pointee_type_for_value(self.tree, self.value_type(), value));
+
+        if pointee_type.is_some() {
+            return Ok(pointee_type);
+        }
+
+        Ok(Some(self.value_type_for_value(value)?))
+    }
+
+    /// Return one lowered field projection for a value.
+    pub(super) fn field_projection_for_value(
+        &self,
+        value: mir::Value,
+        index: u32,
+    ) -> Result<Projection> {
+        let field_count = self.field_count_for_value(value)? as usize;
+        let value_type = self.projection_type_for_value(value)?;
+        let Some(value_type) = value_type else {
+            return Err(Error::invalid_field_access(index, field_count));
+        };
+        field_projection(self.tree, self.layouts(), value_type, index)
+            .ok_or(Error::invalid_field_access(index, field_count))
+    }
+
+    /// Return one lowered element projection for a value.
+    pub(super) fn element_projection_for_value(&self, value: mir::Value) -> Result<Projection> {
+        let value_type = self.projection_type_for_value(value)?;
+        let Some(value_type) = value_type else {
+            return Err(Error::invalid_instruction());
+        };
+        element_projection(self.tree, self.layouts(), value_type)
+            .ok_or(Error::invalid_instruction())
+    }
+
+    /// Return one field count from a concrete type.
+    fn field_count_for_type(&self, value_type: mir::LocalNodeId<mir::Type>) -> Result<u32> {
+        match self.tree.get(value_type) {
+            mir::Type::Struct { fields, copy: _ } => {
+                u32::try_from(fields.len()).map_err(|_| Error::invalid_instruction())
+            }
+            mir::Type::Tuple { elements, copy: _ } => {
+                u32::try_from(elements.len()).map_err(|_| Error::invalid_instruction())
+            }
+            _ => Err(Error::invalid_instruction()),
+        }
+    }
+
+    /// Return one array length from a concrete type.
+    fn array_length_for_type(&self, value_type: mir::LocalNodeId<mir::Type>) -> Result<u64> {
+        match self.tree.get(value_type) {
+            mir::Type::FixedArray { length, .. } => Ok(*length),
+            _ => Err(Error::invalid_instruction()),
+        }
+    }
+
+    /// Return the MIR type for one value.
+    pub(super) fn value_type_for_value(
+        &self,
+        value: mir::Value,
+    ) -> Result<mir::LocalNodeId<mir::Type>> {
+        value_type_from_table(value, self.value_type())
+            .ok_or_else(|| Error::internal(format!("missing value type for {value:?}")))
+    }
+}
 
 /// Build one field projection from one compiled layout.
 pub(super) fn field_projection(
     tree: &mir::Tree,
-    layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, ValueLayout>,
     pointee_type: mir::LocalNodeId<mir::Type>,
     index: u32,
 ) -> Option<Projection> {
@@ -49,11 +177,11 @@ pub(super) fn field_projection(
 /// Build the vtable projection for one class receiver.
 pub(super) fn virtual_table_projection(
     tree: &mir::Tree,
-    layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, ValueLayout>,
     receiver_type: Option<mir::LocalNodeId<mir::Type>>,
 ) -> Option<Projection> {
     let receiver_type = receiver_type?;
-    let raw_layout = tree.type_layout(repr_type(tree, receiver_type))?;
+    let raw_layout = tree.type_layout(tree.repr_type(receiver_type))?;
     let mir::LayoutShape::Object(_) = &raw_layout.shape else {
         return None;
     };
@@ -64,11 +192,11 @@ pub(super) fn virtual_table_projection(
 /// Build the dispatch-table projection for one dynamic receiver.
 pub(super) fn dynamic_table_projection(
     tree: &mir::Tree,
-    layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, ValueLayout>,
     receiver_type: Option<mir::LocalNodeId<mir::Type>>,
 ) -> Option<Projection> {
     let receiver_type = receiver_type?;
-    let raw_layout = tree.type_layout(repr_type(tree, receiver_type))?;
+    let raw_layout = tree.type_layout(tree.repr_type(receiver_type))?;
     let dispatch_offset = raw_layout.dynamic_dispatch_offset()?;
 
     field_projection_at_offset(tree, layouts, receiver_type, dispatch_offset as usize)
@@ -77,7 +205,7 @@ pub(super) fn dynamic_table_projection(
 /// Build one field projection from a lowered byte offset.
 fn field_projection_at_offset(
     tree: &mir::Tree,
-    layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, ValueLayout>,
     pointee_type: mir::LocalNodeId<mir::Type>,
     byte_offset: usize,
 ) -> Option<Projection> {
@@ -99,7 +227,7 @@ fn field_projection_at_offset(
 /// Build one element projection from one compiled layout.
 pub(super) fn element_projection(
     tree: &mir::Tree,
-    layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, ValueLayout>,
     pointee_type: mir::LocalNodeId<mir::Type>,
 ) -> Option<Projection> {
     // resolve the pointee element layout first
@@ -122,7 +250,7 @@ pub(super) fn element_projection(
 /// Build one slice projection from one slice descriptor type.
 pub(super) fn slice_projection(
     tree: &mir::Tree,
-    layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, ValueLayout>,
     slice_type: mir::LocalNodeId<mir::Type>,
 ) -> Option<SliceProjection> {
     let mir::Type::Slice {
@@ -130,7 +258,7 @@ pub(super) fn slice_projection(
         kind,
         space,
         ..
-    } = tree.get(repr_type(tree, slice_type))
+    } = tree.get(tree.repr_type(slice_type))
     else {
         return None;
     };
@@ -169,7 +297,7 @@ pub(super) fn slice_element_address_space(
     tree: &mir::Tree,
     slice_type: mir::LocalNodeId<mir::Type>,
 ) -> Option<AddressSpace> {
-    let mir::Type::Slice { kind, space, .. } = tree.get(repr_type(tree, slice_type)) else {
+    let mir::Type::Slice { kind, space, .. } = tree.get(tree.repr_type(slice_type)) else {
         return None;
     };
 
@@ -179,7 +307,7 @@ pub(super) fn slice_element_address_space(
 /// Build one pointee projection from one compiled layout.
 pub(super) fn pointee_projection(
     tree: &mir::Tree,
-    layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, ValueLayout>,
     pointee_type: mir::LocalNodeId<mir::Type>,
 ) -> Option<Projection> {
     // resolve the pointee layout directly
@@ -197,7 +325,7 @@ pub(super) fn pointee_projection(
 /// Build one tensor element projection from one compiled element layout.
 pub(super) fn tensor_element_projection(
     tree: &mir::Tree,
-    layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, ValueLayout>,
     element_type: mir::LocalNodeId<mir::Type>,
 ) -> Option<Projection> {
     // resolve the lowered tensor element layout directly
@@ -218,7 +346,7 @@ pub(super) fn tensor_view_address_space(
     tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Option<AddressSpace> {
-    match tree.get(repr_type(tree, ty)) {
+    match tree.get(tree.repr_type(ty)) {
         mir::Type::Tensor { .. } => Some(AddressSpace::Local),
         mir::Type::TensorView { kind, space, .. } => {
             Some(address_space_from_reference(space.clone(), *kind))
@@ -230,10 +358,10 @@ pub(super) fn tensor_view_address_space(
 /// Report whether one compiled layout stays scalar in lowered memory ops.
 fn access_cell_layout(
     tree: &mir::Tree,
-    layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, ValueLayout>,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Option<CellLayout> {
-    if !layouts.get(&ty).is_some_and(Layout::is_cell) {
+    if !layouts.get(&ty).is_some_and(ValueLayout::is_cell) {
         return None;
     }
 
@@ -245,7 +373,7 @@ pub(super) fn tensor_element_type(
     tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
-    let ty = repr_type(tree, ty);
+    let ty = tree.repr_type(ty);
 
     match tree.get(ty) {
         mir::Type::Tensor { element, .. } | mir::Type::TensorView { element, .. } => Some(*element),
@@ -254,14 +382,18 @@ pub(super) fn tensor_element_type(
 }
 
 /// Resolve the field count for a struct or tuple layout.
-pub(super) fn field_count_for_layout(tree: &mir::Tree, layout: ValueShape) -> Option<u32> {
+pub(super) fn field_count_for_layout(
+    types: &TypeTable,
+    tree: &mir::Tree,
+    layout: ValueShape,
+) -> Option<u32> {
     match layout {
-        ValueShape::Aggregate { ty } => match tree.get(ty) {
+        ValueShape::Aggregate { ty } => match tree.get(types.mir_type_id(ty)?) {
             mir::Type::Struct { fields, copy: _ } => u32::try_from(fields.len()).ok(),
             mir::Type::Tuple { elements, copy: _ } => u32::try_from(elements.len()).ok(),
             _ => None,
         },
-        ValueShape::Pointer { pointee, .. } => match tree.get(pointee) {
+        ValueShape::Pointer { pointee, .. } => match tree.get(types.mir_type_id(pointee)?) {
             mir::Type::Struct { fields, copy: _ } => u32::try_from(fields.len()).ok(),
             mir::Type::Tuple { elements, copy: _ } => u32::try_from(elements.len()).ok(),
             _ => None,
@@ -271,14 +403,18 @@ pub(super) fn field_count_for_layout(tree: &mir::Tree, layout: ValueShape) -> Op
 }
 
 /// Resolve the element count for an array layout.
-pub(super) fn array_element_count(tree: &mir::Tree, layout: ValueShape) -> Option<u64> {
+pub(super) fn array_element_count(
+    types: &TypeTable,
+    tree: &mir::Tree,
+    layout: ValueShape,
+) -> Option<u64> {
     match layout {
         ValueShape::Array { length, .. } => Some(length),
-        ValueShape::Aggregate { ty } => match tree.get(ty) {
+        ValueShape::Aggregate { ty } => match tree.get(types.mir_type_id(ty)?) {
             mir::Type::FixedArray { length, .. } => Some(*length),
             _ => None,
         },
-        ValueShape::Pointer { pointee, .. } => match tree.get(pointee) {
+        ValueShape::Pointer { pointee, .. } => match tree.get(types.mir_type_id(pointee)?) {
             mir::Type::FixedArray { length, .. } => Some(*length),
             _ => None,
         },

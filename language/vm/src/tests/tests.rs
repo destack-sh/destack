@@ -5,13 +5,13 @@ use destack_heap::{
     HeapLimits, HeapOptions, HeapReference, SharedHeap, SharedHeapLimits, SharedHeapOptions,
 };
 use destack_mir::parse::{ParseOptions, Parser};
-use destack_mir::{DataLayout, TraceTable};
-use destack_program::{StaticSpace, Value};
+use destack_mir::{DataLayout, TensorDimension, TraceMap, TraceTable, Type};
+use destack_program::{StaticSpace, TypeId, Value};
 use destack_source::FileId;
 
 use crate::diagnostic::{Error, RuntimeResult};
 use crate::{Cell, Continuation, Machine, MachineOptions, Outcome};
-use destack_program::vm::{Layout, encode_cell_bytes};
+use destack_program::vm::{encode_cell_bytes, tensor_element_count};
 
 /// The virtual heap-space width used by ordinary VM tests.
 const TEST_LOCAL_SPACE_SIZE_BYTES: usize = 16 * 1024 * 1024;
@@ -156,52 +156,115 @@ impl TestMachine {
     }
 
     /// Resolve one function parameter type by name and position.
-    pub(crate) fn parameter_type(
-        &self,
-        function: &str,
-        argument_index: usize,
-    ) -> destack_mir::LocalNodeId<destack_mir::Type> {
+    pub(crate) fn parameter_type(&self, function: &str, argument_index: usize) -> TypeId {
         let function_id = self
             .machine
             .function_id_by_name(function)
             .unwrap_or_else(|_| panic!("missing function '{function}'"));
-        let function_node = self.machine.tree().get(function_id);
-        function_node
+        let function_record = self
+            .machine
+            .program
+            .functions()
+            .get(function_id)
+            .unwrap_or_else(|| panic!("missing function metadata for '{function}'"));
+        function_record
             .parameters
             .get(argument_index)
             .unwrap_or_else(|| panic!("missing argument {argument_index} for '{function}'"))
-            .ty
+            .to_owned()
     }
 
-    /// Materialize one value for the given MIR type.
-    pub(crate) fn materialize_value_for_type(
-        &mut self,
-        ty: destack_mir::LocalNodeId<destack_mir::Type>,
-        values: Vec<Cell>,
-    ) -> Cell {
+    /// Materialize one value for the given program type.
+    pub(crate) fn materialize_value_for_type(&mut self, ty: TypeId, values: Vec<Cell>) -> Cell {
+        let mir_type = self
+            .machine
+            .program
+            .types()
+            .mir_type_id(ty)
+            .unwrap_or_else(|| panic!("missing MIR type id for program type {ty:?}"));
         let layout = self
             .machine
-            .layout(ty)
-            .unwrap_or_else(|| panic!("missing layout for type {ty:?}"));
+            .layout(mir_type)
+            .unwrap_or_else(|| panic!("missing layout for type {mir_type:?}"));
+
+        // tensors are handles to heap payloads
+        if matches!(
+            self.machine
+                .program
+                .types()
+                .get(self.machine.program.types().repr_type(ty)),
+            Some(Type::Tensor { .. })
+        ) {
+            return self.materialize_tensor_for_type(ty, values);
+        }
 
         // scalars travel directly as VM cells
-        if layout.is_cell() {
+        if self.machine.program.is_cell_type(ty) {
             assert_eq!(values.len(), 1, "scalar materialization expects one value");
 
             return values[0];
         }
 
-        let bytes = materialize_value_bytes(&self.machine, &self.heap, ty, layout, &values);
+        let bytes = materialize_value_bytes(&self.machine, &self.heap, mir_type, layout, &values);
         let layout_id = self
             .machine
-            .layout_id_for_type(ty)
-            .unwrap_or_else(|| panic!("missing layout id for type {ty:?}"));
+            .layout_id_for_type(mir_type)
+            .unwrap_or_else(|| panic!("missing layout id for type {mir_type:?}"));
         let shape = self
             .machine
             .allocation_shape(layout_id)
             .unwrap_or_else(|error| panic!("failed to resolve allocation shape: {error}"));
         let reference = allocate_local_bytes(&mut self.heap, shape, &bytes)
             .unwrap_or_else(|error| panic!("failed to allocate materialized value: {error}"));
+
+        Cell::heap_reference(reference)
+    }
+
+    /// Materialize one tensor value as a local heap payload.
+    fn materialize_tensor_for_type(&mut self, ty: TypeId, values: Vec<Cell>) -> Cell {
+        let types = self.machine.program.types();
+        let ty = types.repr_type(ty);
+        let Some(Type::Tensor { element, shape, .. }) = types.get(ty) else {
+            panic!("type {ty:?} is not a tensor");
+        };
+        let shape = static_tensor_shape(shape);
+        let element_count = tensor_element_count(&shape);
+        assert_eq!(
+            values.len(),
+            element_count,
+            "tensor materialization expects one value per element"
+        );
+
+        let element_layout = self
+            .machine
+            .layout(*element)
+            .unwrap_or_else(|| panic!("missing tensor element layout for type {element:?}"));
+        let stride = align_to(element_layout.byte_len(), element_layout.alignment as usize);
+        let byte_len = stride
+            .checked_mul(element_count)
+            .expect("tensor materialization byte length overflow");
+        let mut bytes = vec![0u8; byte_len];
+
+        for (index, value) in values.iter().copied().enumerate() {
+            let start = stride * index;
+            write_materialized_value(
+                &self.machine,
+                &self.heap,
+                *element,
+                value,
+                &mut bytes[start..],
+            );
+        }
+
+        let trace_map = TraceMap::empty();
+        let shape = AllocationShape::new(
+            byte_len,
+            element_layout.alignment as usize,
+            None,
+            &trace_map,
+        );
+        let reference = allocate_local_bytes(&mut self.heap, shape, &bytes)
+            .unwrap_or_else(|error| panic!("failed to allocate materialized tensor: {error}"));
 
         Cell::heap_reference(reference)
     }
@@ -336,10 +399,10 @@ fn materialize_value_bytes(
     machine: &Machine,
     heap: &Heap,
     ty: destack_mir::LocalNodeId<destack_mir::Type>,
-    layout: &Layout,
+    layout: &destack_mir::Layout,
     values: &[Cell],
 ) -> Vec<u8> {
-    let mut bytes = vec![0u8; layout.byte_len];
+    let mut bytes = vec![0u8; layout.byte_len()];
 
     // fields
     if let Some(field_count) = layout.field_count() {
@@ -350,34 +413,38 @@ fn materialize_value_bytes(
         );
         for (index, value) in values.iter().copied().enumerate() {
             let field = layout
-                .field(index as u32)
+                .field_at(index as u32)
                 .unwrap_or_else(|| panic!("missing field {index} for type {ty:?}"));
-            write_materialized_value(machine, heap, field.ty, value, &mut bytes[field.offset..]);
+            write_materialized_value(
+                machine,
+                heap,
+                field.ty,
+                value,
+                &mut bytes[field.offset as usize..],
+            );
         }
 
         return bytes;
     }
 
     // elements
-    let element = layout
-        .element()
+    let elements = layout
+        .shape
+        .elements()
         .unwrap_or_else(|| panic!("type {ty:?} is not materializable as an aggregate"));
-    let element_count = layout
-        .element_count()
-        .unwrap_or_else(|| panic!("type {ty:?} has no element count"));
+    let element_count = elements.count;
     assert_eq!(
         values.len(),
-        element_count,
+        element_count as usize,
         "element materialization expects one value per element"
     );
     for (index, value) in values.iter().copied().enumerate() {
-        let start = element.stride * index;
-        write_materialized_value(machine, heap, element.ty, value, &mut bytes[start..]);
+        let start = elements.stride as usize * index;
+        write_materialized_value(machine, heap, elements.element, value, &mut bytes[start..]);
     }
 
     bytes
 }
-
 /// Write one materialized field or element value.
 fn write_materialized_value(
     machine: &Machine,
@@ -391,9 +458,14 @@ fn write_materialized_value(
         .unwrap_or_else(|| panic!("missing layout for nested type {ty:?}"));
 
     // scalar values encode inline
-    if layout.is_cell() {
-        let encoded = encode_cell_bytes(machine.tree(), ty, value)
-            .unwrap_or_else(|error| panic!("failed to encode materialized cell: {error:?}"));
+    if is_cell_type(machine, ty) {
+        let encoded = encode_cell_bytes(
+            machine.program.types(),
+            machine.program.types().type_id(ty),
+            value,
+            machine.program.pointer_bytes(),
+        )
+        .unwrap_or_else(|error| panic!("failed to encode materialized cell: {error:?}"));
         destination[..encoded.len()].copy_from_slice(encoded.as_slice());
 
         return;
@@ -401,8 +473,45 @@ fn write_materialized_value(
 
     // aggregate values are already heap payloads
     let source = value.as_heap_reference();
-    let payload = read_heap_payload(heap, source, layout.byte_len);
-    destination[..layout.byte_len].copy_from_slice(&payload);
+    let byte_len = layout.byte_len();
+    let payload = read_heap_payload(heap, source, byte_len);
+    destination[..byte_len].copy_from_slice(&payload);
+}
+
+/// Return whether one type is represented by one VM cell.
+fn is_cell_type(machine: &Machine, ty: destack_mir::LocalNodeId<destack_mir::Type>) -> bool {
+    machine
+        .program
+        .is_cell_type(machine.program.types().type_id(ty))
+}
+
+/// Return the static tensor shape.
+fn static_tensor_shape(shape: &[TensorDimension]) -> Vec<u64> {
+    let mut values = Vec::with_capacity(shape.len());
+
+    for dimension in shape {
+        match dimension {
+            TensorDimension::Static(value) => values.push(*value),
+            TensorDimension::Dynamic => panic!("dynamic test tensor shape is not materializable"),
+            TensorDimension::Symbol(name) => {
+                panic!("symbolic test tensor shape {name} is not materializable")
+            }
+        }
+    }
+
+    values
+}
+
+/// Align one byte width up to the given alignment.
+fn align_to(value: usize, alignment: usize) -> usize {
+    let alignment = alignment.max(1);
+    let remainder = value % alignment;
+
+    if remainder == 0 {
+        value
+    } else {
+        value + alignment - remainder
+    }
 }
 
 /// Read one heap payload for test materialization.

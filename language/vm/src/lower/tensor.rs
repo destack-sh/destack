@@ -7,7 +7,8 @@ use destack_program::vm::{
     TensorCopy, TensorDot, TensorExtract, TensorFill, TensorGather, TensorIndexReduce,
     TensorLayout, TensorLayoutId, TensorLoad, TensorPad, TensorReduce, TensorReshape,
     TensorScatter, TensorSelect, TensorSlice, TensorStore, TensorTranspose, TensorView, U32RangeId,
-    scalar_layout_from_type, value_shape_from_type,
+    cell_layout_from_type, column_major_strides, row_major_strides, scalar_layout_from_type,
+    static_shape, tensor_element_count, tensor_element_span_len,
 };
 
 use super::arithmetic::{element_binary_kernel, same_contiguous_tensor_order};
@@ -408,9 +409,9 @@ impl<'a> BlockLowerer<'a> {
                 let dest_type = self.value_type_for_value(destination)?;
                 let left_type = self.value_type_for_value(left)?;
                 let right_type = self.value_type_for_value(right)?;
-                let dest_layout = TensorLayout::from_type(self.tree, self.layouts(), dest_type)?;
-                let left_layout = TensorLayout::from_type(self.tree, self.layouts(), left_type)?;
-                let right_layout = TensorLayout::from_type(self.tree, self.layouts(), right_type)?;
+                let dest_layout = self.tensor_layout_from_type(dest_type)?;
+                let left_layout = self.tensor_layout_from_type(left_type)?;
+                let right_layout = self.tensor_layout_from_type(right_type)?;
                 let dimensions = pool.tensor_dot(self.tensor_dot(*immediate)?);
                 let element = tensor_element_type(self.tree, dest_type)
                     .ok_or_else(|| Error::invalid_program("tensor dot element"))?;
@@ -565,13 +566,14 @@ impl<'a> BlockLowerer<'a> {
                 let dest_type = self.value_type_for_value(destination)?;
                 let left_type = self.value_type_for_value(left)?;
                 let right_type = self.value_type_for_value(right)?;
-                let dest_layout = TensorLayout::from_type(self.tree, self.layouts(), dest_type)?;
-                let left_layout = TensorLayout::from_type(self.tree, self.layouts(), left_type)?;
-                let right_layout = TensorLayout::from_type(self.tree, self.layouts(), right_type)?;
+                let dest_layout = self.tensor_layout_from_type(dest_type)?;
+                let left_layout = self.tensor_layout_from_type(left_type)?;
+                let right_layout = self.tensor_layout_from_type(right_type)?;
                 let element = tensor_element_type(self.tree, left_type)
                     .ok_or_else(|| Error::invalid_program("tensor compare element"))?;
-                let element_layout =
-                    value_shape_from_type(self.tree, element).ok_or(Error::invalid_instruction())?;
+                let element_layout = self
+                    .value_shape_for_type(element)
+                    .ok_or(Error::invalid_instruction())?;
                 let kernel = element_binary_kernel(*operator, element_layout)
                     .ok_or(Error::invalid_instruction())?;
                 if same_contiguous_tensor_order(&dest_layout, &left_layout, &right_layout) {
@@ -679,15 +681,13 @@ impl<'a> BlockLowerer<'a> {
             } => {
                 let destination = *destination;
                 let tensor = *tensor;
-                let destination_type = self.value_type_for_value(destination)?;
-                let byte_len = self.layout_for_type(destination_type)?.byte_len as u64;
 
                 Instruction::new(
                     Op::TensorCast,
                     value_offset(self, destination)?,
                     value_offset(self, tensor)?,
-                    byte_len as u32,
-                    (byte_len >> 32) as u32,
+                    0,
+                    0,
                 )
             }
             // tensor.view
@@ -751,9 +751,89 @@ impl<'a> BlockLowerer<'a> {
         pool: &mut Pool<'_, '_>,
         tensor_type: mir::LocalNodeId<mir::Type>,
     ) -> Result<TensorLayoutId> {
-        let layout = TensorLayout::from_type(self.tree, self.layouts(), tensor_type)?;
+        let layout = self.tensor_layout_from_type(tensor_type)?;
 
         Ok(pool.tensor_layout(layout))
+    }
+
+    /// Compile one tensor layout from one MIR tensor type.
+    pub(super) fn tensor_layout_from_type(
+        &self,
+        tensor_type: mir::LocalNodeId<mir::Type>,
+    ) -> Result<TensorLayout> {
+        let (shape, element) = match self.tree.get(tensor_type) {
+            mir::Type::Tensor { shape, element, .. } => (shape, element),
+            mir::Type::TensorView { shape, element, .. } => (shape, element),
+            _ => {
+                return Err(Error::type_mismatch(
+                    "tensor type",
+                    format!("{tensor_type:?}"),
+                ));
+            }
+        };
+        let element = *element;
+
+        let shape = static_shape(shape)?;
+        let strides = self.static_tensor_strides(tensor_type, &shape)?;
+        let element_count = tensor_element_count(&shape);
+        let element_span_len = tensor_element_span_len(&shape, &strides)?;
+        let is_contiguous = element_count == element_span_len;
+
+        let element_layout = self
+            .layouts()
+            .get(&element)
+            .ok_or(Error::invalid_instruction())?;
+        let element = Projection::indexed(
+            element,
+            element_span_len as u64,
+            element_layout.stride(),
+            element_layout.byte_len,
+            cell_layout_from_type(self.tree, element),
+        );
+        let element_layout = scalar_layout_from_type(self.tree, element.value_type)
+            .ok_or_else(|| Error::type_mismatch("tensor scalar element", format!("{element:?}")))?;
+        let byte_len = element_span_len
+            .checked_mul(element.byte_stride)
+            .ok_or_else(|| Error::internal("tensor payload byte length overflow"))?;
+
+        Ok(TensorLayout {
+            byte_len,
+            shape: shape.into_boxed_slice(),
+            strides: strides.into_boxed_slice(),
+            element_count,
+            element_span_len,
+            is_contiguous,
+            element_layout,
+            element,
+        })
+    }
+
+    /// Compile one static tensor stride list.
+    fn static_tensor_strides(
+        &self,
+        tensor_type: mir::LocalNodeId<mir::Type>,
+        shape: &[u64],
+    ) -> Result<Vec<u64>> {
+        match self.tree.get(tensor_type) {
+            mir::Type::Tensor { format, .. } => match format {
+                mir::TensorFormat::Dense {
+                    order: mir::TensorDimensionOrder::RowMajor,
+                } => Ok(row_major_strides(shape)),
+                mir::TensorFormat::Dense {
+                    order: mir::TensorDimensionOrder::ColumnMajor,
+                } => Ok(column_major_strides(shape)),
+            },
+            mir::Type::TensorView { format, .. } => match format {
+                mir::TensorViewFormat::Dense {
+                    order: mir::TensorDimensionOrder::RowMajor,
+                }
+                | mir::TensorViewFormat::Strided => Ok(row_major_strides(shape)),
+                mir::TensorViewFormat::Dense {
+                    order: mir::TensorDimensionOrder::ColumnMajor,
+                } => Ok(column_major_strides(shape)),
+            },
+            _ => Err(Error::invalid_instruction()),
+        }
     }
 
     /// Return one side-table range of cell frame offsets.

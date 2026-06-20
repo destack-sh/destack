@@ -3,7 +3,7 @@ use destack_heap::{HeapOptions, SharedHeapOptions};
 use serde::{Deserialize, Serialize};
 
 /// Configuration options for a VM machine.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MachineOptions {
     /// Resource limits and execution budgets.
     pub limits: LimitOptions,

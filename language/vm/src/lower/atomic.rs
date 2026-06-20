@@ -4,7 +4,7 @@ use crate::{Error, Result};
 use destack_program::vm::{
     AddressSpace, AtomicAddress, AtomicCompareExchange, AtomicOrder, AtomicReadModifyWriteOperator,
     AtomicReadModifyWriteShape, AtomicShape, AtomicWidth, CellLayout, Instruction, Op,
-    address_space_from_reference, cell_layout_from_type, repr_type,
+    address_space_from_reference, cell_layout_from_type,
 };
 
 use super::frame::cell_offset;
@@ -71,7 +71,7 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         // derive the concrete atomic shape
         let (layout, address) = require_atomic_pointer(self.tree, self.value_type(), pointer)?;
-        let failure_order = AtomicOrder::from_mir(access.failure_ordering);
+        let failure_order = AtomicOrder::from(access.failure_ordering);
         let pointer_bytes = self.tree.pointer_bytes() as usize;
         let width = atomic_width(layout, pointer_bytes)?;
         let shape = atomic_shape_from_parts(access.success, layout, address, width);
@@ -137,7 +137,7 @@ impl<'a> BlockLowerer<'a> {
         access: mir::FenceAccess,
     ) -> Instruction {
         // fences only need their ordering at execution
-        let order = AtomicOrder::from_mir(access.ordering);
+        let order = AtomicOrder::from(access.ordering);
 
         Instruction::new(Op::AtomicFence, 0, 0, 0, order.encode())
     }
@@ -227,7 +227,7 @@ fn atomic_shape_from_parts(
     address: AtomicAddress,
     width: AtomicWidth,
 ) -> AtomicShape {
-    let order = AtomicOrder::from_mir(access.ordering);
+    let order = AtomicOrder::from(access.ordering);
     let is_signed = matches!(layout, CellLayout::Int { .. });
 
     AtomicShape::new(address, width, order, is_signed)
@@ -241,7 +241,7 @@ fn require_atomic_pointer(
 ) -> Result<(CellLayout, AtomicAddress)> {
     // resolve the pointer value type
     let pointer_type = value_type_for_atomic_pointer(tree, value_types, pointer)?;
-    let pointer_type = repr_type(tree, pointer_type);
+    let pointer_type = tree.repr_type(pointer_type);
 
     // require a concrete reference type
     let mir::Type::Reference {
@@ -259,7 +259,7 @@ fn require_atomic_pointer(
 
     // require atomic storage
     let pointee = *pointee;
-    let pointee = repr_type(tree, pointee);
+    let pointee = tree.repr_type(pointee);
     let mir::Type::Atomic { value } = tree.get(pointee) else {
         return Err(Error::invalid_pointer_type(format!(
             "{:?}",
@@ -286,7 +286,7 @@ fn value_type_for_atomic_pointer(
         .get(pointer.0 as usize)
         .copied()
         .ok_or_else(|| Error::invalid_pointer_type(format!("{pointer:?}")))
-        .map(|ty| repr_type(tree, ty))
+        .map(|ty| tree.repr_type(ty))
 }
 
 /// Select the VM atomic address representation.

@@ -1,12 +1,9 @@
-use destack_mir as mir;
-use destack_program as program;
-
 use crate::{Error, Result};
+use destack_mir as mir;
 use destack_program::vm::{
     AddressSpace, Call, CallBranch, CallDynamic, CallDynamicBranch, CallVirtual, CallVirtualBranch,
-    FunctionBind, FunctionEnvironment, IndirectCall, IndirectCallBranch, IndirectTailCall,
-    Instruction, Op, TailCall, TailCallDynamic, TailCallVirtual, cell_layout_from_type,
-    function_object_layout, repr_type,
+    FunctionBind, IndirectCall, IndirectCallBranch, IndirectTailCall, Instruction, Op, TailCall,
+    TailCallDynamic, TailCallVirtual, cell_layout_from_type,
 };
 
 use super::frame::{cell_offset, value_offset};
@@ -14,7 +11,7 @@ use super::lower::BlockLowerer;
 use super::pool::Pool;
 use super::projection::{dynamic_table_projection, virtual_table_projection};
 use super::value::{
-    address_space_for_value, heap_pointee_type_for_storage_id, heap_pointee_type_for_value,
+    address_space_for_value, heap_pointee_type_for_value, heap_pointee_type_from_shape,
 };
 
 impl<'a> BlockLowerer<'a> {
@@ -86,7 +83,7 @@ impl<'a> BlockLowerer<'a> {
         Ok(pool.instruction_with_side(
             Op::Call,
             Call {
-                function: function.id,
+                function: self.program_function(function).0,
                 target,
                 arguments: argument_range,
                 moves,
@@ -195,39 +192,23 @@ impl<'a> BlockLowerer<'a> {
         function: mir::FunctionId,
         environment: mir::Value,
     ) -> Result<Instruction> {
-        // resolve function operands
-
-        // select the environment representation
-        let destination_type = self.value_type_for_value(destination)?;
+        // resolve the environment word layout
         let environment_type = self.value_type_for_value(environment)?;
-        let environment_layout = self.layout_for_type(environment_type)?;
+        let environment_layout = cell_layout_from_type(self.tree, environment_type)
+            .ok_or(Error::invalid_instruction())?;
 
-        let environment_repr = if environment_layout.is_cell() {
-            let layout = cell_layout_from_type(self.tree, environment_type)
-                .ok_or(Error::invalid_instruction())?;
-
-            FunctionEnvironment::Cell { layout }
-        } else {
-            FunctionEnvironment::Aggregate {
-                layout: self.layout_id_for_type(environment_type)?,
-                byte_len: environment_layout.byte_len,
-            }
-        };
-
-        // pool the cold function layout metadata
+        // pool the cold environment metadata
         let bind = FunctionBind {
-            function_layout: self.layout_id_for_type(destination_type)?,
-            object_layout: function_object_layout(self.tree.pointer_bytes() as usize),
-            environment: environment_repr,
+            environment: environment_layout,
         };
         let bind = pool.side_record(bind);
 
         // put the hot operands in the instruction payload
         Ok(Instruction::new(
             Op::FunctionBind,
-            cell_offset(self, destination)?,
-            function.id,
-            value_offset(self, environment)?,
+            value_offset(self, destination)?,
+            self.program_function(function).0,
+            cell_offset(self, environment)?,
             bind,
         ))
     }
@@ -277,7 +258,7 @@ impl<'a> BlockLowerer<'a> {
     }
 
     /// Return the frame state for a call terminator.
-    fn call_target_state(&self) -> Result<program::FrameStateId> {
+    fn call_target_state(&self) -> Result<mir::FrameStateId> {
         self.call_frame_states
             .get(&self.block_id())
             .copied()
@@ -292,7 +273,7 @@ impl<'a> BlockLowerer<'a> {
     /// Return static callee shape for one indirect call.
     fn indirect_callee(&self, callee: mir::Value) -> Result<IndirectCallee> {
         let callee_type = self.value_type_for_value(callee)?;
-        let callee_type = repr_type(self.tree, callee_type);
+        let callee_type = self.tree.repr_type(callee_type);
 
         // function pointers carry only the target function id
         let (signature, has_environment) = match self.tree.get(callee_type) {
@@ -301,7 +282,11 @@ impl<'a> BlockLowerer<'a> {
             _ => return Err(Error::invalid_instruction()),
         };
 
-        let offset = cell_offset(self, callee)?;
+        let offset = if has_environment {
+            value_offset(self, callee)?
+        } else {
+            cell_offset(self, callee)?
+        };
 
         Ok(IndirectCallee {
             offset,
@@ -324,7 +309,7 @@ impl<'a> BlockLowerer<'a> {
         Ok(pool.instruction_with_side(
             Op::CallBranch,
             CallBranch {
-                function: function.id,
+                function: self.program_function(function).0,
                 target: self.call_target(function)?,
                 arguments,
                 target_state,
@@ -446,7 +431,7 @@ impl<'a> BlockLowerer<'a> {
         Ok(pool.instruction_with_side(
             Op::TailCall,
             TailCall {
-                function: function.id,
+                function: self.program_function(function).0,
                 target,
                 moves,
             },
@@ -488,7 +473,7 @@ impl<'a> BlockLowerer<'a> {
         let table_field = virtual_table_projection(
             self.tree,
             self.layouts(),
-            heap_pointee_type_for_storage_id(self.value_shape_map(), receiver),
+            heap_pointee_type_from_shape(self.types, self.value_shape_map(), receiver),
         )
         .ok_or_else(|| Error::invalid_program("tail virtual table field"))?;
         let table_field = pool.projection(table_field);
@@ -518,7 +503,7 @@ impl<'a> BlockLowerer<'a> {
         let table_field = dynamic_table_projection(
             self.tree,
             self.layouts(),
-            heap_pointee_type_for_storage_id(self.value_shape_map(), receiver),
+            heap_pointee_type_from_shape(self.types, self.value_shape_map(), receiver),
         )
         .ok_or_else(|| Error::invalid_program("tail dynamic table field"))?;
         let table_field = pool.projection(table_field);

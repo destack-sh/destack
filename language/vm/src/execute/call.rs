@@ -1,4 +1,5 @@
 use destack_program as program;
+use destack_program::FunctionId;
 
 use super::frame::{
     FrameValue, load_arguments, load_moved_arguments, move_values, store_parameters,
@@ -43,9 +44,9 @@ fn load_dispatch_slot(
     activation: &Activation<'_>,
     table_address: program::StaticAddress,
     slot: u32,
-) -> Result<mir::LocalNodeId<mir::Function>, Error> {
+) -> Result<FunctionId, Error> {
     // dispatch table slots are target pointers
-    let pointer_bytes = activation.machine.program.tree().pointer_bytes() as usize;
+    let pointer_bytes = activation.machine.program.pointer_bytes() as usize;
     let byte_offset = slot as usize * pointer_bytes;
     let entry_address = table_address
         .add_bytes(byte_offset)
@@ -53,8 +54,7 @@ fn load_dispatch_slot(
 
     // static dispatch tables contain function addresses
     let function = load_function_pointer(activation, entry_address, pointer_bytes)?;
-    let function = function.as_function_pointer();
-    let function = mir::LocalNodeId::new(function.function_index());
+    let function = function.as_function_pointer().function();
 
     Ok(function)
 }
@@ -85,7 +85,7 @@ fn resolve_virtual_callee<const IS_SHARED: bool>(
     receiver: Cell,
     table_field: Projection,
     slot: u32,
-) -> Result<mir::LocalNodeId<mir::Function>, Error> {
+) -> Result<FunctionId, Error> {
     // load the vtable pointer from the receiver
     let vtable_value = load_receiver_field::<IS_SHARED>(activation, receiver, table_field)?;
     let vtable_pointer = vtable_value.as_static_address();
@@ -99,7 +99,7 @@ fn resolve_dynamic_callee<const IS_SHARED: bool>(
     receiver: Cell,
     table_field: Projection,
     slot: u32,
-) -> Result<mir::LocalNodeId<mir::Function>, Error> {
+) -> Result<FunctionId, Error> {
     // load the dynamic table pointer from the erased receiver
     let dynamic_table_value = load_receiver_field::<IS_SHARED>(activation, receiver, table_field)?;
     let dynamic_table_pointer = dynamic_table_value.as_static_address();
@@ -110,18 +110,19 @@ fn resolve_dynamic_callee<const IS_SHARED: bool>(
 /// Resolve the callee for one indirect call.
 fn resolve_indirect_callee<const HAS_ENVIRONMENT: bool>(
     activation: &mut Activation<'_>,
-    callee: Cell,
-) -> Result<(mir::LocalNodeId<mir::Function>, Option<Cell>), Error> {
+    callee_offset: u32,
+) -> Result<(FunctionId, Option<Cell>), Error> {
     // function pointers are already the callee payload
     if !HAS_ENVIRONMENT {
-        let function = mir::LocalNodeId::new(callee.as_function_pointer().function_index());
+        let callee = activation.load_cell_at(callee_offset);
+        let function = callee.as_function_pointer().function();
 
         return Ok((function, None));
     }
 
     // function values carry a function pointer and environment pointer
-    let (function, environment_value) = function::decode_function(activation, callee)?;
-    let function = mir::LocalNodeId::new(function.as_function_pointer().function_index());
+    let (function, environment_value) = function::decode_function(activation, callee_offset)?;
+    let function = function.as_function_pointer().function();
 
     Ok((function, Some(environment_value)))
 }
@@ -130,12 +131,12 @@ fn resolve_indirect_callee<const HAS_ENVIRONMENT: bool>(
 #[inline]
 fn require_call_target(
     activation: &Activation<'_>,
-    function: mir::LocalNodeId<mir::Function>,
+    function: FunctionId,
 ) -> Result<CallTarget, Error> {
     activation
         .machine
         .program
-        .functions()
+        .vm_functions()
         .call_target(function)
         .ok_or(Error::undefined_function(function))
 }
@@ -147,8 +148,8 @@ pub(crate) fn execute_function_address(
 ) -> Result<(), Error> {
     // build function pointer value
     let dest = instruction.a;
-    let function_id = mir::LocalNodeId::<mir::Function>::new(instruction.b);
-    let value = Cell::function_pointer(FunctionPointer::from_bits(function_id.id as usize));
+    let function: FunctionId = instruction.b.into();
+    let value = Cell::function_pointer(FunctionPointer::from(function));
 
     // store result
     activation.store_cell_at(dest, value);
@@ -162,28 +163,19 @@ pub(crate) fn execute_function_bind(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest_offset = instruction.a;
-    let function = instruction.b;
+    let function: FunctionId = instruction.b.into();
     let environment_offset = instruction.c;
-    let FunctionBind {
-        function_layout,
-        object_layout,
-        environment,
-    } = *activation.side_record::<FunctionBind>(instruction.d);
+    let FunctionBind { environment } = *activation.side_record::<FunctionBind>(instruction.d);
 
-    // bind the function pointer and environment into a function object
-    let function_id = mir::LocalNodeId::<mir::Function>::new(function);
-    let function = Cell::function_pointer(FunctionPointer::from_bits(function_id.id as usize));
-    let value = function::bind_function(
+    // bind the function pointer and environment into a function value
+    let function = Cell::function_pointer(FunctionPointer::from(function));
+    function::bind_function(
         activation,
-        function_layout,
-        object_layout,
+        dest_offset,
         function,
         environment,
         environment_offset,
-    )?;
-
-    // store result
-    activation.store_cell_at(dest_offset, value);
+    );
 
     Ok(())
 }
@@ -196,9 +188,8 @@ pub(crate) fn execute_function_pointer(
     let destination = instruction.a;
     let function_offset = instruction.b;
 
-    // decode the function object
-    let function = activation.load_cell_at(function_offset);
-    let (function, _) = function::decode_function(activation, function)?;
+    // decode the function value
+    let (function, _) = function::decode_function(activation, function_offset)?;
 
     // store result
     activation.store_cell_at(destination, function);
@@ -214,9 +205,8 @@ pub(crate) fn execute_function_environment(
     let destination = instruction.a;
     let function_offset = instruction.b;
 
-    // decode the function object
-    let function = activation.load_cell_at(function_offset);
-    let (_, environment) = function::decode_function(activation, function)?;
+    // decode the function value
+    let (_, environment) = function::decode_function(activation, function_offset)?;
 
     // store result
     activation.store_cell_at(destination, environment);
@@ -253,7 +243,7 @@ fn local_function(activation: &Activation<'_>, target: CallTarget) -> Option<Fun
         CallTarget::Local(index) => activation
             .machine
             .program
-            .functions()
+            .vm_functions()
             .function_by_index(index)
             .cloned(),
         CallTarget::Import => None,
@@ -311,7 +301,7 @@ fn enter_local_call(
         match activation
             .machine
             .program
-            .functions()
+            .vm_functions()
             .function_by_id(frame.function())
         {
             Some(function) => function,
@@ -345,7 +335,7 @@ fn enter_local_call(
 /// Enter one call or return a call transfer.
 fn enter_call(
     activation: &mut Activation<'_>,
-    function_id: mir::LocalNodeId<mir::Function>,
+    function_id: FunctionId,
     target: CallTarget,
     arguments: ArgumentRange,
     env: Option<Cell>,
@@ -362,7 +352,7 @@ fn enter_call(
 
     // otherwise return the call to transfer handling
     Transfer::Call {
-        function: function_id.id,
+        function: function_id,
         target,
         arguments,
         env,
@@ -373,15 +363,15 @@ fn enter_call(
 
 /// Build one call terminator transfer.
 fn call_branch_transfer(
-    function_id: mir::LocalNodeId<mir::Function>,
+    function_id: FunctionId,
     target: CallTarget,
     arguments: ArgumentRange,
     env: Option<Cell>,
-    target_state: program::FrameStateId,
+    target_state: mir::FrameStateId,
 ) -> Transfer {
     // call terminators always use explicit transfer handling
     Transfer::CallBranch {
-        function: function_id.id,
+        function: function_id,
         target,
         arguments,
         env,
@@ -404,7 +394,7 @@ pub(crate) fn execute_call(
     } = activation.side::<Call>(instruction);
 
     // load target function id
-    let function_id = mir::LocalNodeId::<mir::Function>::new(*function);
+    let function_id = (*function).into();
     let moves = Some(*moves);
 
     // skip direct call when instruction limits are active
@@ -434,7 +424,7 @@ pub(crate) fn execute_call_branch(
         target_state,
     } = activation.side::<CallBranch>(instruction);
 
-    let function_id = mir::LocalNodeId::<mir::Function>::new(*function);
+    let function_id = (*function).into();
 
     call_branch_transfer(function_id, *target, *arguments, None, *target_state)
 }
@@ -660,21 +650,18 @@ fn execute_indirect_call<const HAS_ENVIRONMENT: bool>(
         arguments,
     } = activation.side::<IndirectCall>(instruction);
 
-    // load callee value
-    let callee_value = activation.load_cell_at(*callee_offset);
-
     // resolve function pointer and environment
     let (function_id, env) =
-        match resolve_indirect_callee::<HAS_ENVIRONMENT>(activation, callee_value) {
+        match resolve_indirect_callee::<HAS_ENVIRONMENT>(activation, *callee_offset) {
             Ok(callee) => callee,
             Err(error) => return Transfer::Error(error),
         };
-    let function = function_id.id;
+    let function = function_id;
 
     if let Err(error) = activation.machine.program.functions().validate_signature(
-        activation.machine.tree(),
+        activation.machine.program.types(),
         function_id,
-        *signature,
+        activation.machine.program.types().type_id(*signature),
     ) {
         return Transfer::Error(error.into());
     }
@@ -726,16 +713,15 @@ fn execute_indirect_call_branch<const HAS_ENVIRONMENT: bool>(
         target_state,
     } = activation.side::<IndirectCallBranch>(instruction);
 
-    let callee_value = activation.load_cell_at(*callee_offset);
     let (function_id, env) =
-        match resolve_indirect_callee::<HAS_ENVIRONMENT>(activation, callee_value) {
+        match resolve_indirect_callee::<HAS_ENVIRONMENT>(activation, *callee_offset) {
             Ok(callee) => callee,
             Err(error) => return Transfer::Error(error),
         };
     if let Err(error) = activation.machine.program.functions().validate_signature(
-        activation.machine.tree(),
+        activation.machine.program.types(),
         function_id,
-        *signature,
+        activation.machine.program.types().type_id(*signature),
     ) {
         return Transfer::Error(error.into());
     }
@@ -835,7 +821,7 @@ pub(crate) fn execute_tail_call(
     // return imported calls to transfer handling
     let Some(local_index) = local_index else {
         return Transfer::TailCall {
-            function: *function,
+            function: (*function).into(),
             target: *target,
             arguments: ArgumentRange::empty(),
             env: None,
@@ -845,12 +831,12 @@ pub(crate) fn execute_tail_call(
     let Some(callee) = activation
         .machine
         .program
-        .functions()
+        .vm_functions()
         .function_by_index(local_index)
         .cloned()
     else {
         return Transfer::TailCall {
-            function: *function,
+            function: (*function).into(),
             target: *target,
             arguments: ArgumentRange::empty(),
             env: None,
@@ -863,7 +849,7 @@ pub(crate) fn execute_tail_call(
         let current_func = match activation
             .machine
             .program
-            .functions()
+            .vm_functions()
             .function_by_id(activation.active_frame().function())
         {
             Some(function) => function,
@@ -874,12 +860,7 @@ pub(crate) fn execute_tail_call(
             Err(error) => return Transfer::Error(error),
         };
 
-        match load_moved_arguments(
-            &activation.machine.program,
-            caller,
-            current_func.move_pool.as_slice(),
-            *moves,
-        ) {
+        match load_moved_arguments(caller, current_func.move_pool.as_slice(), *moves) {
             Ok(arguments) => arguments,
             Err(error) => return Transfer::Error(error),
         }
@@ -909,7 +890,7 @@ pub(crate) fn execute_tail_call_self(
     let Some(function) = activation
         .machine
         .program
-        .functions()
+        .vm_functions()
         .function_by_id(function_id)
         .cloned()
     else {
@@ -1023,7 +1004,7 @@ fn execute_tail_call_virtual<const IS_SHARED: bool>(
     };
 
     Transfer::TailCall {
-        function: function_id.id,
+        function: function_id,
         target,
         arguments: *arguments,
         env: None,
@@ -1074,7 +1055,7 @@ fn execute_tail_call_dynamic<const IS_SHARED: bool>(
     };
 
     Transfer::TailCall {
-        function: function_id.id,
+        function: function_id,
         target,
         arguments: *arguments,
         env: None,
@@ -1110,21 +1091,18 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
         arguments,
     } = activation.side::<IndirectTailCall>(instruction);
 
-    // load callee value
-    let callee_value = activation.load_cell_at(*callee_offset);
-
     // resolve function pointer and environment
     let (function_id, env) =
-        match resolve_indirect_callee::<HAS_ENVIRONMENT>(activation, callee_value) {
+        match resolve_indirect_callee::<HAS_ENVIRONMENT>(activation, *callee_offset) {
             Ok(callee) => callee,
             Err(error) => return Transfer::Error(error),
         };
-    let function = function_id.id;
+    let function = function_id;
 
     if let Err(error) = activation.machine.program.functions().validate_signature(
-        activation.machine.tree(),
+        activation.machine.program.types(),
         function_id,
-        *signature,
+        activation.machine.program.types().type_id(*signature),
     ) {
         return Transfer::Error(error.into());
     }
@@ -1152,7 +1130,7 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
     let Some(callee) = activation
         .machine
         .program
-        .functions()
+        .vm_functions()
         .function_by_index(local_index)
         .cloned()
     else {
@@ -1173,7 +1151,7 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
     let caller_function = match activation
         .machine
         .program
-        .functions()
+        .vm_functions()
         .function_by_id(caller.function())
     {
         Some(function) => function,

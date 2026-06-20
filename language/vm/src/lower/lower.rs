@@ -3,21 +3,22 @@ use std::ops::Deref;
 
 use destack_heap as heap;
 use destack_mir as mir;
-use destack_program as program;
 
 use crate::{Error, Result};
-use destack_program::vm::{Block, BlockCode, CallTarget, Function, Layout, SideTableBuilder};
+use destack_program::vm::{Block, BlockCode, CallTarget, Function, SideTableBuilder};
+use destack_program::{FunctionId, ProgramIndex, TypeTable};
 
 use super::block::{BlockOrder, FunctionContext};
+use super::layout::ValueLayout;
 use super::pool::{Pool, lookup_call_target};
 use super::tree::ValueType;
 use super::value::{ValueShapeMap, ValueShapeMapBuilder};
 
-/// One whole-function lowering session.
+/// One whole-function lowerer session.
 struct FunctionLowerer<'a, 'table> {
     context: FunctionContext<'a>,
     func: &'a mir::Function,
-    frame_layout: &'a program::FrameLayout,
+    frame_layout_id: mir::FrameLayoutId,
     pool: Pool<'a, 'table>,
 }
 
@@ -26,12 +27,14 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
     fn new(
         tree: &'a mir::Tree,
         func_id: mir::LocalNodeId<mir::Function>,
-        frame_layout: &'a program::FrameLayout,
-        yield_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, program::FrameStateId>,
-        call_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, program::FrameStateId>,
-        call_targets: &'a HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
-        layouts: &'a HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-        layout_id_by_type: &'a HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
+        frame_layout_id: mir::FrameLayoutId,
+        frame_layout: &'a mir::FrameLayout,
+        yield_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, mir::FrameStateId>,
+        call_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, mir::FrameStateId>,
+        call_targets: &'a HashMap<FunctionId, CallTarget>,
+        index: &'a ProgramIndex,
+        types: &'a TypeTable,
+        layouts: &'a HashMap<mir::LocalNodeId<mir::Type>, ValueLayout>,
         heap_options: &'a heap::HeapOptions,
         shared_heap_options: &'a heap::SharedHeapOptions,
         trace_table: &'a mir::TraceTable,
@@ -54,9 +57,16 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
             .map(|value_type| value_type.ty)
             .collect::<Vec<_>>();
         let value_count = value_types.len();
-        let value_shape_map =
-            ValueShapeMapBuilder::new(tree, func, &block_order.block, &value_type, value_count)
-                .build();
+        let value_shape_map = ValueShapeMapBuilder::new(
+            types,
+            tree.pointer_bytes(),
+            tree,
+            func,
+            &block_order.block,
+            &value_type,
+            value_count,
+        )
+        .build();
         let value_use_count = compute_value_use_counts(tree, &block_order.block, value_count)?;
         let local_index_by_id = Self::local_index_map(func);
         let block_parameter = Self::block_parameter(tree, &block_order.block)?;
@@ -68,11 +78,13 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
             yield_frame_states,
             call_frame_states,
             call_targets,
+            index,
+            types,
+            pointer_bytes: tree.pointer_bytes(),
             frame_layout,
             value_shape_map,
             value_type,
             layouts,
-            layout_id_by_type,
             heap_options,
             shared_heap_options,
             block_index_by_id: block_order.index_by_id,
@@ -84,8 +96,8 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
         Ok(Some(Self {
             context,
             func,
-            frame_layout,
-            pool: Pool::new(side_table, frame_layout, trace_table),
+            frame_layout_id,
+            pool: Pool::new(side_table, frame_layout, layouts, trace_table),
         }))
     }
 
@@ -129,8 +141,8 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
         }
 
         Ok(Function {
-            mir_function: self.context.function_id,
-            frame_layout: self.frame_layout.id,
+            function: self.context.program_function(self.context.function_id),
+            frame_layout: self.frame_layout_id,
             parameters: parameter,
             entry: self.context.entry_block,
             code,
@@ -192,27 +204,31 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
 pub(crate) fn lower_function(
     tree: &mir::Tree,
     func_id: mir::LocalNodeId<mir::Function>,
-    frame_layout: &program::FrameLayout,
-    yield_frame_states: &HashMap<mir::LocalNodeId<mir::Block>, program::FrameStateId>,
-    call_frame_states: &HashMap<mir::LocalNodeId<mir::Block>, program::FrameStateId>,
-    call_targets: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
-    layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-    layout_id_by_type: &HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
+    frame_layout_id: mir::FrameLayoutId,
+    frame_layout: &mir::FrameLayout,
+    yield_frame_states: &HashMap<mir::LocalNodeId<mir::Block>, mir::FrameStateId>,
+    call_frame_states: &HashMap<mir::LocalNodeId<mir::Block>, mir::FrameStateId>,
+    call_targets: &HashMap<FunctionId, CallTarget>,
+    index: &ProgramIndex,
+    types: &TypeTable,
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, ValueLayout>,
     heap_options: &heap::HeapOptions,
     shared_heap_options: &heap::SharedHeapOptions,
     trace_table: &mir::TraceTable,
     value_types: &[ValueType],
     side_table: &mut SideTableBuilder,
 ) -> Result<Option<Function>> {
-    let lowerer = FunctionLowerer::new(
+    let function = FunctionLowerer::new(
         tree,
         func_id,
+        frame_layout_id,
         frame_layout,
         yield_frame_states,
         call_frame_states,
         call_targets,
+        index,
+        types,
         layouts,
-        layout_id_by_type,
         heap_options,
         shared_heap_options,
         trace_table,
@@ -220,10 +236,10 @@ pub(crate) fn lower_function(
         side_table,
     )?;
 
-    lowerer.map(FunctionLowerer::lower).transpose()
+    function.map(FunctionLowerer::lower).transpose()
 }
 
-/// One block-local lowering session.
+/// One block-local lowerer session.
 pub(super) struct BlockLowerer<'a> {
     function: &'a FunctionContext<'a>,
     mir_block: mir::LocalNodeId<mir::Block>,
@@ -303,6 +319,7 @@ impl<'a> BlockLowerer<'a> {
         &self,
         function: mir::LocalNodeId<mir::Function>,
     ) -> Result<CallTarget> {
+        let function = self.program_function(function);
         lookup_call_target(self.call_targets, function).ok_or_else(|| {
             Error::internal(format!("missing call target for function: {function:?}"))
         })
@@ -327,20 +344,8 @@ impl<'a> BlockLowerer<'a> {
     }
 
     /// Return the lowered VM layouts.
-    pub(super) fn layouts(&self) -> &HashMap<mir::LocalNodeId<mir::Type>, Layout> {
+    pub(super) fn layouts(&self) -> &HashMap<mir::LocalNodeId<mir::Type>, ValueLayout> {
         self.function.layouts
-    }
-
-    /// Return the MIR layout id for one type.
-    pub(super) fn layout_id_for_type(
-        &self,
-        ty: mir::LocalNodeId<mir::Type>,
-    ) -> Result<mir::LayoutId> {
-        self.function
-            .layout_id_by_type
-            .get(&ty)
-            .copied()
-            .ok_or_else(|| Error::internal(format!("missing layout id for type: {ty:?}")))
     }
 }
 

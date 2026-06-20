@@ -4,7 +4,7 @@ use crate::{Error, Result};
 use destack_program::vm::{
     ElementBinaryKernel, Instruction, Op, Projection, ScalarLayout, VectorBinary, VectorConvert,
     VectorExtract, VectorInsert, VectorReduce, VectorSelect, VectorShuffle, VectorSplat,
-    cell_layout_from_type, scalar_layout_from_type, value_shape_from_type,
+    cell_layout_from_type, scalar_layout_from_type,
 };
 
 use super::arithmetic::element_binary_kernel;
@@ -284,8 +284,9 @@ impl<'a> BlockLowerer<'a> {
         }
 
         // comparisons write boolean elements
-        let element_layout =
-            value_shape_from_type(self.tree, element).ok_or(Error::invalid_instruction())?;
+        let element_layout = self
+            .value_shape_for_type(element)
+            .ok_or(Error::invalid_instruction())?;
         let kernel = element_binary_kernel(operator, element_layout)
             .filter(is_element_compare_kernel)
             .ok_or(Error::invalid_instruction())?;

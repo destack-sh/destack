@@ -55,7 +55,7 @@ impl<'a> BlockLowerer<'a> {
 
     /// Return the null cell for one reference-like type.
     fn null_cell(&self, value_type: mir::LocalNodeId<mir::Type>) -> Cell {
-        let reference = reference_meta_for_type(self.tree, value_type);
+        let reference = reference_meta_for_type(self.types, value_type, self.pointer_bytes);
 
         match reference.kind() {
             Some(mir::ReferenceKind::Managed | mir::ReferenceKind::Unique)
