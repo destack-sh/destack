@@ -1035,8 +1035,8 @@ impl BuildOutput {
     }
 
     /// Script payload.
-    #[wasm_bindgen(js_name = "getScriptScript")]
-    pub fn get_script_script(&self) -> Option<Script> {
+    #[wasm_bindgen(js_name = "getScript")]
+    pub fn get_script(&self) -> Option<Script> {
         match &self.content {
             BuildOutputContent::Script { script: value, .. } => Some(value.clone()),
             _ => None,
@@ -1044,8 +1044,8 @@ impl BuildOutput {
     }
 
     /// Object payload.
-    #[wasm_bindgen(js_name = "getObjectObject")]
-    pub fn get_object_object(&self) -> Option<BridgeObject> {
+    #[wasm_bindgen(js_name = "getObject")]
+    pub fn get_object(&self) -> Option<BridgeObject> {
         match &self.content {
             BuildOutputContent::Object { object: value, .. } => Some(value.clone()),
             _ => None,
@@ -1053,8 +1053,8 @@ impl BuildOutput {
     }
 
     /// Asset payload.
-    #[wasm_bindgen(js_name = "getAssetAsset")]
-    pub fn get_asset_asset(&self) -> Option<Asset> {
+    #[wasm_bindgen(js_name = "getAsset")]
+    pub fn get_asset(&self) -> Option<Asset> {
         match &self.content {
             BuildOutputContent::Asset { asset: value, .. } => Some(value.clone()),
             _ => None,
@@ -1062,8 +1062,8 @@ impl BuildOutput {
     }
 
     /// Build payload.
-    #[wasm_bindgen(js_name = "getBuildBuild")]
-    pub fn get_build_build(&self) -> Option<Build> {
+    #[wasm_bindgen(js_name = "getBuild")]
+    pub fn get_build(&self) -> Option<Build> {
         match &self.content {
             BuildOutputContent::Build { build: value, .. } => Some(value.clone()),
             _ => None,
@@ -1071,8 +1071,8 @@ impl BuildOutput {
     }
 
     /// Bundle payload.
-    #[wasm_bindgen(js_name = "getBundleBundle")]
-    pub fn get_bundle_bundle(&self) -> Option<Bundle> {
+    #[wasm_bindgen(js_name = "getBundle")]
+    pub fn get_bundle(&self) -> Option<Bundle> {
         match &self.content {
             BuildOutputContent::Bundle { bundle: value, .. } => Some(value.clone()),
             _ => None,
@@ -1080,8 +1080,8 @@ impl BuildOutput {
     }
 
     /// Program payload.
-    #[wasm_bindgen(js_name = "getProgramProgram")]
-    pub fn get_program_program(&self) -> Option<Program> {
+    #[wasm_bindgen(js_name = "getProgram")]
+    pub fn get_program(&self) -> Option<Program> {
         match &self.content {
             BuildOutputContent::Program { program: value, .. } => Some(value.clone()),
             _ => None,
@@ -1089,8 +1089,8 @@ impl BuildOutput {
     }
 
     /// Product payload.
-    #[wasm_bindgen(js_name = "getProductProduct")]
-    pub fn get_product_product(&self) -> Option<Product> {
+    #[wasm_bindgen(js_name = "getProduct")]
+    pub fn get_product(&self) -> Option<Product> {
         match &self.content {
             BuildOutputContent::Product { product: value, .. } => Some(value.clone()),
             _ => None,

@@ -4,63 +4,6 @@ import type { ArtifactVersion } from "./version.generated.js";
 import type { ContentId } from "../source/file.generated.js";
 import type { FileId } from "../source/file.generated.js";
 
-/** Exact source path state observed by one artifact computation. */
-export type ArtifactPathState = "missing" | "file" | "directory" | "symlink" | "other";
-
-/** One exact directory entry observed by one artifact computation. */
-export type ArtifactDirectoryEntry = {
-    /** The entry path. */
-    readonly path: string;
-    /** The exact entry path state. */
-    readonly state: ArtifactPathState;
-};
-
-/** One primitive source observation read while building an artifact. */
-export type ArtifactSourceDependency =
-    /** The exact state observed for one source path. */
-    | {
-          readonly kind: "pathState";
-          /** The source path. */
-          readonly path: string;
-          /** The exact path state. */
-          readonly state: ArtifactPathState;
-      }
-    /** The exact direct entries observed for one directory. */
-    | {
-          readonly kind: "directoryEntries";
-          /** The source directory path. */
-          readonly directory: string;
-          /** The direct entries in deterministic order. */
-          readonly entries: readonly ArtifactDirectoryEntry[];
-      }
-    /** The exact source content read for one file. */
-    | {
-          readonly kind: "fileContent";
-          /** The source file id. */
-          readonly file: FileId;
-          /** The exact source content id. */
-          readonly content: ContentId;
-      }
-;
-
-export const ArtifactSourceDependency = {
-    /** The exact state observed for one source path. */
-    pathState(path: string, state: ArtifactPathState): ArtifactSourceDependency {
-        return { kind: "pathState", path, state };
-    },
-
-    /** The exact direct entries observed for one directory. */
-    directoryEntries(directory: string, entries: readonly ArtifactDirectoryEntry[]): ArtifactSourceDependency {
-        return { kind: "directoryEntries", directory, entries };
-    },
-
-    /** The exact source content read for one file. */
-    fileContent(file: FileId, content: ContentId): ArtifactSourceDependency {
-        return { kind: "fileContent", file, content };
-    },
-
-};
-
 /** One exact dependency read while building an artifact. */
 export type ArtifactDependency =
     /** Another exact artifact version. */
@@ -72,8 +15,10 @@ export type ArtifactDependency =
     /** One exact primitive source observation. */
     | {
           readonly kind: "source";
-          /** The primitive source observation. */
-          readonly dependency: ArtifactSourceDependency;
+          /** The source file id. */
+          readonly file: FileId;
+          /** The exact source content id. */
+          readonly content: ContentId;
       }
 ;
 
@@ -84,8 +29,8 @@ export const ArtifactDependency = {
     },
 
     /** One exact primitive source observation. */
-    source(dependency: ArtifactSourceDependency): ArtifactDependency {
-        return { kind: "source", dependency };
+    source(file: FileId, content: ContentId): ArtifactDependency {
+        return { kind: "source", file, content };
     },
 
 };

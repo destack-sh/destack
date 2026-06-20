@@ -5,9 +5,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from .artifact.dependency import (
-    ArtifactPathState,
-    ArtifactDirectoryEntry,
-    ArtifactSourceDependency,
     ArtifactDependency,
 )
 from .artifact.key import (

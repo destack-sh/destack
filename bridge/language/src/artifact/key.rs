@@ -35,11 +35,6 @@ pub enum ArtifactKey {
         /// Semantic profile.
         profile: ProfileId,
     },
-    /// Module import edge index for one profile.
-    ModuleIndex {
-        /// Semantic profile.
-        profile: ProfileId,
-    },
     /// Component partition for one profile.
     ComponentGraph {
         /// Semantic profile.
@@ -242,9 +237,6 @@ impl ArtifactKey {
             artifact::ArtifactKey::PackageIndex { profile } => Self::PackageIndex {
                 profile: profile.into(),
             },
-            artifact::ArtifactKey::ModuleIndex { profile } => Self::ModuleIndex {
-                profile: profile.into(),
-            },
             artifact::ArtifactKey::ComponentGraph { profile } => Self::ComponentGraph {
                 profile: profile.into(),
             },
@@ -387,9 +379,6 @@ impl ArtifactKey {
                 profile: profile.into_source()?,
             }),
             Self::PackageIndex { profile } => Ok(artifact::ArtifactKey::PackageIndex {
-                profile: profile.into_source()?,
-            }),
-            Self::ModuleIndex { profile } => Ok(artifact::ArtifactKey::ModuleIndex {
                 profile: profile.into_source()?,
             }),
             Self::ComponentGraph { profile } => Ok(artifact::ArtifactKey::ComponentGraph {

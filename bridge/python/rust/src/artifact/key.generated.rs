@@ -65,16 +65,6 @@ impl ArtifactKey {
         }
     }
 
-    /// Module import edge index for one profile.
-    #[staticmethod]
-    pub fn module_index(profile: ProfileId) -> Self {
-        Self {
-            value: bridge::ArtifactKey::ModuleIndex {
-                profile: profile.into_bridge(),
-            },
-        }
-    }
-
     /// Component partition for one profile.
     #[staticmethod]
     pub fn component_graph(profile: ProfileId) -> Self {
@@ -373,7 +363,6 @@ impl ArtifactKey {
             bridge::ArtifactKey::Data { .. } => "data",
             bridge::ArtifactKey::GlobalEnvironment { .. } => "globalEnvironment",
             bridge::ArtifactKey::PackageIndex { .. } => "packageIndex",
-            bridge::ArtifactKey::ModuleIndex { .. } => "moduleIndex",
             bridge::ArtifactKey::ComponentGraph { .. } => "componentGraph",
             bridge::ArtifactKey::ProgramAnalysis { .. } => "programAnalysis",
             bridge::ArtifactKey::DirBound { .. } => "dirBound",
@@ -527,9 +516,6 @@ impl ArtifactKey {
                 Some(ProfileId::from_bridge(profile.clone()))
             }
             bridge::ArtifactKey::PackageIndex { profile, .. } => {
-                Some(ProfileId::from_bridge(profile.clone()))
-            }
-            bridge::ArtifactKey::ModuleIndex { profile, .. } => {
                 Some(ProfileId::from_bridge(profile.clone()))
             }
             bridge::ArtifactKey::ComponentGraph { profile, .. } => {

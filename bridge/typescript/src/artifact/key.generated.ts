@@ -39,12 +39,6 @@ export type ArtifactKey =
           /** Semantic profile. */
           readonly profile: ProfileId;
       }
-    /** Module import edge index for one profile. */
-    | {
-          readonly kind: "moduleIndex";
-          /** Semantic profile. */
-          readonly profile: ProfileId;
-      }
     /** Component partition for one profile. */
     | {
           readonly kind: "componentGraph";
@@ -279,11 +273,6 @@ export const ArtifactKey = {
     /** Active dependency index for one profile. */
     packageIndex(profile: ProfileId): ArtifactKey {
         return { kind: "packageIndex", profile };
-    },
-
-    /** Module import edge index for one profile. */
-    moduleIndex(profile: ProfileId): ArtifactKey {
-        return { kind: "moduleIndex", profile };
     },
 
     /** Component partition for one profile. */
