@@ -1,5 +1,6 @@
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ModuleQueryIndex, WorkspaceQueryIndex,
+    ArtifactDependencySet, ArtifactKey, ArtifactOutcome, ArtifactPayload, ModuleQueryIndex,
+    WorkspaceQueryIndex,
 };
 use destack_qir::QueryIndex;
 use destack_repository::{
@@ -19,7 +20,7 @@ impl Query {
     pub fn collect(&self, context: &dyn ProviderContext) -> ProviderResult<ArtifactDependencySet> {
         match context.artifact_key() {
             ArtifactKey::ModuleQueryIndex { module, profile } => {
-                Ok(self.collect_module_query_index(module, profile))
+                self.collect_module_query_index(context, module, profile)
             }
             ArtifactKey::WorkspaceQueryIndex { profile } => {
                 self.collect_workspace_query_index(context, profile)
@@ -34,19 +35,33 @@ impl Query {
     /// Collect inputs for one module query index artifact.
     fn collect_module_query_index(
         &self,
+        context: &dyn ProviderContext,
         module_id: ModuleId,
         profile_id: ProfileId,
-    ) -> ArtifactDependencySet {
+    ) -> ProviderResult<ArtifactDependencySet> {
+        let revision = context.revision();
         let mut dependencies = ArtifactDependencySet::default();
-        dependencies.require(ArtifactKey::dir_parsed(module_id));
-        dependencies.require(ArtifactKey::dir_bound(module_id, profile_id));
-        dependencies.require(ArtifactKey::dir_imported(module_id, profile_id));
-        dependencies.require(ArtifactKey::dir_expanded(module_id, profile_id));
-        dependencies.require(ArtifactKey::dir_exported(module_id, profile_id));
-        dependencies.require(ArtifactKey::dir_checked(module_id, profile_id));
-        dependencies.require(ArtifactKey::global_environment(profile_id));
 
-        dependencies
+        // query indexes can inspect other modules through module contexts
+        let module_ids = self
+            .repository()
+            .module_ids(revision)
+            .map_err(|error| ProviderError::internal(error.to_string()))?;
+        dependencies.require(ArtifactKey::global_environment(profile_id));
+        let mut has_requested_module = false;
+        for module in module_ids {
+            if self.has_profile(revision, module, profile_id)? {
+                Self::require_module_query_dependencies(module, profile_id, &mut dependencies);
+                has_requested_module |= module == module_id;
+            }
+        }
+
+        // ensure the requested module is covered even during partial discovery
+        if !has_requested_module {
+            Self::require_module_query_dependencies(module_id, profile_id, &mut dependencies);
+        }
+
+        Ok(dependencies)
     }
 
     /// Collect inputs for one workspace query index artifact.
@@ -138,8 +153,14 @@ impl Query {
 
             let key = ArtifactKey::module_query_index(module_id, profile_id);
             let version = repository
-                .artifact_version(revision, &key)
+                .artifact_binding(revision, &key)
                 .map_err(|error| ProviderError::internal(error.to_string()))?
+                .filter(|version| {
+                    matches!(
+                        repository.artifact_table().outcome(version),
+                        Some(ArtifactOutcome::Ok)
+                    )
+                })
                 .ok_or_else(|| {
                     ProviderError::internal(format!(
                         "workspace query dependency not built: {key:?}"
@@ -166,6 +187,20 @@ impl Query {
             .map_err(|error| ProviderError::internal(error.to_string()))?;
 
         Ok(profile.is_some())
+    }
+
+    /// Require the exact DIR artifacts read by one module query context.
+    fn require_module_query_dependencies(
+        module_id: ModuleId,
+        profile_id: ProfileId,
+        dependencies: &mut ArtifactDependencySet,
+    ) {
+        dependencies.require(ArtifactKey::dir_parsed(module_id));
+        dependencies.require(ArtifactKey::dir_bound(module_id, profile_id));
+        dependencies.require(ArtifactKey::dir_imported(module_id, profile_id));
+        dependencies.require(ArtifactKey::dir_expanded(module_id, profile_id));
+        dependencies.require(ArtifactKey::dir_exported(module_id, profile_id));
+        dependencies.require(ArtifactKey::dir_checked(module_id, profile_id));
     }
 
     /// Build one module-scoped query index.
