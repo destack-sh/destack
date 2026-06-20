@@ -2,10 +2,10 @@ use std::iter;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactSidecar, ComponentGraph,
-    DirChecked, DirCheckedComponent, GlobalEnvironment,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey, ArtifactSidecar,
+    ComponentGraph, ComponentGraphProjection, DirChecked, DirCheckedComponent,
 };
-use destack_repository::{ArtifactReader, ProfileId, ProviderContext, ProviderError};
+use destack_repository::{ProfileId, ProviderContext, ProviderError};
 use destack_source::{ComponentId, Content, ModuleId};
 use indexmap::{IndexMap, IndexSet};
 
@@ -22,13 +22,18 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
         let mut dependencies = ArtifactDependencySet::default();
-        dependencies.require(ArtifactKey::component_graph(profile));
+        let graph_key = ArtifactKey::component_graph(profile);
+        dependencies.project(graph_key, ComponentGraphProjection::Members(component_id));
+        dependencies.project(
+            graph_key,
+            ComponentGraphProjection::Dependencies(component_id),
+        );
 
-        // emit options come from the entry package config
+        // observe package config for check options
         let entry_module = self.module(context.revision(), entry)?;
         self.observe_package_config(context, entry_module.package_id, &mut dependencies)?;
 
-        // the component graph reveals the member and external inputs once built
+        // resolve graph projections before declaring component inputs
         let artifacts = self.artifact_reader(context.revision());
         let graph = match artifacts.component_graph(profile) {
             Ok(graph) => graph,
@@ -40,14 +45,24 @@ impl Compiler {
             Err(error) => return Err(error.into()),
         };
 
-        // the component's own resolved members
+        // require DIR payloads read for owned members
         for module in graph.members(component_id) {
+            dependencies.require(ArtifactKey::dir_parsed(*module));
+            dependencies.require(ArtifactKey::dir_bound(*module, profile));
             dependencies.require(ArtifactKey::dir_resolved(*module, profile));
+            dependencies.require(ArtifactKey::dir_expanded(*module, profile));
         }
 
-        // every transitive external component's checked inputs
-        let external_components = external_components(&graph, component_id);
-        self.collect_check_inputs(profile, &external_components, &mut dependencies);
+        // project external components reached by this component
+        let external_components = external_components(&graph, component_id)?;
+        for component in external_components.components.keys() {
+            dependencies.project(graph_key, ComponentGraphProjection::Members(*component));
+            dependencies.project(
+                graph_key,
+                ComponentGraphProjection::Dependencies(*component),
+            );
+        }
+        self.require_component_check_dependencies(profile, &external_components, &mut dependencies);
 
         Ok(dependencies)
     }
@@ -61,9 +76,11 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         let artifacts = self.artifact_reader(context.revision());
-        let graph = self.read_component_graph(&artifacts, profile)?;
+        let graph = artifacts
+            .component_graph(profile)
+            .map_err(CompilerError::from)?;
 
-        // read the component's members and validate the key
+        // validate the requested component key against the graph
         let modules = graph.members(component_id).to_vec();
         if modules.is_empty() || graph.entry(component_id) != Some(entry) {
             return Err(CompilerError::Internal {
@@ -74,9 +91,11 @@ impl Compiler {
             });
         }
 
-        // read the component's externals and global environment
-        let external_components = external_components(&graph, component_id);
-        let environment = self.read_check_environment(&artifacts, profile)?;
+        // load context shared across the component check
+        let external_components = external_components(&graph, component_id)?;
+        let environment = artifacts
+            .global_environment(profile)
+            .map_err(CompilerError::from)?;
         let entry_module = self.module(context.revision(), entry)?;
         let options = self.workspace_compiler_options(context, entry_module.as_ref())?;
 
@@ -88,7 +107,7 @@ impl Compiler {
             &artifacts,
             profile,
             environment,
-            external_components,
+            external_components.modules,
             emit_events,
         );
         check.load(modules.as_slice())?;
@@ -96,7 +115,7 @@ impl Compiler {
         check.propagate()?;
         check.solve()?;
 
-        // record state
+        // emit solver counters and optional trace sidecars
         let stats = check.stats();
         context.emit_counter("variables", stats.variables as u64);
         context.emit_counter("constraints", stats.constraints as u64);
@@ -109,14 +128,14 @@ impl Compiler {
         }
         let events = emit_events.then(|| check.events());
 
-        // reify solved annotations into rendered source sidecars
+        // render checked type annotations when requested
         if options.emit_checked_types {
             for source in check.render_annotated_sources()? {
                 context.emit_sidecar(annotated_sidecar(source));
             }
         }
 
-        // commit output DIR tables
+        // commit checked DIR tables and diagnostics
         let (modules, diagnostics) = check.commit()?;
         context.emit_diagnostics(diagnostics);
         if let Some(events) = events {
@@ -139,9 +158,13 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
         let mut dependencies = ArtifactDependencySet::default();
-        dependencies.require(ArtifactKey::component_graph(profile));
+        let graph_key = ArtifactKey::component_graph(profile);
+        dependencies.project(
+            graph_key,
+            ComponentGraphProjection::ComponentEntryOf(module),
+        );
 
-        // the owning component is revealed by the graph once it is built
+        // resolve the graph projection before declaring the component input
         let artifacts = self.artifact_reader(context.revision());
         let graph = match artifacts.component_graph(profile) {
             Ok(graph) => graph,
@@ -153,13 +176,18 @@ impl Compiler {
             Err(error) => return Err(error.into()),
         };
 
-        if let Some(component) = graph.component(module)
-            && let Some(entry) = graph.entry(component)
-        {
-            dependencies.require(ArtifactKey::dir_checked_component(
-                entry, component, profile,
-            ));
-        }
+        // resolve the owning component behind the checked facade
+        let (component, entry) =
+            graph
+                .component_entry(module)
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("module {module:?} is absent from the component graph"),
+                })?;
+
+        dependencies.project(
+            ArtifactKey::dir_checked_component(entry, component, profile),
+            ArtifactProjectionKey::DirChecked(module),
+        );
 
         Ok(dependencies)
     }
@@ -172,19 +200,17 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         let artifacts = self.artifact_reader(context.revision());
-        let graph = self.read_component_graph(&artifacts, profile)?;
+        let graph = artifacts
+            .component_graph(profile)
+            .map_err(CompilerError::from)?;
 
         // resolve the owning component behind the checked facade
-        let component = graph
-            .component(module)
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("module {module:?} is absent from the component graph"),
-            })?;
-        let entry = graph
-            .entry(component)
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("component {component} has no entry module"),
-            })?;
+        let (component, entry) =
+            graph
+                .component_entry(module)
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("module {module:?} is absent from the component graph"),
+                })?;
 
         Ok(ArtifactPayload::DirChecked(Arc::new(DirChecked {
             component,
@@ -192,89 +218,76 @@ impl Compiler {
         })))
     }
 
-    /// Read the component graph for one profile.
-    fn read_component_graph(
-        &self,
-        artifacts: &ArtifactReader<'_>,
-        profile: ProfileId,
-    ) -> CompilerResult<Arc<ComponentGraph>> {
-        artifacts
-            .component_graph(profile)
-            .map_err(CompilerError::from)
-    }
-
-    /// Declare every input artifact one component check reads.
-    fn collect_check_inputs(
+    /// Require dependencies read by one component check.
+    fn require_component_check_dependencies(
         &self,
         profile: ProfileId,
-        external_components: &IndexMap<ModuleId, CheckComponentKey>,
+        external_components: &ExternalComponents,
         dependencies: &mut ArtifactDependencySet,
     ) {
-        // each external module's expanded DIR
-        for module in external_components.keys() {
+        // require global tables shared by component checks
+        dependencies.require(ArtifactKey::global_environment(profile));
+
+        // require expanded DIR for external modules
+        for module in external_components.modules.keys() {
             dependencies.require(ArtifactKey::dir_expanded(*module, profile));
         }
 
-        // each external component's checked tables
-        for dependency in external_components
-            .values()
-            .copied()
-            .collect::<IndexSet<_>>()
-        {
+        // require checked tables for external components
+        for (component, entry) in &external_components.components {
             dependencies.require(ArtifactKey::dir_checked_component(
-                dependency.entry,
-                dependency.component,
-                profile,
+                *entry, *component, profile,
             ));
         }
-
-        dependencies.require(ArtifactKey::global_environment(profile));
-    }
-
-    /// Read the global environment one component check reads.
-    fn read_check_environment(
-        &self,
-        artifacts: &ArtifactReader<'_>,
-        profile: ProfileId,
-    ) -> CompilerResult<Arc<GlobalEnvironment>> {
-        artifacts
-            .global_environment(profile)
-            .map_err(CompilerError::from)
     }
 }
 
 /// Map every transitive external module to its checked component key.
-/// Committed tables reference types across the whole dependency closure,
-/// so every component reachable through the condensation is external.
 fn external_components(
     graph: &ComponentGraph,
     component: ComponentId,
-) -> IndexMap<ModuleId, CheckComponentKey> {
-    let mut externals = IndexMap::new();
+) -> CompilerResult<ExternalComponents> {
+    let mut components = IndexMap::new();
+    let mut modules = IndexMap::new();
     let mut seen = IndexSet::new();
     let mut pending = graph.dependencies(component).to_vec();
 
-    // walk the condensation forward from the checked component
+    // walk component dependencies transitively
     while let Some(dependency) = pending.pop() {
         if !seen.insert(dependency) {
             continue;
         }
-        let Some(entry) = graph.entry(dependency) else {
-            continue;
-        };
 
-        // bind every member of the external component to its key
+        let entry = graph
+            .entry(dependency)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("component {dependency} has no entry module"),
+            })?;
+        components.insert(dependency, entry);
+
+        // bind dependency members to their component check
         let key = CheckComponentKey {
             entry,
             component: dependency,
         };
         for module in graph.members(dependency) {
-            externals.insert(*module, key);
+            modules.insert(*module, key);
         }
         pending.extend(graph.dependencies(dependency).iter().copied());
     }
 
-    externals
+    Ok(ExternalComponents {
+        components,
+        modules,
+    })
+}
+
+/// External checked component inputs reached from one component.
+struct ExternalComponents {
+    /// The external component entries reached through the condensation.
+    components: IndexMap<ComponentId, ModuleId>,
+    /// The external modules keyed to their checked component.
+    modules: IndexMap<ModuleId, CheckComponentKey>,
 }
 
 /// Build one check-phase sidecar.

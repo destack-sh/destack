@@ -19,6 +19,9 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
         let mut dependencies = ArtifactDependencySet::default();
+        dependencies.require(ArtifactKey::dir_parsed(module));
+        dependencies.require(ArtifactKey::dir_bound(module, profile));
+        dependencies.require(ArtifactKey::dir_imported(module, profile));
         dependencies.require(ArtifactKey::dir_expanded(module, profile));
         dependencies.require(ArtifactKey::global_environment(profile));
 

@@ -210,6 +210,7 @@ impl<'a> JsLinker<'a> {
 
             // asset modules link directly from patched module state
             if !module.is_code() {
+                dependencies.require(ArtifactKey::dir_bound(module_id, profile_id));
                 dependencies.require(ArtifactKey::dir_checked(module_id, profile_id));
                 required_modules.push(module_id);
                 continue;
@@ -218,6 +219,8 @@ impl<'a> JsLinker<'a> {
             // code modules link from emitted output and the checked dir
             let output_key = ArtifactKey::script(module_id, *self.target_id);
             dependencies.require(output_key);
+            dependencies.require(ArtifactKey::dir_bound(module_id, profile_id));
+            dependencies.require(ArtifactKey::dir_expanded(module_id, profile_id));
             dependencies.require(ArtifactKey::dir_checked(module_id, profile_id));
             required_modules.push(module_id);
 
@@ -284,6 +287,8 @@ impl<'a> JsLinker<'a> {
                 continue;
             };
 
+            requirements.insert(ArtifactKey::dir_bound(target_module, profile_id));
+            requirements.insert(ArtifactKey::dir_expanded(target_module, profile_id));
             requirements.insert(ArtifactKey::dir_exported(target_module, profile_id));
         }
 
