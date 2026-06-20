@@ -1,9 +1,17 @@
-use crate::{NativeContext, NativeStatusCode, NativeValue};
+use crate::{NativeContext, NativeContinuation, NativeExitCode, NativeValue};
 
-/// Loaded native entry function.
+/// Native entry function.
 pub type NativeEntry = unsafe extern "C" fn(
     context: *mut NativeContext,
     args: *const NativeValue,
     arg_count: usize,
     out: *mut NativeValue,
-) -> NativeStatusCode;
+) -> NativeExitCode;
+
+/// Native continuation resume function.
+pub type NativeResumeEntry = unsafe extern "C" fn(
+    context: *mut NativeContext,
+    continuation: NativeContinuation,
+    received: NativeValue,
+    out: *mut NativeValue,
+) -> NativeExitCode;

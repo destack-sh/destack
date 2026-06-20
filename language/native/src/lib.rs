@@ -1,11 +1,13 @@
 mod abi;
 mod code;
-mod executor;
 mod image;
+mod loader;
+mod machine;
 mod program;
 
 pub use abi::*;
 pub use code::*;
-pub use executor::*;
 pub use image::*;
+pub use loader::*;
+pub use machine::*;
 pub use program::*;

@@ -1,6 +1,6 @@
 [package]
 name = "destack_native"
-description = "Destack native execution backend"
+description = "Destack native execution machine"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
