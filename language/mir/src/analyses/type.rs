@@ -102,6 +102,7 @@ pub enum TypeKey {
         element: Box<TypeKey>,
         shape: Vec<mir::TensorDimension>,
         format: mir::TensorFormat,
+        sharding: mir::TensorSharding,
         copy: mir::Copy,
     },
     /// Tensor view type.
@@ -113,6 +114,7 @@ pub enum TypeKey {
         element: Box<TypeKey>,
         shape: Vec<mir::TensorDimension>,
         format: mir::TensorViewFormat,
+        sharding: mir::TensorSharding,
         nullability: mir::Nullability,
     },
     /// Bare function signature.
@@ -296,11 +298,13 @@ impl TypeKey {
                 element,
                 shape,
                 format,
+                sharding,
                 copy,
             } => TypeKey::Tensor {
                 element: Box::new(Self::from_type_id(element, tree)),
                 shape: shape.clone(),
-                format: format.clone(),
+                format: *format,
+                sharding: sharding.clone(),
                 copy: *copy,
             },
 
@@ -312,6 +316,7 @@ impl TypeKey {
                 element,
                 shape,
                 format,
+                sharding,
                 nullability,
             } => TypeKey::TensorView {
                 kind: *kind,
@@ -320,7 +325,8 @@ impl TypeKey {
                 access: *access,
                 element: Box::new(Self::from_type_id(element, tree)),
                 shape: shape.clone(),
-                format: format.clone(),
+                format: *format,
+                sharding: sharding.clone(),
                 nullability: *nullability,
             },
 

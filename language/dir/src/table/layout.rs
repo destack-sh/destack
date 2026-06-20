@@ -410,13 +410,6 @@ pub struct TupleLayout {
     pub elements: Vec<LayoutField>,
 }
 
-/// Concrete layout for a pointer storage slot.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PointerLayout {
-    /// The pointed-to value type.
-    pub pointee: GlobalTypeId,
-}
-
 /// Layout for inline indexed element storage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ElementLayout {
@@ -429,17 +422,174 @@ pub struct ElementLayout {
 }
 
 /// Concrete layout for a tensor handle.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TensorLayout {
+    /// The tensor element type.
+    pub element: GlobalTypeId,
+    /// The tensor storage format.
+    pub format: TensorFormat,
+    /// The tensor placement.
+    pub sharding: TensorSharding,
     /// The tensor rank.
     pub rank: u32,
 }
 
 /// Concrete layout for a tensor view descriptor.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TensorViewLayout {
+    /// The viewed element type.
+    pub element: GlobalTypeId,
+    /// The tensor view format.
+    pub format: TensorViewFormat,
+    /// The tensor placement.
+    pub sharding: TensorSharding,
     /// The tensor rank.
     pub rank: u32,
+}
+
+/// Dimension order for dense tensor storage.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TensorDimensionOrder {
+    /// Last dimension is contiguous.
+    RowMajor,
+    /// First dimension is contiguous.
+    ColumnMajor,
+}
+
+impl TensorDimensionOrder {
+    /// Return the dimension order represented by one `MemoryOrder` discriminant.
+    pub fn from_discriminant(value: i64) -> Option<Self> {
+        match value {
+            1 => Some(Self::RowMajor),
+            2 => Some(Self::ColumnMajor),
+            _ => None,
+        }
+    }
+}
+
+/// Format for an owning tensor value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TensorFormat {
+    /// Dense contiguous format.
+    Dense {
+        /// The dimension order.
+        order: TensorDimensionOrder,
+    },
+}
+
+impl TensorFormat {
+    /// Return the default dense row-major tensor format.
+    pub fn dense_row_major() -> Self {
+        Self::Dense {
+            order: TensorDimensionOrder::RowMajor,
+        }
+    }
+}
+
+/// Format descriptor for a tensor view.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TensorViewFormat {
+    /// Dense contiguous view.
+    Dense {
+        /// The dimension order.
+        order: TensorDimensionOrder,
+    },
+    /// Explicit strided view.
+    Strided,
+}
+
+impl TensorViewFormat {
+    /// Return the default dense row-major tensor view format.
+    pub fn dense_row_major() -> Self {
+        Self::Dense {
+            order: TensorDimensionOrder::RowMajor,
+        }
+    }
+
+    /// Return the pointer-sized descriptor slot count for a view of `rank`.
+    pub fn descriptor_slots(self, rank: u32) -> u32 {
+        match self {
+            Self::Dense { .. } => 1u32.saturating_add(rank),
+            Self::Strided => 1u32.saturating_add(rank.saturating_mul(2)),
+        }
+    }
+}
+
+impl From<TensorFormat> for TensorViewFormat {
+    /// Convert an owning tensor format into its view descriptor format.
+    fn from(format: TensorFormat) -> Self {
+        match format {
+            TensorFormat::Dense { order } => TensorViewFormat::Dense { order },
+        }
+    }
+}
+
+/// Placement descriptor for tensor storage.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TensorSharding {
+    /// Tensor storage is not partitioned across a mesh.
+    Unsharded,
+    /// Tensor storage is mapped across a mesh axis by axis.
+    Sharding {
+        /// The per-axis placement descriptors.
+        axes: Vec<TensorShardingAxis>,
+    },
+}
+
+impl TensorSharding {
+    /// Return the default unsharded tensor placement.
+    pub fn unsharded() -> Self {
+        Self::Unsharded
+    }
+}
+
+/// Per-axis placement descriptor for a sharded tensor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TensorShardingAxis {
+    /// Split one tensor axis across one mesh axis.
+    Shard {
+        /// The tensor axis being split.
+        axis: i32,
+    },
+    /// Replicate values across one mesh axis.
+    Replicate,
+    /// Store partial results across one mesh axis.
+    Partial {
+        /// The reduction used to combine partial values.
+        reduction: TensorReduction,
+    },
+}
+
+/// Reduction used when partial tensor shards are combined.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TensorReduction {
+    /// Add partial values.
+    Add,
+    /// Multiply partial values.
+    Multiply,
+    /// Keep the minimum partial value.
+    Minimum,
+    /// Keep the maximum partial value.
+    Maximum,
+    /// Combine partial boolean values with AND.
+    And,
+    /// Combine partial boolean values with OR.
+    Or,
+}
+
+impl TensorReduction {
+    /// Return the reduction represented by one `TensorReduction` discriminant.
+    pub fn from_discriminant(value: i64) -> Option<Self> {
+        match value {
+            1 => Some(Self::Add),
+            2 => Some(Self::Multiply),
+            3 => Some(Self::Minimum),
+            4 => Some(Self::Maximum),
+            5 => Some(Self::And),
+            6 => Some(Self::Or),
+            _ => None,
+        }
+    }
 }
 
 /// Concrete layout for a variant value.
@@ -478,6 +628,13 @@ pub struct NewtypeLayout {
     pub backing_type: GlobalTypeId,
     /// The backing type layout.
     pub backing_layout: LocalLayoutId,
+}
+
+/// Concrete layout for a pointer storage slot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PointerLayout {
+    /// The pointed-to value type.
+    pub pointee: GlobalTypeId,
 }
 
 /// Concrete field or tuple-element layout.
