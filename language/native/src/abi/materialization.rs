@@ -1,7 +1,6 @@
 use std::error::Error;
 use std::fmt;
 
-use destack_mir as mir;
 use destack_program::{ContinuationImage, FrameImage, StackImage};
 
 use crate::NativeFrameImage;
@@ -27,7 +26,7 @@ impl NativeFrameImage {
         let stack_offset = stack.push_frame(bytes);
 
         Ok(FrameImage {
-            frame_state: mir::FrameStateId(self.frame_state),
+            frame_state: self.frame_state.into(),
             return_state: self.caller_return_state(),
             stack_offset,
             byte_len: self.byte_len,

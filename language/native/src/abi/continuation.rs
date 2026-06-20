@@ -79,11 +79,11 @@ impl NativeContinuation {
 
 impl NativeFrameImage {
     /// Return the caller return frame state.
-    pub const fn caller_return_state(self) -> Option<mir::FrameStateId> {
+    pub fn caller_return_state(self) -> Option<mir::FrameStateId> {
         if self.return_state_is_present == 0 {
             None
         } else {
-            Some(mir::FrameStateId(self.return_state))
+            Some(self.return_state.into())
         }
     }
 
@@ -107,7 +107,7 @@ impl NativeFrameImage {
         let stack_offset = stack.push_frame(bytes);
 
         Ok(FrameImage {
-            frame_state: mir::FrameStateId(self.frame_state),
+            frame_state: self.frame_state.into(),
             return_state: self.caller_return_state(),
             stack_offset,
             byte_len: self.byte_len,
